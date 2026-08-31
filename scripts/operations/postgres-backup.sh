@@ -6,7 +6,13 @@ umask 077
 readonly container_name="${CF_POSTGRES_CONTAINER:-cf-next-postgres}"
 readonly artifact_root="${CF_BACKUP_ARTIFACT_ROOT:-/var/backups/content-factory-next/postgres}"
 readonly retention_days="${CF_BACKUP_RETENTION_DAYS:-14}"
-readonly backup_id="${CF_BACKUP_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+# The script names the artifact after one moment and expires artifacts against
+# another. While the second one was always the real clock, a caller could pin
+# the name but not the window — so a fixed `CF_BACKUP_ID` drifted out of its own
+# retention window as the real date moved, and the run deleted what it had just
+# published. One knob feeds both, `now` by default, so the two cannot disagree.
+readonly now_spec="${CF_BACKUP_NOW:-now}"
+readonly backup_id="${CF_BACKUP_ID:-$(date -u -d "$now_spec" +%Y%m%dT%H%M%SZ)}"
 readonly temporal_database="temporal"
 readonly visibility_database="temporal_visibility"
 
@@ -32,7 +38,7 @@ cleanup_partial() {
 
 expire_completed_backups() {
   local cutoff candidate candidate_name
-  cutoff="$(date -u -d "-${retention_days} days" +%Y%m%dT%H%M%SZ)"
+  cutoff="$(date -u -d "$now_spec -${retention_days} days" +%Y%m%dT%H%M%SZ)"
 
   shopt -s nullglob
   for candidate in "$artifact_root_real"/*; do
@@ -73,6 +79,12 @@ require_command find
 }
 [[ "$backup_id" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
   printf 'CF_BACKUP_ID must use YYYYMMDDTHHMMSSZ.\n' >&2
+  exit 1
+}
+# An unparsable moment would otherwise surface as an empty cutoff, and an empty
+# cutoff expires nothing at all — a silent loss of the retention pass.
+date -u -d "$now_spec" >/dev/null 2>&1 || {
+  printf 'CF_BACKUP_NOW must be a moment date(1) can read.\n' >&2
   exit 1
 }
 

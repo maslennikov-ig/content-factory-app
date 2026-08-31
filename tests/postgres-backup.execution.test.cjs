@@ -158,6 +158,13 @@ function runBackup({
   sourceUser = 'contentfactory',
   mastraDatabase = 'contentfactory_mastra',
   backupId = '20260817T120000Z',
+  // Pinning the artifact's name without pinning the moment it is judged
+  // against is what broke this suite on 31.08.2026: the fixture is stamped
+  // 17.08, retention counts fourteen days back from the real clock, and at
+  // 12:00 UTC that day the cutoff walked past the fixture. The run then swept
+  // the artifact it had just published, and five tests died at once — on code
+  // that had not changed. Both clocks come from here now.
+  backupNow = '2026-08-17T12:00:00Z',
   quiesced = true,
   pgRestoreStatus = 0,
   emptyDumpFor = '',
@@ -166,11 +173,30 @@ function runBackup({
   productRuntimeUser = 'cf_product_runtime',
   mastraRuntimeUser = 'cf_mastra_runtime',
   seedPartials = [],
+  seedCompleted = [],
+  seedBare = [],
 } = {}) {
   caseCounter += 1;
   const caseDir = path.join(workspace, `case-${caseCounter}`);
   const artifactRoot = path.join(caseDir, 'artifacts');
   fs.mkdirSync(artifactRoot, { recursive: true });
+
+  // A published artifact, as the retention sweep recognises one: a UTC name
+  // plus both receipts. Missing either, the sweep skips it on purpose — that
+  // is how a directory it does not own survives.
+  for (const name of seedCompleted) {
+    const seeded = path.join(artifactRoot, name);
+    fs.mkdirSync(seeded);
+    fs.writeFileSync(path.join(seeded, 'product.dump'), 'older run');
+    fs.writeFileSync(path.join(seeded, 'manifest.env'), 'backup_id=' + name);
+    fs.writeFileSync(path.join(seeded, 'checksums.sha256'), '');
+  }
+
+  // A UTC-named directory with no receipts: something the sweep must leave
+  // alone however old it is, because it did not publish it.
+  for (const name of seedBare) {
+    fs.mkdirSync(path.join(artifactRoot, name));
+  }
 
   for (const { name, ageDays } of seedPartials) {
     const seeded = path.join(artifactRoot, name);
@@ -194,6 +220,7 @@ function runBackup({
       CF_POSTGRES_CONTAINER: 'cf-stub-postgres',
       CF_BACKUP_ARTIFACT_ROOT: artifactRoot,
       CF_BACKUP_ID: backupId,
+      CF_BACKUP_NOW: backupNow,
       ...(quiesced ? { CF_BACKUP_QUIESCED: '1' } : {}),
       CF_STUB_LOG: stubLog,
       CF_STUB_IMAGE: 'postgres:17-alpine',
@@ -415,6 +442,51 @@ describeIfWritable('the backup script, executed against a stub docker', () => {
     expect(
       fs.existsSync(path.join(artifactRoot, '.partial.20260101T000000Z.4242'))
     ).toBe(false);
+  });
+
+  /**
+   * `expire_completed_backups` had no executable test — only a contract check
+   * that the function is called. The retention window was therefore free to be
+   * wrong, and on 31.08.2026 it was: counted against the real clock while the
+   * artifact carried a pinned name, it walked past the fixture and deleted the
+   * backup the same run had just written. A green suite said nothing.
+   *
+   * So this exercises the window itself, from both sides. Fourteen days back
+   * from the pinned moment is 03.08.2026: an artifact from July goes, one from
+   * five days before the run stays, and the run's own artifact stays with it.
+   */
+  test('retention expires what is past the window and keeps what is inside it', () => {
+    const { result, entries } = runBackup({
+      seedCompleted: [
+        // Well past fourteen days before the run.
+        '20260701T000000Z',
+        // Five days before the run: inside the window by a wide margin.
+        '20260812T120000Z',
+      ],
+    });
+
+    expect(result.status).toBe(0);
+    expect(entries).toEqual([
+      '20260812T120000Z',
+      '20260817T120000Z',
+    ]);
+  });
+
+  test('a directory the sweep does not own survives a run that expires its neighbour', () => {
+    // Two directories, same age, both well past the window; only one carries
+    // the receipts. The sweep is scoped to artifacts it published, and this is
+    // how that scoping is proven rather than asserted: widen it and the
+    // receiptless neighbour goes too.
+    const { result, entries } = runBackup({
+      seedCompleted: ['20260701T000000Z'],
+      seedBare: ['20260701T000001Z'],
+    });
+
+    expect(result.status).toBe(0);
+    expect(entries).toEqual([
+      '20260701T000001Z',
+      '20260817T120000Z',
+    ]);
   });
 
   test('an unreadable archive is refused before the artifact is published', () => {

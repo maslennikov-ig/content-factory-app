@@ -18,10 +18,10 @@ refuses without a green suite receipt for `HEAD`. Actions run again on the publi
 repository, where `full-suite`, `docker-backed-operations` and CodeQL are green
 and the first two are required on `main`; the receipt stays the release gate.
 
-Full local acceptance on the tip, 31.08 under Node 22.23.2: **224 Jest suites /
-3076 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
+Full local acceptance on the tip, 31.08 under Node 22.23.2: **225 Jest suites /
+3109 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
 docs 111 files, process verification and `git diff --check` clean. `tsc --noEmit`
-still shows five pre-existing errors in four untouched files.
+still shows five pre-existing errors. Backup retention now reads `CF_BACKUP_NOW`.
 
 ### Wave eight — `pl1.7`, and the answer is not the one the task expected
 
