@@ -109,4 +109,22 @@ describe('the YouTube mark reaches the screen only through its recorded carriers
     expect(text).toContain('Не соблюдается нигде');
     expect(text).toContain('Здесь нет вывода о соответствии товарному знаку');
   });
+
+  /**
+   * The owner decided on 31.08.2026 to leave the display as it is and carry the
+   * gap as an accepted risk. A decision that only lives in a task tracker gets
+   * re-litigated by the next person who reads the four options and sees no
+   * answer — so it lives here, and it has to stay legible.
+   *
+   * The scope line matters as much as the decision: display terms were checked
+   * for YouTube alone, and someone reading "the mark question is settled" would
+   * otherwise carry that over to thirty-four marks nobody examined.
+   */
+  test('the accepted risk and its scope stay recorded, not just decided', () => {
+    const text = fs.readFileSync(path.join(root, inventory), 'utf8');
+
+    expect(text).toContain('Решение владельца: 31 августа 2026 года');
+    expect(text).toContain('принятый риск');
+    expect(text).toContain('Чего это решение не покрывает');
+  });
 });

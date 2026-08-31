@@ -138,12 +138,12 @@ Owner decisions; do not absorb or close them elsewhere (`content-factory-next-`)
 - `3aw` and `c6k.16` — owner choices; `cxd` needs the owner's private GPG key.
 - `2ua` — Tavily key and paid-call authority are missing.
 - `71m.7` — needs a connected Google channel.
-- `2la` — legal/UI review of YouTube mark size, links and display terms.
 - Parent epics `71m`, `c6k`, `ry5`, `saas` stay open where their children do.
 
 `cft` (the move to a public repository) and `9gd` need fresh owner authority;
 `7ph` proves the tree is ready and stops there. `vme.21` still needs the owner's
-own run on production.
+own run on production. **`2la` is decided 31.08.2026**: 48px against a published
+100px and no link, accepted as risk, reviewed for YouTube alone of 35 marks.
 
 ## Durable entrypoints
 
