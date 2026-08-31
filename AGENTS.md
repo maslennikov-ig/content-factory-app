@@ -26,7 +26,11 @@ Three rules follow, and each of them has cost something already:
   a claim about where the source lives.
 - **Work happens here, never in the public clone.** `/home/me/code/content-factory-app`
   is an output directory. An edit made there is lost at the next refresh, which
-  copies over it with `--delete`.
+  copies over it with `--delete`. The one thing that does happen there is the
+  release build: since 31.08.2026 the image is built from the published tree, so
+  it cannot contain a file Git does not track. The suite still runs here — the
+  two trees differ only by stage evidence, which no test reads. Order and
+  reasoning: `docs/operations/production-deploy.md`, «Обновление версии».
 
 `tests/repository-addresses.test.cjs` holds all three, so this is a fact the
 suite checks rather than something to remember.

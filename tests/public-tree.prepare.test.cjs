@@ -173,6 +173,23 @@ describeIfWritable('preparing the public tree', () => {
     expect(result.stderr).toContain('LICENSE is missing');
   });
 
+  test('a change to held-back evidence does not block the copy', () => {
+    // `pnpm test` rewrites `public-funnel-runtime/database.json` on every run.
+    // Refusing over a file that is never copied would make every release wait
+    // on a difference it does not have — and it is the same rule that decides
+    // what travels, written once and used twice.
+    const { repo } = makeRepository();
+    fs.writeFileSync(
+      path.join(repo, '.codex/stages/stage-a/evidence/screenshot.txt'),
+      'rewritten by a test run\n'
+    );
+
+    const result = prepare(repo, targetFor(repo));
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
   test('a modified tree is refused, so the copy is always some reviewed commit', () => {
     const { repo } = makeRepository();
     fs.writeFileSync(path.join(repo, 'app.txt'), 'uncommitted change\n');
@@ -317,5 +334,90 @@ describeIfWritable('refreshing an existing public clone', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('exists and is not empty');
     expect(result.stderr).toContain('--update');
+  });
+});
+
+describeIfWritable('the refresh prepares what the release gate will need', () => {
+  /**
+   * The clone numbers its commits separately, so the suite receipt — which
+   * names one commit — would never match there. The refresh therefore leaves
+   * two things behind: a commit message carrying the private commit id, and the
+   * receipt itself, which vouches for bytes that are the same on both sides.
+   */
+  const cloneOf = (repo) => {
+    const clone = path.join(workspace, `gate-clone-${path.basename(repo)}`);
+    spawnSync('git', ['clone', '-q', repo, clone], { encoding: 'utf8', env: { ...process.env, ...gitEnv } });
+    return clone;
+  };
+
+  const headOf = (repo) =>
+    spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).stdout.trim();
+
+  const writeReceipt = (repo, commit) => {
+    fs.mkdirSync(path.join(repo, 'var/release'), { recursive: true });
+    fs.writeFileSync(
+      path.join(repo, 'var/release/suite-receipt.json'),
+      JSON.stringify({ commit, command: 'pnpm test' })
+    );
+  };
+
+  test('it leaves a message naming the commit the tree came from', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+
+    const result = prepare(repo, clone, ['--update']);
+    const message = fs.readFileSync(path.join(clone, '.git/PREPARE_PUBLIC_COMMIT_MSG'), 'utf8');
+
+    expect(result.status).toBe(0);
+    expect(message).toContain(`Source-Commit: ${headOf(repo)}`);
+    // A trailer is the last block, or it is not a trailer.
+    expect(message.trimEnd().split('\n').pop()).toMatch(/^Source-Commit: [0-9a-f]{40}$/);
+    expect(result.stdout).toContain('Keep the Source-Commit trailer');
+  });
+
+  test('it carries a receipt that covers this commit', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    writeReceipt(repo, headOf(repo));
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('carried over');
+    expect(fs.existsSync(path.join(clone, 'var/release/suite-receipt.json'))).toBe(true);
+  });
+
+  test('it refuses to carry a receipt for a different commit', () => {
+    // Carrying it would put a receipt next to a tree it never ran against, and
+    // the gate would then accept the release on that evidence.
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    writeReceipt(repo, 'c'.repeat(40));
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('covers another commit and was not carried over');
+    expect(fs.existsSync(path.join(clone, 'var/release/suite-receipt.json'))).toBe(false);
+  });
+
+  test('with no receipt it says so rather than staying silent', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+
+    expect(prepare(repo, clone, ['--update']).stdout).toContain('no local suite receipt');
+  });
+
+  test('the receipt does not become part of the published tree', () => {
+    // `var/release` is ignored, so it travels beside the tree without becoming
+    // one of the files anybody clones.
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    writeReceipt(repo, headOf(repo));
+
+    prepare(repo, clone, ['--update']);
+    const tracked = spawnSync('git', ['status', '--porcelain'], { cwd: clone, encoding: 'utf8' }).stdout;
+
+    expect(tracked).not.toContain('var/release');
   });
 });

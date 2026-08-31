@@ -284,3 +284,104 @@ describe('the release order calls the suite gate', () => {
     expect(shared).not.toContain("':(exclude,top)var'\n");
   });
 });
+
+describeIfWritable('a receipt follows the tree into the public repository', () => {
+  /**
+   * The image is built in the clone of the public repository, which numbers its
+   * commits separately: the same bytes get a different id there. Comparing the
+   * receipt against HEAD would refuse every release, so a published commit
+   * records the private commit it was copied from and the gate reads that.
+   *
+   * The trailer defends against a mistake, not against forgery — anyone who can
+   * write it can write anything. These tests hold the mistake-shaped failures.
+   */
+  const publish = (repo, git, { trailer, receiptCommit }) => {
+    // Stand in for the published clone: same scripts, own commit, a receipt that
+    // names some private commit rather than this one.
+    fs.mkdirSync(path.join(repo, 'var/release'), { recursive: true });
+    fs.writeFileSync(
+      path.join(repo, 'var/release/suite-receipt.json'),
+      JSON.stringify({
+        commit: receiptCommit,
+        command: 'pnpm test',
+        jest: { suites: 'Test Suites: 225 passed', tests: 'Tests: 3095 passed' },
+        nodeTest: { pass: '# pass 93', fail: '# fail 0' },
+        python: 'OK',
+      })
+    );
+    fs.writeFileSync(path.join(repo, 'app.txt'), 'published tree\n');
+    git('add', '-A');
+    git('commit', '-qm', trailer ? `Publish the tree\n\n${trailer}` : 'Publish the tree');
+  };
+
+  const privateCommit = 'a'.repeat(40);
+
+  test('the gate accepts a receipt for the commit the trailer names', () => {
+    const { repo, git } = makeRepository();
+    publish(repo, git, {
+      trailer: `Source-Commit: ${privateCommit}`,
+      receiptCommit: privateCommit,
+    });
+
+    const checked = run(repo, 'check-suite-receipt.sh');
+
+    expect(checked.status).toBe(0);
+    expect(checked.stdout).toContain('was published from aaaaaaaaaaaa');
+    expect(checked.stdout).toContain('# fail 0');
+  });
+
+  test('a receipt for some other commit is still refused, and says which', () => {
+    const { repo, git } = makeRepository();
+    publish(repo, git, {
+      trailer: `Source-Commit: ${privateCommit}`,
+      receiptCommit: 'b'.repeat(40),
+    });
+
+    const checked = run(repo, 'check-suite-receipt.sh');
+
+    expect(checked.status).toBe(1);
+    expect(checked.stderr).toContain('bbbbbbbbbbbb');
+    expect(checked.stderr).toContain('published from aaaaaaaaaaaa');
+  });
+
+  test('a malformed trailer is refused rather than ignored', () => {
+    // Ignoring it would fall back to comparing against HEAD, which fails for a
+    // different reason and would send the reader looking in the wrong place.
+    const { repo, git } = makeRepository();
+    publish(repo, git, {
+      trailer: 'Source-Commit: not-a-commit',
+      receiptCommit: privateCommit,
+    });
+
+    const checked = run(repo, 'check-suite-receipt.sh');
+
+    expect(checked.status).toBe(1);
+    expect(checked.stderr).toContain('not a full');
+  });
+
+  test('the words in a commit body are not a trailer', () => {
+    // `%(trailers:key=…)` reads the trailer block only. A sentence mentioning
+    // Source-Commit in prose must not redirect the gate.
+    const { repo, git } = makeRepository();
+    publish(repo, git, {
+      trailer: `This commit mentions Source-Commit: ${privateCommit} in a sentence.\n\nAnd nothing else.`,
+      receiptCommit: privateCommit,
+    });
+
+    const checked = run(repo, 'check-suite-receipt.sh');
+
+    expect(checked.status).toBe(1);
+    expect(checked.stderr).not.toContain('published from');
+  });
+
+  test('without a trailer the gate behaves exactly as before', () => {
+    const { repo, git } = makeRepository();
+    publish(repo, git, { trailer: null, receiptCommit: privateCommit });
+
+    const checked = run(repo, 'check-suite-receipt.sh');
+
+    expect(checked.status).toBe(1);
+    expect(checked.stderr).toContain('and HEAD is');
+    expect(checked.stderr).not.toContain('published from');
+  });
+});
