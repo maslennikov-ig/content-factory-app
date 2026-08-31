@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-1db",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-1db",
+  "source_digest": "2b6f0fb7caa6bfea10ba2072c0f19667000074a7b3bbea7bd3c875ab3a90a5c2",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Ни один примитив ui/* не остаётся без единого потребителя, либо для оставшихся записана причина.",
+      "text_digest": "878db4f043b0b6a2aff272777c40d53c9a681907deb2f088ed98fb8d00dc9ec2"
+    }
+  ]
+}

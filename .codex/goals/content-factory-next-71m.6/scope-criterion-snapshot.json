@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-71m.6",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-71m.6",
+  "source_digest": "f79adb8d7aa099cfa07da412459527031c2a7dd39f502b9f376be59895e7fc25",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Лимиты пересчитаны под фактическое потребление и записаны в deploy/production/docker-compose.yaml",
+      "text_digest": "7a5e0c14dbf680198a82e09a45bc2344336e86a6995232d00e57c3fa62964d80"
+    }
+  ]
+}

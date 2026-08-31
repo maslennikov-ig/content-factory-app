@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-ia0",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-ia0",
+  "source_digest": "21894deec762628a6fbbd22e31e42fc0aeb03772cc04b09b403be915a80fecce",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Все реализуемые задачи приняты и закрыты одним пакетом после остановки агентов; дубликаты закрыты с точными ссылками; owner-blocked и 71m.7 остаются открытыми с актуальными фактами; parent epics остаются открытыми. Тематические ветки содержат коммиты и не слиты. Один финальный acceptance: pnpm test, pnpm run build, brand-scan, docs:check, process verification, git diff --check и чистый статус; дизайн дополнительно проходит ledgers, design.guard, design.contrast и визуальную проверку.",
+      "text_digest": "f0cf8a60a0f575628e60880901ccc999fd6d1927fd330df51e3baf3632a7c497"
+    }
+  ]
+}

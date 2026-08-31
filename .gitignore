@@ -1,0 +1,110 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# compiled output
+dist
+tmp
+/out-tsc
+# Evidence written by test and Playwright runs. It was tracked once, and the
+# screenshots carried the operator's own email in the sidebar of every frame.
+# Rebuild it under a test account when a finding needs a picture.
+output/
+# every environment file except the committed template: .env.local and
+# apps/*/.env were reachable while only the exact name .env was ignored
+.env*
+!.env.example
+# locally stored media when STORAGE_PROVIDER=local
+/uploads
+# Corresponding Source archive built for a release image. It is derived from a
+# commit by scripts/release/make-source-archive.sh, so committing it would put
+# the tree inside itself.
+/var/source/
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+
+# IDE - VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/graphify-out/
+/.lazyweb/
+/.playwright-cli/
+/.playwright-mcp/
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.nx/cache
+.nx/workspace-data
+
+# Next.js
+.next
+
+# Vim files
+**/*.swp
+**/*.swo
+
+# Temporary files
+*.orig
+*.~*~
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.codex/stages/*/.closeout.lock
+
+# ignore Secrets folder
+.secrets/
+libraries/plugins/src/plugins.ts
+i18n.cache
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# The owner's own posts, pulled from the stand for one measurement. Personal text:
+# it stays on the machine that measured it. The eval cache holds the same texts
+# plus a decrypted provider key, so it never leaves the machine either.
+.codex/stages/*/evidence/corpus.json
+scripts/evidence/voice-eval/corpus.*.json
+# A saved run holds the prompts, and a prompt carries the author's resolved
+# voice — his own words among them. The numbers derived from it are committed;
+# the generations stay beside the corpus they were measured against.
+.codex/stages/*/evidence/runs/*/generations.json
+# «Узнаю ли я себя» приходится читать на настоящих постах — иначе вопрос не
+# задать. Материал для этого ответа собирается из корпуса и остаётся рядом с
+# ним: он целиком состоит из собственных текстов автора.
+.codex/stages/*/evidence/avatars/recognise-*.txt
+# The second ruler is a measuring instrument, not a dependency of the product:
+# its Python environment and the model weights it downloads live beside the
+# stand and never enter the repository.
+scripts/evidence/voice-eval/second-ruler/.venv/
+scripts/evidence/voice-eval/second-ruler/weights/
+/var/release/
+scripts/evidence/voice-eval/corpora.json

@@ -1,0 +1,27 @@
+# Block for the host's shared Caddyfile. `cf-next-app` is the container name
+# from docker-compose.yaml; both sit on the external `caddy_network`, so Caddy
+# resolves it by name and nothing has to be published on the host.
+factory.aidevteam.ru {
+    encode zstd gzip
+
+    # Access logging is intentionally not enabled in this site block. The
+    # browser error path is also `access_log off` at the application Nginx
+    # ingress. Do not wrap/import this block into a site that adds access logs
+    # unless `/api/browser-errors` is excluded there as well.
+
+    reverse_proxy cf-next-app:5000 {
+        # Replace rather than append: the backend rate-limits on the client
+        # address, and an appended header lets a caller prepend whatever it
+        # likes. {remote_host} is the peer Caddy actually sees.
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}

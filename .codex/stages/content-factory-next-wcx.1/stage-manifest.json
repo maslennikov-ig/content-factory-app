@@ -1,0 +1,70 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-wcx.1",
+  "goal_id": "content-factory-next-wcx.1",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "internal-namespace-package-rename",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "typescript-path-aliases",
+      "workspace-package-metadata",
+      "branding-guardrails",
+      "durable-documentation"
+    ],
+    "risk_models": [
+      "cross-monorepo-import-resolution",
+      "lockfile-workspace-linkage",
+      "license-attribution-preservation",
+      "legacy-identifier-scope"
+    ],
+    "test_environments": [
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "pnpm-monorepo"
+    ],
+    "rollback_boundary": "uncommitted-stage-revert-on-codex-rename-namespace",
+    "acceptance_proofs": [
+      "alias-and-package-static-scans",
+      "workspace-build",
+      "full-test-suite",
+      "brand-scan",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-wcx.1",
+    "source_digest": "45702c49dba0b7a2e89cf1fba298a580f8dac2476f4ee85ed23f995203fdc37f",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "grep \u0040gitroom по ts/tsx/json/md вне node_modules и .next пуст; ни одного gitroom или postiz в поле name рабочих пакетов; после каждого из трёх коммитов зелёные build, полный pnpm test, brand-scan 0 unexplained и process verification.",
+        "text_digest": "248f159e03b875829bacedfa4e63acfe9c4bbdbe1840fa34eff6023781debdde"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-wcx.1/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "45702c49dba0b7a2e89cf1fba298a580f8dac2476f4ee85ed23f995203fdc37f",
+  "scope_ledger": "none",
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-wcx.1.review",
+      "stream_owner": "namespace-reviewer",
+      "artifact_path": ".codex/stages/content-factory-next-wcx.1/artifacts/content-factory-next-wcx.1-review.md"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[Unit]
+Description=Content Factory raw telemetry retention (90 days)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+# The two barriers the script demands before it deletes anything.
+# CF_CONFIRM_SAAS_RETENTION proves the run means to delete; the value is the
+# fixed literal the script looks for and is not a secret.
+Environment=CF_CONFIRM_SAAS_RETENTION=apply
+# CF_SAAS_RETENTION_TARGET proves the run knows where. It lives here and must
+# never move into app.env: the script compares it with the host:port/database
+# it derives from DATABASE_URL, and app.env is where DATABASE_URL lives. One
+# edit repointing the instance at another database would carry the expectation
+# along with it, both sides of the comparison would agree again, and the
+# barrier would wave through a delete on a database nobody meant to touch.
+# The value is deliberately safe to write down — no user, no password, no
+# query parameters. Take it from a dry-run on the target host:
+#   docker exec cf-next-app node /app/scripts/operations/cleanup-saas-retention.cjs
+# and change it here, as its own deliberate edit, when the instance moves. A
+# host whose database differs from the line below fails closed before the
+# script opens a connection; that refusal is the unit working, not a defect.
+Environment=CF_SAAS_RETENTION_TARGET=cf-postgres:5432/contentfactory
+# The script runs from inside the application image rather than from a copy on
+# the host: there it sits beside the Prisma client and the schema that client
+# was generated from, so the delete and the database access can never drift
+# apart across an image update. A stopped or missing cf-next-app makes
+# `docker exec` exit non-zero, which is the failure we want to see.
+ExecStart=/usr/bin/docker exec \
+  --env CF_CONFIRM_SAAS_RETENTION \
+  --env CF_SAAS_RETENTION_TARGET \
+  cf-next-app \
+  node /app/scripts/operations/cleanup-saas-retention.cjs --apply
+# Type=oneshot disables the start timeout by default, so without this line a
+# delete blocked on a lock would leave the unit in `activating` until someone
+# noticed — the one failure mode the journal would not report. The timeout
+# ends systemd's wait and marks the unit failed; it stops the `docker exec`
+# client, not necessarily the transaction inside the container, so a timeout
+# is a signal to go and look, not proof that the delete was abandoned. The
+# window is far shorter than the gap to the next scheduled run.
+TimeoutStartSec=15min

@@ -1,0 +1,67 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-71m.5",
+  "goal_id": "content-factory-next-71m.5",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 6,
+  "acceptance_boundary_id": "backend-startup-memory",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "backend-startup",
+      "google-auth",
+      "google-social-providers"
+    ],
+    "risk_models": [
+      "memory-attribution",
+      "lazy-import-behavior",
+      "oauth-compatibility"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-monorepo"
+    ],
+    "rollback_boundary": "single-branch-revert",
+    "acceptance_proofs": [
+      "isolated-process-memory-samples",
+      "focused-provider-contract-tests",
+      "workspace-build",
+      "full-test-suite",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-71m.5",
+    "source_digest": "64d9c3e2362dad4c8687c1dcb95eb0c3beb6f91149e4793bdea7b334bbcc8546",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Названы главные потребители с оценкой, предложено конкретное изменение или обосновано, что 380 МБ это нормальный минимум",
+        "text_digest": "2f90303bcdd5b0f326667d9fefc8c8dcf907b5c5d7646d03966b2c82bfe55eb2"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-71m.5/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "64d9c3e2362dad4c8687c1dcb95eb0c3beb6f91149e4793bdea7b334bbcc8546",
+  "scope_ledger": "none",
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-71m.5",
+      "stream_owner": "memory-google-lazy",
+      "artifact_path": ".codex/stages/content-factory-next-71m.5/artifacts/googleapis-lazy.md"
+    }
+  ]
+}

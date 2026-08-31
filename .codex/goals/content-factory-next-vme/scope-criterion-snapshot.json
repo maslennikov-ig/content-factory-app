@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-vme",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-vme",
+  "source_digest": "b9918cb8b4fb2ff2861bf8c9cc02d2697402ff3b951ecdd1b6d2dc33d3affa0d",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Семь стадий закрыты своей приёмкой в объявленном порядке; content-factory-next-cft выполнена последней; ни одно из девяти перечисленных решений владельца не закрыто, не поглощено и не сужено ни одной стадией.",
+      "text_digest": "3432f52e3efbb325971412b0aa03cb2c5156d37e3d84c6b0b75d957a28bb87a2"
+    }
+  ]
+}

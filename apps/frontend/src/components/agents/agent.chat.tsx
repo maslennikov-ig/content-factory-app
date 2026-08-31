@@ -1,0 +1,442 @@
+'use client';
+
+import React, {
+  FC,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { CopilotChat, CopilotKitCSSProperties } from '@copilotkit/react-ui';
+import {
+  InputProps,
+  UserMessageProps,
+} from '@copilotkit/react-ui/dist/components/chat/props';
+import { Input } from '@contentfactory/frontend/components/agents/agent.input';
+import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
+import { Select } from '@contentfactory/react/form/select';
+import {
+  CopilotKit,
+  useCopilotAction,
+  useCopilotMessagesContext,
+} from '@copilotkit/react-core';
+import {
+  MediaPortal,
+  PropertiesContext,
+} from '@contentfactory/frontend/components/agents/agent';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useParams } from 'next/navigation';
+import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
+import {
+  Message as CopilotMessage,
+  TextMessage,
+} from '@copilotkit/runtime-client-gql';
+import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
+import dayjs from 'dayjs';
+import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import { ExistingDataContextProvider } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
+import { defaultContentLanguageForIntegrations } from '@contentfactory/nestjs-libraries/dtos/content.language';
+import { OpeningBand } from '@contentfactory/react/layout';
+
+export const AgentChat: FC = () => {
+  const { backendUrl, language: interfaceLanguage } = useVariables();
+  const params = useParams<{ id: string }>();
+  const { properties } = useContext(PropertiesContext);
+  const t = useT();
+  const [contentLanguage, setContentLanguage] = useState<'en' | 'ru'>(
+    interfaceLanguage === 'ru' ? 'ru' : 'en'
+  );
+
+  // The channels only seed the language. Adding a channel used to overwrite a
+  // language the author had picked by hand, and only the first channel counted
+  // — the same shape autopost already solves with `languageWasSelected`.
+  const languageWasSelected = useRef(false);
+  useEffect(() => {
+    if (languageWasSelected.current) {
+      return;
+    }
+    setContentLanguage((current) =>
+      defaultContentLanguageForIntegrations(properties, current)
+    );
+  }, [properties]);
+
+  return (
+    <CopilotKit
+      {...(params.id === 'new' ? {} : { threadId: params.id })}
+      credentials="include"
+      runtimeUrl={backendUrl + '/copilot/agent'}
+      showDevConsole={false}
+      agent="content-factory"
+      properties={{
+        integrations: properties,
+        contentLanguage,
+      }}
+    >
+      <Hooks />
+      <LoadMessages id={params.id} />
+      <div
+        style={
+          {
+            '--copilot-kit-primary-color': 'var(--new-btn-text)',
+            '--copilot-kit-background-color': 'var(--new-bg-color)',
+          } as CopilotKitCSSProperties
+        }
+        className="trz agent bg-cf-surface flex min-h-0 flex-1 flex-col"
+      >
+        {/* The divider is the separation here, so the band keeps no gap after
+            it: the chat surface starts immediately under the border. */}
+        <OpeningBand className="mb-0 w-full justify-end border-b border-cf-border px-[16px]">
+          <label
+            htmlFor="agent-content-language"
+            className="flex items-center gap-[8px] text-[13px] font-[600] text-cf-ink"
+          >
+            <span>{t('content_language', 'Content language')}</span>
+            <Select standalone
+              id="agent-content-language"
+              value={contentLanguage}
+              onChange={(event) => {
+                languageWasSelected.current = true;
+                setContentLanguage(event.target.value === 'ru' ? 'ru' : 'en');
+              }}
+              className="rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+            >
+              <option value="en">{t('content_language_en', 'English')}</option>
+              <option value="ru">{t('content_language_ru', 'Russian')}</option>
+            </Select>
+          </label>
+        </OpeningBand>
+        <div className="relative min-h-0 w-full flex-1">
+          <div className="absolute inset-0 pb-[20px]">
+            <CopilotChat
+              className="h-full w-full"
+              labels={{
+                title: t('your_assistant', 'Your Assistant'),
+                initial: t(
+                  'agent_welcome_message',
+                  `Hello, I am your Content Factory agent 🙌🏻.
+              
+I can schedule a post or multiple posts to multiple channels and generate pictures and videos.
+
+You can select the channels you want to use from the left menu.
+
+You can see your previous conversations from the right menu.
+
+You can also use me as an MCP Server, check Settings >> Public API
+`
+                ),
+              }}
+              UserMessage={Message}
+              Input={NewInput}
+            />
+          </div>
+        </div>
+      </div>
+    </CopilotKit>
+  );
+};
+
+const LoadMessages: FC<{ id: string }> = ({ id }) => {
+  const { messages, setMessages } = useCopilotMessagesContext();
+  const fetch = useFetch();
+  const currentId = useRef<string | null>(null);
+  const loaded = useRef<{ id: string; messages: CopilotMessage[] } | null>(
+    null
+  );
+
+  const loadMessages = useCallback(async (idToSet: string) => {
+    const data = await (await fetch(`/copilot/${idToSet}/list`)).json();
+    const list = data.messages.map((p: any) => {
+      return new TextMessage({
+        content: p.content.content,
+        role: p.role,
+      });
+    });
+
+    if (currentId.current !== idToSet) {
+      return;
+    }
+
+    loaded.current = { id: idToSet, messages: list };
+    setMessages(list);
+  }, []);
+
+  useEffect(() => {
+    currentId.current = id;
+    if (id === 'new') {
+      loaded.current = { id, messages: [] };
+      setMessages([]);
+      return;
+    }
+    loaded.current = null;
+    loadMessages(id);
+  }, [id]);
+
+  // CopilotKit resolves loadAgentState to an empty list for Mastra local agents
+  // and can clobber the messages we hold, depending on which request resolves last
+  useEffect(() => {
+    if (loaded.current?.id !== id) {
+      return;
+    }
+
+    if (messages.length) {
+      loaded.current.messages = messages;
+      return;
+    }
+
+    if (loaded.current.messages.length) {
+      setMessages(loaded.current.messages);
+    }
+  }, [messages, id]);
+
+  return null;
+};
+
+const Message: FC<UserMessageProps> = (props) => {
+  const convertContentToImagesAndVideo = useMemo(() => {
+    return (props.message?.content || '')
+      .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
+        return `<video controls class="h-[150px] w-[150px] rounded-[8px] mb-[10px]"><source src="${p1.trim()}" type="video/mp4">Your browser does not support the video tag.</video>`;
+      })
+      .replace(/Image: (http.*\n)/g, (match, p1) => {
+        return `<img src="${p1.trim()}" class="h-[150px] w-[150px] max-w-full border border-newBgColorInner" />`;
+      })
+      .replace(/\[\-\-Media\-\-\](.*)\[\-\-Media\-\-\]/g, (match, p1) => {
+        return `<div class="flex justify-center mt-[20px]">${p1}</div>`;
+      })
+      .replace(
+        /(\[--integrations--\][\s\S]*?\[--integrations--\])/g,
+        (match, p1) => {
+          return ``;
+        }
+      );
+  }, [props.message?.content]);
+  return (
+    <div
+      className="copilotKitMessage copilotKitUserMessage min-w-[300px]"
+      dangerouslySetInnerHTML={{ __html: convertContentToImagesAndVideo }}
+    />
+  );
+};
+const NewInput: FC<InputProps> = (props) => {
+  const [media, setMedia] = useState([] as { path: string; id: string }[]);
+  const [value, setValue] = useState('');
+  const { properties } = useContext(PropertiesContext);
+  return (
+    <>
+      <MediaPortal
+        value={value}
+        media={media}
+        setMedia={(e) => setMedia(e.target.value)}
+      />
+      <Input
+        {...props}
+        onChange={setValue}
+        onSend={(text) => {
+          const send = props.onSend(
+            text +
+              (media.length > 0
+                ? '\n[--Media--]' +
+                  media
+                    .map((m) =>
+                      hasExtension(m.path, 'mp4')
+                        ? `Video: ${m.path}`
+                        : `Image: ${m.path}`
+                    )
+                    .join('\n') +
+                  '\n[--Media--]'
+                : '') +
+              `
+${
+  properties.length
+    ? `[--integrations--]
+Use the following social media platforms: ${JSON.stringify(
+        properties.map((p) => ({
+          id: p.id,
+          platform: p.identifier,
+          profilePicture: p.picture,
+          additionalSettings: p.additionalSettings,
+        }))
+      )}
+[--integrations--]`
+    : ``
+}`
+          );
+          setValue('');
+          setMedia([]);
+          return send;
+        }}
+      />
+    </>
+  );
+};
+
+export const Hooks: FC = () => {
+  const modals = useModals();
+
+  useCopilotAction({
+    name: 'manualPosting',
+    description:
+      'This tool should be triggered when the user wants to manually add the generated post',
+    parameters: [
+      {
+        name: 'list',
+        type: 'object[]',
+        description:
+          'list of posts to schedule to different social media (integration ids)',
+        attributes: [
+          {
+            name: 'integrationId',
+            type: 'string',
+            description: 'The integration id',
+          },
+          {
+            name: 'date',
+            type: 'string',
+            description: 'UTC date of the scheduled post',
+          },
+          {
+            name: 'settings',
+            type: 'object',
+            description: 'Settings for the integration [input:settings]',
+          },
+          {
+            name: 'posts',
+            type: 'object[]',
+            description: 'list of posts / comments (one under another)',
+            attributes: [
+              {
+                name: 'content',
+                type: 'string',
+                description: 'the content of the post',
+              },
+              {
+                name: 'attachments',
+                type: 'object[]',
+                description: 'list of attachments',
+                attributes: [
+                  {
+                    name: 'id',
+                    type: 'string',
+                    description: 'id of the attachment',
+                  },
+                  {
+                    name: 'path',
+                    type: 'string',
+                    description: 'url of the attachment',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    renderAndWaitForResponse: ({ args, status, respond }) => {
+      if (status === 'executing') {
+        return <OpenModal args={args} respond={respond} />;
+      }
+
+      return null;
+    },
+  });
+  return null;
+};
+
+const OpenModal: FC<{
+  respond: (value: any) => void;
+  args: {
+    list: {
+      integrationId: string;
+      date: string;
+      settings?: Record<string, any>;
+      posts: { content: string; attachments: { id: string; path: string }[] }[];
+    }[];
+  };
+}> = ({ args, respond }) => {
+  const modals = useModals();
+  const { properties } = useContext(PropertiesContext);
+  const startModal = useCallback(async () => {
+    for (const integration of args.list) {
+      await new Promise((res) => {
+        const group = makeId(10);
+        modals.openModal({
+          id: 'add-edit-modal',
+          closeOnClickOutside: false,
+          removeLayout: true,
+          closeOnEscape: false,
+          withCloseButton: false,
+          askClose: true,
+          size: '80%',
+          title: ``,
+          classNames: {
+            modal: 'w-[100%] max-w-[1400px] text-textColor',
+          },
+          children: (
+            <ExistingDataContextProvider
+              value={{
+                group,
+                integration: integration.integrationId,
+                integrationPicture:
+                  properties.find((p) => p.id === integration.integrationId)
+                    ?.picture || '',
+                settings: integration.settings || {},
+                posts: integration.posts.map((p) => ({
+                  approvedSubmitForOrder: 'NO',
+                  content: p.content,
+                  createdAt: new Date().toISOString(),
+                  state: 'DRAFT',
+                  id: makeId(10),
+                  settings: JSON.stringify(integration.settings || {}),
+                  group,
+                  integrationId: integration.integrationId,
+                  integration: properties.find(
+                    (p) => p.id === integration.integrationId
+                  ),
+                  publishDate: dayjs.utc(integration.date).toISOString(),
+                  image: p.attachments.map((a) => ({
+                    id: a.id,
+                    path: a.path,
+                  })),
+                })),
+              }}
+            >
+              <AddEditModal
+                date={dayjs.utc(integration.date)}
+                allIntegrations={properties}
+                integrations={properties.filter(
+                  (p) => p.id === integration.integrationId
+                )}
+                onlyValues={integration.posts.map((p) => ({
+                  content: p.content,
+                  id: makeId(10),
+                  settings: integration.settings || {},
+                  image: p.attachments.map((a) => ({
+                    id: a.id,
+                    path: a.path,
+                  })),
+                }))}
+                reopenModal={() => {}}
+                mutate={() => res(true)}
+              />
+            </ExistingDataContextProvider>
+          ),
+        });
+      });
+    }
+
+    respond('User scheduled all the posts');
+  }, [args, respond, properties]);
+
+  useEffect(() => {
+    startModal();
+  }, []);
+  return (
+    <div onClick={() => respond('continue')}>
+      Opening manually ${JSON.stringify(args)}
+    </div>
+  );
+};

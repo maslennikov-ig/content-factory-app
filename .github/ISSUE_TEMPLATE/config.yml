@@ -1,0 +1,8 @@
+# Disable the default option to open a blank issue
+blank_issues_enabled: true 
+
+# Security reports belong in this repository's private advisory form.
+contact_links:
+  - name: Security Issue
+    url: https://github.com/maslennikov-ig/content-factory-next/security/advisories/new
+    about: Please submit security issues privately through GitHub Security Advisories.

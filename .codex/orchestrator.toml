@@ -1,0 +1,202 @@
+role = "orchestrator-stage"
+handoff_file = ".codex/handoff.md"
+project_index_file = ".codex/project-index.md"
+artifact_template = ".codex/stage-artifact-template.md"
+
+[baseline]
+profile = "balanced-v2.20"
+source_skill = "orchestration-setup"
+
+[workspace]
+topology = "single-repo"
+multi_repo = false
+launch_mode = "direct_execution"
+repo = "content-factory-next"
+root = "/home/me/code/content-factory-next"
+current_stage = ".codex/stages/content-factory-next-vme/stage-manifest.json"
+current_stage_id = "content-factory-next-vme"
+base_commit = "49631977d3c9a3ad24bf2aa5c443ff8f954bac4a"
+
+[delivery]
+mode = "mixed"
+current_branch = "main"
+protected_branches = ["main", "master"]
+push_after_closeout = "ask"
+
+[delegation]
+launcher = "codex_subagents"
+subagent_visibility = "separate_spawned_threads"
+inline_subagents_allowed = false
+medium_execution_default = "delegated_worker"
+simple_checks_owner = "orchestrator"
+delegation_gate = "medium_complex_required"
+independence_alone_sufficient = false
+parallel_decomposition_matrix = "required_for_complex_candidates"
+parallel_execution_default = "spawn_eligible_streams"
+sequential_requires_reason = true
+write_heavy_isolation_default = "dedicated_branch_or_worktree"
+max_concurrent_subagents = 4
+max_parallel_write_streams = 3
+critical_path_priority = true
+subagents_preauthorized_for_medium_complex = true
+root_execution_scope = "simple_quick_only"
+complex_execution_default = "delegated_streams"
+delegation_unavailable_action = "block_medium_complex"
+
+[verification]
+code_change_commands = ["pnpm run build", "pnpm test", "git diff --check"]
+integration_commands = ["pnpm run build", "pnpm test", "git diff --check"]
+release_commands = ["pnpm run build", "pnpm test", "node scripts/branding/brand-scan.cjs", "pnpm run docs:check", "bash scripts/orchestration/run_process_verification.sh", "git diff --check"]
+process_commands = ["bash scripts/orchestration/run_process_verification.sh"]
+targeted_commands = ["git diff --check"]
+
+[verification_policy]
+mode = "explicit"
+default_level = "slice_acceptance"
+reuse_unchanged_evidence = true
+
+[orchestration_levels]
+default = "slice_acceptance"
+stage_levels = ["slice_acceptance", "integration", "release"]
+legacy_inner = "inner_loop"
+legacy_delta = "slice_acceptance"
+
+[artifacts]
+stages_dir = ".codex/stages"
+artifact_pattern = ".codex/stages/{stage_id}/artifacts/{task_id}.md"
+summary_pattern = ".codex/stages/{stage_id}/summary.md"
+current_stage_summary = ".codex/stages/content-factory-next-vme/summary.md"
+
+[completion_inbox]
+scope = "git_common_dir"
+events_file = ".codex/stages/content-factory-next-vme/completions.ndjson"
+review_state_file = ".codex/stages/content-factory-next-vme/review-state.json"
+report_entrypoint = "scripts/orchestration/report_child_completion.py"
+review_entrypoint = "scripts/orchestration/review_completion_inbox.py"
+
+[enforcement]
+process_verification = "scripts/orchestration/run_process_verification.sh"
+artifact_validation = "scripts/orchestration/validate_artifact.py"
+stage_ready_check = "scripts/orchestration/check_stage_ready.py"
+stage_closeout = "scripts/orchestration/run_stage_closeout.py"
+workspace_cleanup = "scripts/orchestration/cleanup_stage_workspace.py"
+
+[stage_limits]
+epic_scope = "roadmap_only"
+stage_unit = "cohesive_vertical_slice"
+automatic_advance_after_acceptance = true
+replan_on_material_boundary = true
+cost_anomaly_action = "replan_not_stop"
+hard_stop_on_time_or_token_budget = false
+continuation_lineage = "selected_beads_goal"
+max_correction_loops = 2
+p0_p1_block_acceptance = true
+
+[stage_sizing]
+mode = "cohesive_vertical_slice"
+manifest_schema = "orchestration-stage/v1"
+ledger_schema = "scope-preservation-ledger/v1"
+scope_anchor_schema = "scope-criterion-snapshot/v1"
+one_active_implementation_stage = true
+parallel_streams_inside_stage = true
+merge_adjacent_when_shared = ["acceptance_owner", "subsystem", "risk_model", "test_environment", "rollback_boundary", "acceptance_proof"]
+allowed_split_reasons = ["unresolved_public_ownership_or_public_contract", "hard_dependency", "independent_rollback_or_migration_boundary", "distinct_security_or_compliance_risk", "external_authorization"]
+scope_preservation_ledger_required_on_replan = true
+accepted_history_immutable = true
+migration_scope = "future_work_only"
+
+[evidence]
+schema = "verification-evidence/v1"
+source_paths_are_repo_relative = true
+reject_symlinks_and_path_escape = true
+exact_identity_required_for_reuse = true
+release_requires_release_level_evidence = true
+
+[cost_guard]
+enabled = true
+action = "replan_required"
+missing_counts = "null"
+may_shrink_epic_or_skip_gate = false
+
+[foundation_guard]
+scope_kinds = ["product_slice", "foundation"]
+required_foundation_fields = ["immediate_consumer", "public_facade", "bounded_acceptance", "non_goals"]
+
+[stage_state]
+exact_identity_required = true
+closeout_lock = "exclusive_nonblocking"
+idempotent_retries = true
+
+[subagent_model_policy]
+default_model = "inherit_orchestrator"
+default_reasoning_effort = "inherit_orchestrator"
+reasoning_policy = "complexity_based"
+model_override_requires_current_user_authorization = true
+record_model_reasoning_rationale = true
+high_reasoning_triggers = ["architecture", "security", "migrations", "cross-module", "critical-bugs", "reviews", "ambiguity"]
+
+[documentation]
+closeout_docs_review_required = true
+project_index_required = true
+
+[knowledge_graph]
+tool = "graphify"
+enabled = true
+optional = false
+graph_dir = "graphify-out"
+report = "graphify-out/GRAPH_REPORT.md"
+ignore_file = ".graphifyignore"
+commit_outputs = false
+code_update_command = "graphify update ."
+cluster_command = "graphify cluster-only . --no-viz --no-label"
+query_command = "graphify query \"<question>\" --graph graphify-out/graph.json --budget 2000"
+explain_command = "graphify explain \"<node>\" --graph graphify-out/graph.json"
+path_command = "graphify path \"<node-a>\" \"<node-b>\" --graph graphify-out/graph.json"
+setup_skill = "~/.agents/skills/graphify-project/SKILL.md"
+hooks_allowed = "codex_pre_tool_use_only"
+git_hooks_allowed = false
+codex_pre_tool_use_hook = true
+codex_pre_tool_use_command = "/home/me/.local/bin/graphify hook-check"
+query_first = true
+freshness_check_required = true
+use_before_broad_file_search = true
+refresh_policy = "accepted_relevant_integration_or_release_boundary"
+closeout_marker = "graph-reviewed"
+record_marker = "graph-reviewed:"
+must_match_head_after_setup = true
+query_logging = false
+notes = ["Use Graphify for code relationships and read docs for their content.", "Do not commit graphify-out or use external semantic/model/API extraction without explicit authority.", "Graphify git hooks are disabled; only the project-local Codex reminder hook is allowed."]
+
+[handoff]
+current_state_max_lines = 200
+hard_limit_lines = 500
+
+[exceptions]
+postiz_upstream_is_agpl = true
+no_content_factory_code_import_before_license_decision = true
+no_live_provider_or_publish_by_default = true
+closeout_untracked_binary_debt_guard = true
+
+[token_efficiency]
+schema = "token-efficiency/v1"
+native_fork_turns_default = "none"
+non_none_fork_override_enabled = true
+non_none_fork_override_requires_rationale = true
+non_none_fork_override_context_sources = ["nearest_agents", "selected_beads_goal", "exact_existing_reference"]
+native_prompt_fields = ["goal", "write_zone", "verification", "stop"]
+copied_history_allowed = false
+copied_rules_allowed = false
+routine_updates = "coalesce"
+required_updates = ["blocker", "decision", "material_artifact", "final", "platform_heartbeat"]
+tool_output_default = "bounded_summary"
+truncation_signal_required = true
+tool_output_expansion_requires_rationale = true
+worker_verification = "focused_red_green"
+final_acceptance_owner = "root"
+full_suite_boundary = "epic_or_release"
+parallelism_gate = "material_benefit"
+model_routing_source = "orchestrator-stage/references/delegation-and-isolation.md"
+agents_management = "marker_only"
+agents_first_adoption = "defer_without_explicit_flag"
+agents_custom_overlap = "defer"
+hard_token_cap = false

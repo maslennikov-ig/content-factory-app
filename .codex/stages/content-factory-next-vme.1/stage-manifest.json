@@ -1,0 +1,168 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-vme.1",
+  "goal_id": "content-factory-next-vme.1",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "ai-ledger-and-public-claim-truthfulness",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "ai-usage-ledger",
+      "ai-admission",
+      "copilot-agent-path",
+      "claims-guard",
+      "product-spec",
+      "telegram-support-relay",
+      "legal-contact"
+    ],
+    "risk_models": [
+      "quota-and-cost",
+      "concurrency",
+      "durability",
+      "public-contract",
+      "documentation-accuracy",
+      "privacy",
+      "idempotency",
+      "schema-migration"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "tmpdir-linux-ext4",
+      "offline-prisma-migrate-diff",
+      "no-production-live-or-delivery-actions"
+    ],
+    "rollback_boundary": "local-stage-commits-on-codex-cloud-saas-growth",
+    "acceptance_proofs": [
+      "focused-red-green",
+      "stuck-admission-reconciliation",
+      "single-admission-per-agent-request",
+      "contract-document-scan",
+      "telegram-support-outbox",
+      "legal-contact-reachability",
+      "docs-check",
+      "brand-scan",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-vme.1",
+    "source_digest": "5c3b5d2d1511494030ce2af4ab0ae17d84584743f0b9ff756995c2603da759dd",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Ни одна строка AiUsageRecord не может остаться в статусе admitted навсегда: есть либо owner-run сверка с dry-run/apply, либо возврат allowance по порогу, и выбор записан. Один запрос POST /copilot/agent списывает ровно одну операцию, что доказано focused-тестом на вложенном пути. Остаточный разрыв contract guard закрыт выбранным и записанным решением, существующие три слоя не ослаблены и их allowlist-ы не расширены. docs/product/cloud-saas-growth-spec.md больше не называет субпроцессоров открытыми воротами, а юридическое лицо и договорные условия из той же строки остаются открытыми. Любое неслужебное личное сообщение существующему Telegram-боту атомарно ставится в отдельную очередь и доставляется владельцу с повтором после ошибки, без хранения текста и вложений; подключение каналов и единый getUpdates consumer не сломаны. Все 48 юридических файлов называют рабочий Telegram-канал вместо privacy@aidevteam.ru, а операторская конфигурация и ограничения задокументированы. Схема additive, SQL получен офлайн, боевая база не тронута, платных и живых вызовов нет.",
+        "text_digest": "22380071f36f5a9a4050b7eb5df0679c8be0cf0ea7ae62b4b41b7964b9d43265"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-vme.1/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "5c3b5d2d1511494030ce2af4ab0ae17d84584743f0b9ff756995c2603da759dd",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-vme.1/spec.md",
+    ".codex/stages/content-factory-next-vme.1/plan.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "ai-ledger-and-agent-double-admission",
+      "owner": "subagent:ai-ledger-worker",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/openai/ai.usage.service.ts",
+        "libraries/nestjs-libraries/src/chat/load.tools.service.ts",
+        "scripts/operations/**",
+        "tests/ai-usage.*",
+        "tests/chat.*",
+        ".codex/stages/content-factory-next-vme.1/artifacts/ai-ledger.md"
+      ],
+      "issues": [
+        "content-factory-next-mdo",
+        "content-factory-next-d1v"
+      ]
+    },
+    {
+      "stream": "contract-guard-prose-gap",
+      "owner": "subagent:claim-guard-worker",
+      "write_zone": [
+        "tests/cloud-saas-contract.test.cjs",
+        "docs/operations/legal-translation-review.md",
+        ".codex/stages/content-factory-next-vme.1/artifacts/claim-guard.md"
+      ],
+      "issues": [
+        "content-factory-next-yx3"
+      ]
+    },
+    {
+      "stream": "legal-contact-and-spec-subprocessors",
+      "owner": "subagent:legal-docs-worker",
+      "write_zone": [
+        "docs/product/cloud-saas-growth-spec.md",
+        "apps/frontend/src/content/legal/**",
+        ".codex/stages/content-factory-next-vme.1/artifacts/legal-docs.md"
+      ],
+      "issues": [
+        "content-factory-next-1g8",
+        "content-factory-next-ry5.5"
+      ]
+    },
+    {
+      "stream": "telegram-support-relay",
+      "owner": "subagent:telegram-relay-worker",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/integrations/telegram.update.parser.ts",
+        "libraries/nestjs-libraries/src/integrations/telegram.updates.service.ts",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+        "libraries/nestjs-libraries/prisma/migrations/**",
+        "tests/telegram.update.consumer.test.cjs",
+        ".env.example",
+        "deploy/production/app.env.example",
+        "docs/operations/configuration.md",
+        "docs/operations/runtime.md",
+        ".codex/stages/content-factory-next-vme.1/artifacts/telegram-relay.md"
+      ],
+      "issues": [
+        "content-factory-next-ry5.5"
+      ]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": [
+      "ai-ledger-and-agent-double-admission",
+      "contract-guard-prose-gap",
+      "legal-contact-and-spec-subprocessors",
+      "telegram-support-relay"
+    ],
+    "benefit": [
+      "parallel-latency",
+      "context-isolation",
+      "specialist-capability",
+      "write-isolation"
+    ],
+    "sequential_streams": [
+      "mdo-then-d1v-inside-ai-stream",
+      "fourth-writer-starts-after-one-slot-frees"
+    ],
+    "limit": "maximum three concurrent writers; no production, credentials, paid or live calls; additive schema only; offline prisma migrate diff; no delivery"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-vme.1.ai-ledger", "stream_owner": "ai_ledger_worker", "artifact_path": ".codex/stages/content-factory-next-vme.1/artifacts/ai-ledger.md"},
+    {"task_id": "content-factory-next-vme.1.claim-guard", "stream_owner": "claim_guard_worker", "artifact_path": ".codex/stages/content-factory-next-vme.1/artifacts/claim-guard.md"},
+    {"task_id": "content-factory-next-vme.1.legal-docs", "stream_owner": "legal_docs_worker", "artifact_path": ".codex/stages/content-factory-next-vme.1/artifacts/legal-docs.md"},
+    {"task_id": "content-factory-next-vme.1.telegram-relay", "stream_owner": "telegram_relay_worker", "artifact_path": ".codex/stages/content-factory-next-vme.1/artifacts/telegram-relay.md"}
+  ]
+}

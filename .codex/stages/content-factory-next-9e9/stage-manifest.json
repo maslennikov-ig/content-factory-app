@@ -1,0 +1,356 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-9e9",
+  "goal_id": "content-factory-next-9e9",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 4,
+  "acceptance_boundary_id": "content-intelligence-profile-sources-memory-consumers",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "project-profile",
+      "brand-voice",
+      "source-registry",
+      "fact-memory",
+      "generator",
+      "editor",
+      "agent",
+      "autopost"
+    ],
+    "risk_models": [
+      "donor-license-provenance",
+      "tenant-isolation",
+      "ssrf-and-redirects",
+      "source-rights-and-robots",
+      "fact-conflicts-and-deletion",
+      "ai-cost-and-fallback",
+      "unconfirmed-live-actions"
+    ],
+    "test_environments": [
+      "isolated-worktree",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "donor-read-only",
+      "local-synthetic-data",
+      "no-credentials-paid-calls-live-fetch-publish-or-deploy"
+    ],
+    "rollback_boundary": "local-stage-commits-on-detached-worktree",
+    "acceptance_proofs": [
+      "research-before-implementation",
+      "donor-keep-adapt-reject-matrix",
+      "focused-red-green",
+      "prisma-migrate-diff-guard",
+      "tenant-and-ssrf-contracts",
+      "four-consumer-context-contract",
+      "source-provenance-and-freshness",
+      "browser-review-matrix",
+      "full-test-and-build",
+      "brand-docs-process-diff-check",
+      "fresh-stage-receipt"
+    ]
+  },
+  "work_areas": [
+    "research",
+    "product-design",
+    "architecture",
+    "contract",
+    "implementation",
+    "consumer-adoption",
+    "tests",
+    "security-review",
+    "browser-proof",
+    "docs-and-graph-review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-9e9",
+    "source_digest": "14404b8cbfca6de062607c6dc6d9e0653499718bb39878ba00e28006909a1a41",
+    "criteria": [
+      {
+        "criterion_id": "AC-0",
+        "text": "Исследовательские решения приняты до реализации; дочерние задачи имеют проверяемые границы и зависимости; готовые функции подключены к пользовательским сценариям без неподтвержденных live-операций, секретов, платных вызовов или публикации.",
+        "text_digest": "b6d69ff65d596aed4dc879a44f16c61c528750b7277e227c7cface51ea35adc7"
+      },
+      {
+        "criterion_id": "AC-1",
+        "text": "Есть доказательная матрица keep/adapt/reject со ссылками на исходные файлы, рисками, отсутствующими зависимостями и рекомендуемой последовательностью; до отдельного решения код не копируется и live-операции не запускаются.",
+        "text_digest": "e0f818284543aa7383579fc5456069e8e64ae8720ff7ae16a24c436b9329fc85"
+      },
+      {
+        "criterion_id": "AC-2",
+        "text": "До реализации согласованы пользовательский путь, модель данных, tenancy и права, версия профиля, поведение при неполных данных, стоимость модельных вызовов, миграция и набор приемочных тестов; материальные продуктовые развилки вынесены на обсуждение владельцу.",
+        "text_digest": "61ed5ab7aab1ec7bd77f57ff679c31ffd9552c84fa21b230328cd3090f65ac9a"
+      },
+      {
+        "criterion_id": "AC-3",
+        "text": "Пользователь создаёт, проверяет, редактирует и выбирает версию голоса; каждый подключенный сценарий показывает, какая версия применена; стиль и запреты проверяются тестами; отсутствие профиля имеет безопасный понятный fallback.",
+        "text_digest": "0507a4ea6d00b6e64af27b231eb6f14ea3b517779d81c18bf35fa0dd5a1f8849"
+      },
+      {
+        "criterion_id": "AC-4",
+        "text": "Есть согласованный data-flow и модель данных, матрица типов источников, безопасные дефолты, lifecycle и ошибки, правила происхождения и цитирования, план миграции текущих AutoPost и researchSources и точные приемочные проверки; public scraping по умолчанию выключен.",
+        "text_digest": "55fa6a1a0aa90a69a3f16d72870226876be13f41519e9a20b3b23148587aa217"
+      },
+      {
+        "criterion_id": "AC-5",
+        "text": "Пользователь добавляет разрешённый URL или RSS, видит состояние и свежесть, получает прослеживаемый черновик с источником; небезопасные адреса, редиректы, дубликаты и запрещённые операции закрыты тестами; live-публикация не выполняется.",
+        "text_digest": "bae3b39a274a0116f9fa73dd763d843c89f939d2f6e31226986305e44f05209d"
+      },
+      {
+        "criterion_id": "AC-6",
+        "text": "Определены модель факта и доказательства, правила обновления и конфликтов, поиск и цитирование, удаление и tenant isolation, границы модельной обработки, UX просмотра источника и проверяемый план внедрения.",
+        "text_digest": "78080688cce359fe92a297085c56181cbcca9ec84525f98b58022e58bdeef4fb"
+      },
+      {
+        "criterion_id": "AC-7",
+        "text": "Все четыре сценария используют общий проверяемый контракт контекста, показывают источники и свежесть, не делают неподтверждённых текущих утверждений при недоступном исследовании и сохраняют происхождение результата.",
+        "text_digest": "4287c93f6f3e51a49fa29a1399461130ae82c4fdb7debc41cca1d26a21ab1d04"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-9e9/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "14404b8cbfca6de062607c6dc6d9e0653499718bb39878ba00e28006909a1a41",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-9e9/spec.md",
+    ".codex/stages/content-factory-next-9e9/plan.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "donor-audit",
+      "owner": "subagent:donor-audit",
+      "write_zone": [
+        "docs/research/content-intelligence-donor-audit.md",
+        ".codex/stages/content-factory-next-9e9/artifacts/donor-audit.md"
+      ],
+      "issues": ["content-factory-next-9e9.1"]
+    },
+    {
+      "stream": "brand-profile-research",
+      "owner": "subagent:brand-profile-research",
+      "write_zone": [
+        "docs/product/content-intelligence-brand-profile-spec.md",
+        ".codex/stages/content-factory-next-9e9/artifacts/brand-profile-research.md"
+      ],
+      "issues": ["content-factory-next-9e9.2"]
+    },
+    {
+      "stream": "source-registry-research",
+      "owner": "subagent:source-registry-research",
+      "write_zone": [
+        "docs/product/content-source-registry-spec.md",
+        ".codex/stages/content-factory-next-9e9/artifacts/source-registry-research.md"
+      ],
+      "issues": ["content-factory-next-9e9.4"]
+    },
+    {
+      "stream": "fact-memory-research",
+      "owner": "subagent:fact-memory-research",
+      "write_zone": [
+        "docs/product/content-memory-spec.md",
+        ".codex/stages/content-factory-next-9e9/artifacts/fact-memory-research.md"
+      ],
+      "issues": ["content-factory-next-9e9.6"]
+    },
+    {
+      "stream": "data-foundation",
+      "owner": "subagent:data-foundation",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+        "libraries/nestjs-libraries/prisma/migrations/20260820143000_add_content_intelligence_foundation/migration.sql",
+        "libraries/nestjs-libraries/src/content-intelligence/contracts.ts",
+        "tests/content-intelligence.persistence.test.cjs",
+        ".codex/stages/content-factory-next-9e9/artifacts/data-foundation.md"
+      ],
+      "issues": [
+        "content-factory-next-9e9.3",
+        "content-factory-next-9e9.5",
+        "content-factory-next-9e9.7"
+      ]
+    },
+    {
+      "stream": "brand-profile-backend",
+      "owner": "subagent:brand-profile-backend",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/content-intelligence/brand-profile/",
+        "libraries/nestjs-libraries/src/dtos/content-intelligence/brand-profile.dto.ts",
+        "apps/backend/src/api/routes/brand-profile.controller.ts",
+        "tests/brand-profile.contract.test.cjs",
+        ".codex/stages/content-factory-next-9e9/artifacts/brand-profile-backend.md"
+      ],
+      "issues": ["content-factory-next-9e9.3"]
+    },
+    {
+      "stream": "source-registry-backend",
+      "owner": "subagent:source-registry-backend",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/content-intelligence/source-registry/",
+        "libraries/nestjs-libraries/src/dtos/content-intelligence/content-source.dto.ts",
+        "apps/backend/src/api/routes/content-source.controller.ts",
+        "tests/content-source-registry.test.cjs",
+        "tests/content-source-fetch-gateway.test.cjs",
+        "tests/content-source-registry.postgres.test.cjs",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".codex/stages/content-factory-next-9e9/artifacts/source-registry-backend.md"
+      ],
+      "issues": ["content-factory-next-9e9.5"]
+    },
+    {
+      "stream": "content-intelligence-ui",
+      "owner": "subagent:content-intelligence-ui",
+      "write_zone": [
+        "apps/frontend/src/components/content-intelligence/",
+        "apps/frontend/src/components/layout/settings.component.tsx",
+        "apps/frontend/src/app/(stand)/interface-review/content-intelligence/",
+        "tests/content-intelligence.interface.test.cjs",
+        ".codex/stages/content-factory-next-9e9/evidence/content-intelligence-ui/",
+        ".codex/stages/content-factory-next-9e9/artifacts/content-intelligence-ui.md"
+      ],
+      "issues": ["content-factory-next-9e9.3", "content-factory-next-9e9.5"]
+    },
+    {
+      "stream": "content-context-core",
+      "owner": "subagent:content-context-core",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/content-intelligence/context/",
+        "libraries/nestjs-libraries/src/dtos/content-intelligence/content-context.dto.ts",
+        "apps/backend/src/api/routes/content-context.controller.ts",
+        "libraries/nestjs-libraries/src/database/prisma/schema.prisma",
+        "libraries/nestjs-libraries/prisma/migrations/20260820143000_add_content_intelligence_foundation/migration.sql",
+        "tests/content-intelligence.persistence.test.cjs",
+        "libraries/nestjs-libraries/src/dtos/posts/create.post.dto.ts",
+        "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts",
+        "tests/content-context.builder.test.cjs",
+        "tests/post.content-context.test.cjs",
+        ".codex/stages/content-factory-next-9e9/artifacts/content-context-core.md"
+      ],
+      "issues": ["content-factory-next-9e9.6", "content-factory-next-9e9.7"]
+    },
+    {
+      "stream": "consumer-backend",
+      "owner": "subagent:consumer-backend",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/agent/agent.graph.service.ts",
+        "libraries/nestjs-libraries/src/agent/agent.module.ts",
+        "libraries/nestjs-libraries/src/dtos/generator/generator.dto.ts",
+        "apps/backend/src/api/routes/copilot.controller.ts",
+        "libraries/nestjs-libraries/src/chat/load.tools.service.ts",
+        "libraries/nestjs-libraries/src/chat/tools/integration.schedule.post.ts",
+        "libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts",
+        "libraries/nestjs-libraries/src/database/prisma/autopost/",
+        "libraries/nestjs-libraries/src/dtos/autopost/",
+        "apps/backend/src/api/routes/autopost.controller.ts",
+        "apps/orchestrator/src/workflows/autopost-draft-v2.workflow.ts",
+        "apps/orchestrator/src/activities/autopost-draft-v2.activity.ts",
+        "tests/content-intelligence.consumer-backend.test.cjs",
+        "tests/agent.language.prompt.test.cjs",
+        "tests/copilot.controller.test.cjs",
+        "tests/chat.language.prompt.test.cjs",
+        "tests/autopost.generation.test.cjs",
+        "tests/autopost.research-enrichment.test.cjs",
+        "tests/orchestrator.autopost-activity.test.cjs",
+        "tests/post.content-context.test.cjs",
+        ".codex/stages/content-factory-next-9e9/artifacts/consumer-backend.md"
+      ],
+      "issues": ["content-factory-next-9e9.3", "content-factory-next-9e9.7"]
+    },
+    {
+      "stream": "consumer-frontend",
+      "owner": "subagent:consumer-frontend",
+      "write_zone": [
+        "apps/frontend/src/components/launches/generator/generator.tsx",
+        "apps/frontend/src/components/new-launch/editor.tsx",
+        "apps/frontend/src/components/new-launch/manage.modal.tsx",
+        "apps/frontend/src/components/new-launch/add.edit.modal.tsx",
+        "apps/frontend/src/components/new-launch/store.ts",
+        "apps/frontend/src/app/(stand)/interface-review/content-intelligence/consumer/page.tsx",
+        "tests/content-intelligence.consumer-frontend.test.cjs",
+        ".codex/stages/content-factory-next-9e9/evidence/consumer-frontend/",
+        ".codex/stages/content-factory-next-9e9/artifacts/consumer-frontend.md"
+      ],
+      "issues": ["content-factory-next-9e9.3", "content-factory-next-9e9.7"]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": [
+      "brand-profile-backend",
+      "source-registry-backend",
+      "content-intelligence-ui",
+      "content-context-core"
+    ],
+    "benefit": [
+      "parallel-latency",
+      "context-isolation",
+      "specialist-capability",
+      "write-isolation"
+    ],
+    "sequential_streams": [
+      "root-research-synthesis-before-any-implementation",
+      "data-foundation-before-parallel-feature-streams",
+      "implementation-streams-after-accepted-specs",
+      "root-integration-and-release-acceptance"
+    ],
+    "limit": "maximum-three-concurrent-implementation-workers-with-disjoint-backend-source-ui-zones; shared-module-and-consumer-integration-remains-root-owned; no-donor-writes-code-copy-live-fetch-paid-calls-credentials-publish-deploy-or-production"
+  },
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-9e9.donor-audit",
+      "stream_owner": "subagent:donor-audit",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/donor-audit.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.brand-profile-research",
+      "stream_owner": "subagent:brand-profile-research",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/brand-profile-research.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.source-registry-research",
+      "stream_owner": "subagent:source-registry-research",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/source-registry-research.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.fact-memory-research",
+      "stream_owner": "subagent:fact-memory-research",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/fact-memory-research.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.data-foundation",
+      "stream_owner": "subagent:data-foundation",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/data-foundation.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.brand-profile-backend",
+      "stream_owner": "subagent:brand-profile-backend",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/brand-profile-backend.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.source-registry-backend",
+      "stream_owner": "subagent:source-registry-backend",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/source-registry-backend.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.content-intelligence-ui",
+      "stream_owner": "subagent:content-intelligence-ui",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/content-intelligence-ui.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.content-context-core",
+      "stream_owner": "subagent:content-context-core",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/content-context-core.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.consumer-backend",
+      "stream_owner": "subagent:consumer-backend",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/consumer-backend.md"
+    },
+    {
+      "task_id": "content-factory-next-9e9.consumer-frontend",
+      "stream_owner": "subagent:consumer-frontend",
+      "artifact_path": ".codex/stages/content-factory-next-9e9/artifacts/consumer-frontend.md"
+    }
+  ]
+}

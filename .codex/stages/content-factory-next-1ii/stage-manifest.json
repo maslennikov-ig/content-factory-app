@@ -1,0 +1,42 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-1ii",
+  "goal_id": "content-factory-next-1ii",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 1,
+  "acceptance_boundary_id": "cloud-saas-second-audit-repair",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["auth-abuse-controls", "ingress-headers", "ai-usage", "growth-telemetry", "public-routing", "claims-guard", "operator-docs"],
+    "risk_models": ["abuse", "authentication", "concurrency", "quota-and-cost", "privacy", "retention", "destructive-operation", "public-contract", "documentation-accuracy"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "tmpdir-linux-ext4", "offline-prisma-migrate-diff", "no-production-live-or-delivery-actions"],
+    "rollback_boundary": "local-repair-commits-on-codex-cloud-saas-growth",
+    "acceptance_proofs": ["focused-red-green", "auth-throttle-table", "transient-tracker-header-chain", "ai-admission-contention", "single-prisma-pool", "retention-target-barrier", "public-routing-and-password-window", "contract-document-scan", "docs-check", "brand-scan", "process-verification"]
+  },
+  "work_areas": ["contract", "implementation", "persistence_or_adapter", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-1ii",
+    "source_digest": "9c2a9f5f725768b347de42eaed17f84a70d7a93114cfcfc67213b305d1e3fcbd",
+    "criteria": [{"criterion_id": "AC-1", "text": "Закрыть находки повторного аудита Cloud-first SaaS-среза поверх ветки codex/cloud-saas-growth: расширить auth throttle и довести реальный адрес вызывающего через оба прокси-прыжка, убрать второй Prisma pool и отделить исчерпанную AI-квоту от занятого ledger, добавить retention job descriptor цели и барьер несовпадения, исправить публичный routing и минимум пароля восстановления, перевести claim guard на сканирование содержимого контрактных документов, привести документацию и stage-записи в соответствие с фактическим кодом; сохранить additive schema, открытые deferred gates и protected landing files; не выполнять merge, push, PR, deploy или live actions.", "text_digest": "18fcc156c3048b6f41aabb88aa20d400c37f52c8d20cdc2e7a7c29c25415b305"}]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-1ii/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "9c2a9f5f725768b347de42eaed17f84a70d7a93114cfcfc67213b305d1e3fcbd",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-1ii/spec.md", ".codex/stages/content-factory-next-1ii/plan.md"],
+  "worker_ownership": [
+    {"stream": "throttle", "owner": "subagent:fix-throttle", "write_zone": ["libraries/nestjs-libraries/src/throttler/**", "var/docker/nginx.conf", "tests/auth.registration-throttle.test.cjs"], "issues": ["content-factory-next-1ii.1"]},
+    {"stream": "ai-usage", "owner": "subagent:fix-ai-usage", "write_zone": ["libraries/nestjs-libraries/src/openai/ai.provider.config.ts", "libraries/nestjs-libraries/src/openai/ai.usage.service.ts", "libraries/nestjs-libraries/src/database/prisma/schema.prisma", "tests/ai-usage.*", "tests/ai-provider.usage-mode.test.cjs", "tests/ai.search.config.test.cjs"], "issues": ["content-factory-next-1ii.2"]},
+    {"stream": "telemetry", "owner": "subagent:fix-telemetry", "write_zone": ["libraries/nestjs-libraries/src/database/prisma/public-growth/**", "scripts/operations/cleanup-saas-retention.cjs", "tests/public-growth-event.test.cjs", "tests/saas-retention.test.cjs"], "issues": ["content-factory-next-1ii.3"]},
+    {"stream": "public-surface", "owner": "subagent:fix-public-surface", "write_zone": ["apps/frontend/src/proxy.ts", "apps/frontend/src/components/public-saas/public-shell.tsx", "libraries/nestjs-libraries/src/dtos/auth/forgot-return.password.dto.ts", "tests/public-saas-routing.test.cjs", "tests/locale-key-set.test.cjs"], "issues": ["content-factory-next-1ii.4"]},
+    {"stream": "contract-guard", "owner": "subagent:fix-contract-guard", "write_zone": ["tests/cloud-saas-contract.test.cjs"], "issues": ["content-factory-next-1ii.5"]},
+    {"stream": "docs-records", "owner": "subagent:docs-records", "write_zone": ["docs/**", "PRODUCT.md", ".codex/**"], "issues": ["content-factory-next-1ii.6"]}
+  ],
+  "parallel_decision": {"eligible_streams": ["throttle", "ai-usage", "telemetry", "public-surface", "contract-guard"], "benefit": ["parallel-latency", "context-isolation", "write-isolation"], "sequential_streams": ["docs-records-after-all-code-streams"], "limit": "no protected landing files, no application-code writes from the docs stream, no delivery, production, credentials, paid or live actions"},
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-1ii.6", "stream_owner": "docs-records", "artifact_path": ".codex/stages/content-factory-next-1ii/artifacts/docs-records.md"}
+  ]
+}

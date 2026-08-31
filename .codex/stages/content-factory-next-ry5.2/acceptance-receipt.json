@@ -1,0 +1,67 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm run prisma-generate",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run build",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec jest --runInBand",
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 75 passed, 75 total",
+        "Tests:       726 passed, 726 total"
+      ]
+    },
+    {
+      "command": "python3 -m unittest tests/test_orchestration_closeout.py tests/test_docs_links.py",
+      "result": "passed",
+      "result_counts": [
+        "Ran 8 tests in 0.123s",
+        "OK"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm run prisma-generate",
+    "pnpm run build",
+    "pnpm exec jest --runInBand",
+    "python3 -m unittest tests/test_orchestration_closeout.py tests/test_docs_links.py",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-08-18T11:20:00+00:00",
+  "diff_digest": "6203be4f5f583de983d09d893be92ff39d552a44274bc8d380454a9eef72f382",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "f0e3258e974316861909ea640fa3315da019a732",
+  "idempotency_key": "704b3ce5680d45bd1916f221b5fae0697057bd819845b1d97afef60916e1f1c4",
+  "note": "Repair run for the branch audit; see repair.md. Jest is recorded here because the previous receipt attested only the unittest tail. The release acceptance set declared in AGENTS.md is run by whoever integrates the branch, not here.",
+  "orchestration_level": "integration",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-ry5.2",
+  "started_at": "2026-08-18T11:00:00+00:00",
+  "verification_fingerprint": "704b3ce5680d45bd1916f221b5fae0697057bd819845b1d97afef60916e1f1c4"
+}

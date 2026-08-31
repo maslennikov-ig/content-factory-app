@@ -1,0 +1,48 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-ia0.1",
+  "goal_id": "content-factory-next-ia0.1",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "ia0-independent-audit-repair",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["mastra-migration", "postgres-recovery", "browser-error-relay", "stripe-webhook", "error-ledger", "design-system", "process-evidence"],
+    "risk_models": ["migration-rollback", "database-least-privilege", "privacy", "money-adjacent-retry", "ui-accessibility", "tracker-honesty"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "tmpdir-linux-ext4", "disposable-postgres-17", "chromium-playwright", "no-production-secrets-paid-calls-merge-push-pr-or-deploy"],
+    "rollback_boundary": "stream-commits-on-existing-codex-acceptance-branch",
+    "acceptance_proofs": ["focused-red-green-tests", "mastra-29-table-set", "database-acl-matrix", "real-client-relay-request", "dark-channel-picker-screenshot-or-explicit-blocker", "release-test-and-build", "brand-scan", "docs-check", "process-verification", "clean-git-status"]
+  },
+  "work_areas": ["decision", "contract", "implementation", "persistence_or_adapter", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-ia0.1",
+    "source_digest": "a5d6e6cad0b7914b3cf3aceaaac0a60eb9881295acf95d3897e836fcb162d7d2",
+    "criteria": [{"criterion_id": "AC-1", "text": "Исправить все подтверждённые дефекты независимого аудита принятой стадии content-factory-next-ia0: Mastra migration берёт DDL из реальной исходной БД и сравнивает набор с 29 deployment tables; browser relay принимает реальный клиентский POST; platform marks читаемы в тёмной теме без перекраски; branch pin, deployment runbook, Stripe terminal cases, database ACL restore, Input layout, calendar accessibility и Temporal-proxied error payload исправлены; дешёвые second-tier находки либо исправлены, либо явно отложены с причиной; визуальные и tracker claims честны; один финальный release acceptance проходит с TMPDIR=/tmp; owner-blocked ids, 71m.7, parent epics и epic or3 остаются открыты и нетронуты; merge, push, PR, deploy, production, credentials и paid calls не выполняются.", "text_digest": "ed5e5b404433621726ff688aec98ead40ccdc241b8440500e35b60f5c5a3c08c"}]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-ia0.1/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "a5d6e6cad0b7914b3cf3aceaaac0a60eb9881295acf95d3897e836fcb162d7d2",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-ia0.1/spec.md", ".codex/stages/content-factory-next-ia0.1/plan.md"],
+  "worker_ownership": [
+    {"stream": "migration-recovery", "owner": "subagent:migration-recovery", "write_zone": ["scripts/operations/migrate-mastra-storage.sh", "scripts/operations/verify-mastra-storage-migration.sh", "scripts/operations/postgres-backup-restore.sh", "scripts/operations/verify-postgres-backup-restore.sh", "scripts/operations/cleanup-legacy-errors.cjs", "deploy/production/**", "docs/operations/production-deploy.md", "docs/operations/postgres-backup.md", "docs/operations/newsletter.md", "tests/*mastra*", "tests/postgres-backup*", "tests/legacy-errors.cleanup-batching.test.cjs", ".codex/stages/content-factory-next-ia0.1/artifacts/migration-recovery.md"], "issues": ["content-factory-next-ia0.1"]},
+    {"stream": "relay-billing", "owner": "subagent:relay-billing", "write_zone": ["apps/frontend/src/instrumentation-client.ts", "apps/frontend/src/app/api/browser-errors/route.ts", "libraries/helpers/src/errors/browser.error.relay.ts", "libraries/nestjs-libraries/src/services/stripe.service.ts", "apps/backend/src/api/routes/stripe.controller.ts", "tests/browser-error-relay.test.cjs", "tests/error-collection.privacy.test.cjs", "tests/*stripe*", "tests/subscription-cancel-event.test.cjs", ".codex/stages/content-factory-next-ia0.1/artifacts/relay-billing.md"], "issues": ["content-factory-next-ia0.1"]},
+    {"stream": "ui-error-guards", "owner": "subagent:ui-error-guards", "write_zone": ["apps/frontend/public/icons/platforms/**", "libraries/react-shared-libraries/src/platform/**", "libraries/react-shared-libraries/src/form/input.tsx", "libraries/nestjs-libraries/src/database/prisma/errors/error-ledger.payload.ts", "apps/frontend/src/components/launches/calendar.tsx", "apps/frontend/src/components/billing/embedded.billing.tsx", "apps/frontend/src/components/new-launch/providers/instagram/instagram.audio.tsx", "apps/frontend/src/components/new-launch/delay.component.tsx", "tests/design*", "tests/foundation.test.cjs", "tests/platform*", "tests/*input*", "tests/*calendar*", "tests/*error-ledger*", "tests/legacy-errors.retention.test.cjs", ".codex/stages/content-factory-next-ia0.1/evidence/**", ".codex/stages/content-factory-next-ia0.1/artifacts/ui-error-guards.md"], "issues": ["content-factory-next-ia0.1"]},
+    {"stream": "process-evidence-tracker", "owner": "subagent:process-evidence-tracker", "write_zone": [".codex/orchestrator.toml", ".codex/handoff.md", ".codex/project-index.md", ".codex/stages/content-factory-next-ia0.1/** except accepted worker artifacts", "tests/desert-lab-screen-review.test.cjs", "Beads ids explicitly assigned by root"], "issues": ["content-factory-next-ia0.1"]}
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["migration-recovery", "relay-billing", "ui-error-guards"],
+    "benefit": ["parallel-latency", "context-isolation", "specialist-capability", "write-isolation"],
+    "sequential_streams": ["process-evidence-tracker after implementation streams stop"],
+    "limit": "three concurrent writers; no Beads close, merge, push, PR, deploy, production, credentials, paid calls, landing-conversion branch, or out-of-zone edits"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-ia0.1.migration-recovery", "stream_owner": "migration_recovery", "artifact_path": ".codex/stages/content-factory-next-ia0.1/artifacts/migration-recovery.md"},
+    {"task_id": "content-factory-next-ia0.1.relay-billing", "stream_owner": "relay_billing", "artifact_path": ".codex/stages/content-factory-next-ia0.1/artifacts/relay-billing.md"},
+    {"task_id": "content-factory-next-ia0.1.ui-error-guards", "stream_owner": "ui_error_guards", "artifact_path": ".codex/stages/content-factory-next-ia0.1/artifacts/ui-error-guards.md"},
+    {"task_id": "content-factory-next-ia0.1.process-evidence-tracker", "stream_owner": "process_evidence_tracker", "artifact_path": ".codex/stages/content-factory-next-ia0.1/artifacts/process-evidence-tracker.md"}
+  ]
+}

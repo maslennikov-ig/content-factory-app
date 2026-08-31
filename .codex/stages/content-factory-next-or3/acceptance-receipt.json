@@ -1,0 +1,91 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 65.959,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm test",
+      "duration_seconds": 107.51,
+      "environment_gates": [
+        {
+          "environment_variable": "SOURCE_REGISTRY_POSTGRES_URL",
+          "reason": "SOURCE_REGISTRY_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL serializable lease crossing rolls back snapshot and forbids late completion"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL rejects foreign post id and group before mutation"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL atomically commits or rolls back an AutoPost V2 draft and provenance set"
+        },
+        {
+          "reason": "skipped by Jest; the runner does not report why",
+          "source": "jest-junit",
+          "status": "skipped",
+          "test_name": "the backup wrapper, executed against a stub docker executable-bit capability (skipped: temp filesystem does not preserve chmod) a dump script that is present but not executable is refused by the same guard"
+        }
+      ],
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 138 passed, 138 total",
+        "Tests:       1 skipped, 1747 passed, 1748 total",
+        "# tests 95",
+        "# pass 92",
+        "# fail 0",
+        "# skipped 3",
+        "# todo 0",
+        "Ran 21 tests in 3.706s",
+        "OK"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "duration_seconds": 0.056,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "duration_seconds": 0.598,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.163,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.006,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm run build",
+    "pnpm test",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-08-21T12:04:25.106927+00:00",
+  "diff_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "f7c13e5ac1ceaf250431e4a060634955fdb6a05d",
+  "idempotency_key": "df86ce8195975cf14553a5d790db7493c99f91fc41c7f5b6ac5d4a52048fc457",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-or3",
+  "started_at": "2026-08-21T12:01:30.672290+00:00",
+  "verification_fingerprint": "df86ce8195975cf14553a5d790db7493c99f91fc41c7f5b6ac5d4a52048fc457"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@contentfactory/node",
+  "version": "1.0.8",
+  "description": "Content Factory Node.js API client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "publish": "tsup && pnpm publish --access public"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "social media",
+    "scheduling tool",
+    "social media scheduling tool"
+  ],
+  "author": "Content Factory contributors",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

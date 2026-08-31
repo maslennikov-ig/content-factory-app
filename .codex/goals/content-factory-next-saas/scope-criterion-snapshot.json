@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-saas",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-saas",
+  "source_digest": "50ec0586b9b8b6c7e67da4f2ad3ef90bdebcad4a79710479a8e5a5fbc6ac2fca",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Content Factory является managed Cloud-first AGPL SaaS: продуктовый контракт и task graph закреплены; публичные маршруты и безопасное синтетическое demo не раскрывают tenant data и не выполняют AI, Temporal, OAuth, публикацию или paid calls; прогрессивная регистрация совместима с legacy company, принимает optional workspaceName и allowlisted starterTemplate; hybrid AI использует явный included или workspace_key режим без скрытого fallback и без раскрытия ключей; privacy-safe conversion metrics агрегируются без PII и постоянного visitor id; цены, trial, provider, region, legal entity и production deploy остаются отдельными decision/authority gates; ветка и файлы агента главного экрана не изменяются; один финальный acceptance проходит без merge, push, PR, deploy, credentials или live действий.",
+      "text_digest": "ae29415ad5e9e928ac4c317dba26c70b9341a070204f7078ca44c2e4bcb9bb15"
+    }
+  ]
+}

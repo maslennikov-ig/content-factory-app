@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-2jm",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-2jm",
+  "source_digest": "74783b8ed1ac74db4fabb36705010e00ee7a9557929a7957d7e02951f434eca1",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "run_process_verification.sh зелёный; title не содержит вендорный префикс; fallback опирается только на явные status/code и сохраняет обе ошибки; searchDepth сохраняется и управляется в настройках с advanced по умолчанию; searchProvider принимает только tavily; обрезка и общий потолок корректны; P3 устранены; компонентный тест реально рендерит настройки; build, test и brand-scan зелёные.",
+      "text_digest": "b6781de3b8bd3e5d579f465c0684f6d023032bec187c5da49c50cd098651be21"
+    }
+  ]
+}

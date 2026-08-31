@@ -1,0 +1,61 @@
+# We want the docker builds to be clean, and as fast as possible. Don't send
+# any half-built stuff in the build context as a pre-caution (also saves copying
+# 180k files in node_modules that isn't used!).
+**/node_modules
+node_modules/*
+node_modules
+docker-data/*
+dist
+.nx
+/apps/frontend/.next
+/apps/backend/dist
+/apps/workers/dist
+/apps/cron/dist
+/apps/commands/dist
+.devcontainer
+**/.git
+**/*.md
+# Except the published legal documents, which are product content rather than
+# repository prose: the pages read them off disk at request time. Without this
+# line `/privacy`, `/terms` and `/subprocessors` render their "not published
+# yet" placeholder in the image while looking correct in the repository.
+# `tests/legal-documents.build-context.test.cjs` holds this open.
+!apps/frontend/src/content/legal/*.md
+**/LICENSE
+**/npm-debug.log
+**/*.vscode
+.git
+.github
+reports
+# Nothing below belongs in a shipped image, and the first entry is the reason
+# this section exists: `COPY . /app` was baking the developer's own .env —
+# JWT_SECRET, database URL, a Telegram bot token — into a layer of an image
+# that then travels to a shared production host. The runtime .env is mounted by
+# compose; the entrypoint refuses to start without it.
+.env
+.env.*
+!.env.example
+
+# The measuring stand's own material. `.gitignore` already keeps it out of the
+# repository and says why: the corpora are three real people's posts — «personal
+# text: it stays on the machine that measured it» — and the second ruler's
+# Python environment and downloaded weights «never enter the repository».
+# Nothing repeated that here, and `COPY . /app` does not read `.gitignore`, so
+# the release of 2026-08-30 carried 2,1 MB of those posts to a shared host and a
+# registry under 1,95 GB of PyTorch. That is the whole reason that image weighed
+# 4,78 GB where the two before it weighed 2,72 GB.
+# `tests/evidence-material.build-context.test.cjs` holds this closed.
+scripts/evidence/voice-eval/corpus.*.json
+scripts/evidence/voice-eval/corpora.json
+scripts/evidence/voice-eval/second-ruler/.venv
+scripts/evidence/voice-eval/second-ruler/weights
+
+# Working state of the tooling around the product, not the product.
+.beads
+.codex
+.claude
+graphify-out
+coverage
+output
+tmp
+uploads

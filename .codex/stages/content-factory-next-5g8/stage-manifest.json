@@ -1,0 +1,68 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-5g8",
+  "goal_id": "content-factory-next-5g8",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 5,
+  "acceptance_boundary_id": "desert-lab-visual-system",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "design-tokens",
+      "product-typography",
+      "brand-mark-and-assets",
+      "component-primitives",
+      "application-navigation",
+      "design-guards"
+    ],
+    "risk_models": [
+      "accessibility",
+      "upstream-provenance",
+      "agpl-attribution",
+      "legacy-identifier-compatibility",
+      "parallel-worktree-isolation"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "pnpm-monorepo",
+      "chromium-playwright"
+    ],
+    "rollback_boundary": "branch-revert-on-main",
+    "acceptance_proofs": [
+      "token-artefact-parity",
+      "contrast-pairs-47",
+      "design-style-guard",
+      "focused-jest",
+      "workspace-build",
+      "process-verification",
+      "component-render-screenshots"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-5g8",
+    "source_digest": "c0137029f0709dd2e2621322a5af73c97d47ab4d11719006c185cc45546f1779",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Both themes ship with the new values, every --cf-* name is unchanged, contrast holds at 1440/1024/768/390 in light and dark, and the source of the visual direction is named nowhere in the repository.",
+        "text_digest": "83a860ec8624073821a9e4e3e9c98e29a091191b6dcdf91e1e492020c8c01f18"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-5g8/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "c0137029f0709dd2e2621322a5af73c97d47ab4d11719006c185cc45546f1779",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-6vk",
+  "goal_id": "content-factory-next-6vk",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "current-architecture-and-migration-documentation-baseline",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["documentation-navigation", "architecture-map", "local-code-graph", "migration-contract"],
+    "risk_models": ["documentation-drift", "incorrect-dependency-map", "agpl-boundary", "unsafe-extension-point"],
+    "test_environments": ["repository-source", "graphify-local-code-graph", "markdown-integrity-check"],
+    "rollback_boundary": "single-documentation-stage-revert",
+    "acceptance_proofs": ["local-graph-build", "focused-graph-queries", "documentation-integrity-check", "process-verification"]
+  },
+  "work_areas": ["decision", "contract", "implementation", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-6vk",
+    "source_digest": "8f115e7c8f02c21444dbb7fef2ef07311e90575c7513580bf5254c1c52148eba",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "A docs index provides stable navigation; current architecture, module/dependency map, runtime/data/publishing flows, Prisma domain map, provider and Temporal boundaries, local development/verification, and operations/configuration are documented from repository evidence; target Content Factory ownership and migration seams are explicit; documentation maintenance rules and ADR conventions are recorded; a local Graphify code graph is configured, generated, ignored from Git, and used for focused validation; no Content Factory implementation code is copied.",
+        "text_digest": "8812399617297b3fc41bc70c5563d79f87d35ff9271e3de73eb58f9c938f95fc"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-6vk/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "8f115e7c8f02c21444dbb7fef2ef07311e90575c7513580bf5254c1c52148eba",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

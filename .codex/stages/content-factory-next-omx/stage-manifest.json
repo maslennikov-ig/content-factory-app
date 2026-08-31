@@ -1,0 +1,48 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-omx",
+  "goal_id": "content-factory-next-omx",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "repository-owned-product-events",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_schema_privacy_delivery_and_admin_acceptance",
+  "boundary": {
+    "subsystems": ["prisma-schema", "product-event-api", "auth-registration", "integration-lifecycle", "admin-ui"],
+    "risk_models": ["privacy", "tenancy", "idempotency", "data-volume", "ui-regression"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "no-database-connection"],
+    "rollback_boundary": "one-revertible-branch-commit-before-any-schema-application-or-deployment",
+    "acceptance_proofs": ["focused-red-green-tests", "privacy-refusal-tests", "external-service-purge-guard", "workspace-test", "workspace-build", "brand-scan", "process-verification", "independent-security-correctness-ui-review"]
+  },
+  "work_areas": ["schema", "repository", "service", "authenticated-api", "server-event-seams", "frontend-hook", "admin-ui", "tests", "proof"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-omx",
+    "source_digest": "c5feec7ec609c23118a750cb6d59ab9ef249ca0ae4cbb2d762bc3b52511b3c25",
+    "criteria": [
+      {"criterion_id": "AC-1", "text": "Событие, случившееся в интерфейсе, оказывается в нашей базе и видно в админке.", "text_digest": "4af0d35776b86bfc2d074869a21c00733b23a2a60c30ce149652b346e7f2339e"},
+      {"criterion_id": "AC-2", "text": "Ни почта, ни имя в событие не попадают; попытка положить персональные поля в properties получает отказ.", "text_digest": "c7a7565b95106ed24ca4b3dbb536de0f1ade84ea9c6d819282e296d7c10375b4"},
+      {"criterion_id": "AC-3", "text": "Ни одного внешнего адреса; хук отправляет только в собственный относительный endpoint.", "text_digest": "3865019c91da93048b93dfc71e802397829bf11a38e2b864b86661519e374682"},
+      {"criterion_id": "AC-4", "text": "Страж tests/external-services.purge.test.cjs и полные task gates зелёные.", "text_digest": "c5832827d882c83d45dcfeef6b96efc9625eb76943e5a03255bbf69e8ac52a78"}
+    ]
+  },
+  "scope_anchor": "beads:content-factory-next-omx",
+  "scope_anchor_digest": "c5feec7ec609c23118a750cb6d59ab9ef249ca0ae4cbb2d762bc3b52511b3c25",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-omx/design-evidence.md", ".codex/stages/content-factory-next-omx/implementation.md"],
+  "worker_ownership": [
+    {"stream": "omx-backend", "owner": "subagent:omx-backend", "write_zone": ["libraries/nestjs-libraries/src/database/prisma/schema.prisma", "libraries/nestjs-libraries/src/database/prisma/product-events/**", "libraries/nestjs-libraries/src/dtos/product-events/**", "apps/backend/src/api/routes/product-events.controller.ts", "apps/backend/src/api/routes/admin.controller.ts", "apps/backend/src/api/api.module.ts", "libraries/nestjs-libraries/src/database/prisma/database.module.ts", "server-side register/integration event seams", "tests/product-events.backend*.test.cjs"], "issues": ["content-factory-next-omx"]},
+    {"stream": "omx-frontend", "owner": "subagent:omx-frontend", "write_zone": ["libraries/helpers/src/utils/use.fire.events.ts", "confirmed purchase/lifetime client seams", "apps/frontend/src/components/admin/admin-product-events.component.tsx", "apps/frontend/src/app/(app)/(site)/admin/product-events/page.tsx", "apps/frontend/src/components/layout/impersonate.tsx", "apps/frontend/public/locales/**", "tests/product-events.frontend*.test.cjs"], "issues": ["content-factory-next-omx"]}
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["omx-backend", "omx-frontend"],
+    "benefit": ["disjoint backend-and-ui-write-zones", "schema-security-and-design-specialist-context", "parallel-red-green-latency"],
+    "limit": "shared endpoint contract is fixed in plan; no database connection, production action, external receiver, out-of-zone write, commit, or Beads close"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-omx.backend", "stream_owner": "omx_backend", "artifact_path": ".codex/stages/content-factory-next-omx/artifacts/backend.md"},
+    {"task_id": "content-factory-next-omx.frontend", "stream_owner": "omx_frontend", "artifact_path": ".codex/stages/content-factory-next-omx/artifacts/frontend.md"}
+  ]
+}

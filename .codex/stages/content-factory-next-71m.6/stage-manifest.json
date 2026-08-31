@@ -1,0 +1,66 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-71m.6",
+  "goal_id": "content-factory-next-71m.6",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 7,
+  "acceptance_boundary_id": "production-compose-memory-limits",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "production-compose",
+      "node-process-heaps"
+    ],
+    "risk_models": [
+      "shared-host-memory",
+      "container-oom",
+      "process-heap-caps"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-monorepo"
+    ],
+    "rollback_boundary": "single-branch-revert",
+    "acceptance_proofs": [
+      "focused-compose-contract",
+      "compose-static-validation",
+      "workspace-build",
+      "full-test-suite",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-71m.6",
+    "source_digest": "f79adb8d7aa099cfa07da412459527031c2a7dd39f502b9f376be59895e7fc25",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Лимиты пересчитаны под фактическое потребление и записаны в deploy/production/docker-compose.yaml",
+        "text_digest": "7a5e0c14dbf680198a82e09a45bc2344336e86a6995232d00e57c3fa62964d80"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-71m.6/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "f79adb8d7aa099cfa07da412459527031c2a7dd39f502b9f376be59895e7fc25",
+  "scope_ledger": "none",
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-71m.6",
+      "stream_owner": "compose-memory-limits",
+      "artifact_path": ".codex/stages/content-factory-next-71m.6/artifacts/compose-memory-limits.md"
+    }
+  ]
+}

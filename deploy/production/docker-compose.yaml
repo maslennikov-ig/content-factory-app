@@ -1,0 +1,225 @@
+# Production stack for a single-host deployment behind an existing Caddy proxy.
+#
+# Only the application joins `caddy_network`; the database, cache and Temporal
+# stay on the project's private network and publish no ports at all. Nothing
+# here is reachable from the internet except through the reverse proxy.
+#
+# Every service name is prefixed. A service name becomes a DNS alias on every
+# network the container joins, and the shared proxy network already carries
+# other projects — a service called `postgres` or `redis` there resolves to
+# somebody else's database. The prefix is what keeps the neighbours apart, in
+# both directions.
+#
+# The image is built elsewhere and loaded onto the host, so this file never
+# builds: a Next.js build needs more memory than a shared host can spare
+# without disturbing whatever else runs on it.
+name: content-factory-next
+
+services:
+  cf-app:
+    image: ${CF_IMAGE:-content-factory-next:latest}
+    container_name: cf-next-app
+    restart: unless-stopped
+    env_file:
+      - app.env
+    # The heap cap used to live here as a container-wide
+    # `NODE_OPTIONS=--max-old-space-size=512`, which handed the same number to
+    # three processes of very different sizes — and to every `docker compose
+    # exec` besides. Each application now carries its own in
+    # var/docker/ecosystem.config.js: backend 512 MiB, orchestrator 512 MiB,
+    # frontend 256 MiB.
+    #
+    # This limit is those three ceilings, 1280 MiB, plus the native memory
+    # measured beside them — the Temporal SDK's Rust core, the Node binaries,
+    # nginx, pm2 — which came to about 330 MiB. A container that reaches
+    # 1792 MiB has a runaway in it, and the point of the cap is that the
+    # runaway is killed here rather than by the host, which carries other
+    # people's services.
+    #
+    # The 512 MiB between 1280 and 1792 is not spare capacity. Only old space
+    # is capped: new space, code space and external Buffer/ArrayBuffer memory
+    # sit outside those flags, as does everything that is not JS heap at all.
+    # Measured idle, the orchestrator carried 219 MiB beside its heap (474
+    # resident, 255 heap) and the frontend 66 MiB (110 resident, 44 heap); the
+    # backend's own native memory, nginx and pm2 come on top of those. Three
+    # processes at their caps plus non-heap of the size already measured is
+    # about 1720 MiB. The worst case this file permits clears the ceiling by
+    # tens of megabytes, not by 512, and it clears it only because nothing here
+    # has ever come near its cap. The gap is oversubscription, not room to
+    # spend.
+    #
+    # `memswap_limit` is the memory limit and no more, and that is what makes
+    # the paragraph above true. Docker defaults the swap ceiling to twice
+    # `mem_limit`, so without this line a runaway takes 1792 MiB of RAM and
+    # then another 1792 MiB of the host's swap — pushing out exactly the
+    # neighbours this cap exists to protect, instead of dying here. Equal
+    # values mean no swap at all for this container.
+    #
+    # Left off cf-postgres, cf-redis and cf-temporal on purpose. Those hold
+    # state, and for them a container that swaps and stays up beats one that is
+    # killed; this one restarts clean. Revisit that if the host's swap ever
+    # turns into the thing under pressure.
+    #
+    # Measured 2026-08-17 in a local copy of this stack, idle, no channels
+    # connected: 1010 MiB, 56% of this limit. The same measurement against the
+    # previous start-up chain gave 1081 MiB.
+    #
+    # A later backend-only profile removed 54.47 MiB of that process's local
+    # RSS during start-up. It is not cgroup accounting, so it is deliberately
+    # not used to cut this ceiling. Re-measure the running container before
+    # changing this value; that production check is content-factory-next-71m.7.
+    mem_limit: 1792m
+    memswap_limit: 1792m
+    volumes:
+      # Configuration reaches the applications through `env_file` above; they
+      # read the process environment and nothing here parses this file. It is
+      # mounted because the entrypoint refuses to start without it — a
+      # container that has neither is one nobody configured.
+      - ./app.env:/app/.env:ro
+      - uploads:/uploads
+    # `cf-listmonk` is deliberately absent from this list. The newsletter is an
+    # optional, owner-bootstrapped service; making the product wait for it would
+    # mean a host that has not configured a mailing list cannot sign anyone in.
+    # nginx reaches it through a per-request lookup (var/docker/nginx.conf), so
+    # a missing newsletter costs a 502 on `/newsletter/*` and nothing else.
+    depends_on:
+      cf-postgres:
+        condition: service_healthy
+      cf-redis:
+        condition: service_healthy
+      cf-temporal:
+        condition: service_started
+    networks:
+      - internal
+      - caddy_network
+
+  cf-postgres:
+    image: postgres:17-alpine
+    container_name: cf-next-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PRODUCT_RUNTIME_USER: ${PRODUCT_RUNTIME_USER}
+      PRODUCT_RUNTIME_PASSWORD: ${PRODUCT_RUNTIME_PASSWORD}
+      MASTRA_DATABASE_NAME: ${MASTRA_DATABASE_NAME}
+      MASTRA_RUNTIME_USER: ${MASTRA_RUNTIME_USER}
+      MASTRA_RUNTIME_PASSWORD: ${MASTRA_RUNTIME_PASSWORD}
+      # The owner-run bootstrap reads these inside the already-running
+      # container, so the role password never appears in a host process list.
+      LISTMONK_DB_USER: ${LISTMONK_DB_USER}
+      LISTMONK_DB_PASSWORD: ${LISTMONK_DB_PASSWORD}
+      LISTMONK_DB_NAME: ${LISTMONK_DB_NAME}
+    # Measured idle with the schema applied and the application connected:
+    # 140 MiB, most of it the default 128 MB of shared buffers. Left where it
+    # is because the rest is per-connection working memory, which the
+    # measurement above does not exercise.
+    mem_limit: 512m
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+  cf-redis:
+    image: redis:7.2-alpine
+    container_name: cf-next-redis
+    restart: unless-stopped
+    # Redis holds throttling counters and one-time login state. Losing it on a
+    # restart costs an in-flight sign-in, nothing durable, so one lazy snapshot
+    # is enough and the append-only log is off.
+    command: ['redis-server', '--save', '300', '10', '--appendonly', 'no']
+    # Measured idle: 5 MiB. The limit is not a reservation, and counters this
+    # small never approach it, so it stays as a ceiling against a runaway key.
+    mem_limit: 192m
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+  cf-temporal:
+    image: temporalio/auto-setup:1.28.1
+    container_name: cf-next-temporal
+    restart: unless-stopped
+    environment:
+      # Temporal keeps its own databases on the same PostgreSQL server. A
+      # second engine would double the resident memory for no isolation this
+      # deployment needs.
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=cf-postgres
+      - DBNAME=temporal
+      - VISIBILITY_DBNAME=temporal_visibility
+      - DEFAULT_NAMESPACE=default
+      - DEFAULT_NAMESPACE_RETENTION=72h
+      # Elasticsearch is the advanced-visibility store. Without it Temporal
+      # falls back to SQL visibility, which this workload's list queries are
+      # small enough for, and the host keeps a gigabyte of RAM.
+      - ENABLE_ES=false
+    # Measured idle with the application connected and all thirty-three queues
+    # polled: 157 MiB. Unchanged deliberately — Temporal's memory follows the
+    # history it is holding, and no measurement here loaded it. Cutting the
+    # ceiling of the durability layer to reclaim a number nobody is using is
+    # the wrong trade.
+    mem_limit: 768m
+    depends_on:
+      cf-postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  cf-listmonk:
+    image: listmonk/listmonk:v6.2.0
+    container_name: cf-next-listmonk
+    restart: unless-stopped
+    command:
+      [
+        'sh',
+        '-c',
+        "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''",
+      ]
+    environment:
+      - LISTMONK_app__address=0.0.0.0:9000
+      - LISTMONK_db__host=cf-postgres
+      - LISTMONK_db__port=5432
+      - LISTMONK_db__user=${LISTMONK_DB_USER}
+      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD}
+      - LISTMONK_db__database=${LISTMONK_DB_NAME}
+      - LISTMONK_db__ssl_mode=disable
+      - LISTMONK_db__max_open=10
+      - LISTMONK_db__max_idle=5
+      - LISTMONK_db__max_lifetime=300s
+      - LISTMONK_ADMIN_USER=${LISTMONK_ADMIN_USER}
+      - LISTMONK_ADMIN_PASSWORD=${LISTMONK_ADMIN_PASSWORD}
+      - TZ=Europe/Moscow
+    mem_limit: 384m
+    volumes:
+      - listmonk_uploads:/listmonk/uploads
+    depends_on:
+      cf-postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  postgres:
+  redis:
+  uploads:
+  listmonk_uploads:
+
+networks:
+  internal:
+  caddy_network:
+    external: true

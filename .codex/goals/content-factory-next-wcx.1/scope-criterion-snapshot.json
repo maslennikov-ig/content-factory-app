@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-wcx.1",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-wcx.1",
+  "source_digest": "45702c49dba0b7a2e89cf1fba298a580f8dac2476f4ee85ed23f995203fdc37f",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "grep \u0040gitroom по ts/tsx/json/md вне node_modules и .next пуст; ни одного gitroom или postiz в поле name рабочих пакетов; после каждого из трёх коммитов зелёные build, полный pnpm test, brand-scan 0 unexplained и process verification.",
+      "text_digest": "248f159e03b875829bacedfa4e63acfe9c4bbdbe1840fa34eff6023781debdde"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-ia0.1",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-ia0.1",
+  "source_digest": "a5d6e6cad0b7914b3cf3aceaaac0a60eb9881295acf95d3897e836fcb162d7d2",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Исправить все подтверждённые дефекты независимого аудита принятой стадии content-factory-next-ia0: Mastra migration берёт DDL из реальной исходной БД и сравнивает набор с 29 deployment tables; browser relay принимает реальный клиентский POST; platform marks читаемы в тёмной теме без перекраски; branch pin, deployment runbook, Stripe terminal cases, database ACL restore, Input layout, calendar accessibility и Temporal-proxied error payload исправлены; дешёвые second-tier находки либо исправлены, либо явно отложены с причиной; визуальные и tracker claims честны; один финальный release acceptance проходит с TMPDIR=/tmp; owner-blocked ids, 71m.7, parent epics и epic or3 остаются открыты и нетронуты; merge, push, PR, deploy, production, credentials и paid calls не выполняются.",
+      "text_digest": "ed5e5b404433621726ff688aec98ead40ccdc241b8440500e35b60f5c5a3c08c"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-zjm",
+  "goal_id": "content-factory-next-zjm",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 3,
+  "acceptance_boundary_id": "content-factory-brand-and-interface",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "design-tokens",
+      "shared-form-primitives",
+      "brand-assets",
+      "auth",
+      "app-shell",
+      "core-surfaces",
+      "secondary-surfaces",
+      "product-email",
+      "browser-extension-chrome"
+    ],
+    "risk_models": [
+      "upstream-provenance",
+      "agpl-attribution",
+      "legacy-identifier-compatibility",
+      "accessibility",
+      "localisation"
+    ],
+    "test_environments": ["local-wsl", "pnpm-monorepo", "chromium-playwright"],
+    "rollback_boundary": "branch-revert-on-codex/architecture-documentation",
+    "acceptance_proofs": [
+      "brand-scan-allowlist",
+      "focused-jest",
+      "workspace-build",
+      "process-verification",
+      "browser-smoke-screenshots"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-zjm",
+    "source_digest": "c4b3cb3c3a4b6ad7aaca410d7cf48945d37f9aec6287f8469903fd05ec212c83",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Every user-facing surface uses Content Factory; shared semantic tokens and components cover light and dark; auth, shell, core and secondary routes are responsive and accessible; no user-facing Postiz links or assets remain; compatible internal identifiers and legal attribution are preserved; build, tests and visual smoke checks pass.",
+        "text_digest": "8797b7c6d52f5813b295b9426db9e7d6e6f095b7df47d789bd4603a3f8dc2ad0"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-zjm/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "c4b3cb3c3a4b6ad7aaca410d7cf48945d37f9aec6287f8469903fd05ec212c83",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

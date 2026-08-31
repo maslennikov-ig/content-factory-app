@@ -1,0 +1,60 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 73.279,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm test",
+      "duration_seconds": 64.971,
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 97 passed, 97 total",
+        "Tests:       1059 passed, 1059 total",
+        "Ran 8 tests in 0.134s",
+        "OK"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "duration_seconds": 0.057,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "duration_seconds": 0.608,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.052,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.012,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm run build",
+    "pnpm test",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-08-19T07:10:52.748329+00:00",
+  "diff_digest": "bf88f74f4e8d2e2d3be591acfaa37992cd9bb6cbab8a3bd04e1dbd6825e1bece",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "80300ed6899490dca5e0f6ec82492bbc9776828e",
+  "idempotency_key": "a8c5595cba3da833c4d6eae5992e54b95d7dd54d2a1f2946d66d66a812f1d145",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-ia0.1",
+  "started_at": "2026-08-19T07:08:33.618362+00:00",
+  "verification_fingerprint": "a8c5595cba3da833c4d6eae5992e54b95d7dd54d2a1f2946d66d66a812f1d145"
+}

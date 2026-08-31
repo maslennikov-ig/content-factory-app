@@ -1,0 +1,93 @@
+/* Content Factory — цветовые токены. Тёмная тема основная, светлая дневная. */
+
+:root {
+  /* Плоскости */
+  --cf-canvas: #EFE9DB;
+  --cf-surface: #FBF8F0;
+  --cf-surface-subtle: #E4DDCB;
+  --cf-surface-raised: #FFFDF6;
+
+  /* Текст */
+  --cf-ink: #22231A;
+  --cf-ink-muted: #5C5D4C;
+  --cf-ink-inverse: #F4F1E4;
+
+  /* Границы */
+  --cf-border: #D3CAB3;
+  --cf-border-strong: #B0A68A;
+  --cf-border-control: #847B62;
+
+  /* Навигация */
+  --cf-navigation: #E4DDCB;
+  --cf-navigation-text: #22231A;
+  --cf-navigation-muted: #5C5D4C;
+  --cf-navigation-active: #FBF8F0;
+
+  /* Акцент */
+  --cf-accent: #3F6B2E;
+  --cf-accent-hover: #33581F;
+  --cf-accent-soft: #E1EAD2;
+  --cf-accent-ink: #FFFFFF;
+
+  /* Подпись бренда */
+  --cf-signature: #9C6A16;
+
+  /* Статусы */
+  --cf-info: #2F5A82;
+  --cf-info-soft: #E3EBF3;
+  --cf-warning: #7A4D00;
+  --cf-warning-soft: #F6E7C2;
+  --cf-danger: #8E2B22;
+  --cf-danger-soft: #F6E0DB;
+
+  /* Фокус и слои */
+  --cf-focus: #3F6B2E;
+  --cf-backdrop: rgba(34, 35, 26, 0.46);
+  --cf-overlay-shadow: 0 16px 32px -12px rgba(34, 35, 26, 0.26);
+}
+
+.dark {
+  /* Плоскости */
+  --cf-canvas: #14150F;
+  --cf-surface: #1C1E16;
+  --cf-surface-subtle: #22241B;
+  --cf-surface-raised: #272A1F;
+
+  /* Текст */
+  --cf-ink: #ECEBDF;
+  --cf-ink-muted: #A6A794;
+  --cf-ink-inverse: #14150F;
+
+  /* Границы */
+  --cf-border: #33362A;
+  --cf-border-strong: #4B4F3E;
+  --cf-border-control: #7E826D;
+
+  /* Навигация */
+  --cf-navigation: #0E0F0A;
+  --cf-navigation-text: #ECEBDF;
+  --cf-navigation-muted: #A6A794;
+  --cf-navigation-active: #22241B;
+
+  /* Акцент */
+  --cf-accent: #7FB03A;
+  --cf-accent-hover: #96C551;
+  --cf-accent-soft: #1F2915;
+  --cf-accent-ink: #0F1409;
+
+  /* Подпись бренда */
+  --cf-signature: #C8922A;
+
+  /* Статусы */
+  --cf-info: #7FA6C8;
+  --cf-info-soft: #161F28;
+  --cf-warning: #D9A02B;
+  --cf-warning-soft: #2A2010;
+  --cf-danger: #D2705C;
+  --cf-danger-soft: #2C1512;
+
+  /* Фокус и слои */
+  --cf-focus: #7FB03A;
+  --cf-backdrop: rgba(8, 9, 5, 0.74);
+  --cf-overlay-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.72);
+}

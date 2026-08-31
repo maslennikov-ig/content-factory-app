@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-vme.2",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-vme.2",
+  "source_digest": "5d20da4c9d65ff1c973d70a119e2c6e3b5aa29da917a00d6356917897ede2f76",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Каждая из пяти поверхностей раздела 6 (2id, k21, s96, qzw, den) закрыта на воспроизводимом локальном fixture без production credentials, либо имеет доказанную blocker-задачу с названной причиной; обязательные состояния, screen review, обе темы, 1440/1024/768/390 и длинные RU/EN строки проверены. RAW_PALETTE_ALLOWED и LEGACY_WORD_ALIAS_ALLOWED строго уменьшились, каждое снятое разрешение соответствует мигрированному потребителю, хотя бы одна неиспользуемая роль удалена из colors.scss. Публичная шапка не держит собственной геометрии кнопки. Dark-theme evidence для channel picker снят с seeded fixture без живых подключений. design.guard и design.contrast зелёные, ни один allowlist не расширен.",
+      "text_digest": "5146adcbcdac895662c6ac18008dcd2395defe46e4b9f87638b5ad4f590a5369"
+    }
+  ]
+}

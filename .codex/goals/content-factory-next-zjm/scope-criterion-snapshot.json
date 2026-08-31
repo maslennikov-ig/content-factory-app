@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-zjm",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-zjm",
+  "source_digest": "c4b3cb3c3a4b6ad7aaca410d7cf48945d37f9aec6287f8469903fd05ec212c83",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Every user-facing surface uses Content Factory; shared semantic tokens and components cover light and dark; auth, shell, core and secondary routes are responsive and accessible; no user-facing Postiz links or assets remain; compatible internal identifiers and legal attribution are preserved; build, tests and visual smoke checks pass.",
+      "text_digest": "8797b7c6d52f5813b295b9426db9e7d6e6f095b7df47d789bd4603a3f8dc2ad0"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 77.905,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm test",
+      "duration_seconds": 1.919,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.008,
+      "result": "passed"
+    },
+    {
+      "command": "scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.054,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm run build",
+    "pnpm test",
+    "git diff --check",
+    "scripts/orchestration/run_process_verification.sh"
+  ],
+  "completed_at": "2026-08-11T11:50:20.103207+00:00",
+  "diff_digest": "769693b6409a7ccdfcae7ded27affe073e75f69c09febc49d194d7632c38dfc3",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "c90b6c625bc0ec470d6dcdb57c63608aaa9b7b74",
+  "idempotency_key": "dc4ac72ae4cad7f59ad9e4582dfdf9ece598e93497d92c5aac2920bfe52462c9",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-v7r",
+  "started_at": "2026-08-11T11:49:00.074794+00:00",
+  "verification_fingerprint": "dc4ac72ae4cad7f59ad9e4582dfdf9ece598e93497d92c5aac2920bfe52462c9"
+}

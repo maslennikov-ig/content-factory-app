@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet" />
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); }
+    a:hover { color: var(--cf-accent-hover, #96C551); }
+  </style>
+</helmet>
+
+<div style="--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A;--cf-backdrop:rgba(8,9,5,.74);--cf-overlay-shadow:0 18px 44px -14px rgba(0,0,0,.72);font-family:Geologica,system-ui,sans-serif">
+<div style="{{ themeVars }}">
+<div style="background:var(--cf-canvas);color:var(--cf-ink);padding:40px;display:flex;flex-direction:column;gap:48px">
+
+  <div style="display:flex;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:2px solid var(--cf-accent)">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">РАЗДЕЛ «КОНТЕНТ» · 1024 · 768 · 390</span>
+      <span style="font-size:32px;font-weight:650;line-height:1.2;letter-spacing:-0.02em;text-wrap:balance">Узкие ширины и мобильная раскладка</span>
+      <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);max-width:70ch;text-wrap:pretty">Ниже 1024 навигация сворачивается в рельс 72px, ниже 768 становится выезжающей панелью. Правые панели превращаются в слои над контентом, двухколонные экраны — в одну колонку. На мобильном все цели нажатия не меньше 44px.</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:inline-flex;padding:3px;gap:2px;border-radius:9999px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);flex:none">
+      <button type="button" onClick="{{ setDark }}" style="{{ darkBtn }}">Тёмная</button>
+      <button type="button" onClick="{{ setLight }}" style="{{ lightBtn }}">Светлая</button>
+    </div>
+  </div>
+
+  <section data-screen-label="1024 группа" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">1024</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Рельс свёрнут до 72px</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Панель перекройки уходит в слой над контентом</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОБОЛОЧКА · ПУСТО</span>
+        <div style="width:1024px;height:760px;display:flex;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <nav style="width:72px;flex:none;background:var(--cf-navigation);border-right:1px solid var(--cf-border-strong);padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="display:flex;flex-direction:column;justify-content:space-between;width:24px;height:24px;padding:2px 3px;border:1px solid var(--cf-signature);border-radius:4px;box-sizing:border-box;margin-bottom:12px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:7px;line-height:1;color:var(--cf-signature)">98</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;line-height:1;color:var(--cf-signature)">Cf</span>
+            </span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:var(--cf-navigation-muted)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12" rx="2"></rect><path d="M3 8h14M7 3v3M13 3v3" stroke-linecap="round"></path></svg></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:var(--cf-navigation-muted)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16h12M4.5 12.5 12 5l3 3-7.5 7.5H4.5z"></path></svg></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;background:var(--cf-navigation-active);border-left:3px solid var(--cf-accent);color:var(--cf-navigation-text)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7l3 3v10H5z"></path><path d="M7.5 8.5h5M7.5 11.5h5M7.5 14h3"></path></svg></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:var(--cf-navigation-muted)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="11" rx="2"></rect><path d="M3 13l4-3.5 4 3 3-2.5 3 2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:var(--cf-navigation-muted)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 3v5M13 3v5"></path><rect x="5" y="8" width="10" height="4" rx="1"></rect><path d="M10 12v5"></path></svg></span>
+            <div style="flex:1"></div>
+            <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--cf-border-control);border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--cf-navigation-text)">АК</span>
+          </nav>
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font-size:18px;font-weight:650;line-height:1.35">Контент</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">org-4417 · 22.08.2026</span>
+              </div>
+              <div style="flex:1"></div>
+              <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Создать голос бренда</button>
+            </div>
+            <div style="display:flex;gap:20px;padding:0 20px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+              <span style="padding:12px 0;border-bottom:2px solid var(--cf-accent);font-size:14px;font-weight:650;margin-bottom:-1px">Голос бренда</span>
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Источники</span>
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Материалы</span>
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Происхождение</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px">
+              <div style="width:100%;max-width:560px;display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted);border:1px solid var(--cf-border-strong);border-radius:4px;padding:1px 6px;width:fit-content">РАЗДЕЛ ПУСТ</span>
+                <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em;text-wrap:balance">Голоса бренда пока нет</span>
+                <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);text-wrap:pretty">Голос бренда — набор правил, по которым пишутся тексты: тон, длина фраз, обращение к читателю и запретные формулировки.</span>
+                <div style="display:flex;gap:12px;flex-wrap:wrap">
+                  <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Создать голос бренда</button>
+                  <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Посмотреть пример</button>
+                </div>
+              </div>
+              <div style="width:100%;max-width:560px;display:flex;flex-direction:column">
+                <div style="display:flex;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--cf-border)"><span style="width:120px;flex:none;font-size:13px;font-weight:650">Источники</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Тексты, из которых собран голос</span></div>
+                <div style="display:flex;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--cf-border)"><span style="width:120px;flex:none;font-size:13px;font-weight:650">Материалы</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Готовые тексты для перекройки</span></div>
+                <div style="display:flex;align-items:baseline;gap:12px;padding:9px 0;border-top:1px solid var(--cf-border);border-bottom:1px solid var(--cf-border)"><span style="width:120px;flex:none;font-size:13px;font-weight:650">Происхождение</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Откуда взялась каждая публикация</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">СБОР ОБРАЗЦОВ · НЕДОБОР</span>
+        <div style="width:1024px;height:760px;display:flex;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <nav style="width:72px;flex:none;background:var(--cf-navigation);border-right:1px solid var(--cf-border-strong);padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="display:flex;flex-direction:column;justify-content:space-between;width:24px;height:24px;padding:2px 3px;border:1px solid var(--cf-signature);border-radius:4px;box-sizing:border-box;margin-bottom:12px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:7px;line-height:1;color:var(--cf-signature)">98</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;line-height:1;color:var(--cf-signature)">Cf</span>
+            </span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;background:var(--cf-navigation-active);border-left:3px solid var(--cf-accent);color:var(--cf-navigation-text)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7l3 3v10H5z"></path><path d="M7.5 8.5h5M7.5 11.5h5M7.5 14h3"></path></svg></span>
+            <div style="flex:1"></div>
+          </nav>
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font-size:18px;font-weight:650;line-height:1.35">Собрать из моих текстов</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">шаг 1 из 4 · образцы</span>
+              </div>
+              <div style="flex:1"></div>
+              <span style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600">1 / 4</span>
+            </div>
+            <div style="flex:1;display:flex;gap:16px;padding:20px;min-height:0">
+              <div style="width:316px;flex:none;display:flex;flex-direction:column;gap:10px;min-width:0">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОТКУДА ВЗЯТЬ ТЕКСТЫ</span>
+                <div style="display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;font-size:13px;font-weight:650;min-width:0">Мои опубликованные посты</span><button type="button" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;flex:none">Выбрать</button></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;font-size:13px;font-weight:650;min-width:0">Выгрузка Telegram Desktop</span><button type="button" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;flex:none">Загрузить</button></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;font-size:13px;font-weight:650;min-width:0">Вставить текст</span><button type="button" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;flex:none">Вставить</button></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;font-size:13px;font-weight:650;min-width:0">Загрузить файлы</span><button type="button" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;flex:none">Выбрать</button></div>
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px 12px"><span style="flex:1;font-size:13px;font-weight:650;min-width:0">Сайт или RSS</span><button type="button" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;flex:none">Указать</button></div>
+                </div>
+                <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);text-wrap:pretty">Каждый образец виден отдельно и удаляется по одному.</span>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0;min-height:0">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-warning);border-radius:8px">
+                  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums">6 400</span>
+                    <span style="font-size:14px;color:var(--cf-ink-muted);padding-bottom:6px">из 15 000 знаков</span>
+                    <div style="flex:1"></div>
+                    <span style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:var(--cf-warning-soft);border:1px solid var(--cf-warning);color:var(--cf-warning);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600">НЕДОБОР</span>
+                  </div>
+                  <div style="height:8px;border-radius:4px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);overflow:hidden"><div style="width:43%;height:100%;background:var(--cf-accent)"></div></div>
+                  <span style="font-size:13px;line-height:1.45;text-wrap:pretty">Добавьте ещё 8 600 знаков — на меньшем объёме разбор находит случайные привычки.</span>
+                </div>
+                <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;padding:8px 12px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span>КОД</span><span>ЧТО ЭТО</span><span style="text-align:right">ЗНАКОВ</span><span style="text-align:right">ДАТА</span></div>
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;align-items:center;padding:0 12px;height:36px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">smp-01</span><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Итоги наладки линии</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums">2 140</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">12.08</span></div>
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;align-items:center;padding:0 12px;height:36px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">smp-02</span><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Почему поменяли поставщика подшипников</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums">1 780</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">05.08</span></div>
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;align-items:center;padding:0 12px;height:36px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">smp-03</span><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Письмо смене перед аттестацией</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums">1 020</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">22.08</span></div>
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;align-items:center;padding:0 12px;height:36px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">smp-04</span><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Обращение к подписчикам</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums">880</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">30.07</span></div>
+                  <div style="display:grid;grid-template-columns:80px 1fr 76px 76px;gap:10px;align-items:center;padding:0 12px;height:36px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">smp-05</span><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Заметка о ремонте кровли</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums">580</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">18.07</span></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <button type="button" disabled="disabled" style="height:40px;padding:0 14px;border-radius:8px;border:1px dashed var(--cf-border-strong);background:transparent;color:var(--cf-ink-muted);font-family:inherit;font-size:13px;font-weight:650">Дальше — разбор</button>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">откроется на 15 000 знаках</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">МАТЕРИАЛЫ · ПЕРЕКРОЙКА СЛОЕМ НАД КОНТЕНТОМ</span>
+        <div style="width:1024px;height:760px;display:flex;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden;position:relative">
+          <nav style="width:72px;flex:none;background:var(--cf-navigation);border-right:1px solid var(--cf-border-strong);padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span style="display:flex;flex-direction:column;justify-content:space-between;width:24px;height:24px;padding:2px 3px;border:1px solid var(--cf-signature);border-radius:4px;box-sizing:border-box;margin-bottom:12px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:7px;line-height:1;color:var(--cf-signature)">98</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;line-height:1;color:var(--cf-signature)">Cf</span>
+            </span>
+            <span style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;background:var(--cf-navigation-active);border-left:3px solid var(--cf-accent);color:var(--cf-navigation-text)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h7l3 3v10H5z"></path><path d="M7.5 8.5h5M7.5 11.5h5M7.5 14h3"></path></svg></span>
+            <div style="flex:1"></div>
+          </nav>
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+              <span style="font-size:18px;font-weight:650;line-height:1.35">Контент</span>
+              <div style="flex:1"></div>
+              <button type="button" style="height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Фильтры · 1</button>
+            </div>
+            <div style="display:flex;gap:20px;padding:0 20px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Голос бренда</span>
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Источники</span>
+              <span style="padding:12px 0;border-bottom:2px solid var(--cf-accent);font-size:14px;font-weight:650;margin-bottom:-1px">Материалы</span>
+              <span style="padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Происхождение</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:10px;padding:20px;min-height:0">
+              <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                <div style="display:grid;grid-template-columns:88px 1fr 60px 76px 128px;gap:10px;padding:8px 12px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span>КОД</span><span>МАТЕРИАЛ</span><span style="text-align:right">ВЫШЛО</span><span style="text-align:right">ДАТА</span><span></span></div>
+                <div style="display:grid;grid-template-columns:88px 1fr 60px 76px 128px;gap:10px;align-items:center;padding:0 12px;height:44px;border-bottom:1px solid var(--cf-border);background:var(--cf-accent-soft)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600">mat-0312</span><span style="min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Отгрузку на Урал перенесли на четверг</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">пост + фото</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right">3</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">20.08.26</span><button type="button" style="height:32px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Переиспользовать</button></div>
+                <div style="display:grid;grid-template-columns:88px 1fr 60px 76px 128px;gap:10px;align-items:center;padding:0 12px;height:44px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">mat-0308</span><span style="min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Итоги наладки линии термообработки</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">пост</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right">2</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">12.08.26</span><button type="button" style="height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Переиспользовать</button></div>
+                <div style="display:grid;grid-template-columns:88px 1fr 60px 76px 128px;gap:10px;align-items:center;padding:0 12px;height:44px;border-bottom:1px solid var(--cf-border)"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">mat-0301</span><span style="min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Почему поменяли поставщика подшипников</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">лонгрид</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right">4</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">05.08.26</span><button type="button" style="height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Переиспользовать</button></div>
+                <div style="display:grid;grid-template-columns:88px 1fr 60px 76px 128px;gap:10px;align-items:center;padding:0 12px;height:44px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px">mat-0297</span><span style="min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Письмо смене перед аттестацией</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">рассылка</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;text-align:right">1</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:right">28.07.26</span><button type="button" style="height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Переиспользовать</button></div>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;inset:0;background:var(--cf-backdrop)"></div>
+          <div style="position:absolute;top:0;right:0;bottom:0;width:420px;background:var(--cf-surface-raised);border-left:1px solid var(--cf-border-strong);border-radius:12px 0 0 12px;box-shadow:var(--cf-overlay-shadow);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--cf-border)">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:18px;font-weight:650;line-height:1.35">Переиспользовать</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0312 · 312 знаков</span>
+              </div>
+              <div style="flex:1"></div>
+              <button type="button" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:20px;min-height:0">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:13px;font-weight:650">Под какую площадку</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <span style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-size:13px;font-weight:650"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"></path></svg>Сайт</span>
+                  <span style="padding:5px 12px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-size:13px">Telegram</span>
+                  <span style="padding:5px 12px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-size:13px">ВКонтакте</span>
+                  <span style="padding:5px 12px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-size:13px">Рассылка</span>
+                </div>
+              </div>
+              <div style="height:1px;background:var(--cf-border)"></div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:650">Что изменится</span>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--cf-border);font-size:13px"><span style="color:var(--cf-ink-muted)">Длина</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">312 → 1 400</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--cf-border);font-size:13px"><span style="color:var(--cf-ink-muted)">Списки</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">строкой → перечнем</span></div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:13px"><span style="color:var(--cf-ink-muted)">Фото</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">1 → 3 с подписями</span></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Перекроить</button>
+                <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Отменить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="768 группа" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">768</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Навигация — выезжающая панель</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Двухколонные экраны становятся одной колонкой</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОБОЛОЧКА · ПУСТО</span>
+        <div style="width:768px;height:900px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font-size:18px;font-weight:650;line-height:1.35">Контент</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">org-4417</span>
+            </div>
+            <div style="flex:1"></div>
+            <button type="button" style="height:44px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;flex:none">Создать голос</button>
+          </div>
+          <div style="display:flex;gap:20px;padding:0 16px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border);overflow:hidden">
+            <span style="padding:13px 0;border-bottom:2px solid var(--cf-accent);font-size:14px;font-weight:650;margin-bottom:-1px;white-space:nowrap">Голос бренда</span>
+            <span style="padding:13px 0;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Источники</span>
+            <span style="padding:13px 0;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Материалы</span>
+            <span style="padding:13px 0;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Происхождение</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:24px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted);border:1px solid var(--cf-border-strong);border-radius:4px;padding:1px 6px;width:fit-content">РАЗДЕЛ ПУСТ</span>
+              <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em;text-wrap:balance">Голоса бренда пока нет</span>
+              <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);text-wrap:pretty">Пока голоса нет, тексты собираются нейтральным стилем. Это рабочий режим, а не ошибка.</span>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button type="button" style="height:44px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Создать голос бренда</button>
+                <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Посмотреть готовый пример</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);padding-bottom:8px">ЧТО ПОЯВИТСЯ В ОСТАЛЬНЫХ ВКЛАДКАХ</span>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Источники</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Тексты, из которых собран голос</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Материалы</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Готовые тексты для перекройки</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border);border-bottom:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Происхождение</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Откуда взялась каждая публикация</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">СБОР ОБРАЗЦОВ · ОДНА КОЛОНКА</span>
+        <div style="width:768px;height:900px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5l-5 5 5 5"></path></svg></button>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font-size:18px;font-weight:650;line-height:1.35">Собрать из моих текстов</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">шаг 1 из 4 · образцы</span>
+            </div>
+            <div style="flex:1"></div>
+            <span style="padding:5px 10px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">1 / 4</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:20px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-warning);border-radius:8px">
+              <div style="display:flex;align-items:flex-end;gap:12px">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums">6 400</span>
+                <span style="font-size:14px;color:var(--cf-ink-muted);padding-bottom:6px">из 15 000 знаков</span>
+                <div style="flex:1"></div>
+                <span style="padding:4px 10px;border-radius:9999px;background:var(--cf-warning-soft);border:1px solid var(--cf-warning);color:var(--cf-warning);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600">НЕДОБОР</span>
+              </div>
+              <div style="height:8px;border-radius:4px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);overflow:hidden"><div style="width:43%;height:100%;background:var(--cf-accent)"></div></div>
+              <span style="font-size:14px;line-height:1.5;text-wrap:pretty">Добавьте ещё 8 600 знаков — на меньшем объёме разбор находит случайные привычки вместо устойчивых.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОТКУДА ВЗЯТЬ ТЕКСТЫ</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;text-align:left">Мои посты<span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">5 каналов</span></button>
+                <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;text-align:left">Telegram<span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">result.json</span></button>
+                <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;text-align:left">Вставить текст</button>
+                <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;text-align:left">Загрузить файлы</button>
+              </div>
+              <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer;text-align:left">Разрешённый сайт или RSS</button>
+            </div>
+            <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span style="flex:1">НАБРАННЫЕ ОБРАЗЦЫ</span><span>5</span></div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Итоги наладки линии</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-01 · мои посты · 12.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">2 140</span></div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Почему поменяли поставщика подшипников</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-02 · мои посты · 05.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">1 780</span></div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Письмо смене перед аттестацией</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-03 · вставка · 22.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">1 020</span></div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 12px"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Обращение к подписчикам</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-04 · telegram · 30.07.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">880</span></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--cf-surface);border-top:1px solid var(--cf-border)">
+            <button type="button" disabled="disabled" style="flex:1;height:44px;border-radius:8px;border:1px dashed var(--cf-border-strong);background:transparent;color:var(--cf-ink-muted);font-family:inherit;font-size:14px;font-weight:650">Дальше — разбор</button>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);flex:none">откроется на 15 000</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">НАВИГАЦИЯ ВЫЕХАЛА · ПАСПОРТ ГОЛОСА ПОД НЕЙ</span>
+        <div style="width:768px;height:900px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden;position:relative">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+            <span style="font-size:18px;font-weight:650;line-height:1.35">Голос бренда</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:20px;min-height:0">
+            <div style="display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border-strong);border-radius:8px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border);flex-wrap:wrap">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em">voice-0071</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--cf-signature);border:1px solid var(--cf-signature);border-radius:4px;padding:1px 6px">v3</span>
+                <div style="flex:1"></div>
+                <span style="display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"></path></svg>ДЕЙСТВУЕТ</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;padding:16px">
+                <div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">КТО ГОВОРИТ</span><span style="font-size:18px;font-weight:650;line-height:1.35;text-wrap:pretty">Служба новостей завода — люди, которые сами стоят у линии</span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:6px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">КАКИМ ТОНОМ</span><span style="font-size:16px;line-height:1.55;text-wrap:pretty">Спокойно и по делу. Без казённого, без восторга, без продажи.</span><span style="display:flex;flex-wrap:wrap;gap:6px"><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">14 слов</span><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">коридор 10–18</span><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">тире 74%</span></span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">К КОМУ ОБРАЩАЕТСЯ</span><span style="font-size:16px;line-height:1.55;text-wrap:pretty">К своим: смены, мастера, подписчики канала.</span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:6px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-danger)">НИКОГДА НЕ ГОВОРИТ</span><span style="display:flex;flex-wrap:wrap;gap:6px"><span style="padding:4px 10px;border-radius:9999px;background:var(--cf-danger-soft);border:1px solid var(--cf-danger);color:var(--cf-danger);font-size:13px">«уникальное предложение»</span><span style="padding:4px 10px;border-radius:9999px;background:var(--cf-danger-soft);border:1px solid var(--cf-danger);color:var(--cf-danger);font-size:13px">«мы рады сообщить»</span><span style="padding:4px 10px;border-radius:9999px;background:var(--cf-danger-soft);border:1px solid var(--cf-danger);color:var(--cf-danger);font-size:13px">восклицания</span></span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span>16 образцов · 15 200 знаков</span><div style="flex:1"></div><span>с 22.08.2026</span></div>
+            </div>
+          </div>
+          <div style="position:absolute;inset:0;background:var(--cf-backdrop)"></div>
+          <div style="position:absolute;top:0;left:0;bottom:0;width:288px;background:var(--cf-navigation);color:var(--cf-navigation-text);border-right:1px solid var(--cf-border-strong);border-radius:12px 0 0 12px;box-shadow:var(--cf-overlay-shadow);display:flex;flex-direction:column;gap:4px;padding:16px 12px">
+            <div style="display:flex;align-items:center;gap:10px;padding:0 8px 16px">
+              <span style="display:flex;flex-direction:column;justify-content:space-between;width:24px;height:24px;padding:2px 3px;border:1px solid var(--cf-signature);border-radius:4px;box-sizing:border-box">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:7px;line-height:1;color:var(--cf-signature)">98</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;line-height:1;color:var(--cf-signature)">Cf</span>
+              </span>
+              <span style="font-size:14px;font-weight:650;letter-spacing:-0.01em">Content Factory</span>
+              <div style="flex:1"></div>
+              <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-navigation-text);cursor:pointer"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+            </div>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;color:var(--cf-navigation-muted);font-size:14px">Календарь</span>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;color:var(--cf-navigation-muted);font-size:14px">Публикации</span>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 9px;border-radius:8px;background:var(--cf-navigation-active);border-left:3px solid var(--cf-accent);font-size:14px;font-weight:650">Контент</span>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;color:var(--cf-navigation-muted);font-size:14px">Медиатека</span>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;color:var(--cf-navigation-muted);font-size:14px">Каналы</span>
+            <span style="display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:8px;color:var(--cf-navigation-muted);font-size:14px">Аналитика</span>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 8px 0;border-top:1px solid var(--cf-border-strong)">
+              <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--cf-border-control);border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600">АК</span>
+              <span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:650">Алексей Ким</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-navigation-muted)">редактор</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="390 группа" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">390</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Мобильная раскладка</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Все цели нажатия 44px и выше, действие — в нижней панели</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОБОЛОЧКА · ПУСТО</span>
+        <div style="width:390px;height:844px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+            <span style="font-size:18px;font-weight:650;line-height:1.35;flex:1;min-width:0">Контент</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);flex:none">org-4417</span>
+          </div>
+          <div style="display:flex;gap:16px;padding:0 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border);overflow:hidden">
+            <span style="height:44px;display:flex;align-items:center;border-bottom:2px solid var(--cf-accent);font-size:14px;font-weight:650;margin-bottom:-1px;white-space:nowrap">Голос</span>
+            <span style="height:44px;display:flex;align-items:center;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Источники</span>
+            <span style="height:44px;display:flex;align-items:center;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Материалы</span>
+            <span style="height:44px;display:flex;align-items:center;font-size:14px;color:var(--cf-ink-muted);white-space:nowrap">Проис…</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:16px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted);border:1px solid var(--cf-border-strong);border-radius:4px;padding:1px 6px;width:fit-content">РАЗДЕЛ ПУСТ</span>
+              <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em;text-wrap:balance">Голоса бренда пока нет</span>
+              <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);text-wrap:pretty">Тон, длина фраз, обращение к читателю и запретные формулировки — в одном профиле.</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);padding-bottom:8px">ЧТО ПОЯВИТСЯ ДАЛЬШЕ</span>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Источники</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Тексты, из которых собран голос</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Материалы</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Готовые тексты для перекройки</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-top:1px solid var(--cf-border);border-bottom:1px solid var(--cf-border)"><span style="font-size:14px;font-weight:650">Происхождение</span><span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">Откуда взялась публикация</span></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;padding:12px 16px 20px;background:var(--cf-surface);border-top:1px solid var(--cf-border)">
+            <button type="button" style="height:48px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer">Создать голос бренда</button>
+            <button type="button" style="height:44px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Посмотреть пример</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">РАЗВИЛКА · ТРИ ПУТИ СТОПКОЙ</span>
+        <div style="width:390px;height:844px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5l-5 5 5 5"></path></svg></button>
+            <span style="font-size:16px;font-weight:650;line-height:1.35;flex:1;min-width:0">Как соберём голос</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);flex:none">1 / 4</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px;padding:16px;min-height:0;overflow:auto">
+            <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted);text-wrap:pretty">Три входа заполняют одни и те же поля. Отличается источник.</span>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ПУТЬ 1</span>
+              <span style="font-size:16px;font-weight:650;line-height:1.35">Заполнить вручную</span>
+              <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted);text-wrap:pretty">Вы сами пишете, каким тоном говорит бренд. 10–15 минут.</span>
+              <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Заполнить вручную</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-accent);border-radius:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ПУТЬ 2</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;color:var(--cf-accent);border:1px solid var(--cf-accent);border-radius:4px;padding:1px 6px">СОВЕТУЕМ</span>
+              </div>
+              <span style="font-size:16px;font-weight:650;line-height:1.35">Собрать из моих текстов</span>
+              <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted);text-wrap:pretty">Читаем то, что вы уже написали, и показываем вашу манеру числами. Нужно от 15 000 знаков.</span>
+              <button type="button" style="height:44px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Собрать из моих текстов</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ПУТЬ 3</span>
+              <span style="font-size:16px;font-weight:650;line-height:1.35">Взять манеру у автора, который нравится</span>
+              <span style="font-size:14px;line-height:1.5;text-wrap:pretty">Берём манеру письма, а не личность.</span>
+              <div style="display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);border-radius:8px">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-accent)">БЕРЁМ</span>
+                <span style="font-size:13px;line-height:1.45">длину и ритм фраз, пунктуацию, долю вопросов</span>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">НЕ БЕРЁМ</span>
+                <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted)">имена, факты, числа, ссылки, цитаты</span>
+              </div>
+              <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Указать автора</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">СБОР ОБРАЗЦОВ · НЕДОБОР</span>
+        <div style="width:390px;height:844px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5l-5 5 5 5"></path></svg></button>
+            <span style="font-size:16px;font-weight:650;line-height:1.35;flex:1;min-width:0">Образцы</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);flex:none">1 / 4</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:16px;min-height:0;overflow:auto">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:14px;background:var(--cf-surface);border:1px solid var(--cf-warning);border-radius:8px">
+              <div style="display:flex;align-items:flex-end;gap:10px">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums">6 400</span>
+                <span style="font-size:13px;color:var(--cf-ink-muted);padding-bottom:6px">из 15 000</span>
+                <div style="flex:1"></div>
+                <span style="padding:4px 8px;border-radius:9999px;background:var(--cf-warning-soft);border:1px solid var(--cf-warning);color:var(--cf-warning);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600">НЕДОБОР</span>
+              </div>
+              <div style="height:8px;border-radius:4px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);overflow:hidden"><div style="width:43%;height:100%;background:var(--cf-accent)"></div></div>
+              <span style="font-size:14px;line-height:1.5;text-wrap:pretty">Добавьте ещё 8 600 знаков — иначе разбор поймает случайные привычки.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ОТКУДА ВЗЯТЬ ТЕКСТЫ</span>
+              <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer;text-align:left">Мои посты<span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">5 каналов</span></button>
+              <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer;text-align:left">Выгрузка Telegram<span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">result.json</span></button>
+              <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer;text-align:left">Вставить текст</button>
+              <button type="button" style="height:56px;padding:0 14px;display:flex;align-items:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer;text-align:left">Загрузить файлы</button>
+            </div>
+            <div style="display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span style="flex:1">ОБРАЗЦЫ</span><span>5</span></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Итоги наладки линии</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-01 · 12.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">2 140</span></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--cf-border)"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Почему поменяли поставщика</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-02 · 05.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">1 780</span></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Письмо смене</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">smp-03 · 22.08.26</span></span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;font-variant-numeric:tabular-nums">1 020</span></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:12px 16px 20px;background:var(--cf-surface);border-top:1px solid var(--cf-border)">
+            <button type="button" disabled="disabled" style="height:48px;border-radius:8px;border:1px dashed var(--cf-border-strong);background:transparent;color:var(--cf-ink-muted);font-family:inherit;font-size:16px;font-weight:650">Дальше — разбор</button>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);text-align:center">откроется на 15 000 знаках</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ПАСПОРТ ГОЛОСА</span>
+        <div style="width:390px;height:844px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+            <span style="font-size:16px;font-weight:650;line-height:1.35;flex:1;min-width:0">Голос бренда</span>
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10" cy="4.5" r="1"></circle><circle cx="10" cy="10" r="1"></circle><circle cx="10" cy="15.5" r="1"></circle></svg></button>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:16px;min-height:0;overflow:auto">
+            <div style="display:flex;flex-direction:column;background:var(--cf-surface);border:1px solid var(--cf-border-strong);border-radius:8px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cf-surface-subtle);border-bottom:1px solid var(--cf-border)">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em">voice-0071</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--cf-signature);border:1px solid var(--cf-signature);border-radius:4px;padding:0 5px">v3</span>
+                <div style="flex:1"></div>
+                <span style="display:flex;align-items:center;gap:4px;padding:2px 7px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"></path></svg>ДЕЙСТВУЕТ</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;padding:14px">
+                <div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">КТО ГОВОРИТ</span><span style="font-size:16px;font-weight:650;line-height:1.35;text-wrap:pretty">Служба новостей завода — люди, которые сами стоят у линии</span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:6px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">КАКИМ ТОНОМ</span><span style="font-size:16px;line-height:1.5;text-wrap:pretty">Спокойно и по делу. Без казённого, без восторга.</span><span style="display:flex;flex-wrap:wrap;gap:6px"><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">14 слов</span><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">10–18</span><span style="padding:3px 9px;border-radius:9999px;border:1px solid var(--cf-border-strong);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">тире 74%</span></span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">К КОМУ ОБРАЩАЕТСЯ</span><span style="font-size:16px;line-height:1.5;text-wrap:pretty">К своим: смены, мастера, подписчики канала.</span></div>
+                <div style="height:1px;background:var(--cf-border)"></div>
+                <div style="display:flex;flex-direction:column;gap:6px"><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-danger)">НИКОГДА НЕ ГОВОРИТ</span><span style="display:flex;flex-wrap:wrap;gap:6px"><span style="padding:4px 10px;border-radius:9999px;background:var(--cf-danger-soft);border:1px solid var(--cf-danger);color:var(--cf-danger);font-size:13px">«уникальное предложение»</span><span style="padding:4px 10px;border-radius:9999px;background:var(--cf-danger-soft);border:1px solid var(--cf-danger);color:var(--cf-danger);font-size:13px">восклицания</span></span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--cf-border);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)"><span>16 образцов</span><div style="flex:1"></div><span>с 22.08.2026</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">ЛЕНТОЧКА В РЕДАКТОРЕ</span>
+              <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                <span style="padding:1px 7px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">v3</span>
+                <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">партия 08-2026 · 2 дня</span>
+                <span style="font-size:13px;font-weight:650;flex:none">Сменить</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px">
+                <span style="padding:1px 7px;border-radius:9999px;border:1px solid var(--cf-border-strong);color:var(--cf-ink-muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">НЕЙТРАЛЬНО</span>
+                <span style="flex:1;min-width:0;font-size:13px;color:var(--cf-ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">голос не применён</span>
+                <span style="font-size:13px;font-weight:650;flex:none">Выбрать</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 16px 20px;background:var(--cf-surface);border-top:1px solid var(--cf-border)">
+            <button type="button" style="flex:1;height:48px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer">Править голос</button>
+            <button type="button" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 5v5l3.5 2"></path><circle cx="10" cy="10" r="7"></circle></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">МАТЕРИАЛЫ · ПЕРЕКРОЙКА НИЖНИМ ЛИСТОМ</span>
+        <div style="width:390px;height:844px;display:flex;flex-direction:column;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden;position:relative">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+            <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h12"></path></svg></button>
+            <span style="font-size:16px;font-weight:650;line-height:1.35;flex:1;min-width:0">Материалы</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted);flex:none">48</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto">
+            <div style="display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-bottom:1px solid var(--cf-border);background:var(--cf-accent-soft)">
+              <span style="font-size:16px;font-weight:650;line-height:1.35;text-wrap:pretty">Отгрузку на Урал перенесли на четверг</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0312 · пост + фото · вышло 3 · 20.08.26</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-bottom:1px solid var(--cf-border)">
+              <span style="font-size:16px;line-height:1.35;text-wrap:pretty">Итоги наладки линии термообработки</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0308 · пост · вышло 2 · 12.08.26</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-bottom:1px solid var(--cf-border)">
+              <span style="font-size:16px;line-height:1.35;text-wrap:pretty">Почему поменяли поставщика подшипников</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0301 · лонгрид · вышло 4 · 05.08.26</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-bottom:1px solid var(--cf-border)">
+              <span style="font-size:16px;line-height:1.35;text-wrap:pretty">Письмо смене перед аттестацией</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0297 · рассылка · вышло 1 · 28.07.26</span>
+            </div>
+          </div>
+          <div style="position:absolute;inset:0;background:var(--cf-backdrop)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:var(--cf-surface-raised);border-top:1px solid var(--cf-border-strong);border-radius:12px 12px 0 0;box-shadow:var(--cf-overlay-shadow);display:flex;flex-direction:column;gap:14px;padding:16px 16px 20px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font-size:16px;font-weight:650;line-height:1.35">Переиспользовать</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">mat-0312 · 312 знаков · голос v3</span>
+              </div>
+              <div style="flex:1"></div>
+              <button type="button" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);cursor:pointer;flex:none"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:13px;font-weight:650">Под какую площадку</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <button type="button" style="height:44px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 6.5 12 13 4.5"></path></svg>Сайт</button>
+                <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Telegram</button>
+                <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">ВКонтакте</button>
+                <button type="button" style="height:44px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:14px;font-weight:650;cursor:pointer">Рассылка</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--cf-border);font-size:13px"><span style="color:var(--cf-ink-muted)">Длина</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">312 → 1 400</span></div>
+              <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--cf-border);font-size:13px"><span style="color:var(--cf-ink-muted)">Списки</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">строкой → перечнем</span></div>
+              <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--cf-border);border-bottom:1px solid var(--cf-border);font-size:13px"><span style="color:var(--cf-ink-muted)">Фото</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px">1 → 3 с подписями</span></div>
+            </div>
+            <button type="button" style="height:48px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:16px;font-weight:650;cursor:pointer">Перекроить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Английская локаль" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">EN</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Английская локаль</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Та же пара гарнитур, та же раскладка, длинные строки не ломают ряды</span>
+    </div>
+    <div style="width:1440px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px;min-width:0">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">TABS · EMPTY SECTION</span>
+        <div style="display:flex;gap:16px;border-bottom:1px solid var(--cf-border)">
+          <span style="padding:9px 0;border-bottom:2px solid var(--cf-accent);font-size:13px;font-weight:650;margin-bottom:-1px;white-space:nowrap">Brand voice</span>
+          <span style="padding:9px 0;font-size:13px;color:var(--cf-ink-muted);white-space:nowrap">Sources</span>
+          <span style="padding:9px 0;font-size:13px;color:var(--cf-ink-muted);white-space:nowrap">Materials</span>
+          <span style="padding:9px 0;font-size:13px;color:var(--cf-ink-muted);white-space:nowrap">Provenance</span>
+        </div>
+        <span style="font-size:18px;font-weight:650;line-height:1.35;text-wrap:balance">No brand voice yet</span>
+        <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted);text-wrap:pretty">Until one exists, drafts are written in a neutral style. That is a working mode, not an error.</span>
+        <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer;width:fit-content">Create brand voice</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px;min-width:0">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">SCALES · LONG LABELS</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:186px;flex:none;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:650;line-height:1.35;text-wrap:pretty">Nominalisations borrowed from official writing</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">range 0–12%</span></span>
+          <span style="flex:1;position:relative;height:14px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);border-radius:4px;min-width:0"><span style="position:absolute;left:0;width:12%;top:0;bottom:0;background:var(--cf-accent-soft);border-right:1px solid var(--cf-accent)"></span><span style="position:absolute;left:8%;top:-3px;bottom:-3px;width:3px;background:var(--cf-accent)"></span></span>
+          <span style="width:56px;flex:none;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">8%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:186px;flex:none;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:650;line-height:1.35;text-wrap:pretty">Dash instead of a linking verb</span><span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">range 60–85%</span></span>
+          <span style="flex:1;position:relative;height:14px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);border-radius:4px;min-width:0"><span style="position:absolute;left:60%;width:25%;top:0;bottom:0;background:var(--cf-accent-soft);border-left:1px solid var(--cf-accent);border-right:1px solid var(--cf-accent)"></span><span style="position:absolute;left:74%;top:-3px;bottom:-3px;width:3px;background:var(--cf-accent)"></span></span>
+          <span style="width:56px;flex:none;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">74%</span>
+        </div>
+        <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);text-wrap:pretty">Английская подпись длиннее русской на 10–15% — колонка подписи держит ширину, шкала не сжимается.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:8px;min-width:0">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">VOICE STRIP · FOUR STATES</span>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--cf-border);border-radius:8px">
+          <span style="padding:1px 7px;border-radius:9999px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">v3</span>
+          <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">batch 08-2026 · updated 2 days ago</span>
+          <span style="font-size:13px;font-weight:650;flex:none">Change</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--cf-warning);border-radius:8px">
+          <span style="padding:1px 7px;border-radius:9999px;background:var(--cf-warning-soft);border:1px solid var(--cf-warning);color:var(--cf-warning);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">v3</span>
+          <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">context from 06-2026 · 63 days old</span>
+          <span style="font-size:13px;font-weight:650;flex:none">Refresh</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--cf-info);border-radius:8px">
+          <span style="padding:1px 7px;border-radius:9999px;background:var(--cf-info-soft);border:1px solid var(--cf-info);color:var(--cf-info);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">v3 → v4</span>
+          <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">drafted on v3, v4 is now active</span>
+          <span style="font-size:13px;font-weight:650;flex:none">Redraft</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--cf-border);border-radius:8px">
+          <span style="padding:1px 7px;border-radius:9999px;border:1px solid var(--cf-border-strong);color:var(--cf-ink-muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;flex:none">NEUTRAL</span>
+          <span style="flex:1;min-width:0;font-size:13px;color:var(--cf-ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">no voice applied</span>
+          <span style="font-size:13px;font-weight:650;flex:none">Select</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;\&quot;dark\&quot; | \&quot;light\&quot;&quot;,&quot;section&quot;:&quot;Показ&quot;}}">
+const LIGHT = {
+  "--cf-canvas": "#EFE9DB", "--cf-surface": "#FBF8F0", "--cf-surface-subtle": "#E4DDCB", "--cf-surface-raised": "#FFFDF6",
+  "--cf-ink": "#22231A", "--cf-ink-muted": "#5C5D4C", "--cf-ink-inverse": "#F4F1E4",
+  "--cf-border": "#D3CAB3", "--cf-border-strong": "#B0A68A", "--cf-border-control": "#847B62",
+  "--cf-navigation": "#E4DDCB", "--cf-navigation-text": "#22231A", "--cf-navigation-muted": "#5C5D4C", "--cf-navigation-active": "#FBF8F0",
+  "--cf-accent": "#3F6B2E", "--cf-accent-hover": "#33581F", "--cf-accent-soft": "#E1EAD2", "--cf-accent-ink": "#FFFFFF",
+  "--cf-signature": "#9C6A16", "--cf-info": "#2F5A82", "--cf-info-soft": "#E3EBF3",
+  "--cf-warning": "#7A4D00", "--cf-warning-soft": "#F6E7C2", "--cf-danger": "#8E2B22", "--cf-danger-soft": "#F6E0DB",
+  "--cf-focus": "#3F6B2E", "--cf-backdrop": "rgba(34,35,26,.46)", "--cf-overlay-shadow": "0 16px 32px -12px rgba(34,35,26,.26)"
+};
+
+class Component extends DCLogic {
+  state = { theme: null };
+  renderVals() {
+    const theme = this.state.theme ?? this.props.theme ?? "dark";
+    const light = theme === "light";
+    const pill = (on) => ({
+      padding: "5px 14px", borderRadius: 9999, fontFamily: "inherit", fontSize: 13, fontWeight: 650, cursor: "pointer",
+      background: on ? "var(--cf-surface)" : "transparent",
+      border: on ? "1px solid var(--cf-border-control)" : "1px solid transparent",
+      color: on ? "var(--cf-ink)" : "var(--cf-ink-muted)"
+    });
+    return {
+      themeVars: light ? LIGHT : {},
+      darkBtn: pill(!light),
+      lightBtn: pill(light),
+      setDark: () => this.setState({ theme: "dark" }),
+      setLight: () => this.setState({ theme: "light" })
+    };
+  }
+}
+</script>
+</body>
+</html>

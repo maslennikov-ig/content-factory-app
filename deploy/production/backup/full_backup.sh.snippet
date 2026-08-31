@@ -1,0 +1,9 @@
+# Owner-installed integration snippet for /root/full_backup.sh.
+# Place this after that script creates its backup root and before its success notification.
+# Do not activate this and content-factory-next-postgres-backup.timer at the same time.
+# The explicit check is here because /root/full_backup.sh may run without `set -e`;
+# without it a failed database backup would be reported as an overall success.
+if ! /srv/content-factory-next/deploy/production/backup/run-postgres-backup.sh; then
+  echo "content-factory-next PostgreSQL backup failed; aborting the full backup." >&2
+  exit 1
+fi

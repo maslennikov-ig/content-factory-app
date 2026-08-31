@@ -1,0 +1,869 @@
+{
+  "version": 3,
+  "total": 1049,
+  "metric": {
+    "sourceRoots": [
+      "apps/frontend/src",
+      "libraries/react-shared-libraries/src",
+      "libraries/helpers/src"
+    ],
+    "extensions": [
+      "tsx",
+      "jsx"
+    ],
+    "scanner": "TypeScript AST string and template literal fragments; comments excluded",
+    "arbitraryPayloadPattern": "\\[([^\\]\\r\\n]+)\\]",
+    "pixelPattern": "(?<![A-Za-z0-9.])[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)px(?![A-Za-z0-9])",
+    "rhythmPx": 4,
+    "historicalExactIntegerAnchor": {
+      "commit": "7e09f75d",
+      "arbitraryOccurrences": 3284,
+      "denominations": 101,
+      "offRhythmOccurrences": 1228
+    },
+    "initialExactIntegerCurrent": {
+      "commit": "b088d5a8",
+      "arbitraryOccurrences": 3279,
+      "denominations": 101,
+      "offRhythmOccurrences": 1224
+    },
+    "reviewCorrection": {
+      "commit": "c568caaa",
+      "priorScanner": {
+        "scope": "raw source exact positive-integer [Npx]",
+        "offRhythmOccurrences": 1221,
+        "groups": 513,
+        "files": 149,
+        "denominations": 52
+      },
+      "astScanner": {
+        "scope": "all AST string and template literal fragments; every numeric px length inside arbitrary bracket payloads",
+        "allPixelLengths": 3272,
+        "allDenominations": 109,
+        "offRhythmOccurrences": 1226,
+        "groups": 517,
+        "files": 148,
+        "denominations": 55
+      },
+      "coverageExpansion": {
+        "occurrences": 17,
+        "categories": {
+          "compoundInteger": 9,
+          "decimal": 5,
+          "signed": 3
+        }
+      },
+      "excludedNonCodeCommentOccurrences": 12,
+      "netTotalChange": 5,
+      "classification": "scanner coverage expansion; not design-debt reduction"
+    },
+    "rootCoverageExpansion": {
+      "priorSourceRoots": [
+        "apps/frontend/src"
+      ],
+      "priorTotal": 1004,
+      "addedSourceRoots": {
+        "libraries/react-shared-libraries/src": {
+          "occurrences": 45,
+          "files": 13
+        },
+        "libraries/helpers/src": {
+          "occurrences": 0,
+          "files": 0
+        }
+      },
+      "addedOccurrences": 45,
+      "combinedTotal": 1049,
+      "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control."
+    }
+  },
+  "sections": {
+    "apps/frontend/src": {
+      "total": 1004,
+      "allowances": {
+        "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
+          "3px": 1,
+          "10px": 2,
+          "14px": 5
+        },
+        "apps/frontend/src/components/admin/admin-errors.component.tsx": {
+          "6px": 6,
+          "10px": 5,
+          "13px": 6,
+          "14px": 3,
+          "38px": 2,
+          "170px": 2
+        },
+        "apps/frontend/src/components/admin/admin-stats.component.tsx": {
+          "10px": 2
+        },
+        "apps/frontend/src/components/admin/admin-users.component.tsx": {
+          "2px": 1,
+          "6px": 2,
+          "10px": 1,
+          "150px": 2
+        },
+        "apps/frontend/src/components/agents/agent.chat.tsx": {
+          "10px": 1,
+          "13px": 1,
+          "14px": 1,
+          "150px": 4
+        },
+        "apps/frontend/src/components/agents/agent.tsx": {
+          "1px": 1,
+          "3px": 1,
+          "5px": 2,
+          "6px": 3,
+          "10px": 3,
+          "14px": 2,
+          "15px": 6,
+          "21px": 1
+        },
+        "apps/frontend/src/components/analytics/stars.and.forks.tsx": {
+          "2px": 1,
+          "5px": 2,
+          "10px": 2,
+          "14px": 3,
+          "30px": 1,
+          "50px": 2
+        },
+        "apps/frontend/src/components/analytics/stars.table.component.tsx": {
+          "3px": 1,
+          "5px": 1,
+          "15px": 1,
+          "426px": 1
+        },
+        "apps/frontend/src/components/approved-apps/approved-apps.component.tsx": {
+          "14px": 1
+        },
+        "apps/frontend/src/components/auth/activate.tsx": {
+          "10px": 3
+        },
+        "apps/frontend/src/components/auth/forgot.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/auth/login.tsx": {
+          "6px": 2,
+          "13px": 3,
+          "14px": 2
+        },
+        "apps/frontend/src/components/auth/login.with.oidc.tsx": {
+          "1px": 1
+        },
+        "apps/frontend/src/components/auth/providers/provider.button.tsx": {
+          "14px": 1
+        },
+        "apps/frontend/src/components/auth/register.tsx": {
+          "13px": 1,
+          "14px": 2
+        },
+        "apps/frontend/src/components/autopost/autopost.tsx": {
+          "6px": 1,
+          "10px": 2,
+          "14px": 1
+        },
+        "apps/frontend/src/components/billing/embedded.billing.tsx": {
+          "6px": 2,
+          "10px": 1,
+          "13px": 3,
+          "18px": 2,
+          "33px": 1
+        },
+        "apps/frontend/src/components/billing/faq.component.tsx": {
+          "14px": 1
+        },
+        "apps/frontend/src/components/billing/finish.trial.tsx": {
+          "10px": 6
+        },
+        "apps/frontend/src/components/billing/first.billing.component.tsx": {
+          "6px": 1,
+          "14px": 1,
+          "15px": 1,
+          "22px": 1
+        },
+        "apps/frontend/src/components/billing/lifetime.deal.tsx": {
+          "10px": 3,
+          "30px": 3
+        },
+        "apps/frontend/src/components/billing/main.billing.component.tsx": {
+          "2px": 1,
+          "10px": 2,
+          "18px": 1
+        },
+        "apps/frontend/src/components/developer/developer.component.tsx": {
+          "2px": 5,
+          "6px": 12,
+          "13px": 22,
+          "14px": 10,
+          "15px": 10,
+          "18px": 1
+        },
+        "apps/frontend/src/components/launches/add.provider.component.tsx": {
+          "6px": 2,
+          "10px": 4,
+          "11px": 1,
+          "14px": 5
+        },
+        "apps/frontend/src/components/launches/ai.image.tsx": {
+          "5px": 1,
+          "6px": 3,
+          "10px": 2,
+          "14px": 2,
+          "30px": 2
+        },
+        "apps/frontend/src/components/launches/ai.video.tsx": {
+          "5px": 1,
+          "6px": 1,
+          "10px": 6,
+          "14px": 1,
+          "30px": 1
+        },
+        "apps/frontend/src/components/launches/bot.picture.tsx": {
+          "50px": 2
+        },
+        "apps/frontend/src/components/launches/calendar.tsx": {
+          "2.5px": 4,
+          "5px": 8,
+          "6px": 6,
+          "10px": 19,
+          "11px": 2,
+          "14px": 8,
+          "18px": 2,
+          "21px": 2,
+          "30px": 1,
+          "34px": 2,
+          "62px": 4,
+          "70px": 1
+        },
+        "apps/frontend/src/components/launches/comments/comment.component.tsx": {
+          "-10px": 1,
+          "2px": 3,
+          "5px": 1,
+          "10px": 4,
+          "15px": 3,
+          "21px": 1,
+          "22px": 2,
+          "27px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/launches/continue.integration.tsx": {
+          "550px": 1
+        },
+        "apps/frontend/src/components/launches/creation.method.badge.tsx": {
+          "7px": 1,
+          "10px": 2,
+          "18px": 1,
+          "22px": 1
+        },
+        "apps/frontend/src/components/launches/customer.modal.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/launches/filters.tsx": {
+          "1px": 2,
+          "3px": 3,
+          "5px": 8,
+          "6px": 12,
+          "9px": 7,
+          "14px": 7,
+          "34px": 2,
+          "74px": 3
+        },
+        "apps/frontend/src/components/launches/general.preview.component.tsx": {
+          "-10px": 1,
+          "1px": 1,
+          "2px": 2,
+          "10px": 1,
+          "15px": 4,
+          "22px": 1
+        },
+        "apps/frontend/src/components/launches/generator/generator.tsx": {
+          "10px": 3
+        },
+        "apps/frontend/src/components/launches/helpers/date.picker.tsx": {
+          "7px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/launches/helpers/linkedin.component.tsx": {
+          "10px": 2,
+          "250px": 1
+        },
+        "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/launches/helpers/pick.platform.component.tsx": {
+          "10px": 2
+        },
+        "apps/frontend/src/components/launches/helpers/top.title.component.tsx": {
+          "57px": 1
+        },
+        "apps/frontend/src/components/launches/import-debug-post.modal.tsx": {
+          "6px": 2,
+          "10px": 2,
+          "11px": 1,
+          "13px": 6
+        },
+        "apps/frontend/src/components/launches/information.component.tsx": {
+          "5px": 1,
+          "6px": 2,
+          "10px": 2,
+          "14px": 1,
+          "30px": 1
+        },
+        "apps/frontend/src/components/launches/internal.channels.tsx": {
+          "10px": 2
+        },
+        "apps/frontend/src/components/launches/launches.component.tsx": {
+          "3px": 2,
+          "5px": 3,
+          "6px": 1,
+          "10px": 1,
+          "15px": 3
+        },
+        "apps/frontend/src/components/launches/menu/menu.tsx": {
+          "10px": 11,
+          "14px": 11
+        },
+        "apps/frontend/src/components/launches/missing-release.modal.tsx": {
+          "10px": 2,
+          "14px": 1
+        },
+        "apps/frontend/src/components/launches/new.post.tsx": {
+          "14px": 1,
+          "21px": 1
+        },
+        "apps/frontend/src/components/launches/repeat.component.tsx": {
+          "10px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/launches/select.customer.tsx": {
+          "6px": 1,
+          "10px": 1,
+          "42px": 1,
+          "250px": 1
+        },
+        "apps/frontend/src/components/launches/settings.modal.tsx": {
+          "10px": 2,
+          "14px": 1
+        },
+        "apps/frontend/src/components/launches/statistics.tsx": {
+          "10px": 1,
+          "13px": 2,
+          "14px": 3,
+          "15px": 1,
+          "18px": 1,
+          "30px": 2,
+          "42px": 1,
+          "150px": 1
+        },
+        "apps/frontend/src/components/launches/tags.component.tsx": {
+          "3px": 3,
+          "5px": 3,
+          "6px": 1,
+          "10px": 3,
+          "13px": 1,
+          "14px": 2,
+          "15px": 1,
+          "34px": 1,
+          "50px": 1
+        },
+        "apps/frontend/src/components/launches/time.table.tsx": {
+          "6px": 1,
+          "14px": 3,
+          "15px": 2
+        },
+        "apps/frontend/src/components/launches/web3/providers/wrapcaster.provider.tsx": {
+          "90px": 1
+        },
+        "apps/frontend/src/components/layout/announcement.banner.tsx": {
+          "13px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/layout/impersonate.tsx": {
+          "6px": 2,
+          "10px": 5,
+          "50px": 1
+        },
+        "apps/frontend/src/components/layout/language.component.tsx": {
+          "22px": 2
+        },
+        "apps/frontend/src/components/layout/logout.component.tsx": {
+          "13px": 1
+        },
+        "apps/frontend/src/components/layout/new-modal.tsx": {
+          "50px": 2
+        },
+        "apps/frontend/src/components/layout/organization.selector.tsx": {
+          "6px": 2,
+          "10px": 2,
+          "13px": 2,
+          "14px": 2
+        },
+        "apps/frontend/src/components/layout/pre-condition.component.tsx": {
+          "2px": 1
+        },
+        "apps/frontend/src/components/layout/streak.component.tsx": {
+          "6px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/layout/support.tsx": {
+          "10px": 1,
+          "58px": 1,
+          "194px": 1
+        },
+        "apps/frontend/src/components/media/media.component.tsx": {
+          "1px": 1,
+          "3px": 7,
+          "5px": 6,
+          "6px": 6,
+          "10px": 13,
+          "14px": 2,
+          "15px": 1,
+          "18px": 1,
+          "30px": 1,
+          "46px": 2,
+          "50px": 1
+        },
+        "apps/frontend/src/components/new-launch/a.component.tsx": {
+          "6px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-launch/add.post.button.tsx": {
+          "6px": 1,
+          "13px": 1,
+          "34px": 1
+        },
+        "apps/frontend/src/components/new-launch/bold.text.tsx": {
+          "6px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-launch/bullets.component.tsx": {
+          "6px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-launch/delay.component.tsx": {
+          "10px": 2,
+          "13px": 2
+        },
+        "apps/frontend/src/components/new-launch/dummy.code.component.tsx": {
+          "50px": 1
+        },
+        "apps/frontend/src/components/new-launch/editor.tsx": {
+          "5px": 2,
+          "6px": 8,
+          "10px": 5,
+          "13px": 2,
+          "14px": 4,
+          "30px": 2,
+          "35px": 2,
+          "46px": 2,
+          "50px": 1,
+          "54px": 8
+        },
+        "apps/frontend/src/components/new-launch/finisher/thread.finisher.tsx": {
+          "10px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/new-launch/heading.component.tsx": {
+          "5px": 1,
+          "6px": 2,
+          "10px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-launch/manage.modal.tsx": {
+          "5px": 2,
+          "6px": 3,
+          "10px": 4,
+          "13px": 1,
+          "14px": 2,
+          "15px": 4,
+          "65px": 2,
+          "206px": 1
+        },
+        "apps/frontend/src/components/new-launch/mention.component.tsx": {
+          "10px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-launch/modal.wrapper.component.tsx": {
+          "30px": 1
+        },
+        "apps/frontend/src/components/new-launch/picks.socials.component.tsx": {
+          "2px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx": {
+          "10px": 3,
+          "18px": 1,
+          "26px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/devto/devto.tags.tsx": {
+          "6px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/facebook/facebook.preview.tsx": {
+          "6px": 3,
+          "9px": 1,
+          "10px": 1,
+          "13px": 1,
+          "14px": 5,
+          "15px": 5,
+          "17px": 1,
+          "18px": 1,
+          "34px": 3,
+          "150px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/gmb/gmb.provider.tsx": {
+          "5px": 2,
+          "10px": 7,
+          "14px": 2,
+          "15px": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/hashnode/hashnode.tags.tsx": {
+          "6px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/high.order.provider.tsx": {
+          "15px": 1,
+          "42px": 4
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.audio.tsx": {
+          "6px": 6,
+          "14px": 10,
+          "18px": 1,
+          "42px": 5,
+          "250px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.collaborators.tsx": {
+          "18px": 3
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.preview.tsx": {
+          "6px": 1,
+          "10px": 4,
+          "10.5px": 1,
+          "14px": 3,
+          "15px": 3,
+          "17px": 1,
+          "18px": 1,
+          "34px": 3,
+          "585px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.tags.tsx": {
+          "6px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/lemmy/lemmy.provider.tsx": {
+          "10px": 3
+        },
+        "apps/frontend/src/components/new-launch/providers/lemmy/subreddit.tsx": {
+          "5px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/linkedin/linkedin.preview.tsx": {
+          "3px": 2,
+          "6px": 3,
+          "9px": 1,
+          "11px": 1,
+          "13px": 1,
+          "14px": 4,
+          "15px": 3,
+          "17px": 1,
+          "34px": 3
+        },
+        "apps/frontend/src/components/new-launch/providers/linkedin/linkedin.provider.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/medium/medium.tags.tsx": {
+          "6px": 1,
+          "14px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx": {
+          "10px": 1,
+          "13px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/reddit/reddit.provider.tsx": {
+          "10px": 4,
+          "14px": 1,
+          "375px": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/reddit/subreddit.tsx": {
+          "5px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/tiktok/tiktok.preview.tsx": {
+          "3px": 1,
+          "10px": 1,
+          "13px": 1,
+          "14px": 1,
+          "15px": 1,
+          "18px": 1,
+          "25px": 1,
+          "29px": 6
+        },
+        "apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx": {
+          "2px": 1,
+          "10px": 13,
+          "13px": 1,
+          "14px": 7,
+          "15px": 2,
+          "18px": 2,
+          "23px": 2,
+          "25px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/warpcast/subreddit.tsx": {
+          "5px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/warpcast/warpcast.provider.tsx": {
+          "10px": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/x/x.provider.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx": {
+          "1px": 1,
+          "9px": 2,
+          "10px": 1,
+          "13px": 1,
+          "14px": 3,
+          "17px": 1
+        },
+        "apps/frontend/src/components/new-launch/select.current.tsx": {
+          "1px": 2,
+          "3px": 2,
+          "6px": 1,
+          "26px": 3,
+          "55px": 1
+        },
+        "apps/frontend/src/components/new-launch/u.text.tsx": {
+          "6px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/new-layout/billing.after.tsx": {
+          "5px": 3,
+          "10px": 1,
+          "17px": 1
+        },
+        "apps/frontend/src/components/new-layout/layout.component.tsx": {
+          "14px": 1,
+          "18px": 1
+        },
+        "apps/frontend/src/components/new-layout/layout.media.component.tsx": {
+          "15px": 1
+        },
+        "apps/frontend/src/components/new-layout/menu-item.tsx": {
+          "3px": 1,
+          "10px": 2
+        },
+        "apps/frontend/src/components/new-layout/sidebar.tsx": {
+          "2px": 1,
+          "10px": 3
+        },
+        "apps/frontend/src/components/notifications/notification.component.tsx": {
+          "10px": 2,
+          "11px": 1
+        },
+        "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
+          "2px": 1,
+          "13px": 2,
+          "14px": 12
+        },
+        "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
+          "14px": 1,
+          "22px": 1
+        },
+        "apps/frontend/src/components/platform-analytics/platform.analytics.tsx": {
+          "3px": 1,
+          "10px": 1
+        },
+        "apps/frontend/src/components/platform-analytics/production.analytics.tsx": {
+          "150px": 1,
+          "390px": 1
+        },
+        "apps/frontend/src/components/platform-analytics/render.analytics.tsx": {
+          "10px": 1,
+          "13px": 1,
+          "14px": 3,
+          "15px": 2,
+          "42px": 1
+        },
+        "apps/frontend/src/components/plugs/plug.tsx": {
+          "30px": 1
+        },
+        "apps/frontend/src/components/plugs/plugs.tsx": {
+          "3px": 1,
+          "5px": 1,
+          "6px": 1,
+          "10px": 1,
+          "15px": 5
+        },
+        "apps/frontend/src/components/post-url-selector/post.url.selector.tsx": {
+          "5px": 2,
+          "10px": 3
+        },
+        "apps/frontend/src/components/preview/post.preview.tsx": {
+          "10px": 3,
+          "50px": 2,
+          "1346px": 2
+        },
+        "apps/frontend/src/components/provider-preview/preview.provider.component.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/public-api/public.component.tsx": {
+          "2px": 4,
+          "6px": 8,
+          "13px": 13,
+          "14px": 6,
+          "15px": 3
+        },
+        "apps/frontend/src/components/sets/sets.tsx": {
+          "10px": 1
+        },
+        "apps/frontend/src/components/settings/github.component.tsx": {
+          "7px": 2,
+          "90px": 2
+        },
+        "apps/frontend/src/components/settings/signatures.component.tsx": {
+          "10px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/settings/teams.component.tsx": {
+          "10px": 1,
+          "18px": 1
+        },
+        "apps/frontend/src/components/signature.tsx": {
+          "6px": 1,
+          "30px": 2
+        },
+        "apps/frontend/src/components/third-parties/providers/heygen.provider.tsx": {
+          "10px": 2,
+          "14px": 3,
+          "15px": 2,
+          "50px": 1
+        },
+        "apps/frontend/src/components/third-parties/slider.component.tsx": {
+          "10px": 3
+        },
+        "apps/frontend/src/components/third-parties/third-party.component.tsx": {
+          "3px": 1,
+          "6px": 1,
+          "10px": 1,
+          "14px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.list.component.tsx": {
+          "10px": 2,
+          "14px": 1,
+          "15px": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.media-library.tsx": {
+          "2px": 2,
+          "6px": 3,
+          "10px": 5,
+          "14px": 3,
+          "15px": 1,
+          "18px": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.media.tsx": {
+          "5px": 1,
+          "6px": 1,
+          "10px": 3,
+          "14px": 1,
+          "15px": 1,
+          "30px": 1
+        },
+        "apps/frontend/src/components/ui/brand/wordmark.tsx": {
+          "18px": 1
+        },
+        "apps/frontend/src/components/ui/docs-link.tsx": {
+          "6px": 1,
+          "13px": 1
+        },
+        "apps/frontend/src/components/ui/layers.tsx": {
+          "2px": 1,
+          "3px": 1,
+          "6px": 1,
+          "10px": 1,
+          "14px": 1,
+          "18px": 2
+        },
+        "apps/frontend/src/components/ui/surface.tsx": {
+          "6px": 1,
+          "22px": 1
+        },
+        "apps/frontend/src/components/videos/providers/veo3.provider.tsx": {
+          "6px": 1
+        },
+        "apps/frontend/src/components/webhooks/webhooks.tsx": {
+          "10px": 2
+        }
+      }
+    },
+    "libraries/react-shared-libraries/src": {
+      "total": 45,
+      "allowances": {
+        "libraries/react-shared-libraries/src/form/button.tsx": {
+          "10px": 1,
+          "14px": 1
+        },
+        "libraries/react-shared-libraries/src/form/canonical.tsx": {
+          "3px": 1,
+          "6px": 1,
+          "14px": 1
+        },
+        "libraries/react-shared-libraries/src/form/color.picker.tsx": {
+          "6px": 1,
+          "10px": 1,
+          "14px": 1
+        },
+        "libraries/react-shared-libraries/src/form/custom.select.tsx": {
+          "1px": 1,
+          "6px": 1,
+          "14px": 3,
+          "23px": 1
+        },
+        "libraries/react-shared-libraries/src/form/field-message.tsx": {
+          "2px": 1,
+          "6px": 1
+        },
+        "libraries/react-shared-libraries/src/form/input.tsx": {
+          "6px": 2,
+          "13px": 1,
+          "14px": 1
+        },
+        "libraries/react-shared-libraries/src/form/multi.select.tsx": {
+          "6px": 1,
+          "14px": 2
+        },
+        "libraries/react-shared-libraries/src/form/select.tsx": {
+          "6px": 1,
+          "13px": 1,
+          "14px": 1
+        },
+        "libraries/react-shared-libraries/src/form/slider.tsx": {
+          "34px": 1,
+          "57px": 1
+        },
+        "libraries/react-shared-libraries/src/form/textarea.tsx": {
+          "6px": 1,
+          "13px": 1,
+          "14px": 1,
+          "150px": 1
+        },
+        "libraries/react-shared-libraries/src/form/toggle.tsx": {
+          "2px": 2,
+          "10px": 1,
+          "14px": 2,
+          "34px": 1
+        },
+        "libraries/react-shared-libraries/src/form/total.tsx": {
+          "6px": 1,
+          "14px": 3,
+          "158px": 1
+        },
+        "libraries/react-shared-libraries/src/toaster/toaster.tsx": {
+          "18px": 1,
+          "319px": 1
+        }
+      }
+    },
+    "libraries/helpers/src": {
+      "total": 0,
+      "allowances": {}
+    }
+  }
+}

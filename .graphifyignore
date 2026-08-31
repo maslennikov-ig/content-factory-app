@@ -1,0 +1,79 @@
+# Dependencies and package-manager state
+node_modules/
+.npm/
+.pnpm-store/
+
+# VCS, task state, and generated graph outputs
+.git/
+.dolt/
+.beads/
+graphify-out/
+
+# Build outputs, caches, coverage, reports, and temporary state
+.next/
+dist/
+build/
+coverage/
+reports/
+tmp/
+.tmp/
+.cache/
+.turbo/
+.vercel/
+__pycache__/
+*.pyc
+*.log
+
+# Local agent/runtime noise
+.claude/
+.agents/
+.lazyweb/
+.codex/tmp/
+
+# Secrets and local environments
+.env
+.env.*
+!.env.example
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Databases, dumps, backups, archives, and runtime payloads
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+*.backup
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Binary media and font assets do not contribute code relationships
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.m4a
+*.woff
+*.woff2
+*.ttf
+*.otf
+
+# Durable source, schemas, tests, docs, ADRs, plans, and runbooks remain indexed.

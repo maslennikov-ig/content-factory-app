@@ -1,0 +1,56 @@
+---
+name: "Code Quality Analysis"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/**
+      - '!apps/docs/**'
+      - libraries/**
+
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+
+    # Code scanning on a private repository needs GitHub Advanced Security, so
+    # without it every run of this workflow dies at checkout with `repository
+    # not found` and a permanently red check stops meaning anything. Skipping is
+    # not deleting: this repository is AGPL-3.0 and if its sources are ever
+    # published, CodeQL starts working again with no edit here.
+    #
+    # `visibility` rather than `private`, deliberately. Expression comparison is
+    # loose: a missing property is null, null casts to 0, and `false` also casts
+    # to 0 — so `repository.private == false` would be TRUE on any payload that
+    # omits the field, and would fail open onto exactly the red run this gate
+    # removes. `'public'` is not a legal JSON number, so it casts to NaN and a
+    # missing `visibility` compares false. This gate fails closed.
+    if: github.event.repository.visibility == 'public'
+
+    runs-on: 'ubuntu-latest'
+    permissions:
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"

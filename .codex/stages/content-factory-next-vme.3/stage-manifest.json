@@ -1,0 +1,94 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-vme.3",
+  "goal_id": "content-factory-next-vme.3",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 3,
+  "acceptance_boundary_id": "operational-proof-ci-relay-provenance",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["docker-ci", "browser-error-relay", "platform-assets"],
+    "risk_models": ["silent-skip", "privacy-isolation", "asset-provenance", "supply-chain"],
+    "test_environments": ["isolated-worktree", "node-22.23.2", "pnpm-10.6.1", "docker-capable-ci", "local-no-docker", "no-production-live-or-delivery-actions"],
+    "rollback_boundary": "local-stage-commits-on-detached-worktree",
+    "acceptance_proofs": ["focused-red-green", "ci-fail-closed", "docker-script-matrix", "relay-client-isolation", "payload-minimization", "immutable-asset-decision", "full-test-and-build", "brand-docs-process-diff-check", "fresh-stage-receipt"]
+  },
+  "work_areas": ["contract", "implementation", "tests", "security-review", "proof", "docs-and-graph-review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-vme.3",
+    "source_digest": "5f9f1761d9a97260a3bb2c9221854342267bb775cb3fc19857baf7fa28f092fb",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "В CI есть явно обозначенный Docker-capable job, где все Docker-backed suites обязаны выполниться, отсутствие Docker является ошибкой, и в его матрицу поимённо входят verify-mastra-storage-migration.sh и verify-postgres-backup-restore.sh; проверка доказывает, что job не может стать зелёным только из-за describe.skip. Ключ изоляции browser-error relay выбран и документирован с threat model, либо доказано, что edge-level решение не расширяет payload; тесты показывают, что один клиент не блокирует другого, а relay по-прежнему не принимает IP, User-Agent, cookies, URL/query и содержимое. Провенанс YouTube либо доказан byte-for-byte из immutable primary source, либо raster закреплён записанным решением. Production scripts не изменены.",
+        "text_digest": "d8720b29280aab86fc9de1f632bdfacca3c9243f9f5f328184881cffa58984bf"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-vme.3/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "5f9f1761d9a97260a3bb2c9221854342267bb775cb3fc19857baf7fa28f092fb",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-vme.3/spec.md",
+    ".codex/stages/content-factory-next-vme.3/plan.md",
+    ".codex/stages/content-factory-next-vme.3/summary.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "docker-ci",
+      "owner": "subagent:docker-ci",
+      "write_zone": [".github/workflows/**", "scripts/ci/**", "tests/docker-ci-contract.test.cjs", "docs/development/docker-backed-ci.md", ".codex/stages/content-factory-next-vme.3/artifacts/docker-ci.md"],
+      "issues": ["content-factory-next-wui"]
+    },
+    {
+      "stream": "relay-isolation",
+      "owner": "subagent:relay-isolation",
+      "write_zone": ["libraries/helpers/src/errors/**", "apps/frontend/src/app/api/browser-errors/**", "apps/frontend/src/instrumentation-client.ts", "var/docker/nginx.conf", "scripts/ci/run-docker-backed-ci.sh", "tests/browser-error-relay.test.cjs", "tests/docker-ci-contract.test.cjs", "docs/operations/error-collection.md", "docs/development/docker-backed-ci.md", ".codex/stages/content-factory-next-vme.3/artifacts/relay-isolation.md", ".codex/stages/content-factory-next-vme.3/artifacts/docker-ci.md"],
+      "issues": ["content-factory-next-rpt"]
+    },
+    {
+      "stream": "relay-proof-hardening",
+      "owner": "subagent:relay-isolation",
+      "write_zone": ["scripts/ci/run-docker-backed-ci.sh", "tests/browser-error-relay.test.cjs", "tests/docker-ci-contract.test.cjs", "docs/operations/error-collection.md", "docs/development/docker-backed-ci.md", ".codex/stages/content-factory-next-vme.3/artifacts/relay-isolation.md", ".codex/stages/content-factory-next-vme.3/artifacts/docker-ci.md", ".codex/stages/content-factory-next-vme.3/artifacts/relay-proof-hardening.md"],
+      "issues": ["content-factory-next-rpt"]
+    },
+    {
+      "stream": "youtube-provenance",
+      "owner": "subagent:youtube-provenance",
+      "write_zone": ["libraries/react-shared-libraries/src/platform/**", "apps/frontend/public/icons/**", "tests/platform.card.test.cjs", "docs/design/desert-lab/platform-card.md", ".codex/stages/content-factory-next-vme.3/artifacts/youtube-provenance.md"],
+      "issues": ["content-factory-next-6er"]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["docker-ci", "relay-isolation", "relay-proof-hardening", "youtube-provenance"],
+    "benefit": ["parallel-latency", "context-isolation", "specialist-capability", "write-isolation"],
+    "sequential_streams": ["root-integration-and-release-acceptance-after-all-streams"],
+    "limit": "maximum-three-concurrent-writers-no-production-credentials-paid-calls-deploy-or-production-scripts"
+  },
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-vme.3.docker-ci",
+      "stream_owner": "subagent:docker-ci",
+      "artifact_path": ".codex/stages/content-factory-next-vme.3/artifacts/docker-ci.md"
+    },
+    {
+      "task_id": "content-factory-next-vme.3.relay-isolation",
+      "stream_owner": "subagent:relay-isolation",
+      "artifact_path": ".codex/stages/content-factory-next-vme.3/artifacts/relay-isolation.md"
+    },
+    {
+      "task_id": "content-factory-next-vme.3.relay-proof-hardening",
+      "stream_owner": "subagent:relay-isolation",
+      "artifact_path": ".codex/stages/content-factory-next-vme.3/artifacts/relay-proof-hardening.md"
+    },
+    {
+      "task_id": "content-factory-next-vme.3.youtube-provenance",
+      "stream_owner": "subagent:youtube-provenance",
+      "artifact_path": ".codex/stages/content-factory-next-vme.3/artifacts/youtube-provenance.md"
+    }
+  ]
+}

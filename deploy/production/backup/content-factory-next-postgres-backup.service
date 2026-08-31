@@ -1,0 +1,11 @@
+[Unit]
+Description=Content Factory PostgreSQL logical backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+Environment=CF_BACKUP_ARTIFACT_ROOT=/var/backups/content-factory-next/postgres
+ExecStart=/srv/content-factory-next/deploy/production/backup/run-postgres-backup.sh

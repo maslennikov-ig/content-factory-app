@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-0c8",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-0c8",
+  "source_digest": "dee40e3a11bdb5fd19d75aca8926881b72593af0d58a8720df868b81d868e54f",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Исследование проведено, кандидат выбран с обоснованием, редактор встроен и возвращает результат в нашу медиатеку без единого обращения к стороннему сервису.",
+      "text_digest": "3dd343ece68fe20c5adade549a2e5bc2cf4c243a2f95c0c384440adc84a23806"
+    }
+  ]
+}

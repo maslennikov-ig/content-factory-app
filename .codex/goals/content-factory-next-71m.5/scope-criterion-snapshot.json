@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-71m.5",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-71m.5",
+  "source_digest": "64d9c3e2362dad4c8687c1dcb95eb0c3beb6f91149e4793bdea7b334bbcc8546",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Названы главные потребители с оценкой, предложено конкретное изменение или обосновано, что 380 МБ это нормальный минимум",
+      "text_digest": "2f90303bcdd5b0f326667d9fefc8c8dcf907b5c5d7646d03966b2c82bfe55eb2"
+    }
+  ]
+}

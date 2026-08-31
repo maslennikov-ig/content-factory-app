@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-5g8",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-5g8",
+  "source_digest": "c0137029f0709dd2e2621322a5af73c97d47ab4d11719006c185cc45546f1779",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Both themes ship with the new values, every --cf-* name is unchanged, contrast holds at 1440/1024/768/390 in light and dark, and the source of the visual direction is named nowhere in the repository.",
+      "text_digest": "83a860ec8624073821a9e4e3e9c98e29a091191b6dcdf91e1e492020c8c01f18"
+    }
+  ]
+}

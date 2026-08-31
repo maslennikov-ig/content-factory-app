@@ -1,0 +1,45 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-ry5.2",
+  "goal_id": "content-factory-next-aay",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 5,
+  "acceptance_boundary_id": "self-hosted-newsletter-consent",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["registration-ui", "auth-consent", "newsletter-provider", "production-compose", "reverse-proxy", "postgres-backup"],
+    "risk_models": ["authentication", "explicit-consent", "privacy", "email-delivery", "backup-restore", "resource-isolation"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "no-container-server-database-or-smtp-connection"],
+    "rollback_boundary": "one-revertible-branch-commit-before-any-deployment",
+    "acceptance_proofs": ["focused-red-green-tests", "consent-dom-tests", "provider-contract-tests", "compose-and-proxy-contract-tests", "backup-restore-tests", "workspace-test", "workspace-build", "brand-scan", "process-verification", "independent-security-correctness-and-accessibility-review"]
+  },
+  "work_areas": ["product-decision", "registration-ui", "auth-service", "newsletter-provider", "compose", "nginx", "database-bootstrap", "backup-restore", "operations-docs", "tests", "proof"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-aay",
+    "source_digest": "77ef099adf9e751c2ea7ec91d10733d614b7c1ae5608ed86cfa90fa8c5aa8098",
+    "criteria": [
+      {"criterion_id": "AC-1", "text": "Каждая из семи задач либо закрыта с доказательствами, либо отложена с записанной причиной. Ни одна не потеряна молча. Никакая схема не применена к боевой базе. Ничего не запушено, не слито и не развёрнуто. После каждой задачи зелены pnpm test, pnpm run build, brand-scan и run_process_verification.sh.", "text_digest": "c7e6a50e86192b817684f76b9f574b6209c2e847ba3abd983b9ffcc1590eb56e"}
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-aay/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "77ef099adf9e751c2ea7ec91d10733d614b7c1ae5608ed86cfa90fa8c5aa8098",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-ry5.2/design-evidence.md", ".codex/stages/content-factory-next-ry5.2/implementation.md"],
+  "worker_ownership": [
+    {"stream": "backend-and-infrastructure", "owner": "subagent:newsletter-backend", "write_zone": ["apps/backend/src/services/auth/auth.service.ts", "libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts", "libraries/nestjs-libraries/src/newsletter/**", "deploy/production/**", "scripts/operations/postgres-backup*.sh", "var/docker/nginx.conf", "docs/operations/**", "tests/newsletter.subscription.test.cjs", "tests/postgres-backup*.test.cjs", ".codex/stages/content-factory-next-ry5.2/artifacts/backend.md"], "issues": ["content-factory-next-ry5.2"]},
+    {"stream": "registration-consent-ui", "owner": "subagent:newsletter-frontend", "write_zone": ["apps/frontend/src/components/auth/register.tsx", "libraries/react-shared-libraries/src/translation/locales/**", "tests/newsletter.consent.frontend.test.cjs", ".codex/stages/content-factory-next-ry5.2/artifacts/frontend.md"], "issues": ["content-factory-next-ry5.2"]}
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["backend-and-infrastructure", "registration-consent-ui"],
+    "benefit": ["disjoint_write_zones", "auth_and_ui_context_isolation", "parallel_red_green_latency"],
+    "limit": "fixed contract; no live container, SMTP, server, production database, push, merge, deploy, commit, or Beads close by workers"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-ry5.2.backend", "stream_owner": "newsletter_backend", "artifact_path": ".codex/stages/content-factory-next-ry5.2/artifacts/backend.md"},
+    {"task_id": "content-factory-next-ry5.2.frontend", "stream_owner": "newsletter_frontend", "artifact_path": ".codex/stages/content-factory-next-ry5.2/artifacts/frontend.md"}
+  ]
+}

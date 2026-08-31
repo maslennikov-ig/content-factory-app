@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-vme.3",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-vme.3",
+  "source_digest": "5f9f1761d9a97260a3bb2c9221854342267bb775cb3fc19857baf7fa28f092fb",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "В CI есть явно обозначенный Docker-capable job, где все Docker-backed suites обязаны выполниться, отсутствие Docker является ошибкой, и в его матрицу поимённо входят verify-mastra-storage-migration.sh и verify-postgres-backup-restore.sh; проверка доказывает, что job не может стать зелёным только из-за describe.skip. Ключ изоляции browser-error relay выбран и документирован с threat model, либо доказано, что edge-level решение не расширяет payload; тесты показывают, что один клиент не блокирует другого, а relay по-прежнему не принимает IP, User-Agent, cookies, URL/query и содержимое. Провенанс YouTube либо доказан byte-for-byte из immutable primary source, либо raster закреплён записанным решением. Production scripts не изменены.",
+      "text_digest": "d8720b29280aab86fc9de1f632bdfacca3c9243f9f5f328184881cffa58984bf"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-v7r",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-v7r",
+  "source_digest": "a206a3439f544f514101401fb5ba262145eee2d38f452326ad38d78597e459a5",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Repository is on a dedicated Content Factory branch at Postiz v2.22.1; upstream provenance and AGPL boundary are explicit; Node/pnpm baseline and canonical checks are documented; no Content Factory code is copied before the product licensing decision; the first vertical slice is named.",
+      "text_digest": "f12e555d0816c7d2aa74c2556143170e85476ea17247b4addf11197a017c48a8"
+    }
+  ]
+}

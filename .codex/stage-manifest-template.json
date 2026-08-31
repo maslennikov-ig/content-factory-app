@@ -1,0 +1,45 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "<stage-id>",
+  "goal_id": "<beads-goal-id>",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "planned",
+  "sequence": 1,
+  "acceptance_boundary_id": "<one-cohesive-acceptance-boundary>",
+  "acceptance_owner": "<one-stage-owner>",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["<owned-subsystem>"],
+    "risk_models": ["<risk-model>"],
+    "test_environments": ["<test-environment>"],
+    "rollback_boundary": "<rollback-boundary>",
+    "acceptance_proofs": ["<acceptance-proof>"]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "<beads-goal-id>",
+    "source_digest": "<sha256-of-sorted-criterion-id-and-text-digest-pairs>",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "<acceptance-criterion>",
+        "text_digest": "<sha256-of-exact-criterion-text>"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/<beads-goal-id>/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "<immutable-anchor-source-digest>",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

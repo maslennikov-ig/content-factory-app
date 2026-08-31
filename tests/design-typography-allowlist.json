@@ -1,0 +1,688 @@
+{
+  "version": 1,
+  "total": 794,
+  "metric": {
+    "sourceRoots": [
+      "apps/frontend/src",
+      "libraries/react-shared-libraries/src",
+      "libraries/helpers/src"
+    ],
+    "extensions": [
+      "tsx",
+      "jsx"
+    ],
+    "scanner": "TypeScript AST string and template literal fragments; comments excluded",
+    "counts": "hand-typed font size, weight, leading and tracking in class strings, outside the ten cf-* typography tokens",
+    "tokens": [
+      "cf-heading-xl",
+      "cf-heading-lg",
+      "cf-heading-md",
+      "cf-body-lg",
+      "cf-body-md",
+      "cf-body-sm",
+      "cf-label-md",
+      "cf-label-sm",
+      "cf-caption",
+      "cf-display-num"
+    ],
+    "baseline": {
+      "note": "Opened at the commit that introduced the platform element card. Shrink-only from here: the ledger fails on added and on stale."
+    }
+  },
+  "sections": {
+    "apps/frontend/src": {
+      "total": 768,
+      "allowances": {
+        "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/app/(app)/auth/login-required/page.tsx": {
+          "text-4xl": 1
+        },
+        "apps/frontend/src/app/(app)/auth/page.tsx": {
+          "font-bold": 1
+        },
+        "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
+          "font-semibold": 4,
+          "text-[14px]": 5,
+          "text-[16px]": 2,
+          "text-[24px]": 2,
+          "text-[28px]": 1
+        },
+        "apps/frontend/src/components/admin/admin-errors.component.tsx": {
+          "font-[600]": 4,
+          "text-[12px]": 8,
+          "text-[13px]": 6,
+          "text-[14px]": 3,
+          "text-[16px]": 1
+        },
+        "apps/frontend/src/components/agents/agent.chat.tsx": {
+          "font-[600]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/agents/agent.tsx": {
+          "font-[500]": 1,
+          "text-[10px]": 1,
+          "text-[16px]": 1,
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/analytics/stars.and.forks.tsx": {
+          "leading-[60px]": 2,
+          "text-3xl": 2,
+          "text-[20px]": 3,
+          "text-[24px]": 3,
+          "text-[50px]": 2
+        },
+        "apps/frontend/src/components/analytics/stars.table.component.tsx": {
+          "text-[24px]": 1
+        },
+        "apps/frontend/src/components/approved-apps/approved-apps.component.tsx": {
+          "font-bold": 1,
+          "text-[12px]": 2,
+          "text-[14px]": 1,
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/auth/activate.tsx": {
+          "font-bold": 1,
+          "font-semibold": 1,
+          "text-3xl": 1,
+          "text-lg": 1,
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/auth/auth.divider.tsx": {
+          "font-[600]": 1,
+          "text-[12px]": 1,
+          "tracking-[0.06em]": 1
+        },
+        "apps/frontend/src/components/auth/forgot-return.tsx": {
+          "font-bold": 1,
+          "text-3xl": 1,
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/auth/forgot.tsx": {
+          "font-bold": 1,
+          "text-3xl": 1,
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/auth/legal.notice.tsx": {
+          "font-[600]": 1,
+          "leading-[1.5]": 1,
+          "text-[12px]": 1
+        },
+        "apps/frontend/src/components/auth/login.tsx": {
+          "font-[600]": 4,
+          "text-[13px]": 3,
+          "text-[14px]": 2
+        },
+        "apps/frontend/src/components/auth/login.with.oidc.tsx": {
+          "font-bold": 1,
+          "text-3xl": 1
+        },
+        "apps/frontend/src/components/auth/pending.approval.tsx": {
+          "font-[600]": 1
+        },
+        "apps/frontend/src/components/auth/providers/provider.button.tsx": {
+          "font-[600]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/auth/register.tsx": {
+          "font-[600]": 2,
+          "text-[13px]": 1,
+          "text-[14px]": 2
+        },
+        "apps/frontend/src/components/autopost/autopost.tsx": {
+          "text-[14px]": 1,
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/billing/embedded.billing.tsx": {
+          "font-[500]": 4,
+          "font-[600]": 9,
+          "font-[700]": 3,
+          "text-[12px]": 1,
+          "text-[13px]": 3,
+          "text-[16px]": 2,
+          "text-[18px]": 2,
+          "text-[24px]": 2
+        },
+        "apps/frontend/src/components/billing/faq.component.tsx": {
+          "font-[650]": 1,
+          "leading-[1.55]": 1,
+          "text-[14px]": 1,
+          "text-[16px]": 1
+        },
+        "apps/frontend/src/components/billing/first.billing.component.tsx": {
+          "font-[650]": 1,
+          "leading-[1.2]": 1,
+          "leading-[1.55]": 1,
+          "text-[14px]": 1,
+          "text-[15px]": 1,
+          "text-[22px]": 1,
+          "text-[24px]": 1,
+          "text-[28px]": 1,
+          "tracking-[-0.02em]": 1
+        },
+        "apps/frontend/src/components/billing/lifetime.deal.tsx": {
+          "text-[16px]": 2,
+          "text-[30px]": 2
+        },
+        "apps/frontend/src/components/billing/main.billing.component.tsx": {
+          "text-[12px]": 1,
+          "text-[16px]": 1
+        },
+        "apps/frontend/src/components/developer/developer.component.tsx": {
+          "font-[600]": 28,
+          "leading-[1.7]": 3,
+          "text-[13px]": 22,
+          "text-[14px]": 6,
+          "text-[15px]": 10,
+          "text-[18px]": 1
+        },
+        "apps/frontend/src/components/launches/add.provider.component.tsx": {
+          "leading-none": 1,
+          "text-[11px]": 1,
+          "text-[14px]": 5
+        },
+        "apps/frontend/src/components/launches/ai.image.tsx": {
+          "font-[600]": 1,
+          "text-[10px]": 1,
+          "text-[12px]": 1,
+          "text-[14px]": 2
+        },
+        "apps/frontend/src/components/launches/ai.video.tsx": {
+          "font-[600]": 1,
+          "text-[10px]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/launches/calendar.tsx": {
+          "font-[500]": 2,
+          "font-[600]": 1,
+          "font-bold": 1,
+          "font-medium": 2,
+          "text-[11px]": 2,
+          "text-[12px]": 2,
+          "text-[14px]": 8,
+          "text-[16px]": 1,
+          "text-[20px]": 1,
+          "text-lg": 1,
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/launches/comments/comment.component.tsx": {
+          "font-[700]": 2,
+          "font-bold": 2,
+          "text-[15px]": 2
+        },
+        "apps/frontend/src/components/launches/creation.method.badge.tsx": {
+          "font-bold": 1,
+          "leading-none": 1,
+          "text-[10px]": 1,
+          "text-[12px]": 1,
+          "text-[7px]": 1,
+          "tracking-wide": 1
+        },
+        "apps/frontend/src/components/launches/filters.tsx": {
+          "font-[500]": 4,
+          "text-[14px]": 7
+        },
+        "apps/frontend/src/components/launches/general.preview.component.tsx": {
+          "font-[400]": 1,
+          "font-[700]": 1,
+          "font-bold": 2,
+          "text-[15px]": 3
+        },
+        "apps/frontend/src/components/launches/helpers/date.picker.tsx": {
+          "font-[600]": 1,
+          "text-[15px]": 1
+        },
+        "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/launches/import-debug-post.modal.tsx": {
+          "font-[400]": 1,
+          "font-[500]": 5,
+          "font-[600]": 2,
+          "text-[11px]": 1,
+          "text-[12px]": 2,
+          "text-[13px]": 6
+        },
+        "apps/frontend/src/components/launches/information.component.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 2,
+          "text-[10px]": 2,
+          "text-[14px]": 1,
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/launches/launches.component.tsx": {
+          "font-[650]": 1,
+          "text-[10px]": 1,
+          "text-[12px]": 1,
+          "text-[15px]": 1
+        },
+        "apps/frontend/src/components/launches/menu/menu.tsx": {
+          "text-[14px]": 11
+        },
+        "apps/frontend/src/components/launches/merge.post.tsx": {
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/launches/missing-release.modal.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/launches/new.post.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/launches/repeat.component.tsx": {
+          "font-[600]": 1,
+          "text-[15px]": 1
+        },
+        "apps/frontend/src/components/launches/separate.post.tsx": {
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/launches/settings.modal.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/launches/statistics.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 2,
+          "font-medium": 1,
+          "font-semibold": 1,
+          "leading-[42px]": 1,
+          "text-[13px]": 2,
+          "text-[15px]": 1,
+          "text-[18px]": 1,
+          "text-[30px]": 2,
+          "text-[36px]": 1,
+          "tracking-tight": 1
+        },
+        "apps/frontend/src/components/launches/tags.component.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 3,
+          "text-[10px]": 1,
+          "text-[12px]": 2,
+          "text-[13px]": 1,
+          "text-[14px]": 2,
+          "text-[15px]": 1
+        },
+        "apps/frontend/src/components/launches/time.table.tsx": {
+          "font-medium": 2,
+          "font-semibold": 1,
+          "text-[14px]": 3,
+          "text-[15px]": 2
+        },
+        "apps/frontend/src/components/launches/web3/providers/moltbook.provider.tsx": {
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/layout/announcement.banner.tsx": {
+          "font-[500]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/layout/logout.component.tsx": {
+          "text-[13px]": 1
+        },
+        "apps/frontend/src/components/layout/new-modal.tsx": {
+          "font-[600]": 1,
+          "text-[24px]": 1
+        },
+        "apps/frontend/src/components/layout/organization.selector.tsx": {
+          "font-[600]": 4,
+          "text-[13px]": 2,
+          "text-[14px]": 2
+        },
+        "apps/frontend/src/components/layout/streak.component.tsx": {
+          "font-semibold": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/layout/support.tsx": {
+          "text-[16px]": 1
+        },
+        "apps/frontend/src/components/media/media.component.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 2,
+          "font-medium": 3,
+          "text-[10px]": 1,
+          "text-[12px]": 2,
+          "text-[14px]": 2,
+          "text-[20px]": 1,
+          "text-sm": 3
+        },
+        "apps/frontend/src/components/new-launch/add.post.button.tsx": {
+          "font-[600]": 1,
+          "text-[13px]": 1
+        },
+        "apps/frontend/src/components/new-launch/delay.component.tsx": {
+          "font-[600]": 1,
+          "text-[12px]": 1,
+          "text-[13px]": 2
+        },
+        "apps/frontend/src/components/new-launch/editor.tsx": {
+          "font-[600]": 6,
+          "text-[12px]": 3,
+          "text-[13px]": 2,
+          "text-[14px]": 4,
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/new-launch/manage.modal.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 8,
+          "text-[12px]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 2,
+          "text-[15px]": 4,
+          "text-[20px]": 3
+        },
+        "apps/frontend/src/components/new-launch/modal.wrapper.component.tsx": {
+          "text-[24px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/continue-provider/gmb/gmb.continue.tsx": {
+          "font-medium": 1,
+          "text-sm": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/continue-provider/tumblr/tumblr.continue.tsx": {
+          "font-medium": 1,
+          "font-semibold": 1,
+          "text-[32px]": 1,
+          "text-sm": 1,
+          "text-xs": 3
+        },
+        "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx": {
+          "leading-[26px]": 1,
+          "text-[18px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/continue-provider/youtube/youtube.continue.tsx": {
+          "font-medium": 1,
+          "text-sm": 1,
+          "text-xs": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/devto/devto.tags.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/facebook/facebook.preview.tsx": {
+          "font-[400]": 5,
+          "font-[500]": 2,
+          "font-[700]": 6,
+          "font-bold": 2,
+          "leading-[17px]": 1,
+          "leading-[18px]": 1,
+          "leading-[36px]": 1,
+          "text-[12px]": 3,
+          "text-[13px]": 1,
+          "text-[14px]": 5,
+          "text-[28px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/facebook/facebook.provider.tsx": {
+          "text-[12px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/gmb/gmb.provider.tsx": {
+          "font-medium": 2,
+          "text-[14px]": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/hashnode/hashnode.tags.tsx": {
+          "text-[12px]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/high.order.provider.tsx": {
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.audio.tsx": {
+          "text-[12px]": 5,
+          "text-[14px]": 10
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.preview.tsx": {
+          "font-[400]": 3,
+          "font-[600]": 2,
+          "font-[700]": 4,
+          "font-bold": 2,
+          "leading-[17px]": 1,
+          "leading-[18px]": 1,
+          "text-[12px]": 1,
+          "text-[14px]": 3,
+          "text-[15px]": 2
+        },
+        "apps/frontend/src/components/new-launch/providers/instagram/instagram.tags.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/lemmy/lemmy.provider.tsx": {
+          "text-[12px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/linkedin/linkedin.preview.tsx": {
+          "font-[400]": 8,
+          "font-[500]": 2,
+          "font-[700]": 3,
+          "font-bold": 2,
+          "leading-[16px]": 1,
+          "leading-[17px]": 1,
+          "text-[12px]": 6,
+          "text-[13px]": 1,
+          "text-[14px]": 4
+        },
+        "apps/frontend/src/components/new-launch/providers/medium/medium.tags.tsx": {
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx": {
+          "font-[600]": 1,
+          "font-bold": 2,
+          "text-[16px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/reddit/reddit.provider.tsx": {
+          "font-[600]": 2,
+          "font-[700]": 1,
+          "leading-[16px]": 1,
+          "text-[12px]": 3,
+          "text-[14px]": 1,
+          "text-[24px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/tiktok/tiktok.preview.tsx": {
+          "font-[400]": 1,
+          "font-[500]": 1,
+          "font-[700]": 1,
+          "font-bold": 2,
+          "text-[13px]": 1,
+          "text-[14px]": 1,
+          "text-[8px]": 1
+        },
+        "apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx": {
+          "text-[13px]": 1,
+          "text-[14px]": 7
+        },
+        "apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx": {
+          "font-[400]": 2,
+          "font-[500]": 2,
+          "font-bold": 2,
+          "text-[10px]": 1,
+          "text-[12px]": 2,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "apps/frontend/src/components/new-launch/select.current.tsx": {
+          "text-[8px]": 1
+        },
+        "apps/frontend/src/components/new-layout/billing.after.tsx": {
+          "text-3xl": 1,
+          "text-xl": 3
+        },
+        "apps/frontend/src/components/new-layout/layout.component.tsx": {
+          "font-[600]": 1,
+          "font-[650]": 1,
+          "text-[14px]": 1,
+          "text-[18px]": 1,
+          "tracking-[-0.015em]": 1
+        },
+        "apps/frontend/src/components/new-layout/menu-item.tsx": {
+          "font-[600]": 1,
+          "font-[650]": 1
+        },
+        "apps/frontend/src/components/notifications/notification.component.tsx": {
+          "font-bold": 3,
+          "font-normal": 1,
+          "text-[11px]": 1
+        },
+        "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
+          "font-[600]": 3,
+          "font-[650]": 3,
+          "font-medium": 4,
+          "font-semibold": 3,
+          "text-[12px]": 1,
+          "text-[13px]": 2,
+          "text-[14px]": 12,
+          "text-[20px]": 1,
+          "text-[24px]": 1
+        },
+        "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
+          "font-[600]": 1,
+          "font-[650]": 1,
+          "text-[14px]": 1,
+          "text-[24px]": 1,
+          "tracking-[-0.02em]": 1
+        },
+        "apps/frontend/src/components/platform-analytics/render.analytics.tsx": {
+          "font-medium": 3,
+          "font-semibold": 2,
+          "leading-[42px]": 1,
+          "leading-[56px]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1,
+          "text-[15px]": 2,
+          "text-[36px]": 1,
+          "text-[48px]": 1,
+          "tracking-tight": 2
+        },
+        "apps/frontend/src/components/plugs/plug.tsx": {
+          "text-[12px]": 1,
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/plugs/plugs.tsx": {
+          "font-[500]": 1,
+          "text-[10px]": 1,
+          "text-[20px]": 1,
+          "text-[48px]": 1
+        },
+        "apps/frontend/src/components/preview/comments.components.tsx": {
+          "font-semibold": 2,
+          "text-lg": 1,
+          "text-sm": 3
+        },
+        "apps/frontend/src/components/preview/post.preview.tsx": {
+          "font-semibold": 1,
+          "text-sm": 4
+        },
+        "apps/frontend/src/components/provider-preview/preview.provider.component.tsx": {
+          "text-sm": 2
+        },
+        "apps/frontend/src/components/public-api/public.component.tsx": {
+          "font-[500]": 3,
+          "font-[600]": 11,
+          "leading-[1.6]": 1,
+          "leading-[1.7]": 1,
+          "text-[12px]": 1,
+          "text-[13px]": 13,
+          "text-[14px]": 2,
+          "text-[15px]": 3
+        },
+        "apps/frontend/src/components/sets/sets.tsx": {
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/third-parties/providers/heygen.provider.tsx": {
+          "leading-[50px]": 1,
+          "text-3xl": 1,
+          "text-[12px]": 3,
+          "text-[14px]": 3,
+          "text-lg": 3
+        },
+        "apps/frontend/src/components/third-parties/third-party.component.tsx": {
+          "font-[500]": 1,
+          "text-[12px]": 1,
+          "text-[20px]": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.list.component.tsx": {
+          "text-[14px]": 1,
+          "text-lg": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.media-library.tsx": {
+          "font-[500]": 1,
+          "font-[600]": 1,
+          "text-[10px]": 1,
+          "text-[14px]": 3,
+          "text-lg": 1
+        },
+        "apps/frontend/src/components/third-parties/third-party.media.tsx": {
+          "font-[600]": 1,
+          "text-[10px]": 1,
+          "text-[14px]": 1,
+          "text-lg": 1
+        },
+        "apps/frontend/src/components/ui/brand/wordmark.tsx": {
+          "font-[650]": 1,
+          "text-[16px]": 1,
+          "text-[18px]": 1,
+          "text-[24px]": 1,
+          "tracking-[-0.01em]": 1
+        },
+        "apps/frontend/src/components/ui/docs-link.tsx": {
+          "font-[600]": 1,
+          "text-[13px]": 1
+        },
+        "apps/frontend/src/components/ui/table.tsx": {
+          "font-[600]": 1
+        },
+        "apps/frontend/src/components/videos/providers/image-text-slides.provider.tsx": {
+          "font-medium": 2,
+          "text-sm": 3,
+          "text-xs": 1
+        },
+        "apps/frontend/src/components/webhooks/webhooks.tsx": {
+          "text-[20px]": 1
+        }
+      }
+    },
+    "libraries/react-shared-libraries/src": {
+      "total": 26,
+      "allowances": {
+        "libraries/react-shared-libraries/src/form/button.tsx": {
+          "font-[600]": 1,
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/canonical.tsx": {
+          "text-[12px]": 1,
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/color.picker.tsx": {
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/custom.select.tsx": {
+          "text-[12px]": 1,
+          "text-[14px]": 3
+        },
+        "libraries/react-shared-libraries/src/form/field-message.tsx": {
+          "text-[12px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/input.tsx": {
+          "font-[600]": 1,
+          "text-[12px]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/multi.select.tsx": {
+          "text-[12px]": 1,
+          "text-[14px]": 2
+        },
+        "libraries/react-shared-libraries/src/form/select.tsx": {
+          "font-[600]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/textarea.tsx": {
+          "font-[600]": 1,
+          "text-[13px]": 1,
+          "text-[14px]": 1
+        },
+        "libraries/react-shared-libraries/src/form/total.tsx": {
+          "text-[14px]": 3
+        }
+      }
+    },
+    "libraries/helpers/src": {
+      "total": 0,
+      "allowances": {}
+    }
+  }
+}

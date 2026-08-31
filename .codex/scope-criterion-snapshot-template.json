@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "<beads-goal-id>",
+  "source_kind": "beads",
+  "source_id": "<beads-goal-id>",
+  "source_digest": "<sha256-of-sorted-criterion-id-and-text-digest-pairs>",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "<acceptance-criterion>",
+      "text_digest": "<sha256-of-exact-criterion-text>"
+    }
+  ]
+}

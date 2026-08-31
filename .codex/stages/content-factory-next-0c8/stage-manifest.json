@@ -1,0 +1,83 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-0c8",
+  "goal_id": "content-factory-next-0c8",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 5,
+  "acceptance_boundary_id": "private-client-image-editor-media-roundtrip",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["media-library", "client-image-editor", "upload-roundtrip"],
+    "risk_models": ["license-compatibility", "third-party-network-leakage", "untrusted-media", "browser-resource-exhaustion", "accessibility-regression"],
+    "test_environments": ["isolated-local-branch", "node-22.23.2", "pnpm-10.6.1", "browser-with-blocked-third-party-network", "no-live-publish-paid-call-credentials-deploy-or-delivery"],
+    "rollback_boundary": "remove-editor-entrypoint-and-new-client-editor-files-without-media-schema-change",
+    "acceptance_proofs": ["research-before-implementation", "license-and-privacy-gates", "focused-red-green", "cyrillic-export", "eight-feature-floor-contract", "media-upload-roundtrip", "browser-network-deny-proof", "responsive-keyboard-and-state-matrix", "full-test-and-build", "fresh-stage-receipt"]
+  },
+  "work_areas": ["research", "product-design", "architecture", "contract", "implementation", "consumer-adoption", "tests", "security-review", "browser-proof", "docs-and-graph-review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-0c8",
+    "source_digest": "dee40e3a11bdb5fd19d75aca8926881b72593af0d58a8720df868b81d868e54f",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Исследование проведено, кандидат выбран с обоснованием, редактор встроен и возвращает результат в нашу медиатеку без единого обращения к стороннему сервису.",
+        "text_digest": "3dd343ece68fe20c5adade549a2e5bc2cf4c243a2f95c0c384440adc84a23806"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-0c8/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "dee40e3a11bdb5fd19d75aca8926881b72593af0d58a8720df868b81d868e54f",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-0c8/spec.md",
+    ".codex/stages/content-factory-next-0c8/plan.md",
+    ".codex/stages/content-factory-next-0c8/summary.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "image-editor-research",
+      "owner": "subagent:image-editor-research",
+      "write_zone": ["docs/research/image-editor-selection.md", ".codex/stages/content-factory-next-0c8/artifacts/image-editor-research.md"],
+      "issues": ["content-factory-next-0c8"]
+    },
+    {
+      "stream": "image-editor-integration-map",
+      "owner": "subagent:image-editor-integration-map",
+      "write_zone": [".codex/stages/content-factory-next-0c8/artifacts/image-editor-integration-map.md"],
+      "issues": ["content-factory-next-0c8"]
+    },
+    {
+      "stream": "image-editor-implementation",
+      "owner": "subagent:image-editor-implementation",
+      "write_zone": ["apps/frontend/src/components/media/image-editor/**", "apps/frontend/src/components/media/media.component.tsx", "apps/frontend/src/app/(stand)/interface-review/image-editor/**", "libraries/react-shared-libraries/src/ui/icons/**", "tests/image-editor*.test.cjs", ".codex/stages/content-factory-next-0c8/evidence/image-editor/**", ".codex/stages/content-factory-next-0c8/artifacts/image-editor-implementation.md", "package.json", "pnpm-lock.yaml"],
+      "issues": ["content-factory-next-0c8"]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["image-editor-research", "image-editor-integration-map"],
+    "benefit": ["parallel-latency", "context-isolation", "specialist-capability", "write-isolation"],
+    "sequential_streams": ["research-synthesis-before-implementation", "implementation-after-selected-candidate", "root-integration-and-release-acceptance"],
+    "limit": "maximum-two-concurrent-research-streams-and-one-implementation-writer; no-package-download-before-selection; no-vendor-network-paid-call-credentials-live-publish-deploy-push-or-pr"
+  },
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-0c8.image-editor-research",
+      "stream_owner": "subagent:image-editor-research",
+      "artifact_path": ".codex/stages/content-factory-next-0c8/artifacts/image-editor-research.md"
+    },
+    {
+      "task_id": "content-factory-next-0c8.image-editor-integration-map",
+      "stream_owner": "subagent:image-editor-integration-map",
+      "artifact_path": ".codex/stages/content-factory-next-0c8/artifacts/image-editor-integration-map.md"
+    },
+    {
+      "task_id": "content-factory-next-0c8.image-editor-implementation",
+      "stream_owner": "subagent:image-editor-implementation",
+      "artifact_path": ".codex/stages/content-factory-next-0c8/artifacts/image-editor-implementation.md"
+    }
+  ]
+}

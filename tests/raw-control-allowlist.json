@@ -1,0 +1,206 @@
+{
+  "version": 2,
+  "total": 31,
+  "sourceRoots": [
+    "apps/frontend/src",
+    "libraries/react-shared-libraries/src"
+  ],
+  "rootTotals": {
+    "apps/frontend/src": 20,
+    "libraries/react-shared-libraries/src": 11
+  },
+  "allowances": {
+    "apps/frontend/src/components/admin/admin-errors.component.tsx": {
+      "input": {
+        "count": 2,
+        "category": "missing-capability",
+        "reason": "Admin filters are a bare address box and a bare checkbox outside any form provider; the shared Input needs one and there is no shared checkbox for the other.",
+        "followUp": "Give the admin filter bar shared controls that work outside a form provider"
+      }
+    },
+    "apps/frontend/src/components/agents/agent.input.tsx": {
+      "button": {
+        "count": 2,
+        "category": "third-party-adapter",
+        "reason": "CopilotKit input controls retain the provider adapter's interaction contract.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/agents/agent.textarea.tsx": {
+      "textarea": {
+        "count": 1,
+        "category": "third-party-adapter",
+        "reason": "The Copilot textarea owns imperative auto-resize behavior.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/auth/nayner.auth.button.tsx": {
+      "button": {
+        "count": 1,
+        "category": "third-party-adapter",
+        "reason": "Federated sign-in owns the provider message and modal protocol.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/auth/providers/provider.button.tsx": {
+      "button": {
+        "count": 1,
+        "category": "third-party-adapter",
+        "reason": "This reusable federated-provider adapter owns provider-specific behavior.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {
+      "input": {
+        "count": 1,
+        "category": "missing-capability",
+        "reason": "The playback scrubber is a native range control; the alt-text box uses the shared standalone Input.",
+        "followUp": "Add a shared range control and adopt it in media settings"
+      }
+    },
+    "apps/frontend/src/components/layout/new-modal.tsx": {
+      "button": {
+        "count": 1,
+        "category": "third-party-adapter",
+        "reason": "The Mantine modal close boundary is owned by its modal adapter.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/media/media.component.tsx": {
+      "input": {
+        "count": 1,
+        "category": "missing-capability",
+        "reason": "The hidden file picker is the uploader's registered native bridge.",
+        "followUp": "Add a shared file-picker control and adopt it in the media library"
+      }
+    },
+    "apps/frontend/src/components/new-launch/providers/instagram/instagram.audio.tsx": {
+      "input": {
+        "count": 2,
+        "category": "missing-capability",
+        "reason": "The two volume sliders are native range controls; the audio search uses the shared standalone Input.",
+        "followUp": "Add a shared range control and adopt it in the Instagram audio panel"
+      }
+    },
+    "apps/frontend/src/components/plugs/plug.tsx": {
+      "textarea": {
+        "count": 1,
+        "category": "third-party-adapter",
+        "reason": "The hidden textarea is the registered native bridge for a Copilot editor.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/third-parties/slider.component.tsx": {
+      "button": {
+        "count": 3,
+        "category": "third-party-adapter",
+        "reason": "Carousel controls intentionally retain media-overlay behavior and contrast.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/third-parties/third-party.media-library.tsx": {
+      "button": {
+        "count": 3,
+        "category": "third-party-adapter",
+        "reason": "The integration media picker is a provider-owned adapter boundary.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/ui/layers.tsx": {
+      "button": {
+        "count": 1,
+        "category": "intrinsic-primitive",
+        "reason": "This file implements the product-local MenuItem DOM primitive.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/choice/control.button.tsx": {
+      "button": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The choice-control primitive: this element is the control the choice group is built from.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/button.tsx": {
+      "button": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared Button itself; this is the native element every call site is asked to reach through.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/canonical.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared canonical-name field itself; the native element carries text entry.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/checkbox.field.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared CheckboxField itself; the native element carries checked state and keyboard operation.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/file-input.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared file control: a browser draws a native file input its own way and ignores the product's height, focus ring and disabled treatment, so the control hides it behind a real Button. This is that one definition.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/input.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared Input itself; this is the native element every call site is asked to reach through.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/multi.select.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared MultiSelect itself; the native checkbox is the option control it is built from.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/range.tsx": {
+      "input": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared range handle: a native input owns the slider role, its bounds and the whole arrow/Home/End contract that a div with role=\"slider\" would only look like it had.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/select.tsx": {
+      "select": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared Select itself; the native element carries the platform popup behaviour.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/textarea.tsx": {
+      "textarea": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared Textarea itself; the native element carries text editing and resize.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "libraries/react-shared-libraries/src/form/toggle.tsx": {
+      "button": {
+        "count": 1,
+        "category": "control-definition",
+        "reason": "The shared Toggle itself; the native button carries role=\"switch\", its checked state and keyboard operation.",
+        "followUp": "no follow-up needed"
+      }
+    }
+  }
+}

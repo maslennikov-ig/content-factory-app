@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-or3",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-or3",
+  "source_digest": "31f532e2b116695cacb106c4bc62111d9c447bff48d6413f83f99991a211622e",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Публичный экран показывает продукт до регистрации; обязательность полей ясна; выбор шаблона реально применяется после регистрации; гостевой режим не требует аккаунта и не раскрывает данные; каждый этап имеет focused RED→GREEN, адаптивное браузерное доказательство и перевод RU/EN без пробелов.",
+      "text_digest": "fcaf42da266927dff7a2d8131f79ca2ff01024f00acc283e8aac3eddd6de9c3d"
+    }
+  ]
+}

@@ -1,0 +1,438 @@
+'use strict';
+
+/**
+ * The door `CreateContentFactDto` never had on the frontend.
+ *
+ * `POST /content-intelligence/facts` and its list existed on the backend
+ * before this file did — `BriefFactV1.factId` was built to point at a fact in
+ * this catalogue, and `groundedBrief` refuses an id this workspace does not
+ * hold. Nothing in the interface could put an id there: the only way to ground
+ * a brief was to paste a URL. This guard is about the wire this task adds, and
+ * the three things it must not get wrong:
+ *
+ *  - a fact is created through the real contract, not a guess at its shape.
+ *  - a refusal is read the way the rest of this section already reads one —
+ *    `voice-materials.adapter.ts`'s table, not a second copy of it.
+ *  - the list refreshes after a create, so what a person just added is what
+ *    `groundedBrief` would find if a brief cited its id.
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+const React = require('react');
+const { JSDOM } = require('jsdom');
+
+const root = path.resolve(__dirname, '..');
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  pretendToBeVisual: true,
+  url: 'http://localhost/',
+});
+for (const key of ['window', 'document', 'navigator']) {
+  Object.defineProperty(global, key, {
+    configurable: true,
+    value: key === 'window' ? dom.window : dom.window[key],
+  });
+}
+global.IS_REACT_ACT_ENVIRONMENT = true;
+
+const { act, cleanup, fireEvent, render, screen } = require('@testing-library/react');
+const { SWRConfig } = require('swr');
+const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
+
+const base = 'apps/frontend/src/components/content-intelligence';
+const FILES = {
+  container: `${base}/content-facts.container.tsx`,
+  adapter: `${base}/content-facts.adapter.ts`,
+  screen: `${base}/content-section.screen.tsx`,
+};
+
+const source = (key) => fs.readFileSync(path.join(root, FILES[key]), 'utf8');
+
+test('the container and its adapter exist', () => {
+  for (const file of Object.values(FILES)) {
+    expect(fs.existsSync(path.join(root, file))).toBe(true);
+  }
+});
+
+if (!Object.values(FILES).every((file) => fs.existsSync(path.join(root, file))))
+  return;
+
+const adapter = loadTypeScriptModule(FILES.adapter);
+const container = loadTypeScriptModule(FILES.container);
+const variables = loadTypeScriptModule(
+  'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
+);
+
+/* -------------------------------------------------------------------------
+ * A server, stubbed at the one place the product talks to it
+ * ---------------------------------------------------------------------- */
+
+const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+const refusal = (status, body) => ({ ok: false, status, json: async () => body });
+
+let calls = [];
+
+const serve = (table) => {
+  calls = [];
+  global.fetch = async (url, init = {}) => {
+    const method = String(init.method || 'GET').toUpperCase();
+    const call = { url, method, body: init.body ? JSON.parse(init.body) : undefined };
+    calls.push(call);
+    const answer = table[`${method} ${url}`];
+    if (!answer) throw new Error(`no stub for ${method} ${url}`);
+    return typeof answer === 'function' ? answer(call) : answer;
+  };
+};
+
+const EXISTING = {
+  facts: [
+    {
+      id: 'fact-1',
+      claimKey: 'pricing|trial_length',
+      statement: 'Пробный период — 14 дней.',
+      language: 'ru',
+      temporalKind: 'TIMELESS',
+      freshUntil: null,
+      status: 'UNVERIFIED',
+      evidence: [],
+    },
+  ],
+};
+
+const renderContainer = async (locale = 'ru') => {
+  await act(async () => {
+    render(
+      React.createElement(
+        SWRConfig,
+        { value: { provider: () => new Map(), dedupingInterval: 0 } },
+        React.createElement(
+          variables.VariableContextComponent,
+          { language: locale },
+          React.createElement(container.ContentFactsContainer)
+        )
+      )
+    );
+  });
+  await act(async () => {});
+};
+
+const click = async (element) => {
+  await act(async () => {
+    fireEvent.click(element);
+  });
+  await act(async () => {});
+};
+
+const type = async (name, value) => {
+  const field = document.querySelector(`[name="${name}"]`);
+  expect(field).not.toBeNull();
+  await act(async () => {
+    fireEvent.change(field, { target: { value } });
+  });
+};
+
+afterEach(() => {
+  cleanup();
+  delete global.fetch;
+});
+
+/* ---------------------------------------------------------------------- */
+
+describe('what already exists is read from the real catalogue', () => {
+  test('the list shows what the server holds, id included', async () => {
+    serve({ 'GET /content-intelligence/facts': ok(EXISTING) });
+    await renderContainer();
+
+    const row = document.querySelector('[data-content-fact-id="fact-1"]');
+    expect(row).not.toBeNull();
+    expect(row.textContent).toContain('Пробный период — 14 дней.');
+    expect(row.textContent).toContain('fact-1');
+  });
+
+  test('a workspace with nothing remembered yet is told so, not shown a bare table', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+
+    expect(document.querySelector('[data-content-fact-id]')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('a list that failed to load is named, not swallowed', async () => {
+    serve({
+      'GET /content-intelligence/facts': refusal(500, {
+        code: 'CONTENT_CONTEXT_NOT_FOUND',
+        message: 'Каталог фактов недоступен.',
+      }),
+    });
+    await renderContainer();
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Каталог фактов недоступен.'
+    );
+  });
+});
+
+/**
+ * `ContentFact.status` is a plain `String` column, not an enum, and the brief
+ * refuses three of its values outright: `UNUSABLE_FACT_STATUSES` in
+ * `content-brief.service.ts` is `TOMBSTONED`, `RETRACTED`, `SUPERSEDED`.
+ * `listFacts` filters only the first of the three, so the other two reach
+ * this list — and the first pass at this door knew five status values, none
+ * of them those two, and quietly relabelled them «Не проверен». The section
+ * then offered an id under a label saying it was fine, and the brief refused
+ * it with `BRIEF_FACT_UNGROUNDED` and no way to connect the two.
+ */
+describe('a fact the brief will not take is not offered as if it would', () => {
+  const withStatus = (status) => ({
+    facts: [{ ...EXISTING.facts[0], id: 'fact-x', status }],
+  });
+
+  test.each(['RETRACTED', 'SUPERSEDED'])(
+    'a %s fact is named, and the row says the brief will refuse it',
+    async (status) => {
+      serve({ 'GET /content-intelligence/facts': ok(withStatus(status)) });
+      await renderContainer();
+
+      const row = document.querySelector('[data-content-fact-id="fact-x"]');
+      expect(row).not.toBeNull();
+      expect(row.textContent).not.toContain('Не проверен');
+      expect(row.getAttribute('data-content-fact-usable')).toBe('false');
+      expect(row.textContent).toMatch(/бриф/iu);
+    }
+  );
+
+  test('a status nobody here has heard of is shown as it came, not renamed', async () => {
+    serve({ 'GET /content-intelligence/facts': ok(withStatus('QUARANTINED')) });
+    await renderContainer();
+
+    const row = document.querySelector('[data-content-fact-id="fact-x"]');
+    expect(row.textContent).toContain('QUARANTINED');
+    expect(row.textContent).not.toContain('Не проверен');
+  });
+
+  test('an ordinary unverified fact is still offered as usable', async () => {
+    serve({ 'GET /content-intelligence/facts': ok(EXISTING) });
+    await renderContainer();
+
+    const row = document.querySelector('[data-content-fact-id="fact-1"]');
+    expect(row.getAttribute('data-content-fact-usable')).toBe('true');
+    expect(row.textContent).toContain('Не проверен');
+  });
+
+  /**
+   * The id is what this whole card exists to hand over, and it is a cuid. The
+   * first pass printed it inside a caption and left the person to select it
+   * by hand — in a different tab from the field it goes into, which is the
+   * one place a mis-selected character is not caught until the brief refuses
+   * the fact.
+   */
+  test('an id can be taken, not only read', async () => {
+    const written = [];
+    Object.defineProperty(global.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (value) => void written.push(value) },
+    });
+    try {
+      serve({ 'GET /content-intelligence/facts': ok(EXISTING) });
+      await renderContainer();
+
+      const button = document.querySelector('[data-content-fact-copy="fact-1"]');
+      expect(button).not.toBeNull();
+      await click(button);
+
+      expect(written).toEqual(['fact-1']);
+      expect(button.textContent).toContain('Скопирован');
+    } finally {
+      delete global.navigator.clipboard;
+    }
+  });
+
+  test('no clipboard means no button, and the id is still on the screen', async () => {
+    serve({ 'GET /content-intelligence/facts': ok(EXISTING) });
+    await renderContainer();
+
+    expect(document.querySelector('[data-content-fact-copy]')).toBeNull();
+    expect(
+      document.querySelector('[data-content-fact-id="fact-1"]').textContent
+    ).toContain('fact-1');
+  });
+
+  test('the unusable list is the brief service’s own, not a second copy of it', () => {
+    const briefSource = fs.readFileSync(
+      path.join(
+        root,
+        'libraries/nestjs-libraries/src/content-intelligence/brief/content-brief.service.ts'
+      ),
+      'utf8'
+    );
+    const declared = briefSource
+      .match(/const UNUSABLE_FACT_STATUSES = \[([^\]]*)\]/u)[1]
+      .match(/'([A-Z_]+)'/gu)
+      .map((one) => one.replace(/'/gu, ''));
+    expect([...adapter.UNUSABLE_FACT_STATUSES].sort()).toEqual(declared.sort());
+  });
+});
+
+describe('creating a fact goes through the real contract', () => {
+  const fillMinimum = async () => {
+    await type('claimKey', 'pricing|trial_length');
+    await type('statement', 'Пробный период — 14 дней.');
+    await type('valueText', '14');
+  };
+
+  test('the payload is CreateContentFactDto, not a guess at its shape', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({ facts: [] }),
+      'POST /content-intelligence/facts': ok({ id: 'fact-new' }),
+    });
+    await renderContainer();
+    await fillMinimum();
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    const sent = calls.find((call) => call.method === 'POST').body;
+    expect(sent).toEqual({
+      claimKey: 'pricing|trial_length',
+      statement: 'Пробный период — 14 дней.',
+      language: 'ru',
+      valueText: '14',
+      temporalKind: 'TIMELESS',
+    });
+  });
+
+  test('after creation the list is refreshed and the new id is announced', async () => {
+    let listedOnce = false;
+    serve({
+      'GET /content-intelligence/facts': () =>
+        ok(listedOnce ? EXISTING : (listedOnce = true, { facts: [] })),
+      'POST /content-intelligence/facts': ok({ id: 'fact-1' }),
+    });
+    await renderContainer();
+    await fillMinimum();
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    // The id is the one thing a brief needs to cite this fact by.
+    expect(screen.getByRole('status').textContent).toContain('fact-1');
+    expect(document.querySelector('[data-content-fact-id="fact-1"]')).not.toBeNull();
+    // The form is ready for the next fact rather than holding the last one.
+    expect(document.querySelector('[name="claimKey"]').value).toBe('');
+  });
+
+  test('a fact good enough for a brief needs no evidence to exist', async () => {
+    // `groundedBrief` only checks that the id exists in this workspace and is
+    // not TOMBSTONED, RETRACTED or SUPERSEDED — a freshly created,
+    // UNVERIFIED fact already clears that bar, so evidence-linking is a
+    // separate door and this test is the contract's own words, not a guess.
+    const brief = fs.readFileSync(
+      path.join(root, 'libraries/nestjs-libraries/src/content-intelligence/brief/content-brief.service.ts'),
+      'utf8'
+    );
+    const declared = brief.match(/UNUSABLE_FACT_STATUSES = \[([^\]]+)\]/);
+    expect(declared).not.toBeNull();
+    const statuses = declared[1];
+    expect(statuses).toContain('TOMBSTONED');
+    expect(statuses).toContain('RETRACTED');
+    expect(statuses).toContain('SUPERSEDED');
+    expect(statuses).not.toContain('UNVERIFIED');
+  });
+
+  test('an invalid claim rejected by the server is named, and nothing typed is lost', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({ facts: [] }),
+      'POST /content-intelligence/facts': refusal(422, {
+        code: 'CONTENT_CONTEXT_INPUT_INVALID',
+        message: 'Fact lifecycle dates are invalid',
+      }),
+    });
+    await renderContainer();
+    await fillMinimum();
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Fact lifecycle dates are invalid'
+    );
+    expect(document.querySelector('[name="claimKey"]').value).toBe(
+      'pricing|trial_length'
+    );
+  });
+
+  test('a refusal with no message of its own still tells a person something happened', async () => {
+    // `SubscriptionException` (the `aiCreate` policy gate) answers with
+    // `{ section, action }`, not `{ code, message }` — there is nothing in the
+    // body to print, so the surface's own fallback sentence is what is shown,
+    // never a blank alert or "unknown error".
+    serve({
+      'GET /content-intelligence/facts': ok({ facts: [] }),
+      'POST /content-intelligence/facts': refusal(402, {
+        section: 'ai',
+        action: 'create',
+      }),
+    });
+    await renderContainer();
+    await fillMinimum();
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    expect(screen.getByRole('alert').textContent.trim().length).toBeGreaterThan(0);
+    expect(document.querySelector('[name="claimKey"]').value).toBe(
+      'pricing|trial_length'
+    );
+  });
+});
+
+describe('the section does not reinvent what a refusal means', () => {
+  test('the refusal reading comes from the section\'s own table', () => {
+    const adapterCode = source('adapter');
+    expect(adapterCode).toMatch(/from '\.\.\/brand-voice\/voice-materials\.adapter'/u);
+    // A second table of what a 403 or 422 means is how two surfaces of one
+    // section start disagreeing about it.
+    expect(adapterCode).not.toMatch(/VOICE_ERROR_CODES\s*\[/u);
+  });
+
+  test('the door is wired into the Content screen, next to the context inspector it sits beside', () => {
+    const screenCode = source('screen');
+    expect(screenCode).toContain('ContentFactsContainer');
+    expect(screenCode).toMatch(/tab === 'provenance'/);
+  });
+});
+
+describe('the payload builder', () => {
+  test('drops the optional dates nobody filled in rather than sending empty strings', () => {
+    const payload = adapter.buildFactCreatePayload({
+      claimKey: ' pricing|trial_length ',
+      statement: ' Пробный период — 14 дней. ',
+      language: 'ru',
+      valueText: ' 14 ',
+      temporalKind: 'TIMELESS',
+      effectiveFrom: '',
+      effectiveTo: '',
+      freshUntil: '',
+    });
+    expect(payload).toEqual({
+      claimKey: 'pricing|trial_length',
+      statement: 'Пробный период — 14 дней.',
+      language: 'ru',
+      valueText: '14',
+      temporalKind: 'TIMELESS',
+    });
+  });
+
+  test('a filled date travels as the DTO expects it', () => {
+    const payload = adapter.buildFactCreatePayload({
+      claimKey: 'pricing|trial_length',
+      statement: 'x',
+      language: 'en',
+      valueText: 'x',
+      temporalKind: 'CURRENT',
+      effectiveFrom: '',
+      effectiveTo: '',
+      freshUntil: '2026-12-31',
+    });
+    expect(payload.freshUntil).toBe('2026-12-31');
+  });
+
+  test('the claim key pattern mirrors the DTO exactly', () => {
+    expect(adapter.CLAIM_KEY_PATTERN.test('pricing|trial_length')).toBe(true);
+    expect(adapter.CLAIM_KEY_PATTERN.test('pricing')).toBe(false);
+    expect(adapter.CLAIM_KEY_PATTERN.test('pricing|')).toBe(false);
+    expect(adapter.CLAIM_KEY_PATTERN.test('pricing trial|length')).toBe(false);
+  });
+});

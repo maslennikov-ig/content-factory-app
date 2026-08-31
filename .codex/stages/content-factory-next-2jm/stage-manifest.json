@@ -1,0 +1,67 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-2jm",
+  "goal_id": "content-factory-next-2jm",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "search-provider-review-remediation",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "web-search-clients",
+      "web-research-normalization",
+      "ai-provider-settings",
+      "localization",
+      "review-evidence"
+    ],
+    "risk_models": [
+      "paid-fallback-trigger",
+      "prompt-budget",
+      "saved-setting-integrity",
+      "failure-diagnostics"
+    ],
+    "test_environments": [
+      "fake-provider-jest",
+      "react-server-render",
+      "pnpm-monorepo"
+    ],
+    "rollback_boundary": "working-tree-revert-on-codex/search-provider-openrouter",
+    "acceptance_proofs": [
+      "focused-search-tests",
+      "component-render-test",
+      "workspace-build",
+      "full-test-suite",
+      "brand-scan",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-2jm",
+    "source_digest": "74783b8ed1ac74db4fabb36705010e00ee7a9557929a7957d7e02951f434eca1",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "run_process_verification.sh зелёный; title не содержит вендорный префикс; fallback опирается только на явные status/code и сохраняет обе ошибки; searchDepth сохраняется и управляется в настройках с advanced по умолчанию; searchProvider принимает только tavily; обрезка и общий потолок корректны; P3 устранены; компонентный тест реально рендерит настройки; build, test и brand-scan зелёные.",
+        "text_digest": "b6781de3b8bd3e5d579f465c0684f6d023032bec187c5da49c50cd098651be21"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-2jm/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "74783b8ed1ac74db4fabb36705010e00ee7a9557929a7957d7e02951f434eca1",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

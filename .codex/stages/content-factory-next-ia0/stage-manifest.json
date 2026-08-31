@@ -1,0 +1,191 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-ia0",
+  "goal_id": "content-factory-next-ia0",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "remaining-repository-work",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "design-system",
+      "product-surfaces",
+      "test-portability",
+      "legacy-errors",
+      "product-events",
+      "newsletter-retry",
+      "postgres-roles",
+      "browser-error-relay"
+    ],
+    "risk_models": [
+      "ui-accessibility",
+      "third-party-marks",
+      "test-concurrency",
+      "privacy",
+      "data-retention",
+      "idempotency",
+      "temporal-contract-versioning",
+      "database-least-privilege",
+      "migration-rollback"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "tmpdir-linux-ext4",
+      "chromium-playwright",
+      "no-production-server-database-credentials-paid-calls-or-deploy"
+    ],
+    "rollback_boundary": "independent-thematic-branches-and-one-local-acceptance-branch-never-main",
+    "acceptance_proofs": [
+      "focused-red-green-tests",
+      "design-ledger-shrink",
+      "light-dark-responsive-screenshots",
+      "privacy-and-idempotency-contracts",
+      "migration-sql-guard",
+      "workspace-test",
+      "four-application-build",
+      "brand-scan",
+      "docs-check",
+      "process-verification",
+      "clean-git-status"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-ia0",
+    "source_digest": "21894deec762628a6fbbd22e31e42fc0aeb03772cc04b09b403be915a80fecce",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Все реализуемые задачи приняты и закрыты одним пакетом после остановки агентов; дубликаты закрыты с точными ссылками; owner-blocked и 71m.7 остаются открытыми с актуальными фактами; parent epics остаются открытыми. Тематические ветки содержат коммиты и не слиты. Один финальный acceptance: pnpm test, pnpm run build, brand-scan, docs:check, process verification, git diff --check и чистый статус; дизайн дополнительно проходит ledgers, design.guard, design.contrast и визуальную проверку.",
+        "text_digest": "f0cf8a60a0f575628e60880901ccc999fd6d1927fd330df51e3baf3632a7c497"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-ia0/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "21894deec762628a6fbbd22e31e42fc0aeb03772cc04b09b403be915a80fecce",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-ia0/spec.md",
+    ".codex/stages/content-factory-next-ia0/plan.md"
+  ],
+  "worker_ownership": [
+    {
+      "stream": "design-consistency",
+      "owner": "subagent:design-consistency",
+      "write_zone": [
+        "DESIGN.md",
+        "apps/frontend/src/** except error collection entrypoints",
+        "apps/frontend/public/icons/platforms/**",
+        "libraries/react-shared-libraries/src/form/**",
+        "libraries/react-shared-libraries/src/platform/**",
+        "libraries/react-shared-libraries/src/translation/locales/**",
+        "docs/design/**",
+        "tests/design*",
+        "tests/raw-control*",
+        "tests/desert-lab-screen-review.test.cjs",
+        "tests/foundation.test.cjs",
+        "apps/frontend/src/components/admin/admin-product-events.component.tsx (RadioOption className height only; event names and data logic excluded)",
+        "apps/frontend/src/components/admin/admin-errors.component.tsx (shared-control size API/classes only; error data, filtering, rendering semantics, and privacy excluded)",
+        ".codex/stages/content-factory-next-ia0/evidence/** (public-safe visual proof only)",
+        ".codex/stages/content-factory-next-ia0/artifacts/design-consistency.md"
+      ],
+      "issues": ["content-factory-next-uck", "content-factory-next-nhq", "content-factory-next-g1d", "content-factory-next-5fn", "content-factory-next-rgf", "content-factory-next-55n", "content-factory-next-gur", "content-factory-next-34r", "content-factory-next-3gn", "content-factory-next-8ix"]
+    },
+    {
+      "stream": "test-portability",
+      "owner": "subagent:test-portability",
+      "write_zone": [
+        "tests/postgres-backup.wrapper.execution.test.cjs",
+        "tests/branding.test.cjs",
+        "tests/external-services.purge.test.cjs",
+        ".codex/stages/content-factory-next-ia0/artifacts/test-portability.md"
+      ],
+      "issues": ["content-factory-next-ue2", "content-factory-next-c7l"]
+    },
+    {
+      "stream": "technical-data-reliability",
+      "owner": "subagent:technical-data-reliability",
+      "write_zone": [
+        "apps/backend/src/** bounded Errors/auth/billing seams",
+        "apps/orchestrator/src/** new versioned contracts only",
+        "libraries/nestjs-libraries/src/database/prisma/errors/**",
+        "libraries/nestjs-libraries/src/newsletter/**",
+        "libraries/nestjs-libraries/src/services/stripe.service.ts",
+        "libraries/nestjs-libraries/src/temporal/**",
+        "libraries/nestjs-libraries/prisma/**",
+        "apps/frontend/src/components/admin/admin-product-events.component.tsx (cancel_subscription name only)",
+        "tests/product-events.frontend.test.cjs",
+        "scripts/operations/**",
+        "docs/operations/**",
+        "focused tests",
+        ".codex/stages/content-factory-next-ia0/artifacts/technical-data-reliability.md"
+      ],
+      "issues": ["content-factory-next-e7t", "content-factory-next-sek", "content-factory-next-ry5.2.1"]
+    },
+    {
+      "stream": "infrastructure-security",
+      "owner": "subagent:infrastructure-security",
+      "write_zone": [
+        "deploy/production/**",
+        "var/docker/**",
+        "scripts/operations/**",
+        "docs/operations/**",
+        "Prisma migration/bootstrap scripts",
+        "libraries/nestjs-libraries/src/agent/**",
+        "libraries/helpers/src/errors/**",
+        "bounded frontend/backend error relay entrypoints",
+        "focused tests",
+        ".codex/stages/content-factory-next-ia0/artifacts/infrastructure-security.md"
+      ],
+      "issues": ["content-factory-next-ry5.2.2", "content-factory-next-ry5.10"]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["design-consistency", "test-portability", "infrastructure-security"],
+    "benefit": ["parallel-latency", "context-isolation", "write-isolation", "security-specialist-capability"],
+    "sequential_streams": ["technical-data-reliability after test-portability on the same technical branch"],
+    "limit": "workers do not close Beads, merge, push, deploy, access production, use credentials, make paid calls, or write outside their assigned worktree"
+  },
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-ia0.design-consistency",
+      "stream_owner": "design_consistency",
+      "artifact_path": ".codex/stages/content-factory-next-ia0/artifacts/design-consistency.md"
+    },
+    {
+      "task_id": "content-factory-next-ia0.test-portability",
+      "stream_owner": "test_portability",
+      "artifact_path": ".codex/stages/content-factory-next-ia0/artifacts/test-portability.md"
+    },
+    {
+      "task_id": "content-factory-next-ia0.technical-data-reliability",
+      "stream_owner": "technical_data_reliability",
+      "artifact_path": ".codex/stages/content-factory-next-ia0/artifacts/technical-data-reliability.md"
+    },
+    {
+      "task_id": "content-factory-next-ia0.infrastructure-security",
+      "stream_owner": "infrastructure_security",
+      "artifact_path": ".codex/stages/content-factory-next-ia0/artifacts/infrastructure-security.md"
+    },
+    {
+      "task_id": "content-factory-next-ia0.combined-review",
+      "stream_owner": "combined_acceptance_review",
+      "artifact_path": ".codex/stages/content-factory-next-ia0/artifacts/combined-acceptance-review.md"
+    }
+  ]
+}

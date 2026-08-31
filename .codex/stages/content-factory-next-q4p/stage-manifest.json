@@ -1,0 +1,45 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-q4p",
+  "goal_id": "content-factory-next-q4p",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "internal_ready",
+  "sequence": 1,
+  "acceptance_boundary_id": "cloud-saas-independent-review-repair",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["public-routing", "auth-onboarding", "ai-usage", "claims-and-i18n", "growth-telemetry", "saas-operations"],
+    "risk_models": ["authentication", "abuse", "tenant-isolation", "quota-and-cost", "concurrency", "privacy", "retention", "schema-migration", "public-contract"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "tmpdir-linux-ext4", "offline-prisma-migrate-diff", "no-production-live-or-delivery-actions"],
+    "rollback_boundary": "local-repair-commits-on-codex-cloud-saas-growth",
+    "acceptance_proofs": ["focused-red-green", "invite-and-root-routing", "per-caller-auth-throttle", "approval-body-fallback", "ai-admission-lifecycle", "claim-and-locale-guards", "concurrency-retry", "privacy-and-retention", "full-test-and-build", "brand-docs-process-diff-check", "protected-files-unchanged", "fresh-stage-receipt"]
+  },
+  "work_areas": ["decision", "contract", "implementation", "persistence_or_adapter", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-q4p",
+    "source_digest": "afb520f9d4ee24d829a69498ec4bbefe4096be8fc3bf8f2435665749c81e5760",
+    "criteria": [{"criterion_id": "AC-1", "text": "Закрыть R1-R18 независимого Cloud-first SaaS review поверх принятого среза: восстановить public/auth routing, усилить public signup, исправить AI usage semantics и lifecycle, guards/i18n/docs, telemetry concurrency/privacy/retention; сохранить tenant isolation, backward compatibility, additive schema, deferred gates и protected landing files; выполнить один полный acceptance без merge, push, PR, deploy или live actions.", "text_digest": "1383b8f8b00a7f4fcf9c832de9981f0c43e09991380d3006262064d7938388ea"}]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-q4p/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "afb520f9d4ee24d829a69498ec4bbefe4096be8fc3bf8f2435665749c81e5760",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-q4p/spec.md", ".codex/stages/content-factory-next-q4p/plan.md"],
+  "worker_ownership": [
+    {"stream": "routing", "owner": "subagent:routing", "write_zone": ["apps/frontend/src/proxy.ts", "apps/frontend/src/components/public-saas/public-shell.tsx", "tests/public-saas-routing.test.cjs", ".codex/stages/content-factory-next-q4p/artifacts/routing.md"], "issues": ["content-factory-next-q4p.1"]},
+    {"stream": "signup", "owner": "subagent:signup", "write_zone": ["libraries/nestjs-libraries/src/throttler/**", "libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts", "libraries/helpers/src/auth/registration.approval.ts", "apps/backend/src/cors.options.ts", "apps/frontend/src/components/public-saas/email-first-signup.tsx", "docs/operations/saas-readiness.md", "tests/*registration*", "tests/*throttl*", ".codex/stages/content-factory-next-q4p/artifacts/signup.md"], "issues": ["content-factory-next-q4p.2"]},
+    {"stream": "ai-usage", "owner": "subagent:ai-usage", "write_zone": [".env.example", "libraries/nestjs-libraries/src/openai/**", "libraries/nestjs-libraries/src/chat/load.tools.service.ts", "libraries/nestjs-libraries/src/agent/agent.graph.service.ts", "libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts", "libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts", "libraries/nestjs-libraries/src/database/prisma/database.module.ts", "apps/backend/src/api/routes/copilot.controller.ts", "docs/operations/configuration.md", "tests/*ai-usage*", "tests/*ai-search*", "tests/agent.language.prompt.test.cjs", "tests/chat.language.prompt.test.cjs", "tests/copilot.controller.test.cjs", "tests/autopost*.test.cjs", "tests/server-url-ssrf.test.cjs", "tests/web.research*.test.cjs", ".codex/stages/content-factory-next-q4p/artifacts/ai-usage.md"], "issues": ["content-factory-next-q4p.3"]},
+    {"stream": "guards-docs", "owner": "subagent:guards-docs", "write_zone": ["PRODUCT.md", "docs/product/cloud-saas-growth-spec.md", "apps/frontend/src/components/public-saas/public-copy.ts", "apps/frontend/src/components/settings/ai-provider.component.tsx", "libraries/react-shared-libraries/**", "tests/cloud-saas-contract.test.cjs", "tests/public-saas-demo.test.cjs", "tests/ai.provider.component.test.cjs", ".codex/stages/content-factory-next-q4p/artifacts/guards-docs.md"], "issues": ["content-factory-next-q4p.4"]},
+    {"stream": "telemetry", "owner": "subagent:telemetry", "write_zone": [".env.example", "apps/backend/src/api/routes/public-growth-events.controller.ts", "libraries/nestjs-libraries/src/database/prisma/public-growth/**", "libraries/nestjs-libraries/src/database/prisma/schema.prisma", "libraries/nestjs-libraries/prisma/migrations/**", "scripts/operations/*saas-retention*", "docs/operations/saas-readiness.md", "docs/architecture/data-model.md", "tests/*growth*", "tests/*retention*", ".codex/stages/content-factory-next-q4p/artifacts/telemetry.md"], "issues": ["content-factory-next-q4p.5"]}
+  ],
+  "parallel_decision": {"eligible_streams": ["routing", "signup", "ai-usage", "guards-docs"], "benefit": ["parallel-latency", "context-isolation", "specialist-capability", "write-isolation"], "sequential_streams": ["telemetry-after-signup-shared-tracker"], "limit": "four concurrent writers; no protected landing files, delivery, production, credentials, paid or live actions"},
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-q4p.1", "stream_owner": "routing", "artifact_path": ".codex/stages/content-factory-next-q4p/artifacts/routing.md"},
+    {"task_id": "content-factory-next-q4p.2", "stream_owner": "signup", "artifact_path": ".codex/stages/content-factory-next-q4p/artifacts/signup.md"},
+    {"task_id": "content-factory-next-q4p.3", "stream_owner": "ai-usage", "artifact_path": ".codex/stages/content-factory-next-q4p/artifacts/ai-usage.md"},
+    {"task_id": "content-factory-next-q4p.4", "stream_owner": "guards-docs", "artifact_path": ".codex/stages/content-factory-next-q4p/artifacts/guards-docs.md"},
+    {"task_id": "content-factory-next-q4p.5", "stream_owner": "telemetry", "artifact_path": ".codex/stages/content-factory-next-q4p/artifacts/telemetry.md"}
+  ]
+}

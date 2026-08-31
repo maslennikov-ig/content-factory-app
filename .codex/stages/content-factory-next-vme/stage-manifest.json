@@ -1,0 +1,74 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-vme",
+  "goal_id": "content-factory-next-vme",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 7,
+  "acceptance_boundary_id": "content-section-live-wiring-and-its-follow-on-defects",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "content-intelligence",
+      "brand-voice",
+      "content-materials",
+      "content-brief",
+      "content-working-memory"
+    ],
+    "risk_models": [
+      "silent-refusal-without-a-named-code",
+      "measurement-attributed-to-the-wrong-voice",
+      "validation-asymmetry-between-two-write-paths",
+      "request-body-ceiling-below-the-declared-limit",
+      "prepublication-disclosure"
+    ],
+    "test_environments": [
+      "isolated-local-worktree",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "local-postgresql-5433",
+      "local-redis-6380",
+      "local-temporal-7234",
+      "no-live-publish-paid-call-credentials-deploy-or-delivery"
+    ],
+    "rollback_boundary": "revert-the-content-section-branch-without-touching-brand-profile-versions-samples-or-measurements-already-written",
+    "acceptance_proofs": [
+      "focused-red-green-per-child",
+      "full-jest-suite",
+      "tsc-noemit-backend-and-frontend",
+      "contract-and-route-guards",
+      "local-browser-walkthrough",
+      "production-route-and-browser-walkthrough"
+    ]
+  },
+  "work_areas": [
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-vme",
+    "source_digest": "b9918cb8b4fb2ff2861bf8c9cc02d2697402ff3b951ecdd1b6d2dc33d3affa0d",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Семь стадий закрыты своей приёмкой в объявленном порядке; content-factory-next-cft выполнена последней; ни одно из девяти перечисленных решений владельца не закрыто, не поглощено и не сужено ни одной стадией.",
+        "text_digest": "3432f52e3efbb325971412b0aa03cb2c5156d37e3d84c6b0b75d957a28bb87a2"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-vme/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "b9918cb8b4fb2ff2861bf8c9cc02d2697402ff3b951ecdd1b6d2dc33d3affa0d",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-vme/summary.md"
+  ],
+  "stream_artifacts": []
+}

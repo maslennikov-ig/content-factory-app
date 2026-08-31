@@ -1,0 +1,18 @@
+{
+  "schema_version": "scope-preservation-ledger/v1",
+  "goal_id": "<beads-goal-id>",
+  "source_snapshot_digest": "<stage-manifest-scope-snapshot-digest>",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "criterion_text_digest": "<stage-manifest-criterion-text-digest>",
+      "disposition": "<stage|dependency|gate>",
+      "target": "<larger-stage-id-or-named-dependency-or-gate>",
+      "boundary_reason": "<allowed-split-reason-when-dependency-or-gate>",
+      "boundary_id": "<acceptance-boundary-id-when-dependency-or-gate>",
+      "gate_kind": "<allowed-split-reason-when-gate>",
+      "evidence_path": "<repo-relative-material-boundary-evidence>",
+      "evidence_digest": "<sha256-of-evidence-bytes>"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Content Factory">
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="#14150F" stroke="#C8922A" stroke-width="2"/>
+
+  <path d="M15.1 13.3A4.7 4.7 0 1 0 15.1 21.5" stroke="#ECEBDF" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path d="M21.3 22.4V14.5A2.7 2.7 0 0 1 24.6 11.9" stroke="#ECEBDF" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path d="M19.2 16.8H23.6" stroke="#ECEBDF" stroke-width="2.4" stroke-linecap="round"/>
+
+</svg>

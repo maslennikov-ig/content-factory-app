@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-aay",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-aay",
+  "source_digest": "77ef099adf9e751c2ea7ec91d10733d614b7c1ae5608ed86cfa90fa8c5aa8098",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Каждая из семи задач либо закрыта с доказательствами, либо отложена с записанной причиной. Ни одна не потеряна молча. Никакая схема не применена к боевой базе. Ничего не запушено, не слито и не развёрнуто. После каждой задачи зелены pnpm test, pnpm run build, brand-scan и run_process_verification.sh.",
+      "text_digest": "c7e6a50e86192b817684f76b9f574b6209c2e847ba3abd983b9ffcc1590eb56e"
+    }
+  ]
+}

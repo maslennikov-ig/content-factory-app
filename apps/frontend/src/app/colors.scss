@@ -1,0 +1,231 @@
+/**
+ * Content Factory colour system.
+ *
+ * Layer 1 (`--cf-*`) is the semantic contract from the repository DESIGN.md.
+ * Layer 2 maps every inherited Postiz variable onto layer 1 so the screens that  brand-scan:allow
+ * have not been rewritten yet still render in the editorial palette. New code
+ * uses layer 1 only; the bridge shrinks as surfaces migrate.
+ *
+ * Platform preview colours are deliberately *not* bridged: a LinkedIn or
+ * YouTube preview has to keep looking like the external platform.
+ */
+
+.light {
+  /* Working surfaces */
+  --cf-canvas: #EFE9DB;
+  --cf-surface: #FBF8F0;
+  --cf-surface-subtle: #E4DDCB;
+  --cf-surface-raised: #FFFDF6;
+
+  /* Text */
+  --cf-ink: #22231A;
+  --cf-ink-rgb: 34 35 26;
+  --cf-ink-muted: #5C5D4C;
+  --cf-ink-inverse: #F4F1E4;
+
+  /* Lines */
+  --cf-border: #D3CAB3;
+  --cf-border-strong: #B0A68A;
+  --cf-border-control: #847B62;
+
+  /* Application frame */
+  --cf-navigation: #E4DDCB;
+  --cf-navigation-text: #22231A;
+  --cf-navigation-muted: #5C5D4C;
+  --cf-navigation-active: #FBF8F0;
+
+  /* Action */
+  --cf-accent: #3F6B2E;
+  --cf-accent-hover: #33581F;
+  --cf-accent-soft: #E1EAD2;
+  --cf-accent-ink: #FFFFFF;
+
+  /* Recognition */
+  --cf-signature: #9C6A16;
+
+  /* Status */
+  --cf-info: #2F5A82;
+  --cf-info-soft: #E3EBF3;
+  --cf-warning: #7A4D00;
+  --cf-warning-soft: #F6E7C2;
+  --cf-danger: #8E2B22;
+  --cf-danger-soft: #F6E0DB;
+
+  /* Interaction */
+  --cf-focus: #3F6B2E;
+  --cf-backdrop: rgba(34, 35, 26, 0.46);
+  --cf-overlay-shadow: 0 16px 32px -12px rgba(34, 35, 26, 0.26);
+
+  /* Platform previews stay true to the external platform */
+  --linkedin-border: #e9e5df;
+  --linkedin-bg: #fff;
+  --linkedin-text: #707070;
+  --facebook-bg: #fff;
+  --facebook-bg-comment: #f6f6f6;
+  --instagram-bg: #fff;
+  --tiktok-item-bg: #eef1f0;
+  --tiktok-item-icon-bg: #454645;
+  --youtube-bg: #fff;
+  --youtube-button: #000;
+  --youtube-action-color: #f1f1f1;
+  --youtube-svg-border: #1a1a1a;
+}
+
+.dark {
+  --cf-canvas: #14150F;
+  --cf-surface: #1C1E16;
+  --cf-surface-subtle: #22241B;
+  --cf-surface-raised: #272A1F;
+
+  --cf-ink: #ECEBDF;
+  --cf-ink-rgb: 236 235 223;
+  --cf-ink-muted: #A6A794;
+  --cf-ink-inverse: #14150F;
+
+  --cf-border: #33362A;
+  --cf-border-strong: #4B4F3E;
+  --cf-border-control: #7E826D;
+
+  --cf-navigation: #0E0F0A;
+  --cf-navigation-text: #ECEBDF;
+  --cf-navigation-muted: #A6A794;
+  --cf-navigation-active: #22241B;
+
+  --cf-accent: #7FB03A;
+  --cf-accent-hover: #96C551;
+  --cf-accent-soft: #1F2915;
+  --cf-accent-ink: #0F1409;
+
+  --cf-signature: #C8922A;
+
+  --cf-info: #7FA6C8;
+  --cf-info-soft: #161F28;
+  --cf-warning: #D9A02B;
+  --cf-warning-soft: #2A2010;
+  --cf-danger: #D2705C;
+  --cf-danger-soft: #2C1512;
+
+  --cf-focus: #7FB03A;
+  --cf-backdrop: rgba(8, 9, 5, 0.74);
+  --cf-overlay-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.72);
+
+  --linkedin-border: #2e3438;
+  --linkedin-bg: #1b1f23;
+  --linkedin-text: #c6c7c8;
+  --facebook-bg: #242526;
+  --facebook-bg-comment: #333334;
+  --instagram-bg: #0b1014;
+  --tiktok-item-bg: #2a2a2a;
+  --tiktok-item-icon-bg: #fff;
+  --youtube-bg: #0f0f0f;
+  --youtube-button: #f1f1f1;
+  --youtube-action-color: #272727;
+  --youtube-svg-border: #a0a0a0;
+}
+
+/**
+ * Compatibility bridge — inherited names, Content Factory values.
+ * Do not reference these from new components.
+ */
+.light,
+.dark {
+  --new-back-drop: var(--cf-backdrop);
+  --new-settings: var(--cf-surface-subtle);
+  --new-sep: var(--cf-border-strong);
+  --new-border: var(--cf-border);
+  --new-bgColor: var(--cf-canvas);
+  --new-bgColorInner: var(--cf-surface);
+  --new-bgLineColor: var(--cf-border);
+  --new-textItemFocused: var(--cf-accent);
+  --new-textItemBlur: var(--cf-ink-muted);
+  --new-boxFocused: var(--cf-accent-soft);
+  --new-textColor: var(--cf-ink-rgb);
+  --new-blockSeparator: var(--cf-border);
+  --new-btn-simple: var(--cf-surface-subtle);
+  --new-btn-text: var(--cf-ink);
+  --new-btn-primary: var(--cf-accent);
+  --new-ai-btn: var(--cf-accent);
+  --new-box-hover: var(--cf-surface-subtle);
+  --new-table-border: var(--cf-border);
+  --new-table-header: var(--cf-surface-subtle);
+  --new-table-text: var(--cf-ink-muted);
+  --new-table-text-focused: var(--cf-accent);
+  --new-small-strips: var(--cf-surface-subtle);
+  --new-big-strips: var(--cf-surface-subtle);
+  --new-col-color: var(--cf-surface-subtle);
+  --new-menu-dots: var(--cf-ink-muted);
+  --new-menu-hover: var(--cf-ink);
+  --menu-shadow: var(--cf-overlay-shadow);
+  --popup-color: var(--cf-backdrop);
+  --border-preview: var(--cf-border);
+  --preview-box-shadow: none;
+
+  --color-primary: var(--cf-canvas);
+  --color-secondary: var(--cf-surface);
+  --color-text: var(--cf-ink);
+  --color-third: var(--cf-surface);
+  --color-forth: var(--cf-accent);
+  --color-fifth: var(--cf-border);
+  --color-sixth: var(--cf-surface-subtle);
+  --color-seventh: var(--cf-accent-soft);
+  --color-gray: var(--cf-ink-muted);
+  --color-input: var(--cf-surface);
+  --color-input-text: var(--cf-ink-muted);
+  --color-table-border: var(--cf-border);
+
+  --color-custom2: var(--cf-surface-subtle);
+  --color-custom3: var(--cf-surface);
+  --color-custom4: var(--cf-accent);
+  --color-custom5: var(--cf-border);
+  --color-custom6: var(--cf-border);
+  --color-custom7: var(--cf-accent);
+  --color-custom8: var(--cf-surface-subtle);
+  --color-custom9: var(--cf-ink-muted);
+  --color-custom10: var(--cf-signature);
+  --color-custom11: var(--cf-info);
+  --color-custom12: var(--cf-info-soft);
+  --color-custom13: var(--cf-warning);
+  --color-custom14: var(--cf-ink-muted);
+  --color-custom15: var(--cf-ink);
+  --color-custom16: var(--cf-surface-subtle);
+  --color-custom17: var(--cf-ink);
+  --color-custom18: var(--cf-ink-muted);
+  --color-custom19: var(--cf-danger);
+  --color-custom20: var(--cf-surface-subtle);
+  --color-custom21: var(--cf-border-strong);
+  --color-custom22: var(--cf-danger);
+  --color-custom23: var(--cf-canvas);
+  --color-custom24: var(--cf-signature);
+  --color-custom25: var(--cf-border-strong);
+  --color-custom26: var(--cf-info);
+  --color-custom27: var(--cf-ink-muted);
+  --color-custom28: var(--cf-accent-soft);
+  --color-custom29: var(--cf-accent-hover);
+  --color-custom30: var(--cf-accent-soft);
+  --color-custom31: var(--cf-border);
+  --color-custom32: var(--cf-ink);
+  --color-custom33: var(--cf-surface-subtle);
+  --color-custom34: var(--cf-ink-muted);
+  --color-custom35: var(--cf-ink);
+  --color-custom36: var(--cf-ink-muted);
+  --color-custom37: var(--cf-ink);
+  --color-custom38: var(--cf-border);
+  --color-custom39: var(--cf-ink);
+  --color-custom40: var(--cf-surface);
+  --color-custom41: var(--cf-accent-soft);
+  --color-custom42: var(--cf-accent);
+  --color-custom43: var(--cf-ink-muted);
+  --color-custom44: var(--cf-surface-subtle);
+  --color-custom45: var(--cf-accent);
+  --color-custom46: var(--cf-info);
+  --color-custom47: var(--cf-surface-subtle);
+  --color-custom48: var(--cf-surface);
+  --color-custom49: var(--cf-canvas);
+  --color-custom50: var(--cf-accent);
+  --color-custom51: var(--cf-accent);
+  --color-custom52: var(--cf-surface-subtle);
+  --color-custom53: var(--cf-ink-muted);
+  --color-custom54: var(--cf-border-strong);
+  --color-custom55: var(--cf-border);
+  --color-modalCustom: transparent;
+}

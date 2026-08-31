@@ -1,0 +1,89 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-l9s",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-l9s",
+  "source_digest": "73004285819380c50f3a8aea7c4016ddb686f5e582b5c77be8b47b6ec1e04fbb",
+  "criteria": [
+    {
+      "criterion_id": "AC-ao3",
+      "text": "Роль внутри организации проверяется независимо от наличия ключа Stripe; лимиты тарифа по-прежнему снимаются при отсутствии биллинга.",
+      "text_digest": "40bf829fc3d7f0ca8259d11abceba3c35e83d7ae1bdaf81484c2652eb764a957"
+    },
+    {
+      "criterion_id": "AC-eh3",
+      "text": "whitelist включён глобально либо принято и записано обоснованное решение не включать.",
+      "text_digest": "5490c465e79626506aea8ee545c64ad75b3f555d8bda65147eca2b2c5f4367d0"
+    },
+    {
+      "criterion_id": "AC-yhx",
+      "text": "Оба серверных вызова по пользовательскому URL проходят через ту же SSRF-проверку, что и остальные.",
+      "text_digest": "78aac0386fd153088e922a093eeefb95590c2df6e28fae0fc6c728632488133b"
+    },
+    {
+      "criterion_id": "AC-f36",
+      "text": "loggedAuth либо ограничен страницами /provider/*, ради которых заведён, либо убран.",
+      "text_digest": "9baf658c6f2bb9e49f407cd4c2504b2cfb1189f8d83b8d2d878fb1e429872da1"
+    },
+    {
+      "criterion_id": "AC-d08",
+      "text": "Поведение createMaxUser выбрано и зафиксировано: путь уважает режим одобрения либо исключение описано в docs/operations/configuration.md.",
+      "text_digest": "6bd8fe83aca9eea89082fd0950204863c41465e30a63b3cd4fe658eb3bdd5d18"
+    },
+    {
+      "criterion_id": "AC-4ug",
+      "text": "Каждый из девяти унаследованных пунктов цепочки поставки либо исправлен, либо явно оставлен с обоснованием и передан владельцу в woy.",
+      "text_digest": "cb4cfda9157840a5b721eff6a97589d6e74ccd46ca8d77bfb4cd462fc9fe24ff"
+    },
+    {
+      "criterion_id": "AC-ry5.7",
+      "text": "SDK не содержит пользовательского имени и адреса апстрима, а каталог apps/sdk находится под охраной брендового сканера без нового allowlist.",
+      "text_digest": "68aeacc12f8453d4abe9647101666cd5c994ad85f806cd0aa1c207f88eb6f0dc"
+    },
+    {
+      "criterion_id": "AC-ry5.8",
+      "text": "Ни один провайдер не строит адрес возврата через сторонний домен; локальная проверка пяти провайдеров через собственный HTTPS-туннель описана в документации.",
+      "text_digest": "a9422fbe2e43d6b55629e60a3d79388b56c61a1fe365778223a6efd357a244d1"
+    },
+    {
+      "criterion_id": "AC-4w5",
+      "text": "push-URL для upstream отключён и безопасная настройка описана для новой рабочей машины.",
+      "text_digest": "53ebd30127e875dcfa3167a73e92acb72eeff905aac65d40ebf21b922ab2a027"
+    },
+    {
+      "criterion_id": "AC-527",
+      "text": "Набор ключей ka_ge совпадает с en, лишние ключи удалены или объяснены, а FAQ про исходный код соответствует фактическому положению во всех локалях.",
+      "text_digest": "1bde1ca4905fb26f91af629fe4f7c903756c45c1e043a28ba5385936dd6ab638"
+    },
+    {
+      "criterion_id": "AC-rcg.2",
+      "text": "Новое значение JSX вне 4-пиксельного ритма валит design.guard с именем файла и значением; существующий долг проходит через явный проверяемый allowlist, чей счётчик может только уменьшаться.",
+      "text_digest": "3cb0d895077d40750009ae1f3ddd5a3ceca3bfd8e5fca75a38b9498fe8f1f5ae"
+    },
+    {
+      "criterion_id": "AC-rcg.1",
+      "text": "Три колонки страницы агентов используют один примитив открывающей полосы, не называют 64 как литерал и защищены проверкой от одиночного расхождения.",
+      "text_digest": "feb841ce56a784e414fda0aa9d166e12ac5d9acc7f5f76c20474c0957e77217f"
+    },
+    {
+      "criterion_id": "AC-rcg.3",
+      "text": "Набор layout-примитивов выведен из измеренного повторения, включает header band, panel surface и spacing scale, экспортирован из @contentfactory/react и принят двумя реальными страницами; числа записаны в Beads.",
+      "text_digest": "00da069f96ff420446b36bf5f9794ea2da361c05264662b547e8668e8a92efa5"
+    },
+    {
+      "criterion_id": "AC-rcg.4",
+      "text": "Каждый сырой control в apps/frontend/src мигрирован либо имеет однострочную причину; новый сырой control рядом с импортом общего примитива валит guard; недостающие возможности отражены как Beads-работа.",
+      "text_digest": "1f0d9240fdc221b54ea08344a71195475aabd741980b0bc3fa2a12f64d99e9ea"
+    },
+    {
+      "criterion_id": "AC-c6k.15",
+      "text": "Аренда Telegram истекает по часам БД либо доказано, что это не требуется; счётчик попыток переживает рестарт; истёкшая заявка сообщает, что нужно начать заново.",
+      "text_digest": "55a67729d734035b3d41b95f178ca0235cbe3dfc418fb145b564b256a56dd0e9"
+    },
+    {
+      "criterion_id": "AC-7g0",
+      "text": "В репозитории есть готовый механизм дампа базы, включение в общий механизм хоста, расписание и runbook; локальное восстановление проверено и измерено без обращения к production.",
+      "text_digest": "69befbe16243323bc7d3e4720c66aacb3d83a61f05e16561d925171428b5d9cc"
+    }
+  ]
+}

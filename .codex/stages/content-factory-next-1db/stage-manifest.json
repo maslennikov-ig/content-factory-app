@@ -1,0 +1,62 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-1db",
+  "goal_id": "content-factory-next-1db",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "desert-lab-screen-consumer-adoption",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "frontend-design-system",
+      "launches-screen",
+      "public-post-preview"
+    ],
+    "risk_models": [
+      "accessibility",
+      "public-link-compatibility",
+      "screen-level-rollback"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "pnpm-monorepo",
+      "chromium-playwright"
+    ],
+    "rollback_boundary": "one-revertible-commit-per-screen",
+    "acceptance_proofs": [
+      "focused-red-green-browser-reproducer",
+      "workspace-build",
+      "workspace-test",
+      "brand-scan",
+      "consumer-recount"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-1db",
+    "source_digest": "2b6f0fb7caa6bfea10ba2072c0f19667000074a7b3bbea7bd3c875ab3a90a5c2",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Ни один примитив ui/* не остаётся без единого потребителя, либо для оставшихся записана причина.",
+        "text_digest": "878db4f043b0b6a2aff272777c40d53c9a681907deb2f088ed98fb8d00dc9ec2"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-1db/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "2b6f0fb7caa6bfea10ba2072c0f19667000074a7b3bbea7bd3c875ab3a90a5c2",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

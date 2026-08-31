@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-6vk",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-6vk",
+  "source_digest": "8f115e7c8f02c21444dbb7fef2ef07311e90575c7513580bf5254c1c52148eba",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "A docs index provides stable navigation; current architecture, module/dependency map, runtime/data/publishing flows, Prisma domain map, provider and Temporal boundaries, local development/verification, and operations/configuration are documented from repository evidence; target Content Factory ownership and migration seams are explicit; documentation maintenance rules and ADR conventions are recorded; a local Graphify code graph is configured, generated, ignored from Git, and used for focused validation; no Content Factory implementation code is copied.",
+      "text_digest": "8812399617297b3fc41bc70c5563d79f87d35ff9271e3de73eb58f9c938f95fc"
+    }
+  ]
+}

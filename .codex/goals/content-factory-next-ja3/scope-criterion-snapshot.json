@@ -1,0 +1,119 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-ja3",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-ja3",
+  "source_digest": "250b878fb0428393684442d62fc6519266ebdd0490b2697ba779175fb6c8023e",
+  "criteria": [
+    {
+      "criterion_id": "ja3.2",
+      "text": "Text generated in the post editor and one generated image land in a draft for the Telegram channel.",
+      "text_digest": "f3dced2d9a758cfab675e95f9ac8dcfb08e8cd56d8ff255f7ac7eaf8ad028cb9"
+    },
+    {
+      "criterion_id": "ja3.3",
+      "text": "An autopost run against a Telegram channel produces a full-length post, and the limit is not hardcoded to a Twitter-sized number.",
+      "text_digest": "7218608bc69061f77be365328130eee013271af5c0ed7374222049a36771e5b0"
+    },
+    {
+      "criterion_id": "ja3.4",
+      "text": "Same request produces an English post or a Russian post depending on the selected language, across generator, copilot, chat agent and autopost; the language reaches the prompt rather than being inferred; category and topic vocabularies work for a Russian channel.",
+      "text_digest": "96934843b153d16b74a73b5e6804e84fba407186d2f64bbb056547aa6cb97698"
+    },
+    {
+      "criterion_id": "ja3.5",
+      "text": "At least one source runs on schedule and lands drafts or posts for the Telegram channel.",
+      "text_digest": "0ce8e632e951e8c6626f2f6552b4d43ade0ba6cb39161dd9f3bfb90d2f412c94"
+    },
+    {
+      "criterion_id": "ja3.6",
+      "text": "The generator produces a week of Russian posts for the channel into the calendar.",
+      "text_digest": "5cc104da8dd1199e8799141a33088a90fc5fafeb9f852334931f33d1f88fb240"
+    },
+    {
+      "criterion_id": "ja3.8",
+      "text": "Switching the interface to Russian leaves no English string on the surfaces we ship, and a test fails when a new literal appears in a toaster or modal title.",
+      "text_digest": "2b57cf79cca0b519d5515509fd7ae2f09ffbe4a776a8a22dee51be22f2027d6d"
+    },
+    {
+      "criterion_id": "ja3.9",
+      "text": "A Russian channel generates Russian by default with no per-request selection, and the default is visible and changeable in the interface.",
+      "text_digest": "ce8367e5a3823a42cf77659a8ab141129f7bf1787b03a5452687d5fe20c39988"
+    },
+    {
+      "criterion_id": "ja3.10",
+      "text": "Directory listing and i18n.config.ts agree.",
+      "text_digest": "272fb1f82a706c207a0280e977ceb1dc41fafdb8cc80f4cebf756c4b26ce898b"
+    },
+    {
+      "criterion_id": "ja3.11",
+      "text": "A post published to a private channel yields a t.me/c/<id>/<msg> link that opens for members, and a public channel keeps t.me/<username>/<msg>.",
+      "text_digest": "f1adc0f783daf5132edd076509851fc2c82f4e30734b0cecf05739443fb9dca8"
+    },
+    {
+      "criterion_id": "ja3.13",
+      "text": "text-white appears only in files on an explicit allowlist, and the test fails when a new one appears.",
+      "text_digest": "8cf28a19e1798e7358485ebd9962a44df123aa9baff1b6f4c62f761124d75595"
+    },
+    {
+      "criterion_id": "ja3.14",
+      "text": "Opening statistics on a Telegram post explains that the channel reports no per-post figures and what can be enabled instead, rather than showing a bare empty state.",
+      "text_digest": "ef6085db68dbcc62d729bed466f57d98f2fda853dbc598331b517be8fd9ce41f"
+    },
+    {
+      "criterion_id": "ja3.15",
+      "text": "Reaction counts appear per post without breaking channel connection, and the design records how the single update queue is shared.",
+      "text_digest": "34566b35558842cac2055911c4e6c3c8c3b1f4b8f7c2cd87bd5942bc3ddd7cce"
+    },
+    {
+      "criterion_id": "ja3.16",
+      "text": "The subscriber chart shows change over the selected range and percentageChange is real rather than 0.",
+      "text_digest": "8bb456eba4f2489ca1a7a7796b9a41c42a2680fa5db8896130a4620b4b6b6ac2"
+    },
+    {
+      "criterion_id": "ja3.17",
+      "text": "A screen shows published volume, failure rate, lead time and origin mix for a chosen period and channel, computed from the local database only.",
+      "text_digest": "e90bb80228e6d6e1695867790402c1088755e1a9ce5b8d97feeb398e596f6b4d"
+    },
+    {
+      "criterion_id": "ja3.18",
+      "text": "For a channel with a discussion group, the post statistics modal shows a comment count sourced from the linked group.",
+      "text_digest": "e07719913841653889d11328b420a6c0bf773402b41a56e160f7f0d4d231eef9"
+    },
+    {
+      "criterion_id": "ja3.23",
+      "text": "Поиск настраивается на организацию через существующую форму настроек; две организации с разными движками одновременно получают каждая свой; изменение настройки видно без рестарта процесса; ни один ключ поиска не читается из process.env на уровне модуля; строки формы добавлены в en и ru одной правкой.",
+      "text_digest": "252e852afd2c2a6c5d55cc11c5a168a8e346f848438ec788c8d2eb9708da012d"
+    },
+    {
+      "criterion_id": "ja3.24",
+      "text": "Один сервис, вызываемый всеми поверхностями; международная тема при русском языке поста даёт запрос на английском; локальная тема даёт дополнительный запрос на языке предмета; результат содержит источники с URL и датой; организация без настроенного поиска получает понятную ошибку, а не запрос с пустым ключом.",
+      "text_digest": "67ebf1f6aee1eb8e90acf8a9fe7373cdbe08b636423f2c2abd47e3bcce03c6be"
+    },
+    {
+      "criterion_id": "ja3.25",
+      "text": "fresearch содержит структуру, а не ToolMessage[]; тип поля соответствует значению; четыре downstream-промпта получают связный текст; генератор работает при выключенном поиске без падения и без обещания свежих данных в промпте; const tools на уровне модуля отсутствует.",
+      "text_digest": "4c1b23bd945fed5b2c64fcbc91a4614be4f6cfe58de208e4893b96f4cb2a29e2"
+    },
+    {
+      "criterion_id": "ja3.26",
+      "text": "Агент по запросу пользователя находит материал и приводит источники; инструмент зарегистрирован в tool.list.ts; при невыключенном поиске агент им пользуется, при выключенном отвечает без него и говорит об этом; описание инструмента не обещает свежих данных, когда поиск выключен.",
+      "text_digest": "7a311bb9ec88a5758d560f5754226245e8ed503359916139e04d253f91f87039"
+    },
+    {
+      "criterion_id": "ja3.27",
+      "text": "В редакторе поста доступно действие сбора материала по теме; результат виден автору вместе с источниками; панель ассистента отвечает на локальном стенде, то есть CORS-блокер снят; список origin остаётся явным перечнем, а не звёздочкой.",
+      "text_digest": "2f90f885a35b739405a83a2d0d5561fc9fb365936c06ce41131b43c7e72e1543"
+    },
+    {
+      "criterion_id": "ja3.28",
+      "text": "При включённом обогащении элемент ленты переписывается с учётом найденного контекста и источников; при выключенном поведение не меняется; обогащение не запускается для элементов, где оно бессмысленно, например для дословной перепубликации.",
+      "text_digest": "d87d118fb44bc8f1d566555fa86ef8a37ae16a3ddeb20f4e75e9964f766eb70a"
+    },
+    {
+      "criterion_id": "ja3.29",
+      "text": "Пост, созданный с поиском, хранит источники с URL, заголовком и датой; они видны оператору до публикации; пост, созданный без поиска, выглядит как раньше и не показывает пустой блок.",
+      "text_digest": "15057e85e6f7b5432839092550667e1ef9601b11a1730ecaf33a683c4dbc7d36"
+    }
+  ]
+}

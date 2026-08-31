@@ -1,0 +1,74 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-saas",
+  "goal_id": "content-factory-next-saas",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "cloud-saas-foundation-and-safe-growth-slice",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["product-contract", "public-web", "auth-onboarding", "growth-metrics", "ai-provider", "saas-operations"],
+    "risk_models": ["public-contract", "authentication", "tenant-isolation", "secrets", "privacy", "quota-and-cost", "schema-migration", "accessibility"],
+    "test_environments": ["local-wsl", "node-22.23.2", "pnpm-10.6.1", "tmpdir-linux-ext4", "prisma-migrate-diff", "local-browser-synthetic-data", "no-production-secrets-paid-calls-live-oauth-publish-merge-push-pr-or-deploy"],
+    "rollback_boundary": "local-stage-commits-on-codex-cloud-saas-growth",
+    "acceptance_proofs": ["focused-red-green-tests", "registration-compatibility-and-idempotency", "tenant-key-isolation", "public-event-privacy", "demo-no-side-effects", "responsive-browser-flow", "release-test-and-build", "brand-scan", "docs-check", "process-verification", "scoped-clean-diff"]
+  },
+  "work_areas": ["decision", "contract", "implementation", "persistence_or_adapter", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-saas",
+    "source_digest": "50ec0586b9b8b6c7e67da4f2ad3ef90bdebcad4a79710479a8e5a5fbc6ac2fca",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Content Factory является managed Cloud-first AGPL SaaS: продуктовый контракт и task graph закреплены; публичные маршруты и безопасное синтетическое demo не раскрывают tenant data и не выполняют AI, Temporal, OAuth, публикацию или paid calls; прогрессивная регистрация совместима с legacy company, принимает optional workspaceName и allowlisted starterTemplate; hybrid AI использует явный included или workspace_key режим без скрытого fallback и без раскрытия ключей; privacy-safe conversion metrics агрегируются без PII и постоянного visitor id; цены, trial, provider, region, legal entity и production deploy остаются отдельными decision/authority gates; ветка и файлы агента главного экрана не изменяются; один финальный acceptance проходит без merge, push, PR, deploy, credentials или live действий.",
+        "text_digest": "ae29415ad5e9e928ac4c317dba26c70b9341a070204f7078ca44c2e4bcb9bb15"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-saas/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "50ec0586b9b8b6c7e67da4f2ad3ef90bdebcad4a79710479a8e5a5fbc6ac2fca",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-saas/spec.md", ".codex/stages/content-factory-next-saas/plan.md"],
+  "worker_ownership": [
+    {
+      "stream": "contract-operations",
+      "owner": "subagent:process-evidence-tracker",
+      "write_zone": ["PRODUCT.md", "docs/product/cloud-saas-growth-spec.md", "docs/adr/0010-cloud-first-agpl-saas.md", "docs/operations/saas-readiness.md", "tests/cloud-saas-contract.test.cjs", ".codex/stages/content-factory-next-saas/artifacts/contract-operations.md"],
+      "issues": ["content-factory-next-saas.1", "content-factory-next-saas.4", "content-factory-next-saas.5", "content-factory-next-saas.6"]
+    },
+    {
+      "stream": "public-ux",
+      "owner": "subagent:ui-error-guards",
+      "write_zone": ["apps/frontend/src/app/(public)/**", "apps/frontend/src/components/public-saas/**", "apps/frontend/src/proxy.ts", "tests/public-saas*", ".codex/stages/content-factory-next-saas/artifacts/public-ux.md"],
+      "issues": ["content-factory-next-or3.5", "content-factory-next-or3.6", "content-factory-next-or3.7"]
+    },
+    {
+      "stream": "auth-metrics",
+      "owner": "subagent:relay-billing",
+      "write_zone": ["apps/backend/src/api/api.module.ts", "apps/backend/src/api/routes/auth.controller.ts", "apps/backend/src/api/routes/no.auth.integrations.controller.ts", "apps/backend/src/api/routes/public-growth-events.controller.ts", "apps/backend/src/services/auth/auth.service.ts", "libraries/nestjs-libraries/src/dtos/auth/create.org.user.dto.ts", "libraries/nestjs-libraries/src/dtos/growth/**", "libraries/nestjs-libraries/src/database/prisma/organizations/**", "libraries/nestjs-libraries/src/database/prisma/public-growth/**", "libraries/nestjs-libraries/src/database/prisma/schema.prisma", "libraries/nestjs-libraries/prisma/migrations/**", "tests/*registration*", "tests/*growth-event*", ".codex/stages/content-factory-next-saas/artifacts/auth-metrics.md"],
+      "issues": ["content-factory-next-saas.2", "content-factory-next-or3.2", "content-factory-next-or3.4", "content-factory-next-or3.8"]
+    },
+    {
+      "stream": "hybrid-ai",
+      "owner": "subagent:migration-recovery",
+      "write_zone": ["libraries/nestjs-libraries/src/openai/**", "libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts", "libraries/nestjs-libraries/src/database/prisma/schema.prisma", "libraries/nestjs-libraries/prisma/migrations/**", "libraries/nestjs-libraries/src/database/prisma/database.module.ts", "libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts", "libraries/nestjs-libraries/src/database/prisma/media/media.service.ts", "libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts", "libraries/nestjs-libraries/src/agent/agent.graph.service.ts", "libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts", "libraries/nestjs-libraries/src/chat/load.tools.service.ts", "apps/backend/src/api/api.module.ts", "apps/backend/src/api/routes/settings.controller.ts", "apps/backend/src/api/routes/copilot.controller.ts", "apps/frontend/src/components/settings/ai-provider.component.tsx", "docs/architecture/data-model.md", "docs/operations/configuration.md", "docs/operations/outbound-connections.md", "tests/*ai-provider*", "tests/*ai-usage*", "tests/*registration*", ".codex/stages/content-factory-next-saas/artifacts/hybrid-ai.md"],
+      "issues": ["content-factory-next-saas.3"]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["contract-operations", "public-ux", "auth-metrics", "hybrid-ai-read-only-premortem"],
+    "benefit": ["parallel-latency", "context-isolation", "specialist-capability", "write-isolation"],
+    "sequential_streams": ["hybrid-ai production/schema edits after auth-metrics stops"],
+    "limit": "three concurrent writers; hybrid-ai begins read-only; no landing-agent files outside assigned registration consumer, no merge, push, PR, deploy, production, credentials, paid calls or live OAuth/publish"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-saas.contract-operations", "stream_owner": "process_evidence_tracker", "artifact_path": ".codex/stages/content-factory-next-saas/artifacts/contract-operations.md"},
+    {"task_id": "content-factory-next-saas.public-ux", "stream_owner": "ui_error_guards", "artifact_path": ".codex/stages/content-factory-next-saas/artifacts/public-ux.md"},
+    {"task_id": "content-factory-next-saas.auth-metrics", "stream_owner": "relay_billing", "artifact_path": ".codex/stages/content-factory-next-saas/artifacts/auth-metrics.md"},
+    {"task_id": "content-factory-next-saas.hybrid-ai", "stream_owner": "migration_recovery", "artifact_path": ".codex/stages/content-factory-next-saas/artifacts/hybrid-ai.md"}
+  ]
+}

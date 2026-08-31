@@ -1,0 +1,103 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-rmp",
+  "goal_id": "content-factory-next-rmp",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "linked-user-identities",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_auth_schema_and_profile_acceptance",
+  "boundary": {
+    "subsystems": ["prisma-schema", "authentication", "user-profile"],
+    "risk_models": ["account-takeover", "lockout", "data-backfill", "compatibility"],
+    "test_environments": ["local-wsl", "pnpm-monorepo", "no-database-connection"],
+    "rollback_boundary": "one-revertible-branch-commit-before-any-deployment-or-backfill",
+    "acceptance_proofs": [
+      "focused-red-green-auth-tests",
+      "dry-run-backfill-execution-test",
+      "workspace-test",
+      "workspace-build",
+      "brand-scan",
+      "process-verification",
+      "independent-security-review"
+    ]
+  },
+  "work_areas": [
+    "schema",
+    "repository",
+    "auth-service",
+    "authenticated-api",
+    "settings-ui",
+    "backfill-script",
+    "tests",
+    "proof"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-rmp",
+    "source_digest": "4cb9d862e7c9456d2dfa29be0974340016a6a429a68d571d23b3730b5a10216b",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Пользователь привязывает и отвязывает способы входа из профиля.",
+        "text_digest": "d8be8db6cb1c47ecf0d2e6280b727564093a506961a0d861b568373de91aa6cc"
+      },
+      {
+        "criterion_id": "AC-2",
+        "text": "Вход работает через любую привязанную личность, а legacy providerName/providerId остаются primary и совместимыми.",
+        "text_digest": "43ae99b9c24d94629f2e85238a8a0d0f972102ee1c69f58c83dcacd22cbf12e4"
+      },
+      {
+        "criterion_id": "AC-3",
+        "text": "Чужая личность к другому аккаунту не переносится.",
+        "text_digest": "0fa1291b04cc8e7f8d4a2d14a00969a5bdce1e79db2e907d7ebeecbda8d31601"
+      },
+      {
+        "criterion_id": "AC-4",
+        "text": "Последний способ входа и единственный пароль удалить нельзя.",
+        "text_digest": "1027eb647189a0200988111680c3c5376c71a91ecdb79e37d1e5fee8b98dea30"
+      },
+      {
+        "criterion_id": "AC-5",
+        "text": "Существующие пользователи после отдельного backfill входят как раньше; backfill поставляется dry-run-first и не запускается.",
+        "text_digest": "7d75098aabe08bb57dfa25e9cfadbeb7420454f595785e1a4e118e0071f44aa1"
+      }
+    ]
+  },
+  "scope_anchor": "beads:content-factory-next-rmp",
+  "scope_anchor_digest": "4cb9d862e7c9456d2dfa29be0974340016a6a429a68d571d23b3730b5a10216b",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-rmp/auth-map.md",
+    ".codex/stages/content-factory-next-rmp/implementation.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-rmp.backend",
+      "stream_owner": "rmp_backend",
+      "artifact_path": ".codex/stages/content-factory-next-rmp/artifacts/backend.md"
+    },
+    {
+      "task_id": "content-factory-next-rmp.frontend",
+      "stream_owner": "rmp_frontend",
+      "artifact_path": ".codex/stages/content-factory-next-rmp/artifacts/frontend.md"
+    },
+    {
+      "task_id": "content-factory-next-rmp.security-review",
+      "stream_owner": "rmp_security_review",
+      "artifact_path": ".codex/stages/content-factory-next-rmp/artifacts/security-review.md"
+    },
+    {
+      "task_id": "content-factory-next-rmp.correctness-review",
+      "stream_owner": "rmp_correctness_review",
+      "artifact_path": ".codex/stages/content-factory-next-rmp/artifacts/correctness-review.md"
+    },
+    {
+      "task_id": "content-factory-next-rmp.ui-review",
+      "stream_owner": "rmp_ui_review",
+      "artifact_path": ".codex/stages/content-factory-next-rmp/artifacts/ui-review.md"
+    }
+  ]
+}

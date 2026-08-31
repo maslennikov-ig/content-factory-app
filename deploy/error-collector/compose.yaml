@@ -1,0 +1,70 @@
+name: content-factory-error-collector
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${GLITCHTIP_POSTGRES_USER:?set GLITCHTIP_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD:?set GLITCHTIP_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${GLITCHTIP_POSTGRES_DB:?set GLITCHTIP_POSTGRES_DB}
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 384m
+    cpus: 1.0
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - collector-data
+
+  glitchtip:
+    image: glitchtip/glitchtip:6.2.6
+    restart: unless-stopped
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${GLITCHTIP_POSTGRES_USER:?set GLITCHTIP_POSTGRES_USER}:${GLITCHTIP_POSTGRES_PASSWORD:?set GLITCHTIP_POSTGRES_PASSWORD}@postgres:5432/${GLITCHTIP_POSTGRES_DB:?set GLITCHTIP_POSTGRES_DB}
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?set GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: consolemail://
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:?set GLITCHTIP_DOMAIN}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_DEFAULT_FROM_EMAIL:?set GLITCHTIP_DEFAULT_FROM_EMAIL}
+      ALLOWED_HOSTS: ${GLITCHTIP_ALLOWED_HOSTS:?set GLITCHTIP_ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${GLITCHTIP_DOMAIN:?set GLITCHTIP_DOMAIN}
+      SERVER_ROLE: all_in_one
+      ENABLE_ADMIN: 'False'
+      ENABLE_OPENAPI: 'False'
+      ENABLE_USER_REGISTRATION: 'False'
+      ENABLE_ORGANIZATION_CREATION: 'False'
+      VALKEY_URL: ''
+      GLITCHTIP_ENABLE_LOGS: 'False'
+      GLITCHTIP_ENABLE_UPTIME: 'False'
+      GLITCHTIP_ENABLE_MCP: 'False'
+      GLITCHTIP_ENABLE_DUCKDB: 'False'
+      GLITCHTIP_RETENTION_DAYS: '30'
+      GLITCHTIP_EVENT_RETENTION_DAYS: '30'
+      GLITCHTIP_EVENT_HOT_DAYS: '30'
+      GLITCHTIP_FILE_RETENTION_DAYS: '30'
+    mem_limit: 512m
+    cpus: 1.0
+    ports:
+      - 127.0.0.1:${GLITCHTIP_LISTEN_PORT:-8000}:8000
+    volumes:
+      - uploads:/code/uploads
+    networks:
+      - collector-data
+      - collector-edge
+
+volumes:
+  postgres-data:
+  uploads:
+
+networks:
+  collector-data:
+    internal: true
+  collector-edge:

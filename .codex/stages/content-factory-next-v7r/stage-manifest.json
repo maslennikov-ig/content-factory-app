@@ -1,0 +1,36 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-v7r",
+  "goal_id": "content-factory-next-v7r",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 1,
+  "acceptance_boundary_id": "postiz-foundation-and-license-aware-adoption-plan",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["repository-foundation", "developer-runtime", "adoption-plan"],
+    "risk_models": ["agpl-network-use", "upstream-provenance", "runtime-reproducibility"],
+    "test_environments": ["local-wsl", "pnpm-monorepo"],
+    "rollback_boundary": "separate-clone-delete-or-archive",
+    "acceptance_proofs": ["exact-upstream-commit", "runtime-version-check", "foundation-smoke", "baseline-build", "process-verification"]
+  },
+  "work_areas": ["decision", "contract", "implementation", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-v7r",
+    "source_digest": "a206a3439f544f514101401fb5ba262145eee2d38f452326ad38d78597e459a5",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Repository is on a dedicated Content Factory branch at Postiz v2.22.1; upstream provenance and AGPL boundary are explicit; Node/pnpm baseline and canonical checks are documented; no Content Factory code is copied before the product licensing decision; the first vertical slice is named.",
+        "text_digest": "f12e555d0816c7d2aa74c2556143170e85476ea17247b4addf11197a017c48a8"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-v7r/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "a206a3439f544f514101401fb5ba262145eee2d38f452326ad38d78597e459a5",
+  "scope_ledger": "none",
+  "stream_artifacts": []
+}

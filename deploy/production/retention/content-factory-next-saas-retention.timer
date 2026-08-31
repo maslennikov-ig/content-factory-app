@@ -1,0 +1,21 @@
+[Unit]
+Description=Daily Content Factory raw telemetry retention
+
+[Timer]
+# 05:30 sits clear of every backup window on the host. The repository's own
+# backup timer fires at 03:30 and its wrapper stops cf-app for the dump, which
+# would make this unit's `docker exec` fail for a reason that is not a
+# retention problem. The host also runs a nightly cleanup at 03:15 (+30m
+# random) and an encrypted workload backup at 04:15 (+10m random) that has
+# been finishing around 04:22. 05:30 leaves roughly an hour after the latest
+# of those could plausibly still be running, and lands before the 06:10 cron
+# cluster.
+OnCalendar=*-*-* 05:30:00
+# A host powered down across 05:30 runs the missed job once after boot instead
+# of skipping a day. Persistent= only takes effect on timers with OnCalendar=,
+# which is why the schedule above is a calendar expression and not OnBootSec=.
+Persistent=true
+Unit=content-factory-next-saas-retention.service
+
+[Install]
+WantedBy=timers.target

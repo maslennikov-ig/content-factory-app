@@ -1,0 +1,343 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const ts = require('typescript');
+const React = require('react');
+const { JSDOM } = require('jsdom');
+
+const repositoryRoot = path.resolve(__dirname, '..');
+const componentFile = path.join(
+  repositoryRoot,
+  'apps/frontend/src/components/public-saas/email-first-signup.tsx'
+);
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost:4200/demo',
+  pretendToBeVisual: true,
+});
+for (const key of ['window', 'document', 'navigator']) {
+  Object.defineProperty(global, key, {
+    configurable: true,
+    value: key === 'window' ? dom.window : dom.window[key],
+  });
+}
+global.IS_REACT_ACT_ENVIRONMENT = true;
+const {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} = require('@testing-library/react');
+
+function loadRegistration(fetchData, push) {
+  const compiled = ts.transpileModule(fs.readFileSync(componentFile, 'utf8'), {
+    fileName: componentFile,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2021,
+      esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
+  }).outputText;
+  const loaded = { exports: {} };
+  const mocks = {
+    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => fetchData },
+    '@contentfactory/react/form/input': {
+      Input: ({
+        label,
+        standalone: _standalone,
+        fieldClassName: _fieldClassName,
+        ...props
+      }) =>
+        React.createElement(
+          'label',
+          {},
+          label,
+          React.createElement('input', { 'aria-label': label, ...props })
+        ),
+    },
+    '@contentfactory/react/form/button': {
+      Button: ({ loading, children, ...props }) =>
+        React.createElement(
+          'button',
+          { ...props, disabled: loading },
+          children
+        ),
+    },
+    './public-copy': {
+      usePublicCopy: () => (key) =>
+        ({
+          emailTitle: 'Keep this workflow',
+          emailBody: 'Continue with email',
+          emailContinue: 'Continue',
+          emailLabel: 'Email',
+          passwordLabel: 'Password',
+          workspaceOptional: 'Workspace name (optional)',
+          createAccount: 'Create account',
+          newsletterConsent: 'Send occasional product news',
+          legalUnavailable: 'Terms and privacy links are not configured.',
+          authOptions: 'Use configured sign-in options',
+          templateLegend: 'Choose a starting point',
+          templateBlank: 'Blank workspace',
+          templateBlankDescription: 'Start without preset labels.',
+          templateWorkflow: 'Content workflow',
+          templateWorkflowDescription: 'Add Plan, Draft, Review, and Schedule labels.',
+        }[key]),
+    },
+    './public-telemetry': {
+      usePublicTelemetry: () => jest.fn(),
+    },
+    './starter-template-chooser': {
+      StarterTemplateChooser: ({ value, onChange, copy }) =>
+        React.createElement(
+          'fieldset',
+          {},
+          React.createElement('legend', {}, copy.legend),
+          React.createElement(
+            'label',
+            {},
+            `${copy.blank} ${copy.blankDescription}`,
+            React.createElement('input', {
+              type: 'radio',
+              name: 'starter-template',
+              value: 'blank',
+              checked: value === 'blank',
+              onChange: () => onChange('blank'),
+            })
+          ),
+          React.createElement(
+            'label',
+            {},
+            `${copy.workflow} ${copy.workflowDescription}`,
+            React.createElement('input', {
+              type: 'radio',
+              name: 'starter-template',
+              value: 'content-workflow',
+              checked: value === 'content-workflow',
+              onChange: () => onChange('content-workflow'),
+            })
+          )
+        ),
+    },
+    './registration-intent': {
+      issueRegistrationIntent: (storage, starterTemplate) =>
+        storage.setItem('content-factory:registration-intent', starterTemplate),
+    },
+    '@contentfactory/nestjs-libraries/dtos/auth/starter-template': {
+      isStarterTemplate: (value) =>
+        value === 'blank' || value === 'content-workflow',
+    },
+    '@contentfactory/react/helpers/variable.context': {
+      useVariables: () => ({ termsUrl: '', privacyUrl: '' }),
+    },
+    '@contentfactory/helpers/auth/newsletter.consent': {
+      canOfferNewsletterConsent: () => true,
+    },
+    '@contentfactory/frontend/components/auth/legal.notice': {
+      LegalNotice: () =>
+        React.createElement('p', {}, 'configured legal notice'),
+    },
+    '@contentfactory/react/form/checkbox.field': {
+      CheckboxField: ({ label, ...props }) =>
+        React.createElement(
+          'label',
+          {},
+          label,
+          React.createElement('input', { type: 'checkbox', ...props })
+        ),
+    },
+    'next/navigation': { useRouter: () => ({ push }) },
+    'next/link': ({ href, children, ...props }) =>
+      React.createElement('a', { href, ...props }, children),
+  };
+  new Function('require', 'module', 'exports', compiled)(
+    (request) => mocks[request] ?? require(request),
+    loaded,
+    loaded.exports
+  );
+  return loaded.exports;
+}
+
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
+
+describe('public email-first registration', () => {
+  test('keeps email in memory and submits the existing registration payload on step two', async () => {
+    const fetchData = jest.fn(async () => ({
+      status: 200,
+      headers: new Headers(),
+    }));
+    const push = jest.fn();
+    const { EmailFirstSignup } = loadRegistration(fetchData, push);
+    render(React.createElement(EmailFirstSignup, { starterTemplate: 'blank' }));
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'editor@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('textbox', { name: 'Email' }).value).toBe(
+      'editor@example.com'
+    );
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret-pass' },
+    });
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Workspace name (optional)' }),
+      {
+        target: { value: 'Editorial desk' },
+      }
+    );
+    // The notice is unconditional now. It used to be swapped for a "links are
+    // not configured" line whenever the deployment variables were empty, which
+    // is how the running instance ended up collecting an email, a password hash
+    // and an IP address with nothing on the form pointing at the three legal
+    // documents it was already publishing.
+    expect(screen.getByText('configured legal notice')).toBeTruthy();
+    expect(
+      screen.queryByText('Terms and privacy links are not configured.')
+    ).toBeNull();
+    expect(
+      screen
+        .getByRole('link', { name: 'Use configured sign-in options' })
+        .getAttribute('href')
+    ).toBe('/auth');
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Send occasional product news' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() => expect(fetchData).toHaveBeenCalledTimes(1));
+    expect(fetchData.mock.calls[0][0]).toBe('/auth/register');
+    expect(JSON.parse(fetchData.mock.calls[0][1].body)).toMatchObject({
+      email: 'editor@example.com',
+      password: 'secret-pass',
+      provider: 'LOCAL',
+      providerToken: '',
+      workspaceName: 'Editorial desk',
+      company: 'Editorial desk',
+      starterTemplate: 'blank',
+      subscribeToNewsletter: true,
+    });
+    expect(push).toHaveBeenCalledWith('/launches');
+    expect(window.location.search).toBe('');
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  test('drops unsupported starter intent at the public boundary', async () => {
+    const fetchData = jest.fn(async () => ({
+      status: 200,
+      headers: new Headers(),
+    }));
+    const { EmailFirstSignup } = loadRegistration(fetchData, jest.fn());
+    render(
+      React.createElement(EmailFirstSignup, { starterTemplate: 'unsupported' })
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'e@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret-pass' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await waitFor(() => expect(fetchData).toHaveBeenCalledTimes(1));
+    expect(
+      JSON.parse(fetchData.mock.calls[0][1].body).starterTemplate
+    ).toBe('blank');
+  });
+
+  test('renders an accessible template choice and submits the selected allowlisted ID', async () => {
+    const fetchData = jest.fn(async () => ({
+      status: 200,
+      headers: new Headers(),
+    }));
+    const { EmailFirstSignup } = loadRegistration(fetchData, jest.fn());
+    render(React.createElement(EmailFirstSignup));
+
+    expect(
+      screen.getByRole('group', { name: 'Choose a starting point' })
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /Content workflow/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'workflow@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'long-secret12' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() => expect(fetchData).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(fetchData.mock.calls[0][1].body)).toMatchObject({
+      starterTemplate: 'content-workflow',
+    });
+    expect(window.location.search).toBe('');
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  test('hands approval-gated registration to the existing pending route', async () => {
+    const fetchData = jest.fn(async () => ({
+      status: 200,
+      headers: new Headers({ approval: 'true', auth: 'new-session' }),
+    }));
+    const push = jest.fn();
+    const { EmailFirstSignup } = loadRegistration(fetchData, push);
+    render(React.createElement(EmailFirstSignup));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'e@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret-pass' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/pending'));
+  });
+
+  test('uses the approval response body when the header is not exposed', async () => {
+    const fetchData = jest.fn(async () =>
+      new Response(JSON.stringify({ approval: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    const push = jest.fn();
+    const { EmailFirstSignup } = loadRegistration(fetchData, push);
+    render(React.createElement(EmailFirstSignup));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'e@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'long-secret12' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/pending'));
+    expect(push).not.toHaveBeenCalledWith('/launches');
+  });
+
+  test('hands activation-required registration to the existing activation route', async () => {
+    const fetchData = jest.fn(async () => ({
+      status: 200,
+      headers: new Headers({ activate: 'true' }),
+    }));
+    const push = jest.fn();
+    const { EmailFirstSignup } = loadRegistration(fetchData, push);
+    render(React.createElement(EmailFirstSignup));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'e@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret-pass' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/activate'));
+    expect(push).not.toHaveBeenCalledWith('/launches');
+  });
+});

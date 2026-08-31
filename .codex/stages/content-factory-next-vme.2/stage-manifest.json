@@ -1,0 +1,50 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-vme.2",
+  "goal_id": "content-factory-next-vme.2",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 2,
+  "acceptance_boundary_id": "section-six-interface-debt-and-token-registries",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": ["local-review-fixture", "settings-and-admin", "analytics", "billing", "developer-and-public-api", "preview-extension-oauth", "design-token-registries", "public-header", "channel-picker"],
+    "risk_models": ["fixture-safety", "accessibility", "responsive-layout", "theme-contrast", "public-contract", "provider-contract-preservation", "credential-isolation"],
+    "test_environments": ["isolated-worktree", "local-wsl", "windows-chrome-or-canonical-browser-runner", "node-22.23.2", "pnpm-10.6.1", "tmpdir-linux-ext4", "synthetic-data-only", "no-production-live-or-delivery-actions"],
+    "rollback_boundary": "local-stage-commits-fast-forwarded-to-codex-cloud-saas-growth",
+    "acceptance_proofs": ["focused-red-green", "fixture-network-isolation", "screen-review-matrix", "light-dark-four-widths", "long-ru-en", "channel-picker-dark-evidence", "shrink-only-design-ledgers", "design-contrast-foundation", "full-test-and-build", "brand-docs-process-diff-check", "fresh-stage-receipt"]
+  },
+  "work_areas": ["design_research", "contract", "implementation", "consumer_adoption", "tests", "proof", "docs_and_graph_review"],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-vme.2",
+    "source_digest": "5d20da4c9d65ff1c973d70a119e2c6e3b5aa29da917a00d6356917897ede2f76",
+    "criteria": [{"criterion_id": "AC-1", "text": "Каждая из пяти поверхностей раздела 6 (2id, k21, s96, qzw, den) закрыта на воспроизводимом локальном fixture без production credentials, либо имеет доказанную blocker-задачу с названной причиной; обязательные состояния, screen review, обе темы, 1440/1024/768/390 и длинные RU/EN строки проверены. RAW_PALETTE_ALLOWED и LEGACY_WORD_ALIAS_ALLOWED строго уменьшились, каждое снятое разрешение соответствует мигрированному потребителю, хотя бы одна неиспользуемая роль удалена из colors.scss. Публичная шапка не держит собственной геометрии кнопки. Dark-theme evidence для channel picker снят с seeded fixture без живых подключений. design.guard и design.contrast зелёные, ни один allowlist не расширен.", "text_digest": "5146adcbcdac895662c6ac18008dcd2395defe46e4b9f87638b5ad4f590a5369"}]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-vme.2/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "5d20da4c9d65ff1c973d70a119e2c6e3b5aa29da917a00d6356917897ede2f76",
+  "scope_ledger": "none",
+  "supporting_artifacts": [".codex/stages/content-factory-next-vme.2/spec.md", ".codex/stages/content-factory-next-vme.2/plan.md", ".codex/stages/content-factory-next-vme.2/design-research.md"],
+  "worker_ownership": [
+    {"stream": "safe-review-host", "owner": "subagent:fixture-foundation", "write_zone": ["apps/frontend/src/app/(stand)/**", "apps/frontend/src/components/interface-review/**", "tests/interface-review-fixture.test.cjs", ".codex/stages/content-factory-next-vme.2/artifacts/fixture-foundation.md"], "issues": ["content-factory-next-2id", "content-factory-next-den", "content-factory-next-8e7"]},
+    {"stream": "settings-admin-channel-picker", "owner": "subagent:settings-admin", "write_zone": ["apps/frontend/src/app/(app)/(site)/settings/page.tsx", "apps/frontend/src/app/(app)/(site)/admin/users/page.tsx", "apps/frontend/src/app/(app)/(site)/admin/stats/page.tsx", "apps/frontend/src/app/(stand)/interface-review/settings-admin/**", "apps/frontend/src/components/layout/settings.component.tsx", "apps/frontend/src/components/settings/**", "apps/frontend/src/components/admin/admin-users.component.tsx", "apps/frontend/src/components/admin/admin-stats.component.tsx", "apps/frontend/src/components/interface-review/settings-admin/**", "apps/frontend/src/components/new-launch/picks.socials.component.tsx", "libraries/react-shared-libraries/src/platform/**", "tests/interface-review-settings-admin.test.cjs", "tests/user-identity.settings.test.cjs", ".codex/stages/content-factory-next-vme.2/evidence/settings-admin-channel/**", ".codex/stages/content-factory-next-vme.2/artifacts/settings-admin.md"], "issues": ["content-factory-next-2id", "content-factory-next-8e7"]},
+    {"stream": "analytics-billing", "owner": "subagent:analytics-billing", "write_zone": ["apps/frontend/src/app/(stand)/interface-review/analytics-billing/**", "apps/frontend/src/components/analytics/**", "apps/frontend/src/components/platform-analytics/**", "apps/frontend/src/components/billing/**", "apps/frontend/src/components/interface-review/analytics-billing/**", "tests/interface-review-analytics-billing.test.cjs", ".codex/stages/content-factory-next-vme.2/evidence/analytics-billing/**", ".codex/stages/content-factory-next-vme.2/artifacts/analytics-billing.md"], "issues": ["content-factory-next-k21", "content-factory-next-s96"]},
+    {"stream": "developer-public-preview-oauth", "owner": "subagent:developer-preview", "write_zone": ["apps/frontend/src/app/(stand)/interface-review/developer-preview/**", "apps/frontend/src/components/developer/**", "apps/frontend/src/components/public-api/**", "apps/frontend/src/components/preview/**", "apps/frontend/src/components/provider-preview/**", "apps/frontend/src/app/(extension)/**", "apps/frontend/src/app/(app)/oauth/**", "apps/frontend/src/app/(provider)/**", "apps/frontend/src/components/interface-review/developer-preview/**", "tests/interface-review-developer-preview.test.cjs", ".codex/stages/content-factory-next-vme.2/evidence/developer-preview/**", ".codex/stages/content-factory-next-vme.2/artifacts/developer-preview.md"], "issues": ["content-factory-next-qzw", "content-factory-next-den"]},
+    {"stream": "registries-and-public-header", "owner": "subagent:design-registries", "write_zone": ["apps/frontend/src/app/colors.scss", "apps/frontend/tailwind.config.cjs", "apps/frontend/src/components/ui/button.tsx", "apps/frontend/src/components/public-saas/public-shell.tsx", "tests/design.guard.test.cjs", "tests/design.contrast.test.cjs", "tests/foundation.test.cjs", "tests/design-geometry-allowlist.json", "tests/design-typography-allowlist.json", "tests/interface-review-public-header.test.cjs", ".codex/stages/content-factory-next-vme.2/evidence/public-header/**", ".codex/stages/content-factory-next-vme.2/artifacts/design-registries.md"], "issues": ["content-factory-next-mzh", "content-factory-next-qn4", "content-factory-next-n25"]}
+  ],
+  "parallel_decision": {
+    "eligible_streams": ["settings-admin-channel-picker", "analytics-billing", "developer-public-preview-oauth"],
+    "benefit": ["parallel-latency", "context-isolation", "write-isolation"],
+    "sequential_streams": ["safe-review-host-before-screen-consumers", "registries-and-public-header-after-screen-consumers"],
+    "limit": "maximum three concurrent writers; isolated /tmp/cf-vme2 worktree; no production, credentials, paid calls, live provider connections, delivery or allowlist expansion"
+  },
+  "stream_artifacts": [
+    {"task_id": "content-factory-next-vme.2.fixture-foundation", "stream_owner": "subagent:fixture-foundation", "artifact_path": ".codex/stages/content-factory-next-vme.2/artifacts/fixture-foundation.md"},
+    {"task_id": "content-factory-next-vme.2.settings-admin", "stream_owner": "subagent:settings-admin", "artifact_path": ".codex/stages/content-factory-next-vme.2/artifacts/settings-admin.md"},
+    {"task_id": "content-factory-next-vme.2.analytics-billing", "stream_owner": "subagent:analytics-billing", "artifact_path": ".codex/stages/content-factory-next-vme.2/artifacts/analytics-billing.md"},
+    {"task_id": "content-factory-next-vme.2.developer-preview", "stream_owner": "subagent:developer-preview", "artifact_path": ".codex/stages/content-factory-next-vme.2/artifacts/developer-preview.md"},
+    {"task_id": "content-factory-next-vme.2.design-registries", "stream_owner": "subagent:design-registries", "artifact_path": ".codex/stages/content-factory-next-vme.2/artifacts/design-registries.md"}
+  ]
+}

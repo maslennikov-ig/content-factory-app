@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-1ii",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-1ii",
+  "source_digest": "9c2a9f5f725768b347de42eaed17f84a70d7a93114cfcfc67213b305d1e3fcbd",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Закрыть находки повторного аудита Cloud-first SaaS-среза поверх ветки codex/cloud-saas-growth: расширить auth throttle и довести реальный адрес вызывающего через оба прокси-прыжка, убрать второй Prisma pool и отделить исчерпанную AI-квоту от занятого ledger, добавить retention job descriptor цели и барьер несовпадения, исправить публичный routing и минимум пароля восстановления, перевести claim guard на сканирование содержимого контрактных документов, привести документацию и stage-записи в соответствие с фактическим кодом; сохранить additive schema, открытые deferred gates и protected landing files; не выполнять merge, push, PR, deploy или live actions.",
+      "text_digest": "18fcc156c3048b6f41aabb88aa20d400c37f52c8d20cdc2e7a7c29c25415b305"
+    }
+  ]
+}

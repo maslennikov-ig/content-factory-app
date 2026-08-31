@@ -1,0 +1,22 @@
+# Прогон валидатора на реальном выводе prisma migrate diff (офлайн, без БД)
+# Дата: 2026-08-18. Node v22.23.2, prisma 6.5.0 из node_modules.
+
+$ prisma migrate diff --from-empty --to-schema-datamodel .../schema.prisma --script --exit-code
+exit=2, строк: 1452, операторов: 261, из них mastra_*: 18
+
+$ node scripts/operations/validate-prisma-migration-sql.cjs --mode bootstrap --diff <весь diff> --selected <243 своих оператора>
+SQL apply guard passed: 243 explicitly selected statement(s).
+exit=0
+
+# До исправления та же команда давала:
+Prisma SQL apply guard: current migrate diff contains a destructive or data-changing operation (exit 1)
+Причина: 59 операторов ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY несут ON DELETE/ON UPDATE.
+
+# Таблицы эпика (задачи rmp и omx), режим update:
+$ node scripts/operations/validate-prisma-migration-sql.cjs --diff epic-tables-migrate-diff.sql --selected <то же> --allow-table UserIdentity --allow-table ProductEvent
+SQL apply guard passed: 9 explicitly selected statement(s).
+exit=0
+
+$ ... --allow-table UserIdentity   (без ProductEvent)
+Prisma SQL apply guard: current migrate diff touches a table absent from --allow-table
+exit=1

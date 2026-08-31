@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Content Factory PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=content-factory-next-postgres-backup.service
+
+[Install]
+WantedBy=timers.target

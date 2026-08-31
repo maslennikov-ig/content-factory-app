@@ -1,0 +1,156 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-c6k",
+  "goal_id": "content-factory-next-c6k",
+  "profile_at_creation": "balanced-v2.19",
+  "status": "accepted",
+  "sequence": 5,
+  "acceptance_boundary_id": "ja3-audit-remediation",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "level": "complex",
+  "origin": {
+    "kind": "independent_audit",
+    "audited_commit": "575404c7",
+    "diff_base": "4b4e99a0",
+    "verdict": "reject",
+    "findings": {
+      "p1": 3,
+      "p2": 8,
+      "p3": 18
+    }
+  },
+  "boundary": {
+    "subsystems": [
+      "telegram-update-consumer",
+      "telegram-provider",
+      "autopost",
+      "shared-web-research",
+      "agent-generator",
+      "production-analytics",
+      "ai-provider-settings",
+      "backend-cors",
+      "localisation-ssr",
+      "editor-and-preview",
+      "stage-evidence-truth"
+    ],
+    "risk_models": [
+      "tenant-isolation",
+      "authorization",
+      "provider-cost-and-failure",
+      "accessibility-contrast",
+      "evidence-integrity"
+    ]
+  },
+  "rollback_boundary": {
+    "kind": "working_tree",
+    "clean_base_commit": "575404c7",
+    "note": "Работа не закоммичена. Откат — git restore/checkout до 575404c7; коммита и push нет без отдельной авторизации владельца."
+  },
+  "worker_ownership": [
+    {
+      "stream": "backend-remediation",
+      "owner": "subagent:backend-fix",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/**",
+        "apps/backend/src/**",
+        "tests/telegram.*.test.cjs",
+        "tests/autopost.*.test.cjs",
+        "tests/production.analytics.test.cjs",
+        "tests/web.research.*.test.cjs",
+        "tests/integration.analytics.snapshot.test.cjs",
+        "tests/backend.cors.test.cjs",
+        "tests/ai.*.test.cjs",
+        "tests/copilot.controller.test.cjs",
+        "tests/orchestrator.autopost-activity.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-c6k.1",
+        "content-factory-next-c6k.4",
+        "content-factory-next-c6k.5",
+        "content-factory-next-c6k.6",
+        "content-factory-next-c6k.7",
+        "content-factory-next-c6k.8",
+        "content-factory-next-c6k.11",
+        "content-factory-next-c6k.13",
+        "content-factory-next-c6k.14"
+      ]
+    },
+    {
+      "stream": "frontend-remediation",
+      "owner": "subagent:frontend-fix",
+      "write_zone": [
+        "apps/frontend/src/**",
+        "libraries/react-shared-libraries/src/**",
+        "tests/i18n.ui-literals.test.cjs",
+        "tests/foundation.test.cjs",
+        "tests/design.contrast.test.cjs",
+        "tests/design.guard.test.cjs",
+        "tests/language.negotiation.test.cjs",
+        "tests/content.language.test.cjs",
+        "tests/statistics.empty.state.test.cjs"
+      ],
+      "issues": [
+        "content-factory-next-c6k.2",
+        "content-factory-next-c6k.9",
+        "content-factory-next-c6k.12"
+      ]
+    },
+    {
+      "stream": "truth-and-evidence",
+      "owner": "root",
+      "write_zone": [
+        "docs/**",
+        ".codex/**",
+        "output/**",
+        ".gitignore"
+      ],
+      "issues": [
+        "content-factory-next-c6k.3",
+        "content-factory-next-c6k.10"
+      ]
+    }
+  ],
+  "isolation_decision": {
+    "mode": "shared_worktree_disjoint_zones",
+    "reason": "Зоны записи двух потоков не пересекаются ни по одному файлу: backend-код и его тесты против frontend-кода и его тестов. Документы, .codex, артефакты и .gitignore пишет только root. Отдельные worktree добавили бы ручное слияние без выигрыша, потому что конфликт невозможен по построению.",
+    "child_git_operations": "forbidden",
+    "child_build_runs": "forbidden"
+  },
+  "verification_plan": {
+    "inner_loop": "Каждый поток гоняет только свои focused red/green цели через npx jest <файл>.",
+    "final_acceptance_owner": "root",
+    "final_set": [
+      "pnpm run build",
+      "pnpm test",
+      "node scripts/branding/brand-scan.cjs",
+      "pnpm run docs:check",
+      "scripts/orchestration/run_process_verification.sh",
+      "git diff --check"
+    ],
+    "independent_review": {
+      "required": true,
+      "reason": "auth/tenancy (content-factory-next-c6k.1) попадает в перечисленные категории verification-routing",
+      "mode": "read_only_model_review_at_final_acceptance",
+      "owner_constraint": "не владел реализацией"
+    }
+  },
+  "acceptance": {
+    "runner": "root",
+    "identity": "release",
+    "commands": {
+      "pnpm run build": "exit 0",
+      "pnpm test": "30 suites, 167 Jest, 4 Python",
+      "node scripts/branding/brand-scan.cjs": "0 unexplained, 2202 allowlisted",
+      "pnpm run docs:check": "46 files",
+      "scripts/orchestration/run_process_verification.sh": "OK",
+      "git diff --check": "clean"
+    },
+    "independent_review": "completed; 2 confirmed P2 regressions found and fixed, 1 plausible P2 fixed, 4 of 6 P3 fixed, remainder deferred"
+  },
+  "deferred": [
+    "content-factory-next-c6k.15",
+    "content-factory-next-c6k.16"
+  ]
+}

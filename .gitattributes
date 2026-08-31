@@ -1,0 +1,23 @@
+# Stage evidence logs are verbatim terminal captures. Their trailing spaces and
+# padding (Jest coverage tables, progress output) are part of the evidence, so
+# whitespace checks must not rewrite or flag them. Source, configuration and
+# documentation stay covered.
+.codex/stages/**/evidence/**/*.log -whitespace
+
+# Immutable upstream Mastodon mark: its terminal blank line is covered by the
+# recorded SHA-256 provenance and must remain byte-for-byte intact.
+apps/frontend/public/icons/platforms/mastodon.svg whitespace=-blank-at-eof
+
+# The product offers its own Corresponding Source under AGPL-3.0 section 13:
+# `scripts/release/make-source-archive.sh` runs `git archive` over the deployed
+# commit and the image serves the result. `git archive` reads these attributes
+# from the tree it is archiving (git-archive(1), section ATTRIBUTES), so what is
+# marked `export-ignore` here is what never reaches the published archive.
+#
+# These three are the task tracker and the agent scaffolding around the product,
+# not the source of the product, and nothing in the running application reads
+# them. Note what is deliberately *not* excluded: everything a person needs to
+# build and run this version stays in.
+.beads export-ignore
+.codex export-ignore
+.claude export-ignore
