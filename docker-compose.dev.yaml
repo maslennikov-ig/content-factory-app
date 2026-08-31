@@ -150,9 +150,19 @@ services:
     ports:
       - "8080:8080"
 
+# Volume names are pinned rather than derived from the directory.
+#
+# Compose names a volume `<project>_<volume>`, and the project defaults to the
+# directory name. This stand was first raised from a worktree called `cf-cj4`,
+# so the development database lives in `cf-cj4_postgres-volume` — and moving the
+# checkout to a differently named directory would have quietly raised an empty
+# stand beside it, with the real data still on disk and no longer reachable.
+# The prefix is a fossil of that worktree; the data is not.
 volumes:
   redisinsight:
+    name: cf-cj4_redisinsight
   postgres-volume:
+    name: cf-cj4_postgres-volume
     external: false
 
 networks:

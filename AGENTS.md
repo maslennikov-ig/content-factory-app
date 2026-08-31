@@ -1,5 +1,36 @@
 # Content Factory Agent Contract
 
+## Three addresses, and which is which
+
+Since 31.08.2026 this product has three GitHub-shaped names that differ by one
+word. Read this before touching a remote, a release script or a deploy step.
+
+| address | what it is | what goes there |
+| --- | --- | --- |
+| `maslennikov-ig/content-factory-next` (private) | this working repository, the whole history, `origin` of this checkout | every ordinary commit and push |
+| `maslennikov-ig/content-factory-app` (public) | the published tree, one commit deep, no history | only `scripts/operations/prepare-public-tree.sh --update` plus a commit and push in that clone |
+| `ghcr.io/maslennikov-ig/content-factory-next` | the image registry the production host pulls from | release images, under the **old** name |
+
+Three rules follow, and each of them has cost something already:
+
+- **Never add the public remote to this checkout.** `git push` sends commits,
+  and commit `575404c7` carries screenshots with the owner's personal address.
+  The public repository holds a copied tree for exactly that reason. The
+  separation is the safeguard: publishing history has to be a deliberate act,
+  not a mistyped remote.
+- **Never rename the image package to match the public repository.** The
+  registry path is hardcoded in `scripts/release/push-image.sh` and
+  `pull-image-on-host.sh`, and the production host's `CF_IMAGE` points at
+  `content-factory-next`. Renaming it breaks the deploy and the rollback target
+  in the same move. The name is a fossil of where the package was created, not
+  a claim about where the source lives.
+- **Work happens here, never in the public clone.** `/home/me/code/content-factory-app`
+  is an output directory. An edit made there is lost at the next refresh, which
+  copies over it with `--delete`.
+
+`tests/repository-addresses.test.cjs` holds all three, so this is a fact the
+suite checks rather than something to remember.
+
 ## Product
 
 - This repository is the new Content Factory product, based on Postiz `v2.22.1` at commit `c90b6c625bc0ec470d6dcdb57c63608aaa9b7b74`.
