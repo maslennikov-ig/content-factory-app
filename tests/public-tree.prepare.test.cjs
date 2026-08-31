@@ -80,8 +80,8 @@ function makeRepository({ extraTracked = {}, ignored = {}, license = true } = {}
   return { repo, git };
 }
 
-const prepare = (repo, target) =>
-  spawnSync('bash', [path.join(repo, 'scripts/operations/prepare-public-tree.sh'), target], {
+const prepare = (repo, target, flags = []) =>
+  spawnSync('bash', [path.join(repo, 'scripts/operations/prepare-public-tree.sh'), ...flags, target], {
     cwd: repo,
     encoding: 'utf8',
     env: { ...process.env, ...gitEnv },
@@ -221,5 +221,101 @@ describeIfWritable('preparing the public tree', () => {
 
     expect(result.status).toBe(64);
     expect(result.stderr).toContain('Usage:');
+  });
+});
+
+describeIfWritable('refreshing an existing public clone', () => {
+  /**
+   * The first publication is one command; every one after it is a refresh, and
+   * a refresh is where the damage lives. It has to delete — a file dropped here
+   * must disappear there, or the public repository serves something this one no
+   * longer has — and deleting next to somebody's `.git` is worth a guard rather
+   * than a habit.
+   */
+  const cloneOf = (repo) => {
+    const clone = path.join(workspace, `clone-${path.basename(repo)}`);
+    spawnSync('git', ['clone', '-q', repo, clone], { encoding: 'utf8', env: { ...process.env, ...gitEnv } });
+    return clone;
+  };
+
+  test('it deletes what the source no longer has', () => {
+    const { repo, git } = makeRepository({ extraTracked: { 'gone.txt': 'removed later\n' } });
+    const clone = cloneOf(repo);
+    expect(fs.existsSync(path.join(clone, 'gone.txt'))).toBe(true);
+
+    fs.rmSync(path.join(repo, 'gone.txt'));
+    git('add', '-A');
+    git('commit', '-qm', 'drop the file');
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(0);
+    expect(fs.existsSync(path.join(clone, 'gone.txt'))).toBe(false);
+    expect(fs.existsSync(path.join(clone, 'app.txt'))).toBe(true);
+  });
+
+  test('it leaves the clone its own history', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    const before = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: clone, encoding: 'utf8' }).stdout;
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(0);
+    expect(fs.existsSync(path.join(clone, '.git'))).toBe(true);
+    expect(spawnSync('git', ['rev-parse', 'HEAD'], { cwd: clone, encoding: 'utf8' }).stdout).toBe(before);
+    expect(result.stdout).toContain('Nothing was committed and nothing was pushed');
+  });
+
+  test('it refuses a clone with uncommitted work rather than discarding it', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+    fs.writeFileSync(path.join(clone, 'app.txt'), 'edited in the clone\n');
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('uncommitted changes');
+    expect(fs.readFileSync(path.join(clone, 'app.txt'), 'utf8')).toBe('edited in the clone\n');
+  });
+
+  test('it refuses a target that is not a working copy', () => {
+    const { repo } = makeRepository();
+    const plain = path.join(workspace, `plain-${path.basename(repo)}`);
+    fs.mkdirSync(plain, { recursive: true });
+
+    const result = prepare(repo, plain, ['--update']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('not a Git working copy');
+  });
+
+  test('a failed check leaves the clone untouched', () => {
+    // The checks run against the layout, before anything is copied. A refresh
+    // that copied first and checked afterwards would deliver the finding and
+    // the damage together.
+    const { repo, git } = makeRepository();
+    const clone = cloneOf(repo);
+    write(repo, '.env.production', 'SECRET=1\n');
+    git('add', '-A');
+    git('commit', '-qm', 'add a tracked secret');
+
+    const result = prepare(repo, clone, ['--update']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('environment file in the public tree');
+    expect(result.stderr).toContain('The clone was not touched');
+    expect(fs.existsSync(path.join(clone, '.env.production'))).toBe(false);
+  });
+
+  test('without --update it refuses a non-empty target and says what to pass', () => {
+    const { repo } = makeRepository();
+    const clone = cloneOf(repo);
+
+    const result = prepare(repo, clone);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('exists and is not empty');
+    expect(result.stderr).toContain('--update');
   });
 });
