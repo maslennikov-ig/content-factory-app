@@ -4,24 +4,24 @@ Current stage id: `content-factory-next-vme`
 Last accepted stage id: `content-factory-next-e3y`
 Selected Beads goal: `content-factory-next-vme`
 
-`vme` closed 31.08.2026 by the owner — a planning frame dropped, not a programme
-finished: six of seven stages accepted, `cft` open on its own. `vme.21` closed the
-same day on his word, no evidence of the run in the task, caveat recorded. Pointers
-above still read `vme`: `cft` has no stage directory, and they move when it opens.
+`vme` closed 31.08.2026 by the owner, and `cft` with it: the tree is published as
+[`content-factory-app`](https://github.com/maslennikov-ig/content-factory-app) —
+public, no history. The private repository stays the archive and this working copy
+points at it. `vme.21` closed the same day on his word, with no evidence of the
+run in the task; the caveat is recorded there.
 ## Current state
 
 Production runs **`e7fea25cab30`** (30.08.2026); rollback target `0840cc5f2c6c`.
 `ac9e978a582a` and thirteen tags of 26.08–28.08 carried personal source texts and
-are deleted everywhere — found by weight alone. The release now weighs every tag
-and refuses without a green suite receipt for `HEAD`. The owner decided 31.08 not
-to restore Actions payment but to move to the public repository (`djlr`), so until
-then the receipt is the only gate; `docs/operations/public-repository-move.md`.
+are deleted everywhere — found by weight alone. The release weighs every tag and
+refuses without a green suite receipt for `HEAD`. Actions run again on the public
+repository, where `full-suite`, `docker-backed-operations` and CodeQL are green
+and the first two are required on `main`; the receipt stays the release gate.
 
-Full local acceptance on the tip, 31.08 under Node 22.23.2: **223 Jest suites /
-3063 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
+Full local acceptance on the tip, 31.08 under Node 22.23.2: **224 Jest suites /
+3076 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
 docs 111 files, process verification and `git diff --check` clean. `tsc --noEmit`
-still shows five pre-existing errors in four untouched files (`text-spots.ts`,
-`voice.service.ts`, `content-context.errors.ts`, `mastodon`×2).
+still shows five pre-existing errors in four untouched files.
 
 ### Wave eight — `pl1.7`, and the answer is not the one the task expected
 
@@ -157,10 +157,10 @@ own run on production.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **`cft`** — the move
-to the public repository, the only open stage of the closed `vme` programme. What
-follows is not queued work but what `pl1` left unproven, recorded so the next
-reader does not rediscover it:
+Next stage id: `content-factory-next-vme`. Recommended action: **nothing is
+queued** — the programme is closed and the move is done. What stays open is owner
+decisions (`saas.6`, `or3.9`, `3aw`, `c6k.16`, `rry`) and work needing access
+nobody here has (`2ua`, `cxd`). Below is what `pl1` left unproven:
 
 1. **The combination rule needs a number.** «Agreement or silence» is the safest
    shape and it is not free: the epic already silences a third of an author's own
