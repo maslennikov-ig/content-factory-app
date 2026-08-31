@@ -1,7 +1,7 @@
 {
   "name": "content-factory",
   "version": "1.0.0",
-  "description": "",
+  "description": "Self-hosted content platform for planning, generating and publishing social posts",
   "main": "index.js",
   "license": "AGPL-3.0",
   "keywords": [],
@@ -325,5 +325,13 @@
     "onlyBuiltDependencies": [
       "bcrypt"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maslennikov-ig/content-factory-app.git"
+  },
+  "homepage": "https://github.com/maslennikov-ig/content-factory-app#readme",
+  "bugs": {
+    "url": "https://github.com/maslennikov-ig/content-factory-app/issues"
   }
 }

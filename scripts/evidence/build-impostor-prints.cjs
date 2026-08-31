@@ -21,6 +21,14 @@
  *
  * Usage:
  *   node scripts/evidence/build-impostor-prints.cjs
+ *
+ * Needs the full history. The pinned commit is read with `git show`, so this
+ * runs in the private archive and not in a clone of the public repository,
+ * which is one commit deep by design. `read()` returns null rather than
+ * throwing, so a clone gets an empty rebuild instead of a crash — the output it
+ * already ships stays valid either way, and nothing in the product or the suite
+ * calls this script. The corpus that the suite does read was moved into
+ * `tests/fixtures/english-corpus/` on 31.08.2026 for exactly this reason.
  */
 
 const fs = require('node:fs');

@@ -84,9 +84,13 @@ for (const marker of [
   });
 }
 
-test("issue templates use this repository's private advisory form", () => {
+test("issue templates use this product's own advisory form", () => {
+  // `content-factory-app` since 31.08.2026: the source moved to a public
+  // repository, and a reporter following this link needs the repository they
+  // can actually see. The private one stays as the history archive and takes
+  // no reports.
   expect(issueTemplateText).toMatch(
-    /github\.com\/maslennikov-ig\/content-factory-next\/security\/advisories\/new/
+    /github\.com\/maslennikov-ig\/content-factory-app\/security\/advisories\/new/
   );
 });
 

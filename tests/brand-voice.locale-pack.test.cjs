@@ -1,4 +1,4 @@
-const { execFileSync } = require('node:child_process');
+const { existsSync, readFileSync } = require('node:fs');
 const path = require('node:path');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
@@ -19,7 +19,6 @@ const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
  * can be held to.
  */
 
-const REPO = path.resolve(__dirname, '..');
 const BASE = 'libraries/nestjs-libraries/src/content-intelligence/brand-voice';
 
 const analyzer = loadTypeScriptModule(`${BASE}/analyzer.ts`);
@@ -29,7 +28,7 @@ const postHabits = loadTypeScriptModule(`${BASE}/post-habits.ts`);
 const functionWords = loadTypeScriptModule(`${BASE}/function-words.ts`);
 
 /**
- * Real English, read from a commit rather than from the working tree.
+ * Real English, held as a fixture rather than read from the live documents.
  *
  * Three of these are the Contributor Covenant, the contributing guide and the
  * security policy — English written by people, not translated into it. The
@@ -37,19 +36,26 @@ const functionWords = loadTypeScriptModule(`${BASE}/function-words.ts`);
  * translation, which is what the task asks for: a Russian text rendered into
  * English carries Russian syntax and would flatter the pack it is testing.
  *
- * Pinned, because reading the working tree would move the numbers every time
- * one of these files is edited, including by the commit that records them.
+ * Frozen, because reading the live files would move the numbers every time one
+ * of them is edited — and they are edited: `SECURITY.md` was rewritten on
+ * 31.08.2026 for the public repository.
+ *
+ * It was pinned to commit `1dad1259` and read with `git show`, which worked
+ * until the move published a tree without a history. In a repository with one
+ * commit that object does not exist, and the suite failed to run rather than
+ * failing a check — the first thing the new CI job caught. A corpus that a
+ * clone cannot read is not a fixture; these are the same bytes, in the tree.
  */
-const CORPUS_COMMIT = '1dad1259';
+const CORPUS_DIR = path.join(__dirname, 'fixtures', 'english-corpus');
 const ENGLISH_FILES = [
   'CODE_OF_CONDUCT.md',
   'CONTRIBUTING.md',
   'SECURITY.md',
-  '.codex/stages/content-factory-next-ia0/artifacts/infrastructure-security.md',
-  '.codex/stages/content-factory-next-zjm/summary.md',
-  '.codex/stages/content-factory-next-saas/artifacts/hybrid-ai.md',
-  '.codex/stages/content-factory-next-9e9/artifacts/consumer-backend.md',
-  '.codex/stages/content-factory-next-q4p/artifacts/ai-usage.md',
+  'ia0-infrastructure-security.md',
+  'zjm-summary.md',
+  'saas-hybrid-ai.md',
+  '9e9-consumer-backend.md',
+  'q4p-ai-usage.md',
 ];
 
 const stripMarkdown = (text) =>
@@ -77,13 +83,7 @@ const chunk = (text) =>
 
 const englishSamples = (language = 'en') => {
   const chunks = ENGLISH_FILES.flatMap((file) =>
-    chunk(
-      execFileSync('git', ['show', `${CORPUS_COMMIT}:${file}`], {
-        cwd: REPO,
-        encoding: 'utf8',
-        maxBuffer: 1 << 26,
-      })
-    )
+    chunk(readFileSync(path.join(CORPUS_DIR, file), 'utf8'))
   );
   return chunks.map((text, index) => ({
     code: `en-${String(index + 1).padStart(3, '0')}`,
@@ -296,5 +296,39 @@ describe('what a seventeenth language costs', () => {
   test('the gap between locales the product ships and locales it can measure is visible', () => {
     expect(types.BRAND_VOICE_LOCALES.length).toBe(16);
     expect([...localePacks.MEASURABLE_LOCALES].sort()).toEqual(['en', 'ru']);
+  });
+});
+
+describe('the corpus is a fixture, and a clone can read it', () => {
+  /**
+   * This corpus used to be `git show 1dad1259:<file>`, and the move to a public
+   * repository — a tree with one commit — turned the whole suite from "runs" to
+   * "cannot run". Both halves of that failure are worth fencing: it must not go
+   * back to reading history, and it must not drift into reading the live
+   * documents either, since those are edited and the numbers would follow.
+   */
+  const source = readFileSync(__filename, 'utf8');
+
+  test('it does not reach into the history for its texts', () => {
+    // Character classes on purpose: a plain literal here would match itself in
+    // this file's own source and the check would always fail.
+    expect(source).not.toMatch(/exec[F]ileSync/);
+    expect(source).not.toMatch(/node:[c]hild_process/);
+    expect(source).not.toMatch(/['"][g]it['"][\s,]+['"]show['"]/);
+  });
+
+  test('every named file is present in the fixture directory', () => {
+    for (const file of ENGLISH_FILES) {
+      expect(existsSync(path.join(CORPUS_DIR, file))).toBe(true);
+    }
+  });
+
+  test('the fixture is a snapshot, not a mirror of the live documents', () => {
+    // `SECURITY.md` was rewritten on 31.08.2026 when the repository went
+    // public. The corpus copy keeps the older text on purpose: a corpus that
+    // follows the documents is a corpus that moves its own numbers.
+    const frozen = readFileSync(path.join(CORPUS_DIR, 'SECURITY.md'), 'utf8');
+    const live = readFileSync(path.join(__dirname, '..', 'SECURITY.md'), 'utf8');
+    expect(frozen).not.toBe(live);
   });
 });

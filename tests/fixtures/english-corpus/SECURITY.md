@@ -2,15 +2,10 @@
 
 ## Status of this product
 
-Content Factory runs at `factory.aidevteam.ru` and is reachable over a network.
-Registration is open and every account is approved by the owner, so the number
-of people affected by a finding is small but not zero. The source is public
-under AGPL-3.0.
-
-Until 31.08.2026 this section said the opposite — private repository, no
-deployment, no users — and each of those had stopped being true at a different
-date. A security policy that describes a product which no longer exists is worse
-than none, because it tells a reporter their finding does not matter yet.
+Content Factory is in development. The repository is private, there is no
+public deployment, and no version has been released to users. This policy
+describes what to do with a finding today; it will be replaced by a fuller one
+when the product is actually reachable over a network.
 
 ## Scope
 
@@ -29,7 +24,7 @@ someone running their own copy.
 ## Reporting
 
 Report privately through this repository's
-[GitHub Security Advisory system](https://github.com/maslennikov-ig/content-factory-app/security/advisories/new).
+[GitHub Security Advisory system](https://github.com/maslennikov-ig/content-factory-next/security/advisories/new).
 Please do not open a public issue for a security finding.
 
 A useful report includes a clear description of the weakness, a proof of
@@ -39,10 +34,9 @@ gains.
 ## Disclosure
 
 We follow coordinated disclosure: a finding stays private until a fix or a
-mitigation exists. The product is deployed and has accounts, so a fix is
-followed by a release rather than only a commit; the release order is in
-`docs/operations/production-deploy.md`. No embargo window is promised, because
-one person maintains this and promising a date would be a guess.
+mitigation exists. Because the product has no users yet, there is no release
+timeline to promise and no embargo to negotiate — a fix lands when it is
+written.
 
 Content Factory is not a CVE Numbering Authority and does not assign CVE
 identifiers. A vulnerability that turns out to be an upstream one may receive a
