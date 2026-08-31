@@ -14,11 +14,15 @@
 # What this covers and what it does not. The shift is a process-level one: it
 # moves `new Date()` and `Date.now()` for everything Jest runs, and leaves
 # explicit moments and real timers alone. It does not move the filesystem, and
-# it does not reach a `date` call inside a shell script a test spawns. In this
-# repository that boundary is narrow and known: of the six scripts that read
-# the clock, five only stamp a name or a receipt, and the one that compares a
-# stamp against a threshold — scripts/operations/postgres-backup.sh — takes the
-# moment from CF_BACKUP_NOW so a test can pin it.
+# it does not reach a `date` call inside a shell script a test spawns.
+#
+# That second edge is held from the other side rather than papered over. A
+# wrapper faking `date` for child processes would have to decide, per call,
+# whether a spec means "now" or a fixed instant, and be right every time.
+# Instead `tests/shell-clock.guard.test.cjs` forbids the shape that would need
+# one: a shell script may stamp a name or a receipt with the real clock, but a
+# moment it compares has to come from a variable a caller can pin — which is
+# what CF_BACKUP_NOW is in scripts/operations/postgres-backup.sh.
 #
 # Usage: scripts/ci/run-time-travel-suite.sh [days]
 set -Eeuo pipefail

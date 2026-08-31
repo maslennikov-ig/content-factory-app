@@ -18,8 +18,8 @@ refuses without a green suite receipt for `HEAD`. Actions run again on the publi
 repository, where `full-suite`, `docker-backed-operations` and CodeQL are green
 and the first two are required on `main`; the receipt stays the release gate.
 
-Full local acceptance on the tip, 31.08 under Node 22.23.2: **226 Jest suites /
-3116 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
+Full local acceptance on the tip, 31.08 under Node 22.23.2: **227 Jest suites /
+3118 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
 docs 111 files, process verification and `git diff --check` clean. `tsc --noEmit`
 still shows five old errors. `test:time-travel` is green at +400 and +1100 days.
 
