@@ -38,6 +38,7 @@
     "docker-create": "./var/docker/docker-create.sh",
     "postinstall": "pnpm run prisma-generate",
     "docs:check": "python3 scripts/docs/check_docs.py",
+    "test:time-travel": "bash scripts/ci/run-time-travel-suite.sh",
     "test": "jest --coverage --detectOpenHandles --reporters=default --reporters=jest-junit && node --test --test-concurrency=1 tests/brand-profile.contract.test.cjs tests/content-context.builder.test.cjs tests/content-intelligence.consumer-backend.test.cjs tests/content-intelligence.persistence.test.cjs tests/content-source-fetch-gateway.test.cjs tests/content-source-registry.postgres.test.cjs tests/content-source-registry.test.cjs tests/post.content-context.test.cjs && python3 -m unittest tests/test_orchestration_closeout.py tests/test_docs_links.py"
   },
   "dependencies": {

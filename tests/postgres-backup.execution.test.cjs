@@ -202,7 +202,13 @@ function runBackup({
     const seeded = path.join(artifactRoot, name);
     fs.mkdirSync(seeded);
     fs.writeFileSync(path.join(seeded, 'product.dump'), 'abandoned');
-    const when = new Date(Date.now() - ageDays * 24 * 60 * 60 * 1000);
+    // Age is measured against the clock that will judge it. `find -mtime`
+    // reads the filesystem, so the reference comes from the filesystem too —
+    // the directory's own fresh mtime — and not from whatever this process
+    // believes the date to be. The two agree in an ordinary run and part
+    // company under the time-travel check, where only the process clock moves.
+    const filesystemNow = fs.statSync(seeded).mtimeMs;
+    const when = new Date(filesystemNow - ageDays * 24 * 60 * 60 * 1000);
     fs.utimesSync(seeded, when, when);
   }
 
