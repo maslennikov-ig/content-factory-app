@@ -14,9 +14,9 @@ Production runs **`a74aaa76f99b`** (01.09.2026, source commit `4c3cff0b8648`);
 rollback target `e7fea25cab30`. The tag names a **public** commit: since 31.08
 the image is built from the published tree and the receipt is tied to it by a
 `Source-Commit` trailer. The release weighs every tag and refuses without a green
-receipt; all four Actions jobs are green there, two required on `main`.
-**Retention is owed**: three of our tags on the host where the rule says two,
-20 GB free, and deleting there needs the owner's separate word.
+receipt; all four Actions jobs are green there, two required on `main`. Retention
+ran the same hour on the owner's separate word: `0840cc5f2c6c` deleted by name,
+40 images to 39, nothing of anyone else's touched, 23 GB free.
 `CONTENT_FACTORY_RELEASE` had drifted two releases behind — the error collector
 was blaming the wrong code — and now matches. The fixed `postgres-backup.sh`
 (`ec6885a6`) is delivered; it never fired there, the wrapper pins no moment.
