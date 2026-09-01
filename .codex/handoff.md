@@ -6,9 +6,8 @@ Selected Beads goal: `content-factory-next-vme`
 
 `vme` closed 31.08.2026 by the owner, and `cft` with it: the tree is published as
 [`content-factory-app`](https://github.com/maslennikov-ig/content-factory-app) —
-public, no history. The private repository stays the archive and this working copy
-points at it. `vme.21` closed the same day on his word, with no evidence of the
-run in the task; the caveat is recorded there.
+public, no history; the private repository stays the archive and this working copy
+points at it. `vme.21` closed the same day on the owner's word, no run evidence.
 ## Current state
 
 Production runs **`e7fea25cab30`** (30.08.2026); rollback target `0840cc5f2c6c`.
@@ -51,11 +50,9 @@ epic's 80 % goal is taken on one corpus of three, not two**, and that is the
 number to quote.
 
 **The stand was measuring with its own arithmetic, and it cost up to 5,5
-points.** The same eight give 77,8 / 82,5 / 85,2 by the stand's definitions and
-74,5 / 77,0 / 85,7 by the shipped code — rounding to one decimal, sentence
-splitting by the language pack, `\r\n` folding. Каждая причина по отдельности —
-ничто. Caught only because the stand was made to call the product. Since
-30.08.2026 `composition` prints the product number and reports it.
+points** — 77,8 / 82,5 / 85,2 by its definitions against 74,5 / 77,0 / 85,7 by
+the shipped code (rounding, sentence splitting, `\r\n` folding; each cause alone
+is nothing). Since 30.08.2026 `composition` calls the product and prints it.
 
 **Post layout is a group the product did not measure at all**, and it is what the
 generator fails to reproduce because nothing tells it about breaks: soft breaks
@@ -63,11 +60,10 @@ per thousand characters, owner **4,26 against 0,00**, britva **5,09 against
 1,25**. `oneSentenceBlockShare` is the strongest single measurement of thirteen.
 
 **Three results contradicted the expectation.** `sentenceSpread` was right to
-remove but not for its stated reason — alone it is second of thirteen, in the set
-it is redundant and makes all three worse. `capsWordShare`, `exclamPer1k`,
-`questionShare` give exactly 50,0 % everywhere. And selecting by these numbers
-does not transfer: greedy selection on two corpora collapses to 54,1 / 75,5 /
-50,0 on the third. Details and the four answers per measurement: spec §5.1–5.4.
+remove, but for redundancy, not its stated reason; `capsWordShare`, `exclamPer1k`
+and `questionShare` give exactly 50,0 % everywhere; selecting by these numbers
+does not transfer — greedy on two corpora collapses to 54,1 / 75,5 / 50,0 on the
+third. Four answers per measurement: spec §5.1–5.4.
 
 **Judging and describing are different sets** — a measurement handed to the model
 as an instruction stops discriminating. `COMPOSITE_JUDGING_METRICS` is pinned as
@@ -84,24 +80,20 @@ He answered `pl1.6` on 30.08.2026: the description is him, and he picked his own
 posts out of ten. With the «да» came a remark worth more than it: **the
 description was drawn from posts he has moved on from**.
 
-Recency had shipped on 26.08, but only for quotes; numbers went on being counted
-over the whole corpus because thirty posts make a noisy corridor. That split ran
-along the wrong line. The right one is the same this wave drew for the verdict:
-**describing against judging**. Scales, corridors, lexicon, punctuation, habits
-and layout answer «how does he write now» and take the recent window; the print
-answers «is this the same person» and takes the whole training corpus.
+Recency had shipped on 26.08 for quotes only, and that split ran along the wrong
+line. The right one is this wave's: **describing against judging**. Scales,
+corridors, lexicon, punctuation, habits and layout answer «how does he write now»
+and take the recent window; the print takes the whole training corpus.
 
 His real corpus, 153 posts, window 40, the newest 26 % of the channel: emoji
 6 → **3** per thousand characters, links 33 % → **53 %** of posts, own measured
 figures 48 % → **60 %**, clerical nouns 10 % → **5,6 %**, soft breaks 4 → **2**.
-Half the emoji and half the clerical prose is not a refinement — it is a
-different manner, and the old description told him who he had been.
+Half the emoji and half the clerical prose is a different manner, not a refinement.
 
 Verified the rule fires at all: 1301 of 1396 samples in the database carry a
-numeric message id, and **every** sample in the owner's space does. A trap worth
-keeping: the stand's corpus cache carries no `externalRef`, so measuring recency
-from the cache reports «the window did not narrow» on all three corpora — a
-property of the cache, not of the product.
+numeric message id, and **every** sample in the owner's space does. A trap: the
+stand's corpus cache has no `externalRef`, so measuring recency from the cache
+reports «the window did not narrow» — a property of the cache, not the product.
 
 ### What is built and what is not
 
@@ -132,13 +124,22 @@ wave eight.
 
 Owner decisions; do not absorb or close them elsewhere (`content-factory-next-`):
 
-- `saas.6` — provider, data region, and legal model.
 - `or3.9` — pricing, trial, and card requirement.
-- `sb1` — owner debt after rollout, incl. the legal review of `privacy.*.md`.
 - `3aw` and `c6k.16` — owner choices; `cxd` needs the owner's private GPG key.
 - `2ua` — Tavily key and paid-call authority are missing.
 - `71m.7` — needs a connected Google channel.
 - Parent epics `71m`, `c6k`, `ry5`, `saas` stay open where their children do.
+
+**The legal pair is shelved, its bans are not.** 01.09.2026 the owner took the
+legal questions off the queue for a later pass: `saas.6` (provider, data region,
+legal entity, retention, subprocessors) and `rry` (Art. 50 EU AI Act marking) are
+closed as **shelved, not decided**. Two bans survive that closure: no production
+deploy as SaaS and no public residency/SLA promise until `saas.6` is truly
+decided; and the product is **not** declared outside the EU market — that
+conclusion, if right, needs its own ADR, and the marking grace period ends
+02.12.2026. The lawyer's review of `privacy.*.md`, left over from the closed
+`sb1`, waits for the same pass. Reopen on the legal pass, on an external launch
+or public promise about data, or as 02.12.2026 nears undecided.
 
 `cft` (the move to a public repository) and `9gd` need fresh owner authority;
 `7ph` proves the tree is ready and stops there. `vme.21` still needs the owner's
@@ -150,8 +151,8 @@ own run on production. **`2la` is decided 31.08.2026**: 48px against a published
 - Contract: `brand-voice/voice-wiring.contract.ts`. Judging set and its rule:
   `brand-voice/voice-composite.ts`. Layout: `brand-voice/post-layout.ts`.
 - Stand: `scripts/evidence/voice-eval.cjs` — `composition` gives `pl1.7`'s
-  numbers, `recognise` builds the owner's answer material, both free and offline.
-  Norm: `scripts/evidence/build-voice-norm.cjs`.
+  numbers, `recognise` the owner's answer material; both free and offline. Norm:
+  `scripts/evidence/build-voice-norm.cjs`.
 - Spec §5.1–5.4 holds the composition, the four answers per measurement and the
   removal reasons with numbers. Evidence: `.codex/stages/content-factory-next-pl1/`.
 
@@ -159,20 +160,19 @@ own run on production. **`2la` is decided 31.08.2026**: 48px against a published
 
 Next stage id: `content-factory-next-vme`. Recommended action: **nothing is
 queued** — the programme is closed and the move is done. What stays open is owner
-decisions (`saas.6`, `or3.9`, `3aw`, `c6k.16`, `rry`) and work needing access
-nobody here has (`2ua`, `cxd`). Below is what `pl1` left unproven:
+decisions (`or3.9`, `3aw`, `c6k.16`) and work needing access nobody here has
+(`2ua`, `cxd`); the legal pair `saas.6` and `rry` is shelved on 01.09.2026 with
+its bans intact, see «Explicit defers». Below is what `pl1` left unproven:
 
-1. **The combination rule needs a number.** «Agreement or silence» is the safest
-   shape and it is not free: the epic already silences a third of an author's own
-   posts, and a second voice can only add to that. Measure the three candidate
-   rules — both-must-agree, either-may-say-FAR, cautious-of-two — on all three
-   corpora before wiring any of them.
-2. **The composite's working point is taken against a weak adversary.** The
-   threshold above is snapped on the `none` background, and 72,9 / 56,3 / 79,2 %
-   of `product` generation walks through it. Calibrate it the way the votes were
-   calibrated on 28.08.2026 — two negative populations, the stricter point.
-
-Both are named in the closing reasons of `pl1.7` and `pl1.8`, not left implied.
+1. **The combination rule needs a number.** «Agreement or silence» is safest and
+   not free: the epic already silences a third of an author's own posts. Measure
+   all three rules — both-must-agree, either-may-say-FAR, cautious-of-two — on
+   all three corpora before wiring any of them.
+2. **The composite's working point is taken against a weak adversary.** Snapped
+   on the `none` background, and 72,9 / 56,3 / 79,2 % of `product` generation
+   walks through it. Calibrate as the votes were on 28.08.2026 — two negative
+   populations, the stricter point. Both are named in the closing reasons of
+   `pl1.7` and `pl1.8`, not left implied.
 
 ## Starter prompt for next orchestrator
 
@@ -187,8 +187,8 @@ numbers until refreshed through the operator door.
 
 Traps: a full Jest run leaves every frontend page answering 500 until
 `apps/frontend/.next` is removed *and* the server restarted; `libraries/` changes
-need `apps/backend/dist` and `tsconfig.tsbuildinfo` gone; `tsc --noEmit` is a
-separate step and already carries five errors that are not yours;
+need `apps/backend/dist` and `tsconfig.tsbuildinfo` gone; `tsc --noEmit` is
+separate and already carries five errors that are not yours;
 `/home/me/.local/bin/node` shadows nvm. Beads rolls back closures while agents
 run — close in one batch, `bd dolt push`, verify by name. **A red check must
 actually go red**: mutate what it guards and watch it fall — this wave caught an
