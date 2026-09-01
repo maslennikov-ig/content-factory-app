@@ -10,14 +10,18 @@ public, no history; the private repository stays the archive and this working co
 points at it. `vme.21` closed the same day on the owner's word, no run evidence.
 ## Current state
 
-Production runs **`e7fea25cab30`** (30.08.2026); rollback target `0840cc5f2c6c`.
-`ac9e978a582a` and thirteen tags of 26.08–28.08 carried personal source texts and
-are deleted everywhere — found by weight alone. The release weighs every tag and
-refuses without a green suite receipt for `HEAD`. Actions run again on the public
-repository, where `full-suite`, `docker-backed-operations` and CodeQL are green
-and the first two are required on `main`; the receipt stays the release gate.
+Production runs **`a74aaa76f99b`** (01.09.2026, source commit `4c3cff0b8648`);
+rollback target `e7fea25cab30`. The tag names a **public** commit: since 31.08
+the image is built from the published tree and the receipt is tied to it by a
+`Source-Commit` trailer. The release weighs every tag and refuses without a green
+receipt; all four Actions jobs are green there, two required on `main`.
+**Retention is owed**: three of our tags on the host where the rule says two,
+20 GB free, and deleting there needs the owner's separate word.
+`CONTENT_FACTORY_RELEASE` had drifted two releases behind — the error collector
+was blaming the wrong code — and now matches. The fixed `postgres-backup.sh`
+(`ec6885a6`) is delivered; it never fired there, the wrapper pins no moment.
 
-Full local acceptance on the tip, 31.08 under Node 22.23.2: **227 Jest suites /
+Full local acceptance on the tip, 01.09 under Node 22.23.2: **227 Jest suites /
 3118 tests**, `node --test` 93 pass 0 fail, python 29 OK, brand scan 0 unexplained,
 docs 111 files, process verification and `git diff --check` clean. `tsc --noEmit`
 still shows five old errors. `test:time-travel` is green at +400 and +1100 days.
@@ -126,25 +130,22 @@ Owner decisions; do not absorb or close them elsewhere (`content-factory-next-`)
 
 - `or3.9` — pricing, trial, and card requirement.
 - `3aw` and `c6k.16` — owner choices; `cxd` needs the owner's private GPG key.
-- `2ua` — Tavily key and paid-call authority are missing.
-- `71m.7` — needs a connected Google channel.
+- `2ua` needs a Tavily key and paid-call authority; `71m.7` a Google channel.
 - Parent epics `71m`, `c6k`, `ry5`, `saas` stay open where their children do.
 
 **The legal pair is shelved, its bans are not.** 01.09.2026 the owner took the
 legal questions off the queue for a later pass: `saas.6` (provider, data region,
 legal entity, retention, subprocessors) and `rry` (Art. 50 EU AI Act marking) are
-closed as **shelved, not decided**. Two bans survive that closure: no production
-deploy as SaaS and no public residency/SLA promise until `saas.6` is truly
-decided; and the product is **not** declared outside the EU market — that
-conclusion, if right, needs its own ADR, and the marking grace period ends
-02.12.2026. The lawyer's review of `privacy.*.md`, left over from the closed
-`sb1`, waits for the same pass. Reopen on the legal pass, on an external launch
-or public promise about data, or as 02.12.2026 nears undecided.
+closed as **shelved, not decided**, and the lawyer's review of `privacy.*.md`
+waits with them. Two bans survive that closure: no production deploy as SaaS and
+no public residency/SLA promise; and the product is **not** declared outside the
+EU market — that conclusion needs its own ADR, and the marking grace period ends
+02.12.2026. Reopen on the legal pass, on an external launch or public promise
+about data, or as that date nears undecided.
 
-`cft` (the move to a public repository) and `9gd` need fresh owner authority;
-`7ph` proves the tree is ready and stops there. `vme.21` still needs the owner's
-own run on production. **`2la` is decided 31.08.2026**: 48px against a published
-100px and no link, accepted as risk, reviewed for YouTube alone of 35 marks.
+`cft`, `9gd`, `7ph` and `vme.21` are closed with the move. **`2la` is decided
+31.08.2026**: 48px against a published 100px and no link, accepted as risk,
+reviewed for YouTube alone of 35 marks.
 
 ## Durable entrypoints
 
@@ -154,7 +155,7 @@ own run on production. **`2la` is decided 31.08.2026**: 48px against a published
   numbers, `recognise` the owner's answer material; both free and offline. Norm:
   `scripts/evidence/build-voice-norm.cjs`.
 - Spec §5.1–5.4 holds the composition, the four answers per measurement and the
-  removal reasons with numbers. Evidence: `.codex/stages/content-factory-next-pl1/`.
+  removal reasons. Evidence: `.codex/stages/content-factory-next-pl1/`.
 
 ## Next recommended
 
@@ -182,8 +183,7 @@ epic `e3y` is closed; do not re-open its two owner decisions. Before any stand o
 production check of the voice run `rebuild-voice.cjs --dry-run`: an analysis
 older than the ruler carries no print and every verdict reads «сравнить не с
 чем», which looks like a defect and is not. **The norm moved on 30.08.2026** —
-every profile computed against `ru-2026-08-25` describes itself with the old
-numbers until refreshed through the operator door.
+a profile computed against `ru-2026-08-25` keeps its old numbers until refreshed.
 
 Traps: a full Jest run leaves every frontend page answering 500 until
 `apps/frontend/.next` is removed *and* the server restarted; `libraries/` changes
@@ -194,7 +194,6 @@ run — close in one batch, `bd dolt push`, verify by name. **A red check must
 actually go red**: mutate what it guards and watch it fall — this wave caught an
 agent leaving its own mutation in the tree, where a divide-by-zero guard had
 quietly gone. Never `git checkout` a file you have edited to undo a mutation;
-keep a copy outside the tree, and verify the restore with `git diff`.
-
-Keep the explicit defers intact. Publication (`cft`), deleting on the shared
-host, and every paid call each need fresh owner authority every time.
+keep a copy outside the tree, and verify the restore with `git diff`. Keep the
+explicit defers intact: deleting on the shared host and every paid call each need
+fresh owner authority every time.
