@@ -12,6 +12,8 @@ import { Textarea } from '@contentfactory/react/form/textarea';
 import { VoiceBriefScreen } from './voice-brief.screen';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 import { ContentFactsContainer } from '../content-intelligence/content-facts.container';
+import { ContentSearchContainer } from '../content-intelligence/content-search.container';
+import type { AcceptedEvidence } from '../content-intelligence/content-search.adapter';
 import {
   EDITOR_MODAL,
   editorChannels,
@@ -79,6 +81,15 @@ export function VoiceBriefContainer() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [opened, setOpened] = useState(false);
+  /*
+    `content-factory-next-lh5s`: one accepted excerpt, waiting for the claim it
+    will stand under. It lives in the brief rather than inside either panel
+    because it is the handover between them — the search takes it, the fact
+    form spends it.
+  */
+  const [pendingEvidence, setPendingEvidence] =
+    useState<AcceptedEvidence | null>(null);
+  const dropPendingEvidence = useCallback(() => setPendingEvidence(null), []);
 
   /**
    * One place a refusal can land.
@@ -413,6 +424,30 @@ export function VoiceBriefContainer() {
               </div>
             ))}
           </div>
+          {/*
+            `content-factory-next-lh5s`, decided by the owner on 02.09.2026:
+            the two bars stay different and the difference is explained where
+            it bites. The brief gate counts a claim as grounded on a statement
+            plus any link (`brief-gate.ts`); the unified context, which is what
+            a post review is built from, wants an accepted snapshot. So a brief
+            can pass on bare links and yield a draft with not one checkable
+            citation in it.
+
+            The sentence appears only on a row that is actually in that state —
+            a claim with a link and no id — rather than standing permanently
+            over a form as a paragraph nobody reads twice.
+          */}
+          {draft.facts.some(
+            (row) =>
+              row.statement.trim() && row.sourceUrl.trim() && !row.factId.trim()
+          ) && (
+            <p
+              data-brief-bare-link-warning="true"
+              className="mt-[12px] max-w-[72ch] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+            >
+              {w.bareLinkWarning}
+            </p>
+          )}
           <div className="mt-[12px] flex flex-wrap gap-[8px]">
             <Button
               type="button"
@@ -467,8 +502,23 @@ export function VoiceBriefContainer() {
         <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
           {w.factsMemoryLead}
         </p>
-        <div className="mt-[12px]">
-          <ContentFactsContainer onFactCreated={handleFactCreated} />
+        {/*
+          `content-factory-next-lh5s`: the third way to ground a claim, and
+          the only one that was unreachable. Search first, because that is the
+          order of the work — a person looks for something to stand on, takes
+          one result, and only then writes what it shows. The fact form below
+          is where the writing happens, whether or not anything was found.
+        */}
+        <div className="mt-[12px] flex flex-col gap-[16px]">
+          <ContentSearchContainer
+            defaultSubject={draft.thesis}
+            onEvidenceAccepted={setPendingEvidence}
+          />
+          <ContentFactsContainer
+            onFactCreated={handleFactCreated}
+            pendingEvidence={pendingEvidence}
+            onEvidenceDropped={dropPendingEvidence}
+          />
         </div>
       </div>
     </section>

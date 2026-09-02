@@ -5,6 +5,7 @@ export type ContentContextErrorCodeV1 =
   | 'CONTENT_CONTEXT_PROFILE_MISMATCH'
   | 'CONTENT_CONTEXT_DRAFT_ONLY'
   | 'CONTENT_CONTEXT_INPUT_INVALID'
+  | 'CONTENT_CONTEXT_FACT_SUPERSEDED'
   | 'CONTENT_EVIDENCE_REQUIRED';
 
 export class ContentContextError extends Error {

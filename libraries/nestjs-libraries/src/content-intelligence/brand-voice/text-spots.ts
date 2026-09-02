@@ -9,6 +9,7 @@ import { hasCopula } from './style-scales';
 import type { LocalePack } from './locale-pack';
 import {
   STYLE_SCALE_LABELS,
+  toReportLocale,
   type BrandVoiceLocale,
   type StyleScaleKey,
 } from './brand-voice.types';
@@ -312,4 +313,4 @@ export function findTextSpots(
 
 /** The scale's name as a person reads it, for a screen that groups by habit. */
 export const spotLabel = (spot: TextSpot, locale: BrandVoiceLocale): string =>
-  STYLE_SCALE_LABELS[locale][spot.scale].label;
+  STYLE_SCALE_LABELS[toReportLocale(locale)][spot.scale].label;

@@ -181,6 +181,11 @@ const authMocks = {
   '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
     'libraries/nestjs-libraries/src/locale/backend-strings.ts'
   ),
+  // auth.service.ts builds the button in these emails through the shared
+  // shell; the loader resolves only what a test names.
+  '@contentfactory/nestjs-libraries/emails/email.template': loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/emails/email.template.ts'
+  ),
 };
 
 const { AuthService } = loadTypeScriptModule(

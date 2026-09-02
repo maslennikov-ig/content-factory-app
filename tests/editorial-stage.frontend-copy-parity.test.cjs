@@ -39,10 +39,10 @@ describe('the frontend stage list matches the server contract', () => {
 
   test('the required Russian product copy is exactly this, not a paraphrase', () => {
     expect(frontend.editorialStageCopy.ru).toMatchObject({
-      PLAN: 'В плане',
+      PLAN: 'План',
       DRAFT: 'Пишется',
-      REVIEW: 'На проверке',
-      SCHEDULED: 'Запланирован',
+      REVIEW: 'Проверка',
+      SCHEDULED: 'Расписание',
     });
   });
 

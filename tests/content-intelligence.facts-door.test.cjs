@@ -35,7 +35,7 @@ for (const key of ['window', 'document', 'navigator']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, fireEvent, render, screen } = require('@testing-library/react');
+const { act, cleanup, fireEvent, render, screen, within } = require('@testing-library/react');
 const { SWRConfig } = require('swr');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
@@ -48,6 +48,7 @@ const FILES = {
   // became a view-only witness (`content-facts.showcase.tsx`), so a fact is
   // now added where the brief asks «чем подтвердишь», not on a fourth tab.
   briefContainer: 'apps/frontend/src/components/brand-voice/voice-brief.container.tsx',
+  showcase: `${base}/content-facts.showcase.tsx`,
 };
 
 const source = (key) => fs.readFileSync(path.join(root, FILES[key]), 'utf8');
@@ -63,6 +64,7 @@ if (!Object.values(FILES).every((file) => fs.existsSync(path.join(root, file))))
 
 const adapter = loadTypeScriptModule(FILES.adapter);
 const container = loadTypeScriptModule(FILES.container);
+const showcase = loadTypeScriptModule(FILES.showcase);
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
@@ -113,6 +115,23 @@ const renderContainer = async (locale = 'ru') => {
           variables.VariableContextComponent,
           { language: locale },
           React.createElement(container.ContentFactsContainer)
+        )
+      )
+    );
+  });
+  await act(async () => {});
+};
+
+const renderShowcase = async (locale = 'ru') => {
+  await act(async () => {
+    render(
+      React.createElement(
+        SWRConfig,
+        { value: { provider: () => new Map(), dedupingInterval: 0 } },
+        React.createElement(
+          variables.VariableContextComponent,
+          { language: locale },
+          React.createElement(showcase.ContentFactsShowcase)
         )
       )
     );
@@ -449,5 +468,251 @@ describe('the payload builder', () => {
     expect(adapter.CLAIM_KEY_PATTERN.test('pricing')).toBe(false);
     expect(adapter.CLAIM_KEY_PATTERN.test('pricing|')).toBe(false);
     expect(adapter.CLAIM_KEY_PATTERN.test('pricing trial|length')).toBe(false);
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * «Подтвердить» (`content-factory-next-tyrk`): the witness screen's third
+ * action, visible only on a still-pending «найдено поиском» row. Every other
+ * row — own word, own material, or a search result already confirmed — keeps
+ * the two actions §8.2 of the map document settled on.
+ * ---------------------------------------------------------------------- */
+
+const searchPendingFact = (overrides = {}) => ({
+  id: 'fact-search',
+  claimKey: 'pricing|currency',
+  topic: 'pricing',
+  topicLabel: 'Pricing',
+  statement: 'The currency is EUR.',
+  language: 'en',
+  temporalKind: 'TIMELESS',
+  freshUntil: null,
+  status: 'VERIFIED',
+  supersedesFactId: null,
+  createdAt: '2026-09-01T00:00:00.000Z',
+  updatedAt: '2026-09-01T00:00:00.000Z',
+  createdByName: null,
+  grounding: {
+    method: 'SEARCH_RESULT',
+    evidenceId: 'evidence-1',
+    excerpt: 'The article said exactly this.',
+    sourceLabel: null,
+    sourceUrl: 'https://example.com/found',
+    observedAt: '2026-09-01T00:00:00.000Z',
+  },
+  needsLook: true,
+  evidence: [
+    {
+      evidenceId: 'evidence-1',
+      stance: 'SUPPORTS',
+      reviewStatus: 'PROPOSED',
+      title: 'Found article',
+      sourceState: 'AVAILABLE',
+      freshUntil: '2027-09-01T00:00:00.000Z',
+    },
+  ],
+  ...overrides,
+});
+
+const ownWordFact = (overrides = {}) => ({
+  id: 'fact-own-word',
+  claimKey: 'pricing|trial_length',
+  topic: 'pricing',
+  topicLabel: 'Pricing',
+  statement: 'The trial is 14 days.',
+  language: 'en',
+  temporalKind: 'TIMELESS',
+  freshUntil: null,
+  status: 'VERIFIED',
+  supersedesFactId: null,
+  createdAt: '2026-09-01T00:00:00.000Z',
+  updatedAt: '2026-09-01T00:00:00.000Z',
+  createdByName: 'Integrator',
+  grounding: {
+    method: 'OWN_WORD',
+    evidenceId: null,
+    excerpt: null,
+    sourceLabel: null,
+    sourceUrl: null,
+    observedAt: null,
+  },
+  needsLook: false,
+  evidence: [],
+  ...overrides,
+});
+
+describe('«Подтвердить» renders only on a row that still needs a look', () => {
+  test('a pending search-result row offers Подтвердить; an own-word row does not', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({
+        facts: [searchPendingFact(), ownWordFact()],
+      }),
+    });
+    await renderShowcase();
+
+    expect(
+      document.querySelector('[data-content-fact-confirm="fact-search"]')
+    ).not.toBeNull();
+    expect(
+      document.querySelector('[data-content-fact-confirm="fact-own-word"]')
+    ).toBeNull();
+  });
+
+  test('a search result already confirmed (needsLook: false) offers no Подтвердить either', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({
+        facts: [
+          searchPendingFact({
+            id: 'fact-search-confirmed',
+            needsLook: false,
+            evidence: [
+              {
+                evidenceId: 'evidence-1',
+                stance: 'SUPPORTS',
+                reviewStatus: 'ACCEPTED',
+                title: 'Found article',
+                sourceState: 'AVAILABLE',
+                freshUntil: '2027-09-01T00:00:00.000Z',
+              },
+            ],
+          }),
+        ],
+      }),
+    });
+    await renderShowcase();
+
+    expect(
+      document.querySelector(
+        '[data-content-fact-confirm="fact-search-confirmed"]'
+      )
+    ).toBeNull();
+  });
+
+  test('clicking Подтвердить calls the confirm endpoint and the row loses the action once refreshed', async () => {
+    let confirmed = false;
+    serve({
+      'GET /content-intelligence/facts': () =>
+        ok({
+          facts: [
+            searchPendingFact({
+              needsLook: !confirmed,
+              evidence: [
+                {
+                  evidenceId: 'evidence-1',
+                  stance: 'SUPPORTS',
+                  reviewStatus: confirmed ? 'ACCEPTED' : 'PROPOSED',
+                  title: 'Found article',
+                  sourceState: 'AVAILABLE',
+                  freshUntil: '2027-09-01T00:00:00.000Z',
+                },
+              ],
+            }),
+          ],
+        }),
+      'POST /content-intelligence/facts/fact-search/evidence/evidence-1/confirm':
+        () => {
+          confirmed = true;
+          return ok({ id: 'assessment-1', status: 'ACCEPTED' });
+        },
+    });
+    await renderShowcase();
+
+    const button = document.querySelector(
+      '[data-content-fact-confirm="fact-search"]'
+    );
+    expect(button).not.toBeNull();
+    await click(button);
+
+    expect(
+      calls.some(
+        (call) =>
+          call.method === 'POST' &&
+          call.url ===
+            '/content-intelligence/facts/fact-search/evidence/evidence-1/confirm'
+      )
+    ).toBe(true);
+    expect(
+      document.querySelector('[data-content-fact-confirm="fact-search"]')
+    ).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * «Вернуть» refuses a SUPERSEDED row (review addendum to
+ * `content-factory-next-tyrk`, 02.09.2026). Restoring a fact that
+ * КОПИРОВАТЬ И ПОПРАВИТЬ replaced would put the corrected fact and the one
+ * it replaced back in work at once, same claimKey, disagreeing statements —
+ * exactly what copy-not-edit exists to prevent. Only a RETRACTED row keeps
+ * the button; a SUPERSEDED one only names why it left work.
+ * ---------------------------------------------------------------------- */
+
+const inactiveFact = (overrides = {}) => ({
+  id: 'fact-inactive',
+  claimKey: 'pricing|trial_length',
+  topic: 'pricing',
+  topicLabel: 'Pricing',
+  statement: 'The trial is 14 days.',
+  language: 'en',
+  temporalKind: 'TIMELESS',
+  freshUntil: null,
+  status: 'RETRACTED',
+  supersedesFactId: null,
+  createdAt: '2026-09-01T00:00:00.000Z',
+  updatedAt: '2026-09-02T00:00:00.000Z',
+  createdByName: null,
+  grounding: {
+    method: 'OWN_WORD',
+    evidenceId: null,
+    excerpt: null,
+    sourceLabel: null,
+    sourceUrl: null,
+    observedAt: null,
+  },
+  needsLook: false,
+  evidence: [],
+  ...overrides,
+});
+
+describe('«Вернуть» offers a way back only for a RETRACTED row, never a SUPERSEDED one', () => {
+  // The witness screen hides snятые by default («Снятые: Скрыты») — both
+  // rows below only become visible once that filter is switched to «Показаны».
+  const showRetracted = async () => {
+    const select = document.querySelector('[name="retractedFilter"]');
+    expect(select).not.toBeNull();
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'SHOWN' } });
+    });
+  };
+
+  test('a RETRACTED row offers Вернуть', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({
+        facts: [inactiveFact({ id: 'fact-retracted', status: 'RETRACTED' })],
+      }),
+    });
+    await renderShowcase();
+    await showRetracted();
+
+    const row = document.querySelector('[data-content-fact-row="fact-retracted"]');
+    expect(row).not.toBeNull();
+    expect(row.getAttribute('data-content-fact-usable')).toBe('false');
+    expect(within(row).getByRole('button', { name: 'Вернуть' })).toBeTruthy();
+  });
+
+  test('a SUPERSEDED row names why it left work but offers no Вернуть button', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({
+        facts: [
+          inactiveFact({ id: 'fact-superseded', status: 'SUPERSEDED' }),
+        ],
+      }),
+    });
+    await renderShowcase();
+    await showRetracted();
+
+    const row = document.querySelector('[data-content-fact-row="fact-superseded"]');
+    expect(row).not.toBeNull();
+    expect(row.textContent).toMatch(/заменён/iu);
+    expect(within(row).queryByRole('button', { name: 'Вернуть' })).toBeNull();
   });
 });

@@ -56,6 +56,21 @@ import {
  */
 const { sendEmailV2 } = proxyActivities<EmailActivityV2>({
   startToCloseTimeout: '10 minute',
+  // Temporal's default retry policy is unlimited attempts. Without a bound
+  // here, a provider outage on the first queued email retries forever and
+  // the whole `send_email_v2` singleton queue never reaches the next email
+  // behind it. `scheduleToCloseTimeout` is the outer bound across every
+  // attempt; once it (or `maximumAttempts`) is exhausted the activity call
+  // throws and falls into this workflow's own `catch`, which logs and drops
+  // the email through `log.error` — see
+  // `email-workflow-v2-dropped-email-visible.guard.test.cjs`.
+  scheduleToCloseTimeout: '30 minutes',
+  retry: {
+    initialInterval: '30 seconds',
+    backoffCoefficient: 2,
+    maximumInterval: '5 minutes',
+    maximumAttempts: 5,
+  },
   taskQueue: 'main',
   cancellationType: 'ABANDON',
 });

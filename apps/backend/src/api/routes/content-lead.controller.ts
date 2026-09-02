@@ -100,7 +100,12 @@ export class ContentLeadController {
     @Param('id') id: string
   ) {
     try {
-      return await this.leads.checkSubscription(organization.id, id);
+      // Doubles as recovery for a periodic workflow that never started (a
+      // `createSubscription` whose Temporal call failed): see
+      // `ContentLeadService.checkSubscription`.
+      return await this.leads.checkSubscription(organization.id, id, {
+        ensurePeriodicCheck: true,
+      });
     } catch (error) {
       safeHttpError(error);
     }

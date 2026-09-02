@@ -200,6 +200,15 @@ const { OrganizationService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/services/make.is': {
       makeId: () => 'generated',
     },
+    // organization.service.ts now writes the invitation through the string
+    // catalog and the shared email shell; the loader resolves only what a
+    // test names, so both are loaded for real.
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadSharedModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
+    '@contentfactory/nestjs-libraries/emails/email.template': loadSharedModule(
+      'libraries/nestjs-libraries/src/emails/email.template.ts'
+    ),
     [APPROVAL_MODULE]: approval,
   }
 );
@@ -345,6 +354,11 @@ const { AuthService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/locale/backend-strings.ts'
     ),
+    // auth.service.ts builds the button in these emails through the shared
+    // shell; the loader resolves only what a test names.
+    '@contentfactory/nestjs-libraries/emails/email.template': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/emails/email.template.ts'
+    ),
   }
 );
 
@@ -429,7 +443,11 @@ describe('the account-activation email speaks the registration language', () => 
     const [to, subject, html] = emailService.sendEmail.mock.calls[0];
     expect(to).toBe('гость@example.com');
     expect(subject).toBe('Активируйте аккаунт');
-    expect(html).toContain('чтобы активировать аккаунт');
+    // The sentence used to carry the link inside it; the body is now the
+    // intro plus a button, so the Russian is checked in both halves.
+    expect(html).toContain('Осталось подтвердить адрес');
+    expect(html).toContain('Активировать аккаунт');
+    expect(html).not.toContain('to activate your account');
     expect(subject).not.toBe('Activate your account');
   });
 
@@ -804,6 +822,7 @@ describe('self-service activation', () => {
     expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
     const [, subject, html] = emailService.sendEmail.mock.calls[0];
     expect(subject).toBe('Активируйте аккаунт');
-    expect(html).toContain('чтобы активировать аккаунт');
+    expect(html).toContain('Осталось подтвердить адрес');
+    expect(html).toContain('Активировать аккаунт');
   });
 });

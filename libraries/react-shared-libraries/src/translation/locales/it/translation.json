@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Impossibile cambiare la data, rimuovi il post dalla pubblicazione",
   "predicted_github_trending_change": "Variazione prevista delle tendenze di GitHub",
   "duplicate_post": "Post duplicato",
+  "more_actions": "Altre azioni",
   "preview_post": "Anteprima post",
   "post_statistics": "Statistiche del post",
   "draft": "Bozza",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "{{channel}} ha portato più clic: è da lì che parte il piano successivo.",
   "public_saas_result_detail": "Il materiale è uscito. I numeri sono dati dimostrativi, ma sono suddivisi come nel prodotto: per canale, e solo per quelli che ha davvero raggiunto.",
   "public_saas_demo_channels_label": "Canali di pubblicazione",
-  "public_saas_demo_no_channels": "Scegli almeno un canale: il materiale deve pur andare da qualche parte."
+  "public_saas_demo_no_channels": "Scegli almeno un canale: il materiale deve pur andare da qualche parte.",
+  "onboarding_step_next": "Da dove iniziare",
+  "onboarding_next_title": "Da dove iniziare",
+  "onboarding_next_description": "Sei passi su un solo contenuto: canale, voce, qualcosa su cui poggiare, brief, bozza, pianificazione. Ciò che è fatto si spunta da solo."
 }

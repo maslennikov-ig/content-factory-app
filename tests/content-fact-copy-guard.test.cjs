@@ -62,12 +62,27 @@ function makeClient() {
     status: 'VERIFIED',
   };
   let newFact = null;
+  // `copyFact` now runs `evaluateFact` on the new row before returning
+  // (`content-factory-next-tyrk`, §9.5) — the same recompute `linkEvidence`
+  // and `confirmEvidence` already run — so the stub must answer its reads
+  // (`include`) and writes (`updateMany`) for the new fact too, not only
+  // the old one.
+  const links = [];
 
   const client = {
     contentFact: {
-      findFirst: async ({ where }) => {
+      findFirst: async ({ where, include }) => {
         if (where.id === OLD_FACT_ID) return { ...oldFact };
-        if (newFact && where.id === newFact.id) return { ...newFact };
+        if (newFact && where.id === newFact.id) {
+          return include
+            ? {
+                ...newFact,
+                evidenceLinks: links.filter(
+                  (link) => link.factId === newFact.id
+                ),
+              }
+            : { ...newFact };
+        }
         return null;
       },
       upsert: async ({ where, create }) => {
@@ -78,6 +93,7 @@ function makeClient() {
       },
       updateMany: async ({ where, data }) => {
         if (where.id === OLD_FACT_ID) Object.assign(oldFact, data);
+        if (newFact && where.id === newFact.id) Object.assign(newFact, data);
         return { count: 1 };
       },
     },
@@ -92,12 +108,18 @@ function makeClient() {
           : null,
       create: async ({ data }) => {
         evidenceCreateCalls.push(data);
-        return { id: `link-${evidenceCreateCalls.length}`, ...data };
+        const link = {
+          id: `link-${evidenceCreateCalls.length}`,
+          ...data,
+          evidence: { id: data.evidenceId, tombstone: null, assessment: null },
+        };
+        links.push(link);
+        return link;
       },
     },
     sourceEvidence: {
       findFirst: async ({ where }) =>
-        where.id === 'evidence-1' ? { id: 'evidence-1' } : null,
+        where.id === 'evidence-1' ? { id: 'evidence-1', assessment: null } : null,
     },
   };
 
@@ -190,4 +212,68 @@ test('the old fact is superseded, not edited: its own statement never changes', 
     'Средний срок докового ремонта — 34 суток',
     'copyFact must never write to the old row\'s statement'
   );
+});
+
+/**
+ * «Вернуть» must refuse a SUPERSEDED row (review addendum to
+ * `content-factory-next-tyrk`, 02.09.2026).
+ *
+ * `copyFact` above supersedes the old row on purpose so a corrected
+ * statement is never confirmed by a fragment that grounded the sentence it
+ * replaced. Restoring a SUPERSEDED fact would put both rows back in work at
+ * once — same `claimKey`, disagreeing statements, the old row still wearing
+ * evidence that never confirmed the new wording — exactly what copy-not-edit
+ * exists to prevent. Only a RETRACTED row gets a way back.
+ */
+function makeRestoreClient(status) {
+  const stored = {
+    id: 'fact-restore',
+    organizationId: 'org-a',
+    status,
+    evidenceLinks: [],
+  };
+  const client = {
+    contentFact: {
+      findFirst: async () => structuredClone(stored),
+      updateMany: async ({ data }) => {
+        Object.assign(stored, data);
+        return { count: 1 };
+      },
+    },
+  };
+  return { client, stored };
+}
+
+test('restoring a SUPERSEDED fact is refused with a distinct code, not silently allowed', async () => {
+  const { client, stored } = makeRestoreClient('SUPERSEDED');
+  const repository = makeRepository(client);
+
+  await assert.rejects(
+    repository.restoreFact(
+      'org-a',
+      'user-a',
+      'fact-restore',
+      new Date('2026-09-02T00:00:00.000Z')
+    ),
+    (error) =>
+      error.code === 'CONTENT_CONTEXT_FACT_SUPERSEDED' && error.status === 409
+  );
+  // Refused before any write — the row is exactly as it was.
+  assert.equal(stored.status, 'SUPERSEDED');
+});
+
+test('restoring a RETRACTED fact still returns it to work', async () => {
+  const { client, stored } = makeRestoreClient('RETRACTED');
+  const repository = makeRepository(client);
+
+  const result = await repository.restoreFact(
+    'org-a',
+    'user-a',
+    'fact-restore',
+    new Date('2026-09-02T00:00:00.000Z')
+  );
+
+  assert.notEqual(result.status, 'RETRACTED');
+  assert.notEqual(result.status, 'SUPERSEDED');
+  assert.notEqual(stored.status, 'RETRACTED');
 });

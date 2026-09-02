@@ -11,11 +11,13 @@ import {
   ContentMaterialsPlaceholder,
   ContentSectionShell,
   contentSectionCopy,
+  MaterialsViewSwitch,
   type ContentTab,
+  type MaterialsView,
 } from './content-section.screen';
 
 /**
- * The Content route's frame: heading, four tabs, one panel.
+ * The Content route's frame: heading, five tabs, one panel.
  *
  * Only the frame. `avatars` and the now-hidden `sources`/`provenance`
  * settings sections are the same `ContentIntelligenceView` the settings
@@ -23,10 +25,16 @@ import {
  * here would review them twice and would need a network this route
  * deliberately does not have. `content-factory-next-odb8` dropped `sources`
  * from `CONTENT_TABS` and repointed `provenance`'s panel at the facts
- * witness screen — this scene's own stub cases follow, below.
+ * witness screen — this scene's own stub cases follow, below. `odb8.4`,
+ * decided 02.09.2026 (`docs/product/content-section-map.md` §9.4), folded
+ * what had briefly been a sixth tab, «Что уже написали», into `materials` as
+ * a view switch rather than a stop on the strip — the `materials`/
+ * `long-content` case below renders that switch alongside the panel it
+ * still stubs, since its longest label is exactly what the 390px question
+ * needs to be asked of.
  *
  * What is new and therefore worth looking at is the frame itself: whether
- * four tabs fit at 390px in Russian, whether a tab with no content reads as
+ * five tabs fit at 390px in Russian, whether a tab with no content reads as
  * unfinished rather than broken, and whether the current tab is marked by
  * something other than colour.
  */
@@ -43,7 +51,7 @@ export const CONTENT_SECTION_REVIEW_STATES = [
 ] as const satisfies readonly InterfaceReviewState[];
 
 export const contentSectionFixture = {
-  tabs: ['avatars', 'brief', 'materials', 'provenance'],
+  tabs: ['avatars', 'leads', 'brief', 'materials', 'provenance'],
 } as const;
 
 export const scene = defineInterfaceReviewScene({
@@ -162,8 +170,8 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
     tab: 'materials',
     panel: 'materials',
     note: {
-      en: 'Six Russian labels wrap onto a second row at 390px rather than scrolling sideways.',
-      ru: 'Шесть русских подписей переносятся на вторую строку на 390px, а не уезжают вбок.',
+      en: 'Five Russian tab labels wrap onto a second row at 390px rather than scrolling sideways, and so does the view switch below them — its own longest label, "What we already wrote", is the one this state exists to check.',
+      ru: 'Пять русских подписей вкладок переносятся на вторую строку на 390px, а не уезжают вбок — как и переключатель вида под ними: его самая длинная подпись, «Что уже написали», и есть то, ради чего это состояние существует.',
     },
   },
 };
@@ -171,6 +179,13 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
 export function Scene({ context }: { context: InterfaceReviewContext }) {
   const active = CASES[context.state];
   const [tab, setTab] = useState<ContentTab>(active.tab);
+  // Chrome only, the same way the rest of this scene stubs a live panel: the
+  // real toggle lives in `ContentSectionScreen`, out of reach without a
+  // network, so this local state exists only to show both pill states are
+  // reachable and legible at 390px.
+  const [materialsView, setMaterialsView] = useState<MaterialsView>(
+    'materials'
+  );
   const locale = context.locale;
   const t = contentSectionCopy[locale];
 
@@ -179,7 +194,14 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
       <div data-interface-review-data="synthetic">
         <ContentSectionShell locale={locale} tab={tab} onTabChange={setTab}>
           {tab === 'materials' || active.panel === 'materials' ? (
-            <ContentMaterialsPlaceholder locale={locale} />
+            <div className="flex min-w-0 flex-col gap-[16px]">
+              <MaterialsViewSwitch
+                locale={locale}
+                view={materialsView}
+                onChange={setMaterialsView}
+              />
+              <ContentMaterialsPlaceholder locale={locale} />
+            </div>
           ) : (
             <div
               data-content-panel="stub"

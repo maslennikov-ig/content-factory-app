@@ -60,7 +60,25 @@ import { Button } from '@contentfactory/react/form/button';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { PostPreviewDialog } from '@contentfactory/frontend/components/preview/post.preview.dialog';
-import { EditorialStageBadge } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
+import { EDITORIAL_STAGE_TONES } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
+import {
+  editorialStageLabel,
+  resolveEditorialStageLocale,
+  EditorialStageValue,
+} from '@contentfactory/frontend/components/launches/editorial-stage.copy';
+import { StatusTone } from '@contentfactory/frontend/components/ui/surface';
+import {
+  BracketsIcon,
+  ChannelMarks,
+  ChartIcon,
+  CopyIcon,
+  EyeIcon,
+  PostCardAction,
+  PostCardActions,
+  StageBand,
+  StagePill,
+  TrashIcon,
+} from '@contentfactory/frontend/components/launches/post-card.parts';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -146,6 +164,51 @@ export const hours = Array.from(
   },
   (_, i) => i
 );
+
+/**
+ * One post, all its channels.
+ *
+ * A post sent to three channels is three `Post` rows sharing one `group` — the
+ * shape the upstream schema chose, and the shape every group-level endpoint
+ * here already speaks (`/posts/group/:group`, `DELETE /posts/:group`). The
+ * calendar was the one place that did not: it drew a card per row, so three
+ * channels read as three separate posts and each card claimed exactly one
+ * channel. The owner
+ * spotted it from the other side — «у нас же может быть сразу несколько мест
+ * для публикации, а в карточке оно всегда только одно».
+ *
+ * Grouping is done here rather than on the server: `group` is already selected
+ * and already reaches this component, so nothing has to change behind the API
+ * for the calendar to tell the truth.
+ */
+export type PostGroup = {
+  key: string;
+  /** The row every group-level action is fired against. */
+  lead: any;
+  /** Every row in the group, in the order the calendar received them. */
+  members: any[];
+};
+
+export const groupPostsByGroup = (posts: any[]): PostGroup[] => {
+  const order: string[] = [];
+  const bucket = new Map<string, any[]>();
+
+  for (const post of posts) {
+    // A row with no `group` is its own group; that is the older upstream shape
+    // and a few seeded fixtures, not an error to report.
+    const key = post?.group || post?.id;
+    if (!bucket.has(key)) {
+      bucket.set(key, []);
+      order.push(key);
+    }
+    bucket.get(key)!.push(post);
+  }
+
+  return order.map((key) => {
+    const members = bucket.get(key)!;
+    return { key, lead: members[0], members };
+  });
+};
 
 // Shared hook for post actions (edit, delete, statistics)
 const usePostActions = (onMutate?: () => void) => {
@@ -360,7 +423,7 @@ export const DayView = () => {
       <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
         {options.map((option) => (
           <Fragment key={option[0].time}>
-            <div className="text-center text-[14px] min-h-[21px]">
+            <div className="text-center text-[14px] min-h-[21px] shrink-0">
               {newDayjs()
                 .utc()
                 .startOf('day')
@@ -368,9 +431,17 @@ export const DayView = () => {
                 .local()
                 .format(isUSCitizen() ? 'hh:mm A' : 'LT')}
             </div>
+            {/*
+              `shrink-0` is what keeps a time slot as tall as the card inside
+              it. The scroller above is a flex column, so every slot was a flex
+              item free to shrink to its `min-h-[60px]` floor — and it did, so
+              a 116px card was drawn over the slot below it. The taller the
+              card, the further it reached: with the stage badge on the card,
+              the sentence landed under the next post's coloured strip.
+            */}
             <div
               key={option[0].time}
-              className="min-h-[60px] rounded-[10px] flex justify-center items-center gap-[10px] mb-[20px]"
+              className="min-h-[60px] shrink-0 rounded-[10px] flex justify-center items-center gap-[10px] mb-[20px]"
             >
               <CalendarContext.Provider
                 value={{
@@ -563,7 +634,7 @@ export const ListView = () => {
     openMissingRelease,
   } = usePostActions();
 
-  // Group posts by date
+  // Group posts by date, then fold each day's rows into one card per post.
   const groupedPosts = useMemo(() => {
     const groups: { [key: string]: any[] } = {};
     listPosts.forEach((post) => {
@@ -573,7 +644,12 @@ export const ListView = () => {
       }
       groups[dateKey].push(post);
     });
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(
+        ([dateKey, datePosts]) =>
+          [dateKey, groupPostsByGroup(datePosts)] as [string, PostGroup[]]
+      );
   }, [listPosts]);
 
   if (loading) {
@@ -603,23 +679,24 @@ export const ListView = () => {
               )}
             </div>
             <div className="flex flex-col gap-[10px] mb-[20px] px-[10px]">
-              {datePosts.map((post) => (
+              {datePosts.map(({ key, lead, members }) => (
                 <CalendarItem
-                  key={post.id}
+                  key={key}
                   display="day"
                   isBeforeNow={false}
-                  date={newDayjs(post.publishDate)}
-                  state={post.state}
-                  statistics={openStatistics(post.id)}
-                  missingRelease={openMissingRelease(post.id)}
-                  editPost={editPost(post, false)}
-                  duplicatePost={editPost(post, true)}
+                  date={newDayjs(lead.publishDate)}
+                  state={lead.state}
+                  statistics={openStatistics}
+                  missingRelease={openMissingRelease}
+                  editPost={editPost(lead, false)}
+                  duplicatePost={editPost(lead, true)}
                   copyDebugJson={
-                    user?.isSuperAdmin ? copyDebugJson(post) : undefined
+                    user?.isSuperAdmin ? copyDebugJson(lead) : undefined
                   }
-                  post={post}
+                  post={lead}
+                  channels={members}
                   integrations={integrations}
-                  deletePost={deletePost(post)}
+                  deletePost={deletePost(lead)}
                   showTime={true}
                 />
               ))}
@@ -678,7 +755,7 @@ export const CalendarColumn: FC<{
     openMissingRelease,
   } = usePostActions();
   const postList = useMemo(() => {
-    return posts.filter((post) => {
+    return groupPostsByGroup(posts.filter((post) => {
       const pList = dayjs.utc(post.publishDate).local();
       const check =
         display === 'day'
@@ -689,7 +766,7 @@ export const CalendarColumn: FC<{
             pList.isBefore(getDate.endOf('hour'))
           : pList.format('DD/MM/YYYY') === getDate.format('DD/MM/YYYY');
       return check;
-    });
+    }));
   }, [posts, display, getDate]);
   const [showAll, setShowAll] = useState(false);
   const showAllFunc = useCallback(() => {
@@ -799,16 +876,27 @@ export const CalendarColumn: FC<{
           action = whatToDo;
         }
 
+        // One card is one post across every channel it goes to, so a drag has
+        // to move the whole group. `PUT /posts/:id/date` is per row by design —
+        // moving only the row under the cursor would leave the rest of the
+        // group at the old hour and quietly split one post in two.
+        const ids: string[] = item.ids?.length ? item.ids : [item.id];
         if (!item.interval) {
-          changeDate(item.id, getDate);
+          ids.forEach((id) => changeDate(id, getDate));
         }
-        const { status } = await fetch(`/posts/${item.id}/date`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            date: getDate.utc().format('YYYY-MM-DDTHH:mm:ss'),
-            action,
-          }),
-        });
+        const statuses = await Promise.all(
+          ids.map(async (id) => {
+            const { status } = await fetch(`/posts/${id}/date`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                date: getDate.utc().format('YYYY-MM-DDTHH:mm:ss'),
+                action,
+              }),
+            });
+            return status;
+          })
+        );
+        const status = statuses.some((code) => code === 500) ? 500 : 200;
         if (status !== 500) {
           if (item.interval || action === 'schedule') {
             reloadCalendarView();
@@ -934,9 +1022,9 @@ export const CalendarColumn: FC<{
               <div className="h-full w-full bg-newSettings rounded-[10px]" />
             </div>
           )}
-          {list.map((post) => (
+          {list.map(({ key, lead, members }) => (
             <div
-              key={post.id}
+              key={key}
               className={clsx(
                 'text-textColor p-[2.5px] relative flex flex-col justify-center items-center'
               )}
@@ -946,17 +1034,18 @@ export const CalendarColumn: FC<{
                   display={display as 'day' | 'week' | 'month'}
                   isBeforeNow={isBeforeNow}
                   date={getDate}
-                  state={post.state}
-                  statistics={openStatistics(post.id)}
-                  missingRelease={openMissingRelease(post.id)}
-                  editPost={editPost(post, false)}
-                  duplicatePost={editPost(post, true)}
+                  state={lead.state}
+                  statistics={openStatistics}
+                  missingRelease={openMissingRelease}
+                  editPost={editPost(lead, false)}
+                  duplicatePost={editPost(lead, true)}
                   copyDebugJson={
-                    user?.isSuperAdmin ? copyDebugJson(post) : undefined
+                    user?.isSuperAdmin ? copyDebugJson(lead) : undefined
                   }
-                  post={post}
+                  post={lead}
+                  channels={members}
                   integrations={integrations}
-                  deletePost={deletePost(post)}
+                  deletePost={deletePost(lead)}
                 />
               </div>
             </div>
@@ -1060,6 +1149,21 @@ export const CalendarColumn: FC<{
     </div>
   );
 });
+/**
+ * One card per post, whatever number of channels the post goes to.
+ *
+ * Direction A of the 02.09.2026 canvas, chosen by the owner on the same day.
+ * What changed and why is written up in `post-card.parts.tsx`; the short
+ * version is that the coloured head band is now the stage — the word appears
+ * once, its colour comes from the stage's own tone rather than from a colour a
+ * person typed on a tag, and the actions arrive on their own surface instead
+ * of inside the band.
+ *
+ * Two shapes, one vocabulary. The week and month grids get the narrow card
+ * (band, sentence, channel marks); the day and list views, where the column is
+ * the full width of the screen, get a single 36px row with the stage as a pill
+ * at the head of the line.
+ */
 const CalendarItem: FC<{
   date: dayjs.Dayjs;
   isBeforeNow: boolean;
@@ -1067,8 +1171,9 @@ const CalendarItem: FC<{
   duplicatePost: () => void;
   copyDebugJson?: () => void;
   deletePost: () => void;
-  statistics: () => void;
-  missingRelease?: () => void;
+  /** Bound per row, not per card: statistics belong to one channel. */
+  statistics: (id: string) => () => void;
+  missingRelease?: (id: string) => () => void;
   integrations: Integrations[];
   state: State;
   display: 'day' | 'week' | 'month';
@@ -1079,6 +1184,8 @@ const CalendarItem: FC<{
       tag: Tags;
     }[];
   };
+  /** Every row of the post's group, the lead included, in calendar order. */
+  channels?: any[];
 }> = memo((props) => {
   const t = useT();
   const {
@@ -1095,23 +1202,25 @@ const CalendarItem: FC<{
     showTime,
     missingRelease,
   } = props;
-  const { disableXAnalytics } = useVariables();
+  const { disableXAnalytics, language } = useVariables();
   const user = useUser();
   const showCreationMethodBadge =
     user?.impersonate &&
     post.creationMethod &&
     post.creationMethod !== 'UNKNOWN';
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const preview = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    event.currentTarget.focus();
-    setPreviewOpen(true);
-  }, []);
-  const closePreview = useCallback(() => setPreviewOpen(false), []);
+
+  const members: any[] = props.channels?.length ? props.channels : [post];
+  const wide = display === 'day';
+
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const closePreview = useCallback(() => setPreviewId(null), []);
+
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
       item: {
         id: post.id,
+        ids: members.map((member) => member.id),
         interval: !!post.intervalInDays,
         date,
       },
@@ -1119,16 +1228,176 @@ const CalendarItem: FC<{
         opacity: monitor.isDragging() ? 0 : 1,
       }),
     }),
-    []
+    [post.id, members.length]
   );
+
+  const locale = resolveEditorialStageLocale(language);
+  const tagNames = (post.tags || []).map((p) => p.tag.name).join(', ');
+  /*
+    The band says the stage. A post recorded before the stage field existed has
+    none, and rather than paint a blank strip the band falls back to the tag
+    names in the neutral tone — which is also where the tag survives now that
+    its own colour no longer paints the card.
+  */
+  const bandTone: StatusTone = post.editorialStage
+    ? EDITORIAL_STAGE_TONES[post.editorialStage as EditorialStageValue]
+    : 'neutral';
+  const bandLabel = post.editorialStage
+    ? editorialStageLabel(locale, post.editorialStage as EditorialStageValue)
+    : tagNames;
+  const bandTitle = [bandLabel, tagNames && tagNames !== bandLabel ? tagNames : '']
+    .filter(Boolean)
+    .join(' · ');
+
+  /*
+    Statistics are a property of one delivery, not of the post: the release id
+    lives on the row. So the action names the channel it will open whenever the
+    card carries more than one, instead of silently picking the first.
+  */
+  const statisticsMember = members.find(
+    (member) =>
+      member.releaseId &&
+      member.releaseId !== 'missing' &&
+      !(member.integration?.providerIdentifier === 'x' && disableXAnalytics)
+  );
+  const missingMember = members.find(
+    (member) =>
+      member.releaseId === 'missing' &&
+      !(member.integration?.providerIdentifier === 'x' && disableXAnalytics)
+  );
+  const named = (label: string, member: any) =>
+    members.length > 1 && member?.integration?.name
+      ? `${label}: ${member.integration.name}`
+      : label;
+
+  const actions: PostCardAction[] = [
+    {
+      key: 'preview',
+      label: named(t('preview_post', 'Preview post'), post),
+      icon: <EyeIcon />,
+      onClick: () => setPreviewId(post.id),
+    },
+    {
+      key: 'duplicate',
+      label: t('duplicate_post', 'Duplicate Post'),
+      icon: <CopyIcon />,
+      onClick: duplicatePost,
+    },
+    ...(statisticsMember
+      ? [
+          {
+            key: 'statistics',
+            label: named(
+              t('post_statistics', 'Post Statistics'),
+              statisticsMember
+            ),
+            icon: <ChartIcon />,
+            onClick: statistics(statisticsMember.id),
+          },
+        ]
+      : []),
+    ...(missingMember && missingRelease
+      ? [
+          {
+            key: 'missing-release',
+            label: named(t('connect_post', 'Connect Post'), missingMember),
+            icon: <ChartIcon />,
+            onClick: missingRelease(missingMember.id),
+          },
+        ]
+      : []),
+    ...(copyDebugJson
+      ? [
+          {
+            key: 'debug',
+            label: t('copy_debug_json', 'Copy Debug JSON'),
+            icon: <BracketsIcon />,
+            onClick: copyDebugJson,
+          },
+        ]
+      : []),
+    {
+      key: 'delete',
+      label: t('delete_post', 'Delete Post'),
+      icon: <TrashIcon />,
+      onClick: deletePost,
+      danger: true,
+    },
+  ];
+
+  /*
+    Merging a group's rows into one card would have taken the other channels'
+    previews away: each row used to be a card with an eye of its own. They come
+    back as menu entries, one per channel, each naming the channel it opens —
+    the marks themselves stay a reading, not a 20px control.
+  */
+  const channelPreviews: PostCardAction[] =
+    members.length > 1
+      ? members.map((member) => ({
+          key: `preview-${member.id}`,
+          label: named(t('preview_post', 'Preview post'), member),
+          icon: <EyeIcon />,
+          onClick: () => setPreviewId(member.id),
+        }))
+      : [];
+
+  const channelMarks = (
+    <ChannelMarks
+      channels={members.map((member) => ({
+        id: member.id,
+        name: member.integration?.name || '',
+        picture: member.integration?.picture,
+      }))}
+      max={wide ? 4 : 3}
+    />
+  );
+
+  const timeLabel = newDayjs(post.publishDate)
+    .local()
+    .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm');
+
+  const sentence = (
+    <>
+      {state === 'DRAFT' ? `${t('draft', 'Draft')}: ` : ''}
+      {stripHtmlValidation('none', post.content, false, true, false) ||
+        t('no_content', 'no content')}
+    </>
+  );
+
+  /*
+    The actions panel is out of the flow on the narrow card, so it cannot
+    change the card's height, and it is `pointer-events-none` until the card is
+    hovered — invisible controls that still swallow clicks are worse than no
+    controls. Keyboard focus is unaffected by `pointer-events`, which is why
+    `focus-within` alone is enough to bring it back for a tab user.
+  */
+  const actionsPanel = (
+    <PostCardActions
+      actions={actions}
+      extra={channelPreviews}
+      inline={wide}
+      moreLabel={t('more_actions', 'More actions')}
+      className={clsx(
+        'opacity-0 pointer-events-none',
+        'group-hover:opacity-100 group-hover:pointer-events-auto',
+        'focus-within:opacity-100 focus-within:pointer-events-auto',
+        'transition-opacity duration-state',
+        !wide && 'absolute -top-[12px] -end-[8px] z-30 shadow-menu'
+      )}
+    />
+  );
+
   return (
     <div
       // @ts-ignore
       ref={dragRef}
       className={clsx(
-        'w-full flex h-full flex-1 flex-col group',
-        'relative',
-        state === 'ERROR' && 'rounded-[10px] ring-2 ring-red-500'
+        'w-full flex flex-1 group relative',
+        wide ? 'items-center' : 'h-full flex-col',
+        'rounded-[8px] border bg-cf-surface-subtle',
+        state === 'ERROR' ? 'border-cf-danger' : 'border-cf-border',
+        wide && 'min-h-[36px] gap-[10px] px-[10px] py-[4px]',
+        isBeforeNow && '!grayscale'
       )}
       style={{
         opacity,
@@ -1136,7 +1405,7 @@ const CalendarItem: FC<{
     >
       {state === 'ERROR' && (
         <div
-          className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
+          className="absolute -top-[6px] -start-[6px] z-20 w-[18px] h-[18px] rounded-full bg-cf-danger flex items-center justify-center text-cf-ink-inverse cf-caption cursor-pointer"
           data-tooltip-id="tooltip"
           data-tooltip-content={calendarErrorMessage(post.error, t)}
         >
@@ -1144,163 +1413,73 @@ const CalendarItem: FC<{
         </div>
       )}
       {showCreationMethodBadge && (
-        <div className="absolute -bottom-[4px] -right-[4px] z-10">
+        <div className="absolute -bottom-[4px] -end-[4px] z-10">
           <CreationMethodBadge
             creationMethod={post.creationMethod}
-            ringColor="var(--new-bgColor)"
+            ringColor="var(--cf-surface-subtle)"
           />
         </div>
       )}
-      <div
-        className={clsx(
-          'text-cf-accent-ink text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-btnPrimary'
-        )}
-        style={{
-          backgroundColor: post?.tags?.[0]?.tag?.color,
-        }}
-      >
-        <div
-          className={clsx(
-            post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
-            'group-hover:hidden cursor-pointer'
+
+      {wide ? (
+        <>
+          {bandLabel && (
+            <StagePill tone={bandTone} label={bandLabel} title={bandTitle} />
           )}
-        >
-          {post.tags.map((p) => p.tag.name).join(', ')}
-        </div>
-        {copyDebugJson && (
           <div
-            className={clsx(
-              'hidden group-hover:block hover:underline cursor-pointer',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-            )}
-            onClick={copyDebugJson}
+            onClick={editPost}
+            className="flex-1 min-w-0 cf-body-md text-cf-ink truncate text-start cursor-pointer"
           >
-            <CopyDebug />
+            {sentence}
           </div>
-        )}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+          {channelMarks}
+          {showTime && (
+            <span className="shrink-0 cf-caption text-cf-ink-muted">
+              {timeLabel}
+            </span>
           )}
-          onClick={duplicatePost}
-        >
-          <Duplicate />
-        </div>
-        <Button
-          iconOnly
-          size={20}
-          variant="quiet"
-          type="button"
-          aria-label={t('preview_post', 'Preview post')}
-          className={clsx(
-            'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:underline cursor-pointer',
-            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+          {actionsPanel}
+        </>
+      ) : (
+        <>
+          {bandLabel && (
+            <StageBand tone={bandTone} label={bandLabel} title={bandTitle} />
           )}
-          onClick={preview}
-        >
-          <Preview />
-        </Button>{' '}
-        {(post.integration.providerIdentifier === 'x' && disableXAnalytics) ||
-        !post.releaseId ? (
-          <></>
-        ) : post.releaseId === 'missing' && missingRelease ? (
           <div
+            onClick={editPost}
             className={clsx(
-              'hidden group-hover:block hover:underline cursor-pointer',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+              'flex flex-col flex-1 gap-[4px] w-full min-w-0 px-[8px] py-[4px] cursor-pointer',
+              'rounded-b-[8px]',
+              !bandLabel && 'rounded-t-[8px]'
             )}
-            onClick={missingRelease}
           >
-            <Statistics />
-          </div>
-        ) : post.releaseId !== 'missing' ? (
-          <div
-            className={clsx(
-              'hidden group-hover:block hover:underline cursor-pointer',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-            )}
-            onClick={statistics}
-          >
-            <Statistics />
-          </div>
-        ) : (
-          <></>
-        )}{' '}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={deletePost}
-        >
-          <DeletePost />
-        </div>
-      </div>
-      <div
-        onClick={editPost}
-        className={clsx(
-          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-newColColor',
-          'relative',
-          isBeforeNow && '!grayscale'
-        )}
-      >
-        {/*
-          The tightest row the badge has to survive, and the reason the scale
-          has a 16px step at all. The avatar was 20px with a 12px logo — neither
-          number was chosen, and 12 is below the floor the scale declares.
-        */}
-        <div className={clsx('relative min-w-[32px]')}>
-          {post.integration.picture ? (
-            <img
-              className="w-[32px] h-[32px] rounded-[8px]"
-              src={post.integration.picture}
-              alt={post.integration.name}
-            />
-          ) : (
-            <PlatformSymbol
-              identifier={post.integration.providerIdentifier}
-              size={32}
-              decorative={false}
-              name={post.integration.name}
-            />
-          )}
-          <PlatformBadge
-            identifier={post.integration.providerIdentifier}
-            size={16}
-            className="absolute z-10 -bottom-[4px] -end-[4px]"
-          />
-        </div>
-        <div className="w-full flex-1 flex flex-col min-h-[40px]">
-          {post.editorialStage && (
-            <EditorialStageBadge
-              stage={post.editorialStage}
-              className="self-start mb-[4px] max-w-full truncate"
-            />
-          )}
-          <div className="text-start">
-            {state === 'DRAFT' ? t('draft', 'Draft') + ': ' : ''}
-          </div>
-          <div className="w-full relative">
-            <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start">
-              {stripHtmlValidation('none', post.content, false, true, false) ||
-                t('no_content', 'no content')}
+            {/*
+              `min-w-0` is what keeps the sentence inside the card: a flex item
+              defaults to `min-width: auto`, so without it the longest word
+              sets the column's width and the card's own border stops meaning
+              anything. In flow, not an absolute overlay — out of flow it
+              contributes no height and the text paints over the card below.
+            */}
+            <div className="w-full min-w-0 cf-body-sm text-cf-ink line-clamp-1 text-start">
+              {sentence}
+            </div>
+            <div className="flex items-center w-full min-w-0">
+              {channelMarks}
+              {showTime && (
+                <span className="ms-auto ps-[8px] shrink-0 cf-caption text-cf-ink-muted">
+                  {timeLabel}
+                </span>
+              )}
             </div>
           </div>
-        </div>
-        {showTime && (
-          <div className="text-textColor/50 text-[12px] whitespace-nowrap flex items-center">
-            {newDayjs(post.publishDate)
-              .local()
-              .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
-          </div>
-        )}
-      </div>
+          {actionsPanel}
+        </>
+      )}
+
       <PostPreviewDialog
-        open={previewOpen}
+        open={Boolean(previewId)}
         onClose={closePreview}
-        postId={post.id}
+        postId={previewId || post.id}
       />
     </div>
   );
@@ -1350,104 +1529,6 @@ const DebugJsonModal: FC<{ post: any }> = ({ post }) => {
         </Button>
       </div>
     </div>
-  );
-};
-const CopyDebug = () => {
-  const t = useT();
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      data-tooltip-id="tooltip"
-      data-tooltip-content={t('copy_debug_json', 'Copy Debug JSON')}
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-};
-const Duplicate = () => {
-  const t = useT();
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 32 32"
-      fill="none"
-      data-tooltip-id="tooltip"
-      data-tooltip-content={t('duplicate_post', 'Duplicate Post')}
-    >
-      <path
-        d="M27 5H9C8.46957 5 7.96086 5.21071 7.58579 5.58579C7.21071 5.96086 7 6.46957 7 7V9H5C4.46957 9 3.96086 9.21071 3.58579 9.58579C3.21071 9.96086 3 10.4696 3 11V25C3 25.5304 3.21071 26.0391 3.58579 26.4142C3.96086 26.7893 4.46957 27 5 27H23C23.5304 27 24.0391 26.7893 24.4142 26.4142C24.7893 26.0391 25 25.5304 25 25V23H27C27.5304 23 28.0391 22.7893 28.4142 22.4142C28.7893 22.0391 29 21.5304 29 21V7C29 6.46957 28.7893 5.96086 28.4142 5.58579C28.0391 5.21071 27.5304 5 27 5ZM23 11V13H5V11H23ZM23 25H5V15H23V25ZM27 21H25V11C25 10.4696 24.7893 9.96086 24.4142 9.58579C24.0391 9.21071 23.5304 9 23 9H9V7H27V21Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-};
-const Preview = () => {
-  const t = useT();
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 32 32"
-      fill="none"
-      data-tooltip-id="tooltip"
-      data-tooltip-content={t('preview_post', 'Preview Post')}
-    >
-      <path
-        d="M30.9137 15.595C30.87 15.4963 29.8112 13.1475 27.4575 10.7937C24.3212 7.6575 20.36 6 16 6C11.64 6 7.67874 7.6575 4.54249 10.7937C2.18874 13.1475 1.12499 15.5 1.08624 15.595C1.02938 15.7229 1 15.8613 1 16.0012C1 16.1412 1.02938 16.2796 1.08624 16.4075C1.12999 16.5062 2.18874 18.8538 4.54249 21.2075C7.67874 24.3425 11.64 26 16 26C20.36 26 24.3212 24.3425 27.4575 21.2075C29.8112 18.8538 30.87 16.5062 30.9137 16.4075C30.9706 16.2796 31 16.1412 31 16.0012C31 15.8613 30.9706 15.7229 30.9137 15.595ZM16 24C12.1525 24 8.79124 22.6012 6.00874 19.8438C4.86704 18.7084 3.89572 17.4137 3.12499 16C3.89551 14.5862 4.86686 13.2915 6.00874 12.1562C8.79124 9.39875 12.1525 8 16 8C19.8475 8 23.2087 9.39875 25.9912 12.1562C27.1352 13.2912 28.1086 14.5859 28.8812 16C27.98 17.6825 24.0537 24 16 24ZM16 10C14.8133 10 13.6533 10.3519 12.6666 11.0112C11.6799 11.6705 10.9108 12.6075 10.4567 13.7039C10.0026 14.8003 9.88377 16.0067 10.1153 17.1705C10.3468 18.3344 10.9182 19.4035 11.7573 20.2426C12.5965 21.0818 13.6656 21.6532 14.8294 21.8847C15.9933 22.1162 17.1997 21.9974 18.2961 21.5433C19.3924 21.0892 20.3295 20.3201 20.9888 19.3334C21.6481 18.3467 22 17.1867 22 16C21.9983 14.4092 21.3657 12.884 20.2408 11.7592C19.1159 10.6343 17.5908 10.0017 16 10ZM16 20C15.2089 20 14.4355 19.7654 13.7777 19.3259C13.1199 18.8864 12.6072 18.2616 12.3045 17.5307C12.0017 16.7998 11.9225 15.9956 12.0768 15.2196C12.2312 14.4437 12.6122 13.731 13.1716 13.1716C13.731 12.6122 14.4437 12.2312 15.2196 12.0769C15.9956 11.9225 16.7998 12.0017 17.5307 12.3045C18.2616 12.6072 18.8863 13.1199 19.3259 13.7777C19.7654 14.4355 20 15.2089 20 16C20 17.0609 19.5786 18.0783 18.8284 18.8284C18.0783 19.5786 17.0609 20 16 20Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-};
-export const Statistics = () => {
-  const t = useT();
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 32 32"
-      fill="none"
-      data-tooltip-id="tooltip"
-      data-tooltip-content={t('post_statistics', 'Post Statistics')}
-    >
-      <path
-        d="M28 25H27V5C27 4.73478 26.8946 4.48043 26.7071 4.29289C26.5196 4.10536 26.2652 4 26 4H19C18.7348 4 18.4804 4.10536 18.2929 4.29289C18.1054 4.48043 18 4.73478 18 5V10H12C11.7348 10 11.4804 10.1054 11.2929 10.2929C11.1054 10.4804 11 10.7348 11 11V16H6C5.73478 16 5.48043 16.1054 5.29289 16.2929C5.10536 16.4804 5 16.7348 5 17V25H4C3.73478 25 3.48043 25.1054 3.29289 25.2929C3.10536 25.4804 3 25.7348 3 26C3 26.2652 3.10536 26.5196 3.29289 26.7071C3.48043 26.8946 3.73478 27 4 27H28C28.2652 27 28.5196 26.8946 28.7071 26.7071C28.8946 26.5196 29 26.2652 29 26C29 25.7348 28.8946 25.4804 28.7071 25.2929C28.5196 25.1054 28.2652 25 28 25ZM20 6H25V25H20V6ZM13 12H18V25H13V12ZM7 18H11V25H7V18Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-};
-
-export const DeletePost = () => {
-  const t = useT();
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      data-tooltip-id="tooltip"
-      data-tooltip-content={t('delete_post', 'Delete Post')}
-    >
-      <path
-        d="M15 10V18H9V10H15ZM14 4H9.9L8.9 5H6V7H18V5H15L14 4ZM17 8H7V18C7 19.1 7.9 20 9 20H15C16.1 20 17 19.1 17 18V8Z"
-        fill="currentColor"
-      />
-    </svg>
   );
 };
 

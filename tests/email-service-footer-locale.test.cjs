@@ -42,6 +42,11 @@ const { EmailService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/locale/backend-strings.ts'
     ),
+    // The shell `sendEmailSync` wraps every email in lives here; the loader
+    // only resolves an import a test names, so it is loaded for real.
+    '@contentfactory/nestjs-libraries/emails/email.template': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/emails/email.template.ts'
+    ),
   }
 );
 

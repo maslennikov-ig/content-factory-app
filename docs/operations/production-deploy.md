@@ -498,6 +498,29 @@ diff трогает данные или несколько баз сразу, н
 коду. Значение приведено к `a74aaa76f99b`, копия прежнего — `app.env.bak-before-a74aaa76`,
 прежний `.env` — `.env.bak-20260901`.
 
+**Выпуск `5d9b745ea0d8` 02.09.2026, цель отката `f2452df947e8`.** Догоняет
+боевую до `main` после волны прогона 01.09: этап поста как поле, привязка
+Telegram, язык пользователя, подписки «Откуда идеи». Схема приложена **до**
+переключения образа из одноразового контейнера нового образа — порядок,
+который эта ремарка и породила (см. «Применение Prisma-схемы»): боевая
+отставала на `User.language`, обе таблицы `ContentLead*`, `Post.editorialStage`
+и три колонки `User.telegram*`, а `User.language` читается на пути входа, так
+что при обратном порядке сломался бы вход, а не календарь. Копии сняты до
+применения: `/srv/content-factory-next/backups/pre-*.dump`. Вместе с выпуском
+остановлен рабочий процесс `send_email` v1 на боевом Temporal: он ждал
+`condition()` без предела, вызывающие переведены на `send_email_v2`, очередь
+была пуста.
+
+**Разрешение владельца на этот выпуск дано устно в той же сессии и покрывало
+все четыре действия поимённо: выкладку, применение схемы к боевой базе,
+остановку `send_email` v1 и `push` в `origin/main`.** Записано здесь
+02.09.2026 задним числом — в тот день запись не была сделана ни здесь, ни в
+handoff, ни в Beads, и аудит того же дня нашёл её отсутствие
+(`content-factory-next-fkft`). Правило, ради которого эта строка стоит:
+разрешение, которого нет в runbook, следующий читатель считает
+несуществующим, и он прав — устного слова через неделю не найдёт никто.
+Запрет по DNS в тот день соблюдён, ничего не менялось.
+
 Вместе с выпуском на хост доставлен исправленный
 `scripts/operations/postgres-backup.sh` (`ec6885a6`): прежняя копия удаляла
 артефакт, который сам же и записала, когда вызывающий пришпиливал
@@ -1391,9 +1414,41 @@ preflight упали, `app.env` не менять и приложение не �
 
 ### Применение Prisma-схемы
 
-Схему применяет **новый** контейнер и только **после** `up -d`. Схема живёт
-внутри образа: пока работает старый контейнер, `prisma migrate diff` в нём
-читает старую `schema.prisma` и новой таблицы не покажет. Каталога `migrations`
+> **02.09.2026: схему приложили ДО переключения образа, и это оказалось
+> правильнее.** Порядок ниже написан из верного наблюдения — `migrate diff`
+> внутри старого контейнера читает старую `schema.prisma`. Но diff можно
+> получить в одноразовом контейнере из **нового** образа, ничего не переключая:
+>
+> ```bash
+> docker run --rm --network content-factory-next_internal \
+>   --env-file <файл с DATABASE_URL, режим 600> -v /tmp/cf-schema:/out \
+>   --entrypoint sh <новый образ> -c 'cd /app && npx prisma migrate diff \
+>     --from-url "$DATABASE_URL" \
+>     --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
+>     --script > /out/diff.sql'
+> ```
+>
+> Почему это важнее, чем кажется. В тот день боевая база отставала на несколько
+> изменений сразу — `User.language`, обе таблицы `ContentLead*`,
+> `Post.editorialStage` и три Telegram колонки `User.telegramChatId`,
+> `User.telegramBindingCode`, `User.telegramBindingCodeExpiresAt` — и новый код
+> выбирает их все. По порядку «сначала переключить» сломался бы не календарь, а
+> **вход**: `User.language` читается на пути входа. Окно было бы не косметическим.
+>
+> Применять раньше безопасно ровно потому, что режим `update` пропускает только
+> добавляющие операторы, а их старый код не выбирает. По той же причине откат
+> образа после этого остаётся однострочным: оговорка «откат схемы требует
+> отдельного плана» к добавляющему изменению не относится.
+>
+> Копию базы снимать до применения:
+> `docker exec cf-next-postgres pg_dump -U <user> -d <db> -Fc > /srv/content-factory-next/backups/pre-<тег>.dump`.
+> На 02.09 база весила 17 МБ, копия — 1,3 МБ.
+
+Схему применяют **до** `up -d`, в одноразовом контейнере нового образа,
+прежде чем переключить сокращение Compose (см. выше). Схема живёт внутри
+образа: пока работает старый контейнер, `prisma migrate diff` в нём читает
+старую `schema.prisma` и новой таблицы не покажет. С новым образом `migrate diff`
+можно запустить один раз в отдельной команде, без переключения живого сервиса. Каталога `migrations`
 в репозитории нет, и это не случайность: Prisma здесь никогда не вела историю
 миграций, поэтому `prisma migrate deploy` счёл бы боевую базу
 неинициализированной. Единственный путь изменения схемы — тот, что описан ниже:
@@ -1431,6 +1486,13 @@ preflight упали, `app.env` не менять и приложение не �
 применяет проверенный файл. `migrate diff --exit-code` возвращает `0` для
 пустого diff, `2` для непустого и `1` при ошибке. При `0` развёртывание схемы
 завершено: сообщите «изменений нет» и не переходите к выбору или применению.
+
+Готовые точечные миграции, если требуются, лежат в `docs/operations/`:
+
+- [`content-leads-schema-apply.sql`](./content-leads-schema-apply.sql) — две таблицы для отслеживания источников идей
+- [`avatars-schema-apply.sql`](./avatars-schema-apply.sql) — хранилище аватаров и их метаданные
+- [`editorial-stage-schema-apply.sql`](./editorial-stage-schema-apply.sql) — редакционный этап поста enum и индекс
+- [`telegram-binding-schema-apply.sql`](./telegram-binding-schema-apply.sql) — три колонки для Telegram входа и привязки
 
 В образе уже есть
 `scripts/operations/validate-prisma-migration-sql.cjs`. Он не подключается к
@@ -1610,7 +1672,17 @@ docker compose exec -T cf-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t
 
 #### Если изменилась Prisma-схема
 
-Как и в bootstrap, блоки вставляются по одному и ни один не завершает сессию.
+Порядок один: схема применяется **до** `up -d`, а `migrate diff` и валидатор
+запускаются в **одноразовом контейнере из нового образа** — той самой командой,
+что в ремарке от 02.09.2026 выше. Порядок «сначала переключить, потом
+применить» **не безопасен**: Prisma выбирает все скалярные поля модели, поэтому
+новый код падает на первом же чтении `User`, если добавленной колонки ещё нет —
+02.09 это сломало бы вход. Обратный порядок безопасен, потому что режим `update`
+пропускает только добавляющие операторы, а старый код их не выбирает.
+
+Ниже `<новый образ>` — тег, который собирается переключить `up -d`;
+`/tmp/cf-schema` — каталог на хосте для diff и отобранного файла. Как и в
+bootstrap, блоки вставляются по одному и ни один не завершает сессию.
 
 > Этот порядок впервые исполнен на боевой базе 24.08.2026 выпуском
 > `ac2c7119a887` — тремя операторами по `ProjectBrandProfileVersion`, а не
@@ -1642,8 +1714,10 @@ docker compose exec -T cf-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t
 согласием уже пишет pending-поле.
 
 ```bash
-# 1. Поднять новый образ (шаг выше), дождаться, что контейнер работает
-docker compose ps cf-app
+# 1. Новый образ должен быть уже загружен на хост (docker load), но НЕ поднят.
+#    Проверить, что тег на месте, и завести каталог для diff.
+docker image inspect --format '{{.Id}}' <новый образ>
+mkdir -p /tmp/cf-schema && chmod 700 /tmp/cf-schema
 
 # 2. Прочитать локальную конфигурацию только в текущую оболочку, затем
 #    зафиксировать число таблиц Mastra до изменения.
@@ -1654,13 +1728,15 @@ mastra_table_count="$(docker compose exec -T cf-postgres \
    WHERE table_schema='public' AND table_name LIKE 'mastra_%';")"
 echo "mastra_* до применения: $mastra_table_count"
 
-# 3. Сохранить предпросмотр внутри нового контейнера. Команда ничего не меняет,
-#    только читает схему и печатает SQL. Статус 2 означает непустой diff, а не
-#    ошибку.
-docker compose exec -T cf-app sh -c 'pnpm exec prisma migrate diff \
-  --from-schema-datasource libraries/nestjs-libraries/src/database/prisma/schema.prisma \
-  --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
-  --script --exit-code > /tmp/cf-prisma-diff.sql' \
+# 3. Сохранить предпросмотр из одноразового контейнера НОВОГО образа. Команда
+#    ничего не меняет, только читает боевую базу и печатает SQL. Статус 2
+#    означает непустой diff, а не ошибку. Файл с DATABASE_URL — режим 600.
+docker run --rm --network content-factory-next_internal \
+  --env-file /srv/content-factory-next/.env -v /tmp/cf-schema:/out \
+  --entrypoint sh <новый образ> -c 'cd /app && npx prisma migrate diff \
+    --from-url "$DATABASE_URL" \
+    --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma \
+    --script --exit-code > /out/cf-prisma-diff.sql' \
   && diff_status=0 || diff_status=$?
 case "$diff_status" in
   0) echo "изменений нет: применять нечего, остановиться здесь" ;;
@@ -1679,12 +1755,12 @@ esac
 /srv/content-factory-next/scripts/operations/postgres-backup.sh
 ls -1 /var/backups/content-factory-next/postgres | tail -3
 
-# 5. Скопировать предпросмотр на хост для ручного отбора.
-docker cp cf-next-app:/tmp/cf-prisma-diff.sql /tmp/cf-prisma-diff.sql
+# 5. Предпросмотр уже на хосте: /tmp/cf-schema/cf-prisma-diff.sql.
+ls -l /tmp/cf-schema/cf-prisma-diff.sql
 ```
 
-**Сделать руками: шаг 6.** Открыть `/tmp/cf-prisma-diff.sql`, создать рядом
-`/tmp/cf-prisma-selected.sql` и перенести в него ТОЛЬКО точные операторы своих
+**Сделать руками: шаг 6.** Открыть `/tmp/cf-schema/cf-prisma-diff.sql`, создать
+рядом `/tmp/cf-schema/cf-prisma-selected.sql` и перенести в него ТОЛЬКО точные операторы своих
 таблиц. Не вставлять `mastra_*`, `DROP`, изменение типа или изменение данных.
 Выписать имена всех затронутых собственных таблиц и рядом — имена всех
 перечислений, которые diff создаёт (`CREATE TYPE ... AS ENUM`). На шаге 7
@@ -1695,19 +1771,20 @@ docker cp cf-next-app:/tmp/cf-prisma-diff.sql /tmp/cf-prisma-diff.sql
 **Выполнить: шаги 7–8.**
 
 ```bash
-# 7. Вернуть отобранный файл в контейнер и проверить его. Для описанного выше
-#    newsletter diff точный и единственный allowlist-путь — User.
-docker cp /tmp/cf-prisma-selected.sql cf-next-app:/tmp/cf-prisma-selected.sql
-docker compose exec -T cf-app node scripts/operations/validate-prisma-migration-sql.cjs \
-  --diff /tmp/cf-prisma-diff.sql \
-  --selected /tmp/cf-prisma-selected.sql \
-  --allow-table User
+# 7. Проверить отобранный файл валидатором из того же нового образа. Для
+#    описанного выше newsletter diff точный и единственный allowlist-путь — User.
+docker run --rm -v /tmp/cf-schema:/out --entrypoint sh <новый образ> -c \
+  'cd /app && node scripts/operations/validate-prisma-migration-sql.cjs \
+     --mode update \
+     --diff /out/cf-prisma-diff.sql \
+     --selected /out/cf-prisma-selected.sql \
+     --allow-table User'
 
-# 8. Только после успешного шага 7 скопировать именно проверенный файл из
-#    cf-app на хост, затем в cf-postgres и применить его одной транзакцией.
-#    Цепочка остановится при первой ошибке копирования или psql.
-docker cp cf-next-app:/tmp/cf-prisma-selected.sql /tmp/cf-prisma-selected.checked.sql \
-  && docker cp /tmp/cf-prisma-selected.checked.sql \
+# 8. Только после успешного шага 7 скопировать именно проверенный файл в
+#    cf-postgres и применить его одной транзакцией. Цепочка остановится при
+#    первой ошибке копирования или psql. Работающий сервис всё это время —
+#    старый образ, и он новых колонок не читает.
+docker cp /tmp/cf-schema/cf-prisma-selected.sql \
        cf-next-postgres:/tmp/cf-prisma-selected.checked.sql \
   && docker compose exec -T cf-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
        -v ON_ERROR_STOP=1 --single-transaction \
@@ -1726,6 +1803,9 @@ if [ "$(docker compose exec -T cf-postgres \
 then echo "mastra_* ok: $mastra_table_count"
 else echo "mastra_* mismatch: поднимать резервную копию шага 4" >&2
 fi
+
+# 10. Только теперь переключать образ: `up -d` из раздела выше. Повторный
+#     migrate diff (шаг 3) после переключения обязан вернуть пустой diff.
 ```
 
 Что нормально увидеть на шаге 3: `CREATE TABLE` и `CREATE INDEX` для того, что
@@ -2118,16 +2198,17 @@ docker compose exec -T cf-postgres \
   регистрации создали учётки в 06:58 и 07:01, а история процесса `send_email`
   обрывается 16.08.2026 — сигналов в тот день не было.
 
-  Уведомления администратору о новой заявке нет по-прежнему: ожидающие
-  аккаунты видно только на `/admin/users`, и узнать о них можно, лишь открыв
-  страницу. Решение владельца по этому пункту не принято.
+  **История.** Раньше уведомления администратору о новой заявке не было и
+  ожидающие аккаунты видны только на `/admin/users`. С 02.09.2026
+  `TelegramUpdatesService.notifyAdminsOfPendingApproval` существует и
+  вызывается из `auth.service.ts` при создании каждой заявки на одобрение.
 
-  Отдельно и опаснее: почтовый путь **не умеет сообщать о сбое**.
-  `resend.provider.ts` ловит любое исключение в `console.log` и возвращает
-  `{ sent: false }`, поэтому цикл повторов в `sendEmailSync` не срабатывает, а
-  activity завершается успешно. Отозванный или просроченный ключ выглядит
-  ровно как удачная отправка. Там же клиент создаётся на импорте модуля с
-  подстановкой `re_132`, если ключа нет, — то есть отсутствие ключа тоже не
-  падение. См. `content-factory-next-7jxo`.
+  **История.** Раньше почтовый путь не умел сообщать о сбое: `resend.provider.ts`
+  ловил исключение в `console.log` и возвращал `{ sent: false }`, цикл повторов
+  не срабатывал, а activity завершалась успешно. Отозванный или просроченный
+  ключ выглядел ровно как удачная отправка. Клиент создавался на импорте модуля
+  с подстановкой `re_132`, если ключа нет. С 02.09.2026 клиент строится лениво
+  на первом использовании и выбрасывает `EmailSendError` при отсутствии ключа
+  или при ошибке Resend; цикл повторов срабатывает на retryable ошибках.
 - **Модель.** Ключи языковой модели не заданы: генерация текста и картинок
   выключена до решения владельца.

@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "তারিখ পরিবর্তন করা যাবে না, প্রকাশনা থেকে পোস্ট সরান",
   "predicted_github_trending_change": "পূর্বাভাসিত GitHub ট্রেন্ডিং পরিবর্তন",
   "duplicate_post": "পোস্ট ডুপ্লিকেট করুন",
+  "more_actions": "আরও অ্যাকশন",
   "preview_post": "পোস্ট প্রিভিউ",
   "post_statistics": "পোস্ট পরিসংখ্যান",
   "draft": "খসড়া",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "সবচেয়ে বেশি ক্লিক এনেছে {{channel}} — পরের পরিকল্পনা এখান থেকেই শুরু।",
   "public_saas_result_detail": "উপাদান চলে গেছে। সংখ্যাগুলো ডেমো, কিন্তু ভাগ করা হয়েছে পণ্যের মতোই: চ্যানেলভিত্তিক, আর কেবল সেই চ্যানেলগুলোর জন্য যেখানে এটি সত্যিই পৌঁছেছে।",
   "public_saas_demo_channels_label": "প্রকাশের চ্যানেল",
-  "public_saas_demo_no_channels": "অন্তত একটি চ্যানেল বেছে নিন — উপাদানটিকে কোথাও তো যেতে হবে।"
+  "public_saas_demo_no_channels": "অন্তত একটি চ্যানেল বেছে নিন — উপাদানটিকে কোথাও তো যেতে হবে।",
+  "onboarding_step_next": "কোথা থেকে শুরু করবেন",
+  "onboarding_next_title": "কোথা থেকে শুরু করবেন",
+  "onboarding_next_description": "একটি কনটেন্ট দিয়ে ছয় ধাপ: চ্যানেল, কণ্ঠ, ভিত্তি, ব্রিফ, খসড়া, সময়সূচি। যা হয়ে গেছে তা নিজেই চিহ্নিত হয়।"
 }

@@ -1,4 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { SourceFetchGateway } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway';
 import { SourceRegistryError } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/errors';
 import { canonicalizeSourceUrl } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/network-policy';
@@ -20,13 +21,13 @@ import { parseSourcePayload } from '@contentfactory/nestjs-libraries/content-int
  * "what is new since last time" rather than "what does this page say" — and
  * turns the feed's own items into candidates for `lead-reason.ts` to explain.
  *
- * `docs/product/content-section-map.md` §5: on the boxes running this product
- * today, `SOURCE_DIRECT_FETCH` and `SOURCE_PERIODIC_SYNC` are both off, and a
- * subscription check is exactly that kind of network call. `enabled` here is
- * its own flag rather than reusing either — a workspace's leads and its
- * source registry are unrelated features that happen to share a fetch
- * mechanism, and one operator turning fetching on for one must not silently
- * turn it on for the other.
+ * `docs/product/content-section-map.md` §3-4: on the boxes running this
+ * product today, `SOURCE_DIRECT_FETCH` and `SOURCE_PERIODIC_SYNC` are both
+ * off, and a subscription check is exactly that kind of network call.
+ * `enabled` here is its own flag rather than reusing either — a workspace's
+ * leads and its source registry are unrelated features that happen to share
+ * a fetch mechanism, and one operator turning fetching on for one must not
+ * silently turn it on for the other.
  */
 
 export type LeadFeedKind = 'RSS';
@@ -42,6 +43,28 @@ export type LeadFeedItemV1 = {
 export type LeadFeedCheckResultV1 =
   | { disabled: true; items?: undefined }
   | { disabled: false; items: LeadFeedItemV1[] };
+
+/**
+ * `upsertLeads` remembers a decline by `(organizationId, subscriptionId,
+ * externalId)` (`ContentLeadRepository.upsertLeads`,
+ * `content-lead-dismissal-guard.test.cjs`). A feed item with no id, guid or
+ * link used to fall back to `${url}#${index}` — a purely positional id. Once
+ * a person dismissed the lead that was at, say, index 1, whatever the feed
+ * happened to place at index 1 on a later check silently inherited that
+ * dismissal, even though it was unrelated content the person never saw.
+ *
+ * A content-derived hash has no such position dependency: the same item
+ * keeps the same identity wherever the feed puts it, and different content
+ * never collides just because it landed on the same index.
+ */
+function fallbackIdentity(
+  url: string,
+  title: string,
+  publishedAt: Date | null
+): string {
+  const key = `${url}|${title}|${publishedAt ? publishedAt.toISOString() : ''}`;
+  return createHash('sha256').update(key).digest('hex');
+}
 
 function itemTitle(
   structured: { title?: unknown } | undefined,
@@ -104,26 +127,30 @@ export class LeadFeedGateway {
       charset: result.charset,
     });
 
-    const items: LeadFeedItemV1[] = payload.evidence.map((evidence, index) => {
+    const items: LeadFeedItemV1[] = payload.evidence.map((evidence) => {
       const locator = (evidence.locator || {}) as Record<string, unknown>;
       const structured = evidence.structuredData as
         | { title?: unknown; publishedAt?: unknown }
         | undefined;
-      const identity =
-        typeof locator.identity === 'string' && locator.identity.trim()
-          ? locator.identity.trim()
-          : `${url}#${index}`;
-      const publishedAt =
+      const title = itemTitle(structured, evidence.excerpt, payload.title || url);
+      const rawPublishedAt =
         typeof structured?.publishedAt === 'string' && structured.publishedAt
           ? new Date(structured.publishedAt)
           : null;
+      const publishedAt =
+        rawPublishedAt && !Number.isNaN(rawPublishedAt.getTime())
+          ? rawPublishedAt
+          : null;
+      const identity =
+        typeof locator.identity === 'string' && locator.identity.trim()
+          ? locator.identity.trim()
+          : fallbackIdentity(url, title, publishedAt);
       return {
         externalId: identity,
-        title: itemTitle(structured, evidence.excerpt, payload.title || url),
+        title,
         excerpt: evidence.excerpt || null,
         sourceUrl: /^https?:\/\//iu.test(identity) ? identity : url,
-        publishedAt:
-          publishedAt && !Number.isNaN(publishedAt.getTime()) ? publishedAt : null,
+        publishedAt,
       };
     });
 

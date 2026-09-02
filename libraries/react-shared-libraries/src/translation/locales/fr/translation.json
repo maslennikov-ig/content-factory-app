@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Impossible de changer la date, retirez la publication de la publication",
   "predicted_github_trending_change": "Changement de tendance GitHub prédit",
   "duplicate_post": "Publication en double",
+  "more_actions": "Autres actions",
   "preview_post": "Aperçu de la publication",
   "post_statistics": "Statistiques de la publication",
   "draft": "Brouillon",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "C’est {{channel}} qui a apporté le plus de clics — c’est là-dessus que se bâtit le plan suivant.",
   "public_saas_result_detail": "Le contenu est parti. Les chiffres sont des données de démonstration, mais ils sont ventilés comme dans le produit : par canal, et seulement ceux qu’il a réellement atteints.",
   "public_saas_demo_channels_label": "Canaux de publication",
-  "public_saas_demo_no_channels": "Choisissez au moins un canal : le contenu doit bien aller quelque part."
+  "public_saas_demo_no_channels": "Choisissez au moins un canal : le contenu doit bien aller quelque part.",
+  "onboarding_step_next": "Par où commencer",
+  "onboarding_next_title": "Par où commencer",
+  "onboarding_next_description": "Six étapes pour un seul contenu : canal, voix, un appui, brief, brouillon, planification. Ce qui est fait se coche tout seul."
 }

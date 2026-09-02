@@ -57,7 +57,7 @@ function presentLead(row: any) {
  * «Откуда идеи» — a subscription checked on a schedule, and the leads it
  * brought back.
  *
- * `content-factory-next-odb8.3`. `docs/product/content-section-map.md` §5
+ * `content-factory-next-odb8.3`. `docs/product/content-section-map.md` §1 и §2
  * names the two facts this module exists because of: the topic radar
  * (`content-brief.radar.ts`) never looked at a source, and `AutoPost`
  * generates a full draft on its own hourly workflow without ever showing a
@@ -110,6 +110,10 @@ export class ContentLeadService {
         workflowId: workflowIdFor(subscriptionId),
         taskQueue: 'main',
         args: [{ organizationId, subscriptionId, checkIntervalMinutes }],
+        // A start against an id that is already Running just attaches to
+        // it — cheap and idempotent, which is what lets the manual check
+        // path call this again as a recovery, not only `createSubscription`.
+        workflowIdConflictPolicy: 'USE_EXISTING',
         typedSearchAttributes: new TypedSearchAttributes([
           { key: organizationSearchAttribute, value: organizationId },
         ]),
@@ -211,18 +215,54 @@ export class ContentLeadService {
 
   /**
    * "Проверить сейчас" and the periodic workflow's own tick both call this.
+   * `ensurePeriodicCheck` is only ever passed by the manual "Проверить
+   * сейчас" route (`ContentLeadController.check`): if the periodic
+   * workflow failed to start when the subscription was created — Temporal
+   * unreachable at that moment — nothing else ever retried starting it, and
+   * `ContentLeadRepository.setState` sat there unused as the only trace that
+   * a recovery path was meant to exist. A person clicking "check now"
+   * doubles as that recovery, via the same idempotent
+   * `workflowIdConflictPolicy: 'USE_EXISTING'` `startPeriodicCheck` already
+   * uses. Left at its default (`false`), the periodic workflow's own tick —
+   * which calls this with no options — does not pay for an extra Temporal
+   * round trip every interval.
    *
    * Not a source-registry sync: nothing here writes a `SourceSnapshot` or
    * `SourceEvidence`. A feed item becomes a `ContentLead` row, or — if the
    * item's `externalId` already has one from an earlier check — it becomes
    * nothing at all, whatever that earlier row's `status` now reads.
    */
-  async checkSubscription(organizationId: string, subscriptionId: string) {
+  async checkSubscription(
+    organizationId: string,
+    subscriptionId: string,
+    options: { ensurePeriodicCheck?: boolean } = {}
+  ) {
     const subscription = await this.repository.getSubscription(
       organizationId,
       subscriptionId
     );
     const now = this.now();
+
+    // `schema.prisma`'s own comment on `ContentLeadSubscription.state`: "A
+    // row stays ACTIVE through an ordinary failed check — the check retries
+    // on its own schedule — so ERRORED means the last attempt itself
+    // failed, not that the subscription stopped trying." Only a state that
+    // is neither of those — PAUSED is the one this schema declares — means
+    // "do not check". Treating ERRORED the same as PAUSED here would make
+    // the very first transient failure permanent: nothing else in this
+    // service ever moves a live row back to ACTIVE, so a check that never
+    // runs again could never recover it.
+    if (subscription.state !== 'ACTIVE' && subscription.state !== 'ERRORED') {
+      return { checked: false, reason: 'NOT_ACTIVE', created: 0 };
+    }
+
+    if (options.ensurePeriodicCheck) {
+      await this.startPeriodicCheck(
+        organizationId,
+        subscriptionId,
+        subscription.checkIntervalMinutes
+      );
+    }
 
     if (!this.feedCheckEnabled) {
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
@@ -282,7 +322,12 @@ export class ContentLeadService {
         items
       );
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
-        state: 'ACTIVE',
+        // Only ERRORED recovers to ACTIVE on a success — this is that
+        // recovery path. Not an unconditional overwrite: the gate above
+        // guarantees `subscription.state` is ACTIVE or ERRORED here, but
+        // writing it this way means a success can never itself un-pause a
+        // row, even if that gate's reach ever changes.
+        state: subscription.state === 'ERRORED' ? 'ACTIVE' : subscription.state,
         lastErrorCode: null,
         lastCheckedAt: now,
       });

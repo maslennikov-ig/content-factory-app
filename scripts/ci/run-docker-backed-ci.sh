@@ -86,6 +86,7 @@ proof_result="$(mktemp "${TMPDIR:-/tmp}/cf-docker-jest.XXXXXX.json")"
 native_results+=(
   "$(mktemp "${TMPDIR:-/tmp}/cf-docker-native-source-registry.XXXXXX.tap")"
   "$(mktemp "${TMPDIR:-/tmp}/cf-docker-native-post-context.XXXXXX.tap")"
+  "$(mktemp "${TMPDIR:-/tmp}/cf-docker-native-editorial-stage.XXXXXX.tap")"
 )
 
 readonly resource_suffix="$(date +%s)-$$-$RANDOM"
@@ -126,6 +127,7 @@ fi
 readonly postgres_url="postgresql://postgres:postgres@127.0.0.1:${postgres_port}/postgres"
 export SOURCE_REGISTRY_POSTGRES_URL="$postgres_url"
 export POST_CONTENT_CONTEXT_POSTGRES_URL="$postgres_url"
+export EDITORIAL_STAGE_POSTGRES_URL="$postgres_url"
 export CF_DOCKER_CI_DISPOSABLE_POSTGRES=1
 
 cd -- "$repo_root"
@@ -158,8 +160,11 @@ run_native_proof \
 run_native_proof \
   tests/post.content-context.test.cjs \
   "${native_results[1]}"
+run_native_proof \
+  tests/editorial-stage.tag-migration.test.cjs \
+  "${native_results[2]}"
 
 scripts/operations/verify-mastra-storage-migration.sh
 scripts/operations/verify-postgres-backup-restore.sh
 
-printf 'Docker-backed CI proof passed: three Jest suites, two native PostgreSQL proofs, and both operational proofs completed.\n'
+printf 'Docker-backed CI proof passed: three Jest suites, three native PostgreSQL proofs, and both operational proofs completed.\n'

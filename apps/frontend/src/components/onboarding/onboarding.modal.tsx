@@ -1,6 +1,7 @@
 'use client';
 
 import React, { FC, useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { orderBy } from 'lodash';
@@ -93,7 +94,12 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
                     step === 2 ? 'font-medium' : 'text-textColor'
                   )}
                 >
-                  {t('watch_tutorial', 'Watch Tutorial')}
+                  {/*
+                    `content-factory-next-rrs9`: the step promised a video that
+                    was removed with the rename and never replaced. It names
+                    what it actually offers now.
+                  */}
+                  {t('onboarding_step_next', 'Where to start')}
                 </span>
               </div>
             </div>
@@ -244,6 +250,21 @@ const OnboardingStep1: FC<{ onNext: () => void; onSkip: () => void }> = ({
   );
 };
 
+/**
+ * `content-factory-next-rrs9`: the second step hands over, it does not teach.
+ *
+ * It used to be four paragraphs about the calendar, the draft, the preview and
+ * the schedule — the loop any scheduler has, with nothing in it about the
+ * voice, the facts or the evidence a draft has to stand on. The step was also
+ * called «смотреть обучение», because the upstream product had a video there
+ * and the rename took the video out and left the title. The owner read the
+ * result exactly right on 01.09.2026: «как будто бы у нас его и нет».
+ *
+ * The teaching moved to `/onboarding`, where it can read how far the workspace
+ * actually got and send a person to the place each step is done. What is left
+ * here is the handover, because this modal is opened by someone who has just
+ * connected a channel and the next thing they need is the way onward.
+ */
 const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
   onBack,
   onFinish,
@@ -253,112 +274,30 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
   return (
     <div className="flex flex-col gap-[24px] flex-1">
       <div className="flex gap-[4px] flex-col text-center">
-        <div className="text-[20px] font-[650]">
-          {t('watch_tutorial_title', 'How Content Factory works')}
+        <div className="cf-heading-md text-cf-ink">
+          {t('onboarding_next_title', 'Where to start')}
         </div>
-        <div className="text-[14px] text-cf-ink-muted">
+        <div className="cf-body-md text-cf-ink-muted [text-wrap:pretty]">
           {t(
-            'watch_tutorial_description',
-            'Four steps take a piece of content from idea to published post.'
+            'onboarding_next_description',
+            'Six steps through one piece of content: channel, voice, something to stand on, brief, draft, schedule. What is already done is ticked off for you.'
           )}
         </div>
       </div>
 
-      <ol className="flex-1 flex flex-col gap-[8px] max-w-[560px] mx-auto w-full">
-        {[
-          [
-            t('onboarding_step_plan', 'Plan'),
-            t(
-              'onboarding_step_plan_body',
-              'The calendar shows what is scheduled for every connected channel.'
-            ),
-          ],
-          [
-            t('onboarding_step_draft', 'Draft'),
-            t(
-              'onboarding_step_draft_body',
-              'Write once, adapt per channel and attach media from the library.'
-            ),
-          ],
-          [
-            t('onboarding_step_review', 'Review'),
-            t(
-              'onboarding_step_review_body',
-              'Each channel preview shows what will actually be published.'
-            ),
-          ],
-          [
-            t('onboarding_step_publish', 'Schedule'),
-            t(
-              'onboarding_step_publish_body',
-              'Queue the post, then follow the result in analytics.'
-            ),
-          ],
-        ].map(([title, body], index) => (
-          <li
-            key={title}
-            className="flex gap-[12px] items-start p-[12px] rounded-[8px] border border-cf-border bg-cf-surface"
-          >
-            <span
-              aria-hidden
-              className="w-[24px] h-[24px] shrink-0 rounded-full border border-cf-border-strong text-[12px] font-[650] text-cf-ink-muted flex items-center justify-center"
-            >
-              {index + 1}
-            </span>
-            <span>
-              <span className="block text-[14px] font-[650]">{title}</span>
-              <span className="block text-[13px] text-cf-ink-muted">
-                {body}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ol>
-
-      {/* Action buttons */}
       <div className="flex justify-between pt-[24px] mt-[8px]">
-        <Button variant="secondary"
+        <Button
+          variant="secondary"
           onClick={onBack}
-          className="group flex items-center gap-[8px] font-[600] px-[16px] rounded-[8px] text-[14px] transition-colors duration-state"
+          className="font-[600] px-[16px] rounded-[8px] text-[14px]"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="group-hover:-translate-x-1 transition-transform"
-          >
-            <path d="m12 19-7-7 7-7" />
-            <path d="M19 12H5" />
-          </svg>
           {t('back', 'Back')}
         </Button>
-        <Button
-          onClick={onFinish}
-          className="group flex items-center gap-[8px] font-[600] px-[16px] rounded-[8px] text-[14px] transition-colors duration-state"
-        >
-          {t('get_started', 'Get Started')}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="group-hover:scale-110 transition-transform"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-        </Button>
+        <Link href="/onboarding" onClick={onFinish}>
+          <Button className="font-[600] px-[16px] rounded-[8px] text-[14px]">
+            {t('get_started', 'Get Started')}
+          </Button>
+        </Link>
       </div>
     </div>
   );

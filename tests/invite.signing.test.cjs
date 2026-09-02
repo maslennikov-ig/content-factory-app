@@ -64,6 +64,15 @@ const { OrganizationService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/services/make.is': {
       makeId: () => 'inv01',
     },
+    // organization.service.ts now writes the invitation through the string
+    // catalog and the shared email shell; the loader resolves only what a
+    // test names, so both are loaded for real.
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
+    '@contentfactory/nestjs-libraries/emails/email.template': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/emails/email.template.ts'
+    ),
     '@contentfactory/helpers/auth/registration.approval': {
       resolveNewUserAccess: () => ({ activated: true, isSuperAdmin: false }),
       registrationRequiresApproval: () => false,

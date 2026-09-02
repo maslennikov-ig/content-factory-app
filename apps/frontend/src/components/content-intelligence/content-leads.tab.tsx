@@ -33,6 +33,7 @@ import {
   type SubscriptionDraft,
   type SubscriptionRow,
 } from './content-leads.adapter';
+import { resolveContentLocale } from './content-section.copy';
 
 /**
  * «Откуда идеи» (`content-factory-next-odb8.3`): subscriptions and the leads
@@ -202,7 +203,6 @@ const copy = {
     startTelegramCta: 'Add a channel',
     notFactsTitle: 'Not the same as "Facts"',
     notFactsBody: 'That tab holds material that backs up a claim. This one holds feeds that suggest what to write about. The same site can be in both.',
-    notFactsBodyAlt: '',
     dialogTitle: 'New subscription',
     fieldName: 'Name',
     fieldAddress: 'Feed address (RSS)',
@@ -509,9 +509,7 @@ export function ContentLeadsTab({
 } = {}) {
   const request = useFetch();
   const { language } = useVariables();
-  const locale: Locale = String(language ?? 'ru').toLowerCase().startsWith('ru')
-    ? 'ru'
-    : 'en';
+  const locale: Locale = resolveContentLocale(language);
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 

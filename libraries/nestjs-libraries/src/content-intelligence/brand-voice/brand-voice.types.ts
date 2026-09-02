@@ -159,6 +159,13 @@ export const isBrandVoiceLocale = (value: string): value is BrandVoiceLocale =>
 export type VoiceReportLocale = 'ru' | 'en';
 
 /**
+ * Narrow a BrandVoiceLocale to a supported label locale (ru or en).
+ * If the locale is 'ru', returns 'ru'; otherwise returns 'en' as the fallback.
+ */
+export const toReportLocale = (locale: BrandVoiceLocale): VoiceReportLocale =>
+  locale === 'ru' ? 'ru' : 'en';
+
+/**
  * A scale that could not be computed is `null`, not zero.
  *
  * The design says it in words on the screen — "В образцах 4 вопроса — мало,

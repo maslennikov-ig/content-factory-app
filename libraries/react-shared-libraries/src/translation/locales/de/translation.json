@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Datum kann nicht geändert werden, entfernen Sie den Beitrag aus der Veröffentlichung",
   "predicted_github_trending_change": "Prognostizierte GitHub-Trendänderung",
   "duplicate_post": "Dupliziere Beitrag",
+  "more_actions": "Weitere Aktionen",
   "preview_post": "Beitragsvorschau",
   "post_statistics": "Beitragsstatistiken",
   "draft": "Entwurf",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "Die meisten Klicks kamen von {{channel}} – darauf baut der nächste Plan auf.",
   "public_saas_result_detail": "Das Material ist raus. Die Zahlen sind Demodaten, aber sie sind so aufgeschlüsselt wie im Produkt: je Kanal und nur für die Kanäle, die es tatsächlich erreicht hat.",
   "public_saas_demo_channels_label": "Veröffentlichungskanäle",
-  "public_saas_demo_no_channels": "Wählen Sie mindestens einen Kanal – das Material muss irgendwohin."
+  "public_saas_demo_no_channels": "Wählen Sie mindestens einen Kanal – das Material muss irgendwohin.",
+  "onboarding_step_next": "Womit anfangen",
+  "onboarding_next_title": "Womit anfangen",
+  "onboarding_next_description": "Sechs Schritte durch einen Inhalt: Kanal, Stimme, eine Grundlage, Briefing, Entwurf, Zeitplan. Erledigtes wird von selbst abgehakt."
 }

@@ -125,6 +125,15 @@ const { OrganizationService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.service': {
       AutopostService: class {},
     },
+    // organization.service.ts now writes the invitation through the string
+    // catalog and the shared email shell; the loader resolves only what a
+    // test names, so both are loaded for real.
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadSharedModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
+    '@contentfactory/nestjs-libraries/emails/email.template': loadSharedModule(
+      'libraries/nestjs-libraries/src/emails/email.template.ts'
+    ),
     '@contentfactory/helpers/auth/registration.approval': approval,
     '@contentfactory/helpers/auth/newsletter.consent': newsletterConsentRules,
   }

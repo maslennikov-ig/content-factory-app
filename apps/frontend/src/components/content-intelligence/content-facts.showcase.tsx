@@ -18,6 +18,7 @@ import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
   FACTS_API,
   buildFactCopyPayload,
+  confirmEvidenceUrl,
   copyFactUrl,
   emptyFactCopyDraft,
   failureNotice,
@@ -33,6 +34,7 @@ import {
   type FactRow,
   type GroundingMethod,
 } from './content-facts.adapter';
+import { resolveContentLocale } from './content-section.copy';
 
 /**
  * «Откуда факты» — the witness screen (`content-factory-next-odb8.1`).
@@ -95,6 +97,8 @@ const copy = {
     retract: 'Снять',
     restore: 'Вернуть',
     copyAction: 'Копировать',
+    confirmAction: 'Подтвердить',
+    confirming: 'Подтверждаем…',
     retractedMeta: (date: string) => `снят ${date}`,
     supersededMeta: (date: string) => `заменён новым утверждением · ${date}`,
     notInWork: 'в работу не идёт',
@@ -105,6 +109,7 @@ const copy = {
     searchMeta: (source: string, date: string) => `${source} · прочитано ${date}`,
     retractFailed: 'Факт не снялся. Попробуйте ещё раз.',
     restoreFailed: 'Факт не вернулся. Попробуйте ещё раз.',
+    confirmFailed: 'Не подтвердилось. Попробуйте ещё раз.',
     copyFailed: 'Копия не сохранилась. Ничего не потеряно, проверьте поля и попробуйте ещё раз.',
     copyDialogEyebrow: (date: string) => `КОПИЯ УТВЕРЖДЕНИЯ ОТ ${date}`,
     copyDialogTitle: 'Поправьте и сохраните как новое',
@@ -144,6 +149,8 @@ const copy = {
     retract: 'Retract',
     restore: 'Restore',
     copyAction: 'Copy',
+    confirmAction: 'Confirm',
+    confirming: 'Confirming…',
     retractedMeta: (date: string) => `retracted ${date}`,
     supersededMeta: (date: string) => `replaced by a new statement · ${date}`,
     notInWork: 'not used in drafts',
@@ -154,6 +161,7 @@ const copy = {
     searchMeta: (source: string, date: string) => `${source} · read ${date}`,
     retractFailed: 'The fact was not retracted. Try again.',
     restoreFailed: 'The fact was not restored. Try again.',
+    confirmFailed: 'The confirmation did not go through. Try again.',
     copyFailed: 'The copy was not saved. Nothing is lost — check the fields and try again.',
     copyDialogEyebrow: (date: string) => `COPY OF THE CLAIM FROM ${date}`,
     copyDialogTitle: 'Fix it and save as new',
@@ -220,6 +228,7 @@ function FactRowView({
   onRetract,
   onRestore,
   onCopy,
+  onConfirm,
 }: {
   fact: FactRow;
   locale: Locale;
@@ -230,6 +239,7 @@ function FactRowView({
   onRetract: () => void;
   onRestore: () => void;
   onCopy: () => void;
+  onConfirm: () => void;
 }) {
   const usable = isUsableFact(fact.status);
   const date = formatDate(fact.updatedAt ?? fact.createdAt, locale);
@@ -258,18 +268,30 @@ function FactRowView({
             </span>
           </div>
         </div>
-        <div className="flex shrink-0 gap-[8px]">
-          <span className="flex min-h-[44px] items-center sm:min-h-0">
-            <Button
-              density="dense"
-              variant="secondary"
-              disabled={busy}
-              onClick={onRestore}
-            >
-              {t.restore}
-            </Button>
-          </span>
-        </div>
+        {/*
+          «Вернуть» only ever offers RETRACTED a way back. A SUPERSEDED row
+          got there through КОПИРОВАТЬ И ПОПРАВИТЬ, and restoring it would
+          put the corrected fact and the one it replaced back in work at
+          once, sharing a claimKey with disagreeing statements — the exact
+          thing copy-not-edit exists to prevent
+          (`ContentFactRepository.restoreFact` refuses it server-side too).
+          An unrecognised status offers no button either: this screen does
+          not know it is safe to act on.
+        */}
+        {fact.status === 'RETRACTED' && (
+          <div className="flex shrink-0 gap-[8px]">
+            <span className="flex min-h-[44px] items-center sm:min-h-0">
+              <Button
+                density="dense"
+                variant="secondary"
+                disabled={busy}
+                onClick={onRestore}
+              >
+                {t.restore}
+              </Button>
+            </span>
+          </div>
+        )}
       </li>
     );
   }
@@ -317,6 +339,19 @@ function FactRowView({
         )}
       </div>
       <div className="flex shrink-0 flex-wrap gap-[8px]">
+        {fact.needsLook && (
+          <span className="flex min-h-[44px] items-center sm:min-h-0">
+            <Button
+              density="dense"
+              variant="primary"
+              disabled={busy}
+              data-content-fact-confirm={fact.id}
+              onClick={onConfirm}
+            >
+              {t.confirmAction}
+            </Button>
+          </span>
+        )}
         <span className="flex min-h-[44px] items-center sm:min-h-0">
           <Button density="dense" variant="secondary" disabled={busy} onClick={onCopy}>
             {t.copyAction}
@@ -340,9 +375,7 @@ function FactRowView({
 export function ContentFactsShowcase() {
   const request = useFetch();
   const { language } = useVariables();
-  const locale: Locale = String(language ?? 'ru').toLowerCase().startsWith('ru')
-    ? 'ru'
-    : 'en';
+  const locale: Locale = resolveContentLocale(language);
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 
@@ -565,6 +598,14 @@ export function ContentFactsShowcase() {
                     void runAction(fact.id, restoreFactUrl(fact.id), t.restoreFailed)
                   }
                   onCopy={() => openCopy(fact)}
+                  onConfirm={() =>
+                    fact.grounding.evidenceId &&
+                    void runAction(
+                      fact.id,
+                      confirmEvidenceUrl(fact.id, fact.grounding.evidenceId),
+                      t.confirmFailed
+                    )
+                  }
                 />
               ))}
             </ul>

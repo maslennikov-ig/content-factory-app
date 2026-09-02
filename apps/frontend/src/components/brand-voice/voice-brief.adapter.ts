@@ -242,9 +242,15 @@ export const briefCopy = {
     // this is where a new entry is made, right where the question is asked.
     factsMemoryTitle: 'Или запомните новый факт',
     factsMemoryLead:
-      'Сохранённый факт получает свой id — вставьте его в поле «ID факта» выше, и бриф примет его как подтверждение. Он появится и на витрине «Откуда факты».',
+      'Сохранённый факт сам ляжет в бриф отдельной строкой ниже, готовым подтверждением. Он появится и на витрине «Откуда факты».',
     factsMemoryAdded: (statement: string) =>
       `Факт «${statement}» добавлен в бриф строкой ниже.`,
+    // `content-factory-next-lh5s`, решение владельца 02.09.2026: две планки
+    // остаются разными, и разницу объясняем на экране. Ворота брифа
+    // пропускают утверждение с одной ссылкой; единый контекст, из которого
+    // строится разбор поста, требует принятого доказательства.
+    bareLinkWarning:
+      'Строка с одной ссылкой ворота брифа пройдёт, но проверяемой цитатой не станет: в разборе поста показать будет нечего, а страницу к тому времени могут поправить или снять. Чтобы цитата осталась — возьмите фрагмент поиском ниже или запомните факт, и у утверждения появится идентификатор.',
   },
   en: {
     formTitle: 'Answer five questions',
@@ -266,9 +272,11 @@ export const briefCopy = {
     draftOpened: 'The draft was created and opened in the editor.',
     factsMemoryTitle: 'Or remember a new fact',
     factsMemoryLead:
-      'A saved fact gets its own id — paste it into the "Fact id" field above and the brief accepts it as a confirmation. It also appears on the "Where facts come from" screen.',
+      'A saved fact is added to the brief on its own, as a row below, already a confirmation. It also appears on the "Where facts come from" screen.',
     factsMemoryAdded: (statement: string) =>
       `The fact "${statement}" was added to the brief in the row below.`,
+    bareLinkWarning:
+      'A row with nothing but a link will pass the brief gate, but it will not become a checkable citation: there is nothing to show when the post is reviewed, and by then the page may have been edited or taken down. To keep the citation, take an excerpt through the search below or remember a fact, and the claim gets an id.',
   },
 } as const;
 

@@ -47,6 +47,24 @@ export class SyncContentSourceDto {
 }
 
 /**
+ * `content-factory-next-lh5s`: the question a person asks before they can
+ * accept anything. The search itself had no door — `WebResearchService` was
+ * reachable only from the copilot's own tools and from autopost, so the
+ * accepting door below could be opened by a client but never by a person,
+ * which is how "найдено поиском" stayed unreachable from the product.
+ *
+ * Bounded at the same 5000 characters the service already truncates a subject
+ * to, so an over-long subject is refused at the edge rather than silently cut
+ * halfway in.
+ */
+export class SearchForEvidenceDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(5_000)
+  subject: string;
+}
+
+/**
  * `content-factory-next-lh5s`: what a person accepts is one `fact`/`source`
  * pair out of `WebResearchService.research(...)` — the excerpt they read and
  * the URL it came from. Nothing here names a `ContentSource`; that is the

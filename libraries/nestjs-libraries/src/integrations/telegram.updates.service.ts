@@ -680,6 +680,10 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
         where: {
           telegramBindingCode: action.code,
           telegramBindingCodeExpiresAt: { gt: now },
+          // Defense in depth: this table has no gate of its own guaranteeing
+          // a binding code only ever exists on a super-admin account, so the
+          // lookup itself must not honour a match on any other account.
+          isSuperAdmin: true,
         },
       });
       if (!candidate) {

@@ -24,7 +24,7 @@ export function setCookie(cname: string, cvalue: string, exdays: number) {
 }
 function LayoutContextInner(params: { children: ReactNode }) {
   const returnUrl = useReturnUrl();
-  const { backendUrl, isGeneral, isSecured } = useVariables();
+  const { backendUrl, isSecured } = useVariables();
   const afterRequest = useCallback(
     async (url: string, options: RequestInit, response: Response) => {
       if (
@@ -70,9 +70,14 @@ function LayoutContextInner(params: { children: ReactNode }) {
         }
       }
       if (response?.headers?.get('onboarding')) {
-        window.location.href = isGeneral
-          ? '/launches?onboarding=true'
-          : '/analytics?onboarding=true';
+        /*
+          `content-factory-next-rrs9`: a fresh space lands on the walkthrough
+          itself rather than on a screen with a modal over it. The modal is
+          still reachable at `?onboarding=true` for the channel-connecting step
+          it owns; what changed is where someone with an empty workspace is
+          sent first, and it is now a page they can leave and come back to.
+        */
+        window.location.href = '/onboarding';
         return true;
       }
 

@@ -11,6 +11,15 @@ import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { Organization, ShortLinkPreference, User } from '@prisma/client';
 import { AutopostService } from '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.service';
 import { resolveNewUserAccess } from '@contentfactory/helpers/auth/registration.approval';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+  translateBackendText,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
+import {
+  emailActionBody,
+  emailDirection,
+} from '@contentfactory/nestjs-libraries/emails/email.template';
 
 @Injectable()
 export class OrganizationService {
@@ -138,10 +147,33 @@ export class OrganizationService {
       const inviter = user.name
         ? `${user.name} (${user.email})`
         : user.email;
+      // The invitee usually has no account yet, so there is no language of
+      // theirs to read. The inviter's is the closest thing the invitation
+      // knows about: a team writes to a new member in the language the team
+      // already works in.
+      const locale = resolveBackendLocale(user.language);
+      const dir = emailDirection(locale);
       await this._notificationsService.sendEmail(
         body.email,
-        `${user.name || user.email} invited you to join "${org.name}"`,
-        `${inviter} has invited you to join the "${org.name}" team.<br /><a href="${url}">Accept the invitation</a> to get started.<br />The link will expire in 2 days.`
+        translateBackendText('email_team_invitation_subject', locale, {
+          inviter: user.name || user.email,
+          organization: org.name,
+        }),
+        emailActionBody({
+          intro: translateBackendString('email_team_invitation_intro', locale, {
+            inviter,
+            organization: org.name,
+          }),
+          label: translateBackendString('email_team_invitation_action', locale),
+          url,
+          fallbackHint: translateBackendString(
+            'email_action_fallback_hint',
+            locale
+          ),
+          dir,
+        }),
+        undefined,
+        locale
       );
     }
     return { url };

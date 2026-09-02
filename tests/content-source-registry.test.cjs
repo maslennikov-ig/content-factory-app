@@ -517,6 +517,15 @@ test('manual source and immutable snapshot are created in one serializable trans
     writes[2][1].data.evidence.create[0].excerpt,
     'Manual knowledge'
   );
+  // `content-factory-next-tyrk`: «ваш материал» is confirmed the moment a
+  // person adds it — the producer must write the assessment itself, not
+  // leave it for a review step nothing in the interface ever reaches.
+  const manualAssessment = writes[2][1].data.evidence.create[0].assessment.create;
+  assert.equal(manualAssessment.status, 'ACCEPTED');
+  assert.equal(manualAssessment.trustTier, 'OWNER_VERIFIED');
+  assert.equal(manualAssessment.reviewedByUserId, 'admin-a');
+  assert.equal(manualAssessment.organization.connect.id, 'org-a');
+  assert.equal('organizationId' in manualAssessment, false);
 });
 
 test('304 without a tenant current snapshot fails atomically instead of creating incomplete provenance', async () => {
@@ -643,6 +652,77 @@ test('same-hash validation reuses immutable snapshot and commits source/run poin
     writes.map(([kind]) => kind),
     ['source', 'run']
   );
+});
+
+test('a synced source confirms its own evidence the same way a manual one does (content-factory-next-tyrk)', async () => {
+  let snapshotCreateArgs;
+  const database = {
+    sourceSyncRun: {
+      findFirst: async () => ({ id: 'run-a' }),
+      updateMany: async () => ({ count: 1 }),
+    },
+    contentSource: {
+      findFirst: async () =>
+        source({
+          desiredState: 'ACTIVE',
+          rightsState: 'CONFIRMED',
+          robotsState: 'ALLOWED',
+          currentSnapshotId: 'snapshot-old',
+          currentSnapshot: { id: 'snapshot-old', contentHash: 'a'.repeat(64) },
+        }),
+      updateMany: async () => ({ count: 1 }),
+    },
+    sourceSnapshot: {
+      findFirst: async () => ({ sequence: 1 }),
+      create: async (args) => {
+        snapshotCreateArgs = args;
+        return { id: 'snapshot-new' };
+      },
+      updateMany: async () => ({ count: 1 }),
+    },
+  };
+  const repository = new ContentSourceRegistryRepository(
+    { model: {} },
+    { model: { $transaction: async (callback) => callback(database) } }
+  );
+
+  const result = await repository.completeSync({
+    organizationId: 'org-a',
+    sourceId: 'source-a',
+    runId: 'run-a',
+    leaseId: 'lease-a',
+    trigger: 'SYNC_NOW',
+    configVersion: 1,
+    status: 200,
+    requestedUrl: 'https://example.com/',
+    finalUrl: 'https://example.com/',
+    redirectChain: ['https://example.com/'],
+    contentType: 'text/html',
+    charset: 'utf-8',
+    compressedBytes: 10,
+    decompressedBytes: 10,
+    freshUntil: new Date('2026-08-21T10:00:00.000Z'),
+    nextFetchNotBefore: new Date('2026-08-21T10:00:00.000Z'),
+    contentHash: 'c'.repeat(64),
+    parser: 'bounded-html',
+    parserVersion: '1',
+    normalizedTitle: 'Title',
+    normalizedText: 'changed',
+    retrievalProvider: 'direct-fetch-v1',
+    evidence: [{ excerpt: 'Hello again', locator: { section: 0 } }],
+    now: new Date('2026-08-20T10:00:00.000Z'),
+  });
+
+  assert.deepEqual(result, { snapshotId: 'snapshot-new', reused: false });
+  const assessment =
+    snapshotCreateArgs.data.evidence.create[0].assessment.create;
+  assert.equal(assessment.status, 'ACCEPTED');
+  assert.equal(assessment.trustTier, 'OWNER_VERIFIED');
+  // No acting user reaches a sync job the way it reaches a manual add — the
+  // producer must not guess one.
+  assert.equal(assessment.reviewedByUserId, null);
+  assert.equal(assessment.organization.connect.id, 'org-a');
+  assert.equal('organizationId' in assessment, false);
 });
 
 test('transaction failure is propagated and cannot report a committed snapshot', async () => {
@@ -1147,12 +1227,22 @@ test('controller uses the content-intelligence route and sends request tenant to
         permissionDecorators,
       '@contentfactory/backend/services/auth/permissions/permission.exception.class':
         permissionEnums,
+      // `content-factory-next-lh5s`: the controller took a second dependency
+      // when the search door was added. Stubbed rather than loaded — the real
+      // service reaches for a model client and a Tavily key, and this test is
+      // about routing and tenancy.
+      '@contentfactory/nestjs-libraries/openai/web.research.service': {
+        WebResearchService: class {},
+      },
     }
   );
   const calls = [];
-  const controller = new controllerModule.ContentSourceController({
-    listSources: async (...args) => calls.push(args),
-  });
+  const controller = new controllerModule.ContentSourceController(
+    {
+      listSources: async (...args) => calls.push(args),
+    },
+    { research: async () => ({ summary: '', facts: [], sources: [], provider: 'tavily' }) }
+  );
   await controller.list({ id: 'org-request' });
   assert.deepEqual(calls, [['org-request']]);
   assert.equal(

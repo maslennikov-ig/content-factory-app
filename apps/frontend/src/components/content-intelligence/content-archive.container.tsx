@@ -37,6 +37,7 @@ import {
   type ArchiveRow,
   type GroundingEnvelope,
 } from './content-archive.adapter';
+import { resolveContentLocale } from './content-section.copy';
 
 /**
  * «Что уже написали» — the archive (`content-factory-next-odb8.4`).
@@ -53,12 +54,12 @@ import {
  * dialog for a second-order view, the same "показать/скрыть" toggle for a
  * body too long to always show.
  *
- * There is deliberately no search field. The owner's own question — text or
- * meaning, and over which stores — is still open, and a search box on this
- * screen would answer it silently by shape: a box that looks like it
- * understands a sentence and only ever does substring matching is a promise
- * the product has not decided to make. Filtering by layer, platform and date
- * needs no such promise and is built in full.
+ * There is deliberately no search field yet. §9.3 of
+ * `docs/product/content-section-map.md`, decided 02.09.2026, settled the
+ * owner's question — by words, nothing that promises meaning — so a search
+ * box here would no longer be answering an open question silently; building
+ * one is simply not done yet. Filtering by layer, platform and date needs no
+ * such promise and is built in full.
  */
 
 type Locale = 'ru' | 'en';
@@ -568,7 +569,7 @@ function ImportDialog({
 export function ContentArchiveContainer() {
   const request = useFetch();
   const { language } = useVariables();
-  const locale: Locale = String(language ?? 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  const locale: Locale = resolveContentLocale(language);
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 

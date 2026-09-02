@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: #14150F; }
+    a { color: #7FB03A; }
+    a:hover { color: #96C551; }
+  </style>
+</helmet>
+<div style="background-color: #14150F; padding: 40px 40px 48px 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+
+  <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #C8922A; text-transform: uppercase;">Cf 98 · сборка письма</div>
+
+  <h1 style="margin: 12px 0 0 0; font-size: 30px; font-weight: 650; letter-spacing: -0.02em; line-height: 38px; color: #ECEBDF;">Обёртка письма: размеры, токены, деградации</h1>
+
+  <p style="margin: 12px 0 0 0; max-width: 720px; font-size: 16px; font-weight: 400; line-height: 25px; color: #A6A794;">Значения ниже — ровно те, что стоят в артбордах слева. Разметка табличная, каждое видимое свойство продублировано инлайн на самом элементе, картинок и внешних шрифтов нет ни одного.</p>
+
+  <div style="height: 1px; background-color: #33362A; margin: 32px 0 32px 0;"></div>
+
+  <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #A6A794; text-transform: uppercase;">Размеры</div>
+
+  <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px 24px; margin-top: 20px;">
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">полотно</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Письмо 600px, поля страницы 24×16. На телефоне те же блоки при полях 12×8 и карточке во всю ширину.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">карточка</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Заливка <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">surface</span>, рамка 1px <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">border-strong</span>, радиус 8px. Рамка, а не тень, отделяет карточку от канвы.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">шапка</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Отступ 20×24, знак 24px и имя 16px/600/−0.01em с промежутком 12px — замок навигации из системы, без изменений. Снизу разделитель 1px <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">border</span>.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">заголовок</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">26px / 650 / −0.02em / 32px, цвет <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">ink</span>. На телефоне 22 / 28.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">тело</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">16px / 400 / 25px, цвет <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">ink</span>. Между смысловыми блоками 16–32px.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">кнопка</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Заливка <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">accent</span>, радиус 8px, поля 13×28, подпись 16px/600 цветом <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">accent-ink</span>. Высота 46px — выше порога касания 44px. На телефоне во всю ширину.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">запасная ссылка</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Под каждой кнопкой — тот же URL текстом, моноширинный 13px, <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #ECEBDF;">word-break: break-all</span>. Клиент, вырезавший кнопку, оставляет рабочий адрес.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">блок значения</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Адрес, имя, идентификатор — на <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">surface-subtle</span> в рамке <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">border</span>, моноширинный 14px/21, с переносом. Длинное значение переносится внутри 600px, а не растягивает письмо.</div>
+
+    <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; line-height: 22px; color: #A6A794;">подвал</div>
+    <div style="font-size: 15px; font-weight: 400; line-height: 22px; color: #ECEBDF;">Разделитель 1px, имя отправителя моноширинным 12px/600 в верхнем регистре, ниже строка про настройки уведомлений 13px цветом <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: #C8922A;">ink-muted</span>. Один и тот же подвал во всех письмах.</div>
+
+  </div>
+
+  <div style="height: 1px; background-color: #33362A; margin: 32px 0 32px 0;"></div>
+
+  <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #A6A794; text-transform: uppercase;">Плашки состояния — цвет, слово и знак вместе</div>
+
+  <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 12px; margin-top: 20px;">
+    <div style="padding: 5px 10px; background-color: #1F2915; border: 1px solid #7FB03A; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; line-height: 16px; color: #7FB03A;">&#10003;&nbsp;&nbsp;ОПУБЛИКОВАНО</div>
+    <div style="padding: 5px 10px; background-color: #2A2010; border: 1px solid #D9A02B; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; line-height: 16px; color: #D9A02B;">!&nbsp;&nbsp;ТРЕБУЕТ ВНИМАНИЯ</div>
+    <div style="padding: 5px 10px; background-color: #2C1512; border: 1px solid #D2705C; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; line-height: 16px; color: #D2705C;">&#215;&nbsp;&nbsp;ОШИБКА</div>
+  </div>
+
+  <p style="margin: 16px 0 0 0; max-width: 720px; font-size: 15px; font-weight: 400; line-height: 23px; color: #A6A794;">Знак — обычный текстовый символ, не картинка и не SVG: при отключённых изображениях плашка читается целиком. Контраст текста к своей подложке: 5,90 · 6,87 · 5,08 в тёмной теме и 5,04 · 5,93 · 6,59 в светлой — пары взяты из реестра системы, новых не заведено.</p>
+
+  <div style="height: 1px; background-color: #33362A; margin: 32px 0 32px 0;"></div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+
+    <div>
+      <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #D9A02B; text-transform: uppercase;">Чего Outlook не покажет</div>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Радиус 8px на таблицах — углы останутся прямыми. Это ожидаемая деградация, форма от неё не разваливается.</div>
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Переноса длинных ссылок по символам может не быть: <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">word-break</span> движок Word не понимает. При сборке ссылку резать вручную или держать её короткой.</div>
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Свойств, на которых держалась старая обёртка, здесь нет вовсе: ни <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">flex</span>, ни градиента, ни <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">backdrop-filter</span>, ни <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">position</span>, ни теней.</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #D2705C; text-transform: uppercase;">Что придётся поправить в коде</div>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Каталог строк сегодня зашивает ссылку внутрь предложения — «Нажмите <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">здесь</span>, чтобы…». Кнопке нужен отдельный адрес: текст без ссылки, подпись кнопки и URL тремя значениями, иначе кнопки не будет.</div>
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Приглашение в команду и решение по заявке агентства идут мимо каталога и захардкожены по-английски. Обёртка их примет, но текст останется английским, пока это не переведут.</div>
+        <div style="font-size: 15px; font-weight: 400; line-height: 23px; color: #ECEBDF;">Письмо агентства несёт собственный <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;">&lt;html&gt;&lt;head&gt;</span> внутри общей обёртки — документ внутри документа. При переносе эта обвязка снимается.</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

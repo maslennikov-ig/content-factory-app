@@ -14,7 +14,13 @@ export { Panel, PageHeader } from '@contentfactory/react/layout';
 
 export type StatusTone = 'neutral' | 'accent' | 'info' | 'warning' | 'danger';
 
-const STATUS_TONES: Record<StatusTone, string> = {
+/**
+ * Exported because the calendar card paints the same five tones on a shape
+ * that is not a pill — a full-width band across the card's head. Retyping the
+ * triplet there is how a band and a pill for the same stage end up different
+ * colours after one token change.
+ */
+export const STATUS_TONES: Record<StatusTone, string> = {
   neutral: 'bg-cf-surface-subtle text-cf-ink border-cf-border',
   accent: 'bg-cf-accent-soft text-cf-accent border-cf-accent',
   info: 'bg-cf-info-soft text-cf-info border-cf-info',

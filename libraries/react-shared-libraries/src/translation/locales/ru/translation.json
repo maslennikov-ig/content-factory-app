@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Нельзя изменить дату, удалите пост из публикации",
   "predicted_github_trending_change": "Прогнозируемое изменение трендов GitHub",
   "duplicate_post": "Дублировать пост",
+  "more_actions": "Ещё действия",
   "preview_post": "Предпросмотр поста",
   "post_statistics": "Статистика поста",
   "draft": "Черновик",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "Больше всего переходов дал {{channel}} — от этого и строится следующий план.",
   "public_saas_result_detail": "Материал ушёл. Цифры демонстрационные, но разложены так же, как в продукте: по каналам и только по тем, куда он действительно попал.",
   "public_saas_demo_channels_label": "Каналы публикации",
-  "public_saas_demo_no_channels": "Выберите хотя бы один канал — материалу нужно куда-то уйти."
+  "public_saas_demo_no_channels": "Выберите хотя бы один канал — материалу нужно куда-то уйти.",
+  "onboarding_step_next": "С чего начать",
+  "onboarding_next_title": "С чего начать",
+  "onboarding_next_description": "Шесть шагов по одному материалу: канал, голос, на что опереться, бриф, черновик, расписание. Пройденное отмечается само."
 }

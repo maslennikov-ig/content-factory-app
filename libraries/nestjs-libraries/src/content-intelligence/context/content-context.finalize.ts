@@ -188,9 +188,7 @@ export async function validateContentContextForDraft(
         !item.factStatement ||
         !item.statementHash ||
         createHash('sha256').update(item.factStatement).digest('hex') !==
-          item.statementHash ||
-        !item.factFreshUntil ||
-        new Date(item.factFreshUntil).getTime() < now.getTime()
+          item.statementHash
       ) {
         invalidated('Selected fact is no longer verified');
       }
@@ -199,8 +197,40 @@ export async function validateContentContextForDraft(
       )
         ? [...new Set(item.factEvidenceCitationIds)].sort()
         : [];
-      if (!frozenEvidenceCitationIds.length) {
-        invalidated('Selected fact no longer has accepted fresh support');
+      // «Ваше слово» (`content-factory-next-tyrk`): the builder admits a
+      // `VERIFIED` fact with no accepted evidence — no evidence links at
+      // all, or only ones still `PROPOSED` — with an empty citation list.
+      // That fact never had a `freshUntil` of its own supports to check and
+      // has no citation to freeze, so this mirrors the builder's admission
+      // rather than reading the frozen item as if evidence had gone stale.
+      const ownWord =
+        !frozenEvidenceCitationIds.length &&
+        (!item.fact.evidenceLinks?.length ||
+          item.fact.evidenceLinks.every(
+            (link: any) => link.reviewStatus === 'PROPOSED'
+          ));
+      if (ownWord) {
+        // Own word still ages: a `CURRENT` fact's own `freshUntil` (frozen
+        // on the item, not nulled — `evaluateFact` preserves it for exactly
+        // this reading) is checked the same way the builder refuses a stale
+        // one at admission time. `TIMELESS`/`DATED` carries none and is
+        // unaffected.
+        if (
+          item.factFreshUntil &&
+          new Date(item.factFreshUntil).getTime() < now.getTime()
+        ) {
+          invalidated('Selected fact is no longer verified');
+        }
+      } else {
+        if (
+          !item.factFreshUntil ||
+          new Date(item.factFreshUntil).getTime() < now.getTime()
+        ) {
+          invalidated('Selected fact is no longer verified');
+        }
+        if (!frozenEvidenceCitationIds.length) {
+          invalidated('Selected fact no longer has accepted fresh support');
+        }
       }
       for (const evidenceCitationId of frozenEvidenceCitationIds) {
         const evidenceItem: any = itemsByCitation.get(evidenceCitationId);

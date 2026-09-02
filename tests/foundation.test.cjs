@@ -250,7 +250,7 @@ describe('Content Factory foundation', () => {
   test('keeps every intentional text-white use on an exact shrinking allowlist', () => {
     const allowedCounts = {
       'apps/frontend/src/app/global.scss': 2,
-      'apps/frontend/src/components/launches/calendar.tsx': 3,
+      'apps/frontend/src/components/launches/calendar.tsx': 2,
       'apps/frontend/src/components/launches/creation.method.badge.tsx': 1,
       'apps/frontend/src/components/launches/customer.modal.tsx': 1,
       'apps/frontend/src/components/launches/helpers/top.title.component.tsx': 2,

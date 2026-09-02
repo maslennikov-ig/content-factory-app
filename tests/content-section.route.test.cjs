@@ -34,7 +34,7 @@ for (const key of ['window', 'document', 'navigator']) {
   });
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
-const { cleanup, render, screen, within } = require('@testing-library/react');
+const { cleanup, fireEvent, render, screen, within } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const FILES = {
@@ -148,24 +148,17 @@ describe('the Content screen', () => {
   // added a fifth tab, «Откуда идеи» — subscriptions and the leads they bring
   // back — right after «Аватары» and ahead of «Бриф», since a lead is a
   // reason to open the brief rather than something that lives inside it.
-  // `content-factory-next-odb8.4` added a sixth, «Что уже написали», last:
-  // the archive answers what was written and what it stood on, which only
-  // makes sense once the strip has already answered who writes and what
-  // comes next.
+  // `content-factory-next-odb8.4` built «Что уже написали», the archive, but
+  // it is not a sixth tab: §9.4 of the map, decided 02.09.2026, folds it into
+  // «Материалы» as a view switch inside that one tab instead — see the
+  // `MaterialsViewSwitch` tests below for that surface.
   test.each([
-    ['en', ['Avatars', 'Ideas', 'Brief', 'Material', 'Facts', 'Archive']],
+    ['en', ['Avatars', 'Ideas', 'Brief', 'Material', 'Facts']],
     [
       'ru',
-      [
-        'Аватары',
-        'Откуда идеи',
-        'Бриф',
-        'Материалы',
-        'Откуда факты',
-        'Что уже написали',
-      ],
+      ['Аватары', 'Откуда идеи', 'Бриф', 'Материалы', 'Откуда факты'],
     ],
-  ])('shows six tabs in %s, in the order the design fixed', (locale, labels) => {
+  ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
       withLanguage(
         locale,
@@ -235,13 +228,68 @@ describe('the Content screen', () => {
     expect(source('screen')).toContain('VoiceMaterialsContainer');
   });
 
-  test('the Archive tab mounts the archive container rather than staying dead code', () => {
+  test('the Materials tab mounts the view switch, defaulting to the library', () => {
+    render(
+      withLanguage(
+        'ru',
+        React.createElement(contentScreen.ContentSectionScreen, {
+          initialTab: 'materials',
+        })
+      )
+    );
+
+    const panel = screen.getByRole('tabpanel');
+    const switchGroup = within(panel).getByRole('radiogroup');
+    const [materialsOption, archiveOption] = within(switchGroup).getAllByRole('radio');
+
+    expect(materialsOption.textContent).toBe('На что опираются');
+    expect(archiveOption.textContent).toBe('Что уже написали');
+    expect(materialsOption.getAttribute('aria-checked')).toBe('true');
+    expect(archiveOption.getAttribute('aria-checked')).toBe('false');
+    // The archive is not mounted until its view is chosen — a lazily-drawn
+    // switch is not the same guarantee as a mounted, silent container.
+    expect(
+      panel.querySelector('[data-content-intelligence-section="archive"]')
+    ).toBeNull();
+  });
+
+  test('the switch mounts the archive container rather than staying dead code', () => {
     // `content-factory-next-odb8.4` built the backend and `ContentArchiveContainer`
     // but never mounted the container anywhere reachable — the archive existed
-    // only in the file that declared it. This guard renders the panel a person
-    // actually opens and looks for the container's own root markup, not just
-    // for the tab's label in the strip: a tab that says «Что уже написали» but
-    // opens an empty panel would still pass a label-only check.
+    // only in the file that declared it. §9.4 then folded the archive into
+    // «Материалы» as a view rather than its own tab, so this guard now drives
+    // the switch instead of a deep link, and still looks for the container's
+    // own root markup, not just a label: a switch that flips but opens an
+    // empty panel would still pass a label-only check.
+    render(
+      withLanguage(
+        'ru',
+        React.createElement(contentScreen.ContentSectionScreen, {
+          initialTab: 'materials',
+        })
+      )
+    );
+
+    const panel = screen.getByRole('tabpanel');
+    const archiveOption = within(panel).getAllByRole('radio')[1];
+    fireEvent.click(archiveOption);
+
+    const archiveSection = panel.querySelector(
+      '[data-content-intelligence-section="archive"]'
+    );
+    expect(archiveSection).not.toBeNull();
+    // The container's own heading, not just the switch's label — the two
+    // read the same text (`t.title` in the container, the switch's own
+    // `archive` copy), so scoping to the section is what tells them apart.
+    expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
+    expect(source('screen')).toContain('ContentArchiveContainer');
+  });
+
+  test('a deep link to the old Archive tab lands on Materials with the archive view already chosen', () => {
+    // Before §9.4, `initialTab: 'archive'` opened a sixth tab. It is no
+    // longer in `CONTENT_TABS`, so this checks the value still lands
+    // somewhere real instead of selecting a tab the strip cannot mark
+    // current.
     render(
       withLanguage(
         'ru',
@@ -251,16 +299,15 @@ describe('the Content screen', () => {
       )
     );
 
+    const materialsTab = screen.getByRole('tab', { name: 'Материалы' });
+    expect(materialsTab.getAttribute('aria-selected')).toBe('true');
+
     const panel = screen.getByRole('tabpanel');
     const archiveSection = panel.querySelector(
       '[data-content-intelligence-section="archive"]'
     );
     expect(archiveSection).not.toBeNull();
-    // The container's own heading, not just the tab strip's label — the two
-    // read the same text (`t.title` in the container, `t.archive` in the
-    // tab), so scoping to the section is what tells them apart.
     expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
-    expect(source('screen')).toContain('ContentArchiveContainer');
   });
 
   test('the empty library still says what a piece is, without claiming a failure', () => {

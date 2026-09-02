@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "日付を変更できません。投稿を公開から削除してください。",
   "predicted_github_trending_change": "GitHubトレンド予測の変化",
   "duplicate_post": "重複した投稿",
+  "more_actions": "その他の操作",
   "preview_post": "投稿をプレビュー",
   "post_statistics": "投稿の統計",
   "draft": "下書き",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "クリックが最も多かったのは {{channel}}。次の計画はここから組み立てます。",
   "public_saas_result_detail": "原稿は出ました。数値はデモ用ですが、内訳は製品と同じです。チャンネルごとに、そして実際に届いたチャンネルの分だけ。",
   "public_saas_demo_channels_label": "公開チャンネル",
-  "public_saas_demo_no_channels": "チャンネルを少なくともひとつ選んでください。原稿の行き先が必要です。"
+  "public_saas_demo_no_channels": "チャンネルを少なくともひとつ選んでください。原稿の行き先が必要です。",
+  "onboarding_step_next": "はじめかた",
+  "onboarding_next_title": "はじめかた",
+  "onboarding_next_description": "ひとつの素材で6ステップ。チャンネル、声、拠り所、ブリーフ、下書き、予約。済んだものは自動でチェックされます。"
 }

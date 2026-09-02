@@ -107,6 +107,7 @@ export type GroundingMethod = (typeof GROUNDING_METHODS)[number];
 
 export type FactGrounding = Readonly<{
   method: GroundingMethod;
+  evidenceId: string | null;
   excerpt: string | null;
   sourceLabel: string | null;
   sourceUrl: string | null;
@@ -129,6 +130,13 @@ export type FactRow = Readonly<{
   updatedAt: string | null;
   createdByName: string | null;
   grounding: FactGrounding;
+  /**
+   * True only for a still-pending «найдено поиском» row (`content-factory-
+   * next-tyrk`): grounded in a search result whose link or assessment is not
+   * yet accepted. The witness screen offers «Подтвердить» only here — every
+   * other row keeps the two actions the map document settled on (§8.2).
+   */
+  needsLook: boolean;
   evidence: readonly FactEvidenceRow[];
 }>;
 
@@ -160,10 +168,13 @@ const oneOf = <T extends string>(
 const asNullableNumberText = (value: unknown) =>
   typeof value === 'string' || typeof value === 'number' ? String(value) : null;
 
+const asBoolean = (value: unknown) => value === true;
+
 const readGrounding = (value: unknown): FactGrounding => {
   const grounding = asRecord(value);
   return {
     method: oneOf(grounding.method, GROUNDING_METHODS, 'OWN_WORD'),
+    evidenceId: asNullableText(grounding.evidenceId),
     excerpt: asNullableText(grounding.excerpt),
     sourceLabel: asNullableText(grounding.sourceLabel),
     sourceUrl: asNullableText(grounding.sourceUrl),
@@ -198,6 +209,7 @@ export function readFactsEnvelope(value: unknown): readonly FactRow[] {
       updatedAt: asNullableNumberText(fact.updatedAt),
       createdByName: asNullableText(fact.createdByName),
       grounding: readGrounding(fact.grounding),
+      needsLook: asBoolean(fact.needsLook),
       evidence: asArray(fact.evidence).map((row) => {
         const evidence = asRecord(row);
         return {
@@ -283,10 +295,11 @@ export function buildFactCreatePayload(draft: FactDraft) {
 export const CLAIM_KEY_PATTERN = /^[\p{L}\p{N}_.:-]+\|[\p{L}\p{N}_.:-]+$/u;
 
 /* -------------------------------------------------------------------------
- * The witness screen's two actions (`content-factory-next-odb8.1`): СНЯТЬ
- * and КОПИРОВАТЬ И ПОПРАВИТЬ. Routes only — the reader and the create
- * payload builder above are reused as-is; nothing about a fact's shape
- * changes because the screen showing it is new.
+ * The witness screen's actions (`content-factory-next-odb8.1`, `content-
+ * factory-next-tyrk`): СНЯТЬ, КОПИРОВАТЬ И ПОПРАВИТЬ, and «Подтвердить» for a
+ * still-pending «найдено поиском» row. Routes only — the reader and the
+ * create payload builder above are reused as-is; nothing about a fact's
+ * shape changes because the screen showing it is new.
  * ---------------------------------------------------------------------- */
 
 const factAction = (factId: string, action: 'retract' | 'restore' | 'copy') =>
@@ -295,6 +308,12 @@ const factAction = (factId: string, action: 'retract' | 'restore' | 'copy') =>
 export const retractFactUrl = (factId: string) => factAction(factId, 'retract');
 export const restoreFactUrl = (factId: string) => factAction(factId, 'restore');
 export const copyFactUrl = (factId: string) => factAction(factId, 'copy');
+
+/** «Подтвердить»: `POST /content-intelligence/facts/:factId/evidence/:evidenceId/confirm`. */
+export const confirmEvidenceUrl = (factId: string, evidenceId: string) =>
+  `${FACTS_API}/${encodeURIComponent(factId)}/evidence/${encodeURIComponent(
+    evidenceId
+  )}/confirm`;
 
 /**
  * What the copy dialog is holding, as typed.

@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+  <style>
+    body { margin: 0; background: #14150F; }
+    a { color: #7FB03A; }
+    a:hover { color: #96C551; }
+  </style>
+</helmet>
+
+<div style="background-color: #14150F; padding: 28px; font-family: 'Geologica', system-ui, Arial, sans-serif;">
+
+  <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #C8922A; text-transform: uppercase;">Наведение · общее для всех трёх направлений</div>
+  <h1 style="margin: 10px 0 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 30px; color: #ECEBDF;">Действия приходят на своей подложке и ничего не выедают</h1>
+  <p style="margin: 8px 0 0 0; max-width: 800px; font-size: 14px; font-weight: 400; line-height: 22px; color: #A6A794;">Сегодня значки лежат прямо в цветной полоске и красятся режимом «разница», а фон кнопки под курсором проступает сквозь неё — это и есть выпадающий кусок с вашего скриншота. Вместо этого при наведении в углу карточки всплывает маленькая панель: своя поверхность, своя рамка, значки цвета текста. Полоску и текст она не трогает.</p>
+
+  <div style="margin-top: 24px; background-color: #14150F; border: 1px solid #33362A; border-radius: 8px; padding: 20px;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #A6A794; margin-bottom: 14px;">ТЁМНАЯ ТЕМА</div>
+
+    <div style="display: flex; flex-direction: row; gap: 28px; align-items: flex-start;">
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #D2705C;">СЕЙЧАС</div>
+        <div style="width: 110px; border-radius: 10px; overflow: hidden;">
+          <div style="height: 24px; background-color: #4D7CFE; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 5px;">
+            <div style="width: 15px; height: 15px; border: 1.6px solid #ECEBDF; border-radius: 3px; mix-blend-mode: difference;"></div>
+            <div style="width: 24px; height: 22px; border-radius: 8px; background-color: #22241B; display: flex; align-items: center; justify-content: center;">
+              <div style="width: 15px; height: 9px; border: 1.6px solid #ECEBDF; border-radius: 9px; mix-blend-mode: difference;"></div>
+            </div>
+            <div style="width: 15px; height: 15px; border: 1.6px solid #D2705C; border-radius: 3px; mix-blend-mode: difference;"></div>
+          </div>
+          <div style="background-color: #22241B; padding: 8px; font-size: 13px; line-height: 18px; color: #ECEBDF;">Черновик:…</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #7FB03A;">КАК НАДО · УЗКАЯ КАРТОЧКА</div>
+        <div style="position: relative; width: 110px; border: 1px solid #33362A; border-radius: 8px; overflow: visible;">
+          <div style="height: 20px; background-color: #161F28; border-bottom: 1px solid #7FA6C8; border-radius: 8px 8px 0 0; display: flex; align-items: center; padding: 0 8px;">
+            <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #7FA6C8;">ПИШЕТСЯ</span>
+          </div>
+          <div style="background-color: #22241B; border-radius: 0 0 8px 8px; padding: 6px 8px; font-size: 13px; line-height: 18px; color: #ECEBDF;">Как мы считали</div>
+          <div style="position: absolute; top: -12px; right: -6px; display: flex; flex-direction: row; gap: 4px; padding: 2px; border-radius: 8px; background-color: #272A1F; border: 1px solid #4B4F3E; box-shadow: 0 6px 16px rgba(0,0,0,0.45);">
+            <div style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECEBDF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </div>
+            <div style="width: 32px; height: 32px; border-radius: 4px; background-color: #33362A; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECEBDF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle></svg>
+            </div>
+          </div>
+        </div>
+        <div style="width: 150px; font-size: 12px; line-height: 18px; color: #A6A794;">Два действия: открыть и меню. Кнопка 32px — размер из системы, а не выдуманный.</div>
+      </div>
+
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #7FB03A;">КАК НАДО · ШИРОКАЯ СТРОКА</div>
+        <div style="position: relative; border: 1px solid #33362A; border-radius: 8px; background-color: #22241B; height: 36px; display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 0 10px;">
+          <span style="flex: 0 0 auto; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 8px; background-color: #2A2010; border: 1px solid #D9A02B; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #D9A02B; white-space: nowrap;">ПРОВЕРКА</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки в подборе тем, которые повторяются каждый месяц</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; gap: 4px; padding: 2px; border-radius: 8px; background-color: #272A1F; border: 1px solid #4B4F3E;">
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECEBDF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECEBDF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ECEBDF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M6 20v-6"></path><path d="M12 20V6"></path><path d="M18 20v-9"></path></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D2705C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg>
+            </span>
+          </span>
+        </div>
+        <div style="font-size: 12px; line-height: 18px; color: #A6A794;">В широкой строке места хватает на все четыре: посмотреть, дублировать, статистика, удалить. Удаление — единственное красное, и оно крайнее справа, чтобы не попасть по нему случайно.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top: 20px; background-color: #EFE9DB; border: 1px solid #D3CAB3; border-radius: 8px; padding: 20px;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #5C5D4C; margin-bottom: 14px;">СВЕТЛАЯ ТЕМА</div>
+
+    <div style="display: flex; flex-direction: row; gap: 28px; align-items: flex-start;">
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #3F6B2E;">КАК НАДО · УЗКАЯ КАРТОЧКА</div>
+        <div style="position: relative; width: 110px; border: 1px solid #D3CAB3; border-radius: 8px;">
+          <div style="height: 20px; background-color: #E3EBF3; border-bottom: 1px solid #2F5A82; border-radius: 8px 8px 0 0; display: flex; align-items: center; padding: 0 8px;">
+            <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #2F5A82;">ПИШЕТСЯ</span>
+          </div>
+          <div style="background-color: #E4DDCB; border-radius: 0 0 8px 8px; padding: 6px 8px; font-size: 13px; line-height: 18px; color: #22231A;">Как мы считали</div>
+          <div style="position: absolute; top: -12px; right: -6px; display: flex; flex-direction: row; gap: 4px; padding: 2px; border-radius: 8px; background-color: #FFFDF6; border: 1px solid #B0A68A; box-shadow: 0 6px 16px rgba(34,35,26,0.16);">
+            <div style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22231A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </div>
+            <div style="width: 32px; height: 32px; border-radius: 4px; background-color: #E4DDCB; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22231A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="19" cy="12" r="1.4"></circle></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #3F6B2E;">КАК НАДО · ШИРОКАЯ СТРОКА</div>
+        <div style="border: 1px solid #D3CAB3; border-radius: 8px; background-color: #E4DDCB; height: 36px; display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 0 10px;">
+          <span style="flex: 0 0 auto; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 8px; background-color: #F6E7C2; border: 1px solid #7A4D00; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #7A4D00; white-space: nowrap;">ПРОВЕРКА</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки в подборе тем, которые повторяются каждый месяц</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; gap: 4px; padding: 2px; border-radius: 8px; background-color: #FFFDF6; border: 1px solid #B0A68A;">
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22231A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22231A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22231A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M6 20v-6"></path><path d="M12 20V6"></path><path d="M18 20v-9"></path></svg>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E2B22" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M6 7l1 13h10l1-13"></path><path d="M9 7V4h6v3"></path></svg>
+            </span>
+          </span>
+        </div>
+        <div style="font-size: 12px; line-height: 18px; color: #5C5D4C;">Значки перерисованы контуром 1.5px по сетке 16px — один почерк вместо нынешней смеси залитых форм разного размера.</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -186,3 +186,65 @@ test(
     assert.equal(tagsPostsRows[0].count, 13);
   }
 );
+
+test('SQL contains all sixteen locales for each of four workflow tags', () => {
+  const sqlPath = path.resolve(
+    __dirname,
+    '..',
+    'docs/operations/editorial-stage-schema-apply.sql'
+  );
+  const sql = fs.readFileSync(sqlPath, 'utf8');
+
+  // Parse backend-strings.ts to extract all locale strings for each tag.
+  const stringsPath = path.resolve(
+    __dirname,
+    '..',
+    'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+  );
+  const stringsContent = fs.readFileSync(stringsPath, 'utf8');
+
+  // Extract the CATALOG object containing the four workflow tag translations.
+  const catalogMatch = stringsContent.match(/const CATALOG = \{([\s\S]*?)\n\}/);
+  if (!catalogMatch) {
+    throw new Error('Could not find CATALOG in backend-strings.ts');
+  }
+
+  const tagKeys = ['content_workflow_tag_plan', 'content_workflow_tag_draft', 'content_workflow_tag_review', 'content_workflow_tag_schedule'];
+  const stageMappings = {
+    content_workflow_tag_plan: 'PLAN',
+    content_workflow_tag_draft: 'DRAFT',
+    content_workflow_tag_review: 'REVIEW',
+    content_workflow_tag_schedule: 'SCHEDULED',
+  };
+
+  for (const tagKey of tagKeys) {
+    const stage = stageMappings[tagKey];
+    const tagPattern = new RegExp(`${tagKey}:\\s*\\{([^}]*(?:\\{[^}]*\\}[^}]*)*)\\}`, 's');
+    const tagMatch = stringsContent.match(tagPattern);
+
+    if (!tagMatch) {
+      throw new Error(`Could not find ${tagKey} translations in backend-strings.ts`);
+    }
+
+    // Extract all translation values from this tag.
+    const localeStrings = [];
+    const translationBlock = tagMatch[1];
+    const linePattern = /(?:en|he|ru|zh|fr|es|pt|de|it|ja|ko|ar|tr|vi|bn|ka_ge):\s*'([^']*)'/g;
+    let lineMatch;
+    while ((lineMatch = linePattern.exec(translationBlock)) !== null) {
+      localeStrings.push(lineMatch[1]);
+    }
+
+    assert.ok(localeStrings.length > 0, `No translations found for ${tagKey}`);
+
+    // Check that all strings appear in the SQL.
+    for (const str of localeStrings) {
+      const escapedStr = str.replace(/'/g, "''");
+      const inSql = sql.includes(`'${escapedStr}'`);
+      assert.ok(
+        inSql,
+        `Translation "${str}" for ${tagKey} (stage ${stage}) not found in editorial-stage-schema-apply.sql`
+      );
+    }
+  }
+});

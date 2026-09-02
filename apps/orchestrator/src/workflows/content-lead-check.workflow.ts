@@ -1,4 +1,4 @@
-import { proxyActivities, sleep } from '@temporalio/workflow';
+import { continueAsNew, proxyActivities, sleep } from '@temporalio/workflow';
 import type { ContentLeadCheckActivity } from '@contentfactory/orchestrator/activities/content-lead-check.activity';
 
 const { checkContentLeadSubscription } = proxyActivities<ContentLeadCheckActivity>({
@@ -18,6 +18,14 @@ export type ContentLeadCheckWorkflowInput = {
   checkIntervalMinutes: number;
 };
 
+// `autoPostDraftV2Workflow`'s own hourly loop resets its Temporal history
+// with `continueAsNew`; left out here, a subscription checked on a
+// 60-minute interval accumulates history forever and eventually hits
+// Temporal's per-execution history size/length limit, months into a
+// subscription's life. 100 passes is comfortably under that limit for any
+// configured interval and keeps a single workflow run's history small.
+const MAX_ITERATIONS_PER_RUN = 100;
+
 /**
  * The "regular check" for one subscription, one eternal workflow per row —
  * the same shape `autoPostDraftV2Workflow` already uses, started and
@@ -31,11 +39,12 @@ export async function contentLeadCheckWorkflow(
   input: ContentLeadCheckWorkflowInput
 ) {
   const intervalMs = Math.max(1, input.checkIntervalMinutes) * 60_000;
-  while (true) {
+  for (let iteration = 0; iteration < MAX_ITERATIONS_PER_RUN; iteration++) {
     await checkContentLeadSubscription({
       organizationId: input.organizationId,
       subscriptionId: input.subscriptionId,
     });
     await sleep(intervalMs);
   }
+  return await continueAsNew(input);
 }

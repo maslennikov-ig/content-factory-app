@@ -26,7 +26,20 @@ import { TelegramUpdatesService } from '@contentfactory/nestjs-libraries/integra
 import {
   resolveBackendLocale,
   translateBackendString,
+  type BackendLocale,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
+/*
+  `content-factory-next-4zef`: the three emails that ask a person to do
+  something build their body here, because `sendEmail` receives finished HTML.
+  Until this change the whole sentence — link buried inside it — came out of
+  one catalog string, so the shell could be redrawn and the button still would
+  not exist. The intro, the words on the button and the address are three
+  separate values now, in all sixteen locales.
+*/
+import {
+  emailActionBody,
+  emailDirection,
+} from '@contentfactory/nestjs-libraries/emails/email.template';
 
 /**
  * Providers whose `getToken` binds the callback to the browser that started it.
@@ -210,9 +223,10 @@ export class AuthService {
             'email_activate_account_subject',
             registrationLocale
           ),
-          translateBackendString('email_activate_account_body', registrationLocale, {
-            link: `${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}`,
-          }),
+          this.activationBody(
+            registrationLocale,
+            `${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}`
+          ),
           'top',
           undefined,
           registrationLocale
@@ -259,6 +273,54 @@ export class AuthService {
           )
         : false;
     return { addedOrg, jwt: await this.jwt(user), awaitingApproval: false };
+  }
+
+  /**
+   * `content-factory-next-4zef`: one shape for every email that asks a person
+   * to press something — a sentence, a filled button, and the same address
+   * spelled out underneath.
+   *
+   * The plain-text copy of the URL is not a courtesy. A client that strips the
+   * button's fill, an email forwarded as text, a reader who does not trust a
+   * button in a message about their own password: each of them still needs a
+   * working address, and `email_action_fallback_hint` is the line that names
+   * it. `emailAction` prints both from one call, so the two can never drift
+   * apart into a button pointing one way and a link pointing another.
+   *
+   * `intro` arrives already translated and already interpolated, and it may
+   * carry `<br />` from the catalog — hence the rich paragraph rather than the
+   * escaping one. Every parameter substituted into it was escaped by
+   * `translateBackendString` on the way in.
+   */
+  private actionEmailBody(
+    locale: BackendLocale,
+    intro: string,
+    actionLabel: string,
+    url: string
+  ) {
+    return emailActionBody({
+      intro,
+      label: actionLabel,
+      url,
+      fallbackHint: translateBackendString('email_action_fallback_hint', locale),
+      dir: emailDirection(locale),
+    });
+  }
+
+  /**
+   * Activation, which is sent from two places — registration and «send it
+   * again». They were already two copies of one string and one link; keeping
+   * them one call means the second can no longer quietly fall behind the
+   * first, which is exactly the shape a person hits when the first email
+   * never arrives.
+   */
+  private activationBody(locale: BackendLocale, url: string) {
+    return this.actionEmailBody(
+      locale,
+      translateBackendString('email_activate_account_intro', locale),
+      translateBackendString('email_activate_account_action', locale),
+      url
+    );
   }
 
   /**
@@ -409,9 +471,12 @@ export class AuthService {
     await this._notificationService.sendEmail(
       user.email,
       translateBackendString('email_reset_password_subject', resetLocale),
-      translateBackendString('email_reset_password_body', resetLocale, {
-        link: `${process.env.FRONTEND_URL}/auth/forgot/${resetValues}`,
-      }),
+      this.actionEmailBody(
+        resetLocale,
+        translateBackendString('email_reset_password_intro', resetLocale),
+        translateBackendString('email_reset_password_action', resetLocale),
+        `${process.env.FRONTEND_URL}/auth/forgot/${resetValues}`
+      ),
       undefined,
       resetLocale
     );
@@ -474,9 +539,10 @@ export class AuthService {
     await this._emailService.sendEmail(
       user.email,
       translateBackendString('email_activate_account_subject', resendLocale),
-      translateBackendString('email_activate_account_body', resendLocale, {
-        link: `${process.env.FRONTEND_URL}/auth/activate/${jwt}`,
-      }),
+      this.activationBody(
+        resendLocale,
+        `${process.env.FRONTEND_URL}/auth/activate/${jwt}`
+      ),
       'top',
       undefined,
       resendLocale
@@ -600,10 +666,19 @@ export class AuthService {
         'email_confirm_identity_subject',
         confirmationLocale
       ),
-      translateBackendString('email_confirm_identity_body', confirmationLocale, {
-        link: `${frontendUrl}/settings?identity_confirmation=${token}`,
-        minutes,
-      }),
+      this.actionEmailBody(
+        confirmationLocale,
+        translateBackendString(
+          'email_confirm_identity_intro',
+          confirmationLocale,
+          { minutes }
+        ),
+        translateBackendString(
+          'email_confirm_identity_action',
+          confirmationLocale
+        ),
+        `${frontendUrl}/settings?identity_confirmation=${token}`
+      ),
       'top',
       undefined,
       confirmationLocale

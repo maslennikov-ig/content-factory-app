@@ -9,6 +9,7 @@ import { analyzeBrandVoice, corpusReadiness } from './analyzer';
 import { PROFILE_FIELDS, type ProfileField } from './assist.contract';
 import {
   isScaleValue,
+  toReportLocale,
   type BrandVoiceLocale,
   type BrandVoiceMeasurementResult,
   type BrandVoiceSampleInput,
@@ -1157,7 +1158,7 @@ export class VoiceService {
         organizationId: actor.organizationId,
         samples: inputs,
         measurement: result,
-        locale: result.language,
+        locale: toReportLocale(result.language),
       });
       proposal = {
         portrait: outcome.proposal.portrait

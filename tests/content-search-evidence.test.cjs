@@ -238,6 +238,16 @@ test('the producer writes a sourceless SEARCH_PROVIDER_RESULT snapshot with evid
   assert.equal(created.evidence[0].organizationId, 'org-a');
   assert.equal(created.evidence[0].excerpt, 'The article said exactly this.');
   assert.equal(created.evidence[0].freshnessStatus, 'FRESH');
+  // `content-factory-next-tyrk`: «найдено поиском» is the one ground the
+  // product found by itself — unlike the manual/sync producers, it must NOT
+  // arrive already accepted. It needs the explicit «Подтвердить» gesture
+  // (`ContentFactRepository.confirmEvidence`).
+  const searchAssessment =
+    createArgs.data.evidence.create[0].assessment.create;
+  assert.equal(searchAssessment.status, 'PROPOSED');
+  assert.equal(searchAssessment.trustTier, 'UNRATED');
+  assert.equal(searchAssessment.organization.connect.id, 'org-a');
+  assert.equal('organizationId' in searchAssessment, false);
 });
 
 // --- Section C: service wiring ----------------------------------------------

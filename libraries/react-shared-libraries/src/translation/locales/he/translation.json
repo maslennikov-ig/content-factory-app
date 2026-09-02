@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "לא ניתן לשנות את התאריך, הסר את הפוסט מהפרסום",
   "predicted_github_trending_change": "שינוי מגמה חזוי ב-GitHub",
   "duplicate_post": "פוסט כפול",
+  "more_actions": "פעולות נוספות",
   "preview_post": "תצוגה מקדימה של הפוסט",
   "post_statistics": "סטטיסטיקות פוסט",
   "draft": "טיוטה",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "{{channel}} הביא הכי הרבה קליקים — משם נבנית התוכנית הבאה.",
   "public_saas_result_detail": "החומר יצא. המספרים הם נתוני הדגמה, אבל הם מפורקים בדיוק כמו במוצר: לפי ערוץ, ורק לערוצים שאליהם הוא באמת הגיע.",
   "public_saas_demo_channels_label": "ערוצי הפרסום",
-  "public_saas_demo_no_channels": "בחרו לפחות ערוץ אחד — החומר צריך ללכת לאנשהו."
+  "public_saas_demo_no_channels": "בחרו לפחות ערוץ אחד — החומר צריך ללכת לאנשהו.",
+  "onboarding_step_next": "איפה מתחילים",
+  "onboarding_next_title": "איפה מתחילים",
+  "onboarding_next_description": "שישה שלבים על תוכן אחד: ערוץ, קול, על מה להישען, בריף, טיוטה, תזמון. מה שכבר נעשה מסומן מעצמו."
 }

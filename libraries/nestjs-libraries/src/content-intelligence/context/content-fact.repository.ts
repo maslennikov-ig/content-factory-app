@@ -85,6 +85,10 @@ export class ContentFactRepository {
                 freshUntil: true,
                 freshnessStatus: true,
                 exposure: true,
+                // `needsLook` (`content-factory-next-tyrk`) reads this to
+                // tell an accepted «найдено поиском» row from one still
+                // waiting on confirmation.
+                assessment: { select: { status: true } },
                 snapshot: {
                   select: {
                     id: true,
@@ -156,7 +160,8 @@ export class ContentFactRepository {
     organizationId: string,
     actorUserId: string,
     factId: string,
-    input: { evidenceId: string; stance: string }
+    input: { evidenceId: string; stance: string },
+    now: Date
   ) {
     return (this.transaction.model as any).$transaction(
       async (client: PrismaClientLike) => {
@@ -175,24 +180,35 @@ export class ContentFactRepository {
               id: input.evidenceId,
               tombstone: null,
             },
-            select: { id: true },
+            select: { id: true, assessment: { select: { status: true } } },
           }),
         ]);
         if (!fact || !evidence) notFound();
+        // «Ваш материал» (`content-factory-next-tyrk`): a MANUAL or synced
+        // source's evidence already carries an `ACCEPTED` assessment from
+        // the producer (`source-registry.repository.ts`), so citing it here
+        // is the whole review — there is nothing left to wait for. A search
+        // result's assessment starts `PROPOSED` and stays that way until
+        // `confirmEvidence`.
+        const evidenceAccepted = evidence.assessment?.status === 'ACCEPTED';
+        const linkReviewStatus = evidenceAccepted ? 'ACCEPTED' : 'PROPOSED';
         const existing = await client.contentFactEvidence.findFirst({
           where: { organizationId, factId, evidenceId: input.evidenceId },
         });
-        if (existing?.reviewStatus !== 'PROPOSED') {
-          if (existing) return existing;
+        let link: any;
+        if (existing && existing.reviewStatus !== 'PROPOSED') {
+          return existing;
+        }
+        if (!existing) {
           try {
-            return await client.contentFactEvidence.create({
+            link = await client.contentFactEvidence.create({
               data: {
                 organizationId,
                 factId,
                 evidenceId: input.evidenceId,
                 stance: input.stance,
                 linkedBy: 'USER',
-                reviewStatus: 'PROPOSED',
+                reviewStatus: linkReviewStatus,
               },
             });
           } catch (error: any) {
@@ -201,31 +217,110 @@ export class ContentFactRepository {
               where: { organizationId, factId, evidenceId: input.evidenceId },
             });
             if (!raced) throw error;
-            return raced;
+            link = raced;
           }
+        } else {
+          const changed = await client.contentFactEvidence.updateMany({
+            where: {
+              organizationId,
+              factId,
+              evidenceId: input.evidenceId,
+              reviewStatus: 'PROPOSED',
+            },
+            data: {
+              stance: input.stance,
+              linkedBy: 'USER',
+              reviewStatus: linkReviewStatus,
+            },
+          });
+          link =
+            changed.count === 1
+              ? {
+                  ...existing,
+                  stance: input.stance,
+                  linkedBy: 'USER',
+                  reviewStatus: linkReviewStatus,
+                }
+              : await client.contentFactEvidence.findFirst({
+                  where: {
+                    organizationId,
+                    factId,
+                    evidenceId: input.evidenceId,
+                  },
+                });
         }
-        const changed = await client.contentFactEvidence.updateMany({
-          where: {
+        if (evidenceAccepted) {
+          return this.evaluateFact(client, organizationId, factId, actorUserId, now);
+        }
+        return link;
+      }
+    );
+  }
+
+  /**
+   * The door for «найдено поиском» (`content-factory-next-tyrk`): the one
+   * gesture that moves a search result's assessment from `PROPOSED` to
+   * `ACCEPTED`, accepts the link it is cited through, and re-evaluates the
+   * fact — the same three writes `assessEvidence` + `reviewEvidenceLink`
+   * made as two separate ADMIN-only steps nothing in the interface ever
+   * called. This is the everyday, non-admin door for it.
+   */
+  async confirmEvidence(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    evidenceId: string,
+    now: Date
+  ) {
+    return (this.transaction.model as any).$transaction(
+      async (client: PrismaClientLike) => {
+        const [fact, evidence] = await Promise.all([
+          client.contentFact.findFirst({
+            where: {
+              organizationId,
+              id: factId,
+              status: { not: 'TOMBSTONED' },
+            },
+            select: { id: true },
+          }),
+          client.sourceEvidence.findFirst({
+            where: { organizationId, id: evidenceId, tombstone: null },
+            select: { id: true },
+          }),
+        ]);
+        if (!fact || !evidence) notFound();
+        const link = await client.contentFactEvidence.findFirst({
+          where: { organizationId, factId, evidenceId },
+        });
+        if (!link) notFound();
+        // The upsert's `create` branch only fires when a producer somehow
+        // left no assessment row at all — every real producer
+        // (`source-registry.repository.ts`) writes one on creation, so this
+        // is a safety net, not the expected path. `update` deliberately
+        // leaves `trustTier` untouched: confirming is a statement about
+        // review status, not a re-grading of the source's tier.
+        await client.contentEvidenceAssessment.upsert({
+          where: { organizationId_evidenceId: { organizationId, evidenceId } },
+          create: {
             organizationId,
-            factId,
-            evidenceId: input.evidenceId,
-            reviewStatus: 'PROPOSED',
+            evidenceId,
+            trustTier: 'UNRATED',
+            trustPolicyVersion: 1,
+            status: 'ACCEPTED',
+            reviewedByUserId: actorUserId,
+            reviewedAt: now,
           },
-          data: {
-            stance: input.stance,
-            linkedBy: 'USER',
+          update: {
+            status: 'ACCEPTED',
+            reviewedByUserId: actorUserId,
+            reviewedAt: now,
           },
         });
-        if (changed.count === 1) {
-          return {
-            ...existing,
-            stance: input.stance,
-            linkedBy: 'USER',
-          };
-        }
-        return client.contentFactEvidence.findFirst({
-          where: { organizationId, factId, evidenceId: input.evidenceId },
+        await client.contentFactEvidence.updateMany({
+          where: { organizationId, factId, evidenceId },
+          data: { reviewStatus: 'ACCEPTED' },
         });
+        return this.evaluateFact(client, organizationId, factId, actorUserId, now);
       }
     );
   }
@@ -358,16 +453,19 @@ export class ContentFactRepository {
   }
 
   /**
-   * «Вернуть» (`Facts.dc.html`, screen 22): the only action a fact not in
-   * work offers, whether it got there by СНЯТЬ or by being copied over.
+   * «Вернуть» (`Facts.dc.html`, screen 22): the retracted row's only action.
    *
-   * The mockup draws it on a row shown as superseded (row 4, screen 22) as
-   * plainly as on a retracted one, and nothing in the data model needs a
-   * superseded fact to stay that way forever: `supersedesFactId` on the newer
-   * row is a fact about lineage, not a lock on the older one. Restoring
-   * leaves both usable — two facts sharing a `claimKey` is already ordinary
-   * (`content-brief.radar.ts` groups by it), and the newer row's link to
-   * this one still holds regardless.
+   * A `SUPERSEDED` fact is refused on purpose, corrected from an earlier
+   * version of this comment that read the mockup as covering both rows —
+   * a reviewer caught the contradiction it hid. КОПИРОВАТЬ И ПОПРАВИТЬ
+   * (`copyFact`) exists specifically so a corrected statement never sits
+   * beside the one it replaced with matching grounding; restoring the old
+   * row would put both back in work at once, sharing a `claimKey`, with
+   * disagreeing statements and the old row still wearing evidence that
+   * confirmed a sentence it was never checked against. That is the exact
+   * lie `content-factory-next-odb8.1`'s copy-not-edit rule refuses. The
+   * newer fact stays the only version in work; `supersedesFactId` records
+   * the lineage, it does not offer a way back.
    *
    * The status is not simply flipped back to `UNVERIFIED` — that would forget
    * evidence accepted before the fact stopped being offered. `evaluateFact`
@@ -382,17 +480,26 @@ export class ContentFactRepository {
   ) {
     return (this.transaction.model as any).$transaction(
       async (client: PrismaClientLike) => {
+        const fact = await client.contentFact.findFirst({
+          where: { organizationId, id: factId, status: { not: 'TOMBSTONED' } },
+          select: { id: true, status: true },
+        });
+        if (!fact) notFound();
+        if (fact.status === 'SUPERSEDED') {
+          throw new ContentContextError(
+            'CONTENT_CONTEXT_FACT_SUPERSEDED',
+            409,
+            'A superseded fact cannot be restored; the fact that replaced it is the only version in work'
+          );
+        }
+        if (fact.status !== 'RETRACTED') notFound();
         // `evaluateFact` refuses to touch a terminal row on purpose — a fact
-        // whose evidence changed while it sat retracted or superseded must
-        // not come back to life on its own. Restoring means clearing the
-        // status first, in the same transaction, so the recompute below runs
-        // on a row that is no longer terminal rather than short-circuiting.
+        // whose evidence changed while it sat retracted must not come back
+        // to life on its own. Restoring means clearing the status first, in
+        // the same transaction, so the recompute below runs on a row that is
+        // no longer terminal rather than short-circuiting.
         const changed = await client.contentFact.updateMany({
-          where: {
-            organizationId,
-            id: factId,
-            status: { in: ['RETRACTED', 'SUPERSEDED'] },
-          },
+          where: { organizationId, id: factId, status: 'RETRACTED' },
           data: { status: 'UNVERIFIED', updatedByUserId: actorUserId },
         });
         if (changed.count !== 1) notFound();
@@ -468,9 +575,15 @@ export class ContentFactRepository {
         if (input.evidenceId) {
           const evidence = await client.sourceEvidence.findFirst({
             where: { organizationId, id: input.evidenceId, tombstone: null },
-            select: { id: true },
+            select: { id: true, assessment: { select: { status: true } } },
           });
           if (!evidence) notFound();
+          // «Ваш материал» (`content-factory-next-tyrk`, §9.5): pointing the
+          // copy at evidence already accepted for the old fact — or any
+          // other already-accepted evidence in the workspace — is the whole
+          // review, the same rule `linkEvidence` applies. Evidence still
+          // `PROPOSED` (or unassessed, «найдено поиском») stays proposed.
+          const evidenceAccepted = evidence.assessment?.status === 'ACCEPTED';
           const existingLink = await client.contentFactEvidence.findFirst({
             where: {
               organizationId,
@@ -487,7 +600,7 @@ export class ContentFactRepository {
                 evidenceId: input.evidenceId,
                 stance: input.stance || 'SUPPORTS',
                 linkedBy: 'USER',
-                reviewStatus: 'PROPOSED',
+                reviewStatus: evidenceAccepted ? 'ACCEPTED' : 'PROPOSED',
               },
             });
           }
@@ -500,15 +613,20 @@ export class ContentFactRepository {
             updatedByUserId: actorUserId,
           },
         });
+        // Evaluated exactly like an ordinary fact whose evidence just
+        // changed — the same recompute `linkEvidence`/`confirmEvidence` run
+        // — so a copy is never left less verified than its evidence already
+        // justifies: unlinked, it verifies on its own say-so («ваше
+        // слово»); linked to already-accepted material, it verifies with a
+        // citation; linked to a still-proposed one, it verifies as own word
+        // with the citation pending, exactly as `evaluateFact`'s ownWord
+        // branch already treats any other fact in that shape.
         const [supersededFact, newFact] = await Promise.all([
           client.contentFact.findFirst({
             where: { organizationId, id: factId },
             include: evaluationInclude,
           }),
-          client.contentFact.findFirst({
-            where: { organizationId, id: created.id },
-            include: evaluationInclude,
-          }),
+          this.evaluateFact(client, organizationId, created.id, actorUserId, now),
         ]);
         return { fact: newFact, supersededFact };
       }
@@ -543,12 +661,24 @@ export class ContentFactRepository {
           link.stance === 'SUPPORTS' && evidenceUsable(link.evidence, now)
       )
       .map((link: any) => link.evidence);
+    // «Ваше слово» (`content-factory-next-tyrk`): a fact with no evidence
+    // links at all, or only ones still `PROPOSED`, was never waiting on a
+    // review — it is verified on the person's own say-so
+    // (`ContentFactService.createFact`). `evaluateFact` runs here for
+    // reasons that have nothing to do with such a fact (another fact's
+    // evidence was assessed, a different link on this same evidence was
+    // reviewed), and must not use that as a reason to demote it.
+    const ownWord = fact.evidenceLinks.every(
+      (link: any) => link.reviewStatus === 'PROPOSED'
+    );
     const status = contradiction
       ? 'CONFLICTED'
       : supports.length
       ? 'VERIFIED'
       : accepted.some((link: any) => link.stance === 'SUPPORTS')
       ? 'STALE'
+      : ownWord
+      ? 'VERIFIED'
       : 'UNVERIFIED';
     const freshUntil = supports.length
       ? new Date(
@@ -558,6 +688,8 @@ export class ContentFactRepository {
             )
           )
         )
+      : status === 'VERIFIED' && ownWord
+      ? fact.freshUntil
       : null;
     await client.contentFact.updateMany({
       where: { organizationId, id: factId },

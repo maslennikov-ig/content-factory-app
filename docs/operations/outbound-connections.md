@@ -73,6 +73,7 @@ User-Agent там нет: серверные вызовы кладут пуст�
 | `redirectmeto.com` | коды OAuth пяти провайдеров проходят через чужой сервис | срабатывает, только если `FRONTEND_URL` не `https`, то есть в локальной разработке |
 | `api.openai.com`, `openrouter.ai`, Tavily | промпты, тексты постов, поисковые запросы | явный режим организации: только её зашифрованные ключи (`workspace_key`) либо только `AI_INCLUDED_*` (`included`). Между источниками нет fallback; `included` дополнительно требует ненулевую квоту |
 | `oauth.telegram.org` | обмен OIDC при входе | `TELEGRAM_CLIENT_ID` + `TELEGRAM_CLIENT_SECRET` |
+| произвольные feed-ы | проверка доступности для подписки на рассылки в «Откуда идеи» | `LEAD_FEED_CHECK_ENABLED` |
 
 ## По воле пользователя
 

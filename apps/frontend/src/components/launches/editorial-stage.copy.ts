@@ -47,6 +47,21 @@ export type EditorialStageValue = (typeof EDITORIAL_STAGE_VALUES)[number];
  * than papered over, and the prefix stays for the other three, where it keeps
  * a pill like "Scheduled" from being read as a delivery state.
  */
+/**
+ * The words are the four the product already shows on the workflow tags —
+ * «План», «Проверка», «Расписание» — with `DRAFT` the deliberate exception
+ * above. Two reasons, and the second is why they changed on 02.09.2026.
+ *
+ * The ladder a person sees on a tag and the ladder they set in the field
+ * should be spelled the same way, or they are two ladders.
+ *
+ * And the calendar card is 110px wide in month view and 94px in week view.
+ * Measured there: the pill's label is monospace 12px, about 7.2px a character,
+ * so it has room for roughly ten. «Запланирован» needed 107px against 94px of
+ * card and «На проверке» needed 100px — both were cut mid-word. «Расписание»
+ * and «Проверка» fit. The ellipsis and the `title` tooltip stay as the net for
+ * a narrower window, but they are the fallback now, not the normal reading.
+ */
 export const editorialStageCopy = {
   ru: {
     stageLabelPrefix: 'Этап',
@@ -54,10 +69,10 @@ export const editorialStageCopy = {
     filterLabel: 'Этап',
     filterAll: 'Все этапы',
     unset: 'Этап не задан',
-    PLAN: 'В плане',
+    PLAN: 'План',
     DRAFT: 'Пишется',
-    REVIEW: 'На проверке',
-    SCHEDULED: 'Запланирован',
+    REVIEW: 'Проверка',
+    SCHEDULED: 'Расписание',
   },
   en: {
     stageLabelPrefix: 'Stage',
@@ -68,7 +83,7 @@ export const editorialStageCopy = {
     PLAN: 'Plan',
     DRAFT: 'Writing',
     REVIEW: 'Review',
-    SCHEDULED: 'Scheduled',
+    SCHEDULED: 'Schedule',
   },
 } as const;
 

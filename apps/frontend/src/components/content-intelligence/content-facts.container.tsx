@@ -25,6 +25,12 @@ import {
   type FactRow,
   type FactTemporalKind,
 } from './content-facts.adapter';
+import {
+  excerptAsStatement,
+  suggestClaimKey,
+  type AcceptedEvidence,
+} from './content-search.adapter';
+import { resolveContentLocale } from './content-section.copy';
 
 /**
  * The door into working memory that `BriefFactV1.factId` was written for.
@@ -88,6 +94,14 @@ const copy = {
     createFallback:
       'Факт не сохранился. Ничего не потеряно — проверьте поля и попробуйте ещё раз.',
     listFallback: 'Список фактов не загрузился. Попробуйте ещё раз.',
+    evidenceTitle: 'К этому факту привяжется найденное',
+    evidenceLead:
+      'Фрагмент уже заморожен вместе со ссылкой и датой чтения. Сохраните факт — доказательство встанет на него, но подтверждённым не станет: подтвердить его нужно на витрине «Откуда факты».',
+    evidenceDrop: 'Не привязывать',
+    evidenceLinked:
+      'Доказательство привязано. Подтвердить его можно на витрине «Откуда факты».',
+    evidenceLinkFallback:
+      'Факт сохранён, а доказательство к нему не привязалось. Найдите факт на витрине и привяжите ещё раз.',
   },
   en: {
     title: 'Working memory facts',
@@ -130,12 +144,35 @@ const copy = {
     createFallback:
       'The fact was not saved. Nothing is lost — check the fields and try again.',
     listFallback: 'The fact list did not load. Try again.',
+    evidenceTitle: 'What was found will attach to this fact',
+    evidenceLead:
+      'The excerpt is already frozen together with its link and the date it was read. Save the fact and the evidence attaches to it — still unconfirmed: confirm it on the "Where facts come from" screen.',
+    evidenceDrop: 'Do not attach',
+    evidenceLinked:
+      'Evidence attached. Confirm it on the "Where facts come from" screen.',
+    evidenceLinkFallback:
+      'The fact was saved, but the evidence did not attach to it. Find the fact on the showcase and attach it again.',
   },
 } as const;
 
 export function ContentFactsContainer({
   onFactCreated,
+  pendingEvidence,
+  onEvidenceDropped,
 }: {
+  /**
+   * `content-factory-next-lh5s`: an excerpt the person accepted in the search
+   * panel above, already frozen and carrying its id.
+   *
+   * It arrives here rather than becoming a fact of its own on the way, because
+   * a found excerpt is not a claim — a claim is what the person decides the
+   * excerpt shows, in their own words. The form is prefilled from it so those
+   * words start from what they just read, and the evidence is attached after
+   * the fact exists, which is the only order the two doors allow.
+   */
+  pendingEvidence?: AcceptedEvidence | null;
+  /** The person changed their mind before saving. */
+  onEvidenceDropped?: () => void;
   /**
    * Fired once a fact is actually saved, with the id the brief needs.
    *
@@ -149,11 +186,10 @@ export function ContentFactsContainer({
    */
   onFactCreated?: (fact: { id: string; claimKey: string; statement: string }) => void;
 } = {}) {
+  const evidenceId = pendingEvidence?.evidenceId ?? null;
   const request = useFetch();
   const { language } = useVariables();
-  const locale: Locale = String(language ?? 'ru').toLowerCase().startsWith('ru')
-    ? 'ru'
-    : 'en';
+  const locale: Locale = resolveContentLocale(language);
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 
@@ -165,6 +201,24 @@ export function ContentFactsContainer({
   const [failure, setFailure] = useState<FactFailure | null>(null);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /*
+    Prefill from a newly accepted excerpt, once per excerpt.
+    Keyed on the evidence id rather than on the object, so a parent that
+    re-renders does not overwrite words the person has since edited — the
+    prefill is a starting point they own from the first keystroke.
+  */
+  useEffect(() => {
+    if (!pendingEvidence) return;
+    setDraft((current) => ({
+      ...current,
+      claimKey: current.claimKey || suggestClaimKey(pendingEvidence),
+      statement: excerptAsStatement(pendingEvidence.excerpt),
+      valueText: excerptAsStatement(pendingEvidence.excerpt),
+    }));
+    setCreated(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evidenceId]);
 
   /**
    * The id is the whole point of this list, and it is a cuid nobody retypes.
@@ -208,7 +262,32 @@ export function ContentFactsContainer({
       });
       const id = String(response?.id ?? '');
       setDraft(emptyFactDraft(locale));
-      setCreated(t.created(id));
+      let message = t.created(id);
+
+      /*
+        The fact exists; now the excerpt it stands on. Two calls rather than
+        one because `CreateContentFactDto` has no `evidenceId` field — evidence
+        belongs to a fact that already exists, and inventing a combined door
+        here would be a third way to do what two doors already do.
+
+        A failure at this step is reported without losing the fact: the fact is
+        saved and its id is in the message, so the person is told what did
+        happen and what did not, rather than seeing one red box over both.
+      */
+      if (id && evidenceId) {
+        try {
+          await read(`${FACTS_API}/${id}/evidence`, {
+            method: 'POST',
+            body: JSON.stringify({ evidenceId, stance: 'SUPPORTS' }),
+          });
+          message = `${message} ${t.evidenceLinked}`;
+          onEvidenceDropped?.();
+        } catch {
+          message = `${message} ${t.evidenceLinkFallback}`;
+        }
+      }
+
+      setCreated(message);
       await facts.mutate();
       if (id) {
         onFactCreated?.({
@@ -222,7 +301,16 @@ export function ContentFactsContainer({
     } finally {
       setBusy(false);
     }
-  }, [draft, facts, locale, onFactCreated, read, t]);
+  }, [
+    draft,
+    evidenceId,
+    facts,
+    locale,
+    onEvidenceDropped,
+    onFactCreated,
+    read,
+    t,
+  ]);
 
   const shownFailure =
     failure ?? (facts.error ? readFailure(facts.error, t.listFallback) : null);
@@ -264,6 +352,49 @@ export function ContentFactsContainer({
         >
           {created}
         </p>
+      )}
+
+      {pendingEvidence && (
+        <div
+          data-content-facts-pending-evidence={pendingEvidence.evidenceId}
+          className="mt-[16px] rounded-[8px] border border-cf-info bg-cf-info-soft p-[12px]"
+        >
+          <h3 className="cf-label-sm uppercase text-cf-ink">
+            {t.evidenceTitle}
+          </h3>
+          <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
+            {pendingEvidence.excerpt}
+          </p>
+          <div className="mt-[8px] flex flex-wrap items-center gap-[12px]">
+            <a
+              href={pendingEvidence.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all cf-caption text-cf-ink underline"
+            >
+              {pendingEvidence.title || pendingEvidence.url}
+            </a>
+            {pendingEvidence.retrievedAt && (
+              <span className="cf-caption text-cf-ink">
+                {pendingEvidence.retrievedAt.slice(0, 10)}
+              </span>
+            )}
+            {onEvidenceDropped && (
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                data-content-facts-evidence-drop="true"
+                onClick={onEvidenceDropped}
+              >
+                {t.evidenceDrop}
+              </Button>
+            )}
+          </div>
+          <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink [text-wrap:pretty]">
+            {t.evidenceLead}
+          </p>
+        </div>
       )}
 
       <form

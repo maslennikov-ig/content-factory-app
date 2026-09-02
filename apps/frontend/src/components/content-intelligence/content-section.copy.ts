@@ -48,6 +48,11 @@ export const contentSectionCopy = {
     // library that already read and recut. It is simply empty until the brief
     // has been used once, and the body says where the first row comes from.
     materialsPending: 'Пока пусто',
+    // §9.4 (02.09.2026): «Материалы» и «Что уже написали» — одно место с
+    // двумя представлениями, не две вкладки. Подписи переключателя вида.
+    materialsViewLabel: 'Вид списка',
+    materialsViewMaterials: 'На что опираются',
+    materialsViewArchive: 'Что уже написали',
   },
   en: {
     title: 'Content',
@@ -65,7 +70,35 @@ export const contentSectionCopy = {
     materialsBody:
       'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the Brief tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
     materialsPending: 'Nothing here yet',
+    materialsViewLabel: 'List view',
+    materialsViewMaterials: 'What we rely on',
+    materialsViewArchive: 'What we already wrote',
   },
 } as const;
 
 export type ContentSectionLocale = keyof typeof contentSectionCopy;
+
+/**
+ * `content-factory-next-w4vh`: one place where the section decides which of
+ * its two languages a person reads.
+ *
+ * Every screen in this folder was making the same decision by hand —
+ * `String(language ?? 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en'` —
+ * and by the fifth copy that is not a pattern, it is a defect waiting for one
+ * of them to be fixed differently from the rest. The editorial stage already
+ * had its own extracted helper (`resolveEditorialStageLocale`), which is what
+ * made the duplication visible.
+ *
+ * The narrowing is deliberate and is not the interface's full locale list:
+ * these screens are written out in two languages inside the source, the
+ * convention this generation of screens set, so anything that is not Russian
+ * reads as English rather than failing closed.
+ */
+export const resolveContentLocale = (
+  language: string | undefined | null
+): ContentSectionLocale =>
+  String(language ?? 'ru')
+    .toLowerCase()
+    .startsWith('ru')
+    ? 'ru'
+    : 'en';

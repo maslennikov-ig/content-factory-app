@@ -2,6 +2,10 @@
 
 import { useState, type ReactNode } from 'react';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
+import {
+  RadioGroup,
+  RadioOption,
+} from '@contentfactory/react/choice/radio.group';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import clsx from 'clsx';
 import { ContentIntelligenceSettings } from './content-intelligence.settings';
@@ -37,7 +41,7 @@ import type { ContentIntelligenceSection } from './content-intelligence.view';
  * The tabs, named for themselves.
  *
  * The type still widens through `ContentIntelligenceSection` (`'sources' |
- * 'provenance'`) rather than naming its own four values: `'sources'` is no
+ * 'provenance'`) rather than naming its own values: `'sources'` is no
  * longer in `CONTENT_TABS` below, but `ContentIntelligenceSettings` and its
  * review scenes still accept it, and narrowing the type here would be one
  * more place that has to change every time a settings section is folded in
@@ -45,20 +49,21 @@ import type { ContentIntelligenceSection } from './content-intelligence.view';
  * settings section it once mounted; that section is gone and the tab was
  * never really it — what the tab holds is the avatars, which is also what
  * its label has said since 093b1985.
+ *
+ * `'archive'` left this union along with the tab: it is no longer a value
+ * `ContentSectionShell` or its `TabPanel` ever has to render. It survives
+ * only as a legacy input `ContentSectionScreen` accepts and translates — see
+ * the comment there.
  */
-export type ContentTab =
-  | 'avatars'
-  | 'leads'
-  | ContentIntelligenceSection
-  | 'materials'
-  | 'brief'
-  | 'archive';
+export type { ContentTab } from './content-section.tabs';
+import type { ContentTab } from './content-section.tabs';
 
 export { contentSectionCopy, ContentMaterialsPlaceholder };
+import { resolveContentLocale } from './content-section.copy';
 export type { ContentSectionLocale };
 
 /**
- * Six places, and «Бриф» sits where the decision does.
+ * Five places, and «Бриф» sits where the decision does.
  *
  * `content-factory-next-odb8` sections the working menu down to three
  * questions (`docs/product/content-section-map.md` §3): who writes, what is
@@ -75,34 +80,91 @@ export type { ContentSectionLocale };
  * inspector; the label changed instead of the key so a stored tab or a test
  * regex naming the old key does not silently point at nothing.
  *
- * «Материалы» keeps its place: nothing in the accepted decision named it for
- * removal. `odb8.4`, once deferred, is built and mounted here as «Что уже
- * написали» — see the tab order comment below for where and why.
+ * «Материалы» keeps its place, and «Что уже написали» is not a sixth tab
+ * beside it: §9.4 of `docs/product/content-section-map.md`, decided
+ * 02.09.2026 — «Не вижу смысла делать два места» — folds the archive into
+ * the Materials tab as a view a person switches inside one list, not a
+ * separate stop on the strip. `ContentSectionScreen` below owns the switch
+ * and mounts `ContentArchiveContainer` under it; `content-archive.adapter.ts`
+ * and the container itself are unchanged.
  */
-export const CONTENT_TABS: readonly ContentTab[] = [
-  'avatars',
-  // `content-factory-next-odb8.3`: «Откуда идеи» sits right after «Аватары»,
-  // ahead of the brief it feeds — a subscription's lead is a reason to open
-  // the brief, not a thing that belongs inside it.
-  'leads',
-  'brief',
-  'materials',
-  'provenance',
-  // `content-factory-next-odb8.4`: the archive answers "what was already
-  // written and what it stood on" — a question that only makes sense once
-  // the strip has already answered who writes and what gets written next.
-  // It goes last rather than between «Материалы» and «Откуда факты»: each
-  // archive row can open a grounding dialog that shows the very facts
-  // «Откуда факты» witnesses, so the archive reads as the closing, most
-  // comprehensive view rather than a rung on the existing ladder — and
-  // appending it leaves the five-tab order this file has already documented
-  // untouched.
-  'archive',
-];
+export { CONTENT_TABS } from './content-section.tabs';
+import { CONTENT_TABS } from './content-section.tabs';
 
 
 /**
- * The frame: a heading, four tabs and one panel.
+ * The two views one list holds instead of two tabs.
+ *
+ * `docs/product/content-section-map.md` §9.4 (decided 02.09.2026): «Материалы»
+ * and «Что уже написали» read as one place with a switch inside it, not two
+ * stops on the tab strip. `RadioGroup`/`RadioOption` is the choice primitive
+ * this same file's neighbour, `content-archive.container.tsx`, already uses
+ * for its import dialog's origin field, and it fits here for the reason its
+ * own doc comment gives: picking a view is cheap, reversible, and does not
+ * navigate anywhere — which is what separates a radio group from a tab list
+ * in this design system, not just which panel happens to be underneath it.
+ *
+ * The pill styling below is the same fill-versus-surface split
+ * `form/button.tsx` uses for its own variants: a filled, accent pill for the
+ * current view and a quiet one for the other, `cf-pressed-fill`/`cf-pressed`
+ * for the press each already carries. The wrapping panel forces every button
+ * inside it to a 44px mobile hit area (`ContentSectionShell`'s own
+ * `[&_button]:min-h-[44px]`), so the switch does not have to ask for its own.
+ */
+export type MaterialsView = 'materials' | 'archive';
+
+// The labels live with the rest of the frame's words in
+// `content-section.copy.ts`; this only reshapes them by view key.
+const materialsViewCopy = (locale: ContentSectionLocale) => {
+  const words = contentSectionCopy[locale];
+  return {
+    label: words.materialsViewLabel,
+    materials: words.materialsViewMaterials,
+    archive: words.materialsViewArchive,
+  } as const;
+};
+
+const MATERIALS_VIEWS: readonly MaterialsView[] = ['materials', 'archive'];
+
+export function MaterialsViewSwitch({
+  locale,
+  view,
+  onChange,
+}: {
+  locale: ContentSectionLocale;
+  view: MaterialsView;
+  onChange: (view: MaterialsView) => void;
+}) {
+  const t = materialsViewCopy(locale);
+
+  return (
+    <RadioGroup
+      value={view}
+      onChange={(value) => onChange(value as MaterialsView)}
+      aria-label={t.label}
+      className="inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]"
+    >
+      {MATERIALS_VIEWS.map((option) => (
+        <RadioOption
+          key={option}
+          value={option}
+          layout="content"
+          className={clsx(
+            'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+            view === option
+              ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
+              : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
+          )}
+        >
+          {t[option]}
+        </RadioOption>
+      ))}
+    </RadioGroup>
+  );
+}
+
+/**
+ * The frame: a heading, five tabs and one panel.
  *
  * Separate from the screen because it holds no data and makes no request, so
  * the review route can open it in every width, theme and language without a
@@ -198,13 +260,21 @@ export function ContentSectionShell({
 export function ContentSectionScreen({
   initialTab = 'avatars',
 }: {
-  initialTab?: ContentTab;
+  // `'archive'` is accepted here and nowhere else: a caller that still asks
+  // for the tab from before §9.4 folded it into Materials as a view gets a
+  // real screen back instead of a strip with no tab marked current. It is
+  // deliberately outside `ContentTab` itself — `tab` state, `CONTENT_TABS`
+  // and `ContentSectionShell` never see the value, only this prop does.
+  initialTab?: ContentTab | 'archive';
 } = {}) {
   const { language } = useVariables();
-  const locale: ContentSectionLocale = language.toLowerCase().startsWith('ru')
-    ? 'ru'
-    : 'en';
-  const [tab, setTab] = useState<ContentTab>(initialTab);
+  const locale: ContentSectionLocale = resolveContentLocale(language);
+  const [tab, setTab] = useState<ContentTab>(
+    initialTab === 'archive' ? 'materials' : initialTab
+  );
+  const [materialsView, setMaterialsView] = useState<MaterialsView>(
+    initialTab === 'archive' ? 'archive' : 'materials'
+  );
 
   return (
     <ContentSectionShell locale={locale} tab={tab} onTabChange={setTab}>
@@ -213,7 +283,10 @@ export function ContentSectionScreen({
         measured voice, edited on the card that shows it. `brief` is the radar
         and the gate between a brief and a draft. `materials` is the library;
         its empty state is the same one that stood here as a placeholder,
-        because that is genuinely what a workspace with no pieces sees.
+        because that is genuinely what a workspace with no pieces sees. It
+        also carries the view switch — `materialsView` picks between the
+        library (`VoiceMaterialsContainer`) and the archive
+        (`ContentArchiveContainer`), per §9.4's "one place, two views".
       */}
       {tab === 'avatars' ? (
         <VoiceTab />
@@ -226,17 +299,27 @@ export function ContentSectionScreen({
       ) : tab === 'brief' ? (
         <VoiceBriefContainer />
       ) : tab === 'materials' ? (
-        <VoiceMaterialsContainer />
+        <div className="flex min-w-0 flex-col gap-[16px]">
+          <MaterialsViewSwitch
+            locale={locale}
+            view={materialsView}
+            onChange={setMaterialsView}
+          />
+          {materialsView === 'materials' ? (
+            <VoiceMaterialsContainer />
+          ) : (
+            // «Что уже написали» (`content-factory-next-odb8.4`): three
+            // layers — made here, brought in from before the product,
+            // published beside it — in one flat, filterable list, now the
+            // second view inside Materials rather than its own tab.
+            <ContentArchiveContainer />
+          )}
+        </div>
       ) : tab === 'provenance' ? (
         // «Откуда факты» (`content-factory-next-odb8.1`): a witness, not a
         // workbench. Adding a fact happens on the Brief tab, where the
         // question is asked; this only shows what memory already holds.
         <ContentFactsShowcase />
-      ) : tab === 'archive' ? (
-        // «Что уже написали» (`content-factory-next-odb8.4`): three layers —
-        // made here, brought in from before the product, published beside
-        // it — in one flat, filterable list.
-        <ContentArchiveContainer />
       ) : (
         <ContentIntelligenceSettings
           visibleSections={[tab]}

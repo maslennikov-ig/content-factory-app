@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Không thể thay đổi ngày, hãy xóa bài viết khỏi xuất bản",
   "predicted_github_trending_change": "Dự đoán thay đổi xu hướng GitHub",
   "duplicate_post": "Bài viết trùng lặp",
+  "more_actions": "Thao tác khác",
   "preview_post": "Xem trước bài viết",
   "post_statistics": "Thống kê bài viết",
   "draft": "Bản nháp",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "{{channel}} mang về nhiều lượt nhấp nhất — kế hoạch tiếp theo dựng từ đó.",
   "public_saas_result_detail": "Bài đã đi. Các con số là dữ liệu minh họa, nhưng được bóc tách như trong sản phẩm: theo từng kênh, và chỉ những kênh nó thực sự tới.",
   "public_saas_demo_channels_label": "Kênh đăng bài",
-  "public_saas_demo_no_channels": "Hãy chọn ít nhất một kênh — bài viết phải đi đâu đó chứ."
+  "public_saas_demo_no_channels": "Hãy chọn ít nhất một kênh — bài viết phải đi đâu đó chứ.",
+  "onboarding_step_next": "Bắt đầu từ đâu",
+  "onboarding_next_title": "Bắt đầu từ đâu",
+  "onboarding_next_description": "Sáu bước với một nội dung: kênh, giọng, chỗ dựa, brief, bản nháp, lên lịch. Việc đã xong được tự đánh dấu."
 }

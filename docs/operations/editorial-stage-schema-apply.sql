@@ -1,6 +1,9 @@
 -- Редакционный этап поста (content-factory-next-pdbe). Применять ТОЛЬКО этот
 -- текст, дословно.
 --
+-- Применён на боевой 02.09.2026 в версии с тремя языками; расширенный список
+-- нужен другим инстансам.
+--
 -- `prisma migrate diff` против боевой базы печатает эти три оператора вместе с
 -- DROP TABLE на mastra_* таблицы, которых нет в schema.prisma — ожидаемо и
 -- пропускается validate-prisma-migration-sql.cjs (Mastra-owned target), но
@@ -26,11 +29,12 @@
 --   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
 --   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
 --
+-- Валидатор отвергает BEGIN/COMMIT как неизвестные операции схемы;
+-- транзакционность обеспечивает флаг --single-transaction в psql.
+--
 -- Ни один существующий пост не теряет метку — TagsPosts и Tags не трогаются
 -- этим файлом вообще. Четвёртый оператор только ЧИТАЕТ их, чтобы заполнить
 -- новое поле; удаление меток — отдельное и намеренно не это.
-
-BEGIN;
 
 -- CreateEnum
 CREATE TYPE "EditorialStage" AS ENUM ('PLAN', 'DRAFT', 'REVIEW', 'SCHEDULED');
@@ -77,13 +81,13 @@ FROM (
       MIN(
         CASE
           WHEN t.color = '#8B5CF6'
-            AND t.name IN ('Schedule', 'Расписание', 'לוח זמנים') THEN 1
+            AND t.name IN ('Schedule', 'לוח זמנים', 'Расписание', '排期', 'Planning', 'Programación', 'Agenda', 'Zeitplan', 'Pianificazione', 'スケジュール', '일정', 'جدول', 'Program', 'Lịch trình', 'সময়সূচী', 'განრიგი') THEN 1
           WHEN t.color = '#F59E0B'
-            AND t.name IN ('Review', 'Проверка', 'סקירה') THEN 2
+            AND t.name IN ('Review', 'סקירה', 'Проверка', '审核', 'Révision', 'Revisión', 'Revisão', 'Prüfung', 'Revisione', 'レビュー', '검토', 'مراجعة', 'İnceleme', 'Xem xét', 'পর্যালোচনা', 'განხილვა') THEN 2
           WHEN t.color = '#4D7CFE'
-            AND t.name IN ('Draft', 'Черновик', 'טיוטה') THEN 3
+            AND t.name IN ('Draft', 'טיוטה', 'Черновик', '草稿', 'Brouillon', 'Borrador', 'Rascunho', 'Entwurf', 'Bozza', '下書き', '초안', 'مسودة', 'Taslak', 'Bản nháp', 'খসড়া', 'მონახაზი') THEN 3
           WHEN t.color = '#7FB03A'
-            AND t.name IN ('Plan', 'План', 'תוכנית') THEN 4
+            AND t.name IN ('Plan', 'תוכנית', 'План', '计划', 'Plan', 'Plan', 'Plano', 'Plan', 'Piano', 'プラン', '계획', 'خطة', 'Plan', 'Kế hoạch', 'পরিকল্পনা', 'გეგმა') THEN 4
         END
       )
     ] AS stage
@@ -91,14 +95,12 @@ FROM (
   JOIN "Tags" t ON t.id = tp."tagId"
   WHERE t."deletedAt" IS NULL
     AND (
-      (t.color = '#8B5CF6' AND t.name IN ('Schedule', 'Расписание', 'לוח זמנים')) OR
-      (t.color = '#F59E0B' AND t.name IN ('Review', 'Проверка', 'סקירה')) OR
-      (t.color = '#4D7CFE' AND t.name IN ('Draft', 'Черновик', 'טיוטה')) OR
-      (t.color = '#7FB03A' AND t.name IN ('Plan', 'План', 'תוכנית'))
+      (t.color = '#8B5CF6' AND t.name IN ('Schedule', 'לוח זמנים', 'Расписание', '排期', 'Planning', 'Programación', 'Agenda', 'Zeitplan', 'Pianificazione', 'スケジュール', '일정', 'جدول', 'Program', 'Lịch trình', 'সময়সূচী', 'განრიგი')) OR
+      (t.color = '#F59E0B' AND t.name IN ('Review', 'סקירה', 'Проверка', '审核', 'Révision', 'Revisión', 'Revisão', 'Prüfung', 'Revisione', 'レビュー', '검토', 'مراجعة', 'İnceleme', 'Xem xét', 'পর্যালোচনা', 'განხილვა')) OR
+      (t.color = '#4D7CFE' AND t.name IN ('Draft', 'טיוטה', 'Черновик', '草稿', 'Brouillon', 'Borrador', 'Rascunho', 'Entwurf', 'Bozza', '下書き', '초안', 'مسودة', 'Taslak', 'Bản nháp', 'খসड়া', 'მონახაზი')) OR
+      (t.color = '#7FB03A' AND t.name IN ('Plan', 'תוכנית', 'План', '计划', 'Plan', 'Plan', 'Plano', 'Plan', 'Piano', 'プラン', '계획', 'خطة', 'Plan', 'Kế hoạch', 'পরিকল্পনা', 'გეგმა'))
     )
   GROUP BY tp."postId"
 ) ranked
 WHERE p.id = ranked.post_id
   AND p."editorialStage" IS NULL;
-
-COMMIT;

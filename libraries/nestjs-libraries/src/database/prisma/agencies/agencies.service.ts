@@ -3,6 +3,21 @@ import { AgenciesRepository } from '@contentfactory/nestjs-libraries/database/pr
 import { User } from '@prisma/client';
 import { CreateAgencyDto } from '@contentfactory/nestjs-libraries/dtos/agencies/create.agency.dto';
 import { NotificationService } from '@contentfactory/nestjs-libraries/database/prisma/notifications/notification.service';
+import {
+  BackendLocale,
+  resolveBackendLocale,
+  translateBackendString,
+  translateBackendText,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
+import {
+  emailAction,
+  emailActionBody,
+  emailDirection,
+  emailLabel,
+  emailQuietAction,
+  emailRichParagraph,
+  emailValue,
+} from '@contentfactory/nestjs-libraries/emails/email.template';
 
 @Injectable()
 export class AgenciesService {
@@ -34,26 +49,34 @@ export class AgenciesService {
     await this._agenciesRepository.approveOrDecline(action, id);
     const agency = await this._agenciesRepository.getAgencyById(id);
 
+    // Both of these used to carry their own `<html><head>` inside the shared
+    // wrapper — a document nested in a document — and were written in English
+    // whatever language the account is in. The wrapper is the only document
+    // now, and the words come from the catalog like every other product email.
+    const locale = resolveBackendLocale(agency?.user?.language);
+    const dir = emailDirection(locale);
+    const agencyName = agency?.name ?? '';
+
     if (action === 'approve') {
       await this._notificationService.sendEmail(
         agency?.user?.email!,
-        'Your Agency has been approved and added to Content Factory 🚀',
-        `
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Agency has been approved and added to Content Factory 🚀</title>
-</head>
-
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 0;">
-  Hi there, <br /><br />
-  Your agency ${agency?.name} has been added to Content Factory!<br />
-  You can <a href="${process.env.FRONTEND_URL}/agencies/${agency?.slug}">check it here</a><br />
-  It will appear on the main agency directory in the next 24 hours.<br /><br />
-</body>
-</html>`
+        translateBackendText('email_agency_approved_subject', locale, {
+          agency: agencyName,
+        }),
+        emailActionBody({
+          intro: translateBackendString('email_agency_approved_intro', locale, {
+            agency: agencyName,
+          }),
+          label: translateBackendString('email_agency_approved_action', locale),
+          url: `${process.env.FRONTEND_URL}/agencies/${agency?.slug}`,
+          fallbackHint: translateBackendString(
+            'email_action_fallback_hint',
+            locale
+          ),
+          dir,
+        }),
+        undefined,
+        locale
       );
 
       return;
@@ -61,22 +84,17 @@ export class AgenciesService {
 
     await this._notificationService.sendEmail(
       agency?.user?.email!,
-      'Your Agency has been declined 😔',
-      `
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Agency has been declined</title>
-</head>
-
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 0;">
-  Hi there, <br /><br />
-  Your agency ${agency?.name} has been declined by Content Factory!<br />
-  If you think we have made a mistake, please reply to this email and let us know
-</body>
-</html>`
+      translateBackendText('email_agency_declined_subject', locale, {
+        agency: agencyName,
+      }),
+      emailRichParagraph(
+        translateBackendString('email_agency_declined_intro', locale, {
+          agency: agencyName,
+        }),
+        dir
+      ),
+      undefined,
+      locale
     );
 
     return;
@@ -84,133 +102,72 @@ export class AgenciesService {
 
   async createAgency(user: User, body: CreateAgencyDto) {
     const agency = await this._agenciesRepository.createAgency(user, body);
+
+    // This one goes to whoever reviews agency submissions, not to a customer,
+    // so there is no account language to read — the reviewer is reached at
+    // AGENCY_REVIEW_EMAIL. English, through the catalog like everything else,
+    // so the day this address belongs to someone who reads Russian it is a
+    // one-line change rather than a rewrite.
+    const locale: BackendLocale = 'en';
+    const label = (key: Parameters<typeof translateBackendString>[0]) =>
+      emailLabel(translateBackendString(key, locale), 'ltr');
+
+    const socials = [
+      body.facebook,
+      body.instagram,
+      body.twitter,
+      body.linkedIn,
+      body.youtube,
+      body.tiktok,
+    ].filter((link): link is string => !!link);
+
     await this._notificationService.sendEmail(
       process.env.AGENCY_REVIEW_EMAIL || process.env.EMAIL_FROM_ADDRESS || '',
-      'New agency created',
-      `
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Template</title>
-</head>
-
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4;">
-    <table align="center" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; background-color: #ffffff; margin-top: 20px; border: 1px solid #ddd;">
-        <tr>
-            <td style="padding: 0 20px 20px 20px; text-align: center;">
-                <!-- Website -->
-                <a href="${
-                  body.website
-                }" style="text-decoration: none; color: #007bff;">${
-        body.website
-      }</a>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px; text-align: center;">
-                <!-- Social Media Links -->
-                <p style="margin: 10px 0; font-size: 16px;">
-                    Social Medias:
-                    <a href="${
-                      body.facebook
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.facebook
-      }</a><br />
-                    <a href="${
-                      body.instagram
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.instagram
-      }</a><br />
-                    <a href="${
-                      body.twitter
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.twitter
-      }</a><br />
-                    <a href="${
-                      body.linkedIn
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.linkedIn
-      }</a><br />
-                    <a href="${
-                      body.youtube
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.youtube
-      }</a><br />
-                    <a href="${
-                      body.tiktok
-                    }" style="margin: 0 10px; text-decoration: none; color: #007bff;">${
-        body.tiktok
-      }</a>
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <!-- Short Description -->
-                <h2 style="text-align: center; color: #333;">Logo</h2>
-                <p style="text-align: center; color: #555; font-size: 16px;">
-                  <img src="${body.logo.path}" width="60" height="60" />
-                </p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <!-- Short Description -->
-                <h2 style="text-align: center; color: #333;">Name</h2>
-                <p style="text-align: center; color: #555; font-size: 16px;">${
-                  body.name
-                }</p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <!-- Short Description -->
-                <h2 style="text-align: center; color: #333;">Short Description</h2>
-                <p style="text-align: center; color: #555; font-size: 16px;">${
-                  body.shortDescription
-                }</p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <!-- Description -->
-                <h2 style="text-align: center; color: #333;">Description</h2>
-                <p style="text-align: center; color: #555; font-size: 16px;">${
-                  body.description
-                }</p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px;">
-                <!-- Niches -->
-                <h2 style="text-align: center; color: #333;">Niches</h2>
-                <p style="text-align: center; color: #555; font-size: 16px;">${body.niches.join(
-                  ','
-                )}</p>
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px; text-align: center; background-color: #000;">
-                <a href="${process.env.FRONTEND_URL}/agencies/action/approve/${
-                  agency.id
-                }" style="margin: 0 10px; text-decoration: none; color: #007bff;">To approve click here</a><br /><br /><br />
-                <a href="${process.env.FRONTEND_URL}/agencies/action/decline/${
-                  agency.id
-                }" style="margin: 0 10px; text-decoration: none; color: #007bff;">To decline click here</a><br /><br /><br />
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 20px; text-align: center; background-color: #f4f4f4;">
-                <p style="color: #777; font-size: 14px;">Sent by Content Factory.</p>
-            </td>
-        </tr>
-    </table>
-</body>
-
-</html>
-    `
+      translateBackendText('email_agency_review_subject', locale),
+      emailRichParagraph(
+        translateBackendString('email_agency_review_intro', locale, {
+          agency: body.name,
+        }),
+        'ltr'
+      ) +
+        label('email_agency_review_field_website') +
+        emailValue(body.website, 'ltr') +
+        label('email_agency_review_field_social') +
+        socials.map((link) => emailValue(link, 'ltr')).join('') +
+        // The logo used to be an <img> pulling from the media host. An email
+        // that loads an external image is one more reason for a spam filter to
+        // hold it, and it shows nothing at all to a reader with images off —
+        // the address, which is what a reviewer follows anyway, always shows.
+        label('email_agency_review_field_logo') +
+        emailValue(body.logo.path, 'ltr') +
+        label('email_agency_review_field_short_description') +
+        emailValue(body.shortDescription, 'ltr') +
+        label('email_agency_review_field_description') +
+        emailValue(body.description, 'ltr') +
+        label('email_agency_review_field_niches') +
+        emailValue(body.niches.join(', '), 'ltr') +
+        emailAction({
+          label: translateBackendString(
+            'email_agency_review_action_approve',
+            locale
+          ),
+          url: `${process.env.FRONTEND_URL}/agencies/action/approve/${agency.id}`,
+          fallbackHint: translateBackendString(
+            'email_action_fallback_hint',
+            locale
+          ),
+          dir: 'ltr',
+        }) +
+        emailQuietAction({
+          label: translateBackendString(
+            'email_agency_review_action_decline',
+            locale
+          ),
+          url: `${process.env.FRONTEND_URL}/agencies/action/decline/${agency.id}`,
+          dir: 'ltr',
+        }),
+      undefined,
+      locale
     );
     return agency;
   }

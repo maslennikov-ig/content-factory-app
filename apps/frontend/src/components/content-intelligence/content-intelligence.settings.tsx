@@ -22,6 +22,7 @@ import {
   mapSourcesEnvelope,
   sourceEndpoint,
 } from './content-intelligence.adapter';
+import { resolveContentLocale } from './content-section.copy';
 
 export const CONTENT_INTELLIGENCE_API = '/content-intelligence';
 const SOURCES_API = sourceEndpoint();
@@ -87,7 +88,7 @@ export function ContentIntelligenceSettings({
   const request = useFetch();
   const user = useUser();
   const { language } = useVariables();
-  const locale = language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  const locale = resolveContentLocale(language);
   const [contextId, setContextId] = useState('');
   const [feedback, setFeedback] = useState(idleFeedback);
   const [draftMaterial, setDraftMaterial] =

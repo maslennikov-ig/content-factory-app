@@ -175,11 +175,11 @@ function walk(directory, accept, files = []) {
   return files;
 }
 
-function collectTargets() {
+function collectTargets(root) {
   const targets = [];
 
   for (const scan of SCAN_ROOTS) {
-    const absoluteRoot = path.join(repositoryRoot, scan.root);
+    const absoluteRoot = path.join(root, scan.root);
     if (!fs.existsSync(absoluteRoot)) continue;
 
     const accept = scan.names
@@ -192,7 +192,7 @@ function collectTargets() {
   }
 
   for (const file of SCAN_FILES) {
-    const absolute = path.join(repositoryRoot, file);
+    const absolute = path.join(root, file);
     if (fs.existsSync(absolute))
       targets.push({ file: absolute, namesOnly: false });
   }
@@ -224,9 +224,9 @@ function explain(relativePath, line) {
  * `Content Factory`. A localised value that dropped it is either a leftover
  * brand or a lost name, and both are user-facing defects.
  */
-function scanLocaleProductName() {
+function scanLocaleProductName(root) {
   const violations = [];
-  const localesRoot = path.join(repositoryRoot, LOCALES_ROOT);
+  const localesRoot = path.join(root, LOCALES_ROOT);
   const sourcePath = path.join(localesRoot, SOURCE_LOCALE, 'translation.json');
   if (!fs.existsSync(sourcePath)) return violations;
 
@@ -249,7 +249,7 @@ function scanLocaleProductName() {
       if (value.includes(PRODUCT_NAME)) continue;
 
       violations.push({
-        file: path.relative(repositoryRoot, file),
+        file: path.relative(root, file),
         line: 0,
         text: `${key}: ${value.trim().slice(0, 160)}`,
         kind: 'localised-product-name',
@@ -260,12 +260,20 @@ function scanLocaleProductName() {
   return violations;
 }
 
-function scan() {
-  const violations = scanLocaleProductName();
+/**
+ * Scans a tree. `root` defaults to this repository; a test passes a temporary
+ * tree instead, because a fixture created inside `apps/` or `libraries/` — even
+ * for a second — is picked up by the watchers of a running development stand
+ * and can leave it answering 500 long after the test has finished. Every rule
+ * classifies by path relative to `root`, so a mirrored fixture path is
+ * classified exactly as the real one would be.
+ */
+function scan({ root = repositoryRoot } = {}) {
+  const violations = scanLocaleProductName(root);
   const allowed = [];
 
-  for (const target of collectTargets()) {
-    const relativePath = path.relative(repositoryRoot, target.file);
+  for (const target of collectTargets(root)) {
+    const relativePath = path.relative(root, target.file);
 
     if (BRAND_PATTERN.test(path.basename(target.file))) {
       violations.push({

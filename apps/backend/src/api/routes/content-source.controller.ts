@@ -20,9 +20,11 @@ import {
   AcceptSearchResultEvidenceDto,
   ConfirmContentSourceRightsDto,
   CreateContentSourceDto,
+  SearchForEvidenceDto,
   SyncContentSourceDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-source.dto';
 import { ContentSourceRegistryService } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-registry.service';
+import { WebResearchService } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 
 function safeHttpError(error: unknown): never {
   if (
@@ -48,7 +50,10 @@ function safeHttpError(error: unknown): never {
 @ApiTags('Content intelligence sources')
 @Controller('/content-intelligence/sources')
 export class ContentSourceController {
-  constructor(private readonly sources: ContentSourceRegistryService) {}
+  constructor(
+    private readonly sources: ContentSourceRegistryService,
+    private readonly research: WebResearchService
+  ) {}
 
   @Get('/')
   async list(@GetOrgFromRequest() organization: Organization) {
@@ -81,6 +86,72 @@ export class ContentSourceController {
     try {
       return await this.sources.createSource(organization.id, user.id, body);
     } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
+  /**
+   * `content-factory-next-lh5s`: the search a person runs before they accept
+   * anything, and the half of the path that was missing.
+   *
+   * The accepting door below has existed since 01.09.2026 and no screen could
+   * open it, because nothing showed a person what there was to accept: web
+   * research was reachable only from the copilot's own tool list and from
+   * autopost, both of which drop the result into a draft rather than offer it
+   * for a decision. So «найдено поиском» was a shape the reading side knew and
+   * the product could not produce.
+   *
+   * What comes back is already the shape the accepting door takes, joined
+   * here rather than in the browser: `WebResearchService` answers with claims
+   * and sources in two lists keyed by URL, and a screen that has to join them
+   * itself is a screen that will one day join them differently.
+   *
+   * This spends the organization's AI budget — a model call to classify the
+   * subject plus a search call — so it is a `Post` behind the same `aiCreate`
+   * gate as the rest, never a `Get` something could prefetch.
+   */
+  @Post('/search')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async searchForEvidence(
+    @GetOrgFromRequest() organization: Organization,
+    @Body() body: SearchForEvidenceDto
+  ) {
+    try {
+      const research = await this.research.research(
+        organization.id,
+        body.subject
+      );
+      const sourceByUrl = new Map(
+        research.sources.map((source) => [source.url, source])
+      );
+      return {
+        summary: research.summary,
+        provider: research.provider,
+        results: research.facts.map((fact) => {
+          const source = sourceByUrl.get(fact.sourceUrl);
+          return {
+            url: fact.sourceUrl,
+            title: source?.title ?? null,
+            excerpt: fact.text,
+            publishedAt: source?.publishedAt ?? null,
+            // A claim whose URL is in no source row keeps the run's own
+            // provider rather than guessing at one. `mixed` is a value the
+            // accepting door already accepts, and it is the honest answer
+            // when two providers answered the same run.
+            provider: source?.provider ?? research.provider,
+          };
+        }),
+      };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'WebSearchNotConfigured') {
+        throw new HttpException(
+          {
+            code: 'CONTENT_SEARCH_NOT_CONFIGURED',
+            message: error.message,
+          },
+          409
+        );
+      }
       safeHttpError(error);
     }
   }

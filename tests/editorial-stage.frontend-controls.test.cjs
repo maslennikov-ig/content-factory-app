@@ -90,10 +90,10 @@ describe('EditorialStageBadge', () => {
 
   test('renders the product-required Russian label for every stage', async () => {
     const expected = {
-      PLAN: 'Этап: В плане',
+      PLAN: 'Этап: План',
       DRAFT: 'Этап: Пишется',
-      REVIEW: 'Этап: На проверке',
-      SCHEDULED: 'Этап: Запланирован',
+      REVIEW: 'Этап: Проверка',
+      SCHEDULED: 'Этап: Расписание',
     };
     for (const [stage, label] of Object.entries(expected)) {
       cleanup();

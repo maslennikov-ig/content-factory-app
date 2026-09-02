@@ -57,6 +57,7 @@ import { PublicGrowthRepository } from '@contentfactory/nestjs-libraries/databas
 import { PublicGrowthService } from '@contentfactory/nestjs-libraries/database/prisma/public-growth/public-growth.service';
 import { BrandProfileController } from '@contentfactory/backend/api/routes/brand-profile.controller';
 import { ContentSourceController } from '@contentfactory/backend/api/routes/content-source.controller';
+import { OnboardingController } from '@contentfactory/backend/api/routes/onboarding.controller';
 import { ContentContextController } from '@contentfactory/backend/api/routes/content-context.controller';
 import { BrandVoiceController } from '@contentfactory/backend/api/routes/brand-voice.controller';
 import { ContentMaterialController } from '@contentfactory/backend/api/routes/content-material.controller';
@@ -87,6 +88,7 @@ const authenticatedController = [
   ProductEventsController,
   BrandProfileController,
   ContentSourceController,
+  OnboardingController,
   ContentContextController,
   BrandVoiceController,
   ContentMaterialController,

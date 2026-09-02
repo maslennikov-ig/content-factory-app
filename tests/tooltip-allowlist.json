@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "total": 42,
+  "total": 37,
   "reason": "react-tooltip, унаследованный слой подсказок. Он старше Hint и живёт в календаре, публикациях и выборе площадок. Число только уменьшается: каждое из этих мест либо переезжает на Hint, либо перестаёт быть подсказкой.",
   "allowances": {
     "apps/frontend/src/components/developer/developer.icon.component.tsx": 1,
     "apps/frontend/src/components/launches/add.provider.component.tsx": 3,
-    "apps/frontend/src/components/launches/calendar.tsx": 6,
+    "apps/frontend/src/components/launches/calendar.tsx": 1,
     "apps/frontend/src/components/launches/creation.method.badge.tsx": 1,
     "apps/frontend/src/components/launches/general.preview.component.tsx": 1,
     "apps/frontend/src/components/launches/helpers/linkedin.component.tsx": 1,

@@ -182,6 +182,34 @@ export class ContentContextController {
     }
   }
 
+  /**
+   * «Подтвердить» (`content-factory-next-tyrk`): the everyday door for
+   * accepting a «найдено поиском» result, gated the same way creating or
+   * linking a fact already is — this is the person's own confirmation of
+   * their own workspace's material, not an administrative review. It sits
+   * beside `/review` and `/evidence/:evidenceId/assessment`, both ADMIN-only
+   * and unreachable from the interface, without replacing either.
+   */
+  @Post('/facts/:factId/evidence/:evidenceId/confirm')
+  @CheckPolicies(aiCreate as any)
+  async confirmEvidence(
+    @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('factId') factId: string,
+    @Param('evidenceId') evidenceId: string
+  ) {
+    try {
+      return await this.facts.confirmEvidence(
+        organization.id,
+        user.id,
+        factId,
+        evidenceId
+      );
+    } catch (error) {
+      safeContextError(error);
+    }
+  }
+
   @Post('/facts/:factId/evidence/:evidenceId/review')
   @CheckPolicies(adminUpdate as any)
   async reviewEvidenceLink(

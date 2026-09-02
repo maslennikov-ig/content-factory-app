@@ -29,13 +29,15 @@ describe('onboarding stays reachable after it is skipped', () => {
     // has nothing to switch to.
     expect(settings).toContain("tab: 'onboarding'");
 
-    // Rendered: the panel for that tab value, pointed at the same query
-    // parameter the onboarding modal and the backend's own post-signup
-    // redirect already use to open it.
+    // Rendered: the panel for that tab value, pointing at the walkthrough.
+    // `content-factory-next-rrs9` moved the destination from
+    // `/launches?onboarding=true` — a screen with a modal over it — to a page
+    // of its own, which is what a person can leave and come back to. The
+    // requirement this guards did not change: the way back exists in a menu.
     const panelStart = settings.indexOf("tab === 'onboarding'");
     expect(panelStart).toBeGreaterThan(-1);
-    const panel = settings.slice(panelStart, panelStart + 1200);
-    expect(panel).toMatch(/href="\/launches\?onboarding=true"/);
+    const panel = settings.slice(panelStart, panelStart + 1600);
+    expect(panel).toMatch(/href="\/onboarding"/);
   });
 
   test('the onboarding modal actually opens on that query parameter', () => {

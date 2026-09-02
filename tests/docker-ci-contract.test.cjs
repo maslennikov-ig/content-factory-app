@@ -190,8 +190,9 @@ if [[ "$*" != *'--test'* ]]; then
   exit 92
 fi
 native_file="\${!#}"
-printf 'node %s | SOURCE_REGISTRY_POSTGRES_URL=%s | POST_CONTENT_CONTEXT_POSTGRES_URL=%s | disposable_marker=%s\n' \
+printf 'node %s | SOURCE_REGISTRY_POSTGRES_URL=%s | POST_CONTENT_CONTEXT_POSTGRES_URL=%s | EDITORIAL_STAGE_POSTGRES_URL=%s | disposable_marker=%s\n' \
   "$*" "\${SOURCE_REGISTRY_POSTGRES_URL:-}" "\${POST_CONTENT_CONTEXT_POSTGRES_URL:-}" \
+  "\${EDITORIAL_STAGE_POSTGRES_URL:-}" \
   "\${CF_DOCKER_CI_DISPOSABLE_POSTGRES:-}" >> "$CF_DOCKER_CI_LOG"
 if [[ "\${CF_BLOCK_NATIVE:-}" == 1 ]]; then
   touch "$CF_SIGNAL_READY"
@@ -404,6 +405,10 @@ describe('required Docker-backed CI execution', () => {
       file: 'tests/content-source-registry.postgres.test.cjs',
       variable: 'SOURCE_REGISTRY_POSTGRES_URL',
     },
+    {
+      file: 'tests/editorial-stage.tag-migration.test.cjs',
+      variable: 'EDITORIAL_STAGE_POSTGRES_URL',
+    },
   ])('$file rejects a non-disposable target before connecting', ({ file, variable }) => {
     const result = spawnSync(
       process.execPath,
@@ -435,6 +440,10 @@ describe('required Docker-backed CI execution', () => {
       {
         file: 'tests/content-source-registry.postgres.test.cjs',
         variable: 'SOURCE_REGISTRY_POSTGRES_URL',
+      },
+      {
+        file: 'tests/editorial-stage.tag-migration.test.cjs',
+        variable: 'EDITORIAL_STAGE_POSTGRES_URL',
       },
     ].flatMap((target) =>
       [
@@ -472,10 +481,11 @@ describe('required Docker-backed CI execution', () => {
     expect(output).not.toMatch(/ENOTFOUND|ECONNREFUSED|ETIMEDOUT/);
   });
 
-  test('native files name all three environment-gated skips', () => {
+  test('native files name all four environment-gated skips', () => {
     const env = { ...process.env };
     delete env.SOURCE_REGISTRY_POSTGRES_URL;
     delete env.POST_CONTENT_CONTEXT_POSTGRES_URL;
+    delete env.EDITORIAL_STAGE_POSTGRES_URL;
     delete env.CF_DOCKER_CI_DISPOSABLE_POSTGRES;
     const result = spawnSync(
       process.execPath,
@@ -484,6 +494,7 @@ describe('required Docker-backed CI execution', () => {
         '--test-reporter=tap',
         'tests/content-source-registry.postgres.test.cjs',
         'tests/post.content-context.test.cjs',
+        'tests/editorial-stage.tag-migration.test.cjs',
       ],
       { cwd: root, env, encoding: 'utf8' }
     );
@@ -499,6 +510,11 @@ describe('required Docker-backed CI execution', () => {
         /# SKIP POST_CONTENT_CONTEXT_POSTGRES_URL is not configured/g
       )
     ).toHaveLength(2);
+    expect(
+      result.stdout.match(
+        /# SKIP EDITORIAL_STAGE_POSTGRES_URL is not configured/g
+      )
+    ).toHaveLength(1);
   });
 
   test('required mode rejects a green Jest result containing skipped tests', () => {
@@ -542,16 +558,19 @@ describe('required Docker-backed CI execution', () => {
       'image inspect postgres:17-alpine',
       'image inspect nginx:alpine',
     ]);
-    expect(commands).toHaveLength(5);
+    expect(commands).toHaveLength(6);
     expect(commands[0]).toContain(
       'tests/browser-error-relay.test.cjs tests/error-collector.compose.test.cjs tests/postgres-role-isolation.execution.test.cjs'
     );
-    expect(commands.slice(1, 3)).toEqual([
+    expect(commands.slice(1, 4)).toEqual([
       expect.stringContaining(
         'node --test --test-reporter=tap tests/content-source-registry.postgres.test.cjs'
       ),
       expect.stringContaining(
         'node --test --test-reporter=tap tests/post.content-context.test.cjs'
+      ),
+      expect.stringContaining(
+        'node --test --test-reporter=tap tests/editorial-stage.tag-migration.test.cjs'
       ),
     ]);
     expect(commands[1]).toContain(
@@ -560,9 +579,13 @@ describe('required Docker-backed CI execution', () => {
     expect(commands[2]).toContain(
       'POST_CONTENT_CONTEXT_POSTGRES_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres'
     );
+    expect(commands[3]).toContain(
+      'EDITORIAL_STAGE_POSTGRES_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres'
+    );
     expect(commands[1]).toContain('disposable_marker=1');
     expect(commands[2]).toContain('disposable_marker=1');
-    expect(commands.slice(3)).toEqual([
+    expect(commands[3]).toContain('disposable_marker=1');
+    expect(commands.slice(4)).toEqual([
       'scripts/operations/verify-mastra-storage-migration.sh',
       'scripts/operations/verify-postgres-backup-restore.sh',
     ]);

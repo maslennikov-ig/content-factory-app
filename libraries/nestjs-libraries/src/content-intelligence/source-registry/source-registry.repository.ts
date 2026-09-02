@@ -397,6 +397,20 @@ export class ContentSourceRegistryRepository {
                     locator: { kind: 'manual-document' },
                     observedAt: now,
                     freshnessStatus: 'NOT_MONITORED',
+                    // «Ваш материал» (`content-factory-next-tyrk`, owner
+                    // decision 02.09.2026): material a person typed in
+                    // themselves is confirmed at the moment they add it —
+                    // there is no separate review step waiting to happen.
+                    assessment: {
+                      create: {
+                        organization: { connect: { id: organizationId } },
+                        trustTier: 'OWNER_VERIFIED',
+                        trustPolicyVersion: 1,
+                        status: 'ACCEPTED',
+                        reviewedByUserId: actorUserId,
+                        reviewedAt: now,
+                      },
+                    },
                   },
                 ],
               },
@@ -661,6 +675,25 @@ export class ContentSourceRegistryRepository {
                         observedAt: input.now,
                         freshUntil: input.freshUntil,
                         freshnessStatus: 'FRESH',
+                        // «Ваш материал» (`content-factory-next-tyrk`, owner
+                        // decision 02.09.2026): a synced source the person
+                        // registered is confirmed on arrival, the same as a
+                        // manual one. `CompletionInput` carries no acting
+                        // user — this runs from a sync job, not a click — so
+                        // `reviewedByUserId` stays null rather than guessing
+                        // at whoever last touched the source.
+                        assessment: {
+                          create: {
+                            organization: {
+                              connect: { id: input.organizationId },
+                            },
+                            trustTier: 'OWNER_VERIFIED',
+                            trustPolicyVersion: 1,
+                            status: 'ACCEPTED',
+                            reviewedByUserId: null,
+                            reviewedAt: input.now,
+                          },
+                        },
                       })
                     ),
                   },
@@ -896,6 +929,20 @@ export class ContentSourceRegistryRepository {
               observedAt: payload.observedAt,
               freshUntil: payload.freshUntil,
               freshnessStatus: 'FRESH',
+              // «Найдено поиском» (`content-factory-next-tyrk`, owner
+              // decision 02.09.2026): unlike the person's own word or their
+              // own material, this is the product's own find — it starts
+              // `PROPOSED`/`UNRATED` and needs the explicit «Подтвердить»
+              // gesture (`ContentFactRepository.confirmEvidence`) before it
+              // can ground a fact.
+              assessment: {
+                create: {
+                  organization: { connect: { id: payload.organizationId } },
+                  trustTier: 'UNRATED',
+                  trustPolicyVersion: 1,
+                  status: 'PROPOSED',
+                },
+              },
             },
           ],
         },

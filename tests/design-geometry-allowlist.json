@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "total": 1049,
+  "total": 1037,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -61,7 +61,7 @@
       "priorSourceRoots": [
         "apps/frontend/src"
       ],
-      "priorTotal": 1004,
+      "priorTotal": 992,
       "addedSourceRoots": {
         "libraries/react-shared-libraries/src": {
           "occurrences": 45,
@@ -73,13 +73,13 @@
         }
       },
       "addedOccurrences": 45,
-      "combinedTotal": 1049,
+      "combinedTotal": 1037,
       "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control."
     }
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 1004,
+      "total": 992,
       "allowances": {
         "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
           "3px": 1,
@@ -223,11 +223,10 @@
         },
         "apps/frontend/src/components/launches/calendar.tsx": {
           "2.5px": 4,
-          "5px": 8,
+          "5px": 6,
           "6px": 6,
-          "10px": 19,
-          "11px": 2,
-          "14px": 8,
+          "10px": 15,
+          "14px": 7,
           "18px": 2,
           "21px": 2,
           "30px": 1,
@@ -659,8 +658,8 @@
         },
         "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
           "2px": 1,
-          "13px": 2,
-          "14px": 12
+          "13px": 1,
+          "14px": 10
         },
         "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
           "14px": 1,

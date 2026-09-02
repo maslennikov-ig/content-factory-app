@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "Tarihi değiştiremiyorsunuz, gönderiyi yayından kaldırın",
   "predicted_github_trending_change": "Tahmini GitHub Trend Değişimi",
   "duplicate_post": "Yinelenen Gönderi",
+  "more_actions": "Diğer işlemler",
   "preview_post": "Gönderiyi Önizle",
   "post_statistics": "Gönderi İstatistikleri",
   "draft": "Taslak",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "En çok tıklamayı {{channel}} getirdi; bir sonraki plan bunun üzerine kurulur.",
   "public_saas_result_detail": "Materyal çıktı. Sayılar demo verisi, ama üründeki gibi ayrıştırılmış: kanal kanal ve yalnızca gerçekten ulaştığı kanallar için.",
   "public_saas_demo_channels_label": "Yayın kanalları",
-  "public_saas_demo_no_channels": "En az bir kanal seçin — materyalin bir yere gitmesi gerekiyor."
+  "public_saas_demo_no_channels": "En az bir kanal seçin — materyalin bir yere gitmesi gerekiyor.",
+  "onboarding_step_next": "Nereden başlamalı",
+  "onboarding_next_title": "Nereden başlamalı",
+  "onboarding_next_description": "Tek bir içerikle altı adım: kanal, ses, dayanacak bir şey, brief, taslak, planlama. Yapılanlar kendiliğinden işaretlenir."
 }

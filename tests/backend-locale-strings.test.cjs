@@ -10,29 +10,22 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 const {
   BACKEND_LOCALES,
   BACKEND_FALLBACK_LOCALE,
+  BACKEND_STRING_KEYS,
   resolveBackendLocale,
   translateBackendString,
+  translateBackendText,
 } = loadTypeScriptModule('libraries/nestjs-libraries/src/locale/backend-strings.ts');
 
 const { languages: frontendLanguages } = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/translation/i18n.config.ts'
 );
 
-const CATALOG_KEYS = [
-  'content_workflow_tag_plan',
-  'content_workflow_tag_draft',
-  'content_workflow_tag_review',
-  'content_workflow_tag_schedule',
-  'email_activate_account_subject',
-  'email_activate_account_body',
-  'email_reset_password_subject',
-  'email_reset_password_body',
-  'email_confirm_identity_subject',
-  'email_confirm_identity_body',
-  'email_login_changed_subject',
-  'email_login_changed_body',
-  'email_footer_notification_preferences',
-];
+/**
+ * Read off the catalog rather than typed out beside it. The list that used to
+ * live here had already missed `email_awaiting_approval_*`, so those two keys
+ * were never checked for their sixteen locales.
+ */
+const CATALOG_KEYS = BACKEND_STRING_KEYS;
 
 test('the backend locale list is exactly the sixteen the frontend ships, same order', () => {
   expect(BACKEND_LOCALES).toEqual(frontendLanguages);
@@ -70,12 +63,18 @@ test('every catalog key carries all sixteen shipped locales, none left out', () 
   expect(missing).toEqual([]);
 });
 
+// The fixture is the footer line, which is a live string with an anchor in
+// it. It used to be `email_activate_account_body`, deleted on 02.09.2026 when
+// the action emails moved to a button — a test that keeps a string alive for
+// its own sake ends up guarding the thing the product stopped doing.
 test('interpolates {{token}} placeholders and leaves an unknown token untouched', () => {
-  const withLink = translateBackendString('email_activate_account_body', 'en', {
-    link: 'https://example.test/activate',
-  });
+  const withLink = translateBackendString(
+    'email_footer_notification_preferences',
+    'en',
+    { link: 'https://example.test/settings' }
+  );
   expect(withLink).toBe(
-    'Click <a href="https://example.test/activate">here</a> to activate your account'
+    'You can change your notification preferences in your <a href="https://example.test/settings">account settings.</a>'
   );
 
   const withoutParams = translateBackendString('content_workflow_tag_plan', 'en');
@@ -83,12 +82,12 @@ test('interpolates {{token}} placeholders and leaves an unknown token untouched'
 });
 
 test('multiple placeholders in one template all resolve', () => {
-  const body = translateBackendString('email_confirm_identity_body', 'en', {
-    link: 'https://example.test/confirm',
-    minutes: 20,
+  const subject = translateBackendString('email_team_invitation_subject', 'en', {
+    inviter: 'Ada',
+    organization: 'Lovelace',
   });
-  expect(body).toContain('https://example.test/confirm');
-  expect(body).toContain('20 minutes');
+  expect(subject).toContain('Ada');
+  expect(subject).toContain('Lovelace');
 });
 
 test('Russian and English carry different text for the same key, not a copy-pasted English string', () => {
@@ -109,4 +108,86 @@ test('the four content-workflow tag names are Cyrillic in Russian and distinct f
 
   expect(names).toEqual(['План', 'Черновик', 'Проверка', 'Расписание']);
   expect(new Set(names).size).toBe(4);
+});
+
+/**
+ * The email shell draws the action as a filled button, and a button needs the
+ * address on its own — a sentence with the link sewn into it cannot become
+ * one. These two guard that split: the copy carries no anchor, and the button
+ * label exists in all sixteen languages beside it.
+ */
+describe('the button copy is three values, not a sentence with a link in it', () => {
+  const actionKeys = BACKEND_STRING_KEYS.filter((key) =>
+    /^email_.*_(intro|action)$/.test(key)
+  );
+
+  test('there are action emails to check', () => {
+    expect(actionKeys.length).toBeGreaterThan(0);
+  });
+
+  test('no intro or button label carries an anchor of its own', () => {
+    const withAnchors = [];
+    for (const key of actionKeys) {
+      for (const locale of BACKEND_LOCALES) {
+        if (/<a\b/i.test(translateBackendString(key, locale))) {
+          withAnchors.push(`${key}/${locale}`);
+        }
+      }
+    }
+    expect(withAnchors).toEqual([]);
+  });
+
+  test('every intro has a button label to go with it', () => {
+    const orphans = BACKEND_STRING_KEYS.filter(
+      (key) =>
+        key.endsWith('_intro') &&
+        // The two notice emails are the exception by design: they state a
+        // fact and offer nothing to press.
+        !['email_agency_declined_intro'].includes(key) &&
+        // `_action`, or `_action_approve`/`_action_decline` where an email
+        // offers two.
+        !BACKEND_STRING_KEYS.some((candidate) =>
+          candidate.startsWith(key.replace(/_intro$/, '_action'))
+        )
+    );
+    expect(orphans).toEqual([]);
+  });
+});
+
+describe('a subject line is text, an email body is HTML', () => {
+  test('translateBackendText leaves an ampersand alone for the subject header', () => {
+    const subject = translateBackendText('email_team_invitation_subject', 'en', {
+      inviter: 'Ben & Jerry',
+      organization: "Sam's <Studio>",
+    });
+    expect(subject).toBe('Ben & Jerry invited you to join "Sam\'s <Studio>"');
+  });
+
+  test('translateBackendString escapes the same parameters for HTML', () => {
+    const body = translateBackendString('email_team_invitation_intro', 'en', {
+      inviter: 'Ben & Jerry',
+      organization: "Sam's <Studio>",
+    });
+    expect(body).toContain('Ben &amp; Jerry');
+    expect(body).toContain('Sam&#39;s &lt;Studio&gt;');
+    expect(body).not.toContain('<Studio>');
+  });
+});
+
+test('HTML special characters in params are escaped to prevent XSS', () => {
+  const maliciousLink =
+    'javascript:alert("<script>alert(1)</script>") " onload="alert(1)';
+  const body = translateBackendString(
+    'email_footer_notification_preferences',
+    'en',
+    { link: maliciousLink }
+  );
+
+  // The result should contain escaped entities, not the raw script tag
+  expect(body).toContain('&lt;script&gt;');
+  expect(body).toContain('&quot;');
+  expect(body).not.toContain('<script>');
+  expect(body).toContain(
+    'javascript:alert(&quot;&lt;script&gt;alert(1)&lt;/script&gt;&quot;) &quot; onload=&quot;alert(1)'
+  );
 });

@@ -129,14 +129,6 @@ export class ContentLeadRepository {
     if (changed.count !== 1) subscriptionNotFound();
   }
 
-  async setState(organizationId: string, id: string, state: string) {
-    const changed = await this.client().contentLeadSubscription.updateMany({
-      where: { organizationId, id, deletedAt: null },
-      data: { state },
-    });
-    if (changed.count !== 1) subscriptionNotFound();
-  }
-
   async archiveSubscription(organizationId: string, id: string, now: Date) {
     const changed = await this.client().contentLeadSubscription.updateMany({
       where: { organizationId, id, deletedAt: null },

@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "无法更改日期，请先将帖子从发布中移除",
   "predicted_github_trending_change": "预测 GitHub 趋势变化",
   "duplicate_post": "重复帖子",
+  "more_actions": "更多操作",
   "preview_post": "预览帖子",
   "post_statistics": "帖子统计",
   "draft": "草稿",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "带来最多点击的是 {{channel}}——下一份计划就从这里开始。",
   "public_saas_result_detail": "内容已经发出。数字是演示数据，但拆分方式和产品里一样：按渠道，而且只算真正发到的那些。",
   "public_saas_demo_channels_label": "发布渠道",
-  "public_saas_demo_no_channels": "至少选一个渠道——内容总得有地方去。"
+  "public_saas_demo_no_channels": "至少选一个渠道——内容总得有地方去。",
+  "onboarding_step_next": "从哪里开始",
+  "onboarding_next_title": "从哪里开始",
+  "onboarding_next_description": "用一条内容走完六步：频道、语气、依据、简报、草稿、排期。已完成的会自动打勾。"
 }

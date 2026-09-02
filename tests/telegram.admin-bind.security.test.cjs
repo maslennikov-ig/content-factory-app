@@ -155,6 +155,7 @@ describe('Admin Telegram binding is one-time and short-lived', () => {
       {
         id: 'admin-1',
         language: 'ru',
+        isSuperAdmin: true,
         telegramBindingCode: 'fresh-code',
         telegramBindingCodeExpiresAt: minutesFromNow(10),
       },
@@ -193,6 +194,40 @@ describe('Admin Telegram binding is one-time and short-lived', () => {
     // from a code that does not match.
     expect(secondAttempt.message).toBe('Command not recognized.');
     expect(transaction.store[0].telegramChatId).toBe('555');
+  });
+
+  test('a valid, unexpired code on a non-super-admin user is declined — the binding code table has no per-role gate of its own', async () => {
+    // `telegramBindingCode` is set wherever a code gets minted; nothing in
+    // this repository guarantees only a super-admin account can ever end up
+    // with one set. The lookup itself has to refuse a non-super-admin match,
+    // not rely on the code only ever existing on the right kind of account.
+    const transaction = createUserTransaction([
+      {
+        id: 'non-admin-1',
+        language: 'en',
+        isSuperAdmin: false,
+        telegramBindingCode: 'valid-but-wrong-role',
+        telegramBindingCodeExpiresAt: minutesFromNow(10),
+      },
+    ]);
+    const service = createService();
+
+    const effect = await service.applyAction(transaction, 6, {
+      kind: 'admin-bind',
+      code: 'valid-but-wrong-role',
+      chatId: '777',
+      messageId: '1',
+    });
+
+    expect(effect).toEqual({
+      kind: 'send-message',
+      chatId: '777',
+      message: 'Command not recognized.',
+    });
+    expect(transaction.store[0].telegramChatId).toBeUndefined();
+    expect(transaction.store[0].telegramBindingCode).toBe(
+      'valid-but-wrong-role'
+    );
   });
 
   test('a decline never says the word "code" — nothing hints the system exists', async () => {

@@ -23,15 +23,14 @@
 --   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
 --   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
 --
+-- Валидатор отвергает BEGIN/COMMIT как неизвестные операции схемы;
+-- транзакционность обеспечивает флаг --single-transaction в psql.
+--
 -- Применено локально на cf-dev-postgres (порт 5433) 02.09.2026 тем же текстом;
 -- на боевую базу — отдельным решением владельца, не этой задачей.
-
-BEGIN;
 
 ALTER TABLE "User" ADD COLUMN     "telegramBindingCode" TEXT,
 ADD COLUMN     "telegramBindingCodeExpiresAt" TIMESTAMP(3),
 ADD COLUMN     "telegramChatId" TEXT;
 
 CREATE INDEX "User_telegramBindingCode_idx" ON "User"("telegramBindingCode");
-
-COMMIT;

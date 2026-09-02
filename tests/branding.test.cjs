@@ -10,30 +10,37 @@ const {
 } = require('../scripts/i18n/collect-ui-keys.cjs');
 
 const repositoryRoot = path.resolve(__dirname, '..');
+
+/**
+ * Fixtures live in a throwaway tree, never in this repository.
+ *
+ * They used to be symlinks planted at their real paths under `apps/` and
+ * `libraries/` and removed again at the end of the suite. Those are the trees a
+ * running `next dev` watches and Tailwind globs on every CSS build: when the
+ * removal landed between Tailwind's glob and its read of the same file, the CSS
+ * build threw `ENOENT` against a file that no longer existed, nothing could
+ * invalidate that failure, and every page of the stand answered 500 until
+ * `apps/frontend/.next` was deleted and the server restarted. `tests/
+ * source-tree-write-guard.test.cjs` now refuses such a write outright.
+ *
+ * The scan classifies a file by its path relative to the root it is given, so a
+ * mirrored path inside a temporary root is classified exactly as the real one.
+ */
 const fixtureRoot = fs.mkdtempSync(
   path.join(require('node:os').tmpdir(), 'cf-branding-fixtures-')
 );
-const fixtureLinks = [];
 
 const installFixture = (relativePath, contents) => {
-  const fixtureName = path.basename(relativePath);
-  const fixturePath = path.join(fixtureRoot, fixtureName);
-  const linkPath = path.join(repositoryRoot, relativePath);
+  const fixturePath = path.join(fixtureRoot, relativePath);
+  fs.mkdirSync(path.dirname(fixturePath), { recursive: true });
   fs.writeFileSync(fixturePath, contents, 'utf8');
-  fs.symlinkSync(fixturePath, linkPath);
-  fixtureLinks.push({ fixturePath, linkPath });
-  return linkPath;
+  return fixturePath;
 };
 
-const removeFixtures = () => {
-  for (const { fixturePath, linkPath } of fixtureLinks.splice(0)) {
-    fs.rmSync(linkPath, { force: true });
-    fs.rmSync(fixturePath, { force: true });
-  }
-};
+/** The scan of the fixture tree, kept apart from the scan of this repository. */
+const scanFixtures = () => scan({ root: fixtureRoot });
 
 afterAll(() => {
-  removeFixtures();
   fs.rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
@@ -69,7 +76,7 @@ describe('Content Factory brand boundary', () => {
     const relativePath = 'apps/sdk/src/__brand_scan_sdk_fixture__.ts';
     installFixture(relativePath, "export const sdkName = 'Postiz';\n");
 
-    const { violations } = scan();
+    const { violations } = scanFixtures();
     expect(violations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -119,7 +126,7 @@ describe('Content Factory brand boundary', () => {
       installFixture(fixture, "export const visibleProduct = 'Postiz';\n");
     }
 
-    const { violations } = scan();
+    const { violations } = scanFixtures();
     for (const fixture of fixtures) {
       expect(violations).toEqual(
         expect.arrayContaining([
@@ -202,7 +209,7 @@ describe('Content Factory brand boundary', () => {
       'apps/frontend/src/__brand_scan_display_name_fixture__.ts';
     installFixture(relativePath, "export const visibleProduct = { name: 'postiz' };\n");
 
-    const { violations } = scan();
+    const { violations } = scanFixtures();
 
     expect(violations).toEqual(
       expect.arrayContaining([
@@ -223,7 +230,7 @@ describe('Content Factory brand boundary', () => {
       "export const banner = 'Syncing upstream from Postiz failed';\n"
     );
 
-    const { violations } = scan();
+    const { violations } = scanFixtures();
 
     expect(violations).toEqual(
       expect.arrayContaining([

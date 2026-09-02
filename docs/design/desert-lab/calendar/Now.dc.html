@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+  <style>
+    body { margin: 0; background: #14150F; }
+    a { color: #7FB03A; }
+    a:hover { color: #96C551; }
+  </style>
+</helmet>
+
+<div style="background-color: #14150F; padding: 28px 28px 32px 28px; font-family: 'Geologica', system-ui, Arial, sans-serif;">
+
+  <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #D2705C; text-transform: uppercase;">Сейчас</div>
+  <h1 style="margin: 10px 0 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 30px; color: #ECEBDF;">Что не так с карточкой сегодня</h1>
+  <p style="margin: 8px 0 0 0; max-width: 640px; font-size: 14px; font-weight: 400; line-height: 22px; color: #A6A794;">Слева — карточка ровно как она сейчас в месячном виде, 110px. Справа — то же наведение, которое вы показали на скриншоте.</p>
+
+  <div style="display: flex; flex-direction: row; gap: 40px; align-items: flex-start; margin-top: 28px;">
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #A6A794;">110px · месяц</div>
+
+      <div style="width: 110px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+        <div style="height: 24px; background-color: #7FB03A; display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 24px; color: #ECEBDF; mix-blend-mode: difference;">Plan</div>
+        <div style="background-color: #22241B; padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="align-self: flex-start; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid #33362A; background-color: #22241B; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; line-height: 22px; color: #ECEBDF; white-space: nowrap;">План</div>
+          <div style="display: flex; flex-direction: row; gap: 5px; align-items: flex-start;">
+            <div style="position: relative; width: 32px; height: 32px; flex: 0 0 32px;">
+              <div style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ECEBDF;">Tg</div>
+              <div style="position: absolute; bottom: -4px; right: -4px; width: 16px; height: 16px; border-radius: 3px; background-color: #2AABEE; border: 2px solid #22241B;"></div>
+            </div>
+            <div style="min-width: 0; font-size: 14px; line-height: 20px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Разбор…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #A6A794;">наведение на «глаз»</div>
+
+      <div style="width: 110px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden;">
+        <div style="height: 24px; background-color: #4D7CFE; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 5px;">
+          <div style="width: 15px; height: 15px; border: 1.6px solid #ECEBDF; border-radius: 3px; mix-blend-mode: difference;"></div>
+          <div style="width: 24px; height: 22px; border-radius: 8px; background-color: #22241B; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 15px; height: 9px; border: 1.6px solid #ECEBDF; border-radius: 9px 9px 9px 9px; mix-blend-mode: difference;"></div>
+          </div>
+          <div style="width: 15px; height: 15px; border: 1.6px solid #D2705C; border-radius: 3px; mix-blend-mode: difference;"></div>
+        </div>
+        <div style="background-color: #22241B; padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="align-self: flex-start; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid #7FA6C8; background-color: #161F28; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; line-height: 22px; color: #7FA6C8; white-space: nowrap;">Пишется</div>
+          <div style="display: flex; flex-direction: row; gap: 5px; align-items: flex-start;">
+            <div style="position: relative; width: 32px; height: 32px; flex: 0 0 32px;">
+              <div style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: #ECEBDF;">Tg</div>
+              <div style="position: absolute; bottom: -4px; right: -4px; width: 16px; height: 16px; border-radius: 3px; background-color: #2AABEE; border: 2px solid #22241B;"></div>
+            </div>
+            <div style="min-width: 0; font-size: 14px; line-height: 20px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Черновик:…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding-top: 27px;">
+
+      <div style="display: flex; flex-direction: row; gap: 12px; align-items: flex-start;">
+        <div style="flex: 0 0 22px; height: 22px; border-radius: 4px; background-color: #2C1512; border: 1px solid #D2705C; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #D2705C;">1</div>
+        <div style="font-size: 14px; line-height: 22px; color: #ECEBDF;">Сверху «Plan» по-английски, а под ним «План» по-русски. Одно и то же слово дважды, в двух местах, из двух разных источников: сверху — имя метки, снизу — этап.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: row; gap: 12px; align-items: flex-start;">
+        <div style="flex: 0 0 22px; height: 22px; border-radius: 4px; background-color: #2C1512; border: 1px solid #D2705C; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #D2705C;">2</div>
+        <div style="font-size: 14px; line-height: 22px; color: #ECEBDF;">Текст полоски и значки нарисованы режимом «разница»: цвет не выбран, а вычислен из цвета метки. На зелёном получается фиолетовый, на синем — оранжевый, и ни в одной теме это не проверяется.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: row; gap: 12px; align-items: flex-start;">
+        <div style="flex: 0 0 22px; height: 22px; border-radius: 4px; background-color: #2C1512; border: 1px solid #D2705C; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #D2705C;">3</div>
+        <div style="font-size: 14px; line-height: 22px; color: #ECEBDF;">При наведении под «глазом» проступает прямоугольник цвета панели — это фон кнопки. Он же попадает под режим «разницы», и кусок полоски выпадает.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: row; gap: 12px; align-items: flex-start;">
+        <div style="flex: 0 0 22px; height: 22px; border-radius: 4px; background-color: #2C1512; border: 1px solid #D2705C; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #D2705C;">4</div>
+        <div style="font-size: 14px; line-height: 22px; color: #ECEBDF;">106px высоты на два слова и один аватар. Аватар 32px и поля 8px съедают ширину, тексту остаётся 41px — «Разбор…». Канал всегда ровно один, хотя пост уходит в несколько.</div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

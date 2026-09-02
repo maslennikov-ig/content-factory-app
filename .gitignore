@@ -108,3 +108,6 @@ scripts/evidence/voice-eval/second-ruler/.venv/
 scripts/evidence/voice-eval/second-ruler/weights/
 /var/release/
 scripts/evidence/voice-eval/corpora.json
+
+# Локальный кэш дизайн-хука: машинный, не переносится между машинами.
+.impeccable/

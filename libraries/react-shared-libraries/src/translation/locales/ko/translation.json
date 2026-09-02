@@ -332,6 +332,7 @@
   "can_t_change_date_remove_post_from_publication": "날짜를 변경할 수 없습니다. 게시물에서 제거해 주세요.",
   "predicted_github_trending_change": "예상 GitHub 트렌드 변화",
   "duplicate_post": "중복 게시물",
+  "more_actions": "추가 작업",
   "preview_post": "게시물 미리보기",
   "post_statistics": "게시물 통계",
   "draft": "임시 저장",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "클릭이 가장 많았던 곳은 {{channel}}입니다. 다음 계획은 여기서 출발합니다.",
   "public_saas_result_detail": "원고가 나갔습니다. 수치는 데모지만, 쪼개는 방식은 제품과 같습니다. 채널별로, 그리고 실제로 도달한 채널에 대해서만.",
   "public_saas_demo_channels_label": "발행 채널",
-  "public_saas_demo_no_channels": "채널을 하나 이상 골라 주세요. 원고가 갈 곳이 필요합니다."
+  "public_saas_demo_no_channels": "채널을 하나 이상 골라 주세요. 원고가 갈 곳이 필요합니다.",
+  "onboarding_step_next": "시작하기",
+  "onboarding_next_title": "시작하기",
+  "onboarding_next_description": "콘텐츠 하나로 여섯 단계: 채널, 목소리, 근거, 브리프, 초안, 예약. 이미 끝낸 것은 자동으로 표시됩니다."
 }

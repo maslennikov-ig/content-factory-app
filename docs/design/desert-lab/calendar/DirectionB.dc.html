@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+  <style>
+    body { margin: 0; background: #14150F; }
+    a { color: #7FB03A; }
+    a:hover { color: #96C551; }
+  </style>
+</helmet>
+
+<div style="background-color: #14150F; padding: 28px; font-family: 'Geologica', system-ui, Arial, sans-serif;">
+
+  <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; line-height: 16px; color: #C8922A; text-transform: uppercase;">Направление B · строка вместо карточки</div>
+  <h1 style="margin: 10px 0 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 30px; color: #ECEBDF;">В сетке пост — это строка, а карточка остаётся только там, где широко</h1>
+  <p style="margin: 8px 0 0 0; max-width: 760px; font-size: 14px; font-weight: 400; line-height: 22px; color: #A6A794;">Никакой полоски и никакой рамки. Слева рейка 3px цветом этапа, рядом трёхбуквенный код этапа тем же цветом, дальше текст, справа — сколько каналов. <span style="color: #ECEBDF;">26px на пост.</span> В ячейку месяца влезает шесть постов вместо трёх, и «показать больше» перестаёт появляться на второй же публикации.</p>
+  <p style="margin: 6px 0 0 0; max-width: 760px; font-size: 14px; font-weight: 400; line-height: 22px; color: #D9A02B;">Чем платим: сокращения надо один раз выучить, и в узких видах каналы показаны числом, а не значками. Текста помещается меньше, чем в A.</p>
+
+  <div style="margin-top: 24px; background-color: #14150F; border: 1px solid #33362A; border-radius: 8px; padding: 20px;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #A6A794; margin-bottom: 14px;">ТЁМНАЯ ТЕМА · канва календаря</div>
+
+    <div style="display: flex; flex-direction: row; gap: 20px; align-items: flex-start;">
+
+      <div style="width: 110px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7E826D; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #ECEBDF;">ПЛН</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Разбор метрик</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">3</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FA6C8; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7FA6C8;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Как мы считали</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #D9A02B; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #D9A02B;">ПРВ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">5</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FB03A; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7FB03A;">РАС</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий пост</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FA6C8; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7FA6C8;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Паспорт голоса</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7E826D; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #ECEBDF;">ПЛН</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Итоги квартала</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">4</span>
+        </div>
+      </div>
+
+      <div style="width: 92px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FA6C8; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7FA6C8;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Как мы считали</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #D9A02B; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #D9A02B;">ПРВ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">5</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FB03A; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7FB03A;">РАС</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">1</span>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 36px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #D9A02B; padding: 0 10px; gap: 10px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #D9A02B;">ПРОВЕРКА</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки в подборе тем, которые повторяются каждый месяц</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; align-items: center;">
+            <span style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #ECEBDF;">Tg</span>
+            <span style="width: 20px; height: 20px; margin-left: 2px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #ECEBDF;">Vk</span>
+            <span style="width: 20px; height: 20px; margin-left: 2px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #ECEBDF;">Th</span>
+            <span style="margin-left: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">+2</span>
+          </span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">12:00</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 36px; background-color: #22241B; border-radius: 4px; border-left: 3px solid #7FB03A; padding: 0 10px; gap: 10px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #7FB03A;">РАСПИСАНИЕ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #ECEBDF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий пост</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; align-items: center;">
+            <span style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid #7E826D; background-color: #1C1E16; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #ECEBDF;">Tg</span>
+          </span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #A6A794;">13:00</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top: 20px; background-color: #EFE9DB; border: 1px solid #D3CAB3; border-radius: 8px; padding: 20px;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; line-height: 15px; color: #5C5D4C; margin-bottom: 14px;">СВЕТЛАЯ ТЕМА · канва календаря</div>
+
+    <div style="display: flex; flex-direction: row; gap: 20px; align-items: flex-start;">
+
+      <div style="width: 110px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #847B62; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #22231A;">ПЛН</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Разбор метрик</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">3</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #2F5A82; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #2F5A82;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Как мы считали</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #7A4D00; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7A4D00;">ПРВ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">5</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #3F6B2E; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #3F6B2E;">РАС</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий пост</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #2F5A82; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #2F5A82;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Паспорт голоса</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #847B62; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #22231A;">ПЛН</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Итоги квартала</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">4</span>
+        </div>
+      </div>
+
+      <div style="width: 92px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #2F5A82; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #2F5A82;">ПИШ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Как мы считали</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #7A4D00; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #7A4D00;">ПРВ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">5</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 26px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #3F6B2E; padding: 0 6px 0 6px; gap: 6px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: #3F6B2E;">РАС</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 16px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий</span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">1</span>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; flex-direction: row; align-items: center; height: 36px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #7A4D00; padding: 0 10px; gap: 10px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #7A4D00;">ПРОВЕРКА</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Три ошибки в подборе тем, которые повторяются каждый месяц</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; align-items: center;">
+            <span style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid #847B62; background-color: #FBF8F0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #22231A;">Tg</span>
+            <span style="width: 20px; height: 20px; margin-left: 2px; border-radius: 4px; border: 1px solid #847B62; background-color: #FBF8F0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #22231A;">Vk</span>
+            <span style="width: 20px; height: 20px; margin-left: 2px; border-radius: 4px; border: 1px solid #847B62; background-color: #FBF8F0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #22231A;">Th</span>
+            <span style="margin-left: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">+2</span>
+          </span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">12:00</span>
+        </div>
+        <div style="display: flex; flex-direction: row; align-items: center; height: 36px; background-color: #E4DDCB; border-radius: 4px; border-left: 3px solid #3F6B2E; padding: 0 10px; gap: 10px;">
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #3F6B2E;">РАСПИСАНИЕ</span>
+          <span style="flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 20px; color: #22231A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Короткий пост</span>
+          <span style="flex: 0 0 auto; display: flex; flex-direction: row; align-items: center;">
+            <span style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid #847B62; background-color: #FBF8F0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; color: #22231A;">Tg</span>
+          </span>
+          <span style="flex: 0 0 auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; color: #5C5D4C;">13:00</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

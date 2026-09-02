@@ -29,6 +29,7 @@ type GroundingMethod = 'OWN_WORD' | 'OWN_MATERIAL' | 'SEARCH_RESULT';
 
 type Grounding = {
   method: GroundingMethod;
+  evidenceId?: string | null;
   excerpt?: string | null;
   sourceLabel?: string | null;
   sourceUrl?: string | null;
@@ -53,7 +54,7 @@ function primaryEvidenceLink(evidenceLinks: any[]) {
 
 function groundingFor(evidenceLinks: any[]): Grounding {
   const link = primaryEvidenceLink(evidenceLinks || []);
-  if (!link) return { method: 'OWN_WORD' };
+  if (!link) return { method: 'OWN_WORD', evidenceId: null };
   const evidence = link.evidence;
   const snapshot = evidence?.snapshot;
   const source = snapshot?.source;
@@ -61,6 +62,7 @@ function groundingFor(evidenceLinks: any[]): Grounding {
   if (source && !sourceGone) {
     return {
       method: 'OWN_MATERIAL',
+      evidenceId: link.evidenceId,
       excerpt: evidence.excerpt ?? null,
       sourceLabel: source.displayName ?? null,
       sourceUrl: source.canonicalUrl ?? null,
@@ -70,6 +72,7 @@ function groundingFor(evidenceLinks: any[]): Grounding {
   if (snapshot?.kind === 'SEARCH_PROVIDER_RESULT') {
     return {
       method: 'SEARCH_RESULT',
+      evidenceId: link.evidenceId,
       excerpt: evidence.excerpt ?? null,
       sourceUrl: snapshot.finalCanonicalUrl || snapshot.requestedCanonicalUrl || null,
       observedAt: snapshot?.observedAt ?? null,
@@ -79,7 +82,25 @@ function groundingFor(evidenceLinks: any[]): Grounding {
   // source archived after the fact was made, or a snapshot kind this screen
   // does not recognise. Claiming a grounding that no longer points anywhere
   // is worse than the plain word.
-  return { method: 'OWN_WORD' };
+  return { method: 'OWN_WORD', evidenceId: null };
+}
+
+/**
+ * True only for a still-pending «найдено поиском» row: grounded in a search
+ * result whose link or whose evidence assessment has not been accepted yet.
+ * The witness screen (`content-factory-next-tyrk`, §5) offers «Подтвердить»
+ * exactly here — everywhere else the two existing actions are the whole
+ * story (map document §8.2).
+ */
+function needsLookFor(evidenceLinks: any[]): boolean {
+  const link = primaryEvidenceLink(evidenceLinks || []);
+  if (!link) return false;
+  const grounding = groundingFor(evidenceLinks);
+  if (grounding.method !== 'SEARCH_RESULT') return false;
+  return (
+    link.reviewStatus !== 'ACCEPTED' ||
+    link.evidence?.assessment?.status !== 'ACCEPTED'
+  );
 }
 
 @Injectable()
@@ -114,6 +135,7 @@ export class ContentFactService {
           .join(' ')
           .trim() || null,
       grounding: groundingFor(fact.evidenceLinks || []),
+      needsLook: needsLookFor(fact.evidenceLinks || []),
       evidence: (fact.evidenceLinks || []).map((link: any) => {
         const removed = Boolean(
           link.evidence.tombstone ||
@@ -179,6 +201,12 @@ export class ContentFactService {
         effectiveTo?.toISOString() || '',
       ].join('|')
     );
+    // «Ваше слово» (`content-factory-next-tyrk`, owner decision 02.09.2026):
+    // material a person adds themselves is confirmed the moment they add it.
+    // A fact typed here has no evidence yet by construction, so `VERIFIED`
+    // is not a claim that anything was checked — it is the honest status for
+    // a claim that stands on the person's own say-so.
+    const now = new Date();
     return this.repository.createFact(organizationId, actorUserId, {
       claimKey,
       statement: normalized(input.statement),
@@ -190,8 +218,8 @@ export class ContentFactService {
       effectiveFrom,
       effectiveTo,
       freshUntil,
-      status: 'UNVERIFIED',
-      verifiedAt: null,
+      status: 'VERIFIED',
+      verifiedAt: now,
       lastEvaluatedAt: null,
     });
   }
@@ -206,7 +234,29 @@ export class ContentFactService {
       organizationId,
       actorUserId,
       factId,
-      input
+      input,
+      new Date()
+    );
+  }
+
+  /**
+   * «Найдено поиском» → confirmed: the one gesture that accepts a search
+   * result's assessment, accepts the link it is cited through, and
+   * re-verifies the fact — all three in one transaction
+   * (`ContentFactRepository.confirmEvidence`).
+   */
+  confirmEvidence(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    evidenceId: string
+  ) {
+    return this.repository.confirmEvidence(
+      organizationId,
+      actorUserId,
+      factId,
+      evidenceId,
+      new Date()
     );
   }
 

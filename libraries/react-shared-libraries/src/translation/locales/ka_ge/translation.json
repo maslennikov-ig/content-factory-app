@@ -328,6 +328,7 @@
   "can_t_change_date_remove_post_from_publication": "თარიღის შეცვლა შეუძლებელია — მოხსენით პოსტი გამოქვეყნებიდან",
   "predicted_github_trending_change": "პროგნოზირებული ცვლილება GitHub Trending-ში",
   "duplicate_post": "პოსტის დუბლირება",
+  "more_actions": "სხვა მოქმედებები",
   "preview_post": "პოსტზე წინასწარი გადახედვა",
   "post_statistics": "პოსტის სტატისტიკა",
   "draft": "მონახაზი",
@@ -1482,5 +1483,8 @@
   "public_saas_demo_best_channel": "ყველაზე მეტი გადასვლა {{channel}}-მა მოიტანა — სწორედ აქედან იწყება მომდევნო გეგმა.",
   "public_saas_result_detail": "მასალა წავიდა. ციფრები დემონსტრაციულია, მაგრამ დაშლილია ისევე, როგორც პროდუქტში: არხების მიხედვით და მხოლოდ იმ არხებისთვის, სადაც ის ნამდვილად მოხვდა.",
   "public_saas_demo_channels_label": "გამოქვეყნების არხები",
-  "public_saas_demo_no_channels": "აირჩიეთ ერთი არხი მაინც — მასალას სადმე უნდა წავიდეს."
+  "public_saas_demo_no_channels": "აირჩიეთ ერთი არხი მაინც — მასალას სადმე უნდა წავიდეს.",
+  "onboarding_step_next": "საიდან დავიწყოთ",
+  "onboarding_next_title": "საიდან დავიწყოთ",
+  "onboarding_next_description": "ექვსი ნაბიჯი ერთ მასალაზე: არხი, ხმა, საყრდენი, ბრიფი, მონახაზი, განრიგი. გავლილი თავად აღინიშნება."
 }

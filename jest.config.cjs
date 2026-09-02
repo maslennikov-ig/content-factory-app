@@ -3,6 +3,10 @@ module.exports = {
   clearMocks: true,
   roots: ['<rootDir>/tests'],
   testEnvironment: 'node',
+  // A suite that writes into apps/** or libraries/** breaks a `next dev` or
+  // `nest start --watch` running beside it. Refused where it happens, so the
+  // failure names the test rather than surfacing later as a dead stand.
+  setupFiles: ['<rootDir>/tests/helpers/source-tree-guard.cjs'],
   // One ESM-only package sits behind the compose modal, which several suites
   // now reach through the Content section. Stubbed here so no suite has to
   // know about it.

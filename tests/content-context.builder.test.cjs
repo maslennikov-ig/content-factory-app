@@ -125,17 +125,24 @@ if (fs.existsSync(factServicePath)) {
 
     assert.equal(calls[0][1], 'org-a');
     assert.equal(calls[0][2], 'user-a');
-    assert.equal(created.status, 'UNVERIFIED');
+    // «Ваше слово» (`content-factory-next-tyrk`, owner decision 02.09.2026):
+    // a fact typed here has no evidence yet by construction, so it is
+    // verified on the person's own say-so at the moment they created it.
+    assert.equal(created.status, 'VERIFIED');
+    assert.ok(created.verifiedAt instanceof Date);
     assert.equal(created.valueText, 'EUR');
     assert.match(created.valueHash, /^[a-f0-9]{64}$/);
     assert.match(created.dedupeKey, /^[a-f0-9]{64}$/);
-    assert.deepEqual(calls[1], [
-      'linkEvidence',
+    assert.equal(calls[1][0], 'linkEvidence');
+    assert.deepEqual(calls[1].slice(1, 5), [
       'org-a',
       'user-a',
       'fact-1',
       { evidenceId: 'evidence-1', stance: 'SUPPORTS' },
     ]);
+    // `linkEvidence` now carries its own `now` for the accepted-assessment
+    // path (`ContentFactRepository.confirmEvidence`'s sibling write).
+    assert.ok(calls[1][5] instanceof Date);
   });
 }
 
@@ -715,5 +722,407 @@ if (fs.existsSync(builderPath)) {
       JSON.stringify(rendered.facts[0].evidenceCitationIds),
       JSON.stringify(original.evidenceCitationIds)
     );
+  });
+
+  /* -------------------------------------------------------------------------
+   * «Ваше слово» (`content-factory-next-tyrk`): a fact with no accepted
+   * evidence is not the same failure as a fact nobody has looked at yet.
+   * Nothing in the product could ever accept an evidence link before this
+   * task, so the builder always produced `UNAVAILABLE` — these guard the fix.
+   * ---------------------------------------------------------------------- */
+
+  test('a VERIFIED fact with no evidence at all is admitted as own word, with no citation', async () => {
+    const ownWord = fact('own-word', {
+      freshUntil: null,
+      evidenceLinks: [],
+    });
+    const builder = makeBuilder(new MemoryRepository([ownWord]));
+    const context = await builder.build('org-a', request());
+
+    assert.equal(context.status, 'READY');
+    assert.equal(context.rejected.length, 0);
+    assert.equal(context.facts.length, 1);
+    assert.equal(context.facts[0].factId, 'own-word');
+    assert.deepEqual(context.facts[0].evidenceCitationIds, []);
+    assert.equal(context.evidence.length, 0);
+  });
+
+  test('a VERIFIED fact whose only evidence link is still PROPOSED is admitted as own word too', async () => {
+    const pending = fact('own-word-pending', {
+      freshUntil: null,
+      evidenceLinks: [
+        {
+          stance: 'SUPPORTS',
+          reviewStatus: 'PROPOSED',
+          evidence: evidence('e-pending'),
+        },
+      ],
+    });
+    const builder = makeBuilder(new MemoryRepository([pending]));
+    const context = await builder.build('org-a', request());
+
+    assert.equal(context.status, 'READY');
+    assert.equal(context.facts.length, 1);
+    assert.deepEqual(context.facts[0].evidenceCitationIds, []);
+    // The proposed evidence does not ride in as a citation on its own
+    // account — it has not been accepted, only cited.
+    assert.equal(context.evidence.length, 0);
+  });
+
+  test('a fact with an accepted link whose evidence was removed keeps its rejection reason, not own word', async () => {
+    const removedEvidence = evidence('e-removed');
+    removedEvidence.tombstone = 'SOURCE_REMOVED';
+    const withRemovedEvidence = fact('removed-support', {
+      evidenceLinks: [
+        {
+          stance: 'SUPPORTS',
+          reviewStatus: 'ACCEPTED',
+          evidence: removedEvidence,
+        },
+      ],
+    });
+    const builder = makeBuilder(new MemoryRepository([withRemovedEvidence]));
+    const context = await builder.build('org-a', request());
+
+    assert.equal(context.facts.length, 0);
+    assert.deepEqual(context.rejected, [
+      { itemId: 'removed-support', reason: 'DELETED' },
+    ]);
+  });
+
+  test('evaluateFact keeps an own-word fact VERIFIED instead of demoting it to UNVERIFIED', async () => {
+    const at = new Date('2026-08-20T12:00:00.000Z');
+    const stored = {
+      id: 'own-word-eval',
+      organizationId: 'org-a',
+      status: 'VERIFIED',
+      freshUntil: null,
+      verifiedAt: new Date('2026-08-01T00:00:00.000Z'),
+      evidenceLinks: [],
+    };
+    const client = {
+      contentFact: {
+        findFirst: async () => structuredClone(stored),
+        updateMany: async ({ data }) => {
+          Object.assign(stored, data);
+          return { count: 1 };
+        },
+      },
+      contentFactEvidence: {
+        updateMany: async () => ({ count: 1 }),
+      },
+    };
+    const repository = new ContentFactRepository(
+      { model: client },
+      { model: { $transaction: async (work) => work(client) } }
+    );
+
+    // The fact this evaluation actually runs for has no evidence at all —
+    // `reviewEvidenceLink` is only the trigger here, standing in for
+    // whatever unrelated review caused `evaluateFact` to re-run on it.
+    const result = await repository.reviewEvidenceLink(
+      'org-a',
+      'reviewer-a',
+      'own-word-eval',
+      'evidence-unrelated',
+      'ACCEPTED',
+      at
+    );
+
+    assert.equal(result.status, 'VERIFIED');
+    assert.equal(result.freshUntil, null);
+    assert.equal(result.verifiedAt.getTime(), at.getTime());
+  });
+
+  test('confirmEvidence accepts a proposed search-result assessment, accepts its link, and re-verifies the fact', async () => {
+    const at = new Date('2026-08-20T13:00:00.000Z');
+    let assessmentUpsertArgs = null;
+    let linkUpdateArgs = null;
+    const factRecord = {
+      id: 'fact-search',
+      organizationId: 'org-a',
+      status: 'UNVERIFIED',
+      freshUntil: null,
+      evidenceLinks: [
+        {
+          reviewStatus: 'PROPOSED',
+          stance: 'SUPPORTS',
+          evidence: {
+            id: 'evidence-search-1',
+            tombstone: null,
+            freshUntil: future,
+            freshnessStatus: 'FRESH',
+            assessment: { status: 'PROPOSED', trustTier: 'UNRATED' },
+            snapshot: { purgedAt: null, kind: 'SEARCH_PROVIDER_RESULT', source: null },
+          },
+        },
+      ],
+    };
+
+    const client = {
+      contentFact: {
+        findFirst: async () => structuredClone(factRecord),
+        updateMany: async ({ data }) => {
+          Object.assign(factRecord, data);
+          return { count: 1 };
+        },
+      },
+      sourceEvidence: {
+        findFirst: async () => ({ id: 'evidence-search-1' }),
+      },
+      contentFactEvidence: {
+        findFirst: async () => ({
+          organizationId: 'org-a',
+          factId: 'fact-search',
+          evidenceId: 'evidence-search-1',
+          reviewStatus: 'PROPOSED',
+        }),
+        updateMany: async (args) => {
+          linkUpdateArgs = args;
+          factRecord.evidenceLinks[0].reviewStatus = args.data.reviewStatus;
+          return { count: 1 };
+        },
+      },
+      contentEvidenceAssessment: {
+        upsert: async (args) => {
+          assessmentUpsertArgs = args;
+          factRecord.evidenceLinks[0].evidence.assessment = {
+            status: 'ACCEPTED',
+            trustTier: 'UNRATED',
+          };
+          return { ...args.update, status: 'ACCEPTED' };
+        },
+      },
+    };
+    const repository = new ContentFactRepository(
+      { model: client },
+      { model: { $transaction: async (work) => work(client) } }
+    );
+
+    const result = await repository.confirmEvidence(
+      'org-a',
+      'user-a',
+      'fact-search',
+      'evidence-search-1',
+      at
+    );
+
+    assert.equal(assessmentUpsertArgs.update.status, 'ACCEPTED');
+    assert.equal(linkUpdateArgs.data.reviewStatus, 'ACCEPTED');
+    assert.equal(result.status, 'VERIFIED');
+    assert.equal(result.freshUntil.getTime(), future.getTime());
+  });
+
+  /* -------------------------------------------------------------------------
+   * Own word still ages (review addendum to `content-factory-next-tyrk`).
+   * The own-word branch returned before any freshness check at all, so a
+   * `CURRENT` fact past its own stated `freshUntil` — "we have 12 employees
+   * right now", the date long gone — would have been admitted unchanged.
+   * ---------------------------------------------------------------------- */
+
+  test('own word still ages: a CURRENT fact past its own freshUntil is rejected as STALE', async () => {
+    const staleOwnWord = fact('own-word-stale', {
+      temporalKind: 'CURRENT',
+      freshUntil: past,
+      evidenceLinks: [],
+    });
+    const builder = makeBuilder(new MemoryRepository([staleOwnWord]));
+    const context = await builder.build('org-a', request());
+
+    assert.equal(context.facts.length, 0);
+    assert.deepEqual(context.rejected, [
+      { itemId: 'own-word-stale', reason: 'STALE' },
+    ]);
+  });
+
+  test('own word within its own freshUntil is still admitted', async () => {
+    const freshOwnWord = fact('own-word-fresh', {
+      temporalKind: 'CURRENT',
+      freshUntil: future,
+      evidenceLinks: [],
+    });
+    const builder = makeBuilder(new MemoryRepository([freshOwnWord]));
+    const context = await builder.build('org-a', request());
+
+    assert.equal(context.facts.length, 1);
+    assert.equal(context.facts[0].factId, 'own-word-fresh');
+    assert.deepEqual(context.facts[0].evidenceCitationIds, []);
+  });
+
+  /* -------------------------------------------------------------------------
+   * КОПИРОВАТЬ И ПОПРАВИТЬ gets the same rule as an ordinary fact
+   * (`content-factory-next-tyrk`, §9.5 addendum): the real
+   * `ContentFactRepository.copyFact` transaction, fed through the real
+   * builder, proves the copy is never left less verified than its evidence
+   * already justifies.
+   * ---------------------------------------------------------------------- */
+
+  function makeCopyFactClient(oldFactOverrides = {}) {
+    const oldFact = {
+      id: 'copy-source',
+      organizationId: 'org-a',
+      claimKey: 'claim-copy',
+      statement: 'Old statement',
+      language: 'en',
+      temporalKind: 'TIMELESS',
+      effectiveFrom: null,
+      effectiveTo: null,
+      freshUntil: null,
+      status: 'VERIFIED',
+      ...oldFactOverrides,
+    };
+    let newFact = null;
+    const links = [];
+    const evidenceStore = new Map();
+
+    const client = {
+      contentFact: {
+        findFirst: async ({ where, include }) => {
+          if (where.id === oldFact.id) return { ...oldFact };
+          if (newFact && where.id === newFact.id) {
+            return include
+              ? {
+                  ...newFact,
+                  evidenceLinks: links.filter(
+                    (link) => link.factId === newFact.id
+                  ),
+                }
+              : { ...newFact };
+          }
+          return null;
+        },
+        upsert: async ({ create }) => {
+          if (newFact) return { ...newFact };
+          newFact = { id: 'copy-new', ...create };
+          return { ...newFact };
+        },
+        updateMany: async ({ where, data }) => {
+          if (where.id === oldFact.id) Object.assign(oldFact, data);
+          if (newFact && where.id === newFact.id) Object.assign(newFact, data);
+          return { count: 1 };
+        },
+      },
+      sourceEvidence: {
+        findFirst: async ({ where }) => evidenceStore.get(where.id) || null,
+      },
+      contentFactEvidence: {
+        findFirst: async () => null,
+        create: async ({ data }) => {
+          const link = { ...data, evidence: evidenceStore.get(data.evidenceId) };
+          links.push(link);
+          return link;
+        },
+      },
+    };
+    return { client, oldFact, evidenceStore, getNewFact: () => newFact };
+  }
+
+  function makeCopyFactRepository(client) {
+    return new ContentFactRepository(
+      { model: client },
+      { model: { $transaction: async (work) => work(client) } }
+    );
+  }
+
+  test('a copy created with no evidence is admitted by the builder as own word', async () => {
+    const { client } = makeCopyFactClient();
+    const repository = makeCopyFactRepository(client);
+
+    const { fact: copied } = await repository.copyFact(
+      'org-a',
+      'user-a',
+      'copy-source',
+      {
+        statement: 'New statement',
+        valueText: 'New statement',
+        valueHash: 'hash-copy-1',
+        dedupeKey: 'dedupe-copy-1',
+      },
+      now
+    );
+
+    assert.equal(copied.status, 'VERIFIED');
+
+    const context = await makeBuilder(new MemoryRepository([copied])).build(
+      'org-a',
+      request()
+    );
+
+    assert.equal(context.facts.length, 1);
+    assert.equal(context.facts[0].factId, copied.id);
+    assert.deepEqual(context.facts[0].evidenceCitationIds, []);
+    assert.equal(context.evidence.length, 0);
+  });
+
+  test('a copy linked to still-proposed evidence is admitted by the builder as own word, citation pending', async () => {
+    const { client, evidenceStore } = makeCopyFactClient();
+    evidenceStore.set('evidence-proposed', {
+      id: 'evidence-proposed',
+      assessment: { status: 'PROPOSED', trustTier: 'UNRATED' },
+    });
+    const repository = makeCopyFactRepository(client);
+
+    const { fact: copied } = await repository.copyFact(
+      'org-a',
+      'user-a',
+      'copy-source',
+      {
+        statement: 'New statement',
+        valueText: 'New statement',
+        valueHash: 'hash-copy-2',
+        dedupeKey: 'dedupe-copy-2',
+        evidenceId: 'evidence-proposed',
+        stance: 'SUPPORTS',
+      },
+      now
+    );
+
+    assert.equal(copied.status, 'VERIFIED');
+    assert.equal(copied.evidenceLinks[0].reviewStatus, 'PROPOSED');
+
+    const context = await makeBuilder(new MemoryRepository([copied])).build(
+      'org-a',
+      request()
+    );
+
+    assert.equal(context.facts.length, 1);
+    assert.deepEqual(context.facts[0].evidenceCitationIds, []);
+    // Cited but not accepted: the proposed evidence does not ride in as a
+    // citation on its own account either.
+    assert.equal(context.evidence.length, 0);
+  });
+
+  test('a copy linked to already-accepted evidence is admitted by the builder VERIFIED, with a citation', async () => {
+    const { client, evidenceStore } = makeCopyFactClient();
+    const acceptedEvidence = evidence('copy-accepted-evidence');
+    evidenceStore.set(acceptedEvidence.id, acceptedEvidence);
+    const repository = makeCopyFactRepository(client);
+
+    const { fact: copied } = await repository.copyFact(
+      'org-a',
+      'user-a',
+      'copy-source',
+      {
+        statement: 'New statement',
+        valueText: 'New statement',
+        valueHash: 'hash-copy-3',
+        dedupeKey: 'dedupe-copy-3',
+        evidenceId: acceptedEvidence.id,
+        stance: 'SUPPORTS',
+      },
+      now
+    );
+
+    assert.equal(copied.status, 'VERIFIED');
+    assert.equal(copied.evidenceLinks[0].reviewStatus, 'ACCEPTED');
+
+    const context = await makeBuilder(new MemoryRepository([copied])).build(
+      'org-a',
+      request()
+    );
+
+    assert.equal(context.facts.length, 1);
+    assert.equal(context.facts[0].evidenceCitationIds.length, 1);
+    assert.equal(context.evidence.length, 1);
   });
 }

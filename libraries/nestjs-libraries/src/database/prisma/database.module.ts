@@ -63,6 +63,7 @@ import { ContentContextRepository } from '@contentfactory/nestjs-libraries/conte
 import { ContentContextBuilderV1 } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.builder';
 import { ContentContextService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.service';
 import { ContentFactRepository } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.repository';
+import { OnboardingRepository } from '@contentfactory/nestjs-libraries/database/prisma/onboarding/onboarding.repository';
 import { ContentFactService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service';
 import { VoiceSampleRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-sample.repository';
 import { VoiceProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-profile.repository';
@@ -151,6 +152,7 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     ContentContextBuilderV1,
     ContentContextService,
     ContentFactRepository,
+    OnboardingRepository,
     ContentFactService,
     VoiceSampleRepository,
     VoiceProfileRepository,

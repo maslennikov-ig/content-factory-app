@@ -119,22 +119,40 @@ describe('desert-lab screen review regressions', () => {
     expect(read(file)).toMatch(/ImageWithFallback|onError=/);
   });
 
-  test('the calendar preview trigger stays focusable and visible after focus returns', () => {
-    const source = read('apps/frontend/src/components/launches/calendar.tsx');
-    const previewButton = source.match(
-      /<Button(?:(?!<\/Button>)[\s\S])*?aria-label=\{t\('preview_post'(?:(?!<\/Button>)[\s\S])*?<\/Button>/
+  /*
+    The card's actions moved into `post-card.parts.tsx` on 02.09.2026, when
+    direction A took them out of the coloured band and put them on a surface of
+    their own. The decision this test guards did not move: every action on the
+    card is the shared control, and it stays reachable and outlined for someone
+    who arrives by keyboard. `hidden` is the specific thing it must never go
+    back to — an element that is `display: none` cannot take focus at all, so
+    the trigger simply vanished for a tab user.
+  */
+  test('the calendar card actions stay focusable and visible after focus returns', () => {
+    const source = read(
+      'apps/frontend/src/components/launches/post-card.parts.tsx'
+    );
+    const actionButton = source.match(
+      /<Button(?:(?!<\/Button>)[\s\S])*?aria-label=\{action\.label\}(?:(?!<\/Button>)[\s\S])*?<\/Button>/
     )?.[0];
 
     expect(source).toContain(
       "import { Button } from '@contentfactory/react/form/button';"
     );
-    expect(previewButton).toBeDefined();
-    expect(previewButton).toContain('iconOnly');
-    expect(previewButton).toContain('type="button"');
-    expect(previewButton).toContain('variant="quiet"');
-    expect(previewButton).not.toContain('hidden group-hover:block');
-    expect(previewButton).toContain('focus-visible:opacity-100');
-    expect(previewButton).toContain('focus-visible:outline-cf-focus');
+    expect(actionButton).toBeDefined();
+    expect(actionButton).toContain('iconOnly');
+    expect(actionButton).toContain('type="button"');
+    expect(actionButton).toContain('variant="quiet"');
+    expect(actionButton).not.toContain('hidden group-hover:block');
+    expect(actionButton).toContain('focus-visible:opacity-100');
+    expect(actionButton).toContain('focus-visible:outline-cf-focus');
+
+    // And the panel holding them comes back for a keyboard user, who never
+    // hovers anything.
+    const calendar = read(
+      'apps/frontend/src/components/launches/calendar.tsx'
+    );
+    expect(calendar).toContain('focus-within:opacity-100');
   });
 
   test('the shared preview disables root navigation inside the calendar dialog', () => {

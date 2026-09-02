@@ -275,6 +275,37 @@ export class ContentContextBuilderV1 {
           )
           .map((link) => link.evidence);
         if (!supports.length) {
+          // «Ваше слово» (`content-factory-next-tyrk`): a fact with no
+          // evidence links at all, or only links still `PROPOSED`, has
+          // nothing here to accept or refuse — it stands on the person's own
+          // say-so from the moment they typed it
+          // (`ContentFactService.createFact`). An `ACCEPTED` link whose
+          // evidence turned out unusable is a different story and keeps
+          // today's rejection reason below; this only covers the case where
+          // nothing was ever accepted to begin with.
+          const ownWord = fact.evidenceLinks.every(
+            (link) => link.reviewStatus === 'PROPOSED'
+          );
+          if (ownWord) {
+            // Own word still ages. A `CURRENT` fact carries its own
+            // `freshUntil` from the moment it was typed
+            // (`CreateContentFactDto` requires it for that temporal kind);
+            // once that date passes, admitting the fact unchanged would let
+            // a stale claim — "we have 12 employees right now" past its own
+            // stated horizon — stand as current. A `TIMELESS`/`DATED` fact
+            // carries no `freshUntil` at all and is unaffected.
+            if (fact.freshUntil && fact.freshUntil.getTime() < asOf.getTime()) {
+              rejected.set(fact.id, 'STALE');
+              sawStale = true;
+              return null;
+            }
+            return {
+              fact,
+              supports: [] as EvidenceCandidateV1[],
+              trust: 0,
+              lexical: lexicalScore(request.query, fact),
+            };
+          }
           rejected.set(
             fact.id,
             fact.evidenceLinks.some((link) => sourceRemoved(link.evidence))
@@ -309,7 +340,10 @@ export class ContentContextBuilderV1 {
             Number(Boolean(left.fact.explicit)) ||
           right.trust - left.trust ||
           right.lexical - left.lexical ||
-          right.fact.freshUntil!.getTime() - left.fact.freshUntil!.getTime() ||
+          // «Ваше слово» carries no `freshUntil` of its own supports — it
+          // sorts after anything that does rather than crashing on a null.
+          (right.fact.freshUntil ? right.fact.freshUntil.getTime() : 0) -
+            (left.fact.freshUntil ? left.fact.freshUntil.getTime() : 0) ||
           left.fact.id.localeCompare(right.fact.id)
       );
 
