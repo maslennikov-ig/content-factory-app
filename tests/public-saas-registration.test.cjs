@@ -76,55 +76,10 @@ function loadRegistration(fetchData, push) {
           newsletterConsent: 'Send occasional product news',
           legalUnavailable: 'Terms and privacy links are not configured.',
           authOptions: 'Use configured sign-in options',
-          templateLegend: 'Choose a starting point',
-          templateBlank: 'Blank workspace',
-          templateBlankDescription: 'Start without preset labels.',
-          templateWorkflow: 'Content workflow',
-          templateWorkflowDescription: 'Add Plan, Draft, Review, and Schedule labels.',
         }[key]),
     },
     './public-telemetry': {
       usePublicTelemetry: () => jest.fn(),
-    },
-    './starter-template-chooser': {
-      StarterTemplateChooser: ({ value, onChange, copy }) =>
-        React.createElement(
-          'fieldset',
-          {},
-          React.createElement('legend', {}, copy.legend),
-          React.createElement(
-            'label',
-            {},
-            `${copy.blank} ${copy.blankDescription}`,
-            React.createElement('input', {
-              type: 'radio',
-              name: 'starter-template',
-              value: 'blank',
-              checked: value === 'blank',
-              onChange: () => onChange('blank'),
-            })
-          ),
-          React.createElement(
-            'label',
-            {},
-            `${copy.workflow} ${copy.workflowDescription}`,
-            React.createElement('input', {
-              type: 'radio',
-              name: 'starter-template',
-              value: 'content-workflow',
-              checked: value === 'content-workflow',
-              onChange: () => onChange('content-workflow'),
-            })
-          )
-        ),
-    },
-    './registration-intent': {
-      issueRegistrationIntent: (storage, starterTemplate) =>
-        storage.setItem('content-factory:registration-intent', starterTemplate),
-    },
-    '@contentfactory/nestjs-libraries/dtos/auth/starter-template': {
-      isStarterTemplate: (value) =>
-        value === 'blank' || value === 'content-workflow',
     },
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ termsUrl: '', privacyUrl: '' }),
@@ -171,7 +126,7 @@ describe('public email-first registration', () => {
     }));
     const push = jest.fn();
     const { EmailFirstSignup } = loadRegistration(fetchData, push);
-    render(React.createElement(EmailFirstSignup, { starterTemplate: 'blank' }));
+    render(React.createElement(EmailFirstSignup));
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
       target: { value: 'editor@example.com' },
@@ -217,63 +172,14 @@ describe('public email-first registration', () => {
       providerToken: '',
       workspaceName: 'Editorial desk',
       company: 'Editorial desk',
-      starterTemplate: 'blank',
       subscribeToNewsletter: true,
     });
+    // content-factory-next-pdbe: there is no starter-template choice left on
+    // this form, so the request never carries the field at all.
+    expect(
+      JSON.parse(fetchData.mock.calls[0][1].body)
+    ).not.toHaveProperty('starterTemplate');
     expect(push).toHaveBeenCalledWith('/launches');
-    expect(window.location.search).toBe('');
-    expect(window.localStorage.length).toBe(0);
-    expect(window.sessionStorage.length).toBe(0);
-  });
-
-  test('drops unsupported starter intent at the public boundary', async () => {
-    const fetchData = jest.fn(async () => ({
-      status: 200,
-      headers: new Headers(),
-    }));
-    const { EmailFirstSignup } = loadRegistration(fetchData, jest.fn());
-    render(
-      React.createElement(EmailFirstSignup, { starterTemplate: 'unsupported' })
-    );
-    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
-      target: { value: 'e@example.com' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'secret-pass' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    await waitFor(() => expect(fetchData).toHaveBeenCalledTimes(1));
-    expect(
-      JSON.parse(fetchData.mock.calls[0][1].body).starterTemplate
-    ).toBe('blank');
-  });
-
-  test('renders an accessible template choice and submits the selected allowlisted ID', async () => {
-    const fetchData = jest.fn(async () => ({
-      status: 200,
-      headers: new Headers(),
-    }));
-    const { EmailFirstSignup } = loadRegistration(fetchData, jest.fn());
-    render(React.createElement(EmailFirstSignup));
-
-    expect(
-      screen.getByRole('group', { name: 'Choose a starting point' })
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole('radio', { name: /Content workflow/ }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
-      target: { value: 'workflow@example.com' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'long-secret12' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-
-    await waitFor(() => expect(fetchData).toHaveBeenCalledTimes(1));
-    expect(JSON.parse(fetchData.mock.calls[0][1].body)).toMatchObject({
-      starterTemplate: 'content-workflow',
-    });
     expect(window.location.search).toBe('');
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);

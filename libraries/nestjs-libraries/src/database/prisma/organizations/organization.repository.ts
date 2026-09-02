@@ -11,6 +11,22 @@ import type { NewUserAccess } from '@contentfactory/helpers/auth/registration.ap
 import { randomUUID } from 'node:crypto';
 import { normalizeIdentityIdentifier } from '@contentfactory/nestjs-libraries/database/prisma/users/user-identity';
 import { NEWSLETTER_CONSENT_SOURCE_REGISTRATION } from '@contentfactory/helpers/auth/newsletter.consent';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
+
+// Order matches `CONTENT_WORKFLOW_TAGS`. The color in that array is fixed and
+// unrelated to language, so only the name is resolved per registration
+// language; the key list stays here rather than in `starter-template.ts`
+// because that file is loaded bare (no mocks) by several tests and must not
+// gain a `@contentfactory/*` import of its own.
+const CONTENT_WORKFLOW_TAG_KEYS = [
+  'content_workflow_tag_plan',
+  'content_workflow_tag_draft',
+  'content_workflow_tag_review',
+  'content_workflow_tag_schedule',
+] as const;
 
 @Injectable()
 export class OrganizationRepository {
@@ -321,24 +337,20 @@ export class OrganizationRepository {
       [body.workspaceName, body.company]
         .find((value) => typeof value === 'string' && value.trim())
         ?.trim() || 'Workspace';
-    const starterTemplate = body.starterTemplate || 'blank';
-    if (
-      starterTemplate !== 'blank' &&
-      starterTemplate !== 'content-workflow'
-    ) {
-      throw new Error('Unsupported starter template');
-    }
-    const starterTemplateData =
-      starterTemplate === 'content-workflow'
-        ? {
-            tags: {
-              create: CONTENT_WORKFLOW_TAGS.map(({ name, color }) => ({
-                name,
-                color,
-              })),
-            },
-          }
-        : {};
+    // Unknown, empty or unshipped values fall back to English rather than
+    // rejecting the registration; see `resolveBackendLocale`.
+    const locale = resolveBackendLocale((body as { language?: unknown }).language);
+    // There is no starter-template choice on the registration form any more:
+    // every new workspace gets the content-workflow tags, unconditionally,
+    // named in the language the person was reading when they signed up.
+    const workflowTagsData = {
+      tags: {
+        create: CONTENT_WORKFLOW_TAGS.map(({ color }, index) => ({
+          name: translateBackendString(CONTENT_WORKFLOW_TAG_KEYS[index], locale),
+          color,
+        })),
+      },
+    };
 
     // One statement, so the consent cannot outlive a failed account creation
     // or the account outlive a lost consent.
@@ -361,7 +373,7 @@ export class OrganizationRepository {
         aiProvider: {
           create: { usageMode: 'included' },
         },
-        ...starterTemplateData,
+        ...workflowTagsData,
         users: {
           create: {
             role: Role.SUPERADMIN,
@@ -377,6 +389,7 @@ export class OrganizationRepository {
                 providerName: body.provider,
                 providerId: body.providerId || '',
                 timezone: 0,
+                language: locale,
                 ip,
                 agent: userAgent,
                 identities: {

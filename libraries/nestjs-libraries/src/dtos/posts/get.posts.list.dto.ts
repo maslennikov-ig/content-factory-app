@@ -7,6 +7,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { EDITORIAL_STAGE_VALUES } from '@contentfactory/nestjs-libraries/dtos/posts/get.posts.dto';
 
 export type PostListStateFilter = 'all' | 'scheduled' | 'draft' | 'published';
 
@@ -31,4 +32,9 @@ export class GetPostsListDto {
   @IsOptional()
   @IsIn(['all', 'scheduled', 'draft', 'published'])
   state?: PostListStateFilter = 'all';
+
+  // Editorial process stage, NOT delivery `state` above. Optional.
+  @IsOptional()
+  @IsIn(EDITORIAL_STAGE_VALUES)
+  editorialStage?: (typeof EDITORIAL_STAGE_VALUES)[number];
 }

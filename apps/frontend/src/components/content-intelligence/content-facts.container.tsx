@@ -133,7 +133,22 @@ const copy = {
   },
 } as const;
 
-export function ContentFactsContainer() {
+export function ContentFactsContainer({
+  onFactCreated,
+}: {
+  /**
+   * Fired once a fact is actually saved, with the id the brief needs.
+   *
+   * Optional, and unused by the door this component was originally built
+   * for (`content-facts.adapter.ts`'s doc comment): the "Происхождение" tab
+   * had nowhere else for a freshly created id to go but the list below the
+   * form. The brief (`content-factory-next-odb8.2`) embeds this same form
+   * where the question "чем подтвердишь" is asked and uses the callback to
+   * carry the id straight into its own fact row, so a person never retypes
+   * or copy-pastes what they just typed here.
+   */
+  onFactCreated?: (fact: { id: string; claimKey: string; statement: string }) => void;
+} = {}) {
   const request = useFetch();
   const { language } = useVariables();
   const locale: Locale = String(language ?? 'ru').toLowerCase().startsWith('ru')
@@ -191,15 +206,23 @@ export function ContentFactsContainer() {
         method: 'POST',
         body: JSON.stringify(buildFactCreatePayload(draft)),
       });
+      const id = String(response?.id ?? '');
       setDraft(emptyFactDraft(locale));
-      setCreated(t.created(String(response?.id ?? '')));
+      setCreated(t.created(id));
       await facts.mutate();
+      if (id) {
+        onFactCreated?.({
+          id,
+          claimKey: draft.claimKey.trim(),
+          statement: draft.statement.trim(),
+        });
+      }
     } catch (error) {
       setFailure(readFailure(error, t.createFallback));
     } finally {
       setBusy(false);
     }
-  }, [draft, facts, locale, read, t]);
+  }, [draft, facts, locale, onFactCreated, read, t]);
 
   const shownFailure =
     failure ?? (facts.error ? readFailure(facts.error, t.listFallback) : null);

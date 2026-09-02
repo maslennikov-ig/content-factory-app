@@ -94,6 +94,20 @@ function checkConfiguration() {
   checker.readEnvFromProcess();
   checker.check();
 
+  // `ResendProvider` (libraries/nestjs-libraries/src/emails/
+  // resend.provider.ts) used to fall back to a fake key ("re_132") when
+  // RESEND_API_KEY was unset, so a missing key produced no signal anywhere
+  // — it no longer does, it now throws on first use, which shifts the
+  // failure from "invisible" to "only visible once the first email tries to
+  // send". Catching it here means it shows up in the same startup log an
+  // operator already reads, before that first send ever happens.
+  if (process.env.EMAIL_PROVIDER === 'resend') {
+    checker.checkNonEmpty(
+      'RESEND_API_KEY',
+      'Needed because EMAIL_PROVIDER=resend.'
+    );
+  }
+
   if (checker.hasIssues()) {
     for (const issue of checker.getIssues()) {
       Logger.warn(issue, 'Configuration issue');

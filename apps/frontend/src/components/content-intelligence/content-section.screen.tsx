@@ -10,10 +10,12 @@ import {
   type ContentSectionLocale,
 } from './content-section.copy';
 import { ContentMaterialsPlaceholder } from './content-materials.placeholder';
-import { ContentFactsContainer } from './content-facts.container';
+import { ContentFactsShowcase } from './content-facts.showcase';
+import { ContentLeadsTab } from './content-leads.tab';
 import { VoiceTab } from '../brand-voice/voice-tab';
 import { VoiceBriefContainer } from '../brand-voice/voice-brief.container';
 import { VoiceMaterialsContainer } from '../brand-voice/voice-materials.container';
+import { ContentArchiveContainer } from './content-archive.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
 
 /**
@@ -32,44 +34,75 @@ import type { ContentIntelligenceSection } from './content-intelligence.view';
  * screen already names the surface and already offers the choice.
  */
 /**
- * The five tabs, named for themselves.
+ * The tabs, named for themselves.
  *
- * They used to be `ContentIntelligenceSection | 'materials' | 'brief'`, which
- * gave the first tab the key `brand` — the name of a settings section it once
- * mounted. That section is gone and the tab was never really it: what the tab
- * holds is the avatars, which is also what its label has said since 093b1985.
- * Two of the five still open a section of the settings view, and those two
- * carry that view's own names so the mapping stays a fact rather than a table
- * to maintain.
+ * The type still widens through `ContentIntelligenceSection` (`'sources' |
+ * 'provenance'`) rather than naming its own four values: `'sources'` is no
+ * longer in `CONTENT_TABS` below, but `ContentIntelligenceSettings` and its
+ * review scenes still accept it, and narrowing the type here would be one
+ * more place that has to change every time a settings section is folded in
+ * or out of this screen's strip. `avatars` used to be `brand`, the name of a
+ * settings section it once mounted; that section is gone and the tab was
+ * never really it — what the tab holds is the avatars, which is also what
+ * its label has said since 093b1985.
  */
 export type ContentTab =
   | 'avatars'
+  | 'leads'
   | ContentIntelligenceSection
   | 'materials'
-  | 'brief';
+  | 'brief'
+  | 'archive';
 
 export { contentSectionCopy, ContentMaterialsPlaceholder };
 export type { ContentSectionLocale };
 
 /**
- * The order is the working order, and «Бриф» sits where the decision does.
+ * Six places, and «Бриф» sits where the decision does.
  *
- * Between the sources a text rests on and the material that came out of it:
- * first what is being said and on what grounds, then what was written. The
- * brief screen and its routes were built by `content-factory-next-07h.4` and
- * were reachable from nothing but the review fixture until this entry existed.
+ * `content-factory-next-odb8` sections the working menu down to three
+ * questions (`docs/product/content-section-map.md` §3): who writes, what is
+ * written next, and where the product got what it treats as true. «Источники»
+ * — the list, the form and the lifecycle of a `ContentSource` row — is gone
+ * from here: it sat dead on production for twelve days before anyone
+ * noticed, and the owner did not read it with three explanations. Nothing it
+ * ran was deleted; `ContentIntelligenceSettings` and its review scenes still
+ * exist, reachable through `/interface-review`, and simply are not on this
+ * strip any more. «Происхождение» keeps its key — `content-section.copy.ts`
+ * still calls it `provenance` and `content-facts.container.tsx`'s own test
+ * still greps for `tab === 'provenance'` — but the panel behind it is now
+ * the witness screen (`content-facts.showcase.tsx`), not the context
+ * inspector; the label changed instead of the key so a stored tab or a test
+ * regex naming the old key does not silently point at nothing.
+ *
+ * «Материалы» keeps its place: nothing in the accepted decision named it for
+ * removal. `odb8.4`, once deferred, is built and mounted here as «Что уже
+ * написали» — see the tab order comment below for where and why.
  */
 export const CONTENT_TABS: readonly ContentTab[] = [
   'avatars',
-  'sources',
+  // `content-factory-next-odb8.3`: «Откуда идеи» sits right after «Аватары»,
+  // ahead of the brief it feeds — a subscription's lead is a reason to open
+  // the brief, not a thing that belongs inside it.
+  'leads',
   'brief',
   'materials',
   'provenance',
+  // `content-factory-next-odb8.4`: the archive answers "what was already
+  // written and what it stood on" — a question that only makes sense once
+  // the strip has already answered who writes and what gets written next.
+  // It goes last rather than between «Материалы» and «Откуда факты»: each
+  // archive row can open a grounding dialog that shows the very facts
+  // «Откуда факты» witnesses, so the archive reads as the closing, most
+  // comprehensive view rather than a rung on the existing ladder — and
+  // appending it leaves the five-tab order this file has already documented
+  // untouched.
+  'archive',
 ];
 
 
 /**
- * The frame: a heading, five tabs and one panel.
+ * The frame: a heading, four tabs and one panel.
  *
  * Separate from the screen because it holds no data and makes no request, so
  * the review route can open it in every width, theme and language without a
@@ -184,21 +217,26 @@ export function ContentSectionScreen({
       */}
       {tab === 'avatars' ? (
         <VoiceTab />
+      ) : tab === 'leads' ? (
+        // «Откуда идеи» (`content-factory-next-odb8.3`): subscriptions and
+        // the leads they bring back. «Взять в работу» spends the lead and
+        // opens the Brief tab; it does not prefill the brief's thesis field
+        // — `voice-brief.container.tsx` is outside this task's write zone.
+        <ContentLeadsTab onNavigateToBrief={() => setTab('brief')} />
       ) : tab === 'brief' ? (
         <VoiceBriefContainer />
       ) : tab === 'materials' ? (
         <VoiceMaterialsContainer />
       ) : tab === 'provenance' ? (
-        // The fact catalogue a brief cites by id sits above the context
-        // inspector: the door to add to working memory, next to the tool that
-        // reads what a built context drew from it.
-        <div className="flex min-w-0 flex-col gap-[20px]">
-          <ContentFactsContainer />
-          <ContentIntelligenceSettings
-            visibleSections={[tab]}
-            showHeader={false}
-          />
-        </div>
+        // «Откуда факты» (`content-factory-next-odb8.1`): a witness, not a
+        // workbench. Adding a fact happens on the Brief tab, where the
+        // question is asked; this only shows what memory already holds.
+        <ContentFactsShowcase />
+      ) : tab === 'archive' ? (
+        // «Что уже написали» (`content-factory-next-odb8.4`): three layers —
+        // made here, brought in from before the product, published beside
+        // it — in one flat, filterable list.
+        <ContentArchiveContainer />
       ) : (
         <ContentIntelligenceSettings
           visibleSections={[tab]}

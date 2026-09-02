@@ -99,6 +99,9 @@ const { AuthService } = loadTypeScriptModule(
       'libraries/helpers/src/auth/registration.approval.ts'
     ),
     '@contentfactory/helpers/auth/newsletter.consent': newsletterConsentRules,
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 

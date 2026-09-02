@@ -95,14 +95,6 @@ const mocks = {
   '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
     CreateOrgUserDto: class CreateOrgUserDto {},
   },
-  '@contentfactory/frontend/components/public-saas/starter-template-chooser': {
-    StarterTemplateChooser: emptyProvider,
-  },
-  '@contentfactory/frontend/components/public-saas/registration-intent': {
-    readRegistrationIntent: () => 'blank',
-    consumeRegistrationIntent: () => 'blank',
-    issueRegistrationIntent: () => undefined,
-  },
   '@contentfactory/frontend/components/auth/providers/github.provider': {
     GithubProvider: emptyProvider,
   },

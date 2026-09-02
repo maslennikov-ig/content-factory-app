@@ -129,6 +129,14 @@ export const SettingsPopup: FC<{
       tab: 'approved_apps',
       label: t('approved_apps', 'Approved Apps'),
     });
+    // Available to everyone, same reasoning as `about` below: the onboarding
+    // modal used to open only on a fresh space or with `?onboarding=true`
+    // typed into the address bar by hand — skip it once and it was gone. This
+    // is its permanent door. See content-factory-next-rrs9.
+    arr.push({
+      tab: 'onboarding',
+      label: t('onboarding', 'Onboarding'),
+    });
     // Last, and available to everyone: the version this deployment runs, its
     // licence and the source offer that goes with it. Not a tier feature and
     // not a permanent rail row — a place to look when someone wants to know.
@@ -181,6 +189,32 @@ export const SettingsPopup: FC<{
             className="mt-[16px] inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[16px] cf-label-md text-cf-accent transition-colors duration-state hover:bg-cf-accent hover:text-cf-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none sm:min-h-[40px]"
           >
             {isRussian ? 'Открыть раздел «Контент»' : 'Open Content'}
+          </Link>
+        </section>
+      ) : tab === 'onboarding' ? (
+        // Reachable from a menu everyone already has, instead of a new one
+        // built to hold a single link. The onboarding modal itself still only
+        // covers the inherited calendar/draft/preview/schedule loop — that
+        // stays as it is until it has a design. This tab only restores the
+        // way back to it.
+        <section
+          data-onboarding-entry="settings"
+          className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+        >
+          <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
+            {t('watch_tutorial_title', 'How Content Factory works')}
+          </h2>
+          <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+            {t(
+              'watch_tutorial_description',
+              'Four steps take a piece of content from idea to published post.'
+            )}
+          </p>
+          <Link
+            href="/launches?onboarding=true"
+            className="mt-[16px] inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[16px] cf-label-md text-cf-accent transition-colors duration-state hover:bg-cf-accent hover:text-cf-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none sm:min-h-[40px]"
+          >
+            {t('get_started', 'Get Started')}
           </Link>
         </section>
       ) : (

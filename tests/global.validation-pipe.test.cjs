@@ -247,6 +247,20 @@ describe('global DTO whitelist compatibility', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  test('strips a retired starterTemplate field from a stale registration request without rejecting it', async () => {
+    // content-factory-next-pdbe removed the starter-template picker and its
+    // DTO field. A tab left open from before the change can still submit the
+    // old field; the pipe's `whitelist: true` must silently drop it, the same
+    // way it already drops any other field the DTO does not declare.
+    const result = await transform(targetPipe(), CreateOrgUserDto, {
+      ...createOrgUser,
+      starterTemplate: 'content-workflow',
+    });
+
+    expect(result).toEqual(createOrgUser);
+    expect(result).not.toHaveProperty('starterTemplate');
+  });
+
   test('keeps metatype Object unchanged because inline object contracts are not DTO-filtered', async () => {
     const input = { known: 'value', providerPayload: { arbitrary: true } };
 

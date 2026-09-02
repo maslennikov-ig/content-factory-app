@@ -48,6 +48,11 @@ const userIdentityHelpers = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/users/user-identity.ts',
   { '@prisma/client': { Provider: { LOCAL: 'LOCAL' } } }
 );
+// The repository now attaches the content-workflow tags to every workspace
+// unconditionally, so it needs the real catalog, not just a resolvable stub.
+const { CONTENT_WORKFLOW_TAGS } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/dtos/auth/starter-template.ts'
+);
 const { OrganizationRepository } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts',
   {
@@ -60,7 +65,9 @@ const { OrganizationRepository } = loadTypeScriptModule(
         hashPassword: (value) => `hashed:${value}`,
       },
     },
-    '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {},
+    '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
+      CONTENT_WORKFLOW_TAGS,
+    },
     '@contentfactory/nestjs-libraries/services/make.is': {
       makeId: () => 'generated',
     },
@@ -72,6 +79,9 @@ const { OrganizationRepository } = loadTypeScriptModule(
     '@contentfactory/helpers/auth/newsletter.consent': {
       NEWSLETTER_CONSENT_SOURCE_REGISTRATION: 'registration',
     },
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 

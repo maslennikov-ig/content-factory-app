@@ -1,10 +1,12 @@
 import { Injectable, Optional } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   PrismaRepository,
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { SourceRegistryError } from './errors';
 import { DEFAULT_SOURCE_FETCH_BUDGETS } from './source-fetch.gateway';
+import { SearchProviderEvidencePayload } from './search-evidence';
 
 type SourceCreateInput = {
   kind: 'MANUAL' | 'URL' | 'RSS';
@@ -50,6 +52,23 @@ type CompletionInput = {
   now: Date;
 };
 
+// Discriminated on `duplicate` so callers narrow with `if (run.duplicate)`
+// and TypeScript drops `leaseId`/`status` from the branch that lacks them,
+// instead of widening both branches into one loose shape.
+type StartSyncRunResult =
+  | {
+      id: string;
+      duplicate: true;
+      resultSnapshotId: string | null;
+      status: string;
+    }
+  | {
+      id: string;
+      duplicate: false;
+      resultSnapshotId: string | null;
+      leaseId: string;
+    };
+
 const FETCH_HOPS = DEFAULT_SOURCE_FETCH_BUDGETS.redirects + 1;
 const ONE_FETCH_ENVELOPE_MS =
   FETCH_HOPS *
@@ -82,7 +101,9 @@ const policyFailureCodes = new Set([
 @Injectable()
 export class ContentSourceRegistryRepository {
   constructor(
-    private readonly repository: PrismaRepository<any>,
+    private readonly repository: PrismaRepository<
+      'contentSource' | 'sourceSyncRun' | 'sourceSnapshot'
+    >,
     private readonly transaction: PrismaTransaction,
     @Optional() private readonly clock: () => Date = () => new Date()
   ) {}
@@ -99,15 +120,13 @@ export class ContentSourceRegistryRepository {
         canonicalKey: input.canonicalKey,
       },
     };
-    const existing = await (
-      this.repository.model as any
-    ).contentSource.findUnique({
+    const existing = await this.repository.model.contentSource.findUnique({
       where,
       include: { currentSnapshot: true },
     });
     if (existing) return { source: existing, created: false };
     try {
-      const created = await (this.repository.model as any).contentSource.create(
+      const created = await this.repository.model.contentSource.create(
         {
           data: {
             organizationId,
@@ -122,9 +141,7 @@ export class ContentSourceRegistryRepository {
       return { source: created, created: true };
     } catch (error) {
       if (prismaCode(error) !== 'P2002') throw error;
-      const raced = await (
-        this.repository.model as any
-      ).contentSource.findUnique({
+      const raced = await this.repository.model.contentSource.findUnique({
         where,
         include: { currentSnapshot: true },
       });
@@ -134,7 +151,7 @@ export class ContentSourceRegistryRepository {
   }
 
   listSources(organizationId: string) {
-    return (this.repository.model as any).contentSource.findMany({
+    return this.repository.model.contentSource.findMany({
       where: { organizationId, archivedAt: null },
       orderBy: { updatedAt: 'desc' },
       include: {
@@ -154,7 +171,7 @@ export class ContentSourceRegistryRepository {
   }
 
   async getById(organizationId: string, id: string) {
-    const source = await (this.repository.model as any).contentSource.findFirst(
+    const source = await this.repository.model.contentSource.findFirst(
       {
         where: { organizationId, id, archivedAt: null },
         include: {
@@ -192,9 +209,7 @@ export class ContentSourceRegistryRepository {
     note: string | undefined,
     now: Date
   ) {
-    const changed = await (
-      this.repository.model as any
-    ).contentSource.updateMany({
+    const changed = await this.repository.model.contentSource.updateMany({
       where: { organizationId, id, archivedAt: null },
       data: {
         rightsState: confirmed ? 'CONFIRMED' : 'DENIED',
@@ -216,9 +231,7 @@ export class ContentSourceRegistryRepository {
   }
 
   async activate(organizationId: string, id: string, actorUserId: string) {
-    const changed = await (
-      this.repository.model as any
-    ).contentSource.updateMany({
+    const changed = await this.repository.model.contentSource.updateMany({
       where: {
         organizationId,
         id,
@@ -249,9 +262,7 @@ export class ContentSourceRegistryRepository {
     actorUserId: string,
     now: Date
   ) {
-    const changed = await (
-      this.repository.model as any
-    ).contentSource.updateMany({
+    const changed = await this.repository.model.contentSource.updateMany({
       where: { organizationId, id, archivedAt: null },
       data: {
         desiredState: 'ARCHIVED',
@@ -280,9 +291,7 @@ export class ContentSourceRegistryRepository {
     configVersion: number,
     expectedDesiredState: 'DRAFT' | 'ACTIVE'
   ) {
-    const changed = await (
-      this.repository.model as any
-    ).contentSource.updateMany({
+    const changed = await this.repository.model.contentSource.updateMany({
       where: {
         organizationId,
         id,
@@ -324,8 +333,8 @@ export class ContentSourceRegistryRepository {
       },
     };
     try {
-      return await (this.transaction.model as any).$transaction(
-        async (database: any) => {
+      return await this.transaction.model.$transaction(
+        async (database: Prisma.TransactionClient) => {
           const existing = await database.contentSource.findUnique({
             where,
             include: { currentSnapshot: true },
@@ -375,7 +384,15 @@ export class ContentSourceRegistryRepository {
               evidence: {
                 create: [
                   {
-                    organizationId,
+                    // The organization arrives through the relation, not as a
+                    // column. `SourceEvidence.organizationId` is a scalar of
+                    // two relations at once — the tenant, and the composite
+                    // `[organizationId, sourceSnapshotId]` that points at the
+                    // snapshot — so Prisma removes it from a create nested
+                    // under that snapshot and rejects it by name. Written as a
+                    // column here, this whole path threw
+                    // «Unknown argument `organizationId`» on every call.
+                    organization: { connect: { id: organizationId } },
                     excerpt: normalizedText.slice(0, 4_096),
                     locator: { kind: 'manual-document' },
                     observedAt: now,
@@ -404,9 +421,7 @@ export class ContentSourceRegistryRepository {
       );
     } catch (error) {
       if (prismaCode(error) !== 'P2002') throw error;
-      const existing = await (
-        this.repository.model as any
-      ).contentSource.findUnique({ where, include: { currentSnapshot: true } });
+      const existing = await this.repository.model.contentSource.findUnique({ where, include: { currentSnapshot: true } });
       if (!existing) throw error;
       return { source: existing, created: false };
     }
@@ -419,11 +434,13 @@ export class ContentSourceRegistryRepository {
     runKey: string,
     now: Date,
     trigger: 'VALIDATE' | 'SYNC_NOW' = 'SYNC_NOW'
-  ) {
+  ): Promise<StartSyncRunResult> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        return await (this.transaction.model as any).$transaction(
-          async (database: any) => {
+        return await this.transaction.model.$transaction(
+          async (
+            database: Prisma.TransactionClient
+          ): Promise<StartSyncRunResult> => {
             const existing = await database.sourceSyncRun.findUnique({
               where: { organizationId_runKey: { organizationId, runKey } },
             });
@@ -489,9 +506,7 @@ export class ContentSourceRegistryRepository {
       } catch (error) {
         if (prismaCode(error) === 'P2034' && attempt < 2) continue;
         if (prismaCode(error) !== 'P2002') throw error;
-        const existing = await (
-          this.repository.model as any
-        ).sourceSyncRun.findUnique({
+        const existing = await this.repository.model.sourceSyncRun.findUnique({
           where: { organizationId_runKey: { organizationId, runKey } },
         });
         if (!existing || existing.sourceId !== sourceId) throw error;
@@ -513,8 +528,8 @@ export class ContentSourceRegistryRepository {
   async completeSync(input: CompletionInput) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        return await (this.transaction.model as any).$transaction(
-          async (database: any) => {
+        return await this.transaction.model.$transaction(
+          async (database: Prisma.TransactionClient) => {
             const leaseCheckNow = this.clock();
             const leasedRun = await database.sourceSyncRun.findFirst({
               where: {
@@ -618,15 +633,36 @@ export class ContentSourceRegistryRepository {
                     input.now.getTime() + 90 * 24 * 60 * 60 * 1_000
                   ),
                   evidence: {
-                    create: input.evidence.map((evidence) => ({
-                      organizationId: input.organizationId,
-                      excerpt: evidence.excerpt,
-                      locator: evidence.locator,
-                      structuredData: evidence.structuredData,
-                      observedAt: input.now,
-                      freshUntil: input.freshUntil,
-                      freshnessStatus: 'FRESH',
-                    })),
+                    // The explicit return type (not just inferred) matters:
+                    // without it, TS checks the mapped array's element type
+                    // structurally against Prisma's create-input, which lets
+                    // extra properties like a stray `organizationId` column
+                    // through unflagged. Annotating each element's type here
+                    // makes TS excess-property-check every object literal
+                    // this callback returns, the same way it already does
+                    // for the plain literal in `createManualSource`.
+                    create: input.evidence.map(
+                      (
+                        evidence
+                      ): Prisma.SourceEvidenceCreateWithoutSnapshotInput => ({
+                        // Same relation, same reason as in `createManualSource`.
+                        organization: {
+                          connect: { id: input.organizationId },
+                        },
+                        excerpt: evidence.excerpt,
+                        // Cast, not `any`: these come in as `Record<string,
+                        // unknown>` from the parser, but Prisma's Json input
+                        // type doesn't accept `unknown` values structurally.
+                        // The data itself is already plain parsed JSON.
+                        locator: evidence.locator as Prisma.InputJsonValue,
+                        structuredData: evidence.structuredData as
+                          | Prisma.InputJsonValue
+                          | undefined,
+                        observedAt: input.now,
+                        freshUntil: input.freshUntil,
+                        freshnessStatus: 'FRESH',
+                      })
+                    ),
                   },
                 },
               });
@@ -734,8 +770,8 @@ export class ContentSourceRegistryRepository {
     code: string,
     _now: Date
   ) {
-    return (this.transaction.model as any).$transaction(
-      async (database: any) => {
+    return this.transaction.model.$transaction(
+      async (database: Prisma.TransactionClient) => {
         const failedAt = this.clock();
         const failed = await database.sourceSyncRun.updateMany({
           where: {
@@ -775,7 +811,7 @@ export class ContentSourceRegistryRepository {
   }
 
   async getDraftMaterial(organizationId: string, sourceId: string) {
-    const source = await (this.repository.model as any).contentSource.findFirst(
+    const source = await this.repository.model.contentSource.findFirst(
       {
         where: {
           organizationId,
@@ -808,5 +844,63 @@ export class ContentSourceRegistryRepository {
       snapshot: source.currentSnapshot,
       evidence: source.currentSnapshot.evidence,
     };
+  }
+
+  /**
+   * `content-factory-next-lh5s`: the producer for a search result the person
+   * accepted. Deliberately not `createManualSource`'s shape — there is no
+   * `ContentSource`, no `SourceSyncRun`, and no `currentSnapshotId` pointer
+   * to keep in sync, because the owner's decision was explicit that an
+   * accepted search result is not tracked material. One `sourceSnapshot`
+   * create with a nested `evidence` create is already one atomic Prisma
+   * query, so this needs no `$transaction` wrapper the way the two-or-more
+   * write paths above do.
+   *
+   * `sourceId` stays unset on purpose — `SourceSnapshot.sourceId` is nullable
+   * precisely for this kind (`schema.prisma`), and the composite unique
+   * index `(organizationId, sourceId, sequence)` never collides across two
+   * such snapshots because Postgres treats each `NULL` as distinct, so
+   * `sequence` can stay `1` for every one of them without a lookup.
+   */
+  async createSearchProviderEvidence(payload: SearchProviderEvidencePayload) {
+    return this.repository.model.sourceSnapshot.create({
+      data: {
+        organizationId: payload.organizationId,
+        sequence: 1,
+        kind: 'SEARCH_PROVIDER_RESULT',
+        observedAt: payload.observedAt,
+        validatedAt: payload.observedAt,
+        publishedAt: payload.publishedAt,
+        requestedCanonicalUrl: payload.requestedCanonicalUrl,
+        finalCanonicalUrl: payload.finalCanonicalUrl,
+        contentHash: payload.contentHash,
+        parser: 'search-provider-result',
+        parserVersion: '1',
+        normalizedTitle: payload.normalizedTitle,
+        retrievalProvider: payload.retrievalProvider,
+        // No `retentionUntil`/purge schedule: unlike a fetched snapshot this
+        // one holds nothing beyond the bounded excerpt the person already
+        // saw and chose to keep, and the owner's decision was that it is not
+        // monitored material — there is no sync job to eventually retire it.
+        evidence: {
+          create: [
+            {
+              // Same relation, same reason as `createManualSource` and
+              // `completeSync`: `SourceEvidence.organizationId` is removed
+              // from a create nested under its snapshot, so it must arrive
+              // through the relation, not as a column (`content-factory-
+              // next-r14b`).
+              organization: { connect: { id: payload.organizationId } },
+              excerpt: payload.excerpt,
+              locator: { kind: 'search-provider-result', url: payload.finalCanonicalUrl },
+              observedAt: payload.observedAt,
+              freshUntil: payload.freshUntil,
+              freshnessStatus: 'FRESH',
+            },
+          ],
+        },
+      },
+      include: { evidence: true },
+    });
   }
 }

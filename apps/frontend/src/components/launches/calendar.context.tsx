@@ -26,15 +26,29 @@ import {
   expandPostsList,
   expandPosts,
 } from '@contentfactory/helpers/utils/posts.list.minify';
+import {
+  EDITORIAL_STAGE_VALUES,
+  EditorialStageValue,
+} from '@contentfactory/frontend/components/launches/editorial-stage.copy';
 extend(isoWeek);
 extend(weekOfYear);
 
 export type ListStateFilter = 'all' | 'scheduled' | 'draft' | 'published';
 
+const isEditorialStageValue = (
+  value: unknown
+): value is EditorialStageValue =>
+  typeof value === 'string' &&
+  (EDITORIAL_STAGE_VALUES as readonly string[]).includes(value);
+
 export const CalendarContext = createContext({
   startDate: newDayjs().startOf('isoWeek').format('YYYY-MM-DD'),
   endDate: newDayjs().endOf('isoWeek').format('YYYY-MM-DD'),
   customer: null as string | null,
+  // Editorial process stage, NOT the post's delivery `state` — the filter
+  // carried the same way `customer` already is: through the calendar's own
+  // query params, not a client-side filter over an already-fetched page.
+  editorialStage: null as EditorialStageValue | null,
   loading: true,
   sets: [] as { name: string; id: string; content: string[] }[],
   signature: undefined as any,
@@ -63,6 +77,7 @@ export const CalendarContext = createContext({
     endDate: string;
     display: 'week' | 'month' | 'day' | 'list';
     customer: string | null;
+    editorialStage?: EditorialStageValue | null;
   }) => {
     /** empty **/
   },
@@ -164,6 +179,7 @@ export const CalendarWeekProvider: FC<{
   const initStartDate = searchParams.get('startDate');
   const initEndDate = searchParams.get('endDate');
   const initCustomer = searchParams.get('customer');
+  const initEditorialStage = searchParams.get('editorialStage');
 
   const initialRange =
     initStartDate && initEndDate
@@ -174,6 +190,9 @@ export const CalendarWeekProvider: FC<{
     startDate: initialRange.startDate,
     endDate: initialRange.endDate,
     customer: initCustomer || null,
+    editorialStage: isEditorialStageValue(initEditorialStage)
+      ? initEditorialStage
+      : null,
     display,
   });
 
@@ -183,6 +202,9 @@ export const CalendarWeekProvider: FC<{
       startDate: filters.startDate,
       endDate: filters.endDate,
       customer: filters?.customer?.toString() || '',
+      ...(filters.editorialStage
+        ? { editorialStage: filters.editorialStage }
+        : {}),
     }).toString();
   }, [filters]);
 
@@ -193,6 +215,12 @@ export const CalendarWeekProvider: FC<{
       customer: filters?.customer?.toString() || '',
       startDate: newDayjs(filters.startDate).startOf('day').utc().format(),
       endDate: newDayjs(filters.endDate).endOf('day').utc().format(),
+      // Omitted (not sent as an empty string) when unset: the server DTO
+      // validates this against the four stage values, and an empty string is
+      // neither undefined nor one of them — see `get.posts.dto.ts`.
+      ...(filters.editorialStage
+        ? { editorialStage: filters.editorialStage }
+        : {}),
     }).toString();
 
     const data = await (await fetch(`/posts?${modifiedParams}`)).json();
@@ -206,8 +234,11 @@ export const CalendarWeekProvider: FC<{
       limit: '100',
       customer: filters?.customer?.toString() || '',
       state: listState,
+      ...(filters.editorialStage
+        ? { editorialStage: filters.editorialStage }
+        : {}),
     }).toString();
-  }, [listPage, filters.customer, listState]);
+  }, [listPage, filters.customer, filters.editorialStage, listState]);
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);
@@ -273,9 +304,13 @@ export const CalendarWeekProvider: FC<{
       endDate: string;
       display: 'week' | 'month' | 'day' | 'list';
       customer: string | null;
+      editorialStage?: EditorialStageValue | null;
     }) => {
       setDisplaySaved(newFilters.display);
-      setFilters(newFilters);
+      setFilters({
+        ...newFilters,
+        editorialStage: newFilters.editorialStage ?? null,
+      });
       setInternalData([]);
 
       // Reset page when switching to list view
@@ -288,6 +323,9 @@ export const CalendarWeekProvider: FC<{
         `endDate=${newFilters.endDate}`,
         `display=${newFilters.display}`,
         newFilters.customer ? `customer=${newFilters.customer}` : ``,
+        newFilters.editorialStage
+          ? `editorialStage=${newFilters.editorialStage}`
+          : ``,
       ].filter((f) => f);
       window.history.replaceState(null, '', `/launches?${path.join('&')}`);
     },

@@ -20,6 +20,7 @@ const POST_ITEM_KEYS: Record<string, string> = {
   releaseURL: 'u',
   releaseId: 'ri',
   state: 's',
+  editorialStage: 'es',
   group: 'g',
   tags: 'tg',
   integration: 'n',

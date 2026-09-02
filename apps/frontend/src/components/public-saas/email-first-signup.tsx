@@ -11,16 +11,11 @@ import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { usePublicCopy } from './public-copy';
 import { usePublicTelemetry } from './public-telemetry';
-import { isStarterTemplate } from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
-import { StarterTemplateChooser } from './starter-template-chooser';
-import { issueRegistrationIntent } from './registration-intent';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
-export function EmailFirstSignup({
-  starterTemplate = 'blank',
-}: {
-  starterTemplate?: string;
-}) {
+export function EmailFirstSignup() {
   const copy = usePublicCopy();
+  const { language } = useVariables();
   const fetchData = useFetch();
   const router = useRouter();
   const track = usePublicTelemetry();
@@ -31,9 +26,6 @@ export function EmailFirstSignup({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [subscribeToNewsletter, setSubscribeToNewsletter] = useState(false);
-  const [selectedStarterTemplate, setSelectedStarterTemplate] = useState(
-    isStarterTemplate(starterTemplate) ? starterTemplate : 'blank'
-  );
   const canSubscribe = canOfferNewsletterConsent({
     provider: 'LOCAL',
     email,
@@ -66,10 +58,10 @@ export function EmailFirstSignup({
                 company: normalizedWorkspace,
               }
             : {}),
-          starterTemplate: selectedStarterTemplate,
           ...(canSubscribe
             ? { subscribeToNewsletter }
             : { subscribeToNewsletter: false }),
+          ...(language ? { language } : {}),
         }),
       });
       if (response.status !== 200) {
@@ -116,19 +108,6 @@ export function EmailFirstSignup({
       <p className="mt-[8px] cf-body-sm text-cf-ink-muted text-pretty">
         {copy('emailBody')}
       </p>
-      <div className="mt-[16px]">
-        <StarterTemplateChooser
-          value={selectedStarterTemplate}
-          onChange={setSelectedStarterTemplate}
-          copy={{
-            legend: copy('templateLegend'),
-            blank: copy('templateBlank'),
-            blankDescription: copy('templateBlankDescription'),
-            workflow: copy('templateWorkflow'),
-            workflowDescription: copy('templateWorkflowDescription'),
-          }}
-        />
-      </div>
       {!continued ? (
         <form
           onSubmit={continueWithEmail}
@@ -192,12 +171,6 @@ export function EmailFirstSignup({
           <LegalNotice />
           <Link
             href="/auth"
-            onClick={() =>
-              issueRegistrationIntent(
-                window.sessionStorage,
-                selectedStarterTemplate
-              )
-            }
             className="cf-body-sm text-cf-accent underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
           >
             {copy('authOptions')}

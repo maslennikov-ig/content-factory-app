@@ -12,7 +12,16 @@ import type {
   MaterialRowV1,
   MaterialsResponseV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
-import { materialNotFound, platformUnsupported } from './errors';
+import { archiveImportInvalid, materialNotFound, platformUnsupported } from './errors';
+import {
+  ARCHIVE_LAYERS,
+  archiveLayerOf,
+  archiveOriginOf,
+  buildArchiveTags,
+  type ArchiveLayer,
+  type ArchiveOrigin,
+  type ImportableArchiveLayer,
+} from './archive-presentation';
 import {
   countImages,
   countLinks,
@@ -59,6 +68,29 @@ type PieceRow = {
     label?: string | null;
   } | null;
 };
+
+/**
+ * A material row widened with the archive's own three fields. Not a change to
+ * `MaterialRowV1` itself — that type lives in `voice-wiring.contract.ts`,
+ * outside this stream's write zone — so the widening happens locally and is
+ * carried on the wire as extra JSON keys the Material tab's own reader
+ * (`voice-materials.adapter.ts`'s `screenMaterials`) already ignores.
+ */
+export type ArchiveMaterialRow = MaterialRowV1 & {
+  layer: ArchiveLayer;
+  /** Every platform this piece is known to touch: derivations for `MADE_HERE`, the declared origin otherwise. */
+  platforms: string[];
+  /** «Разбор из текста»: the context snapshot this piece was generated from, when the writing path recorded one. */
+  contentContextSnapshotId: string | null;
+  /** `null` for `MADE_HERE` by construction — see `archiveOriginOf`. */
+  origin: ArchiveOrigin | null;
+};
+
+function parseFilterDate(value: string | undefined): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
 
 @Injectable()
 export class ContentMaterialService {
@@ -108,6 +140,154 @@ export class ContentMaterialService {
       materials: rows,
       derived: [],
     };
+  }
+
+  /**
+   * The archive, filtered and paginated (`content-factory-next-odb8.4`).
+   *
+   * The library is loaded whole exactly as `listMaterials` already loads it —
+   * `library()` is the one place a piece becomes a row, and a second copy of
+   * that arithmetic is how a filtered row and an unfiltered row start
+   * disagreeing about a piece's own code or post count. Filtering and paging
+   * happen after, in memory, which is the same cost this endpoint already
+   * pays today for every workspace regardless of how few pieces it filters
+   * down to; pushing the `tags.archive.*` filters into the SQL itself is real
+   * future work, named in the handoff rather than done here.
+   */
+  async listArchive(
+    organizationId: string,
+    filters: {
+      layer?: ArchiveLayer;
+      platform?: string;
+      from?: string;
+      to?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{
+    state: 'empty' | 'filtered-empty' | 'default';
+    materials: ArchiveMaterialRow[];
+    page: number;
+    limit: number;
+    total: number;
+    counts: Record<ArchiveLayer, number>;
+  }> {
+    const { pieces, rows } = await this.library(organizationId);
+    const platformsByPiece = await this.repository.platformsByPiece(
+      organizationId,
+      pieces.map((piece) => piece.id)
+    );
+
+    const fromTime = parseFilterDate(filters.from);
+    const toTime = parseFilterDate(filters.to);
+
+    const counts = ARCHIVE_LAYERS.reduce(
+      (acc, layer) => ({ ...acc, [layer]: 0 }),
+      {} as Record<ArchiveLayer, number>
+    );
+
+    const decorated = pieces.map((piece, index) => {
+      const layer = archiveLayerOf(piece.tags);
+      counts[layer] += 1;
+      const origin = archiveOriginOf(piece.tags);
+      const platforms =
+        layer === 'MADE_HERE'
+          ? platformsByPiece.get(piece.id) ?? []
+          : origin?.platform
+          ? [origin.platform]
+          : [];
+      return { piece, row: rows[index], layer, origin, platforms };
+    });
+
+    const filtered = decorated.filter((item) => {
+      if (filters.layer && item.layer !== filters.layer) return false;
+      if (filters.platform && !item.platforms.includes(filters.platform)) {
+        return false;
+      }
+      const createdAt = item.piece.createdAt.getTime();
+      if (fromTime !== null && createdAt < fromTime) return false;
+      if (toTime !== null && createdAt > toTime) return false;
+      return true;
+    });
+
+    // Newest first: the archive is a flat, filterable feed, not the
+    // library's own oldest-first shelf — `content-section-map.md` §8.1 makes
+    // that call for the witness screen, and a "what did I just bring in"
+    // archive reads the same way.
+    filtered.sort(
+      (left, right) => right.piece.createdAt.getTime() - left.piece.createdAt.getTime()
+    );
+
+    const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
+    const page = Math.max(filters.page ?? 0, 0);
+    const total = filtered.length;
+    const pageItems = filtered.slice(page * limit, page * limit + limit);
+
+    const materials: ArchiveMaterialRow[] = pageItems.map((item) => ({
+      ...item.row,
+      layer: item.layer,
+      platforms: item.platforms,
+      contentContextSnapshotId: item.piece.contentContextSnapshotId,
+      origin: item.origin,
+    }));
+
+    return {
+      state: pieces.length === 0 ? 'empty' : total === 0 ? 'filtered-empty' : 'default',
+      materials,
+      page,
+      limit,
+      total,
+      counts,
+    };
+  }
+
+  /**
+   * «Занесение своего прежнего»: a text this workspace already owns, typed or
+   * pasted in rather than written by the factory. `docs/product/content-section-map.md`
+   * §6 is explicit that this needs no consent screen — the two cases it names
+   * with "вопроса нет вовсе" are «своё слово» and «свой текст», and a person's
+   * own writing brought into its own archive is the second one exactly. The
+   * one case that does need consent, a whole third-party text, is out of
+   * scope here; nothing on this path claims to have checked a right this
+   * workspace does not need to have.
+   */
+  async importArchiveMaterial(
+    organizationId: string,
+    actorUserId: string,
+    input: {
+      origin: ImportableArchiveLayer;
+      title: string;
+      body: string;
+      language: 'ru' | 'en';
+      platform?: string;
+      url?: string;
+      publishedAt?: string;
+      note?: string;
+    }
+  ): Promise<{ id: string; layer: ImportableArchiveLayer }> {
+    const title = input.title.trim();
+    const body = input.body.trim();
+    if (!title || !body) {
+      throw archiveImportInvalid(
+        'Нужны заголовок и текст, чтобы занести материал в архив'
+      );
+    }
+    const tags = buildArchiveTags(null, {
+      origin: input.origin,
+      platform: input.platform,
+      url: input.url,
+      publishedAt: input.publishedAt,
+      note: input.note,
+    });
+    const created = await this.repository.createArchivePiece({
+      organizationId,
+      createdByUserId: actorUserId,
+      title,
+      body,
+      language: input.language,
+      tags,
+    });
+    return { id: created.id, layer: input.origin };
   }
 
   private async open(organizationId: string, id: string) {

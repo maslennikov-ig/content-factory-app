@@ -12,6 +12,10 @@ import {
 } from './source-access-policy';
 import { calculateSourceFreshness } from './source-freshness';
 import { ContentSourceRegistryRepository } from './source-registry.repository';
+import {
+  AcceptSearchResultInput,
+  normalizeSearchResultAcceptance,
+} from './search-evidence';
 
 export type SourceRegistryCapabilities = {
   directFetch?: boolean;
@@ -314,7 +318,13 @@ export class ContentSourceRegistryService {
       this.now(),
       trigger
     );
-    if (run.duplicate) {
+    // `=== true` (not a bare truthy check) matters here: this repo builds
+    // with strictNullChecks off, and under that setting TS only narrows a
+    // discriminated union on a boolean literal field via an equality check,
+    // not via truthiness. A plain `if (run.duplicate)` leaves `run` typed as
+    // the full StartSyncRunResult union afterwards, so `run.leaseId` below
+    // would not type-check.
+    if (run.duplicate === true) {
       if (run.status === 'SUCCEEDED' && run.resultSnapshotId) {
         return { snapshotId: run.resultSnapshotId, reused: true };
       }
@@ -502,6 +512,43 @@ export class ContentSourceRegistryService {
         contractVersion: 'source-draft-material/v1',
         builtAt: this.now().toISOString(),
       },
+    };
+  }
+
+  /**
+   * `content-factory-next-lh5s`: the moment a person accepts one web-research
+   * result — a fact/source pair from `WebResearchService.research(...)` —
+   * turns it into real evidence: a frozen excerpt, its link and the date it
+   * was read, exactly what the owner asked for and nothing more. This never
+   * creates a `ContentSource`, never enqueues a sync, and never touches the
+   * network gateway; `normalizeSearchResultAcceptance` only canonicalizes the
+   * URL for storage, it does not fetch it.
+   */
+  async acceptSearchResult(
+    organizationId: string,
+    input: Omit<AcceptSearchResultInput, 'organizationId' | 'now'>
+  ) {
+    const payload = normalizeSearchResultAcceptance({
+      ...input,
+      organizationId,
+      now: this.now(),
+    });
+    const snapshot = await this.repository.createSearchProviderEvidence(
+      payload
+    );
+    const evidence = snapshot.evidence[0];
+    return {
+      evidenceId: evidence.id,
+      sourceSnapshotId: snapshot.id,
+      url: snapshot.finalCanonicalUrl,
+      title: snapshot.normalizedTitle,
+      excerpt: evidence.excerpt,
+      provider: input.provider,
+      publishedAt: snapshot.publishedAt
+        ? snapshot.publishedAt.toISOString()
+        : null,
+      retrievedAt: evidence.observedAt.toISOString(),
+      freshUntil: evidence.freshUntil.toISOString(),
     };
   }
 }

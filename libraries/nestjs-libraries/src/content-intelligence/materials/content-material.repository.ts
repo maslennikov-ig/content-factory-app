@@ -95,6 +95,65 @@ export class ContentMaterialRepository {
     });
   }
 
+  /**
+   * Which platforms a piece has ever been cut for — the «сделано здесь» half
+   * of the archive's platform filter (`content-factory-next-odb8.4`). One
+   * query for the whole page rather than one per row: `platformsByPiece` in
+   * `content-material.service.ts` reads this map alongside `tags.archive.platform`
+   * for pieces brought in from outside, so one filter covers both origins of
+   * a piece's platform.
+   */
+  async platformsByPiece(
+    organizationId: string,
+    contentPieceIds: string[]
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (!contentPieceIds.length) return map;
+    const rows = await (this.repository.model as any).contentDerivation.findMany({
+      where: { organizationId, contentPieceId: { in: contentPieceIds } },
+      select: { contentPieceId: true, platform: true },
+      distinct: ['contentPieceId', 'platform'],
+    });
+    for (const row of rows as { contentPieceId: string; platform: string }[]) {
+      const list = map.get(row.contentPieceId) ?? [];
+      list.push(row.platform);
+      map.set(row.contentPieceId, list);
+    }
+    return map;
+  }
+
+  /**
+   * «Занесение своего прежнего»: a piece this workspace brings in rather than
+   * one the factory wrote. Same table, same `contentPiece.create` any other
+   * piece goes through — `archiveLayerOf` reads the layer back from `tags`
+   * rather than from a column, so no model changed to make this possible.
+   *
+   * `brandProfileVersionId` and `contentContextSnapshotId` stay `null`: a
+   * brought-in text was not measured against a voice version and was not
+   * generated from a context snapshot, and a `null` here says so honestly
+   * rather than pointing at whichever happens to be current.
+   */
+  createArchivePiece(input: {
+    organizationId: string;
+    createdByUserId: string;
+    title: string;
+    body: string;
+    language: string;
+    tags: Record<string, unknown>;
+  }) {
+    return (this.repository.model as any).contentPiece.create({
+      data: {
+        organizationId: input.organizationId,
+        title: input.title,
+        body: input.body,
+        language: input.language,
+        tags: input.tags,
+        createdByUserId: input.createdByUserId,
+      },
+      select: { id: true, createdAt: true },
+    });
+  }
+
   /** A channel of this workspace, named by the request. */
   findIntegration(organizationId: string, integrationId: string) {
     return (this.repository.model as any).integration.findFirst({

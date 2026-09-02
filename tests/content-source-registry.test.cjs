@@ -43,6 +43,10 @@ const networkPolicy = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/source-registry/network-policy.ts',
   { './errors': errors }
 );
+const searchEvidenceModule = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/source-registry/search-evidence.ts',
+  { './errors': errors, './network-policy': networkPolicy }
+);
 const repositoryModule = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/source-registry/source-registry.repository.ts',
   {
@@ -51,6 +55,7 @@ const repositoryModule = loadTypeScriptModule(
       PrismaTransaction: class PrismaTransaction {},
     },
     './errors': errors,
+    './search-evidence': searchEvidenceModule,
     './source-fetch.gateway': {
       DEFAULT_SOURCE_FETCH_BUDGETS: {
         dnsTimeoutMs: 2_000,
@@ -77,6 +82,7 @@ const serviceModule = loadTypeScriptModule(
     './source-access-policy': accessPolicyModule,
     './source-freshness': freshnessModule,
     './source-registry.repository': repositoryModule,
+    './search-evidence': searchEvidenceModule,
   }
 );
 const { ContentSourceRegistryService } = serviceModule;

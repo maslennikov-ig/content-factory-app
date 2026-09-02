@@ -80,6 +80,9 @@ import { ContentMaterialRepository } from '@contentfactory/nestjs-libraries/cont
 import { ContentMaterialService } from '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service';
 import { ContentBriefRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.repository';
 import { ContentBriefService } from '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.service';
+import { ContentLeadRepository } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.repository';
+import { LeadFeedGateway } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-feed.gateway';
+import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service';
 
 @Global()
 @Module({
@@ -169,6 +172,9 @@ import { ContentBriefService } from '@contentfactory/nestjs-libraries/content-in
     ContentMaterialService,
     ContentBriefRepository,
     ContentBriefService,
+    ContentLeadRepository,
+    LeadFeedGateway,
+    ContentLeadService,
   ],
   get exports() {
     return this.providers;

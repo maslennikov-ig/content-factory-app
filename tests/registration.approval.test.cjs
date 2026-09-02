@@ -332,6 +332,9 @@ const { AuthService } = loadTypeScriptModule(
     },
     '@contentfactory/helpers/auth/newsletter.consent': newsletterConsentRules,
     [APPROVAL_MODULE]: approval,
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 
@@ -377,8 +380,63 @@ const createAuthService = ({
   return { service, userService, organizationService, emailService };
 };
 
+describe('the account-activation email speaks the registration language', () => {
+  test('a Russian registration gets a Russian subject and body, not English', async () => {
+    requireApproval(false);
+    const { service, emailService } = createAuthService({
+      createdUser: {
+        id: 'created-user',
+        email: 'гость@example.com',
+        activated: false,
+        language: 'ru',
+      },
+    });
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'гость@example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+      language: 'ru',
+    });
+
+    await service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent');
+
+    expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    const [to, subject, html] = emailService.sendEmail.mock.calls[0];
+    expect(to).toBe('гость@example.com');
+    expect(subject).toBe('Активируйте аккаунт');
+    expect(html).toContain('чтобы активировать аккаунт');
+    expect(subject).not.toBe('Activate your account');
+  });
+
+  test('an unrecognised language falls back to English rather than failing', async () => {
+    requireApproval(false);
+    const { service, emailService } = createAuthService({
+      createdUser: {
+        id: 'created-user',
+        email: 'guest@example.com',
+        activated: false,
+        language: 'not-a-real-locale',
+      },
+    });
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'guest@example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+    });
+
+    await service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent');
+
+    const [, subject] = emailService.sendEmail.mock.calls[0];
+    expect(subject).toBe('Activate your account');
+  });
+});
+
 describe('registration while approval is required', () => {
-  test('an email sign-up gets no session and no activation link', async () => {
+  test('an email sign-up gets no session and no activation link, but does get a mail', async () => {
     requireApproval(true);
     const { service, emailService } = createAuthService();
 
@@ -397,8 +455,54 @@ describe('registration while approval is required', () => {
       awaitingApproval: true,
     });
 
-    // The link in that email is a session token by another name.
-    expect(emailService.sendEmail).not.toHaveBeenCalled();
+    // Silence is the bug this guards against: the applicant must hear
+    // something, even though what they hear must never be a session token
+    // or an activation link (see the guard below).
+    expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    const [to, , html] = emailService.sendEmail.mock.calls[0];
+    expect(to).toBe('guest@example.com');
+
+    // The one thing that email must never contain: a way in. Handing out
+    // a JWT or an activation link here would hand out the very approval
+    // the mode exists to withhold.
+    expect(html).not.toMatch(/jwt/i);
+    expect(html).not.toContain('/auth/activate');
+    expect(html).not.toMatch(/https?:\/\//i);
+  });
+
+  test('a mail failure does not undo a registration that already succeeded', async () => {
+    requireApproval(true);
+    const { service, emailService } = createAuthService();
+    emailService.sendEmail.mockRejectedValueOnce(
+      new Error('Temporal client unavailable')
+    );
+    const reported = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'unlucky@example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+    });
+
+    // The row is written before the mail is queued. If a dead mail path threw
+    // out of here, the person would read "registration failed", try again,
+    // and be told the address is already taken — with an account they cannot
+    // reach sitting in the database. So the send may fail; the registration
+    // may not.
+    await expect(
+      service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent')
+    ).resolves.toEqual({
+      addedOrg: false,
+      jwt: '',
+      awaitingApproval: true,
+    });
+
+    // Failing quietly is not the same as failing invisibly. Until
+    // `content-factory-next-7jxo` gives the mail path a way to report, this
+    // line is the only trace a failed send leaves anywhere.
+    expect(reported).toHaveBeenCalled();
+    reported.mockRestore();
   });
 
   test('a federated sign-up gets no session either', async () => {
@@ -553,5 +657,24 @@ describe('self-service activation', () => {
       'Activation is handled by an administrator'
     );
     expect(emailService.sendEmail).not.toHaveBeenCalled();
+  });
+
+  test('a resent activation email is translated to the account language', async () => {
+    requireApproval(false);
+    const { service, emailService } = createAuthService({
+      existingLocalUser: {
+        id: 'waiting',
+        email: 'ru-guest@example.com',
+        activated: false,
+        language: 'ru',
+      },
+    });
+
+    await service.resendActivationEmail('ru-guest@example.com');
+
+    expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    const [, subject, html] = emailService.sendEmail.mock.calls[0];
+    expect(subject).toBe('Активируйте аккаунт');
+    expect(html).toContain('чтобы активировать аккаунт');
   });
 });

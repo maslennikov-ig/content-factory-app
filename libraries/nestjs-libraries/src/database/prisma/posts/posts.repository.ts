@@ -185,6 +185,9 @@ export class PostsRepository {
               },
             }
           : {}),
+        ...(query.editorialStage
+          ? { editorialStage: query.editorialStage }
+          : {}),
       },
       select: {
         id: true,
@@ -193,6 +196,7 @@ export class PostsRepository {
         releaseURL: true,
         releaseId: true,
         state: true,
+        editorialStage: true,
         intervalInDays: true,
         group: true,
         creationMethod: true,
@@ -278,6 +282,9 @@ export class PostsRepository {
       deletedAt: null as Date | null,
       parentPostId: null as string | null,
       intervalInDays: null as number | null,
+      ...(query.editorialStage
+        ? { editorialStage: query.editorialStage }
+        : {}),
 
       integration: {
         deletedAt: null as any,
@@ -305,6 +312,7 @@ export class PostsRepository {
           releaseURL: true,
           releaseId: true,
           state: true,
+          editorialStage: true,
           intervalInDays: true,
           group: true,
           creationMethod: true,
@@ -859,6 +867,12 @@ export class PostsRepository {
         image: JSON.stringify(value.image),
         settings: JSON.stringify(body.settings),
         researchSources: JSON.stringify(body.researchSources || []),
+        // Editorial stage, NOT delivery `state` above. Only written when the
+        // caller sent it: omitting the field on an update must leave whatever
+        // stage the post already had alone, not silently clear it.
+        ...('editorialStage' in body
+          ? { editorialStage: body.editorialStage ?? null }
+          : {}),
         ...(contextBinding
           ? {
               contentContextSnapshot: {

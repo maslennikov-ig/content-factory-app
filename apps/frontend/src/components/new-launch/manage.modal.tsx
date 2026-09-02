@@ -26,6 +26,7 @@ import { DatePicker } from '@contentfactory/frontend/components/launches/helpers
 import { useShallow } from 'zustand/react/shallow';
 import { RepeatComponent } from '@contentfactory/frontend/components/launches/repeat.component';
 import { TagsComponent } from '@contentfactory/frontend/components/launches/tags.component';
+import { EditorialStageSelect } from '@contentfactory/frontend/components/launches/editorial-stage.select';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -79,6 +80,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     setRepeater,
     tags,
     setTags,
+    editorialStage,
+    setEditorialStage,
     integrations,
     setSelectedIntegrations,
     locked,
@@ -104,6 +107,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setRepeater: state.setRepeater,
       tags: state.tags,
       setTags: state.setTags,
+      editorialStage: state.editorialStage,
+      setEditorialStage: state.setEditorialStage,
       selectedIntegrations: state.selectedIntegrations,
       integrations: state.integrations,
       setSelectedIntegrations: state.setSelectedIntegrations,
@@ -355,6 +360,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         group,
         settings: { ...(post.settings || {}) },
         researchSources,
+        // Editorial process stage, NOT delivery `state`: see
+        // `editorial-stage.copy.ts`. `null` clears a stage that was set
+        // before; omitting the field would leave whatever was saved alone,
+        // which is wrong here because the picker is always shown and its
+        // current value — including "unset" — is what the person chose.
+        editorialStage,
         ...(contentIntelligenceProvenance
           ? {
               contentContextSnapshotId:
@@ -784,6 +795,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
             {!dummy && (
               <RepeatComponent repeat={repeater} onChange={setRepeater} />
+            )}
+
+            {!dummy && (
+              <EditorialStageSelect
+                value={editorialStage}
+                onChange={setEditorialStage}
+                className="w-[160px]"
+              />
             )}
           </div>
           <div className="pe-[20px] flex items-center justify-end gap-[8px]">

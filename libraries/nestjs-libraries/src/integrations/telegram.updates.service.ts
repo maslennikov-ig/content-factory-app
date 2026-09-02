@@ -110,6 +110,58 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
 
     this.running = true;
     void this.pollLoop();
+    // One-shot, not on the poll loop: nothing here should add a Telegram call
+    // to every 20-second poll, and a fresh process only needs to know once.
+    void this.verifyBotIdentity();
+  }
+
+  /**
+   * TELEGRAM_BOT_NAME and TELEGRAM_TOKEN are two separate values a deploy can
+   * set out of sync — most dangerously when a stand copies a production bot's
+   * name to satisfy the frontend's non-null read of it, then gets its own
+   * token later. The frontend builds the "add this bot to your channel" link
+   * from TELEGRAM_BOT_NAME alone, so a stale name silently sends people to
+   * add a *different* bot than the one this instance's token actually
+   * listens as — indistinguishable from "the stand can't see the channel"
+   * without this check.
+   *
+   * `getMe` ties the name back to the token itself, so no third value can
+   * drift out from under the pair. It runs once at startup and is logged,
+   * never thrown: a dead token or an unreachable api.telegram.org must not
+   * take the process down, and pollLoop's own polling already reports a dead
+   * token repeatedly on its own retry cadence.
+   */
+  private async verifyBotIdentity() {
+    const configuredName = process.env.TELEGRAM_BOT_NAME?.trim();
+    if (!configuredName) {
+      return;
+    }
+
+    let me: { username?: string };
+    try {
+      me = await this.bot.getMe();
+    } catch (error) {
+      this.logger.error(
+        'Could not verify TELEGRAM_BOT_NAME against TELEGRAM_TOKEN: the ' +
+          "Telegram getMe call failed. TELEGRAM_TOKEN may be dead, or " +
+          'api.telegram.org may be unreachable from here. Until this ' +
+          'resolves, the "add bot to channel" link may point at the wrong bot.',
+        redactSensitive(error)
+      );
+      return;
+    }
+
+    const actualName = me.username?.replace(/^@/, '').toLowerCase();
+    const wantedName = configuredName.replace(/^@/, '').toLowerCase();
+    if (actualName && actualName !== wantedName) {
+      this.logger.error(
+        `TELEGRAM_BOT_NAME ("${configuredName}") does not match the bot ` +
+          `TELEGRAM_TOKEN authenticates as ("@${me.username}"). The ` +
+          '"add bot to channel" link sent to users points at the wrong ' +
+          'bot; fix TELEGRAM_BOT_NAME or TELEGRAM_TOKEN so they name the ' +
+          'same bot.'
+      );
+    }
   }
 
   onModuleDestroy() {

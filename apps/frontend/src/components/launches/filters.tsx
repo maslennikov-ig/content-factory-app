@@ -5,6 +5,8 @@ import clsx from 'clsx';
 import dayjs from 'dayjs';
 import { useCallback } from 'react';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
+import { EditorialStageFilter } from '@contentfactory/frontend/components/launches/editorial-stage.filter';
+import type { EditorialStageValue } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import i18next from 'i18next';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
@@ -84,6 +86,7 @@ export const Filters = () => {
       endDate: currentRange.endDate,
       display: calendar.display as 'day' | 'week' | 'month',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -102,6 +105,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: 'day',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -120,6 +124,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: 'week',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -138,6 +143,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: 'month',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -152,6 +158,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: 'list',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -166,6 +173,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: 'week',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -179,6 +187,23 @@ export const Filters = () => {
         endDate: calendar.endDate,
         display: calendar.display as 'day' | 'week' | 'month',
         customer: customer,
+        editorialStage: calendar.editorialStage,
+      });
+    },
+    [calendar]
+  );
+
+  const setStage = useCallback(
+    (editorialStage: EditorialStageValue | null) => {
+      if (calendar.editorialStage === editorialStage) {
+        return; // No need to set the same stage
+      }
+      calendar.setFilters({
+        startDate: calendar.startDate,
+        endDate: calendar.endDate,
+        display: calendar.display as 'day' | 'week' | 'month',
+        customer: calendar.customer,
+        editorialStage,
       });
     },
     [calendar]
@@ -211,6 +236,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: calendar.display as 'day' | 'week' | 'month',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -241,6 +267,7 @@ export const Filters = () => {
       endDate: range.endDate,
       display: calendar.display as 'day' | 'week' | 'month',
       customer: calendar.customer,
+      editorialStage: calendar.editorialStage,
     });
   }, [calendar]);
 
@@ -430,6 +457,10 @@ export const Filters = () => {
         customer={calendar.customer as string}
         onChange={(customer: string) => setCustomer(customer)}
         integrations={calendar.integrations}
+      />
+      <EditorialStageFilter
+        value={calendar.editorialStage}
+        onChange={setStage}
       />
       {!isListView && (
         <div className="flex flex-row p-[4px] border border-cf-border rounded-[8px] text-[14px] font-[500]">

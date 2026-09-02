@@ -205,6 +205,9 @@ const { AuthService } = loadTypeScriptModule(
       discardIdentityConfirmation: async () => undefined,
       IDENTITY_CONFIRMATION_TTL_SECONDS: 1200,
     },
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 
@@ -607,11 +610,22 @@ describe('consent record on the account', () => {
         },
         '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
           CreateOrgUserDto,
+          // The repository now attaches the content-workflow tags to every
+          // workspace unconditionally, so it needs the real catalog here too
+          // — not just as a module the loader can resolve, but as the array
+          // it maps over.
+          CONTENT_WORKFLOW_TAGS: starterTemplateCatalog.CONTENT_WORKFLOW_TAGS,
         },
         '@contentfactory/nestjs-libraries/services/make.is': {
           makeId: () => 'api-key',
         },
         '@contentfactory/helpers/auth/newsletter.consent': newsletterConsentRules,
+        // The real catalog, not a stand-in: the content-workflow tag names it
+        // resolves have their own coverage elsewhere, and this file only needs
+        // it to exist so the module loads.
+        '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+        ),
       }
     );
 

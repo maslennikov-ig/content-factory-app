@@ -220,6 +220,7 @@ CREATE TABLE "User" (
   "pictureId" TEXT,
   "providerId" TEXT,
   "timezone" INTEGER NOT NULL,
+  "language" TEXT NOT NULL DEFAULT 'en',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   "lastReadNotifications" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -416,11 +417,6 @@ async function exerciseEmailFirstStepOne() {
         newsletterConsent: 'Newsletter',
         legalUnavailable: 'Legal unavailable',
         authOptions: 'Other auth',
-        templateLegend: 'Starting point',
-        templateBlank: 'Blank',
-        templateBlankDescription: 'No labels',
-        templateWorkflow: 'Workflow',
-        templateWorkflowDescription: 'Four labels',
       }[key]),
     },
     './public-telemetry': {
@@ -429,13 +425,11 @@ async function exerciseEmailFirstStepOne() {
         telemetryCalls += 1;
       },
     },
-    './starter-template-chooser': {
-      StarterTemplateChooser: () => React.createElement('div'),
-    },
-    './registration-intent': { issueRegistrationIntent: () => undefined },
-    '@contentfactory/nestjs-libraries/dtos/auth/starter-template': {
-      isStarterTemplate: (value) => value === 'blank' || value === 'content-workflow',
-    },
+    // There is no starter-template chooser or registration-intent module any
+    // more (registration-owner decision content-factory-next-pdbe, 2026-09-01):
+    // `email-first-signup.tsx` does not import `./starter-template-chooser`,
+    // `./registration-intent`, or the starter-template DTO helper, so those
+    // mocks were removed along with the files they used to stand in for.
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ termsUrl: '', privacyUrl: '' }),
     },
@@ -596,11 +590,16 @@ async function main() {
   const createOrgAndUser = organizationRepository.createOrgAndUser.bind(
     organizationRepository
   );
+  // `starterTemplate` is not a field of `CreateOrgUserDto` any more (decision
+  // content-factory-next-pdbe, 2026-09-01: the choice is gone, every
+  // workspace gets the content-workflow tags unconditionally). The global
+  // `ValidationPipe`'s `whitelist: true` strips it from the request before
+  // `AuthService` ever builds the object it hands to the repository, so
+  // there is nothing left here worth recording about it.
   organizationRepository.createOrgAndUser = async (body, ...createArgs) => {
     repositoryIntents.push({
       email: body.email,
       provider: body.provider,
-      starterTemplate: body.starterTemplate ?? 'blank',
       workspaceName: body.workspaceName,
     });
     return createOrgAndUser(body, ...createArgs);
@@ -766,22 +765,33 @@ async function main() {
     return { organizationCreated: true, tags: tags.rows, counts };
   });
 
-  await check('blank registration creates no template tags', async () => {
-    const createdOrganization = await organizationRepository.createOrgAndUser(
-      {
-        email: 'blank@example.test',
-        password: 'local-secret-blank',
-        provider: Provider.LOCAL,
-        starterTemplate: 'blank',
-      },
-      { activated: true, isSuperAdmin: false },
-      '127.0.0.1',
-      'runtime-proof'
-    );
-    const tagCount = Number((await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [createdOrganization.id])).rows[0].count);
-    assert.equal(tagCount, 0);
-    return { organizationCreated: true, tagCount };
-  });
+  await check(
+    // Registration owner decision content-factory-next-pdbe (2026-09-01,
+    // live run): the starter-template choice is gone from the form, and
+    // "blank" no longer exists as an option — every new workspace gets the
+    // content-workflow tags immediately, without being asked. This check
+    // used to prove the opposite (a 'blank' request created zero tags); it
+    // now proves the field is inert rather than deleting that coverage: a
+    // caller still shaped like the old client, sending starterTemplate:
+    // 'blank', is not rejected and does not get an empty workspace either.
+    "a stale caller still sending starterTemplate: 'blank' gets the same four tags as everyone else",
+    async () => {
+      const createdOrganization = await organizationRepository.createOrgAndUser(
+        {
+          email: 'blank@example.test',
+          password: 'local-secret-blank',
+          provider: Provider.LOCAL,
+          starterTemplate: 'blank',
+        },
+        { activated: true, isSuperAdmin: false },
+        '127.0.0.1',
+        'runtime-proof'
+      );
+      const tagCount = Number((await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [createdOrganization.id])).rows[0].count);
+      assert.equal(tagCount, 4);
+      return { organizationCreated: true, tagCount };
+    }
+  );
 
   await check('duplicate registration leaves no second workspace or tag quartet', async () => {
     const before = await queryCounts();
@@ -871,7 +881,6 @@ async function main() {
       assert.deepEqual(repositoryIntents[intentIndex], {
         email: 'local-http-workflow@example.test',
         provider: 'LOCAL',
-        starterTemplate: 'content-workflow',
         workspaceName: 'LOCAL HTTP Workflow',
       });
       authEvidence.local = {
@@ -915,7 +924,6 @@ async function main() {
       assert.deepEqual(repositoryIntents[intentIndex], {
         email: 'oauth-workflow@example.test',
         provider: 'GOOGLE',
-        starterTemplate: 'content-workflow',
         workspaceName: 'OAuth HTTP Workflow',
       });
       assert.deepEqual(
@@ -935,7 +943,65 @@ async function main() {
   );
 
   await check(
-    'blank and omitted starter intent accept an omitted workspace',
+    // Tag names depend on the registering language now (decision
+    // content-factory-next-vfsr): they are translated through
+    // `translateBackendString`/`resolveBackendLocale`, and an unknown or
+    // absent language falls back to English, which is why every other check
+    // above (none of which sends `language`) still sees 'Plan'/'Draft'/
+    // 'Review'/'Schedule'. This is the one check that sends a language and
+    // confirms the tags actually come back translated.
+    'a Russian-language registration gets Russian content-workflow tag names',
+    async () => {
+      const response = await authPost('/auth/register', {
+        email: 'local-http-ru@example.test',
+        password: 'local-http-password-12',
+        provider: 'LOCAL',
+        providerToken: '',
+        workspaceName: 'RU HTTP Workflow',
+        language: 'ru',
+        subscribeToNewsletter: false,
+      });
+      assert.deepEqual(response, { status: 200, body: { register: true } });
+      const organization = await pg.query(
+        `SELECT o."id" FROM "User" u
+         JOIN "UserOrganization" uo ON uo."userId" = u."id"
+         JOIN "Organization" o ON o."id" = uo."organizationId"
+         WHERE u."email" = $1`,
+        ['local-http-ru@example.test']
+      );
+      assert.equal(organization.rowCount, 1);
+      const tags = await pg.query(
+        // The shared `registrationRows` helper orders by
+        // array_position(ARRAY['Plan','Draft','Review','Schedule'], ...),
+        // which is Latin-only and would leave Russian rows in an
+        // unspecified order (every array_position lookup misses and
+        // returns NULL). This check orders by its own Russian array
+        // instead of touching that shared, Latin-pinned ordering.
+        `SELECT "name", "color" FROM "Tags" WHERE "orgId" = $1
+         ORDER BY array_position(ARRAY['План','Черновик','Проверка','Расписание'], "name")`,
+        [organization.rows[0].id]
+      );
+      assert.deepEqual(tags.rows, [
+        { name: 'План', color: '#7FB03A' },
+        { name: 'Черновик', color: '#4D7CFE' },
+        { name: 'Проверка', color: '#F59E0B' },
+        { name: 'Расписание', color: '#8B5CF6' },
+      ]);
+      authEvidence.localizedTags = {
+        language: 'ru',
+        tagNames: tags.rows.map((tag) => tag.name),
+      };
+      return authEvidence.localizedTags;
+    }
+  );
+
+  await check(
+    // A stale starterTemplate value and an entirely omitted one are the same
+    // request now: the field is not part of the DTO, so whichever a caller
+    // sends, the whitelist ValidationPipe drops it before it reaches the
+    // service layer and both get the unconditional four content-workflow
+    // tags, not an empty workspace.
+    'a stale starterTemplate value and an omitted one both accept an omitted workspace and get the same four tags',
     async () => {
       const blank = await authPost('/auth/register', {
         email: 'local-http-blank@example.test',
@@ -962,13 +1028,13 @@ async function main() {
       );
       assert.equal(blankPersisted.name, 'Workspace');
       assert.equal(omittedPersisted.name, 'Workspace');
-      assert.deepEqual(blankPersisted.tags, []);
-      assert.deepEqual(omittedPersisted.tags, []);
+      assert.deepEqual(blankPersisted.tags, workflowTags);
+      assert.deepEqual(omittedPersisted.tags, workflowTags);
       authEvidence.blankOmitted = {
         blankStatus: blank.status,
         omittedStatus: omitted.status,
-        blankTagCount: 0,
-        omittedTagCount: 0,
+        blankTagCount: blankPersisted.tags.length,
+        omittedTagCount: omittedPersisted.tags.length,
         workspaceNames: [blankPersisted.name, omittedPersisted.name],
       };
       return authEvidence.blankOmitted;
@@ -976,7 +1042,15 @@ async function main() {
   );
 
   await check(
-    'global DTO validation rejects unsupported and multi-valued starter intent',
+    // `starterTemplate` used to be a validated DTO field, so an unsupported
+    // or multi-valued starterTemplate was a 400 before it touched a
+    // repository. It is not a DTO field any more (create.org.user.dto.ts),
+    // so the global `ValidationPipe`'s `whitelist: true` strips it — silently,
+    // by design, so a stale client is never broken by a field the product no
+    // longer asks for. Asserting that silence is deliberate, not an
+    // oversight: both requests below now succeed and get the same four
+    // tags as a request that never mentioned starterTemplate at all.
+    'global whitelist validation silently drops an unsupported or multi-valued starterTemplate and still creates the default four tags',
     async () => {
       const before = await queryCounts();
       const intentCount = repositoryIntents.length;
@@ -994,15 +1068,28 @@ async function main() {
         providerToken: '',
         starterTemplate: ['blank', 'content-workflow'],
       });
-      assert.equal(unsupported.status, 400);
-      assert.equal(multiValue.status, 400);
-      assert.deepEqual(await queryCounts(), before);
-      assert.equal(repositoryIntents.length, intentCount);
+      assert.equal(unsupported.status, 200);
+      assert.equal(multiValue.status, 200);
+      const unsupportedPersisted = await registrationRows(
+        'invalid-http-template@example.test'
+      );
+      const multiValuePersisted = await registrationRows(
+        'multi-http-template@example.test'
+      );
+      assert.deepEqual(unsupportedPersisted.tags, workflowTags);
+      assert.deepEqual(multiValuePersisted.tags, workflowTags);
+      const after = await queryCounts();
+      assert.deepEqual(after, {
+        users: before.users + 2,
+        organizations: before.organizations + 2,
+        tags: before.tags + 8,
+      });
+      assert.equal(repositoryIntents.length, intentCount + 2);
       authEvidence.validation = {
         unsupportedStatus: unsupported.status,
         multiValueStatus: multiValue.status,
-        repositoryCalls: 0,
-        countsUnchanged: true,
+        unsupportedTagCount: unsupportedPersisted.tags.length,
+        multiValueTagCount: multiValuePersisted.tags.length,
       };
       return authEvidence.validation;
     }

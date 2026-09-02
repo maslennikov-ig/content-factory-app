@@ -237,6 +237,14 @@ export const briefCopy = {
       'Бриф не дошёл до сервера. Ответы остались в полях, попробуйте ещё раз.',
     draftFailure: 'Черновик не создался. Бриф сохранён, попробуйте ещё раз.',
     draftOpened: 'Черновик создан и открыт в редакторе.',
+    // `content-factory-next-odb8.2`: the door the fact catalogue never had a
+    // second copy of. «Откуда факты» only shows what memory already holds —
+    // this is where a new entry is made, right where the question is asked.
+    factsMemoryTitle: 'Или запомните новый факт',
+    factsMemoryLead:
+      'Сохранённый факт получает свой id — вставьте его в поле «ID факта» выше, и бриф примет его как подтверждение. Он появится и на витрине «Откуда факты».',
+    factsMemoryAdded: (statement: string) =>
+      `Факт «${statement}» добавлен в бриф строкой ниже.`,
   },
   en: {
     formTitle: 'Answer five questions',
@@ -256,6 +264,11 @@ export const briefCopy = {
       'The brief did not reach the server. Your answers are still here — try again.',
     draftFailure: 'The draft was not created. The brief is kept; try again.',
     draftOpened: 'The draft was created and opened in the editor.',
+    factsMemoryTitle: 'Or remember a new fact',
+    factsMemoryLead:
+      'A saved fact gets its own id — paste it into the "Fact id" field above and the brief accepts it as a confirmation. It also appears on the "Where facts come from" screen.',
+    factsMemoryAdded: (statement: string) =>
+      `The fact "${statement}" was added to the brief in the row below.`,
   },
 } as const;
 

@@ -176,6 +176,11 @@ const authMocks = {
     'libraries/helpers/src/auth/newsletter.consent.ts'
   ),
   '@contentfactory/nestjs-libraries/dtos/users/link-user-identity.dto': {},
+  // The real catalog, not a stand-in: several tests below assert the actual
+  // translated subject/body text these emails carry.
+  '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+  ),
 };
 
 const { AuthService } = loadTypeScriptModule(
@@ -1079,6 +1084,57 @@ test('password reset works for a linked LOCAL identity even when another provide
   expect(sent).toEqual(['telegram-contact@example.com']);
 });
 
+test('the reset email is translated to the account language, not sent in English', async () => {
+  const sent = [];
+  const authService = new AuthService(
+    {
+      getUserByEmail: async () => ({
+        id: 'ru-user',
+        email: 'ru-owner@example.com',
+        language: 'ru',
+      }),
+      hasLocalSignIn: async () => true,
+    },
+    {},
+    {
+      sendEmail: async (to, subject, html, replyTo, language) =>
+        sent.push({ to, subject, html, replyTo, language }),
+    },
+    {},
+    {}
+  );
+
+  await authService.forgot('ru-owner@example.com');
+
+  expect(sent).toHaveLength(1);
+  expect(sent[0].subject).toBe('Сброс пароля');
+  expect(sent[0].subject).not.toBe('Reset your password');
+  expect(sent[0].language).toBe('ru');
+});
+
+test('a reset email for an account with no stored language falls back to English', async () => {
+  const sent = [];
+  const authService = new AuthService(
+    {
+      getUserByEmail: async () => ({
+        id: 'legacy-user',
+        email: 'legacy@example.com',
+      }),
+      hasLocalSignIn: async () => true,
+    },
+    {},
+    {
+      sendEmail: async (to, subject) => sent.push(subject),
+    },
+    {},
+    {}
+  );
+
+  await authService.forgot('legacy@example.com');
+
+  expect(sent).toEqual(['Reset your password']);
+});
+
 test('a reset request never mails a link to the address that was typed in', async () => {
   // The exact shape of the reported attack: an address the attacker attached to
   // their own account. Whatever put it there, the reset link must not follow
@@ -1185,7 +1241,10 @@ test('password reset remains compatible with a legacy primary LOCAL account befo
  * what happens before a row is allowed to exist, and who is allowed to make it
  * exist.
  */
-function confirmationWorld({ claimable = async () => undefined } = {}) {
+function confirmationWorld({
+  claimable = async () => undefined,
+  requesterLanguage = 'en',
+} = {}) {
   const emails = [];
   const linked = [];
   const userService = {
@@ -1198,12 +1257,18 @@ function confirmationWorld({ claimable = async () => undefined } = {}) {
       linked.push({ userId, provider, providerIdentifier, passwordHash });
       return { provider, providerIdentifier, linkedAt: 'now' };
     },
+    // The confirmation email is sent to the new, not-yet-owned address; its
+    // language comes from the signed-in account making the request.
+    getUserById: async () => ({ language: requesterLanguage }),
   };
   const authService = new AuthService(
     userService,
     {},
     {},
-    { sendEmail: async (to, subject, html) => emails.push({ to, subject, html }) },
+    {
+      sendEmail: async (to, subject, html, addTo, replyTo, language) =>
+        emails.push({ to, subject, html, language }),
+    },
     {}
   );
   return { authService, emails, linked };
@@ -1244,6 +1309,34 @@ describe('adding a password sign-in method proves the address first', () => {
     expect(emails[0].html).not.toMatch(/chosen-secret/);
     expect(emails[0].html).not.toMatch(/hashed:/);
     expect(tokenFrom(emails[0].html)).toMatch(/^[\w-]{43}$/);
+  });
+
+  test('the confirmation email speaks the requesting account language, not English by default', async () => {
+    const { authService, emails } = confirmationWorld({ requesterLanguage: 'ru' });
+
+    await authService.linkIdentity('session-user', {
+      provider: 'LOCAL',
+      email: 'owner@example.com',
+      password: 'chosen-secret',
+    });
+
+    expect(emails[0].subject).toBe('Подтвердите адрес электронной почты');
+    expect(emails[0].subject).not.toBe('Confirm your email address');
+    expect(emails[0].language).toBe('ru');
+    // The link inside the translated body is unchanged by translation.
+    expect(tokenFrom(emails[0].html)).toMatch(/^[\w-]{43}$/);
+  });
+
+  test('a requester with no stored language gets the English confirmation, not a thrown error', async () => {
+    const { authService, emails } = confirmationWorld({ requesterLanguage: undefined });
+
+    await authService.linkIdentity('session-user', {
+      provider: 'LOCAL',
+      email: 'owner@example.com',
+      password: 'chosen-secret',
+    });
+
+    expect(emails[0].subject).toBe('Confirm your email address');
   });
 
   test('opening the link as the same user creates the identity with the stored hash', async () => {

@@ -1,4 +1,15 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import {
+  ARCHIVE_PLATFORM_VALUES,
+  IMPORTABLE_ARCHIVE_LAYERS,
+} from '@contentfactory/nestjs-libraries/content-intelligence/materials/archive-presentation';
 
 /**
  * What the material routes accept.
@@ -34,4 +45,54 @@ export class MaterialDraftDto {
   @IsString()
   @MaxLength(64)
   integrationId?: string;
+}
+
+/**
+ * «Занесение своего прежнего» (`content-factory-next-odb8.4`): a text this
+ * workspace already owns, entered by hand rather than written by the
+ * factory. Its own door, not the source registry's — the registry exists to
+ * turn a fetched page into evidence and a style corpus, with rights, freshness
+ * and sync runs behind it; this is a person pasting a text that is already
+ * theirs, with none of that machinery earned or needed.
+ *
+ * `title` and `body` share `MaterialDraftDto`'s absence of a hard content
+ * shape: the factory's own pieces are not schema-checked prose either, and a
+ * pasted article should not be held to a stricter bar than a generated one.
+ */
+export class ImportArchiveMaterialDto {
+  @IsIn(IMPORTABLE_ARCHIVE_LAYERS)
+  origin: (typeof IMPORTABLE_ARCHIVE_LAYERS)[number];
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  title: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200000)
+  body: string;
+
+  @IsIn(['ru', 'en'])
+  language: 'ru' | 'en';
+
+  /** Where it first ran. Optional: a person may not know or the text may predate any platform at all. */
+  @IsOptional()
+  @IsIn(ARCHIVE_PLATFORM_VALUES)
+  platform?: (typeof ARCHIVE_PLATFORM_VALUES)[number];
+
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(2048)
+  url?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  publishedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

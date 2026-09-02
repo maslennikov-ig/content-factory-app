@@ -622,7 +622,7 @@ describe('production view behavior', () => {
     expect(markup).toContain('Policy blocked');
     expect(markup).toContain('Ownership check required');
     expect(markup).toContain('Rights denied');
-    expect(markup).toContain('Add URL or RSS');
+    expect(markup).toContain('New source');
     expect(markup).toContain('source-draft-material/v1');
   });
 
@@ -879,7 +879,13 @@ describe('keyboard and state integrity', () => {
         })
       );
 
+      // Hint triggers are excluded because they are not actions: a hint opens
+      // a tooltip and changes nothing, and it is wanted most where a person
+      // cannot act and needs to know why. `data-hint-trigger` is set by the
+      // primitive itself, so this exclusion cannot quietly widen to cover a
+      // real action that forgot to disable itself.
       for (const button of screen.getAllByRole('button')) {
+        if (button.dataset.hintTrigger === 'true') continue;
         expect(button.disabled).toBe(true);
       }
       cleanup();

@@ -84,9 +84,20 @@ export class UsersRepository {
         });
       }
 
+      // `language` is not part of `credentials()`: it stays with the row, not
+      // the login, so the account keeps the language it was already reading
+      // in through the switch.
       return {
-        kept: { id: current.id, email: targetCredentials.email },
-        switched: { id: target.id, email: currentCredentials.email },
+        kept: {
+          id: current.id,
+          email: targetCredentials.email,
+          language: current.language,
+        },
+        switched: {
+          id: target.id,
+          email: currentCredentials.email,
+          language: target.language,
+        },
       };
     });
   }

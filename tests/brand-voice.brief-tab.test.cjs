@@ -131,6 +131,12 @@ const serve = (table) => {
 const baseTable = () => ({
   'GET /integrations/list': ok({ integrations: [] }),
   'GET /content-intelligence/brief/radar': ok(RADAR),
+  // `content-factory-next-odb8.2` embeds the fact catalogue
+  // (`content-facts.container.tsx`) directly in this tab, right where «чем
+  // подтвердишь» is asked. Unstubbed, its own request would fail and print
+  // a second `role="alert"`, which is exactly what collides with the
+  // brief's own alert assertions below.
+  'GET /content-intelligence/facts': ok({ facts: [] }),
 });
 
 const renderTab = async (locale = 'ru') => {

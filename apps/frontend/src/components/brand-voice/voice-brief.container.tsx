@@ -11,6 +11,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { VoiceBriefScreen } from './voice-brief.screen';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
+import { ContentFactsContainer } from '../content-intelligence/content-facts.container';
 import {
   EDITOR_MODAL,
   editorChannels,
@@ -204,6 +205,37 @@ export function VoiceBriefContainer() {
       );
     },
     [shown.topics, w]
+  );
+
+  /**
+   * A fresh fact from the memory door embedded below, taken straight into
+   * the brief being typed.
+   *
+   * The one empty, untouched row is reused rather than always appending —
+   * `emptyBrief()` always starts with exactly one — so opening the tab and
+   * saving a fact right away does not leave a blank row above the one that
+   * matters. Anything already typed is never overwritten.
+   */
+  const handleFactCreated = useCallback(
+    (fact: { id: string; statement: string }) => {
+      setNotice(w.factsMemoryAdded(fact.statement));
+      setDraft((current) => {
+        const blankIndex = current.facts.findIndex(
+          (row) => !row.statement.trim() && !row.sourceUrl.trim() && !row.factId.trim()
+        );
+        const filled = { statement: fact.statement, sourceUrl: '', factId: fact.id };
+        if (blankIndex >= 0) {
+          return {
+            ...current,
+            facts: current.facts.map((row, at) =>
+              at === blankIndex ? filled : row
+            ),
+          };
+        }
+        return { ...current, facts: [...current.facts, filled] };
+      });
+    },
+    [w]
   );
 
   const shownFailure =
@@ -420,6 +452,25 @@ export function VoiceBriefContainer() {
           </Button>
         </div>
       </form>
+
+      {/*
+        `content-factory-next-odb8.2`: the door «Откуда факты» only shows,
+        right below the question that made it necessary in the first place.
+        A sibling of the brief's own `<form>` rather than a child of it — an
+        HTML form cannot nest another, and this is the exact form the witness
+        screen's rows come from, not a second one guessing at the same DTO.
+      */}
+      <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <h4 className="cf-label-sm uppercase text-cf-ink-muted">
+          {w.factsMemoryTitle}
+        </h4>
+        <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          {w.factsMemoryLead}
+        </p>
+        <div className="mt-[12px]">
+          <ContentFactsContainer onFactCreated={handleFactCreated} />
+        </div>
+      </div>
     </section>
   );
 }

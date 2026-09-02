@@ -11,6 +11,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { Hint } from '@contentfactory/react/layout/hint';
 
 export type ContentIntelligenceSection = 'sources' | 'provenance';
 export type ContentIntelligenceSurfaceState =
@@ -183,17 +184,25 @@ const copy = {
     longStateBody:
       'Labels, URLs and evidence wrap without hiding information or actions.',
     neutral: 'Neutral voice is applied',
-    addSource: 'Add URL or RSS',
+    hintFor: (subject: string) => `Hint: ${subject}`,
+    sourcesHint:
+      'A source is what a text rests on: your own material, a page on the web, or a feed a site publishes. The product keeps a copy of what it read, so every claim in a finished post can be traced back to where it came from.',
+    addSource: 'New source',
     addSourceBody:
-      'Direct fetch starts only after an administrator confirms the right to use the material.',
-    sourceType: 'Source type',
-    sourceUrl: 'HTTPS URL',
+      'The product keeps a copy of the material and cites it in finished texts. It fetches pages and feeds itself — but only after an administrator confirms the right to use the material.',
+    sourceType: 'Kind of source',
+    sourceTypeHint:
+      '“Your own text” — you paste the material yourself and nothing is fetched. “Page by link” — the product downloads that one page once. “Site feed” — the address where a site publishes its new material; the product checks it and picks up what is new.',
+    kindManual: 'Your own text',
+    kindUrl: 'Page by link',
+    kindRss: 'Site feed (RSS)',
+    sourceUrl: 'Address (https only)',
     sourceLabel: 'Source label',
-    manualText: 'Manual source text',
-    registerSource: 'Register source',
+    manualText: 'Material text',
+    registerSource: 'Add source',
     emptySources: 'No sources registered',
     emptySourcesBody:
-      'Add one permitted URL or RSS feed to begin a reviewable source history.',
+      'Add the first one — your own text, a page by link, or a site feed. That is where the material history starts: the product keeps a copy and shows where each fact came from.',
     rightsConfirmed: 'Rights confirmed',
     rightsPending: 'Rights pending',
     rightsDenied: 'Rights denied',
@@ -275,17 +284,27 @@ const copy = {
     longStateBody:
       'Подписи, URL и доказательства переносятся без скрытия данных и действий.',
     neutral: 'Применяется нейтральный голос',
-    addSource: 'Добавить URL или RSS',
+    hintFor: (subject: string) => `Подсказка: ${subject}`,
+    sourcesHint:
+      'Источник — то, на что опирается текст: ваш собственный материал, страница в интернете или лента сайта. Продукт хранит копию прочитанного, поэтому у каждого утверждения в готовом посте видно, откуда оно взято.',
+    // The heading names the thing, the button names the act. Giving both the
+    // same words made an empty section read as two identical offers.
+    addSource: 'Новый источник',
     addSourceBody:
-      'Прямое получение начнётся только после подтверждения администратором права на материал.',
-    sourceType: 'Тип источника',
-    sourceUrl: 'HTTPS URL',
+      'Продукт сохранит копию материала и будет ссылаться на неё в готовых текстах. Страницы и ленты он загружает сам — но только после того, как администратор подтвердит право пользоваться материалом.',
+    sourceType: 'Вид источника',
+    sourceTypeHint:
+      '«Свой текст» — вставляете материал руками, никуда ходить не нужно. «Страница по ссылке» — продукт один раз скачает указанную страницу. «Лента сайта» — адрес, по которому сайт сам публикует свои новые материалы; продукт будет заглядывать туда и подхватывать свежее.',
+    kindManual: 'Свой текст',
+    kindUrl: 'Страница по ссылке',
+    kindRss: 'Лента сайта (RSS)',
+    sourceUrl: 'Адрес (только https)',
     sourceLabel: 'Название источника',
-    manualText: 'Текст ручного источника',
-    registerSource: 'Зарегистрировать источник',
+    manualText: 'Текст материала',
+    registerSource: 'Добавить источник',
     emptySources: 'Источников пока нет',
     emptySourcesBody:
-      'Добавьте разрешённый URL или RSS, чтобы начать проверяемую историю.',
+      'Добавьте первый — свой текст, страницу по ссылке или ленту сайта. С него начнётся история материала: продукт сохранит копию и будет показывать, откуда взят каждый факт.',
     rightsConfirmed: 'Права подтверждены',
     rightsPending: 'Права ожидают подтверждения',
     rightsDenied: 'В правах отказано',
@@ -336,6 +355,18 @@ const copy = {
     appliedProfile: 'Применённый паспорт',
   },
 } as const;
+
+/**
+ * The stored kind, in the words the chooser offers.
+ *
+ * The list used to print `source.kind` straight from the record, so a row read
+ * `MANUAL` under a Russian heading. The enum is the server's contract and stays
+ * as it is; this is the one place that turns it back into language.
+ */
+const kindLabel = (
+  kind: ContentSourceView['kind'],
+  t: (typeof copy)[Locale]
+) => (kind === 'URL' ? t.kindUrl : kind === 'RSS' ? t.kindRss : t.kindManual);
 
 const formatDate = (value: string | null | undefined, locale: Locale) =>
   value
@@ -705,7 +736,14 @@ export function ContentIntelligenceView({
     <div
       data-product-surface="content-intelligence"
       data-surface-state={state}
-      className="mx-auto flex w-full max-w-[1120px] flex-col gap-[24px] [&_a]:min-h-[44px] [&_a]:min-w-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] [&_input]:min-h-[44px] [&_select]:min-h-[44px] sm:[&_a]:min-h-0 sm:[&_a]:min-w-0 sm:[&_button]:min-h-0 sm:[&_button]:min-w-0 sm:[&_input]:min-h-0 sm:[&_select]:min-h-0"
+      // The 1120px column this used to centre itself in was the same one the
+      // section frame dropped, and keeping it here undid that: the frame ran
+      // edge to edge and the panel inside it did not, so «Источники» sat in a
+      // narrower box than the calendar or analytics beside it. Measure is still
+      // bounded where measure matters — every paragraph below carries its own
+      // `max-w` — but the column holding cards, lists and a two-column form now
+      // takes the width the shell gives it, like every other section.
+      className="flex w-full flex-col gap-[24px] [&_a]:min-h-[44px] [&_a]:min-w-[44px] [&_button]:min-h-[44px] [&_button]:min-w-[44px] [&_input]:min-h-[44px] [&_select]:min-h-[44px] sm:[&_a]:min-h-0 sm:[&_a]:min-w-0 sm:[&_button]:min-h-0 sm:[&_button]:min-w-0 sm:[&_input]:min-h-0 sm:[&_select]:min-h-0"
     >
       {showHeader && (
         <header>
@@ -863,12 +901,20 @@ function SourcesSection({
       aria-labelledby="source-registry-title"
       className="scroll-mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
     >
+      {/*
+        The hint carries what the section is for, which the heading alone never
+        said. «Источники» names a list; it does not tell a person new to the
+        product that this is where a text gets its grounds, or why the product
+        keeps a copy of what it read. The sentence stays one keystroke away
+        rather than becoming a second paragraph under every heading.
+      */}
       <h2
         id="source-registry-title"
         tabIndex={-1}
-        className="cf-heading-md text-cf-ink [text-wrap:balance]"
+        className="flex flex-wrap items-center gap-[8px] cf-heading-md text-cf-ink [text-wrap:balance]"
       >
         {t.sources}
+        <Hint label={t.hintFor(t.sources)}>{t.sourcesHint}</Hint>
       </h2>
       <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t.addSourceBody}
@@ -893,8 +939,17 @@ function SourcesSection({
         }}
         className="mt-[16px] grid gap-x-[16px] md:grid-cols-2"
       >
-        <h3 className="mb-[4px] cf-label-md text-cf-ink md:col-span-2">
+        {/*
+          The hint sits on the form's own heading rather than on the field:
+          `Select` takes a `label` of type string, and widening a shared
+          primitive to carry a node is a change to every form in the product,
+          not to this one. The heading is also where the question actually
+          arises — a person reads «Добавить источник», then meets three kinds
+          and has to pick one.
+        */}
+        <h3 className="mb-[4px] flex flex-wrap items-center gap-[8px] cf-label-md text-cf-ink md:col-span-2">
           {t.addSource}
+          <Hint label={t.hintFor(t.sourceType)}>{t.sourceTypeHint}</Hint>
         </h3>
         <Select
           disableForm
@@ -909,9 +964,16 @@ function SourcesSection({
           }
           disabled={disabled}
         >
-          <option value="URL">URL</option>
-          <option value="RSS">RSS</option>
-          <option value="MANUAL">Manual</option>
+          {/*
+            Named for what a person is choosing, not for the protocol that
+            carries it. «URL / RSS / Manual» was three English words in a
+            Russian interface, and two of the three are terms the people this
+            product is for have no reason to know. The value the server sees is
+            unchanged; only the word above it is.
+          */}
+          <option value="URL">{t.kindUrl}</option>
+          <option value="RSS">{t.kindRss}</option>
+          <option value="MANUAL">{t.kindManual}</option>
         </Select>
         <Input
           disableForm
@@ -974,15 +1036,19 @@ function SourcesSection({
         {visibleSources.length === 0 ? (
           <div className="rounded-[8px] bg-cf-surface-subtle p-[16px]">
             <h3 className="cf-label-md text-cf-ink">{t.emptySources}</h3>
+            {/*
+              No call to action here, and its absence is the decision.
+
+              This used to carry a link to `#source-registry-title` dressed as a
+              button. It was a button that could not be pressed and a journey to
+              where the reader already stood: the form it pointed at sits
+              directly above this box and is on screen with it. It also said the
+              same words as that form's heading, so an empty section repeated
+              one instruction twice and offered the second one as bait.
+            */}
             <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
               {t.emptySourcesBody}
             </p>
-            <a
-              href="#source-registry-title"
-              className="mt-[12px] inline-flex min-h-[40px] items-center rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-            >
-              {t.addSource}
-            </a>
           </div>
         ) : (
           <ul className="divide-y divide-cf-border">
@@ -997,7 +1063,7 @@ function SourcesSection({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-[8px]">
                         <span className="cf-caption text-cf-ink-muted">
-                          {source.kind}
+                          {kindLabel(source.kind, t)}
                         </span>
                         <h3 className="break-words cf-label-md text-cf-ink">
                           {source.displayName}

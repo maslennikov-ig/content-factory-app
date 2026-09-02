@@ -19,9 +19,11 @@ module.exports = {
     '/tests/content-context.builder.test.cjs$',
     '/tests/content-intelligence.consumer-backend.test.cjs$',
     '/tests/content-intelligence.persistence.test.cjs$',
+    '/tests/content-search-evidence.test.cjs$',
     '/tests/content-source-fetch-gateway.test.cjs$',
     '/tests/content-source-registry.postgres.test.cjs$',
     '/tests/content-source-registry.test.cjs$',
+    '/tests/editorial-stage.tag-migration.test.cjs$',
     '/tests/post.content-context.test.cjs$',
   ],
 };

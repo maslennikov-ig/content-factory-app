@@ -1,7 +1,7 @@
 # Локальная разработка
 
 **Статус:** `runbook`
-**Проверено:** 2026-08-11
+**Проверено:** 2026-09-01
 
 ## Требования
 
@@ -10,7 +10,7 @@
 - pnpm из `packageManager` в [package.json](../../package.json) (`10.6.1`);
 - Docker Compose;
 - `zip` — только для упаковки браузерного расширения, см. [Расширение](#расширение);
-- свободные порты 3000, 3002, 4200, 5432, 6379, 7233 и 8080.
+- свободные порты 3000, 3002, 4200, 5433, 6380, 7234 и 8080.
 
 ## Первый запуск из исходников
 
@@ -37,10 +37,17 @@ pnpm run dev
 | Backend | `http://localhost:3000` |
 | Orchestrator health | `http://localhost:3002` |
 | Temporal UI | `http://localhost:8080` |
-| PostgreSQL | `localhost:5432` |
-| Redis | `localhost:6379` |
+| PostgreSQL | `localhost:5433` |
+| Redis | `localhost:6380` |
+| Temporal | `localhost:7234`, namespace `cf-dev` |
 
-Compose development описан в [docker-compose.dev.yaml](../../docker-compose.dev.yaml). Он поднимает инфраструктуру, но не frontend/backend/orchestrator.
+Порты сдвинуты относительно портов по умолчанию у Postgres/Redis/Temporal (5432, 6379, 7233) намеренно: на общей машине разработки эти порты часто уже держит стенд соседнего проекта. `TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE` не заданы по умолчанию в коде — если их не выставить явно в `.env` (как это делает `.env.example`), backend и orchestrator тихо подключатся к `localhost:7233` и пространству имён `default`, то есть, вероятно, к чужому Temporal, а не к своему.
+
+Compose development описан в [docker-compose.dev.yaml](../../docker-compose.dev.yaml). Он поднимает инфраструктуру, но не frontend/backend/orchestrator. Файл фиксирует контейнеры под именами `cf-dev-*`, но эти имена — глобальные для докер-хоста, а не для этого compose-проекта: `docker compose -f docker-compose.dev.yaml up -d` без указания сервисов конфликтует с любым соседним проектом, у которого контейнеры называются так же (например, унаследованный от апстрима голый `temporal`). Поднимайте инфраструктуру поимённо:
+
+```bash
+docker compose -f docker-compose.dev.yaml up -d cf-dev-postgres cf-dev-redis cf-dev-temporal
+```
 
 ## Первый вход
 
@@ -223,7 +230,7 @@ scripts/orchestration/run_process_verification.sh
 
 ### Публикация не запускается
 
-- проверьте Temporal на `localhost:7233` и UI;
+- проверьте Temporal на `localhost:7234` (namespace `cf-dev`) и UI на `localhost:8080`;
 - убедитесь, что orchestrator запущен;
 - проверьте provider credentials и состояние `Integration`;
 - найдите workflow `post_<post.id>` и запись `Errors`.

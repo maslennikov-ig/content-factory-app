@@ -61,7 +61,7 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         networks: [],
       },
     });
-    expect(summary.checks).toHaveLength(15);
+    expect(summary.checks).toHaveLength(16);
     expect(summary.checks.every((check) => check.status === 'PASS')).toBe(
       true
     );
@@ -69,8 +69,9 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
       expect.arrayContaining([
         'LOCAL registration applies the selected workflow through POST /auth/register',
         'OAuth callback token applies the selected workflow through POST /auth/register',
-        'blank and omitted starter intent accept an omitted workspace',
-        'global DTO validation rejects unsupported and multi-valued starter intent',
+        'a Russian-language registration gets Russian content-workflow tag names',
+        'a stale starterTemplate value and an omitted one both accept an omitted workspace and get the same four tags',
+        'global whitelist validation silently drops an unsupported or multi-valued starterTemplate and still creates the default four tags',
         'LOCAL duplicate and OAuth replay leave workspace and tag counts unchanged',
       ])
     );
@@ -94,8 +95,8 @@ describe('public funnel real Nest and PostgreSQL runtime proof', () => {
         tagCount: 4,
       },
       validation: {
-        unsupportedStatus: 400,
-        multiValueStatus: 400,
+        unsupportedStatus: 200,
+        multiValueStatus: 200,
       },
       replay: {
         localStatus: 400,

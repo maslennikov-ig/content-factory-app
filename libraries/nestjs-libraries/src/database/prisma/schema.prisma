@@ -66,6 +66,10 @@ model Organization {
   brandVoiceEdits            BrandVoiceEdit[]
   contentPieces              ContentPiece[]
   contentDerivations         ContentDerivation[]
+  /// `content-factory-next-odb8.3`: «Откуда идеи». Feeds and channels the
+  /// workspace asked the product to read, and what those checks brought back.
+  contentLeadSubscriptions   ContentLeadSubscription[]
+  contentLeads               ContentLead[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -112,6 +116,13 @@ model User {
   pictureId                        String?
   providerId                       String?
   timezone                         Int
+  // The language the account registered in, taken from the interface language
+  // the frontend already resolved (cookie/header), not the server's own
+  // locale. Drives which language transactional email goes out in. A blank or
+  // unrecognised value is never stored; the DTO and repository normalise to
+  // 'en' before this column is written, and 'en' is what every pre-existing
+  // row gets too.
+  language                         String               @default("en")
   createdAt                        DateTime             @default(now())
   updatedAt                        DateTime             @updatedAt
   lastReadNotifications            DateTime             @default(now())
@@ -492,6 +503,16 @@ model Comments {
 model Post {
   id                         String                      @id @default(cuid())
   state                      State                       @default(QUEUE)
+  // Where the post sits in the editorial process (plan/draft/review/schedule),
+  // NOT the same thing as `state` above. `state` is delivery status
+  // (QUEUE/PUBLISHED/ERROR/DRAFT) — did it go out, is it in the queue, did it
+  // fail. `editorialStage` is workflow status — has a human reviewed it yet.
+  // A post can be `state: DRAFT` and `editorialStage: REVIEW` at the same
+  // time: written, not yet sent, but already handed to a reviewer. Nullable
+  // because every pre-existing post has no editorial stage recorded, and that
+  // is its normal state, not a defect. Owner decision 02.09.2026: a field, not
+  // a Tags label — see `content-factory-next-pdbe`.
+  editorialStage             EditorialStage?
   publishDate                DateTime
   organizationId             String
   integrationId              String
@@ -552,6 +573,7 @@ model Post {
   @@index([updatedAt])
   @@index([releaseURL])
   @@index([integrationId])
+  @@index([organizationId, editorialStage])
 }
 
 model TelegramUpdateReceipt {
@@ -826,6 +848,11 @@ model AutoPost {
   organization          Organization                @relation(fields: [organizationId], references: [id])
   contentSource         ContentSource?              @relation(fields: [organizationId, contentSourceId], references: [organizationId, id])
   brandProfileVersion   ProjectBrandProfileVersion? @relation(fields: [organizationId, brandProfileVersionId], references: [organizationId, id])
+  /// The other direction of `ContentLeadSubscription.linkedAutoPost` — an
+  /// AutoPost row a subscription names as "this address already drafts on
+  /// its own", so the list can say so instead of the two mechanisms sitting
+  /// side by side unaware of each other. See `content-lead.service.ts`.
+  leadSubscriptions     ContentLeadSubscription[]
 
   @@unique([organizationId, id])
   @@index([organizationId, contentSourceId])
@@ -1712,6 +1739,20 @@ enum State {
   DRAFT
 }
 
+// Editorial process stage of a post. Matches `CONTENT_WORKFLOW_TAG_KEYS` in
+// `organizations/organization.repository.ts` one-to-one on purpose, so the
+// pre-existing process tags on a post can be carried over to this field
+// exactly — see `docs/operations/editorial-stage-schema-apply.sql`. This is
+// NOT `State` above: `State` is delivery (did it publish), this is workflow
+// (has it been reviewed). Do not add a fifth value or rename one without
+// updating both the tag keys and the migration that reads them.
+enum EditorialStage {
+  PLAN
+  DRAFT
+  REVIEW
+  SCHEDULED
+}
+
 enum SubscriptionTier {
   STANDARD
   PRO
@@ -1835,4 +1876,110 @@ model AiUsageRecord {
   /// `scripts/operations/cleanup-saas-retention.cjs`. The two composite indexes
   /// above lead with `organizationId` and cannot answer `createdAt < cutoff`.
   @@index([createdAt])
+}
+
+/// One feed or channel a workspace asked the product to read for it.
+///
+/// `content-factory-next-odb8.3`, «Откуда идеи» — the thing the owner wanted
+/// from «Источники» from the start and never got
+/// (`docs/product/content-section-map.md` §5). Deliberately its own model
+/// rather than a second use of `ContentSource`: a subscription is read for a
+/// reason `ContentSource` never had — a reason to write, not a fact to cite —
+/// and its per-item lifecycle (`ContentLead`, accepted/dismissed and
+/// remembered) has no counterpart in the source registry at all. What IS
+/// reused, never duplicated, is the network and robots policy the registry
+/// already carries — `network-policy.ts`, `source-access-policy.ts` and
+/// `source-fetch.gateway.ts` — imported by `lead-feed.gateway.ts` rather than
+/// rebuilt.
+model ContentLeadSubscription {
+  id                   String        @id @default(uuid())
+  organizationId       String
+  /// 'RSS' | 'URL'. A Telegram channel is named as a third kind in the
+  /// product's own contract, but stays out of this column: it is switched off
+  /// on every server today, and nothing here should invent a value an
+  /// operator has not turned on anywhere (`SOURCE_TELEGRAM_INGEST`).
+  kind                 String
+  displayName          String
+  canonicalUrl         String
+  /// ACTIVE | PAUSED | ERRORED. A row stays ACTIVE through an ordinary failed
+  /// check — the check retries on its own schedule — so ERRORED means the
+  /// last attempt itself failed, not that the subscription stopped trying.
+  state                String        @default("ACTIVE")
+  /// How often the periodic check wakes up for this row. Owner-facing choices
+  /// are coarser than the raw number (`Ideas.dc.html`: «раз в час» / «раз в
+  /// сутки»); the minutes are what the workflow actually sleeps on.
+  checkIntervalMinutes Int           @default(1440)
+  lastCheckedAt        DateTime?
+  lastErrorCode        String?
+  /// The one case AutoPost is pulled in rather than duplicated
+  /// (`content-lead.service.ts`): a subscription created from an existing
+  /// `AutoPost` row shares its address and says so on the list, instead of a
+  /// person configuring the same feed twice under two names that never learn
+  /// about each other. Nothing about `AutoPost`'s own draft-per-hour workflow
+  /// changes because this pointer exists.
+  linkedAutoPostId     String?
+  createdByUserId      String
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  linkedAutoPost       AutoPost?     @relation(fields: [organizationId, linkedAutoPostId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  leads                ContentLead[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, kind, canonicalUrl])
+  @@index([organizationId, state])
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, linkedAutoPostId])
+}
+
+/// One item a subscription brought back: a reason to write, never a draft.
+///
+/// Dismissal is memory, not mood. `(organizationId, subscriptionId,
+/// externalId)` is unique, and a check upserts new items on that key without
+/// ever resetting an existing row's `status` back to `NEW` —
+/// `ContentLeadRepository.upsertLeads` is the one place that matters and
+/// `tests/content-lead-dismissal-guard.test.cjs` holds it in place. A lead the
+/// workspace already said no to cannot come back merely because the feed
+/// serves the same item again.
+///
+/// Accepting a lead does not create a `SourceEvidence` row or anything else
+/// `ContentFact` can cite. That link — «повод → материал для ссылок» — is the
+/// owner's open question in `content-factory-next-odb8.3` and is deliberately
+/// left unbuilt, not merely unwired: see the task's report.
+model ContentLead {
+  id                String                  @id @default(uuid())
+  organizationId    String
+  subscriptionId    String
+  /// The feed's own id for the item — guid, or its link when the feed gives
+  /// no guid — mirroring how `source-parser.ts` already resolves feed-item
+  /// identity for `ContentSource`, so a feed migrating between the two
+  /// registries would keep the same identity rule.
+  externalId        String
+  title             String
+  excerpt           String?
+  sourceUrl         String
+  publishedAt       DateTime?
+  observedAt        DateTime                @default(now())
+  /// Why this reader, not just what the item says (`Ideas.dc.html`'s card
+  /// anatomy: тема → почему она ваша → фрагмент). Computed once at check time
+  /// and kept in both product languages, the same way `content-brief.radar.ts`
+  /// keeps a reason per language rather than translating one on read.
+  reasonRu          String
+  reasonEn          String
+  /// NEW | DISMISSED | ACCEPTED.
+  status            String                  @default("NEW")
+  dismissedAt       DateTime?
+  dismissedByUserId String?
+  acceptedAt        DateTime?
+  acceptedByUserId  String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription      ContentLeadSubscription @relation(fields: [organizationId, subscriptionId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, subscriptionId, externalId])
+  @@index([organizationId, status, observedAt])
+  @@index([organizationId, subscriptionId, status])
 }

@@ -48,9 +48,11 @@ describe('orchestrator autopost activity registration', () => {
     class AutopostDraftV2Activity {}
     class AutopostService {}
     class EmailActivity {}
+    class EmailActivityV2 {}
     class IntegrationsActivity {}
     class AnalyticsActivityV1 {}
     class NewsletterActivityV1 {}
+    class ContentLeadCheckActivity {}
     class DatabaseModule {}
     class HealthController {}
     let registeredActivities;
@@ -80,6 +82,9 @@ describe('orchestrator autopost activity registration', () => {
       '@contentfactory/orchestrator/activities/email.activity': {
         EmailActivity,
       },
+      '@contentfactory/orchestrator/activities/email.activity.v2': {
+        EmailActivityV2,
+      },
       '@contentfactory/orchestrator/activities/integrations.activity': {
         IntegrationsActivity,
       },
@@ -89,6 +94,9 @@ describe('orchestrator autopost activity registration', () => {
       },
       '@contentfactory/orchestrator/activities/newsletter.activity.v1': {
         NewsletterActivityV1,
+      },
+      '@contentfactory/orchestrator/activities/content-lead-check.activity': {
+        ContentLeadCheckActivity,
       },
     });
 

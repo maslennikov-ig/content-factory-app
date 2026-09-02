@@ -18,6 +18,7 @@ import {
 import {
   AssessContentEvidenceDto,
   BuildContentContextDto,
+  CopyContentFactDto,
   CreateContentFactDto,
   LinkContentFactEvidenceDto,
   ReviewContentFactEvidenceDto,
@@ -103,6 +104,59 @@ export class ContentContextController {
   ) {
     try {
       return await this.facts.createFact(organization.id, user.id, body);
+    } catch (error) {
+      safeContextError(error);
+    }
+  }
+
+  /**
+   * СНЯТЬ (`content-factory-next-odb8.1`): the witness screen's first action.
+   * Gated the same way creating a fact already is — this is an everyday
+   * write on the workspace's own memory, not an administrative review.
+   */
+  @Post('/facts/:factId/retract')
+  @CheckPolicies(aiCreate as any)
+  async retractFact(
+    @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('factId') factId: string
+  ) {
+    try {
+      return await this.facts.retractFact(organization.id, user.id, factId);
+    } catch (error) {
+      safeContextError(error);
+    }
+  }
+
+  /** «Вернуть»: the retracted row's only action. */
+  @Post('/facts/:factId/restore')
+  @CheckPolicies(aiCreate as any)
+  async restoreFact(
+    @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('factId') factId: string
+  ) {
+    try {
+      return await this.facts.restoreFact(organization.id, user.id, factId);
+    } catch (error) {
+      safeContextError(error);
+    }
+  }
+
+  /**
+   * КОПИРОВАТЬ И ПОПРАВИТЬ (`content-factory-next-odb8.1`): a new fact, its
+   * own row, the old one left exactly as it was.
+   */
+  @Post('/facts/:factId/copy')
+  @CheckPolicies(aiCreate as any)
+  async copyFact(
+    @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('factId') factId: string,
+    @Body() body: CopyContentFactDto
+  ) {
+    try {
+      return await this.facts.copyFact(organization.id, user.id, factId, body);
     } catch (error) {
       safeContextError(error);
     }

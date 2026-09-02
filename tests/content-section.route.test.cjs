@@ -139,17 +139,33 @@ describe('content lives in the working menu', () => {
 });
 
 describe('the Content screen', () => {
-  // The list grew by one and the order is still fixed: «Бриф» sits between the
-  // sources a text rests on and the material that came out of it, because that
-  // is the order the work happens in — decide what to write, then look at what
-  // was written.
+  // `content-factory-next-odb8` cut the section to three questions
+  // (`docs/product/content-section-map.md` §3): who writes, what is written
+  // next, and where a fact came from. «Источники» left the strip outright;
+  // «Происхождение» kept its key but became the facts witness, relabelled
+  // «Откуда факты» to say so. «Бриф» still sits between the aвatars and the
+  // material, in the order the work happens in. `content-factory-next-odb8.3`
+  // added a fifth tab, «Откуда идеи» — subscriptions and the leads they bring
+  // back — right after «Аватары» and ahead of «Бриф», since a lead is a
+  // reason to open the brief rather than something that lives inside it.
+  // `content-factory-next-odb8.4` added a sixth, «Что уже написали», last:
+  // the archive answers what was written and what it stood on, which only
+  // makes sense once the strip has already answered who writes and what
+  // comes next.
   test.each([
-    ['en', ['Avatars', 'Sources', 'Brief', 'Material', 'Provenance']],
+    ['en', ['Avatars', 'Ideas', 'Brief', 'Material', 'Facts', 'Archive']],
     [
       'ru',
-      ['Аватары', 'Источники', 'Бриф', 'Материалы', 'Происхождение'],
+      [
+        'Аватары',
+        'Откуда идеи',
+        'Бриф',
+        'Материалы',
+        'Откуда факты',
+        'Что уже написали',
+      ],
     ],
-  ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
+  ])('shows six tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
       withLanguage(
         locale,
@@ -217,6 +233,34 @@ describe('the Content screen', () => {
     const panel = screen.getByRole('tabpanel');
     expect(panel.textContent).not.toMatch(/being built|Раздел готовится/);
     expect(source('screen')).toContain('VoiceMaterialsContainer');
+  });
+
+  test('the Archive tab mounts the archive container rather than staying dead code', () => {
+    // `content-factory-next-odb8.4` built the backend and `ContentArchiveContainer`
+    // but never mounted the container anywhere reachable — the archive existed
+    // only in the file that declared it. This guard renders the panel a person
+    // actually opens and looks for the container's own root markup, not just
+    // for the tab's label in the strip: a tab that says «Что уже написали» but
+    // opens an empty panel would still pass a label-only check.
+    render(
+      withLanguage(
+        'ru',
+        React.createElement(contentScreen.ContentSectionScreen, {
+          initialTab: 'archive',
+        })
+      )
+    );
+
+    const panel = screen.getByRole('tabpanel');
+    const archiveSection = panel.querySelector(
+      '[data-content-intelligence-section="archive"]'
+    );
+    expect(archiveSection).not.toBeNull();
+    // The container's own heading, not just the tab strip's label — the two
+    // read the same text (`t.title` in the container, `t.archive` in the
+    // tab), so scoping to the section is what tells them apart.
+    expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
+    expect(source('screen')).toContain('ContentArchiveContainer');
   });
 
   test('the empty library still says what a piece is, without claiming a failure', () => {

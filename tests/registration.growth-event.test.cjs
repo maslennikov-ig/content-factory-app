@@ -69,6 +69,9 @@ const { AuthService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/database/prisma/public-growth/public-growth.service': {
       PublicGrowthService: class PublicGrowthService {},
     },
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 
@@ -138,7 +141,6 @@ function localBody(overrides = {}) {
     provider: Provider.LOCAL,
     providerToken: '',
     workspaceName: 'Launch Workspace',
-    starterTemplate: 'blank',
     ...overrides,
   });
 }
@@ -190,7 +192,6 @@ describe('trusted registration growth event', () => {
         providerToken: 'token',
         workspaceName: 'Provider Workspace',
         company: 'Legacy Company',
-        starterTemplate: 'blank',
       },
       'private-ip',
       'private-ua'
@@ -199,7 +200,6 @@ describe('trusted registration growth event', () => {
     expect(creates[0]).toMatchObject({
       workspaceName: 'Provider Workspace',
       company: 'Legacy Company',
-      starterTemplate: 'blank',
     });
     expect(metrics).toEqual([
       ['registration_completed', 'registration_completed:org-private'],

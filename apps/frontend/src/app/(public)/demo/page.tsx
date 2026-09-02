@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  SyntheticDemo,
-  DEMO_STARTER_TEMPLATE,
-} from '@contentfactory/frontend/components/public-saas/synthetic-demo';
+import { SyntheticDemo } from '@contentfactory/frontend/components/public-saas/synthetic-demo';
 import { EmailFirstSignup } from '@contentfactory/frontend/components/public-saas/email-first-signup';
 import { usePublicCopy } from '@contentfactory/frontend/components/public-saas/public-copy';
 
@@ -27,7 +24,7 @@ export default function DemoPage() {
         <SyntheticDemo />
       </div>
       <div className="mt-[24px]">
-        <EmailFirstSignup starterTemplate={DEMO_STARTER_TEMPLATE} />
+        <EmailFirstSignup />
       </div>
     </div>
   );

@@ -87,6 +87,9 @@ const { OrganizationRepository } = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/database/prisma/users/user-identity':
       userIdentityHelpers,
+    '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+    ),
   }
 );
 

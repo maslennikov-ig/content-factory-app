@@ -188,6 +188,19 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
         aria-expanded={open}
         aria-describedby={open ? bubbleId : undefined}
         /**
+         * A hint is a button and not an action, and a guard has to be able to
+         * tell those apart.
+         *
+         * Screens carry a rule that a restricted or disabled surface offers no
+         * enabled button — the point being that nothing there can change state.
+         * A hint changes nothing; it explains, and it is needed most exactly
+         * where a person cannot act and wants to know why. Disabling it to
+         * satisfy the rule would take the explanation away at the moment it is
+         * useful. The mark says which kind of button this is, so the rule can
+         * stay strict about the other kind.
+         */
+        data-hint-trigger="true"
+        /**
          * A pointer press focuses before it clicks, and the two must not fight.
          *
          * Focus opened the bubble and the click that caused it then toggled it

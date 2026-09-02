@@ -35,10 +35,12 @@ const MATERIALS =
 const FILES = {
   errors: `${MATERIALS}/errors.ts`,
   presentation: `${MATERIALS}/material-presentation.ts`,
+  archivePresentation: `${MATERIALS}/archive-presentation.ts`,
   repository: `${MATERIALS}/content-material.repository.ts`,
   service: `${MATERIALS}/content-material.service.ts`,
   dto: 'libraries/nestjs-libraries/src/dtos/content-intelligence/content-material.dto.ts',
   controller: 'apps/backend/src/api/routes/content-material.controller.ts',
+  archiveController: 'apps/backend/src/api/routes/content-archive.controller.ts',
 };
 
 const prismaMocks = {
@@ -51,11 +53,13 @@ const prismaMocks = {
 const sources = {
   './errors': FILES.errors,
   './material-presentation': FILES.presentation,
+  './archive-presentation': FILES.archivePresentation,
   './content-material.repository': FILES.repository,
   './segment': `${BRAND_VOICE}/segment.ts`,
   './locale-pack.ru': `${BRAND_VOICE}/locale-pack.ru.ts`,
   '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/recut': `${BRAND_VOICE}/recut.ts`,
   '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract': `${BRAND_VOICE}/voice-wiring.contract.ts`,
+  '@contentfactory/nestjs-libraries/content-intelligence/materials/archive-presentation': FILES.archivePresentation,
 };
 
 /**
@@ -628,6 +632,8 @@ describe('the controller answers exactly the routes the contract declares', () =
         { ContentMaterialService: class {} },
       '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-material.dto':
         { MaterialRecutDto: class {}, MaterialDraftDto: class {} },
+      '@contentfactory/nestjs-libraries/content-intelligence/materials/archive-presentation':
+        load(FILES.archivePresentation),
     },
     { resolve: forbidPlatformAndNetworkImports }
   );

@@ -1,0 +1,24 @@
+-- Один столбец на User. Применять ТОЛЬКО этот текст, дословно.
+--
+-- `prisma migrate diff` против боевой базы печатает этот оператор вместе с
+-- DROP TABLE на mastra_* таблицы, которых нет в schema.prisma. Их пропускает
+-- validate-prisma-migration-sql.cjs (Mastra-owned target), но проверять
+-- каждый раз всё равно нужно: db push и полный вывод migrate diff сносят их
+-- молча.
+--
+-- Порядок применения на боевой базе (по образцу avatars-schema-apply.sql):
+--   1. prisma migrate diff --from-url <PROD_DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table User --diff <шаг 1> --selected этот_файл
+--   3. psql применяет этот файл одной транзакцией.
+--   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
+--
+-- Применено локально на cf-dev-postgres (порт 5433) 01.09.2026 тем же текстом;
+-- на боевую базу — отдельным решением владельца, не этой задачей.
+
+BEGIN;
+
+ALTER TABLE "User" ADD COLUMN     "language" TEXT NOT NULL DEFAULT 'en';
+
+COMMIT;

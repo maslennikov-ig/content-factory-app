@@ -74,6 +74,12 @@ if (fs.existsSync(factServicePath)) {
       sources: {
         './content-context.errors':
           'libraries/nestjs-libraries/src/content-intelligence/context/content-context.errors.ts',
+        // `content-factory-next-odb8.1`: `listFacts` derives the witness
+        // screen's topic filter from the radar's own `claimKey` split
+        // rather than a second parser — real source, not a stub, so the
+        // split stays the one the radar actually runs.
+        '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.radar':
+          'libraries/nestjs-libraries/src/content-intelligence/brief/content-brief.radar.ts',
       },
       resolve(request) {
         if (

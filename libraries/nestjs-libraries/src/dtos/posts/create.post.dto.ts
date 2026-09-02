@@ -24,6 +24,7 @@ import {
 } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/all.providers.settings';
 import { ValidContent } from '@contentfactory/helpers/utils/valid.images';
 import { sanitizePostContent } from '@contentfactory/helpers/utils/sanitize.post.content';
+import { EDITORIAL_STAGE_VALUES } from '@contentfactory/nestjs-libraries/dtos/posts/get.posts.dto';
 
 export class Integration {
   @IsDefined()
@@ -127,6 +128,13 @@ export class Post {
   @ArrayMaxSize(16)
   @IsString({ each: true })
   usedCitationIds?: string[];
+
+  // Editorial process stage, NOT the post's delivery `state`. Optional: a
+  // post saved without it simply has no stage recorded, same as every post
+  // that existed before this field was added.
+  @IsOptional()
+  @IsIn(EDITORIAL_STAGE_VALUES)
+  editorialStage?: (typeof EDITORIAL_STAGE_VALUES)[number];
 }
 
 class Tags {

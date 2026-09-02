@@ -89,15 +89,46 @@ export type FactEvidenceRow = Readonly<{
   freshUntil: string | null;
 }>;
 
+/**
+ * The three ways of standing behind a claim, in the words the witness screen
+ * (`content-factory-next-odb8.1`) uses for them rather than the database's:
+ * «ваше слово», «ваш материал», «найдено поиском». `SEARCH_RESULT` is real —
+ * `ContentFactService` already computes it — even though nothing produces a
+ * `SEARCH_PROVIDER_RESULT` snapshot yet (`content-factory-next-lh5s`), so a
+ * workspace sees only the first two today. That gap is not hidden here: a
+ * row this reader does not recognise still carries a method, never a blank.
+ */
+export const GROUNDING_METHODS = [
+  'OWN_WORD',
+  'OWN_MATERIAL',
+  'SEARCH_RESULT',
+] as const;
+export type GroundingMethod = (typeof GROUNDING_METHODS)[number];
+
+export type FactGrounding = Readonly<{
+  method: GroundingMethod;
+  excerpt: string | null;
+  sourceLabel: string | null;
+  sourceUrl: string | null;
+  observedAt: string | null;
+}>;
+
 /** One row of the catalogue, read back the shape `ContentFactService.listFacts` answers in. */
 export type FactRow = Readonly<{
   id: string;
   claimKey: string;
+  topic: string;
+  topicLabel: string;
   statement: string;
   language: FactLanguage;
   temporalKind: FactTemporalKind;
   freshUntil: string | null;
   status: FactStatus;
+  supersedesFactId: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  createdByName: string | null;
+  grounding: FactGrounding;
   evidence: readonly FactEvidenceRow[];
 }>;
 
@@ -126,6 +157,20 @@ const oneOf = <T extends string>(
   return allowed.includes(candidate) ? candidate : fallback;
 };
 
+const asNullableNumberText = (value: unknown) =>
+  typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+
+const readGrounding = (value: unknown): FactGrounding => {
+  const grounding = asRecord(value);
+  return {
+    method: oneOf(grounding.method, GROUNDING_METHODS, 'OWN_WORD'),
+    excerpt: asNullableText(grounding.excerpt),
+    sourceLabel: asNullableText(grounding.sourceLabel),
+    sourceUrl: asNullableText(grounding.sourceUrl),
+    observedAt: asNullableNumberText(grounding.observedAt),
+  };
+};
+
 /** `GET /content-intelligence/facts`, read defensively. */
 export function readFactsEnvelope(value: unknown): readonly FactRow[] {
   const body = asRecord(value);
@@ -134,6 +179,8 @@ export function readFactsEnvelope(value: unknown): readonly FactRow[] {
     return {
       id: asText(fact.id),
       claimKey: asText(fact.claimKey),
+      topic: asText(fact.topic),
+      topicLabel: asText(fact.topicLabel),
       statement: asText(fact.statement),
       language: oneOf(fact.language, ['ru', 'en'], 'en'),
       temporalKind: oneOf(
@@ -146,6 +193,11 @@ export function readFactsEnvelope(value: unknown): readonly FactRow[] {
       // `KNOWN_FACT_STATUSES`. The screen labels what it recognises and
       // prints the rest as it came.
       status: asText(fact.status, 'UNVERIFIED'),
+      supersedesFactId: asNullableText(fact.supersedesFactId),
+      createdAt: asNullableNumberText(fact.createdAt),
+      updatedAt: asNullableNumberText(fact.updatedAt),
+      createdByName: asNullableText(fact.createdByName),
+      grounding: readGrounding(fact.grounding),
       evidence: asArray(fact.evidence).map((row) => {
         const evidence = asRecord(row);
         return {
@@ -229,3 +281,57 @@ export function buildFactCreatePayload(draft: FactDraft) {
 
 /** The one thing a claim key must look like, mirrored from the DTO for the hint under the field. */
 export const CLAIM_KEY_PATTERN = /^[\p{L}\p{N}_.:-]+\|[\p{L}\p{N}_.:-]+$/u;
+
+/* -------------------------------------------------------------------------
+ * The witness screen's two actions (`content-factory-next-odb8.1`): СНЯТЬ
+ * and КОПИРОВАТЬ И ПОПРАВИТЬ. Routes only — the reader and the create
+ * payload builder above are reused as-is; nothing about a fact's shape
+ * changes because the screen showing it is new.
+ * ---------------------------------------------------------------------- */
+
+const factAction = (factId: string, action: 'retract' | 'restore' | 'copy') =>
+  `${FACTS_API}/${encodeURIComponent(factId)}/${action}`;
+
+export const retractFactUrl = (factId: string) => factAction(factId, 'retract');
+export const restoreFactUrl = (factId: string) => factAction(factId, 'restore');
+export const copyFactUrl = (factId: string) => factAction(factId, 'copy');
+
+/**
+ * What the copy dialog is holding, as typed.
+ *
+ * Only the statement is edited on screen (`Facts.dc.html`, screen 23); the
+ * claim key, language, temporal kind and lifecycle dates travel with the
+ * fact being copied and are decided server-side, in
+ * `ContentFactService.copyFact` — not retyped here, so there is nowhere for
+ * the interface to disagree with the server about which fields carry over.
+ */
+export type FactCopyDraft = {
+  statement: string;
+  groundedIn: 'OWN_WORD' | 'EVIDENCE';
+  evidenceId: string;
+};
+
+export const emptyFactCopyDraft = (statement: string): FactCopyDraft => ({
+  statement,
+  groundedIn: 'OWN_WORD',
+  evidenceId: '',
+});
+
+/**
+ * `CopyContentFactDto`, built from the dialog.
+ *
+ * `evidenceId` is sent only for the "point at another confirmation" branch;
+ * the "this is my word" branch sends none, which is exactly what leaves a
+ * freshly copied fact ungrounded until somebody grounds it on purpose — the
+ * one behaviour this whole screen exists to guarantee.
+ */
+export function buildFactCopyPayload(draft: FactCopyDraft) {
+  const statement = draft.statement.trim();
+  const evidenceId = draft.evidenceId.trim();
+  return {
+    statement,
+    ...(draft.groundedIn === 'EVIDENCE' && evidenceId
+      ? { evidenceId, stance: 'SUPPORTS' as const }
+      : {}),
+  };
+}

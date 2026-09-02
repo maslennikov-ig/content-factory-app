@@ -44,6 +44,10 @@ const FILES = {
   container: `${base}/content-facts.container.tsx`,
   adapter: `${base}/content-facts.adapter.ts`,
   screen: `${base}/content-section.screen.tsx`,
+  // `content-factory-next-odb8.2` moved the door itself: «Происхождение»
+  // became a view-only witness (`content-facts.showcase.tsx`), so a fact is
+  // now added where the brief asks «чем подтвердишь», not on a fourth tab.
+  briefContainer: 'apps/frontend/src/components/brand-voice/voice-brief.container.tsx',
 };
 
 const source = (key) => fs.readFileSync(path.join(root, FILES[key]), 'utf8');
@@ -387,10 +391,21 @@ describe('the section does not reinvent what a refusal means', () => {
     expect(adapterCode).not.toMatch(/VOICE_ERROR_CODES\s*\[/u);
   });
 
-  test('the door is wired into the Content screen, next to the context inspector it sits beside', () => {
+  /**
+   * `content-factory-next-odb8`: the door moved off the tab this test used
+   * to name. «Происхождение» is a read-only witness now
+   * (`content-facts.showcase.tsx`, mounted at `tab === 'provenance'` in
+   * `content-section.screen.tsx` — that half still holds) and adding a fact
+   * lives in the brief instead, right where «чем подтвердишь» is asked.
+   */
+  test('the door is wired into the Brief tab, where "чем подтвердишь" is asked', () => {
     const screenCode = source('screen');
-    expect(screenCode).toContain('ContentFactsContainer');
     expect(screenCode).toMatch(/tab === 'provenance'/);
+    expect(screenCode).not.toContain('ContentFactsContainer');
+
+    const briefCode = source('briefContainer');
+    expect(briefCode).toContain('ContentFactsContainer');
+    expect(briefCode).toContain('onFactCreated');
   });
 });
 

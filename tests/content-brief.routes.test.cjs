@@ -38,6 +38,11 @@ const sources = {
   './content-brief.errors': `${BRIEF_DIR}/content-brief.errors.ts`,
   './content-brief.repository': `${BRIEF_DIR}/content-brief.repository.ts`,
   './content-brief.radar': `${BRIEF_DIR}/content-brief.radar.ts`,
+  // `content-fact.service.ts` reuses the radar's own `claimKey` split for
+  // the witness screen's topic filter (`content-factory-next-odb8.1`)
+  // rather than a second parser, and reaches it by the alias, not a
+  // relative import.
+  '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.radar': `${BRIEF_DIR}/content-brief.radar.ts`,
   './content-brief.compose': `${BRIEF_DIR}/content-brief.compose.ts`,
   './content-fact.repository': `${CONTEXT_DIR}/content-fact.repository.ts`,
   './content-context.errors': `${CONTEXT_DIR}/content-context.errors.ts`,
@@ -148,6 +153,18 @@ function prismaDouble({
               (!ids || ids.includes(row.id)) &&
               (!args.where?.status?.not || row.status !== args.where.status.not)
           );
+        },
+      },
+      // `content-factory-next-odb8.1`: `ContentFactRepository.listFacts`
+      // resolves each fact's author name for the «ваше слово» card with a
+      // second query, since `ContentFact.createdByUserId` carries no Prisma
+      // relation. Empty is a legitimate answer here — this suite's facts
+      // are not read back through `listFacts`'s own shaping — but the query
+      // itself must not throw.
+      user: {
+        findMany: async (args) => {
+          calls.push({ query: 'user.findMany', where: args.where });
+          return [];
         },
       },
       post: {
@@ -522,6 +539,12 @@ describe('everything is scoped to the workspace that asked', () => {
 
     expect(prisma.calls.length).toBeGreaterThan(2);
     for (const call of prisma.calls) {
+      // `User` carries no `organizationId` column at all — a person can
+      // belong to more than one workspace — so `listFacts`'s author lookup
+      // (`content-factory-next-odb8.1`) scopes by the fact ids it already
+      // read under `ORG`, not by a tenant column this table does not have.
+      // Everything that reads a tenant-owned table still must.
+      if (call.query === 'user.findMany') continue;
       expect(call.where.organizationId).toBe(ORG);
     }
   });

@@ -16,6 +16,18 @@
 #
 #   docker rm -f postiz-postgres postiz-redis postiz-pg-admin postiz-redisinsight
 #   docker volume ls | grep postiz    # remove by hand once the data is not wanted
+#
+# `docker compose -f docker-compose.dev.yaml up -d` (bare, no service names)
+# starts every service in this file, container names included. Those names are
+# global on the Docker host, not scoped to this compose project: a neighboring
+# checkout that still runs the stock Temporal quick-start (services literally
+# named `temporal`, `temporal-ui`, `temporal-admin-tools`, ...) collides on
+# both the container name and the published port. The failure mode is not a
+# refused connection — the app silently keeps talking to whichever Temporal
+# instance already held the port, workflows and namespace included. Bring
+# infrastructure up by name when another project may already be running:
+#
+#   docker compose -f docker-compose.dev.yaml up -d cf-dev-postgres cf-dev-redis cf-dev-temporal
 
 services:
   cf-dev-postgres:
@@ -27,11 +39,10 @@ services:
       POSTGRES_PASSWORD: cf-dev-pwd
       POSTGRES_USER: cf-dev
       POSTGRES_DB: cf-dev-db
-      TEMPORAL_ADDRESS: "temporal:7233"
     volumes:
       - postgres-volume:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 5433:5432
     networks:
       - cf-dev-network
   cf-dev-redis:
@@ -40,7 +51,7 @@ services:
     container_name: cf-dev-redis
     restart: always
     ports:
-      - 6379:6379
+      - 6380:6379
     networks:
       - cf-dev-network
   cf-dev-pg-admin:
@@ -69,8 +80,8 @@ services:
       - cf-dev-network
     restart: always
 
-  temporal-elasticsearch:
-    container_name: temporal-elasticsearch
+  cf-dev-temporal-elasticsearch:
+    container_name: cf-dev-temporal-elasticsearch
     image: elasticsearch:7.17.27
     environment:
       - cluster.routing.allocation.disk.threshold_enabled=true
@@ -81,72 +92,77 @@ services:
       - ES_JAVA_OPTS=-Xms256m -Xmx256m
       - xpack.security.enabled=false
     networks:
-      - temporal-network
+      - cf-dev-temporal-network
     expose:
       - 9200
     volumes:
       - /var/lib/elasticsearch/data
 
-  temporal-postgresql:
-    container_name: temporal-postgresql
+  cf-dev-temporal-postgresql:
+    container_name: cf-dev-temporal-postgresql
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: temporal
       POSTGRES_USER: temporal
     networks:
-      - temporal-network
+      - cf-dev-temporal-network
     expose:
       - 5432
     volumes:
       - /var/lib/postgresql/data
 
-  temporal:
-    container_name: temporal
+  cf-dev-temporal:
+    container_name: cf-dev-temporal
     ports:
-      - "7233:7233"
+      - "7234:7233"
     image: temporalio/auto-setup:1.28.1
     depends_on:
-      - temporal-postgresql
-      - temporal-elasticsearch
+      - cf-dev-temporal-postgresql
+      - cf-dev-temporal-elasticsearch
     environment:
       - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=temporal
       - POSTGRES_PWD=temporal
-      - POSTGRES_SEEDS=temporal-postgresql
+      - POSTGRES_SEEDS=cf-dev-temporal-postgresql
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
       - ENABLE_ES=true
-      - ES_SEEDS=temporal-elasticsearch
+      - ES_SEEDS=cf-dev-temporal-elasticsearch
       - ES_VERSION=v7
-      - TEMPORAL_NAMESPACE=default
+      # auto-setup registers its default namespace under DEFAULT_NAMESPACE, not
+      # TEMPORAL_NAMESPACE — the app's own env var of that name (see
+      # `.env.example`) only tells the *client* which namespace to connect to.
+      # They must name the same namespace or the client fails at startup with
+      # "namespace not found".
+      - DEFAULT_NAMESPACE=cf-dev
     networks:
-      - temporal-network
+      - cf-dev-temporal-network
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
     labels:
       kompose.volume.type: configMap
 
-  temporal-admin-tools:
-    container_name: temporal-admin-tools
+  cf-dev-temporal-admin-tools:
+    container_name: cf-dev-temporal-admin-tools
     image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
     environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CLI_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=cf-dev-temporal:7233
+      - TEMPORAL_CLI_ADDRESS=cf-dev-temporal:7233
     networks:
-      - temporal-network
+      - cf-dev-temporal-network
     stdin_open: true
     depends_on:
-      - temporal
+      - cf-dev-temporal
     tty: true
 
-  temporal-ui:
-    container_name: temporal-ui
+  cf-dev-temporal-ui:
+    container_name: cf-dev-temporal-ui
     image: temporalio/ui:2.34.0
     environment:
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=cf-dev-temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
     networks:
-      - temporal-network
+      - cf-dev-temporal-network
     ports:
       - "8080:8080"
 
@@ -168,6 +184,6 @@ volumes:
 networks:
   cf-dev-network:
     external: false
-  temporal-network:
+  cf-dev-temporal-network:
     driver: bridge
-    name: temporal-network
+    name: cf-dev-temporal-network

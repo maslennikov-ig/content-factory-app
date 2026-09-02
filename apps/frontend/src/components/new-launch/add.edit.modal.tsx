@@ -139,6 +139,7 @@ export const AddEditModalInnerInner: FC<AddEditModalProps> = (props) => {
     setCurrent,
     internal,
     setTags,
+    setEditorialStage,
     setEditor,
     setRepeater,
     setResearchSources,
@@ -154,6 +155,7 @@ export const AddEditModalInnerInner: FC<AddEditModalProps> = (props) => {
       global: state.global,
       internal: state.internal,
       setTags: state.setTags,
+      setEditorialStage: state.setEditorialStage,
       setEditor: state.setEditor,
       setRepeater: state.setRepeater,
       setResearchSources: state.setResearchSources,
@@ -282,6 +284,7 @@ export const AddEditModalInnerInner: FC<AddEditModalProps> = (props) => {
           value: p.tag.name,
         })) || []
       );
+      setEditorialStage(existingData?.posts?.[0]?.editorialStage ?? null);
       addInternalValue(
         0,
         existingData.integration,

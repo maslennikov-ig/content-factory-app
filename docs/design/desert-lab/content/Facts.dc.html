@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet" />
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); }
+    a:hover { color: var(--cf-accent-hover, #96C551); }
+  </style>
+</helmet>
+
+<div style="--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A;--cf-backdrop:rgba(8,9,5,.74);--cf-overlay-shadow:0 18px 44px -14px rgba(0,0,0,.72);font-family:Geologica,system-ui,sans-serif">
+<div style="{{ themeVars }}">
+<div style="background:var(--cf-canvas);color:var(--cf-ink);padding:40px;display:flex;flex-direction:column;gap:40px">
+
+  <div style="display:flex;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:2px solid var(--cf-accent)">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">ВКЛАДКА «ОТКУДА ФАКТЫ» · ЗАМЕНА ВКЛАДКИ ИСТОЧНИКОВ</span>
+      <span style="font-size:32px;font-weight:650;line-height:1.2;letter-spacing:-0.02em;text-wrap:balance">Витрина, а не верстак</span>
+      <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Вкладка источников со списком, формой и жизненным циклом убрана: раздел был мёртв на боевой двенадцать дней и никто не хватился, а владелец не понял его с трёх объяснений. Осталось то, ради чего всё затевалось: что продукт считает правдой и откуда он это взял. Ни прав, ни свежести, ни синхронизации на экране нет — механика жива в коде и молчит.</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:inline-flex;padding:3px;gap:2px;border-radius:9999px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);flex:none">
+      <button type="button" onClick="{{ setDark }}" style="{{ darkBtn }}">Тёмная</button>
+      <button type="button" onClick="{{ setLight }}" style="{{ lightBtn }}">Светлая</button>
+    </div>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">22</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Обычное состояние · плоская лента, новое сверху</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Фильтры как в таблице, группировки нет</span>
+    </div>
+
+    <div style="width:1440px;height:940px;display:flex;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+      <dc-import name="SectionRail" hint-size="248px,100%"></dc-import>
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+        <div style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Контент</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">org-4417 · 01.09.2026 · UTC+3</span>
+          </div>
+          <div style="flex:1"></div>
+        </div>
+
+        <div style="display:flex;gap:24px;padding:0 24px;background:var(--cf-surface);border-bottom:1px solid var(--cf-border)">
+          <span style="display:flex;align-items:center;padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Кто пишет</span>
+          <span style="display:flex;align-items:center;padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Откуда идеи</span>
+          <span style="display:flex;align-items:center;padding:12px 0;font-size:14px;font-weight:650;color:var(--cf-accent);border-bottom:2px solid var(--cf-accent);margin-bottom:-1px">Откуда факты</span>
+          <span style="display:flex;align-items:center;padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Что пишем</span>
+          <span style="display:flex;align-items:center;padding:12px 0;font-size:14px;color:var(--cf-ink-muted)">Что уже написали</span>
+        </div>
+
+        <div style="flex:1;padding:24px;display:flex;flex-direction:column;gap:20px;overflow:hidden">
+
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Откуда факты</span>
+              <span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:1px solid var(--cf-border-control);border-radius:9999px;color:var(--cf-ink-muted)">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.3"></circle><path d="M6.3 6.1c0-.9.76-1.6 1.7-1.6s1.7.7 1.7 1.6c0 .86-.53 1.2-1.1 1.55-.42.26-.6.5-.6.95v.25" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path><circle cx="8" cy="11.3" r=".8" fill="currentColor"></circle></svg>
+              </span>
+            </div>
+            <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Добавляют факты там, где пишут: во вкладке «Что пишем».</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid var(--cf-border-control);border-radius:8px;background:var(--cf-surface);flex:1;max-width:360px">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--cf-ink-muted)" stroke-width="1.6" stroke-linecap="round"><circle cx="9" cy="9" r="5.5"></circle><path d="M13 13l3.5 3.5"></path></svg>
+              <span style="font-size:13px;color:var(--cf-ink-muted)">Искать по утверждениям</span>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--cf-border-control);border-radius:8px;background:var(--cf-surface);font-size:13px">Чем подтверждено: все
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--cf-accent);border-radius:8px;background:var(--cf-accent-soft);color:var(--cf-accent);font-size:13px;font-weight:650">Тема: сроки
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--cf-border-control);border-radius:8px;background:var(--cf-surface);font-size:13px">Снятые: скрыты
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+            </span>
+            <div style="flex:1"></div>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">показано 4 из 14</span>
+          </div>
+
+          <div style="border:1px solid var(--cf-border);border-radius:8px;background:var(--cf-surface);overflow:hidden">
+
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:16px;border-bottom:1px solid var(--cf-border)">
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+                <span style="font-size:16px;font-weight:650;line-height:1.35;text-wrap:pretty">Средний срок докового ремонта вырос до 40 суток</span>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;border:1px solid var(--cf-info);background:var(--cf-info-soft);color:var(--cf-info);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500">найдено поиском</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">vedomosti.ru · прочитано 31.08.2026</span>
+                  <span style="font-size:13px;color:var(--cf-accent)">скрыть фрагмент</span>
+                </div>
+                <div style="padding:10px 12px;background:var(--cf-surface-subtle);border-radius:8px;max-width:80ch">
+                  <span style="font-size:13px;line-height:1.45;color:var(--cf-ink)">«Средний срок докового ремонта вырос с 34 до 40 суток за год: верфи ждут узлы дольше, чем работают с ними».</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex:none">
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Копировать</button>
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Снять</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:16px;border-bottom:1px solid var(--cf-border)">
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+                <span style="font-size:16px;font-weight:650;line-height:1.35;text-wrap:pretty">Гарантия на узлы — 18 месяцев</span>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;border:1px solid var(--cf-accent);background:var(--cf-accent-soft);color:var(--cf-accent);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500">ваш материал</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">договор-оферта.pdf · с. 4 · добавлен 12.08.2026</span>
+                  <span style="font-size:13px;color:var(--cf-accent)">показать фрагмент</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex:none">
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Копировать</button>
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Снять</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:16px;border-bottom:1px solid var(--cf-border)">
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+                <span style="font-size:16px;font-weight:650;line-height:1.35;text-wrap:pretty">Держим срок, а не обещание: сдвиг сообщаем первыми</span>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;border:1px solid var(--cf-border-control);color:var(--cf-ink-muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500">ваше слово</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">Алексей Ким · 12.08.2026</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex:none">
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Копировать</button>
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Снять</button>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:16px;opacity:.55">
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+                <span style="font-size:16px;font-weight:650;line-height:1.35;text-decoration:line-through;text-wrap:pretty">Средний срок докового ремонта — 34 суток</span>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;border:1px solid var(--cf-border-control);color:var(--cf-ink-muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500">снят 31.08.2026</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">заменён утверждением выше · в работу не идёт</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex:none">
+                <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Вернуть</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">23</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Копировать и поправить</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Старое не меняется. Новое обязано получить своё подтверждение</span>
+    </div>
+
+    <div style="width:1440px;height:620px;display:flex;align-items:center;justify-content:center;background:var(--cf-backdrop);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden">
+      <div style="width:620px;background:var(--cf-surface-raised);border-radius:12px;box-shadow:var(--cf-overlay-shadow);padding:24px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">КОПИЯ УТВЕРЖДЕНИЯ ОТ 31.08.2026</span>
+          <span style="font-size:18px;font-weight:650;line-height:1.35">Поправьте и сохраните как новое</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:13px;font-weight:650">Утверждение</span>
+          <div style="min-height:72px;padding:10px 12px;background:var(--cf-surface);border:1px solid var(--cf-border-control);border-radius:8px">
+            <span style="font-size:14px;line-height:1.5;color:var(--cf-ink)">Средний срок докового ремонта вырос до 42 суток</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;padding:12px;background:var(--cf-warning-soft);border:1px solid var(--cf-warning);border-radius:8px">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--cf-warning)" stroke-width="1.6" stroke-linecap="round" style="flex:none;margin-top:1px"><path d="M10 3.2l7 12.4H3z"></path><path d="M10 8v3.4M10 13.6v.01"></path></svg>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;line-height:1.45;color:var(--cf-ink);text-wrap:pretty">Прежний фрагмент подтверждал «40 суток». Вашу формулировку он не подтверждает, поэтому к копии не перейдёт.</span>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cf-ink)">
+                <span style="display:flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;border:1px solid var(--cf-accent);border-radius:9999px"><span style="width:8px;height:8px;border-radius:9999px;background:var(--cf-accent)"></span></span>
+                Это моё слово — записать под моим именем
+              </span>
+              <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cf-ink-muted)">
+                <span style="display:flex;width:16px;height:16px;flex:none;border:1px solid var(--cf-border-control);border-radius:9999px"></span>
+                Указать другое подтверждение
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px">
+          <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Сохранить как новое</button>
+          <button type="button" style="height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--cf-border-control);background:transparent;color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;cursor:pointer">Отмена</button>
+          <div style="flex:1"></div>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">старое утверждение останется как есть</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","tsType":"\"dark\" | \"light\"","section":"Показ"}}'>
+const LIGHT = {
+  "--cf-canvas": "#EFE9DB", "--cf-surface": "#FBF8F0", "--cf-surface-subtle": "#E4DDCB", "--cf-surface-raised": "#FFFDF6",
+  "--cf-ink": "#22231A", "--cf-ink-muted": "#5C5D4C", "--cf-ink-inverse": "#F4F1E4",
+  "--cf-border": "#D3CAB3", "--cf-border-strong": "#B0A68A", "--cf-border-control": "#847B62",
+  "--cf-navigation": "#E4DDCB", "--cf-navigation-text": "#22231A", "--cf-navigation-muted": "#5C5D4C", "--cf-navigation-active": "#FBF8F0",
+  "--cf-accent": "#3F6B2E", "--cf-accent-hover": "#33581F", "--cf-accent-soft": "#E1EAD2", "--cf-accent-ink": "#FFFFFF",
+  "--cf-signature": "#9C6A16", "--cf-info": "#2F5A82", "--cf-info-soft": "#E3EBF3",
+  "--cf-warning": "#7A4D00", "--cf-warning-soft": "#F6E7C2", "--cf-danger": "#8E2B22", "--cf-danger-soft": "#F6E0DB",
+  "--cf-focus": "#3F6B2E", "--cf-backdrop": "rgba(34,35,26,.46)", "--cf-overlay-shadow": "0 16px 32px -12px rgba(34,35,26,.26)"
+};
+
+class Component extends DCLogic {
+  state = { theme: null };
+  renderVals() {
+    const theme = this.state.theme ?? this.props.theme ?? "dark";
+    const light = theme === "light";
+    const pill = (on) => ({
+      padding: "5px 14px", borderRadius: 9999, fontFamily: "inherit", fontSize: 13, fontWeight: 650, cursor: "pointer",
+      background: on ? "var(--cf-surface)" : "transparent",
+      border: on ? "1px solid var(--cf-border-control)" : "1px solid transparent",
+      color: on ? "var(--cf-ink)" : "var(--cf-ink-muted)"
+    });
+    return {
+      themeVars: light ? LIGHT : {},
+      darkBtn: pill(!light),
+      lightBtn: pill(light),
+      setDark: () => this.setState({ theme: "dark" }),
+      setLight: () => this.setState({ theme: "light" })
+    };
+  }
+}
+</script>
+</body>
+</html>

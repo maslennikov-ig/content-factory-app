@@ -7,6 +7,7 @@ import { createRef, RefObject } from 'react';
 import { PostComment } from '@contentfactory/frontend/components/new-launch/providers/post-comment.enum';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import type { ResearchSource } from '@contentfactory/frontend/components/new-launch/research.sources';
+import type { EditorialStageValue } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
 
 export interface Values {
   id: string;
@@ -496,6 +497,12 @@ interface StoreState {
   totalChars: number;
   activateExitButton: boolean;
   tags: { label: string; value: string }[];
+  // Editorial process stage, NOT the post's delivery `state` above — see
+  // `editorial-stage.copy.ts`. `null` is a real, chosen value: it means the
+  // stage is deliberately unset, same as every post written before this
+  // field existed.
+  editorialStage: EditorialStageValue | null;
+  setEditorialStage: (editorialStage: EditorialStageValue | null) => void;
   tab: 0 | 1;
   current: string;
   comments: boolean | 'no-media';
@@ -628,6 +635,7 @@ const initialState = {
   date: newDayjs(),
   postComment: PostComment.ALL,
   tags: [] as { label: string; value: string }[],
+  editorialStage: null as EditorialStageValue | null,
   totalChars: 0,
   tab: 0 as 0,
   isCreateSet: false,
@@ -1078,6 +1086,10 @@ export const useLaunchStore = create<StoreState>()((set) => ({
   setTags: (tags: { label: string; value: string }[]) =>
     set((state) => ({
       tags,
+    })),
+  setEditorialStage: (editorialStage: EditorialStageValue | null) =>
+    set((state) => ({
+      editorialStage,
     })),
   setIsCreateSet: (isCreateSet: boolean) =>
     set((state) => ({

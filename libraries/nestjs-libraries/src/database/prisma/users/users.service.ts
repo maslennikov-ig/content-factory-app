@@ -5,6 +5,10 @@ import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.
 import { EmailNotificationsDto } from '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto';
 import { OrganizationRepository } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { NotificationService } from '@contentfactory/nestjs-libraries/database/prisma/notifications/notification.service';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 @Injectable()
 export class UsersService {
@@ -154,21 +158,22 @@ export class UsersService {
     // the swap is already committed; a notification failure must not fail it
     if (this._notificationService.hasEmailProvider()) {
       await Promise.all(
-        [kept, switched].map((account) =>
-          this._notificationService
+        [kept, switched].map((account) => {
+          const locale = resolveBackendLocale(account.language);
+          return this._notificationService
             .sendEmail(
               account.email,
-              'Your Content Factory login was changed',
-              `An administrator changed the login for your Content Factory account. ` +
-                `You can now sign in using ${account.email}. ` +
-                `Your subscription and plan were not changed by this switch — ` +
-                `if you intended to cancel a subscription, please do that ` +
-                `separately from your billing settings.`
+              translateBackendString('email_login_changed_subject', locale),
+              translateBackendString('email_login_changed_body', locale, {
+                email: account.email,
+              }),
+              undefined,
+              locale
             )
             .catch((err) =>
               this._logger.error(`Failed to notify ${account.email}`, err)
-            )
-        )
+            );
+        })
       );
     }
 

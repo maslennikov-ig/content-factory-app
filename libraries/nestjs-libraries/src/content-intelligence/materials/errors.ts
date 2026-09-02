@@ -48,3 +48,28 @@ export const platformUnsupported = (platform: string, message: string) =>
     undefined,
     platform
   );
+
+/**
+ * The one refusal the archive intake can hand back.
+ *
+ * Not `MaterialError`: that class's `code` is pinned to `VOICE_ERROR_CODES`
+ * in `voice-wiring.contract.ts`, and adding a code there is a change to a
+ * file this stream does not own (`content-factory-next-odb8.4`'s write zone
+ * is `materials/**`, not `brand-voice/**`). `ContentMaterialController`'s
+ * `safeHttpError` already reads any thrown object carrying `code` and
+ * `status` as a string and a number — that is the whole contract, and this
+ * class satisfies it without touching the closed one.
+ */
+export class ArchiveImportError extends Error {
+  readonly status: number;
+  readonly code = 'ARCHIVE_IMPORT_INVALID';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ArchiveImportError';
+    this.status = 422;
+  }
+}
+
+export const archiveImportInvalid = (message: string) =>
+  new ArchiveImportError(message);

@@ -731,6 +731,12 @@ describe('server-emitted events', () => {
             { name: 'Schedule', color: '#8B5CF6' },
           ],
         },
+        // The real catalog: none of these tests register a content-workflow
+        // template, so the tag names it resolves are never exercised, but the
+        // module still needs to load.
+        '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+        ),
       }
     );
     return {

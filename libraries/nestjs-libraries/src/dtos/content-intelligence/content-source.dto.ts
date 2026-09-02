@@ -45,3 +45,33 @@ export class SyncContentSourceDto {
   @MaxLength(200)
   runKey?: string;
 }
+
+/**
+ * `content-factory-next-lh5s`: what a person accepts is one `fact`/`source`
+ * pair out of `WebResearchService.research(...)` — the excerpt they read and
+ * the URL it came from. Nothing here names a `ContentSource`; that is the
+ * point, per the owner's decision on this task.
+ */
+export class AcceptSearchResultEvidenceDto {
+  @IsString()
+  @MaxLength(4_096)
+  url: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  title?: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(8_000)
+  excerpt: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  publishedAt?: string;
+
+  @IsIn(['tavily', 'openrouter', 'mixed'])
+  provider: 'tavily' | 'openrouter' | 'mixed';
+}

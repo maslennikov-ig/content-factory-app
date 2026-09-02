@@ -22,6 +22,10 @@ import {
 } from '@contentfactory/backend/services/auth/identity-confirmation';
 import { NewsletterDeliveryRetryServiceV1 } from '@contentfactory/backend/services/newsletter/newsletter-delivery-retry.service.v1';
 import { PublicGrowthService } from '@contentfactory/nestjs-libraries/database/prisma/public-growth/public-growth.service';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 /**
  * Providers whose `getToken` binds the callback to the browser that started it.
@@ -117,8 +121,42 @@ export class AuthService {
         // In approval mode the account exists but is not usable, and there is
         // no self-service way to change that. Handing out a session token or
         // an activation link here would be handing out the very thing the
-        // administrator is supposed to grant.
+        // administrator is supposed to grant. The applicant still has to hear
+        // something, so a separate, link-free email tells them the request
+        // was received and is waiting on a person.
         if (!created.activated && registrationRequiresApproval()) {
+          const awaitingApprovalLocale = resolveBackendLocale(created.language);
+          // The account is already written. A mail failure here must not turn
+          // a registration that succeeded into an error the person reads as
+          // "it did not work" — they would try again and be told the address
+          // is taken. So the send is allowed to fail on its own.
+          //
+          // This swallow is deliberate and it is also the defect named in
+          // `content-factory-next-7jxo`: today nothing downstream can tell a
+          // failed send from a successful one, so `console.error` is the only
+          // place a failure can surface at all. When 7jxo gives the mail path
+          // a real way to report, this is one of its callers.
+          try {
+            await this._emailService.sendEmail(
+              body.email,
+              translateBackendString(
+                'email_awaiting_approval_subject',
+                awaitingApprovalLocale
+              ),
+              translateBackendString(
+                'email_awaiting_approval_body',
+                awaitingApprovalLocale
+              ),
+              'top',
+              undefined,
+              awaitingApprovalLocale
+            );
+          } catch (err) {
+            console.error(
+              'Registration succeeded but the awaiting-approval email could not be queued',
+              err
+            );
+          }
           return { addedOrg, jwt: '', awaitingApproval: true };
         }
 
@@ -127,11 +165,19 @@ export class AuthService {
           jwt: await this.jwt(created),
           awaitingApproval: false,
         };
+        const registrationLocale = resolveBackendLocale(created.language);
         await this._emailService.sendEmail(
           body.email,
-          'Activate your account',
-          `Click <a href="${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}">here</a> to activate your account`,
-          'top'
+          translateBackendString(
+            'email_activate_account_subject',
+            registrationLocale
+          ),
+          translateBackendString('email_activate_account_body', registrationLocale, {
+            link: `${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}`,
+          }),
+          'top',
+          undefined,
+          registrationLocale
         );
         return obj;
       }
@@ -248,12 +294,12 @@ export class AuthService {
       {
         company: body.company,
         workspaceName: body.workspaceName,
-        starterTemplate: body.starterTemplate,
         email: providerUser.email,
         password: '',
         provider,
         providerId: providerUser.id,
         newsletterConsent,
+        language: body.language,
       },
       ip,
       userAgent
@@ -320,10 +366,15 @@ export class AuthService {
       expires: dayjs().add(20, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
     });
 
+    const resetLocale = resolveBackendLocale(user.language);
     await this._notificationService.sendEmail(
       user.email,
-      'Reset your password',
-      `You have requested to reset your passsord. <br />Click <a href="${process.env.FRONTEND_URL}/auth/forgot/${resetValues}">here</a> to reset your password<br />The link will expire in 20 minutes`
+      translateBackendString('email_reset_password_subject', resetLocale),
+      translateBackendString('email_reset_password_body', resetLocale, {
+        link: `${process.env.FRONTEND_URL}/auth/forgot/${resetValues}`,
+      }),
+      undefined,
+      resetLocale
     );
   }
 
@@ -379,12 +430,17 @@ export class AuthService {
     }
 
     const jwt = await this.jwt(user);
+    const resendLocale = resolveBackendLocale(user.language);
 
     await this._emailService.sendEmail(
       user.email,
-      'Activate your account',
-      `Click <a href="${process.env.FRONTEND_URL}/auth/activate/${jwt}">here</a> to activate your account`,
-      'top'
+      translateBackendString('email_activate_account_subject', resendLocale),
+      translateBackendString('email_activate_account_body', resendLocale, {
+        link: `${process.env.FRONTEND_URL}/auth/activate/${jwt}`,
+      }),
+      'top',
+      undefined,
+      resendLocale
     );
 
     return true;
@@ -493,15 +549,25 @@ export class AuthService {
     });
     const minutes = Math.round(IDENTITY_CONFIRMATION_TTL_SECONDS / 60);
 
+    // The new address has no account of its own yet — it is what is being
+    // confirmed — so there is no language to read from it. The signed-in
+    // account making the request is the only party with one.
+    const requester = await this._userService.getUserById(userId);
+    const confirmationLocale = resolveBackendLocale(requester?.language);
+
     await this._emailService.sendEmail(
       providerIdentifier,
-      'Confirm your email address',
-      `Someone added this address as a sign-in method for a Content Factory account. ` +
-        `Click <a href="${frontendUrl}/settings?identity_confirmation=${token}">here</a> ` +
-        `to confirm it while signed in to that account.<br />` +
-        `The link will expire in ${minutes} minutes. If this was not you, ignore this email — ` +
-        `nothing was added to any account and this address stays free.`,
-      'top'
+      translateBackendString(
+        'email_confirm_identity_subject',
+        confirmationLocale
+      ),
+      translateBackendString('email_confirm_identity_body', confirmationLocale, {
+        link: `${frontendUrl}/settings?identity_confirmation=${token}`,
+        minutes,
+      }),
+      'top',
+      undefined,
+      confirmationLocale
     );
 
     return {

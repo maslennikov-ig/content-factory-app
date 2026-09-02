@@ -67,8 +67,8 @@ export class ContentFactRepository {
     return this.repository.model as PrismaClientLike;
   }
 
-  listFacts(organizationId: string) {
-    return this.client().contentFact.findMany({
+  async listFacts(organizationId: string) {
+    const facts = await this.client().contentFact.findMany({
       where: { organizationId, status: { not: 'TOMBSTONED' } },
       orderBy: [{ claimKey: 'asc' }, { id: 'asc' }],
       take: 100,
@@ -81,18 +81,27 @@ export class ContentFactRepository {
                 id: true,
                 organizationId: true,
                 tombstone: true,
+                excerpt: true,
                 freshUntil: true,
                 freshnessStatus: true,
                 exposure: true,
                 snapshot: {
                   select: {
                     id: true,
+                    kind: true,
                     normalizedTitle: true,
                     observedAt: true,
                     publishedAt: true,
                     purgedAt: true,
+                    requestedCanonicalUrl: true,
+                    finalCanonicalUrl: true,
                     source: {
-                      select: { archivedAt: true, purgedAt: true },
+                      select: {
+                        archivedAt: true,
+                        purgedAt: true,
+                        displayName: true,
+                        canonicalUrl: true,
+                      },
                     },
                   },
                 },
@@ -102,6 +111,23 @@ export class ContentFactRepository {
         },
       },
     });
+    // The «ваше слово» card names who typed it (`Facts.dc.html`, screen 22),
+    // and `ContentFact.createdByUserId` is a plain string column with no
+    // Prisma relation — widening the model is out of this task's write zone.
+    // A second query keyed on the ids this page actually holds costs one
+    // round trip and touches nothing in `schema.prisma`.
+    const authorIds = [...new Set(facts.map((fact: any) => fact.createdByUserId))];
+    const authors = authorIds.length
+      ? await this.client().user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, name: true, lastName: true },
+        })
+      : [];
+    const authorById = new Map(authors.map((user: any) => [user.id, user]));
+    return facts.map((fact: any) => ({
+      ...fact,
+      createdByUser: authorById.get(fact.createdByUserId) ?? null,
+    }));
   }
 
   async createFact(
@@ -287,6 +313,204 @@ export class ContentFactRepository {
           );
         }
         return assessment;
+      }
+    );
+  }
+
+  /**
+   * СНЯТЬ (`content-factory-next-odb8.1`): the fact stops being offered.
+   *
+   * Nothing is built here that was not already in the data model —
+   * `UNUSABLE_FACT_STATUSES` in `content-brief.service.ts` already refuses a
+   * `RETRACTED` fact, and `evaluateFact` above already leaves a `RETRACTED`
+   * row untouched when new evidence arrives. This only writes the status a
+   * terminal fact was always allowed to carry.
+   */
+  async retractFact(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    now: Date
+  ) {
+    const fact = await this.client().contentFact.findFirst({
+      where: { organizationId, id: factId, status: { not: 'TOMBSTONED' } },
+      select: { id: true, status: true },
+    });
+    if (!fact) notFound();
+    if (fact.status === 'RETRACTED') {
+      return this.client().contentFact.findFirst({
+        where: { organizationId, id: factId },
+        include: evaluationInclude,
+      });
+    }
+    await this.client().contentFact.updateMany({
+      where: { organizationId, id: factId },
+      data: {
+        status: 'RETRACTED',
+        lastEvaluatedAt: now,
+        updatedByUserId: actorUserId,
+      },
+    });
+    return this.client().contentFact.findFirst({
+      where: { organizationId, id: factId },
+      include: evaluationInclude,
+    });
+  }
+
+  /**
+   * «Вернуть» (`Facts.dc.html`, screen 22): the only action a fact not in
+   * work offers, whether it got there by СНЯТЬ or by being copied over.
+   *
+   * The mockup draws it on a row shown as superseded (row 4, screen 22) as
+   * plainly as on a retracted one, and nothing in the data model needs a
+   * superseded fact to stay that way forever: `supersedesFactId` on the newer
+   * row is a fact about lineage, not a lock on the older one. Restoring
+   * leaves both usable — two facts sharing a `claimKey` is already ordinary
+   * (`content-brief.radar.ts` groups by it), and the newer row's link to
+   * this one still holds regardless.
+   *
+   * The status is not simply flipped back to `UNVERIFIED` — that would forget
+   * evidence accepted before the fact stopped being offered. `evaluateFact`
+   * recomputes the honest status from what is on record now, the same call
+   * `reviewEvidenceLink` already makes after a review changes.
+   */
+  async restoreFact(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    now: Date
+  ) {
+    return (this.transaction.model as any).$transaction(
+      async (client: PrismaClientLike) => {
+        // `evaluateFact` refuses to touch a terminal row on purpose — a fact
+        // whose evidence changed while it sat retracted or superseded must
+        // not come back to life on its own. Restoring means clearing the
+        // status first, in the same transaction, so the recompute below runs
+        // on a row that is no longer terminal rather than short-circuiting.
+        const changed = await client.contentFact.updateMany({
+          where: {
+            organizationId,
+            id: factId,
+            status: { in: ['RETRACTED', 'SUPERSEDED'] },
+          },
+          data: { status: 'UNVERIFIED', updatedByUserId: actorUserId },
+        });
+        if (changed.count !== 1) notFound();
+        return this.evaluateFact(client, organizationId, factId, actorUserId, now);
+      }
+    );
+  }
+
+  /**
+   * КОПИРОВАТЬ И ПОПРАВИТЬ (`content-factory-next-odb8.1`).
+   *
+   * A new row, not an edit: the old fact keeps its own statement and its own
+   * evidence exactly as they were, and the new row starts with none of
+   * either. `evidenceLinks` belongs to `(organizationId, factId)`, and this
+   * never copies one — the guarantee the design calls out by name is
+   * structural here, not a check that could be forgotten. What the new row
+   * inherits is only what still describes the same claim: `claimKey`,
+   * `language`, `temporalKind` and the lifecycle dates.
+   */
+  async copyFact(
+    organizationId: string,
+    actorUserId: string,
+    factId: string,
+    input: {
+      statement: string;
+      valueText: string;
+      valueHash: string;
+      dedupeKey: string;
+      evidenceId?: string;
+      stance?: string;
+    },
+    now: Date
+  ) {
+    return (this.transaction.model as any).$transaction(
+      async (client: PrismaClientLike) => {
+        const previous = await client.contentFact.findFirst({
+          where: { organizationId, id: factId, status: { not: 'TOMBSTONED' } },
+          select: {
+            claimKey: true,
+            language: true,
+            temporalKind: true,
+            effectiveFrom: true,
+            effectiveTo: true,
+            freshUntil: true,
+          },
+        });
+        if (!previous) notFound();
+        // Deterministic `dedupeKey` (tied to the fact being replaced, not to
+        // the moment of the call), so a double-submitted copy lands on the
+        // same new row rather than creating a second one — the same
+        // guarantee `createFact`'s own upsert gives an ordinary fact.
+        const created = await client.contentFact.upsert({
+          where: { organizationId_dedupeKey: { organizationId, dedupeKey: input.dedupeKey } },
+          create: {
+            organizationId,
+            claimKey: previous.claimKey,
+            statement: input.statement,
+            language: previous.language,
+            valueText: input.valueText,
+            valueHash: input.valueHash,
+            dedupeKey: input.dedupeKey,
+            temporalKind: previous.temporalKind,
+            effectiveFrom: previous.effectiveFrom,
+            effectiveTo: previous.effectiveTo,
+            freshUntil: previous.freshUntil,
+            status: 'UNVERIFIED',
+            supersedesFactId: factId,
+            createdByUserId: actorUserId,
+            updatedByUserId: actorUserId,
+          },
+          update: {},
+        });
+        if (input.evidenceId) {
+          const evidence = await client.sourceEvidence.findFirst({
+            where: { organizationId, id: input.evidenceId, tombstone: null },
+            select: { id: true },
+          });
+          if (!evidence) notFound();
+          const existingLink = await client.contentFactEvidence.findFirst({
+            where: {
+              organizationId,
+              factId: created.id,
+              evidenceId: input.evidenceId,
+            },
+            select: { id: true },
+          });
+          if (!existingLink) {
+            await client.contentFactEvidence.create({
+              data: {
+                organizationId,
+                factId: created.id,
+                evidenceId: input.evidenceId,
+                stance: input.stance || 'SUPPORTS',
+                linkedBy: 'USER',
+                reviewStatus: 'PROPOSED',
+              },
+            });
+          }
+        }
+        await client.contentFact.updateMany({
+          where: { organizationId, id: factId },
+          data: {
+            status: 'SUPERSEDED',
+            lastEvaluatedAt: now,
+            updatedByUserId: actorUserId,
+          },
+        });
+        const [supersededFact, newFact] = await Promise.all([
+          client.contentFact.findFirst({
+            where: { organizationId, id: factId },
+            include: evaluationInclude,
+          }),
+          client.contentFact.findFirst({
+            where: { organizationId, id: created.id },
+            include: evaluationInclude,
+          }),
+        ]);
+        return { fact: newFact, supersededFact };
       }
     );
   }

@@ -41,7 +41,6 @@ export const SYNTHETIC_DEMO_VERSION = 'public-demo-v1';
  * Adaptation, Review and Schedule — the vocabulary the landing page uses.
  */
 export const DEMO_STAGES = ['plan', 'draft', 'review', 'schedule'] as const;
-export const DEMO_STARTER_TEMPLATE = 'blank' as const;
 
 /**
  * What a visitor actually walks: the four stages plus the result.

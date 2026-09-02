@@ -120,6 +120,43 @@ export class ReviewContentFactEvidenceDto {
   reviewStatus: 'ACCEPTED' | 'REJECTED';
 }
 
+/**
+ * "Copy and fix" (`content-factory-next-odb8.1`): a new fact, its own row,
+ * predeclared from the one it replaces.
+ *
+ * Only the statement and its value travel from the form — `claimKey`,
+ * `language`, `temporalKind` and the lifecycle dates are carried over from the
+ * fact being copied inside `ContentFactService.copyFact`, because the mockup
+ * (`Facts.dc.html`, screen 23) shows one field to edit, not the whole create
+ * form again. `evidenceId`/`stance` are the "point at another confirmation"
+ * branch; leaving both out is the "this is my word" branch, and either way the
+ * new row starts with none of the old fact's evidence — editing the statement
+ * in place is refused for exactly this reason, so the copy must not recreate
+ * the same lie one endpoint over.
+ */
+export class CopyContentFactDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4_000)
+  statement: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4_000)
+  valueText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  evidenceId?: string;
+
+  @ValidateIf((value) => Boolean(value.evidenceId))
+  @IsIn(['SUPPORTS', 'CONTRADICTS'])
+  stance?: 'SUPPORTS' | 'CONTRADICTS';
+}
+
 export class AssessContentEvidenceDto {
   @IsIn(['OWNER_VERIFIED', 'OFFICIAL', 'CURATED', 'UNRATED', 'BLOCKED'])
   trustTier: 'OWNER_VERIFIED' | 'OFFICIAL' | 'CURATED' | 'UNRATED' | 'BLOCKED';

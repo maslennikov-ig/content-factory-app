@@ -60,6 +60,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { PostPreviewDialog } from '@contentfactory/frontend/components/preview/post.preview.dialog';
+import { EditorialStageBadge } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -1272,6 +1273,12 @@ const CalendarItem: FC<{
           />
         </div>
         <div className="w-full flex-1 flex flex-col min-h-[40px]">
+          {post.editorialStage && (
+            <EditorialStageBadge
+              stage={post.editorialStage}
+              className="self-start mb-[4px] max-w-full truncate"
+            />
+          )}
           <div className="text-start">
             {state === 'DRAFT' ? t('draft', 'Draft') + ': ' : ''}
           </div>

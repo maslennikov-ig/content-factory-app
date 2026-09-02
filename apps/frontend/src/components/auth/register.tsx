@@ -7,7 +7,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { canOfferNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { CreateOrgUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { GithubProvider } from '@contentfactory/frontend/components/auth/providers/github.provider';
@@ -21,13 +21,6 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
-import type { StarterTemplate } from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
-import { StarterTemplateChooser } from '@contentfactory/frontend/components/public-saas/starter-template-chooser';
-import {
-  consumeRegistrationIntent,
-  issueRegistrationIntent,
-  readRegistrationIntent,
-} from '@contentfactory/frontend/components/public-saas/registration-intent';
 type Inputs = {
   email: string;
   password: string;
@@ -36,7 +29,6 @@ type Inputs = {
   providerToken: string;
   provider: string;
   subscribeToNewsletter: boolean;
-  starterTemplate: StarterTemplate;
 };
 export function Register() {
   const getQuery = useSearchParams();
@@ -100,31 +92,11 @@ export function RegisterAfter({
     neynarClientId,
     googleAuthEnabled,
     telegramLoginEnabled,
+    language,
   } = useVariables();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const isAfterProvider = !!token && !!provider;
-  // /auth is server-rendered and then hydrated, and the server has no
-  // sessionStorage. Reading the intent while initialising state made the first
-  // client render disagree with the markup React was hydrating, so React threw
-  // the whole form away and rebuilt it. Both sides now start at 'blank' and the
-  // stored choice arrives after mount.
-  const [selectedStarterTemplate, setSelectedStarterTemplate] =
-    useState<StarterTemplate>('blank');
-  // Latched, not merely non-destructive: StrictMode runs mount effects twice,
-  // and by the second pass the effect below may already have emptied the
-  // storage. Reading again would quietly downgrade the choice to 'blank'.
-  const storedIntentApplied = useRef(false);
-  useEffect(() => {
-    if (storedIntentApplied.current) return;
-    storedIntentApplied.current = true;
-    setSelectedStarterTemplate(readRegistrationIntent(window.sessionStorage));
-  }, []);
-  useEffect(() => {
-    if (isAfterProvider) {
-      consumeRegistrationIntent(window.sessionStorage);
-    }
-  }, [isAfterProvider]);
   const resolver = useMemo(() => {
     return classValidatorResolver(CreateOrgUserDto);
   }, []);
@@ -153,9 +125,6 @@ export function RegisterAfter({
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
     try {
-      if (!isAfterProvider) {
-        consumeRegistrationIntent(window.sessionStorage);
-      }
       const normalizedWorkspace = data.workspaceName?.trim();
       const {
         company: _legacyCompany,
@@ -172,7 +141,10 @@ export function RegisterAfter({
                 company: normalizedWorkspace,
               }
             : {}),
-          starterTemplate: selectedStarterTemplate,
+          // The interface language the layout already resolved from the
+          // cookie, not detected again here: the account should speak the
+          // language the person was reading when they signed up.
+          ...(language ? { language } : {}),
         }),
       });
       if (response.status === 200) {
@@ -200,12 +172,6 @@ export function RegisterAfter({
       setLoading(false);
     }
   };
-  const rememberProviderIntent = useCallback(() => {
-    issueRegistrationIntent(
-      window.sessionStorage,
-      selectedStarterTemplate
-    );
-  }, [selectedStarterTemplate]);
   // Only offer a federated route the deployment has actually configured.
   const providers = useMemo(() => {
     if (isAfterProvider) return null;
@@ -255,32 +221,8 @@ export function RegisterAfter({
           </p>
         </div>
 
-        <StarterTemplateChooser
-          value={selectedStarterTemplate}
-          onChange={setSelectedStarterTemplate}
-          copy={{
-            legend: t('starter_template_legend', 'Choose a starting point'),
-            blank: t('starter_template_blank', 'Blank workspace'),
-            blankDescription: t(
-              'starter_template_blank_description',
-              'Start without preset labels.'
-            ),
-            workflow: t(
-              'starter_template_content_workflow',
-              'Content workflow'
-            ),
-            workflowDescription: t(
-              'starter_template_content_workflow_description',
-              'Add Plan, Draft, Review, and Schedule labels.'
-            ),
-          }}
-        />
-
         {providers && (
-          <div
-            className="flex flex-col gap-[16px]"
-            onClickCapture={rememberProviderIntent}
-          >
+          <div className="flex flex-col gap-[16px]">
             <div className="text-[13px] font-[600] text-cf-ink-muted">
               {t('continue_with', 'Continue With')}
             </div>

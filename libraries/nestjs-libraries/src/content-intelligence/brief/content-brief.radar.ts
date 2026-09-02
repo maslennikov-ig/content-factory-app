@@ -30,11 +30,19 @@ export type RadarPostV1 = { content?: string | null };
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** A claim key is `namespace|key`; the namespace is the topic. */
-const topicKey = (claimKey: string) =>
+/**
+ * A claim key is `namespace|key`; the namespace is the topic.
+ *
+ * Exported because the witness screen (`content-factory-next-odb8.1`) filters
+ * the same catalogue by the same topic and must not grow a second parser for
+ * one string shape — `ContentFactService.listFacts` calls this directly
+ * rather than re-deriving it from `claimKey` a second way.
+ */
+export const topicKey = (claimKey: string) =>
   (claimKey.split('|')[0] || claimKey).trim().toLocaleLowerCase();
 
-const humanize = (key: string) => {
+/** The same topic key, in words a person reads rather than types. */
+export const humanize = (key: string) => {
   const words = key.replace(/[_.:-]+/gu, ' ').replace(/\s+/gu, ' ').trim();
   return words.charAt(0).toLocaleUpperCase() + words.slice(1);
 };

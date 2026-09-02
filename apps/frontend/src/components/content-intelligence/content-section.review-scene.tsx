@@ -15,15 +15,18 @@ import {
 } from './content-section.screen';
 
 /**
- * The Content route's frame: heading, five tabs, one panel.
+ * The Content route's frame: heading, four tabs, one panel.
  *
- * Only the frame. The three sections behind it are the same
- * `ContentIntelligenceView` the settings modal always showed, and they have
- * their own review scenes; opening them here would review them twice and would
- * need a network this route deliberately does not have.
+ * Only the frame. `avatars` and the now-hidden `sources`/`provenance`
+ * settings sections are the same `ContentIntelligenceView` the settings
+ * modal always showed, and they have their own review scenes; opening them
+ * here would review them twice and would need a network this route
+ * deliberately does not have. `content-factory-next-odb8` dropped `sources`
+ * from `CONTENT_TABS` and repointed `provenance`'s panel at the facts
+ * witness screen — this scene's own stub cases follow, below.
  *
- * What is new and therefore worth looking at is the frame itself: whether five
- * tabs fit at 390px in Russian, whether a tab with no content reads as
+ * What is new and therefore worth looking at is the frame itself: whether
+ * four tabs fit at 390px in Russian, whether a tab with no content reads as
  * unfinished rather than broken, and whether the current tab is marked by
  * something other than colour.
  */
@@ -40,7 +43,7 @@ export const CONTENT_SECTION_REVIEW_STATES = [
 ] as const satisfies readonly InterfaceReviewState[];
 
 export const contentSectionFixture = {
-  tabs: ['avatars', 'sources', 'brief', 'materials', 'provenance'],
+  tabs: ['avatars', 'brief', 'materials', 'provenance'],
 } as const;
 
 export const scene = defineInterfaceReviewScene({
@@ -102,18 +105,18 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
   selected: {
     tab: 'provenance',
     panel: 'stub',
-    stub: { en: 'Provenance', ru: 'Происхождение' },
+    stub: { en: 'Facts', ru: 'Откуда факты' },
     note: {
       en: 'The current tab carries an underline the others do not, so the mark is not colour alone.',
       ru: 'У текущей вкладки есть подчёркивание, которого нет у остальных: метка не только цветом.',
     },
   },
   success: {
-    tab: 'sources',
+    tab: 'provenance',
     panel: 'stub',
     stub: {
-      en: 'Source saved',
-      ru: 'Источник сохранён',
+      en: 'Fact retracted',
+      ru: 'Факт снят',
       role: 'status',
     },
     note: {
@@ -122,11 +125,11 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
     },
   },
   error: {
-    tab: 'sources',
+    tab: 'provenance',
     panel: 'stub',
     stub: {
-      en: 'Sources could not be loaded',
-      ru: 'Источники не загрузились',
+      en: 'The facts could not be loaded',
+      ru: 'Факты не загрузились',
       role: 'alert',
     },
     note: {
@@ -159,8 +162,8 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
     tab: 'materials',
     panel: 'materials',
     note: {
-      en: 'Five Russian labels wrap onto a second row at 390px rather than scrolling sideways.',
-      ru: 'Пять русских подписей переносятся на вторую строку на 390px, а не уезжают вбок.',
+      en: 'Six Russian labels wrap onto a second row at 390px rather than scrolling sideways.',
+      ru: 'Шесть русских подписей переносятся на вторую строку на 390px, а не уезжают вбок.',
     },
   },
 };
@@ -186,7 +189,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
                 active.stub?.muted ? 'text-cf-ink-muted' : 'text-cf-ink'
               }`}
             >
-              {active.stub?.[locale] ?? t[tab as 'avatars' | 'sources' | 'brief' | 'provenance']}
+              {active.stub?.[locale] ?? t[tab as 'avatars' | 'brief' | 'provenance']}
             </div>
           )}
         </ContentSectionShell>

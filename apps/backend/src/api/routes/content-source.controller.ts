@@ -17,6 +17,7 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import {
+  AcceptSearchResultEvidenceDto,
   ConfirmContentSourceRightsDto,
   CreateContentSourceDto,
   SyncContentSourceDto,
@@ -79,6 +80,26 @@ export class ContentSourceController {
   ) {
     try {
       return await this.sources.createSource(organization.id, user.id, body);
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
+  /**
+   * `content-factory-next-lh5s`: the moment a person accepts one web-research
+   * result as evidence. Gated like creating a fact — an everyday write on
+   * the workspace's own memory, not the admin-only source-registry actions
+   * below it (`content-source-registry-spec.md`'s matrix never mentions this
+   * capability, because it never creates a `ContentSource`).
+   */
+  @Post('/search-evidence')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async acceptSearchResult(
+    @GetOrgFromRequest() organization: Organization,
+    @Body() body: AcceptSearchResultEvidenceDto
+  ) {
+    try {
+      return await this.sources.acceptSearchResult(organization.id, body);
     } catch (error) {
       safeHttpError(error);
     }

@@ -13,7 +13,7 @@ const dtoModule = loadTypeScriptModule(
     },
   }
 );
-const { CreateOrgUserDto, STARTER_TEMPLATES } = dtoModule;
+const { CreateOrgUserDto } = dtoModule;
 
 function registrationBody(overrides = {}) {
   return Object.assign(new CreateOrgUserDto(), {
@@ -54,6 +54,9 @@ function loadOrganizationRepository() {
       '@contentfactory/helpers/auth/newsletter.consent': {
         NEWSLETTER_CONSENT_SOURCE_REGISTRATION: 'registration',
       },
+      '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/locale/backend-strings.ts'
+      ),
     }
   ).OrganizationRepository;
 }
@@ -100,6 +103,13 @@ async function createWorkspace(body) {
   return organizationCreates;
 }
 
+const WORKFLOW_TAG_QUARTET = [
+  { name: 'Plan', color: '#7FB03A' },
+  { name: 'Draft', color: '#4D7CFE' },
+  { name: 'Review', color: '#F59E0B' },
+  { name: 'Schedule', color: '#8B5CF6' },
+];
+
 describe('progressive registration contract', () => {
   test('requires twelve characters only for new LOCAL registration passwords', async () => {
     const shortLocal = await validate(registrationBody({ password: '12345678901' }));
@@ -121,39 +131,97 @@ describe('progressive registration contract', () => {
     ['legacy company', { company: 'Legacy Studio' }],
     ['workspace name', { workspaceName: 'Launch Workspace' }],
     ['default workspace', {}],
-    ['blank starter intent', { starterTemplate: 'blank' }],
+    // A stale client (an unclosed tab from before the starter-template
+    // picker was removed) may still send the old field. There is no
+    // `starterTemplate` decorator on the DTO any more, so `validate()` has
+    // nothing to check it against — it is just an inert extra property here.
+    // `tests/global.validation-pipe.test.cjs` covers the real request path,
+    // where the global `ValidationPipe`'s `whitelist: true` strips it.
+    ['legacy starterTemplate field', { starterTemplate: 'blank' }],
   ])('accepts %s without making legacy fields mandatory', async (_label, fields) => {
     await expect(validate(registrationBody(fields))).resolves.toHaveLength(0);
   });
 
-  test('exposes the safe no-op and the one supported workflow template', () => {
-    expect(STARTER_TEMPLATES).toEqual(['blank', 'content-workflow']);
-  });
-
-  test('nests exactly four workflow tags in the same organization create', async () => {
+  // The guard for content-factory-next-pdbe: the starter-template choice is
+  // gone from the registration form, and every workspace must get the
+  // content-workflow tags every time, with no way left to opt out. Before the
+  // fix this repository only attached the quartet when
+  // `starterTemplate === 'content-workflow'`; a plain registration created no
+  // tags at all.
+  test('every new workspace gets the content-workflow tag quartet, unconditionally', async () => {
     const creates = await createWorkspace({
-      ...registrationBody({ starterTemplate: 'content-workflow' }),
-      email: 'workflow-owner@example.com',
+      ...registrationBody({}),
+      email: 'default-owner@example.com',
     });
 
     expect(creates).toHaveLength(1);
+    expect(creates[0].data.tags).toEqual({ create: WORKFLOW_TAG_QUARTET });
+  });
+
+  // Compatibility: a stale client that still sends the retired
+  // `starterTemplate` field (in either of its old values) must not lose the
+  // tags or break the registration. The field is simply ignored now.
+  test.each([
+    ['blank', 'blank'],
+    ['content-workflow', 'content-workflow'],
+    ['an unrecognised value', 'anything-else'],
+  ])(
+    'a legacy starterTemplate value of %s does not change the outcome: tags are still created',
+    async (_label, starterTemplate) => {
+      const creates = await createWorkspace({
+        ...registrationBody({ starterTemplate }),
+        email: `legacy-${starterTemplate}@example.com`,
+      });
+
+      expect(creates[0].data.tags).toEqual({ create: WORKFLOW_TAG_QUARTET });
+      expect(creates[0].data).not.toHaveProperty('starterTemplate');
+    }
+  );
+
+  test('localizes the four workflow tag names to a Russian registration, colors untouched', async () => {
+    const creates = await createWorkspace({
+      ...registrationBody({ language: 'ru' }),
+      email: 'workflow-owner-ru@example.com',
+    });
+
     expect(creates[0].data.tags).toEqual({
       create: [
-        { name: 'Plan', color: '#7FB03A' },
-        { name: 'Draft', color: '#4D7CFE' },
-        { name: 'Review', color: '#F59E0B' },
-        { name: 'Schedule', color: '#8B5CF6' },
+        { name: 'План', color: '#7FB03A' },
+        { name: 'Черновик', color: '#4D7CFE' },
+        { name: 'Проверка', color: '#F59E0B' },
+        { name: 'Расписание', color: '#8B5CF6' },
       ],
     });
   });
 
-  test('keeps blank registration free of template records', async () => {
+  test('an unshipped language falls back to English tag names instead of failing', async () => {
     const creates = await createWorkspace({
-      ...registrationBody({ starterTemplate: 'blank' }),
-      email: 'blank-owner@example.com',
+      ...registrationBody({ language: 'not-a-real-locale' }),
+      email: 'workflow-owner-fallback@example.com',
     });
 
-    expect(creates[0].data).not.toHaveProperty('tags');
+    expect(creates[0].data.tags.create.map((tag) => tag.name)).toEqual([
+      'Plan',
+      'Draft',
+      'Review',
+      'Schedule',
+    ]);
+  });
+
+  test('persists the registration language on the created user, defaulting to English', async () => {
+    const [ruCreates, blankCreates] = await Promise.all([
+      createWorkspace({
+        ...registrationBody({ language: 'ru' }),
+        email: 'lang-ru@example.com',
+      }),
+      createWorkspace({
+        ...registrationBody({}),
+        email: 'lang-default@example.com',
+      }),
+    ]);
+
+    expect(ruCreates[0].data.users.create.user.create.language).toBe('ru');
+    expect(blankCreates[0].data.users.create.user.create.language).toBe('en');
   });
 
   test('does not emit a successful registration event when the atomic create fails', async () => {
@@ -175,7 +243,7 @@ describe('progressive registration contract', () => {
 
     await expect(
       repository.createOrgAndUser(
-        registrationBody({ starterTemplate: 'content-workflow' }),
+        registrationBody({}),
         { activated: true, isSuperAdmin: false },
         '127.0.0.1',
         'test-agent'
@@ -211,7 +279,6 @@ describe('progressive registration contract', () => {
     );
     const body = registrationBody({
       email: 'one-owner@example.com',
-      starterTemplate: 'content-workflow',
     });
 
     await repository.createOrgAndUser(
@@ -234,23 +301,12 @@ describe('progressive registration contract', () => {
     expect(productEventCreate).toHaveBeenCalledTimes(1);
   });
 
-  test.each(['content-calendar', '', 'BLANK', 1, null])(
-    'rejects unsupported starter intent %p',
-    async (starterTemplate) => {
-      const errors = await validate(registrationBody({ starterTemplate }));
-      expect(errors.some((error) => error.property === 'starterTemplate')).toBe(
-        true
-      );
-    }
-  );
-
   test.each([
     [
       'workspace name wins',
       {
         workspaceName: '  Primary Workspace  ',
         company: 'Legacy Studio',
-        starterTemplate: 'blank',
       },
       'Primary Workspace',
     ],
