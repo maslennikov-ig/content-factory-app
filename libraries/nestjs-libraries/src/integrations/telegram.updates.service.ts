@@ -13,6 +13,12 @@ import {
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { redactSensitive } from '@contentfactory/nestjs-libraries/services/redact.sensitive';
+import {
+  adminBindDeclineMessage,
+  adminBindSuccessMessage,
+  pendingApprovalNotification,
+} from '@contentfactory/nestjs-libraries/integrations/telegram-admin-bind';
+import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/backend-strings';
 import TelegramBot from 'node-telegram-bot-api';
 
 const consumerLeaseName = 'telegram-bot-updates';
@@ -58,6 +64,37 @@ const isMissingTable = (error: unknown) =>
  * from the receipt key. The same code raised by a metric or a discussion row
  * is a real failure, and treating it as a duplicate would drop the update.
  */
+/**
+ * Telegram allows exactly one outstanding `getUpdates` long-poll per bot
+ * token. A second consumer — a stand still pointed at a production token, a
+ * process that failed to exit, a manual `curl` left running — makes every
+ * `getUpdates` call from here fail with this shape, and the bot goes quiet:
+ * no `/start` bindings, no support relay, no approval-queue notification, and
+ * nothing about the failure visible from the product itself. This is the same
+ * class of defect as `content-factory-next-7jxo` (a failure indistinguishable
+ * from success) applied to the polling loop instead of the mail path, and it
+ * is the specific trap this codebase has already fallen into once — see
+ * `docs/operations/*` for the incident it caused before this check existed.
+ */
+const isTelegramConflict = (error: unknown) => {
+  const failure = error as { code?: string; response?: { statusCode?: number } };
+  return failure?.code === 'ETELEGRAM' && failure?.response?.statusCode === 409;
+};
+
+/**
+ * What a Telegram reply owed after `processLeasedUpdate`'s transaction
+ * commits. Kept out of the transaction itself: `bot.sendMessage` is a network
+ * call, and the DB write that decided whether a binding succeeded must not
+ * wait on it, retry because of it, or roll back because Telegram was briefly
+ * unreachable. The write is the single source of truth; this reply is best-
+ * effort UX riding on top of it.
+ */
+type PostCommitEffect = {
+  kind: 'send-message';
+  chatId: string;
+  message: string;
+};
+
 const isDuplicateReceipt = (error: unknown) => {
   const failure = error as {
     code?: string;
@@ -100,6 +137,14 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
    */
   private supportRelayTableAvailable = true;
   private supportRelayTableWarningLogged = false;
+  /**
+   * Set once a 409 is logged loudly, so a stuck conflict does not repeat the
+   * same paragraph every `retryDelayMs`. Cleared the moment a poll succeeds,
+   * so a conflict that returns later is reported again rather than staying
+   * silent because it was already reported once, days ago, about a different
+   * outage.
+   */
+  private telegramConflictWarningLogged = false;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -198,13 +243,33 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
     while (this.running) {
       try {
         await this.pollOnce();
+        // A successful turn proves the token's long-poll is ours again; the
+        // next conflict, if there ever is one, deserves its own loud line.
+        this.telegramConflictWarningLogged = false;
       } catch (error) {
-        // Every Telegram error carries the request URL, and the request URL
-        // carries the bot token. Never log one of these raw.
-        this.logger.error(
-          'Telegram update polling failed',
-          redactSensitive(error)
-        );
+        if (isTelegramConflict(error)) {
+          if (!this.telegramConflictWarningLogged) {
+            this.logger.error(
+              'Telegram getUpdates returned 409 Conflict: another consumer ' +
+                "already holds this bot token's long-poll. Until this " +
+                'clears, nothing here is delivered: no /start binding, no ' +
+                'support relay, no approval-queue notification. Stop the ' +
+                'other consumer, or revoke and reissue TELEGRAM_TOKEN if ' +
+                "it cannot be identified. This will not log again while " +
+                'the conflict continues; it logs once when a poll next ' +
+                'succeeds and again if the conflict returns.',
+              redactSensitive(error)
+            );
+            this.telegramConflictWarningLogged = true;
+          }
+        } else {
+          // Every Telegram error carries the request URL, and the request
+          // URL carries the bot token. Never log one of these raw.
+          this.logger.error(
+            'Telegram update polling failed',
+            redactSensitive(error)
+          );
+        }
         await timer(retryDelayMs);
       }
     }
@@ -542,20 +607,35 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
    */
   private async processLeasedUpdate(update: TelegramUpdateLike) {
     try {
-      await this.prisma.$transaction(async (transaction) => {
+      const effects = await this.prisma.$transaction(async (transaction) => {
         await this.fenceLease(transaction);
         await transaction.telegramUpdateReceipt.create({
           data: { updateId: update.update_id },
         });
 
+        const collected: PostCommitEffect[] = [];
         for (const action of parseTelegramUpdate(update)) {
-          await this.applyAction(transaction, update.update_id, action);
+          const effect = await this.applyAction(
+            transaction,
+            update.update_id,
+            action
+          );
+          if (effect) {
+            collected.push(effect);
+          }
         }
 
         await transaction.telegramUpdateFailureState.deleteMany({
           where: { updateId: update.update_id },
         });
+        return collected;
       });
+
+      // Outside the transaction on purpose — see `PostCommitEffect`. Reached
+      // only once the write it depends on is durable, so a delivery failure
+      // here can never leave a chat believing it is bound when it is not, or
+      // the reverse.
+      await this.deliverPostCommitEffects(effects);
       return true;
     } catch (error) {
       if (isDuplicateReceipt(error)) {
@@ -568,11 +648,73 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Delivers what `applyAction` decided to say once the write behind it is
+   * durable. Best-effort: a failed reply here means the chat was bound (or
+   * correctly refused) without hearing about it, which is a worse experience
+   * than a lost confirmation, not a lost binding. Logged loudly rather than
+   * silently dropped — a swallowed failure here is the same shape of defect
+   * `content-factory-next-7jxo` named for the mail path.
+   */
+  private async deliverPostCommitEffects(effects: PostCommitEffect[]) {
+    for (const effect of effects) {
+      try {
+        await this.bot.sendMessage(effect.chatId, effect.message);
+      } catch (error) {
+        this.logger.warn(
+          `Telegram reply to chat could not be delivered`,
+          redactSensitive(error)
+        );
+      }
+    }
+  }
+
   private async applyAction(
     transaction: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
     updateId: number,
     action: TelegramUpdateAction
-  ) {
+  ): Promise<PostCommitEffect | void> {
+    if (action.kind === 'admin-bind') {
+      const now = new Date();
+      const candidate = await transaction.user.findFirst({
+        where: {
+          telegramBindingCode: action.code,
+          telegramBindingCodeExpiresAt: { gt: now },
+        },
+      });
+      if (!candidate) {
+        // Unknown and expired are indistinguishable on purpose — see
+        // `adminBindDeclineMessage`.
+        return {
+          kind: 'send-message',
+          chatId: action.chatId,
+          message: adminBindDeclineMessage(resolveBackendLocale(undefined)),
+        };
+      }
+
+      // Conditioned on the code still matching: two `/start` messages
+      // racing on the same code (the same person double-tapping the link)
+      // must bind exactly once, not twice with the second overwriting the
+      // first chat.
+      const claimed = await transaction.user.updateMany({
+        where: { id: candidate.id, telegramBindingCode: action.code },
+        data: {
+          telegramChatId: action.chatId,
+          telegramBindingCode: null,
+          telegramBindingCodeExpiresAt: null,
+        },
+      });
+      const locale = resolveBackendLocale(candidate.language);
+      return {
+        kind: 'send-message',
+        chatId: action.chatId,
+        message:
+          claimed.count === 1
+            ? adminBindSuccessMessage(locale)
+            : adminBindDeclineMessage(locale),
+      };
+    }
+
     if (action.kind === 'support-relay') {
       if (!this.supportRelayTableAvailable) {
         // Postgres aborts the whole transaction on a failed statement, so this
@@ -753,6 +895,62 @@ export class TelegramUpdatesService implements OnModuleInit, OnModuleDestroy {
       );
     }
     return { chatId: Number(receipt.connectChatId) };
+  }
+
+  /**
+   * Pages every administrator who has bound a chat when approval mode writes
+   * a new, switched-off account. Called from the registration path itself, so
+   * it must never throw: a person who registered successfully must not see
+   * that succeed as a failure because paging the administrators about it did
+   * not go through.
+   *
+   * One admin's failed delivery does not stop another's — `Promise.allSettled`
+   * rather than `Promise.all`, and each failure is logged loudly rather than
+   * swallowed. An administrator who believes they will be paged and is not
+   * must be discoverable from the log.
+   */
+  async notifyAdminsOfPendingApproval(email: string, createdAt: Date) {
+    let admins: { id: string; telegramChatId: string | null; language: string }[];
+    try {
+      admins = await this.prisma.user.findMany({
+        where: { isSuperAdmin: true, telegramChatId: { not: null } },
+        select: { id: true, telegramChatId: true, language: true },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Could not read which administrators have a bound Telegram chat; ' +
+          'no approval-queue notification was sent for this registration',
+        redactSensitive(error)
+      );
+      return;
+    }
+
+    if (admins.length === 0) {
+      return;
+    }
+
+    const adminUrl = `${process.env.FRONTEND_URL}/admin/users`;
+    const results = await Promise.allSettled(
+      admins.map((admin) =>
+        this.bot.sendMessage(
+          admin.telegramChatId as string,
+          pendingApprovalNotification(resolveBackendLocale(admin.language), {
+            email,
+            createdAt,
+            adminUrl,
+          })
+        )
+      )
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        this.logger.error(
+          `Telegram approval-queue notification to admin ${admins[index].id} failed`,
+          redactSensitive(result.reason)
+        );
+      }
+    });
   }
 
   async getPostMetrics(channelChatId: string, channelMessageId: string) {

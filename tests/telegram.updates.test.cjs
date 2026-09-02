@@ -108,4 +108,70 @@ describe('Telegram update routing', () => {
       },
     ]);
   });
+
+  test('a /start deep-link payload in a private chat is an admin-bind attempt', () => {
+    expect(
+      parseTelegramUpdate({
+        update_id: 105,
+        message: {
+          chat: { id: 555, type: 'private' },
+          message_id: 3,
+          text: '/start abcDEF123-_',
+        },
+      })
+    ).toEqual([
+      {
+        kind: 'admin-bind',
+        code: 'abcDEF123-_',
+        chatId: '555',
+        messageId: '3',
+      },
+    ]);
+  });
+
+  test('a bare /start with no payload is not an admin-bind attempt', () => {
+    expect(
+      parseTelegramUpdate({
+        update_id: 106,
+        message: {
+          chat: { id: 556, type: 'private' },
+          message_id: 4,
+          text: '/start',
+        },
+      })
+    ).not.toContainEqual(expect.objectContaining({ kind: 'admin-bind' }));
+  });
+
+  test('a /start payload outside a private chat is not an admin-bind attempt', () => {
+    expect(
+      parseTelegramUpdate({
+        update_id: 107,
+        channel_post: {
+          chat: { id: -10040, type: 'channel' },
+          message_id: 5,
+          text: '/start someCode',
+        },
+      })
+    ).not.toContainEqual(expect.objectContaining({ kind: 'admin-bind' }));
+  });
+
+  test('an admin-bind attempt is not also read as a support-relay message', () => {
+    expect(
+      parseTelegramUpdate({
+        update_id: 108,
+        message: {
+          chat: { id: 557, type: 'private' },
+          message_id: 6,
+          text: '/start someCode',
+        },
+      })
+    ).toEqual([
+      {
+        kind: 'admin-bind',
+        code: 'someCode',
+        chatId: '557',
+        messageId: '6',
+      },
+    ]);
+  });
 });

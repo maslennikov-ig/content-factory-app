@@ -324,6 +324,23 @@ export class UsersRepository {
     });
   }
 
+  setTelegramBindingCode(userId: string, code: string, expiresAt: Date) {
+    return this._user.model.user.update({
+      where: { id: userId },
+      data: {
+        telegramBindingCode: code,
+        telegramBindingCodeExpiresAt: expiresAt,
+      },
+    });
+  }
+
+  getTelegramBindingStatus(userId: string) {
+    return this._user.model.user.findFirst({
+      where: { id: userId },
+      select: { telegramChatId: true },
+    });
+  }
+
   deactivateUser(id: string) {
     return this._user.model.user.update({
       where: {

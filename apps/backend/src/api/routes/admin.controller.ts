@@ -145,4 +145,16 @@ export class AdminController {
     await this._usersService.blockAccount(id, user.id);
     return { success: true };
   }
+
+  @Post('/telegram/connect')
+  async connectTelegram(@GetUserFromRequest() user: User) {
+    this.assertSuperAdmin(user);
+    return this._usersService.issueTelegramBindingCode(user.id);
+  }
+
+  @Get('/telegram/status')
+  async telegramStatus(@GetUserFromRequest() user: User) {
+    this.assertSuperAdmin(user);
+    return this._usersService.getTelegramBindingStatus(user.id);
+  }
 }

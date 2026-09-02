@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { Provider, User } from '@prisma/client';
 import { CreateOrgUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/login.user.dto';
@@ -22,6 +22,7 @@ import {
 } from '@contentfactory/backend/services/auth/identity-confirmation';
 import { NewsletterDeliveryRetryServiceV1 } from '@contentfactory/backend/services/newsletter/newsletter-delivery-retry.service.v1';
 import { PublicGrowthService } from '@contentfactory/nestjs-libraries/database/prisma/public-growth/public-growth.service';
+import { TelegramUpdatesService } from '@contentfactory/nestjs-libraries/integrations/telegram.updates.service';
 import {
   resolveBackendLocale,
   translateBackendString,
@@ -42,6 +43,8 @@ const LINKABLE_EXTERNAL_PROVIDERS = new Set<Provider>([
 
 @Injectable()
 export class AuthService {
+  private readonly _logger = new Logger(AuthService.name);
+
   constructor(
     private _userService: UsersService,
     private _organizationService: OrganizationService,
@@ -49,8 +52,39 @@ export class AuthService {
     private _emailService: EmailService,
     private _providerManager: AuthProviderManager,
     private _newsletterRetry: NewsletterDeliveryRetryServiceV1,
-    private _publicGrowthService: PublicGrowthService
+    private _publicGrowthService: PublicGrowthService,
+    private _telegramUpdatesService: TelegramUpdatesService
   ) {}
+
+  /**
+   * Best-effort on purpose, called right after the account that made this
+   * true is already committed. A failure here must read as "an administrator
+   * was not paged", never as "the registration failed" — the applicant
+   * already has an account waiting for approval regardless of whether anyone
+   * heard about it yet.
+   *
+   * `TelegramUpdatesService.notifyAdminsOfPendingApproval` already logs every
+   * failure it can reach loudly through Nest's own `Logger` and never throws;
+   * this catch exists only for what is outside that guarantee — dependency
+   * injection producing something unusable, say — so a defect there is still
+   * discoverable instead of taking registration down with it.
+   */
+  private async notifyAdminsOfPendingApproval(
+    email: string,
+    createdAt: Date
+  ) {
+    try {
+      await this._telegramUpdatesService.notifyAdminsOfPendingApproval(
+        email,
+        createdAt
+      );
+    } catch (error) {
+      this._logger.error(
+        'Registration succeeded but paging administrators about the pending approval failed',
+        error
+      );
+    }
+  }
   async canRegister(provider: string) {
     if (
       process.env.DISABLE_REGISTRATION !== 'true' ||
@@ -157,6 +191,10 @@ export class AuthService {
               err
             );
           }
+          await this.notifyAdminsOfPendingApproval(
+            body.email,
+            created.createdAt
+          );
           return { addedOrg, jwt: '', awaitingApproval: true };
         }
 
@@ -204,6 +242,7 @@ export class AuthService {
     // proves who someone is, not that this instance wants them.
     if (!user.activated) {
       if (created && registrationRequiresApproval()) {
+        await this.notifyAdminsOfPendingApproval(user.email, user.createdAt);
         return { addedOrg: false, jwt: '', awaitingApproval: true };
       }
 

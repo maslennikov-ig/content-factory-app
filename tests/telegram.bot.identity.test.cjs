@@ -69,6 +69,14 @@ const { TelegramUpdatesService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/services/redact.sensitive': {
       redactSensitive: (value) => value,
     },
+    '@contentfactory/nestjs-libraries/integrations/telegram-admin-bind': {
+      adminBindDeclineMessage: () => 'Command not recognized.',
+      adminBindSuccessMessage: () => 'Done.',
+      pendingApprovalNotification: () => 'A new account is waiting.',
+    },
+    '@contentfactory/nestjs-libraries/locale/backend-strings': {
+      resolveBackendLocale: () => 'en',
+    },
     'node-telegram-bot-api': { __esModule: true, default: TelegramBot },
   }
 );

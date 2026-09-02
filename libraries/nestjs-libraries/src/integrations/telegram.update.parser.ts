@@ -6,6 +6,12 @@ export type TelegramUpdateAction =
       messageId: string;
     }
   | {
+      kind: 'admin-bind';
+      code: string;
+      chatId: string;
+      messageId: string;
+    }
+  | {
       kind: 'reaction-count';
       chatId: string;
       messageId: string;
@@ -65,6 +71,17 @@ const present = (value: unknown): value is string | number =>
 const connectWord = (text?: string) =>
   text?.match(/^\/connect\s+([A-Za-z0-9_-]+)\s*$/)?.[1];
 
+/**
+ * `/start <code>` is what Telegram sends when someone follows a
+ * `https://t.me/<bot>?start=<code>` deep link — the payload arrives as a
+ * plain `/start` command argument, not as anything special about the update.
+ * Bare `/start` (no payload, the normal "hello" a person sends by opening the
+ * bot directly) does not match and falls through to the ordinary private
+ * message handling below, exactly like `/connect` with no word does.
+ */
+const adminBindCode = (text?: string) =>
+  text?.match(/^\/start\s+([A-Za-z0-9_-]+)\s*$/)?.[1];
+
 export function parseTelegramUpdate(
   update: TelegramUpdateLike
 ): TelegramUpdateAction[] {
@@ -102,11 +119,28 @@ export function parseTelegramUpdate(
     });
   }
 
+  // Only meaningful in the chat that sent it — a bot cannot be added to a
+  // group with the `/start` deep link, so a code arriving from a channel or
+  // group post is never a real binding attempt.
+  const bindCode =
+    update.message === incoming && incoming.chat?.type === 'private'
+      ? adminBindCode(incoming.text)
+      : undefined;
+  if (bindCode) {
+    actions.push({
+      kind: 'admin-bind',
+      code: bindCode,
+      chatId: String(incoming.chat.id),
+      messageId: String(incoming.message_id),
+    });
+  }
+
   const numericMessageId = Number(incoming.message_id);
   if (
     update.message === incoming &&
     incoming.chat?.type === 'private' &&
     !word &&
+    !bindCode &&
     Number.isSafeInteger(numericMessageId) &&
     numericMessageId > 0
   ) {

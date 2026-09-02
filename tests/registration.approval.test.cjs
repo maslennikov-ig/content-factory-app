@@ -290,7 +290,14 @@ const verifyJWT = jest.fn();
 const { AuthService } = loadTypeScriptModule(
   'apps/backend/src/services/auth/auth.service.ts',
   {
-    '@nestjs/common': { Injectable: () => (target) => target },
+    '@nestjs/common': {
+      Injectable: () => (target) => target,
+      Logger: class {
+        error() {}
+        warn() {}
+        log() {}
+      },
+    },
     '@prisma/client': { Provider },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto,
@@ -324,6 +331,9 @@ const { AuthService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/newsletter/newsletter.service': {
       NewsletterService: { register: newsletterRegister },
     },
+    '@contentfactory/nestjs-libraries/integrations/telegram.updates.service': {
+      TelegramUpdatesService: class {},
+    },
     '@contentfactory/backend/services/auth/identity-confirmation': {
       issueIdentityConfirmation: async () => 'unused-confirmation-token',
       readIdentityConfirmation: async () => null,
@@ -343,6 +353,7 @@ const createAuthService = ({
   existingProviderUser = null,
   createdUser = { id: 'created-user', email: 'guest@example.com', activated: false },
   providerOverrides = {},
+  telegramNotifyImpl = jest.fn(async () => undefined),
 } = {}) => {
   const userService = {
     getUserByEmail: jest.fn(async () => existingLocalUser),
@@ -368,16 +379,28 @@ const createAuthService = ({
       ...providerOverrides,
     })),
   };
+  const telegramUpdatesService = {
+    notifyAdminsOfPendingApproval: telegramNotifyImpl,
+  };
 
   const service = new AuthService(
     userService,
     organizationService,
     {},
     emailService,
-    providerManager
+    providerManager,
+    undefined,
+    undefined,
+    telegramUpdatesService
   );
 
-  return { service, userService, organizationService, emailService };
+  return {
+    service,
+    userService,
+    organizationService,
+    emailService,
+    telegramUpdatesService,
+  };
 };
 
 describe('the account-activation email speaks the registration language', () => {
@@ -519,6 +542,112 @@ describe('registration while approval is required', () => {
         'agent'
       )
     ).resolves.toEqual({ addedOrg: false, jwt: '', awaitingApproval: true });
+  });
+
+  /**
+   * The whole point of `content-factory-next-rmfv`: an administrator with a
+   * bound Telegram chat must be paged the moment a new account is written
+   * switched off, so the queue at `/admin/users` is never a place someone has
+   * to remember to go and check.
+   */
+  test('an email sign-up in approval mode pages the administrators over Telegram', async () => {
+    requireApproval(true);
+    const { service, telegramUpdatesService } = createAuthService({
+      createdUser: {
+        id: 'created-user',
+        email: 'guest@example.com',
+        activated: false,
+        createdAt: new Date('2026-09-02T10:00:00.000Z'),
+      },
+    });
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'Guest@Example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+    });
+
+    await service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent');
+
+    expect(
+      telegramUpdatesService.notifyAdminsOfPendingApproval
+    ).toHaveBeenCalledWith(
+      'guest@example.com',
+      new Date('2026-09-02T10:00:00.000Z')
+    );
+  });
+
+  test('a federated sign-up in approval mode also pages the administrators', async () => {
+    requireApproval(true);
+    const { service, telegramUpdatesService } = createAuthService({
+      createdUser: {
+        id: 'created-user',
+        email: 'federated-guest@example.com',
+        activated: false,
+        createdAt: new Date('2026-09-02T11:00:00.000Z'),
+      },
+    });
+
+    await service.routeAuth(
+      Provider.TELEGRAM,
+      { company: 'Studio', providerToken: 'token', provider: Provider.TELEGRAM },
+      '127.0.0.1',
+      'agent'
+    );
+
+    expect(
+      telegramUpdatesService.notifyAdminsOfPendingApproval
+    ).toHaveBeenCalledWith(
+      'federated-guest@example.com',
+      new Date('2026-09-02T11:00:00.000Z')
+    );
+  });
+
+  test('a Telegram paging failure does not undo a registration that already succeeded', async () => {
+    requireApproval(true);
+    const reported = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { service, telegramUpdatesService } = createAuthService({
+      telegramNotifyImpl: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('bot token dead')),
+    });
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'unlucky-telegram@example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+    });
+
+    await expect(
+      service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent')
+    ).resolves.toEqual({
+      addedOrg: false,
+      jwt: '',
+      awaitingApproval: true,
+    });
+
+    expect(telegramUpdatesService.notifyAdminsOfPendingApproval).toHaveBeenCalled();
+    reported.mockRestore();
+  });
+
+  test('an approved account signing up normally is not paged as pending', async () => {
+    requireApproval(false);
+    const { service, telegramUpdatesService } = createAuthService();
+
+    const body = Object.assign(new CreateOrgUserDto(), {
+      email: 'not-gated@example.com',
+      password: 'secret',
+      company: 'Studio',
+      provider: Provider.LOCAL,
+    });
+
+    await service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent');
+
+    expect(
+      telegramUpdatesService.notifyAdminsOfPendingApproval
+    ).not.toHaveBeenCalled();
   });
 
   test('an approved account signs in normally', async () => {

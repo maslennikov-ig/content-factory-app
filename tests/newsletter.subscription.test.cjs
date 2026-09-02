@@ -153,6 +153,11 @@ const { AuthService } = loadTypeScriptModule(
     '@nestjs/common': {
       Injectable: () => (target) => target,
       HttpException: class HttpException extends Error {},
+      Logger: class {
+        error() {}
+        warn() {}
+        log() {}
+      },
     },
     '@prisma/client': { Provider },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
@@ -193,6 +198,9 @@ const { AuthService } = loadTypeScriptModule(
     },
     '@contentfactory/backend/services/newsletter/newsletter-delivery-retry.service.v1': {
       NewsletterDeliveryRetryServiceV1: class NewsletterDeliveryRetryServiceV1 {},
+    },
+    '@contentfactory/nestjs-libraries/integrations/telegram.updates.service': {
+      TelegramUpdatesService: class {},
     },
     // Linked sign-in identities share this service. Nothing here exercises
     // them, so the confirmation store is a stub that never hands one out.

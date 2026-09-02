@@ -9,6 +9,10 @@ import {
   resolveBackendLocale,
   translateBackendString,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
+import {
+  ADMIN_BIND_CLAIM_WINDOW_MS,
+  generateAdminBindCode,
+} from '@contentfactory/nestjs-libraries/integrations/telegram-admin-bind';
 
 @Injectable()
 export class UsersService {
@@ -182,6 +186,30 @@ export class UsersService {
 
   activateUser(id: string) {
     return this._usersRepository.activateUser(id);
+  }
+
+  /**
+   * Issues a fresh one-time code for the given, already-authenticated
+   * administrator to prove ownership of a Telegram chat by sending
+   * `/start <code>` there. Requesting again before the previous code expired
+   * discards it — only the newest code an administrator asked for is ever
+   * live, so an old link copied somewhere and forgotten cannot bind a chat
+   * later.
+   */
+  async issueTelegramBindingCode(userId: string) {
+    const code = generateAdminBindCode();
+    const expiresAt = new Date(Date.now() + ADMIN_BIND_CLAIM_WINDOW_MS);
+    await this._usersRepository.setTelegramBindingCode(
+      userId,
+      code,
+      expiresAt
+    );
+    return { code, expiresAt: expiresAt.toISOString() };
+  }
+
+  async getTelegramBindingStatus(userId: string) {
+    const user = await this._usersRepository.getTelegramBindingStatus(userId);
+    return { connected: Boolean(user?.telegramChatId) };
   }
 
   async listAccounts(params: {

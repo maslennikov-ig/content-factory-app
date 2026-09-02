@@ -162,6 +162,20 @@ model User {
   oauthAuthorizations              OAuthAuthorization[]
   productEvents                    ProductEvent[]
   identities                       UserIdentity[]
+  // The chat this account's administrator has proven ownership of, by sending
+  // `/start <telegramBindingCode>` from it. Null means no chat is bound yet;
+  // that is the state of every account until it opts in, including every
+  // account created before this field existed. Used only to decide who
+  // receives an approval-queue notification — it carries no other meaning and
+  // grants no other access.
+  telegramChatId                   String?
+  // A one-time, short-lived secret handed to an already-authenticated
+  // administrator so they can prove, from inside Telegram, that they control
+  // the chat `telegramChatId` will be set to. Cleared the moment it is
+  // consumed or replaced by a fresh `/admin` request; a stale value here with
+  // its expiry in the past is inert, not a live secret.
+  telegramBindingCode              String?
+  telegramBindingCodeExpiresAt     DateTime?
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -171,6 +185,7 @@ model User {
   @@index([pictureId])
   @@index([newsletterDeliveryPendingAt])
   @@index([newsletterDeliveryLeaseExpiresAt, newsletterDeliveryPendingAt])
+  @@index([telegramBindingCode])
 }
 
 model UserIdentity {
@@ -972,36 +987,36 @@ model OAuthAuthorization {
 /// needs its own corpus, its own print and its own portrait, because a print
 /// averaged over two people describes neither.
 model ProjectBrandProfile {
-  id              String                       @id @default(uuid())
-  organizationId  String
+  id                String                       @id @default(uuid())
+  organizationId    String
   /// What a person calls this avatar. Absent on profiles made before names
   /// existed; the screens fall back to the active version's label.
-  name            String?
+  name              String?
   /// A human being or a brand. The difference is who speaks and how noisy the
   /// print is, not two separate mechanisms — see `BrandPersonaV1`.
-  kind            BrandPersonaKind             @default(PERSON)
+  kind              BrandPersonaKind             @default(PERSON)
   /// The one used when nothing else is chosen. Exactly one per space is the
   /// invariant, and it is held by the repository rather than by the database:
   /// a partial unique index would make the moment between clearing the old
   /// default and setting the new one illegal.
-  isDefault       Boolean                      @default(false)
-  activeVersionId String?
-  createdAt       DateTime                     @default(now())
-  updatedAt       DateTime                     @updatedAt
-  deletedAt       DateTime?
-  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  activeVersion   ProjectBrandProfileVersion?  @relation("ActiveBrandProfileVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
-  versions        ProjectBrandProfileVersion[] @relation("ProfileVersions")
-  auditEvents     BrandProfileAuditEvent[]
+  isDefault         Boolean                      @default(false)
+  activeVersionId   String?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  deletedAt         DateTime?
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  activeVersion     ProjectBrandProfileVersion?  @relation("ActiveBrandProfileVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  versions          ProjectBrandProfileVersion[] @relation("ProfileVersions")
+  auditEvents       BrandProfileAuditEvent[]
   /// The texts this avatar was measured from, and the analyses of them. Added
   /// 2026-08-26: the sentence above promised each avatar its own corpus and
   /// its own print, and both stayed properties of the workspace — so a second
   /// author in the same space averaged into the first one's print and then
   /// took over their passport.
-  voiceSamples    BrandVoiceSample[]
+  voiceSamples      BrandVoiceSample[]
   voiceMeasurements BrandVoiceMeasurement[]
   /// Правки автора в черновиках этого аватара. Живут, пока живёт он.
-  voiceEdits      BrandVoiceEdit[]
+  voiceEdits        BrandVoiceEdit[]
 
   @@unique([organizationId, id])
   @@index([organizationId, deletedAt])
@@ -1092,25 +1107,25 @@ model BrandProfileAuditEvent {
 }
 
 model ContentSource {
-  id                      String           @id @default(uuid())
+  id                      String             @id @default(uuid())
   organizationId          String
   kind                    String
   displayName             String
   canonicalKey            String
   canonicalUrl            String?
   currentSnapshotId       String?
-  desiredState            String           @default("DRAFT")
-  healthState             String           @default("NEVER_SYNCED")
-  rightsState             String           @default("UNCONFIRMED")
+  desiredState            String             @default("DRAFT")
+  healthState             String             @default("NEVER_SYNCED")
+  rightsState             String             @default("UNCONFIRMED")
   /// EVIDENCE | STYLE_REFERENCE. A style reference is read for how it is
   /// written and never for what it says: it cannot become evidence, enter a
   /// fact, be quoted, or be selected into a generation context. See ADR-0011.
-  usagePurpose            String           @default("EVIDENCE")
+  usagePurpose            String             @default("EVIDENCE")
   rightsConfirmedByUserId String?
   rightsConfirmedAt       DateTime?
   rightsNote              String?
-  robotsState             String           @default("UNKNOWN")
-  configVersion           Int              @default(1)
+  robotsState             String             @default("UNKNOWN")
+  configVersion           Int                @default(1)
   schedule                Json?
   lastValidatedAt         DateTime?
   freshUntil              DateTime?
@@ -1122,14 +1137,14 @@ model ContentSource {
   archivedByUserId        String?
   archivedAt              DateTime?
   purgedAt                DateTime?
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  organization            Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  organization            Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   syncRuns                SourceSyncRun[]
-  snapshots               SourceSnapshot[] @relation("ContentSourceSnapshots")
-  currentSnapshot         SourceSnapshot?  @relation("ContentSourceCurrentSnapshot", fields: [organizationId, currentSnapshotId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  snapshots               SourceSnapshot[]   @relation("ContentSourceSnapshots")
+  currentSnapshot         SourceSnapshot?    @relation("ContentSourceCurrentSnapshot", fields: [organizationId, currentSnapshotId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
   autoPosts               AutoPost[]
-  brandVoiceSamples BrandVoiceSample[]
+  brandVoiceSamples       BrandVoiceSample[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, kind, canonicalKey])
@@ -1367,7 +1382,7 @@ model ContentContextSnapshot {
   posts                     Post[]                      @relation("PostContentContextSnapshot")
   outputContexts            ContentOutputContext[]
   draftEvidence             DraftEvidence[]
-  contentPieces  ContentPiece[]
+  contentPieces             ContentPiece[]
 
   @@unique([organizationId, id])
   @@index([organizationId, status, builtAt])
@@ -1523,13 +1538,13 @@ model ContentDerivation {
 /// under an already-computed profile, and a reference corpus could not be
 /// given a retention date independent of the evidence it sits beside.
 model BrandVoiceSample {
-  id             String        @id @default(uuid())
+  id             String               @id @default(uuid())
   organizationId String
   /// OWN_POST | TELEGRAM_EXPORT | PASTE | FILE | SOURCE_SNAPSHOT
   origin         String
   /// OWN_VOICE | STYLE_REFERENCE. A reference sample never becomes evidence,
   /// never enters a fact and is never quoted — see ADR-0011.
-  usagePurpose   String        @default("OWN_VOICE")
+  usagePurpose   String               @default("OWN_VOICE")
   title          String
   /// The cleaned text. Secrets are removed before this column is written, not
   /// before it is read: a credential that reached the database has leaked.
@@ -1539,9 +1554,9 @@ model BrandVoiceSample {
   contentHash    String
   charCount      Int
   wordCount      Int
-  language       String        @default("ru")
+  language       String               @default("ru")
   /// OWN_CONTENT | RIGHTS_CONFIRMED | RIGHTS_PENDING
-  rightsState    String        @default("OWN_CONTENT")
+  rightsState    String               @default("OWN_CONTENT")
   /// Mandatory for STYLE_REFERENCE: the raw text lives until this date and is
   /// then erased, leaving only the derived measurement.
   retentionUntil DateTime?
@@ -1567,11 +1582,11 @@ model BrandVoiceSample {
   /// Soft delete plus hard erasure of `text`, so a deletion is visible in the
   /// corpus history without the words surviving it.
   deletedAt      DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  source         ContentSource? @relation(fields: [organizationId, sourceId], references: [organizationId, id])
-  post           Post?          @relation(fields: [organizationId, postId], references: [organizationId, id])
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  source         ContentSource?       @relation(fields: [organizationId, sourceId], references: [organizationId, id])
+  post           Post?                @relation(fields: [organizationId, postId], references: [organizationId, id])
   /// `SetNull` and not `Cascade`: deleting an avatar must not erase an
   /// author's writing. The service hands the texts to the successor the same
   /// request names, and this is the floor under that — if it ever fails, the
@@ -1606,16 +1621,16 @@ model BrandVoiceSample {
 /// dictionary does, and a corridor nobody can reproduce is a number the
 /// generator obeys for no stated reason.
 model BrandVoiceMeasurement {
-  id                String                      @id @default(uuid())
+  id                String                       @id @default(uuid())
   organizationId    String
   profileVersionId  String?
   analyzerVersion   String
   localePackVersion String
-  language          String                      @default("ru")
+  language          String                       @default("ru")
   sampleCount       Int
-  charCount         Int                         @default(0)
-  wordCount         Int                         @default(0)
-  sentenceCount     Int                         @default(0)
+  charCount         Int                          @default(0)
+  wordCount         Int                          @default(0)
+  sentenceCount     Int                          @default(0)
   /// One entry per scale: value, corridor, how much it was counted on, and a
   /// real sentence with the sample code so a screen can show its working.
   metrics           Json
@@ -1628,7 +1643,7 @@ model BrandVoiceMeasurement {
   /// Set when a sample it was computed from is deleted. The measurement is
   /// marked stale rather than recomputed: recomputing moves corridors, and
   /// with them what the generator may write, which is not a silent change.
-  stale             Boolean                     @default(false)
+  stale             Boolean                      @default(false)
   /// Whose texts were counted — which avatar this analysis is about.
   ///
   /// Added 2026-08-26 alongside `BrandVoiceSample.avatarId`, and for the same
@@ -1636,16 +1651,16 @@ model BrandVoiceMeasurement {
   /// so a second avatar's run became the first one's passport, corridors and
   /// scales. `NULL` predates avatars and belongs to the default one.
   avatarId          String?
-  createdAt         DateTime                    @default(now())
-  updatedAt         DateTime                    @updatedAt
-  organization      Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avatar            ProjectBrandProfile?        @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avatar            ProjectBrandProfile?         @relation(fields: [avatarId], references: [id], onDelete: SetNull)
   /// The version this run was activated into MOST RECENTLY, kept only so an
   /// older image reading this column still finds something. Which analysis
   /// explains a version is answered by `ProjectBrandProfileVersion.measurementId`
   /// and nothing reads this one — activating a second voice from one analysis
   /// moves it, which is exactly the reason the pointer changed sides.
-  profileVersion    ProjectBrandProfileVersion? @relation("MeasurementLastActivation", fields: [organizationId, profileVersionId], references: [organizationId, id])
+  profileVersion    ProjectBrandProfileVersion?  @relation("MeasurementLastActivation", fields: [organizationId, profileVersionId], references: [organizationId, id])
   explainedVersions ProjectBrandProfileVersion[] @relation("VersionMeasurement")
 
   @@unique([organizationId, id])

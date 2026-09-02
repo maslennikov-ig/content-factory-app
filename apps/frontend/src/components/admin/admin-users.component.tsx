@@ -15,6 +15,7 @@ import {
 } from '@contentfactory/react/choice/tabs';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { AdminTelegramConnectComponent } from './admin-telegram-connect.component';
 
 export type AdminUserStatus = 'pending' | 'active' | 'all';
 
@@ -136,6 +137,8 @@ export function AdminUsersView({
               ) : undefined
             }
           />
+
+          <AdminTelegramConnectComponent />
 
           {successMessage && (
             <p

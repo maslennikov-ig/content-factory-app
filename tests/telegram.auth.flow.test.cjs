@@ -52,7 +52,14 @@ const newsletterRegister = jest.fn(async () => undefined);
 const { AuthService } = loadTypeScriptModule(
   'apps/backend/src/services/auth/auth.service.ts',
   {
-    '@nestjs/common': { Injectable: () => (target) => target },
+    '@nestjs/common': {
+      Injectable: () => (target) => target,
+      Logger: class {
+        error() {}
+        warn() {}
+        log() {}
+      },
+    },
     '@prisma/client': { Provider },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto: class {},
@@ -87,6 +94,9 @@ const { AuthService } = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/newsletter/newsletter.service': {
       NewsletterService: { register: newsletterRegister },
+    },
+    '@contentfactory/nestjs-libraries/integrations/telegram.updates.service': {
+      TelegramUpdatesService: class {},
     },
     '@contentfactory/backend/services/auth/identity-confirmation': {
       issueIdentityConfirmation: async () => 'unused-confirmation-token',

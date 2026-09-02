@@ -36,6 +36,10 @@ const { UsersService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/locale/backend-strings.ts'
     ),
+    '@contentfactory/nestjs-libraries/integrations/telegram-admin-bind': {
+      generateAdminBindCode: () => 'unused-in-this-suite',
+      ADMIN_BIND_CLAIM_WINDOW_MS: 15 * 60 * 1_000,
+    },
   }
 );
 

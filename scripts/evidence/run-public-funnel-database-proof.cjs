@@ -221,6 +221,16 @@ CREATE TABLE "User" (
   "providerId" TEXT,
   "timezone" INTEGER NOT NULL,
   "language" TEXT NOT NULL DEFAULT 'en',
+  -- The admin's Telegram binding. Present here for the same reason "language"
+  -- is: this fixture is a hand-written stand-in for the real table, and Prisma
+  -- selects every column the model declares. A column added to schema.prisma
+  -- and forgotten here does not fail as "fixture out of date" — it fails as
+  -- "The column User.telegramChatId does not exist", several layers away from
+  -- the omission, which is exactly how it was misread as a pre-existing break.
+  -- No backticks in this comment: the whole block is a JS template literal.
+  "telegramChatId" TEXT,
+  "telegramBindingCode" TEXT,
+  "telegramBindingCodeExpiresAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   "lastReadNotifications" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
