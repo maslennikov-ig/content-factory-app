@@ -47,7 +47,7 @@ export class AgenciesService {
 
   async approveOrDecline(email: string, action: string, id: string) {
     await this._agenciesRepository.approveOrDecline(action, id);
-    const agency = await this._agenciesRepository.getAgencyById(id);
+    const agency = await this._agenciesRepository.getAgencyForDecision(id);
 
     // Both of these used to carry their own `<html><head>` inside the shared
     // wrapper — a document nested in a document — and were written in English

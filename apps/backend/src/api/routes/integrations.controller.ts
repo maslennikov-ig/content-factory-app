@@ -412,7 +412,11 @@ export class IntegrationsController {
     throw new Error('Function not found');
   }
 
+  // Since the 03.09 audit the whole life of a channel is an administrator's:
+  // connecting it went under `ADMIN` in `saas.2.1`, and removing it — with
+  // every post on it — or switching it off had stayed open to any member.
   @Post('/disable')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   disableChannel(
     @GetOrgFromRequest() org: Organization,
     @Body('id') id: string
@@ -421,6 +425,7 @@ export class IntegrationsController {
   }
 
   @Post('/enable')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   enableChannel(
     @GetOrgFromRequest() org: Organization,
     @Body('id') id: string
@@ -434,6 +439,7 @@ export class IntegrationsController {
   }
 
   @Delete('/')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
     @Body('id') id: string

@@ -613,6 +613,7 @@
   "webhook_sent": "Webhook enviado",
   "today": "Hoy",
   "channel_disconnected_click_to_reconnect": "Canal desconectado, haz clic para reconectar.",
+  "channel_disconnected_ask_admin": "Canal desconectado. Pide a un administrador que lo vuelva a conectar.",
   "channel_disabled_upgrade_plan": "Este canal está deshabilitado, por favor actualiza tu plan para habilitarlo.",
   "channel_added": "Canal agregado",
   "are_you_sure_disable_channel": "¿Estás seguro de que deseas deshabilitar este canal?",

@@ -613,6 +613,7 @@
   "webhook_sent": "Đã gửi webhook",
   "today": "Hôm nay",
   "channel_disconnected_click_to_reconnect": "Kênh đã bị ngắt kết nối, nhấn để kết nối lại.",
+  "channel_disconnected_ask_admin": "Kênh đã ngắt kết nối. Hãy nhờ quản trị viên kết nối lại.",
   "channel_disabled_upgrade_plan": "Kênh này đã bị vô hiệu hóa, vui lòng nâng cấp gói của bạn để kích hoạt.",
   "channel_added": "Đã thêm kênh",
   "are_you_sure_disable_channel": "Bạn có chắc chắn muốn vô hiệu hóa kênh này không?",

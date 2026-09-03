@@ -261,6 +261,16 @@ describe('an accepted excerpt becomes evidence for a claim the person writes', (
       document.querySelector('[data-content-facts-pending-evidence="evidence-1"]')
     ).toBeTruthy();
 
+    // `content-factory-next-d1rx`: the excerpt is quoted beside the form, not
+    // typed into it. A statement is the person's own word (§9.5) and enters
+    // the unified context as such before the evidence is confirmed, so the
+    // product's text must not become «own word» by a pre-filled field.
+    const statementField = document.querySelector(
+      '[data-content-facts-form] [name="statement"]'
+    );
+    expect(statementField).toBeTruthy();
+    expect(statementField.value).toBe('');
+
     await act(async () => {
       fireEvent.submit(document.querySelector('[data-content-facts-form]'));
     });

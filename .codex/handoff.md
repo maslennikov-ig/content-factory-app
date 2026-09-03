@@ -38,11 +38,9 @@ manual «Проверить сейчас»; feed items without id/guid/link get 
 not a position; Telegram binding rechecks `isSuperAdmin`. Backend `tsc
 --noEmit` is **zero errors** for the first time since 30.08.
 
-**Docs put right.** The runbook's schema procedure now prescribes applying
-**before** the image switch, from a throwaway container of the new image, as
-numbered steps rather than a remark. Production got the three-locale
-editorial-stage migration, and its proof runs in docker-CI instead of skipping
-forever.
+**Docs put right.** The runbook prescribes schema **before** the image switch,
+from a throwaway container of the new image, as numbered steps; the
+editorial-stage migration proof runs in docker-CI instead of skipping forever.
 
 **Deferred, each a bead:** `ni7x`, `cl19`, `th1s` (`w4vh` done 03.09). Older debt
 unchanged: eleven `PrismaRepository<any>`, the archive reading the whole library
@@ -50,10 +48,9 @@ into memory, `RESEND_API_KEY` checked in the process that does not send.
 
 That wave's receipt is in
 `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`. Latest full
-acceptance, on the roles change of 03.09, Node 22.23.2: **jest 263 suites, 3461
-passed, 1 skipped**, `node --test` 113 pass 0 fail 4 skipped, python 29 OK,
-`tsc --noEmit` 0 on all three apps, `git diff --check` clean, process
-verification OK.
+acceptance, released as `a63227c58446`: **jest 263 suites, 3461 passed, 1
+skipped**, `node --test` 113 pass 0 fail, python 29 OK, `tsc --noEmit` 0 on all
+three apps, process verification OK.
 
 ## Waves ten and eleven — the product was walked, then the mail was found
 
@@ -70,18 +67,29 @@ instead of throwing). `zudl`'s diagnosis was wrong — SPF and MX sit on `send.`
 
 ## Current state
 
-**The tree is clean** — the 02.09 audit wave and everything after it is
-committed and pushed, no worktrees, no stashes. The live pass the previous
-handoff asked for was done on 03.09: a fresh workspace walked brief → search →
-fact → showcase, evidence went PROPOSED → «Подтвердить» → ACCEPTED, and the
-unified context — which used to return nothing — returned one fact with
-`ALLOW_GROUNDED`.
+**Uncommitted: the 03.09 audit (`w4ij`) of `93092c84..04c7c2f3`.** Two
+read-only reviewers, no P1. Fixed in the tree: removing, disabling and enabling
+a channel ask for an administrator (three doors, matrix, menu — any member could
+delete a channel with every post on it); a declined agency gets its email
+(`p3gq`); reconnecting a dropped channel is hidden from a member in two places;
+the two-bars question is recorded once (`z0b0`); the runbook's
+01.09 paragraphs are back under their release and `a63227c58446` has a record
+naming what the releasing session did not write down; a guard holds the tabs
+module on the server side of the client boundary; a comment can no longer be
+attached to another workspace's post (`jjvz`). **The owner delegated the two
+open questions on 03.09** («даю все разрешения») and both are decided from
+§9.5, recorded as assumptions in the map §10: the two bars stay different
+(`z0b0`); a search excerpt is quoted beside the fact form, never typed into
+the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
+`evidence/audit-2026-09-03/`. Before it, the 02.09 wave and everything after
+was committed and pushed; the live pass brief → search → fact → showcase was
+done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`6f98b58b0765`** (03.09.2026); rollback target `5d9b745ea0d8`,
+Production runs **`a63227c58446`** (03.09.2026); rollback target `6f98b58b0765`,
 also on the host. The tag names a **public** commit: since 31.08 the image is
 built from the published tree, tied by a `Source-Commit` trailer, and the
-release refuses without a green receipt. **The schema was not touched** by that
-release — `migrate diff` from a throwaway container returned an empty migration.
+release refuses without a green receipt. **This release did change the schema**
+— see «Roles» below.
 
 Two release steps stopped being things to remember. **`switch-host-image.sh`**
 performs the switch: `CONTENT_FACTORY_RELEASE` had been stale through four
@@ -92,25 +100,23 @@ refuses to call the release finished if the container disagrees.
 per file — a **standing permission** since 03.09, scoped in the runbook, and it
 covers nothing else on that shared host.
 
-One trap, in the runbook: Docker's `--env-file` keeps quotes, so a host `migrate
-diff` reads `P1013` and, piped to a file, looks like an empty diff.
+Settled on the host: `RESEND_API_KEY` **is** set; **no** `mastra_*` tables in
+`contentfactory` (the `db push` rule stands anyway); retention ran 03.09;
+`postgres-backup.sh` (`ec6885a6`) delivered, never fired; **`send_email` v1
+is terminated**, callers signal `send_email_v2`.
 
-Settled on the host: `RESEND_API_KEY` **is** set; there are **no** `mastra_*`
-tables in `contentfactory` (Mastra has its own database since 21.08; the `db
-push` rule stands anyway). Retention ran 01.09; `postgres-backup.sh`
-(`ec6885a6`) is delivered and has never fired there; `test:time-travel` was
-green at +400 and +1100 days on 01.09. **The v1 email workflow is terminated** —
-it waited on a `condition()` with no timeout, callers now signal
-`send_email_v2`, and its queue was empty.
-
-**Roles, 03.09 (`saas.2.1`, committed, not released).** Connecting a channel is
-an administrator's act; the guard's exemption lost `/integrations/provider`,
+**Roles, 03.09 (`saas.2.1`, released as `a63227c58446`).** Connecting a channel
+is an administrator's act; the guard's exemption lost `/integrations/provider`,
 which had switched the check off on a door the application calls with a session;
 `AiUsageRecord` carries `userId` and the AI settings screen shows the period's
 spend per member; `EDITOR` exists. Map in `docs/product/roles-matrix.md`, held
-true by `tests/roles-matrix.guard.test.cjs`. **The schema moved** — a column, an
-index, a foreign key, an enum value — so the next release walks «Применение
-Prisma-схемы» and `migrate diff` now prints seventeen statements, not fifteen.
+true by `tests/roles-matrix.guard.test.cjs`. Walked on the stand first: a member
+is refused with a role message and sees no channel button, an administrator gets
+the OAuth address, the ledger attributed real operations to whoever asked.
+**The schema moved on production** — column, index, foreign key, enum value,
+applied before the image switch; copy in `20260903T095548Z-pre-saas21`. An enum
+value cannot go through the validated path and is applied first on its own; that
+plan and this release's two traps are in the runbook.
 
 Voice epic (waves eight and nine, closed): spec §5.1–5.4 and
 `.codex/stages/content-factory-next-pl1/evidence/README.md`. Three facts not to
@@ -145,11 +151,9 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **walk the roles
-change on the stand** — sign in as a member and confirm the channel button is
-gone and the refusal reads as a role, then as an administrator and read the
-per-member AI spend. The suite proves the doors; only the stand proves the
-screens.
+Next stage id: `content-factory-next-vme`. Recommended action: **read the roles
+change on production the way a person will** — every workspace there holds only
+superadmins, so nothing has yet met a refusal. Invite someone as `EDITOR`.
 
 **The owner settled five questions on 02.09.2026**, written into
 `docs/product/content-section-map.md` §9: the editorial stage is a field
@@ -158,14 +162,12 @@ itself; archive search is by words; «Материалы» and «Что уже �
 place with two views; and **material a person added themselves counts as
 confirmed at the moment they add it**.
 
-**What still waits on him, and only him.** `fkft`. Registering on production
+**What still waits on him, and only him.** Registering on production
 with a third address and reading what arrives; whether to approve or delete
 the two pending accounts; whether to press the Telegram binding link — until he
-does, nothing has ever bound. Open questions nobody may answer: whether a
-domain owner may step over `robots.txt` for his own site (shelved); the brief's
-loose bar (`brief-gate.ts`: a statement plus any URL passes) against the
-context's strict one — the strict bar is now reachable, so a brief built on
-bare search links still yields a draft with nothing citable behind it.
+does, nothing has ever bound. Open question nobody may answer: whether a
+domain owner may step over `robots.txt` for his own site (shelved). The two
+bars are decided by delegation (map §10) — one line from him reverses it.
 
 Open with their remainder in comments: `odb8`/`odb8.4` (archive built, search
 by words not started). `pl1.7`/`pl1.8` closing reasons hold what the voice epic
@@ -173,10 +175,8 @@ left unproven.
 
 ## Starter prompt for next orchestrator
 
-Use $orchestrator-stage. Read this handoff and `.codex/project-index.md`. Walk
-the roles change on the stand before anything else. `fkft` is the owner's, not
-yours. The owner questions under «Next
-recommended» — do not answer any for him. The voice epic `e3y` is closed; do not
+Use $orchestrator-stage. Read this handoff and `.codex/project-index.md`.
+The owner questions under «Next recommended» — do not answer any for him. The voice epic `e3y` is closed; do not
 re-open its two owner decisions. Before any voice check run `rebuild-voice.cjs
 --dry-run`: an analysis older than the ruler carries no print and every verdict
 reads «сравнить не с чем», which looks like a defect and is not.

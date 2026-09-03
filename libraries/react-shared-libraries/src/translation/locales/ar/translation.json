@@ -613,6 +613,7 @@
   "webhook_sent": "تم إرسال الويب هوك",
   "today": "اليوم",
   "channel_disconnected_click_to_reconnect": "تم فصل القناة، انقر لإعادة الاتصال.",
+  "channel_disconnected_ask_admin": "تم فصل القناة. اطلب من مسؤول إعادة ربطها.",
   "channel_disabled_upgrade_plan": "تم تعطيل هذه القناة، يرجى ترقية خطتك لتفعيلها.",
   "channel_added": "تمت إضافة القناة",
   "are_you_sure_disable_channel": "هل أنت متأكد أنك تريد تعطيل هذه القناة؟",

@@ -73,6 +73,27 @@ export class AgenciesRepository {
     });
   }
 
+  /**
+   * The agency a decision was just written to, whatever the decision was.
+   * `getAgencyById` asks for `approved: true`, which is right for a public
+   * page and wrong here: after a decline the flag is `false`, the lookup
+   * returned nothing, and the decline email went to `undefined`
+   * (`content-factory-next-p3gq`).
+   */
+  getAgencyForDecision(id: string) {
+    return this._socialMediaAgencies.model.socialMediaAgency.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      include: {
+        logo: true,
+        niches: true,
+        user: true,
+      },
+    });
+  }
+
   getAgencyInformation(agency: string) {
     return this._socialMediaAgencies.model.socialMediaAgency.findFirst({
       where: {

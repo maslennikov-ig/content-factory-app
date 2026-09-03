@@ -13,6 +13,7 @@ import {
 } from '@contentfactory/frontend/components/ui/surface';
 import clsx from 'clsx';
 import { useUser } from '../layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Menu } from '@contentfactory/frontend/components/launches/menu/menu';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Integration } from '@prisma/client';
@@ -200,6 +201,10 @@ export const MenuComponent: FC<
     collapsed,
   } = props;
   const user = useUser();
+  // `?refresh=` is the same door as connecting, an administrator's since
+  // `saas.2.1`; a member sees that the channel is down and whom to ask.
+  const canRefresh =
+    Boolean(integration.refreshNeeded) && isOrganizationAdmin(user?.role);
   const t = useT();
   const [collected, drag, dragPreview] = useDrag(() => ({
     type: 'menu',
@@ -212,12 +217,17 @@ export const MenuComponent: FC<
       // @ts-ignore
       ref={dragPreview}
       {...(integration.refreshNeeded && {
-        onClick: refreshChannel(integration),
+        ...(canRefresh && { onClick: refreshChannel(integration) }),
         'data-tooltip-id': 'tooltip',
-        'data-tooltip-content': t(
-          'channel_disconnected_click_to_reconnect',
-          'Channel disconnected, click to reconnect.'
-        ),
+        'data-tooltip-content': canRefresh
+          ? t(
+              'channel_disconnected_click_to_reconnect',
+              'Channel disconnected, click to reconnect.'
+            )
+          : t(
+              'channel_disconnected_ask_admin',
+              'Channel disconnected. Ask an administrator to reconnect it.'
+            ),
       })}
       {...(collapsed
         ? {
@@ -227,7 +237,7 @@ export const MenuComponent: FC<
         : {})}
       className={clsx(
         'flex gap-[12px] items-center bg-newBgColorInner hover:bg-boxHover group/profile transition-all rounded-e-[8px]',
-        integration.refreshNeeded && 'cursor-pointer'
+        canRefresh && 'cursor-pointer'
       )}
     >
       <div
@@ -244,7 +254,9 @@ export const MenuComponent: FC<
             className="absolute start-0 top-0 w-[48px] h-[48px] cursor-pointer"
             onClick={
               integration.refreshNeeded
-                ? refreshChannel(integration)
+                ? canRefresh
+                  ? refreshChannel(integration)
+                  : undefined
                 : continueIntegration(integration)
             }
           >

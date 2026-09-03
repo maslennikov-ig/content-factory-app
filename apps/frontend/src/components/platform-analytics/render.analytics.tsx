@@ -6,6 +6,8 @@ import { ChartSocial } from '@contentfactory/frontend/components/analytics/chart
 import { LoadingComponent } from '@contentfactory/frontend/components/layout/loading';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Button } from '@contentfactory/react/form/button';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 interface AnalyticsDataItem {
   label: string;
@@ -126,7 +128,9 @@ const AnalyticsCard: FC<{
   );
 };
 
-const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
+// `onRefresh` is absent for a member: `?refresh=` asks for an administrator
+// since `saas.2.1`, and a button that is always refused is not shown.
+const EmptyState: FC<{ onRefresh?: () => void }> = ({ onRefresh }) => {
   const t = useT();
 
   return (
@@ -151,24 +155,33 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
           'This channel needs to be refreshed to display analytics'
         )}
       </p>
-      <Button
-        onClick={onRefresh}
-        variant="primary"
- className="inline-flex items-center px-[16px] py-[8px] text-[14px] font-medium rounded-[8px] transition-colors"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+      {onRefresh ? (
+        <Button
+          onClick={onRefresh}
+          variant="primary"
+   className="inline-flex items-center px-[16px] py-[8px] text-[14px] font-medium rounded-[8px] transition-colors"
         >
-          <path d="M23 4v6h-6M1 20v-6h6" />
-          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-        </svg>
-        {t('refresh_channel', 'Refresh Channel')}
-      </Button>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M23 4v6h-6M1 20v-6h6" />
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+          </svg>
+          {t('refresh_channel', 'Refresh Channel')}
+        </Button>
+      ) : (
+        <p className="cf-caption text-newTableText text-center">
+          {t(
+            'channel_disconnected_ask_admin',
+            'Channel disconnected. Ask an administrator to reconnect it.'
+          )}
+        </p>
+      )}
     </div>
   );
 };
@@ -180,6 +193,8 @@ export const RenderAnalytics: FC<{
   const { integration, date } = props;
   const [loading, setLoading] = useState(true);
   const fetch = useFetch();
+  const user = useUser();
+  const canRefresh = isOrganizationAdmin(user?.role);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -247,7 +262,11 @@ export const RenderAnalytics: FC<{
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[16px]">
       {data?.length === 0 && (
-        <EmptyState onRefresh={refreshChannel(integration as any)} />
+        <EmptyState
+          onRefresh={
+            canRefresh ? refreshChannel(integration as any) : undefined
+          }
+        />
       )}
       {data?.map((item: AnalyticsDataItem, index: number) => (
         <AnalyticsCard

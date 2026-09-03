@@ -2,7 +2,7 @@ import {
   PrismaRepository,
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Post as PostBody } from '@contentfactory/nestjs-libraries/dtos/posts/create.post.dto';
 import {
   APPROVED_SUBMIT_FOR_ORDER,
@@ -1155,6 +1155,9 @@ export class PostsRepository {
     return this._comments.model.comments.findMany({
       where: {
         postId,
+        // The public preview stops showing a deleted post; its comments
+        // stop with it (`content-factory-next-jjvz`).
+        post: { deletedAt: null },
       },
       orderBy: {
         createdAt: 'asc',
@@ -1211,12 +1214,28 @@ export class PostsRepository {
     });
   }
 
-  createComment(
+  async createComment(
     orgId: string,
     userId: string,
     postId: string,
     content: string
   ) {
+    // The comment carried the caller's organisation and any post id, so a
+    // signed-in person could attach comments to another workspace's post.
+    // The post has to be the caller's own — the same shape as `editTag`
+    // above, closed the same day (`content-factory-next-jjvz`).
+    const post = await this._post.model.post.findFirst({
+      where: {
+        id: postId,
+        organizationId: orgId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
     return this._comments.model.comments.create({
       data: {
         organizationId: orgId,

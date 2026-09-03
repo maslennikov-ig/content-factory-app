@@ -613,6 +613,7 @@
   "webhook_sent": "Webhook 已发送",
   "today": "今天",
   "channel_disconnected_click_to_reconnect": "频道已断开连接，点击重新连接。",
+  "channel_disconnected_ask_admin": "频道已断开。请联系管理员重新连接。",
   "channel_disabled_upgrade_plan": "该频道已被禁用，请升级您的套餐以启用。",
   "channel_added": "频道已添加",
   "are_you_sure_disable_channel": "您确定要禁用此频道吗？",

@@ -613,6 +613,7 @@
   "webhook_sent": "Webhook gesendet",
   "today": "Heute",
   "channel_disconnected_click_to_reconnect": "Kanal getrennt, klicken Sie zum Wiederverbinden.",
+  "channel_disconnected_ask_admin": "Kanal getrennt. Bitten Sie einen Administrator, ihn neu zu verbinden.",
   "channel_disabled_upgrade_plan": "Dieser Kanal ist deaktiviert, bitte aktualisieren Sie Ihren Plan, um ihn zu aktivieren.",
   "channel_added": "Kanal hinzugefügt",
   "are_you_sure_disable_channel": "Sind Sie sicher, dass Sie diesen Kanal deaktivieren möchten?",

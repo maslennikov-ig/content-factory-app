@@ -613,6 +613,7 @@
   "webhook_sent": "Webhook gönderildi",
   "today": "Bugün",
   "channel_disconnected_click_to_reconnect": "Kanal bağlantısı kesildi, yeniden bağlanmak için tıklayın.",
+  "channel_disconnected_ask_admin": "Kanal bağlantısı kesildi. Yeniden bağlamasını bir yöneticiden isteyin.",
   "channel_disabled_upgrade_plan": "Bu kanal devre dışı, etkinleştirmek için lütfen planınızı yükseltin.",
   "channel_added": "Kanal eklendi",
   "are_you_sure_disable_channel": "Bu kanalı devre dışı bırakmak istediğinizden emin misiniz?",

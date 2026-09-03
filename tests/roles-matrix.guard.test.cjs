@@ -215,6 +215,23 @@ describe('the roles matrix describes the doors that exist', () => {
 
     expect(door?.sections).toEqual(['CHANNEL', 'ADMIN']);
   });
+
+  /**
+   * Found by the 03.09 audit: the connection had gone under an administrator
+   * while removing the channel — with every post on it — had stayed open to
+   * any member. A channel is the organization's asset at both ends.
+   */
+  test.each([
+    ['DELETE', '/integrations'],
+    ['POST', '/integrations/disable'],
+    ['POST', '/integrations/enable'],
+  ])('%s %s needs an administrator', (method, path) => {
+    const door = doors.find(
+      (candidate) => candidate.method === method && candidate.path === path
+    );
+
+    expect(door?.sections).toEqual(['ADMIN']);
+  });
 });
 
 describe('the guard exemption is the one the matrix prints', () => {

@@ -613,6 +613,7 @@
   "webhook_sent": "וובהוק נשלח",
   "today": "היום",
   "channel_disconnected_click_to_reconnect": "הערוץ מנותק, לחץ כדי להתחבר מחדש.",
+  "channel_disconnected_ask_admin": "הערוץ נותק. בקשו ממנהל לחבר אותו מחדש.",
   "channel_disabled_upgrade_plan": "הערוץ הזה מושבת, אנא שדרג את התוכנית שלך כדי להפעיל אותו.",
   "channel_added": "הערוץ נוסף",
   "are_you_sure_disable_channel": "האם אתה בטוח שברצונך להשבית את הערוץ הזה?",

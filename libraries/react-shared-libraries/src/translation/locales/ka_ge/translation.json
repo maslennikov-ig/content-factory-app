@@ -727,6 +727,7 @@
   "channel_disabled": "არხი გათიშულია",
   "channel_disabled_upgrade_plan": "ეს არხი გათიშულია. მის ჩასართავად განაახლეთ თქვენი გეგმა.",
   "channel_disconnected_click_to_reconnect": "არხი გაითიშა, ხელახლა დასაკავშირებლად დააწკაპუნეთ.",
+  "channel_disconnected_ask_admin": "არხი გათიშულია. სთხოვეთ ადმინისტრატორს ხელახლა დაკავშირება.",
   "channel_enabled": "არხი ჩართულია",
   "channel_id_copied": "არხის ID დაკოპირდა ბუფერში",
   "channel_settings": "არხის პარამეტრები",

@@ -614,6 +614,7 @@
   "webhook_sent": "Webhook send",
   "today": "Today",
   "channel_disconnected_click_to_reconnect": "Channel disconnected, click to reconnect.",
+  "channel_disconnected_ask_admin": "Channel disconnected. Ask an administrator to reconnect it.",
   "channel_disabled_upgrade_plan": "This channel is disabled, please upgrade your plan to enable it.",
   "channel_added": "Channel added",
   "are_you_sure_disable_channel": "Are you sure you want to disable this channel?",

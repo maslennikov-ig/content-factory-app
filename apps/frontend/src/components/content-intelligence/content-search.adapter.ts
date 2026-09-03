@@ -167,8 +167,3 @@ export function suggestClaimKey(row: {
   const attribute = slug((row.title || '').split(/\s+/).slice(0, 3).join(' '));
   return `${topic}|${attribute || 'claim'}`;
 }
-
-/** The excerpt as a first draft of the statement, bounded like the DTO is. */
-export function excerptAsStatement(excerpt: string): string {
-  return excerpt.trim().slice(0, 4_000);
-}

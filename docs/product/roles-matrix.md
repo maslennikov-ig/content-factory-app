@@ -89,6 +89,9 @@ if (!packageOptions) {
 | `/content-intelligence/sources/search-evidence` | AI | 1 | любой участник |
 | `/content-intelligence/voice` | ADMIN | 18 | администратор |
 | `/copilot` | AI | 4 | любой участник |
+| `/integrations` | ADMIN | 1 | **администратор** |
+| `/integrations/disable` | ADMIN | 1 | **администратор** |
+| `/integrations/enable` | ADMIN | 1 | **администратор** |
 | `/integrations/provider/:id/connect` | CHANNEL | 1 | любой участник |
 | `/integrations/social-connect/:integration` | CHANNEL | 1 | обратный вызов провайдера |
 | `/integrations/social/:integration` | CHANNEL, ADMIN | 1 | **администратор** |
@@ -111,6 +114,13 @@ if (!packageOptions) {
 `?refresh=` переподтверждает уже подключённый канал и по той же причине тоже
 админская. Кнопки «Добавить канал» участник больше не видит: дверь за ней всегда
 отказала бы.
+
+`/integrations` (удаление), `/integrations/disable` и `/integrations/enable` —
+конец жизни канала и его выключение. До аудита 03.09.2026 они были открыты
+любому участнику, хотя подключение уже ушло под администратора: участник мог
+удалить канал вместе со всеми его постами. Теперь под администратором по той же
+причине, что и подключение, — канал общий актив с обоих концов. Пункты меню
+канала участник не видит.
 
 `/integrations/provider/:id/connect` — второй шаг того же добавления. Роли на нём
 нет и не нужно: начать подключение может только администратор, а без начала

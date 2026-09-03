@@ -613,6 +613,7 @@
   "webhook_sent": "Webhook送信",
   "today": "今日",
   "channel_disconnected_click_to_reconnect": "チャンネルが切断されました。再接続するにはクリックしてください。",
+  "channel_disconnected_ask_admin": "チャンネルが切断されました。管理者に再接続を依頼してください。",
   "channel_disabled_upgrade_plan": "このチャンネルは無効になっています。有効にするにはプランをアップグレードしてください。",
   "channel_added": "チャンネルが追加されました",
   "are_you_sure_disable_channel": "本当にこのチャンネルを無効にしますか？",

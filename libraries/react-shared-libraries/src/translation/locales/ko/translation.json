@@ -613,6 +613,7 @@
   "webhook_sent": "웹훅 전송됨",
   "today": "오늘",
   "channel_disconnected_click_to_reconnect": "채널이 연결 해제되었습니다. 다시 연결하려면 클릭하세요.",
+  "channel_disconnected_ask_admin": "채널 연결이 끊어졌습니다. 관리자에게 다시 연결을 요청하세요.",
   "channel_disabled_upgrade_plan": "이 채널은 비활성화되어 있습니다. 활성화하려면 요금제를 업그레이드하세요.",
   "channel_added": "채널이 추가되었습니다",
   "are_you_sure_disable_channel": "이 채널을 비활성화하시겠습니까?",

@@ -614,6 +614,7 @@
   "webhook_sent": "Вебхук отправлен",
   "today": "Сегодня",
   "channel_disconnected_click_to_reconnect": "Канал отключён, нажмите для повторного подключения.",
+  "channel_disconnected_ask_admin": "Канал отключён. Попросите администратора подключить его заново.",
   "channel_disabled_upgrade_plan": "Этот канал отключён, пожалуйста, обновите ваш тариф для его активации.",
   "channel_added": "Канал добавлен",
   "are_you_sure_disable_channel": "Вы уверены, что хотите отключить этот канал?",

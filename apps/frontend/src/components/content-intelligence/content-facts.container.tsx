@@ -26,7 +26,6 @@ import {
   type FactTemporalKind,
 } from './content-facts.adapter';
 import {
-  excerptAsStatement,
   suggestClaimKey,
   type AcceptedEvidence,
 } from './content-search.adapter';
@@ -203,18 +202,18 @@ export function ContentFactsContainer({
   const [busy, setBusy] = useState(false);
 
   /*
-    Prefill from a newly accepted excerpt, once per excerpt.
-    Keyed on the evidence id rather than on the object, so a parent that
-    re-renders does not overwrite words the person has since edited — the
-    prefill is a starting point they own from the first keystroke.
+    A newly accepted excerpt suggests the key, once per excerpt, and nothing
+    else. It used to fill the statement too — and a statement is the person's
+    own word (§9.5), admitted to the unified context before the evidence is
+    confirmed, so the product's text became «own word» by a pre-filled field.
+    The excerpt is quoted beside the form instead; the words are theirs
+    (`content-factory-next-d1rx`, 03.09.2026).
   */
   useEffect(() => {
     if (!pendingEvidence) return;
     setDraft((current) => ({
       ...current,
       claimKey: current.claimKey || suggestClaimKey(pendingEvidence),
-      statement: excerptAsStatement(pendingEvidence.excerpt),
-      valueText: excerptAsStatement(pendingEvidence.excerpt),
     }));
     setCreated(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
