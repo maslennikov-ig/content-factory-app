@@ -1185,6 +1185,12 @@ export class PostsRepository {
     return this._tags.model.tags.update({
       where: {
         id,
+        // `orgId` was taken as a parameter and dropped: the tag was found by
+        // id alone, so a signed-in person could rename and recolour another
+        // workspace's tag if they knew its id. `deleteTag`, two methods down,
+        // always filtered correctly — this was the odd one out.
+        // Found 03.09.2026 by `tests/tenant-isolation.guard.test.cjs`.
+        orgId,
       },
       data: {
         name: body.name,

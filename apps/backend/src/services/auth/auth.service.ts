@@ -5,6 +5,7 @@ import { LoginUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/login.u
 import { UsersService } from '@contentfactory/nestjs-libraries/database/prisma/users/users.service';
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { AuthService as AuthChecker } from '@contentfactory/helpers/auth/auth.service';
+import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { registrationRequiresApproval } from '@contentfactory/helpers/auth/registration.approval';
 import { resolveNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
 import { AuthProviderManager } from '@contentfactory/backend/services/auth/providers/providers.manager';
@@ -114,7 +115,9 @@ export class AuthService {
     body: CreateOrgUserDto | LoginUserDto,
     ip: string,
     userAgent: string,
-    addToOrg?: boolean | { orgId: string; role: 'USER' | 'ADMIN'; id: string }
+    addToOrg?:
+      | boolean
+      | { orgId: string; role: AssignableOrganizationRole; id: string }
   ) {
     if (provider === Provider.LOCAL) {
       if (this.plusAddressingBlocked(body.email)) {
@@ -348,7 +351,7 @@ export class AuthService {
 
       return getOrg as {
         email: string;
-        role: 'USER' | 'ADMIN';
+        role: AssignableOrganizationRole;
         orgId: string;
         id: string;
       };

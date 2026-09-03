@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Wählen Sie mindestens einen Kanal – das Material muss irgendwohin.",
   "onboarding_step_next": "Womit anfangen",
   "onboarding_next_title": "Womit anfangen",
-  "onboarding_next_description": "Sechs Schritte durch einen Inhalt: Kanal, Stimme, eine Grundlage, Briefing, Entwurf, Zeitplan. Erledigtes wird von selbst abgehakt."
+  "onboarding_next_description": "Sechs Schritte durch einen Inhalt: Kanal, Stimme, eine Grundlage, Briefing, Entwurf, Zeitplan. Erledigtes wird von selbst abgehakt.",
+  "role_editor": "Redakteur",
+  "role_user_meaning": "Schreibt, plant Beiträge und nutzt den KI-Assistenten.",
+  "role_editor_meaning": "Schreibt, sammelt Briefings und plant Beiträge — verbindet keine Kanäle und lädt niemanden ein.",
+  "role_admin_meaning": "Alles wie ein Redakteur, dazu Kanäle, die Markenstimme, Einstellungen und das Team.",
+  "ai_usage_by_member": "KI-Vorgänge nach Mitglied, dieser Zeitraum",
+  "ai_usage_scheduled_work": "Geplante Aufgaben und API"
 }

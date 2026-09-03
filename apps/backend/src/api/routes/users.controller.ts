@@ -11,6 +11,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { sign } from 'jsonwebtoken';
 import { Organization, User } from '@prisma/client';
 import { SubscriptionService } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -85,13 +86,12 @@ export class UsersController {
         : organization?.isTrailing,
       allowTrial: organization?.allowTrial,
       streakSince: organization?.streakSince || null,
-      publicApi:
+      publicApi: isOrganizationAdmin(
         // @ts-ignore
-        organization?.users[0]?.role === 'SUPERADMIN' ||
-        // @ts-ignore
-        organization?.users[0]?.role === 'ADMIN'
-          ? organization?.apiKey
-          : '',
+        organization?.users[0]?.role
+      )
+        ? organization?.apiKey
+        : '',
     };
   }
 

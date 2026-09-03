@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "En az bir kanal seçin — materyalin bir yere gitmesi gerekiyor.",
   "onboarding_step_next": "Nereden başlamalı",
   "onboarding_next_title": "Nereden başlamalı",
-  "onboarding_next_description": "Tek bir içerikle altı adım: kanal, ses, dayanacak bir şey, brief, taslak, planlama. Yapılanlar kendiliğinden işaretlenir."
+  "onboarding_next_description": "Tek bir içerikle altı adım: kanal, ses, dayanacak bir şey, brief, taslak, planlama. Yapılanlar kendiliğinden işaretlenir.",
+  "role_editor": "Editör",
+  "role_user_meaning": "Yazar, zamanlar ve yapay zekâ asistanını kullanır.",
+  "role_editor_meaning": "Yazar, brief toplar ve zamanlar — kanal bağlamaz ve kimseyi davet etmez.",
+  "role_admin_meaning": "Bir editörün yaptığı her şey, ayrıca kanallar, marka sesi, ayarlar ve ekip.",
+  "ai_usage_by_member": "Bu dönemde üyeye göre yapay zekâ işlemleri",
+  "ai_usage_scheduled_work": "Zamanlanmış işler ve API"
 }

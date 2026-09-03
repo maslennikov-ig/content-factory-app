@@ -178,9 +178,9 @@ const { AiProviderService } = loadTypeScriptModule(
 );
 
 test('settings response exposes key presence without returning either secret', async () => {
-  const settings = await new AiProviderService({}).getSettings(
-    'organization-a'
-  );
+  const settings = await new AiProviderService({
+    aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
+  }).getSettings('organization-a');
 
   expect(settings).toMatchObject({
     usageMode: 'included',
@@ -203,7 +203,7 @@ test('settings distinguish an exhausted included allowance from an available one
         createdAt: new Date('2026-08-01T00:00:00.000Z'),
       }),
     },
-    aiUsageRecord: { count: async () => 2 },
+    aiUsageRecord: { count: async () => 2, groupBy: async () => [] },
   });
 
   await expect(service.getSettings('organization-a')).resolves.toMatchObject({
@@ -217,7 +217,13 @@ test('settings distinguish an exhausted included allowance from an available one
 describe('saving the AI provider settings', () => {
   const createService = () => {
     const upsert = jest.fn().mockResolvedValue({});
-    const service = new AiProviderService({ aiProviderSetting: { upsert } });
+    // `updateSettings` answers with the fresh settings, and reading them now
+    // includes the per-member usage breakdown, so the double has to carry the
+    // ledger as well as the setting it saves.
+    const service = new AiProviderService({
+      aiProviderSetting: { upsert },
+      aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
+    });
     return { service, upsert };
   };
 

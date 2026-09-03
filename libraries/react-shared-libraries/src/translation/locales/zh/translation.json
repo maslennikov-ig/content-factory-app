@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "至少选一个渠道——内容总得有地方去。",
   "onboarding_step_next": "从哪里开始",
   "onboarding_next_title": "从哪里开始",
-  "onboarding_next_description": "用一条内容走完六步：频道、语气、依据、简报、草稿、排期。已完成的会自动打勾。"
+  "onboarding_next_description": "用一条内容走完六步：频道、语气、依据、简报、草稿、排期。已完成的会自动打勾。",
+  "role_editor": "编辑",
+  "role_user_meaning": "撰写内容、安排发布，并使用 AI 助手。",
+  "role_editor_meaning": "撰写内容、整理简报、安排发布；不连接频道，也不邀请成员。",
+  "role_admin_meaning": "编辑能做的一切，另加频道、品牌声音、设置和团队。",
+  "ai_usage_by_member": "本期各成员的 AI 操作数",
+  "ai_usage_scheduled_work": "定时任务与 API"
 }

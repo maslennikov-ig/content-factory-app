@@ -26,14 +26,15 @@ import {
   AuthorizationActions,
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
+import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 type RequestOrganization = Organization & {
-  users?: Array<{ role: 'USER' | 'ADMIN' | 'SUPERADMIN' }>;
+  users?: Array<{ role: OrganizationRole }>;
 };
 
 function canManageProfile(organization: RequestOrganization) {
-  const role = organization.users?.[0]?.role;
-  return role === 'ADMIN' || role === 'SUPERADMIN';
+  return isOrganizationAdmin(organization.users?.[0]?.role);
 }
 
 const adminPolicy: AbilityPolicy = [

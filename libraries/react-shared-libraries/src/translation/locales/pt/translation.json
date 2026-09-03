@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Escolha ao menos um canal — o material precisa ir para algum lugar.",
   "onboarding_step_next": "Por onde começar",
   "onboarding_next_title": "Por onde começar",
-  "onboarding_next_description": "Seis passos com um único conteúdo: canal, voz, algo em que se apoiar, brief, rascunho, agendamento. O que já foi feito é marcado sozinho."
+  "onboarding_next_description": "Seis passos com um único conteúdo: canal, voz, algo em que se apoiar, brief, rascunho, agendamento. O que já foi feito é marcado sozinho.",
+  "role_editor": "Editor",
+  "role_user_meaning": "Escreve, agenda e usa o assistente de IA.",
+  "role_editor_meaning": "Escreve, reúne briefings e agenda — não conecta canais e não convida pessoas.",
+  "role_admin_meaning": "Tudo o que um editor faz, mais canais, a voz da marca, as configurações e a equipe.",
+  "ai_usage_by_member": "Operações de IA por membro, neste período",
+  "ai_usage_scheduled_work": "Trabalho agendado e API"
 }

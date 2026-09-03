@@ -7,6 +7,7 @@ import { Select } from '@contentfactory/react/form/select';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 type ShortLinkPreference = 'ASK' | 'YES' | 'NO';
 
@@ -43,7 +44,7 @@ const ShortlinkPreferenceComponent = () => {
   // disabled rather than hidden, unlike the AI provider section: the
   // preference governs how this member's own posts are handled, and they can
   // already read it, so hiding it would take away something they have.
-  const canChange = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  const canChange = isOrganizationAdmin(user?.role);
 
   const [localValue, setLocalValue] = useState<ShortLinkPreference>('ASK');
 

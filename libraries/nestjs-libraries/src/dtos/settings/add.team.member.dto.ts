@@ -6,6 +6,7 @@ import {
   IsString,
   ValidateIf,
 } from 'class-validator';
+import { ASSIGNABLE_ORGANIZATION_ROLES } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export class AddTeamMemberDto {
   @IsDefined()
@@ -14,7 +15,7 @@ export class AddTeamMemberDto {
   email: string;
 
   @IsString()
-  @IsIn(['USER', 'ADMIN'])
+  @IsIn([...ASSIGNABLE_ORGANIZATION_ROLES])
   role: string;
 
   @IsDefined()

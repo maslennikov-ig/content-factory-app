@@ -29,8 +29,8 @@ export class MediaService {
     return this._mediaRepository.deleteMedia(org, id);
   }
 
-  getMediaById(id: string) {
-    return this._mediaRepository.getMediaById(id);
+  getMediaById(org: string, id: string) {
+    return this._mediaRepository.getMediaById(org, id);
   }
 
   async generateImage(

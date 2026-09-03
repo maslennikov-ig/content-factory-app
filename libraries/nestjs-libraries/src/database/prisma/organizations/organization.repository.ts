@@ -7,6 +7,8 @@ import {
   CreateOrgUserDto,
 } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import type { NewUserAccess } from '@contentfactory/helpers/auth/registration.approval';
 import { randomUUID } from 'node:crypto';
 import { normalizeIdentityIdentifier } from '@contentfactory/nestjs-libraries/database/prisma/users/user-identity';
@@ -267,7 +269,7 @@ export class OrganizationRepository {
     userId: string,
     id: string,
     orgId: string,
-    role: 'USER' | 'ADMIN'
+    role: AssignableOrganizationRole
   ) {
     const checkIfInviteExists = await this._user.model.user.findFirst({
       where: {
@@ -468,9 +470,11 @@ export class OrganizationRepository {
       },
     });
 
-    const rank = { SUPERADMIN: 0, ADMIN: 1, USER: 2 } as const;
+    // The most senior member, and the earliest to join among equals — the
+    // query above is already ordered by `createdAt`, and sorting is stable.
     return members.sort(
-      (left, right) => rank[left.role] - rank[right.role]
+      (left, right) =>
+        organizationRoleLevel(right.role) - organizationRoleLevel(left.role)
     )[0];
   }
 

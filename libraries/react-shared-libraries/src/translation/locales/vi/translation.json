@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Hãy chọn ít nhất một kênh — bài viết phải đi đâu đó chứ.",
   "onboarding_step_next": "Bắt đầu từ đâu",
   "onboarding_next_title": "Bắt đầu từ đâu",
-  "onboarding_next_description": "Sáu bước với một nội dung: kênh, giọng, chỗ dựa, brief, bản nháp, lên lịch. Việc đã xong được tự đánh dấu."
+  "onboarding_next_description": "Sáu bước với một nội dung: kênh, giọng, chỗ dựa, brief, bản nháp, lên lịch. Việc đã xong được tự đánh dấu.",
+  "role_editor": "Biên tập viên",
+  "role_user_meaning": "Viết, lên lịch và dùng trợ lý AI.",
+  "role_editor_meaning": "Viết, thu thập brief và lên lịch — không kết nối kênh và không mời người khác.",
+  "role_admin_meaning": "Mọi việc của biên tập viên, cộng thêm kênh, giọng thương hiệu, cài đặt và nhóm.",
+  "ai_usage_by_member": "Số thao tác AI theo thành viên trong kỳ này",
+  "ai_usage_scheduled_work": "Công việc theo lịch và API"
 }

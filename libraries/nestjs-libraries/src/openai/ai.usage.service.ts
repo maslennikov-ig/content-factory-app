@@ -10,6 +10,7 @@ import {
   setAiProviderSettingReader,
   withActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
 
 export type AiOperation =
   | 'text_generation'
@@ -212,6 +213,11 @@ export class AiUsageService {
   ) {
     const data = {
       organizationId,
+      // Null for work no person asked for: scheduled autoposting, queued
+      // activities, anything reached through the organization's API key. The
+      // ledger says «the organization, nobody in particular» rather than
+      // attributing it to whoever happened to configure the schedule.
+      userId: getActingUserId() ?? null,
       usageMode: config.usageMode,
       operation,
       provider: config.provider,

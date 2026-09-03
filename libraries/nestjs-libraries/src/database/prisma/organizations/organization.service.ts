@@ -8,6 +8,8 @@ import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscr
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import dayjs from 'dayjs';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Organization, ShortLinkPreference, User } from '@prisma/client';
 import { AutopostService } from '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.service';
 import { resolveNewUserAccess } from '@contentfactory/helpers/auth/registration.approval';
@@ -82,7 +84,7 @@ export class OrganizationService {
     userId: string,
     id: string,
     orgId: string,
-    role: 'USER' | 'ADMIN'
+    role: AssignableOrganizationRole
   ) {
     return this._organizationRepository.addUserToOrg(userId, id, orgId, role);
   }
@@ -225,7 +227,7 @@ export class OrganizationService {
       user.id,
       makeId(5),
       org.id,
-      body.role as 'USER' | 'ADMIN'
+      body.role as AssignableOrganizationRole
     );
 
     if (!added) {
@@ -248,8 +250,8 @@ export class OrganizationService {
     // @ts-ignore
     const myRole = org.users[0].role;
     const userRole = findOrgToDelete.users[0].role;
-    const myLevel = myRole === 'USER' ? 0 : myRole === 'ADMIN' ? 1 : 2;
-    const userLevel = userRole === 'USER' ? 0 : userRole === 'ADMIN' ? 1 : 2;
+    const myLevel = organizationRoleLevel(myRole);
+    const userLevel = organizationRoleLevel(userRole);
 
     if (myLevel < userLevel) {
       throw new Error('You do not have permission to delete this user');

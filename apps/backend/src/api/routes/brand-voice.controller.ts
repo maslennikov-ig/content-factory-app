@@ -16,6 +16,8 @@ import { ApiTags } from '@nestjs/swagger';
 import type { Organization, User } from '@prisma/client';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
+import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
 import {
   AuthorizationActions,
@@ -75,7 +77,7 @@ import {
  */
 
 type RequestOrganization = Organization & {
-  users?: Array<{ role: 'USER' | 'ADMIN' | 'SUPERADMIN' }>;
+  users?: Array<{ role: OrganizationRole }>;
 };
 
 function safeHttpError(error: unknown): never {
@@ -108,10 +110,8 @@ function safeHttpError(error: unknown): never {
  * two sections of the same product cannot disagree about who may change a
  * profile.
  */
-const canManageVoice = (organization: RequestOrganization): boolean => {
-  const role = organization.users?.[0]?.role;
-  return role === 'ADMIN' || role === 'SUPERADMIN';
-};
+const canManageVoice = (organization: RequestOrganization): boolean =>
+  isOrganizationAdmin(organization.users?.[0]?.role);
 
 @ApiTags('Content intelligence · brand voice')
 @Controller('/content-intelligence/voice')

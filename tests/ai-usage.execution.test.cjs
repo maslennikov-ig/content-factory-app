@@ -30,6 +30,14 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
   return loaded.exports;
 }
 
+/**
+ * The acting person, as the auth middleware would have set them. A real
+ * `AsyncLocalStorage` rather than a constant, so a test can prove the ledger
+ * reads the context at admission time instead of at construction.
+ */
+const actingUser = new AsyncLocalStorage();
+const asMember = (userId, callback) => actingUser.run(userId, callback);
+
 function loadUsage({ transaction, create, update, config }) {
   const active = new AsyncLocalStorage();
   const loaded = loadTypeScriptModule(
@@ -59,6 +67,9 @@ function loadUsage({ transaction, create, update, config }) {
         withActiveAiConfig: (organizationId, nextConfig, callback) =>
           active.run({ organizationId, config: nextConfig }, callback),
         setAiProviderSettingReader: () => undefined,
+      },
+      '@contentfactory/nestjs-libraries/user/acting.user': {
+        getActingUserId: () => actingUser.getStore(),
       },
     }
   );
@@ -1001,5 +1012,98 @@ describe('AI operation usage seam', () => {
       where: { id: 'usage-stream-break' },
       data: { status: 'failed' },
     });
+  });
+});
+
+/**
+ * `content-factory-next-saas.2.1`, step 3. The ledger used to carry an
+ * organization and nothing else, so «who spent this» had no answer — not a
+ * limit that could not be enforced, an amount that could not be shown.
+ */
+describe('who the operation is recorded against', () => {
+  const workspaceKey = {
+    ...included,
+    usageMode: 'workspace_key',
+    apiKey: 'workspace',
+  };
+
+  const ledger = () => {
+    const create = jest.fn(async ({ data }) => ({ id: 'usage-1', ...data }));
+    const update = jest.fn(async () => ({}));
+    return {
+      create,
+      usage: loadUsage({
+        transaction: jest.fn(),
+        create,
+        update,
+        config: workspaceKey,
+      }),
+    };
+  };
+
+  test('an operation asked for by a member carries that member', async () => {
+    const { create, usage } = ledger();
+
+    await asMember('user-7', () =>
+      usage.executeAiOperation('organization-a', 'text_generation', async () => 'ok')
+    );
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organizationId: 'organization-a',
+        userId: 'user-7',
+      }),
+    });
+  });
+
+  test('a stream is recorded against the member who opened it', async () => {
+    const { create, usage } = ledger();
+
+    async function* provider() {
+      yield 'chunk';
+    }
+
+    await asMember('user-9', async () => {
+      for await (const item of usage.executeAiStreamOperation(
+        'organization-a',
+        'agent',
+        () => provider()
+      )) {
+        expect(item).toBe('chunk');
+      }
+    });
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: 'user-9' }),
+    });
+  });
+
+  /**
+   * Scheduled autoposting and anything reached through the organization's API
+   * key run with no session. Null says so; blaming whoever configured the
+   * schedule would be worse than saying nothing.
+   */
+  test('work with nobody behind it is recorded against nobody', async () => {
+    const { create, usage } = ledger();
+
+    await usage.executeAiOperation('organization-a', 'autopost', async () => 'ok');
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: null }),
+    });
+  });
+
+  /**
+   * An included-mode admission is created inside a serializable transaction,
+   * a different code path from the workspace-key insert above.
+   */
+  test('an included-quota admission carries the member too', async () => {
+    const { usage, records } = includedLedger({ quota: 5 });
+
+    await asMember('user-4', () =>
+      usage.executeAiOperation('organization-a', 'text_generation', async () => 'ok')
+    );
+
+    expect(records.at(-1)).toMatchObject({ userId: 'user-4' });
   });
 });

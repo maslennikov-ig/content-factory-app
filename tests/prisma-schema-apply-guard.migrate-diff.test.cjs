@@ -164,9 +164,11 @@ function schemaWithoutNewsletterDeliveryState() {
 }
 
 // The schema as `main` has it, before the cloud-first SaaS slice. Diffing
-// forward from it prints the fifteen statements the operator applies for this
-// branch, two of which are `CREATE TYPE ... AS ENUM`. Before `--allow-enum`
-// those two had to be applied by a separate `psql` outside the guard.
+// forward from it prints the seventeen statements the operator applies for
+// this branch, two of which are `CREATE TYPE ... AS ENUM`. Before
+// `--allow-enum` those two had to be applied by a separate `psql` outside the
+// guard. It was fifteen until `saas.2.1` gave `AiUsageRecord` its `userId`,
+// which adds the member index and the foreign key that nulls on delete.
 function schemaWithoutSaasSlice() {
   let schema = fs.readFileSync(schemaPath, 'utf8');
   schema = removeRelationField(schema, 'AiUsageRecord');
@@ -335,7 +337,7 @@ describe('Prisma production SQL apply guard against real migrate diff output', (
       const enums = all.filter((statement) => /CREATE TYPE "/i.test(statement));
 
       expect(enums).toHaveLength(2);
-      expect(all).toHaveLength(15);
+      expect(all).toHaveLength(17);
 
       const result = runGuard({
         diffFile: writeSql('saas-slice-diff.sql', all),
@@ -352,7 +354,7 @@ describe('Prisma production SQL apply guard against real migrate diff output', (
 
       expect(result.stderr).toBe('');
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('15 explicitly selected statement(s)');
+      expect(result.stdout).toContain('17 explicitly selected statement(s)');
     });
 
     test('refuses the same slice when one enum is left unnamed', () => {

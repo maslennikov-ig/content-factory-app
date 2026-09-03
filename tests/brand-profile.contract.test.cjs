@@ -26,6 +26,10 @@ const {
 } = require('./helpers/voice-memory-prisma.cjs');
 
 const commonSources = {
+  // The real role helper, not a stand-in: it holds the one ranking the product
+  // has, and a stub here would be a second copy of it.
+  '@contentfactory/nestjs-libraries/user/organization.roles':
+    'libraries/nestjs-libraries/src/user/organization.roles.ts',
   '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.types':
     'libraries/nestjs-libraries/src/content-intelligence/brand-profile/brand-profile.types.ts',
   '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.validation':

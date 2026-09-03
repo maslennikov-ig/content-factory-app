@@ -176,6 +176,7 @@ model User {
   // its expiry in the past is inert, not a live secret.
   telegramBindingCode              String?
   telegramBindingCodeExpiresAt     DateTime?
+  aiUsageRecords                   AiUsageRecord[]
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -1790,9 +1791,16 @@ enum Provider {
   TELEGRAM
 }
 
+/// Roles inside one workspace. The ranking between them, and the fact that
+/// `EDITOR` and `USER` are peers in authority, live in
+/// `libraries/nestjs-libraries/src/user/organization.roles.ts`; what each one
+/// may open is `docs/product/roles-matrix.md`.
 enum Role {
   SUPERADMIN
   ADMIN
+  /// Writes: posts, briefs, materials, the schedule. Does not connect
+  /// channels and does not invite people.
+  EDITOR
   USER
 }
 
@@ -1877,6 +1885,19 @@ model AiUsageRecord {
   id             String        @id @default(uuid())
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Who asked for the operation, when a person did.
+  ///
+  /// The ledger counted an organization and nothing else, so «who spent this»
+  /// had no answer at all — not a limit that could not be enforced, an amount
+  /// that could not be shown. Nullable because not every operation has a
+  /// person behind it: scheduled autoposting and other background work run
+  /// with no session, and a null here says exactly that rather than blaming
+  /// whoever set the schedule up.
+  ///
+  /// `SetNull` on delete, not `Cascade`: removing someone from the instance
+  /// must not remove the organization's record of what was spent.
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   usageMode      AiUsageMode
   operation      String
   provider       String
@@ -1887,6 +1908,10 @@ model AiUsageRecord {
 
   @@index([organizationId, usageMode, createdAt])
   @@index([organizationId, status, createdAt])
+  /// Serves «what has this member spent this period»: the organization first,
+  /// because no read of this ledger ever crosses one, then the member, then
+  /// the period.
+  @@index([organizationId, userId, createdAt])
   /// Serves the organization-unfiltered retention delete in
   /// `scripts/operations/cleanup-saas-retention.cjs`. The two composite indexes
   /// above lead with `organizationId` and cannot answer `createdAt < cutoff`.

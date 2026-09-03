@@ -208,8 +208,22 @@ export class IntegrationsController {
     );
   }
 
+  /**
+   * A channel is a shared asset: it publishes in the organization's name and
+   * feeds the brand voice. Connecting one starts here — this is the door that
+   * hands out the provider's OAuth address — so it is an administrator's act,
+   * and the same holds for re-authorizing an existing channel through
+   * `?refresh=`, which mints the same address for the same channel.
+   *
+   * Two policies, and they are read with AND (`permissions.guard.ts`): the
+   * plan limit still answers first, so a workspace out of channel slots keeps
+   * hearing about the limit rather than about a role.
+   */
   @Get('/social/:integration')
-  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.CHANNEL],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
   async getIntegrationUrl(
     @Param('integration') integration: string,
     @Query('refresh') refresh: string,

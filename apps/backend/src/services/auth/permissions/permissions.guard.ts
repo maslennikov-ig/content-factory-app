@@ -12,6 +12,39 @@ import { Organization } from '@prisma/client';
 import { Request } from 'express';
 import { SubscriptionException } from './permission.exception.class';
 
+/**
+ * Doors that reach this guard without a session, and therefore without an
+ * organization on the request. There is nothing here to check a policy
+ * against: `check()` needs an organization id and a role, and both live on
+ * `request.org`, which the auth middleware never set for these routes.
+ *
+ * Each entry must be a door the product itself never calls with a session.
+ * `/integrations/provider` used to be on this list and was not such a door:
+ * it matched `POST /integrations/provider/:id/connect`, the second step of
+ * adding a channel, which the application calls from a signed-in browser
+ * (`continue.integration.tsx`). Its `@CheckPolicies` never ran. The
+ * unauthenticated half of that flow is a separate route,
+ * `/integrations/public/provider/:id/connect`, which carries no policies at
+ * all — so nothing needed the entry, and removing it puts the channel door
+ * back under the guard.
+ *
+ * Matching is anchored to the start of the path rather than searched for
+ * anywhere in it: a substring exemption grows silently as routes are added
+ * beneath a matching name, which is exactly how the entry above came to cover
+ * a door nobody meant to exempt.
+ */
+const UNAUTHENTICATED_PATHS = [
+  /** `auth.controller.ts` — registration, login, password reset, OAuth entry. */
+  '/auth',
+  /** `no.auth.integrations.controller.ts` — the provider's own callback. */
+  '/integrations/social-connect',
+];
+
+const isUnauthenticatedPath = (path: string) =>
+  UNAUTHENTICATED_PATHS.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  );
+
 @Injectable()
 export class PoliciesGuard implements CanActivate {
   constructor(
@@ -21,12 +54,7 @@ export class PoliciesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request: Request = context.switchToHttp().getRequest();
-    if (
-      request.path.indexOf('/auth') > -1 ||
-      request.path.indexOf('/auth') > -1 ||
-      request.path.indexOf('/integrations/social-connect') > -1 ||
-      request.path.indexOf('/integrations/provider') > -1
-    ) {
+    if (isUnauthenticatedPath(request.path)) {
       return true;
     }
 

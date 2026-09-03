@@ -7,6 +7,7 @@ import { UsersService } from '@contentfactory/nestjs-libraries/database/prisma/u
 import { getCookieUrlFromDomain } from '@contentfactory/helpers/subdomain/subdomain.management';
 import { HttpForbiddenException } from '@contentfactory/nestjs-libraries/services/exception.filter';
 import { MastraService } from '@contentfactory/nestjs-libraries/chat/mastra.service';
+import { runAsActingUser } from '@contentfactory/nestjs-libraries/user/acting.user';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -35,6 +36,7 @@ export class AuthMiddleware implements NestMiddleware {
     if (!auth) {
       throw new HttpForbiddenException();
     }
+    let actingUserId: string | undefined;
     try {
       // Verify the JWT signature only. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
@@ -79,7 +81,10 @@ export class AuthMiddleware implements NestMiddleware {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
           req.org = loadImpersonate.organization;
-          next();
+          // The impersonated identity, not the superadmin behind it: what the
+          // request does, it does as that person, and the ledger should read
+          // the same way the organization's own screens do.
+          runAsActingUser(user.id, next);
           return;
         }
       }
@@ -106,9 +111,19 @@ export class AuthMiddleware implements NestMiddleware {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
       req.org = setOrg;
+      actingUserId = user.id;
     } catch (err) {
       throw new HttpForbiddenException();
     }
-    next();
+    if (!actingUserId) {
+      // The block above either resolves a session or throws. Reaching here
+      // would mean the request continued without one, and this middleware
+      // exists to make that impossible.
+      throw new HttpForbiddenException();
+    }
+    // Everything the request goes on to do runs as this person, so anything
+    // that records who acted — the AI ledger first — can read it without a
+    // parameter threaded through services that have no business with it.
+    runAsActingUser(actingUserId, next);
   }
 }

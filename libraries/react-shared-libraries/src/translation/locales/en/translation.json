@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Choose at least one channel — the material has to go somewhere.",
   "onboarding_step_next": "Where to start",
   "onboarding_next_title": "Where to start",
-  "onboarding_next_description": "Six steps through one piece of content: channel, voice, something to stand on, brief, draft, schedule. What is already done is ticked off for you."
+  "onboarding_next_description": "Six steps through one piece of content: channel, voice, something to stand on, brief, draft, schedule. What is already done is ticked off for you.",
+  "role_editor": "Editor",
+  "role_user_meaning": "Writes and schedules, and uses the AI assistant.",
+  "role_editor_meaning": "Writes, gathers briefs and schedules — does not connect channels and does not invite people.",
+  "role_admin_meaning": "Everything an editor can do, plus channels, the brand voice, settings and the team.",
+  "ai_usage_by_member": "AI operations by member, this period",
+  "ai_usage_scheduled_work": "Scheduled and API work"
 }

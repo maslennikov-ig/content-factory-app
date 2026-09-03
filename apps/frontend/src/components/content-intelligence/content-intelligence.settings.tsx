@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useUser } from '../layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   ContentIntelligenceView,
   type ContentIntelligenceActions,
@@ -297,7 +298,7 @@ export function ContentIntelligenceSettings({
   );
   const data = useMemo<ContentIntelligenceData>(
     () => ({
-      canManage: user?.role === 'ADMIN' || user?.role === 'SUPERADMIN',
+      canManage: isOrganizationAdmin(user?.role),
       sources: sourceEnvelope.sources,
       sourceCapabilities: sourceEnvelope.capabilities,
       sourceDraftMaterial: draftMaterial,

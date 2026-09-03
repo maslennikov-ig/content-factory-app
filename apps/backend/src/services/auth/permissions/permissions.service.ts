@@ -7,6 +7,7 @@ import { IntegrationService } from '@contentfactory/nestjs-libraries/database/pr
 import dayjs from 'dayjs';
 import { WebhooksService } from '@contentfactory/nestjs-libraries/database/prisma/webhooks/webhooks.service';
 import { AuthorizationActions, Sections } from './permission.exception.class';
+import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export type AppAbility = Ability<[AuthorizationActions, Sections]>;
 
@@ -39,7 +40,7 @@ export class PermissionsService {
   async check(
     orgId: string,
     created_at: Date,
-    permission: 'USER' | 'ADMIN' | 'SUPERADMIN',
+    permission: OrganizationRole,
     requestedPermission: Array<[AuthorizationActions, Sections]>,
     refreshChannelId?: string
   ) {

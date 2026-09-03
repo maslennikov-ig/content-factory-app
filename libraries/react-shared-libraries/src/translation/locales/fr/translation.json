@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Choisissez au moins un canal : le contenu doit bien aller quelque part.",
   "onboarding_step_next": "Par où commencer",
   "onboarding_next_title": "Par où commencer",
-  "onboarding_next_description": "Six étapes pour un seul contenu : canal, voix, un appui, brief, brouillon, planification. Ce qui est fait se coche tout seul."
+  "onboarding_next_description": "Six étapes pour un seul contenu : canal, voix, un appui, brief, brouillon, planification. Ce qui est fait se coche tout seul.",
+  "role_editor": "Éditeur",
+  "role_user_meaning": "Rédige, planifie et utilise l'assistant IA.",
+  "role_editor_meaning": "Rédige, rassemble les briefs et planifie — ne connecte pas de canaux et n’invite personne.",
+  "role_admin_meaning": "Tout ce que fait un éditeur, plus les canaux, la voix de marque, les réglages et l’équipe.",
+  "ai_usage_by_member": "Opérations IA par membre, cette période",
+  "ai_usage_scheduled_work": "Tâches planifiées et API"
 }

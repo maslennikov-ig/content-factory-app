@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "Scegli almeno un canale: il materiale deve pur andare da qualche parte.",
   "onboarding_step_next": "Da dove iniziare",
   "onboarding_next_title": "Da dove iniziare",
-  "onboarding_next_description": "Sei passi su un solo contenuto: canale, voce, qualcosa su cui poggiare, brief, bozza, pianificazione. Ciò che è fatto si spunta da solo."
+  "onboarding_next_description": "Sei passi su un solo contenuto: canale, voce, qualcosa su cui poggiare, brief, bozza, pianificazione. Ciò che è fatto si spunta da solo.",
+  "role_editor": "Editor",
+  "role_user_meaning": "Scrive, pianifica e usa l'assistente IA.",
+  "role_editor_meaning": "Scrive, raccoglie i brief e pianifica: non collega canali e non invita nessuno.",
+  "role_admin_meaning": "Tutto quello che fa un editor, più i canali, la voce del brand, le impostazioni e il team.",
+  "ai_usage_by_member": "Operazioni IA per membro, in questo periodo",
+  "ai_usage_scheduled_work": "Lavoro pianificato e API"
 }

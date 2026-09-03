@@ -36,6 +36,11 @@ interface AiSettings {
     | 'quota_unavailable'
     | 'quota_exhausted'
     | null;
+  usageByMember: Array<{
+    userId: string | null;
+    email: string | null;
+    operations: number;
+  }>;
 }
 
 interface ModelOption {
@@ -413,6 +418,37 @@ const AiProviderComponent = () => {
             : t('ai_usage_zero_quota')
           : t('ai_usage_workspace_mode')}
       </div>
+
+      {/*
+        Who spent it. The ledger carried an organization and no person until
+        `saas.2.1`, so this list is the first answer the product has ever had
+        to «who is using the AI budget». Operations nobody asked for — the
+        schedule, the API key — are shown as their own row rather than
+        dropped, so the rows still add up to the total above.
+      */}
+      {!!data?.usageByMember?.length && (
+        <div className="flex flex-col gap-[8px]">
+          <div className="cf-label-sm text-cf-ink-muted">
+            {t('ai_usage_by_member', 'AI operations by member, this period')}
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            {data.usageByMember.map((member) => (
+              <div
+                key={member.userId ?? 'unattributed'}
+                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+              >
+                <span className="truncate">
+                  {member.email ??
+                    t('ai_usage_scheduled_work', 'Scheduled and API work')}
+                </span>
+                <span className="cf-caption text-cf-ink-muted">
+                  {member.operations}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Select
         label={t('provider', 'Provider')}

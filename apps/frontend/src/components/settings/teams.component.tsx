@@ -17,17 +17,48 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import copy from 'copy-to-clipboard';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
-const roles = [
-  {
-    name: 'User',
-    value: 'USER',
-  },
-  {
-    name: 'Admin',
-    value: 'ADMIN',
-  },
-];
+/**
+ * The roles an administrator can hand out, each with the one line that says
+ * what it is for. The list is `ASSIGNABLE_ORGANIZATION_ROLES` in the same
+ * order, so a role added to the product cannot quietly fail to appear here —
+ * `tests/roles-matrix.guard.test.cjs` holds the two together.
+ */
+const useRoles = () => {
+  const t = useT();
+  return useMemo(
+    () => [
+      {
+        value: 'USER',
+        name: t('user', 'User'),
+        meaning: t(
+          'role_user_meaning',
+          'Writes and schedules, and uses the AI assistant.'
+        ),
+      },
+      {
+        value: 'EDITOR',
+        name: t('role_editor', 'Editor'),
+        meaning: t(
+          'role_editor_meaning',
+          'Writes, gathers briefs and schedules — does not connect channels and does not invite people.'
+        ),
+      },
+      {
+        value: 'ADMIN',
+        name: t('admin', 'Admin'),
+        meaning: t(
+          'role_admin_meaning',
+          'Everything an editor can do, plus channels, the brand voice, settings and the team.'
+        ),
+      },
+    ],
+    [t]
+  );
+};
+
 export const AddMember = () => {
   const modals = useModals();
   const fetch = useFetch();
@@ -48,6 +79,12 @@ export const AddMember = () => {
     control: form.control,
     name: 'sendEmail',
   });
+  const roles = useRoles();
+  const selectedRole = useWatch({
+    control: form.control,
+    name: 'role',
+  });
+  const roleMeaning = roles.find((role) => role.value === selectedRole)?.meaning;
   const submit = useCallback(
     async (values: { email: string; role: string; sendEmail: boolean }) => {
       const { url } = await (
@@ -89,6 +126,14 @@ export const AddMember = () => {
               </option>
             ))}
           </Select>
+          {/*
+            A native select has nowhere to put a second line, and a role name
+            on its own tells an administrator nothing about what they are
+            granting. The meaning of the chosen role goes under the control.
+          */}
+          {!!roleMeaning && (
+            <div className="cf-body-sm text-cf-ink-muted">{roleMeaning}</div>
+          )}
           <CheckboxField
             label={t('send_invitation_via_email', 'Send invitation via email?')}
             {...form.register('sendEmail')}
@@ -108,16 +153,24 @@ export const TeamsComponent = () => {
   const user = useUser();
   const modals = useModals();
   const t = useT();
-  const myLevel = user?.role === 'USER' ? 0 : user?.role === 'ADMIN' ? 1 : 2;
-  const getLevel = useCallback(
-    (role: 'USER' | 'ADMIN' | 'SUPERADMIN') =>
-      role === 'USER' ? 0 : role === 'ADMIN' ? 1 : 2,
-    []
+  const myLevel = organizationRoleLevel(user?.role);
+  const roles = useRoles();
+  /**
+   * A lookup, not a ternary chain. The chain this replaced ended in «Super
+   * Admin», so any role it did not name — `EDITOR`, the day it was added —
+   * rendered as the highest authority in the product.
+   */
+  const roleName = useCallback(
+    (role: OrganizationRole) =>
+      role === 'SUPERADMIN'
+        ? t('super_admin', 'Super Admin')
+        : roles.find((known) => known.value === role)?.name ?? role,
+    [roles, t]
   );
   const loadTeam = useCallback(async () => {
     return (await (await fetch('/settings/team')).json()).users as Array<{
       id: string;
-      role: 'SUPERADMIN' | 'ADMIN' | 'USER';
+      role: OrganizationRole;
       user: {
         email: string;
         id: string;
@@ -182,14 +235,8 @@ export const TeamsComponent = () => {
               <div className="flex-1">
                 {capitalize(p.user.email.split('@')[0]).split('.')[0]}
               </div>
-              <div className="flex-1">
-                {p.role === 'USER'
-                  ? t('user', 'User')
-                  : p.role === 'ADMIN'
-                  ? t('admin', 'Admin')
-                  : t('super_admin', 'Super Admin')}
-              </div>
-              {+myLevel > +getLevel(p.role) ? (
+              <div className="flex-1">{roleName(p.role)}</div>
+              {myLevel > organizationRoleLevel(p.role) ? (
                 <div className="flex-1 flex justify-end">
                   <Button
                     density="dense"

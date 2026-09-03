@@ -26,6 +26,8 @@ import {
   familyOfPlatform,
 } from '@contentfactory/react/platform/platform.families';
 import { useIntegrationList } from '@contentfactory/frontend/components/launches/helpers/use.integration.list';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
 const resolver = classValidatorResolver(ApiKeyDto);
@@ -52,6 +54,15 @@ export const AddProviderButton: FC<{
   const add = useAddProvider(update);
   const invite = useAddProvider(update, true);
   const t = useT();
+  const user = useUser();
+
+  // Since `saas.2.1` the door behind both of these buttons — the one that
+  // hands out the provider's OAuth address — asks for an administrator. The
+  // refusal it returns is honest and readable, but a button that is always
+  // refused is not a product, so a member does not see one.
+  if (!isOrganizationAdmin(user?.role)) {
+    return null;
+  }
 
   return (
     <div className="flex group-[.sidebar]:block gap-[8px]">

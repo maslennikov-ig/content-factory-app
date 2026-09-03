@@ -708,6 +708,7 @@ const AddTeamMemberModal: FC<{ close: () => void }> = ({ close }) => {
           <Select label={t('label_role', 'Role')} name="role">
             <option value="">{t('select_role', 'Select Role')}</option>
             <option value="USER">{t('user', 'User')}</option>
+            <option value="EDITOR">{t('role_editor', 'Editor')}</option>
             <option value="ADMIN">{t('admin', 'Admin')}</option>
           </Select>
           <Button type="submit" loading={saving} className="rounded-[4px]">

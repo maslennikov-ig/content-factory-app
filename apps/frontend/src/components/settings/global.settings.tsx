@@ -7,6 +7,7 @@ import EmailNotificationsComponent from '@contentfactory/frontend/components/set
 import ShortlinkPreferenceComponent from '@contentfactory/frontend/components/settings/shortlink-preference.component';
 import AiProviderComponent from '@contentfactory/frontend/components/settings/ai-provider.component';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 const MetricComponent = dynamic(
   () => import('@contentfactory/frontend/components/settings/metric.component'),
@@ -22,7 +23,7 @@ export const GlobalSettings = () => {
   // and this tab opens by default. Rendering the section for a member fired
   // both requests on open and answered a role refusal, so the refusal was the
   // first thing Settings did. The gate is the one Teams and Billing use.
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  const isAdmin = isOrganizationAdmin(user?.role);
   return (
     <div className="flex flex-col">
       <h3 className="cf-heading-md text-cf-ink">

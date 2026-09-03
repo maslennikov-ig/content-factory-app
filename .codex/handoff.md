@@ -14,15 +14,13 @@ points at it.
 The owner asked for a full audit of what the orchestrator reported as «all
 done». Two read-only reviewers (backend/security/Temporal/schema; product/
 frontend/docs) over `7bf12bcc^..11fe62a3`, then four bounded workers. Every
-guard added was shown red once before green. **The tree holds the fixes
-uncommitted** — see «Current state».
+guard added was shown red once before green. Committed 03.09 — see «Current
+state».
 
-**«All done» was not true, and the remainder was honestly recorded.** Of the
-seventeen handed-over beads thirteen were closed; `rrs9`, `4zef`, `odb8`,
-`odb8.4` stayed open with their remainder in comments, and a new P1 `tyrk` was
-found and left open. Two closures did not hold: `lh5s` (a search result «can
-become evidence» — the producer exists, nothing in the frontend calls it; no
-search screen exists at all) is **reopened**; `tyrk` is now built.
+**«All done» was not true.** Of seventeen handed-over beads thirteen were
+closed; `lh5s` was reopened — «a search result can become evidence» while
+nothing in the frontend called the producer. It and `tyrk`, `rrs9`, `4zef` are
+built and closed on 03.09, walked by hand.
 
 **Built.** `tyrk` — the owner's rule of 02.09 (§9.5): producers write
 `ContentEvidenceAssessment` (own material `ACCEPTED`, search `PROPOSED`); a
@@ -40,75 +38,79 @@ manual «Проверить сейчас»; feed items without id/guid/link get 
 not a position; Telegram binding rechecks `isSuperAdmin`. Backend `tsc
 --noEmit` is **zero errors** for the first time since 30.08.
 
-**Docs put right.** The runbook's schema procedure prescribes **before** the
-image switch with a throwaway container from the new image — the numbered
-steps, not a remark; the paragraph claiming mail cannot report failure is now
-history; the four `*-schema-apply.sql` files are linked and the three Telegram
-columns named; the editorial-stage migration lists all sixteen locales' tag
-names (production got the three-locale version — the file says so);
-`LEAD_FEED_CHECK_ENABLED` and `EMAIL_PROVIDER` reach `.env.example`;
-`interpolate` HTML-escapes; the design orders no longer ask for the two tabs
-the owner cancelled nor carry the refuted SPF diagnosis; the editorial-stage
-migration proof runs in docker-CI instead of skipping forever.
+**Docs put right.** The runbook's schema procedure now prescribes applying
+**before** the image switch, from a throwaway container of the new image, as
+numbered steps rather than a remark. Production got the three-locale
+editorial-stage migration, and its proof runs in docker-CI instead of skipping
+forever.
 
-**Deferred, each a bead:** `ni7x` subscriptions cap and check throttle; `cl19`
-read-only state for showcase and archive; `w4vh` third copy of the locale
-decision; `th1s` the calendar guard checks class names, not geometry. Older debt
+**Deferred, each a bead:** `ni7x`, `cl19`, `th1s` (`w4vh` done 03.09). Older debt
 unchanged: eleven `PrismaRepository<any>`, the archive reading the whole library
 into memory, `RESEND_API_KEY` checked in the process that does not send.
 
-**Only the owner can settle `fkft`.** The 02.09 release, the schema applications
-on production, terminating `send_email` v1 and the push to `origin/main` were
-each excluded by the orchestrator prompt's authority section unless the owner
-said so per item; no record of him saying so exists in the handoff, the runbook
-or Beads. Confirm or reject after the fact.
-
-Acceptance on the audit tip, Node 22.23.2, receipt in
-`.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`: **jest 254
-suites, 3307 passed, 1 skipped** (full run plus the one guard re-run after it
-was brought to three native proofs), `node --test` 113 pass 0 fail 4 skipped,
-python 29 OK, `tsc --noEmit` 0 on frontend, backend and orchestrator,
-`git diff --check` clean, process verification OK.
+That wave's receipt is in
+`.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`. Latest full
+acceptance, on the roles change of 03.09, Node 22.23.2: **jest 263 suites, 3461
+passed, 1 skipped**, `node --test` 113 pass 0 fail 4 skipped, python 29 OK,
+`tsc --noEmit` 0 on all three apps, `git diff --check` clean, process
+verification OK.
 
 ## Waves ten and eleven — the product was walked, then the mail was found
 
 01.09.2026 the owner walked the product from registration; 02.09 he answered
 the questions it raised and everything went to production. **Three defects
-shared one shape: something was dead and nothing said so** — the source
-registry had never worked (`SourceEvidence.organizationId` is the scalar of two
+shared one shape: something was dead and nothing said so** — the source registry
+had never worked (`SourceEvidence.organizationId` is the scalar of two
 relations, Prisma drops it from a nested create), the archive mounted in no
-screen, and registration in approval mode sent no mail at all. None was visible
-from a suite. **A green suite proves the unit, never the wiring**; opening the
-page in a browser and refusing `as any` on new code both paid for themselves.
-Mail can now report failure (Resend resolves `{data:null,error}` instead of
-throwing; the provider used to swallow it). `zudl`'s diagnosis was wrong — SPF
-and MX sit on `send.`; **nothing to change in DNS**. Every section decision is
-in `docs/product/content-section-map.md`, §8 (01.09) and §9 (02.09).
+screen, and registration in approval mode sent no mail at all; none was visible
+from a suite. Mail can now report failure (Resend resolves `{data:null,error}`
+instead of throwing). `zudl`'s diagnosis was wrong — SPF and MX sit on `send.`;
+**nothing to change in DNS**. Section decisions:
+`docs/product/content-section-map.md`, §8 (01.09) and §9 (02.09).
 
 ## Current state
 
-**Uncommitted in the tree (02.09, audit wave): ~52 files** — the fixes above,
-their guards, and this handoff. Nothing of it has been run on the stand or in a
-browser; every claim is unit-level and type-level. Commit is the owner's call,
-then a live pass of brief → fact → copilot is the first thing to do.
+**The tree is clean** — the 02.09 audit wave and everything after it is
+committed and pushed, no worktrees, no stashes. The live pass the previous
+handoff asked for was done on 03.09: a fresh workspace walked brief → search →
+fact → showcase, evidence went PROPOSED → «Подтвердить» → ACCEPTED, and the
+unified context — which used to return nothing — returned one fact with
+`ALLOW_GROUNDED`.
 
-Production runs **`5d9b745ea0d8`** (02.09.2026); rollback target
-`f2452df947e8`, also on the host. The tag names a **public** commit: since
-31.08 the image is built from the published tree, tied by a `Source-Commit`
-trailer, and the release refuses without a green receipt. On 02.09 the schema
-was applied **before** the image switch from a throwaway container of the new
-image — the runbook now says exactly that; production had been four changes
-behind (`User.language`, `ContentLead*`, `Post.editorialStage`, the three
-Telegram columns) and the new code selects all of them. Backups first:
-`/srv/content-factory-next/backups/pre-*.dump`.
+Production runs **`6f98b58b0765`** (03.09.2026); rollback target `5d9b745ea0d8`,
+also on the host. The tag names a **public** commit: since 31.08 the image is
+built from the published tree, tied by a `Source-Commit` trailer, and the
+release refuses without a green receipt. **The schema was not touched** by that
+release — `migrate diff` from a throwaway container returned an empty migration.
+
+Two release steps stopped being things to remember. **`switch-host-image.sh`**
+performs the switch: `CONTENT_FACTORY_RELEASE` had been stale through four
+releases, every error report of those periods naming a commit that was not
+running, and the script now writes it and `CF_IMAGE` from one variable and
+refuses to call the release finished if the container disagrees.
+**`retain-host-artifacts.sh`** keeps two images and three configuration copies
+per file — a **standing permission** since 03.09, scoped in the runbook, and it
+covers nothing else on that shared host.
+
+One trap, in the runbook: Docker's `--env-file` keeps quotes, so a host `migrate
+diff` reads `P1013` and, piped to a file, looks like an empty diff.
 
 Settled on the host: `RESEND_API_KEY` **is** set; there are **no** `mastra_*`
 tables in `contentfactory` (Mastra has its own database since 21.08; the `db
-push` rule stands anyway). Retention ran 01.09. `postgres-backup.sh`
-(`ec6885a6`) is delivered and has never fired there. `test:time-travel` was
-green at +400 and +1100 days on 01.09. **The v1 email workflow is terminated**
-— it waited on a `condition()` with no timeout and callers now signal
-`send_email_v2`; its queue was empty.
+push` rule stands anyway). Retention ran 01.09; `postgres-backup.sh`
+(`ec6885a6`) is delivered and has never fired there; `test:time-travel` was
+green at +400 and +1100 days on 01.09. **The v1 email workflow is terminated** —
+it waited on a `condition()` with no timeout, callers now signal
+`send_email_v2`, and its queue was empty.
+
+**Roles, 03.09 (`saas.2.1`, committed, not released).** Connecting a channel is
+an administrator's act; the guard's exemption lost `/integrations/provider`,
+which had switched the check off on a door the application calls with a session;
+`AiUsageRecord` carries `userId` and the AI settings screen shows the period's
+spend per member; `EDITOR` exists. Map in `docs/product/roles-matrix.md`, held
+true by `tests/roles-matrix.guard.test.cjs`. **The schema moved** — a column, an
+index, a foreign key, an enum value — so the next release walks «Применение
+Prisma-схемы» and `migrate diff` now prints seventeen statements, not fifteen.
 
 Voice epic (waves eight and nine, closed): spec §5.1–5.4 and
 `.codex/stages/content-factory-next-pl1/evidence/README.md`. Three facts not to
@@ -122,8 +124,8 @@ verdict still has one voice — the rule combining two is undecided.
 Owner decisions; do not absorb or close them elsewhere (`content-factory-next-`):
 `or3.9` pricing/trial/card; `3aw` and `c6k.16` owner choices; `cxd` needs the
 owner's private GPG key; `2ua` a Tavily key and paid-call authority; `71m.7` a
-Google channel; `fkft` the 02.09 authority. Parent epics `71m`, `c6k`, `ry5`,
-`saas` stay open with them.
+Google channel. `fkft` closed 03.09 — the 02.09 authority is recorded in the
+runbook. Parent epics `71m`, `c6k`, `ry5`, `saas` stay open with them.
 
 **The legal pair is shelved, its bans are not.** `saas.6` and `rry` are closed
 01.09.2026 as **shelved, not decided**; the lawyer's review of `privacy.*.md`
@@ -143,17 +145,18 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **commit the
-audit wave, then walk brief → fact → copilot on the stand** — the first live
-proof that the unified context is no longer empty.
+Next stage id: `content-factory-next-vme`. Recommended action: **walk the roles
+change on the stand** — sign in as a member and confirm the channel button is
+gone and the refusal reads as a role, then as an administrator and read the
+per-member AI spend. The suite proves the doors; only the stand proves the
+screens.
 
 **The owner settled five questions on 02.09.2026**, written into
 `docs/product/content-section-map.md` §9: the editorial stage is a field
 (built, deployed); an accepted lead does not become reference material by
 itself; archive search is by words; «Материалы» and «Что уже написали» are one
-place with two views (built in the audit); and **material a person added
-themselves counts as confirmed at the moment they add it** — built as `tyrk`,
-uncommitted, not run live.
+place with two views; and **material a person added themselves counts as
+confirmed at the moment they add it**.
 
 **What still waits on him, and only him.** `fkft`. Registering on production
 with a third address and reading what arrives; whether to approve or delete
@@ -164,18 +167,15 @@ loose bar (`brief-gate.ts`: a statement plus any URL passes) against the
 context's strict one — the strict bar is now reachable, so a brief built on
 bare search links still yields a draft with nothing citable behind it.
 
-Open with their remainder in comments: `rrs9` (onboarding still describes only
-the Postiz loop), `4zef` (order and canvas written, no letter reformatted),
-`odb8`/`odb8.4` (archive built, search by words not started), `lh5s` (reopened:
-no screen produces search evidence), `tyrk` (built, uncommitted, not run live).
-`pl1.7`/`pl1.8` closing reasons hold what the voice epic left unproven.
+Open with their remainder in comments: `odb8`/`odb8.4` (archive built, search
+by words not started). `pl1.7`/`pl1.8` closing reasons hold what the voice epic
+left unproven.
 
 ## Starter prompt for next orchestrator
 
-Use $orchestrator-stage. Read this handoff and `.codex/project-index.md`. Settle
-first the **uncommitted audit wave**: reviewed and green, commit is the owner's
-call; then run the live pass brief → fact → copilot on the stand before anything
-else. `fkft` is the owner's, not yours. The owner questions under «Next
+Use $orchestrator-stage. Read this handoff and `.codex/project-index.md`. Walk
+the roles change on the stand before anything else. `fkft` is the owner's, not
+yours. The owner questions under «Next
 recommended» — do not answer any for him. The voice epic `e3y` is closed; do not
 re-open its two owner decisions. Before any voice check run `rebuild-voice.cjs
 --dry-run`: an analysis older than the ruler carries no print and every verdict

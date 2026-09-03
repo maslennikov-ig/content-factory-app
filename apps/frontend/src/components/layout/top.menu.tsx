@@ -233,7 +233,7 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: '/settings',
-      role: ['ADMIN', 'USER', 'SUPERADMIN'],
+      role: ['ADMIN', 'EDITOR', 'USER', 'SUPERADMIN'],
     },
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 

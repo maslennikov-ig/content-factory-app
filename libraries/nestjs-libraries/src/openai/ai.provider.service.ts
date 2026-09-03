@@ -29,15 +29,64 @@ export class AiProviderService {
   constructor(private _prisma: PrismaService) {}
 
   /**
+   * What each member of the organization has spent this period.
+   *
+   * The ledger's period anchor is the subscription's start where there is one
+   * and the organization's own start where there is not — the same fallback
+   * the posts-per-month limit already uses, so an instance without billing
+   * still reads a real period rather than an empty one.
+   *
+   * Every usage mode counts. A workspace key is the organization's money just
+   * as an included operation is, and a breakdown that silently dropped half of
+   * it would be worse than none. Operations with no person behind them —
+   * scheduled autoposting, anything through the organization's API key — come
+   * back as a single unattributed row, because hiding them would make the
+   * parts stop adding up to the whole.
+   */
+  private async usageByMember(organizationId: string, since: Date) {
+    const grouped = await this._prisma.aiUsageRecord.groupBy({
+      by: ['userId'],
+      where: { organizationId, createdAt: { gte: since } },
+      _count: { _all: true },
+    });
+
+    const userIds = grouped
+      .map((row) => row.userId)
+      .filter((id): id is string => !!id);
+    const users = userIds.length
+      ? await this._prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, email: true },
+        })
+      : [];
+    const emailOf = new Map(users.map((user) => [user.id, user.email]));
+
+    return grouped
+      .map((row) => ({
+        userId: row.userId,
+        email: row.userId ? emailOf.get(row.userId) ?? null : null,
+        operations: row._count._all,
+      }))
+      .sort((a, b) => b.operations - a.operations);
+  }
+
+  /**
    * Never returns the key. The screen only needs to know whether one is
    * stored, so a stolen response is worth nothing.
    */
   async getSettings(organizationId: string) {
     const config = await loadAiConfig(organizationId);
+    const organization = await this._prisma.organization?.findUnique({
+      where: { id: organizationId },
+      select: { createdAt: true },
+    });
     const subscription = await this._prisma.subscription?.findUnique({
       where: { organizationId },
       select: { includedAiMonthlyOperations: true, createdAt: true },
     });
+    const periodStart = aiBillingPeriodStart(
+      subscription?.createdAt ?? organization?.createdAt ?? new Date()
+    );
     const includedMonthlyOperations =
       subscription?.includedAiMonthlyOperations ?? 0;
     const includedUsedOperations =
@@ -46,7 +95,7 @@ export class AiProviderService {
             where: {
               organizationId,
               usageMode: 'included',
-              createdAt: { gte: aiBillingPeriodStart(subscription.createdAt) },
+              createdAt: { gte: periodStart },
             },
           })) ?? 0)
         : 0;
@@ -74,6 +123,7 @@ export class AiProviderService {
       includedUsedOperations,
       includedRemainingOperations,
       includedRestrictionReason,
+      usageByMember: await this.usageByMember(organizationId, periodStart),
       searchEnabled: config.search.enabled,
       searchProvider: config.search.provider,
       searchTopic: config.search.topic,

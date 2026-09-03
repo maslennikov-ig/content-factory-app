@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "チャンネルを少なくともひとつ選んでください。原稿の行き先が必要です。",
   "onboarding_step_next": "はじめかた",
   "onboarding_next_title": "はじめかた",
-  "onboarding_next_description": "ひとつの素材で6ステップ。チャンネル、声、拠り所、ブリーフ、下書き、予約。済んだものは自動でチェックされます。"
+  "onboarding_next_description": "ひとつの素材で6ステップ。チャンネル、声、拠り所、ブリーフ、下書き、予約。済んだものは自動でチェックされます。",
+  "role_editor": "編集者",
+  "role_user_meaning": "執筆と予約投稿を行い、AIアシスタントを使います。",
+  "role_editor_meaning": "執筆・ブリーフの収集・予約投稿を行います。チャンネルの接続とメンバーの招待はできません。",
+  "role_admin_meaning": "編集者にできることすべてに加えて、チャンネル、ブランドボイス、設定、チームを扱えます。",
+  "ai_usage_by_member": "今期のメンバー別AI処理数",
+  "ai_usage_scheduled_work": "予約実行とAPI"
 }

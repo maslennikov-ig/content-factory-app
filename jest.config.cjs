@@ -12,6 +12,12 @@ module.exports = {
   // know about it.
   moduleNameMapper: {
     '^react-hotkeys-hook$': '<rootDir>/tests/helpers/react-hotkeys-hook.stub.cjs',
+    // The role ranking is imported by controllers, repositories and screens
+    // that a dozen suites load through their own module loaders. Mapped here
+    // to the real compiled module — see the helper for why it is not a stub —
+    // so a suite does not have to name it to keep working.
+    '^@contentfactory/nestjs-libraries/user/organization\\.roles$':
+      '<rootDir>/tests/helpers/organization-roles.cjs',
   },
   testMatch: ['**/*.test.cjs'],
   // These suites deliberately use Node's native test runner. Jest cannot

@@ -1486,5 +1486,11 @@
   "public_saas_demo_no_channels": "채널을 하나 이상 골라 주세요. 원고가 갈 곳이 필요합니다.",
   "onboarding_step_next": "시작하기",
   "onboarding_next_title": "시작하기",
-  "onboarding_next_description": "콘텐츠 하나로 여섯 단계: 채널, 목소리, 근거, 브리프, 초안, 예약. 이미 끝낸 것은 자동으로 표시됩니다."
+  "onboarding_next_description": "콘텐츠 하나로 여섯 단계: 채널, 목소리, 근거, 브리프, 초안, 예약. 이미 끝낸 것은 자동으로 표시됩니다.",
+  "role_editor": "편집자",
+  "role_user_meaning": "글을 쓰고 예약하며 AI 어시스턴트를 사용합니다.",
+  "role_editor_meaning": "글을 쓰고 브리프를 모으고 예약합니다. 채널을 연결하거나 사람을 초대하지 않습니다.",
+  "role_admin_meaning": "편집자가 할 수 있는 모든 것에 더해 채널, 브랜드 보이스, 설정, 팀까지 다룹니다.",
+  "ai_usage_by_member": "이번 기간 구성원별 AI 작업 수",
+  "ai_usage_scheduled_work": "예약 작업 및 API"
 }

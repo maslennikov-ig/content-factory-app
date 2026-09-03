@@ -29,10 +29,18 @@ export class MediaRepository {
     });
   }
 
-  getMediaById(id: string) {
-    return this._media.model.media.findUnique({
+  /**
+   * The organisation is a filter, not decoration. A post's image list is
+   * whatever the person submitting it sent, so an id in there can name another
+   * workspace's file — and this resolves an id into a storage path. Found
+   * 03.09.2026 by `tests/tenant-isolation.guard.test.cjs`; `deleteMedia`, just
+   * below, had always filtered.
+   */
+  getMediaById(org: string, id: string) {
+    return this._media.model.media.findFirst({
       where: {
         id,
+        organizationId: org,
       },
     });
   }
