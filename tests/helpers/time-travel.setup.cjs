@@ -26,6 +26,15 @@
  * reads the same two clocks, and a test that mixes them is describing a
  * machine that does not exist.
  */
+
+// `--setupFiles=<this file>` on the command line replaces the list from
+// jest.config.cjs rather than adding to it, so the run with the calendar
+// moved forward used to lose the source-tree write guard: the guard's own
+// probe wrote a real file into `apps/frontend/src`, and three tree scanners
+// died on it mid-run — on every CI run since the guard was written. The guard
+// is loaded here explicitly; a second load from the config is a no-op.
+require('./source-tree-guard.cjs');
+
 const days = Number(process.env.CF_TIME_TRAVEL_DAYS || 0);
 
 if (Number.isFinite(days) && days !== 0) {

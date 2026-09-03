@@ -51,14 +51,18 @@ function extractBackfillStatement() {
     'docs/operations/editorial-stage-schema-apply.sql'
   );
   const sql = fs.readFileSync(sqlPath, 'utf8');
-  const match = sql.match(/UPDATE "Post" p\s[\s\S]*?;\s*\nCOMMIT;/);
+  // The statement ends at the first `;` — there is none inside it — and the
+  // file carries no `COMMIT;` of its own since 02.09.2026: the runbook applies
+  // it with `psql --single-transaction`. The regex used to anchor on that
+  // `COMMIT;`, and after it went this proof failed on every CI run for three
+  // releases while skipping locally, where no database is configured.
+  const match = sql.match(/UPDATE "Post" p\s[\s\S]*?;/);
   if (!match) {
     throw new Error(
       'editorial-stage-schema-apply.sql no longer contains the expected backfill UPDATE shape'
     );
   }
-  // Drop the trailing `COMMIT;` the regex needed as an anchor.
-  return match[0].replace(/\nCOMMIT;$/, '');
+  return match[0];
 }
 
 test(

@@ -42,9 +42,9 @@ not a position; Telegram binding rechecks `isSuperAdmin`. Backend `tsc
 from a throwaway container of the new image, as numbered steps; the
 editorial-stage migration proof runs in docker-CI instead of skipping forever.
 
-**Deferred, each a bead:** `ni7x`, `cl19`, `th1s` (`w4vh` done 03.09). Older debt
-unchanged: eleven `PrismaRepository<any>`, the archive reading the whole library
-into memory, `RESEND_API_KEY` checked in the process that does not send.
+**Deferred, each a bead:** `ni7x`, `cl19`, `th1s`. Older debt unchanged: eleven
+`PrismaRepository<any>`, the archive read whole into memory, `RESEND_API_KEY`
+checked in the process that does not send.
 
 That wave's receipt is in
 `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`. Latest full
@@ -61,13 +61,13 @@ had never worked (`SourceEvidence.organizationId` is the scalar of two
 relations, Prisma drops it from a nested create), the archive mounted in no
 screen, and registration in approval mode sent no mail at all; none was visible
 from a suite. Mail can now report failure (Resend resolves `{data:null,error}`
-instead of throwing). `zudl`'s diagnosis was wrong — SPF and MX sit on `send.`;
-**nothing to change in DNS**. Section decisions:
-`docs/product/content-section-map.md`, §8 (01.09) and §9 (02.09).
+instead of throwing). `zudl` was wrong: SPF and MX sit on `send.`, **nothing to
+change in DNS**. Decisions: `content-section-map.md` §8 (01.09), §9 (02.09).
 
 ## Current state
 
-**Uncommitted: the 03.09 audit (`w4ij`) of `93092c84..04c7c2f3`.** Two
+**Released 03.09: the audit (`w4ij`) of `93092c84..04c7c2f3`** as
+`a4f1863f9010`; a second release carries the two test fixes below. Two
 read-only reviewers, no P1. Fixed in the tree: removing, disabling and enabling
 a channel ask for an administrator (three doors, matrix, menu — any member could
 delete a channel with every post on it); a declined agency gets its email
@@ -85,20 +85,22 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`a63227c58446`** (03.09.2026); rollback target `6f98b58b0765`,
-also on the host. The tag names a **public** commit: since 31.08 the image is
+Production runs **`a4f1863f9010`** (03.09.2026, the audit); rollback target
+`a63227c58446`, also on the host. **Public CI had been red for three releases
+and nobody had written it down**: the editorial-stage migration proof anchored
+on a `COMMIT;` the 02.09 audit removed, and `--setupFiles=` on the time-travel
+command line *replaces* the config list, so the source-tree write guard never
+loaded there and its probe wrote a real file. Both fixed in tests; check
+«Build» on the public repository is green for the running commit. The tag names a **public** commit: since 31.08 the image is
 built from the published tree, tied by a `Source-Commit` trailer, and the
 release refuses without a green receipt. **This release did change the schema**
 — see «Roles» below.
 
-Two release steps stopped being things to remember. **`switch-host-image.sh`**
-performs the switch: `CONTENT_FACTORY_RELEASE` had been stale through four
-releases, every error report of those periods naming a commit that was not
-running, and the script now writes it and `CF_IMAGE` from one variable and
-refuses to call the release finished if the container disagrees.
-**`retain-host-artifacts.sh`** keeps two images and three configuration copies
-per file — a **standing permission** since 03.09, scoped in the runbook, and it
-covers nothing else on that shared host.
+Two release steps are scripts now: **`switch-host-image.sh`** writes
+`CF_IMAGE` and `CONTENT_FACTORY_RELEASE` from one value and refuses to finish
+if the container disagrees; **`retain-host-artifacts.sh`** keeps two images and
+three configuration copies per file — a **standing permission** since 03.09,
+scoped in the runbook, covering nothing else on that shared host.
 
 Settled on the host: `RESEND_API_KEY` **is** set; **no** `mastra_*` tables in
 `contentfactory` (the `db push` rule stands anyway); retention ran 03.09;
@@ -118,12 +120,10 @@ applied before the image switch; copy in `20260903T095548Z-pre-saas21`. An enum
 value cannot go through the validated path and is applied first on its own; that
 plan and this release's two traps are in the runbook.
 
-Voice epic (waves eight and nine, closed): spec §5.1–5.4 and
-`.codex/stages/content-factory-next-pl1/evidence/README.md`. Three facts not to
-re-derive: composition plus likelihood ratio scores **74,5 / 77,0 / 85,7 %**
-and the 80 % goal is taken on one corpus of three; the norm moved to
-`voice-norm/ru-2026-08-30` and changed every number a person has read; the
-verdict still has one voice — the rule combining two is undecided.
+Voice epic (closed): spec §5.1–5.4, `stages/content-factory-next-pl1/evidence/
+README.md`. Not to re-derive: scores **74,5 / 77,0 / 85,7 %** on one corpus of
+three; the norm is `voice-norm/ru-2026-08-30`; the rule combining two voices is
+undecided.
 
 ## Explicit defers
 
