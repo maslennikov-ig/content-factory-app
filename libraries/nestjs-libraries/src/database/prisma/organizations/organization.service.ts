@@ -5,8 +5,6 @@ import { NotificationService } from '@contentfactory/nestjs-libraries/database/p
 import { AddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
 import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/pricing';
-import { AuthService } from '@contentfactory/helpers/auth/auth.service';
-import dayjs from 'dayjs';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
@@ -22,6 +20,7 @@ import {
   emailActionBody,
   emailDirection,
 } from '@contentfactory/nestjs-libraries/emails/email.template';
+import { issueTeamInvitation } from '@contentfactory/nestjs-libraries/auth/team-invitation';
 
 @Injectable()
 export class OrganizationService {
@@ -126,7 +125,6 @@ export class OrganizationService {
   }
 
   async inviteTeamMember(org: Organization, user: User, body: AddTeamMemberDto) {
-    const timeLimit = dayjs().add(2, 'day').format('YYYY-MM-DD HH:mm:ss');
     const id = makeId(5);
     // Named fields, not a spread of the request body. Spreading it here turned
     // this endpoint into a signing oracle: any authenticated caller could have
@@ -136,15 +134,18 @@ export class OrganizationService {
     // properties — but that is one pipe option away from being untrue again,
     // and the signature is issued here. Only what the invitation flow reads is
     // signed.
-    const url =
-      process.env.FRONTEND_URL +
-      `/?org=${AuthService.signJWT({
-        email: body.email,
-        role: body.role,
-        orgId: org.id,
-        timeLimit,
-        id,
-      })}`;
+    const token = await issueTeamInvitation({
+      id,
+      orgId: org.id,
+      role: body.role as AssignableOrganizationRole,
+      workspaceName: org.name,
+      inviterName: user.name || user.email,
+      inviterEmail: user.email,
+      ...(body.sendEmail
+        ? { boundEmail: body.email.trim().toLowerCase() }
+        : {}),
+    });
+    const url = process.env.FRONTEND_URL + `/join-org?org=${token}`;
     if (body.sendEmail) {
       const inviter = user.name
         ? `${user.name} (${user.email})`

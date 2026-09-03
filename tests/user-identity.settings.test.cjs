@@ -18,10 +18,36 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
     },
   }).outputText;
   const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
+  const localRequire = (request) => {
+    if (Object.prototype.hasOwnProperty.call(mocks, request))
+      return mocks[request];
+    if (request.startsWith('.')) {
+      for (const extension of ['.ts', '.tsx']) {
+        const candidate = `${path.resolve(
+          path.dirname(filename),
+          request
+        )}${extension}`;
+        if (fs.existsSync(candidate))
+          return loadTypeScriptModule(
+            path.relative(repositoryRoot, candidate),
+            mocks
+          );
+      }
+    }
+    if (request.startsWith('@contentfactory/react/')) {
+      const candidate = path.join(
+        repositoryRoot,
+        'libraries/react-shared-libraries/src',
+        `${request.slice('@contentfactory/react/'.length)}.tsx`
+      );
+      if (fs.existsSync(candidate))
+        return loadTypeScriptModule(
+          path.relative(repositoryRoot, candidate),
+          mocks
+        );
+    }
+    return require(request);
+  };
 
   new Function(
     'exports',
@@ -76,12 +102,29 @@ const component = loadTypeScriptModule(
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: jest.fn() },
     '@contentfactory/react/form/button': { Button },
     '@contentfactory/react/form/input': { Input },
+    '@contentfactory/react/form/password-input': {
+      PasswordInput: ({
+        showPasswordLabel: _show,
+        hidePasswordLabel: _hide,
+        ...props
+      }) => React.createElement(Input, props),
+    },
     '@contentfactory/react/helpers/variable.context': {
       useVariables: jest.fn(),
     },
     '@contentfactory/react/translation/get.transation.service.client': {
       useT: () => (key, fallback, values) =>
         interpolate(translate(key, fallback), values),
+    },
+    '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+      PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+      isPasswordPolicyCompliant: (value) =>
+        typeof value === 'string' &&
+        Array.from(value).length >= 7 &&
+        Array.from(value).length <= 64 &&
+        /\p{L}/u.test(value) &&
+        /\p{Nd}/u.test(value) &&
+        /[\p{P}\p{S}]/u.test(value),
     },
   }
 );
@@ -235,6 +278,12 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
               children
             ),
         },
+      '@contentfactory/frontend/components/ui/surface': {
+        RestrictedState: Empty,
+      },
+      '@contentfactory/nestjs-libraries/user/organization.roles': {
+        isOrganizationAdmin: () => false,
+      },
       '@contentfactory/react/choice/tabs': {
         Tabs: ({ value, children }) =>
           React.createElement('div', { 'data-settings-tab': value }, children),

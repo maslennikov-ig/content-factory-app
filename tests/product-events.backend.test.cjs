@@ -3,6 +3,7 @@ require('reflect-metadata');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const repositoryRoot = path.resolve(__dirname, '..');
 
 /**
  * A missing or renamed module is a failure, never a skip.
@@ -36,10 +37,15 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
     '__dirname',
     compiled
   );
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
+  const localRequire = (request) => {
+    if (Object.prototype.hasOwnProperty.call(mocks, request)) return mocks[request];
+    const candidate = request.startsWith('@contentfactory/nestjs-libraries/')
+      ? path.join(repositoryRoot, 'libraries/nestjs-libraries/src', request.slice('@contentfactory/nestjs-libraries/'.length) + '.ts')
+      : request.startsWith('@contentfactory/helpers/')
+        ? path.join(repositoryRoot, 'libraries/helpers/src', request.slice('@contentfactory/helpers/'.length) + '.ts')
+      : request.startsWith('.') ? path.resolve(path.dirname(filename), request + '.ts') : null;
+    return candidate && fs.existsSync(candidate) ? loadTypeScriptModule(path.relative(repositoryRoot, candidate), mocks) : require(request);
+  };
   evaluate(
     loaded.exports,
     localRequire,
@@ -821,9 +827,13 @@ describe('server-emitted events', () => {
       ),
       'utf8'
     );
+    const registrationMethod = source.slice(
+      source.indexOf('async createOrgAndUser('),
+      source.indexOf('getOrgByCustomerId(')
+    );
 
-    expect(source).toContain('productEvent.create');
-    expect(source).not.toContain('$transaction');
+    expect(registrationMethod).toContain('productEvent.create');
+    expect(registrationMethod).not.toContain('$transaction');
   });
 
   test('authenticated OAuth start stores the initiating user with the shared state', async () => {

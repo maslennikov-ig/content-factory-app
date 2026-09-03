@@ -5,6 +5,7 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import Link from 'next/link';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { PasswordInput } from '@contentfactory/react/form/password-input';
 import { useMemo, useState } from 'react';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { LoginUserDto } from '@contentfactory/nestjs-libraries/dtos/auth/login.user.dto';
@@ -135,13 +136,14 @@ export function Login() {
             autoComplete="email"
             placeholder={t('email_address', 'Email Address')}
           />
-          <Input
+          <PasswordInput
             label="Password"
             translationKey="label_password"
             {...form.register('password')}
             autoComplete="current-password"
-            type="password"
             placeholder={t('label_password', 'Password')}
+            showPasswordLabel={t('show_password', 'Show password')}
+            hidePasswordLabel={t('hide_password', 'Hide password')}
           />
         </div>
 
@@ -187,7 +189,10 @@ export function Login() {
           <div className="flex flex-col gap-[6px] text-[14px] text-cf-ink-muted">
             <p>
               {t('don_t_have_an_account', "Don't Have An Account?")}&nbsp;
-              <Link href="/auth" className="text-cf-accent underline font-[600]">
+              <Link
+                href="/auth"
+                className="text-cf-accent underline font-[600]"
+              >
                 {t('sign_up', 'Sign Up')}
               </Link>
             </p>

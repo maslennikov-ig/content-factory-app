@@ -5,6 +5,12 @@ import crypto from 'crypto';
 import EVP_BytesToKey from 'evp_bytestokey';
 const algorithm = 'aes-256-cbc';
 const { keyLength, ivLength } = crypto.getCipherInfo(algorithm);
+const BCRYPT_MAX_PASSWORD_BYTES = 72;
+const SHA256_BCRYPT_PASSWORD_PREFIX = 'cf$bcrypt-sha256$v1$';
+
+function sha256PasswordMaterial(password: string) {
+  return crypto.createHash('sha256').update(password, 'utf8').digest('base64');
+}
 
 function deriveLegacyKeyIv(secret: string) {
   const { keyLength, ivLength } = crypto.getCipherInfo(algorithm); // 32, 16
@@ -34,9 +40,23 @@ export function encrypt_legacy_using_IV(utf8Plaintext: string) {
 }
 export class AuthService {
   static hashPassword(password: string) {
-    return hashSync(password, 10);
+    if (Buffer.byteLength(password, 'utf8') < BCRYPT_MAX_PASSWORD_BYTES) {
+      return hashSync(password, 10);
+    }
+
+    return (
+      SHA256_BCRYPT_PASSWORD_PREFIX +
+      hashSync(sha256PasswordMaterial(password), 10)
+    );
   }
   static comparePassword(password: string, hash: string) {
+    if (hash.startsWith(SHA256_BCRYPT_PASSWORD_PREFIX)) {
+      return compareSync(
+        sha256PasswordMaterial(password),
+        hash.slice(SHA256_BCRYPT_PASSWORD_PREFIX.length)
+      );
+    }
+
     return compareSync(password, hash);
   }
   static signJWT(value: object) {

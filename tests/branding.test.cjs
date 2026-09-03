@@ -190,6 +190,7 @@ describe('Content Factory brand boundary', () => {
       'are_you_sure_revoke_access',
       'channel_connected_description',
       'no_matching_integrations',
+      'password_policy_hint',
       'select_the_page_or_account',
     ]);
 

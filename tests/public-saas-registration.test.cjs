@@ -28,7 +28,11 @@ const {
   waitFor,
 } = require('@testing-library/react');
 
-function loadRegistration(fetchData, push) {
+function loadRegistration(fetchData, push, options = {}) {
+  const {
+    isPasswordPolicyCompliant = (value) => value.length >= 7,
+    translate = (_key, fallback) => fallback,
+  } = options;
   const compiled = ts.transpileModule(fs.readFileSync(componentFile, 'utf8'), {
     fileName: componentFile,
     compilerOptions: {
@@ -46,6 +50,21 @@ function loadRegistration(fetchData, push) {
         label,
         standalone: _standalone,
         fieldClassName: _fieldClassName,
+        ...props
+      }) =>
+        React.createElement(
+          'label',
+          {},
+          label,
+          React.createElement('input', { 'aria-label': label, ...props })
+        ),
+    },
+    '@contentfactory/react/form/password-input': {
+      PasswordInput: ({
+        label,
+        standalone: _standalone,
+        showPasswordLabel: _show,
+        hidePasswordLabel: _hide,
         ...props
       }) =>
         React.createElement(
@@ -87,6 +106,13 @@ function loadRegistration(fetchData, push) {
     '@contentfactory/helpers/auth/newsletter.consent': {
       canOfferNewsletterConsent: () => true,
     },
+    '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+      PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+      isPasswordPolicyCompliant,
+    },
+    '@contentfactory/react/translation/get.transation.service.client': {
+      useT: () => translate,
+    },
     '@contentfactory/frontend/components/auth/legal.notice': {
       LegalNotice: () =>
         React.createElement('p', {}, 'configured legal notice'),
@@ -119,6 +145,33 @@ afterEach(() => {
 });
 
 describe('public email-first registration', () => {
+  test('renders the localized password-policy error instead of the generic registration failure', async () => {
+    const fetchData = jest.fn();
+    const push = jest.fn();
+    const { EmailFirstSignup } = loadRegistration(fetchData, push, {
+      isPasswordPolicyCompliant: () => false,
+      translate: (key, fallback) =>
+        key === 'password_policy_error'
+          ? 'Localized password policy error'
+          : fallback,
+    });
+    render(React.createElement(EmailFirstSignup));
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
+      target: { value: 'editor@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'invalid' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Localized password policy error'
+    );
+    expect(fetchData).not.toHaveBeenCalled();
+  });
+
   test('keeps email in memory and submits the existing registration payload on step two', async () => {
     const fetchData = jest.fn(async () => ({
       status: 200,
@@ -176,9 +229,9 @@ describe('public email-first registration', () => {
     });
     // content-factory-next-pdbe: there is no starter-template choice left on
     // this form, so the request never carries the field at all.
-    expect(
-      JSON.parse(fetchData.mock.calls[0][1].body)
-    ).not.toHaveProperty('starterTemplate');
+    expect(JSON.parse(fetchData.mock.calls[0][1].body)).not.toHaveProperty(
+      'starterTemplate'
+    );
     expect(push).toHaveBeenCalledWith('/launches');
     expect(window.location.search).toBe('');
     expect(window.localStorage.length).toBe(0);
@@ -205,11 +258,12 @@ describe('public email-first registration', () => {
   });
 
   test('uses the approval response body when the header is not exposed', async () => {
-    const fetchData = jest.fn(async () =>
-      new Response(JSON.stringify({ approval: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+    const fetchData = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ approval: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
     );
     const push = jest.fn();
     const { EmailFirstSignup } = loadRegistration(fetchData, push);

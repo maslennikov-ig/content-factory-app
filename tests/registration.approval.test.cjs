@@ -16,10 +16,15 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
     },
   }).outputText;
   const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
+  const localRequire = (request) => {
+    if (Object.prototype.hasOwnProperty.call(mocks, request)) return mocks[request];
+    const candidate = request.startsWith('@contentfactory/nestjs-libraries/')
+      ? path.join(repositoryRoot, 'libraries/nestjs-libraries/src', request.slice('@contentfactory/nestjs-libraries/'.length) + '.ts')
+      : request.startsWith('@contentfactory/helpers/')
+        ? path.join(repositoryRoot, 'libraries/helpers/src', request.slice('@contentfactory/helpers/'.length) + '.ts')
+      : request.startsWith('.') ? path.resolve(path.dirname(filename), request + '.ts') : null;
+    return candidate && fs.existsSync(candidate) ? loadTypeScriptModule(path.relative(repositoryRoot, candidate), mocks) : require(request);
+  };
 
   new Function(
     'exports',

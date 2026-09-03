@@ -38,6 +38,11 @@ import {
   LinkUserIdentityDto,
   UnlinkUserIdentityDto,
 } from '@contentfactory/nestjs-libraries/dtos/users/link-user-identity.dto';
+import {
+  acceptTeamInvitation,
+  inspectTeamInvitation,
+  TeamInvitationError,
+} from '@contentfactory/nestjs-libraries/auth/team-invitation';
 
 @ApiTags('User')
 @Controller('/user')
@@ -227,6 +232,18 @@ export class UsersController {
   }
 
   private assertIdentityMutationRequest(userId: string, req: Request) {
+    this.assertSameOriginJsonMutationRequest(userId, req, 'identity');
+  }
+
+  private assertInvitationMutationRequest(userId: string, req: Request) {
+    this.assertSameOriginJsonMutationRequest(userId, req, 'invitation');
+  }
+
+  private assertSameOriginJsonMutationRequest(
+    userId: string,
+    req: Request,
+    boundary: 'identity' | 'invitation'
+  ) {
     const contentType = String(req.headers['content-type'] || '')
       .split(';', 1)[0]
       .trim()
@@ -245,13 +262,18 @@ export class UsersController {
     // it is: this is a deployment fault, not the caller's.
     if (!expectedOrigin) {
       this._logger.error(
-        'FRONTEND_URL is missing or unparseable; refusing every sign-in method change until it is set'
+        `FRONTEND_URL is missing or unparseable; refusing every ${boundary} mutation until it is set`
       );
       throw new HttpException(
         {
           message:
-            'Sign-in method changes are unavailable: FRONTEND_URL is not configured',
-          code: 'identity_mutations_unavailable',
+            boundary === 'identity'
+              ? 'Sign-in method changes are unavailable: FRONTEND_URL is not configured'
+              : 'Invitation acceptance is unavailable: FRONTEND_URL is not configured',
+          code:
+            boundary === 'identity'
+              ? 'identity_mutations_unavailable'
+              : 'invitation_mutations_unavailable',
         },
         500
       );
@@ -264,8 +286,14 @@ export class UsersController {
     ) {
       throw new HttpException(
         {
-          message: 'Forbidden identity mutation request',
-          code: 'identity_mutation_forbidden',
+          message:
+            boundary === 'identity'
+              ? 'Forbidden identity mutation request'
+              : 'Forbidden invitation mutation request',
+          code:
+            boundary === 'identity'
+              ? 'identity_mutation_forbidden'
+              : 'invitation_mutation_forbidden',
         },
         403
       );
@@ -316,28 +344,73 @@ export class UsersController {
     return this._stripeService.getPackages();
   }
 
+  @Get('/join-org')
+  async previewJoinOrg(@Query('org') org: string) {
+    try {
+      return await inspectTeamInvitation(org);
+    } catch (error) {
+      this.throwInvitationError(error);
+    }
+  }
+
   @Post('/join-org')
   async joinOrg(
     @GetUserFromRequest() user: User,
     @Body('org') org: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
   ) {
-    const getOrgFromCookie = this._authService.getOrgFromCookie(org);
+    this.assertInvitationMutationRequest(user.id, req);
+    try {
+      const { invitation, added } = await acceptTeamInvitation(
+        org,
+        user.email,
+        ({ id, orgId, role }) =>
+          this._orgService.addUserToOrg(user.id, id, orgId, role)
+      );
 
-    if (!getOrgFromCookie) {
-      return response.status(200).json({ id: null });
+      if (typeof added === 'boolean') {
+        throw new TeamInvitationError(
+          'invite_membership_failed',
+          409,
+          'The invitation could not add this account to the workspace'
+        );
+      }
+
+      response.cookie('showorg', added.organizationId, {
+        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+        ...(!process.env.NOT_SECURED
+          ? {
+              secure: true,
+              httpOnly: true,
+              sameSite: 'none' as const,
+            }
+          : {}),
+        expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+      });
+
+      if (process.env.NOT_SECURED) {
+        response.header('showorg', added.organizationId);
+      }
+
+      return response.status(200).json({
+        id: added.organizationId,
+        workspaceName: invitation.workspaceName,
+        role: invitation.role,
+      });
+    } catch (error) {
+      this.throwInvitationError(error);
     }
+  }
 
-    const addedOrg = await this._orgService.addUserToOrg(
-      user.id,
-      getOrgFromCookie.id,
-      getOrgFromCookie.orgId,
-      getOrgFromCookie.role
-    );
-
-    response.status(200).json({
-      id: typeof addedOrg !== 'boolean' ? addedOrg.organizationId : null,
-    });
+  private throwInvitationError(error: unknown): never {
+    if (error instanceof TeamInvitationError) {
+      throw new HttpException(
+        { message: error.message, code: error.code },
+        error.status
+      );
+    }
+    throw error;
   }
 
   @Get('/organizations')

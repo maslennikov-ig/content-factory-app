@@ -10,3 +10,10 @@ export const CONTENT_WORKFLOW_TAGS = [
   { name: 'Review', color: '#F59E0B' },
   { name: 'Schedule', color: '#8B5CF6' },
 ] as const;
+
+export const CONTENT_WORKFLOW_TAG_KEYS = [
+  'content_workflow_tag_plan',
+  'content_workflow_tag_draft',
+  'content_workflow_tag_review',
+  'content_workflow_tag_schedule',
+] as const;

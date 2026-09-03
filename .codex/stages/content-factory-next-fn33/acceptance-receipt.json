@@ -1,0 +1,85 @@
+{
+  "command_results": [
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm test",
+      "duration_seconds": 206.322,
+      "environment_gates": [
+        {
+          "environment_variable": "SOURCE_REGISTRY_POSTGRES_URL",
+          "reason": "SOURCE_REGISTRY_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL serializable lease crossing rolls back snapshot and forbids late completion"
+        },
+        {
+          "environment_variable": "EDITORIAL_STAGE_POSTGRES_URL",
+          "reason": "EDITORIAL_STAGE_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "existing process tags carry over to Post.editorialStage one-to-one"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL rejects foreign post id and group before mutation"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL atomically commits or rolls back an AutoPost V2 draft and provenance set"
+        }
+      ],
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 277 passed, 277 total",
+        "Tests:       3556 passed, 3556 total",
+        "# tests 117",
+        "# pass 113",
+        "# fail 0",
+        "# skipped 4",
+        "# todo 0",
+        "Ran 29 tests in 0.849s",
+        "OK"
+      ]
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/frontend exec tsc --noEmit",
+      "duration_seconds": 3.503,
+      "result": "passed"
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/backend exec tsc --noEmit",
+      "duration_seconds": 12.795,
+      "result": "passed"
+    },
+    {
+      "command": "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/orchestrator exec tsc --noEmit",
+      "duration_seconds": 10.689,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check main...HEAD",
+      "duration_seconds": 0.031,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm test",
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/frontend exec tsc --noEmit",
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/backend exec tsc --noEmit",
+    "PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH pnpm --dir apps/orchestrator exec tsc --noEmit",
+    "git diff --check main...HEAD"
+  ],
+  "completed_at": "2026-09-03T16:24:55.152800+00:00",
+  "diff_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "81180c7eb154199c3786d29d7173b8056996c847",
+  "idempotency_key": "7a3f7f622dc1ca4cf113939030145d35ef52c810b299c92fd0a3eb861ae9b264",
+  "orchestration_level": "integration",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-fn33",
+  "started_at": "2026-09-03T16:21:01.648856+00:00",
+  "verification_fingerprint": "7a3f7f622dc1ca4cf113939030145d35ef52c810b299c92fd0a3eb861ae9b264"
+}

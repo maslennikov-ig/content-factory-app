@@ -2,8 +2,9 @@
 
 import {
   DetailedHTMLProps,
-  FC,
+  forwardRef,
   InputHTMLAttributes,
+  Ref,
   ReactNode,
   useEffect,
   useId,
@@ -15,7 +16,7 @@ import { TranslatedLabel } from '../translation/translated-label';
 import { FieldMessage } from './field-message';
 import { withoutConsumerHeight, withoutConsumerHeightStyle } from './control-height';
 
-export const Input: FC<
+export type InputProps =
   DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement> & {
     removeError?: boolean;
     error?: any;
@@ -53,8 +54,17 @@ export const Input: FC<
      * reason to touch, masked in CSS.
      */
     secret?: boolean;
-  }
-> = (props) => {
+  };
+
+const assignRef = (
+  target: Ref<HTMLInputElement> | undefined,
+  element: HTMLInputElement | null
+) => {
+  if (typeof target === 'function') target(element);
+  else if (target) target.current = element;
+};
+
+export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
   const {
     label,
     icon,
@@ -113,6 +123,10 @@ export const Input: FC<
         'data-form-type': 'other',
       }
     : undefined;
+  const registration =
+    disableForm || standalone || !form || !props.name
+      ? undefined
+      : form.register(props.name);
 
   return (
     <div
@@ -147,11 +161,13 @@ export const Input: FC<
           id={inputId}
           aria-invalid={err ? true : undefined}
           aria-describedby={describedBy}
-          {...(disableForm || standalone || !form || !props.name
-            ? {}
-            : form.register(props.name))}
+          {...registration}
           {...rest}
           {...secretProps}
+          ref={(element) => {
+            assignRef(registration?.ref, element);
+            assignRef(ref, element);
+          }}
           style={withoutConsumerHeightStyle(style)}
           className={clsx(
             'h-full bg-transparent outline-none flex-1 min-w-0 text-[14px] text-cf-ink placeholder:text-cf-ink-muted',
@@ -173,4 +189,4 @@ export const Input: FC<
       )}
     </div>
   );
-};
+});

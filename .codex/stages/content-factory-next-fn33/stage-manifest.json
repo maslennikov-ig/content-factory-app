@@ -1,0 +1,118 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-fn33",
+  "goal_id": "content-factory-next-fn33",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "accepted",
+  "sequence": 8,
+  "acceptance_boundary_id": "live-walkthrough-registration-invitations-settings-passwords-profile",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "authentication",
+      "authorization",
+      "settings-ui",
+      "registration-admin",
+      "password-ui",
+      "email-notification"
+    ],
+    "risk_models": [
+      "client-bundle-ordering",
+      "invitation-address-binding",
+      "invitation-idempotency",
+      "role-based-visibility",
+      "account-state-transition",
+      "password-contract-consistency",
+      "ui-accessibility"
+    ],
+    "test_environments": [
+      "local-wsl",
+      "node-22.23.2",
+      "pnpm-10.6.1",
+      "frontend-production-build",
+      "chromium-playwright",
+      "no-production-server-database-push-merge-deploy-or-paid-call"
+    ],
+    "rollback_boundary": "revert-eight-ordered-task-commits-on-work-walkthrough-2026-09-03-without-touching-main-or-production",
+    "acceptance_proofs": [
+      "focused-red-green-per-task",
+      "frontend-production-build-playwright-settings",
+      "tsc-noemit-all-touched-apps",
+      "full-three-part-pnpm-test",
+      "git-diff-check",
+      "process-verification"
+    ]
+  },
+  "work_areas": [
+    "decision",
+    "contract",
+    "implementation",
+    "persistence_or_adapter",
+    "consumer_adoption",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-fn33",
+    "source_digest": "ebd446f786d0ce6234758572980be2a1bb70001c26f4e34da91313ba31d16c2a",
+    "criteria": [
+      {
+        "criterion_id": "AC-1",
+        "text": "Восемь задач эпика content-factory-next-fn33 выполнены строго в порядке контракта: каждая закрыта в Beads с доказательствами или отложена с причиной; работа находится на ветке work/walkthrough-2026-09-03 от main, по одному коммиту на задачу с названием модели, без push, merge, deploy, доступа к серверу и записи в production database; итоговая приёмка включает pnpm test со всеми тремя частями, tsc --noEmit для frontend/backend/orchestrator, git diff --check и scripts/orchestration/run_process_verification.sh.",
+        "text_digest": "4998d832287b69b38bd42801ca7a1616fd0733801414b17e7067b21432f2e243"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-fn33/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "ebd446f786d0ce6234758572980be2a1bb70001c26f4e34da91313ba31d16c2a",
+  "scope_ledger": "none",
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-fn33/summary.md"
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-fn33.1",
+      "stream_owner": "task1_terra",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.1.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.3",
+      "stream_owner": "task2_sol",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.3.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.2",
+      "stream_owner": "task3_terra",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.2.md"
+    },
+    {
+      "task_id": "content-factory-next-jdfy",
+      "stream_owner": "task4_terra",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-jdfy.md"
+    },
+    {
+      "task_id": "content-factory-next-3r4a",
+      "stream_owner": "task5_terra",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-3r4a.md"
+    },
+    {
+      "task_id": "content-factory-next-f4ai",
+      "stream_owner": "task6_terra",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-f4ai.md"
+    },
+    {
+      "task_id": "content-factory-next-yyiy",
+      "stream_owner": "task7_terra_then_luna",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-yyiy.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.4",
+      "stream_owner": "task8_luna",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.4.md"
+    }
+  ]
+}

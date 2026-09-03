@@ -1,4 +1,7 @@
-import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
+import {
+  PrismaRepository,
+  PrismaTransaction,
+} from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { Role, ShortLinkPreference, SubscriptionTier } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
@@ -6,6 +9,7 @@ import {
   CONTENT_WORKFLOW_TAGS,
   CreateOrgUserDto,
 } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
+import { CONTENT_WORKFLOW_TAG_KEYS } from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
@@ -20,16 +24,7 @@ import {
 
 // Order matches `CONTENT_WORKFLOW_TAGS`. The color in that array is fixed and
 // unrelated to language, so only the name is resolved per registration
-// language; the key list stays here rather than in `starter-template.ts`
-// because that file is loaded bare (no mocks) by several tests and must not
-// gain a `@contentfactory/*` import of its own.
-const CONTENT_WORKFLOW_TAG_KEYS = [
-  'content_workflow_tag_plan',
-  'content_workflow_tag_draft',
-  'content_workflow_tag_review',
-  'content_workflow_tag_schedule',
-] as const;
-
+// language.
 @Injectable()
 export class OrganizationRepository {
   private readonly _logger = new Logger(OrganizationRepository.name);
@@ -37,7 +32,8 @@ export class OrganizationRepository {
   constructor(
     private _organization: PrismaRepository<'organization'>,
     private _userOrg: PrismaRepository<'userOrganization'>,
-    private _user: PrismaRepository<'user'>
+    private _user: PrismaRepository<'user'>,
+    private _transaction: PrismaTransaction
   ) {}
 
   createMaxUser(
@@ -271,18 +267,18 @@ export class OrganizationRepository {
     orgId: string,
     role: AssignableOrganizationRole
   ) {
-    const checkIfInviteExists = await this._user.model.user.findFirst({
-      where: {
-        inviteId: id,
-      },
-    });
+    return this._transaction.model.$transaction(async (tx) => {
+      const checkIfInviteExists = await tx.user.findFirst({
+        where: {
+          inviteId: id,
+        },
+      });
 
-    if (checkIfInviteExists) {
-      return false;
-    }
+      if (checkIfInviteExists) {
+        return false;
+      }
 
-    const checkForSubscription =
-      await this._organization.model.organization.findFirst({
+      const checkForSubscription = await tx.organization.findFirst({
         where: {
           id: orgId,
         },
@@ -291,32 +287,33 @@ export class OrganizationRepository {
         },
       });
 
-    if (
-      process.env.STRIPE_PUBLISHABLE_KEY &&
-      checkForSubscription?.subscription?.subscriptionTier ===
-        SubscriptionTier.STANDARD
-    ) {
-      return false;
-    }
+      if (
+        process.env.STRIPE_PUBLISHABLE_KEY &&
+        checkForSubscription?.subscription?.subscriptionTier ===
+          SubscriptionTier.STANDARD
+      ) {
+        return false;
+      }
 
-    const create = await this._userOrg.model.userOrganization.create({
-      data: {
-        role,
-        userId,
-        organizationId: orgId,
-      },
+      const create = await tx.userOrganization.create({
+        data: {
+          role,
+          userId,
+          organizationId: orgId,
+        },
+      });
+
+      await tx.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          inviteId: id,
+        },
+      });
+
+      return create;
     });
-
-    await this._user.model.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        inviteId: id,
-      },
-    });
-
-    return create;
   }
 
   async createOrgAndUser(
@@ -341,14 +338,19 @@ export class OrganizationRepository {
         ?.trim() || 'Workspace';
     // Unknown, empty or unshipped values fall back to English rather than
     // rejecting the registration; see `resolveBackendLocale`.
-    const locale = resolveBackendLocale((body as { language?: unknown }).language);
+    const locale = resolveBackendLocale(
+      (body as { language?: unknown }).language
+    );
     // There is no starter-template choice on the registration form any more:
     // every new workspace gets the content-workflow tags, unconditionally,
     // named in the language the person was reading when they signed up.
     const workflowTagsData = {
       tags: {
         create: CONTENT_WORKFLOW_TAGS.map(({ color }, index) => ({
-          name: translateBackendString(CONTENT_WORKFLOW_TAG_KEYS[index], locale),
+          name: translateBackendString(
+            CONTENT_WORKFLOW_TAG_KEYS[index],
+            locale
+          ),
           color,
         })),
       },

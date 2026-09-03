@@ -61,6 +61,33 @@ function loadTypeScriptModule(relativePath, mocks = {}, options = {}) {
       if (Object.prototype.hasOwnProperty.call(sources, request)) {
         return loadFile(sources[request]);
       }
+      if (request.startsWith('./') || request.startsWith('../')) {
+        const relativeSource = path.relative(
+          repositoryRoot,
+          path.resolve(path.dirname(filename), `${request}.ts`)
+        );
+        if (fs.existsSync(path.join(repositoryRoot, relativeSource))) {
+          return loadFile(relativeSource);
+        }
+      }
+      const packageRoots = [
+        [
+          '@contentfactory/nestjs-libraries/',
+          'libraries/nestjs-libraries/src/',
+        ],
+        ['@contentfactory/helpers/', 'libraries/helpers/src/'],
+        ['@contentfactory/react/', 'libraries/react-shared-libraries/src/'],
+      ];
+      for (const [prefix, root] of packageRoots) {
+        if (!request.startsWith(prefix)) continue;
+        const relativeSource = path.join(
+          root,
+          `${request.slice(prefix.length)}.ts`
+        );
+        if (fs.existsSync(path.join(repositoryRoot, relativeSource))) {
+          return loadFile(relativeSource);
+        }
+      }
       return require(request);
     };
 

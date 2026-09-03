@@ -15,6 +15,7 @@ import {
 } from '@contentfactory/react/choice/tabs';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { AdminTelegramConnectComponent } from './admin-telegram-connect.component';
 
 export type AdminUserStatus = 'pending' | 'active' | 'all';
@@ -93,7 +94,7 @@ export function AdminUsersView({
   onSearchInputChange: (value: string) => void;
   onApplySearch: () => void;
   onRetry: () => void;
-  onAction: (row: AdminAccountRow, action: 'approve' | 'block') => void;
+  onAction: (row: AdminAccountRow, action: 'approve' | 'block' | 'reject') => void;
   onPageChange: (page: number) => void;
 }) {
   const t = useT();
@@ -308,12 +309,21 @@ export function AdminUsersView({
                     </div>
                     <div className="flex flex-wrap gap-[8px] lg:justify-end">
                       {!row.activated && (
-                        <Button
-                          loading={busyId === row.id}
-                          onClick={() => onAction(row, 'approve')}
-                        >
-                          {t('approve', 'Approve')}
-                        </Button>
+                        <>
+                          <Button
+                            loading={busyId === row.id}
+                            onClick={() => onAction(row, 'approve')}
+                          >
+                            {t('approve', 'Approve')}
+                          </Button>
+                          <Button
+                            secondary
+                            loading={busyId === row.id}
+                            onClick={() => onAction(row, 'reject')}
+                          >
+                            {t('reject_pending_account', 'Reject')}
+                          </Button>
+                        </>
                       )}
                       {row.activated && !row.isSuperAdmin && (
                         <Button
@@ -385,7 +395,19 @@ export const AdminUsersComponent = () => {
   );
 
   const act = useCallback(
-    async (row: AdminAccountRow, action: 'approve' | 'block') => {
+    async (row: AdminAccountRow, action: 'approve' | 'block' | 'reject') => {
+      if (
+        action === 'reject' &&
+        !(await deleteDialog(
+          t(
+            'reject_pending_account_confirmation',
+            'Reject this pending account? Its unused workspace will be permanently deleted.'
+          ),
+          t('reject_pending_account_confirm', 'Yes, reject account')
+        ))
+      ) {
+        return;
+      }
       setBusyId(row.id);
       setSuccessMessage('');
       try {
@@ -402,7 +424,9 @@ export const AdminUsersComponent = () => {
         const message =
           action === 'approve'
             ? t('account_approved', 'Account approved')
-            : t('account_blocked', 'Account blocked');
+            : action === 'reject'
+              ? t('account_rejected', 'Pending account rejected')
+              : t('account_blocked', 'Account blocked');
         setSuccessMessage(message);
         toaster.show(message, 'success');
         await mutate();

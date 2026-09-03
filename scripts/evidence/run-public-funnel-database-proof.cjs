@@ -23,7 +23,9 @@ const root = path.resolve(__dirname, '../..');
 const args = process.argv.slice(2);
 const evidenceFlag = args.indexOf('--evidence-dir');
 if (evidenceFlag < 0 || !args[evidenceFlag + 1]) {
-  throw new Error('Usage: run-public-funnel-database-proof.cjs --evidence-dir DIR');
+  throw new Error(
+    'Usage: run-public-funnel-database-proof.cjs --evidence-dir DIR'
+  );
 }
 const evidenceDir = path.resolve(args[evidenceFlag + 1]);
 const allowedEvidenceRoot = path.join(
@@ -34,7 +36,9 @@ if (
   evidenceDir !== allowedEvidenceRoot &&
   !evidenceDir.startsWith(`${allowedEvidenceRoot}${path.sep}`)
 ) {
-  throw new Error(`Evidence directory is outside the assigned write zone: ${evidenceDir}`);
+  throw new Error(
+    `Evidence directory is outside the assigned write zone: ${evidenceDir}`
+  );
 }
 
 const runId = `cf-public-funnel-${process.pid}-${randomUUID().slice(0, 8)}`;
@@ -85,9 +89,30 @@ async function check(name, proof) {
 
 function dockerList(kind) {
   const specs = {
-    container: ['ps', '-a', '--filter', `label=${resourceLabel}`, '--format', '{{.Names}}'],
-    volume: ['volume', 'ls', '--filter', `label=${resourceLabel}`, '--format', '{{.Name}}'],
-    network: ['network', 'ls', '--filter', `label=${resourceLabel}`, '--format', '{{.Name}}'],
+    container: [
+      'ps',
+      '-a',
+      '--filter',
+      `label=${resourceLabel}`,
+      '--format',
+      '{{.Names}}',
+    ],
+    volume: [
+      'volume',
+      'ls',
+      '--filter',
+      `label=${resourceLabel}`,
+      '--format',
+      '{{.Name}}',
+    ],
+    network: [
+      'network',
+      'ls',
+      '--filter',
+      `label=${resourceLabel}`,
+      '--format',
+      '{{.Name}}',
+    ],
   };
   const output = command('docker', specs[kind]);
   return output ? output.split('\n').filter(Boolean) : [];
@@ -115,7 +140,8 @@ function closeSharedRedis() {
   const loaded = require.cache[modulePath];
   if (!loaded) return 'not loaded';
   const client = loaded.exports && loaded.exports.ioRedis;
-  if (!client || typeof client.disconnect !== 'function') return 'in-memory stub';
+  if (!client || typeof client.disconnect !== 'function')
+    return 'in-memory stub';
   client.disconnect();
   return 'disconnected';
 }
@@ -408,26 +434,57 @@ async function exerciseEmailFirstStepOne() {
       },
     },
     '@contentfactory/react/form/input': {
-      Input: ({ label, standalone: _standalone, fieldClassName: _field, ...props }) =>
-        React.createElement('label', {}, label, React.createElement('input', { 'aria-label': label, ...props })),
+      Input: ({
+        label,
+        standalone: _standalone,
+        fieldClassName: _field,
+        ...props
+      }) =>
+        React.createElement(
+          'label',
+          {},
+          label,
+          React.createElement('input', { 'aria-label': label, ...props })
+        ),
+    },
+    '@contentfactory/react/form/password-input': {
+      PasswordInput: ({ label, ...props }) =>
+        React.createElement(
+          'label',
+          {},
+          label,
+          React.createElement('input', { 'aria-label': label, ...props })
+        ),
+    },
+    '@contentfactory/react/translation/get.transation.service.client': {
+      useT: () => (_key, fallback) => fallback,
+    },
+    '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+      PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+      isPasswordPolicyCompliant: () => true,
     },
     '@contentfactory/react/form/button': {
       Button: ({ loading, children, ...props }) =>
-        React.createElement('button', { ...props, disabled: loading }, children),
+        React.createElement(
+          'button',
+          { ...props, disabled: loading },
+          children
+        ),
     },
     './public-copy': {
-      usePublicCopy: () => (key) => ({
-        emailTitle: 'Keep this workflow',
-        emailBody: 'Continue with email',
-        emailContinue: 'Continue',
-        emailLabel: 'Email',
-        passwordLabel: 'Password',
-        workspaceOptional: 'Workspace name (optional)',
-        createAccount: 'Create account',
-        newsletterConsent: 'Newsletter',
-        legalUnavailable: 'Legal unavailable',
-        authOptions: 'Other auth',
-      }[key]),
+      usePublicCopy: () => (key) =>
+        ({
+          emailTitle: 'Keep this workflow',
+          emailBody: 'Continue with email',
+          emailContinue: 'Continue',
+          emailLabel: 'Email',
+          passwordLabel: 'Password',
+          workspaceOptional: 'Workspace name (optional)',
+          createAccount: 'Create account',
+          newsletterConsent: 'Newsletter',
+          legalUnavailable: 'Legal unavailable',
+          authOptions: 'Other auth',
+        }[key]),
     },
     './public-telemetry': {
       usePublicTelemetry: () => async (name) => {
@@ -453,7 +510,8 @@ async function exerciseEmailFirstStepOne() {
       CheckboxField: () => React.createElement('input', { type: 'checkbox' }),
     },
     'next/navigation': { useRouter: () => ({ push: () => undefined }) },
-    'next/link': ({ children, ...props }) => React.createElement('a', props, children),
+    'next/link': ({ children, ...props }) =>
+      React.createElement('a', props, children),
   };
 
   try {
@@ -473,13 +531,21 @@ async function exerciseEmailFirstStepOne() {
     assert.equal(registerCalls, 0);
     assert.equal(telemetryCalls, 1);
     assert.ok(testing.screen.getByLabelText('Password'));
-    return { registerCalls, telemetryCalls, emailLocation: 'React component state' };
+    return {
+      registerCalls,
+      telemetryCalls,
+      emailLocation: 'React component state',
+    };
   } finally {
     testing.cleanup();
     dom.window.close();
     for (const key of ['window', 'document', 'navigator']) {
       if (previous[key] === undefined) delete global[key];
-      else Object.defineProperty(global, key, { configurable: true, value: previous[key] });
+      else
+        Object.defineProperty(global, key, {
+          configurable: true,
+          value: previous[key],
+        });
     }
     delete global.IS_REACT_ACT_ENVIRONMENT;
   }
@@ -503,27 +569,48 @@ async function main() {
   assert.equal(nodeVersion, 'v22.23.2');
   assert.equal(pnpmVersion, '10.6.1');
 
-  command('docker', ['network', 'create', '--label', resourceLabel, resources.network]);
+  command('docker', [
+    'network',
+    'create',
+    '--label',
+    resourceLabel,
+    resources.network,
+  ]);
   created.network = true;
-  command('docker', ['volume', 'create', '--label', resourceLabel, resources.volume]);
+  command('docker', [
+    'volume',
+    'create',
+    '--label',
+    resourceLabel,
+    resources.volume,
+  ]);
   created.volume = true;
   command('docker', [
     'run',
     '--detach',
-    '--name', resources.container,
-    '--label', resourceLabel,
-    '--network', resources.network,
-    '--publish', '127.0.0.1::5432',
-    '--env', `POSTGRES_PASSWORD=${postgresPassword}`,
-    '--env', `POSTGRES_DB=${databaseName}`,
-    '--volume', `${resources.volume}:/var/lib/postgresql/data`,
+    '--name',
+    resources.container,
+    '--label',
+    resourceLabel,
+    '--network',
+    resources.network,
+    '--publish',
+    '127.0.0.1::5432',
+    '--env',
+    `POSTGRES_PASSWORD=${postgresPassword}`,
+    '--env',
+    `POSTGRES_DB=${databaseName}`,
+    '--volume',
+    `${resources.volume}:/var/lib/postgresql/data`,
     'postgres:17',
   ]);
   created.container = true;
   const portSpec = command('docker', ['port', resources.container, '5432/tcp']);
   const port = Number(portSpec.slice(portSpec.lastIndexOf(':') + 1));
   assert.ok(Number.isInteger(port) && port > 0);
-  const databaseUrl = `postgresql://postgres:${encodeURIComponent(postgresPassword)}@127.0.0.1:${port}/${databaseName}?schema=public`;
+  const databaseUrl = `postgresql://postgres:${encodeURIComponent(
+    postgresPassword
+  )}@127.0.0.1:${port}/${databaseName}?schema=public`;
   phase = 'postgres-tcp-readiness';
   await waitForPostgres(databaseUrl);
   pg = new Client({ connectionString: databaseUrl });
@@ -532,7 +619,8 @@ async function main() {
   phase = 'postgres-fixture-ddl';
   await pg.query(fixtureSql);
 
-  const serverVersion = (await pg.query('SHOW server_version')).rows[0].server_version;
+  const serverVersion = (await pg.query('SHOW server_version')).rows[0]
+    .server_version;
   assert.match(serverVersion, /^17\./);
   process.env.DATABASE_URL = databaseUrl;
   process.env.NODE_ENV = 'test';
@@ -586,16 +674,30 @@ async function main() {
   const {
     EmailService,
   } = require('../../libraries/nestjs-libraries/src/services/email.service.ts');
-  const { AuthController } = require('../../apps/backend/src/api/routes/auth.controller.ts');
-  const { AdminController } = require('../../apps/backend/src/api/routes/admin.controller.ts');
-  const { ErrorsService } = require('../../libraries/nestjs-libraries/src/database/prisma/errors/errors.service.ts');
-  const { AdminStatsService } = require('../../libraries/nestjs-libraries/src/database/prisma/admin-stats/admin-stats.service.ts');
-  const { ProductEventsService } = require('../../libraries/nestjs-libraries/src/database/prisma/product-events/product-events.service.ts');
+  const {
+    AuthController,
+  } = require('../../apps/backend/src/api/routes/auth.controller.ts');
+  const {
+    AdminController,
+  } = require('../../apps/backend/src/api/routes/admin.controller.ts');
+  const {
+    ErrorsService,
+  } = require('../../libraries/nestjs-libraries/src/database/prisma/errors/errors.service.ts');
+  const {
+    AdminStatsService,
+  } = require('../../libraries/nestjs-libraries/src/database/prisma/admin-stats/admin-stats.service.ts');
+  const {
+    ProductEventsService,
+  } = require('../../libraries/nestjs-libraries/src/database/prisma/product-events/product-events.service.ts');
 
   const model = { model: prisma };
   const growthRepository = new PublicGrowthRepository(model, model);
   const growthService = new PublicGrowthService(growthRepository);
-  const organizationRepository = new OrganizationRepository(model, model, model);
+  const organizationRepository = new OrganizationRepository(
+    model,
+    model,
+    model
+  );
   const repositoryIntents = [];
   const createOrgAndUser = organizationRepository.createOrgAndUser.bind(
     organizationRepository
@@ -641,7 +743,12 @@ async function main() {
       throw new Error('external OAuth link generation is outside this proof');
     }
     async getToken(code, redirectUri, callback) {
-      providerCalls.push({ operation: 'getToken', code, redirectUri, callback });
+      providerCalls.push({
+        operation: 'getToken',
+        code,
+        redirectUri,
+        callback,
+      });
       assert.equal(code, 'local-oauth-code');
       assert.equal(redirectUri, 'http://127.0.0.1:4200/oauth-proof');
       assert.deepEqual(callback, {
@@ -653,10 +760,17 @@ async function main() {
     async getUser(token) {
       providerCalls.push({ operation: 'getUser', token });
       assert.equal(token, 'local-oauth-provider-token');
-      return { email: 'oauth-workflow@example.test', id: 'local-oauth-subject' };
+      return {
+        email: 'oauth-workflow@example.test',
+        id: 'local-oauth-subject',
+      };
     }
     async postRegistration(token, organizationId) {
-      providerCalls.push({ operation: 'postRegistration', token, organizationId });
+      providerCalls.push({
+        operation: 'postRegistration',
+        token,
+        organizationId,
+      });
       assert.equal(token, 'local-oauth-provider-token');
     }
   }
@@ -680,8 +794,16 @@ async function main() {
 
   class ProofModule {}
   Module({
-    imports: [ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }] })],
-    controllers: [PublicGrowthEventsController, AuthController, AdminController],
+    imports: [
+      ThrottlerModule.forRoot({
+        throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+      }),
+    ],
+    controllers: [
+      PublicGrowthEventsController,
+      AuthController,
+      AdminController,
+    ],
     providers: [
       PublicGrowthEventsGuard,
       { provide: PublicGrowthService, useValue: growthService },
@@ -695,7 +817,9 @@ async function main() {
     ],
   })(ProofModule);
 
-  const moduleRef = await Test.createTestingModule({ imports: [ProofModule] }).compile();
+  const moduleRef = await Test.createTestingModule({
+    imports: [ProofModule],
+  }).compile();
   phase = 'nest-listen';
   app = moduleRef.createNestApplication();
   app.useGlobalPipes(
@@ -705,9 +829,10 @@ async function main() {
     })
   );
   app.use((request, _response, next) => {
-    request.user = request.headers['x-proof-super-admin'] === 'true'
-      ? { id: 'proof-super-admin', isSuperAdmin: true }
-      : { id: 'proof-user', isSuperAdmin: false };
+    request.user =
+      request.headers['x-proof-super-admin'] === 'true'
+        ? { id: 'proof-super-admin', isSuperAdmin: true }
+        : { id: 'proof-user', isSuperAdmin: false };
     next();
   });
   await app.listen(0, '127.0.0.1');
@@ -717,63 +842,76 @@ async function main() {
   const initialCounts = await queryCounts();
   phase = 'behavior-checks';
   assert.deepEqual(initialCounts, { users: 0, organizations: 0, tags: 0 });
-  const stepOne = await check('email-first step one does not create account rows', async () => {
-    const browserState = await exerciseEmailFirstStepOne();
-    const counts = await queryCounts();
-    assert.deepEqual(counts, initialCounts);
-    return { browserState, counts };
-  });
+  const stepOne = await check(
+    'email-first step one does not create account rows',
+    async () => {
+      const browserState = await exerciseEmailFirstStepOne();
+      const counts = await queryCounts();
+      assert.deepEqual(counts, initialCounts);
+      return { browserState, counts };
+    }
+  );
 
-  await check('nested content-workflow write rolls back on tag failure', async () => {
-    await pg.query(`ALTER TABLE "Tags" ADD CONSTRAINT "proof_reject_review" CHECK ("name" <> 'Review')`);
-    const before = await queryCounts();
-    await assert.rejects(
-      organizationRepository.createOrgAndUser(
+  await check(
+    'nested content-workflow write rolls back on tag failure',
+    async () => {
+      await pg.query(
+        `ALTER TABLE "Tags" ADD CONSTRAINT "proof_reject_review" CHECK ("name" <> 'Review')`
+      );
+      const before = await queryCounts();
+      await assert.rejects(
+        organizationRepository.createOrgAndUser(
+          {
+            email: 'rollback@example.test',
+            password: 'local-secret-rollback',
+            provider: Provider.LOCAL,
+            starterTemplate: 'content-workflow',
+          },
+          { activated: true, isSuperAdmin: false },
+          '127.0.0.1',
+          'runtime-proof'
+        )
+      );
+      const after = await queryCounts();
+      assert.deepEqual(after, before);
+      await pg.query(
+        `ALTER TABLE "Tags" DROP CONSTRAINT "proof_reject_review"`
+      );
+      return { before, after, injectedFailure: 'Tags CHECK rejected Review' };
+    }
+  );
+
+  let workflowOrganizationId;
+  await check(
+    'step two atomically creates one workspace and four workflow tags',
+    async () => {
+      const createdOrganization = await organizationRepository.createOrgAndUser(
         {
-          email: 'rollback@example.test',
-          password: 'local-secret-rollback',
+          email: 'workflow@example.test',
+          password: 'local-secret-workflow',
           provider: Provider.LOCAL,
           starterTemplate: 'content-workflow',
         },
         { activated: true, isSuperAdmin: false },
         '127.0.0.1',
         'runtime-proof'
-      )
-    );
-    const after = await queryCounts();
-    assert.deepEqual(after, before);
-    await pg.query(`ALTER TABLE "Tags" DROP CONSTRAINT "proof_reject_review"`);
-    return { before, after, injectedFailure: 'Tags CHECK rejected Review' };
-  });
-
-  let workflowOrganizationId;
-  await check('step two atomically creates one workspace and four workflow tags', async () => {
-    const createdOrganization = await organizationRepository.createOrgAndUser(
-      {
-        email: 'workflow@example.test',
-        password: 'local-secret-workflow',
-        provider: Provider.LOCAL,
-        starterTemplate: 'content-workflow',
-      },
-      { activated: true, isSuperAdmin: false },
-      '127.0.0.1',
-      'runtime-proof'
-    );
-    const tags = await pg.query(
-      `SELECT "name", "color" FROM "Tags" WHERE "orgId" = $1 ORDER BY array_position(ARRAY['Plan','Draft','Review','Schedule'], "name")`,
-      [createdOrganization.id]
-    );
-    assert.deepEqual(tags.rows, [
-      { name: 'Plan', color: '#7FB03A' },
-      { name: 'Draft', color: '#4D7CFE' },
-      { name: 'Review', color: '#F59E0B' },
-      { name: 'Schedule', color: '#8B5CF6' },
-    ]);
-    const counts = await queryCounts();
-    assert.deepEqual(counts, { users: 1, organizations: 1, tags: 4 });
-    workflowOrganizationId = createdOrganization.id;
-    return { organizationCreated: true, tags: tags.rows, counts };
-  });
+      );
+      const tags = await pg.query(
+        `SELECT "name", "color" FROM "Tags" WHERE "orgId" = $1 ORDER BY array_position(ARRAY['Plan','Draft','Review','Schedule'], "name")`,
+        [createdOrganization.id]
+      );
+      assert.deepEqual(tags.rows, [
+        { name: 'Plan', color: '#7FB03A' },
+        { name: 'Draft', color: '#4D7CFE' },
+        { name: 'Review', color: '#F59E0B' },
+        { name: 'Schedule', color: '#8B5CF6' },
+      ]);
+      const counts = await queryCounts();
+      assert.deepEqual(counts, { users: 1, organizations: 1, tags: 4 });
+      workflowOrganizationId = createdOrganization.id;
+      return { organizationCreated: true, tags: tags.rows, counts };
+    }
+  );
 
   await check(
     // Registration owner decision content-factory-next-pdbe (2026-09-01,
@@ -797,34 +935,49 @@ async function main() {
         '127.0.0.1',
         'runtime-proof'
       );
-      const tagCount = Number((await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [createdOrganization.id])).rows[0].count);
+      const tagCount = Number(
+        (
+          await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [
+            createdOrganization.id,
+          ])
+        ).rows[0].count
+      );
       assert.equal(tagCount, 4);
       return { organizationCreated: true, tagCount };
     }
   );
 
-  await check('duplicate registration leaves no second workspace or tag quartet', async () => {
-    const before = await queryCounts();
-    await assert.rejects(
-      organizationRepository.createOrgAndUser(
-        {
-          email: 'workflow@example.test',
-          password: 'local-secret-workflow',
-          provider: Provider.LOCAL,
-          starterTemplate: 'content-workflow',
-        },
-        { activated: true, isSuperAdmin: false },
-        '127.0.0.1',
-        'runtime-proof'
-      ),
-      (error) => error && error.code === 'P2002'
-    );
-    const after = await queryCounts();
-    assert.deepEqual(after, before);
-    const workflowTagCount = Number((await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [workflowOrganizationId])).rows[0].count);
-    assert.equal(workflowTagCount, 4);
-    return { before, after, workflowTagCount };
-  });
+  await check(
+    'duplicate registration leaves no second workspace or tag quartet',
+    async () => {
+      const before = await queryCounts();
+      await assert.rejects(
+        organizationRepository.createOrgAndUser(
+          {
+            email: 'workflow@example.test',
+            password: 'local-secret-workflow',
+            provider: Provider.LOCAL,
+            starterTemplate: 'content-workflow',
+          },
+          { activated: true, isSuperAdmin: false },
+          '127.0.0.1',
+          'runtime-proof'
+        ),
+        (error) => error && error.code === 'P2002'
+      );
+      const after = await queryCounts();
+      assert.deepEqual(after, before);
+      const workflowTagCount = Number(
+        (
+          await pg.query(`SELECT count(*) FROM "Tags" WHERE "orgId" = $1`, [
+            workflowOrganizationId,
+          ])
+        ).rows[0].count
+      );
+      assert.equal(workflowTagCount, 4);
+      return { before, after, workflowTagCount };
+    }
+  );
 
   const authEvidence = {
     boundary: {
@@ -927,9 +1080,7 @@ async function main() {
         status: 200,
         body: { register: true },
       });
-      const persisted = await registrationRows(
-        'oauth-workflow@example.test'
-      );
+      const persisted = await registrationRows('oauth-workflow@example.test');
       assert.deepEqual(persisted.tags, workflowTags);
       assert.deepEqual(repositoryIntents[intentIndex], {
         email: 'oauth-workflow@example.test',
@@ -1117,14 +1268,11 @@ async function main() {
         providerToken: '',
         starterTemplate: 'content-workflow',
       });
-      const oauthCallbackReplay = await authPost(
-        '/auth/oauth/GOOGLE/exists',
-        {
-          code: 'local-oauth-code',
-          redirect_uri: 'http://127.0.0.1:4200/oauth-proof',
-          state: 'local-oauth-state',
-        }
-      );
+      const oauthCallbackReplay = await authPost('/auth/oauth/GOOGLE/exists', {
+        code: 'local-oauth-code',
+        redirect_uri: 'http://127.0.0.1:4200/oauth-proof',
+        state: 'local-oauth-state',
+      });
       const oauthRegisterReplay = await authPost('/auth/register', {
         provider: 'GOOGLE',
         providerToken: 'local-oauth-provider-token',
@@ -1153,40 +1301,51 @@ async function main() {
   );
 
   const httpEvidence = {};
-  await check('real Nest public event route enforces validation allowlist and rate limit', async () => {
-    const post = (body) => jsonRequest(baseUrl, '/public-growth-events/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const accepted = await post({
-      name: 'demo_started',
-      locale: 'en',
-      widthRange: 'wide',
-      uiVersion: 'public-demo-v1',
-      demoStep: 'review',
-    });
-    assert.deepEqual(accepted, { status: 202, body: { accepted: true } });
-    const extraField = await post({ name: 'landing_view', email: 'blocked@example.test' });
-    const forbiddenName = await post({ name: 'registration_completed' });
-    assert.equal(extraField.status, 400);
-    assert.equal(forbiddenName.status, 400);
+  await check(
+    'real Nest public event route enforces validation allowlist and rate limit',
+    async () => {
+      const post = (body) =>
+        jsonRequest(baseUrl, '/public-growth-events/', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      const accepted = await post({
+        name: 'demo_started',
+        locale: 'en',
+        widthRange: 'wide',
+        uiVersion: 'public-demo-v1',
+        demoStep: 'review',
+      });
+      assert.deepEqual(accepted, { status: 202, body: { accepted: true } });
+      const extraField = await post({
+        name: 'landing_view',
+        email: 'blocked@example.test',
+      });
+      const forbiddenName = await post({ name: 'registration_completed' });
+      assert.equal(extraField.status, 400);
+      assert.equal(forbiddenName.status, 400);
 
-    const statuses = [accepted.status, extraField.status, forbiddenName.status];
-    while (!statuses.includes(429) && statuses.length < 125) {
-      statuses.push((await post({ name: 'landing_view' })).status);
+      const statuses = [
+        accepted.status,
+        extraField.status,
+        forbiddenName.status,
+      ];
+      while (!statuses.includes(429) && statuses.length < 125) {
+        statuses.push((await post({ name: 'landing_view' })).status);
+      }
+      assert.equal(statuses[119], 202);
+      assert.equal(statuses[120], 429);
+      httpEvidence.publicEvent = {
+        accepted,
+        extraField,
+        forbiddenName,
+        requestsBeforeThrottle: 120,
+        throttledStatus: statuses[120],
+      };
+      return httpEvidence.publicEvent;
     }
-    assert.equal(statuses[119], 202);
-    assert.equal(statuses[120], 429);
-    httpEvidence.publicEvent = {
-      accepted,
-      extraField,
-      forbiddenName,
-      requestsBeforeThrottle: 120,
-      throttledStatus: statuses[120],
-    };
-    return httpEvidence.publicEvent;
-  });
+  );
 
   const rawTrustedKey = 'registration_completed:private-workspace-id';
   let expectedRegistrationAggregate = 0;
@@ -1200,54 +1359,69 @@ async function main() {
   const proofDay = new Date().toISOString().slice(0, 10);
   const proofInstant = new Date(`${proofDay}T12:00:00.000Z`);
   const reportWindow = `/admin/public-growth-report?from=${proofDay}&to=${proofDay}`;
-  await check('trusted growth receipt is HMAC-only and deduplicated in PostgreSQL', async () => {
-    const now = proofInstant;
-    const beforeAggregate = Number(
-      (
-        await pg.query(
-          `SELECT coalesce(sum("count"), 0)::int AS "count" FROM "PublicGrowthDaily" WHERE "name" = 'registration_completed'`
-        )
-      ).rows[0].count
-    );
-    const first = await growthService.recordTrusted('registration_completed', rawTrustedKey, now);
-    const duplicate = await growthService.recordTrusted('registration_completed', rawTrustedKey, now);
-    assert.deepEqual(first, { recorded: true });
-    assert.deepEqual(duplicate, { recorded: false });
-    const expectedHmac = createHmac(
-      'sha256',
-      process.env.PUBLIC_GROWTH_DEDUPE_KEY
-    )
-      .update('content-factory/public-growth/trusted-dedupe/v1\0')
-      .update(rawTrustedKey)
-      .digest('hex');
-    const receipts = await pg.query(
-      `SELECT "name", "deduplicationKey" FROM "PublicGrowthTrustedEvent" WHERE "deduplicationKey" = $1`,
-      [expectedHmac]
-    );
-    assert.equal(receipts.rowCount, 1);
-    assert.equal(receipts.rows[0].deduplicationKey, expectedHmac);
-    assert.ok(!JSON.stringify(receipts.rows).includes('private-workspace-id'));
-    expectedRegistrationAggregate = Number(
-      (
-        await pg.query(
-          `SELECT coalesce(sum("count"), 0)::int AS "count" FROM "PublicGrowthDaily" WHERE "name" = 'registration_completed'`
-        )
-      ).rows[0].count
-    );
-    assert.equal(expectedRegistrationAggregate, beforeAggregate + 1);
-    return {
-      first,
-      duplicate,
-      receiptCount: receipts.rowCount,
-      receiptFormat: 'sha256-hmac-hex',
-      rawKeyStored: false,
-      aggregateBefore: beforeAggregate,
-      aggregateCount: expectedRegistrationAggregate,
-    };
-  });
+  await check(
+    'trusted growth receipt is HMAC-only and deduplicated in PostgreSQL',
+    async () => {
+      const now = proofInstant;
+      const beforeAggregate = Number(
+        (
+          await pg.query(
+            `SELECT coalesce(sum("count"), 0)::int AS "count" FROM "PublicGrowthDaily" WHERE "name" = 'registration_completed'`
+          )
+        ).rows[0].count
+      );
+      const first = await growthService.recordTrusted(
+        'registration_completed',
+        rawTrustedKey,
+        now
+      );
+      const duplicate = await growthService.recordTrusted(
+        'registration_completed',
+        rawTrustedKey,
+        now
+      );
+      assert.deepEqual(first, { recorded: true });
+      assert.deepEqual(duplicate, { recorded: false });
+      const expectedHmac = createHmac(
+        'sha256',
+        process.env.PUBLIC_GROWTH_DEDUPE_KEY
+      )
+        .update('content-factory/public-growth/trusted-dedupe/v1\0')
+        .update(rawTrustedKey)
+        .digest('hex');
+      const receipts = await pg.query(
+        `SELECT "name", "deduplicationKey" FROM "PublicGrowthTrustedEvent" WHERE "deduplicationKey" = $1`,
+        [expectedHmac]
+      );
+      assert.equal(receipts.rowCount, 1);
+      assert.equal(receipts.rows[0].deduplicationKey, expectedHmac);
+      assert.ok(
+        !JSON.stringify(receipts.rows).includes('private-workspace-id')
+      );
+      expectedRegistrationAggregate = Number(
+        (
+          await pg.query(
+            `SELECT coalesce(sum("count"), 0)::int AS "count" FROM "PublicGrowthDaily" WHERE "name" = 'registration_completed'`
+          )
+        ).rows[0].count
+      );
+      assert.equal(expectedRegistrationAggregate, beforeAggregate + 1);
+      return {
+        first,
+        duplicate,
+        receiptCount: receipts.rowCount,
+        receiptFormat: 'sha256-hmac-hex',
+        rawKeyStored: false,
+        aggregateBefore: beforeAggregate,
+        aggregateCount: expectedRegistrationAggregate,
+      };
+    }
+  );
 
   await check('trusted receipt and aggregate roll back together', async () => {
-    await pg.query(`ALTER TABLE "PublicGrowthDaily" ADD CONSTRAINT "proof_reject_workspace_activated" CHECK ("name" <> 'workspace_activated')`);
+    await pg.query(
+      `ALTER TABLE "PublicGrowthDaily" ADD CONSTRAINT "proof_reject_workspace_activated" CHECK ("name" <> 'workspace_activated')`
+    );
     await assert.rejects(
       growthService.recordTrusted(
         'workspace_activated',
@@ -1255,66 +1429,82 @@ async function main() {
         proofInstant
       )
     );
-    const receiptCount = Number((await pg.query(`SELECT count(*) FROM "PublicGrowthTrustedEvent" WHERE "name" = 'workspace_activated'`)).rows[0].count);
-    const aggregateCount = Number((await pg.query(`SELECT count(*) FROM "PublicGrowthDaily" WHERE "name" = 'workspace_activated'`)).rows[0].count);
+    const receiptCount = Number(
+      (
+        await pg.query(
+          `SELECT count(*) FROM "PublicGrowthTrustedEvent" WHERE "name" = 'workspace_activated'`
+        )
+      ).rows[0].count
+    );
+    const aggregateCount = Number(
+      (
+        await pg.query(
+          `SELECT count(*) FROM "PublicGrowthDaily" WHERE "name" = 'workspace_activated'`
+        )
+      ).rows[0].count
+    );
     assert.equal(receiptCount, 0);
     assert.equal(aggregateCount, 0);
-    await pg.query(`ALTER TABLE "PublicGrowthDaily" DROP CONSTRAINT "proof_reject_workspace_activated"`);
+    await pg.query(
+      `ALTER TABLE "PublicGrowthDaily" DROP CONSTRAINT "proof_reject_workspace_activated"`
+    );
     return { receiptCount, aggregateCount };
   });
 
   const aggregateQueries = [];
   prisma.$on('query', (event) => {
-    if (event.query.includes('PublicGrowthDaily')) aggregateQueries.push(event.query);
+    if (event.query.includes('PublicGrowthDaily'))
+      aggregateQueries.push(event.query);
   });
-  await check('admin HTTP report rejects non-super-admin before data access', async () => {
-    const beforeQueries = aggregateQueries.length;
-    const response = await jsonRequest(
-      baseUrl,
-      reportWindow
-    );
-    assert.equal(response.status, 400);
-    assert.equal(aggregateQueries.length, beforeQueries);
-    httpEvidence.nonSuperAdminReport = response;
-    return { status: response.status, aggregateQueries: 0 };
-  });
+  await check(
+    'admin HTTP report rejects non-super-admin before data access',
+    async () => {
+      const beforeQueries = aggregateQueries.length;
+      const response = await jsonRequest(baseUrl, reportWindow);
+      assert.equal(response.status, 400);
+      assert.equal(aggregateQueries.length, beforeQueries);
+      httpEvidence.nonSuperAdminReport = response;
+      return { status: response.status, aggregateQueries: 0 };
+    }
+  );
 
-  await check('super-admin HTTP report reads real aggregates and exposes only fixed totals and ratios', async () => {
-    const response = await jsonRequest(
-      baseUrl,
-      reportWindow,
-      { headers: { 'x-proof-super-admin': 'true' } }
-    );
-    assert.equal(response.status, 200);
-    assert.deepEqual(Object.keys(response.body).sort(), ['ratios', 'totals']);
-    assert.deepEqual(Object.keys(response.body.totals).sort(), [
-      'demo_completed',
-      'demo_started',
-      'landing_view',
-      'registration_completed',
-      'signup_started',
-      'workspace_activated',
-    ]);
-    assert.deepEqual(Object.keys(response.body.ratios).sort(), [
-      'demo_completed_per_demo_started',
-      'demo_started_per_landing_view',
-      'registration_completed_per_signup_started',
-      'signup_started_per_landing_view',
-      'workspace_activated_per_registration_completed',
-    ]);
-    assert.equal(response.body.totals.demo_started, 1);
-    assert.equal(
-      response.body.totals.registration_completed,
-      expectedRegistrationAggregate
-    );
-    assert.ok(response.body.totals.landing_view > 0);
-    assert.doesNotMatch(
-      JSON.stringify(response.body),
-      /receipt|dedup|organization|user.?id|visitor|ip|referrer|user.?agent|locale|widthRange|uiVersion|demoStep/i
-    );
-    httpEvidence.superAdminReport = response;
-    return response;
-  });
+  await check(
+    'super-admin HTTP report reads real aggregates and exposes only fixed totals and ratios',
+    async () => {
+      const response = await jsonRequest(baseUrl, reportWindow, {
+        headers: { 'x-proof-super-admin': 'true' },
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual(Object.keys(response.body).sort(), ['ratios', 'totals']);
+      assert.deepEqual(Object.keys(response.body.totals).sort(), [
+        'demo_completed',
+        'demo_started',
+        'landing_view',
+        'registration_completed',
+        'signup_started',
+        'workspace_activated',
+      ]);
+      assert.deepEqual(Object.keys(response.body.ratios).sort(), [
+        'demo_completed_per_demo_started',
+        'demo_started_per_landing_view',
+        'registration_completed_per_signup_started',
+        'signup_started_per_landing_view',
+        'workspace_activated_per_registration_completed',
+      ]);
+      assert.equal(response.body.totals.demo_started, 1);
+      assert.equal(
+        response.body.totals.registration_completed,
+        expectedRegistrationAggregate
+      );
+      assert.ok(response.body.totals.landing_view > 0);
+      assert.doesNotMatch(
+        JSON.stringify(response.body),
+        /receipt|dedup|organization|user.?id|visitor|ip|referrer|user.?agent|locale|widthRange|uiVersion|demoStep/i
+      );
+      httpEvidence.superAdminReport = response;
+      return response;
+    }
+  );
 
   const storedRows = await pg.query(`
     SELECT "day"::text, "name", "locale", "widthRange", "uiVersion", "demoStep", "count"
@@ -1331,7 +1521,9 @@ async function main() {
   };
   assert.ok(
     databaseEvidence.publicGrowthDaily.every((row) =>
-      ['landing_view', 'demo_started', 'registration_completed'].includes(row.name)
+      ['landing_view', 'demo_started', 'registration_completed'].includes(
+        row.name
+      )
     )
   );
   writeJson('http.json', httpEvidence);
@@ -1342,7 +1534,11 @@ async function main() {
     pnpm: pnpmVersion,
     postgres: serverVersion,
     postgresImage: 'postgres:17',
-    dockerServer: command('docker', ['version', '--format', '{{.Server.Version}}']),
+    dockerServer: command('docker', [
+      'version',
+      '--format',
+      '{{.Server.Version}}',
+    ]),
     prohibitedCommands: [],
   });
 }
@@ -1368,7 +1564,11 @@ async function main() {
     runtime: {
       node: process.version,
       pnpm: (() => {
-        try { return command('pnpm', ['--version']); } catch { return 'unavailable'; }
+        try {
+          return command('pnpm', ['--version']);
+        } catch {
+          return 'unavailable';
+        }
       })(),
       postgres: '17',
     },
@@ -1404,7 +1604,11 @@ async function main() {
     }));
     fs.writeSync(
       2,
-      `Proof finished, but ${leaked.length} handle(s) still hold the event loop open: ${JSON.stringify(described)}\n`
+      `Proof finished, but ${
+        leaked.length
+      } handle(s) still hold the event loop open: ${JSON.stringify(
+        described
+      )}\n`
     );
     process.exit(1);
   }, 5_000);

@@ -351,6 +351,18 @@ describe('the old place points at the new one', () => {
     expect(settings).toContain('data-content-intelligence-moved="true"');
   });
 
+  test('the signpost tab is still offered in the tab list, to every role', () => {
+    // The 03.09 role gating removed it from the list by accident: the signpost
+    // rendered, but only for someone who already knew the ?tab= value.
+    const settings = source('settings');
+    const list = settings.slice(
+      settings.indexOf('const list = useMemo('),
+      settings.indexOf('return arr;')
+    );
+    expect(list).toContain("tab: 'content_intelligence'");
+    expect(list).not.toMatch(/if \(isAdmin\) \{[^}]*content_intelligence/);
+  });
+
   test('settings no longer loads the content-intelligence container', () => {
     // Leaving it mounted in both places is how the two copies drift; removing
     // the tab outright loses the people who learned where it was.

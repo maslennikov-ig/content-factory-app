@@ -93,11 +93,16 @@ function loadPublicCopy() {
   return { ...loaded.exports, source };
 }
 
-const requestFor = (pathname, authenticated = false) => ({
+const requestFor = (pathname, authenticated = false, pendingInvite) => ({
   nextUrl: new URL(`http://localhost:4200${pathname}`),
   cookies: {
-    get: (name) =>
-      authenticated && name === 'auth' ? { value: 'signed-token' } : undefined,
+    get: (name) => {
+      if (authenticated && name === 'auth') return { value: 'signed-token' };
+      if (pendingInvite && name === 'pending-team-invitation') {
+        return { value: pendingInvite };
+      }
+      return undefined;
+    },
   },
   headers: new Headers(),
 });
@@ -141,9 +146,19 @@ describe('public SaaS route boundary', () => {
     const inviteEntry = await anonymous.proxy(
       requestFor(`/?org=${inviteToken}`)
     );
+    const confirmation = `http://localhost:4200/join-org?org=${inviteToken}`;
     expect(inviteEntry).toMatchObject({
       type: 'redirect',
-      url: `http://localhost:4200/auth?org=${inviteToken}`,
+      url: `http://localhost:4200/auth?returnUrl=${encodeURIComponent(
+        confirmation
+      )}`,
+      cookieWrites: [
+        [
+          'pending-team-invitation',
+          inviteToken,
+          expect.objectContaining({ httpOnly: true }),
+        ],
+      ],
     });
     expect(anonymous.internalFetchCalls).toHaveLength(0);
 
@@ -152,12 +167,14 @@ describe('public SaaS route boundary', () => {
     );
     expect(inviteCapture).toMatchObject({
       type: 'redirect',
-      url: 'http://localhost:4200/auth',
+      url: `http://localhost:4200/auth?returnUrl=${encodeURIComponent(
+        confirmation
+      )}`,
       cookieWrites: [
         [
-          'org',
+          'pending-team-invitation',
           inviteToken,
-          expect.objectContaining({ expires: expect.any(Date) }),
+          expect.objectContaining({ httpOnly: true }),
         ],
       ],
     });
@@ -165,22 +182,45 @@ describe('public SaaS route boundary', () => {
       type: 'next',
     });
 
-    const authenticated = loadProxy({ joinResult: { id: 'joined-org' } });
+    const authenticated = loadProxy();
     await expect(
       authenticated.proxy(requestFor(`/?org=${inviteToken}`, true))
     ).resolves.toMatchObject({
       type: 'redirect',
-      url: 'http://localhost:4200/?added=true',
+      url: confirmation,
     });
-    expect(authenticated.internalFetchCalls).toEqual([
-      {
-        url: '/user/join-org',
-        options: {
-          body: JSON.stringify({ org: inviteToken }),
-          method: 'POST',
-        },
-      },
-    ]);
+    await expect(
+      authenticated.proxy(requestFor(`/join-org?org=${inviteToken}`, true))
+    ).resolves.toMatchObject({ type: 'next' });
+    await expect(
+      authenticated.proxy(
+        requestFor(`/join-org?org=${inviteToken}`, true, inviteToken)
+      )
+    ).resolves.toMatchObject({
+      type: 'next',
+      cookieWrites: [
+        [
+          'pending-team-invitation',
+          '',
+          expect.objectContaining({ maxAge: -1 }),
+        ],
+      ],
+    });
+    expect(authenticated.internalFetchCalls).toEqual([]);
+
+    await expect(
+      authenticated.proxy(requestFor('/auth/login', true, inviteToken))
+    ).resolves.toMatchObject({
+      type: 'redirect',
+      url: confirmation,
+      cookieWrites: [
+        [
+          'pending-team-invitation',
+          '',
+          expect.objectContaining({ maxAge: -1 }),
+        ],
+      ],
+    });
   });
 
   test('keeps the marketing home for an ?org= value that is not an invite token', async () => {

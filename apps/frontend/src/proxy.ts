@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getCookieUrlFromDomain } from '@contentfactory/helpers/subdomain/subdomain.management';
-import { internalFetch } from '@contentfactory/helpers/utils/internal.fetch';
 import acceptLanguage from 'accept-language';
 import {
   cookieName,
@@ -11,6 +10,10 @@ import {
   languages,
 } from '@contentfactory/react/translation/i18n.config';
 acceptLanguage.languages(languageTags);
+
+const PENDING_TEAM_INVITATION_COOKIE = 'pending-team-invitation';
+const isInviteToken = (value?: string | null) =>
+  !!value && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
 
 // The legal documents are published without a session on purpose: a visitor
 // has to be able to read what they would be agreeing to before there is an
@@ -37,6 +40,9 @@ export async function proxy(request: NextRequest) {
     : undefined;
   const authCookie =
     request.cookies.get('auth') || request.headers.get('auth') || loggedAuth;
+  const pendingInvitation = request.cookies.get(
+    PENDING_TEAM_INVITATION_COOKIE
+  )?.value;
   const cookieLanguage = request.cookies.get(cookieName)?.value;
   // `acceptLanguage.get` answers with the first configured language when it
   // matches nothing, so ask separately whether the browser named a language
@@ -121,8 +127,88 @@ export async function proxy(request: NextRequest) {
   // handed the marketing home to the auth flow whenever a campaign or partner
   // link used the same parameter name for a plain tag: the visitor never saw
   // the landing page, and the backend rejected the tag anyway.
-  const looksLikeInviteToken =
-    !!org && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(org);
+  const looksLikeInviteToken = isInviteToken(org);
+  if (
+    authCookie &&
+    looksLikeInviteToken &&
+    pendingInvitation === org &&
+    nextUrl.pathname === '/join-org'
+  ) {
+    topResponse.cookies.set(PENDING_TEAM_INVITATION_COOKIE, '', {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: !process.env.NOT_SECURED,
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      maxAge: -1,
+      expires: new Date(0),
+    });
+    return topResponse;
+  }
+
+  if (
+    authCookie &&
+    isInviteToken(pendingInvitation) &&
+    (nextUrl.pathname === '/' || nextUrl.pathname.startsWith('/auth'))
+  ) {
+    const confirmationUrl = new URL('/join-org', nextUrl.href);
+    confirmationUrl.searchParams.set('org', pendingInvitation!);
+    const redirect = NextResponse.redirect(confirmationUrl);
+    redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, '', {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: !process.env.NOT_SECURED,
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      maxAge: -1,
+      expires: new Date(0),
+    });
+    return redirect;
+  }
+
+  if (
+    looksLikeInviteToken &&
+    (nextUrl.pathname === '/' || nextUrl.pathname === '/auth')
+  ) {
+    const confirmationUrl = new URL('/join-org', nextUrl.href);
+    confirmationUrl.searchParams.set('org', org);
+    if (authCookie) {
+      return NextResponse.redirect(confirmationUrl);
+    }
+
+    const loginUrl = new URL('/auth', nextUrl.href);
+    loginUrl.searchParams.set('returnUrl', confirmationUrl.toString());
+    const redirect = NextResponse.redirect(loginUrl);
+    redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, org, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: !process.env.NOT_SECURED,
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      maxAge: 15 * 60,
+    });
+    return redirect;
+  }
+
+  if (
+    nextUrl.pathname === '/join-org' &&
+    looksLikeInviteToken &&
+    !authCookie
+  ) {
+    const loginUrl = new URL('/auth', nextUrl.href);
+    loginUrl.searchParams.set('returnUrl', nextUrl.href);
+    const redirect = NextResponse.redirect(loginUrl);
+    redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, org, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: !process.env.NOT_SECURED,
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      maxAge: 15 * 60,
+    });
+    return redirect;
+  }
+
   const homeNeedsSessionRouting =
     nextUrl.pathname === '/' && (looksLikeInviteToken || Boolean(authCookie));
   if (PUBLIC_PATHS.includes(nextUrl.pathname) && !homeNeedsSessionRouting) {
@@ -179,53 +265,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${url}`, nextUrl.href));
   }
   if (nextUrl.pathname.startsWith('/auth') && !authCookie) {
-    if (org) {
-      const redirect = NextResponse.redirect(new URL(`/auth`, nextUrl.href));
-      redirect.cookies.set('org', org, {
-        ...(!process.env.NOT_SECURED
-          ? {
-              path: '/',
-              secure: true,
-              httpOnly: true,
-              sameSite: false,
-              domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-            }
-          : {}),
-        expires: new Date(Date.now() + 15 * 60 * 1000),
-      });
-      return redirect;
-    }
     return topResponse;
   }
   try {
-    if (org) {
-      const { id } = await (
-        await internalFetch('/user/join-org', {
-          body: JSON.stringify({
-            org,
-          }),
-          method: 'POST',
-        })
-      ).json();
-      const redirect = NextResponse.redirect(
-        new URL(`/?added=true`, nextUrl.href)
-      );
-      if (id) {
-        redirect.cookies.set('showorg', id, {
-          ...(!process.env.NOT_SECURED
-            ? {
-                path: '/',
-                secure: true,
-                httpOnly: true,
-                sameSite: false,
-                domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-              }
-            : {}),
-          expires: new Date(Date.now() + 15 * 60 * 1000),
-        });
-      }
-      return redirect;
-    }
     if (nextUrl.pathname === '/') {
       return NextResponse.redirect(
         new URL(

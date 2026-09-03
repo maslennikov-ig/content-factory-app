@@ -60,6 +60,12 @@ function resolveLocal(fromDirectory, request) {
       'libraries/react-shared-libraries/src',
       request.slice('@contentfactory/react/'.length)
     );
+  } else if (request.startsWith('@contentfactory/nestjs-libraries/')) {
+    base = path.join(
+      repositoryRoot,
+      'libraries/nestjs-libraries/src',
+      request.slice('@contentfactory/nestjs-libraries/'.length)
+    );
   } else return null;
 
   for (const suffix of suffixes) {

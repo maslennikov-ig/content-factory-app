@@ -6,9 +6,22 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateBy,
   ValidateIf,
 } from 'class-validator';
 import { Provider } from '@prisma/client';
+import {
+  isPasswordPolicyCompliant,
+  PASSWORD_POLICY_ERROR_MESSAGE,
+} from '../auth/password.policy';
+
+const localPasswordPolicy = ValidateBy({
+  name: 'localPasswordPolicy',
+  validator: {
+    validate: isPasswordPolicyCompliant,
+    defaultMessage: () => PASSWORD_POLICY_ERROR_MESSAGE,
+  },
+});
 
 export class LinkUserIdentityDto {
   @IsEnum(Provider)
@@ -35,8 +48,7 @@ export class LinkUserIdentityDto {
   email?: string;
 
   @IsString()
-  @MinLength(6)
-  @MaxLength(128)
+  @localPasswordPolicy
   @IsDefined()
   @ValidateIf((body) => body.provider === Provider.LOCAL)
   password?: string;

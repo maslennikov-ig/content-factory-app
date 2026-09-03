@@ -116,14 +116,15 @@ describe('role refusal carries a message', () => {
     expect(payload.url).toContain('/billing');
   });
 
-  test.each(
-    Object.values(Sections).map((section) => [section])
-  )('section %s never answers with an empty dialog', (section) => {
-    const { payload } = refuse(section);
+  test.each(Object.values(Sections).map((section) => [section]))(
+    'section %s never answers with an empty dialog',
+    (section) => {
+      const { payload } = refuse(section);
 
-    expect(typeof payload.message).toBe('string');
-    expect(payload.message.trim()).not.toBe('');
-  });
+      expect(typeof payload.message).toBe('string');
+      expect(payload.message.trim()).not.toBe('');
+    }
+  );
 
   test('a plan limit still reads as a plan limit', () => {
     expect(refuse(Sections.CHANNEL).payload.message).toMatch(
@@ -321,12 +322,9 @@ function renderShortlinkPreference(role) {
 }
 
 describe('shortlink preference is read by everyone and changed by an administrator', () => {
-  test.each([['ADMIN'], ['SUPERADMIN']])(
-    'a %s can change it',
-    (role) => {
-      expect(renderShortlinkPreference(role)).not.toContain('disabled');
-    }
-  );
+  test.each([['ADMIN'], ['SUPERADMIN']])('a %s can change it', (role) => {
+    expect(renderShortlinkPreference(role)).not.toContain('disabled');
+  });
 
   test('an ordinary member sees the setting but cannot change it', () => {
     const markup = renderShortlinkPreference('USER');
@@ -396,7 +394,6 @@ describe('AI provider settings visibility', () => {
     expect(markup).not.toContain(AI_PROVIDER_MARKER);
     // The rest of the tab is unchanged for a member.
     expect(markup).toContain('email');
-    expect(markup).toContain('shortlink');
   });
 
   test('an unresolved user is treated as not an administrator', () => {

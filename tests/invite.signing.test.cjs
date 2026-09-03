@@ -32,7 +32,7 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
   return loaded.exports;
 }
 
-const signJWT = jest.fn((payload) => `signed:${JSON.stringify(payload)}`);
+const issueTeamInvitation = jest.fn(async () => 'signed-invitation');
 
 const { OrganizationService } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/organizations/organization.service.ts',
@@ -60,7 +60,9 @@ const { OrganizationService } = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.service':
       { AutopostService: class {} },
-    '@contentfactory/helpers/auth/auth.service': { AuthService: { signJWT } },
+    '@contentfactory/nestjs-libraries/auth/team-invitation': {
+      issueTeamInvitation,
+    },
     '@contentfactory/nestjs-libraries/services/make.is': {
       makeId: () => 'inv01',
     },
@@ -82,7 +84,7 @@ const { OrganizationService } = loadTypeScriptModule(
 
 describe('the team invitation link', () => {
   beforeEach(() => {
-    signJWT.mockClear();
+    issueTeamInvitation.mockClear();
     process.env.FRONTEND_URL = 'https://app.example';
   });
 
@@ -106,16 +108,17 @@ describe('the team invitation link', () => {
       body
     );
 
-    const [payload] = signJWT.mock.calls[0];
+    const [payload] = issueTeamInvitation.mock.calls[0];
     expect(Object.keys(payload).sort()).toEqual([
-      'email',
       'id',
+      'inviterEmail',
+      'inviterName',
       'orgId',
       'role',
-      'timeLimit',
+      'workspaceName',
     ]);
     expect(payload.orgId).toBe('org-1');
-    expect(payload.email).toBe('guest@example.com');
+    expect(payload).not.toHaveProperty('boundEmail');
   });
 
   test('refuses to carry a field the caller invented', async () => {
@@ -135,8 +138,32 @@ describe('the team invitation link', () => {
       }
     );
 
-    const [payload] = signJWT.mock.calls[0];
+    const [payload] = issueTeamInvitation.mock.calls[0];
     expect(payload).not.toHaveProperty('saasName');
     expect(payload).not.toHaveProperty('name');
+  });
+
+  test('binds emailed invitations to a normalized address', async () => {
+    const service = new OrganizationService({}, { sendEmail: jest.fn() });
+
+    await service.inviteTeamMember(
+      { id: 'org-1', name: 'Studio' },
+      { id: 'user-1', name: 'Owner', email: 'owner@example.com' },
+      {
+        email: '  Guest@Example.COM ',
+        role: 'EDITOR',
+        sendEmail: true,
+      }
+    );
+
+    expect(issueTeamInvitation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        boundEmail: 'guest@example.com',
+        inviterName: 'Owner',
+        inviterEmail: 'owner@example.com',
+        workspaceName: 'Studio',
+        role: 'EDITOR',
+      })
+    );
   });
 });

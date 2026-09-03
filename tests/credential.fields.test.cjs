@@ -31,21 +31,25 @@ const pastedCredentialFields = [
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
 ];
 
-/** Every `<Input .../>` element in the file, sliced to its closing tag. */
+/** Every shared field element in the file, sliced to its closing tag. */
 const inputs = (source) => {
   const elements = [];
-  let from = source.indexOf('<Input');
+  let from = source.search(/<(?:Input|PasswordInput)\b/);
   while (from !== -1) {
     const end = source.indexOf('/>', from);
     if (end === -1) break;
     elements.push(source.slice(from, end + 2));
-    from = source.indexOf('<Input', end);
+    const next = source.slice(end + 2).search(/<(?:Input|PasswordInput)\b/);
+    from = next === -1 ? -1 : end + 2 + next;
   }
   return elements;
 };
 
 const passwordInputs = (source) =>
-  inputs(source).filter((element) => /type="password"/.test(element));
+  inputs(source).filter(
+    (element) =>
+      /^<PasswordInput\b/.test(element) || /type="password"/.test(element)
+  );
 
 describe('credential fields', () => {
   test.each(accountPasswordFields)(
@@ -96,9 +100,7 @@ describe('credential fields', () => {
 
   test('an autofilled field keeps the product surface in both themes', () => {
     const global = read('apps/frontend/src/app/global.scss');
-    const rule = global.match(
-      /input:-webkit-autofill[\s\S]*?\n}/
-    )?.[0];
+    const rule = global.match(/input:-webkit-autofill[\s\S]*?\n}/)?.[0];
 
     expect(rule).toBeDefined();
     expect(rule).toContain('-webkit-text-fill-color: var(--cf-ink)');

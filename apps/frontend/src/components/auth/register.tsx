@@ -5,6 +5,7 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import Link from 'next/link';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { PasswordInput } from '@contentfactory/react/form/password-input';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { canOfferNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -21,6 +22,10 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
+import {
+  PASSWORD_POLICY,
+  PASSWORD_POLICY_ERROR_MESSAGE,
+} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 type Inputs = {
   email: string;
   password: string;
@@ -108,6 +113,14 @@ export function RegisterAfter({
       subscribeToNewsletter: false,
     },
   });
+  const passwordError = form.formState.errors.password?.message;
+  const localizedPasswordError =
+    passwordError === PASSWORD_POLICY_ERROR_MESSAGE
+      ? t(
+          'password_policy_error',
+          'Use 7–64 characters with a letter, a number, and a special character.'
+        )
+      : passwordError;
   const email = form.watch('email', '');
   // The same rule the auth service applies to the submitted body. Hiding the
   // checkbox is a courtesy; refusing the value is the enforcement, and both
@@ -249,17 +262,23 @@ export function RegisterAfter({
                 autoComplete="email"
                 placeholder={t('email_address', 'Email Address')}
               />
-              <Input
+              <PasswordInput
                 label="Password"
                 translationKey="field_required"
                 translationParams={{
                   field: t('label_password', 'Password'),
                 }}
                 {...form.register('password')}
+                error={localizedPasswordError}
                 autoComplete="new-password"
-                type="password"
                 required
                 placeholder={t('label_password', 'Password')}
+                showPasswordLabel={t('show_password', 'Show password')}
+                hidePasswordLabel={t('hide_password', 'Hide password')}
+                helper={t(
+                  'password_policy_hint',
+                  `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+                )}
               />
             </>
           )}

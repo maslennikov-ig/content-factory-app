@@ -31,7 +31,7 @@ export const GlobalSettings = () => {
       </h3>
       <MetricComponent />
       <EmailNotificationsComponent />
-      <ShortlinkPreferenceComponent />
+      {isAdmin && <ShortlinkPreferenceComponent />}
       {isAdmin && <AiProviderComponent />}
     </div>
   );

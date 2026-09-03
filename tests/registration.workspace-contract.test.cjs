@@ -47,6 +47,10 @@ function loadOrganizationRepository() {
       },
       '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto':
         dtoModule,
+      '@contentfactory/nestjs-libraries/dtos/auth/starter-template':
+        loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/dtos/auth/starter-template.ts'
+        ),
       '@contentfactory/nestjs-libraries/database/prisma/users/user-identity': {
         normalizeIdentityIdentifier: (_provider, value) =>
           value.trim().toLowerCase(),
@@ -111,9 +115,10 @@ const WORKFLOW_TAG_QUARTET = [
 ];
 
 describe('progressive registration contract', () => {
-  test('requires twelve characters only for new LOCAL registration passwords', async () => {
-    const shortLocal = await validate(registrationBody({ password: '12345678901' }));
-    const minimumLocal = await validate(registrationBody({ password: '123456789012' }));
+  test('requires the shared password policy only for new LOCAL registration passwords', async () => {
+    const shortLocal = await validate(registrationBody({ password: 'A1!abc' }));
+    const missingSymbol = await validate(registrationBody({ password: 'Abcdef1' }));
+    const minimumLocal = await validate(registrationBody({ password: 'A1!abcd' }));
     const shortProvider = await validate(
       registrationBody({
         provider: Provider.GOOGLE,
@@ -123,6 +128,7 @@ describe('progressive registration contract', () => {
     );
 
     expect(shortLocal.some((error) => error.property === 'password')).toBe(true);
+    expect(missingSymbol.some((error) => error.property === 'password')).toBe(true);
     expect(minimumLocal).toHaveLength(0);
     expect(shortProvider).toHaveLength(0);
   });

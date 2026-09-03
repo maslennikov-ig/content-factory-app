@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import * as Sentry from '@sentry/nextjs';
 import { createErrorCollectionOptions } from '@contentfactory/helpers/errors/create.error.collection.options';
 import {

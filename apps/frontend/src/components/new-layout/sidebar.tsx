@@ -35,7 +35,10 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
     viewBox="0 0 16 16"
     fill="none"
     aria-hidden
-    className={clsx('transition-transform duration-state', !open && 'rotate-180')}
+    className={clsx(
+      'transition-transform duration-state',
+      !open && 'rotate-180'
+    )}
   >
     <path
       d="M10 3 5 8l5 5"
@@ -134,7 +137,10 @@ export const Sidebar: FC<{
   }, [mobileOpen, onCloseMobile]);
 
   const groups = [
-    { label: t('nav_group_work', 'Work'), items: filterMenu(workMenu, user as any, billingEnabled) },
+    {
+      label: t('nav_group_work', 'Work'),
+      items: filterMenu(workMenu, user as any, billingEnabled),
+    },
     {
       label: t('nav_group_admin', 'Administration'),
       items: filterMenu(adminMenu, user as any, billingEnabled),
@@ -177,7 +183,11 @@ export const Sidebar: FC<{
           className="flex-1 overflow-y-auto px-[12px] pb-[12px] flex flex-col gap-[20px]"
         >
           {groups.map((group) => (
-            <Group key={group.label} label={group.label} collapsed={isCollapsed}>
+            <Group
+              key={group.label}
+              label={group.label}
+              collapsed={isCollapsed}
+            >
               {group.items.map((item) => (
                 <MenuItem
                   key={item.name}
@@ -202,6 +212,18 @@ export const Sidebar: FC<{
           >
             {(user as any)?.email}
           </div>
+          <Link
+            href="/settings?tab=profile"
+            className={clsx(
+              FOOTER_ROW,
+              'flex items-center text-cf-navigation-text hover:bg-cf-navigation-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
+              isCollapsed && 'justify-center'
+            )}
+            aria-label={t('profile', 'Profile')}
+            onClick={isDrawer ? onCloseMobile : undefined}
+          >
+            {isCollapsed ? '●' : t('profile', 'Profile')}
+          </Link>
           {/* The AGPL source offer used to sit here. It is a licence errand,
               not a place in the product, and a permanent row beside the
               product's own navigation gave it more weight on every screen than

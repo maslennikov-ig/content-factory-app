@@ -7,6 +7,11 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { PasswordInput } from '@contentfactory/react/form/password-input';
+import {
+  isPasswordPolicyCompliant,
+  PASSWORD_POLICY,
+} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 
 type IdentityProvider =
   | 'LOCAL'
@@ -585,8 +590,7 @@ export function SignInMethodsView({
                     {providerLabel(identity.provider, genericName, t)}
                   </h3>
                   <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-accent bg-cf-accent-soft px-[8px] py-[4px] cf-caption text-cf-accent">
-                    <StatusMark />{' '}
-                    {t('sign_in_method_connected', 'Connected')}
+                    <StatusMark /> {t('sign_in_method_connected', 'Connected')}
                   </span>
                 </div>
                 <p className="mt-[4px] cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
@@ -713,28 +717,31 @@ export function SignInMethodsView({
                   className="cf-control-h"
                   onChange={(event) => onEmailChange(event.target.value)}
                 />
-                <Input
+                <PasswordInput
                   disableForm
                   id="sign-in-method-password"
                   name="sign-in-method-password"
                   label={t('password', 'Password')}
                   helper={t(
-                    'password_minimum_six_characters',
-                    'At least 6 characters.'
+                    'password_policy_hint',
+                    `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
                   )}
-                  type="password"
                   autoComplete="new-password"
                   value={password}
                   disabled={allActionsDisabled}
                   className="cf-control-h"
                   onChange={(event) => onPasswordChange(event.target.value)}
+                  showPasswordLabel={t('show_password', 'Show password')}
+                  hidePasswordLabel={t('hide_password', 'Hide password')}
                 />
                 <div className="sm:col-span-2 sm:justify-self-end">
                   <Button
                     variant="primary"
                     className="cf-control-h"
                     disabled={
-                      allActionsDisabled || !email || password.length < 6
+                      allActionsDisabled ||
+                      !email ||
+                      !isPasswordPolicyCompliant(password)
                     }
                     loading={busyProvider === 'LOCAL'}
                     loadingLabel={t(
@@ -918,8 +925,13 @@ export const SignInMethodsComponent = () => {
       setFieldError(t('enter_valid_email', 'Enter a valid email address.'));
       return;
     }
-    if (password.length < 6) {
-      setFieldError(t('use_six_characters', 'Use at least 6 characters.'));
+    if (!isPasswordPolicyCompliant(password)) {
+      setFieldError(
+        t(
+          'password_policy_error',
+          'Use 7–64 characters with a letter, a number, and a special character.'
+        )
+      );
       return;
     }
     setFieldError('');

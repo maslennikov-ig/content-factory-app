@@ -95,6 +95,9 @@ const mocks = {
   '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
     CreateOrgUserDto: class CreateOrgUserDto {},
   },
+  '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+    PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+  },
   '@contentfactory/frontend/components/auth/providers/github.provider': {
     GithubProvider: emptyProvider,
   },
@@ -128,6 +131,10 @@ const mocks = {
       googleAuthEnabled: false,
       telegramLoginEnabled: false,
     }),
+  },
+  '@contentfactory/react/form/password-input': {
+    PasswordInput: ({ label, showPasswordLabel: _show, hidePasswordLabel: _hide, ...props }) =>
+      h('label', {}, label, h('input', { 'aria-label': label, ...props })),
   },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => (_key, fallback) => fallback,

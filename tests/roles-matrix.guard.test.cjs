@@ -41,6 +41,8 @@ const GUARD = 'apps/backend/src/services/auth/permissions/permissions.guard.ts';
 const ROLES = 'libraries/nestjs-libraries/src/user/organization.roles.ts';
 const SCHEMA = 'libraries/nestjs-libraries/src/database/prisma/schema.prisma';
 const TEAM_SCREEN = 'apps/frontend/src/components/settings/teams.component.tsx';
+const SETTINGS_SCREEN = 'apps/frontend/src/components/layout/settings.component.tsx';
+const GLOBAL_SETTINGS = 'apps/frontend/src/components/settings/global.settings.tsx';
 
 const HTTP_METHODS = new Set(['Get', 'Post', 'Put', 'Delete', 'Patch']);
 
@@ -264,6 +266,17 @@ describe('the guard exemption is the one the matrix prints', () => {
   });
 });
 
+describe('the invitation door is documented separately from organization-role policy', () => {
+  test('/user/join-org names its signed-token, email-binding, and single-use rules', () => {
+    const document = read(MATRIX);
+
+    expect(document).toContain('| `/user/join-org` |');
+    expect(document).toContain('подписанного приглашения');
+    expect(document).toContain('однораз');
+    expect(document).toContain('адрес');
+  });
+});
+
 describe('the roles themselves', () => {
   const rolesSource = read(ROLES);
   const schema = read(SCHEMA);
@@ -333,5 +346,42 @@ describe('the roles themselves', () => {
         new RegExp(`'role_${role.toLowerCase()}_meaning',`)
       );
     }
+  });
+});
+
+describe('settings navigation follows the role matrix', () => {
+  const settings = read(SETTINGS_SCREEN);
+  const globalSettings = read(GLOBAL_SETTINGS);
+  const matrix = read(MATRIX);
+
+  test('the matrix names the tabs visible to each workspace role', () => {
+    expect(matrix).toContain('## Экран настроек');
+    expect(matrix).toContain('| `USER` и `EDITOR` |');
+    expect(matrix).toContain('| `ADMIN` |');
+    expect(matrix).toContain('| `SUPERADMIN` |');
+  });
+
+  test('administrator-only tabs and global blocks use the shared role helper', () => {
+    expect(settings).toContain(
+      "import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';"
+    );
+    expect(settings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
+    expect(settings).toMatch(
+      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'teams'/
+    );
+    expect(settings).toMatch(
+      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'api'/
+    );
+    expect(globalSettings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
+    expect(globalSettings).toMatch(/isAdmin && <ShortlinkPreferenceComponent \/>/);
+    expect(globalSettings).toMatch(/isAdmin && <AiProviderComponent \/>/);
+  });
+
+  test('a member opening an administrator tab from the address bar gets an in-page restriction', () => {
+    expect(settings).toContain("const requestedTab = url.get('tab');");
+    expect(settings).toContain('requestedTab ?? initialSettingsTab(url)');
+    expect(settings).toContain('RestrictedState');
+    expect(settings).toContain('settings_admin_role_required_title');
+    expect(settings).toContain('settings_admin_role_required_reason');
   });
 });

@@ -7,6 +7,14 @@ import { Provider, Role } from '@prisma/client';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
 import { EmailNotificationsDto } from '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto';
+import {
+  CONTENT_WORKFLOW_TAGS,
+  CONTENT_WORKFLOW_TAG_KEYS,
+} from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import {
   legacyIdentityIdentifier,
@@ -350,6 +358,197 @@ export class UsersRepository {
         activated: false,
       },
     });
+  }
+
+  /**
+   * A declined registration is deliberately narrower than a general account
+   * delete. A pending account cannot have used the product, and its workspace
+   * is safe to remove only while it belongs to that account alone. Every
+   * decision and every delete shares one transaction, so a concurrent invite
+   * or a foreign-key refusal leaves both records in place.
+   */
+  async rejectPendingAccount(id: string) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this._transaction.model.$transaction(
+          async (tx) => {
+            const user = await tx.user.findUnique({
+              where: { id },
+              select: {
+                id: true,
+                language: true,
+                activated: true,
+                isSuperAdmin: true,
+                organizations: { select: { organizationId: true } },
+              },
+            });
+
+            if (!user) {
+              throw new HttpException('User not found', 404);
+            }
+
+            if (user.activated || user.isSuperAdmin) {
+              throw new HttpException(
+                'Only pending non-admin accounts can be rejected',
+                400
+              );
+            }
+
+            if (user.organizations.length !== 1) {
+              throw new HttpException(
+                'The pending account does not own one empty organization',
+                400
+              );
+            }
+
+            const organizationId = user.organizations[0].organizationId;
+            const members = await tx.userOrganization.findMany({
+              where: { organizationId },
+              select: { userId: true },
+            });
+
+            if (members.length !== 1 || members[0].userId !== user.id) {
+              throw new HttpException(
+                'A shared organization cannot be deleted',
+                400
+              );
+            }
+
+            const organization = await tx.organization.findFirst({
+              where: {
+                id: organizationId,
+                autoPost: { none: {} },
+                Comments: { none: {} },
+                credits: { none: {} },
+                customers: { none: {} },
+                errors: { none: {} },
+                github: { none: {} },
+                Integration: { none: {} },
+                media: { none: {} },
+                buyerOrganization: { none: {} },
+                notifications: { none: {} },
+                plugs: { none: {} },
+                post: { none: {} },
+                submittedPost: { none: {} },
+                sets: { none: {} },
+                signatures: { none: {} },
+                thirdParty: { none: {} },
+                usedCodes: { none: {} },
+                webhooks: { none: {} },
+                oauthApp: { none: {} },
+                oauthAuthorizations: { none: {} },
+                aiUsageRecords: { none: {} },
+                subscription: { is: null },
+                brandProfile: { none: {} },
+                brandProfileVersions: { none: {} },
+                brandProfileAuditEvents: { none: {} },
+                contentSources: { none: {} },
+                sourceSyncRuns: { none: {} },
+                sourceSnapshots: { none: {} },
+                sourceEvidence: { none: {} },
+                contentEvidenceAssessments: { none: {} },
+                contentFacts: { none: {} },
+                contentFactEvidence: { none: {} },
+                contentContextSnapshots: { none: {} },
+                contentContextItems: { none: {} },
+                contentOutputContexts: { none: {} },
+                draftEvidence: { none: {} },
+                brandVoiceMeasurements: { none: {} },
+                brandVoiceSamples: { none: {} },
+                brandVoiceEdits: { none: {} },
+                contentPieces: { none: {} },
+                contentDerivations: { none: {} },
+                contentLeadSubscriptions: { none: {} },
+                contentLeads: { none: {} },
+                productEvents: {
+                  every: {
+                    name: 'register',
+                    userId: user.id,
+                    deduplicationKey: `register:${user.id}`,
+                  },
+                },
+                aiProvider: {
+                  is: {
+                    usageMode: 'included',
+                    apiKey: null,
+                    textModel: null,
+                    imageModel: null,
+                    searchEnabled: false,
+                    searchApiKey: null,
+                  },
+                },
+              },
+              select: {
+                tags: { select: { name: true, color: true, deletedAt: true } },
+              },
+            });
+
+            const locale = resolveBackendLocale(user.language);
+            const expectedTags = CONTENT_WORKFLOW_TAGS.map(
+              ({ color }, index) => ({
+                name: translateBackendString(
+                  CONTENT_WORKFLOW_TAG_KEYS[index],
+                  locale
+                ),
+                color,
+                deletedAt: null,
+              })
+            ).sort((a, b) => a.name.localeCompare(b.name));
+            const actualTags = organization?.tags
+              .map(({ name, color, deletedAt }) => ({
+                name,
+                color,
+                deletedAt: deletedAt ? deletedAt.toISOString() : null,
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name));
+            if (
+              !organization ||
+              JSON.stringify(actualTags) !== JSON.stringify(expectedTags)
+            ) {
+              throw new HttpException(
+                'The organization is not an empty registration workspace',
+                400
+              );
+            }
+
+            // UserOrganization has no schema cascade. Tags and AiProviderSetting are
+            // the registration seed; the query above proves every other direct org
+            // relation empty before any mutation, including cascade-backed content.
+            await tx.userOrganization.deleteMany({
+              where: { userId: user.id, organizationId },
+            });
+            const deletedUser = await tx.user.deleteMany({
+              where: {
+                id: user.id,
+                activated: false,
+                isSuperAdmin: false,
+              },
+            });
+            if (deletedUser.count !== 1) {
+              throw new HttpException(
+                'The pending account changed before it could be rejected',
+                409
+              );
+            }
+            await tx.tags.deleteMany({ where: { orgId: organizationId } });
+            await tx.organization.delete({ where: { id: organizationId } });
+
+            return { id: user.id, organizationId };
+          },
+          { isolationLevel: 'Serializable' }
+        );
+      } catch (error: any) {
+        if (error?.code !== 'P2034') throw error;
+        if (attempt === 2) {
+          throw new HttpException(
+            'The pending account is being changed right now; try again',
+            503
+          );
+        }
+      }
+    }
+
+    throw new Error('Unreachable pending-account rejection retry state');
   }
 
   /**

@@ -33,16 +33,19 @@ import { GlobalSettings } from '@contentfactory/frontend/components/settings/glo
 import { ApprovedAppsComponent } from '@contentfactory/frontend/components/approved-apps/approved-apps.component';
 import { AboutProjectComponent } from '@contentfactory/frontend/components/settings/about-project.component';
 import { Button } from '@contentfactory/react/form/button';
+import { Input } from '@contentfactory/react/form/input';
 import {
   initialSettingsTab,
   SignInMethodsComponent,
 } from '@contentfactory/frontend/components/settings/sign-in-methods.component';
 import { SettingsSurface } from '@contentfactory/frontend/components/settings/settings-surface.component';
+import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
-  const { isGeneral, language = '' } = useVariables();
+  const { language = '' } = useVariables();
   const isRussian = language.toLowerCase().startsWith('ru');
   const { getRef } = props;
   const fetch = useFetch();
@@ -61,7 +64,9 @@ export const SettingsPopup: FC<{
     return modal.closeAll();
   }, []);
   const url = useSearchParams();
+  const requestedTab = url.get('tab');
   const showLogout = !url.get('onboarding') || user?.tier?.current === 'FREE';
+  const isAdmin = isOrganizationAdmin(user?.role);
   const loadProfile = useCallback(async () => {
     const personal = await (await fetch('/user/personal')).json();
     form.setValue('fullname', personal.name || '');
@@ -89,11 +94,12 @@ export const SettingsPopup: FC<{
     close();
   }, []);
 
-  const [tab, setTab] = useState(() => initialSettingsTab(url));
+  const [tab, setTab] = useState(() => requestedTab ?? initialSettingsTab(url));
 
   const t = useT();
   const list = useMemo(() => {
     const arr = [];
+    arr.push({ tab: 'profile', label: t('profile', 'Profile') });
     arr.push({
       tab: 'global_settings',
       label: t('global_settings', 'Global Settings'),
@@ -102,27 +108,20 @@ export const SettingsPopup: FC<{
       tab: 'sign_in_methods',
       label: t('sign_in_methods', 'Sign-in methods'),
     });
+    // The surface moved to /content; the tab stays as the signpost for people
+    // who learned where it was. It is not a role question.
     arr.push({
       tab: 'content_intelligence',
       label: isRussian ? 'Знания о контенте' : 'Content intelligence',
     });
-    // Populate tabs based on user permissions
-    if (user?.tier?.team_members && isGeneral) {
+    if (isAdmin) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
     }
-    if (user?.tier?.webhooks) {
-      arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
-    }
-    if (user?.tier?.autoPost) {
-      arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
-    }
-    if (user?.tier.current !== 'FREE') {
-      arr.push({ tab: 'sets', label: t('sets', 'Sets') });
-    }
-    if (user?.tier.current !== 'FREE') {
-      arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
-    }
-    if (user?.tier?.public_api && isGeneral && showLogout) {
+    arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
+    arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
+    arr.push({ tab: 'sets', label: t('sets', 'Sets') });
+    arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
+    if (isAdmin) {
       arr.push({ tab: 'api', label: t('developers', 'Developers') });
     }
     arr.push({
@@ -146,7 +145,9 @@ export const SettingsPopup: FC<{
     });
 
     return arr;
-  }, [user, isGeneral, showLogout, language, t]);
+  }, [isAdmin, isRussian, t]);
+
+  const isRestrictedTab = !isAdmin && (tab === 'teams' || tab === 'api');
 
   useEffect(() => {
     loadProfile();
@@ -165,8 +166,73 @@ export const SettingsPopup: FC<{
         ) : undefined
       }
     >
-      {tab === 'sign_in_methods' ? (
+      {isRestrictedTab ? (
+        <RestrictedState
+          title={t(
+            'settings_admin_role_required_title',
+            'Administrator access required'
+          )}
+          reason={t(
+            'settings_admin_role_required_reason',
+            'You need an administrator role in this workspace to open this settings section.'
+          )}
+        />
+      ) : tab === 'sign_in_methods' ? (
         <SignInMethodsComponent />
+      ) : tab === 'profile' ? (
+        <FormProvider {...form}>
+          <form onSubmit={form.handleSubmit(submit)}>
+            {!!getRef && (
+              <Button type="submit" className="hidden" ref={getRef} />
+            )}
+            <section
+              className="flex flex-col gap-[16px]"
+              aria-labelledby="profile-heading"
+            >
+              <h2
+                id="profile-heading"
+                className="cf-heading-md text-cf-ink [text-wrap:balance]"
+              >
+                {t('profile', 'Profile')}
+              </h2>
+              <div className="flex flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+                <Input
+                  label={t('name', 'Name')}
+                  {...form.register('fullname')}
+                  error={form.formState.errors.fullname?.message as string}
+                />
+                <div className="flex flex-wrap items-center gap-[12px]">
+                  <div className="flex size-[48px] items-center justify-center overflow-hidden rounded-full bg-cf-surface-subtle text-cf-ink-muted">
+                    {picture?.path ? (
+                      <img
+                        src={picture.path}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      '●'
+                    )}
+                  </div>
+                  <Button type="button" variant="secondary" onClick={openMedia}>
+                    {t('picture', 'Picture')}
+                  </Button>
+                  {picture && (
+                    <Button type="button" variant="quiet" onClick={remove}>
+                      {t('remove', 'Remove')}
+                    </Button>
+                  )}
+                </div>
+                <Link
+                  href="/settings?tab=sign_in_methods"
+                  className="cf-label-md text-cf-accent underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                >
+                  {t('change_password', 'Change Password')}
+                </Link>
+                {!getRef && <Button type="submit">{t('save', 'Save')}</Button>}
+              </div>
+            </section>
+          </form>
+        </FormProvider>
       ) : tab === 'content_intelligence' ? (
         // The surface itself moved to the working menu, where the question it
         // answers belongs. What stays here is the signpost: the tab existed
@@ -233,44 +299,41 @@ export const SettingsPopup: FC<{
                   <GlobalSettings />
                 </div>
               )}
-              {tab === 'teams' && !!user?.tier?.team_members && isGeneral && (
+              {tab === 'teams' && isAdmin && (
                 <div>
                   <TeamsComponent />
                 </div>
               )}
 
-              {tab === 'webhooks' && !!user?.tier?.webhooks && (
+              {tab === 'webhooks' && (
                 <div>
                   <Webhooks />
                 </div>
               )}
 
-              {tab === 'autopost' && !!user?.tier?.autoPost && (
+              {tab === 'autopost' && (
                 <div>
                   <Autopost />
                 </div>
               )}
 
-              {tab === 'sets' && user?.tier.current !== 'FREE' && (
+              {tab === 'sets' && (
                 <div>
                   <Sets />
                 </div>
               )}
 
-              {tab === 'signatures' && user?.tier.current !== 'FREE' && (
+              {tab === 'signatures' && (
                 <div>
                   <SignaturesComponent />
                 </div>
               )}
 
-              {tab === 'api' &&
-                !!user?.tier?.public_api &&
-                isGeneral &&
-                showLogout && (
-                  <div>
-                    <PublicComponent />
-                  </div>
-                )}
+              {tab === 'api' && isAdmin && (
+                <div>
+                  <PublicComponent />
+                </div>
+              )}
 
               {tab === 'approved_apps' && (
                 <div>

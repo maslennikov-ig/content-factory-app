@@ -2,15 +2,27 @@ import {
   IsDefined,
   IsIn,
   IsString,
-  MaxLength,
   MinLength,
+  ValidateBy,
   ValidateIf,
 } from 'class-validator';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import {
+  isPasswordPolicyCompliant,
+  PASSWORD_POLICY_ERROR_MESSAGE,
+} from './password.policy';
+
+const passwordPolicy = ValidateBy({
+  name: 'passwordPolicy',
+  validator: {
+    validate: isPasswordPolicyCompliant,
+    defaultMessage: () => PASSWORD_POLICY_ERROR_MESSAGE,
+  },
+});
 
 export class ForgotReturnPasswordDto {
   /**
-   * The same 12..64 window `CreateOrgUserDto` applies to a LOCAL password,
+   * The same password policy `CreateOrgUserDto` applies to a LOCAL password,
    * unconditionally, because this route can only ever set a LOCAL one: `forgot`
    * refuses to issue a reset link to an account without a password sign-in, and
    * `updatePassword` refuses to write one inside its own transaction. There is
@@ -19,8 +31,7 @@ export class ForgotReturnPasswordDto {
    */
   @IsString()
   @IsDefined()
-  @MinLength(12)
-  @MaxLength(64)
+  @passwordPolicy
   password: string;
 
   @IsString()

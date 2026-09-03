@@ -9,29 +9,30 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Provider } from '@prisma/client';
+import {
+  isPasswordPolicyCompliant,
+  PASSWORD_POLICY_ERROR_MESSAGE,
+} from './password.policy';
 
 export { CONTENT_WORKFLOW_TAGS } from './starter-template';
 
-const localPasswordLength = ValidateBy({
-  name: 'localPasswordLength',
+const localPasswordPolicy = ValidateBy({
+  name: 'localPasswordPolicy',
   validator: {
     validate(value, { object }) {
       const registration = object as Pick<CreateOrgUserDto, 'provider'>;
       return (
         registration.provider !== Provider.LOCAL ||
-        (typeof value === 'string' && value.length >= 12)
+        isPasswordPolicyCompliant(value)
       );
     },
-    defaultMessage: () =>
-      'password must be longer than or equal to 12 characters',
+    defaultMessage: () => PASSWORD_POLICY_ERROR_MESSAGE,
   },
 });
 
 export class CreateOrgUserDto {
   @IsString()
-  @MinLength(3)
-  @localPasswordLength
-  @MaxLength(64)
+  @localPasswordPolicy
   @IsDefined()
   @ValidateIf((o) => o.provider === Provider.LOCAL || !o.providerToken)
   password: string;

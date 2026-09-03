@@ -3,9 +3,11 @@ import {
   Get,
   HttpException,
   Inject,
+  Logger,
   Param,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { User } from '@prisma/client';
@@ -17,6 +19,8 @@ import { registrationRequiresApproval } from '@contentfactory/helpers/auth/regis
 import dayjs from 'dayjs';
 import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.service';
 import { PUBLIC_GROWTH_SERVICE } from '@contentfactory/backend/api/routes/public-growth.token';
+import { AuthService as AuthChecker } from '@contentfactory/helpers/auth/auth.service';
+import { Request } from 'express';
 
 interface PublicGrowthReportService {
   getAdminReport(
@@ -40,9 +44,64 @@ export class AdminController {
     private _publicGrowthService: PublicGrowthReportService
   ) {}
 
+  private readonly _logger = new Logger(AdminController.name);
+
   private assertSuperAdmin(user: User) {
     if (!user?.isSuperAdmin) {
       throw new HttpException('Unauthorized', 400);
+    }
+  }
+
+  private getRequestUserId(req: Request): string | null {
+    try {
+      const auth = (req.headers.auth as string) || req.cookies?.auth;
+      const payload = AuthChecker.verifyJWT(auth) as { id?: string } | null;
+      return payload?.id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private assertPendingRejectionRequest(userId: string, req: Request) {
+    const contentType = String(req.headers['content-type'] || '')
+      .split(';', 1)[0]
+      .trim()
+      .toLowerCase();
+    let expectedOrigin: string | null = null;
+    try {
+      expectedOrigin = process.env.FRONTEND_URL
+        ? new URL(process.env.FRONTEND_URL).origin
+        : null;
+    } catch {
+      expectedOrigin = null;
+    }
+
+    if (!expectedOrigin) {
+      this._logger.error(
+        'FRONTEND_URL is missing or unparseable; refusing pending-account rejection until it is set'
+      );
+      throw new HttpException(
+        {
+          message:
+            'Pending-account rejection is unavailable: FRONTEND_URL is not configured',
+          code: 'pending_rejection_unavailable',
+        },
+        500
+      );
+    }
+
+    if (
+      contentType !== 'application/json' ||
+      req.headers.origin !== expectedOrigin ||
+      this.getRequestUserId(req) !== userId
+    ) {
+      throw new HttpException(
+        {
+          message: 'Forbidden pending-account rejection request',
+          code: 'pending_rejection_forbidden',
+        },
+        403
+      );
     }
   }
 
@@ -136,6 +195,18 @@ export class AdminController {
   async approveUser(@GetUserFromRequest() user: User, @Param('id') id: string) {
     this.assertSuperAdmin(user);
     await this._usersService.approveAccount(id);
+    return { success: true };
+  }
+
+  @Post('/users/:id/reject')
+  async rejectPendingUser(
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertPendingRejectionRequest(user.id, req);
+    await this._usersService.rejectPendingAccount(id);
     return { success: true };
   }
 

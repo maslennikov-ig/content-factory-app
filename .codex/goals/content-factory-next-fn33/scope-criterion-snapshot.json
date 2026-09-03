@@ -1,0 +1,14 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-fn33",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-fn33",
+  "source_digest": "ebd446f786d0ce6234758572980be2a1bb70001c26f4e34da91313ba31d16c2a",
+  "criteria": [
+    {
+      "criterion_id": "AC-1",
+      "text": "Восемь задач эпика content-factory-next-fn33 выполнены строго в порядке контракта: каждая закрыта в Beads с доказательствами или отложена с причиной; работа находится на ветке work/walkthrough-2026-09-03 от main, по одному коммиту на задачу с названием модели, без push, merge, deploy, доступа к серверу и записи в production database; итоговая приёмка включает pnpm test со всеми тремя частями, tsc --noEmit для frontend/backend/orchestrator, git diff --check и scripts/orchestration/run_process_verification.sh.",
+      "text_digest": "4998d832287b69b38bd42801ca7a1616fd0733801414b17e7067b21432f2e243"
+    }
+  ]
+}

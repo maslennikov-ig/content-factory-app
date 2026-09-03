@@ -29,7 +29,13 @@ global.IS_REACT_ACT_ENVIRONMENT = true;
 
 const React = require('react');
 const ts = require('typescript');
-const { cleanup, fireEvent, render, screen } = require('@testing-library/react');
+const {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const repositoryRoot = path.resolve(__dirname, '..');
@@ -58,13 +64,7 @@ function loadWithMocks(relativePath, mocks) {
     '__filename',
     '__dirname',
     compiled
-  )(
-    loaded.exports,
-    localRequire,
-    loaded,
-    filename,
-    path.dirname(filename)
-  );
+  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
   return loaded.exports;
 }
 
@@ -86,7 +86,8 @@ function denseTouchTargetMarginBlock() {
       handler({
         addComponents: (components) => {
           reserved =
-            components['.cf-dense-choice-touch-target']?.marginBlock ?? reserved;
+            components['.cf-dense-choice-touch-target']?.marginBlock ??
+            reserved;
         },
         addUtilities: () => {},
         addBase: () => {},
@@ -129,6 +130,7 @@ const Input = ({
   translationKey,
   translationParams,
   helper,
+  error,
   name,
   ...props
 }) => {
@@ -147,7 +149,8 @@ const Input = ({
       'aria-label': visibleLabel,
       'aria-describedby': helperId,
     }),
-    helper && h('span', { id: helperId }, helper)
+    helper && h('span', { id: helperId }, helper),
+    error && h('span', { role: 'alert' }, error)
   );
 };
 
@@ -161,15 +164,35 @@ const registerMocks = {
       h('button', { ...props, disabled: props.disabled || loading }, children),
   },
   '@contentfactory/react/form/input': { Input },
+  '@contentfactory/react/form/password-input': {
+    PasswordInput: ({ showPasswordLabel: _show, hidePasswordLabel: _hide, ...props }) =>
+      h(Input, props),
+  },
   '@contentfactory/react/form/checkbox.field': { CheckboxField: emptyProvider },
   '@contentfactory/helpers/auth/newsletter.consent': {
     canOfferNewsletterConsent: () => false,
   },
   '@hookform/resolvers/class-validator': {
-    classValidatorResolver: () => async (values) => ({ values, errors: {} }),
+    classValidatorResolver: () => async (values) =>
+      values.password === 'invalid'
+        ? {
+            values: {},
+            errors: {
+              password: {
+                message:
+                  'Password must contain 7 to 64 characters, including a letter, a number, and a special character.',
+              },
+            },
+          }
+        : { values, errors: {} },
   },
   '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
     CreateOrgUserDto: class CreateOrgUserDto {},
+  },
+  '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+    PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+    PASSWORD_POLICY_ERROR_MESSAGE:
+      'Password must contain 7 to 64 characters, including a letter, a number, and a special character.',
   },
   '@contentfactory/frontend/components/auth/providers/github.provider': {
     GithubProvider: emptyProvider,
@@ -205,8 +228,13 @@ const registerMocks = {
     }),
   },
   '@contentfactory/react/translation/get.transation.service.client': {
-    useT: () => (_key, fallback, params) =>
-      params?.field ? fallback.replace('{{field}}', params.field) : fallback,
+    useT: () => (key, fallback, params) => {
+      if (key === 'password_policy_error')
+        return 'Localized password policy error';
+      return params?.field
+        ? fallback.replace('{{field}}', params.field)
+        : fallback;
+    },
   },
   'next/navigation': {
     useRouter: () => ({ push: jest.fn() }),
@@ -219,6 +247,47 @@ const registerMocks = {
 const { RegisterAfter } = loadWithMocks(
   'apps/frontend/src/components/auth/register.tsx',
   registerMocks
+);
+
+const { ForgotReturn } = loadWithMocks(
+  'apps/frontend/src/components/auth/forgot-return.tsx',
+  {
+    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => jest.fn() },
+    '@contentfactory/react/form/button':
+      registerMocks['@contentfactory/react/form/button'],
+    '@contentfactory/react/form/input': { Input },
+    '@contentfactory/react/form/password-input':
+      registerMocks['@contentfactory/react/form/password-input'],
+    '@hookform/resolvers/class-validator': {
+      classValidatorResolver: () => async (values) =>
+        values.password === 'invalid'
+          ? {
+              values: {},
+              errors: {
+                password: {
+                  message:
+                    'Password must contain 7 to 64 characters, including a letter, a number, and a special character.',
+                },
+              },
+            }
+          : { values, errors: {} },
+    },
+    '@contentfactory/nestjs-libraries/dtos/auth/forgot-return.password.dto': {
+      ForgotReturnPasswordDto: class ForgotReturnPasswordDto {},
+    },
+    '@contentfactory/nestjs-libraries/dtos/auth/password.policy': {
+      PASSWORD_POLICY: { minLength: 7, maxLength: 64 },
+      PASSWORD_POLICY_ERROR_MESSAGE:
+        'Password must contain 7 to 64 characters, including a letter, a number, and a special character.',
+    },
+    '@contentfactory/react/translation/get.transation.service.client': {
+      useT: () => (key, fallback) =>
+        key === 'password_policy_error'
+          ? 'Localized password policy error'
+          : fallback,
+    },
+    'next/link': registerMocks['next/link'],
+  }
 );
 
 afterEach(() => {
@@ -267,7 +336,9 @@ describe('auth landing conversion surface', () => {
 
     expect(document.activeElement).toBe(draft);
     expect(draft.getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tabpanel').textContent).toContain('Write and adapt.');
+    expect(screen.getByRole('tabpanel').textContent).toContain(
+      'Write and adapt.'
+    );
     expect(screen.queryByText('Plan every channel.')).toBeNull();
   });
 
@@ -385,8 +456,38 @@ describe('auth landing conversion surface', () => {
     expect(password.getAttribute('name')).toBe('password');
     expect(workspace.getAttribute('name')).toBe('workspaceName');
     expect(
-      document.getElementById(workspace.getAttribute('aria-describedby')).textContent
+      document.getElementById(workspace.getAttribute('aria-describedby'))
+        .textContent
     ).toBe('Used as the workspace name. You can change it later.');
+  });
+
+  test('renders the localized password-policy error instead of validator English', async () => {
+    render(h(RegisterAfter, { token: '', provider: 'LOCAL' }));
+
+    fireEvent.change(screen.getByLabelText('Password — required'), {
+      target: { value: 'invalid' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain(
+        'Localized password policy error'
+      )
+    );
+  });
+
+  test('renders the localized password-policy error while resetting a password', async () => {
+    render(h(ForgotReturn, { token: 'reset-token' }));
+
+    fireEvent.change(screen.getByLabelText('New Password'), {
+      target: { value: 'invalid' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain(
+        'Localized password policy error'
+      )
+    );
   });
 
   test('every locale provides the new field clarity copy', () => {

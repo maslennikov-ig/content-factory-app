@@ -240,7 +240,36 @@ export class UsersService {
     }
 
     this._logger.log(`Account ${id} approved`);
-    return this._usersRepository.activateUser(id);
+    const approved = await this._usersRepository.activateUser(id);
+    const locale = resolveBackendLocale(user.language);
+
+    // Activating the account has already succeeded. A failure to enqueue the
+    // notification must not make an administrator retry an approval that is
+    // already durable.
+    try {
+      await this._notificationService.sendEmail(
+        user.email,
+        translateBackendString('email_account_approved_subject', locale),
+        translateBackendString('email_account_approved_body', locale, {
+          link: `${process.env.FRONTEND_URL}/auth`,
+        }),
+        undefined,
+        locale
+      );
+    } catch (err) {
+      this._logger.error(
+        `Approved account ${id}, but its sign-in email could not be queued`,
+        err
+      );
+    }
+
+    return approved;
+  }
+
+  // A declined registration has no notification by default: the account was
+  // never activated, and the administrator has deliberately removed it.
+  rejectPendingAccount(id: string) {
+    return this._usersRepository.rejectPendingAccount(id);
   }
 
   /**

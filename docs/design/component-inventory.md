@@ -42,6 +42,7 @@
 | Что | Откуда | Импортируют | Когда |
 | --- | --- | ---: | --- |
 | `Input` | `@contentfactory/react/form/input` | **60** | Однострочный ввод. Сам рисует подпись, подсказку и строку сообщения; `label` и `name` — его, а не обёртки. Вне react-hook-form нужен `disableForm`. |
+| `PasswordInput` | `@contentfactory/react/form/password-input` | **5** | Парольное поле поверх `Input`: один toggle видимости, нативное поле и form-интеграция остаются у `Input`. `showPasswordLabel` и `hidePasswordLabel` обязательны и передаются уже локализованными. |
 | `Select` | `@contentfactory/react/form/select` | **48** | Выбор из готового списка. |
 | `Textarea` | `@contentfactory/react/form/textarea` | **18** | Многострочный ввод. |
 | `FieldMessage` | `@contentfactory/react/form/field-message` | 3 | Строка сообщения под полем, одна на все три контрола. Место под неё занято всегда, иначе появившаяся ошибка сдвинет форму. Ошибка несёт знак, а не только цвет, и объявляется через `role="alert"`. Отдельно её обычно не берут — она уже внутри полей. |

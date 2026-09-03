@@ -4,10 +4,15 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import Link from 'next/link';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { PasswordInput } from '@contentfactory/react/form/password-input';
 import { useMemo, useState } from 'react';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { ForgotReturnPasswordDto } from '@contentfactory/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import {
+  PASSWORD_POLICY,
+  PASSWORD_POLICY_ERROR_MESSAGE,
+} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 type Inputs = {
   password: string;
   repeatPassword: string;
@@ -27,6 +32,14 @@ export function ForgotReturn({ token }: { token: string }) {
       token,
     },
   });
+  const passwordError = form.formState.errors.password?.message;
+  const localizedPasswordError =
+    passwordError === PASSWORD_POLICY_ERROR_MESSAGE
+      ? t(
+          'password_policy_error',
+          'Use 7–64 characters with a letter, a number, and a special character.'
+        )
+      : passwordError;
   const fetchData = useFetch();
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
@@ -42,7 +55,10 @@ export function ForgotReturn({ token }: { token: string }) {
     if (!reset) {
       form.setError('password', {
         type: 'manual',
-        message: t('password_reset_link_expired', 'Your password reset link has expired. Please try again.'),
+        message: t(
+          'password_reset_link_expired',
+          'Your password reset link has expired. Please try again.'
+        ),
       });
       return false;
     }
@@ -59,21 +75,28 @@ export function ForgotReturn({ token }: { token: string }) {
         {!state ? (
           <>
             <div className="space-y-4 text-textColor">
-              <Input
+              <PasswordInput
                 label="New Password"
                 translationKey="label_new_password"
                 {...form.register('password')}
-                type="password"
+                error={localizedPasswordError}
                 autoComplete="new-password"
                 placeholder={t('label_password', 'Password')}
+                helper={t(
+                  'password_policy_hint',
+                  `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+                )}
+                showPasswordLabel={t('show_password', 'Show password')}
+                hidePasswordLabel={t('hide_password', 'Hide password')}
               />
-              <Input
+              <PasswordInput
                 label="Repeat Password"
                 translationKey="label_repeat_password"
                 {...form.register('repeatPassword')}
-                type="password"
                 autoComplete="new-password"
                 placeholder={t('label_repeat_password', 'Repeat Password')}
+                showPasswordLabel={t('show_password', 'Show password')}
+                hidePasswordLabel={t('hide_password', 'Hide password')}
               />
             </div>
             <div className="text-center mt-6">

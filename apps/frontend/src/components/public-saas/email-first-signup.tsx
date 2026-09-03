@@ -6,15 +6,22 @@ import Link from 'next/link';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { canOfferNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
 import { Input } from '@contentfactory/react/form/input';
+import { PasswordInput } from '@contentfactory/react/form/password-input';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { usePublicCopy } from './public-copy';
 import { usePublicTelemetry } from './public-telemetry';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import {
+  isPasswordPolicyCompliant,
+  PASSWORD_POLICY,
+} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 
 export function EmailFirstSignup() {
   const copy = usePublicCopy();
+  const t = useT();
   const { language } = useVariables();
   const fetchData = useFetch();
   const router = useRouter();
@@ -24,7 +31,7 @@ export function EmailFirstSignup() {
   const [password, setPassword] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState('');
   const [subscribeToNewsletter, setSubscribeToNewsletter] = useState(false);
   const canSubscribe = canOfferNewsletterConsent({
     provider: 'LOCAL',
@@ -42,7 +49,17 @@ export function EmailFirstSignup() {
   const register = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError(false);
+    setError('');
+    if (!isPasswordPolicyCompliant(password)) {
+      setError(
+        t(
+          'password_policy_error',
+          'Use 7–64 characters with a letter, a number, and a special character.'
+        )
+      );
+      setLoading(false);
+      return;
+    }
     const normalizedWorkspace = workspaceName.trim();
     try {
       const response = await fetchData('/auth/register', {
@@ -65,7 +82,7 @@ export function EmailFirstSignup() {
         }),
       });
       if (response.status !== 200) {
-        setError(true);
+        setError(copy('registrationError'));
         return;
       }
       const approvalFromHeader = response.headers.get('approval') === 'true';
@@ -91,7 +108,7 @@ export function EmailFirstSignup() {
           : '/launches'
       );
     } catch {
-      setError(true);
+      setError(copy('registrationError'));
     } finally {
       setLoading(false);
     }
@@ -138,15 +155,19 @@ export function EmailFirstSignup() {
             readOnly
             value={email}
           />
-          <Input
+          <PasswordInput
             standalone
             label={copy('passwordLabel')}
-            type="password"
             autoComplete="new-password"
             required
-            minLength={12}
+            helper={t(
+              'password_policy_hint',
+              `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+            )}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            showPasswordLabel={t('show_password', 'Show password')}
+            hidePasswordLabel={t('hide_password', 'Hide password')}
           />
           <Input
             standalone
@@ -177,7 +198,7 @@ export function EmailFirstSignup() {
           </Link>
           {error && (
             <p role="alert" className="cf-body-sm text-cf-danger">
-              {copy('registrationError')}
+              {error}
             </p>
           )}
           <Button type="submit" loading={loading}>
