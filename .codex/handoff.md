@@ -4,31 +4,30 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave of 04.09 (`fn33.5`–`fn33.16`, `4a79`), built on
-`work/walkthrough-2026-09-04`, NOT yet released.** The owner walked
-`f1cea968184e` by hand while five Opus subagents fixed, each in its own
-worktree and branch, and two read-only reviewers read the merged diff. What
-changed: an invitee without a session no longer lands on `http://localhost:4200`
-after signing in (the proxy built `returnUrl` from the container's own
-address — every value-URL now comes from `FRONTEND_URL`, and `returnUrl` is
-accepted only on this origin); the confirmation page names the addressee and
-refuses «Accept» to the wrong account or an existing member; declining spends
-the invitation; a decline door and a session-free preview door
-(`GET /auth/join-org`, for the registration form to prefill the address) are in
-the roles matrix; one same-origin helper serves all three mutations; Telegram
-has **one** return address for sign-in and for linking from Settings (BotFather
-keeps a single Allowed URL — the second one the owner added as a workaround can
-go); people are shown by their profile name everywhere, «Профиль» is a real
-menu row with an avatar; upload refusals are visible and in Russian; the
-password hint interpolates its numbers; `pnpm test` leaves the tree clean.
-Reviewers found two blockers, both fixed and guarded: sign-out was swallowed
-while an invitation cookie lived, and a signed-in Telegram return bounced to
-`/` with its code. Open from the walk, owner decisions: `fn33.17` change a
-member's role; `fn33.18` registering by invitation joins that workspace
-directly, no own one; `fn33.19` no more workspace-level SUPERADMIN (creator is
-ADMIN; instance owner is the `isSuperAdmin` flag). `fn33.15` stays open until
-the owner reports the Network status of the failing upload; `fn33.20` client
-30 MB vs server 10 MB; `fn33.21` Telegram return from another tab.
+**Wave of 04.09 (`fn33.5`–`fn33.16`, `4a79`) — released as `55c5e2362d8e`.**
+The owner walked `f1cea968184e` by hand while five Opus subagents fixed, each
+in its own worktree and branch, and two read-only reviewers read the merged
+diff. An invitee without a session no longer lands on `http://localhost:4200`
+after signing in (the proxy built `returnUrl` from the container's own address
+— every value-URL now comes from `FRONTEND_URL`, and `returnUrl` is accepted
+only on this origin); the confirmation page names the addressee and refuses
+«Accept» to the wrong account or an existing member; declining spends the
+invitation; a decline door and a session-free preview door (`GET
+/auth/join-org`) are in the roles matrix; one same-origin helper serves all
+three mutations; Telegram has **one** return address for sign-in and linking
+(BotFather keeps a single Allowed URL — the owner's `/settings` workaround line
+can go); people are shown by their profile name, «Профиль» is a real menu row
+with an avatar; upload refusals are visible and in Russian; the password hint
+interpolates its numbers; `pnpm test` leaves the tree clean. Reviewers found
+two blockers, fixed and guarded: sign-out swallowed while an invitation cookie
+lived; a signed-in Telegram return bounced to `/` with its code. Open, owner
+decisions: `fn33.17` change a member's role; `fn33.18` registering by
+invitation joins that workspace directly; `fn33.19` no workspace-level
+SUPERADMIN (creator is ADMIN; the instance owner is the `isSuperAdmin` flag).
+`fn33.15` waits for the owner's Network status of the failing upload;
+`fn33.20` client 30 MB vs server 10 MB; `fn33.21` Telegram return from another
+tab. Public CI on the release commit went red on a test reading unpublished
+evidence — fixed in the next public commit, product untouched.
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
@@ -83,8 +82,8 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`f1cea968184e`** (03.09.2026, the `fn33` walkthrough fixes);
-rollback target `efafe77fe64e`, also on the host. **Public CI had been red for three releases
+Production runs **`55c5e2362d8e`** (04.09.2026, the walkthrough wave);
+rollback target `f1cea968184e`, also on the host. **Public CI had been red for three releases
 and nobody had written it down**: the editorial-stage migration proof anchored
 on a `COMMIT;` the 02.09 audit removed, and `--setupFiles=` on the time-travel
 command line *replaces* the config list, so the source-tree write guard never
@@ -143,12 +142,13 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **release
-`work/walkthrough-2026-09-04`** by the runbook once the owner grants the five
-release actions, then continue his walkthrough from scenario 4 (Content),
-Materials/archive, two organisations. Decide with him `fn33.18`/`fn33.19`
-(both P2, product decisions recorded in the beads) before building them. The
-two pending accounts on `/admin/users` are still his call.
+Next stage id: `content-factory-next-vme`. Recommended action: **continue the
+owner's walkthrough on `55c5e2362d8e`** — the rest of scenario 2 (member,
+channels, password, decline), then Content, Materials/archive, two
+organisations; record gaps as beads, fix in one wave after. Decide with him
+`fn33.18`/`fn33.19` (both P2, product decisions recorded in the beads) before
+building them. Ask him for the Network status of the failing upload
+(`fn33.15`). The two pending accounts on `/admin/users` are still his call.
 
 **The owner settled five questions on 02.09.2026**, written into
 `docs/product/content-section-map.md` §9: the editorial stage is a field

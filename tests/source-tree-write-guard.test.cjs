@@ -94,14 +94,21 @@ describe('the suite never writes into the tree the stand watches', () => {
       repositoryRoot,
       '.codex/stages/content-factory-next-or3/evidence/public-funnel-runtime/database.json'
     );
-    const before = fs.readFileSync(target, 'utf8');
+    // The public tree carries no stage evidence at all (the runbook strips
+    // `.codex/stages/*/evidence/` on purpose), so the record may be absent
+    // where CI runs. The refusal is about the path, not the file.
+    const before = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
 
     expect(() => fs.writeFileSync(target, '{}')).toThrow(/database\.json/);
     expect(() => fs.writeFileSync(target, '{}')).toThrow(/records a run/i);
     expect(() =>
       fs.rmSync(path.dirname(target), { recursive: true, force: true })
     ).toThrow(/public-funnel-runtime/);
-    expect(fs.readFileSync(target, 'utf8')).toBe(before);
+    if (before !== null) {
+      expect(fs.readFileSync(target, 'utf8')).toBe(before);
+    } else {
+      expect(fs.existsSync(target)).toBe(false);
+    }
   });
 
   test('leaves the rest of a stage — its summary and its plan — alone', () => {
