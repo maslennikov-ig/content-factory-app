@@ -3,7 +3,7 @@
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { displayName } from '@contentfactory/react/helpers/display-name';
@@ -19,7 +19,34 @@ import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import copy from 'copy-to-clipboard';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationAdmin,
+  organizationRoleLevel,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
+import dayjs from 'dayjs';
+import localizedFormat from 'dayjs/plugin/localizedFormat';
+// The same locale set the calendar loads, for the same reason: a date written
+// in the wrong order is a different date to whoever reads it.
+import 'dayjs/locale/en';
+import 'dayjs/locale/he';
+import 'dayjs/locale/ru';
+import 'dayjs/locale/zh';
+import 'dayjs/locale/fr';
+import 'dayjs/locale/es';
+import 'dayjs/locale/pt';
+import 'dayjs/locale/de';
+import 'dayjs/locale/it';
+import 'dayjs/locale/ja';
+import 'dayjs/locale/ko';
+import 'dayjs/locale/ar';
+import 'dayjs/locale/tr';
+import 'dayjs/locale/vi';
+import 'dayjs/locale/bn';
+import 'dayjs/locale/ka';
+import i18next from '@contentfactory/react/translation/i18next';
+
+dayjs.extend(localizedFormat);
+import { useFieldErrorMessage } from '@contentfactory/frontend/components/auth/form.errors';
 
 /**
  * The roles an administrator can hand out, each with the one line that says
@@ -60,10 +87,38 @@ const useRoles = () => {
   );
 };
 
+/**
+ * What the invitation door hands back once the link is signed.
+ */
+type IssuedInvitation = {
+  url: string;
+  expiresAt: string;
+  sentByEmail: boolean;
+  boundEmail?: string;
+};
+
+/**
+ * When the invitation stops working, written the way the reader's language
+ * writes a date.
+ *
+ * `content-factory-next-fn33.35`: this used to be `toLocaleString()` with no
+ * language at all, so a Russian screen printed «9/6/2026, 1:22:38 PM» — month
+ * first, a 12-hour clock, and a stray seconds field nobody needs from an
+ * expiry. `L, LT` is dayjs's own localized date and time, and the language is
+ * the one i18next resolved for the interface, not the one the process happens
+ * to run in. `ka_ge` is our locale id; dayjs calls that one `ka`, and an id
+ * dayjs does not know falls back to English rather than throwing.
+ */
+const formatExpiry = (value: string) =>
+  dayjs(value)
+    .locale((i18next.language || 'en').replace('ka_ge', 'ka'))
+    .format('L, LT');
+
 export const AddMember = () => {
   const modals = useModals();
   const fetch = useFetch();
   const toast = useToaster();
+  const t = useT();
   const resolver = useMemo(() => {
     return classValidatorResolver(AddTeamMemberDto);
   }, []);
@@ -71,55 +126,147 @@ export const AddMember = () => {
     values: {
       email: '',
       role: '',
-      sendEmail: true,
+      sendEmail: false,
     },
     resolver,
     mode: 'onChange',
   });
-  const sendEmail = useWatch({
+  const email = useWatch({
     control: form.control,
-    name: 'sendEmail',
+    name: 'email',
   });
   const roles = useRoles();
+  const fieldErrorMessage = useFieldErrorMessage();
   const selectedRole = useWatch({
     control: form.control,
     name: 'role',
   });
   const roleMeaning = roles.find((role) => role.value === selectedRole)?.meaning;
-  const submit = useCallback(
-    async (values: { email: string; role: string; sendEmail: boolean }) => {
-      const { url } = await (
-        await fetch('/settings/team', {
-          method: 'POST',
-          body: JSON.stringify(values),
-        })
-      ).json();
-      if (values.sendEmail) {
-        modals.closeAll();
-        toast.show(t('invitation_link_sent', 'Invitation link sent'));
-        return;
-      }
+  /**
+   * The link, once it exists. Until 04.09.2026 this screen had nowhere to put
+   * it: with the checkbox on, the link was only mailed; with it off, the link
+   * went to the clipboard and the modal closed, so an administrator who missed
+   * the toast — or whose paste went somewhere else — had no way back to it
+   * short of issuing another invitation.
+   */
+  const [invitation, setInvitation] = useState<IssuedInvitation | null>(null);
+  // A letter needs somewhere to go. The checkbox is a second delivery, not a
+  // second kind of invitation, so it simply cannot be ticked without an
+  // address rather than changing which fields the form has.
+  const canSendEmail = !!email?.trim();
+
+  const copyLink = useCallback(
+    (url: string) => {
       copy(url);
-      modals.closeAll();
       toast.show(t('link_copied_to_clipboard', 'Link copied to clipboard'));
     },
-    []
+    [t, toast]
   );
 
-  const t = useT();
+  const submit = useCallback(
+    async (values: { email: string; role: string; sendEmail: boolean }) => {
+      const address = values.email?.trim() || '';
+      const issued = (await (
+        await fetch('/settings/team', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...values,
+            email: address,
+            sendEmail: !!address && values.sendEmail,
+          }),
+        })
+      ).json()) as IssuedInvitation;
+      setInvitation(issued);
+      // The clipboard still gets it — that was the one convenience of the old
+      // flow — but the link stays on screen as well.
+      copyLink(issued.url);
+    },
+    [copyLink]
+  );
+
+  if (invitation) {
+    return (
+      <div className="relative flex flex-1 flex-col gap-[12px] p-[16px] pt-0">
+        <div className="cf-body-md text-cf-ink">
+          {t(
+            'team_invitation_ready',
+            'The invitation is ready. Copy the link and send it however you like.'
+          )}
+        </div>
+        <div className="cf-caption break-all rounded-[8px] border border-cf-border-control bg-cf-surface-subtle p-[12px] text-cf-ink">
+          {invitation.url}
+        </div>
+        <div className="cf-body-sm text-cf-ink-muted">
+          {invitation.boundEmail
+            ? t(
+                'team_invitation_link_bound',
+                'The link works only for {{email}}.',
+                { email: invitation.boundEmail }
+              )
+            : t(
+                'team_invitation_link_open',
+                'The link is open: anyone you send it to can join.'
+              )}
+        </div>
+        <div className="cf-body-sm text-cf-ink-muted">
+          {t('team_invitation_expires_at', 'It stops working on {{when}}.', {
+            when: formatExpiry(invitation.expiresAt),
+            // A date is our own text, and i18next's HTML escaping turned its
+            // separators into `&#x2F;` on screen. Nothing here comes from the
+            // person being invited.
+            interpolation: { escapeValue: false },
+          })}
+        </div>
+        {invitation.sentByEmail && !!invitation.boundEmail && (
+          <div className="cf-body-sm text-cf-ink-muted">
+            {t(
+              'team_invitation_sent_to',
+              'A letter has gone to {{email}} as well.',
+              { email: invitation.boundEmail }
+            )}
+          </div>
+        )}
+        <div className="mt-[8px] flex gap-[8px]">
+          <Button onClick={() => copyLink(invitation.url)}>
+            {t('copy_link', 'Copy Link')}
+          </Button>
+          <Button secondary={true} onClick={() => modals.closeAll()}>
+            {t('team_invitation_close', 'Done')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
         <div className="relative flex gap-[10px] flex-col flex-1 p-[16px] pt-0">
-          {sendEmail && (
-            <Input
-              label="Email"
-              placeholder={t('enter_email', 'Enter email')}
-              name="email"
-            />
-          )}
-          <Select label="Role" name="role">
+          <Input
+            label="Email"
+            placeholder={t('enter_email', 'Enter email')}
+            name="email"
+            error={fieldErrorMessage(
+              'email',
+              form.formState.errors.email?.message
+            )}
+            helper={t(
+              'team_invitation_email_optional',
+              'Optional. With an address the link works only for that person; without one, for anyone you send it to.'
+            )}
+          />
+          {/* `content-factory-next-fn33.72`: leaving the role unchosen used to
+              answer «role must be one of the following values: USER, EDITOR,
+              ADMIN» — the enum out of the code, in English, next to a list
+              that names the same roles in the reader's language. */}
+          <Select
+            label="Role"
+            name="role"
+            error={fieldErrorMessage(
+              'role',
+              form.formState.errors.role?.message
+            )}
+          >
             <option value="">{t('select_role', 'Select Role')}</option>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
@@ -136,13 +283,20 @@ export const AddMember = () => {
             <div className="cf-body-sm text-cf-ink-muted">{roleMeaning}</div>
           )}
           <CheckboxField
-            label={t('send_invitation_via_email', 'Send invitation via email?')}
+            label={t('team_invitation_also_send_email', 'Also send it by email')}
+            disabled={!canSendEmail}
             {...form.register('sendEmail')}
           />
+          {!canSendEmail && (
+            <div className="cf-body-sm text-cf-ink-muted">
+              {t(
+                'team_invitation_email_needed_to_send',
+                'Fill in the address to send a letter as well.'
+              )}
+            </div>
+          )}
           <Button type="submit" className="mt-[18px]">
-            {sendEmail
-              ? t('send_invitation_link', 'Send Invitation Link')
-              : t('copy_link', 'Copy Link')}
+            {t('team_invitation_create', 'Create invitation')}
           </Button>
         </div>
       </form>
@@ -153,9 +307,34 @@ export const TeamsComponent = () => {
   const fetch = useFetch();
   const user = useUser();
   const modals = useModals();
+  const toast = useToaster();
   const t = useT();
   const myLevel = organizationRoleLevel(user?.role);
+  const iAdminister = isOrganizationAdmin(user?.role);
   const roles = useRoles();
+  /**
+   * Whose row carries controls.
+   *
+   * `content-factory-next-fn33.50`: an administrator may act on an equal —
+   * another administrator — and not only on somebody below them. Before this
+   * the two controls vanished the moment a member was promoted, and the person
+   * who promoted them could not undo it from any screen. Equality alone does
+   * not grant it: `USER` and `EDITOR` share a level and administer nobody.
+   * Your own row never carries controls; the server refuses it, and a lone
+   * administrator must not be able to lock themselves out.
+   */
+  const canManage = useCallback(
+    (member: { role: OrganizationRole; user: { id: string } }) => {
+      if (member.user.id === user?.id) {
+        return false;
+      }
+      const theirLevel = organizationRoleLevel(member.role);
+      return (
+        myLevel > theirLevel || (myLevel === theirLevel && iAdminister)
+      );
+    },
+    [iAdminister, myLevel, user?.id]
+  );
   /**
    * A lookup, not a ternary chain. The chain this replaced ended in «Super
    * Admin», so any role it did not name — `EDITOR`, the day it was added —
@@ -218,6 +397,40 @@ export const TeamsComponent = () => {
       },
     [t]
   );
+  /**
+   * `content-factory-next-fn33.17`. Before this the only way to correct a role
+   * was to remove the person and invite them again — a destructive move for a
+   * typo, and one that reads to the person removed as being thrown out.
+   *
+   * The dropdown is only rendered where the change is allowed, and the server
+   * weighs the same two levels again: the screen decides what to offer, never
+   * what is permitted.
+   */
+  const changeRole = useCallback(
+    (member: { role: OrganizationRole; user: { id: string } }) =>
+      async (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const role = event.target.value;
+        if (role === member.role) {
+          return;
+        }
+        const response = await fetch(`/settings/team/${member.user.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ role }),
+        });
+        // The list is re-read either way: on refusal the dropdown is showing a
+        // role the server did not accept, and leaving it there would be a lie.
+        await mutate();
+        if (!response.ok) {
+          toast.show(
+            t('team_member_role_change_failed', 'The role could not be changed.'),
+            'warning'
+          );
+          return;
+        }
+        toast.show(t('team_member_role_updated', 'Role updated'));
+      },
+    [t, toast]
+  );
 
   return (
     <div className="flex flex-col">
@@ -254,8 +467,36 @@ export const TeamsComponent = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex-1">{roleName(p.role)}</div>
-              {myLevel > organizationRoleLevel(p.role) ? (
+              <div className="flex-1">
+                {canManage(p) ? (
+                  <Select
+                    standalone={true}
+                    density="dense"
+                    aria-label={t('label_role', 'Role')}
+                    value={p.role}
+                    onChange={changeRole(p)}
+                  >
+                    {roles
+                      // Never a role above the caller's own: an administrator
+                      // cannot hand out authority they do not hold.
+                      .filter(
+                        (role) =>
+                          organizationRoleLevel(role.value) <= myLevel
+                      )
+                      .map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.name}
+                        </option>
+                      ))}
+                  </Select>
+                ) : (
+                  // Yourself, and anyone above you — the instance
+                  // administrator among them. A dropdown here would offer a
+                  // change the server refuses.
+                  roleName(p.role)
+                )}
+              </div>
+              {canManage(p) ? (
                 <div className="flex-1 flex justify-end">
                   <Button
                     density="dense"

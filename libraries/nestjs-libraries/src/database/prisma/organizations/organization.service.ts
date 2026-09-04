@@ -7,7 +7,11 @@ import { AdminAddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/set
 import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  ASSIGNABLE_ORGANIZATION_ROLES,
+  isOrganizationAdmin,
+  organizationRoleLevel,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Organization, ShortLinkPreference, User } from '@prisma/client';
 import { AutopostService } from '@contentfactory/nestjs-libraries/database/prisma/autopost/autopost.service';
 import { resolveNewUserAccess } from '@contentfactory/helpers/auth/registration.approval';
@@ -20,7 +24,10 @@ import {
   emailActionBody,
   emailDirection,
 } from '@contentfactory/nestjs-libraries/emails/email.template';
-import { issueTeamInvitation } from '@contentfactory/nestjs-libraries/auth/team-invitation';
+import {
+  issueTeamInvitation,
+  TEAM_INVITATION_TTL_SECONDS,
+} from '@contentfactory/nestjs-libraries/auth/team-invitation';
 
 @Injectable()
 export class OrganizationService {
@@ -50,6 +57,56 @@ export class OrganizationService {
     return this._organizationRepository.createOrgAndUser(
       body,
       access,
+      ip,
+      userAgent
+    );
+  }
+
+  /**
+   * `content-factory-next-fn33.18`: an account created by an invitation, with
+   * no workspace of its own.
+   *
+   * Whether it starts switched on turns on one thing — did a person vouch for
+   * this particular applicant.
+   *
+   * `vouchedFor` is true only for a link an administrator addressed to one
+   * email (`boundEmail`): that link cannot be answered by anybody else, so the
+   * administrator named the person, and the owner's decision of 04.09.2026
+   * stands — the invitation is the approval, and the invited person waits for
+   * nobody.
+   *
+   * An open link is not that. It carries no address, it is meant to be copied
+   * and passed on, and whoever answers it is a stranger the administrator has
+   * never named. Treating it as approval made
+   * `CONTENT_FACTORY_REQUIRE_APPROVAL` bypassable by anybody holding a link,
+   * which is not a gate at all (`content-factory-next-fn33.108`). So the
+   * instance's own rule decides, exactly as it does at the front door, and the
+   * membership is written regardless: the workspace the link names is where
+   * this person belongs the moment their account is switched on.
+   */
+  createInvitedUser(
+    body: Omit<CreateOrgUserDto, 'providerToken'> & {
+      providerId?: string;
+      newsletterConsent?: boolean;
+    },
+    invitation: { id: string; orgId: string; role: AssignableOrganizationRole },
+    ip: string,
+    userAgent: string,
+    options: { vouchedFor: boolean }
+  ) {
+    const access = options.vouchedFor
+      ? { activated: true }
+      : resolveNewUserAccess({
+          provider: body.provider,
+          hasEmailProvider: this._notificationsService.hasEmailProvider(),
+          // An invitation names a workspace, so there is always one already.
+          firstOrganization: false,
+        });
+
+    return this._organizationRepository.createInvitedUser(
+      body,
+      invitation,
+      { activated: access.activated },
       ip,
       userAgent
     );
@@ -108,6 +165,26 @@ export class OrganizationService {
     return this._organizationRepository.getOrgsByUserId(userId);
   }
 
+  /**
+   * `content-factory-next-fn33.36`: a second workspace, created from inside
+   * the product instead of by registering another account.
+   *
+   * Anybody signed in may do this and there is no cap on how many workspaces
+   * one person keeps — the default the owner asked for. The tags are named in
+   * the language of the person creating, the way registration names them in
+   * the language of the form.
+   */
+  createOrganizationForUser(
+    user: Pick<User, 'id'> & { language?: string | null },
+    name: string
+  ) {
+    return this._organizationRepository.createOrgForUser(
+      user.id,
+      name,
+      user.language
+    );
+  }
+
   updateApiKey(orgId: string) {
     return this._organizationRepository.updateApiKey(orgId);
   }
@@ -130,6 +207,18 @@ export class OrganizationService {
 
   async inviteTeamMember(org: Organization, user: User, body: AddTeamMemberDto) {
     const id = makeId(5);
+    // `content-factory-next-fn33.24`. The address, not the checkbox, decides
+    // whether the invitation is bound to one mailbox: an administrator who
+    // types an address and then sends the link through Telegram still means
+    // «this is for that person». The checkbox only adds a letter, and without
+    // an address there is nothing to add it to.
+    const boundEmail = body.email?.trim().toLowerCase() || '';
+    if (body.sendEmail && !boundEmail) {
+      throw new HttpException(
+        'An email address is required to send the invitation by email',
+        400
+      );
+    }
     // Named fields, not a spread of the request body. Spreading it here turned
     // this endpoint into a signing oracle: any authenticated caller could have
     // the instance sign a payload of their choosing with its own JWT_SECRET,
@@ -145,10 +234,16 @@ export class OrganizationService {
       workspaceName: org.name,
       inviterName: user.name || user.email,
       inviterEmail: user.email,
-      ...(body.sendEmail
-        ? { boundEmail: body.email.trim().toLowerCase() }
-        : {}),
+      ...(boundEmail ? { boundEmail } : {}),
     });
+    // The same arithmetic `issueTeamInvitation` does for the token's own
+    // `timeLimit`, a millisecond later. It is repeated rather than returned
+    // because the screen has to say out loud how long the link lives, and the
+    // signing helper's contract belongs to the invitation flow, not to this
+    // response.
+    const expiresAt = new Date(
+      Date.now() + TEAM_INVITATION_TTL_SECONDS * 1000
+    ).toISOString();
     const url = process.env.FRONTEND_URL + `/join-org?org=${token}`;
     if (body.sendEmail) {
       const inviter = user.name
@@ -161,7 +256,7 @@ export class OrganizationService {
       const locale = resolveBackendLocale(user.language);
       const dir = emailDirection(locale);
       await this._notificationsService.sendEmail(
-        body.email,
+        boundEmail,
         translateBackendText('email_team_invitation_subject', locale, {
           inviter: user.name || user.email,
           organization: org.name,
@@ -183,7 +278,15 @@ export class OrganizationService {
         locale
       );
     }
-    return { url };
+    // The link itself, and the two facts the screen has to state about it:
+    // when it stops working, and whether it is bound to one address or open to
+    // whoever holds it.
+    return {
+      url,
+      expiresAt,
+      sentByEmail: !!body.sendEmail,
+      ...(boundEmail ? { boundEmail } : {}),
+    };
   }
 
   async addTeamMemberByEmail(org: Organization, body: AdminAddTeamMemberDto) {
@@ -258,11 +361,141 @@ export class OrganizationService {
     const myLevel = organizationRoleLevel(myRole);
     const userLevel = organizationRoleLevel(userRole);
 
-    if (myLevel < userLevel) {
+    // `content-factory-next-fn33.50`: an administrator may also remove an
+    // equal — another administrator — as long as the workspace keeps one, the
+    // clause counted just below. Equality alone is not enough: `USER` and
+    // `EDITOR` share a level and neither administers anybody, so the equal
+    // case is opened for administrators only.
+    if (
+      myLevel < userLevel ||
+      (myLevel === userLevel && !isOrganizationAdmin(myRole))
+    ) {
       throw new Error('You do not have permission to delete this user');
     }
 
+    // `content-factory-next-fn33.19`: a workspace without an administrator is
+    // a workspace nobody can invite into, connect a channel to, or hand over.
+    // The old protection was the `SUPERADMIN` role itself — one per workspace,
+    // never removable. Now that the creator is an ordinary `ADMIN`, the same
+    // guarantee has to be counted: the last administrator stays, including
+    // when they are removing themselves.
+    if (isOrganizationAdmin(userRole)) {
+      const admins = await this._organizationRepository.countAdmins(org.id);
+      if (admins <= 1) {
+        throw new Error(
+          'The workspace must keep at least one administrator'
+        );
+      }
+    }
+
     return this._organizationRepository.deleteTeamMember(org.id, userId);
+  }
+
+  /**
+   * `content-factory-next-fn33.17`. Until this existed the only way to change
+   * somebody's role was to remove them and invite them again, which is a
+   * destructive move for a typo.
+   *
+   * Four rules, and they are the same ones removal answers to, read through
+   * `organizationRoleLevel`:
+   *
+   *  - the role has to be one an administrator may hand out at all, so nobody
+   *    reaches `SUPERADMIN` through this door;
+   *  - nobody changes their own role — a lone administrator cannot lock
+   *    themselves out of the workspace by accident;
+   *  - only somebody below you, or — since `content-factory-next-fn33.50` —
+   *    an equal, when you are an administrator and the workspace keeps one;
+   *    which is the removal rule verbatim;
+   *  - and only to a role no higher than your own, so the door cannot be used
+   *    to hand out authority the caller does not hold. Today that last rule is
+   *    unreachable — `ADMIN` is the highest role on offer and only an
+   *    administrator gets past the rule above it — and it is written anyway,
+   *    because «unreachable» is a property of the list of assignable roles,
+   *    not of this method.
+   */
+  async updateTeamMemberRole(
+    org: Organization,
+    user: User,
+    userId: string,
+    role: AssignableOrganizationRole
+  ) {
+    if (
+      !(ASSIGNABLE_ORGANIZATION_ROLES as readonly string[]).includes(role)
+    ) {
+      throw new HttpException('Unknown role', 400);
+    }
+
+    if (userId === user.id) {
+      throw new HttpException('You cannot change your own role', 400);
+    }
+
+    const userOrgs = await this._organizationRepository.getOrgsByUserId(userId);
+    const membership = userOrgs.find((orgUser) => orgUser.id === org.id);
+    if (!membership) {
+      throw new HttpException('User is not part of this organization', 400);
+    }
+
+    // @ts-ignore the organization on the request carries the caller's own
+    // membership row, exactly as `deleteTeamMember` reads it.
+    const myRole = org.users[0].role;
+    const myLevel = organizationRoleLevel(myRole);
+    const theirLevel = organizationRoleLevel(membership.users[0].role);
+
+    /**
+     * `content-factory-next-fn33.50`. Until this the rule was «strictly below
+     * you», and with `ADMIN` as the ceiling of the product that made promotion
+     * a one-way door: the moment somebody became an administrator, the person
+     * who promoted them could neither demote nor remove them, and only an
+     * instance administrator could undo a mis-click.
+     *
+     * So an administrator may now act on an equal. Equality on its own is not
+     * the licence — `USER` and `EDITOR` share a level and administer nobody —
+     * being an administrator is, and what protects the workspace is the same
+     * clause that already protects the last administrator from removal: one
+     * has to remain. Yourself is still refused above, so an administrator
+     * cannot walk out of their own workspace by this door either.
+     */
+    if (
+      myLevel < theirLevel ||
+      (myLevel === theirLevel && !isOrganizationAdmin(myRole))
+    ) {
+      throw new HttpException(
+        'You do not have permission to change this role',
+        400
+      );
+    }
+
+    if (organizationRoleLevel(role) > myLevel) {
+      throw new HttpException(
+        'You cannot grant a role above your own',
+        400
+      );
+    }
+
+    // Demoting an administrator is the removal rule in a lighter form: a
+    // workspace whose last administrator becomes a member is a workspace
+    // nobody can invite into or connect a channel to, and getting back out of
+    // it needs database access.
+    if (
+      isOrganizationAdmin(membership.users[0].role) &&
+      !isOrganizationAdmin(role)
+    ) {
+      const admins = await this._organizationRepository.countAdmins(org.id);
+      if (admins <= 1) {
+        throw new HttpException(
+          'The workspace must keep at least one administrator',
+          400
+        );
+      }
+    }
+
+    await this._organizationRepository.updateTeamMemberRole(
+      org.id,
+      userId,
+      role
+    );
+
+    return { role };
   }
 
   disableOrEnableNonSuperAdminUsers(orgId: string, disable: boolean) {

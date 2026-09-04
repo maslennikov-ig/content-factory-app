@@ -1,9 +1,6 @@
-import { Metadata } from 'next';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { getT } from '@contentfactory/react/translation/get.translation.service.backend';
-export const metadata: Metadata = {
-  title: 'Error',
-  description: '',
-};
+export const generateMetadata = pageTitle('error', 'Error');
 export default async function Page() {
   const t = await getT();
   return (

@@ -264,6 +264,12 @@ export class VoiceProposalActivateDto {
   @MaxLength(120)
   label?: string;
 
+  /** What this avatar is called (`content-factory-next-fn33.46`). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  avatarName?: string;
+
   /** Which of the two drafts is being activated. Absent means the model's. */
   @IsOptional()
   @IsIn(['assist', 'manual'])

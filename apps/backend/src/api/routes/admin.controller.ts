@@ -52,7 +52,13 @@ export class AdminController {
     }
   }
 
-  private assertPendingRejectionRequest(userId: string, req: Request) {
+  /**
+   * One proof for both ways an account can be removed — rejection and deletion.
+   * The wording stayed with rejection's codes on purpose: the screen and the
+   * logs already read them, and a second near-identical set of codes for the
+   * same check would only be a second thing to keep in step.
+   */
+  private assertAccountRemovalRequest(userId: string, req: Request) {
     assertSameOriginJsonMutation(
       userId,
       req,
@@ -63,6 +69,38 @@ export class AdminController {
         unavailableCode: 'pending_rejection_unavailable',
         forbiddenMessage: 'Forbidden pending-account rejection request',
         forbiddenCode: 'pending_rejection_forbidden',
+      },
+      this._logger
+    );
+  }
+
+  /**
+   * The other three ways one press changes an account: approval, blocking and
+   * lifting a block.
+   *
+   * They carried only `assertSuperAdmin`, and that is a check on *who* is
+   * signed in, not on *where the press came from*. The session cookie is
+   * `sameSite: 'none'`, these routes take no body, and a page on any other
+   * site could therefore make an administrator's own browser switch an
+   * account off — the administrator would see nothing but the result. The
+   * neighbouring removal doors already proved the origin; these three now do
+   * the same.
+   *
+   * Their own codes rather than rejection's: an approval that is refused is
+   * not a rejection that is refused, and a log line that says otherwise sends
+   * the reader to the wrong route.
+   */
+  private assertAccountStateRequest(userId: string, req: Request) {
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'an account state change',
+        unavailableMessage:
+          'Account state changes are unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'account_state_change_unavailable',
+        forbiddenMessage: 'Forbidden account state change request',
+        forbiddenCode: 'account_state_change_forbidden',
       },
       this._logger
     );
@@ -155,9 +193,14 @@ export class AdminController {
   }
 
   @Post('/users/:id/approve')
-  async approveUser(@GetUserFromRequest() user: User, @Param('id') id: string) {
+  async approveUser(
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Req() req: Request
+  ) {
     this.assertSuperAdmin(user);
-    await this._usersService.approveAccount(id);
+    this.assertAccountStateRequest(user.id, req);
+    await this._usersService.approveAccount(id, user.id);
     return { success: true };
   }
 
@@ -168,15 +211,59 @@ export class AdminController {
     @Req() req: Request
   ) {
     this.assertSuperAdmin(user);
-    this.assertPendingRejectionRequest(user.id, req);
-    await this._usersService.rejectPendingAccount(id);
+    this.assertAccountRemovalRequest(user.id, req);
+    await this._usersService.rejectPendingAccount(id, user.id);
+    return { success: true };
+  }
+
+  /**
+   * Removing an account outright. Behind the same same-origin proof as
+   * rejection, and for a stronger reason: this one reaches accounts that have
+   * been in the product, so a forged request would be a deletion, not a
+   * declined registration.
+   */
+  @Post('/users/:id/delete')
+  async deleteUser(
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertAccountRemovalRequest(user.id, req);
+    await this._usersService.deleteAccount(id, user.id);
     return { success: true };
   }
 
   @Post('/users/:id/block')
-  async blockUser(@GetUserFromRequest() user: User, @Param('id') id: string) {
+  async blockUser(
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Req() req: Request
+  ) {
     this.assertSuperAdmin(user);
+    this.assertAccountStateRequest(user.id, req);
     await this._usersService.blockAccount(id, user.id);
+    return { success: true };
+  }
+
+  /**
+   * Lifting a block, and not the same door as approval.
+   *
+   * `content-factory-next-fn33.66`: a blocked account used to be
+   * indistinguishable from one waiting for approval — both were
+   * `activated: false` — so it appeared among the pending with an «Approve»
+   * button, and giving somebody their access back looked exactly like letting
+   * a newcomer in. Two states, two doors, and each one says what it did.
+   */
+  @Post('/users/:id/unblock')
+  async unblockUser(
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertAccountStateRequest(user.id, req);
+    await this._usersService.unblockAccount(id, user.id);
     return { success: true };
   }
 

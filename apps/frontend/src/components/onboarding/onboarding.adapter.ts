@@ -82,9 +82,16 @@ export const ONBOARDING_STEP_KEYS: readonly OnboardingStepKey[] = [
  * Where each step is done. The button on a step goes here — into the product,
  * not to the next slide.
  */
+/**
+ * The five tabs the section actually has are `content-section.tabs.ts`;
+ * `?tab=voice` was not one of them and never had been, so the button of the
+ * voice step opened the section on whatever tab came first
+ * (`content-factory-next-fn33.107`). Samples of a person's writing are added
+ * on «Аватары», and a claim is added where the brief asks for it.
+ */
 export const ONBOARDING_STEP_HREF: Record<OnboardingStepKey, string> = {
   channel: '/launches',
-  voice: '/content?tab=voice',
+  voice: '/content?tab=avatars',
   fact: '/content?tab=brief',
   brief: '/content?tab=brief',
   preview: '/launches',

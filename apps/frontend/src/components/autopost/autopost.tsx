@@ -23,6 +23,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CopilotTextarea } from '@copilotkit/react-textarea';
+import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { Slider } from '@contentfactory/react/form/slider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -428,26 +429,33 @@ export const AddOrEditWebhook: FC<{
                 <div className={`text-[14px] mb-[6px]`}>
                   {t('post_content', 'Post content')}
                 </div>
-                <CopilotTextarea
-                  disableBranding={true}
-                  className={clsx(
-                    '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-cf-accent bg-customColor2 outline-none mb-[16px] border-fifth border rounded-[4px]'
-                  )}
-                  value={content}
-                  onChange={(e) => {
-                    form.setValue('content', e.target.value);
-                  }}
-                  placeholder={t(
-                    'write_your_post_placeholder',
-                    'Write your post...'
-                  )}
-                  autosuggestionsConfig={{
-                    textareaPurpose: `Assist me in writing a social media post. Write every human-readable part of the post in ${
-                      contentLanguage === 'ru' ? 'Russian' : 'English'
-                    }.`,
-                    chatApiConfigs: {},
-                  }}
-                />
+                {/*
+  Помощник монтируется у самого поля, а не вокруг всего приложения: его
+  провайдер обращается к рантайму сразу при монтировании
+  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+*/}
+                <CopilotProvider>
+                  <CopilotTextarea
+                    disableBranding={true}
+                    className={clsx(
+                      '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-cf-accent bg-customColor2 outline-none mb-[16px] border-fifth border rounded-[4px]'
+                    )}
+                    value={content}
+                    onChange={(e) => {
+                      form.setValue('content', e.target.value);
+                    }}
+                    placeholder={t(
+                      'write_your_post_placeholder',
+                      'Write your post...'
+                    )}
+                    autosuggestionsConfig={{
+                      textareaPurpose: `Assist me in writing a social media post. Write every human-readable part of the post in ${
+                        contentLanguage === 'ru' ? 'Russian' : 'English'
+                      }.`,
+                      chatApiConfigs: {},
+                    }}
+                  />
+                </CopilotProvider>
               </>
             )}
             <Select

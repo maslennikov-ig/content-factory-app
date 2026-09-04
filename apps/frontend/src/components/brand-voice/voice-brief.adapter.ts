@@ -237,6 +237,10 @@ export const briefCopy = {
       'Бриф не дошёл до сервера. Ответы остались в полях, попробуйте ещё раз.',
     draftFailure: 'Черновик не создался. Бриф сохранён, попробуйте ещё раз.',
     draftOpened: 'Черновик создан и открыт в редакторе.',
+    // content-factory-next-fn33.69: отказ «нет ни одного канала» встаёт
+    // рядом с нажатой кнопкой и говорит, куда идти за каналом. Каналы
+    // подключают на «Календаре» — это /launches.
+    draftNoChannelAction: 'Подключить канал на «Календаре»',
     // `content-factory-next-odb8.2`: the door the fact catalogue never had a
     // second copy of. «Откуда факты» only shows what memory already holds —
     // this is where a new entry is made, right where the question is asked.
@@ -271,6 +275,7 @@ export const briefCopy = {
       'The brief did not reach the server. Your answers are still here — try again.',
     draftFailure: 'The draft was not created. The brief is kept; try again.',
     draftOpened: 'The draft was created and opened in the editor.',
+    draftNoChannelAction: 'Connect a channel on the Calendar',
     factsMemoryTitle: 'Or remember a new fact',
     factsMemoryLead:
       'A saved fact is added to the brief on its own, as a row below, already a confirmation. It also appears on the "Where facts come from" screen.',

@@ -6,6 +6,7 @@ import {
   HttpException,
   Logger,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -27,6 +28,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from '@contentfactory/nestjs-libraries/database/prisma/users/users.service';
 import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
 import { EmailNotificationsDto } from '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto';
+import { UserLanguageDto } from '@contentfactory/nestjs-libraries/dtos/users/user.language.dto';
+import { CreateOrganizationDto } from '@contentfactory/nestjs-libraries/dtos/users/create.organization.dto';
 import { HttpForbiddenException } from '@contentfactory/nestjs-libraries/services/exception.filter';
 import {
   AuthorizationActions,
@@ -47,6 +50,12 @@ import {
   inspectTeamInvitation,
   TeamInvitationError,
 } from '@contentfactory/nestjs-libraries/auth/team-invitation';
+import { ChangePasswordDto } from '@contentfactory/nestjs-libraries/dtos/users/change-password.dto';
+// The same class the sign-in check uses, under a name that does not collide
+// with this controller's own `AuthService`. Registration, `/auth/forgot` and
+// this door must hash and compare identically or a password set on one of them
+// would not open the others.
+import { AuthService as PasswordHashing } from '@contentfactory/helpers/auth/auth.service';
 
 @ApiTags('User')
 @Controller('/user')
@@ -265,6 +274,121 @@ export class UsersController {
     return this._userService.changePersonal(user.id, body);
   }
 
+  /**
+   * Changing a password from inside the product (`content-factory-next-fn33.41`).
+   * Until this door existed the only way through was the emailed reset link, so
+   * a deployment without an email provider — the default one — could not change
+   * a password at all.
+   *
+   * It proves the person twice: the session cookie says which account, and the
+   * current password says the browser is not simply left open. The new password
+   * is written by `updatePassword`, the very call `/auth/forgot` finishes with,
+   * so hashing, the policy and the "this account has a password sign-in at all"
+   * check are one implementation and cannot drift apart.
+   */
+  @Put('/password')
+  async changePassword(
+    @GetUserFromRequest() user: User,
+    @Body() body: ChangePasswordDto,
+    @Req() req: Request
+  ) {
+    this.assertPasswordMutationRequest(user.id, req);
+
+    // The request user arrives without its hash: `auth.middleware.ts` deletes
+    // `password` before any controller sees the row, so it is read again here
+    // (`content-factory-next-fn33.109` — the door refused everyone).
+    const stored = await this._userService.getUserById(user.id);
+    const currentHash = stored?.password || '';
+
+    if (!currentHash || !(await this._userService.hasLocalSignIn(user.id))) {
+      throw new HttpException(
+        {
+          message: 'This account does not sign in with a password',
+          code: 'local_identity_not_found',
+        },
+        404
+      );
+    }
+
+    if (!PasswordHashing.comparePassword(body.currentPassword, currentHash)) {
+      throw new HttpException(
+        {
+          message: 'The current password is not correct',
+          code: 'invalid_current_password',
+        },
+        400
+      );
+    }
+
+    await this._userService.updatePassword(user.id, body.newPassword);
+    return { changed: true };
+  }
+
+  private assertPasswordMutationRequest(userId: string, req: Request) {
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'a password change',
+        unavailableMessage:
+          'Password changes are unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'password_change_unavailable',
+        forbiddenMessage: 'Forbidden password change request',
+        forbiddenCode: 'password_change_forbidden',
+      },
+      this._logger
+    );
+  }
+
+  /**
+   * The three doors that change what this account's own session and workspaces
+   * are, and had no origin proof at all: creating a workspace, choosing a
+   * language, switching the current workspace.
+   *
+   * `assertSuperAdmin`'s neighbour problem, one floor down: being signed in is
+   * a fact about *who*, never about *where the press came from*. The session
+   * cookie is `sameSite: 'none'`, so a page on any other site could have a
+   * signed-in browser found a workspace, switch the one in view, or rewrite
+   * the language every letter goes out in. The password and identity doors
+   * next door already proved the origin; these three now do too.
+   */
+  private assertOwnAccountMutationRequest(userId: string, req: Request) {
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: "a change to this account's own workspaces or settings",
+        unavailableMessage:
+          'Account changes are unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'account_mutation_unavailable',
+        forbiddenMessage: 'Forbidden account mutation request',
+        forbiddenCode: 'account_mutation_forbidden',
+      },
+      this._logger
+    );
+  }
+
+  /**
+   * The language of this account, as chosen in the interface.
+   *
+   * `content-factory-next-fn33.53`. The flag in the header used to change a
+   * browser cookie and nothing else, so `User.language` kept the value
+   * registration wrote and every letter — approval, rejection, invitation —
+   * went out in that language forever, while a second device came up in
+   * English again. No policy: an account changes its own language, and the
+   * session names which account that is.
+   */
+  @Post('/language')
+  async changeLanguage(
+    @GetUserFromRequest() user: User,
+    @Body() body: UserLanguageDto,
+    @Req() req: Request
+  ) {
+    this.assertOwnAccountMutationRequest(user.id, req);
+    await this._userService.changeLanguage(user.id, body.language);
+    return { language: body.language };
+  }
+
   @Get('/email-notifications')
   async getEmailNotifications(@GetUserFromRequest() user: User) {
     return this._userService.getEmailNotifications(user.id);
@@ -410,11 +534,49 @@ export class UsersController {
     );
   }
 
+  /**
+   * `content-factory-next-fn33.36`: a second workspace, made from inside the
+   * product. Until this door existed the only way to get one was to register
+   * another account, so the whole several-workspaces story was unreachable.
+   *
+   * Anybody signed in may create one and there is no cap on the number — the
+   * default agreed with the owner. The new workspace becomes the current one
+   * straight away, exactly as `change-org` would leave it, and the creator is
+   * its `ADMIN`.
+   */
+  @Post('/organizations')
+  async createOrg(
+    @GetUserFromRequest() user: User,
+    @Body() body: CreateOrganizationDto,
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
+  ) {
+    this.assertOwnAccountMutationRequest(user.id, req);
+    const organization = await this._orgService.createOrganizationForUser(
+      user,
+      body.name
+    );
+    this.setShowOrgCookie(response, organization.id);
+    return organization;
+  }
+
   @Post('/change-org')
   changeOrg(
+    @GetUserFromRequest() user: User,
     @Body('id') id: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request
   ) {
+    this.assertOwnAccountMutationRequest(user.id, req);
+    this.setShowOrgCookie(response, id);
+    response.status(200).send();
+  }
+
+  /**
+   * Which workspace the browser comes back to. One writer, so switching and
+   * creating cannot disagree about the cookie's lifetime or its flags.
+   */
+  private setShowOrgCookie(response: Response, id: string) {
     response.cookie('showorg', id, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
       ...(!process.env.NOT_SECURED
@@ -430,8 +592,6 @@ export class UsersController {
     if (process.env.NOT_SECURED) {
       response.header('showorg', id);
     }
-
-    response.status(200).send();
   }
 
   @Post('/logout')

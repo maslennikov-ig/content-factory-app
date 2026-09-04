@@ -43,6 +43,7 @@ const {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } = require('@testing-library/react');
 const { SWRConfig } = require('swr');
@@ -107,6 +108,7 @@ const LIBRARY = Object.freeze({
       format: 'длинный',
       postCount: 3,
       queuedCount: 0,
+      draftCount: 2,
       date: '05.08.26',
       voiceVersion: 'v3',
     },
@@ -162,16 +164,25 @@ const UNCHANGED_PREVIEW = Object.freeze({
   },
 });
 
+// `content-factory-next-fn33.65`: the shared request helper hands the common
+// refusal handler a copy of the response, so a fake answer has to be
+// clonable the way a real `Response` is.
 const ok = (body) => ({
   ok: true,
   status: 200,
   json: async () => body,
+  clone() {
+    return this;
+  },
 });
 
 const refusal = (status, body) => ({
   ok: false,
   status,
   json: async () => body,
+  clone() {
+    return this;
+  },
 });
 
 let calls = [];
@@ -204,6 +215,15 @@ const baseTable = () => ({
   'GET /content-intelligence/materials': ok(LIBRARY),
 });
 
+/**
+ * The tab, rendered with its channel list already in.
+ *
+ * The panel opens on a platform the workspace has a channel for
+ * (`content-factory-next-fn33.111`), so which platform a click produces
+ * depends on whether `/integrations/list` has answered. Settling it here keeps
+ * every test below about what it is actually testing; the wait itself is
+ * checked on its own further down.
+ */
 const renderTab = async (locale = 'ru') => {
   await act(async () => {
     render(
@@ -218,11 +238,36 @@ const renderTab = async (locale = 'ru') => {
       )
     );
   });
+  // Two turns of the loop: the request resolves on one and the state it sets
+  // lands on the next.
+  for (const _turn of [0, 1, 2]) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
 };
 
 const click = async (element) => {
   await act(async () => {
     fireEvent.click(element);
+  });
+};
+
+/**
+ * «Переиспользовать» on a row, and the panel it opens.
+ *
+ * The panel waits for the recut the server works out, and — since
+ * `content-factory-next-fn33.111` — for the channel list that says which
+ * platform it may open on. Both are answers to requests, so the panel is
+ * waited for rather than assumed to be there the instant the click returns.
+ */
+const openRecut = async (code = 'cnt-01') => {
+  const row = document.querySelector(`[data-voice-material="${code}"]`);
+  await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
+  return waitFor(() => {
+    const panel = document.querySelector('[data-voice-recut]');
+    expect(panel).toBeTruthy();
+    return panel;
   });
 };
 
@@ -279,6 +324,31 @@ describe('the library is the workspace’s own material', () => {
     expect(within(origin).getByText(/Telegram · 06\.08\.26/)).toBeTruthy();
     // A post still waiting says so instead of printing a date it has not met.
     expect(within(origin).getByText(/ВКонтакте · В очереди/)).toBeTruthy();
+  });
+
+  test('a recut version shows up on the row and in the provenance list', async () => {
+    // `content-factory-next-fn33.84`: a recut writes a `DRAFT` derivation, the
+    // table counted only what went out and what was queued, and the row went
+    // on saying «публикаций 0» over a piece that had just produced two.
+    serve({
+      ...baseTable(),
+      'GET /content-intelligence/materials/piece-1/derivations': ok({
+        ...DERIVATIONS,
+        derived: [
+          { platform: 'telegram', state: 'DRAFT', date: '04.09.26' },
+        ],
+      }),
+    });
+    await renderTab();
+
+    const row = document.querySelector('[data-voice-material="cnt-01"]');
+    expect(within(row).getByText('2')).toBeTruthy();
+
+    await click(screen.getByRole('button', { name: 'cnt-01' }));
+    const origin = document.querySelector('[data-voice-material-origin]');
+    // Said in words: a draft and a published post reading alike is what made
+    // a recut look like it had done nothing.
+    expect(within(origin).getByText(/Telegram · Черновик · 04\.09\.26/)).toBeTruthy();
   });
 
   test('a provenance that would not load stays shut rather than reading as none', async () => {
@@ -356,10 +426,7 @@ describe('the recut says what will be different', () => {
     });
     await renderTab();
 
-    const row = document.querySelector('[data-voice-material="cnt-01"]');
-    await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
-
-    const panel = document.querySelector('[data-voice-recut]');
+    const panel = await openRecut();
     expect(panel).toBeTruthy();
 
     const length = panel.querySelector('[data-voice-change="length"]');
@@ -395,13 +462,99 @@ describe('the recut says what will be different', () => {
     });
     await renderTab();
 
-    const row = document.querySelector('[data-voice-material="cnt-01"]');
-    await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
-
-    const panel = document.querySelector('[data-voice-recut]');
+    const panel = await openRecut();
     expect(panel.querySelectorAll('[data-voice-change]')).toHaveLength(0);
     expect(
       within(panel).getByText(/Ничего не меняется/)
+    ).toBeTruthy();
+  });
+
+  test('a platform with no channel is refused before the click, not after it', async () => {
+    // `content-factory-next-fn33.86`: all four platforms were offered alike,
+    // the preview behaved as though the choice had worked, and the refusal
+    // arrived only after «Открыть в редакторе». The workspace here has
+    // Telegram and VK and nothing else.
+    serve({
+      ...baseTable(),
+      'POST /content-intelligence/materials/piece-1/recut-preview':
+        ok(UNCHANGED_PREVIEW),
+    });
+    await renderTab();
+
+    const panel = await openRecut();
+    // The channel list arrives on its own request; until it does, every
+    // platform stays offered on purpose.
+    await waitFor(() =>
+      expect(
+        within(panel).getByRole('button', { name: 'Сайт' }).disabled
+      ).toBe(true)
+    );
+    expect(
+      within(panel).getByRole('button', { name: 'Telegram' }).disabled
+    ).toBe(false);
+    expect(
+      within(panel).getByRole('button', { name: 'ВКонтакте' }).disabled
+    ).toBe(false);
+    expect(
+      within(panel).getByRole('button', { name: 'Рассылка' }).disabled
+    ).toBe(true);
+    expect(
+      panel.querySelector('[data-voice-platform="site"][data-voice-platform-unavailable="true"]')
+    ).toBeTruthy();
+    expect(within(panel).getAllByText('канала нет').length).toBe(2);
+  });
+
+  test('the panel opens on a platform this workspace can post to', async () => {
+    // `content-factory-next-fn33.111`: the panel opened on «Сайт» — the one
+    // platform this workspace has no channel for — so the button was disabled
+    // and painted as chosen at once, and «Открыть в редакторе» went straight
+    // into a refusal. The workspace here has Telegram and VK.
+    serve({
+      ...baseTable(),
+      'POST /content-intelligence/materials/piece-1/recut-preview': (call) =>
+        ok({
+          ...UNCHANGED_PREVIEW,
+          recut: { ...UNCHANGED_PREVIEW.recut, platform: call.body.platform },
+        }),
+    });
+    await renderTab();
+
+    const row = document.querySelector('[data-voice-material="cnt-01"]');
+    await openRecut();
+
+    const previews = calls.filter((call) =>
+      call.url.endsWith('/recut-preview')
+    );
+    expect(previews).toHaveLength(1);
+    expect(previews[0].body).toEqual({ platform: 'telegram' });
+    expect(
+      document.querySelector('[data-voice-recut="telegram"]')
+    ).toBeTruthy();
+  });
+
+  test('with no channel anywhere the recut is not offered, and it says why', async () => {
+    // `content-factory-next-fn33.111`: nothing is chosen for a person who has
+    // nowhere to put a draft, and the reason is written out instead of being
+    // left to a refusal after the click.
+    serve({
+      ...baseTable(),
+      'GET /integrations/list': ok({ integrations: [] }),
+    });
+    await renderTab();
+
+    const row = document.querySelector('[data-voice-material="cnt-01"]');
+    const reuse = within(row).getByRole('button', {
+      name: 'Переиспользовать',
+    });
+    await waitFor(() => expect(reuse.disabled).toBe(true));
+
+    await click(reuse);
+    expect(
+      calls.filter((call) => call.url.endsWith('/recut-preview'))
+    ).toHaveLength(0);
+    expect(document.querySelector('[data-voice-recut]')).toBeNull();
+    expect(
+      document.querySelector('[data-voice-no-channel-anywhere="true"]')
     ).toBeTruthy();
   });
 
@@ -413,10 +566,7 @@ describe('the recut says what will be different', () => {
     });
     await renderTab();
 
-    const row = document.querySelector('[data-voice-material="cnt-01"]');
-    await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
-
-    const panel = document.querySelector('[data-voice-recut]');
+    const panel = await openRecut();
     await click(within(panel).getByRole('button', { name: 'Telegram' }));
 
     const previews = calls.filter((call) =>
@@ -435,14 +585,19 @@ describe('the recut says what will be different', () => {
  * ---------------------------------------------------------------------- */
 
 describe('a refusal reaches the screen intact', () => {
-  test('the code and the sentence both arrive', async () => {
+  test('the sentence arrives and the machine code does not', async () => {
+    // `content-factory-next-fn33.85`: the screen printed
+    // «MATERIAL_PLATFORM_UNSUPPORTED · В рабочем пространстве нет
+    // подключённого канала для этой площадки · vk» — three languages in one
+    // line, two of them ours. The code stays on the failure object for the
+    // screens that branch on it; it is not what a person is shown.
     const message =
       'В рабочем пространстве нет подключённого канала для этой площадки';
     serve({
       ...baseTable(),
       'POST /content-intelligence/materials/piece-1/recut-preview': refusal(
         422,
-        { code: 'MATERIAL_PLATFORM_UNSUPPORTED', message }
+        { code: 'MATERIAL_PLATFORM_UNSUPPORTED', message, subject: 'vk' }
       ),
     });
     await renderTab();
@@ -450,9 +605,12 @@ describe('a refusal reaches the screen intact', () => {
     const row = document.querySelector('[data-voice-material="cnt-01"]');
     await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
 
-    const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain('MATERIAL_PLATFORM_UNSUPPORTED');
+    const alert = await waitFor(() => screen.getByRole('alert'));
     expect(alert.textContent).toContain(message);
+    expect(alert.textContent).not.toContain('MATERIAL_PLATFORM_UNSUPPORTED');
+    // And the platform is named the way the recut panel names it.
+    expect(alert.textContent).toContain('ВКонтакте');
+    expect(alert.textContent).not.toContain('vk');
     // The library is still on the screen: a refused recut lost nothing.
     expect(document.querySelectorAll('[data-voice-material]')).toHaveLength(2);
   });
@@ -575,10 +733,7 @@ describe('the draft opens in the product’s own editor', () => {
     });
     await renderTab();
 
-    const row = document.querySelector('[data-voice-material="cnt-01"]');
-    await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
-
-    const panel = document.querySelector('[data-voice-recut]');
+    const panel = await openRecut();
     await click(
       within(panel).getByRole('button', { name: 'Открыть в редакторе' })
     );
@@ -647,10 +802,7 @@ describe('nothing on this surface reaches a platform', () => {
     });
     await renderTab();
 
-    const row = document.querySelector('[data-voice-material="cnt-01"]');
-    await click(within(row).getByRole('button', { name: 'Переиспользовать' }));
-
-    const panel = document.querySelector('[data-voice-recut]');
+    const panel = await openRecut();
     expect(
       within(panel).getByText(/Отправкой занимается публикация/)
     ).toBeTruthy();

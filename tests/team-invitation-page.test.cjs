@@ -76,3 +76,43 @@ test('every dead end offers a way onward', () => {
   expect(source).toContain("{error === 'invite_unknown' ? (");
   expect(source).toContain("{t('try_again', 'Try Again')}");
 });
+
+
+/**
+ * `content-factory-next-fn33.26`: «Continue» after accepting has to leave
+ * through the browser.
+ *
+ * Accepting sets the `showorg` cookie server side, and that cookie is the only
+ * thing that makes the invited workspace the current one. The button used to
+ * call `router.push('/')` — a client transition — so the layout kept the user
+ * context it already had, and the workspace list behind
+ * `useSWR('organizations')` never revalidates on its own: the owner landed
+ * back in his old workspace with the new one absent from the switcher until he
+ * reloaded by hand.
+ */
+test('accepting an invitation ends in a full page load, not a client transition', () => {
+  const source = fs.readFileSync(pagePath, 'utf8');
+
+  expect(source).toContain("window.location.assign('/')");
+  const success = source.slice(
+    source.indexOf('team_invitation_success_title'),
+    source.indexOf('team_invitation_declined_title')
+  );
+  expect(success).toContain('onClick={enterWorkspace}');
+  expect(success).not.toContain("router.push('/')");
+});
+
+test('switching workspace by hand already reloads, for the same reason', () => {
+  const selector = fs.readFileSync(
+    path.join(
+      root,
+      'apps/frontend/src/components/layout/organization.selector.tsx'
+    ),
+    'utf8'
+  );
+
+  // The cookie `change-org` sets is the same one, and this is the move the
+  // invitation page now copies.
+  expect(selector).toContain("fetch('/user/change-org'");
+  expect(selector).toContain('window.location.reload()');
+});

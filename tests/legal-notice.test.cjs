@@ -113,7 +113,7 @@ describe('registration legal notice', () => {
     ).toBe('https://example.test/privacy');
   });
 
-  test('names what registration stores and that approval does not stop it', () => {
+  test('names what registration stores', () => {
     const LegalNotice = loadNotice({ termsUrl: '', privacyUrl: '' });
     const { container } = render(React.createElement(LegalNotice));
     const text = container.textContent;
@@ -121,6 +121,26 @@ describe('registration legal notice', () => {
     expect(text).toContain('email address');
     expect(text).toContain('hash of your password');
     expect(text).toContain('IP address');
-    expect(text).toContain('approves it');
+  });
+
+  /**
+   * `content-factory-next-fn33.40`: the notice used to end «The account is
+   * created immediately but does nothing until an administrator approves it.»
+   * On the invited path that is simply untrue — the invitation *is* the
+   * administrator's decision, and the person is inside the workspace the
+   * moment the password is set — and on the ordinary path this form has no way
+   * of knowing whether approval is switched on at all.
+   */
+  test('promises no wait for approval, and says so where it matters', () => {
+    const LegalNotice = loadNotice({ termsUrl: '', privacyUrl: '' });
+
+    const general = render(React.createElement(LegalNotice));
+    expect(general.container.textContent).not.toMatch(/approve/i);
+    cleanup();
+
+    const invited = render(React.createElement(LegalNotice, { invited: true }));
+    expect(invited.container.textContent).toContain(
+      'You join the workspace as soon as the password is set'
+    );
   });
 });

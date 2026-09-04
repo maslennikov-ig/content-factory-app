@@ -53,6 +53,7 @@ export function VoiceBriefScreen({
   onPick,
   onCreateDraft,
   notice,
+  draftNotice,
 }: {
   locale: VoiceLocale;
   state?: VoiceBriefState;
@@ -64,6 +65,17 @@ export function VoiceBriefScreen({
   onPick?: (id: string) => void;
   onCreateDraft?: () => void;
   notice?: string;
+  /**
+   * A refusal that belongs to «Создать черновик» and nowhere else
+   * (content-factory-next-fn33.69).
+   *
+   * `notice` prints at the top of this panel, under the radar's heading —
+   * the right place for a radar that did not build, and the wrong one for
+   * an answer to a button two screens further down. A workspace with no
+   * channel pressed the button and read «нет ни одного канала» above the
+   * topic list, with nothing tying the sentence to the press.
+   */
+  draftNotice?: { message: string; href?: string; action?: string };
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading';
@@ -242,6 +254,34 @@ export function VoiceBriefScreen({
               ))}
             </ul>
           </div>
+        ) : null}
+
+        {draftNotice ? (
+          <p
+            role="alert"
+            data-voice-brief-draft-refusal="true"
+            className="mt-[16px] rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          >
+            {draftNotice.message}
+            {draftNotice.href && draftNotice.action ? (
+              <>
+                {' '}
+                {/*
+                  A plain anchor, not `next/link`: this screen is also
+                  rendered by `/interface-review` and by tests outside the
+                  app router, where the prefetching link reaches for
+                  `self` and throws. One refusal a workspace sees once is
+                  not worth a client-side transition.
+                */}
+                <a
+                  href={draftNotice.href}
+                  className="text-cf-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                >
+                  {draftNotice.action}
+                </a>
+              </>
+            ) : null}
+          </p>
         ) : null}
 
         <Button

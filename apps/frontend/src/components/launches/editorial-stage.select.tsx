@@ -12,10 +12,14 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
 /**
  * The editor's own choice of the four editorial-stage values, plus the fifth
- * choice this field always had before it had a name: unset. Unset has to be
- * a real, selectable option here — not only the value a fresh post starts
- * with — because a post that was given a stage by mistake needs a way back
- * to "no stage recorded" without deleting and recreating the post.
+ * choice this field always had before it had a name: unset.
+ *
+ * A new post no longer starts there — since 04.09.2026 it opens on `PLAN`, the
+ * first rung, because opening the editor is already the answer to "has work
+ * begun on this". Unset stays a real, selectable option all the same: a post
+ * given a stage by mistake needs a way back to "no stage recorded" without
+ * being deleted and recreated, and posts written before the stage existed
+ * still carry it.
  */
 export const EditorialStageSelect: FC<{
   value: EditorialStageValue | null;

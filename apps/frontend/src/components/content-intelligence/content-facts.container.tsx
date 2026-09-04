@@ -9,15 +9,17 @@ import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import {
-  CLAIM_KEY_PATTERN,
   FACTS_API,
   buildFactCreatePayload,
+  claimKeyFromStatement,
+  claimKeyIssue,
   emptyFactDraft,
   failureNotice,
   isUsableFact,
   jsonReader,
   readFactsEnvelope,
   readFailure,
+  readableDate,
   screenState,
   type FactDraft,
   type FactFailure,
@@ -58,11 +60,24 @@ const copy = {
     body: 'Утверждение, которое можно назвать в брифе по идентификатору. Бриф отклонит id, которого нет в списке.',
     empty: 'Фактов пока нет. Первый добавленный появится в списке ниже.',
     formTitle: 'Добавить факт',
+    detailsSummary: 'Подробнее',
     claimKey: 'Ключ утверждения',
-    claimKeyHelp: 'Формат «тема|атрибут», например pricing|trial_length.',
+    claimKeyHelp:
+      'Заполним сами из утверждения — это внутренняя папка, по которой факты собираются в темы. Свой ключ: «тема|атрибут», например pricing|trial_length.',
+    claimKeyError: {
+      spaces:
+        'Пробелов быть не может: соедините слова знаком подчёркивания, например редакция|правило_факта.',
+      shape:
+        'Нужны две части через прямую черту: тема|атрибут. Или оставьте поле пустым — заполним сами.',
+    } as Record<string, string>,
     statement: 'Утверждение',
+    statementHelp:
+      'Своими словами, одной фразой — так, как вы сказали бы это человеку.',
     valueText: 'Значение',
+    valueTextHelp:
+      'Короткое значение, если его стоит выделить: «14 дней», «40%». Пусто — возьмём само утверждение.',
     language: 'Язык',
+    languageName: { ru: 'Русский', en: 'English' } as Record<string, string>,
     temporalKind: 'Тип во времени',
     temporalCurrent: 'Действует сейчас',
     temporalDated: 'Привязано к периоду',
@@ -107,11 +122,23 @@ const copy = {
     body: 'A claim a brief can cite by id. The brief refuses an id that is not in this list.',
     empty: 'No facts yet. The first one you add appears in the list below.',
     formTitle: 'Add a fact',
+    detailsSummary: 'Details',
     claimKey: 'Claim key',
-    claimKeyHelp: 'Shape is "topic|attribute", e.g. pricing|trial_length.',
+    claimKeyHelp:
+      'Filed from the statement for you — an internal folder that groups facts into topics. Your own: "topic|attribute", e.g. pricing|trial_length.',
+    claimKeyError: {
+      spaces:
+        'No spaces here: join the words with an underscore, e.g. editorial|fact_rule.',
+      shape:
+        'Two parts separated by a bar: topic|attribute. Or leave it empty and we will file it.',
+    } as Record<string, string>,
     statement: 'Statement',
+    statementHelp: 'In your own words, one sentence, the way you would say it.',
     valueText: 'Value',
+    valueTextHelp:
+      'A short value if it is worth pulling out: "14 days", "40%". Empty means the statement itself.',
     language: 'Language',
+    languageName: { ru: 'Русский', en: 'English' } as Record<string, string>,
     temporalKind: 'How it ages',
     temporalCurrent: 'Holds right now',
     temporalDated: 'Tied to a period',
@@ -247,8 +274,14 @@ export function ContentFactsContainer({
   }, []);
 
   const rows: readonly FactRow[] = readFactsEnvelope(facts.data);
-  const claimKeyValid =
-    draft.claimKey.trim() === '' || CLAIM_KEY_PATTERN.test(draft.claimKey.trim());
+  /**
+   * `null` while the key is empty — an empty key is not a mistake any more
+   * (content-factory-next-fn33.57), it is the normal case the statement
+   * fills in. When somebody does type one, the answer names the obstacle
+   * rather than repeating the hint (content-factory-next-fn33.62).
+   */
+  const claimKeyProblem = claimKeyIssue(draft.claimKey);
+  const claimKeyPreview = claimKeyFromStatement(draft.statement.trim());
 
   const submit = useCallback(async () => {
     setBusy(true);
@@ -262,6 +295,25 @@ export function ContentFactsContainer({
       const id = String(response?.id ?? '');
       setDraft(emptyFactDraft(locale));
       let message = t.created(id);
+
+      /*
+        content-factory-next-fn33.68. The carry happens here, on the line
+        after the id exists, and not at the end of this block.
+
+        The brief above promises «сохранённый факт сам ляжет в бриф
+        отдельной строкой ниже». It used to be the last thing this function
+        did, behind an evidence link and a list refresh — and a refusal from
+        either of those left the fact saved on the server and the promise
+        broken on the screen, with nothing to tell the person which half had
+        happened. Nothing between the save and the carry can swallow it now.
+      */
+      if (id) {
+        onFactCreated?.({
+          id,
+          claimKey: draft.claimKey.trim(),
+          statement: draft.statement.trim(),
+        });
+      }
 
       /*
         The fact exists; now the excerpt it stands on. Two calls rather than
@@ -287,13 +339,16 @@ export function ContentFactsContainer({
       }
 
       setCreated(message);
-      await facts.mutate();
-      if (id) {
-        onFactCreated?.({
-          id,
-          claimKey: draft.claimKey.trim(),
-          statement: draft.statement.trim(),
-        });
+      /*
+        A list that did not come back is not a fact that did not save. It is
+        refreshed in its own right so a refusal here cannot reach the catch
+        below and print «Факт не сохранился» over a fact the server holds.
+      */
+      try {
+        await facts.mutate();
+      } catch {
+        // The saved id is in the message above; the list catches up on the
+        // next load.
       }
     } catch (error) {
       setFailure(readFailure(error, t.createFallback));
@@ -310,6 +365,48 @@ export function ContentFactsContainer({
     read,
     t,
   ]);
+
+  /**
+   * A date field, and the date read back in the person's own order
+   * (content-factory-next-fn33.58).
+   *
+   * `<input type="date">` keeps its value as `yyyy-mm-dd` and shows it in
+   * the locale of the *browser*, not of this page — MDN is explicit about
+   * that, and no attribute on the element overrides it. So on a Russian
+   * screen an American browser still prints mm/dd/yyyy in the empty field,
+   * and nothing here can forbid it. What the product can do is never leave
+   * the person guessing which of the two orders they are looking at: the
+   * chosen date is echoed under the field in the section's own locale, and
+   * `lang` is set for the browsers that do honour it.
+   */
+  const dateField = (
+    name: 'freshUntil' | 'effectiveFrom' | 'effectiveTo',
+    label: string,
+    helper?: string,
+    required = false
+  ) => (
+    <div className="min-w-0" key={name}>
+      <Input
+        disableForm
+        lang={locale}
+        label={label}
+        helper={helper}
+        type="date"
+        name={name}
+        value={draft[name]}
+        onChange={(event) =>
+          setDraft((current) => ({ ...current, [name]: event.target.value }))
+        }
+        disabled={busy}
+        required={required}
+      />
+      {draft[name] && (
+        <p data-content-facts-date-echo={name} className="cf-caption text-cf-ink-muted">
+          {readableDate(draft[name], locale)}
+        </p>
+      )}
+    </div>
+  );
 
   const shownFailure =
     failure ?? (facts.error ? readFailure(facts.error, t.listFallback) : null);
@@ -407,120 +504,122 @@ export function ContentFactsContainer({
         <h3 className="mb-[4px] cf-label-md text-cf-ink md:col-span-2">
           {t.formTitle}
         </h3>
-        <Input
-          disableForm
-          fieldClassName="md:col-span-2"
-          label={t.claimKey}
-          helper={t.claimKeyHelp}
-          error={!claimKeyValid ? t.claimKeyHelp : undefined}
-          name="claimKey"
-          placeholder="pricing|trial_length"
-          value={draft.claimKey}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, claimKey: event.target.value }))
-          }
-          disabled={busy}
-          required
-        />
-        <Select
-          disableForm
-          label={t.language}
-          name="language"
-          value={draft.language}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              language: event.target.value as FactLanguage,
-            }))
-          }
-          disabled={busy}
-        >
-          <option value="ru">ru</option>
-          <option value="en">en</option>
-        </Select>
-        <Select
-          disableForm
-          label={t.temporalKind}
-          name="temporalKind"
-          value={draft.temporalKind}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              temporalKind: event.target.value as FactTemporalKind,
-            }))
-          }
-          disabled={busy}
-        >
-          <option value="TIMELESS">{t.temporalTimeless}</option>
-          <option value="DATED">{t.temporalDated}</option>
-          <option value="CURRENT">{t.temporalCurrent}</option>
-        </Select>
-        <Textarea
-          disableForm
-          fieldClassName="md:col-span-2"
-          label={t.statement}
-          name="statement"
-          value={draft.statement}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, statement: event.target.value }))
-          }
-          disabled={busy}
-          required
-        />
-        <Input
-          disableForm
-          fieldClassName="md:col-span-2"
-          label={t.valueText}
-          name="valueText"
-          value={draft.valueText}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, valueText: event.target.value }))
-          }
-          disabled={busy}
-          required
-        />
-        <Input
-          disableForm
-          label={t.freshUntil}
-          helper={
-            draft.temporalKind === 'CURRENT' ? t.freshUntilRequiredHint : undefined
-          }
-          type="date"
-          name="freshUntil"
-          value={draft.freshUntil}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, freshUntil: event.target.value }))
-          }
-          disabled={busy}
-          required={draft.temporalKind === 'CURRENT'}
-        />
-        <Input
-          disableForm
-          label={t.effectiveFrom}
-          type="date"
-          name="effectiveFrom"
-          value={draft.effectiveFrom}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              effectiveFrom: event.target.value,
-            }))
-          }
-          disabled={busy}
-        />
-        <Input
-          disableForm
-          label={t.effectiveTo}
-          type="date"
-          name="effectiveTo"
-          value={draft.effectiveTo}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, effectiveTo: event.target.value }))
-          }
-          disabled={busy}
-        />
+        {/*
+          content-factory-next-fn33.57. One question up front: what do you
+          know? The owner's decision of 01.09.2026 (карта раздела, §3, §4)
+          takes the engineering apparatus out of this section, and the form
+          used to open with an internal key, a freshness window and a
+          validity interval before it ever asked for the claim. The key is
+          filed from the statement, the value falls back to it, and
+          everything the server still wants sits under «Подробнее» for the
+          person who has a reason to touch it.
+        */}
+        <div className="min-w-0 md:col-span-2">
+          <Textarea
+            disableForm
+            label={t.statement}
+            name="statement"
+            value={draft.statement}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, statement: event.target.value }))
+            }
+            disabled={busy}
+            required
+          />
+          {/* `Textarea` has no helper slot of its own; the sentence sits under
+              the field the way `Input`'s helper would. */}
+          <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+            {t.statementHelp}
+          </p>
+        </div>
+
+        {/*
+          A native disclosure rather than a component: the browser already
+          owns the button role, the expanded state and Enter/Space, and the
+          product has no disclosure primitive to reuse — the same choice
+          `new-launch/editor.tsx` makes for the context panel's details.
+          The fields stay mounted, so a value typed here survives closing it.
+        */}
+        <details className="group md:col-span-2" data-content-facts-details="true">
+          <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-[4px] cf-body-sm text-cf-ink-muted underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
+            {t.detailsSummary}
+          </summary>
+          <div className="mt-[12px] grid gap-x-[16px] gap-y-[12px] md:grid-cols-2">
+            <Input
+              disableForm
+              fieldClassName="md:col-span-2"
+              label={t.claimKey}
+              helper={t.claimKeyHelp}
+              error={claimKeyProblem ? t.claimKeyError[claimKeyProblem] : undefined}
+              name="claimKey"
+              placeholder={claimKeyPreview || 'pricing|trial_length'}
+              value={draft.claimKey}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, claimKey: event.target.value }))
+              }
+              disabled={busy}
+            />
+            <Input
+              disableForm
+              fieldClassName="md:col-span-2"
+              label={t.valueText}
+              helper={t.valueTextHelp}
+              name="valueText"
+              value={draft.valueText}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, valueText: event.target.value }))
+              }
+              disabled={busy}
+            />
+            <Select
+              disableForm
+              label={t.language}
+              name="language"
+              value={draft.language}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  language: event.target.value as FactLanguage,
+                }))
+              }
+              disabled={busy}
+            >
+              {/*
+                content-factory-next-fn33.59: a language is named, not
+                spelled as the two-letter code the column happens to store.
+                Each name is written in its own language, the way a person
+                looking for their own would recognise it.
+              */}
+              <option value="ru">{t.languageName.ru}</option>
+              <option value="en">{t.languageName.en}</option>
+            </Select>
+            <Select
+              disableForm
+              label={t.temporalKind}
+              name="temporalKind"
+              value={draft.temporalKind}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  temporalKind: event.target.value as FactTemporalKind,
+                }))
+              }
+              disabled={busy}
+            >
+              <option value="TIMELESS">{t.temporalTimeless}</option>
+              <option value="DATED">{t.temporalDated}</option>
+              <option value="CURRENT">{t.temporalCurrent}</option>
+            </Select>
+            {dateField('freshUntil', t.freshUntil,
+              draft.temporalKind === 'CURRENT' ? t.freshUntilRequiredHint : undefined,
+              draft.temporalKind === 'CURRENT')}
+            {dateField('effectiveFrom', t.effectiveFrom)}
+            {dateField('effectiveTo', t.effectiveTo)}
+          </div>
+        </details>
+
         <div className="md:col-span-2">
-          <Button type="submit" variant="primary" disabled={busy || !claimKeyValid}>
+          <Button type="submit" variant="primary" disabled={busy || !!claimKeyProblem}>
             {busy ? t.submitting : t.submit}
           </Button>
         </div>

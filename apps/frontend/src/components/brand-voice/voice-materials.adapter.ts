@@ -9,6 +9,11 @@ import {
   type VoiceErrorCode,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { RecutPlatform } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/recut';
+import { platformLabel, type VoiceLocale } from './voice-copy';
+import {
+  PLATFORM_PROVIDERS,
+  RECUT_PLATFORMS,
+} from '@contentfactory/nestjs-libraries/content-intelligence/materials/material-presentation';
 // A type, and only a type: the editor's own channel shape, so this file hands
 // it exactly what it already expects instead of a lookalike.
 import type { Integrations } from '@contentfactory/frontend/components/launches/calendar.context';
@@ -50,11 +55,19 @@ export const postEndpoint = (postId: string) =>
 /**
  * The platform the panel opens on.
  *
- * The first of the four the screen offers, and the person changes it in one
- * click. Guessing from the workspace's channels would be a better guess and a
- * worse explanation: the panel would open on something nobody chose.
+ * The first platform this workspace actually has a channel for. The panel used
+ * to open on `site` whatever the workspace had: in one connected only to
+ * Telegram that put a disabled button in the chosen colour, built the preview
+ * for a platform nobody could post to, and turned «Открыть в редакторе» into a
+ * refusal (`content-factory-next-fn33.111`).
+ *
+ * `undefined` means no platform can be chosen — either the channel list is not
+ * in yet, or there is nowhere to put a draft at all. Both are answered by
+ * waiting rather than by choosing something that cannot work.
  */
-export const DEFAULT_RECUT_PLATFORM: RecutPlatform = 'site';
+export const preferredRecutPlatform = (
+  available: readonly RecutPlatform[] | undefined
+): RecutPlatform | undefined => available?.[0];
 
 /* -------------------------------------------------------------------------
  * Requests
@@ -148,13 +161,26 @@ export const readFailure = (
   };
 };
 
-/** The line the screen prints: the code to act on, the sentence to read. */
-export const failureNotice = (failure: MaterialFailure) => {
-  const base = failure.code
-    ? `${failure.code} · ${failure.message}`
+/**
+ * The line the screen prints: the sentence, and what it is about.
+ *
+ * The machine code is deliberately not in it. «MATERIAL_PLATFORM_UNSUPPORTED ·
+ * В рабочем пространстве нет подключённого канала для этой площадки · vk» is
+ * three languages in one line, two of which are ours and not the reader's
+ * (`content-factory-next-fn33.85`). The code stays on `MaterialFailure` for
+ * the screens that branch on it and for anything that ends up in a log.
+ *
+ * The subject is still printed, because a refusal that names nothing is a
+ * refusal nobody can act on — but a subject that is a platform key is printed
+ * as the platform's name, from the same dictionary the recut panel uses.
+ */
+export const failureNotice = (
+  failure: MaterialFailure,
+  locale: VoiceLocale = 'ru'
+) =>
+  failure.subject
+    ? `${failure.message} · ${platformLabel(failure.subject, locale)}`
     : failure.message;
-  return failure.subject ? `${base} · ${failure.subject}` : base;
-};
 
 /* -------------------------------------------------------------------------
  * What the screen is handed
@@ -255,6 +281,29 @@ export const editorChannels = (
       picture: existing?.integrationPicture ?? channel.picture,
     })),
 });
+
+/**
+ * Which of the four platforms this workspace could actually put a draft into.
+ *
+ * The same rule the server applies in `ContentMaterialService.createDraft` —
+ * an enabled, undeleted channel whose provider is one of the platform's — read
+ * on the screen so a platform with nowhere to go is answered before the click
+ * rather than after it (`content-factory-next-fn33.86`). The map of platform
+ * to providers is `PLATFORM_PROVIDERS`, imported rather than retyped: a second
+ * copy is how a screen starts offering a platform the route refuses.
+ */
+export const platformsWithChannel = (
+  channels: readonly Integrations[] | null | undefined
+): readonly RecutPlatform[] => {
+  const connected = new Set(
+    (channels ?? [])
+      .filter((channel) => !channel.disabled)
+      .map((channel) => channel.identifier)
+  );
+  return RECUT_PLATFORMS.filter((platform) =>
+    PLATFORM_PROVIDERS[platform].some((provider) => connected.has(provider))
+  );
+};
 
 /** The draft's own date, in the reader's zone, the way the calendar reads it. */
 export const editorDate = (existing: EditorExistingData | null | undefined) =>

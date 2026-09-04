@@ -109,6 +109,11 @@ export class ContentMaterialService {
       // and a single "posts" number answers neither question completely.
       postCount: counts.get(`${piece.id}|PUBLISHED`) || 0,
       queuedCount: counts.get(`${piece.id}|QUEUED`) || 0,
+      // The third state, counted rather than dropped. A recut writes a
+      // `DRAFT` derivation, and while only `PUBLISHED` and `QUEUED` were
+      // counted the new version existed in the database and nowhere on the
+      // screen (`content-factory-next-fn33.84`).
+      draftCount: counts.get(`${piece.id}|DRAFT`) || 0,
       date: materialDate(piece.createdAt, piece.language),
       voiceVersion: voiceVersionLabel(piece.brandProfileVersion || null),
     };

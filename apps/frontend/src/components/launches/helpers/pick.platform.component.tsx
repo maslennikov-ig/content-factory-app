@@ -4,10 +4,50 @@ import { useMoveToIntegrationListener } from '@contentfactory/frontend/component
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import clsx from 'clsx';
 import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
+import { useHasCopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { useStateCallback } from '@contentfactory/react/helpers/use.state.callback';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
+/**
+ * Всё, что знает помощник о выборе каналов. Отдельным компонентом, потому что
+ * его крючки живут только под провайдером помощника: без провайдера они бросают
+ * исключение, а с провайдером вокруг всего приложения стоили бы запроса на
+ * каждой загрузке страницы (`content-factory-next-fn33.48`).
+ */
+const AssistantPlatformActions: FC<{
+  isMain: boolean;
+  integrations: Integrations[];
+  handler: (args: { integrationsId: string[] }) => Promise<void>;
+  dependencies: unknown[];
+}> = ({ isMain, integrations, handler, dependencies }) => {
+  useCopilotReadable({
+    description: isMain
+      ? 'All available platforms channels'
+      : 'Possible platforms channels to edit',
+    value: JSON.stringify(integrations),
+  });
+  useCopilotAction(
+    {
+      name: isMain ? `addOrRemovePlatform` : 'setSelectedIntegration',
+      description: isMain
+        ? `Add or remove channels to schedule your post to, pass all the ids as array`
+        : 'Set selected integrations',
+      parameters: [
+        {
+          name: 'integrationsId',
+          type: 'string[]',
+          description: 'List of integrations id to set as selected',
+          required: true,
+        },
+      ],
+      handler,
+    },
+    dependencies as any[]
+  );
+  return null;
+};
+
 export const PickPlatforms: FC<{
   integrations: Integrations[];
   selectedIntegrations: Integrations[];
@@ -149,37 +189,12 @@ export const PickPlatforms: FC<{
       console.log('changed');
     });
   };
-  useCopilotReadable({
-    description: isMain
-      ? 'All available platforms channels'
-      : 'Possible platforms channels to edit',
-    value: JSON.stringify(integrations),
-  });
-  useCopilotAction(
-    {
-      name: isMain ? `addOrRemovePlatform` : 'setSelectedIntegration',
-      description: isMain
-        ? `Add or remove channels to schedule your post to, pass all the ids as array`
-        : 'Set selected integrations',
-      parameters: [
-        {
-          name: 'integrationsId',
-          type: 'string[]',
-          description: 'List of integrations id to set as selected',
-          required: true,
-        },
-      ],
-      handler,
-    },
-    [
-      addPlatform,
-      selectedAccounts,
-      integrations,
-      onChange,
-      props.singleSelect,
-      setSelectedAccounts,
-    ]
-  );
+  /**
+   * Подсказки помощнику регистрируются только там, где помощника можно позвать
+   * (`content-factory-next-fn33.48`): выбор каналов рисуется и на экранах
+   * вебхуков и каналов, где окна помощника нет.
+   */
+  const hasCopilot = useHasCopilotProvider();
   if (hide) {
     return null;
   }
@@ -187,6 +202,21 @@ export const PickPlatforms: FC<{
     <div
       className={clsx('flex select-none', props.singleSelect && 'gap-[10px]')}
     >
+      {hasCopilot && (
+        <AssistantPlatformActions
+          isMain={isMain}
+          integrations={integrations}
+          handler={handler}
+          dependencies={[
+            addPlatform,
+            selectedAccounts,
+            integrations,
+            onChange,
+            props.singleSelect,
+            setSelectedAccounts,
+          ]}
+        />
+      )}
       {props.singleSelect && isLeft && (
         <div className="flex items-center">
           {isLeft && (

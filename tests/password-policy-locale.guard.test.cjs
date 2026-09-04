@@ -74,14 +74,35 @@ describe('the password policy numbers live in one place', () => {
     expect(offenders).toEqual({});
   });
 
+  /**
+   * The refusal moved into the shared helper on 04.09.2026
+   * (`content-factory-next-fn33.44` and the group around it): the same
+   * sentence used to be assembled again on every screen, next to the code that
+   * recognised the server's English. A screen either states the range itself
+   * or asks the one helper that does; nothing is allowed to write the numbers
+   * a second time.
+   */
+  const SHARED_HELPER = 'apps/frontend/src/components/auth/form.errors.ts';
+
   test('every screen that shows the rule passes the numbers to it', () => {
+    const statesRange = (source, key) =>
+      new RegExp(`'${key}',[\\s\\S]{0,200}?PASSWORD_POLICY_RANGE`).test(source);
+
+    expect(
+      statesRange(
+        fs.readFileSync(path.join(root, SHARED_HELPER), 'utf8'),
+        'password_policy_error'
+      )
+    ).toBe(true);
+
     for (const surface of surfaces) {
       const source = fs.readFileSync(path.join(root, surface), 'utf8');
-      for (const key of POLICY_KEYS) {
-        expect(source).toMatch(
-          new RegExp(`'${key}',[\\s\\S]{0,200}?PASSWORD_POLICY_RANGE`)
-        );
-      }
+      // The hint is the field's own copy and stays on the screen.
+      expect(statesRange(source, 'password_policy_hint')).toBe(true);
+      expect(
+        statesRange(source, 'password_policy_error') ||
+          source.includes('useFieldErrorMessage')
+      ).toBe(true);
       // A literal range in the English default is the same drift one file
       // further in.
       expect(source).not.toMatch(/Use \d+[–-]\d+ characters/);

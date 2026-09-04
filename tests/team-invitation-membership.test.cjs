@@ -10,7 +10,7 @@ const { OrganizationRepository } = loadTypeScriptModule(
       PrismaTransaction: class PrismaTransaction {},
     },
     '@prisma/client': {
-      Role: { SUPERADMIN: 'SUPERADMIN' },
+      Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
       ShortLinkPreference: {},
       SubscriptionTier: { STANDARD: 'STANDARD' },
     },

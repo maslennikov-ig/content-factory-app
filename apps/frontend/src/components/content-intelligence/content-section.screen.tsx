@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
 import {
   RadioGroup,
@@ -276,8 +276,30 @@ export function ContentSectionScreen({
     initialTab === 'archive' ? 'archive' : 'materials'
   );
 
+  /**
+   * The address follows the screen (content-factory-next-fn33.60).
+   *
+   * The tab was local state and nothing else: «Взять в работу» moved the
+   * screen to «Бриф» while the bar still read `?tab=leads`, and a reload
+   * threw the person back to «Откуда идеи». Every way of changing the tab
+   * goes through here now — the strip and the lead alike — so there is one
+   * answer to "where am I", not two.
+   *
+   * `history.replaceState` rather than the router: the same idiom
+   * `launches/calendar.context.tsx` already uses for exactly this, and it
+   * keeps a tab change from re-running the section's server component. It
+   * replaces rather than pushes because a tab is where you are, not a step
+   * back through.
+   */
+  const changeTab = useCallback((next: ContentTab) => {
+    setTab(next);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/content?tab=${next}`);
+    }
+  }, []);
+
   return (
-    <ContentSectionShell locale={locale} tab={tab} onTabChange={setTab}>
+    <ContentSectionShell locale={locale} tab={tab} onTabChange={changeTab}>
       {/*
         Three tabs hold live work rather than a settings form. `avatars` is the
         measured voice, edited on the card that shows it. `brief` is the radar
@@ -295,7 +317,7 @@ export function ContentSectionScreen({
         // the leads they bring back. «Взять в работу» spends the lead and
         // opens the Brief tab; it does not prefill the brief's thesis field
         // — `voice-brief.container.tsx` is outside this task's write zone.
-        <ContentLeadsTab onNavigateToBrief={() => setTab('brief')} />
+        <ContentLeadsTab onNavigateToBrief={() => changeTab('brief')} />
       ) : tab === 'brief' ? (
         <VoiceBriefContainer />
       ) : tab === 'materials' ? (

@@ -6,6 +6,34 @@ import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { areYouSure } from '@contentfactory/frontend/components/layout/new-modal';
 import { useReturnUrl } from '@contentfactory/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import i18next from '@contentfactory/react/translation/i18next';
+
+/**
+ * The refusals `SubscriptionExceptionFilter` writes, and the key each one is
+ * read in the person's own language under.
+ *
+ * `content-factory-next-fn33.64`: the dialog showed the server's English
+ * sentence with an English title and an English button on an otherwise Russian
+ * screen. The backend has no i18next runtime and no browser language — it
+ * answers an API, not a screen — so the translation belongs here, and the
+ * English sentence is the key it arrives under. Anything unrecognised is still
+ * shown as sent: a refusal nobody can read is better than no refusal at all.
+ *
+ * `tests/role-refusal-localized.test.cjs` holds this table against the filter,
+ * so a reworded refusal on the server cannot quietly go back to English here.
+ */
+const BACKEND_REFUSALS: Record<string, { key: string; fallback: string }> = {
+  'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.':
+    {
+      key: 'role_refusal_admin_only',
+      fallback:
+        'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.',
+    },
+  'You are not allowed to perform this action.': {
+    key: 'role_refusal_generic',
+    fallback: 'You are not allowed to perform this action.',
+  },
+};
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -130,10 +158,11 @@ function LayoutContextInner(params: { children: ReactNode }) {
           return true;
         }
 
+        const known = BACKEND_REFUSALS[refusal];
         await areYouSure({
-          title: 'Not allowed',
-          description: refusal,
-          approveLabel: 'Close',
+          title: i18next.t('role_refusal_title', 'Not allowed'),
+          description: known ? i18next.t(known.key, known.fallback) : refusal,
+          approveLabel: i18next.t('close', 'Close'),
           onlyApprove: true,
         });
         return false;

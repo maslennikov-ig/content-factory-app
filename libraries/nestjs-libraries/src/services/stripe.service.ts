@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Injectable, Logger } from '@nestjs/common';
 import { Organization, User } from '@prisma/client';
 import { SubscriptionService } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -273,7 +274,7 @@ export class StripeService {
       );
       for (const org of organizations) {
         if (
-          org.users?.[0]?.role === 'SUPERADMIN' &&
+          isOrganizationAdmin(org.users?.[0]?.role) &&
           org.paymentId?.startsWith('cus_') &&
           !emailByCustomer.has(org.paymentId)
         ) {

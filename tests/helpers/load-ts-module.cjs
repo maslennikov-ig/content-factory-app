@@ -42,6 +42,12 @@ function loadTypeScriptModule(relativePath, mocks = {}, options = {}) {
         target: ts.ScriptTarget.ES2021,
         esModuleInterop: true,
         experimentalDecorators: true,
+        // Nest resolves constructor parameters from `design:paramtypes`; without
+        // it a test can construct a provider the running application cannot.
+        emitDecoratorMetadata: true,
+        // A `.tsx` source loaded through here — a hook that opens a modal,
+        // say — would otherwise reach `new Function` with its JSX intact.
+        jsx: ts.JsxEmit.ReactJSX,
       },
     }).outputText;
 

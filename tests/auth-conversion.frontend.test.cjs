@@ -244,14 +244,29 @@ const registerMocks = {
     h('a', { href, ...props }, children),
 };
 
+/**
+ * The refusal helper is the real one, loaded with the same translator and the
+ * same policy constants as the form: localizing the password-policy message is
+ * its job now, and a stub here would prove nothing about the screen.
+ */
+const formErrors = (mocks) =>
+  loadWithMocks('apps/frontend/src/components/auth/form.errors.ts', {
+    react: require('react'),
+    '@contentfactory/react/translation/get.transation.service.client':
+      mocks['@contentfactory/react/translation/get.transation.service.client'],
+    '@contentfactory/nestjs-libraries/dtos/auth/password.policy':
+      mocks['@contentfactory/nestjs-libraries/dtos/auth/password.policy'],
+  });
+
+registerMocks['@contentfactory/frontend/components/auth/form.errors'] =
+  formErrors(registerMocks);
+
 const { RegisterAfter } = loadWithMocks(
   'apps/frontend/src/components/auth/register.tsx',
   registerMocks
 );
 
-const { ForgotReturn } = loadWithMocks(
-  'apps/frontend/src/components/auth/forgot-return.tsx',
-  {
+const forgotMocks = {
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => jest.fn() },
     '@contentfactory/react/form/button':
       registerMocks['@contentfactory/react/form/button'],
@@ -287,7 +302,14 @@ const { ForgotReturn } = loadWithMocks(
           : fallback,
     },
     'next/link': registerMocks['next/link'],
-  }
+};
+
+forgotMocks['@contentfactory/frontend/components/auth/form.errors'] =
+  formErrors(forgotMocks);
+
+const { ForgotReturn } = loadWithMocks(
+  'apps/frontend/src/components/auth/forgot-return.tsx',
+  forgotMocks
 );
 
 afterEach(() => {

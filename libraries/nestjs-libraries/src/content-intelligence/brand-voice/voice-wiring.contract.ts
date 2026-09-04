@@ -717,6 +717,18 @@ export type VoiceProposalActivateRequestV1 = {
   consentGiven: boolean;
   label?: string;
   /**
+   * What this avatar is called.
+   *
+   * Asked where the avatar is switched on, because that is the moment it
+   * becomes something a person refers to. Every path used to activate without
+   * asking, so a hand-filled avatar arrived in the list as «Без имени» and the
+   * strip told its owner «тексты пишет Без имени»
+   * (`content-factory-next-fn33.46`). Optional on the wire: an activation from
+   * an older client is still an activation, and a nameless avatar is a smaller
+   * loss than a refused one.
+   */
+  avatarName?: string;
+  /**
    * Which of the two drafts is being activated. Absent means `assist`, which
    * is what every caller before the manual path meant.
    */
@@ -1341,6 +1353,16 @@ export type MaterialRowV1 = {
   format: string;
   postCount: number;
   queuedCount?: number;
+  /**
+   * Versions of this piece that exist as drafts and have not been sent
+   * anywhere yet — what a recut makes (`content-factory-next-fn33.84`).
+   *
+   * Its own number rather than a share of `postCount`: a text that went out
+   * and a text still sitting in the editor are different facts about a piece,
+   * and folding them together is how «постов: 0» ended up printed over a
+   * material that had just produced five drafts.
+   */
+  draftCount?: number;
   date: string;
   voiceVersion?: string;
 };
@@ -1500,7 +1522,10 @@ export const VOICE_SURFACES = {
     screen: '01',
     source: 'voice-empty.screen.tsx',
     component: 'VoiceEmptyScreen',
-    dataFields: ['state', 'note'],
+    // `collected` is what `VoiceOverviewResponseV1.readiness` already carries:
+    // the corpus a person left behind, said out loud instead of read as an
+    // empty workspace (`content-factory-next-fn33.45`).
+    dataFields: ['state', 'note', 'collected'],
     clientOnlyProps: [] as string[],
     routes: [
       {
@@ -1632,7 +1657,9 @@ export const VOICE_SURFACES = {
       'activatedAt',
       'notice',
     ],
-    clientOnlyProps: ['consentGiven'],
+    // `avatarName` is typed here and travels with the activation. It is not a
+    // field any read route answers with (`content-factory-next-fn33.46`).
+    clientOnlyProps: ['consentGiven', 'avatarName'],
     routes: [
       {
         method: 'GET',
@@ -1846,7 +1873,10 @@ export const VOICE_SURFACES = {
     source: 'voice-materials.screen.tsx',
     component: 'VoiceMaterialsScreen',
     dataFields: ['state', 'materials', 'derived', 'recut', 'notice'],
-    clientOnlyProps: ['expandedCode'],
+    // `availablePlatforms` is the client's own: it comes from the channel
+    // list this workspace already loads for the editor, not from a materials
+    // route (`content-factory-next-fn33.86`).
+    clientOnlyProps: ['expandedCode', 'availablePlatforms'],
     routes: [
       {
         method: 'GET',
@@ -1945,7 +1975,13 @@ export const VOICE_SURFACES = {
       'ungroundedFacts',
       'notice',
     ],
-    clientOnlyProps: ['selectedTopicId'],
+    /*
+      `draftNotice` is the answer to a press, not a field of any response:
+      `content-factory-next-fn33.69` prints the refusal that came back from
+      «Сделать черновик» — including the one that says the workspace has no
+      channel yet — next to the button that caused it.
+    */
+    clientOnlyProps: ['selectedTopicId', 'draftNotice'],
     routes: [
       {
         method: 'GET',

@@ -310,6 +310,30 @@ describe('the Content screen', () => {
     expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
   });
 
+  /**
+   * content-factory-next-fn33.60. The tab was local state and the address
+   * never heard about it: «Взять в работу» moved the screen to «Бриф» while
+   * the bar still read `?tab=leads`, and a reload went back to «Откуда
+   * идеи». One mechanism for every way of changing the tab.
+   */
+  test('content-factory-next-fn33.60 — the address follows the tab, so a reload lands where the screen already is', () => {
+    dom.window.history.replaceState(null, '', '/content?tab=materials');
+    render(
+      withLanguage(
+        'ru',
+        React.createElement(contentScreen.ContentSectionScreen, {
+          initialTab: 'materials',
+        })
+      )
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Бриф' }));
+    expect(dom.window.location.search).toBe('?tab=brief');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Откуда идеи' }));
+    expect(dom.window.location.search).toBe('?tab=leads');
+  });
+
   test('the empty library still says what a piece is, without claiming a failure', () => {
     render(
       withLanguage(

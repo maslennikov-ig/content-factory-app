@@ -2014,6 +2014,39 @@ export class VoiceService {
     return this.passport(actor);
   }
 
+  /**
+   * The name a person gave the avatar as they switched it on.
+   *
+   * Written only over an avatar that has none. A person who renamed an avatar
+   * and then reactivated it means the name they typed in the list, not the one
+   * still sitting in a wizard field — and silently overwriting it would make
+   * activation a rename nobody asked for
+   * (`content-factory-next-fn33.46`).
+   *
+   * A failure here costs the name, never the activation: the voice is on, and
+   * «Без имени» with a rename in the row's own menu is recoverable in a way a
+   * refused activation is not.
+   */
+  private async nameAvatar(actor: VoiceActor, name?: string) {
+    const wanted = name?.trim();
+    if (!wanted) return;
+    try {
+      const { profile } = await this._profiles.overview(
+        actor.organizationId,
+        actor.avatarId
+      );
+      if (!profile || profile.name?.trim()) return;
+      await this._profiles.updateAvatar(
+        actor.organizationId,
+        actor.userId,
+        profile.id,
+        { name: wanted }
+      );
+    } catch {
+      return;
+    }
+  }
+
   async activateProposal(
     actor: VoiceActor,
     body: VoiceProposalActivateRequestV1
@@ -2029,7 +2062,11 @@ export class VoiceService {
     // in a single place. What differs after this line is only where the five
     // fields came from.
     const mode: VoiceProposalModeV1 = body.mode ?? 'assist';
-    if (mode === 'manual') return this.activateManual(actor, body);
+    if (mode === 'manual') {
+      const passport = await this.activateManual(actor, body);
+      await this.nameAvatar(actor, body.avatarName);
+      return passport;
+    }
 
     const { measurement, proposal } = await this.latestWithProposal(actor);
     if (!measurement || !proposal) {
@@ -2114,6 +2151,11 @@ export class VoiceService {
         ? {}
         : { profileVersionId: activated.version.id }),
     });
+
+    // Both paths end here for the same reason: the avatar becomes something a
+    // person refers to at the moment it starts writing, and until now neither
+    // path asked what to call it (`content-factory-next-fn33.46`).
+    await this.nameAvatar(actor, body.avatarName);
 
     return this.passport(actor);
   }
@@ -3076,6 +3118,45 @@ export class VoiceService {
     return { injections: planInjections(block, body.boundaries) };
   }
 
+  /**
+   * Ответ проверки, когда мерить не по чему.
+   *
+   * Ни одной выдуманной цифры: восемь шкал не считаны, значит `total` ноль, а
+   * не восемь из восьми. Вердикта нет, и причина названа — человеку остаётся
+   * решить, собирать ли голос из текстов, а не гадать, что сломалось.
+   */
+  private silentCheck(
+    actor: VoiceActor,
+    text: string
+  ): VoiceTextCheckResponseV1 {
+    const english = actor.locale === 'en';
+    return {
+      inCorridor: 0,
+      total: 0,
+      outside: [],
+      summary: english
+        ? 'This avatar was filled in by hand, so there is no analysis to measure the text against. Nothing is wrong — the check simply has nothing to say.'
+        : 'Аватар заполнен вручную, поэтому разбора, с которым сверять текст, нет. Это не поломка: проверке просто не с чем сравнивать.',
+      similarity: {
+        verdict: 'UNKNOWN',
+        reason: 'NO_PROFILE',
+        distance: null,
+        threshold: null,
+        selfMedian: null,
+        divergingTerms: [],
+        functionWordDistance: null,
+        functionWordThreshold: null,
+        decidedBy: 'NONE',
+      },
+      spots: [],
+      plainText: htmlToPlainText(text),
+      calibrationErrors: null,
+      silenceHint: english
+        ? 'To have the text measured, build the avatar from your own writing: the check compares what was written against the numbers of that analysis.'
+        : 'Чтобы текст было с чем сверять, соберите аватар из ваших текстов — проверка сравнивает написанное с числами того разбора.',
+    };
+  }
+
   async textCheck(
     actor: VoiceActor,
     body: VoiceTextCheckRequestV1
@@ -3089,10 +3170,20 @@ export class VoiceService {
       activeVersion
     );
     if (!measurement) {
-      throw new VoiceError(
-        'VOICE_PROFILE_NOT_FOUND',
-        'Разбора под действующий голос нет: сравнить сгенерированный текст не с чем. Соберите голос заново из ваших текстов — проверка сверяет написанное с числами того разбора, которым собран действующий голос.'
-      );
+      /**
+       * Нечего сравнивать — это ответ, а не отказ.
+       *
+       * `content-factory-next-fn33.70`: путь «Заполнить вручную» обещает
+       * «Ничего не читаем и не разбираем», и разбора у такого аватара быть не
+       * может по устройству. Роут отвечал на это 404 при каждом открытии
+       * окна поста и советовал «Соберите голос заново из ваших текстов» —
+       * совет, невыполнимый ровно для того, кто выбрал этот путь.
+       *
+       * Молчание уже описано контрактом: `verdict: 'UNKNOWN'` с причиной
+       * `NO_PROFILE` и `silenceHint` — своя строка на каждое молчание. Здесь
+       * используется она, а не пятое устройство рядом.
+       */
+      return this.silentCheck(actor, body.text);
     }
     const metrics = metricsOf(measurement);
     const check = checkText(

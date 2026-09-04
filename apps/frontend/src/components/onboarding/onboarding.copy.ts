@@ -94,8 +94,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Задать голос',
         title: 'Скажите, чьей манерой писать',
         why: 'Иначе черновик выйдет ровным текстом без лица. Манера собирается из образцов — ваших прежних постов, статей, писем.',
-        todo: 'Добавьте хотя бы один образец своего текста.',
-        action: 'Открыть «Кто пишет»',
+        todo: 'Добавьте хотя бы один образец своего текста на вкладке «Аватары».',
+        action: 'Открыть «Аватары»',
         closes: 'Шаг закроется, когда появится первый образец.',
       },
       fact: {
@@ -103,7 +103,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Найдите то, на что будете опираться',
         why: 'Продукт не даст собрать черновик, пока нет ни одного утверждения. Без опоры модель напишет гладкий текст ни о чём, и в разборе поста показать будет нечего.',
         todo: 'Добавьте одно утверждение о своём деле — цену, срок, цифру, которую вы точно знаете. Или найдите его поиском и подтвердите.',
-        action: 'Открыть «Что пишем»',
+        action: 'Открыть «Бриф»',
         closes: 'Шаг закроется, когда появится первое утверждение.',
       },
       brief: {
@@ -167,8 +167,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Set the voice',
         title: 'Say whose voice to write in',
         why: 'Otherwise the draft comes out even and faceless. The voice is built from samples — your own posts, articles, letters.',
-        todo: 'Add at least one sample of your own writing.',
-        action: 'Open "Who writes"',
+        todo: 'Add at least one sample of your own writing on the "Avatars" tab.',
+        action: 'Open "Avatars"',
         closes: 'This closes when the first sample is in.',
       },
       fact: {
@@ -176,7 +176,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Find what the piece will stand on',
         why: 'The product refuses to build a draft while there is not a single claim. With nothing to stand on the model writes something fluent about nothing, and a post review has nothing to show.',
         todo: 'Add one claim about your own work — a price, a deadline, a number you know. Or find one by search and confirm it.',
-        action: 'Open "What we write"',
+        action: 'Open "Brief"',
         closes: 'This closes when the first claim exists.',
       },
       brief: {

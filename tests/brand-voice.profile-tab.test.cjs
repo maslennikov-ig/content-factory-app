@@ -204,6 +204,12 @@ beforeEach(() => {
       ok: result.status < 400,
       status: result.status,
       json: async () => result.body,
+      // `content-factory-next-fn33.65`: the shared request helper hands the
+      // common refusal handler a copy, so a fake answer must clone like a
+      // real `Response`.
+      clone() {
+        return this;
+      },
     };
   };
 });

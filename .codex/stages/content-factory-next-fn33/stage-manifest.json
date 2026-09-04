@@ -113,6 +113,406 @@
       "task_id": "content-factory-next-fn33.4",
       "stream_owner": "task8_luna",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.4.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.25",
+      "stream_owner": "stream_e_style_and_copy",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.25.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.31",
+      "stream_owner": "stream_e_style_and_copy",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.31.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28",
+      "stream_owner": "stream_e_style_and_copy",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.19",
+      "stream_owner": "worker-registration-and-invitations",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.19.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.18",
+      "stream_owner": "worker-registration-and-invitations",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.18.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.29",
+      "stream_owner": "worker-registration-and-invitations",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.29.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.26",
+      "stream_owner": "worker-registration-and-invitations",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.26.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.15",
+      "stream_owner": "worker-stream-d",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.15.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.20",
+      "stream_owner": "worker-stream-d",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.20.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.24",
+      "stream_owner": "worker-stream-c",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.24.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.17",
+      "stream_owner": "worker-stream-c",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.17.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.22",
+      "stream_owner": "worker-stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.22.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.30",
+      "stream_owner": "worker-stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.30.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.23",
+      "stream_owner": "worker-stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.23.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.27",
+      "stream_owner": "worker-stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.27.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.49",
+      "stream_owner": "worker-fn33-49",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.49.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.88",
+      "stream_owner": "worker-fn33-88",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.88.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.53",
+      "stream_owner": "worker-h2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.53.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.36",
+      "stream_owner": "worker-several-workspaces",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.36.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.34",
+      "stream_owner": "worker-several-workspaces",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.34.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.71",
+      "stream_owner": "stream-N-translations-and-gaps",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.71.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.74",
+      "stream_owner": "stream-N-translations-and-gaps",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.74.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.77",
+      "stream_owner": "stream-N-translations-and-gaps",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.77.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.81",
+      "stream_owner": "stream-N-translations-and-gaps",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.81.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.50",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.50.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.82",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.82.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.35",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.35.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.51",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.51.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.64",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.64.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.78",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.78.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.66",
+      "stream_owner": "worker-stream-i",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.66.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.41",
+      "stream_owner": "stream-j-password-and-settings-tabs",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.41.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.42",
+      "stream_owner": "stream-j-password-and-settings-tabs",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.42.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.75",
+      "stream_owner": "stream-j-password-and-settings-tabs",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.75.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.65",
+      "stream_owner": "stream-o-assistant-refusal-devindicator",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.65.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.47",
+      "stream_owner": "stream-o-assistant-refusal-devindicator",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.47.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.48",
+      "stream_owner": "stream-o-assistant-refusal-devindicator",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.48.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.37",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.37.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.38",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.38.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.39",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.39.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.40",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.40.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.43",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.43.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.44",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.44.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.72",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.72.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.73",
+      "stream_owner": "stream-h1-auth-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.73.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.52",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.52.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.57",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.57.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.62",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.62.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.68",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.68.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.55",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.55.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.56",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.56.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.61",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.61.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.69",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.69.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.60",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.60.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.63",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.63.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.67",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.67.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.54",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.54.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.58",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.58.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.59",
+      "stream_owner": "stream-L-content-section",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.59.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.89",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.89.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.84",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.84.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.85",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.85.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.83",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.83.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.86",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.86.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.45",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.45.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.46",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.46.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.70",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.70.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.87",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.87.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.80",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.80.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.79",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.79.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.91",
+      "stream_owner": "worker-stream-m",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.91.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.108",
+      "stream_owner": "stream-q-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.108.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.95",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.95.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.98",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.98.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.104",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.104.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.105",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.105.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.106",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.106.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.107",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.107.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.111",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.111.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.112",
+      "stream_owner": "stream-r-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.112.md"
     }
   ]
 }

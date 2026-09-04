@@ -16,10 +16,14 @@ import { Input } from '@contentfactory/react/form/input';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
+import {
+  MAX_IMAGE_UPLOAD_SIZE,
+  MAX_VIDEO_UPLOAD_SIZE,
+  formatUploadSizeLimit,
+} from '@contentfactory/nestjs-libraries/upload/upload.limits';
 import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@contentfactory/react/helpers/use.media.directory';
 import { useSettings } from '@contentfactory/frontend/components/launches/helpers/use.values';
-import EventEmitter from 'events';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
 import { VideoFrame } from '@contentfactory/react/helpers/video.frame';
@@ -29,6 +33,7 @@ import { AiImage } from '@contentfactory/frontend/components/launches/ai.image';
 import { DropFiles } from '@contentfactory/frontend/components/layout/drop.files';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { ThirdPartyMedia } from '@contentfactory/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@contentfactory/frontend/components/launches/helpers/media.settings.component';
@@ -68,7 +73,6 @@ import type {
 // announced this instance's host name and forwarded stock-photo searches.
 // This replacement loads the selected source locally and saves only through
 // our own media endpoint.
-const showModalEmitter = new EventEmitter();
 export const Pagination: FC<{
   current: number;
   totalPages: number;
@@ -181,34 +185,60 @@ export const Pagination: FC<{
     </ul>
   );
 };
-export const ShowMediaBoxModal: FC = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [callBack, setCallBack] =
-    useState<(params: { id: string; path: string }[]) => void | undefined>();
-  const closeModal = useCallback(() => {
-    setShowModal(false);
-    setCallBack(undefined);
-  }, []);
-  useEffect(() => {
-    showModalEmitter.on('show-modal', (cCallback) => {
-      setShowModal(true);
-      setCallBack(() => cCallback);
-    });
-    return () => {
-      showModalEmitter.removeAllListeners('show-modal');
-    };
-  }, []);
-  if (!showModal) return null;
-  return (
-    <div className="text-textColor">
-      <MediaBox setMedia={callBack!} closeModal={closeModal} />
-    </div>
+/**
+ * How the media library is put on screen — the one description of it.
+ *
+ * `MediaBox` fills its parent: the grid is positioned absolutely inside a
+ * `flex-1` column, so a parent without a height collapses it to a strip. Until
+ * 04.09.2026 there were two ways in and only one of them said how tall the
+ * thing was. The post editor opened this modal and worked; the profile picture
+ * and the bot picture went through an event emitter into a component rendered
+ * straight into the page layout, and both collapsed into a ~140px band above
+ * the header, with the list and the upload button out of reach
+ * (`content-factory-next-fn33.15`).
+ *
+ * The size lives here so it cannot be given to one caller and forgotten for
+ * another.
+ */
+const MEDIA_BOX_MODAL_LAYOUT = {
+  askClose: false,
+  closeOnEscape: true,
+  fullScreen: true,
+  size: 'calc(100% - 80px)',
+  height: 'calc(100% - 80px)',
+} as const;
+
+/**
+ * Opens the media library and hands back what was chosen.
+ *
+ * Every path into the library — the post editor, the profile picture, the bot
+ * picture, the settings media field — goes through this and nothing else.
+ * `MediaBox` closes itself through `modals.closeCurrent()` once a selection is
+ * confirmed, and the cancel button does the same.
+ */
+export const useOpenMediaBox = () => {
+  const modals = useModals();
+  const t = useT();
+
+  return useCallback(
+    (
+      onSelect: (media: { id: string; path: string }[]) => void,
+      options?: { type?: 'image' | 'video' }
+    ) => {
+      modals.openModal({
+        title: t('media_library', 'Media Library'),
+        ...MEDIA_BOX_MODAL_LAYOUT,
+        children: (close) => (
+          <MediaBox
+            setMedia={onSelect}
+            closeModal={close}
+            type={options?.type}
+          />
+        ),
+      });
+    },
+    [modals, t]
   );
-};
-export const showMediaBox = (
-  callback: (params: { id: string; path: string }) => void
-) => {
-  showModalEmitter.emit('show-modal', callback);
 };
 const CHUNK_SIZE = 1024 * 1024;
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
@@ -248,6 +278,9 @@ export const MediaBox: FC<{
   );
   const [selected, setSelected] = useState([]);
   const t = useT();
+  // The units in the sentence below follow the language it is written in
+  // (`content-factory-next-fn33.95`).
+  const { language } = useVariables();
   const uploaderRef = useRef<any>(null);
   const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
@@ -574,9 +607,27 @@ export const MediaBox: FC<{
                         )}
                   </div>
                   <div className="whitespace-pre-line text-newTextColor/[0.6] text-center">
+                    {/*
+                      Подпись обещала «максимум 1 GB за загрузку» — предел
+                      сеанса выгрузки, — а файл на 14 МБ отклонялся, потому что
+                      предел на одну картинку другой и живёт в
+                      `upload.limits.ts` (`content-factory-next-fn33.71`).
+                      Числа берутся оттуда же, чтобы подпись не разошлась с
+                      проверкой ещё раз.
+                    */}
                     {t(
-                      'select_or_upload_pictures_max_1gb',
-                      'Select or upload pictures (maximum 1 GB per upload).'
+                      'select_or_upload_pictures_limits',
+                      'Select or upload media (images up to {{imageLimit}}, video up to {{videoLimit}}).',
+                      {
+                        imageLimit: formatUploadSizeLimit(
+                          MAX_IMAGE_UPLOAD_SIZE,
+                          language
+                        ),
+                        videoLimit: formatUploadSizeLimit(
+                          MAX_VIDEO_UPLOAD_SIZE,
+                          language
+                        ),
+                      }
                     )}{' '}
                     {'\n'}
                     {t(
@@ -781,6 +832,7 @@ export const MultiMediaComponent: FC<{
   } = props;
   const user = useUser();
   const modals = useModals();
+  const openMediaBox = useOpenMediaBox();
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
@@ -823,18 +875,8 @@ export const MultiMediaComponent: FC<{
     [currentMedia]
   );
   const showModal = useCallback(() => {
-    modals.openModal({
-      title: t('media_library', 'Media Library'),
-      askClose: false,
-      closeOnEscape: true,
-      fullScreen: true,
-      size: 'calc(100% - 80px)',
-      height: 'calc(100% - 80px)',
-      children: (close) => (
-        <MediaBox setMedia={changeMedia} closeModal={close} />
-      ),
-    });
-  }, [changeMedia, t]);
+    openMediaBox(changeMedia);
+  }, [openMediaBox, changeMedia]);
 
   const clearMedia = useCallback(
     (topIndex: number) => () => {
@@ -1086,7 +1128,7 @@ export const MediaComponent: FC<{
     }
   }, []);
   const [currentMedia, setCurrentMedia] = useState(value);
-  const modals = useModals();
+  const openMediaBox = useOpenMediaBox();
   const mediaDirectory = useMediaDirectory();
 
   // Disconnected with the editor itself — see the note at the top of the file.
@@ -1100,18 +1142,8 @@ export const MediaComponent: FC<{
     });
   }, []);
   const showModal = useCallback(() => {
-    modals.openModal({
-      title: t('media_library', 'Media Library'),
-      askClose: false,
-      closeOnEscape: true,
-      fullScreen: true,
-      size: 'calc(100% - 80px)',
-      height: 'calc(100% - 80px)',
-      children: (close) => (
-        <MediaBox setMedia={changeMedia} closeModal={close} type={type} />
-      ),
-    });
-  }, [t]);
+    openMediaBox(changeMedia, { type });
+  }, [openMediaBox, changeMedia, type]);
   const clearMedia = useCallback(() => {
     setCurrentMedia(undefined);
     onChange({

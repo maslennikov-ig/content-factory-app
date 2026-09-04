@@ -153,6 +153,11 @@ function mountAfterRequest() {
         },
       },
       '@contentfactory/react/helpers/delete.dialog': { deleteDialog },
+      // Отказ читается на языке человека (`content-factory-next-fn33.64`);
+      // здесь достаточно запасного английского текста ключа.
+      '@contentfactory/react/translation/i18next': {
+        t: (key, fallback) => fallback,
+      },
       '@contentfactory/frontend/components/layout/new-modal': { areYouSure },
       '@contentfactory/frontend/app/(app)/auth/return.url.component': {
         useReturnUrl: () => ({ getAndClear: () => undefined }),

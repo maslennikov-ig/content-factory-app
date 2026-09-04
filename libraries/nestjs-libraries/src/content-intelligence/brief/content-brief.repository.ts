@@ -158,6 +158,13 @@ export class ContentBriefRepository {
       language: string;
       createdByUserId: string;
       brandProfileVersionId?: string | null;
+      /**
+       * The context this text was written from, so «Разбор» can list the facts
+       * it stood on (`content-factory-next-fn33.89`). Absent when the context
+       * could not be built; the piece is still written, because a library row
+       * without its provenance is worth more than no library row at all.
+       */
+      contentContextSnapshotId?: string | null;
     }
   ): Promise<string | null> {
     try {
@@ -170,6 +177,7 @@ export class ContentBriefRepository {
             language: input.language,
             createdByUserId: input.createdByUserId,
             brandProfileVersionId: input.brandProfileVersionId ?? null,
+            contentContextSnapshotId: input.contentContextSnapshotId ?? null,
           },
         });
         await database.contentDerivation.create({

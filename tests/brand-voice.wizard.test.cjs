@@ -860,6 +860,15 @@ describe('the voice wizard on live data', () => {
     await act(async () => {
       fireEvent.click(document.querySelector('input[type="checkbox"]'));
     });
+    // Consent alone is no longer enough: an avatar switched on without a name
+    // arrives in the list as «Без имени» and the strip then tells its owner
+    // «тексты пишет Без имени» (`content-factory-next-fn33.46`).
+    expect(activateButton(screen).disabled).toBe(true);
+    await act(async () => {
+      fireEvent.change(document.querySelector('input[name="voice-avatar-name"]'), {
+        target: { value: 'Мастер цеха' },
+      });
+    });
     await click(activateButton(screen));
 
     const call = server.calls.find(
@@ -867,6 +876,7 @@ describe('the voice wizard on live data', () => {
     );
     expect(call).toBeDefined();
     expect(call.body.consentGiven).toBe(true);
+    expect(call.body.avatarName).toBe('Мастер цеха');
   });
 
   test('the card that promised a file takes one, and names what it will not send', async () => {
@@ -1092,12 +1102,60 @@ describe('the voice wizard on live data', () => {
     await act(async () => {
       fireEvent.click(document.querySelector('input[type="checkbox"]'));
     });
+    // The hand-filled path is the one the owner walked, and it is the one that
+    // produced «Без имени» (`content-factory-next-fn33.46`).
+    expect(activateButton(screen).disabled).toBe(true);
+    await act(async () => {
+      fireEvent.change(document.querySelector('input[name="voice-avatar-name"]'), {
+        target: { value: 'Голос редакции' },
+      });
+    });
     await click(activateButton(screen));
 
     const call = server.calls.find(
       (one) => one.route === `${VOICE_API}/proposal/activate`
     );
-    expect(call.body).toEqual({ consentGiven: true, mode: 'manual' });
+    expect(call.body).toEqual({
+      consentGiven: true,
+      avatarName: 'Голос редакции',
+      mode: 'manual',
+    });
+  });
+
+  test('a collection left half-done is said out loud, with a way back into it', async () => {
+    // `content-factory-next-fn33.45`: eight samples in the database, and a
+    // reload answered with «Аватара пока нет» and «Создать аватар» — the
+    // wizard's own promise is «образцы сохраняются», and the screen said
+    // nothing about them.
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 8, charCount: 17037 }),
+      }),
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
+    });
+    await renderWizard(server);
+
+    const collected = document.querySelector('[data-voice-empty-collected]');
+    expect(collected).not.toBeNull();
+    expect(collected.getAttribute('data-voice-empty-collected')).toBe('8');
+    expect(collected.textContent).toContain('8');
+
+    await click(screen.getByRole('button', { name: 'Продолжить сбор' }));
+
+    // Straight into the corpus that was left, not back to the three paths.
+    expect(surface('samples')).not.toBeNull();
+  });
+
+  test('a workspace that collected nothing is not told about a collection', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+    });
+    await renderWizard(server);
+
+    expect(document.querySelector('[data-voice-empty-collected]')).toBeNull();
+    expect(openWizard(screen)).toBeTruthy();
   });
 
   test('back from the hand-filled step returns to the paths, not to a corpus', async () => {

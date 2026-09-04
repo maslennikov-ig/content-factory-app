@@ -354,10 +354,14 @@ describe('the library lists what a workspace already wrote', () => {
     const [first] = response.materials;
     expect(first.id).toBe('piece-a');
     expect(first.title).toBe('Почему мы поменяли поставщика подшипников');
-    // One published, one queued, one still a draft: a draft is neither out
-    // nor waiting, and counting it as either would misreport the library.
+    // One published, one queued, one still a draft. A draft is neither out
+    // nor waiting, and counting it as either would misreport the library —
+    // but it has to be counted somewhere, or a recut writes a version that
+    // exists in the database and nowhere on the screen
+    // (`content-factory-next-fn33.84`).
     expect(first.postCount).toBe(1);
     expect(first.queuedCount).toBe(1);
+    expect(first.draftCount).toBe(1);
     expect(first.voiceVersion).toBe('v3');
     expect(first.date).toBe('05.08.26');
     expect(typeof first.format).toBe('string');

@@ -236,8 +236,32 @@ function build(world = {}) {
   const facts = new ContentFactService(
     new ContentFactRepository({ model: prisma.model }, { model: prisma.model })
   );
-  const service = new ContentBriefService(repository, facts, () => NOW);
-  return { service, prisma, drafted };
+  /**
+   * The context builder, as a double.
+   *
+   * `content-factory-next-fn33.89`: the brief now records the snapshot its
+   * draft stood on, so the archive's «Разбор» has a list of facts to show.
+   * The double records what it was asked to build, which is what the
+   * assertions below are actually about — that the brief names its own facts
+   * explicitly and never asks for a gate (`REQUIRE_CURRENT`) on a record.
+   */
+  const contextCalls = [];
+  const contexts = world.contexts === null
+    ? undefined
+    : {
+        build: async (organizationId, input) => {
+          contextCalls.push({ organizationId, input });
+          if (world.contextFails) throw new Error('context unavailable');
+          return { contentContextSnapshotId: 'snapshot-1' };
+        },
+      };
+  const service = new ContentBriefService(
+    repository,
+    facts,
+    () => NOW,
+    contexts
+  );
+  return { service, prisma, drafted, contextCalls };
 }
 
 const CHANNEL = {
@@ -331,6 +355,76 @@ describe('the gate returns the missing question instead of a draft', () => {
     // The word the library prints in its own format column, from the same
     // function the library uses — not a second vocabulary for one cut.
     expect(['короткий', 'длинный']).toContain(derivation.format);
+  });
+
+  test('a draft built on remembered facts records the context it stood on', async () => {
+    // `content-factory-next-fn33.89`: the piece was written with an empty
+    // `contentContextSnapshotId`, so the archive's «На чём стоит этот текст»
+    // answered a draft that was minutes old with «написан до того, как
+    // черновик стал запоминать».
+    const world = build({ channels: [CHANNEL], facts: [fact()] });
+
+    const answer = await world.service.draft(
+      ORG,
+      {
+        ...COMPLETE,
+        facts: [
+          { statement: 'Остатки видны в реальном времени.', factId: 'fact-1' },
+        ],
+      },
+      'ru',
+      'user-1'
+    );
+
+    expect(answer.outcome).toBe('ready');
+    expect(world.prisma.pieces[0].contentContextSnapshotId).toBe('snapshot-1');
+
+    expect(world.contextCalls).toHaveLength(1);
+    // The brief's own facts, named explicitly — not whatever the builder would
+    // have ranked by word overlap on its own.
+    expect(world.contextCalls[0].input.factIds).toEqual(['fact-1']);
+    expect(world.contextCalls[0].organizationId).toBe(ORG);
+    // A record, not a gate: `REQUIRE_CURRENT` would refuse to remember exactly
+    // the drafts whose provenance matters most.
+    expect(world.contextCalls[0].input.freshnessMode).not.toBe(
+      'REQUIRE_CURRENT'
+    );
+  });
+
+  test('a brief with no remembered fact records no context and still writes', async () => {
+    // A snapshot built with no explicit ids is filled by word overlap, and a
+    // provenance list assembled that way names facts the draft never used.
+    const world = build({ channels: [CHANNEL] });
+
+    const answer = await world.service.draft(ORG, COMPLETE, 'ru', 'user-1');
+
+    expect(answer.outcome).toBe('ready');
+    expect(world.contextCalls).toHaveLength(0);
+    expect(world.prisma.pieces[0].contentContextSnapshotId).toBeNull();
+  });
+
+  test('a context that will not build costs the provenance, never the draft', async () => {
+    const world = build({
+      channels: [CHANNEL],
+      facts: [fact()],
+      contextFails: true,
+    });
+
+    const answer = await world.service.draft(
+      ORG,
+      {
+        ...COMPLETE,
+        facts: [
+          { statement: 'Остатки видны в реальном времени.', factId: 'fact-1' },
+        ],
+      },
+      'ru',
+      'user-1'
+    );
+
+    expect(answer.outcome).toBe('ready');
+    expect(world.prisma.pieces).toHaveLength(1);
+    expect(world.prisma.pieces[0].contentContextSnapshotId).toBeNull();
   });
 
   test('an anonymous caller still gets the draft, and no half-written library row', async () => {
@@ -439,7 +533,10 @@ describe('the radar ranks with reasons, and says when there is nothing', () => {
     expect(answer.topics.length).toBe(2);
     expect(warehouse.evidenceCount).toBe(2);
     expect(warehouse.reasons.length).toBeGreaterThan(1);
-    expect(warehouse.reasons.join(' ')).toContain('подтверждённых фактов');
+    // Two facts: «2 подтверждённых факта». The reason counts in Russian since
+    // `content-factory-next-fn33.98`; it used to say «фактов» whatever the
+    // number was.
+    expect(warehouse.reasons.join(' ')).toContain('2 подтверждённых факта');
     // A rank is not one number: the score is there, and so is the argument.
     expect(typeof warehouse.score).toBe('number');
   });

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet" />
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); }
+    a:hover { color: var(--cf-accent-hover, #96C551); }
+  </style>
+</helmet>
+
+<!--
+  Значения ниже — дословный блок `.dark` из docs/design/desert-lab/tokens.css.
+  Ни одного цвета мимо него в разметке нет: всё остальное — var(--cf-*).
+  Типографика — десять токенов из apps/frontend/tailwind.config.cjs:
+  heading-xl 32/650/1.2/-0.02em · heading-lg 24/650/1.25/-0.015em ·
+  heading-md 18/650/1.35 · body-lg 16/400/1.55 · body-md 14/400/1.5 ·
+  body-sm 13/400/1.45 · label-md 13/650/1.3 ·
+  label-sm JetBrains Mono 12/600/1.3/0.04em · caption JetBrains Mono 11/500/1.35/0.02em ·
+  display-num JetBrains Mono 32/600/1.1.
+-->
+<div style="--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A;--cf-backdrop:rgba(8,9,5,.74);--cf-overlay-shadow:0 18px 44px -14px rgba(0,0,0,.72);font-family:Geologica,system-ui,sans-serif">
+<div style="{{ themeVars }}">
+<div style="background:var(--cf-canvas);color:var(--cf-ink);padding:40px;display:flex;flex-direction:column;gap:40px">
+
+  <div style="display:flex;align-items:flex-end;gap:24px;padding-bottom:16px;border-bottom:2px solid var(--cf-accent)">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">ОКНО «СОЗДАТЬ ПОСТ» · СОСТОЯНИЕ 1 ИЗ 3 · ПУСТО</span>
+      <span style="font-size:32px;font-weight:650;line-height:1.2;letter-spacing:-0.02em;text-wrap:balance">Кнопка называет действие, а не мебель</span>
+      <span style="font-size:16px;line-height:1.55;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Канал не выбран — и это единственное, чего окну не хватает. Главная кнопка говорит, что сделать («Выберите канал»), подпись под кругами говорит, зачем канал нужен, а второй строки про то же самое нет: два раза сказанное одно и то же читается как две разные беды. Панель подтверждений свёрнута в одну строку и называет цену нажатия до нажатия.</span>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:inline-flex;padding:3px;gap:2px;border-radius:9999px;background:var(--cf-surface-subtle);border:1px solid var(--cf-border);flex:none">
+      <button type="button" onClick="{{ setDark }}" style="{{ darkBtn }}">Тёмная</button>
+      <button type="button" onClick="{{ setLight }}" style="{{ lightBtn }}">Светлая</button>
+    </div>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">01</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Пусто · канал не выбран</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">1440 × 900 · участник · область AiDevTeam</span>
+    </div>
+
+    <div style="width:1440px;height:900px;display:flex;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);border-radius:12px;overflow:hidden;padding:40px;box-sizing:border-box">
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;background:var(--cf-surface);border:1px solid var(--cf-border);border-radius:12px;overflow:hidden">
+
+        <div style="flex:1;display:flex;min-height:0">
+
+          <!-- Левая колонка: письмо -->
+          <div style="width:780px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--cf-border);min-width:0">
+            <div style="height:64px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;background:var(--cf-canvas);border-bottom:1px solid var(--cf-border)">
+              <span style="font-size:18px;font-weight:650;line-height:1.35">Создать пост</span>
+              <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;border:1px solid var(--cf-border-strong);color:var(--cf-ink-muted);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:500;letter-spacing:.02em">написан человеком</span>
+            </div>
+
+            <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:20px;min-height:0">
+
+              <!-- Круги каналов -->
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="position:relative;width:56px;height:56px;border-radius:8px;border:2px solid var(--cf-border-control);background:var(--cf-surface-subtle);display:flex;align-items:center;justify-content:center">
+                    <div style="width:44px;height:44px;border-radius:9999px;background:var(--cf-border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:650;color:var(--cf-ink-muted)">АД</div>
+                    <span style="position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;border-radius:9999px;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">tg</span>
+                  </div>
+                  <div style="position:relative;width:56px;height:56px;border-radius:8px;border:2px solid var(--cf-border-control);background:var(--cf-surface-subtle);display:flex;align-items:center;justify-content:center">
+                    <div style="width:44px;height:44px;border-radius:9999px;background:var(--cf-border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:650;color:var(--cf-ink-muted)">Cf</div>
+                    <span style="position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;border-radius:9999px;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">vk</span>
+                  </div>
+                  <div style="position:relative;width:56px;height:56px;border-radius:8px;border:2px solid var(--cf-border-control);background:var(--cf-surface-subtle);display:flex;align-items:center;justify-content:center">
+                    <div style="width:44px;height:44px;border-radius:9999px;background:var(--cf-border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:650;color:var(--cf-ink-muted)">РС</div>
+                    <span style="position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;border-radius:9999px;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">nl</span>
+                  </div>
+                  <!-- Фокус с клавиатуры: кольцо 2px цветом focus с внешним отступом 2px -->
+                  <div style="position:relative;width:56px;height:56px;border-radius:8px;border:2px solid var(--cf-border-control);background:var(--cf-surface-subtle);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--cf-surface),0 0 0 4px var(--cf-focus)">
+                    <div style="width:44px;height:44px;border-radius:9999px;background:var(--cf-border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:650;color:var(--cf-ink-muted)">СЙ</div>
+                    <span style="position:absolute;bottom:-4px;right:-4px;width:22px;height:22px;border-radius:9999px;background:var(--cf-canvas);border:1px solid var(--cf-border-strong);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--cf-ink-muted)">st</span>
+                  </div>
+                </div>
+                <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Выберите канал: от него зависят предел длины, предпросмотр и настройки публикации. Каналов можно выбрать несколько.</span>
+              </div>
+
+              <!-- Блок письма -->
+              <div style="flex:1;display:flex;flex-direction:column;gap:12px;background:var(--cf-surface-subtle);border-radius:12px;padding:12px;min-height:0">
+
+                <!-- Подтверждения: одна строка, свёрнуто -->
+                <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--cf-border);border-radius:8px;background:var(--cf-surface)">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:13px;font-weight:650;line-height:1.3">Подтверждения</span>
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid var(--cf-border-control);border-radius:9999px;color:var(--cf-ink-muted)">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6.3 6.1c0-.9.76-1.6 1.7-1.6s1.7.7 1.7 1.6c0 .86-.53 1.2-1.1 1.55-.42.26-.6.5-.6.95v.25" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path><circle cx="8" cy="11.3" r=".8" fill="currentColor"></circle></svg>
+                      </span>
+                    </div>
+                    <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);text-wrap:pretty">Подтверждённых источников у этого черновика нет. Пост уходит как обычный.</span>
+                  </div>
+                  <button type="button" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;line-height:1.3;cursor:pointer;flex:none">Найти подтверждения</button>
+                </div>
+                <span style="font-size:11px;line-height:1.35;letter-spacing:.02em;font-family:'JetBrains Mono',ui-monospace,monospace;color:var(--cf-ink-muted);padding:0 4px">один платный запрос · после проверки пост можно будет только сохранить черновиком</span>
+
+                <!-- Панель письма -->
+                <div style="display:flex;align-items:center;gap:6px;padding:0 4px">
+                  <span style="width:32px;height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:650">Ж</span>
+                  <span style="width:32px;height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:650;text-decoration:underline">Ч</span>
+                  <span style="width:32px;height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);display:flex;align-items:center;justify-content:center;color:var(--cf-ink)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5 4.5h8M5 8h8M5 11.5h8"></path><circle cx="2.4" cy="4.5" r=".9" fill="currentColor" stroke="none"></circle><circle cx="2.4" cy="8" r=".9" fill="currentColor" stroke="none"></circle><circle cx="2.4" cy="11.5" r=".9" fill="currentColor" stroke="none"></circle></svg>
+                  </span>
+                  <span style="width:32px;height:32px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);display:flex;align-items:center;justify-content:center;color:var(--cf-ink)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="2"></rect><path d="M4.5 10.5l2.5-3 2 2.2 1.6-1.7 1.4 2.5"></path></svg>
+                  </span>
+                  <div style="flex:1"></div>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.02em;color:var(--cf-ink-muted)">0 знаков</span>
+                </div>
+
+                <!-- Поле -->
+                <div style="flex:1;min-height:180px;border:1px solid var(--cf-border);border-radius:8px;background:var(--cf-surface);padding:14px">
+                  <span style="font-size:14px;line-height:1.5;color:var(--cf-ink-muted)">Напишите пост. Или выберите канал и попросите помощника собрать черновик.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Правая колонка: предпросмотр -->
+          <div style="width:580px;flex:none;display:flex;flex-direction:column;min-width:0">
+            <div style="height:64px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;background:var(--cf-canvas);border-bottom:1px solid var(--cf-border)">
+              <span style="flex:1;font-size:18px;font-weight:650;line-height:1.35">Предпросмотр</span>
+              <span style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cf-ink-muted);border:1px solid transparent">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"></path></svg>
+              </span>
+            </div>
+
+            <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:20px;min-height:0">
+              <div style="border:1px solid var(--cf-border);border-radius:8px;background:var(--cf-surface);padding:24px;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                <span style="font-size:13px;font-weight:650;line-height:1.3">Предпросмотра пока нет</span>
+                <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);max-width:60ch;text-wrap:pretty">Выберите канал — здесь появится пост в том виде, в каком его увидят читатели, вместе с пределом длины этого канала.</span>
+              </div>
+
+              <!-- Лента аватара, состояние «аватар не выбран». Не ошибка: рамка и фон обычные. -->
+              <div style="border:1px solid var(--cf-border);border-radius:8px;background:var(--cf-surface);padding:12px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">Кто пишет</span>
+                    <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);text-wrap:pretty">Аватар не выбран — текст собирается нейтральным стилем. Это рабочий режим, а не ошибка.</span>
+                  </div>
+                  <button type="button" style="height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-family:inherit;font-size:13px;font-weight:650;line-height:1.3;cursor:pointer;flex:none">Выбрать аватар</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Нижний ряд: контролы одной высоты, кнопки справа -->
+        <div style="height:76px;flex:none;display:flex;align-items:center;border-top:1px solid var(--cf-border);background:var(--cf-surface)">
+          <div style="flex:1;display:flex;align-items:center;gap:8px;padding-left:20px">
+            <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Теги: нет
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Повтор: нет
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Этап: План
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+            </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding-right:20px">
+            <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink)">04.09.2026 14:30</span>
+            <!-- Выключено тоном, а не прозрачностью: ink-muted на surface-subtle читается -->
+            <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;min-width:160px;padding:0 20px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);color:var(--cf-ink-muted);font-size:13px;font-weight:650;line-height:1.3;cursor:not-allowed">Сохранить черновиком</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;min-width:180px;padding:0 20px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);color:var(--cf-ink-muted);font-size:13px;font-weight:650;line-height:1.3;cursor:not-allowed">Выберите канал</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:24px;font-weight:600;color:var(--cf-signature)">02</span>
+      <span style="font-size:24px;font-weight:650;line-height:1.25;letter-spacing:-0.015em">Полный набор состояний</span>
+      <span style="font-size:14px;color:var(--cf-ink-muted)">Кнопка `form/button.tsx` и контролы нижнего ряда</span>
+    </div>
+
+    <div style="border:1px solid var(--cf-border);border-radius:12px;background:var(--cf-surface);padding:24px;display:flex;flex-direction:column;gap:24px">
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">Главная · variant="primary"</span>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-size:13px;font-weight:650;line-height:1.3">Добавить в календарь</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent-hover);color:var(--cf-accent-ink);font-size:13px;font-weight:650;line-height:1.3">наведение</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-size:13px;font-weight:650;line-height:1.3;box-shadow:0 0 0 2px var(--cf-surface),0 0 0 4px var(--cf-focus)">фокус</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-size:13px;font-weight:650;line-height:1.3;box-shadow:inset 0 2px 0 rgba(0,0,0,.22)">нажатие</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);color:var(--cf-ink-muted);font-size:13px;font-weight:650;line-height:1.3;cursor:not-allowed">выключена</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;min-width:180px;padding:0 20px;border-radius:8px;border:1px solid transparent;background:var(--cf-accent);color:var(--cf-accent-ink);font-size:13px;font-weight:650;line-height:1.3">
+            <span style="width:16px;height:16px;border-radius:9999px;border:2px solid var(--cf-accent-ink);border-top-color:transparent;display:inline-block"></span>
+            <span style="opacity:0">Добавить в календарь</span>
+          </span>
+        </div>
+        <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Выключенная кнопка набрана токенами, а не прозрачностью: `border` + `surface-subtle` + `ink-muted` читается в обеих темах, тогда как `opacity:.8` над зелёной заливкой роняет контраст подписи ниже 4.5. Загрузка сохраняет ширину, подпись остаётся в дереве доступности.</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--cf-border);padding-top:20px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">Второстепенная · variant="secondary"</span>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3">Сохранить черновиком</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface-subtle);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3">наведение</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3;box-shadow:0 0 0 2px var(--cf-surface),0 0 0 4px var(--cf-focus)">фокус</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3;box-shadow:inset 0 2px 0 rgba(0,0,0,.14)">нажатие</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);color:var(--cf-ink-muted);font-size:13px;font-weight:650;line-height:1.3;cursor:not-allowed">выключена</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;min-width:180px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3">
+            <span style="width:16px;height:16px;border-radius:9999px;border:2px solid var(--cf-ink);border-top-color:transparent;display:inline-block"></span>
+            <span style="opacity:0">Ищем подтверждения</span>
+          </span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--cf-border);padding-top:20px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">Разрушающая и тихая · variant="destructive" / "quiet"</span>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid transparent;background:var(--cf-danger);color:var(--cf-ink-inverse);font-size:13px;font-weight:650;line-height:1.3">Удалить пост</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid transparent;background:var(--cf-danger);color:var(--cf-ink-inverse);font-size:13px;font-weight:650;line-height:1.3;box-shadow:0 0 0 2px var(--cf-surface),0 0 0 4px var(--cf-focus)">фокус</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);color:var(--cf-ink-muted);font-size:13px;font-weight:650;line-height:1.3;cursor:not-allowed">выключена</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3">Отменить</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border-radius:8px;border:1px solid transparent;background:var(--cf-surface-subtle);color:var(--cf-ink);font-size:13px;font-weight:650;line-height:1.3">наведение</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--cf-border);padding-top:20px">
+        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--cf-ink-muted)">Замечание 4 · один ряд — один примитив</span>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Теги: 1
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Повтор: нет
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border-control);background:var(--cf-surface);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink)">Этап: План
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-accent);background:var(--cf-accent-soft);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-accent);box-shadow:0 0 0 2px var(--cf-surface),0 0 0 4px var(--cf-focus)">Этап: План
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--cf-border);background:var(--cf-surface-subtle);font-size:13px;font-weight:650;line-height:1.3;color:var(--cf-ink-muted);cursor:not-allowed">Этап: План
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"></path></svg>
+          </span>
+        </div>
+        <span style="font-size:13px;line-height:1.45;color:var(--cf-ink-muted);max-width:72ch;text-wrap:pretty">Все трое — одна геометрия: высота 40 px (`cf-control-h`, на узком экране 44), радиус 8, граница `border-control`, подпись `label-md`, шеврон 12 px. Сегодня тег нарисован руками высотой 44 px со своим меню и белым текстом, а этап — нативный `Select`. Разными их делает не роль, а происхождение.</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","tsType":"\"dark\" | \"light\"","section":"Показ"}}'>
+const LIGHT = {
+  "--cf-canvas": "#EFE9DB", "--cf-surface": "#FBF8F0", "--cf-surface-subtle": "#E4DDCB", "--cf-surface-raised": "#FFFDF6",
+  "--cf-ink": "#22231A", "--cf-ink-muted": "#5C5D4C", "--cf-ink-inverse": "#F4F1E4",
+  "--cf-border": "#D3CAB3", "--cf-border-strong": "#B0A68A", "--cf-border-control": "#847B62",
+  "--cf-navigation": "#E4DDCB", "--cf-navigation-text": "#22231A", "--cf-navigation-muted": "#5C5D4C", "--cf-navigation-active": "#FBF8F0",
+  "--cf-accent": "#3F6B2E", "--cf-accent-hover": "#33581F", "--cf-accent-soft": "#E1EAD2", "--cf-accent-ink": "#FFFFFF",
+  "--cf-signature": "#9C6A16", "--cf-info": "#2F5A82", "--cf-info-soft": "#E3EBF3",
+  "--cf-warning": "#7A4D00", "--cf-warning-soft": "#F6E7C2", "--cf-danger": "#8E2B22", "--cf-danger-soft": "#F6E0DB",
+  "--cf-focus": "#3F6B2E", "--cf-backdrop": "rgba(34,35,26,.46)", "--cf-overlay-shadow": "0 16px 32px -12px rgba(34,35,26,.26)"
+};
+
+class Component extends DCLogic {
+  state = { theme: null };
+  renderVals() {
+    const theme = this.state.theme ?? this.props.theme ?? "dark";
+    const light = theme === "light";
+    const pill = (on) => ({
+      padding: "5px 14px", borderRadius: 9999, fontFamily: "inherit", fontSize: 13, fontWeight: 650, cursor: "pointer",
+      background: on ? "var(--cf-surface)" : "transparent",
+      border: on ? "1px solid var(--cf-border-control)" : "1px solid transparent",
+      color: on ? "var(--cf-ink)" : "var(--cf-ink-muted)"
+    });
+    return {
+      themeVars: light ? LIGHT : {},
+      darkBtn: pill(!light),
+      lightBtn: pill(light),
+      setDark: () => this.setState({ theme: "dark" }),
+      setLight: () => this.setState({ theme: "light" })
+    };
+  }
+}
+</script>
+</body>
+</html>

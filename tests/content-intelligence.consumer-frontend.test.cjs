@@ -4,7 +4,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
+const i18next = require('i18next');
+const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
+
 const root = path.resolve(__dirname, '..');
+
+/*
+ * The freshness date goes through the product's own reader-format helper
+ * (`content-factory-next-fn33.87`), so the harness below loads the real one
+ * rather than a lookalike: the assertion is about the notation a person set,
+ * and a stub would only be asserting itself.
+ */
+const { formatDateTimeForReader } = loadTypeScriptModule(
+  'apps/frontend/src/components/launches/helpers/isuscitizen.utils.tsx'
+);
+global.__formatDateTimeForReader = formatDateTimeForReader;
 const files = {
   generator: 'apps/frontend/src/components/launches/generator/generator.tsx',
   editor: 'apps/frontend/src/components/new-launch/editor.tsx',
@@ -50,6 +64,9 @@ function loadStore() {
 }
 
 function loadEditorSummary(language = 'en') {
+  // The helper reads the interface language, which is where the notation comes
+  // from — not the browser's locale.
+  i18next.resolvedLanguage = language;
   const filename = path.join(root, files.editor);
   const contents = fs.readFileSync(filename, 'utf8');
   const parsed = ts.createSourceFile(
@@ -71,8 +88,14 @@ function loadEditorSummary(language = 'en') {
   expect(statement).toBeDefined();
   const isolated = `
     import React from 'react';
+    import dayjs from 'dayjs';
     const useVariables = () => ({ language: ${JSON.stringify(language)} });
     const useT = () => (_key, fallback) => fallback;
+    // The panel writes the freshness date in the format chosen in Settings.
+    // Under Node there is no localStorage, so the switch is pinned to the
+    // non-US format the assertions below read.
+    const isUSCitizen = () => false;
+    const formatDateTimeForReader = global.__formatDateTimeForReader;
     ${statement.getText(parsed)}
   `;
   const compiled = ts.transpileModule(isolated, {
@@ -370,6 +393,17 @@ describe('Content intelligence frontend consumer contract', () => {
     expect(html).toContain('Context expires:');
     expect(html).toContain('Grounded output can be saved as a draft only.');
     expect(html).not.toContain('Fresh until');
+    // The state is a sentence and the date is written the way the person set
+    // it in Settings. The panel used to print the enum value and the ISO
+    // timestamp straight onto the writing surface.
+    expect(html).toContain('The context is gathered and verified.');
+    // `content-factory-next-fn33.87` replaced two hand-written format strings
+    // with `Intl` over the interface language: an English interface writes the
+    // month first, and a Russian one writes «21.08.2026» — which is the whole
+    // point of reading the language instead of the browser.
+    expect(html).toContain('08/21/2026');
+    expect(html).not.toContain('READY');
+    expect(html).not.toContain('2026-08-21T10:00:00.000Z');
   });
 
   test('renders neutral user-only provenance without grounded language', () => {
@@ -401,6 +435,10 @@ describe('Content intelligence frontend consumer contract', () => {
       'В черновик можно сохранить только материалы пользователя.'
     );
     expect(html).not.toContain('Grounded output');
+    expect(html).toContain(
+      'Контекста пока нет: подтверждённых источников не найдено.'
+    );
+    expect(html).not.toContain('UNAVAILABLE');
   });
 
   test('keeps the browser-review route synthetic and network/persistence free', () => {

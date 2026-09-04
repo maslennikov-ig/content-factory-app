@@ -13,6 +13,7 @@ import {
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
 import clsx from 'clsx';
+import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
 import { Dialog } from '../ui/layers';
 import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
@@ -38,6 +39,14 @@ import {
   type GroundingEnvelope,
 } from './content-archive.adapter';
 import { resolveContentLocale } from './content-section.copy';
+// The recut panel's own dictionary of platform and language names. Read from
+// there rather than restated, so one section cannot call the same platform
+// «ВКонтакте» on one screen and `vk` on the next
+// (`content-factory-next-fn33.83`).
+import {
+  contentLanguageLabel,
+  platformLabel,
+} from '../brand-voice/voice-copy';
 
 /**
  * «Что уже написали» — the archive (`content-factory-next-odb8.4`).
@@ -91,16 +100,23 @@ const copy = {
     hideText: 'скрыть текст',
     grounding: 'Разбор',
     importAction: 'Занести текст',
-    postsWord: (n: number) => `постов: ${n}`,
+    // content-factory-next-fn33.54: «постов: 1» — счёт без выбора формы
+    // слова. `plural` — та же тройка форм, что уже считает образцы и шкалы.
+    postsWord: (n: number) => `${n} ${plural(n, ['пост', 'поста', 'постов'])}`,
     queuedWord: (n: number) => `в очереди: ${n}`,
+    draftsWord: (n: number) => `черновиков: ${n}`,
     codeWord: (code: string) => code,
     counts: (counts: Record<ArchiveLayer, number>) =>
       `сделано здесь ${counts.MADE_HERE} · до продукта ${counts.IMPORTED_PRE_PRODUCT} · мимо продукта ${counts.PUBLISHED_ELSEWHERE}`,
     groundingDialogTitle: 'На чём стоит этот текст',
     groundingLoading: 'Загружаем разбор',
     groundingFallback: 'Разбор не загрузился. Попробуйте ещё раз.',
+    // Says what is true of the row instead of guessing why. The old sentence
+    // — «написан до того, как черновик стал запоминать» — was printed over
+    // drafts that were minutes old (`content-factory-next-fn33.89`), which is
+    // a claim about the product's history standing in for a missing list.
     groundingNoneMadeHere:
-      'Данных о происхождении нет. Этот текст написан до того, как черновик стал запоминать, на каких фактах он стоял.',
+      'Список фактов для этого текста не записан. Так бывает, когда в бриф не добавили ни одного факта из памяти продукта.',
     groundingFacts: 'Факты',
     groundingEvidence: 'Источники',
     groundingEmptyFacts: 'Ни один факт не привязан к этому снимку контекста.',
@@ -156,6 +172,7 @@ const copy = {
     importAction: 'Bring in a text',
     postsWord: (n: number) => `posts: ${n}`,
     queuedWord: (n: number) => `queued: ${n}`,
+    draftsWord: (n: number) => `drafts: ${n}`,
     codeWord: (code: string) => code,
     counts: (counts: Record<ArchiveLayer, number>) =>
       `made here ${counts.MADE_HERE} · before the product ${counts.IMPORTED_PRE_PRODUCT} · elsewhere ${counts.PUBLISHED_ELSEWHERE}`,
@@ -163,7 +180,7 @@ const copy = {
     groundingLoading: 'Loading the grounding',
     groundingFallback: 'The grounding did not load. Try again.',
     groundingNoneMadeHere:
-      'No provenance is recorded. This text was written before drafts started remembering which facts they stood on.',
+      'No list of facts was recorded for this text. That happens when the brief carried no fact from the product memory.',
     groundingFacts: 'Facts',
     groundingEvidence: 'Sources',
     groundingEmptyFacts: 'No fact is attached to this context snapshot.',
@@ -272,7 +289,7 @@ function GroundingDialog({
           <EmptyState title={t.groundingNoneMadeHere} />
         ) : context.error ? (
           <ErrorState
-            title={failureNotice(readFailure(context.error, t.groundingFallback))}
+            title={failureNotice(readFailure(context.error, t.groundingFallback), locale)}
             action={
               <Button variant="secondary" onClick={() => void context.mutate()}>
                 {t.retry}
@@ -345,7 +362,7 @@ function ArchiveRowView({
             <span className="cf-caption text-cf-ink-muted">{row.date}</span>
             {row.platforms.map((platform) => (
               <span key={platform} className="cf-caption text-cf-ink-muted">
-                {platform}
+                {platformLabel(platform, locale)}
               </span>
             ))}
             {row.layer === 'MADE_HERE' && (
@@ -353,6 +370,12 @@ function ArchiveRowView({
                 <span className="cf-caption text-cf-ink-muted">{t.postsWord(row.postCount)}</span>
                 {row.queuedCount > 0 && (
                   <span className="cf-caption text-cf-ink-muted">{t.queuedWord(row.queuedCount)}</span>
+                )}
+                {/* A recut writes a draft. While only what went out was
+                    counted, the new version existed in the database and
+                    nowhere on this row (`content-factory-next-fn33.84`). */}
+                {row.draftCount > 0 && (
+                  <span className="cf-caption text-cf-ink-muted">{t.draftsWord(row.draftCount)}</span>
                 )}
               </>
             )}
@@ -444,7 +467,7 @@ function ImportDialog({
         }}
         className="flex flex-col gap-[16px]"
       >
-        {failure && <ErrorState title={failureNotice(failure)} />}
+        {failure && <ErrorState title={failureNotice(failure, locale)} />}
 
         <div className="flex flex-col gap-[8px]">
           <p className="cf-label-sm uppercase text-cf-ink-muted">{t.originFieldLabel}</p>
@@ -515,8 +538,8 @@ function ImportDialog({
             }))
           }
         >
-          <option value="ru">ru</option>
-          <option value="en">en</option>
+          <option value="ru">{contentLanguageLabel('ru', locale)}</option>
+          <option value="en">{contentLanguageLabel('en', locale)}</option>
         </Select>
 
         <Select
@@ -529,7 +552,9 @@ function ImportDialog({
           <option value="">—</option>
           {ARCHIVE_PLATFORM_VALUES.map((platform) => (
             <option key={platform} value={platform}>
-              {platform === 'other' ? t.platformOther : platform}
+              {platform === 'other'
+                ? t.platformOther
+                : platformLabel(platform, locale)}
             </option>
           ))}
         </Select>
@@ -621,7 +646,7 @@ export function ContentArchiveContainer() {
 
       {listFailure ? (
         <ErrorState
-          title={failureNotice(listFailure)}
+          title={failureNotice(listFailure, locale)}
           action={
             <Button variant="secondary" onClick={() => void archive.mutate()}>
               {t.retry}
@@ -662,7 +687,9 @@ export function ContentArchiveContainer() {
               <option value="ALL">{t.platformAll}</option>
               {ARCHIVE_PLATFORM_VALUES.map((platform) => (
                 <option key={platform} value={platform}>
-                  {platform === 'other' ? t.platformOther : platform}
+                  {platform === 'other'
+                    ? t.platformOther
+                    : platformLabel(platform, locale)}
                 </option>
               ))}
             </Select>

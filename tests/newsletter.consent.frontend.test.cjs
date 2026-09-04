@@ -67,7 +67,11 @@ const push = jest.fn();
 const h = React.createElement;
 const emptyProvider = () => null;
 
+const { formErrorsMock } = require('./helpers/form-errors-mock.cjs');
+
 const mocks = {
+  // The shared refusal helper is `.ts`, which this loader cannot compile.
+  '@contentfactory/frontend/components/auth/form.errors': formErrorsMock,
   '@contentfactory/helpers/utils/custom.fetch': {
     useFetch: () => registrationFetch,
   },

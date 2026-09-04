@@ -54,6 +54,31 @@ export class AuthController {
     private _emailService: EmailService
   ) {}
 
+  /**
+   * The session cookie, and the header that stands in for it on a stack
+   * running without TLS. Registration writes this from two places now — the
+   * ordinary one and the invited one — and a second hand-written copy of a
+   * cookie whose flags decide whether a browser keeps it at all is not worth
+   * having.
+   */
+  private setSessionCookie(response: Response, jwt: string) {
+    response.cookie('auth', jwt, {
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      ...(!process.env.NOT_SECURED
+        ? {
+            secure: true,
+            httpOnly: true,
+            sameSite: 'none' as const,
+          }
+        : {}),
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    });
+
+    if (process.env.NOT_SECURED) {
+      response.header('auth', jwt);
+    }
+  }
+
   @Get('/can-register')
   async canRegister() {
     return {
@@ -73,12 +98,15 @@ export class AuthController {
       // invitation in its own cookie and the invitation is accepted through
       // `/user/join-org` after sign-in. Reading one here only pretended to
       // support a path that had already moved.
-      const { jwt, awaitingApproval } = await this._authService.routeAuth(
+      const registration = await this._authService.routeAuth(
         body.provider,
         body,
         ip,
         userAgent
       );
+      const { jwt, awaitingApproval } = registration;
+      const invitation =
+        'invitation' in registration ? registration.invitation : undefined;
 
       // The account was created and is waiting for an administrator. No
       // session cookie is set: the browser leaves registration with nothing it
@@ -86,6 +114,39 @@ export class AuthController {
       if (awaitingApproval) {
         response.header('approval', 'true');
         response.status(200).json({ approval: true });
+        return;
+      }
+
+      // `content-factory-next-fn33.18`: this registration answered an
+      // invitation, so it ends signed in and inside that workspace. No
+      // activation email — the address is the one an administrator invited,
+      // and the account is already switched on — and no approval either.
+      //
+      // `showorg` is set for the same reason `POST /user/join-org` sets it:
+      // it is what makes the invited workspace the current one. The workspace
+      // is named in the body rather than in a header because a new header
+      // would have to be added to `exposedHeaders` in `cors.options.ts`,
+      // which this stream does not own; the body crosses origins unaided.
+      if (invitation) {
+        this.setSessionCookie(response, jwt);
+        response.cookie('showorg', invitation.organizationId, {
+          domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+          ...(!process.env.NOT_SECURED
+            ? {
+                secure: true,
+                httpOnly: true,
+                sameSite: 'none' as const,
+              }
+            : {}),
+          expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+        });
+
+        if (process.env.NOT_SECURED) {
+          response.header('showorg', invitation.organizationId);
+        }
+
+        response.header('onboarding', 'true');
+        response.status(200).json({ register: true, invitation });
         return;
       }
 
@@ -98,21 +159,7 @@ export class AuthController {
         return;
       }
 
-      response.cookie('auth', jwt, {
-        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
-          ? {
-              secure: true,
-              httpOnly: true,
-              sameSite: 'none',
-            }
-          : {}),
-        expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-      });
-
-      if (process.env.NOT_SECURED) {
-        response.header('auth', jwt);
-      }
+      this.setSessionCookie(response, jwt);
 
       response.header('onboarding', 'true');
       response.status(200).json({

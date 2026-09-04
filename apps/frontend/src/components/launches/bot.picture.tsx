@@ -8,7 +8,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
-import { showMediaBox } from '@contentfactory/frontend/components/media/media.component';
+import { useOpenMediaBox } from '@contentfactory/frontend/components/media/media.component';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 export const BotPicture: FC<{
   integration: Integrations;
@@ -40,11 +40,14 @@ export const BotPicture: FC<{
     },
     [nick, picture, props.mutate]
   );
+  const openMediaBox = useOpenMediaBox();
+  // One picture per bot, out of everything the library hands back.
   const openMedia = useCallback(() => {
-    showMediaBox((values) => {
-      setPicture(values.path);
+    openMediaBox((values) => {
+      if (!values?.length) return;
+      setPicture(values[0].path);
     });
-  }, []);
+  }, [openMediaBox]);
   return (
     <div className="rounded-[4px] border border-customColor6 bg-sixth px-[16px] pb-[16px] relative w-full">
       <TopTitle title={t('change_bot_picture_title', 'Change Bot Picture')} />

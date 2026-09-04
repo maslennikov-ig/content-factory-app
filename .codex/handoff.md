@@ -4,30 +4,45 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave of 04.09 (`fn33.5`–`fn33.16`, `4a79`) — released as `55c5e2362d8e`.**
-The owner walked `f1cea968184e` by hand while five Opus subagents fixed, each
-in its own worktree and branch, and two read-only reviewers read the merged
-diff. An invitee without a session no longer lands on `http://localhost:4200`
-after signing in (the proxy built `returnUrl` from the container's own address
-— every value-URL now comes from `FRONTEND_URL`, and `returnUrl` is accepted
-only on this origin); the confirmation page names the addressee and refuses
-«Accept» to the wrong account or an existing member; declining spends the
-invitation; a decline door and a session-free preview door (`GET
-/auth/join-org`) are in the roles matrix; one same-origin helper serves all
-three mutations; Telegram has **one** return address for sign-in and linking
-(BotFather keeps a single Allowed URL — the owner's `/settings` workaround line
-can go); people are shown by their profile name, «Профиль» is a real menu row
-with an avatar; upload refusals are visible and in Russian; the password hint
-interpolates its numbers; `pnpm test` leaves the tree clean. Reviewers found
-two blockers, fixed and guarded: sign-out swallowed while an invitation cookie
-lived; a signed-in Telegram return bounced to `/` with its code. Open, owner
-decisions: `fn33.17` change a member's role; `fn33.18` registering by
-invitation joins that workspace directly; `fn33.19` no workspace-level
-SUPERADMIN (creator is ADMIN; the instance owner is the `isSuperAdmin` flag).
-`fn33.15` waits for the owner's Network status of the failing upload;
-`fn33.20` client 30 MB vs server 10 MB; `fn33.21` Telegram return from another
-tab. Public CI on the release commit went red on a test reading unpublished
-evidence — fixed in the next public commit, product untouched.
+**Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed, 22 open) — on branch
+`wave/fixes-2026-09-04`, NOT released, NOT pushed.** The owner asked to fix
+everything found on his live pass and to continue the pass with subagents.
+Sixteen Opus streams in worktrees plus one integration stream; five walkers
+then walked blocks 1–8 on the local stand (`localhost:4200`, email off) and
+two more re-checked the fixes. **Fixed:** registration by invitation lands in
+the invited workspace with its role, no own workspace, active at once
+(`fn33.18`, `.29`, `.26`, `.37`, `.38`, `.40`); nothing grants workspace
+`SUPERADMIN` any more, the creator is `ADMIN`, the last admin cannot be removed,
+equal admins may demote each other while one remains (`.19`, `.50`); role change
+in the team list, invitation link on screen with its expiry (`.17`, `.24`,
+`.35`, `.51`); reject works for any empty workspace and logs, decline mails,
+delete account, unblock with its own state (`.22`, `.30`, `.23`, `.66`); password
+change inside the product (`.41`, `.42`, `.75`); a second workspace can be
+created (`.36`, `.34`); the language lives on the account (`.53`, `.39`, `.43`);
+media library opens as a modal, one upload ceiling (`.15`, `.20`, `.71`);
+**creating a post from the composer had returned 500 since 20.08 and editing
+one nulled `organizationId`** — both fixed (`.49`, `.88`); CopilotKit no longer
+mounts around the whole app (it sent a model call on every page load — `.48`),
+a 403 no longer hangs every «Сохраняем…» button (`.65`); composer copy, stage
+default `PLAN`, context panel in words (`.27`, `.28` quick part, `.31`, `.25`);
+the content section: fact form, leads, brief, materials, avatars, calendar
+(`.45`–`.91`, see beads). Design stage for the composer is published as a
+Claude Design canvas (`fn33.28` notes) with a brief in `docs/prompts/`.
+**Two release steps need the owner:** `docs/operations/user-blocked-at-schema-apply.sql`
+(one column, before the image switch) and
+`docs/operations/workspace-role-superadmin-to-admin.sql` (data). Open for the
+owner: `fn33.90` (what EDITOR may do), `fn33.32` (cascade deletion of a
+workspace), `fn33.28` (design → code), plus the assumptions listed in each
+bead's notes. A read-only review found one release blocker (the `blockedAt` column had no
+release step) and four «before release» items — all fixed in `fn33.108`
+(same-origin checks on approve/block/unblock and the three account doors, an
+open invitation link no longer skips approval, deleting the last admin of a
+shared workspace is refused, no CopilotKit around previews); the rest are
+beads `fn33.100`–`fn33.107`. Two control walks then found a dead password door (`fn33.109`, the middleware
+strips the hash) and a server-render 500 on every signed-in page (`fn33.110`,
+a regression of `fn33.81`) — both fixed and checked on the stand. Receipt on
+the final tree (`0edb16ee`): 328 suites / 4024 tests, `node --test`
+116/0, python OK, `tsc` 0 on three apps, process verification OK.
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
@@ -51,15 +66,6 @@ container; the editorial-stage migration proof runs in docker-CI.
 **Deferred, each a bead:** `ni7x`, `cl19`, `th1s`; older debt: eleven
 `PrismaRepository<any>`, the archive read whole into memory. Receipt in
 `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
-
-## Waves ten and eleven — the product was walked, then the mail was found
-
-01.09–02.09.2026: the owner walked the product from registration and everything
-went to production. **Three defects shared one shape: something was dead and
-nothing said so** — the source registry never worked (Prisma drops the scalar of
-two relations from a nested create), the archive mounted in no screen, approval
-mode sent no mail; none visible from a suite. `zudl` was wrong: SPF and MX sit
-on `send.`, **nothing to change in DNS**. Decisions: `content-section-map.md` §8, §9.
 
 ## Current state
 
@@ -142,29 +148,22 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **continue the
-owner's walkthrough on `55c5e2362d8e`** — the rest of scenario 2 (member,
-channels, password, decline), then Content, Materials/archive, two
-organisations; record gaps as beads, fix in one wave after. Decide with him
-`fn33.18`/`fn33.19` (both P2, product decisions recorded in the beads) before
-building them. Ask him for the Network status of the failing upload
-(`fn33.15`). The two pending accounts on `/admin/users` are still his call.
-
-**The owner settled five questions on 02.09.2026**, written into
-`docs/product/content-section-map.md` §9: the editorial stage is a field
-(built, deployed); an accepted lead does not become reference material by
-itself; archive search is by words; «Материалы» and «Что уже написали» are one
-place with two views; and **material a person added themselves counts as
-confirmed at the moment they add it**.
+Next stage id: `content-factory-next-vme`. Recommended action: **release the
+wave** — merge `wave/fixes-2026-09-04` into `main`, push, build the image from
+the public tree, apply `user-blocked-at-schema-apply.sql` **before** the switch, switch, then
+`workspace-role-superadmin-to-admin.sql` **after** it (the old image had no
+last-admin protection), `psql` only, never `db push`, retain, then walk on production: composer draft create and
+edit, role refusal, password change, second workspace, `/admin/users` with
+«Заблокирован». Every step past the merge needs the owner's fresh authority.
+Then the owner's decisions: `fn33.90`, `fn33.32`, `fn33.28` design → code, and
+the assumptions in the beads' notes (one line each, they are listed in
+`.codex/stages/content-factory-next-fn33/artifacts/`).
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram
 binding link — until he does, nothing has ever bound. Shelved: may a domain
 owner step over `robots.txt` for his own site. The two bars are decided by
 delegation (map §10) — one line from him reverses it.
-
-Open with remainder in comments: `odb8.4` (archive search by words not
-started); `pl1.7`/`pl1.8` hold what the voice epic left unproven.
 
 ## Starter prompt for next orchestrator
 
@@ -174,7 +173,13 @@ is closed; do not re-open its decisions. Before any voice check run
 `rebuild-voice.cjs --dry-run`: an analysis older than the ruler carries no
 print and every verdict reads «сравнить не с чем» — that is not a defect.
 
-Traps: `/home/me/.local/bin/node` shadows nvm — check `node -v` is 22.23.2 first,
+Traps: the dev stand must be opened at `localhost:4200`, not `127.0.0.1` — Next
+16 dev refuses its own resources for a foreign host and the page never
+hydrates (forms submit as GET). `git add -A` after subagent worktrees swallows
+`.claude/worktrees/*` as gitlinks — now ignored. A Nest provider with a
+constructor parameter passes every unit test and stops the app (`@Optional()`,
+`tests/upload-module.wiring.test.cjs`). Test fakes of `Response` need
+`clone()` since `custom.fetch.func.ts` clones. `/home/me/.local/bin/node` shadows nvm — check `node -v` is 22.23.2 first,
 or prefix `PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`. A full Jest run
 leaves the frontend stand answering 500 until `apps/frontend/.next` is removed
 *and* the server restarted; `libraries/` changes need `apps/backend/dist` and

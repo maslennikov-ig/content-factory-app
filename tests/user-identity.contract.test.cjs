@@ -43,7 +43,7 @@ const nest = {
   },
 };
 const prisma = {
-  Role: { SUPERADMIN: 'SUPERADMIN' },
+  Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
   ShortLinkPreference: {},
   SubscriptionTier: { STANDARD: 'STANDARD' },
 };

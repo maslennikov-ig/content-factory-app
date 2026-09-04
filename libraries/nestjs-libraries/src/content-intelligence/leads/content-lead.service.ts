@@ -264,11 +264,19 @@ export class ContentLeadService {
       );
     }
 
+    // content-factory-next-fn33.52. No `lastCheckedAt` on either refusal
+    // branch, here and below. `lastCheckedAt` is the date the row shows as
+    // «заглядывали <дата>», and a check that was refused never opened the
+    // feed — stamping it made the row claim a read that did not happen, on
+    // a subscription that had honestly said «ещё не заглядывали». The
+    // refusal is still remembered in `lastErrorCode`; only the last-read
+    // date is left as it was. The failure branch at the end of this method
+    // is the other side of the rule: there the feed *was* opened, the
+    // attempt is real, and the date is stamped.
     if (!this.feedCheckEnabled) {
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
         state: subscription.state,
         lastErrorCode: 'CHECK_DISABLED',
-        lastCheckedAt: now,
       });
       return { checked: false, reason: 'CHECK_DISABLED', created: 0 };
     }
@@ -282,7 +290,6 @@ export class ContentLeadService {
         await this.repository.recordCheckResult(organizationId, subscriptionId, {
           state: subscription.state,
           lastErrorCode: 'CHECK_DISABLED',
-          lastCheckedAt: now,
         });
         return { checked: false, reason: 'CHECK_DISABLED', created: 0 };
       }

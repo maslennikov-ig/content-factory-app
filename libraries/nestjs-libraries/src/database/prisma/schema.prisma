@@ -128,6 +128,14 @@ model User {
   lastReadNotifications            DateTime             @default(now())
   inviteId                         String?
   activated                        Boolean              @default(true)
+  // When an instance administrator switched this account off, and null for
+  // every account that was never blocked. `activated` alone could not tell a
+  // blocked account from one waiting for approval: both are `false`, so a
+  // blocked person turned up on the «Awaiting approval» tab with an «Approve»
+  // button that would have handed their access back as if the block had never
+  // happened (`content-factory-next-fn33.66`). Blocking writes it, approval
+  // and unblocking clear it; nothing else reads or writes this column.
+  blockedAt                        DateTime?
   account                          String?
   connectedAccount                 Boolean              @default(false)
   lastOnline                       DateTime             @default(now())

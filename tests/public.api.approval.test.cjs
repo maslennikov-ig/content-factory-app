@@ -84,7 +84,7 @@ const { OrganizationRepository } = loadTypeScriptModule(
       },
     },
     '@prisma/client': {
-      Role: { SUPERADMIN: 'SUPERADMIN' },
+      Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
       ShortLinkPreference: {},
       SubscriptionTier: {},
     },

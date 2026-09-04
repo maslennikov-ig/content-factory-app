@@ -111,3 +111,4 @@ scripts/evidence/voice-eval/corpora.json
 
 # Локальный кэш дизайн-хука: машинный, не переносится между машинами.
 .impeccable/
+.claude/worktrees/

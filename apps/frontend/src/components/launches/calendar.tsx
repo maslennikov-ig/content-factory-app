@@ -39,6 +39,7 @@ import { Integration, Post, State, Tags } from '@prisma/client';
 import { useAddProvider } from '@contentfactory/frontend/components/launches/add.provider.component';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { groupBy, random, sortBy } from 'lodash';
@@ -101,7 +102,11 @@ updateDayjsLocale();
 
 const convertTimeFormatBasedOnLocality = (time: number) => {
   if (isUSCitizen()) {
-    return `${time === 12 ? 12 : time % 12}:00 ${time >= 12 ? 'PM' : 'AM'}`;
+    // `time % 12 || 12`: in a twelve-hour clock both midnight and noon are
+    // called 12. The special case was written for noon only, so the column
+    // began at «0:00 AM» — an hour that does not exist in the notation it is
+    // written in (`content-factory-next-fn33.80`).
+    return `${time % 12 || 12}:00 ${time >= 12 ? 'PM' : 'AM'}`;
   } else {
     return `${time}:00`;
   }
@@ -989,6 +994,31 @@ export const CalendarColumn: FC<{
   }, [integrations, getDate, sets, signature]);
 
   const addProvider = useAddProvider();
+  const toaster = useToaster();
+
+  /**
+   * The empty cell, for somebody who may not add a channel
+   * (content-factory-next-fn33.67).
+   *
+   * With no channel in the workspace this cell opened the whole provider
+   * catalogue, and every icon in it ends at
+   * `GET /integrations/social/:integration` — an administrator door
+   * (`docs/product/roles-matrix.md`). `AddProviderButton` already hides
+   * itself from a member for exactly that reason; the calendar reached the
+   * same modal around it. Now the click answers instead of promising: one
+   * sentence saying who adds a channel, and no catalogue nobody can use.
+   */
+  const canAddChannel = isOrganizationAdmin(user?.role);
+  const refuseAddChannel = useCallback(() => {
+    toaster.show(
+      t(
+        'add_channel_admin_only',
+        'Adding a channel is an administrator action. Ask an administrator of this workspace to connect one.'
+      ),
+      'warning'
+    );
+  }, [t, toaster]);
+
   return (
     <div
       className={clsx(
@@ -1016,6 +1046,12 @@ export const CalendarColumn: FC<{
             isBeforeNow ? 'flex-1' : 'cursor-pointer',
             isBeforeNow && postList.length === 0 && 'col-calendar'
           )}
+          // The hover caption on a cell whose time has gone. Kept as an
+          // attribute so the words come out of the dictionary rather than out
+          // of `global.scss` (`content-factory-next-fn33.79`).
+          {...(isBeforeNow && postList.length === 0
+            ? { 'data-date-passed': t('date_passed', 'Date passed') }
+            : {})}
         >
           {loading && (
             <div className="h-full w-full p-[5px] animate-pulse absolute left-0 top-0 z-[50]">
@@ -1070,7 +1106,13 @@ export const CalendarColumn: FC<{
         {!isBeforeNow && (
           <div
             className="pb-[2.5px] px-[5px] flex-1 flex"
-            onClick={integrations.length ? addModal : addProvider}
+            onClick={
+              integrations.length
+                ? addModal
+                : canAddChannel
+                ? addProvider
+                : refuseAddChannel
+            }
           >
             <div
               className={clsx(

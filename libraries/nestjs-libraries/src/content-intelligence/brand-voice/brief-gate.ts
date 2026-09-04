@@ -1,3 +1,5 @@
+import { plural } from './plural';
+
 /**
  * The gate that refuses to write when there is nothing to say.
  *
@@ -156,8 +158,14 @@ export function scoreTopics(
       if (candidate.evidenceCount > 0) {
         score += Math.min(40, candidate.evidenceCount * 10);
         reasons.push({
-          ru: `${candidate.evidenceCount} подтверждённых фактов уже есть`,
-          en: `${candidate.evidenceCount} confirmed facts already on hand`,
+          ru: `${candidate.evidenceCount} ${plural(candidate.evidenceCount, [
+            'подтверждённый факт',
+            'подтверждённых факта',
+            'подтверждённых фактов',
+          ])} уже есть`,
+          en: `${candidate.evidenceCount} confirmed ${
+            candidate.evidenceCount === 1 ? 'fact' : 'facts'
+          } already on hand`,
         });
       } else {
         reasons.push({

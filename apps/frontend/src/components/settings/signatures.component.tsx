@@ -9,6 +9,7 @@ import { array, boolean, object, string } from 'yup';
 import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { CopilotTextarea } from '@copilotkit/react-textarea';
+import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { Select } from '@contentfactory/react/form/select';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
@@ -211,21 +212,31 @@ const AddOrRemoveSignature: FC<{
           </Button>
 
           <div className="relative bg-cf-surface-subtle">
-            <CopilotTextarea
-              disableBranding={true}
-              className={clsx(
-                '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-cf-accent bg-bigStrip outline-none'
-              )}
-              value={text}
-              onChange={(e) => {
-                form.setValue('content', e.target.value);
-              }}
-              placeholder="Write your signature..."
-              autosuggestionsConfig={{
-                textareaPurpose: `Assist me in writing social media signature`,
-                chatApiConfigs: {},
-              }}
-            />
+            {/*
+  Помощник монтируется у самого поля, а не вокруг всего приложения: его
+  провайдер обращается к рантайму сразу при монтировании
+  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+*/}
+            <CopilotProvider>
+              <CopilotTextarea
+                disableBranding={true}
+                className={clsx(
+                  '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-cf-accent bg-bigStrip outline-none'
+                )}
+                value={text}
+                onChange={(e) => {
+                  form.setValue('content', e.target.value);
+                }}
+                placeholder={t(
+                  'signature_placeholder',
+                  'Write your signature...'
+                )}
+                autosuggestionsConfig={{
+                  textareaPurpose: `Assist me in writing social media signature`,
+                  chatApiConfigs: {},
+                }}
+              />
+            </CopilotProvider>
           </div>
 
           <Select

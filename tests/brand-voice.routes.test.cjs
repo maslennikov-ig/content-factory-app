@@ -663,6 +663,43 @@ describe('accepting fields one at a time, and activating what was accepted', () 
     expect(overview.contractVersion).toBe(contract.VOICE_CONTRACT_VERSION);
   });
 
+  test('the name given at activation is the name the avatar list shows', async () => {
+    // `content-factory-next-fn33.46`: nothing on the way in asked, so an
+    // avatar arrived as «Без имени» and the list told its owner «тексты пишет
+    // Без имени».
+    const { service } = await build();
+    await service.proposalField(admin, { key: 'WHO_SPEAKS', action: 'ACCEPT' });
+
+    await service.activateProposal(admin, {
+      consentGiven: true,
+      label: 'Голос 1',
+      avatarName: 'Бригадир участка',
+    });
+
+    const list = await service.avatars(admin);
+    expect(list.avatars[0].name).toBe('Бригадир участка');
+  });
+
+  test('activating again never renames an avatar somebody already named', async () => {
+    // The rename lives in the row's own menu. An activation quietly writing
+    // over it would make «Включить аватар» a rename nobody asked for.
+    const { service } = await build();
+    await service.proposalField(admin, { key: 'WHO_SPEAKS', action: 'ACCEPT' });
+    await service.activateProposal(admin, {
+      consentGiven: true,
+      avatarName: 'Бригадир участка',
+    });
+    await service.proposalField(admin, { key: 'TONE', action: 'ACCEPT' });
+
+    await service.activateProposal(admin, {
+      consentGiven: true,
+      avatarName: 'Кто-то другой',
+    });
+
+    const list = await service.avatars(admin);
+    expect(list.avatars[0].name).toBe('Бригадир участка');
+  });
+
   test('restoring an earlier version writes a new one and keeps both', async () => {
     const { service } = await build();
     await service.proposalField(admin, { key: 'WHO_SPEAKS', action: 'ACCEPT' });
@@ -771,9 +808,24 @@ describe('the path that fills the five lines by hand', () => {
 
     const analysis = await service.analysis(admin);
     expect(analysis.outcome).toBe('insufficient');
-    await expect(
-      service.textCheck(admin, { text: 'Короткий текст.' })
-    ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND' });
+
+    /**
+     * «Сравнить не с чем» — это ответ, а не отказ.
+     *
+     * `content-factory-next-fn33.70`: путь «Заполнить вручную» обещает
+     * «Ничего не читаем и не разбираем», а проверка отвечала 404 при каждом
+     * открытии окна поста и советовала собрать голос заново из текстов —
+     * ровно то, чего этот человек намеренно не делал.
+     */
+    const check = await service.textCheck(admin, { text: 'Короткий текст.' });
+    expect(check.total).toBe(0);
+    expect(check.outside).toEqual([]);
+    expect(check.similarity.verdict).toBe('UNKNOWN');
+    expect(check.similarity.reason).toBe('NO_PROFILE');
+    // Словами, и без совета, которого этому человеку не выполнить молча.
+    expect(check.summary).toContain('вручную');
+    expect(check.silenceHint).toEqual(expect.any(String));
+    expect(check.plainText).toBe('Короткий текст.');
   });
 
   test('all five written lines reach the passport, phrase length included', async () => {
@@ -1429,12 +1481,19 @@ describe('the scales, the strip and the check on generated text', () => {
     });
   });
 
-  test('the check refuses when there is nothing to compare against', async () => {
+  test('the check says there is nothing to compare against, and says it in words', async () => {
+    // It used to refuse with 404 `VOICE_PROFILE_NOT_FOUND`, once per opening
+    // of the post window, and the refusal was invisible on screen
+    // (`content-factory-next-fn33.70`). Nothing to measure is an answer.
     const { service } = harness();
 
-    await expect(
-      service.textCheck(admin, { text: 'Короткий текст.' })
-    ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND', status: 404 });
+    const check = await service.textCheck(admin, { text: 'Короткий текст.' });
+
+    expect(check.total).toBe(0);
+    expect(check.inCorridor).toBe(0);
+    expect(check.similarity.verdict).toBe('UNKNOWN');
+    expect(check.similarity.reason).toBe('NO_PROFILE');
+    expect(check.summary.length).toBeGreaterThan(0);
   });
 
   /**
@@ -1637,9 +1696,11 @@ describe('the passport explains the active version, not merely the last run (vme
     await expect(
       service.setCorridor(admin, { key: 'questions', low: 1, high: 2 })
     ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND' });
-    await expect(
-      service.textCheck(admin, { text: PARAGRAPH.repeat(2) })
-    ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND' });
+    // The check answers instead of refusing, and answers nothing rather than
+    // reading the unrelated measurement (`content-factory-next-fn33.70`).
+    const check = await service.textCheck(admin, { text: PARAGRAPH.repeat(2) });
+    expect(check.total).toBe(0);
+    expect(check.similarity.reason).toBe('NO_PROFILE');
   });
 
   test('a measurement that IS linked to the active version still reads normally', async () => {

@@ -34,6 +34,35 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
           );
       }
     }
+    // The screen reaches sideways into the application for shared pieces —
+    // the refusal helper the auth forms also use, for one — and those are as
+    // much part of what is under test as a relative import is.
+    if (request.startsWith('@contentfactory/frontend/')) {
+      for (const extension of ['.ts', '.tsx']) {
+        const candidate = path.join(
+          repositoryRoot,
+          'apps/frontend/src',
+          `${request.slice('@contentfactory/frontend/'.length)}${extension}`
+        );
+        if (fs.existsSync(candidate))
+          return loadTypeScriptModule(
+            path.relative(repositoryRoot, candidate),
+            mocks
+          );
+      }
+    }
+    if (request.startsWith('@contentfactory/nestjs-libraries/')) {
+      const candidate = path.join(
+        repositoryRoot,
+        'libraries/nestjs-libraries/src',
+        `${request.slice('@contentfactory/nestjs-libraries/'.length)}.ts`
+      );
+      if (fs.existsSync(candidate))
+        return loadTypeScriptModule(
+          path.relative(repositoryRoot, candidate),
+          mocks
+        );
+    }
     if (request.startsWith('@contentfactory/react/')) {
       const candidate = path.join(
         repositoryRoot,
@@ -202,7 +231,7 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
         }),
       },
       '@contentfactory/frontend/components/media/media.component': {
-        showMediaBox: jest.fn(),
+        useOpenMediaBox: () => jest.fn(),
       },
       // The profile panel's picture placeholder. Its own rules are held by
       // `tests/avatar.primitive.test.cjs`; here it is scenery.
@@ -713,3 +742,136 @@ test.each([
     expect(request).not.toHaveBeenCalled();
   }
 );
+
+/**
+ * Changing a password from inside the product (`content-factory-next-fn33.41`).
+ * Before this the settings screen offered the form only for a method that was
+ * not connected yet, so a connected password could never be replaced except
+ * through an emailed reset link — which a deployment without an email provider
+ * never sends.
+ */
+describe('changing a connected password', () => {
+  test('the form appears on the connected password row, and nowhere else', () => {
+    const withPassword = renderView({
+      identities: [identity('LOCAL', 'owner@example.test')],
+      availableProviders: ['LOCAL', 'TELEGRAM'],
+    });
+    expect(withPassword).toContain('data-testid="change-password-form"');
+    expect(withPassword).toMatch(/Current password/);
+    expect(withPassword).toMatch(/New password/);
+    expect(withPassword).toMatch(/Repeat new password/);
+
+    // A provider account has no password here to change.
+    const withoutPassword = renderView({
+      identities: [identity('TELEGRAM')],
+      availableProviders: ['TELEGRAM'],
+    });
+    expect(withoutPassword).not.toContain('data-testid="change-password-form"');
+  });
+
+  test('every label and control on the form is translated', () => {
+    translate = (key) => `translated:${key}`;
+    const markup = renderView({
+      identities: [identity('LOCAL', 'owner@example.test')],
+      availableProviders: ['LOCAL'],
+    });
+
+    expect(markup).toMatch(/translated:change_password/);
+    expect(markup).toMatch(/translated:current_password/);
+    expect(markup).toMatch(/translated:new_password/);
+    expect(markup).toMatch(/translated:repeat_new_password/);
+    expect(markup).toMatch(/translated:password_policy_hint/);
+  });
+
+  test('the three fields are judged before anything is sent', () => {
+    const problem = component.passwordChangeProblem;
+    expect(
+      problem({
+        currentPassword: '',
+        newPassword: 'Brand-new-2!',
+        repeatPassword: 'Brand-new-2!',
+      })
+    ).toBe('missing_current');
+    expect(
+      problem({
+        currentPassword: 'Current-1!',
+        newPassword: 'weak',
+        repeatPassword: 'weak',
+      })
+    ).toBe('weak_new');
+    expect(
+      problem({
+        currentPassword: 'Current-1!',
+        newPassword: 'Brand-new-2!',
+        repeatPassword: 'Brand-new-3!',
+      })
+    ).toBe('mismatch');
+    expect(
+      problem({
+        currentPassword: 'Current-1!',
+        newPassword: 'Brand-new-2!',
+        repeatPassword: 'Brand-new-2!',
+      })
+    ).toBeNull();
+  });
+
+  test('the repeat copy never leaves the browser', async () => {
+    const request = jest.fn().mockResolvedValue({ ok: true });
+
+    await component.changeOwnPassword({
+      currentPassword: 'Current-1!',
+      newPassword: 'Brand-new-2!',
+      request,
+    });
+
+    expect(request).toHaveBeenCalledWith('/user/password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        currentPassword: 'Current-1!',
+        newPassword: 'Brand-new-2!',
+      }),
+    });
+    expect(request.mock.calls[0][1].body).not.toContain('repeatPassword');
+  });
+
+  test('a wrong current password comes back as its own sentence, not the server English', async () => {
+    const request = jest.fn().mockResolvedValue({
+      ok: false,
+      text: async () =>
+        JSON.stringify({
+          message: 'The current password is not correct',
+          code: 'invalid_current_password',
+        }),
+    });
+
+    const error = await component
+      .changeOwnPassword({
+        currentPassword: 'not-the-one',
+        newPassword: 'Brand-new-2!',
+        request,
+      })
+      .catch((caught) => caught);
+
+    expect(error).toMatchObject({
+      translationKey: 'current_password_incorrect',
+    });
+  });
+
+  test('the button reports its work and cannot be pressed twice', () => {
+    const busy = renderView({
+      identities: [identity('LOCAL', 'owner@example.test')],
+      availableProviders: ['LOCAL'],
+      changingPassword: true,
+      passwordChange: {
+        currentPassword: 'Current-1!',
+        newPassword: 'Brand-new-2!',
+        repeatPassword: 'Brand-new-2!',
+      },
+    });
+
+    // Every control on the row is held while the request is in flight, the
+    // Remove button included.
+    expect(busy.match(/disabled=""/g).length).toBeGreaterThan(1);
+    expect(busy).toContain('cf-control-h');
+  });
+});

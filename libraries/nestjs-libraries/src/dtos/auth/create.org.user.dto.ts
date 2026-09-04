@@ -3,6 +3,7 @@ import {
   IsDefined,
   IsEmail,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
   ValidateBy,
@@ -70,6 +71,23 @@ export class CreateOrgUserDto {
   // silently strips any property this DTO does not declare, so an
   // unrecognised `starterTemplate` is dropped before it reaches the service
   // layer rather than turning a registration into a 400.
+
+  /**
+   * `content-factory-next-fn33.18`: the invitation this registration answers.
+   *
+   * Only the shape is checked here. Whether the token is signed by this
+   * instance, still inside its two days and still unspent is decided where
+   * the invitation lives, not by a validator: a stale or already-used link is
+   * not a bad request, it is an ordinary registration with a note above the
+   * form. Refusing it here would turn the most common mistake — an
+   * invitation opened twice — into a 400 the form cannot explain.
+   */
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, {
+    message: 'invitationToken is not an invitation',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  invitationToken?: string;
 
   @IsBoolean()
   @ValidateIf((_object, value) => value !== undefined)

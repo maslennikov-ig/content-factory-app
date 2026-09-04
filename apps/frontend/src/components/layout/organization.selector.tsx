@@ -19,20 +19,31 @@ import {
   MenuList,
   MenuOption,
 } from '@contentfactory/react/choice/choice.menu';
+import { Button } from '@contentfactory/react/form/button';
+import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
+import { CreateOrganization } from '@contentfactory/frontend/components/layout/create.organization';
 
 /**
  * Which organization the current work belongs to.
  *
  * A real button with an expandable list rather than a hover-only panel, so it
- * can be reached from the keyboard and announced by a screen reader. It stays
- * hidden when there is only one organization to choose from.
+ * can be reached from the keyboard and announced by a screen reader.
+ *
+ * `content-factory-next-fn33.36`: it is shown to everybody signed in, even
+ * with a single workspace. Hiding it there also hid the only way to make a
+ * second one, so the product had one workspace per account and no door out.
  */
+/** One row of the switcher's dropdown, whether it switches or creates. */
+const menuOptionClassName =
+  'w-full text-start px-[10px] rounded-[8px] text-[14px] transition-colors duration-state';
+
 export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
   asOpenSelect,
 }) => {
   const fetch = useFetch();
   const user = useUser();
   const t = useT();
+  const modals = useModals();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,6 +75,16 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
     []
   );
 
+  const createOrg = useCallback(() => {
+    setOpen(false);
+    modals.openModal({
+      classNames: { modal: 'bg-transparent text-textColor' },
+      title: t('create_organization', 'Create workspace'),
+      withCloseButton: true,
+      children: (close: () => void) => <CreateOrganization onClose={close} />,
+    });
+  }, [modals, t]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -80,7 +101,7 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
     };
   }, [open]);
 
-  if (isLoading || !data || data.length <= 1) {
+  if (isLoading || !data) {
     return null;
   }
 
@@ -144,27 +165,45 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
         </MenuButton>
 
         {open && (
-          <MenuList
-            aria-label={label}
-            className="absolute z-[100] top-[calc(100%+6px)] end-0 min-w-[220px] max-h-[280px] overflow-auto bg-cf-surface border border-cf-border rounded-[8px] shadow-menu p-[4px] flex flex-col"
-          >
-            {data.map((org: { name: string; id: string }) => (
-              <MenuOption
-                key={org.id}
-              selected={org.id === user?.orgId}
+          <div className="absolute z-[100] top-[calc(100%+6px)] end-0 min-w-[220px] bg-cf-surface border border-cf-border rounded-[8px] shadow-menu p-[4px] flex flex-col">
+            <MenuList
+              aria-label={label}
+              className="max-h-[280px] overflow-auto flex flex-col"
+            >
+              {data.map((org: { name: string; id: string }) => (
+                <MenuOption
+                  key={org.id}
+                  selected={org.id === user?.orgId}
+                  density="dense"
+                  onClick={changeOrg(org)}
+                  className={clsx(
+                    menuOptionClassName,
+                    org.id === user?.orgId
+                      ? 'bg-cf-accent-soft text-cf-accent font-[600]'
+                      : 'text-cf-ink hover:bg-cf-surface-subtle'
+                  )}
+                >
+                  {org.name}
+                </MenuOption>
+              ))}
+            </MenuList>
+
+            {/* Outside the list on purpose. The list is a choice between the
+                workspaces that exist; this is an action, and inside the list a
+                screen reader would have announced it as one more workspace to
+                pick. The rule above it says the same thing to the eye. */}
+            <Button
+              variant="quiet"
               density="dense"
-                onClick={changeOrg(org)}
-                className={clsx(
-                  'w-full text-start px-[10px] rounded-[8px] text-[14px] transition-colors duration-state',
-                  org.id === user?.orgId
-                    ? 'bg-cf-accent-soft text-cf-accent font-[600]'
-                    : 'text-cf-ink hover:bg-cf-surface-subtle'
-                )}
-              >
-                {org.name}
-              </MenuOption>
-            ))}
-          </MenuList>
+              onClick={createOrg}
+              className={clsx(
+                menuOptionClassName,
+                'border-t border-cf-border rounded-none justify-start text-cf-ink-muted hover:text-cf-ink'
+              )}
+            >
+              {t('create_organization', 'Create workspace')}
+            </Button>
+          </div>
         )}
       </div>
     </Menu>

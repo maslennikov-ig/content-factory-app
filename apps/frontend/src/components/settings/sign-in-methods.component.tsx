@@ -6,6 +6,7 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Button } from '@contentfactory/react/form/button';
+import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { Input } from '@contentfactory/react/form/input';
 import { PasswordInput } from '@contentfactory/react/form/password-input';
 import {
@@ -142,6 +143,22 @@ const BACKEND_ERRORS: Record<string, { key: string; message: string }> = {
     key: 'sign_in_methods_unavailable',
     message: 'Sign-in methods cannot be changed on this deployment right now.',
   },
+  invalid_current_password: {
+    key: 'current_password_incorrect',
+    message: 'The current password is not correct.',
+  },
+  local_identity_not_found: {
+    key: 'password_sign_in_not_connected',
+    message: 'This account does not sign in with a password.',
+  },
+  password_change_forbidden: {
+    key: 'sign_in_method_request_refused',
+    message: 'This request was refused. Reload the page and try again.',
+  },
+  password_change_unavailable: {
+    key: 'sign_in_methods_unavailable',
+    message: 'Sign-in methods cannot be changed on this deployment right now.',
+  },
 };
 
 class IdentityMethodError extends Error {
@@ -259,6 +276,34 @@ export async function unlinkUserIdentity({
     'Could not remove this sign-in method.'
   );
   await refresh();
+}
+
+/**
+ * Replaces the password of the account this browser is signed in as
+ * (`content-factory-next-fn33.41`). The repeat field never reaches the wire:
+ * the form compares the two copies itself, and the server has nothing to check
+ * that the person did not already tell it once.
+ *
+ * Nothing on this page changes afterwards — the method stays connected under
+ * the same address — so there is no list to refresh, only a message to show.
+ */
+export async function changeOwnPassword({
+  currentPassword,
+  newPassword,
+  request,
+}: {
+  currentPassword: string;
+  newPassword: string;
+  request: Request;
+}) {
+  await requireOk(
+    await request('/user/password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+    'change_password_failed',
+    'Could not change the password.'
+  );
 }
 
 export async function beginExternalIdentityLink({
@@ -435,6 +480,126 @@ const StatusMark = ({ connected = true }: { connected?: boolean }) => (
   </svg>
 );
 
+export type PasswordChangeFields = {
+  currentPassword: string;
+  newPassword: string;
+  repeatPassword: string;
+};
+
+export const EMPTY_PASSWORD_CHANGE: PasswordChangeFields = {
+  currentPassword: '',
+  newPassword: '',
+  repeatPassword: '',
+};
+
+/**
+ * What is wrong with the three fields, or `null` when nothing is. Named rather
+ * than boolean because each answer is a different sentence on screen, and the
+ * one the person most often needs — "the two copies differ" — must not be
+ * confused with "this is not a strong enough password".
+ */
+export function passwordChangeProblem(
+  values: PasswordChangeFields
+): 'missing_current' | 'weak_new' | 'mismatch' | null {
+  if (!values.currentPassword) return 'missing_current';
+  if (!isPasswordPolicyCompliant(values.newPassword)) return 'weak_new';
+  if (values.newPassword !== values.repeatPassword) return 'mismatch';
+  return null;
+}
+
+function ChangePasswordForm({
+  values,
+  error,
+  busy,
+  disabled,
+  onFieldChange,
+  onSubmit,
+}: {
+  values: PasswordChangeFields;
+  error?: string;
+  busy: boolean;
+  disabled: boolean;
+  onFieldChange: (field: keyof PasswordChangeFields, value: string) => void;
+  onSubmit: () => void;
+}) {
+  const t = useT();
+  const showLabel = t('show_password', 'Show password');
+  const hideLabel = t('hide_password', 'Hide password');
+  const locked = disabled || busy;
+
+  return (
+    <div
+      data-testid="change-password-form"
+      className="grid gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] sm:grid-cols-2"
+    >
+      <h4 className="cf-label-md text-cf-ink sm:col-span-2">
+        {t('change_password', 'Change Password')}
+      </h4>
+      <PasswordInput
+        disableForm
+        id="change-password-current"
+        name="change-password-current"
+        label={t('current_password', 'Current password')}
+        autoComplete="current-password"
+        value={values.currentPassword}
+        disabled={locked}
+        className="cf-control-h"
+        onChange={(event) =>
+          onFieldChange('currentPassword', event.target.value)
+        }
+        showPasswordLabel={showLabel}
+        hidePasswordLabel={hideLabel}
+      />
+      <PasswordInput
+        disableForm
+        id="change-password-new"
+        name="change-password-new"
+        label={t('new_password', 'New password')}
+        helper={t(
+          'password_policy_hint',
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
+        )}
+        autoComplete="new-password"
+        value={values.newPassword}
+        disabled={locked}
+        className="cf-control-h"
+        onChange={(event) => onFieldChange('newPassword', event.target.value)}
+        showPasswordLabel={showLabel}
+        hidePasswordLabel={hideLabel}
+      />
+      <PasswordInput
+        disableForm
+        id="change-password-repeat"
+        name="change-password-repeat"
+        label={t('repeat_new_password', 'Repeat new password')}
+        error={error}
+        autoComplete="new-password"
+        value={values.repeatPassword}
+        disabled={locked}
+        className="cf-control-h"
+        onChange={(event) =>
+          onFieldChange('repeatPassword', event.target.value)
+        }
+        showPasswordLabel={showLabel}
+        hidePasswordLabel={hideLabel}
+      />
+      <div className="sm:col-span-2 sm:justify-self-end">
+        <Button
+          variant="primary"
+          className="cf-control-h"
+          disabled={disabled || Boolean(passwordChangeProblem(values))}
+          loading={busy}
+          loadingLabel={t('changing_password', 'Changing password')}
+          onClick={onSubmit}
+        >
+          {t('change_password', 'Change Password')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function SignInMethodsView({
   identities,
   availableProviders,
@@ -448,9 +613,14 @@ export function SignInMethodsView({
   fieldError,
   genericName,
   pendingConfirmation,
+  passwordChange = EMPTY_PASSWORD_CHANGE,
+  passwordChangeError,
+  changingPassword = false,
   onRetry,
   onEmailChange,
   onPasswordChange,
+  onPasswordFieldChange = () => undefined,
+  onChangePassword = () => undefined,
   onLinkLocal,
   onLinkExternal,
   onUnlink,
@@ -467,9 +637,17 @@ export function SignInMethodsView({
   fieldError?: string;
   genericName?: string;
   pendingConfirmation?: { email: string; expiresInMinutes: number } | null;
+  passwordChange?: PasswordChangeFields;
+  passwordChangeError?: string;
+  changingPassword?: boolean;
   onRetry: () => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
+  onPasswordFieldChange?: (
+    field: keyof PasswordChangeFields,
+    value: string
+  ) => void;
+  onChangePassword?: () => void;
   onLinkLocal: () => void;
   onLinkExternal: (provider: ExternalIdentityProvider) => void;
   onUnlink: (identity: UserIdentity) => void;
@@ -481,7 +659,7 @@ export function SignInMethodsView({
   const available = availableProviders.filter(
     (provider) => !connectedProviders.has(provider)
   );
-  const allActionsDisabled = Boolean(busyProvider);
+  const allActionsDisabled = Boolean(busyProvider) || changingPassword;
 
   if (loading) {
     return (
@@ -586,47 +764,68 @@ export function SignInMethodsView({
           return (
             <div
               key={`${identity.provider}:${identity.providerIdentifier}`}
-              className="flex min-h-[72px] flex-col gap-[12px] border-b border-cf-border p-[16px] last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+              className="flex min-h-[72px] flex-col gap-[12px] border-b border-cf-border p-[16px] last:border-b-0"
             >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-[8px]">
-                  <h3 className="cf-label-md text-cf-ink">
-                    {providerLabel(identity.provider, genericName, t)}
-                  </h3>
-                  <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-accent bg-cf-accent-soft px-[8px] py-[4px] cf-caption text-cf-accent">
-                    <StatusMark /> {t('sign_in_method_connected', 'Connected')}
-                  </span>
-                </div>
-                <p className="mt-[4px] cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
-                  {identity.provider === 'LOCAL'
-                    ? identity.providerIdentifier
-                    : t(
-                        'verified_provider_account',
-                        'Verified provider account'
-                      )}
-                </p>
-                {protectedRemoval && (
-                  <p className="mt-[4px] cf-body-sm text-cf-warning [text-wrap:pretty]">
-                    {t(
-                      'keep_one_sign_in_method',
-                      'Keep at least one sign-in method connected to avoid losing access.'
-                    )}
+              <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-[8px]">
+                    <h3 className="cf-label-md text-cf-ink">
+                      {providerLabel(identity.provider, genericName, t)}
+                    </h3>
+                    <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-accent bg-cf-accent-soft px-[8px] py-[4px] cf-caption text-cf-accent">
+                      <StatusMark />{' '}
+                      {t('sign_in_method_connected', 'Connected')}
+                    </span>
+                  </div>
+                  <p className="mt-[4px] cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
+                    {identity.provider === 'LOCAL'
+                      ? identity.providerIdentifier
+                      : t(
+                          'verified_provider_account',
+                          'Verified provider account'
+                        )}
                   </p>
-                )}
+                  {protectedRemoval && (
+                    <p className="mt-[4px] cf-body-sm text-cf-warning [text-wrap:pretty]">
+                      {t(
+                        'keep_one_sign_in_method',
+                        'Keep at least one sign-in method connected to avoid losing access.'
+                      )}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="quiet"
+                  className="cf-control-h"
+                  disabled={protectedRemoval || allActionsDisabled}
+                  loading={loadingThis}
+                  loadingLabel={t(
+                    'removing_sign_in_method',
+                    'Removing sign-in method'
+                  )}
+                  onClick={() => onUnlink(identity)}
+                >
+                  {t('remove', 'Remove')}
+                </Button>
               </div>
-              <Button
-                variant="quiet"
-                className="cf-control-h"
-                disabled={protectedRemoval || allActionsDisabled}
-                loading={loadingThis}
-                loadingLabel={t(
-                  'removing_sign_in_method',
-                  'Removing sign-in method'
-                )}
-                onClick={() => onUnlink(identity)}
-              >
-                {t('remove', 'Remove')}
-              </Button>
+
+              {/*
+              The change-password form, on the row of the method it belongs to
+              (`content-factory-next-fn33.41`). Until this existed the only way
+              to replace a password was the emailed reset link, which a
+              deployment with no email provider never sends — so on such an
+              instance a password could not be changed at all.
+            */}
+              {identity.provider === 'LOCAL' && (
+                <ChangePasswordForm
+                  values={passwordChange}
+                  error={passwordChangeError}
+                  busy={Boolean(changingPassword)}
+                  disabled={allActionsDisabled}
+                  onFieldChange={onPasswordFieldChange}
+                  onSubmit={onChangePassword}
+                />
+              )}
             </div>
           );
         })}
@@ -783,6 +982,12 @@ export const SignInMethodsComponent = () => {
     email: string;
     expiresInMinutes: number;
   } | null>(null);
+  const toast = useToaster();
+  const [passwordChange, setPasswordChange] = useState<PasswordChangeFields>(
+    EMPTY_PASSWORD_CHANGE
+  );
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const load = useCallback(async () => {
     const response = await requireOk(
@@ -962,6 +1167,61 @@ export const SignInMethodsComponent = () => {
     });
   }, [email, password, request, run, t]);
 
+  /**
+   * The button must come back no matter how the request ends
+   * (`content-factory-next-fn33.65` is the same defect on another screen), so
+   * the busy flag is cleared in `finally` and never on the success path alone.
+   */
+  const submitPasswordChange = useCallback(() => {
+    const problem = passwordChangeProblem(passwordChange);
+    if (problem === 'missing_current') {
+      setPasswordChangeError(
+        t('enter_current_password', 'Enter your current password.')
+      );
+      return;
+    }
+    if (problem === 'weak_new') {
+      setPasswordChangeError(
+        t(
+          'password_policy_error',
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
+        )
+      );
+      return;
+    }
+    if (problem === 'mismatch') {
+      setPasswordChangeError(
+        t('passwords_do_not_match', 'The two new passwords do not match.')
+      );
+      return;
+    }
+
+    setPasswordChangeError('');
+    setActionError('');
+    setStatusMessage('');
+    setChangingPassword(true);
+    void (async () => {
+      try {
+        await changeOwnPassword({
+          currentPassword: passwordChange.currentPassword,
+          newPassword: passwordChange.newPassword,
+          request,
+        });
+        setPasswordChange(EMPTY_PASSWORD_CHANGE);
+        toast.show(t('password_changed', 'Password changed'), 'success');
+      } catch (caught) {
+        setPasswordChangeError(
+          caught instanceof IdentityMethodError
+            ? t(caught.translationKey, caught.message)
+            : t('change_password_failed', 'Could not change the password.')
+        );
+      } finally {
+        setChangingPassword(false);
+      }
+    })();
+  }, [passwordChange, request, t, toast]);
+
   const unlink = useCallback(
     (identity: UserIdentity) => {
       void run(identity.provider, async () => {
@@ -998,6 +1258,14 @@ export const SignInMethodsComponent = () => {
       fieldError={fieldError}
       genericName={variables.oauthDisplayName}
       pendingConfirmation={pendingConfirmation}
+      passwordChange={passwordChange}
+      passwordChangeError={passwordChangeError}
+      changingPassword={changingPassword}
+      onPasswordFieldChange={(field, value) => {
+        setPasswordChange((current) => ({ ...current, [field]: value }));
+        setPasswordChangeError('');
+      }}
+      onChangePassword={submitPasswordChange}
       onRetry={() => void mutate()}
       onEmailChange={(value) => {
         setEmail(value);

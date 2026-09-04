@@ -10,10 +10,11 @@ import React, {
   useState,
 } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { showMediaBox } from '@contentfactory/frontend/components/media/media.component';
+import { useOpenMediaBox } from '@contentfactory/frontend/components/media/media.component';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
+import { useFieldErrorMessage } from '@contentfactory/frontend/components/auth/form.errors';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
@@ -34,6 +35,7 @@ import { GlobalSettings } from '@contentfactory/frontend/components/settings/glo
 import { ApprovedAppsComponent } from '@contentfactory/frontend/components/approved-apps/approved-apps.component';
 import { AboutProjectComponent } from '@contentfactory/frontend/components/settings/about-project.component';
 import { Button } from '@contentfactory/react/form/button';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { Input } from '@contentfactory/react/form/input';
 import {
   initialSettingsTab,
@@ -42,6 +44,46 @@ import {
 import { SettingsSurface } from '@contentfactory/frontend/components/settings/settings-surface.component';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+
+/**
+ * Every tab name this screen can render. `teams` and `api` are in the list even
+ * for someone who is not an administrator: those two answer for themselves with
+ * «Нужна роль администратора», which is a different thing from a name the
+ * screen has never heard of.
+ */
+export const SETTINGS_TABS = [
+  'profile',
+  'global_settings',
+  'sign_in_methods',
+  'content_intelligence',
+  'teams',
+  'webhooks',
+  'autopost',
+  'sets',
+  'signatures',
+  'api',
+  'approved_apps',
+  'onboarding',
+  'about',
+] as const;
+
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+/**
+ * The tab a request names, or the first one when it names nothing this screen
+ * has. An unknown `?tab=` used to be taken at face value: the rail drew itself
+ * with nothing selected and the panel beside it stayed empty, so a link with a
+ * stale or hand-edited name looked like a broken product
+ * (`content-factory-next-fn33.75`). Опечатка ведёт на первую вкладку — экран
+ * работает, а не показывает пустоту.
+ */
+export function resolveSettingsTab(
+  requested: string | null | undefined
+): SettingsTab {
+  return SETTINGS_TABS.includes(requested as SettingsTab)
+    ? (requested as SettingsTab)
+    : SETTINGS_TABS[0];
+}
 
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
@@ -74,11 +116,16 @@ export const SettingsPopup: FC<{
     form.setValue('bio', personal.bio || '');
     form.setValue('picture', personal.picture);
   }, []);
+  const openMediaBox = useOpenMediaBox();
+  // The library answers with everything that was selected; a profile picture
+  // is one image, and the form field is one `MediaDto`. Handing it the whole
+  // array left the avatar with nothing to read (`content-factory-next-fn33.15`).
   const openMedia = useCallback(() => {
-    showMediaBox((values) => {
-      form.setValue('picture', values);
+    openMediaBox((values) => {
+      if (!values?.length) return;
+      form.setValue('picture', values[0]);
     });
-  }, []);
+  }, [openMediaBox]);
   const remove = useCallback(() => {
     form.setValue('picture', null);
   }, []);
@@ -95,9 +142,29 @@ export const SettingsPopup: FC<{
     close();
   }, []);
 
-  const [tab, setTab] = useState(() => requestedTab ?? initialSettingsTab(url));
+  const [tab, setTab] = useState(() =>
+    resolveSettingsTab(requestedTab ?? initialSettingsTab(url))
+  );
+
+  /**
+   * An internal link such as «Сменить пароль» only changes `?tab=`, and Next
+   * re-renders this component instead of remounting it — so the initial state
+   * above is read exactly once and never again. Until
+   * `content-factory-next-fn33.42` that meant the address changed and the panel
+   * did not: every `/settings?tab=…` link on this screen was dead in a live
+   * session while working perfectly on a fresh page load.
+   *
+   * A missing `?tab=` is not a request for any tab, so it must not undo a tab
+   * the person picked with the tab strip — which changes only the state, never
+   * the address.
+   */
+  useEffect(() => {
+    if (requestedTab === null) return;
+    setTab(resolveSettingsTab(requestedTab));
+  }, [requestedTab]);
 
   const t = useT();
+  const fieldErrorMessage = useFieldErrorMessage();
   const list = useMemo(() => {
     const arr = [];
     arr.push({ tab: 'profile', label: t('profile', 'Profile') });
@@ -158,7 +225,7 @@ export const SettingsPopup: FC<{
     <SettingsSurface
       tabs={list.map(({ tab: value, label }) => ({ value, label }))}
       value={tab}
-      onChange={setTab}
+      onChange={(value) => setTab(resolveSettingsTab(value))}
       navigationFooter={
         showLogout ? (
           <div className="mt-[16px]">
@@ -197,10 +264,17 @@ export const SettingsPopup: FC<{
                 {t('profile', 'Profile')}
               </h2>
               <div className="flex flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+                {/* `content-factory-next-fn33.73`: a profile saved with an
+                    empty name used to answer «fullname must be longer than or
+                    equal to 3 characters» — the property name out of the DTO,
+                    in English, on a Russian screen. */}
                 <Input
                   label={t('name', 'Name')}
                   {...form.register('fullname')}
-                  error={form.formState.errors.fullname?.message as string}
+                  error={fieldErrorMessage(
+                    'fullname',
+                    form.formState.errors.fullname?.message
+                  )}
                 />
                 <div className="flex flex-wrap items-center gap-[12px]">
                   {/* Was a «●» typed in place of a component. The same
@@ -250,12 +324,13 @@ export const SettingsPopup: FC<{
               ? 'Аватары, источники и происхождение теперь живут в рабочем меню — в разделе «Контент», рядом с созданием публикаций.'
               : 'Avatars, sources and provenance now live in the working menu, in Content, next to where posts are made.'}
           </p>
-          <Link
+          <ButtonLink
             href="/content"
-            className="mt-[16px] inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[16px] cf-label-md text-cf-accent transition-colors duration-state hover:bg-cf-accent hover:text-cf-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none sm:min-h-[40px]"
+            variant="primary"
+            className="mt-[16px] cf-control-h"
           >
             {isRussian ? 'Открыть раздел «Контент»' : 'Open Content'}
-          </Link>
+          </ButtonLink>
         </section>
       ) : tab === 'onboarding' ? (
         // Reachable from a menu everyone already has, instead of a new one
@@ -275,12 +350,13 @@ export const SettingsPopup: FC<{
               ? 'Шесть шагов по одному материалу: канал, голос, на что опереться, бриф, черновик, расписание. Пройденное отмечено — страница смотрит, что уже сделано в пространстве.'
               : 'Six steps through one piece: channel, voice, something to stand on, brief, draft, schedule. What is done is ticked — the page reads the workspace itself.'}
           </p>
-          <Link
+          <ButtonLink
             href="/onboarding"
-            className="mt-[16px] inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[16px] cf-label-md text-cf-accent transition-colors duration-state hover:bg-cf-accent hover:text-cf-accent-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none sm:min-h-[40px]"
+            variant="primary"
+            className="mt-[16px] cf-control-h"
           >
             {isRussian ? 'Открыть' : 'Open'}
-          </Link>
+          </ButtonLink>
         </section>
       ) : (
         <FormProvider {...form}>

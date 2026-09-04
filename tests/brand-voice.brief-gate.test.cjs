@@ -144,6 +144,35 @@ describe('the topic radar explains its ranking', () => {
     expect(weak.reasons.some((one) => /нет ни одного/.test(one.ru))).toBe(true);
   });
 
+  test('the count of facts behind a topic chooses its own word', () => {
+    // `content-factory-next-fn33.98`: the radar read «1 подтверждённых фактов
+    // уже есть» over every candidate with one fact behind it.
+    const reasonFor = (evidenceCount) =>
+      gate
+        .scoreTopics([
+          { id: 't', title: 'Т', evidenceCount, covered: false, freshnessDays: 1 },
+        ])[0]
+        .reasons.map((one) => one.ru)
+        .join(' | ');
+
+    expect(reasonFor(1)).toContain('1 подтверждённый факт уже есть');
+    expect(reasonFor(2)).toContain('2 подтверждённых факта уже есть');
+    expect(reasonFor(5)).toContain('5 подтверждённых фактов уже есть');
+    expect(reasonFor(11)).toContain('11 подтверждённых фактов уже есть');
+    expect(reasonFor(21)).toContain('21 подтверждённый факт уже есть');
+
+    const english = (evidenceCount) =>
+      gate
+        .scoreTopics([
+          { id: 't', title: 'Т', evidenceCount, covered: false, freshnessDays: 1 },
+        ])[0]
+        .reasons.map((one) => one.en)
+        .join(' | ');
+
+    expect(english(1)).toContain('1 confirmed fact already on hand');
+    expect(english(2)).toContain('2 confirmed facts already on hand');
+  });
+
   test('the ranking is deterministic for equal scores', () => {
     const tie = [
       { id: 'a', title: 'Б', evidenceCount: 1, covered: false, freshnessDays: 1 },

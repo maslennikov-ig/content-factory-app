@@ -222,6 +222,7 @@ const createOrganizationService = ({ organizations, hasEmailProvider }) => {
   const repository = {
     getCount: jest.fn(async () => organizations),
     createOrgAndUser: jest.fn(async () => ({ id: 'org', users: [] })),
+    createInvitedUser: jest.fn(async () => ({ id: 'membership' })),
   };
   const notifications = {
     hasEmailProvider: jest.fn(() => hasEmailProvider),
@@ -276,6 +277,87 @@ describe('creating the organization and its first user', () => {
         'agent'
       );
     }
+  });
+
+  /**
+   * `content-factory-next-fn33.108`: the same question for an account that
+   * arrives through an invitation instead of the front door.
+   *
+   * A link addressed to one person is an administrator vouching for that
+   * person, and it stands in for the instance approval (owner, 04.09.2026). An
+   * open link is addressed to nobody, can be copied and passed on, and vouches
+   * for nobody — while it switched accounts on regardless, holding a link was
+   * enough to walk past `CONTENT_FACTORY_REQUIRE_APPROVAL` entirely.
+   */
+  test('a link addressed to one person carries them past the gate', async () => {
+    requireApproval(true);
+    const { service, repository } = createOrganizationService({
+      organizations: 3,
+      hasEmailProvider: true,
+    });
+
+    await service.createInvitedUser(
+      { email: 'invited@example.com', provider: 'LOCAL' },
+      { id: 'invite-1', orgId: 'org-1', role: 'EDITOR' },
+      '127.0.0.1',
+      'agent',
+      { vouchedFor: true }
+    );
+
+    expect(repository.createInvitedUser).toHaveBeenCalledWith(
+      expect.any(Object),
+      { id: 'invite-1', orgId: 'org-1', role: 'EDITOR' },
+      { activated: true },
+      '127.0.0.1',
+      'agent'
+    );
+  });
+
+  test('an open link leaves the instance rule in charge', async () => {
+    requireApproval(true);
+    const { service, repository } = createOrganizationService({
+      organizations: 3,
+      hasEmailProvider: true,
+    });
+
+    await service.createInvitedUser(
+      { email: 'stranger@example.com', provider: 'LOCAL' },
+      { id: 'invite-1', orgId: 'org-1', role: 'EDITOR' },
+      '127.0.0.1',
+      'agent',
+      { vouchedFor: false }
+    );
+
+    expect(repository.createInvitedUser).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      { activated: false },
+      '127.0.0.1',
+      'agent'
+    );
+  });
+
+  test('with the gate open an open link is switched on like any registration', async () => {
+    const { service, repository } = createOrganizationService({
+      organizations: 3,
+      hasEmailProvider: false,
+    });
+
+    await service.createInvitedUser(
+      { email: 'stranger@example.com', provider: 'LOCAL' },
+      { id: 'invite-1', orgId: 'org-1', role: 'EDITOR' },
+      '127.0.0.1',
+      'agent',
+      { vouchedFor: false }
+    );
+
+    expect(repository.createInvitedUser).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      { activated: true },
+      '127.0.0.1',
+      'agent'
+    );
   });
 
   test('with the switch off a federated sign-up is usable at once', async () => {

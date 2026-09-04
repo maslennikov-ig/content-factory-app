@@ -11,10 +11,15 @@ import React, {
 } from 'react';
 import { AddEditModalProps } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
 import clsx from 'clsx';
+import { postSaveErrorMessage } from '@contentfactory/frontend/components/new-launch/post-save-error';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { PicksSocialsComponent } from '@contentfactory/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@contentfactory/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@contentfactory/frontend/components/new-launch/select.current';
+import {
+  ComposeBlockReasonNote,
+  composeBlockReason,
+} from '@contentfactory/frontend/components/new-launch/compose-block-reason';
 import { ShowAllProviders } from '@contentfactory/frontend/components/new-launch/providers/show.all.providers';
 import { AppliedVoiceLine } from '@contentfactory/frontend/components/new-launch/applied-voice.line';
 import { VoiceRibbonContainer } from '@contentfactory/frontend/components/brand-voice/voice-ribbon.container';
@@ -35,6 +40,7 @@ import { useModals } from '@contentfactory/frontend/components/layout/new-modal'
 import { capitalize } from 'lodash';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
 import { CopilotPopup } from '@copilotkit/react-ui';
+import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { DummyCodeComponent } from '@contentfactory/frontend/components/new-launch/dummy.code.component';
 import { CreationMethodBadge } from '@contentfactory/frontend/components/launches/creation.method.badge';
 import {
@@ -50,7 +56,20 @@ import dayjs from 'dayjs';
 import { Button } from '@contentfactory/react/form/button';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 
-export const ManageModal: FC<AddEditModalProps> = (props) => {
+
+/**
+ * Помощник монтируется у окна редактора поста, а не вокруг всего приложения:
+ * его провайдер обращается к рантайму сразу при монтировании, поэтому в общей
+ * оболочке это был запрос к модели на каждой загрузке любой страницы
+ * (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+ */
+export const ManageModal: FC<AddEditModalProps> = (props) => (
+  <CopilotProvider>
+    <ManageModalContent {...props} />
+  </CopilotProvider>
+);
+
+const ManageModalContent: FC<AddEditModalProps> = (props) => {
   const t = useT();
   const { language } = useVariables();
   /**
@@ -160,6 +179,32 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setHide(false);
     }
   }, [hide]);
+
+  /**
+   * Почему кнопки внизу не нажимаются, если дело не в кругах.
+   *
+   * Условия выключения ниже собраны из четырёх слагаемых, а подпись на кнопке
+   * знает только одно — что канал не выбран. Человеку, у которого пост несёт
+   * проверенный контекст, она предлагала выбрать канал, после чего кнопка
+   * оставалась мёртвой. Причина считается здесь одним выражением, чтобы
+   * надпись и запрет не могли разойтись.
+   */
+  const blockReason = useMemo(
+    () =>
+      composeBlockReason({
+        locked,
+        contentIntelligenceLoadState,
+        contentIntelligenceFailure,
+        provenanceErrorCode: contentIntelligenceProvenance?.errorCode ?? null,
+        hasProvenance: !!contentIntelligenceProvenance,
+      }),
+    [
+      locked,
+      contentIntelligenceLoadState,
+      contentIntelligenceFailure,
+      contentIntelligenceProvenance,
+    ]
+  );
 
   const currentIntegrationText = useMemo(() => {
     if (current === 'global') {
@@ -559,14 +604,24 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       }
 
       if (!dummy) {
-        addEditSets
-          ? addEditSets(data)
-          : await fetch('/posts', {
-              method: 'POST',
-              body: JSON.stringify(data),
-            });
+        if (addEditSets) {
+          addEditSets(data);
+        } else {
+          const response = await fetch('/posts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          });
 
-        if (!addEditSets) {
+          // Раньше окно закрывалось одинаково и после успеха, и после отказа:
+          // человек видел «сохранено», а черновика не было нигде
+          // (`content-factory-next-fn33.49`). Теперь неуспешный ответ
+          // оставляет окно открытым и говорит причину словами сервера.
+          if (!response.ok) {
+            toaster.show(await postSaveErrorMessage(response, t), 'warning');
+            setLoading(false);
+            return;
+          }
+
           mutate();
           toaster.show(
             !existingData.integration
@@ -780,6 +835,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             </div>
           </div>
         </div>
+        {blockReason !== 'none' && (
+          <div className="select-none px-[20px] pb-[8px] flex justify-end">
+            <ComposeBlockReasonNote reason={blockReason} t={t} />
+          </div>
+        )}
         <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center">
           <div className="flex-1 flex ps-[20px] gap-[8px]">
             {!dummy && (
@@ -881,7 +941,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     )}
                   >
                     {selectedIntegrations.length === 0
-                      ? t('check_circles_above', 'Check the circles above')
+                      ? // A button says what pressing it is for. "Check the
+                        // circles above" described the furniture instead — it
+                        // named a shape on the screen and left the reason out.
+                        t('select_channel_first', 'Pick a channel')
                       : dummy
                       ? t('create_output', 'Create output')
                       : !existingData?.integration

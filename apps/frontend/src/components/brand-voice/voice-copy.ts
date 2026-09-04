@@ -61,6 +61,21 @@ export const voiceCopy = {
       'Аватар — человек, от чьего лица пишутся тексты: кто он, как обращается к читателю, какой длины пишет и каких слов не употребляет.',
     createVoice: 'Создать аватар',
     seeExample: 'Посмотреть готовый пример',
+    // Both counts choose their own word. The character count read «21 184
+    // знаков» on the walkthrough of 04.09.2026, and the sample count carried
+    // its own copy of the rule the shared helper already holds
+    // (`content-factory-next-fn33.54`).
+    emptyCollected: (samples: number, characters: number) =>
+      `Сбор уже начат: ${samples} ${plural(samples, [
+        'образец',
+        'образца',
+        'образцов',
+      ])} · ${characters.toLocaleString('ru-RU')} ${plural(characters, [
+        'знак',
+        'знака',
+        'знаков',
+      ])}. Образцы сохранены.`,
+    emptyContinue: 'Продолжить сбор',
 
     // Screen 02 — three ways in.
     pathsTitle: 'Как соберём аватар',
@@ -253,6 +268,11 @@ export const voiceCopy = {
       'В образцах для этого поля ничего не нашлось. Впишите сами или оставьте пустым — пустое поле честнее выдуманного.',
     activate: 'Включить аватар',
     saveDraft: 'Сохранить черновик',
+    avatarNameLabel: 'Как назвать аватар',
+    avatarNameHint:
+      'Имя видно в списке аватаров и в строке «тексты пишет…». Его можно поменять позже.',
+    avatarNameRequired:
+      'Назовите аватар, чтобы его было по чему узнать в списке.',
     activationConsent:
       'Понимаю: после включения новые тексты пишутся этим аватаром. Старые публикации не меняются.',
     activatedAt: (when: string) => `Действует с ${when}`,
@@ -360,11 +380,20 @@ export const voiceCopy = {
     materialsColumnTitle: 'Название',
     materialsColumnFormat: 'Формат',
     materialsColumnPosts: 'Публикаций',
+    materialsColumnDrafts: 'Черновиков',
     materialsColumnDate: 'Дата',
     materialsReuse: 'Переиспользовать',
     materialsOrigin: 'Происхождение',
     materialsDerived: 'Сделано из этого материала',
     materialsQueued: 'В очереди',
+    materialsDraft: 'Черновик',
+    materialsNoChannel: 'канала нет',
+    materialsNoChannelNote:
+      'Площадки без подключённого канала выбрать нельзя: черновик некуда положить. Канал подключается в разделе каналов.',
+    materialsNoChannelAnywhere:
+      'Ни одного канала пока не подключено, и перекроить материал некуда: черновик не в чем открыть. Подключите канал в разделе каналов — после этого «Переиспользовать» заработает.',
+    languageRu: 'Русский',
+    languageEn: 'Английский',
     recutTitle: 'Перекроить под площадку',
     recutVoice: (version: string) => `аватар ${version}`,
     recutWhatChanges: 'Что изменится',
@@ -393,8 +422,12 @@ export const voiceCopy = {
     radarTitle: 'Радар тем',
     radarSubtitle: 'кандидаты, оценка и причина, по которой тема встала именно здесь',
     radarEmptyTitle: 'Тем пока нет',
+    // content-factory-next-fn33.55: «добавить источник» звало туда, где
+    // добавить нечего — вкладка источников убрана решением владельца
+    // (карта раздела, §3, §4). Подсказка называет два места, которые
+    // действительно есть: подписка на «Откуда идеи» и факт прямо здесь.
     radarEmptyBody:
-      'Радар берёт темы из ваших источников и фактов. Добавьте источник — кандидаты появятся здесь.',
+      'Радар берёт темы из подписок и ваших фактов. Заведите подписку на вкладке «Откуда идеи» или запомните факт ниже — кандидаты появятся здесь.',
     radarWhy: 'Почему здесь',
     radarEvidence: 'Фактов',
     radarPick: 'Взять в бриф',
@@ -409,8 +442,12 @@ export const voiceCopy = {
     // names only the link reads as a requirement the form does not have.
     briefFacts: 'Факты и чем они подкреплены',
     briefFactId: 'Id факта из памяти',
+    // content-factory-next-fn33.56: вкладки «Происхождение» в продукте нет —
+    // она стала витриной «Откуда факты» (карта раздела, §4). И брать id
+    // руками обычно не нужно: он подставляется сам, когда факт запоминают
+    // здесь же, ниже (content-factory-next-fn33.68).
     briefFactIdHint:
-      'Необязательно. Возьмите со вкладки «Происхождение» → «Факты рабочей памяти» — так бриф проверяет факт по идентификатору, а не по ссылке.',
+      'Необязательно и обычно не нужно: id подставится сам, когда вы запомните факт ниже. Готовый id можно посмотреть на вкладке «Откуда факты».',
     briefPosition: 'Ваша позиция',
     briefDisagreement: 'С чем можно не согласиться',
     briefAudience: 'Для кого',
@@ -714,6 +751,11 @@ export const voiceCopy = {
       'An avatar is the person text is written as: who they are, how they address a reader, how long they write, and which words they never use.',
     createVoice: 'Create an avatar',
     seeExample: 'See a finished example',
+    emptyCollected: (samples: number, characters: number) =>
+      `Collection is already under way: ${samples} ${
+        samples === 1 ? 'sample' : 'samples'
+      } · ${characters.toLocaleString('en-US')} characters. They are kept.`,
+    emptyContinue: 'Continue collecting',
 
     pathsTitle: 'How we will build the avatar',
     pathsStep: 'step 1 of 4 · you can change path at any point',
@@ -885,6 +927,11 @@ export const voiceCopy = {
       'Nothing was found in the samples for this field. Write it yourself or leave it empty — an empty field is honester than an invented one.',
     activate: 'Turn the avatar on',
     saveDraft: 'Save draft',
+    avatarNameLabel: 'What to call this avatar',
+    avatarNameHint:
+      'The name shows in the avatar list and in the «written by…» line. It can be changed later.',
+    avatarNameRequired:
+      'Give the avatar a name, so it can be told apart in the list.',
     activationConsent:
       'I understand: after this, new text is written as this avatar. Existing posts do not change.',
     activatedAt: (when: string) => `Active since ${when}`,
@@ -986,11 +1033,20 @@ export const voiceCopy = {
     materialsColumnTitle: 'Title',
     materialsColumnFormat: 'Format',
     materialsColumnPosts: 'Posts',
+    materialsColumnDrafts: 'Drafts',
     materialsColumnDate: 'Date',
     materialsReuse: 'Reuse',
     materialsOrigin: 'Provenance',
     materialsDerived: 'Made from this piece',
     materialsQueued: 'Queued',
+    materialsDraft: 'Draft',
+    materialsNoChannel: 'no channel',
+    materialsNoChannelNote:
+      'A platform with no connected channel cannot be chosen: there is nowhere to put the draft. Channels are connected in the channels section.',
+    materialsNoChannelAnywhere:
+      'No channel is connected yet, so there is nowhere to recut this piece to: the draft would have nothing to open in. Connect a channel in the channels section and “Reuse” starts working.',
+    languageRu: 'Russian',
+    languageEn: 'English',
     recutTitle: 'Recut for a platform',
     recutVoice: (version: string) => `avatar ${version}`,
     recutWhatChanges: 'What changes',
@@ -1016,7 +1072,7 @@ export const voiceCopy = {
     radarSubtitle: 'candidates, a score, and the reason a topic ranked where it did',
     radarEmptyTitle: 'No topics yet',
     radarEmptyBody:
-      'The radar takes topics from your sources and facts. Add a source and candidates appear here.',
+      'The radar takes topics from your subscriptions and your facts. Add a subscription on the "Where ideas come from" tab, or remember a fact below, and candidates appear here.',
     radarWhy: 'Why here',
     radarEvidence: 'Facts',
     radarPick: 'Take into a brief',
@@ -1029,7 +1085,7 @@ export const voiceCopy = {
     briefFacts: 'Facts and what backs them',
     briefFactId: 'Memory fact id',
     briefFactIdHint:
-      'Optional. Take it from the Provenance tab → "Working memory facts" — this is how the brief checks a fact by id instead of a link.',
+      'Optional, and usually unnecessary: the id fills itself in when you remember a fact below. You can also look one up on the "Where facts come from" tab.',
     briefPosition: 'Your position',
     briefDisagreement: 'What could be disagreed with',
     briefAudience: 'Who it is for',
@@ -1376,4 +1432,47 @@ export const toDisplay = (raw: number, key: StyleScaleKey): number => {
   return Math.round(
     Math.min(100, Math.max(0, ((raw - min) / (max - min)) * 100))
   );
+};
+
+/**
+ * The four platforms, named the way a person names them.
+ *
+ * The recut panel already had this mapping and kept it to itself, so the
+ * archive filter, the archive row and the «Занести текст» form went on
+ * printing `site`, `telegram`, `vk`, `newsletter`
+ * (`content-factory-next-fn33.83`). One dictionary, called from all four
+ * places — a second copy is how «ВКонтакте» and «vk» end up naming the same
+ * platform on two screens of one section.
+ *
+ * An unknown value comes back unchanged rather than as a blank: a code nobody
+ * translated is at least something a person can report.
+ */
+export {
+  RECUT_PLATFORMS,
+  isRecutPlatform,
+} from '@contentfactory/nestjs-libraries/content-intelligence/materials/material-presentation';
+
+import { isRecutPlatform } from '@contentfactory/nestjs-libraries/content-intelligence/materials/material-presentation';
+import type { RecutPlatform } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/recut';
+
+export const platformLabel = (platform: string, locale: VoiceLocale): string => {
+  const t = voiceCopy[locale];
+  const names: Record<RecutPlatform, string> = {
+    site: t.platformSite,
+    telegram: t.platformTelegram,
+    vk: t.platformVk,
+    newsletter: t.platformNewsletter,
+  };
+  return isRecutPlatform(platform) ? names[platform] : platform;
+};
+
+/** The two content languages, for the same reason and from the same place. */
+export const contentLanguageLabel = (
+  language: string,
+  locale: VoiceLocale
+): string => {
+  const t = voiceCopy[locale];
+  if (language === 'ru') return t.languageRu;
+  if (language === 'en') return t.languageEn;
+  return language;
 };

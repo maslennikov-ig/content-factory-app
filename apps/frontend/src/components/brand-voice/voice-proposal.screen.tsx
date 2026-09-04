@@ -4,6 +4,7 @@ import { useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
@@ -114,6 +115,7 @@ export function VoiceProposalScreen({
   fields,
   observations,
   profileLabel,
+  avatarName = '',
   consentGiven = false,
   activatedAt,
   onAccept,
@@ -123,6 +125,7 @@ export function VoiceProposalScreen({
   onEditPortrait,
   onSavePortrait,
   onConsentChange,
+  onAvatarNameChange,
   onActivate,
   onSaveDraft,
   notice,
@@ -140,6 +143,15 @@ export function VoiceProposalScreen({
   fields: readonly ProposalField[];
   observations: readonly ProposalObservation[];
   profileLabel?: string;
+  /**
+   * What this avatar will be called.
+   *
+   * Asked here because this is where it starts writing. Nobody was asked
+   * before, so a hand-filled avatar landed in the list as «Без имени» and the
+   * list told its owner «тексты пишет Без имени»
+   * (`content-factory-next-fn33.46`).
+   */
+  avatarName?: string;
   consentGiven?: boolean;
   activatedAt?: string;
   onAccept?: (key: ProposalFieldKey) => void;
@@ -149,6 +161,7 @@ export function VoiceProposalScreen({
   onEditPortrait?: () => void;
   onSavePortrait?: (text: string) => void;
   onConsentChange?: (checked: boolean) => void;
+  onAvatarNameChange?: (value: string) => void;
   onActivate?: () => void;
   onSaveDraft?: () => void;
   notice?: string;
@@ -157,6 +170,7 @@ export function VoiceProposalScreen({
   const busy = state === 'loading';
   const readOnly = state === 'restricted';
   const manual = mode === 'manual';
+  const named = avatarName.trim().length > 0;
   const accepted = fields.filter((one) => one.status === 'ACCEPTED').length;
   const allAccepted = fields.length > 0 && accepted === fields.length;
 
@@ -535,6 +549,19 @@ export function VoiceProposalScreen({
 
       {readOnly ? null : (
         <div className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+          <div className="flex min-w-0 flex-col gap-[4px]">
+            <Input
+              disableForm
+              label={t.avatarNameLabel}
+              name="voice-avatar-name"
+              value={avatarName}
+              disabled={state === 'disabled'}
+              onChange={(event) => onAvatarNameChange?.(event.target.value)}
+            />
+            <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              {named ? t.avatarNameHint : t.avatarNameRequired}
+            </p>
+          </div>
           <CheckboxField
             checked={consentGiven}
             disabled={state === 'disabled'}
@@ -551,7 +578,9 @@ export function VoiceProposalScreen({
               variant="primary"
               // Activation waits on two things: every field decided, and the
               // sentence above read. Neither is implied by saving a field.
-              disabled={!consentGiven || !allAccepted || state === 'disabled'}
+              disabled={
+                !consentGiven || !allAccepted || !named || state === 'disabled'
+              }
               onClick={onActivate}
             >
               {t.activate}

@@ -391,6 +391,50 @@ describe('settings navigation follows the role matrix', () => {
     expect(globalSettings).toMatch(/isAdmin && <AiProviderComponent \/>/);
   });
 
+  /**
+   * The tab names the document uses, in the same words a person reads on the
+   * screen. Square brackets are the document's own mark for a tab only an
+   * administrator sees.
+   */
+  const TAB_NAMES = {
+    profile: 'Профиль',
+    global_settings: 'Глобальные настройки',
+    sign_in_methods: 'Способы входа',
+    content_intelligence: '«Знания о контенте»',
+    teams: '[Команды]',
+    webhooks: 'Вебхуки',
+    autopost: 'Автопостинг',
+    sets: 'Наборы',
+    signatures: 'Подписи',
+    api: '[Разработчики]',
+    approved_apps: 'Одобренные приложения',
+    onboarding: '«С чего начать»',
+    about: '«О проекте»',
+  };
+
+  test('the order the document promises is the order the screen builds', () => {
+    // `content-factory-next-fn33.106`: the document put «Разработчики» last
+    // and the screen puts them between «Подписи» and «Одобренные приложения».
+    // A written order that nobody checks drifts from the screen it describes,
+    // and the person following the document looks for a tab where it is not.
+    const codeOrder = [...settings.matchAll(/arr\.push\(\{\s*tab: '([a-z_]+)'/g)].map(
+      (match) => match[1]
+    );
+    expect(codeOrder.length).toBeGreaterThan(5);
+    for (const tab of codeOrder) {
+      expect(Object.keys(TAB_NAMES)).toContain(tab);
+    }
+
+    const written = matrix.match(/Порядок вкладок на экране: ([^—]+)—/u);
+    expect(written).not.toBeNull();
+    const documented = written[1]
+      .replace(/\s+/gu, ' ')
+      .trim()
+      .split(', ');
+
+    expect(documented).toEqual(codeOrder.map((tab) => TAB_NAMES[tab]));
+  });
+
   test('a member opening an administrator tab from the address bar gets an in-page restriction', () => {
     expect(settings).toContain("const requestedTab = url.get('tab');");
     expect(settings).toContain('requestedTab ?? initialSettingsTab(url)');

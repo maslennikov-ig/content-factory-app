@@ -78,6 +78,22 @@ export function VoiceBriefContainer() {
   const [verdict, setVerdict] = useState<BriefReading | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
   const [failure, setFailure] = useState<BriefFailure | null>(null);
+  /**
+   * The refusal «Создать черновик» gets, kept apart from the shared one
+   * (content-factory-next-fn33.69) so it can be printed beside the button
+   * that earned it instead of at the top of the panel.
+   *
+   * `noChannel` is read off the error the server sent rather than off the
+   * parsed failure: `BRIEF_CHANNEL_UNKNOWN` is a code from
+   * `content-brief.errors.ts` and not one of `VOICE_ERROR_CODES`, so
+   * `readFailure` drops it to `null` on the way through. Teaching that
+   * shared table a brief-only code is a change to a contract two other
+   * surfaces read; this is one screen deciding what to offer next.
+   */
+  const [draftFailure, setDraftFailure] = useState<{
+    message: string;
+    noChannel: boolean;
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [opened, setOpened] = useState(false);
@@ -99,13 +115,26 @@ export function VoiceBriefContainer() {
    * says nothing at all.
    */
   const run = useCallback(
-    async (fallback: string, work: () => Promise<void>) => {
+    async (
+      fallback: string,
+      work: () => Promise<void>,
+      /**
+       * Where this action's refusal lands, when the shared place at the top
+       * of the panel is the wrong one (content-factory-next-fn33.69).
+       * Given a sink, the refusal goes there and nowhere else — printing it
+       * in both places would be the same sentence twice.
+       */
+      sink?: (failure: BriefFailure, error: unknown) => void
+    ) => {
       setBusy(true);
       setFailure(null);
+      setDraftFailure(null);
       try {
         await work();
       } catch (error) {
-        setFailure(readFailure(error, fallback));
+        const failure = readFailure(error, fallback);
+        if (sink) sink(failure, error);
+        else setFailure(failure);
       } finally {
         setBusy(false);
       }
@@ -192,7 +221,13 @@ export function VoiceBriefContainer() {
         });
         setOpened(true);
         setNotice(w.draftOpened);
-      }),
+      }, (failure, error) =>
+        setDraftFailure({
+          message: failureNotice(failure),
+          noChannel:
+            (error as { code?: unknown } | null)?.code ===
+            'BRIEF_CHANNEL_UNKNOWN',
+        })),
     [channels, draft, locale, modal, radar, read, run, shown, w.draftFailure, w.draftOpened]
   );
 
@@ -319,6 +354,22 @@ export function VoiceBriefContainer() {
         }
         onPick={pickTopic}
         onCreateDraft={() => void createDraft()}
+        /*
+          content-factory-next-fn33.69: the answer to the press, printed by
+          the press. A workspace with no channel is not a broken brief — it
+          is one missing step, and the sentence says where that step is
+          taken instead of leaving a person to guess.
+        */
+        draftNotice={
+          draftFailure
+            ? {
+                message: draftFailure.message,
+                ...(draftFailure.noChannel
+                  ? { href: '/launches', action: w.draftNoChannelAction }
+                  : {}),
+              }
+            : undefined
+        }
       />
 
       <form

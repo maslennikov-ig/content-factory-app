@@ -228,7 +228,18 @@ function makeDatabase({
       const operation = normalized[relation];
       if (!operation) continue;
       if (operation.disconnect) {
-        normalized[scalar] = null;
+        // What the database actually does, and the fixture used to be kinder
+        // than it: both provenance relations are composite —
+        // `@relation(fields: [organizationId, <scalar>])` — so a `disconnect`
+        // nulls *every* field of the relation, the post's own required
+        // `organizationId` among them. PostgreSQL answers P2011 and the save
+        // dies (`content-factory-next-fn33.88`). Clearing the foreign key is
+        // a scalar write, not a disconnect.
+        const error = new Error(
+          'Null constraint violation on the fields: (`organizationId`)'
+        );
+        error.code = 'P2011';
+        throw error;
       } else {
         const key = operation.connect?.organizationId_id;
         if (key?.organizationId !== 'org-a' || typeof key?.id !== 'string') {
@@ -277,6 +288,7 @@ function makeDatabase({
           (post) =>
             (!where.organizationId ||
               post.organizationId === where.organizationId) &&
+            (!where.id || post.id === where.id) &&
             (!where.group || post.group === where.group) &&
             (where.deletedAt === undefined ||
               post.deletedAt === where.deletedAt)
@@ -284,15 +296,21 @@ function makeDatabase({
         for (const post of matches) Object.assign(post, data);
         return { count: matches.length };
       },
+      // Kept as general as Prisma is: the ownership check now looks posts up
+      // by id alone, so a fixture that insisted on `where.organizationId`
+      // would answer "nothing found" to the one query that has to see across
+      // tenants.
       findMany: async ({ where }) =>
         state.posts
           .filter(
             (post) =>
-              post.organizationId === where.organizationId &&
-              where.id.in.includes(post.id) &&
-              post.deletedAt === null
+              (where.organizationId === undefined ||
+                post.organizationId === where.organizationId) &&
+              (where.id?.in === undefined || where.id.in.includes(post.id)) &&
+              (where.deletedAt === undefined ||
+                post.deletedAt === where.deletedAt)
           )
-          .map(({ id }) => ({ id })),
+          .map((post) => ({ ...post })),
       findFirst: async ({ where }) => {
         const post = state.posts.find(
           (item) =>
@@ -758,6 +776,96 @@ test('foreign post id and replacement group fail before any tenant write', async
       true
     );
   }
+});
+
+test('a client-minted post id and group create the post instead of a 404', async () => {
+  // `content-factory-next-fn33.49`: the composer generates `value[].id` and
+  // `group` before anything is saved, so the first save of a new post carries
+  // ids nothing holds yet. Reading them as "an existing post to update" made
+  // every new post fail with POST_NOT_FOUND.
+  const database = makeDatabase();
+  const result = await repositoryFor(database).createOrUpdatePost(
+    'draft',
+    'org-a',
+    '2026-09-04T11:40:00.000Z',
+    body({
+      contentContextSnapshotId: undefined,
+      brandProfileVersionId: undefined,
+      usedCitationIds: undefined,
+      group: 'utVLUeBV7d',
+      value: [
+        { content: 'First draft', delay: 0, image: [], id: 'xumBniSw3J' },
+      ],
+    }),
+    [],
+    'WEB'
+  );
+
+  assert.equal(result.posts.length, 1);
+  assert.equal(result.posts[0].id, 'xumBniSw3J');
+  assert.equal(database.initial.posts.length, 1);
+  assert.equal(database.initial.posts[0].organizationId, 'org-a');
+  assert.equal(database.initial.posts[0].deletedAt, undefined);
+});
+
+test('editing a draft that has no verified context saves the edit', async () => {
+  // `content-factory-next-fn33.88`: the ordinary case. A post with no
+  // provenance is saved again, and the update branch used to answer that by
+  // disconnecting both provenance relations — which are composite and carry
+  // the post's own required `organizationId`.
+  const database = makeDatabase({ existingPostOrganizationId: 'org-a' });
+
+  const result = await repositoryFor(database).createOrUpdatePost(
+    'draft',
+    'org-a',
+    '2026-09-04T11:40:00.000Z',
+    body({
+      contentContextSnapshotId: undefined,
+      brandProfileVersionId: undefined,
+      usedCitationIds: undefined,
+      value: [
+        {
+          content: 'Правка участника.',
+          delay: 0,
+          image: [],
+          id: 'existing-post',
+        },
+      ],
+    }),
+    [],
+    'WEB'
+  );
+
+  assert.equal(result.posts[0].id, 'existing-post');
+  assert.equal(database.initial.posts.length, 1);
+  assert.equal(database.initial.posts[0].content, 'Правка участника.');
+  assert.equal(database.initial.posts[0].organizationId, 'org-a');
+  assert.equal(database.initial.posts[0].contentContextSnapshotId, null);
+  assert.equal(database.initial.posts[0].brandProfileVersionId, null);
+});
+
+test('an id deleted inside this organization is still refused', async () => {
+  const database = makeDatabase({ existingPostOrganizationId: 'org-a' });
+  database.initial.posts[0].deletedAt = new Date();
+
+  await assert.rejects(
+    repositoryFor(database).createOrUpdatePost(
+      'update',
+      'org-a',
+      '2026-09-04T11:40:00.000Z',
+      body({
+        contentContextSnapshotId: undefined,
+        brandProfileVersionId: undefined,
+        usedCitationIds: undefined,
+        value: [
+          { content: 'Resurrect', delay: 0, image: [], id: 'existing-post' },
+        ],
+      }),
+      [],
+      'WEB'
+    ),
+    (error) => error.code === 'POST_NOT_FOUND' && error.status === 404
+  );
 });
 
 const postgresUrl = process.env.POST_CONTENT_CONTEXT_POSTGRES_URL;

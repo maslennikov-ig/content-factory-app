@@ -17,6 +17,10 @@ import { FarcasterProvider } from '@contentfactory/frontend/components/auth/prov
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
+import {
+  parseRequestFailure,
+  useRequestErrorMessage,
+} from '@contentfactory/frontend/components/auth/form.errors';
 
 type Inputs = {
   email: string;
@@ -49,6 +53,7 @@ export function Login() {
     },
   });
   const fetchData = useFetch();
+  const requestErrorMessage = useRequestErrorMessage();
 
   // Only offer a federated route the deployment has actually configured.
   const providers = useMemo(() => {
@@ -86,15 +91,30 @@ export function Login() {
         provider: 'LOCAL',
       }),
     });
-    if (login.status === 400) {
-      const errorMessage = await login.text();
-      if (errorMessage === 'User is awaiting approval') {
+    if (!login.ok) {
+      /*
+        `content-factory-next-fn33.43`: a refusal used to be printed exactly as
+        the server wrote it, so a page otherwise entirely in Russian answered
+        «Invalid user name or password». Every reason arrives with status 400
+        and a bare English sentence in the body, so the shared helper turns the
+        answer into one translated line and the raw text goes to the console.
+
+        The two account states below are matched on that same English sentence,
+        because there is nothing else to match on: `inactiveReason()` in the
+        auth service distinguishes them by text alone. They are not messages
+        for the screen — each one selects a panel with its own translated copy
+        and its own way onward — so a change on the server costs a fallback
+        sentence here, not an English one.
+      */
+      const failure = await parseRequestFailure(login);
+      console.error('Sign-in refused', failure.status, failure.raw);
+      if (failure.raw.trim() === 'User is awaiting approval') {
         setAwaitingApproval(true);
-      } else if (errorMessage === 'User is not activated') {
+      } else if (failure.raw.trim() === 'User is not activated') {
         setNotActivated(true);
       } else {
         form.setError('email', {
-          message: errorMessage,
+          message: requestErrorMessage(failure),
         });
       }
       setLoading(false);
@@ -127,7 +147,9 @@ export function Login() {
           </div>
         )}
 
-        <div className="flex flex-col">
+        {/* `content-factory-next-fn33.44`: a refusal under the address used to
+            run straight into the password label below it. */}
+        <div className="flex flex-col gap-[12px]">
           <Input
             label="Email"
             translationKey="label_email"

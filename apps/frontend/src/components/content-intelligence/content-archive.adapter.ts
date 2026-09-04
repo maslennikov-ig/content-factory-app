@@ -83,6 +83,8 @@ export type ArchiveRow = Readonly<{
   format: string;
   postCount: number;
   queuedCount: number;
+  /** Versions that exist as drafts — what a recut makes. */
+  draftCount: number;
   date: string;
   voiceVersion: string | null;
   layer: ArchiveLayer;
@@ -111,6 +113,7 @@ const readRow = (value: unknown): ArchiveRow => {
     format: asText(row.format),
     postCount: asNumber(row.postCount, 0),
     queuedCount: asNumber(row.queuedCount, 0),
+    draftCount: asNumber(row.draftCount, 0),
     date: asText(row.date),
     voiceVersion: asNullableText(row.voiceVersion),
     layer: oneOf(row.layer, ARCHIVE_LAYERS, 'MADE_HERE'),

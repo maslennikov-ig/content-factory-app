@@ -42,6 +42,7 @@ const nest = {
   Controller: () => (target) => target,
   Get: () => () => undefined,
   Post: () => () => undefined,
+  Put: () => () => undefined,
   Delete: () => () => undefined,
   Body: () => () => undefined,
   Param: () => () => undefined,
@@ -73,7 +74,7 @@ const prisma = {
     GENERIC: 'GENERIC',
     TELEGRAM: 'TELEGRAM',
   },
-  Role: { SUPERADMIN: 'SUPERADMIN' },
+  Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
 };
 
 /**

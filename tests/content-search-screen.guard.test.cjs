@@ -84,7 +84,17 @@ const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+// `content-factory-next-fn33.65`: the shared request helper hands the common
+// refusal handler a copy of the response, so a fake answer has to be
+// clonable the way a real `Response` is.
+const ok = (body) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+  clone() {
+    return this;
+  },
+});
 
 let calls = [];
 

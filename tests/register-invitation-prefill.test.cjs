@@ -59,10 +59,16 @@ const PUBLIC_ORIGIN = 'https://example.test';
 let searchParams = new URLSearchParams();
 let previewBody = {};
 let previewOk = true;
+let previewStatus = 410;
+let registerBody = { register: true };
 const fetchCalls = [];
 
 const appFetch = jest.fn(async (url, options) => {
-  fetchCalls.push({ url, method: options?.method || 'GET' });
+  fetchCalls.push({
+    url,
+    method: options?.method || 'GET',
+    body: options?.body ? JSON.parse(options.body) : undefined,
+  });
   // The door open without a session. `/user/join-org` is behind
   // `AuthMiddleware` and answers this page Forbidden, so a request there would
   // be the defect, not the feature — anything else falls through to the
@@ -70,15 +76,26 @@ const appFetch = jest.fn(async (url, options) => {
   if (String(url).startsWith('/auth/join-org')) {
     return {
       ok: previewOk,
-      status: previewOk ? 200 : 410,
+      status: previewOk ? 200 : previewStatus,
       headers: new Headers(),
       json: async () => previewBody,
     };
   }
-  return { ok: true, status: 200, headers: new Headers() };
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () => registerBody,
+  };
 });
 
+const routerPush = jest.fn();
+
+const { formErrorsMock } = require('./helpers/form-errors-mock.cjs');
+
 const mocks = {
+  // The shared refusal helper is `.ts`, which this loader cannot compile.
+  '@contentfactory/frontend/components/auth/form.errors': formErrorsMock,
   '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => appFetch },
   '@contentfactory/react/form/button': {
     Button: ({ loading, children, ...props }) =>
@@ -159,10 +176,16 @@ const mocks = {
     }) => h('label', {}, label, h('input', { 'aria-label': label, ...props })),
   },
   '@contentfactory/react/translation/get.transation.service.client': {
-    useT: () => (_key, fallback) => fallback,
+    // The real `t` interpolates `{{name}}` from the third argument, and the
+    // invited heading is built out of one. A mock that returned the raw
+    // fallback would pass on a page printing braces at the person.
+    useT: () => (_key, fallback, params) =>
+      String(fallback).replace(/\{\{(\w+)\}\}/g, (whole, name) =>
+        params && name in params ? String(params[name]) : whole
+      ),
   },
   'next/navigation': {
-    useRouter: () => ({ push: jest.fn() }),
+    useRouter: () => ({ push: routerPush }),
     useSearchParams: () => searchParams,
   },
   'next/link': ({ href, children, ...props }) =>
@@ -203,12 +226,52 @@ const returnUrlFor = (token) =>
   `${PUBLIC_ORIGIN}/join-org?org=${encodeURIComponent(token)}`;
 const emailField = () => screen.getByRole('textbox', { name: 'Email' });
 
+// Leaving through the browser rather than the router is the fix for
+// `content-factory-next-fn33.18` and `content-factory-next-fn33.26` alike, so
+// the test has to be able to see it happen.
+// jsdom refuses to have `location` replaced or `assign` redefined on it, and
+// its own `assign` does nothing but log «not implemented». The component
+// reaches the object through the global `window`, so that is what is stood in
+// for — everything except `location` still comes from the real one, which is
+// what `@testing-library` and React are holding.
+const assign = jest.fn();
+const locationStub = {
+  assign,
+  replace: () => undefined,
+  reload: () => undefined,
+  href: dom.window.location.href,
+  origin: dom.window.location.origin,
+  protocol: dom.window.location.protocol,
+  host: dom.window.location.host,
+  hostname: dom.window.location.hostname,
+  pathname: dom.window.location.pathname,
+  search: dom.window.location.search,
+  hash: dom.window.location.hash,
+  toString: () => dom.window.location.href,
+};
+Object.defineProperty(global, 'window', {
+  configurable: true,
+  value: new Proxy(dom.window, {
+    get: (target, key) => {
+      if (key === 'location') return locationStub;
+      const value = Reflect.get(target, key, target);
+      return typeof value === 'function' && !value.prototype
+        ? value.bind(target)
+        : value;
+    },
+  }),
+});
+
 beforeEach(() => {
   searchParams = new URLSearchParams();
   previewBody = {};
   previewOk = true;
+  previewStatus = 410;
+  registerBody = { register: true };
   fetchCalls.length = 0;
   appFetch.mockClear();
+  assign.mockClear();
+  routerPush.mockClear();
   window.localStorage.clear();
 });
 
@@ -308,5 +371,196 @@ describe('registration form prefilled from an invitation', () => {
     expect(
       screen.getByRole('button', { name: 'Create Account' })
     ).toBeDefined();
+  });
+});
+
+
+/**
+ * `content-factory-next-fn33.18`: the form an invited person actually sees.
+ *
+ * The owner registered through an invitation on 04.09.2026 and got the plain
+ * sign-up form: the invited address filled in but editable, a «Workspace
+ * name» field for a workspace that would never be theirs, and no sign of who
+ * had invited them or where. Everything below is that page, corrected.
+ */
+describe('the registration form of an invited person', () => {
+  const inviteHeading = () => screen.getByRole('heading', { level: 1 });
+
+  const renderInvited = async (preview) => {
+    searchParams = new URLSearchParams({ returnUrl: returnUrlFor(inviteToken) });
+    previewBody = preview;
+    render(h(RegisterAfter, { token: '', provider: 'LOCAL' }));
+    await waitFor(() =>
+      expect(inviteHeading().textContent).toContain('Studio')
+    );
+  };
+
+  test('names the workspace instead of offering to found one', async () => {
+    await renderInvited({
+      workspaceName: 'Studio',
+      boundEmail: 'invited@example.com',
+    });
+
+    expect(inviteHeading().textContent).toBe('You were invited to “Studio”');
+    expect(
+      screen.queryByRole('textbox', { name: /Workspace name/ })
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Create password and join' })
+    ).toBeDefined();
+  });
+
+  test('closes the address the invitation was sent to', async () => {
+    await renderInvited({
+      workspaceName: 'Studio',
+      boundEmail: 'invited@example.com',
+    });
+
+    const email = emailField();
+    expect(email.value).toBe('invited@example.com');
+    expect(email.readOnly).toBe(true);
+    // Not `disabled`: react-hook-form drops a disabled field from the
+    // submitted values, and this address is the whole point of the request.
+    expect(email.disabled).toBe(false);
+  });
+
+  test('names the inviter when the preview says who it was', async () => {
+    await renderInvited({
+      workspaceName: 'Studio',
+      boundEmail: 'invited@example.com',
+      inviterName: 'Ada',
+      inviterEmail: 'ada@example.com',
+    });
+
+    expect(screen.getByText('Invited by Ada · ada@example.com')).toBeDefined();
+  });
+
+  test('says nothing about an inviter the preview withheld', async () => {
+    await renderInvited({
+      workspaceName: 'Studio',
+      boundEmail: 'invited@example.com',
+    });
+
+    expect(screen.queryByText(/Invited by/)).toBeNull();
+  });
+
+  test('carries the invitation into the registration and lands inside it', async () => {
+    registerBody = {
+      register: true,
+      invitation: { organizationId: 'org-1', workspaceName: 'Studio', role: 'EDITOR' },
+    };
+    await renderInvited({
+      workspaceName: 'Studio',
+      boundEmail: 'invited@example.com',
+    });
+
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'Passw0rd!' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create password and join' })
+    );
+
+    // `content-factory-next-fn33.37`: it used to land on `/`, and the proxy
+    // sent it straight back to the invitation page with the token it had just
+    // spent — a red «Invitation unavailable» as the first thing a new member
+    // saw. It goes to that page deliberately now, flagged as already accepted,
+    // so the proxy can clear its own pending-invitation cookie on the way.
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    const landing = new URL(assign.mock.calls[0][0], 'http://localhost');
+    expect(landing.pathname).toBe('/join-org');
+    expect(landing.searchParams.get('org')).toBe(inviteToken);
+    expect(landing.searchParams.get('joined')).toBe('1');
+    const registration = fetchCalls.find((call) => call.method === 'POST');
+    expect(registration.url).toBe('/auth/register');
+    expect(registration.body.invitationToken).toBe(inviteToken);
+    expect(registration.body.workspaceName).toBeUndefined();
+    // The invited path ends signed in; the sign-in page is for everyone else.
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  test('an ordinary registration still leaves through the router', async () => {
+    render(h(RegisterAfter, { token: '', provider: 'LOCAL' }));
+
+    fireEvent.change(emailField(), { target: { value: 'me@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'Passw0rd!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/auth/login'));
+    expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `content-factory-next-fn33.29`: a link that no longer works says so.
+ *
+ * The owner opened an invitation he had already accepted, in another browser,
+ * and got the plain form — no address, no explanation, no mention that the
+ * link in the address bar had meant something. The form stays plain, because
+ * registering is still available to this person; what it owes them is the
+ * reason the rest of it is missing.
+ */
+describe('a registration form reached by a dead invitation link', () => {
+  const renderWithDeadLink = async (code) => {
+    searchParams = new URLSearchParams({ returnUrl: returnUrlFor(inviteToken) });
+    previewOk = false;
+    previewStatus = 410;
+    previewBody = { message: 'no', code };
+    render(h(RegisterAfter, { token: '', provider: 'LOCAL' }));
+    await waitFor(() => expect(appFetch).toHaveBeenCalledTimes(1));
+  };
+
+  test('says the invitation was already used, and stays a registration form', async () => {
+    await renderWithDeadLink('invite_used');
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/That invitation link has already been used/)
+      ).toBeDefined()
+    );
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'Sign Up'
+    );
+    expect(
+      screen.getByRole('button', { name: 'Create Account' })
+    ).toBeDefined();
+    expect(emailField().readOnly).toBe(false);
+  });
+
+  test('says the invitation expired when that is what happened', async () => {
+    await renderWithDeadLink('invite_invalid');
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/That invitation link has expired/)
+      ).toBeDefined()
+    );
+  });
+
+  test('does not carry a dead token into the registration', async () => {
+    await renderWithDeadLink('invite_used');
+
+    fireEvent.change(emailField(), { target: { value: 'me@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'Passw0rd!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/auth/login'));
+    const registration = fetchCalls.find((call) => call.method === 'POST');
+    expect(registration.body.invitationToken).toBeUndefined();
+  });
+
+  test('a door that answers something else explains nothing', async () => {
+    searchParams = new URLSearchParams({ returnUrl: returnUrlFor(inviteToken) });
+    previewOk = false;
+    previewStatus = 502;
+    previewBody = {};
+    render(h(RegisterAfter, { token: '', provider: 'LOCAL' }));
+
+    await waitFor(() => expect(appFetch).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/That invitation link/)).toBeNull();
   });
 });

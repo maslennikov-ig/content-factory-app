@@ -65,7 +65,12 @@ export class OrganizationRepository {
         },
         users: {
           create: {
-            role: Role.SUPERADMIN,
+            // `content-factory-next-fn33.19`: the person a workspace is
+            // created for is its `ADMIN`. `Role.SUPERADMIN` is not handed out
+            // any more — the instance operator is the `User.isSuperAdmin`
+            // flag, and two different rights sharing one name is what made
+            // the team screen call a workspace owner «Super administrator».
+            role: Role.ADMIN,
             user: {
               create: {
                 activated,
@@ -242,6 +247,12 @@ export class OrganizationRepository {
           },
         },
       },
+      // `content-factory-next-fn33.34`: without an order the database is free
+      // to return the rows in any order it likes, and the first of them is
+      // what `auth.middleware` opens for somebody who has no `showorg`
+      // cookie. Oldest first, with the id to break ties, so the same person
+      // lands in the same workspace on every fresh sign-in.
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
   }
 
@@ -353,6 +364,231 @@ export class OrganizationRepository {
     });
   }
 
+  /**
+   * `content-factory-next-fn33.18`: registration that answers an invitation.
+   *
+   * Someone who arrives through an invitation link is not founding anything.
+   * Until now registration always created a workspace first and offered the
+   * invitation afterwards, so an invited person ended up with two: an empty
+   * one of their own and the one they were actually asked to join. This
+   * writes only what the invitation describes — the account and its
+   * membership — in one statement, so a failure leaves neither behind.
+   *
+   * Whether the account is `activated` is decided by the caller and handed in,
+   * because the answer depends on which kind of invitation this is.
+   * `OrganizationService.createInvitedUser` holds the rule: a link an
+   * administrator addressed to one person vouches for that person and stands
+   * in for the instance approval, while an open link — one copied out of the
+   * product and passable to anyone — vouches for nobody and leaves the
+   * instance's own rule in charge. `isSuperAdmin` stays false either way;
+   * nothing about being invited makes anyone an operator of the instance.
+   *
+   * `inviteId` is written on the user for the same reason `addUserToOrg`
+   * writes it: it is the mark that this particular invitation has been
+   * answered, and the check below is what stops one signed link from
+   * producing two accounts if two requests race.
+   */
+  async createInvitedUser(
+    body: Omit<CreateOrgUserDto, 'providerToken'> & {
+      providerId?: string;
+      newsletterConsent?: boolean;
+    },
+    invitation: { id: string; orgId: string; role: AssignableOrganizationRole },
+    access: { activated: boolean },
+    ip: string,
+    userAgent: string
+  ) {
+    const locale = resolveBackendLocale(
+      (body as { language?: unknown }).language
+    );
+    const consentedAt = body.newsletterConsent ? new Date() : null;
+    const consent = consentedAt
+      ? {
+          newsletterConsentAt: consentedAt,
+          newsletterConsentSource: NEWSLETTER_CONSENT_SOURCE_REGISTRATION,
+          newsletterDeliveryPendingAt: consentedAt,
+        }
+      : {};
+
+    const membership = await this._transaction.model.$transaction(
+      async (tx) => {
+        const answered = await tx.user.findFirst({
+          where: { inviteId: invitation.id },
+          select: { id: true },
+        });
+        if (answered) {
+          return false as const;
+        }
+
+        const organization = await tx.organization.findFirst({
+          where: { id: invitation.orgId },
+          select: { id: true },
+        });
+        if (!organization) {
+          return false as const;
+        }
+
+        return tx.userOrganization.create({
+          data: {
+            role: invitation.role,
+            organization: { connect: { id: invitation.orgId } },
+            user: {
+              create: {
+                activated: access.activated,
+                isSuperAdmin: false,
+                inviteId: invitation.id,
+                email: body.email,
+                password: body.password
+                  ? AuthService.hashPassword(body.password)
+                  : '',
+                providerName: body.provider,
+                providerId: body.providerId || '',
+                timezone: 0,
+                language: locale,
+                ip,
+                agent: userAgent,
+                identities: {
+                  create: {
+                    provider: body.provider,
+                    providerIdentifier: normalizeIdentityIdentifier(
+                      body.provider,
+                      body.provider === 'LOCAL'
+                        ? body.email
+                        : body.providerId || ''
+                    ),
+                  },
+                },
+                ...consent,
+              },
+            },
+          },
+          select: {
+            id: true,
+            role: true,
+            organizationId: true,
+            user: true,
+          },
+        });
+      }
+    );
+
+    if (!membership) {
+      return false as const;
+    }
+
+    // Outside the transaction, for the reason `createOrgAndUser` spells out:
+    // the analytics table can legitimately be missing right after a deploy,
+    // and inside the transaction that turned a registration into a 500.
+    try {
+      await (this._organization.model as any).productEvent.create({
+        data: {
+          name: 'register',
+          properties: { invited: true },
+          deduplicationKey: `register:${membership.user.id}`,
+          organizationId: invitation.orgId,
+          userId: membership.user.id,
+        },
+      });
+    } catch (error) {
+      this._logger.error(
+        `Failed to record register for invited user ${membership.user.id}`,
+        error
+      );
+    }
+
+    return membership;
+  }
+
+  /**
+   * Everything a new workspace is, apart from who is in it: the name, the key,
+   * the trial flags, the AI provider row and the content-workflow tags named
+   * in the reader's language.
+   *
+   * Registration and `content-factory-next-fn33.36` (a second workspace for an
+   * account that already exists) both go through here, so the two doors cannot
+   * drift into producing different workspaces.
+   */
+  private newOrganizationData(
+    id: string,
+    name: string | undefined,
+    language: unknown
+  ) {
+    // Unknown, empty or unshipped values fall back to English rather than
+    // rejecting the request; see `resolveBackendLocale`.
+    const locale = resolveBackendLocale(language);
+    return {
+      id,
+      name: (typeof name === 'string' && name.trim()) || 'Workspace',
+      apiKey: AuthService.fixedEncryption(makeId(20)),
+      allowTrial: true,
+      isTrailing: true,
+      aiProvider: {
+        create: { usageMode: 'included' as const },
+      },
+      // There is no starter-template choice on the registration form any more:
+      // every new workspace gets the content-workflow tags, unconditionally,
+      // named in the language the person was reading at the time.
+      tags: {
+        create: CONTENT_WORKFLOW_TAGS.map(({ color }, index) => ({
+          name: translateBackendString(CONTENT_WORKFLOW_TAG_KEYS[index], locale),
+          color,
+        })),
+      },
+    };
+  }
+
+  /**
+   * `content-factory-next-fn33.36`: a second workspace for somebody who
+   * already has an account.
+   *
+   * The account itself is not touched — `activated` in particular stays as the
+   * approval flow left it — and the person who asked becomes the `ADMIN` of
+   * what they created, the same rank registration grants.
+   */
+  async createOrgForUser(
+    userId: string,
+    name: string | undefined,
+    language: unknown
+  ) {
+    const organizationId = randomUUID();
+    const organization = await this._organization.model.organization.create({
+      data: {
+        ...this.newOrganizationData(organizationId, name, language),
+        users: {
+          create: {
+            role: Role.ADMIN,
+            user: { connect: { id: userId } },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    // Analytics never blocks the workspace it describes; see `createOrgAndUser`
+    // for why this table can be missing right after a deploy.
+    try {
+      await (this._organization.model as any).productEvent.create({
+        data: {
+          name: 'create_organization',
+          properties: {},
+          deduplicationKey: `create_organization:${organizationId}`,
+          organizationId,
+          userId,
+        },
+      });
+    } catch (error) {
+      this._logger.error(
+        `Failed to record create_organization for organization ${organizationId}`,
+        error
+      );
+    }
+
+    return organization;
+  }
+
   async createOrgAndUser(
     body: Omit<CreateOrgUserDto, 'providerToken'> & {
       providerId?: string;
@@ -369,29 +605,11 @@ export class OrganizationRepository {
   ) {
     const organizationId = randomUUID();
     const userId = randomUUID();
-    const organizationName =
-      [body.workspaceName, body.company]
-        .find((value) => typeof value === 'string' && value.trim())
-        ?.trim() || 'Workspace';
-    // Unknown, empty or unshipped values fall back to English rather than
-    // rejecting the registration; see `resolveBackendLocale`.
-    const locale = resolveBackendLocale(
-      (body as { language?: unknown }).language
+    const organizationName = [body.workspaceName, body.company].find(
+      (value) => typeof value === 'string' && value.trim()
     );
-    // There is no starter-template choice on the registration form any more:
-    // every new workspace gets the content-workflow tags, unconditionally,
-    // named in the language the person was reading when they signed up.
-    const workflowTagsData = {
-      tags: {
-        create: CONTENT_WORKFLOW_TAGS.map(({ color }, index) => ({
-          name: translateBackendString(
-            CONTENT_WORKFLOW_TAG_KEYS[index],
-            locale
-          ),
-          color,
-        })),
-      },
-    };
+    const language = (body as { language?: unknown }).language;
+    const locale = resolveBackendLocale(language);
 
     // One statement, so the consent cannot outlive a failed account creation
     // or the account outlive a lost consent.
@@ -406,18 +624,13 @@ export class OrganizationRepository {
 
     const createOrganization = this._organization.model.organization.create({
       data: {
-        id: organizationId,
-        name: organizationName,
-        apiKey: AuthService.fixedEncryption(makeId(20)),
-        allowTrial: true,
-        isTrailing: true,
-        aiProvider: {
-          create: { usageMode: 'included' },
-        },
-        ...workflowTagsData,
+        ...this.newOrganizationData(organizationId, organizationName, language),
         users: {
           create: {
-            role: Role.SUPERADMIN,
+            // `content-factory-next-fn33.19`: the creator of a workspace is
+            // its `ADMIN`. See `createMaxUser` for why `Role.SUPERADMIN` is
+            // no longer assigned anywhere.
+            role: Role.ADMIN,
             user: {
               create: {
                 id: userId,
@@ -543,6 +756,17 @@ export class OrganizationRepository {
       },
       select: {
         users: {
+          /**
+           * `content-factory-next-fn33.51`. Without an order Postgres returns
+           * the rows however the last write left them, so changing somebody's
+           * role moved their row — usually to the end — the instant the screen
+           * re-read the list. An administrator correcting two roles in a row
+           * clicked the second dropdown on a person who had just slid into
+           * that place. Joining time is the one order that does not change
+           * when a role does; `id` settles the tie for two rows written in the
+           * same instant, which the seed script does.
+           */
+          orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }],
           select: {
             role: true,
             user: {
@@ -599,12 +823,44 @@ export class OrganizationRepository {
     });
   }
 
+  /**
+   * How many people can still administer this workspace.
+   *
+   * `content-factory-next-fn33.19`: the rule that protected a workspace from
+   * losing its owner used to be «a `SUPERADMIN` cannot be removed», and it
+   * worked only because exactly one membership per workspace ever held that
+   * role. With the creator now an ordinary `ADMIN`, the protection has to be
+   * counted rather than named: the last administrator is the one who cannot
+   * be removed, whichever of the two administrator roles they hold.
+   */
+  countAdmins(orgId: string) {
+    return this._userOrg.model.userOrganization.count({
+      where: {
+        organizationId: orgId,
+        role: {
+          in: [Role.SUPERADMIN, Role.ADMIN],
+        },
+      },
+    });
+  }
+
+  /**
+   * Switches a workspace off for everyone but the people who can switch it
+   * back on — the administrators.
+   *
+   * The exemption used to be `Role.SUPERADMIN` alone, which was the role the
+   * creator received. Since `content-factory-next-fn33.19` the creator is an
+   * `ADMIN`, and leaving the filter as it was would have disabled the very
+   * account that has to reach billing to restore the subscription. Existing
+   * `SUPERADMIN` rows stay exempt: they are the same people, under the name
+   * the product used before.
+   */
   disableOrEnableNonSuperAdminUsers(orgId: string, disable: boolean) {
     return this._userOrg.model.userOrganization.updateMany({
       where: {
         organizationId: orgId,
         role: {
-          not: Role.SUPERADMIN,
+          notIn: [Role.SUPERADMIN, Role.ADMIN],
         },
       },
       data: {
@@ -631,6 +887,28 @@ export class OrganizationRepository {
       },
       data: {
         shortlink,
+      },
+    });
+  }
+
+  /**
+   * `content-factory-next-fn33.17`. One membership row, one column. Added as
+   * its own block at the end of the class rather than beside `deleteTeamMember`
+   * so that the two changes to this file in the same wave do not collide.
+   *
+   * Every rule about who may do this lives in `organization.service.ts`; the
+   * repository writes what it is told, as the rest of this class does.
+   */
+  updateTeamMemberRole(orgId: string, userId: string, role: Role) {
+    return this._userOrg.model.userOrganization.update({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId: orgId,
+        },
+      },
+      data: {
+        role,
       },
     });
   }

@@ -59,7 +59,20 @@ describe('credential fields', () => {
 
       expect(fields.length).toBeGreaterThan(0);
       for (const field of fields) {
-        expect(field).toContain('autoComplete="new-password"');
+        /*
+          One password field on these screens is not a new password: the change
+          form asks for the one already in use before it will set another
+          (`content-factory-next-fn33.66`). There `current-password` is the
+          honest answer — it is the site login, and the manager filling it is
+          the point. Everything else is a password being created, and must say
+          so or the manager offers the login instead.
+        */
+        const asksForTheOneInUse = /name="[^"]*current[^"]*"/.test(field);
+        expect(field).toContain(
+          asksForTheOneInUse
+            ? 'autoComplete="current-password"'
+            : 'autoComplete="new-password"'
+        );
       }
     }
   );

@@ -11,6 +11,7 @@ import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
 import { ChannelMark } from '@contentfactory/frontend/components/ui/brand/channel-mark';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
+import { postSaveErrorMessage } from '@contentfactory/frontend/components/new-launch/post-save-error';
 
 interface DebugPostData {
   type: string;
@@ -107,10 +108,19 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
         })),
       };
 
-      await fetch('/posts', {
+      const response = await fetch('/posts', {
         method: 'POST',
         body: JSON.stringify(importPayload),
       });
+
+      // Ответ не читался, и окно закрывалось одинаково после успеха и после
+      // отказа — та же поломка, что в окне поста до `content-factory-next-
+      // fn33.49`. Текст берётся тем же помощником, чтобы причина отказа
+      // звучала одинаково в обоих окнах (`content-factory-next-fn33.81`).
+      if (!response.ok) {
+        toaster.show(await postSaveErrorMessage(response, t), 'warning');
+        return; // `finally` ниже снимает загрузку, окно остаётся открытым
+      }
 
       await mutate(
         (key: string) =>

@@ -30,7 +30,7 @@ function loadOrganizationRepository() {
     'libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts',
     {
       '@prisma/client': {
-        Role: { SUPERADMIN: 'SUPERADMIN' },
+        Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
         SubscriptionTier: { STANDARD: 'STANDARD' },
       },
       '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {

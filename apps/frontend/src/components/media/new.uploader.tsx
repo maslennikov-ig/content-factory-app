@@ -13,6 +13,11 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { uniqBy } from 'lodash';
+import {
+  MAX_IMAGE_UPLOAD_SIZE,
+  MAX_VIDEO_UPLOAD_SIZE,
+  formatUploadSizeLimit,
+} from '@contentfactory/nestjs-libraries/upload/upload.limits';
 
 export class CompressionWrapper<M = any, B = any> extends Compressor<any, any> {
   override async prepareUpload(fileIDs: string[]) {
@@ -80,13 +85,11 @@ const cleanMessage = (value: unknown): string => {
 /**
  * The ceiling as a sentence, from the ceiling as a number.
  *
- * The copy used to spell the ceiling out beside the very constant it was
- * meant to describe, in English, in four places. One number, formatted.
+ * Kept as a named export because the copy reads better through one name; the
+ * formatting itself now lives beside the ceilings it describes, so the
+ * browser and the validation pipe cannot disagree about either.
  */
-export const formatSizeCeiling = (bytes: number): string =>
-  bytes % (1024 * 1024 * 1024) === 0
-    ? `${bytes / (1024 * 1024 * 1024)} GB`
-    : `${Math.round(bytes / (1024 * 1024))} MB`;
+export const formatSizeCeiling = formatUploadSizeLimit;
 
 const serverMessage = (body: unknown): string => {
   if (!body) return '';
@@ -120,8 +123,15 @@ export function useUppyUploader(props: {
   const setLocked = useLaunchStore((state) => state.setLocked);
   const toast = useToaster();
   const t = useT();
-  const { storageProvider, backendUrl, disableImageCompression, transloadit } =
-    useVariables();
+  const {
+    storageProvider,
+    backendUrl,
+    disableImageCompression,
+    transloadit,
+    // The refusal is written in the reader's language, and so is «МБ»
+    // (`content-factory-next-fn33.95`).
+    language,
+  } = useVariables();
   const { onUploadSuccess, allowedFileTypes } = props;
   const fetch = useFetch();
   return useMemo(() => {
@@ -155,7 +165,7 @@ export function useUppyUploader(props: {
         // maxNumberOfFiles: 5,
         // allowedFileTypes: allowedFileTypes.split(','),
         // A ceiling for the queue; the checks below are the real ones.
-        maxFileSize: 1000000000,
+        maxFileSize: MAX_VIDEO_UPLOAD_SIZE,
       },
     });
 
@@ -237,14 +247,18 @@ export function useUppyUploader(props: {
             const isImage = file.type?.startsWith('image/');
             const isVideo = file.type?.startsWith('video/');
 
-            const maxImageSize = 30 * 1024 * 1024;
-            const maxVideoSize = 1000 * 1024 * 1024;
+            // The same two ceilings the validation pipe enforces. Typed on
+            // both sides until 04.09.2026, they had drifted three-fold apart,
+            // so a photo between them passed every check the person could see
+            // and came back a 400 (`content-factory-next-fn33.20`).
+            const maxImageSize = MAX_IMAGE_UPLOAD_SIZE;
+            const maxVideoSize = MAX_VIDEO_UPLOAD_SIZE;
 
             if (isImage && file.size > maxImageSize) {
               const message = t(
                 'media_upload_image_over_limit',
                 'Image is over the {{max}} limit.',
-                { max: formatSizeCeiling(maxImageSize) }
+                { max: formatSizeCeiling(maxImageSize, language) }
               );
               const error = new Error(`${message} [${file.name}]`);
               uppy2.log(error.message, 'error');
@@ -259,7 +273,7 @@ export function useUppyUploader(props: {
               const message = t(
                 'media_upload_video_over_limit',
                 'Video is over the {{max}} limit.',
-                { max: formatSizeCeiling(maxVideoSize) }
+                { max: formatSizeCeiling(maxVideoSize, language) }
               );
               const error = new Error(`${message} [${file.name}]`);
               uppy2.log(error.message, 'error');

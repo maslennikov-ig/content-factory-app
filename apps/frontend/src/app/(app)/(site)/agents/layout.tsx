@@ -1,9 +1,6 @@
-import { Metadata } from 'next';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { Agent } from '@contentfactory/frontend/components/agents/agent';
-export const metadata: Metadata = {
-  title: 'Agent',
-  description: 'agents',
-};
+export const generateMetadata = pageTitle('agent', 'Agent');
 export default async function Layout({
   children,
 }: {

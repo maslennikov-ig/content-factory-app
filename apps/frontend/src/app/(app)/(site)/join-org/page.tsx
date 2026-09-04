@@ -35,7 +35,26 @@ export default function JoinOrganizationPage() {
   const t = useT();
   const fetch = useFetch();
   const router = useRouter();
-  const token = useSearchParams().get('org') || '';
+  const query = useSearchParams();
+  const token = query.get('org') || '';
+  /**
+   * `content-factory-next-fn33.37`: the invitation was accepted by the
+   * registration itself, a moment ago.
+   *
+   * An anonymous invitation link sends the visitor to the registration form
+   * with this page as the address to come back to, and the account that form
+   * creates is already inside the workspace — the token is spent by the time
+   * the browser gets here. Asking about it would answer 410 and put a red
+   * «Invitation unavailable» in front of somebody's first minute in the
+   * product, about their own link.
+   *
+   * The visit still has a job: the proxy's pending-invitation cookie is
+   * `httpOnly` and only it can clear it, which it does on any `/join-org`
+   * request carrying the same token. Left behind, that cookie sends the next
+   * visit to `/` right back to this page. So this asks nothing, lets the proxy
+   * do its part, and hands the person on to their workspace.
+   */
+  const alreadyJoined = query.get('joined') === '1';
   const [preview, setPreview] = useState<InvitationPreview | null>(null);
   const [success, setSuccess] = useState<InvitationSuccess | null>(null);
   const [error, setError] = useState('');
@@ -56,6 +75,13 @@ export default function JoinOrganizationPage() {
   const loadPreview = useCallback(async () => {
     setLoading(true);
     setError('');
+    if (alreadyJoined) {
+      // A full load, not a router transition: the workspace cookie set during
+      // registration only counts once the browser asks for the page again —
+      // the same reason `enterWorkspace` below leaves this way.
+      window.location.assign('/');
+      return;
+    }
     if (!token) {
       setError('invite_invalid');
       setLoading(false);
@@ -75,7 +101,7 @@ export default function JoinOrganizationPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetch, token]);
+  }, [fetch, token, alreadyJoined]);
 
   useEffect(() => {
     void loadPreview();
@@ -136,6 +162,24 @@ export default function JoinOrganizationPage() {
       setDeclining(false);
     }
   }, [fetch, token]);
+
+  /**
+   * `content-factory-next-fn33.26`: «Continue» leaves through the browser,
+   * not through the router.
+   *
+   * Accepting sets the `showorg` cookie server-side, and that cookie is what
+   * makes the invited workspace the current one. A `router.push('/')` is a
+   * client transition: the layout keeps the user context it already has, and
+   * the workspace list behind `useSWR('organizations')` is configured never
+   * to revalidate on its own (`organization.selector.tsx`). So the person
+   * landed back in their old workspace with the new one missing from the
+   * switcher until they reloaded by hand — which is exactly what the owner
+   * hit. A full load is the only thing that makes a fresh cookie count, and
+   * it is the same move `changeOrg` already makes after switching.
+   */
+  const enterWorkspace = useCallback(() => {
+    window.location.assign('/');
+  }, []);
 
   const errorMessage = useMemo(() => {
     if (error === 'invite_email_mismatch') {
@@ -214,7 +258,7 @@ export default function JoinOrganizationPage() {
                   )}
                 </p>
               </div>
-              <Button onClick={() => router.push('/')}>
+              <Button onClick={enterWorkspace}>
                 {t('continue', 'Continue')}
               </Button>
             </div>

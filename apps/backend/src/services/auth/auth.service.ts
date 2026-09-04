@@ -6,6 +6,11 @@ import { UsersService } from '@contentfactory/nestjs-libraries/database/prisma/u
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { AuthService as AuthChecker } from '@contentfactory/helpers/auth/auth.service';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  acceptTeamInvitation,
+  inspectTeamInvitation,
+  TeamInvitationError,
+} from '@contentfactory/nestjs-libraries/auth/team-invitation';
 import { registrationRequiresApproval } from '@contentfactory/helpers/auth/registration.approval';
 import { resolveNewsletterConsent } from '@contentfactory/helpers/auth/newsletter.consent';
 import { AuthProviderManager } from '@contentfactory/backend/services/auth/providers/providers.manager';
@@ -99,6 +104,188 @@ export class AuthService {
       );
     }
   }
+  /**
+   * What an applicant and the administrators hear when an account is created
+   * but not switched on.
+   *
+   * Both ways into this state say the same thing, so they say it in one place:
+   * the front door under `CONTENT_FACTORY_REQUIRE_APPROVAL`, and an open
+   * invitation link under the same rule (`content-factory-next-fn33.108`).
+   */
+  private async announcePendingApproval(
+    email: string,
+    created: { language: string | null; createdAt: Date }
+  ) {
+    const awaitingApprovalLocale = resolveBackendLocale(created.language);
+    // The account is already written. A mail failure here must not turn a
+    // registration that succeeded into an error the person reads as "it did
+    // not work" — they would try again and be told the address is taken. So
+    // the send is allowed to fail on its own.
+    //
+    // This swallow is deliberate and it is also the defect named in
+    // `content-factory-next-7jxo`: today nothing downstream can tell a failed
+    // send from a successful one, so `console.error` is the only place a
+    // failure can surface at all. When 7jxo gives the mail path a real way to
+    // report, this is one of its callers.
+    try {
+      await this._emailService.sendEmail(
+        email,
+        translateBackendString(
+          'email_awaiting_approval_subject',
+          awaitingApprovalLocale
+        ),
+        translateBackendString(
+          'email_awaiting_approval_body',
+          awaitingApprovalLocale
+        ),
+        'top',
+        undefined,
+        awaitingApprovalLocale
+      );
+    } catch (err) {
+      console.error(
+        'Registration succeeded but the awaiting-approval email could not be queued',
+        err
+      );
+    }
+    await this.notifyAdminsOfPendingApproval(email, created.createdAt);
+  }
+
+  /**
+   * `content-factory-next-fn33.18`: registration that answers an invitation.
+   *
+   * Before this, an invited person registered like anyone else — a workspace
+   * of their own was created for them — and only afterwards, signed in, could
+   * they accept the invitation. They ended up in two workspaces, one of them
+   * empty and never wanted, and under approval mode they waited days for an
+   * instance owner to permit what an administrator of that workspace had
+   * already asked for.
+   *
+   * Three answers, and which one comes back is the point of this method:
+   *
+   *  - `null` — «this registration is not an invited one». No token, or a
+   *    token that is spent or past its two days. The caller founds a
+   *    workspace as it always did; the form has already told the person why
+   *    the link no longer works.
+   *  - a thrown `TeamInvitationError` — «this invitation is not yours». An
+   *    address that does not match the one the invitation was emailed to
+   *    stops here, before any account exists: creating one and refusing the
+   *    membership afterwards is how someone ends up with an account they
+   *    cannot use and an address they cannot re-register.
+   *  - the finished registration — account, membership, session.
+   *
+   * Whether the account is created `activated` depends on which kind of link
+   * this is, and the difference matters (`content-factory-next-fn33.108`).
+   *
+   * A link an administrator addressed to one email carries `boundEmail`: no
+   * one else can answer it, so the administrator vouched for this particular
+   * person. That is the owner's decision of 04.09.2026 — the invitation is
+   * the approval, the account is switched on even with
+   * `CONTENT_FACTORY_REQUIRE_APPROVAL=true`, and no «waiting for approval»
+   * email is sent because nobody is waiting.
+   *
+   * An open link carries no address. It exists to be copied and handed on,
+   * and whoever answers it is a stranger no administrator has named — so it
+   * cannot stand in for the instance gate without turning that gate off for
+   * anybody holding a link. Such an account follows the instance's own rule,
+   * the same `resolveNewUserAccess` the front door uses. The membership is
+   * still written straight away: the workspace the link names is where this
+   * person belongs the moment an administrator switches the account on, and
+   * asking them to answer a spent link afterwards is the two-workspace tangle
+   * this method exists to end. They hear the same «request received» letter a
+   * front-door applicant hears.
+   *
+   * One caveat, deliberately left visible: `acceptTeamInvitation` spends the
+   * one-time marker before it calls back, so an invitation is spent by an
+   * account creation that then fails in the database. That ordering is the
+   * linearization point two simultaneous accepts race on, and moving the
+   * spend inside this transaction needs a change in
+   * `libraries/nestjs-libraries/src/auth/team-invitation.ts`, which this
+   * stream does not own. Everything that can be refused without a database
+   * write — a wrong address, an expired link, a spent one — is already
+   * refused before the marker is touched.
+   */
+  private async registerThroughInvitation(
+    body: CreateOrgUserDto,
+    ip: string,
+    userAgent: string,
+    newsletterConsent: boolean
+  ) {
+    const token = body.invitationToken?.trim();
+    if (!token) {
+      return null;
+    }
+
+    let answered;
+    // Read before the marker is spent: the claim that decides the question is
+    // inside the token, and `acceptTeamInvitation` hands the callback only the
+    // three fields it needs to write a membership. A link already spent or out
+    // of date fails here exactly as it would fail below, and lands in the same
+    // «this is an ordinary registration» answer.
+    let boundEmail: string | undefined;
+    try {
+      boundEmail = (await inspectTeamInvitation(token)).boundEmail;
+      answered = await acceptTeamInvitation(
+        token,
+        body.email,
+        // There is no account yet, so it cannot already be a member.
+        async () => false,
+        (invitation) =>
+          this._organizationService.createInvitedUser(
+            { ...body, newsletterConsent },
+            invitation,
+            ip,
+            userAgent,
+            { vouchedFor: Boolean(boundEmail) }
+          )
+      );
+    } catch (error) {
+      if (
+        error instanceof TeamInvitationError &&
+        (error.code === 'invite_used' || error.code === 'invite_invalid')
+      ) {
+        return null;
+      }
+      throw error;
+    }
+
+    const { invitation, added } = answered;
+    if (!added) {
+      throw new Error(
+        'This invitation could not be answered. Ask the workspace administrator for a new one'
+      );
+    }
+
+    const created = added.user;
+    await this.recordRegistrationCompleted(created.id);
+    await this.subscribeNewAccount(
+      newsletterConsent,
+      created.id,
+      created.newsletterDeliveryPendingAt
+    );
+
+    // An open link under approval mode: the membership is written, the account
+    // is not usable yet, and no session token may be handed out — that token is
+    // the very thing an administrator is supposed to grant.
+    if (!created.activated && registrationRequiresApproval()) {
+      await this.announcePendingApproval(body.email, created);
+      return { addedOrg: false as const, jwt: '', awaitingApproval: true };
+    }
+
+    return {
+      addedOrg: false as const,
+      jwt: await this.jwt(created),
+      awaitingApproval: false,
+      // What the browser needs to land inside the workspace it was invited
+      // to rather than on the sign-in page.
+      invitation: {
+        organizationId: added.organizationId,
+        workspaceName: invitation.workspaceName,
+        role: added.role,
+      },
+    };
+  }
+
   async canRegister(provider: string) {
     if (
       process.env.DISABLE_REGISTRATION !== 'true' ||
@@ -142,6 +329,23 @@ export class AuthService {
           email: body.email,
         });
 
+        // `content-factory-next-fn33.18`: an invitation answered by someone
+        // who has no account yet. This is the whole registration — account
+        // and membership, no workspace of their own — so it returns instead
+        // of falling through to the founding path below. A link that is spent
+        // or out of date answers `null` and this becomes an ordinary
+        // registration, with the form explaining why above it
+        // (`content-factory-next-fn33.29`).
+        const invited = await this.registerThroughInvitation(
+          body,
+          ip,
+          userAgent,
+          newsletterConsent
+        );
+        if (invited) {
+          return invited;
+        }
+
         const create = await this._organizationService.createOrgAndUser(
           { ...body, newsletterConsent },
           ip,
@@ -175,42 +379,7 @@ export class AuthService {
         // something, so a separate, link-free email tells them the request
         // was received and is waiting on a person.
         if (!created.activated && registrationRequiresApproval()) {
-          const awaitingApprovalLocale = resolveBackendLocale(created.language);
-          // The account is already written. A mail failure here must not turn
-          // a registration that succeeded into an error the person reads as
-          // "it did not work" — they would try again and be told the address
-          // is taken. So the send is allowed to fail on its own.
-          //
-          // This swallow is deliberate and it is also the defect named in
-          // `content-factory-next-7jxo`: today nothing downstream can tell a
-          // failed send from a successful one, so `console.error` is the only
-          // place a failure can surface at all. When 7jxo gives the mail path
-          // a real way to report, this is one of its callers.
-          try {
-            await this._emailService.sendEmail(
-              body.email,
-              translateBackendString(
-                'email_awaiting_approval_subject',
-                awaitingApprovalLocale
-              ),
-              translateBackendString(
-                'email_awaiting_approval_body',
-                awaitingApprovalLocale
-              ),
-              'top',
-              undefined,
-              awaitingApprovalLocale
-            );
-          } catch (err) {
-            console.error(
-              'Registration succeeded but the awaiting-approval email could not be queued',
-              err
-            );
-          }
-          await this.notifyAdminsOfPendingApproval(
-            body.email,
-            created.createdAt
-          );
+          await this.announcePendingApproval(body.email, created);
           return { addedOrg, jwt: '', awaitingApproval: true };
         }
 
@@ -406,11 +575,17 @@ export class AuthService {
     return { user: create.users[0].user, created: true };
   }
 
-  private async recordRegistrationCompleted(organizationId: string) {
+  /**
+   * `subject` is the workspace a registration founded, or — when it founded
+   * none, because it answered an invitation — the account itself. Either way
+   * it is one new person, counted once: two people invited into the same
+   * workspace must not deduplicate into one registration.
+   */
+  private async recordRegistrationCompleted(subject: string) {
     try {
       await this._publicGrowthService?.recordTrusted(
         'registration_completed',
-        `registration_completed:${organizationId}`
+        `registration_completed:${subject}`
       );
     } catch (error) {
       // The account transaction is already committed. Analytics must remain

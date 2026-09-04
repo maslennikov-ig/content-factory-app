@@ -33,6 +33,42 @@ import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-l
 import copy from 'copy-to-clipboard';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  Menu as MenuPrimitive,
+  MenuButton,
+  MenuList,
+} from '@contentfactory/react/choice/choice.menu';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
+import { OPTION_ATTRIBUTE } from '@contentfactory/react/choice/roving';
+
+/**
+ * One line of the channel menu, as something a keyboard can reach.
+ *
+ * `MenuOption` is not it: that primitive is `menuitemradio` and carries
+ * `aria-checked`, which is right for a choice and wrong for «Удалить». These
+ * are actions, so they are `menuitem`. What is shared with the primitive is
+ * the roving tab stop — the attribute `MenuList` looks for when the arrow keys
+ * move — so this is a use of the same mechanism rather than a second one
+ * (`content-factory-next-fn33.91`).
+ *
+ * Closing on choice is the menu's job and is done here rather than in every
+ * caller: an action that leaves its own menu open behind a modal is a menu
+ * nobody can get rid of.
+ */
+const MenuAction: FC<{
+  onClick: MouseEventHandler<HTMLButtonElement>;
+  children: React.ReactNode;
+}> = ({ onClick, children }) => (
+  <ControlButton
+    {...{ [OPTION_ATTRIBUTE]: '' }}
+    role="menuitem"
+    layout="content"
+    className="flex gap-[12px] items-center py-[8px] px-[10px] w-full text-start"
+    onClick={onClick}
+  >
+    {children}
+  </ControlButton>
+);
 
 export const Menu: FC<{
   canEnable: boolean;
@@ -100,19 +136,22 @@ export const Menu: FC<{
   const findIntegration: any = useMemo(() => {
     return integrations.find((integration) => integration.id === id);
   }, [integrations, id]);
-  const changeShow: MouseEventHandler<HTMLDivElement> = useCallback(
-    (e) => {
-      e.stopPropagation();
-      // @ts-ignore
-      const boundBox = showRef?.current?.getBoundingClientRect();
-      setShow(
-        show
-          ? false
-          : { x: boundBox?.left, y: boundBox?.top + boundBox?.height }
-      );
-    },
-    [show]
-  );
+  /**
+   * Opening and closing, and where the panel lands.
+   *
+   * The position is measured here rather than in a click handler, because the
+   * menu now opens from the keyboard as well and there is no cursor event to
+   * read it from (`content-factory-next-fn33.91`).
+   */
+  const changeShow = useCallback((next: boolean) => {
+    if (!next) {
+      setShow(false);
+      return;
+    }
+    // @ts-ignore
+    const boundBox = showRef?.current?.getBoundingClientRect();
+    setShow({ x: boundBox?.left, y: boundBox?.top + boundBox?.height });
+  }, []);
   const disableChannel = useCallback(async () => {
     if (
       !(await deleteDialog(
@@ -348,11 +387,23 @@ export const Menu: FC<{
   }, [t]);
 
   return (
-    <div
-      className="cursor-pointer relative select-none flex"
-      onClick={changeShow}
-      ref={ref}
+    <MenuPrimitive
+      open={!!show}
+      onOpenChange={changeShow}
     >
+    <div className="relative select-none flex" ref={ref}>
+      {/*
+        A real button, with a name and a keyboard (`content-factory-next-fn33.91`).
+        It was a bare `div` with an `onClick`: Tab never reached it, Enter never
+        opened it, and a screen reader had nothing to announce — over a menu
+        that disables and deletes channels.
+      */}
+      <MenuButton
+        aria-label={t('channel_menu', 'Channel menu')}
+        density="dense"
+        className="cursor-pointer flex items-center justify-center w-[24px] px-0"
+        onClick={(event) => event.stopPropagation()}
+      >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="24"
@@ -366,19 +417,20 @@ export const Menu: FC<{
           fill="currentColor"
         />
       </svg>
+      </MenuButton>
       <div>
         <div ref={showRef} />
       </div>
       {show && (
-        <div
+        <MenuList
           ref={menuRef}
+          aria-label={t('channel_menu', 'Channel menu')}
           onClick={(e) => e.stopPropagation()}
           style={{ left: show.x, top: show.y }}
           className={`fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
         >
           {canDisable && !findIntegration?.refreshNeeded && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={createPost(findIntegration!)}
             >
               <div>
@@ -398,10 +450,9 @@ export const Menu: FC<{
               <div className="text-[14px]">
                 {t('create_new_post', 'Create a new post')}
               </div>
-            </div>
+            </MenuAction>
           )}
-          <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+          <MenuAction
             onClick={copyChannelId(findIntegration)}
           >
             <div>
@@ -427,14 +478,11 @@ export const Menu: FC<{
               </svg>
             </div>
             <div className="text-[14px]">{t('copy_id', 'Copy Channel ID')}</div>
-          </div>
+          </MenuAction>
           {canDisable &&
             findIntegration?.refreshNeeded &&
             !findIntegration.customFields && (
-              <div
-                className="flex gap-[12px] items-center py-[8px] px-[10px]"
-                onClick={refreshChannel(findIntegration!)}
-              >
+              <MenuAction onClick={refreshChannel(findIntegration!)}>
                 <div>
                   <svg
                     width={18}
@@ -452,11 +500,10 @@ export const Menu: FC<{
                 <div className="text-[14px]">
                   {t('reconnect_channel', 'Reconnect channel')}
                 </div>
-              </div>
+              </MenuAction>
             )}
           {!!findIntegration?.isCustomFields && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={updateCredentials}
             >
               <div>
@@ -476,10 +523,9 @@ export const Menu: FC<{
               <div className="text-[14px]">
                 {t('update_credentials', 'Update Credentials')}
               </div>
-            </div>
+            </MenuAction>
           )}
-          <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+          <MenuAction
             onClick={additionalSettings}
           >
             <div>
@@ -499,10 +545,9 @@ export const Menu: FC<{
             <div className="text-[14px]">
               {t('channel_settings', 'Channel settings')}
             </div>
-          </div>
+          </MenuAction>
           {(canChangeProfilePicture || canChangeNickName) && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={changeBotPicture}
             >
               <div>
@@ -528,10 +573,9 @@ export const Menu: FC<{
                   .filter((f) => f)
                   .join(' / ')}
               </div>
-            </div>
+            </MenuAction>
           )}
-          <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+          <MenuAction
             onClick={addToCustomer}
           >
             <div>
@@ -551,9 +595,8 @@ export const Menu: FC<{
             <div className="text-[14px]">
               {t('move_add_to_group', 'Move / add to group')}
             </div>
-          </div>
-          <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+          </MenuAction>
+          <MenuAction
             onClick={editTimeTable}
           >
             <div>
@@ -573,10 +616,9 @@ export const Menu: FC<{
             <div className="text-[14px]">
               {t('edit_time_slots', 'Edit Time Slots')}
             </div>
-          </div>
+          </MenuAction>
           {manageChannel && canEnable && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={enableChannel}
             >
               <div>
@@ -596,12 +638,11 @@ export const Menu: FC<{
               <div className="text-[14px]">
                 {t('enable_channel', 'Enable Channel')}
               </div>
-            </div>
+            </MenuAction>
           )}
 
           {manageChannel && canDisable && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={disableChannel}
             >
               <div>
@@ -621,12 +662,11 @@ export const Menu: FC<{
               <div className="text-[14px]">
                 {t('disable_channel', 'Disable Channel')}
               </div>
-            </div>
+            </MenuAction>
           )}
 
           {manageChannel && (
-            <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            <MenuAction
               onClick={deleteChannel}
             >
               <div>
@@ -644,10 +684,11 @@ export const Menu: FC<{
                 </svg>
               </div>
               <div className="text-[14px]">{t('delete', 'Delete')}</div>
-            </div>
+            </MenuAction>
           )}
-        </div>
+        </MenuList>
       )}
     </div>
+    </MenuPrimitive>
   );
 };

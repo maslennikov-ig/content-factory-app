@@ -70,7 +70,7 @@ const { OrganizationRepository } = loadTypeScriptModule(
       },
     },
     '@prisma/client': {
-      Role: { SUPERADMIN: 'SUPERADMIN' },
+      Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
       ShortLinkPreference: {},
       SubscriptionTier: {},
     },
@@ -183,7 +183,7 @@ test.each([
 
     const persistedUser = result.data.users.create.user.create;
     expect(persistedUser.activated).toBe(activated);
-    expect(result.data.users.create.role).toBe('SUPERADMIN');
+    expect(result.data.users.create.role).toBe('ADMIN');
     expect(result.data.subscription.create.subscriptionTier).toBe('ULTIMATE');
   }
 );

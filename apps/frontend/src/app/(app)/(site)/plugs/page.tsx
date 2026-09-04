@@ -1,10 +1,7 @@
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { Plugs } from '@contentfactory/frontend/components/plugs/plugs';
 export const dynamic = 'force-dynamic';
-import { Metadata } from 'next';
-export const metadata: Metadata = {
-  title: 'Plugs',
-  description: '',
-};
+export const generateMetadata = pageTitle('plugs', 'Plugs');
 export default async function Index() {
   return <Plugs />;
 }

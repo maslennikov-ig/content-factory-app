@@ -73,8 +73,25 @@ const variables = loadTypeScriptModule(
  * A server, stubbed at the one place the product talks to it
  * ---------------------------------------------------------------------- */
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-const refusal = (status, body) => ({ ok: false, status, json: async () => body });
+// `content-factory-next-fn33.65`: the shared request helper hands the common
+// refusal handler a copy of the response, so a fake answer has to be
+// clonable the way a real `Response` is.
+const ok = (body) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+  clone() {
+    return this;
+  },
+});
+const refusal = (status, body) => ({
+  ok: false,
+  status,
+  json: async () => body,
+  clone() {
+    return this;
+  },
+});
 
 let calls = [];
 
@@ -714,5 +731,144 @@ describe('«Вернуть» offers a way back only for a RETRACTED row, never a
     expect(row).not.toBeNull();
     expect(row.textContent).toMatch(/заменён/iu);
     expect(within(row).queryByRole('button', { name: 'Вернуть' })).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * The form asks a person what they know, not what the column is called
+ * (content-factory-next-fn33.57, .62, .58, .59)
+ * ---------------------------------------------------------------------- */
+
+describe('the fact form asks one question and files the rest itself', () => {
+  test('content-factory-next-fn33.57 — a claim alone is enough to save: the key is filed and the value falls back to the statement', async () => {
+    serve({
+      'GET /content-intelligence/facts': ok({ facts: [] }),
+      'POST /content-intelligence/facts': ok({ id: 'fact-new' }),
+    });
+    await renderContainer();
+    await type('statement', 'Пробный период — 14 дней.');
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    const sent = calls.find((call) => call.method === 'POST').body;
+    expect(sent.statement).toBe('Пробный период — 14 дней.');
+    // Filed from the words of the claim, and a shape the DTO accepts.
+    expect(sent.claimKey).toMatch(adapter.CLAIM_KEY_PATTERN);
+    expect(sent.valueText).toBe('Пробный период — 14 дней.');
+  });
+
+  test('content-factory-next-fn33.57 — the internal key, the value and the two lifecycle dates are behind «Подробнее», and none of them is required', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+    const source = fs.readFileSync(path.join(root, FILES.container), 'utf8');
+    // The engineering apparatus leaves the first screen (карта раздела, §3,
+    // §4): it is reachable, not asked for.
+    const details = document.querySelector('[data-content-facts-details]');
+    expect(details).not.toBeNull();
+    expect(details.tagName).toBe('DETAILS');
+    for (const name of ['claimKey', 'valueText', 'freshUntil', 'effectiveFrom', 'effectiveTo', 'language', 'temporalKind']) {
+      const field = details.querySelector(`[name="${name}"]`);
+      expect(field).not.toBeNull();
+    }
+    expect(details.querySelector('[name="claimKey"]').required).toBe(false);
+    expect(details.querySelector('[name="valueText"]').required).toBe(false);
+    // The claim itself stays outside the disclosure, where the question is.
+    expect(details.querySelector('[name="statement"]')).toBeNull();
+    expect(source).toContain('content-factory-next-fn33.57');
+  });
+
+  test('content-factory-next-fn33.62 — a rejected key names the obstacle instead of repeating the hint', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+    await type('claimKey', 'редакция|правило факта');
+
+    const field = document.querySelector('[name="claimKey"]');
+    const error = document.body.textContent;
+    expect(error).toMatch(/подчёркивания/u);
+    // The red line is not the grey hint said twice.
+    expect(error).not.toMatch(/Формат «тема\|атрибут»/u);
+    expect(field.value).toBe('редакция|правило факта');
+    expect(screen.getByRole('button', { name: 'Сохранить факт' }).disabled).toBe(true);
+  });
+
+  test('content-factory-next-fn33.59 — the language is named, not spelled as a column code', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+
+    const select = document.querySelector('[name="language"]');
+    const labels = [...select.querySelectorAll('option')].map((one) => one.textContent);
+    expect(labels).toEqual(['Русский', 'English']);
+  });
+
+  test('content-factory-next-fn33.58 — a chosen date is read back in the order this locale writes dates in', async () => {
+    serve({ 'GET /content-intelligence/facts': ok({ facts: [] }) });
+    await renderContainer();
+    await type('freshUntil', '2026-12-31');
+
+    const echo = document.querySelector('[data-content-facts-date-echo="freshUntil"]');
+    expect(echo).not.toBeNull();
+    expect(echo.textContent).toBe('31.12.2026');
+  });
+});
+
+describe('what the form files on a person’s behalf', () => {
+  test('claimKeyFromStatement builds a key the DTO accepts, from the words of the claim', () => {
+    expect(adapter.claimKeyFromStatement('Пробный период — 14 дней.')).toBe(
+      'пробный|период_дней'
+    );
+    expect(adapter.claimKeyFromStatement('Trial')).toBe('trial|trial');
+    expect(adapter.claimKeyFromStatement('  ...  ')).toBe('');
+    for (const statement of [
+      'Пробный период — 14 дней.',
+      'Trial',
+      'Просрочки упали на 40% за месяц.',
+    ]) {
+      expect(adapter.claimKeyFromStatement(statement)).toMatch(
+        adapter.CLAIM_KEY_PATTERN
+      );
+    }
+  });
+
+  test('content-factory-next-fn33.112 — the topic is a word that means something, not the first word of the sentence', () => {
+    // The radar names a topic from the left half of the key, and three facts
+    // saved through the form came out as «В», «Наши» and «Редакция»: dividing
+    // claims by the first word of a sentence is the same as not dividing them.
+    expect(
+      adapter.claimKeyFromStatement(
+        'В нашей редакции с 1 сентября каждое число в тексте несёт ссылку на источник.'
+      )
+    ).toBe('редакции|сентября_число');
+    expect(
+      adapter.claimKeyFromStatement(
+        'Наши авторы сдают список ссылок вместе с черновиком'
+      )
+    ).toBe('авторы|сдают_список');
+    expect(
+      adapter.claimKeyFromStatement('The trial period is 14 days for our team')
+    ).toBe('trial|period_days');
+  });
+
+  test('content-factory-next-fn33.112 — a claim made only of function words still gets a key, and the same one twice', () => {
+    const key = adapter.claimKeyFromStatement('И вот это всё о том же.');
+    expect(key).toMatch(adapter.CLAIM_KEY_PATTERN);
+    expect(key).toMatch(/^утверждение\|[0-9a-f]{6}$/u);
+    // Filed, not invented anew on every keystroke: the preview under the field
+    // and the key that is saved have to agree.
+    expect(adapter.claimKeyFromStatement('И вот это всё о том же.')).toBe(key);
+    expect(adapter.claimKeyFromStatement('А и не о том же.')).not.toBe(key);
+  });
+
+  test('claimKeyIssue separates a space from a missing bar, and says nothing about an empty field', () => {
+    expect(adapter.claimKeyIssue('')).toBeNull();
+    expect(adapter.claimKeyIssue('   ')).toBeNull();
+    expect(adapter.claimKeyIssue('pricing|trial_length')).toBeNull();
+    expect(adapter.claimKeyIssue('редакция|правило факта')).toBe('spaces');
+    expect(adapter.claimKeyIssue('редакция')).toBe('shape');
+  });
+
+  test('readableDate keeps the day the person picked, with no timezone in the way', () => {
+    expect(adapter.readableDate('2026-12-31', 'ru')).toBe('31.12.2026');
+    expect(adapter.readableDate('2026-12-31', 'en')).toBe('12/31/2026');
+    expect(adapter.readableDate('', 'ru')).toBe('');
+    expect(adapter.readableDate('nonsense', 'ru')).toBe('nonsense');
   });
 });

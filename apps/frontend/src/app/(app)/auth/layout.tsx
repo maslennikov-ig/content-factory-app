@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 import loadDynamic from 'next/dynamic';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
 import { WorkflowOverview } from '@contentfactory/frontend/components/auth/workflow.overview';
+import { AuthLanguageSwitch } from '@contentfactory/frontend/components/auth/language.switch';
 
 const ReturnUrlComponent = loadDynamic(() => import('./return.url.component'));
 
@@ -21,7 +22,14 @@ export default async function AuthLayout({
 
       <main className="flex-1 lg:max-w-[560px] bg-cf-surface border-cf-border lg:border-e flex flex-col">
         <div className="w-full max-w-[420px] mx-auto flex flex-col gap-[24px] px-[24px] py-[40px] lg:py-[64px]">
-          <Wordmark size="lg" />
+          {/* `content-factory-next-fn33.39`: the way in had no way to change
+              the language. The proxy still decides the first one from
+              `Accept-Language`; this is the correction, on the sign-in, the
+              registration and the invited registration alike. */}
+          <div className="flex items-start justify-between gap-[16px]">
+            <Wordmark size="lg" />
+            <AuthLanguageSwitch />
+          </div>
           {children}
         </div>
 

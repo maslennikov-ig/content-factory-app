@@ -28,30 +28,6 @@ const repositoryModule = loadTypeScriptModule(
     '@contentfactory/helpers/auth/auth.service': { AuthService: {} },
     '@contentfactory/nestjs-libraries/dtos/users/user.details.dto': {},
     '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto': {},
-    '@contentfactory/nestjs-libraries/dtos/auth/starter-template': {
-      CONTENT_WORKFLOW_TAGS: [
-        { color: '#7FB03A' },
-        { color: '#4D7CFE' },
-        { color: '#F59E0B' },
-        { color: '#8B5CF6' },
-      ],
-      CONTENT_WORKFLOW_TAG_KEYS: [
-        'content_workflow_tag_plan',
-        'content_workflow_tag_draft',
-        'content_workflow_tag_review',
-        'content_workflow_tag_schedule',
-      ],
-    },
-    '@contentfactory/nestjs-libraries/locale/backend-strings': {
-      resolveBackendLocale: () => 'en',
-      translateBackendString: (key) =>
-        ({
-          content_workflow_tag_plan: 'Plan',
-          content_workflow_tag_draft: 'Draft',
-          content_workflow_tag_review: 'Review',
-          content_workflow_tag_schedule: 'Schedule',
-        }[key]),
-    },
     '@contentfactory/nestjs-libraries/services/make.is': { makeId: () => 'id' },
     '@contentfactory/nestjs-libraries/database/prisma/users/user-identity': {
       legacyIdentityIdentifier: () => '',
@@ -138,14 +114,7 @@ const { AdminController } = controllerModule;
 function rejectionRepository(
   user,
   memberships,
-  organization = {
-    tags: [
-      { name: 'Plan', color: '#7FB03A', deletedAt: null },
-      { name: 'Draft', color: '#4D7CFE', deletedAt: null },
-      { name: 'Review', color: '#F59E0B', deletedAt: null },
-      { name: 'Schedule', color: '#8B5CF6', deletedAt: null },
-    ],
-  }
+  organization = { id: 'owned-org' }
 ) {
   const mutations = [];
   const tx = {
@@ -350,65 +319,57 @@ test('rejectPendingAccount refuses a workspace with cascade-backed content befor
   expect(mutations).toEqual([]);
 });
 
+/**
+ * `content-factory-next-fn33.22`. The proof of an unused workspace used to
+ * include its tags: the four starter labels, translated into the account's
+ * language at the moment of rejection, compared name by name. Both shapes below
+ * are real and both were unrejectable — a workspace whose tags are gone, and one
+ * seeded in a language the account no longer reads in. A tag says nothing about
+ * use: a pending account has never been able to sign in and change one.
+ */
 test.each([
+  ['no tags at all', []],
   [
-    'renamed seed tag',
+    'tags in another language than the account reads in',
+    [
+      { name: 'План', color: '#7FB03A', deletedAt: null },
+      { name: 'Черновик', color: '#4D7CFE', deletedAt: null },
+      { name: 'Проверка', color: '#F59E0B', deletedAt: null },
+      { name: 'Расписание', color: '#8B5CF6', deletedAt: null },
+    ],
+  ],
+  [
+    'a renamed and a soft-deleted tag',
     [
       { name: 'Changed', color: '#7FB03A', deletedAt: null },
-      { name: 'Draft', color: '#4D7CFE', deletedAt: null },
-      { name: 'Review', color: '#F59E0B', deletedAt: null },
-      { name: 'Schedule', color: '#8B5CF6', deletedAt: null },
-    ],
-  ],
-  [
-    'soft-deleted seed tag',
-    [
       {
-        name: 'Plan',
-        color: '#7FB03A',
+        name: 'Draft',
+        color: '#4D7CFE',
         deletedAt: new Date('2026-09-03T00:00:00.000Z'),
       },
-      { name: 'Draft', color: '#4D7CFE', deletedAt: null },
-      { name: 'Review', color: '#F59E0B', deletedAt: null },
-      { name: 'Schedule', color: '#8B5CF6', deletedAt: null },
     ],
   ],
-])(
-  'rejectPendingAccount refuses a %s before any mutation',
-  async (_label, tags) => {
-    const { repository, mutations } = rejectionRepository(
-      {
-        id: 'pending-user',
-        activated: false,
-        isSuperAdmin: false,
-        organizations: [{ organizationId: 'owned-org' }],
-      },
-      [{ userId: 'pending-user', organizationId: 'owned-org' }],
-      { tags }
-    );
-
-    await expect(
-      repository.rejectPendingAccount('pending-user')
-    ).rejects.toMatchObject({ status: 400 });
-    expect(mutations).toEqual([]);
-  }
-);
-
-test('UsersService rejects through the repository without sending an email', async () => {
-  let emails = 0;
-  const service = new UsersService(
+])('rejectPendingAccount removes a workspace with %s', async (_label, tags) => {
+  const { repository, mutations } = rejectionRepository(
     {
-      rejectPendingAccount: async (id) => ({ id, organizationId: 'owned-org' }),
+      id: 'pending-user',
+      language: 'en',
+      activated: false,
+      isSuperAdmin: false,
+      organizations: [{ organizationId: 'owned-org' }],
     },
-    {},
-    { sendEmail: async () => emails++ }
+    [{ userId: 'pending-user', organizationId: 'owned-org' }],
+    { id: 'owned-org', tags }
   );
 
-  await expect(service.rejectPendingAccount('pending-user')).resolves.toEqual({
-    id: 'pending-user',
-    organizationId: 'owned-org',
-  });
-  expect(emails).toBe(0);
+  await expect(
+    repository.rejectPendingAccount('pending-user')
+  ).resolves.toEqual({ id: 'pending-user', organizationId: 'owned-org' });
+  expect(mutations).toContainEqual(['tags.deleteMany', { orgId: 'owned-org' }]);
+  expect(mutations).toContainEqual([
+    'organization.delete',
+    { id: 'owned-org' },
+  ]);
 });
 
 test('the superadmin-only controller door rejects a pending account', async () => {
@@ -418,7 +379,7 @@ test('the superadmin-only controller door rejects a pending account', async () =
   const controller = new AdminController(
     {},
     {},
-    { rejectPendingAccount: async (id) => calls.push(id) },
+    { rejectPendingAccount: async (id, adminId) => calls.push([id, adminId]) },
     {},
     {}
   );
@@ -437,7 +398,7 @@ test('the superadmin-only controller door rejects a pending account', async () =
         }
       )
     ).resolves.toEqual({ success: true });
-    expect(calls).toEqual(['pending-user']);
+    expect(calls).toEqual([['pending-user', 'root']]);
   } finally {
     if (previousFrontendUrl === undefined) delete process.env.FRONTEND_URL;
     else process.env.FRONTEND_URL = previousFrontendUrl;
@@ -566,5 +527,4 @@ test('the empty-workspace gate covers every non-seed Organization relation in th
   expect(repository).toContain('productEvents: {');
   expect(repository).toContain('aiProvider: {');
   expect(repository).toContain('subscription: { is: null }');
-  expect(repository).toContain('CONTENT_WORKFLOW_TAGS');
 });

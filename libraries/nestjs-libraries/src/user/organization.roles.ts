@@ -50,8 +50,9 @@ export const isOrganizationAdmin = (role: string | null | undefined): boolean =>
 
 /**
  * The roles an administrator may hand out when inviting someone.
- * `SUPERADMIN` is the instance's own role, granted when an organization is
- * created, and is never assigned from the team screen.
+ * `SUPERADMIN` is kept in the enum for upstream compatibility only: since
+ * 04.09.2026 (`content-factory-next-fn33.19`) nothing grants it — the creator
+ * of an organization is `ADMIN` — and the team screen never offers it.
  */
 export const ASSIGNABLE_ORGANIZATION_ROLES = [
   'USER',

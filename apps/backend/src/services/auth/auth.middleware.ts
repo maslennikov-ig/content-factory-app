@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { HttpException, Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { User } from '@prisma/client';
@@ -90,15 +90,29 @@ export class AuthMiddleware implements NestMiddleware {
       }
 
       delete user.password;
-      const organization = (
+      const organizations = (
         await this._organizationService.getOrgsByUserId(user.id)
       ).filter((f) => !f.users[0].disabled);
-      const setOrg =
-        organization.find((org) => org.id === orgHeader) || organization[0];
 
-      if (!organization) {
-        throw new HttpForbiddenException();
+      // An empty array is not a missing one, and the old `if (!organization)`
+      // was never true: a member switched off in the only workspace they had
+      // fell through to `setOrg.apiKey` on `undefined` and was answered by the
+      // crash that made. The session is valid — the membership is what ran
+      // out — so this is a refusal with a code and a sentence rather than the
+      // blank logout below (`content-factory-next-fn33.104`).
+      if (!organizations.length) {
+        throw new HttpException(
+          {
+            message:
+              'This account is not a member of any active workspace. Ask an administrator to restore your access or invite you again.',
+            code: 'workspace_membership_none',
+          },
+          403
+        );
       }
+
+      const setOrg =
+        organizations.find((org) => org.id === orgHeader) || organizations[0];
 
       if (!setOrg.apiKey) {
         await this._organizationService.updateApiKey(setOrg.id);
@@ -113,6 +127,10 @@ export class AuthMiddleware implements NestMiddleware {
       req.org = setOrg;
       actingUserId = user.id;
     } catch (err) {
+      // A refusal that already says why keeps its own words. Everything else —
+      // a bad signature, an unknown account, a call that failed — is a session
+      // that cannot be trusted, and the browser is logged out.
+      if (err instanceof HttpException) throw err;
       throw new HttpForbiddenException();
     }
     if (!actingUserId) {

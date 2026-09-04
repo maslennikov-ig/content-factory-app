@@ -83,7 +83,7 @@ export const ApiModal: FC<{
           onSubmit={methods.handleSubmit(submit)}
         >
           <div className="pt-[10px]">
-            <Input label="API Key" name="api" />
+            <Input label={t('label_api_key', 'API Key')} name="api" />
           </div>
           <div>
             <Button loading={loading} type="submit">
@@ -145,9 +145,18 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
             />
           </div>
           <div className="whitespace-pre-wrap text-left text-lg">{p.title}</div>
-          <div className="whitespace-pre-wrap text-left">{p.description}</div>
+          {/*
+            Описание провайдера приходит с сервера по-английски и печаталось
+            как есть посреди русского экрана
+            (`content-factory-next-fn33.74`). Ключ собирается из
+            идентификатора, а серверный текст остаётся запасным вариантом для
+            провайдера, которого локали ещё не знают.
+          */}
+          <div className="whitespace-pre-wrap text-left">
+            {String(t(`third_party_description_${p.identifier}`, p.description))}
+          </div>
           <div className="w-full flex">
-            <Button className="w-full">Add</Button>
+            <Button className="w-full">{t('add', 'Add')}</Button>
           </div>
         </div>
       ))}

@@ -595,7 +595,7 @@ describe('newsletter pending-delivery persistence contract', () => {
         },
         '@prisma/client': {
           Provider: { LOCAL: 'LOCAL' },
-          Role: { SUPERADMIN: 'SUPERADMIN' },
+          Role: { SUPERADMIN: 'SUPERADMIN', ADMIN: 'ADMIN', EDITOR: 'EDITOR', USER: 'USER' },
         },
         '@contentfactory/helpers/auth/auth.service': { AuthService: {} },
         '@contentfactory/nestjs-libraries/dtos/users/user.details.dto': {},

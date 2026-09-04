@@ -19,6 +19,7 @@ import {
 } from 'react-hook-form';
 import { Input } from '@contentfactory/react/form/input';
 import { CopilotTextarea } from '@copilotkit/react-textarea';
+import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import clsx from 'clsx';
 import { string, object } from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -42,26 +43,34 @@ export const TextArea: FC<{
   return (
     <>
       <textarea className="hidden" {...all}></textarea>
-      <CopilotTextarea
-        disableBranding={true}
-        placeholder={props.placeHolder}
-        value={value}
-        className={clsx(
-          '!min-h-40 !max-h-80 p-[24px] overflow-hidden bg-customColor2 outline-none rounded-[4px] border-fifth border'
-        )}
-        onChange={(e) => {
-          onChange({
-            target: {
-              name: props.name,
-              value: e.target.value,
-            },
-          });
-        }}
-        autosuggestionsConfig={{
-          textareaPurpose: `Assist me in writing social media posts.`,
-          chatApiConfigs: {},
-        }}
-      />
+      {/*
+  Помощник монтируется у самого поля, а не вокруг всего приложения: его
+  провайдер обращается к рантайму сразу при монтировании
+  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+*/}
+      <CopilotProvider>
+        <CopilotTextarea
+          disableBranding={true}
+          placeholder={props.placeHolder}
+          value={value}
+          className={clsx(
+            '!min-h-40 !max-h-80 p-[24px] overflow-hidden bg-customColor2 outline-none rounded-[4px] border-fifth border'
+          )}
+          onChange={(e) => {
+            onChange({
+              target: {
+                name: props.name,
+                value: e.target.value,
+              },
+            });
+          }}
+          autosuggestionsConfig={{
+            textareaPurpose: `Assist me in writing social media posts.`,
+            chatApiConfigs: {},
+          }}
+        />
+      </CopilotProvider>
+
       <div className="text-red-400 text-[12px]">
         {form?.formState?.errors?.[props.name]?.message as string}
       </div>

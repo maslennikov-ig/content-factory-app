@@ -19,6 +19,7 @@
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ContentFactService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service';
+import { ContentContextService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.service';
 import {
   evaluateBrief,
   scoreTopics,
@@ -103,7 +104,16 @@ export class ContentBriefService {
     private readonly repository: ContentBriefRepository,
     @Inject(ContentFactService)
     private readonly facts: ContentFactService,
-    @Optional() now: () => Date = () => new Date()
+    @Optional() now: () => Date = () => new Date(),
+    /**
+     * The same builder every other writing path uses. Optional, and last, so
+     * the brief still writes a draft in a wiring that has no context builder
+     * at all — losing the provenance is a smaller failure than losing the
+     * draft.
+     */
+    @Optional()
+    @Inject(ContentContextService)
+    private readonly contexts?: ContentContextService
   ) {
     this.now = now || (() => new Date());
   }
@@ -223,6 +233,13 @@ export class ContentBriefService {
      * nullable, and inventing an author for a library row is worse than a
      * library row that is not there.
      */
+    const contextSnapshotId = await this.recordedContext(
+      organizationId,
+      brief,
+      request,
+      language
+    );
+
     const pieceId = actorUserId
       ? await this.repository.recordPiece(organizationId, {
           postId,
@@ -238,10 +255,68 @@ export class ContentBriefService {
           createdByUserId: actorUserId,
           brandProfileVersionId:
             await this.repository.activeVoiceVersionId(organizationId),
+          contentContextSnapshotId: contextSnapshotId,
         })
       : null;
 
     return { outcome: 'ready', postId, ...(pieceId ? { pieceId } : {}) };
+  }
+
+  /**
+   * The context this draft stood on, kept so «Разбор» has something to read.
+   *
+   * Before `content-factory-next-fn33.89` the brief wrote a `ContentPiece`
+   * with no `contentContextSnapshotId` at all, and the archive's «На чём стоит
+   * этот текст» answered every freshly written draft with «написан до того,
+   * как черновик стал запоминать» — a sentence about the product's history
+   * printed over a text that was minutes old.
+   *
+   * The snapshot is built by the same builder every other writing path uses,
+   * with the brief's own facts named explicitly, so the list under «Разбор»
+   * is the list of facts the brief was actually assembled from rather than a
+   * second guess at them.
+   *
+   * A failure here returns `null` and nothing else: the post is already
+   * written, and refusing a draft over its bookkeeping would trade the thing
+   * the person asked for against the record of it.
+   */
+  private async recordedContext(
+    organizationId: string,
+    brief: Brief,
+    request: BriefRequestV1,
+    language: BriefLanguage
+  ): Promise<string | null> {
+    if (!this.contexts) return null;
+    const factIds = [
+      ...new Set(
+        (request.facts || [])
+          .map((fact) => fact.factId?.trim())
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    // Only when the brief actually named facts from memory. Left to itself the
+    // builder also ranks every other fact in the space by word overlap, and a
+    // provenance list assembled that way would name facts this draft never
+    // used — a wrong answer under «На чём стоит этот текст» is worse than no
+    // answer, because it reads as checked.
+    if (!factIds.length) return null;
+    try {
+      const context = await this.contexts.build(organizationId, {
+        consumer: 'GENERATOR',
+        purpose: 'DRAFT_CREATE',
+        query: briefTitle(brief, language),
+        language,
+        // Never `REQUIRE_CURRENT`: this is a record of what the draft stood
+        // on, not a gate in front of it, and a gate here would refuse to
+        // remember exactly the drafts whose provenance matters most.
+        freshnessMode: 'PREFER_FRESH',
+        factIds,
+        brandProfileSelection: { mode: 'active' },
+      });
+      return context.contentContextSnapshotId || null;
+    } catch {
+      return null;
+    }
   }
 
   /**

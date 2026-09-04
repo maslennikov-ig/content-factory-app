@@ -150,6 +150,97 @@ const findSharedControlHeightOffenders = (files) => {
 };
 
 /**
+ * The third button.
+ *
+ * `border border-cf-accent bg-cf-accent-soft text-cf-accent hover:bg-cf-accent`
+ * is not a variant of anything: the action scale in
+ * `libraries/react-shared-libraries/src/form/button.tsx` has five, and this is a
+ * sixth that nobody designed, retyped by hand onto anchors and divs until it
+ * read as a house style. `DESIGN.md` gives accent to the current selection and
+ * to the main action, and both of those already have a primitive — `Button`,
+ * `ButtonLink`, and the choice family, which is why a component that owns the
+ * role (`MenuOption`, `ControlButton`, `RadioOption`) is not scanned here: the
+ * choice primitives take their paint from the call site on purpose.
+ *
+ * What is scanned is the element that carries the interaction itself and paints
+ * it by hand: an intrinsic tag or a `Link` that is clickable — `href`,
+ * `onClick`, or being an `a`/`button` — and wears the accent fill or the accent
+ * border. Panels and badges with the same fill are not touched; they do not
+ * claim to be pressable, and a status chip is not a button.
+ */
+const HAND_ROLLED_ACCENT_CLASS =
+  /(?:^|[\s"'`{])(?:[\w-]+:)*!?(?:bg-cf-accent-soft|border-cf-accent)(?![\w-])/;
+
+const INTERACTIVE_INTRINSIC_TAGS = new Set(['a', 'button']);
+
+/**
+ * Files that already paint an interactive element by hand. Every one of them is
+ * a selection chip or a filter row written before the choice family existed;
+ * they are debt to migrate, not permission to add a nineteenth. The list is
+ * checked in both directions, so a file that stops offending has to leave it.
+ */
+const HAND_ROLLED_ACCENT_ALLOWED = [
+  'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx',
+  'apps/frontend/src/components/launches/ai.image.tsx',
+  'apps/frontend/src/components/launches/filters.tsx',
+  'apps/frontend/src/components/launches/helpers/pick.platform.component.tsx',
+  'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
+  'apps/frontend/src/components/launches/missing-release.modal.tsx',
+  'apps/frontend/src/components/launches/select.customer.tsx',
+  'apps/frontend/src/components/media/media.component.tsx',
+];
+
+const findHandRolledAccentOffenders = (files) => {
+  const offenders = [];
+
+  for (const { file, source } of files) {
+    const ast = ts.createSourceFile(
+      file,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX
+    );
+
+    const visit = (node) => {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+        const tag = node.tagName.getText(ast);
+        // A capitalised tag other than `Link` is a component, and a component
+        // is where the paint is supposed to live.
+        const handRolled = /^[a-z]/.test(tag) || tag === 'Link';
+        const attributes = node.attributes.properties.filter(ts.isJsxAttribute);
+        const names = new Set(
+          attributes.map((attribute) => attribute.name.getText(ast))
+        );
+        const interactive =
+          INTERACTIVE_INTRINSIC_TAGS.has(tag) ||
+          tag === 'Link' ||
+          names.has('href') ||
+          names.has('onClick');
+
+        if (handRolled && interactive) {
+          const className =
+            attributes
+              .find((attribute) => attribute.name.getText(ast) === 'className')
+              ?.initializer?.getText(ast) ?? '';
+          if (HAND_ROLLED_ACCENT_CLASS.test(className)) {
+            const line =
+              ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1;
+            offenders.push(`${file}:${line}`);
+          }
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+
+    visit(ast);
+  }
+
+  return offenders.sort();
+};
+
+/**
  * Colour literals in JSX.
  *
  * Two groups here are not going away and are not meant to: the vendored icon
@@ -714,6 +805,44 @@ describe('Content Factory style guard', () => {
       offenders: offenders.sort(),
       fix: 'let the shared Button own its 40px visual height; use the mobile hit-area wrapper for 44px touch',
     }).toEqual({ offenders: [], fix: expect.any(String) });
+  });
+
+  test('refuses a new hand-painted accent button and keeps its ledger honest', () => {
+    // First that the detector reads interaction rather than colour: the anchor,
+    // the clickable div and the Link are offences; the status panel, the badge
+    // and the choice primitive taking its paint from the call site are not.
+    const fixture = [
+      '<a href="/content" className="border border-cf-accent bg-cf-accent-soft text-cf-accent">Open</a>',
+      '<div onClick={pick} className="bg-cf-accent-soft" />',
+      '<Link href="/x" className="border-cf-accent" />',
+      '<p role="status" className="border border-cf-accent bg-cf-accent-soft" />',
+      '<span className="bg-cf-accent-soft" />',
+      '<MenuOption onClick={pick} className="bg-cf-accent-soft" />',
+      '<a href="/y" className="bg-cf-accent-ink border-cf-accent-hover" />',
+    ].join('\n');
+    expect(
+      findHandRolledAccentOffenders([{ file: 'fixture.tsx', source: fixture }])
+    ).toEqual(['fixture.tsx:1', 'fixture.tsx:2', 'fixture.tsx:3']);
+
+    const files = sourceFiles(
+      path.join(repositoryRoot, 'apps/frontend/src')
+    ).map((absolute) => ({
+      file: path.relative(repositoryRoot, absolute),
+      source: fs.readFileSync(absolute, 'utf8'),
+    }));
+    const offending = new Set(
+      findHandRolledAccentOffenders(files).map((entry) =>
+        entry.slice(0, entry.lastIndexOf(':'))
+      )
+    );
+
+    expect({
+      added: [...offending]
+        .filter((file) => !HAND_ROLLED_ACCENT_ALLOWED.includes(file))
+        .sort(),
+      stale: HAND_ROLLED_ACCENT_ALLOWED.filter((file) => !offending.has(file)),
+      fix: 'use Button, ButtonLink or the choice family; accent is the primitive’s to paint',
+    }).toEqual({ added: [], stale: [], fix: expect.any(String) });
   });
 
   test('catches alias, const, relative-import and inline-style height bypass fixtures', () => {

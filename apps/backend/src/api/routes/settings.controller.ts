@@ -6,6 +6,7 @@ import {
   HttpException,
   Param,
   Post,
+  Put,
 } from '@nestjs/common';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
@@ -14,6 +15,7 @@ import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { AddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
+import { UpdateTeamMemberRoleDto } from '@contentfactory/nestjs-libraries/dtos/settings/update.team.member.role.dto';
 import { ShortlinkPreferenceDto } from '@contentfactory/nestjs-libraries/dtos/settings/shortlink-preference.dto';
 import { ApiTags } from '@nestjs/swagger';
 import {
@@ -22,6 +24,7 @@ import {
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { AiProviderService } from '@contentfactory/nestjs-libraries/openai/ai.provider.service';
 import { AiProviderDto } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
+import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 @ApiTags('Settings')
 @Controller('/settings')
@@ -64,6 +67,31 @@ export class SettingsController {
     }
 
     return this._organizationService.addTeamMemberByEmail(org, body);
+  }
+
+  /**
+   * `content-factory-next-fn33.17`. The same two policies removal carries, for
+   * the same reason: changing what somebody may do inside the workspace is the
+   * lighter half of the same authority. Which roles the caller may hand out,
+   * and to whom, is weighed in the service against their own.
+   */
+  @Put('/team/:id')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.TEAM_MEMBERS],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
+  updateTeamMemberRole(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: UpdateTeamMemberRoleDto
+  ) {
+    return this._organizationService.updateTeamMemberRole(
+      org,
+      user,
+      id,
+      body.role as AssignableOrganizationRole
+    );
   }
 
   @Delete('/team/:id')

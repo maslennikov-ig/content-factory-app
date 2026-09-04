@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -13,7 +13,6 @@ import {
 } from './voice-materials.screen';
 import type { VoiceLocale } from './voice-copy';
 import {
-  DEFAULT_RECUT_PLATFORM,
   EDITOR_MODAL,
   MATERIALS_API,
   draftHandoff,
@@ -23,6 +22,8 @@ import {
   idByCode,
   jsonReader,
   materialEndpoint,
+  platformsWithChannel,
+  preferredRecutPlatform,
   readFailure,
   screenMaterials,
   screenRecut,
@@ -78,7 +79,8 @@ export function VoiceMaterialsContainer() {
   const words = FALLBACK[locale];
 
   const read = useMemo(() => jsonReader(request), [request]);
-  const { data: channels } = useIntegrationList();
+  const { data: channels, isValidating: channelsPending } =
+    useIntegrationList();
 
   const library = useSWR<MaterialsResponseV1>(
     MATERIALS_API,
@@ -209,6 +211,51 @@ export function VoiceMaterialsContainer() {
     [library.data]
   );
 
+  // The piece someone asked to reuse before the channel list was in.
+  //
+  // The panel has to open on a platform this workspace can post to, and that
+  // is not known until the channels are. Waiting a moment costs one beat; the
+  // old answer — open on `site` whatever the workspace had — cost a preview of
+  // a platform nobody could use and a refusal after the next click
+  // (`content-factory-next-fn33.111`).
+  const [awaitingChannels, setAwaitingChannels] = useState<string | undefined>();
+
+  // Undefined until the channel list is in: "no channel anywhere" and "not
+  // asked yet" are different answers, and drawing the first one over the
+  // second greys out every platform for a moment on every load.
+  // `useIntegrationList` hands out an empty array as its fallback before the
+  // request lands, so the empty list only counts once the request has stopped
+  // running — a workspace with no channel at all is a real answer and the
+  // screen has something to say about it (`content-factory-next-fn33.111`).
+  const channelsKnown = !!channels?.length || !channelsPending;
+  const available = useMemo(
+    () => (channelsKnown ? platformsWithChannel(channels) : undefined),
+    [channelsKnown, channels]
+  );
+
+  const reuse = useCallback(
+    (code: string) => {
+      const platform = preferredRecutPlatform(available);
+      if (platform) {
+        setAwaitingChannels(undefined);
+        preview(code, platform);
+        return;
+      }
+      // No platform to open on. Either the answer is on its way — and the
+      // recut starts as soon as it lands — or this workspace has no channel
+      // anywhere, in which case the screen keeps the button shut and says why.
+      if (!available) setAwaitingChannels(code);
+    },
+    [available, preview]
+  );
+
+  useEffect(() => {
+    if (!awaitingChannels || !available) return;
+    const platform = preferredRecutPlatform(available);
+    setAwaitingChannels(undefined);
+    if (platform) preview(awaitingChannels, platform);
+  }, [available, awaitingChannels, preview]);
+
   // A library that would not load is a refusal like any other, and it is read
   // the same way: the code the server sent, and the sentence it wrote.
   const shown =
@@ -236,9 +283,10 @@ export function VoiceMaterialsContainer() {
       expandedCode={expandedCode}
       derived={derived}
       recut={screenRecut(recut)}
-      notice={shown ? failureNotice(shown) : undefined}
+      availablePlatforms={available}
+      notice={shown ? failureNotice(shown, locale) : undefined}
       onExpand={expand}
-      onReuse={(code) => preview(code, DEFAULT_RECUT_PLATFORM)}
+      onReuse={reuse}
       onPlatform={(platform) => {
         if (recut) preview(recut.code, platform);
       }}

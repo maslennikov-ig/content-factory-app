@@ -40,12 +40,25 @@ export function VoiceEmptyScreen({
   state = 'default',
   onCreate,
   onExample,
+  onContinue,
+  collected,
   note,
 }: {
   locale: VoiceLocale;
   state?: VoiceEmptyState;
   onCreate?: () => void;
   onExample?: () => void;
+  onContinue?: () => void;
+  /**
+   * What is already in the corpus, when a collection was started and left.
+   *
+   * The wizard promises «после сбора можно вернуться и выбрать другой путь —
+   * образцы сохраняются», and this screen answered a reload with «Аватара пока
+   * нет» and nothing else — so eight collected samples read as lost work
+   * (`content-factory-next-fn33.45`). Absent, and not zero, when nothing has
+   * been collected: zero would be a claim that the corpus was looked at.
+   */
+  collected?: { sampleCount: number; charCount: number };
   /** A single line the host may add, e.g. why creating is unavailable. */
   note?: ReactNode;
 }) {
@@ -87,12 +100,33 @@ export function VoiceEmptyScreen({
         </p>
       ) : null}
 
+      {collected && collected.sampleCount > 0 ? (
+        <p
+          data-voice-empty-collected={String(collected.sampleCount)}
+          className="mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+        >
+          {t.emptyCollected(collected.sampleCount, collected.charCount)}
+        </p>
+      ) : null}
+
       <div className="mt-[20px] flex flex-wrap gap-[8px]">
+        {collected && collected.sampleCount > 0 ? (
+          <Button
+            type="button"
+            onClick={onContinue}
+            disabled={busy || blocked}
+            variant="primary"
+          >
+            {t.emptyContinue}
+          </Button>
+        ) : null}
         <Button
           type="button"
           onClick={onCreate}
           disabled={busy || blocked}
-          variant="primary"
+          variant={
+            collected && collected.sampleCount > 0 ? 'secondary' : 'primary'
+          }
         >
           {t.createVoice}
         </Button>

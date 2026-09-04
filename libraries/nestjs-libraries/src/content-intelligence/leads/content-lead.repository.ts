@@ -117,10 +117,18 @@ export class ContentLeadRepository {
     return subscription;
   }
 
+  /**
+   * `lastCheckedAt` is optional on purpose (content-factory-next-fn33.52).
+   * It is the date the subscription row shows as «заглядывали <дата>», so
+   * only a call that actually opened the feed passes it; a refused check
+   * omits it and the previous value — often "never" — stays as it was.
+   * Omitting the key leaves the column out of the `updateMany` data
+   * entirely, which is what keeps the old value.
+   */
   async recordCheckResult(
     organizationId: string,
     id: string,
-    data: { state: string; lastErrorCode: string | null; lastCheckedAt: Date }
+    data: { state: string; lastErrorCode: string | null; lastCheckedAt?: Date }
   ) {
     const changed = await this.client().contentLeadSubscription.updateMany({
       where: { organizationId, id, deletedAt: null },

@@ -61,6 +61,16 @@ const { AuthService } = loadTypeScriptModule(
       },
     },
     '@prisma/client': { Provider },
+    // A Telegram sign-in never carries an invitation token, but the auth
+    // service imports the module that reads one, and this loader resolves
+    // nothing on its own. Stubbed rather than loaded so no test here needs
+    // Redis.
+    '@contentfactory/nestjs-libraries/auth/team-invitation': {
+      acceptTeamInvitation: async () => {
+        throw new Error('no invitation in this flow');
+      },
+      TeamInvitationError: class TeamInvitationError extends Error {},
+    },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto: class {},
     },

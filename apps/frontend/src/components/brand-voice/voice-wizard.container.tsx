@@ -104,6 +104,9 @@ export function VoiceWizardContainer({
   const [chosenPath, setChosenPath] = useState<VoicePathKeyV1 | undefined>();
   const [selectedCodes, setSelectedCodes] = useState<readonly string[]>([]);
   const [consentGiven, setConsentGiven] = useState(false);
+  // What the avatar will be called. Local until activation, which is the one
+  // request that can write it (`content-factory-next-fn33.46`).
+  const [avatarName, setAvatarName] = useState('');
   const [intake, setIntake] = useState<IntakeDraft | null>(null);
   // The picked files, which only this browser knows about until they are sent.
   const [upload, setUpload] = useState<{
@@ -519,6 +522,7 @@ export function VoiceWizardContainer({
         method: 'POST',
         body: JSON.stringify({
           consentGiven,
+          ...(avatarName.trim() ? { avatarName: avatarName.trim() } : {}),
           ...(chosenPath === 'manual' ? { mode: 'manual' } : {}),
         }),
       });
@@ -530,6 +534,7 @@ export function VoiceWizardContainer({
       fail('proposal', error);
     }
   }, [
+    avatarName,
     chosenPath,
     consentGiven,
     fail,
@@ -640,6 +645,22 @@ export function VoiceWizardContainer({
           locale={locale}
           state={emptyState}
           note={overviewFailure?.message ?? overview.note}
+          // The corpus the overview already reports. Screen 01 said «Аватара
+          // пока нет» over eight saved samples and offered nothing but
+          // starting again, which reads as lost work
+          // (`content-factory-next-fn33.45`).
+          {...(overview.readiness.sampleCount > 0
+            ? {
+                collected: {
+                  sampleCount: overview.readiness.sampleCount,
+                  charCount: overview.readiness.charCount,
+                },
+              }
+            : {})}
+          onContinue={() => {
+            setChosenPath((current) => current ?? 'own');
+            goTo('samples');
+          }}
           onCreate={() => goTo('paths')}
         />
       ) : null}
@@ -841,6 +862,8 @@ export function VoiceWizardContainer({
           onEditPortrait={() => void decidePortrait('EDIT')}
           onSavePortrait={(text) => void decidePortrait('SAVE', text)}
           onConsentChange={setConsentGiven}
+          avatarName={avatarName}
+          onAvatarNameChange={setAvatarName}
           onActivate={() => void activate()}
           onSaveDraft={() => void proposalQuery.mutate()}
         />

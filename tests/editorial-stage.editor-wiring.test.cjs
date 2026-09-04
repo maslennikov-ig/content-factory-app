@@ -34,8 +34,21 @@ describe('the store carries the editorial stage as its own field', () => {
     expect(storeSource).toMatch(/setEditorialStage:/);
   });
 
-  test('null is the real initial value, not an unset TypeScript field', () => {
-    expect(storeSource).toMatch(/editorialStage:\s*null as EditorialStageValue \| null,/);
+  /**
+   * Owner's decision, 04.09.2026, recorded in
+   * `docs/product/content-section-map.md` §9.1: a new post opens on the first
+   * rung of the ladder. It used to open on "no stage recorded", which asked
+   * the author a question that opening the editor had already answered.
+   *
+   * The slot still has to be a real initial value rather than an unset
+   * TypeScript field — that was the point of the original assertion and it
+   * holds — and the type still admits null, because unset stays selectable and
+   * stays what an existing post without a stage keeps.
+   */
+  test('PLAN is the real initial value, not an unset TypeScript field', () => {
+    expect(storeSource).toMatch(
+      /editorialStage:\s*'PLAN' as EditorialStageValue \| null,/
+    );
   });
 });
 

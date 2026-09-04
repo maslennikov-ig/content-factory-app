@@ -1,16 +1,13 @@
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { internalFetch } from '@contentfactory/helpers/utils/internal.fetch';
 export const dynamic = 'force-dynamic';
-import { Metadata } from 'next';
 import { getT } from '@contentfactory/react/translation/get.translation.service.backend';
 import {
   PostPreview,
   type PublicPreviewPost,
 } from '@contentfactory/frontend/components/preview/post.preview';
 
-export const metadata: Metadata = {
-  title: 'Preview',
-  description: '',
-};
+export const generateMetadata = pageTitle('preview', 'Preview');
 export default async function Auth(
   props: {
     params: Promise<{

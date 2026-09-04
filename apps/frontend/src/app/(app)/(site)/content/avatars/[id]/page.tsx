@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-import { Metadata } from 'next';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { VoiceAvatarScreen } from '@contentfactory/frontend/components/brand-voice/voice-avatar.screen';
 
 /**
@@ -13,10 +13,7 @@ import { VoiceAvatarScreen } from '@contentfactory/frontend/components/brand-voi
  * particular voice. A workspace holds up to eight of these and they are
  * long-lived, edited objects; an object like that has an address.
  */
-export const metadata: Metadata = {
-  title: 'Avatar',
-  description: '',
-};
+export const generateMetadata = pageTitle('avatar', 'Avatar');
 
 export default async function Page({
   params,

@@ -6,6 +6,9 @@ const nest = {
   Controller: () => (target) => target,
   Get: () => () => undefined,
   Post: () => () => undefined,
+  // `PUT /users/password` пришёл с формой смены пароля
+  // (`content-factory-next-fn33.66`); без заглушки контроллер не грузится.
+  Put: () => () => undefined,
   Delete: () => () => undefined,
   Body: () => () => undefined,
   Query: () => () => undefined,

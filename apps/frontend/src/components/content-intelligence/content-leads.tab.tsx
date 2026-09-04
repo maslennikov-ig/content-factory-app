@@ -8,6 +8,9 @@ import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Hint } from '@contentfactory/react/layout/hint';
+import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Dialog } from '../ui/layers';
 import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
@@ -71,6 +74,12 @@ const copy = {
     title: 'Откуда идеи',
     body: 'Ленты, которые продукт читает за вас. Он приносит поводы написать — не готовые тексты. Что взять в работу, решаете вы.',
     addSubscription: 'Добавить подписку',
+    // content-factory-next-fn33.63: три двери подписок — завести, проверить,
+    // архивировать — администраторские (`docs/product/roles-matrix.md`).
+    // Участник видел живую кнопку, заполнял форму и получал 403 только
+    // после «Сохранить». Слово в слово как на вкладке «Аватары».
+    readOnlyNote:
+      'Раздел открыт на чтение: заводить и проверять ленты может администратор.',
     loading: 'Загружаем подписки',
     listFallback: 'Список не загрузился. Попробуйте ещё раз.',
     retry: 'Повторить',
@@ -95,8 +104,11 @@ const copy = {
     checking: 'Проверяем…',
     archive: 'Отписаться',
     archiveConfirm: 'Больше поводов от этой подписки не будет. Прежние остаются в списке.',
+    // content-factory-next-fn33.54: «за месяц: 2 поводов» — число
+    // подставлялось без выбора формы слова. `plural` — та же тройка форм,
+    // которой уже считаются образцы манеры и шкалы разбора.
     monthStats: (total: number, accepted: number) =>
-      `за месяц: ${total} поводов, взято ${accepted}`,
+      `за месяц: ${total} ${plural(total, ['повод', 'повода', 'поводов'])}, взято ${accepted}`,
     frequency: {
       60: 'раз в час',
       360: 'раз в 6 часов',
@@ -145,6 +157,8 @@ const copy = {
     title: 'Ideas',
     body: 'Feeds the product reads for you. It brings reasons to write — not finished text. What to take to work is your call.',
     addSubscription: 'Add subscription',
+    readOnlyNote:
+      'This section is read-only for you: an administrator adds and checks feeds.',
     loading: 'Loading subscriptions',
     listFallback: 'The list did not load. Try again.',
     retry: 'Retry',
@@ -230,6 +244,7 @@ function SubscriptionRowView({
   locale,
   t,
   busy,
+  canManage,
   onCheckNow,
   onArchive,
 }: {
@@ -237,6 +252,15 @@ function SubscriptionRowView({
   locale: Locale;
   t: (typeof copy)[Locale];
   busy: boolean;
+  /**
+   * Both actions on this row are administrator doors
+   * (content-factory-next-fn33.63): `…/:id/check` and `…/:id/archive` carry
+   * `Sections.ADMIN`. They are hidden rather than disabled — the row is
+   * still worth reading without them, and a permanently dead pair of
+   * buttons on every row is noise, not information. The note above the list
+   * says once who may act.
+   */
+  canManage: boolean;
   onCheckNow: () => void;
   onArchive: () => void;
 }) {
@@ -286,18 +310,20 @@ function SubscriptionRowView({
           {t.checkFailedGeneric(subscription.lastErrorCode)}
         </span>
       )}
-      <div className="ml-auto flex shrink-0 gap-[8px]">
-        <span className="flex min-h-[44px] items-center sm:min-h-0">
-          <Button density="dense" variant="secondary" disabled={busy} onClick={onCheckNow}>
-            {busy ? t.checking : t.checkNow}
-          </Button>
-        </span>
-        <span className="flex min-h-[44px] items-center sm:min-h-0">
-          <Button density="dense" variant="quiet" disabled={busy} onClick={onArchive}>
-            {t.archive}
-          </Button>
-        </span>
-      </div>
+      {canManage && (
+        <div className="ml-auto flex shrink-0 gap-[8px]">
+          <span className="flex min-h-[44px] items-center sm:min-h-0">
+            <Button density="dense" variant="secondary" disabled={busy} onClick={onCheckNow}>
+              {busy ? t.checking : t.checkNow}
+            </Button>
+          </span>
+          <span className="flex min-h-[44px] items-center sm:min-h-0">
+            <Button density="dense" variant="quiet" disabled={busy} onClick={onArchive}>
+              {t.archive}
+            </Button>
+          </span>
+        </div>
+      )}
     </li>
   );
 }
@@ -513,6 +539,26 @@ export function ContentLeadsTab({
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 
+  /**
+   * Navigational honesty about three administrator doors
+   * (content-factory-next-fn33.63).
+   *
+   * `POST /leads/subscriptions`, `…/:id/check` and `…/:id/archive` all carry
+   * `Sections.ADMIN`, and `docs/product/roles-matrix.md` records them as
+   * administrator doors. An editor saw «Указать ленту» live, filled the form
+   * and lost the work to a 403 on save — while «Указать канал» right beside
+   * it was correctly disabled for a different reason, so the screen
+   * contradicted itself.
+   *
+   * Read from the session rather than the envelope: `useUser().role` is the
+   * same fact the Avatars tab and the team screen already branch on, and
+   * `isOrganizationAdmin` is the same helper the server's own check uses.
+   * The list itself stays open — reading who is watched is not an
+   * administrator door.
+   */
+  const user = useUser();
+  const canManageFeeds = isOrganizationAdmin(user?.role);
+
   const subscriptions = useSWR(SUBSCRIPTIONS_API, () => read(SUBSCRIPTIONS_API), {
     revalidateOnFocus: false,
   });
@@ -628,7 +674,7 @@ export function ContentLeadsTab({
           </h2>
           <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.body}</p>
         </div>
-        {loaded && !listFailure && subscriptionRows.length > 0 && (
+        {loaded && !listFailure && subscriptionRows.length > 0 && canManageFeeds && (
           <span className="flex min-h-[44px] items-center sm:min-h-0">
             <Button variant="primary" onClick={() => setDialogOpen(true)}>
               {t.addSubscription}
@@ -636,6 +682,16 @@ export function ContentLeadsTab({
           </span>
         )}
       </div>
+
+      {!canManageFeeds && (
+        <p
+          role="status"
+          data-content-leads-read-only="true"
+          className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+        >
+          {t.readOnlyNote}
+        </p>
+      )}
 
       {!feedCheckEnabled && loaded && !listFailure && (
         <p
@@ -694,7 +750,17 @@ export function ContentLeadsTab({
                 </div>
                 <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.startFeedBody}</span>
                 <span className="mt-auto flex min-h-[44px] items-center sm:min-h-0">
-                  <Button variant="primary" onClick={() => setDialogOpen(true)}>
+                  {/*
+                    Disabled rather than hidden here: this card is the empty
+                    state's explanation of what a subscription is, and a
+                    person who may not add one still needs the card to make
+                    sense of the empty screen. The note above says who can.
+                  */}
+                  <Button
+                    variant="primary"
+                    disabled={!canManageFeeds}
+                    onClick={() => setDialogOpen(true)}
+                  >
                     {t.startFeedCta}
                   </Button>
                 </span>
@@ -787,6 +853,7 @@ export function ContentLeadsTab({
                   locale={locale}
                   t={t}
                   busy={busySubscriptionId === subscription.id}
+                  canManage={canManageFeeds}
                   onCheckNow={() => void checkNow(subscription.id)}
                   onArchive={() => void archiveSubscription(subscription.id)}
                 />

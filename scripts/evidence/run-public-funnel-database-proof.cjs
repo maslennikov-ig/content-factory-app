@@ -272,6 +272,12 @@ CREATE TABLE "User" (
   "lastReadNotifications" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "inviteId" TEXT,
   "activated" BOOLEAN NOT NULL DEFAULT true,
+  -- content-factory-next-fn33.66: blocking is its own state now, and Prisma
+  -- selects every column the model declares, so the proof needs the column
+  -- even though nothing in the funnel blocks anybody.
+  -- No backticks in this comment either: the whole block is a JS template
+  -- literal, and a pair of them here ends it mid-schema.
+  "blockedAt" TIMESTAMP(3),
   "account" TEXT,
   "connectedAccount" BOOLEAN NOT NULL DEFAULT false,
   "lastOnline" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

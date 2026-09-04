@@ -74,6 +74,8 @@ import { DelayComponent } from '@contentfactory/frontend/components/new-launch/d
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import dayjs from 'dayjs';
+import { formatDateTimeForReader } from '@contentfactory/frontend/components/launches/helpers/isuscitizen.utils';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
@@ -110,6 +112,67 @@ export const ContentIntelligenceContextSummary: FC<{
           ? 'Сначала подтвердите контекст: без доказательств сохранить черновик нельзя.'
           : 'Verify the context first; evidence is required before this draft can be saved.'
       );
+  /**
+   * The context's state, in words.
+   *
+   * `UNAVAILABLE` was printed straight from the enum onto the writing surface,
+   * next to an ISO timestamp. An enum value is what the server calls this; it
+   * is not what a person calls it, and it has no translation, so the Russian
+   * interface printed English shouting. Each of the five statuses gets a
+   * sentence, and an unrecognised one falls back to the neutral sentence rather
+   * than leaking the identifier.
+   */
+  const statusCopy = !provenance
+    ? ''
+    : provenance.contentContextStatus === 'READY'
+    ? t(
+        'content_context_state_ready',
+        isRussian
+          ? 'Контекст собран и проверен.'
+          : 'The context is gathered and verified.'
+      )
+    : provenance.contentContextStatus === 'PARTIAL'
+    ? t(
+        'content_context_state_partial',
+        isRussian
+          ? 'Контекст собран частично: часть источников не ответила.'
+          : 'The context is partly gathered: some sources did not answer.'
+      )
+    : provenance.contentContextStatus === 'BLOCKED_STALE'
+    ? t(
+        'content_context_state_stale',
+        isRussian
+          ? 'Контекст устарел — соберите его заново.'
+          : 'The context is out of date — gather it again.'
+      )
+    : provenance.contentContextStatus === 'BLOCKED_CONFLICT'
+    ? t(
+        'content_context_state_conflict',
+        isRussian
+          ? 'Источники противоречат друг другу — на них пока нельзя опереться.'
+          : 'The sources contradict each other, so nothing here can be leaned on yet.'
+      )
+    : t(
+        'content_context_state_unavailable',
+        isRussian
+          ? 'Контекста пока нет: подтверждённых источников не найдено.'
+          : 'There is no context yet: no confirmed sources were found.'
+      );
+
+  /**
+   * The freshness date in the reader's own notation, through the same helper
+   * the calendar and the date picker read. An ISO timestamp is a machine's way
+   * of writing a date and it was being shown to a person mid-sentence; two
+   * hand-written format strings then picked the American one off the browser
+   * locale rather than off anything the person chose
+   * (`content-factory-next-fn33.87`).
+   */
+  const formatUserDate = (value: string) => {
+    const parsed = dayjs(value);
+    if (!parsed.isValid()) return value;
+    return formatDateTimeForReader(parsed.toDate());
+  };
+
   if (loadState === 'idle' && researchSources.length === 0) return null;
   return (
     <div className="flex flex-col gap-[10px] border-t border-cf-border pt-[12px]">
@@ -149,37 +212,57 @@ export const ContentIntelligenceContextSummary: FC<{
       )}
       {provenance && (
         <div
-          className="flex flex-wrap gap-x-[16px] gap-y-[8px]"
+          className="flex flex-col gap-[8px]"
           role="status"
           aria-label={t('applied_content_context', 'Applied content context')}
         >
-          <span className="cf-label-sm text-cf-ink">
-            {provenance.brandProfileSelection.mode === 'resolved'
-              ? `${
-                  provenance.profileLabel ||
-                  t('applied_brand_profile', 'Applied brand profile')
-                } · v${provenance.brandProfileSelection.versionNumber}`
-              : t('neutral_voice', 'Neutral voice')}
-          </span>
-          <span className="cf-caption text-cf-ink-muted">
-            {t('context_status', 'Context status')}:{' '}
-            {provenance.contentContextStatus}
-            {provenance.validationStatus
-              ? ` · ${provenance.validationStatus}`
-              : ''}
-          </span>
-          {provenance.expiresAt && (
-            <span className="cf-caption text-cf-ink-muted">
-              {t(
-                'context_expires',
-                isRussian ? 'Срок действия контекста' : 'Context expires'
-              )}
-              : {provenance.expiresAt}
-            </span>
-          )}
-          <span className="cf-caption text-cf-ink-muted">
+          <p className="cf-body-sm text-cf-ink text-pretty">
+            {statusCopy}
+          </p>
+          <p className="cf-body-sm text-cf-ink-muted text-pretty">
             {draftPolicyCopy}
-          </span>
+          </p>
+          {/*
+            The identifiers below answer "which profile, valid until when" —
+            a question that only comes up when something looks wrong. They were
+            the first thing on the panel, in monospace, printed as the enum
+            value and an ISO timestamp, and they made the writing surface read
+            like a debugger. They stay, because the answer has to be reachable;
+            they just stop being the opening line.
+
+            A native disclosure rather than a component: the browser already
+            owns the button role, the expanded state and Enter/Space, and the
+            product has no disclosure primitive to reuse.
+          */}
+          <details className="group">
+            <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-[4px] cf-body-sm text-cf-ink-muted underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
+              {t('content_context_details', 'Details')}
+            </summary>
+            <div className="mt-[8px] flex flex-wrap gap-x-[16px] gap-y-[4px]">
+              <span className="cf-label-sm text-cf-ink">
+                {provenance.brandProfileSelection.mode === 'resolved'
+                  ? `${
+                      provenance.profileLabel ||
+                      t('applied_brand_profile', 'Applied brand profile')
+                    } · v${provenance.brandProfileSelection.versionNumber}`
+                  : t('neutral_voice', 'Neutral voice')}
+              </span>
+              {provenance.expiresAt && (
+                <span className="cf-caption text-cf-ink-muted">
+                  {t(
+                    'context_expires',
+                    isRussian ? 'Срок действия контекста' : 'Context expires'
+                  )}
+                  : {formatUserDate(provenance.expiresAt)}
+                </span>
+              )}
+              {provenance.validationStatus === 'VALID' && (
+                <span className="cf-caption text-cf-ink-muted">
+                  {t('content_context_checked', 'Checked against the server')}
+                </span>
+              )}
+            </div>
+          </details>
         </div>
       )}
       {researchSources.length > 0 && (

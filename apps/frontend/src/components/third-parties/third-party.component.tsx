@@ -29,7 +29,12 @@ export const ThirdPartyMenuComponent: FC<{
   const deleteChannel = (id: string) => async () => {
     setShow(false);
     if (
-      !(await deleteDialog('Are you sure you want to delete this integration?'))
+      !(await deleteDialog(
+        t(
+          'delete_integration_confirm',
+          'Are you sure you want to delete this integration?'
+        )
+      ))
     ) {
       return;
     }
@@ -160,7 +165,7 @@ export const ThirdPartyComponent = () => {
                 )}
               >
                 {!isLoading && !data?.length ? (
-                  <div>No Integrations Yet</div>
+                  <div>{t('no_integrations_yet', 'No Integrations Yet')}</div>
                 ) : (
                   data?.map((p: any) => (
                     <div

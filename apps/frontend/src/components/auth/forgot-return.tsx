@@ -9,10 +9,8 @@ import { useMemo, useState } from 'react';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { ForgotReturnPasswordDto } from '@contentfactory/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import {
-  PASSWORD_POLICY_ERROR_MESSAGE,
-  PASSWORD_POLICY_RANGE,
-} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
+import { PASSWORD_POLICY_RANGE } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
+import { useFieldErrorMessage } from '@contentfactory/frontend/components/auth/form.errors';
 type Inputs = {
   password: string;
   repeatPassword: string;
@@ -32,15 +30,11 @@ export function ForgotReturn({ token }: { token: string }) {
       token,
     },
   });
-  const passwordError = form.formState.errors.password?.message;
-  const localizedPasswordError =
-    passwordError === PASSWORD_POLICY_ERROR_MESSAGE
-      ? t(
-          'password_policy_error',
-          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
-          PASSWORD_POLICY_RANGE
-        )
-      : passwordError;
+  const fieldErrorMessage = useFieldErrorMessage();
+  const localizedPasswordError = fieldErrorMessage(
+    'password',
+    form.formState.errors.password?.message
+  );
   const fetchData = useFetch();
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
@@ -83,11 +77,17 @@ export function ForgotReturn({ token }: { token: string }) {
                 error={localizedPasswordError}
                 autoComplete="new-password"
                 placeholder={t('label_password', 'Password')}
-                helper={t(
-                  'password_policy_hint',
-                  'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
-                  PASSWORD_POLICY_RANGE
-                )}
+                // `content-factory-next-fn33.44`: one sentence, not the same
+                // one twice — grey as a hint and red as a refusal.
+                helper={
+                  localizedPasswordError
+                    ? undefined
+                    : t(
+                        'password_policy_hint',
+                        'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                        PASSWORD_POLICY_RANGE
+                      )
+                }
                 showPasswordLabel={t('show_password', 'Show password')}
                 hidePasswordLabel={t('hide_password', 'Hide password')}
               />

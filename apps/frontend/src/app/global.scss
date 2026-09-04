@@ -553,7 +553,15 @@ h3 {
   -webkit-text-fill-color: var(--cf-ink) !important;
 }
 .col-calendar:hover:before {
-  content: 'Date passed';
+  /*
+    The words come from the cell, not from here. Until
+    `content-factory-next-fn33.79` this rule held an English sentence of its
+    own: no dictionary could reach it and no key for it existed anywhere. The
+    pseudo-element is presentation and stays; the text travels in
+    `data-date-passed`, the same way `.loading-shimmer` already reads
+    `attr(data-text)`.
+  */
+  content: attr(data-date-passed);
   color: var(--cf-ink);
   position: absolute;
   left: 50%;

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
 import {
   defineInterfaceReviewScene,
   InterfaceReviewFrame,
@@ -182,15 +183,12 @@ export default async function InterfaceReviewPage({
               {russian ? 'Тема' : 'Theme'}
             </span>
             {(['dark', 'light'] as const).map((theme) => (
-              <Link
+              <ButtonLink
                 key={theme}
                 href={`?${query({ theme })}`}
                 aria-current={context.theme === theme ? 'true' : undefined}
-                className={
-                  context.theme === theme
-                    ? 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[12px] cf-label-md text-cf-accent sm:min-h-[40px]'
-                    : 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink sm:min-h-[40px]'
-                }
+                variant={context.theme === theme ? 'primary' : 'secondary'}
+                className="cf-control-h"
               >
                 {theme === 'dark'
                   ? russian
@@ -199,7 +197,7 @@ export default async function InterfaceReviewPage({
                   : russian
                   ? 'Светлая'
                   : 'Light'}
-              </Link>
+              </ButtonLink>
             ))}
           </div>
 
@@ -208,18 +206,15 @@ export default async function InterfaceReviewPage({
               {russian ? 'Язык' : 'Language'}
             </span>
             {(['ru', 'en'] as const).map((locale) => (
-              <Link
+              <ButtonLink
                 key={locale}
                 href={`?${query({ locale })}`}
                 aria-current={context.locale === locale ? 'true' : undefined}
-                className={
-                  context.locale === locale
-                    ? 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[12px] cf-label-md text-cf-accent sm:min-h-[40px]'
-                    : 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink sm:min-h-[40px]'
-                }
+                variant={context.locale === locale ? 'primary' : 'secondary'}
+                className="cf-control-h"
               >
                 {locale.toUpperCase()}
-              </Link>
+              </ButtonLink>
             ))}
           </div>
 
@@ -228,20 +223,17 @@ export default async function InterfaceReviewPage({
               {russian ? 'Ширина' : 'Width'}
             </span>
             {VIEWPORTS.map((viewport) => (
-              <Link
+              <ButtonLink
                 key={viewport}
                 href={`?${query({ viewport })}`}
                 aria-current={
                   context.viewport === viewport ? 'true' : undefined
                 }
-                className={
-                  context.viewport === viewport
-                    ? 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-accent bg-cf-accent-soft px-[12px] cf-label-md text-cf-accent sm:min-h-[40px]'
-                    : 'inline-flex min-h-[44px] items-center rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink sm:min-h-[40px]'
-                }
+                variant={context.viewport === viewport ? 'primary' : 'secondary'}
+                className="cf-control-h"
               >
                 {viewport}
-              </Link>
+              </ButtonLink>
             ))}
           </div>
         </nav>

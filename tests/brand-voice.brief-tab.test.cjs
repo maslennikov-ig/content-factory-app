@@ -103,11 +103,24 @@ const RADAR = Object.freeze({
   ],
 });
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+// `content-factory-next-fn33.65`: the shared request helper hands the common
+// refusal handler a copy of the response, so a fake answer has to be
+// clonable the way a real `Response` is.
+const ok = (body) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+  clone() {
+    return this;
+  },
+});
 const refusal = (status, body) => ({
   ok: false,
   status,
   json: async () => body,
+  clone() {
+    return this;
+  },
 });
 
 let calls = [];
@@ -217,6 +230,59 @@ describe('the radar suggests, and the reason travels with the suggestion', () =>
     );
   });
 
+  /**
+   * content-factory-next-fn33.68. The block above the fact form promises
+   * «Сохранённый факт сам ляжет в бриф отдельной строкой ниже, готовым
+   * подтверждением». On the stand it did not: the person copied the
+   * statement and the raw uuid into the brief by hand. Either the promise
+   * happens or the promise goes; §9 of the section map wants it to happen,
+   * so this is the test that says it does.
+   */
+  test('content-factory-next-fn33.68 — a fact saved below lands in the brief on its own, statement and id', async () => {
+    serve({
+      ...baseTable(),
+      'POST /content-intelligence/facts': ok({ id: 'fact-9' }),
+    });
+    await renderTab();
+
+    // Nothing but the claim itself is typed: content-factory-next-fn33.57
+    // files the key and the value, so this is the whole of what the form
+    // asks for.
+    await type('statement', 'Просрочки упали на 40% за месяц.');
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    expect(document.querySelector('[name="brief-fact-0"]').value).toBe(
+      'Просрочки упали на 40% за месяц.'
+    );
+    expect(document.querySelector('[name="brief-fact-id-0"]').value).toBe(
+      'fact-9'
+    );
+  });
+
+  test('content-factory-next-fn33.68 — a list refresh that fails after the save does not eat the promise', async () => {
+    let saved = false;
+    serve({
+      ...baseTable(),
+      'POST /content-intelligence/facts': () => {
+        saved = true;
+        return ok({ id: 'fact-9' });
+      },
+      'GET /content-intelligence/facts': () =>
+        saved ? refusal(503, { message: 'Список не пришёл' }) : ok({ facts: [] }),
+    });
+    await renderTab();
+
+    await type('statement', 'Просрочки упали на 40% за месяц.');
+    await click(screen.getByRole('button', { name: 'Сохранить факт' }));
+
+    // The fact is on the server: the row lands, and nothing claims the save
+    // failed.
+    expect(document.querySelector('[name="brief-fact-id-0"]').value).toBe(
+      'fact-9'
+    );
+    expect(document.body.textContent).not.toContain('Факт не сохранился');
+  });
+
   test('a radar that could not be built does not take the brief with it', async () => {
     serve({
       ...baseTable(),
@@ -295,6 +361,49 @@ describe('the gate stands between a brief and a draft', () => {
     expect(
       document.querySelector('[data-voice-brief-blocked="true"]')
     ).toBeNull();
+  });
+
+  /**
+   * content-factory-next-fn33.69. The refusal «В рабочем пространстве нет
+   * ни одного канала» was printed at the top of the panel, inside «Радар
+   * тем», while the button that earned it sits at the bottom — and it said
+   * nothing about where a channel comes from.
+   */
+  test('content-factory-next-fn33.69 — a workspace with no channel is answered beside the button, with a way on', async () => {
+    serve({
+      ...baseTable(),
+      'POST /content-intelligence/brief/evaluate': ok({
+        state: 'success',
+        ready: true,
+        missing: [],
+        questions: [],
+        ungroundedFacts: [],
+        topics: RADAR.topics,
+      }),
+      'POST /content-intelligence/brief/draft': refusal(422, {
+        code: 'BRIEF_CHANNEL_UNKNOWN',
+        message:
+          'В рабочем пространстве нет ни одного канала, в который можно положить черновик.',
+      }),
+    });
+    await renderTab();
+    await fillEverything();
+    await click(screen.getByRole('button', { name: 'Проверить бриф' }));
+    await click(screen.getByRole('button', { name: 'Создать черновик' }));
+
+    const beside = document.querySelector('[data-voice-brief-draft-refusal]');
+    expect(beside).not.toBeNull();
+    expect(beside.textContent).toContain('нет ни одного канала');
+    // The refusal stands next to the press, not at the top of the panel.
+    const button = screen.getByRole('button', { name: 'Создать черновик' });
+    expect(
+      beside.compareDocumentPosition(button) &
+        dom.window.Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // And it says where a channel comes from.
+    const link = beside.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/launches');
   });
 
   test('a fact grounded by a remembered id sends that id, not just its statement', async () => {
@@ -403,7 +512,7 @@ describe('the gate stands between a brief and a draft', () => {
     ).toBe(true);
   });
 
-  test('a refusal keeps its code and the sentence the server wrote', async () => {
+  test('a refusal prints the sentence the server wrote and not its code', async () => {
     serve({
       ...baseTable(),
       'POST /content-intelligence/brief/evaluate': refusal(422, {
@@ -416,7 +525,11 @@ describe('the gate stands between a brief and a draft', () => {
     await fillEverything();
     await click(screen.getByRole('button', { name: 'Проверить бриф' }));
 
-    expect(screen.getByRole('alert').textContent).toContain(
+    // The code is still on the failure object — screens branch on it and it
+    // belongs in a log. It is not what a person is shown: printing it beside
+    // the sentence puts two languages in one line, one of them ours
+    // (`content-factory-next-fn33.85`).
+    expect(screen.getByRole('alert').textContent).not.toContain(
       'BRIEF_FACT_UNGROUNDED'
     );
     expect(screen.getByRole('alert').textContent).toContain(

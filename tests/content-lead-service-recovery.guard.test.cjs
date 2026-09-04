@@ -249,3 +249,65 @@ describe('item 4 — subscription.state gates whether a check runs', () => {
     expect(repository.recordCheckResultCalls[0]).toMatchObject({ state: 'ACTIVE' });
   });
 });
+
+/**
+ * content-factory-next-fn33.52. A refused check is not a look at the feed.
+ *
+ * With feed checking switched off, `checkSubscription` still wrote
+ * `lastCheckedAt: now`, and the subscription row on «Откуда идеи» then read
+ * «заглядывали <дата>» — a date for a read that never happened. The row has
+ * to keep saying «ещё не заглядывали» until something actually opens the
+ * feed. The refusal itself is still worth remembering, so `lastErrorCode:
+ * 'CHECK_DISABLED'` is still written; only the last-read date is left alone.
+ *
+ * A *failed* check is the other side of the same rule: there the feed was
+ * opened and the attempt is real, so it keeps stamping the date.
+ */
+describe('content-factory-next-fn33.52 — a refused check does not stamp a last-read date', () => {
+  test('feed checking off for this server: the refusal is recorded, the last-read date is untouched', async () => {
+    const repository = makeRepository(ACTIVE_ROW);
+    const gateway = makeGateway();
+    gateway.capabilityEnabled = false;
+    const service = new ContentLeadService(repository, gateway, undefined, () => new Date());
+
+    const result = await service.checkSubscription('org-a', 'sub-1');
+
+    expect(result).toEqual({ checked: false, reason: 'CHECK_DISABLED', created: 0 });
+    expect(gateway.check).not.toHaveBeenCalled();
+    expect(repository.recordCheckResultCalls).toHaveLength(1);
+    expect(repository.recordCheckResultCalls[0]).toEqual({
+      state: 'ACTIVE',
+      lastErrorCode: 'CHECK_DISABLED',
+    });
+  });
+
+  test('the gateway refuses this one feed (result.disabled): same rule, no last-read date', async () => {
+    const repository = makeRepository(ACTIVE_ROW);
+    const gateway = {
+      capabilityEnabled: true,
+      check: jest.fn(async () => ({ disabled: true, items: [] })),
+    };
+    const service = new ContentLeadService(repository, gateway, undefined, () => new Date());
+
+    const result = await service.checkSubscription('org-a', 'sub-1');
+
+    expect(result).toEqual({ checked: false, reason: 'CHECK_DISABLED', created: 0 });
+    expect(repository.recordCheckResultCalls[0]).not.toHaveProperty('lastCheckedAt');
+  });
+
+  test('a failed check did open the feed, so it still stamps the date', async () => {
+    const repository = makeRepository(ACTIVE_ROW);
+    const gateway = {
+      capabilityEnabled: true,
+      check: jest.fn(async () => {
+        throw new Error('network down');
+      }),
+    };
+    const service = new ContentLeadService(repository, gateway, undefined, () => new Date());
+
+    const result = await service.checkSubscription('org-a', 'sub-1');
+
+    expect(result).toEqual({ checked: false, reason: 'CHECK_FAILED', created: 0 });
+    expect(repository.recordCheckResultCalls[0]).toHaveProperty('lastCheckedAt');
+  });
+});

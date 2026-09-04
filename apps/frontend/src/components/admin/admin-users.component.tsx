@@ -22,11 +22,29 @@ import { AdminTelegramConnectComponent } from './admin-telegram-connect.componen
 
 export type AdminUserStatus = 'pending' | 'active' | 'all';
 
+/**
+ * `delete` is the one that outlives a decision: rejection only reaches an
+ * account that has never signed in, and blocking leaves the row in place for
+ * good (`content-factory-next-fn33.23`).
+ */
+export type AdminAccountAction =
+  | 'approve'
+  | 'block'
+  | 'unblock'
+  | 'reject'
+  | 'delete';
+
 export interface AdminAccountRow {
   id: string;
   email: string;
   name: string | null;
   activated: boolean;
+  /**
+   * When an administrator switched this account off, and null for everyone
+   * else. `activated: false` on its own meant «waiting for approval» and
+   * «blocked» at once (`content-factory-next-fn33.66`).
+   */
+  blockedAt: string | null;
   isSuperAdmin: boolean;
   providerName: string;
   createdAt: string;
@@ -45,26 +63,44 @@ const PAGE_SIZE = 25;
 const formatDate = (value: string) =>
   new Date(value).toISOString().slice(0, 16).replace('T', ' ');
 
+/**
+ * Three states, not two. A blocked account is off because somebody decided so,
+ * a pending one is off because nobody has decided yet, and reading them as one
+ * yellow «Awaiting approval» is what let a block be lifted by mistake
+ * (`content-factory-next-fn33.66`). The block wears the danger colour: it is
+ * the only one of the three that is a sanction.
+ */
 function StateBadge({
-  activated,
+  state,
   label,
 }: {
-  activated: boolean;
+  state: 'active' | 'pending' | 'blocked';
   label: string;
 }) {
+  const tone =
+    state === 'active'
+      ? 'border-cf-accent bg-cf-accent-soft text-cf-accent'
+      : state === 'blocked'
+        ? 'border-cf-danger bg-cf-danger-soft text-cf-danger'
+        : 'border-cf-warning bg-cf-warning-soft text-cf-warning';
   return (
     <span
-      className={`inline-flex items-center gap-[6px] rounded-full border px-[8px] py-[2px] cf-label-sm ${
-        activated
-          ? 'border-cf-accent bg-cf-accent-soft text-cf-accent'
-          : 'border-cf-warning bg-cf-warning-soft text-cf-warning'
-      }`}
+      className={`inline-flex items-center gap-[6px] rounded-full border px-[8px] py-[2px] cf-label-sm ${tone}`}
     >
-      <span aria-hidden="true">{activated ? '●' : '○'}</span>
+      <span aria-hidden="true">
+        {state === 'active' ? '●' : state === 'blocked' ? '✕' : '○'}
+      </span>
       {label}
     </span>
   );
 }
+
+/** The one place that reads the two columns as a single state. */
+export const accountState = (row: {
+  activated: boolean;
+  blockedAt: string | null;
+}): 'active' | 'pending' | 'blocked' =>
+  row.blockedAt ? 'blocked' : row.activated ? 'active' : 'pending';
 
 export function AdminUsersView({
   allowed,
@@ -96,7 +132,7 @@ export function AdminUsersView({
   onSearchInputChange: (value: string) => void;
   onApplySearch: () => void;
   onRetry: () => void;
-  onAction: (row: AdminAccountRow, action: 'approve' | 'block' | 'reject') => void;
+  onAction: (row: AdminAccountRow, action: AdminAccountAction) => void;
   onPageChange: (page: number) => void;
 }) {
   const t = useT();
@@ -311,11 +347,13 @@ export function AdminUsersView({
                     </div>
                     <div className="flex flex-wrap items-center gap-[8px]">
                       <StateBadge
-                        activated={row.activated}
+                        state={accountState(row)}
                         label={
-                          row.activated
+                          accountState(row) === 'active'
                             ? t('active', 'Active')
-                            : t('awaiting_approval', 'Awaiting approval')
+                            : accountState(row) === 'blocked'
+                              ? t('blocked', 'Blocked')
+                              : t('awaiting_approval', 'Awaiting approval')
                         }
                       />
                       {row.isSuperAdmin && (
@@ -325,7 +363,7 @@ export function AdminUsersView({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-[8px] lg:justify-end">
-                      {!row.activated && (
+                      {accountState(row) === 'pending' && (
                         <>
                           <Button
                             loading={busyId === row.id}
@@ -342,13 +380,38 @@ export function AdminUsersView({
                           </Button>
                         </>
                       )}
-                      {row.activated && !row.isSuperAdmin && (
+                      {/* A block is lifted by its own action. «Approve» here
+                          read as letting a newcomer in and handed the access
+                          back all the same. */}
+                      {accountState(row) === 'blocked' && (
+                        <Button
+                          loading={busyId === row.id}
+                          onClick={() => onAction(row, 'unblock')}
+                        >
+                          {t('unblock', 'Unblock')}
+                        </Button>
+                      )}
+                      {accountState(row) === 'active' && !row.isSuperAdmin && (
                         <Button
                           secondary
                           loading={busyId === row.id}
                           onClick={() => onAction(row, 'block')}
                         >
                           {t('block', 'Block')}
+                        </Button>
+                      )}
+                      {/* Ни одна из двух прежних кнопок аккаунт не убирает:
+                          отказ доступен только ожидающему, блокировка
+                          оставляет запись навсегда. Удаление — единственное,
+                          что доводит решение до конца, поэтому оно
+                          разрушающего вида и стоит последним. */}
+                      {!row.isSuperAdmin && (
+                        <Button
+                          variant="destructive"
+                          loading={busyId === row.id}
+                          onClick={() => onAction(row, 'delete')}
+                        >
+                          {t('delete_account', 'Delete')}
                         </Button>
                       )}
                     </div>
@@ -411,8 +474,56 @@ export const AdminUsersComponent = () => {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   );
 
+  /**
+   * The server refuses a deletion it cannot carry out, and it says which of the
+   * two reasons it was. A raw body would show the person a JSON envelope, so the
+   * code is read and answered in their language; anything unrecognised falls
+   * back to the text the server sent.
+   */
+  const failureMessage = useCallback(
+    async (response: Response) => {
+      const raw = await response.text();
+      try {
+        const parsed = JSON.parse(raw);
+        const code = parsed?.code || parsed?.message?.code;
+        if (code === 'account_delete_workspace_has_content') {
+          return t(
+            'account_delete_workspace_has_content',
+            'This account is the only member of a workspace that still holds content. Remove that content, or hand the workspace to someone else, first.'
+          );
+        }
+        /**
+         * The workspace has to be named. «Это единственный администратор
+         * области» sends a person to look through several workspaces for the
+         * one the server meant; the server knows which, and says so.
+         */
+        if (code === 'account_delete_last_admin') {
+          const workspace =
+            parsed?.workspace || parsed?.message?.workspace || '';
+          return t(
+            'account_delete_last_admin',
+            'This account is the only administrator of «{{workspace}}» — give somebody else that role there first.',
+            { workspace }
+          );
+        }
+        if (code === 'account_delete_user_has_content') {
+          return t(
+            'account_delete_user_has_content',
+            'This account still owns records inside the product. They have to be removed before the account can go.'
+          );
+        }
+        const message = parsed?.message?.message || parsed?.message;
+        if (typeof message === 'string' && message) return message;
+      } catch {
+        // A plain-text body, which is what most failures send.
+      }
+      return raw || t('action_failed', 'Action failed');
+    },
+    [t]
+  );
+
   const act = useCallback(
-    async (row: AdminAccountRow, action: 'approve' | 'block' | 'reject') => {
+    async (row: AdminAccountRow, action: AdminAccountAction) => {
       if (
         action === 'reject' &&
         !(await deleteDialog(
@@ -425,6 +536,18 @@ export const AdminUsersComponent = () => {
       ) {
         return;
       }
+      if (
+        action === 'delete' &&
+        !(await deleteDialog(
+          t(
+            'delete_account_confirmation',
+            'Delete this account for good? It leaves every workspace, and a workspace where it is the only member is deleted with it. This cannot be undone.'
+          ),
+          t('delete_account_confirm', 'Yes, delete account')
+        ))
+      ) {
+        return;
+      }
       setBusyId(row.id);
       setSuccessMessage('');
       try {
@@ -432,18 +555,19 @@ export const AdminUsersComponent = () => {
           method: 'POST',
         });
         if (!response.ok) {
-          toaster.show(
-            (await response.text()) || t('action_failed', 'Action failed'),
-            'warning'
-          );
+          toaster.show(await failureMessage(response), 'warning');
           return;
         }
         const message =
           action === 'approve'
             ? t('account_approved', 'Account approved')
-            : action === 'reject'
-              ? t('account_rejected', 'Pending account rejected')
-              : t('account_blocked', 'Account blocked');
+            : action === 'unblock'
+              ? t('account_unblocked', 'Account unblocked')
+              : action === 'reject'
+                ? t('account_rejected', 'Pending account rejected')
+                : action === 'delete'
+                  ? t('account_deleted', 'Account deleted')
+                  : t('account_blocked', 'Account blocked');
         setSuccessMessage(message);
         toaster.show(message, 'success');
         await mutate();
@@ -451,7 +575,7 @@ export const AdminUsersComponent = () => {
         setBusyId('');
       }
     },
-    [fetch, mutate, toaster, t]
+    [failureMessage, fetch, mutate, toaster, t]
   );
 
   return (

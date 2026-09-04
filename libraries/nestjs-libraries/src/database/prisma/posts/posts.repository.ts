@@ -785,24 +785,42 @@ export class PostsRepository {
   ) {
     const posts: Post[] = [];
     const uuid = uuidv4();
+    // Which of the requested ids already existed under this organization:
+    // read once by the ownership check below, and used again after the
+    // `upsert` to know whether a row is being updated or was just created.
+    const existingPostIds = new Set<string>();
     const requestedPostIds = [
       ...new Set(body.value.map((item) => item.id).filter(Boolean)),
     ] as string[];
     if (requestedPostIds.length) {
-      const ownedPosts = await client.post.findMany({
-        where: {
-          organizationId: orgId,
-          id: { in: requestedPostIds },
-          deletedAt: null,
+      // The composer mints its own id for a post that does not exist yet and
+      // sends it here, so an id nobody holds is a create, not an attack: the
+      // `upsert` below writes it under this organization. What must never
+      // pass is an id that already belongs to a post this organization cannot
+      // see — another tenant's, or one deleted here. The lookup is therefore
+      // unscoped (a tenant-scoped one cannot tell "free" from "taken by
+      // someone else"), and both cases answer the same 404 with the same
+      // text, so the reply never says "it exists, but it is not yours".
+      const existingPosts = await client.post.findMany({
+        where: { id: { in: requestedPostIds } },
+        select: {
+          id: true,
+          organizationId: true,
+          deletedAt: true,
+          state: true,
         },
-        select: { id: true, state: true },
       });
-      if (ownedPosts.length !== requestedPostIds.length) {
+      if (
+        existingPosts.some(
+          (post: any) => post.organizationId !== orgId || post.deletedAt
+        )
+      ) {
         repositoryError('POST_NOT_FOUND', 404, 'Post was not found');
       }
+      for (const post of existingPosts) existingPostIds.add(post.id);
       if (
         contextBindings &&
-        ownedPosts.some((post: any) => post.state && post.state !== 'DRAFT')
+        existingPosts.some((post: any) => post.state && post.state !== 'DRAFT')
       ) {
         repositoryError(
           'CONTENT_CONTEXT_DRAFT_ONLY',
@@ -823,7 +841,17 @@ export class PostsRepository {
         })
       : null;
     if (body.group && !previousPost) {
-      repositoryError('POST_NOT_FOUND', 404, 'Post group was not found');
+      // Same reading as the id above. The composer also mints the group for a
+      // brand new post, so a group nothing carries yet is a create. A group
+      // that exists outside what this organization can see is refused, with
+      // the same text as before so nothing new is disclosed.
+      const foreignGroupPost = await client.post.findFirst({
+        where: { group: body.group, deletedAt: null },
+        select: { id: true },
+      });
+      if (foreignGroupPost) {
+        repositoryError('POST_NOT_FOUND', 404, 'Post group was not found');
+      }
     }
 
     for (const [index, value] of body.value.entries()) {
@@ -894,14 +922,7 @@ export class PostsRepository {
                       },
                     },
                   }
-                : type === 'update'
-                ? { brandProfileVersion: { disconnect: true } }
                 : {}),
-            }
-          : type === 'update'
-          ? {
-              contentContextSnapshot: { disconnect: true },
-              brandProfileVersion: { disconnect: true },
             }
           : {}),
         organization: {
@@ -928,6 +949,34 @@ export class PostsRepository {
           },
         })
       );
+
+      /**
+       * Снятая привязка к проверенному контексту — скаляром, не `disconnect`.
+       *
+       * Обе связи составные и первым полем берут собственный обязательный
+       * `organizationId` поста, поэтому `disconnect` обнуляет заодно и его:
+       * запись падает с P2011 «Null constraint violation on the fields:
+       * (organizationId)», а это обычное сохранение поста без контекста
+       * (`content-factory-next-fn33.88`). Внешние ключи снимаются отдельным
+       * оператором, потому что в проверяемый ввод `upsert` их не положить:
+       * там связи, а не скаляры. Он ограничен областью и одним постом, и
+       * нужен только там, где строка уже существовала — у новой они и так
+       * пусты.
+       */
+      const clearedProvenance: Record<string, null> = contextBinding
+        ? contextBinding.brandProfileVersionId
+          ? {}
+          : { brandProfileVersionId: null }
+        : { contentContextSnapshotId: null, brandProfileVersionId: null };
+      if (
+        existingPostIds.has(postId) &&
+        Object.keys(clearedProvenance).length
+      ) {
+        await client.post.updateMany({
+          where: { organizationId: orgId, id: postId },
+          data: clearedProvenance,
+        });
+      }
 
       if (contextBinding) {
         const { writeContentContextDraftProvenance } = await import(

@@ -3,7 +3,12 @@
 import { Fragment } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
-import { voiceCopy, type VoiceLocale } from './voice-copy';
+import {
+  RECUT_PLATFORMS,
+  platformLabel,
+  voiceCopy,
+  type VoiceLocale,
+} from './voice-copy';
 
 /**
  * The library, and the recut panel that opens from it.
@@ -28,6 +33,7 @@ export type MaterialRow = Readonly<{
   format: string;
   postCount: number;
   queuedCount?: number;
+  draftCount?: number;
   date: string;
   voiceVersion?: string;
 }>;
@@ -58,23 +64,10 @@ export type VoiceMaterialsState =
   | 'disabled'
   | 'long-content';
 
-const PLATFORMS: readonly RecutPlatform[] = [
-  'site',
-  'telegram',
-  'vk',
-  'newsletter',
-];
-
-const platformLabel = (
-  platform: RecutPlatform,
-  t: (typeof voiceCopy)['ru'] | (typeof voiceCopy)['en']
-) =>
-  ({
-    site: t.platformSite,
-    telegram: t.platformTelegram,
-    vk: t.platformVk,
-    newsletter: t.platformNewsletter,
-  }[platform]);
+// The list and the names both come from `voice-copy.ts`, which is the one
+// dictionary the archive filter and the import form now read as well
+// (`content-factory-next-fn33.83`).
+const PLATFORMS: readonly RecutPlatform[] = RECUT_PLATFORMS;
 
 const aspectLabel = (
   aspect: RecutChange['aspect'],
@@ -110,6 +103,7 @@ export function VoiceMaterialsScreen({
   onOpenEditor,
   onCancelRecut,
   notice,
+  availablePlatforms,
 }: {
   locale: VoiceLocale;
   state?: VoiceMaterialsState;
@@ -129,10 +123,21 @@ export function VoiceMaterialsScreen({
   onOpenEditor?: () => void;
   onCancelRecut?: () => void;
   notice?: string;
+  /**
+   * The platforms this workspace has a channel for. Absent means "not known
+   * yet" — every platform stays offered, which is what the screen did before
+   * anyone asked the question (`content-factory-next-fn33.86`).
+   */
+  availablePlatforms?: readonly RecutPlatform[];
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading';
   const readOnly = state === 'restricted';
+  // A known empty list, not an absent one: this workspace has no channel for
+  // any of the four platforms, so a recut has nowhere to go and the button
+  // that starts one stays shut (`content-factory-next-fn33.111`).
+  const noChannelAnywhere = !!availablePlatforms && availablePlatforms.length === 0;
+
 
   return (
     <section
@@ -174,6 +179,15 @@ export function VoiceMaterialsScreen({
         </p>
       ) : null}
 
+      {noChannelAnywhere && materials.length > 0 ? (
+        <p
+          data-voice-no-channel-anywhere="true"
+          className="max-w-[72ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
+          {t.materialsNoChannelAnywhere}
+        </p>
+      ) : null}
+
       {materials.length === 0 ? (
         <div
           className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
@@ -196,6 +210,10 @@ export function VoiceMaterialsScreen({
                   t.materialsColumnTitle,
                   t.materialsColumnFormat,
                   t.materialsColumnPosts,
+                  // A recut makes a draft, and a library that counts only what
+                  // went out reports «0» over a piece that just produced five
+                  // of them (`content-factory-next-fn33.84`).
+                  t.materialsColumnDrafts,
                   t.materialsColumnDate,
                   '',
                 ].map((column, index) => (
@@ -203,7 +221,7 @@ export function VoiceMaterialsScreen({
                     key={column || index}
                     className={clsx(
                       'px-[12px] py-[8px] cf-label-sm uppercase text-cf-ink-muted',
-                      index === 3 || index === 4 ? 'text-end' : 'text-start'
+                      index >= 3 && index <= 5 ? 'text-end' : 'text-start'
                     )}
                   >
                     {column}
@@ -243,6 +261,9 @@ export function VoiceMaterialsScreen({
                       <td className="px-[12px] py-[8px] text-end align-top cf-label-sm text-cf-ink">
                         {material.postCount}
                       </td>
+                      <td className="px-[12px] py-[8px] text-end align-top cf-label-sm text-cf-ink">
+                        {material.draftCount ?? 0}
+                      </td>
                       <td className="px-[12px] py-[8px] text-end align-top cf-caption text-cf-ink-muted">
                         {material.date}
                       </td>
@@ -251,6 +272,7 @@ export function VoiceMaterialsScreen({
                           <Button
                             type="button"
                             variant="secondary"
+                            disabled={noChannelAnywhere}
                             onClick={() => onReuse?.(material.code)}
                           >
                             {t.materialsReuse}
@@ -263,7 +285,7 @@ export function VoiceMaterialsScreen({
                         key={`${material.code}-origin`}
                         data-voice-material-origin={material.code}
                       >
-                        <td colSpan={6} className="px-[12px] pb-[12px]">
+                        <td colSpan={7} className="px-[12px] pb-[12px]">
                           <p className="cf-label-sm uppercase text-cf-ink-muted">
                             {t.materialsDerived}
                           </p>
@@ -273,9 +295,15 @@ export function VoiceMaterialsScreen({
                                 key={`${post.platform}-${post.date}`}
                                 className="rounded-[4px] border border-cf-border bg-cf-surface-subtle px-[8px] py-[4px] cf-caption text-cf-ink-muted"
                               >
-                                {platformLabel(post.platform, t)} ·{' '}
+                                {platformLabel(post.platform, locale)} ·{' '}
                                 {post.state === 'QUEUED'
                                   ? t.materialsQueued
+                                  : post.state === 'DRAFT'
+                                  ? // Said in words, not left as a bare date: a
+                                    // draft and a published post reading alike
+                                    // is what made a recut look like it did
+                                    // nothing (`content-factory-next-fn33.84`).
+                                    `${t.materialsDraft} · ${post.date}`
                                   : post.date}
                               </li>
                             ))}
@@ -310,18 +338,54 @@ export function VoiceMaterialsScreen({
             ) : null}
           </div>
 
-          <div className="mt-[12px] flex flex-wrap gap-[8px]">
-            {PLATFORMS.map((platform) => (
-              <Button
-                key={platform}
-                type="button"
-                variant={platform === recut.platform ? 'primary' : 'secondary'}
-                onClick={() => onPlatform?.(platform)}
-              >
-                {platformLabel(platform, t)}
-              </Button>
-            ))}
+          <div className="mt-[12px] flex flex-wrap items-center gap-[8px]">
+            {PLATFORMS.map((platform) => {
+              // A platform with no channel is refused by the route anyway. It
+              // was offered exactly like the others and the refusal arrived
+              // only after «Открыть в редакторе», with the preview in between
+              // behaving as though the choice had worked
+              // (`content-factory-next-fn33.86`).
+              const missing =
+                !!availablePlatforms && !availablePlatforms.includes(platform);
+              return (
+                <span
+                  key={platform}
+                  className="flex items-center gap-[4px]"
+                  data-voice-platform={platform}
+                  data-voice-platform-unavailable={missing ? 'true' : undefined}
+                >
+                  <Button
+                    type="button"
+                    variant={
+                      // Chosen and shut at once is a contradiction the person
+                      // has to resolve: a platform with no channel is never
+                      // painted as the chosen one
+                      // (`content-factory-next-fn33.111`).
+                      platform === recut.platform && !missing
+                        ? 'primary'
+                        : 'secondary'
+                    }
+                    disabled={missing}
+                    onClick={() => onPlatform?.(platform)}
+                  >
+                    {platformLabel(platform, locale)}
+                  </Button>
+                  {missing ? (
+                    <span className="cf-caption text-cf-ink-muted">
+                      {t.materialsNoChannel}
+                    </span>
+                  ) : null}
+                </span>
+              );
+            })}
           </div>
+
+          {availablePlatforms &&
+          PLATFORMS.some((platform) => !availablePlatforms.includes(platform)) ? (
+            <p className="mt-[8px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              {t.materialsNoChannelNote}
+            </p>
+          ) : null}
 
           <p className="mt-[16px] cf-label-sm uppercase text-cf-ink-muted">
             {t.recutWhatChanges}
@@ -361,7 +425,14 @@ export function VoiceMaterialsScreen({
             <Button
               type="button"
               variant="primary"
-              disabled={state === 'disabled'}
+              disabled={
+                state === 'disabled' ||
+                // The channel list can land after the panel opened; the button
+                // that would be refused is shut rather than answered with a
+                // 422 (`content-factory-next-fn33.111`).
+                (!!availablePlatforms &&
+                  !availablePlatforms.includes(recut.platform))
+              }
               onClick={onOpenEditor}
             >
               {t.recutOpenEditor}

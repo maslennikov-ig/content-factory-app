@@ -126,10 +126,20 @@ describe('password policy', () => {
       'apps/frontend/src/components/settings/sign-in-methods.component.tsx',
     ];
 
+    // The refusal itself is written once, in the shared helper the auth forms
+    // ask; `tests/password-policy-locale.guard.test.cjs` holds that helper to
+    // the same interpolated numbers.
+    expect(
+      read('apps/frontend/src/components/auth/form.errors.ts')
+    ).toContain('password_policy_error');
+
     for (const file of surfaces) {
       const source = read(file);
       expect(source).toContain('password.policy');
-      expect(source).toContain('password_policy_error');
+      expect(
+        source.includes('password_policy_error') ||
+          source.includes('useFieldErrorMessage')
+      ).toBe(true);
       expect(source).not.toMatch(
         /minLength=\{12\}|password\.length < 6|MinLength\(12\)|12\.\.64/
       );

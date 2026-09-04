@@ -635,7 +635,14 @@ const initialState = {
   date: newDayjs(),
   postComment: PostComment.ALL,
   tags: [] as { label: string; value: string }[],
-  editorialStage: null as EditorialStageValue | null,
+  // A post being written is at the first rung of the ladder, so that is where
+  // the field starts. Owner's decision, 04.09.2026, recorded in
+  // `docs/product/content-section-map.md` §9.1: "Этап не задан" was the state
+  // every new post opened in, and it asked the author to answer a question the
+  // act of opening the editor had already answered. Unset stays selectable and
+  // stays what an existing post without a stage keeps — `add.edit.modal.tsx`
+  // writes the stored value over this one when a post is opened for editing.
+  editorialStage: 'PLAN' as EditorialStageValue | null,
   totalChars: 0,
   tab: 0 as 0,
   isCreateSet: false,

@@ -144,6 +144,10 @@ const unfilteredQueries = () => {
  */
 const ALLOWED = new Map([
   [
+    'libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts userOrganization.deleteMany',
+    'Account deletion by the instance administrator (`content-factory-next-fn33.23`): the subject is the person, not a workspace, so their membership rows go from every organisation at once; the rejection path three screens above keeps its `organizationId`.',
+  ],
+  [
     'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-sample.repository.ts brandVoiceSample.updateMany',
     'Retention purge, deliberately across every organisation: a retention date is a promise about a calendar, not about who opens a page.',
   ],
@@ -178,6 +182,10 @@ const ALLOWED = new Map([
   [
     'libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts userOrganization.findFirst',
     'Reads a membership row by its own id in order to resolve which organisation it is; filtering by the answer would be circular.',
+  ],
+  [
+    'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts post.findFirst',
+    'An existence probe over a client-minted `group`, and it has to see across organisations to do its job: the composer mints the group before anything is saved, so "free" and "taken by someone else" have to be told apart. It selects `id`, nothing from the row is returned, and the only answer it can produce is the same 404 as a group that does not exist. Key collapse: the group lookup immediately above it is org-scoped, as the file shows.',
   ],
   [
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts post.update',

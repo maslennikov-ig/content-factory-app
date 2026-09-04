@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { Calendar, TimeInput } from '@mantine/dates';
 import { useClickOutside } from '@mantine/hooks';
 import { Button } from '@contentfactory/react/form/button';
-import { isUSCitizen } from './isuscitizen.utils';
+import { formatDateTimeForReader } from './isuscitizen.utils';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import { CalendarIcon } from '@contentfactory/frontend/components/ui/icons';
@@ -43,7 +43,14 @@ export const DatePicker: FC<{
         <CalendarIcon />
       </div>
       <div className="cursor-pointer">
-        {date.format(isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm')}
+        {/*
+          The reader's own notation. Two hand-written format strings could
+          only ever be right for two of the sixteen languages the product
+          speaks, and the American one was reached from the browser's locale
+          rather than from anything the person chose
+          (`content-factory-next-fn33.87`).
+        */}
+        {formatDateTimeForReader(date.toDate())}
       </div>
       {open && (
         <div

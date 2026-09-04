@@ -8,6 +8,7 @@ import {
   TabPanel,
   Tabs,
 } from '@contentfactory/react/choice/tabs';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 export type SettingsSurfaceTab = Readonly<{ value: string; label: string }>;
 
@@ -24,6 +25,7 @@ export function SettingsSurface({
   navigationFooter?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <Tabs value={value} onChange={onChange}>
       <div
@@ -31,12 +33,12 @@ export function SettingsSurface({
         className="flex min-h-0 w-full flex-1 flex-col bg-cf-canvas text-cf-ink md:flex-row"
       >
         <nav
-          aria-label="Settings"
+          aria-label={t('settings', 'Settings')}
           className="flex w-full shrink-0 flex-col border-b border-cf-border bg-cf-surface p-[16px] md:w-[240px] md:border-b-0 md:border-e"
         >
           <TabList
             orientation="vertical"
-            aria-label="Settings sections"
+            aria-label={t('settings_sections', 'Settings sections')}
             className="flex flex-1 flex-col gap-[4px]"
           >
             {tabs.map((tab) => (

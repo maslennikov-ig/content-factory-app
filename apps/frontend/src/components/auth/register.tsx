@@ -22,10 +22,12 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divider';
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
+import { PASSWORD_POLICY_RANGE } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 import {
-  PASSWORD_POLICY_ERROR_MESSAGE,
-  PASSWORD_POLICY_RANGE,
-} from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
+  parseRequestFailure,
+  useFieldErrorMessage,
+  useRequestErrorMessage,
+} from '@contentfactory/frontend/components/auth/form.errors';
 
 // The same three base64url segments the proxy recognises as an invitation.
 const INVITE_TOKEN_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -51,6 +53,19 @@ export const invitationTokenFromReturnUrl = (returnUrl?: string | null) => {
   } catch {
     return '';
   }
+};
+
+/**
+ * What the door open without a session says about an invitation
+ * (`GET /auth/join-org`). `workspaceName` is always there; `boundEmail` is
+ * absent for a link copied out of the interface, and the inviter's name and
+ * address are absent today by design — see the heading below.
+ */
+type InvitationPreview = {
+  workspaceName: string;
+  boundEmail?: string;
+  inviterName?: string;
+  inviterEmail?: string;
 };
 
 type Inputs = {
@@ -140,15 +155,12 @@ export function RegisterAfter({
       subscribeToNewsletter: false,
     },
   });
-  const passwordError = form.formState.errors.password?.message;
-  const localizedPasswordError =
-    passwordError === PASSWORD_POLICY_ERROR_MESSAGE
-      ? t(
-          'password_policy_error',
-          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
-          PASSWORD_POLICY_RANGE
-        )
-      : passwordError;
+  const fieldErrorMessage = useFieldErrorMessage();
+  const requestErrorMessage = useRequestErrorMessage();
+  const localizedPasswordError = fieldErrorMessage(
+    'password',
+    form.formState.errors.password?.message
+  );
   const email = form.watch('email', '');
   // The same rule the auth service applies to the submitted body. Hiding the
   // checkbox is a courtesy; refusing the value is the enforcement, and both
@@ -165,6 +177,21 @@ export function RegisterAfter({
   const fetchData = useFetch();
   const getQuery = useSearchParams();
   const [invitationToken, setInvitationToken] = useState('');
+  /**
+   * `content-factory-next-fn33.18`: what the invitation says, once the public
+   * preview has answered. While it is `null` this is an ordinary
+   * registration — which is also what a spent or expired link leaves behind.
+   */
+  const [invitation, setInvitation] = useState<InvitationPreview | null>(null);
+  /**
+   * `content-factory-next-fn33.29`: why the link in the address bar is not
+   * doing anything. The owner opened an already-accepted invitation in
+   * another browser and got the plain registration form, with no address
+   * filled in and not a word about the invitation. The form stays a plain
+   * registration form — that is what is still available to this person — but
+   * it now says which of the two things happened.
+   */
+  const [invitationIssue, setInvitationIssue] = useState('');
   useEffect(() => {
     const fromQuery = invitationTokenFromReturnUrl(getQuery?.get('returnUrl'));
     if (fromQuery) {
@@ -181,9 +208,10 @@ export function RegisterAfter({
     }
   }, [getQuery]);
   // An invitation issued to one address can only be accepted by that address,
-  // so registering under a different one ends in `invite_email_mismatch` after
-  // the account already exists. Filling the field in is what keeps the two
-  // halves of the invited path pointing at the same person.
+  // so registering under a different one ends in `invite_email_mismatch`.
+  // Filling the field in — and, since `content-factory-next-fn33.18`, closing
+  // it — is what keeps the two halves of the invited path pointing at the
+  // same person.
   useEffect(() => {
     if (!invitationToken || isAfterProvider) return;
     let cancelled = false;
@@ -195,11 +223,26 @@ export function RegisterAfter({
         // one, and it answers with the workspace and the bound address only.
         const query = new URLSearchParams({ org: invitationToken });
         const response = await fetchData(`/auth/join-org?${query}`);
-        if (!response.ok) return;
-        const preview = (await response.json()) as { boundEmail?: string };
+        if (cancelled) return;
+        if (!response.ok) {
+          // 410 and a code, the same pair the invitation page reads. Anything
+          // else — the door unreachable, a proxy in the way — says nothing:
+          // an explanation that may be wrong is worse than none.
+          const body = (await response
+            .json()
+            .catch(() => null)) as { code?: string } | null;
+          if (cancelled) return;
+          if (body?.code === 'invite_used' || body?.code === 'invite_invalid') {
+            setInvitationIssue(body.code);
+          }
+          return;
+        }
+        const preview = (await response.json()) as InvitationPreview;
+        if (cancelled || !preview) return;
+        setInvitation(preview);
         // An invitation open to any address has no `boundEmail`, and a person
         // already typing must not have their own address replaced.
-        if (cancelled || !preview?.boundEmail || form.getValues('email')) return;
+        if (!preview.boundEmail || form.getValues('email')) return;
         form.setValue('email', preview.boundEmail);
       } catch {
         // A preview that cannot be fetched costs a convenience, not the form.
@@ -209,8 +252,73 @@ export function RegisterAfter({
       cancelled = true;
     };
   }, [invitationToken, isAfterProvider, fetchData, form]);
+
+  // The address is the invitation's, not a choice. It used to be filled in and
+  // still editable, and an edited one produced an account that could never
+  // join the workspace it was invited to.
+  const emailLocked = Boolean(invitation?.boundEmail);
+  /**
+   * The invitation, when there is enough of it to say so out loud. The
+   * workspace name is what the heading is built from; without it the form
+   * still carries the token and still fills the address in, it just says
+   * nothing it cannot say correctly.
+   */
+  const invited = invitation?.workspaceName ? invitation : null;
+
+  const invitationIssueNote = useMemo(() => {
+    if (invitationIssue === 'invite_used') {
+      return t(
+        'register_invitation_used',
+        'That invitation link has already been used. You can still create a new account here, or ask the workspace administrator for a new invitation.'
+      );
+    }
+    if (invitationIssue === 'invite_invalid') {
+      return t(
+        'register_invitation_expired',
+        'That invitation link has expired. You can still create a new account here, or ask the workspace administrator for a new invitation.'
+      );
+    }
+    return '';
+  }, [invitationIssue, t]);
+  /**
+   * `content-factory-next-fn33.37`: where an invited registration lands.
+   *
+   * The stored return address is the invitation page with the invitation's own
+   * token — that is how the proxy sends an anonymous visitor here. Registering
+   * spends that token, so following the stored address afterwards asked the
+   * invitation door about an invitation that had just been used, and the first
+   * thing a new member saw was a red «Invitation unavailable» about their own
+   * link.
+   *
+   * Clearing the address is not enough on its own: the pending-invitation
+   * cookie the proxy wrote is `httpOnly` and still live, and it turns the very
+   * next visit to `/` back into the same invitation page. So the return address
+   * is rewritten rather than dropped — same page, same token, plus the flag
+   * that says the invitation has already been accepted. Landing there lets the
+   * proxy clear its cookie, and `join-org` passes straight through to the
+   * workspace instead of asking about a spent token.
+   */
+  const invitedLandingUrl = useCallback(() => {
+    const landing = new URL('/join-org', window.location.origin);
+    landing.searchParams.set('org', invitationToken);
+    landing.searchParams.set('joined', '1');
+    return landing.toString();
+  }, [invitationToken]);
+
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
+    // Before the request, not after: the response carries an `onboarding`
+    // header, and `layout.context` acts on the stored return address the
+    // moment that header arrives — while this function is still awaiting.
+    let landing = '';
+    if (invitation && invitationToken) {
+      try {
+        landing = invitedLandingUrl();
+        localStorage.setItem('returnUrl', landing);
+      } catch {
+        // Storage can be denied outright; the navigation below still works.
+      }
+    }
     try {
       const normalizedWorkspace = data.workspaceName?.trim();
       const {
@@ -222,7 +330,11 @@ export function RegisterAfter({
         method: 'POST',
         body: JSON.stringify({
           ...registration,
-          ...(normalizedWorkspace
+          // Only when the preview said the invitation is live. Sending a token
+          // this form knows to be spent would make the server decide again
+          // what the person has already been told.
+          ...(invitation ? { invitationToken } : {}),
+          ...(normalizedWorkspace && !invited
             ? {
                 workspaceName: normalizedWorkspace,
                 company: normalizedWorkspace,
@@ -237,23 +349,45 @@ export function RegisterAfter({
       if (response.status === 200) {
         if (response.headers.get('approval') === 'true') {
           router.push('/auth/pending');
-        } else if (response.headers.get('activate') === 'true') {
-          router.push('/auth/activate');
-        } else {
-          router.push('/auth/login');
+          return;
         }
+        if (response.headers.get('activate') === 'true') {
+          router.push('/auth/activate');
+          return;
+        }
+        // `content-factory-next-fn33.18`: an invited registration comes back
+        // signed in, with `showorg` already pointing at the workspace. A
+        // client transition would keep the layout it was rendered with and
+        // ignore both cookies, which is the same defect
+        // `content-factory-next-fn33.26` fixes on the invitation page — so
+        // this leaves through the browser.
+        const body = (await response.json().catch(() => null)) as {
+          invitation?: unknown;
+        } | null;
+        if (body?.invitation) {
+          window.location.assign(landing || invitedLandingUrl());
+          return;
+        }
+        router.push('/auth/login');
         return;
       } else {
+        // `content-factory-next-fn33.38`: the body used to go under the email
+        // field exactly as it arrived, so a throttled registration answered a
+        // person with `{"statusCode":429,...}`. The raw answer is worth having
+        // when something is being debugged, and worth nothing on the screen.
+        const failure = await parseRequestFailure(response);
+        console.error('Registration refused', failure.status, failure.raw);
         form.setError('email', {
-          message: await response.text(),
+          message: requestErrorMessage(failure),
         });
       }
     } catch (e: any) {
+      console.error('Registration failed', e);
       form.setError('email', {
-        message:
-          'General error: ' +
-          e.toString() +
-          '. Please check your browser console.',
+        message: t(
+          'error_network',
+          'The service could not be reached. Check your connection and try again.'
+        ),
       });
     } finally {
       setLoading(false);
@@ -299,14 +433,50 @@ export function RegisterAfter({
         onSubmit={form.handleSubmit(onSubmit)}
       >
         <div>
-          <h1 className="cf-heading-lg">{t('sign_up', 'Sign Up')}</h1>
+          <h1 className="cf-heading-lg">
+            {invited
+              ? t('register_invited_title', 'You were invited to “{{workspace}}”', {
+                  workspace: invited.workspaceName,
+                })
+              : t('sign_up', 'Sign Up')}
+          </h1>
+          {/* Who invited whom is shown only when the preview says it. The
+              door open without a session answers with the workspace and the
+              bound address and nothing else today, on purpose
+              (`auth.controller.ts`), so this line stays absent rather than
+              inventing an inviter. */}
+          {invited?.inviterName && (
+            <p className="mt-[4px] cf-body-sm text-cf-ink-muted">
+              {t('register_invited_by', 'Invited by {{inviter}}', {
+                inviter: invited.inviterEmail
+                  ? `${invited.inviterName} · ${invited.inviterEmail}`
+                  : invited.inviterName,
+              })}
+            </p>
+          )}
           <p className="mt-[4px] text-[14px] text-cf-ink-muted">
-            {t(
-              'sign_up_subtitle',
-              'Create a workspace for your content operation.'
-            )}
+            {invited
+              ? t(
+                  'register_invited_subtitle',
+                  'Create a password to join. Your email address comes from the invitation.'
+                )
+              : t(
+                  'sign_up_subtitle',
+                  'Create a workspace for your content operation.'
+                )}
           </p>
         </div>
+
+        {invitationIssueNote && (
+          <div
+            role="status"
+            className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]"
+          >
+            <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
+              {invitationIssueNote}
+            </p>
+          </div>
+        )}
 
         {providers && (
           <div className="flex flex-col gap-[16px]">
@@ -318,7 +488,10 @@ export function RegisterAfter({
           </div>
         )}
 
-        <div className="flex flex-col">
+        {/* `content-factory-next-fn33.44`: the fields used to sit flush against
+            each other, so the red row under the password ran straight into the
+            label of the field below and read as part of it. */}
+        <div className="flex flex-col gap-[12px]">
           {!isAfterProvider && (
             <>
               {/* `label` stays the plain field name: it is what the field is
@@ -335,6 +508,18 @@ export function RegisterAfter({
                 required
                 autoComplete="email"
                 placeholder={t('email_address', 'Email Address')}
+                // `readOnly` rather than `disabled`: a disabled field is left
+                // out of the submitted values, and this address is the one
+                // thing the registration must carry.
+                readOnly={emailLocked}
+                helper={
+                  emailLocked
+                    ? t(
+                        'register_invited_email_locked',
+                        'The invitation was sent to this address.'
+                      )
+                    : undefined
+                }
               />
               <PasswordInput
                 label="Password"
@@ -349,14 +534,27 @@ export function RegisterAfter({
                 placeholder={t('label_password', 'Password')}
                 showPasswordLabel={t('show_password', 'Show password')}
                 hidePasswordLabel={t('hide_password', 'Hide password')}
-                helper={t(
-                  'password_policy_hint',
-                  'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
-                  PASSWORD_POLICY_RANGE
-                )}
+                // `content-factory-next-fn33.44`: the hint and the refusal say
+                // the same thing, so showing both printed one sentence twice —
+                // once grey, once red. The refusal replaces the hint it
+                // repeats.
+                helper={
+                  localizedPasswordError
+                    ? undefined
+                    : t(
+                        'password_policy_hint',
+                        'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                        PASSWORD_POLICY_RANGE
+                      )
+                }
               />
             </>
           )}
+          {/* `content-factory-next-fn33.18`: an invited registration founds no
+              workspace, so there is nothing here to name. Asking for one and
+              then ignoring it is how the owner ended up with two workspaces,
+              one of them empty. */}
+          {!invited && (
           <Input
             label={t(
               'public_saas_workspace_optional',
@@ -380,10 +578,11 @@ export function RegisterAfter({
               'Used as the workspace name. You can change it later.'
             )}
           />
+          )}
         </div>
 
         <div className="flex flex-col gap-[16px]">
-          <LegalNotice />
+          <LegalNotice invited={!!invited} />
           {canSubscribeToNewsletter && (
             <CheckboxField
               {...form.register('subscribeToNewsletter')}
@@ -395,7 +594,9 @@ export function RegisterAfter({
             />
           )}
           <Button type="submit" className="w-full" loading={loading}>
-            {t('create_account', 'Create Account')}
+            {invited
+              ? t('register_invited_action', 'Create password and join')
+              : t('create_account', 'Create Account')}
           </Button>
           <p className="text-[14px] text-cf-ink-muted">
             {t('already_have_an_account', 'Already Have An Account?')}&nbsp;

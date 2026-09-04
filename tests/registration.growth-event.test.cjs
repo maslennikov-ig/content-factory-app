@@ -69,6 +69,11 @@ const { AuthService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/database/prisma/public-growth/public-growth.service': {
       PublicGrowthService: class PublicGrowthService {},
     },
+    // Не заглушить его — значит потянуть за собой `PrismaService`, а тот
+    // расширяет настоящий `PrismaClient`, которого здесь нет.
+    '@contentfactory/nestjs-libraries/integrations/telegram.updates.service': {
+      TelegramUpdatesService: class TelegramUpdatesService {},
+    },
     '@contentfactory/nestjs-libraries/locale/backend-strings': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/locale/backend-strings.ts'
     ),

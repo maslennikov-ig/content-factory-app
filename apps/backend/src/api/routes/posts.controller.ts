@@ -30,6 +30,38 @@ import {
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { PostValidationException } from '@contentfactory/backend/api/routes/posts.validation.exception';
 
+/**
+ * Same reading as `safeHttpError` in `content-lead.controller.ts`: a refusal
+ * the repository already spelled out (`{code, message, status}`) goes to the
+ * client with its own status, not as a generic 500. Without this a saved post
+ * that the server refused with 404 or 409 reached the screen as "Internal
+ * server error", which is both wrong and unreadable — see
+ * `content-factory-next-fn33.49`. Anything that is not such a refusal is
+ * rethrown untouched, so a real fault still becomes a 500 and is still logged.
+ */
+function safeHttpError(error: unknown): never {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    'status' in error &&
+    typeof (error as any).code === 'string' &&
+    typeof (error as any).status === 'number' &&
+    (error as any).status >= 400 &&
+    (error as any).status < 500
+  ) {
+    throw new HttpException(
+      {
+        code: (error as any).code,
+        message:
+          error instanceof Error ? error.message : 'Post request failed',
+      },
+      (error as any).status
+    );
+  }
+  throw error;
+}
+
 @ApiTags('Posts')
 @Controller('/posts')
 export class PostsController {
@@ -219,8 +251,12 @@ export class PostsController {
       }
     }
 
-    const body = await this._postsService.mapTypeToPost(rawBody, org.id);
-    return this._postsService.createPost(org.id, body, 'WEB');
+    try {
+      const body = await this._postsService.mapTypeToPost(rawBody, org.id);
+      return await this._postsService.createPost(org.id, body, 'WEB');
+    } catch (error) {
+      safeHttpError(error);
+    }
   }
 
   @Post('/generator/draft')

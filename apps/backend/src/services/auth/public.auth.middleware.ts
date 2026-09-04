@@ -44,8 +44,13 @@ export class PublicAuthMiddleware implements NestMiddleware {
           return;
         }
 
+        // `content-factory-next-fn33.19`: the key stands in for an
+        // administrator of this workspace, not for the instance. `ADMIN` and
+        // `SUPERADMIN` open exactly the same doors (`permissions.service.ts`),
+        // so nothing the key could reach before is closed now; what changes is
+        // that no request carries a role the product no longer hands out.
         // @ts-ignore
-        req.org = { ...org, users: [{ users: { role: 'SUPERADMIN' } }] };
+        req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
       } else {
         const org = await this._organizationService.getOrgByApiKey(auth);
         if (!org) {
@@ -74,8 +79,13 @@ export class PublicAuthMiddleware implements NestMiddleware {
           return;
         }
 
+        // `content-factory-next-fn33.19`: the key stands in for an
+        // administrator of this workspace, not for the instance. `ADMIN` and
+        // `SUPERADMIN` open exactly the same doors (`permissions.service.ts`),
+        // so nothing the key could reach before is closed now; what changes is
+        // that no request carries a role the product no longer hands out.
         // @ts-ignore
-        req.org = { ...org, users: [{ users: { role: 'SUPERADMIN' } }] };
+        req.org = { ...org, users: [{ users: { role: 'ADMIN' } }] };
       }
     } catch (err) {
       throw new HttpForbiddenException();
