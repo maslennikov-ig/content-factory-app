@@ -182,6 +182,35 @@ describe('public SaaS route boundary', () => {
       type: 'next',
     });
 
+    // A hand-built link to the sign-in form carries the invitation too. It used
+    // to be dropped here, and the person signed in to their own empty
+    // workspace with nothing left to accept. The form they asked for is the
+    // one they get back — the sign-in page, not the registration page.
+    const signInEntry = await anonymous.proxy(
+      requestFor(`/auth/login?org=${inviteToken}`)
+    );
+    expect(signInEntry).toMatchObject({
+      type: 'redirect',
+      url: `http://localhost:4200/auth/login?returnUrl=${encodeURIComponent(
+        confirmation
+      )}`,
+      cookieWrites: [
+        [
+          'pending-team-invitation',
+          inviteToken,
+          expect.objectContaining({ httpOnly: true }),
+        ],
+      ],
+    });
+
+    // Signing out stays a sign-out: `?org=` must not keep the session alive.
+    await expect(
+      anonymous.proxy(requestFor(`/auth/logout?org=${inviteToken}`, true))
+    ).resolves.toMatchObject({
+      type: 'redirect',
+      url: 'http://localhost:4200/auth/login',
+    });
+
     const authenticated = loadProxy();
     await expect(
       authenticated.proxy(requestFor(`/?org=${inviteToken}`, true))

@@ -4,62 +4,54 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-`fn33` — the eight findings of the owner's 03.09 walkthrough — was built by
-Codex on `work/walkthrough-2026-09-03` (eight commits, one per task) and
-accepted by Claude on 03.09: two read-only reviewers, an **authenticated**
-production-build Playwright pass of `/settings` as ADMIN and EDITOR, and a live
-invitation pass on the stand (confirm → accept → second open refused → legacy
-`/?org=` redirected → cross-origin POST 403). Acceptance fixed two things Codex
-left: the signpost tab «Знания о контенте» had dropped out of the tab list, and
-the branch pin in `.codex/orchestrator.toml` had been moved off `main` with its
-test weakened. Six review findings are beads `fn33.5`–`fn33.10` (decline does
-not burn the invitation; accepting into one's own workspace burns it and 500s;
-a third same-origin copy; tier gating removed with the role gating). **Every
-invitation issued before this release is invalid** (new claims, Redis marker):
-the owner re-invites.
+**Wave of 04.09 (`fn33.5`–`fn33.16`, `4a79`), built on
+`work/walkthrough-2026-09-04`, NOT yet released.** The owner walked
+`f1cea968184e` by hand while five Opus subagents fixed, each in its own
+worktree and branch, and two read-only reviewers read the merged diff. What
+changed: an invitee without a session no longer lands on `http://localhost:4200`
+after signing in (the proxy built `returnUrl` from the container's own
+address — every value-URL now comes from `FRONTEND_URL`, and `returnUrl` is
+accepted only on this origin); the confirmation page names the addressee and
+refuses «Accept» to the wrong account or an existing member; declining spends
+the invitation; a decline door and a session-free preview door
+(`GET /auth/join-org`, for the registration form to prefill the address) are in
+the roles matrix; one same-origin helper serves all three mutations; Telegram
+has **one** return address for sign-in and for linking from Settings (BotFather
+keeps a single Allowed URL — the second one the owner added as a workaround can
+go); people are shown by their profile name everywhere, «Профиль» is a real
+menu row with an avatar; upload refusals are visible and in Russian; the
+password hint interpolates its numbers; `pnpm test` leaves the tree clean.
+Reviewers found two blockers, both fixed and guarded: sign-out was swallowed
+while an invitation cookie lived, and a signed-in Telegram return bounced to
+`/` with its code. Open from the walk, owner decisions: `fn33.17` change a
+member's role; `fn33.18` registering by invitation joins that workspace
+directly, no own one; `fn33.19` no more workspace-level SUPERADMIN (creator is
+ADMIN; instance owner is the `isSuperAdmin` flag). `fn33.15` stays open until
+the owner reports the Network status of the failing upload; `fn33.20` client
+30 MB vs server 10 MB; `fn33.21` Telegram return from another tab.
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
 The owner asked for a full audit of what the orchestrator reported as «all
-done». Two read-only reviewers (backend/security/Temporal/schema; product/
-frontend/docs) over `7bf12bcc^..11fe62a3`, then four bounded workers. Every
-guard added was shown red once before green. Committed 03.09 — see «Current
-state».
+done». Two read-only reviewers over `7bf12bcc^..11fe62a3`, four bounded
+workers; every guard shown red before green. **«All done» was not true**: of
+seventeen beads thirteen were closed; `lh5s` was reopened (nothing called the
+producer) and built with `tyrk`, `rrs9`, `4zef` on 03.09, walked by hand.
 
-**«All done» was not true.** Of seventeen handed-over beads thirteen were
-closed; `lh5s` was reopened — «a search result can become evidence» while
-nothing in the frontend called the producer. It and `tyrk`, `rrs9`, `4zef` are
-built and closed on 03.09, walked by hand.
-
-**Built.** `tyrk` — the owner's rule of 02.09 (§9.5): producers write
-`ContentEvidenceAssessment` (own material `ACCEPTED`, search `PROPOSED`); a
-fact without evidence is `VERIFIED` on creation and admitted by the unified
-context as own word, honouring its own `freshUntil`; a user link to accepted
-evidence is accepted at once; `confirmEvidence` + `POST
-/facts/:factId/evidence/:evidenceId/confirm` is the door for product-found
-evidence, with «Подтвердить» only on those rows; a `SUPERSEDED` fact can no
-longer be restored over its copy. §9.4 — the archive is a **view inside
-«Материалы»**, five tabs, old `?tab=archive` links land on it. Email v2 has a
-**bounded retry** (5 attempts, 30 min schedule-to-close) so one failing
-recipient cannot stall the instance's mail; the lead-check workflow
-`continueAsNew`s every 100 passes; a failed periodic start is recovered by the
-manual «Проверить сейчас»; feed items without id/guid/link get a content hash,
-not a position; Telegram binding rechecks `isSuperAdmin`. Backend `tsc
---noEmit` is **zero errors** for the first time since 30.08.
-
-**Docs put right.** The runbook prescribes schema **before** the image switch,
-from a throwaway container of the new image, as numbered steps; the
-editorial-stage migration proof runs in docker-CI instead of skipping forever.
-
-**Deferred, each a bead:** `ni7x`, `cl19`, `th1s`. Older debt unchanged: eleven
-`PrismaRepository<any>`, the archive read whole into memory, `RESEND_API_KEY`
-checked in the process that does not send.
-
-That wave's receipt is in
-`.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`. Latest full
-acceptance, released as `a63227c58446`: **jest 263 suites, 3461 passed, 1
-skipped**, `node --test` 113 pass 0 fail, python 29 OK, `tsc --noEmit` 0 on all
-three apps, process verification OK.
+**Built.** `tyrk` — §9.5: producers write `ContentEvidenceAssessment` (own
+material `ACCEPTED`, search `PROPOSED`); a fact without evidence is `VERIFIED`
+on creation, honouring its `freshUntil`; `confirmEvidence` + `POST
+/facts/:factId/evidence/:evidenceId/confirm` with «Подтвердить» only on
+product-found rows; a `SUPERSEDED` fact cannot be restored over its copy. §9.4
+— the archive is a **view inside «Материалы»**, five tabs, old `?tab=archive`
+links land on it. Email v2 has a **bounded retry** (5 attempts, 30 min); the
+lead-check workflow `continueAsNew`s every 100 passes; feed items without
+id/guid/link get a content hash; Telegram binding rechecks `isSuperAdmin`.
+The runbook prescribes schema **before** the image switch from a throwaway
+container; the editorial-stage migration proof runs in docker-CI.
+**Deferred, each a bead:** `ni7x`, `cl19`, `th1s`; older debt: eleven
+`PrismaRepository<any>`, the archive read whole into memory. Receipt in
+`.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
 
 ## Waves ten and eleven — the product was walked, then the mail was found
 
@@ -91,8 +83,8 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`efafe77fe64e`** (03.09.2026, test fixes on the audit);
-rollback target `a4f1863f9010`, also on the host. **Public CI had been red for three releases
+Production runs **`f1cea968184e`** (03.09.2026, the `fn33` walkthrough fixes);
+rollback target `efafe77fe64e`, also on the host. **Public CI had been red for three releases
 and nobody had written it down**: the editorial-stage migration proof anchored
 on a `COMMIT;` the 02.09 audit removed, and `--setupFiles=` on the time-travel
 command line *replaces* the config list, so the source-tree write guard never
@@ -151,11 +143,12 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **release the
-accepted `fn33` tree** per `docs/operations/production-deploy.md` (no schema
-change this time), check the public «Build» run, then resume the owner's
-walkthrough from scenario 2 (member and channels), then EDITOR, Content,
-Materials/archive, two organisations. Release needs the owner's word.
+Next stage id: `content-factory-next-vme`. Recommended action: **release
+`work/walkthrough-2026-09-04`** by the runbook once the owner grants the five
+release actions, then continue his walkthrough from scenario 4 (Content),
+Materials/archive, two organisations. Decide with him `fn33.18`/`fn33.19`
+(both P2, product decisions recorded in the beads) before building them. The
+two pending accounts on `/admin/users` are still his call.
 
 **The owner settled five questions on 02.09.2026**, written into
 `docs/product/content-section-map.md` §9: the editorial stage is a field

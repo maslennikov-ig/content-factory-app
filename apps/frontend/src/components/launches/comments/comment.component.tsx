@@ -9,6 +9,10 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { Input } from '@contentfactory/react/form/input';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
+import {
+  displayName,
+  initialOf,
+} from '@contentfactory/react/helpers/display-name';
 export const CommentBox: FC<{
   value?: string;
   type: 'textarea' | 'input';
@@ -63,6 +67,10 @@ interface Comments {
   content: string;
   user: {
     email: string;
+    // The name the person entered, when they entered one. A comment used to be
+    // signed with a slice of the author's mailbox and nothing else
+    // (`content-factory-next-fn33.16`).
+    name?: string | null;
     id: string;
   };
   childrenComment: Comments[];
@@ -246,6 +254,7 @@ export const CommentComponent: FC<{
                   id,
                   user: {
                     email: user?.email!,
+                    name: user?.name,
                     id: user?.id!,
                   },
                   content,
@@ -260,11 +269,6 @@ export const CommentComponent: FC<{
     },
     [commentsList]
   );
-  const extractNameFromEmailAndCapitalize = useCallback((email: string) => {
-    return (
-      email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)
-    );
-  }, []);
   return (
     <div className="relative flex gap-[20px] flex-col flex-1 rounded-[4px] border border-customColor6 bg-sixth p-[16px] pt-0">
       <TopTitle title={`Comments for ${date.format('DD/MM/YYYY HH:mm')}`} />
@@ -307,14 +311,14 @@ export const CommentComponent: FC<{
                   <div
                     className={`rounded-full relative z-[2] text-blue-500 font-bold flex justify-center items-center w-[40px] h-[40px] bg-white border-tableBorder border`}
                   >
-                    {comment.user.email[0].toUpperCase()}
+                    {initialOf(comment.user)}
                   </div>
                   <div className="flex-1 w-[2px] h-[calc(100%-10px)] bg-customColor25 absolute top-[10px] z-[1]" />
                 </div>
                 <div className="flex-1 flex flex-col gap-[4px]">
                   <div className="flex">
                     <div className="h-[22px] text-[15px] font-[700]">
-                      {extractNameFromEmailAndCapitalize(comment.user.email)}
+                      {displayName(comment.user)}
                     </div>
                   </div>
                   <EditableCommentComponent
@@ -335,15 +339,13 @@ export const CommentComponent: FC<{
                       <div
                         className={`rounded-full relative z-[2] text-blue-500 font-bold flex justify-center items-center w-[40px] h-[40px] bg-white border-tableBorder border`}
                       >
-                        {childComment.user.email[0].toUpperCase()}
+                        {initialOf(childComment.user)}
                       </div>
                     </div>
                     <div className="flex-1 flex flex-col gap-[4px]">
                       <div className="flex">
                         <div className="h-[22px] text-[15px] font-[700]">
-                          {extractNameFromEmailAndCapitalize(
-                            childComment.user.email
-                          )}
+                          {displayName(childComment.user)}
                         </div>
                       </div>
                       <EditableCommentComponent

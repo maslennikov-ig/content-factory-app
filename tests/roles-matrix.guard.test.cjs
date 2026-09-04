@@ -275,6 +275,20 @@ describe('the invitation door is documented separately from organization-role po
     expect(document).toContain('однораз');
     expect(document).toContain('адрес');
   });
+
+  /**
+   * `content-factory-next-fn33.5`. Refusal used to be a client-side state and
+   * the matrix said so. It is a door now, with the same authority as
+   * acceptance, and a door the matrix does not name is a door nobody reviews.
+   */
+  test('/user/join-org/decline is a door of its own with the same authority', () => {
+    const document = read(MATRIX);
+    const controller = read('apps/backend/src/api/routes/users.controller.ts');
+
+    expect(document).toContain('| `/user/join-org/decline` |');
+    expect(document).not.toContain('Кнопка отказа не вызывает эту дверь');
+    expect(controller).toContain("@Post('/join-org/decline')");
+  });
 });
 
 describe('the roles themselves', () => {

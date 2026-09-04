@@ -125,9 +125,17 @@
 | --- | --- | ---: |
 | `PlatformBadge` | `@contentfactory/react/platform` | **18** |
 | `PlatformCard`, `PlatformCardLogo`, `PlatformSymbol` | `@contentfactory/react/platform` | 1 |
+| `Avatar` | `components/ui/avatar` | 3 |
 | `CfMark`, `Wordmark`, `ChannelMark` | `components/ui/*` | — |
 | 32 иконки (`CalendarIcon`, `CloseIcon`, `TrashIcon`, …) | `components/ui` | — |
 | `DocsLink`, `TranslatedLabel`, `CheckIconComponent` | `components/ui/*` | — |
+
+`Avatar` — человек там, где на него не хватает строки: картинка профиля, а без
+неё первая буква подписи из `displayName`
+(`@contentfactory/react/helpers/display-name`). Скрыт от скринридера намеренно:
+имя человека всегда стоит рядом текстом. Размер берётся из шкалы 20/24/32/48,
+вызывающий его не пишет. Появился 04.09.2026 — до него в рейке и в форме
+профиля стоял символ «●», набранный в двух местах порознь.
 
 ## Двойников больше нет
 

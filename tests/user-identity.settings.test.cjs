@@ -99,6 +99,13 @@ const component = loadTypeScriptModule(
   'apps/frontend/src/components/settings/sign-in-methods.component.tsx',
   {
     swr: { __esModule: true, default: jest.fn() },
+    // The real module, not a stub: the storage key it holds is the one the
+    // sign-in page reads when Telegram returns a connection there, and a stub
+    // would let the two spellings drift apart unnoticed.
+    '@contentfactory/frontend/components/auth/identity-link-return':
+      loadTypeScriptModule(
+        'apps/frontend/src/components/auth/identity-link-return.ts'
+      ),
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: jest.fn() },
     '@contentfactory/react/form/button': { Button },
     '@contentfactory/react/form/input': { Input },
@@ -196,6 +203,11 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
       },
       '@contentfactory/frontend/components/media/media.component': {
         showMediaBox: jest.fn(),
+      },
+      // The profile panel's picture placeholder. Its own rules are held by
+      // `tests/avatar.primitive.test.cjs`; here it is scenery.
+      '@contentfactory/frontend/components/ui/avatar': {
+        Avatar: () => null,
       },
       '@contentfactory/helpers/utils/custom.fetch': {
         useFetch: () => jest.fn(),

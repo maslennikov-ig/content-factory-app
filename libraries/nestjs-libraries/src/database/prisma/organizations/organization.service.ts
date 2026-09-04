@@ -88,6 +88,10 @@ export class OrganizationService {
     return this._organizationRepository.addUserToOrg(userId, id, orgId, role);
   }
 
+  isUserInOrg(userId: string, orgId: string) {
+    return this._organizationRepository.isUserInOrg(userId, orgId);
+  }
+
   getOrgById(id: string) {
     return this._organizationRepository.getOrgById(id);
   }

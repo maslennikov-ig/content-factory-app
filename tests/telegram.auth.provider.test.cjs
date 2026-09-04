@@ -94,6 +94,19 @@ const publicJwk = async (keys, kid) => ({
   use: 'sig',
 });
 
+const mockTelegram = async (idToken) => {
+  const jwk = await publicJwk(primaryKeys, 'primary-key');
+  global.fetch.mockImplementation(async (url) => {
+    if (url === `${issuer}/token`) return response({ id_token: idToken });
+    if (url === `${issuer}/.well-known/jwks.json`)
+      return response({ keys: [jwk] });
+    throw new Error(`Unexpected URL: ${url}`);
+  });
+};
+
+const tokenRequestBody = () =>
+  global.fetch.mock.calls.find(([url]) => url === `${issuer}/token`)[1].body;
+
 beforeAll(async () => {
   primaryKeys = await generateKeyPair('RS256');
   rotatedKeys = await generateKeyPair('RS256');
@@ -142,10 +155,11 @@ describe('Telegram OIDC provider', () => {
     expect(JSON.parse(redisValues.get(`auth:telegram:pkce:${state}`))).toEqual({
       verifier: expect.stringMatching(/^[\w-]{43}$/),
       redirectUri: 'https://app.example/auth?provider=TELEGRAM',
+      purpose: 'login',
     });
   });
 
-  test('stores a same-origin settings redirect with its PKCE verifier', async () => {
+  test('sends Telegram the single login address even when settings starts it', async () => {
     const provider = new TelegramProvider();
     const link = new URL(
       await provider.generateLink({
@@ -154,12 +168,16 @@ describe('Telegram OIDC provider', () => {
     );
     const state = link.searchParams.get('state');
 
+    // The settings address stopped being an address Telegram is told about. It
+    // is the caller saying "this is a link, not a sign-in", and BotFather keeps
+    // one Allowed URL — the one below.
     expect(link.searchParams.get('redirect_uri')).toBe(
-      'https://app.example/settings'
+      'https://app.example/auth?provider=TELEGRAM'
     );
     expect(JSON.parse(redisValues.get(`auth:telegram:pkce:${state}`))).toEqual({
       verifier: expect.stringMatching(/^[\w-]{43}$/),
-      redirectUri: 'https://app.example/settings',
+      redirectUri: 'https://app.example/auth?provider=TELEGRAM',
+      purpose: 'link',
     });
   });
 
@@ -179,7 +197,7 @@ describe('Telegram OIDC provider', () => {
     }
   );
 
-  test('exchanges a settings callback against the redirect stored with its state', async () => {
+  test('exchanges a settings callback against that same single address', async () => {
     const provider = new TelegramProvider();
     const link = new URL(
       await provider.generateLink({
@@ -188,13 +206,7 @@ describe('Telegram OIDC provider', () => {
     );
     const state = link.searchParams.get('state');
     const idToken = await signToken();
-    const jwk = await publicJwk(primaryKeys, 'primary-key');
-    global.fetch.mockImplementation(async (url) => {
-      if (url === `${issuer}/token`) return response({ id_token: idToken });
-      if (url === `${issuer}/.well-known/jwks.json`)
-        return response({ keys: [jwk] });
-      throw new Error(`Unexpected URL: ${url}`);
-    });
+    await mockTelegram(idToken);
 
     await expect(
       provider.getToken('settings-code', 'https://app.example/settings', {
@@ -203,12 +215,127 @@ describe('Telegram OIDC provider', () => {
       })
     ).resolves.toBe(idToken);
 
-    const tokenRequest = global.fetch.mock.calls.find(
-      ([url]) => url === `${issuer}/token`
+    expect(tokenRequestBody().get('redirect_uri')).toBe(
+      'https://app.example/auth?provider=TELEGRAM'
     );
-    expect(tokenRequest[1].body.get('redirect_uri')).toBe(
+  });
+
+  test('refuses to spend a sign-in state on an account link', async () => {
+    const provider = new TelegramProvider();
+    const link = new URL(await provider.generateLink());
+    const state = link.searchParams.get('state');
+    global.fetch.mockImplementation(async () => {
+      throw new Error('the token endpoint must not be reached');
+    });
+
+    await expect(
+      provider.getToken('login-code', 'https://app.example/settings', {
+        state,
+        browserState: state,
+      })
+    ).rejects.toThrow(/different purpose/i);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('refuses to spend a link state on a sign-in', async () => {
+    const provider = new TelegramProvider();
+    const link = new URL(
+      await provider.generateLink({
+        redirect_uri: 'https://app.example/settings',
+      })
+    );
+    const state = link.searchParams.get('state');
+    global.fetch.mockImplementation(async () => {
+      throw new Error('the token endpoint must not be reached');
+    });
+
+    // Both flows now come back to the same address, so nothing in the callback
+    // URL says which one it belongs to. The state does.
+    await expect(
+      provider.getToken('link-code', undefined, {
+        state,
+        browserState: state,
+      })
+    ).rejects.toThrow(/different purpose/i);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('still finishes a settings state issued by the previous version', async () => {
+    const provider = new TelegramProvider();
+    const state = 'state-from-the-previous-version';
+    // Written by the version that sent Telegram two different addresses. It has
+    // five minutes left, and Telegram accepts only the address it was given, so
+    // the exchange has to use that one rather than today's.
+    redisValues.set(
+      `auth:telegram:pkce:${state}`,
+      JSON.stringify({
+        verifier: 'verifier-from-the-previous-version',
+        redirectUri: 'https://app.example/settings',
+      })
+    );
+    const idToken = await signToken();
+    await mockTelegram(idToken);
+
+    await expect(
+      provider.getToken('old-settings-code', 'https://app.example/settings', {
+        state,
+        browserState: state,
+      })
+    ).resolves.toBe(idToken);
+
+    expect(tokenRequestBody().get('redirect_uri')).toBe(
       'https://app.example/settings'
     );
+    expect(tokenRequestBody().get('code_verifier')).toBe(
+      'verifier-from-the-previous-version'
+    );
+  });
+
+  test('still finishes a bare-verifier state issued by the oldest version', async () => {
+    const provider = new TelegramProvider();
+    const state = 'state-from-the-oldest-version';
+    redisValues.set(`auth:telegram:pkce:${state}`, 'bare-verifier');
+    const idToken = await signToken();
+    await mockTelegram(idToken);
+
+    await expect(
+      provider.getToken('old-login-code', undefined, {
+        state,
+        browserState: state,
+      })
+    ).resolves.toBe(idToken);
+
+    expect(tokenRequestBody().get('redirect_uri')).toBe(
+      'https://app.example/auth?provider=TELEGRAM'
+    );
+    expect(tokenRequestBody().get('code_verifier')).toBe('bare-verifier');
+  });
+
+  test('refuses a stored state that names an address we never send', async () => {
+    const provider = new TelegramProvider();
+    const state = 'state-for-another-deployment';
+    // The shape of a real state, with an address this deployment would never
+    // have asked for — a stale `FRONTEND_URL`, or a planted value. Reading it
+    // as if it were an old bare verifier would put the whole record where the
+    // verifier belongs and ask Telegram about it.
+    redisValues.set(
+      `auth:telegram:pkce:${state}`,
+      JSON.stringify({
+        verifier: 'a-verifier',
+        redirectUri: 'https://attacker.example/settings',
+      })
+    );
+    global.fetch.mockImplementation(async () => {
+      throw new Error('the token endpoint must not be reached');
+    });
+
+    await expect(
+      provider.getToken('foreign-code', undefined, {
+        state,
+        browserState: state,
+      })
+    ).rejects.toThrow(/redirect/i);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   test('exchanges a code once and verifies the returned id_token', async () => {

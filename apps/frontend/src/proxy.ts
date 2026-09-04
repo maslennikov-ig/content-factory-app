@@ -12,6 +12,14 @@ import {
 acceptLanguage.languages(languageTags);
 
 const PENDING_TEAM_INVITATION_COOKIE = 'pending-team-invitation';
+// Kept equal to `TEAM_INVITATION_TTL_SECONDS` in
+// `libraries/nestjs-libraries/src/auth/team-invitation.ts`. The proxy cannot
+// import it — that module pulls in Redis and the JWT service, which do not
+// belong in a middleware bundle — so the two numbers are held equal by
+// `tests/proxy-invite-origin.test.cjs` instead. They have to match because a
+// registration that waits for an administrator's approval outlives any short
+// cookie: fifteen minutes lost the invitation for everyone approved later.
+const PENDING_TEAM_INVITATION_TTL_SECONDS = 2 * 24 * 60 * 60;
 const isInviteToken = (value?: string | null) =>
   !!value && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
 
@@ -121,6 +129,18 @@ export async function proxy(request: NextRequest) {
     return topResponse;
   }
 
+  // Behind the production reverse proxy the container sees its own address:
+  // `nextUrl.href` is `http://localhost:4200/...` while the visitor is on the
+  // public domain. Next normalizes a `Location` back to a relative path, so a
+  // redirect survives that, but a URL that travels as a *value* — a
+  // `returnUrl` parameter, anything stored in a cookie — keeps the internal
+  // origin and sends the person to localhost after they sign in. `FRONTEND_URL`
+  // is the address the browser actually used, and this file already trusts it
+  // for the cookie domain. Falls back to the request when it is unset, which is
+  // the local case where the two are the same anyway.
+  const publicUrl = (pathname: string, search = '') =>
+    new URL(`${pathname}${search}`, process.env.FRONTEND_URL || nextUrl.href);
+
   const org = nextUrl.searchParams.get('org');
   // An invite carries the signed token itself, so it always has the three
   // base64url segments of a JWT. Treating every `?org=` value as an invite
@@ -146,12 +166,17 @@ export async function proxy(request: NextRequest) {
     return topResponse;
   }
 
+  // Signing out must still sign out: with a pending invitation this branch
+  // used to catch `/auth/logout` too and send the person to the confirmation
+  // page with their session intact.
   if (
     authCookie &&
     isInviteToken(pendingInvitation) &&
-    (nextUrl.pathname === '/' || nextUrl.pathname.startsWith('/auth'))
+    (nextUrl.pathname === '/' ||
+      (nextUrl.pathname.startsWith('/auth') &&
+        !nextUrl.pathname.startsWith('/auth/logout')))
   ) {
-    const confirmationUrl = new URL('/join-org', nextUrl.href);
+    const confirmationUrl = publicUrl('/join-org');
     confirmationUrl.searchParams.set('org', pendingInvitation!);
     const redirect = NextResponse.redirect(confirmationUrl);
     redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, '', {
@@ -166,17 +191,27 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  if (
-    looksLikeInviteToken &&
-    (nextUrl.pathname === '/' || nextUrl.pathname === '/auth')
-  ) {
-    const confirmationUrl = new URL('/join-org', nextUrl.href);
+  // Every authentication page, not just `/auth`: a hand-built
+  // `/auth/login?org=<token>` used to drop the invitation on the floor, and the
+  // person then signed in to their own empty workspace with nothing left to
+  // accept. Signing out is the one exception — `?org=` must not turn a logout
+  // into a redirect that keeps the session.
+  const isInviteEntryPath =
+    nextUrl.pathname === '/' ||
+    (nextUrl.pathname.startsWith('/auth') &&
+      !nextUrl.pathname.startsWith('/auth/logout'));
+  if (looksLikeInviteToken && isInviteEntryPath) {
+    const confirmationUrl = publicUrl('/join-org');
     confirmationUrl.searchParams.set('org', org);
     if (authCookie) {
       return NextResponse.redirect(confirmationUrl);
     }
 
-    const loginUrl = new URL('/auth', nextUrl.href);
+    // Keep the page the visitor asked for: someone who opened the sign-in form
+    // should not be answered with the registration form.
+    const loginUrl = publicUrl(
+      nextUrl.pathname === '/' ? '/auth' : nextUrl.pathname
+    );
     loginUrl.searchParams.set('returnUrl', confirmationUrl.toString());
     const redirect = NextResponse.redirect(loginUrl);
     redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, org, {
@@ -185,7 +220,7 @@ export async function proxy(request: NextRequest) {
       sameSite: 'lax',
       secure: !process.env.NOT_SECURED,
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      maxAge: 15 * 60,
+      maxAge: PENDING_TEAM_INVITATION_TTL_SECONDS,
     });
     return redirect;
   }
@@ -195,8 +230,11 @@ export async function proxy(request: NextRequest) {
     looksLikeInviteToken &&
     !authCookie
   ) {
-    const loginUrl = new URL('/auth', nextUrl.href);
-    loginUrl.searchParams.set('returnUrl', nextUrl.href);
+    const loginUrl = publicUrl('/auth');
+    loginUrl.searchParams.set(
+      'returnUrl',
+      publicUrl(nextUrl.pathname, nextUrl.search).toString()
+    );
     const redirect = NextResponse.redirect(loginUrl);
     redirect.cookies.set(PENDING_TEAM_INVITATION_COOKIE, org, {
       path: '/',
@@ -204,7 +242,7 @@ export async function proxy(request: NextRequest) {
       sameSite: 'lax',
       secure: !process.env.NOT_SECURED,
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      maxAge: 15 * 60,
+      maxAge: PENDING_TEAM_INVITATION_TTL_SECONDS,
     });
     return redirect;
   }
@@ -260,9 +298,22 @@ export async function proxy(request: NextRequest) {
     );
   }
 
+  // A provider's return carries a one-time code that the `/auth` page has to
+  // exchange. Since `content-factory-next-fn33.14` a signed-in person comes
+  // back here from Telegram as well — connecting the account in Settings shares
+  // the sign-in address — and bouncing them to `/` would drop the code before
+  // the page ever saw it.
+  const isProviderReturn =
+    nextUrl.pathname === '/auth' &&
+    !!nextUrl.searchParams.get('provider') &&
+    !!nextUrl.searchParams.get('code');
+
   // If the url is /auth and the cookie exists, redirect to /
-  if (nextUrl.pathname.startsWith('/auth') && authCookie) {
+  if (nextUrl.pathname.startsWith('/auth') && authCookie && !isProviderReturn) {
     return NextResponse.redirect(new URL(`/${url}`, nextUrl.href));
+  }
+  if (isProviderReturn) {
+    return topResponse;
   }
   if (nextUrl.pathname.startsWith('/auth') && !authCookie) {
     return topResponse;

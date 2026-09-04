@@ -190,7 +190,10 @@ describe('Content Factory brand boundary', () => {
       'are_you_sure_revoke_access',
       'channel_connected_description',
       'no_matching_integrations',
-      'password_policy_hint',
+      // `password_policy_hint` sat here until 04.09.2026: its default was
+      // built from PASSWORD_POLICY at runtime, so no locale could carry it
+      // without freezing the numbers. It interpolates now, which is exactly
+      // the way off this list (content-factory-next-fn33.10).
       'select_the_page_or_account',
     ]);
 

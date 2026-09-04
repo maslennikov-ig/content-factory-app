@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Keeps the test suite out of the tree the development stand watches.
+ * Keeps the test suite out of the tree the development stand watches, and out
+ * of the stage evidence that records runs which already happened.
  *
  * A running `next dev` watches `apps/frontend/src` and Tailwind globs
  * `apps/frontend/src/**` and `libraries/**` on every CSS build. `nest start
@@ -19,8 +20,13 @@
  * moment it happens, naming the file and the caller — rather than surfacing
  * minutes later as a broken stand nobody connects to a test run.
  *
+ * The second tree, the `evidence` directory of any `.codex/stages` stage, is
+ * refused for a different reason, written out above `isStageEvidence`.
+ *
  * Reads are untouched. Child processes are not covered: this patches the fs
- * module of the Jest worker only.
+ * module of the Jest worker only — a script the suite spawns writes with its
+ * own `fs`, so where that script is allowed to write is its own argument to
+ * check.
  */
 
 const fs = require('node:fs');
@@ -37,16 +43,41 @@ const WATCHED_TREES = [
 /** Build output inside those trees. No watcher rebuilds from these. */
 const EXEMPT_SEGMENTS = new Set(['node_modules', 'dist', '.next', 'coverage']);
 
-const isWatched = (candidate) => {
-  if (typeof candidate !== 'string' || candidate === '') return false;
+const stagesRoot = path.join(repositoryRoot, '.codex', 'stages');
 
-  let absolute;
-  try {
-    absolute = path.resolve(candidate);
-  } catch {
+/**
+ * Stage evidence is a record of a run that happened, not an output of the
+ * suite.
+ *
+ * The public funnel proof regenerated `.codex/stages/.../public-funnel-runtime`
+ * on every full `pnpm test`, and one of its files carries the day the run
+ * happened, so the tree came back dirty from a green suite every time and had
+ * to be cleaned by hand before a release receipt could be recorded. A stage
+ * artifact is refreshed on purpose, in its own commit, by somebody who meant
+ * to — never as a side effect of running the tests.
+ */
+const isStageEvidence = (absolute) => {
+  if (
+    absolute !== stagesRoot &&
+    !absolute.startsWith(`${stagesRoot}${path.sep}`)
+  ) {
     return false;
   }
+  const segments = path.relative(stagesRoot, absolute).split(path.sep);
+  // <stage>/evidence[/...]
+  return segments.length > 1 && segments[1] === 'evidence';
+};
 
+const asAbsolute = (candidate) => {
+  if (typeof candidate !== 'string' || candidate === '') return null;
+  try {
+    return path.resolve(candidate);
+  } catch {
+    return null;
+  }
+};
+
+const isStandTree = (absolute) => {
   const tree = WATCHED_TREES.find(
     (root) => absolute === root || absolute.startsWith(`${root}${path.sep}`)
   );
@@ -56,13 +87,29 @@ const isWatched = (candidate) => {
   return !segments.some((segment) => EXEMPT_SEGMENTS.has(segment));
 };
 
+const isWatched = (candidate) => {
+  const absolute = asAbsolute(candidate);
+  if (!absolute) return false;
+  return isStandTree(absolute) || isStageEvidence(absolute);
+};
+
+const STAND_REASON =
+  'apps/** and libraries/** are watched by the running development stand: ' +
+  'a file that appears and disappears there mid-run breaks the Tailwind ' +
+  'build of a live `next dev` and every page answers 500 afterwards.';
+
+const EVIDENCE_REASON =
+  '.codex/stages/**/evidence/** records a run that happened. A suite that ' +
+  'rewrites it leaves the tree dirty after a green run, and a release ' +
+  'receipt then has to be recorded on a tree somebody cleaned by hand.';
+
 const refuse = (operation, target) => {
-  const relative = path.relative(repositoryRoot, path.resolve(target));
+  const absolute = path.resolve(target);
+  const relative = path.relative(repositoryRoot, absolute);
   return new Error(
     `Test suite refused to ${operation} "${relative}".\n` +
-      'apps/** and libraries/** are watched by the running development stand: ' +
-      'a file that appears and disappears there mid-run breaks the Tailwind ' +
-      'build of a live `next dev` and every page answers 500 afterwards.\n' +
+      (isStageEvidence(absolute) ? EVIDENCE_REASON : STAND_REASON) +
+      '\n' +
       'Put the fixture in a temporary directory (fs.mkdtempSync(os.tmpdir())) ' +
       'and point the code under test at that root instead.'
   );

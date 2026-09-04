@@ -261,6 +261,25 @@ export class OrganizationRepository {
     });
   }
 
+  /**
+   * `content-factory-next-fn33.6`: does this account already belong to this
+   * organization? Asked before an invitation is spent, so that a link opened
+   * inside the workspace it invites to is answered rather than burned.
+   */
+  async isUserInOrg(userId: string, orgId: string) {
+    const membership = await this._userOrg.model.userOrganization.findFirst({
+      where: {
+        userId,
+        organizationId: orgId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return !!membership;
+  }
+
   async addUserToOrg(
     userId: string,
     id: string,
@@ -275,6 +294,24 @@ export class OrganizationRepository {
       });
 
       if (checkIfInviteExists) {
+        return false;
+      }
+
+      // `@@unique([userId, organizationId])` turns a second membership into a
+      // raw Prisma error, and it used to surface as a 500 on a state that is
+      // not an error at all. Inside the transaction, so a race between two
+      // accepts still ends with one membership rather than a collision.
+      const existingMembership = await tx.userOrganization.findFirst({
+        where: {
+          userId,
+          organizationId: orgId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (existingMembership) {
         return false;
       }
 
@@ -511,6 +548,12 @@ export class OrganizationRepository {
             user: {
               select: {
                 email: true,
+                // The team list signs its rows with the person's own name and
+                // falls back to the address only when the profile is empty
+                // (`content-factory-next-fn33.16`). Without this column the
+                // list had no name to show and derived one from the mailbox
+                // for everybody.
+                name: true,
                 id: true,
                 sendSuccessEmails: true,
                 sendFailureEmails: true,

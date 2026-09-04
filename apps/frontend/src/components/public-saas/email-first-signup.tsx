@@ -16,7 +16,7 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import {
   isPasswordPolicyCompliant,
-  PASSWORD_POLICY,
+  PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 
 export function EmailFirstSignup() {
@@ -54,7 +54,8 @@ export function EmailFirstSignup() {
       setError(
         t(
           'password_policy_error',
-          'Use 7–64 characters with a letter, a number, and a special character.'
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
         )
       );
       setLoading(false);
@@ -162,7 +163,8 @@ export function EmailFirstSignup() {
             required
             helper={t(
               'password_policy_hint',
-              `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+              'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+              PASSWORD_POLICY_RANGE
             )}
             value={password}
             onChange={(event) => setPassword(event.target.value)}

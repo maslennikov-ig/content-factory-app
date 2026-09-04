@@ -19,6 +19,7 @@ import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
 import { TeamsComponent } from '@contentfactory/frontend/components/settings/teams.component';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -202,17 +203,16 @@ export const SettingsPopup: FC<{
                   error={form.formState.errors.fullname?.message as string}
                 />
                 <div className="flex flex-wrap items-center gap-[12px]">
-                  <div className="flex size-[48px] items-center justify-center overflow-hidden rounded-full bg-cf-surface-subtle text-cf-ink-muted">
-                    {picture?.path ? (
-                      <img
-                        src={picture.path}
-                        alt=""
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      '●'
-                    )}
-                  </div>
+                  {/* Was a «●» typed in place of a component. The same
+                      placeholder stood in the collapsed rail, and one decision
+                      written twice is a component that does not exist yet
+                      (`content-factory-next-fn33.10`). */}
+                  <Avatar
+                    size={48}
+                    src={picture?.path}
+                    name={user?.name}
+                    email={user?.email}
+                  />
                   <Button type="button" variant="secondary" onClick={openMedia}>
                     {t('picture', 'Picture')}
                   </Button>

@@ -23,9 +23,36 @@ import { AuthDivider } from '@contentfactory/frontend/components/auth/auth.divid
 import { LegalNotice } from '@contentfactory/frontend/components/auth/legal.notice';
 import { TelegramProvider } from '@contentfactory/frontend/components/auth/providers/telegram.provider';
 import {
-  PASSWORD_POLICY,
   PASSWORD_POLICY_ERROR_MESSAGE,
+  PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
+
+// The same three base64url segments the proxy recognises as an invitation.
+const INVITE_TOKEN_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+/**
+ * The invitation behind a registration, read from the address to come back to.
+ *
+ * An invitation link opened without a session is answered by the proxy with
+ * `/auth?returnUrl=<public origin>/join-org?org=<token>`. The pending-invitation
+ * cookie it writes alongside is `httpOnly`, so that return address is the only
+ * place this form can still see the invitation — and `ReturnUrlComponent` keeps
+ * a copy in `localStorage`, which survives a detour through the sign-in link.
+ */
+export const invitationTokenFromReturnUrl = (returnUrl?: string | null) => {
+  if (!returnUrl) return '';
+  try {
+    // The base only matters for a relative value; a stored absolute address
+    // brings its own.
+    const url = new URL(returnUrl, 'http://invitation.invalid');
+    if (url.pathname !== '/join-org') return '';
+    const token = url.searchParams.get('org') || '';
+    return INVITE_TOKEN_SHAPE.test(token) ? token : '';
+  } catch {
+    return '';
+  }
+};
+
 type Inputs = {
   email: string;
   password: string;
@@ -118,7 +145,8 @@ export function RegisterAfter({
     passwordError === PASSWORD_POLICY_ERROR_MESSAGE
       ? t(
           'password_policy_error',
-          'Use 7–64 characters with a letter, a number, and a special character.'
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
         )
       : passwordError;
   const email = form.watch('email', '');
@@ -135,6 +163,52 @@ export function RegisterAfter({
     }
   }, [canSubscribeToNewsletter, form]);
   const fetchData = useFetch();
+  const getQuery = useSearchParams();
+  const [invitationToken, setInvitationToken] = useState('');
+  useEffect(() => {
+    const fromQuery = invitationTokenFromReturnUrl(getQuery?.get('returnUrl'));
+    if (fromQuery) {
+      setInvitationToken(fromQuery);
+      return;
+    }
+    try {
+      setInvitationToken(
+        invitationTokenFromReturnUrl(localStorage.getItem('returnUrl'))
+      );
+    } catch {
+      // Storage can be denied outright; the form works without the hint.
+      setInvitationToken('');
+    }
+  }, [getQuery]);
+  // An invitation issued to one address can only be accepted by that address,
+  // so registering under a different one ends in `invite_email_mismatch` after
+  // the account already exists. Filling the field in is what keeps the two
+  // halves of the invited path pointing at the same person.
+  useEffect(() => {
+    if (!invitationToken || isAfterProvider) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // `/user/join-org` answers the same question but sits behind
+        // `AuthMiddleware`, and this page has no session: that request comes
+        // back Forbidden every time. `/auth/join-org` is the door open without
+        // one, and it answers with the workspace and the bound address only.
+        const query = new URLSearchParams({ org: invitationToken });
+        const response = await fetchData(`/auth/join-org?${query}`);
+        if (!response.ok) return;
+        const preview = (await response.json()) as { boundEmail?: string };
+        // An invitation open to any address has no `boundEmail`, and a person
+        // already typing must not have their own address replaced.
+        if (cancelled || !preview?.boundEmail || form.getValues('email')) return;
+        form.setValue('email', preview.boundEmail);
+      } catch {
+        // A preview that cannot be fetched costs a convenience, not the form.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [invitationToken, isAfterProvider, fetchData, form]);
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
     setLoading(true);
     try {
@@ -277,7 +351,8 @@ export function RegisterAfter({
                 hidePasswordLabel={t('hide_password', 'Hide password')}
                 helper={t(
                   'password_policy_hint',
-                  `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+                  'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                  PASSWORD_POLICY_RANGE
                 )}
               />
             </>

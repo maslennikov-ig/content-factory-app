@@ -13,7 +13,9 @@ import {
   useMenuItem,
 } from '@contentfactory/frontend/components/layout/top.menu';
 import { MenuItem } from '@contentfactory/frontend/components/new-layout/menu-item';
+import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
+import { displayName } from '@contentfactory/react/helpers/display-name';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 
 const COLLAPSE_COOKIE = 'sidebar';
@@ -204,26 +206,41 @@ export const Sidebar: FC<{
         </nav>
 
         <div className="border-t border-cf-border-strong px-[12px] py-[12px] flex flex-col gap-[8px]">
+          {/* Who is signed in: the name they entered, and the address under
+              it. The address alone stood here until 04.09.2026 — the owner
+              filled in a profile name and the product went on calling him by
+              his mailbox. The name comes from the one function the whole
+              product shares, so an empty profile still reads the same as it
+              did in the team list. */}
           <div
             className={clsx(
-              'cf-account-email cf-caption text-cf-navigation-muted truncate px-[10px]',
+              'flex flex-col px-[10px]',
               isCollapsed && 'sr-only'
             )}
           >
-            {(user as any)?.email}
+            <div className="cf-account-name cf-body-md text-cf-navigation-text truncate">
+              {displayName(user)}
+            </div>
+            <div className="cf-account-email cf-caption text-cf-navigation-muted truncate">
+              {user?.email}
+            </div>
           </div>
-          <Link
-            href="/settings?tab=profile"
-            className={clsx(
-              FOOTER_ROW,
-              'flex items-center text-cf-navigation-text hover:bg-cf-navigation-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
-              isCollapsed && 'justify-center'
-            )}
-            aria-label={t('profile', 'Profile')}
-            onClick={isDrawer ? onCloseMobile : undefined}
-          >
-            {isCollapsed ? '●' : t('profile', 'Profile')}
-          </Link>
+          {/* A navigation row like every other one, not a hand-built link:
+              that is where the icon, the current-page mark and the accessible
+              name come from. Its icon is the person's own avatar. */}
+          <MenuItem
+            path="/settings?tab=profile"
+            label={t('profile', 'Profile')}
+            icon={
+              <Avatar
+                name={user?.name}
+                email={user?.email}
+                src={user?.picture?.path}
+              />
+            }
+            collapsed={isCollapsed}
+            onNavigate={isDrawer ? onCloseMobile : undefined}
+          />
           {/* The AGPL source offer used to sit here. It is a licence errand,
               not a place in the product, and a permanent row beside the
               product's own navigation gave it more weight on every screen than

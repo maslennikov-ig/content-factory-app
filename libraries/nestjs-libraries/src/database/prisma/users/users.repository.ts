@@ -165,6 +165,18 @@ export class UsersRepository {
       where: {
         id,
       },
+      // The signed shell reads its avatar from here: `/user/self` is this row
+      // spread whole. Without the relation `user.picture` was always
+      // `undefined`, and a person who had uploaded a photograph saw the letter
+      // placeholder for ever (`content-factory-next-fn33.16`, рецензия).
+      include: {
+        picture: {
+          select: {
+            id: true,
+            path: true,
+          },
+        },
+      },
     });
   }
 

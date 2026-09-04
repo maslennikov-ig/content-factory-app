@@ -338,28 +338,6 @@ export class AuthService {
       : 'User is not activated';
   }
 
-  public getOrgFromCookie(cookie?: string) {
-    if (!cookie) {
-      return false;
-    }
-
-    try {
-      const getOrg: any = AuthChecker.verifyJWT(cookie);
-      if (dayjs(getOrg.timeLimit).isBefore(dayjs())) {
-        return false;
-      }
-
-      return getOrg as {
-        email: string;
-        role: AssignableOrganizationRole;
-        orgId: string;
-        id: string;
-      };
-    } catch (err) {
-      return false;
-    }
-  }
-
   private async loginOrRegisterProvider(
     provider: Provider,
     body: CreateOrgUserDto,

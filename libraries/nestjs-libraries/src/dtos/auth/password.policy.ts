@@ -8,6 +8,19 @@ export const PASSWORD_POLICY = {
   maxLength: 64,
 } as const;
 
+/**
+ * The same two numbers under the names the locale strings interpolate.
+ *
+ * Every translation used to spell "7–64" out by hand in sixteen files, so
+ * changing the policy here would have left sixteen sentences quietly claiming
+ * the old rule. The strings say `{{min}}` and `{{max}}` now, and this is the
+ * one place that maps the policy onto those names.
+ */
+export const PASSWORD_POLICY_RANGE = {
+  min: PASSWORD_POLICY.minLength,
+  max: PASSWORD_POLICY.maxLength,
+} as const;
+
 export const PASSWORD_POLICY_ERROR_MESSAGE =
   'Password must contain 7 to 64 characters, including a letter, a number, and a special character.';
 

@@ -3,6 +3,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { createHmac, randomUUID } = require('node:crypto');
@@ -28,14 +29,23 @@ if (evidenceFlag < 0 || !args[evidenceFlag + 1]) {
   );
 }
 const evidenceDir = path.resolve(args[evidenceFlag + 1]);
-const allowedEvidenceRoot = path.join(
-  root,
-  '.codex/stages/content-factory-next-or3/evidence/public-funnel-runtime'
-);
-if (
-  evidenceDir !== allowedEvidenceRoot &&
-  !evidenceDir.startsWith(`${allowedEvidenceRoot}${path.sep}`)
-) {
+// Two places, and only two. The stage directory is where a deliberate refresh
+// writes — one that ends in its own `chore(evidence)` commit. A temporary
+// directory is where the suite writes, because the proof runs on every full
+// `pnpm test` and one of the files it produces carries the day the run
+// happened: writing it into the tracked tree left a green suite with a dirty
+// working tree, every time (content-factory-next-4a79).
+const allowedEvidenceRoots = [
+  path.join(
+    root,
+    '.codex/stages/content-factory-next-or3/evidence/public-funnel-runtime'
+  ),
+  os.tmpdir(),
+  fs.realpathSync(os.tmpdir()),
+];
+const inside = (parent) =>
+  evidenceDir === parent || evidenceDir.startsWith(`${parent}${path.sep}`);
+if (!allowedEvidenceRoots.some(inside)) {
   throw new Error(
     `Evidence directory is outside the assigned write zone: ${evidenceDir}`
   );

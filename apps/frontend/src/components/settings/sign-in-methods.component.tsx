@@ -10,8 +10,9 @@ import { Input } from '@contentfactory/react/form/input';
 import { PasswordInput } from '@contentfactory/react/form/password-input';
 import {
   isPasswordPolicyCompliant,
-  PASSWORD_POLICY,
+  PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
+import { IDENTITY_LINK_INTENT_KEY } from '@contentfactory/frontend/components/auth/identity-link-return';
 
 type IdentityProvider =
   | 'LOCAL'
@@ -42,7 +43,10 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 type SearchParamsLike = Pick<URLSearchParams, 'has'>;
 type Translate = ReturnType<typeof useT>;
 
-export const IDENTITY_LINK_INTENT_KEY = 'content-factory:identity-link-intent';
+// Defined next to the sign-in page, which now reads the same note: Telegram
+// returns a connection to `/auth?provider=TELEGRAM` and that page hands it
+// back here. Re-exported so callers keep one import for this flow.
+export { IDENTITY_LINK_INTENT_KEY };
 export const IDENTITY_LINK_INTENT_TTL_MS = 5 * 60 * 1000;
 export const IDENTITY_CONFIRMATION_PARAM = 'identity_confirmation';
 
@@ -724,7 +728,8 @@ export function SignInMethodsView({
                   label={t('password', 'Password')}
                   helper={t(
                     'password_policy_hint',
-                    `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+                    'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                    PASSWORD_POLICY_RANGE
                   )}
                   autoComplete="new-password"
                   value={password}
@@ -929,7 +934,8 @@ export const SignInMethodsComponent = () => {
       setFieldError(
         t(
           'password_policy_error',
-          'Use 7–64 characters with a letter, a number, and a special character.'
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
         )
       );
       return;

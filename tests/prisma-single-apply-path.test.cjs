@@ -32,6 +32,9 @@ const repositoryRoot = path.resolve(__dirname, '..');
 const skippedDirectories = new Set([
   '.git',
   '.beads',
+  // Agent worktrees are whole copies of the tree; scanning them reports every
+  // guard, this one included, as its own offender.
+  '.claude',
   '.next',
   'coverage',
   'dist',

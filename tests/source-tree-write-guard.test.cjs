@@ -85,6 +85,39 @@ describe('the suite never writes into the tree the stand watches', () => {
     }
   });
 
+  // A green suite that leaves the tree dirty is a green suite nobody can
+  // record a release receipt against without cleaning up by hand first. The
+  // public funnel proof did exactly that on every full run, rewriting the day
+  // inside its own evidence (content-factory-next-4a79).
+  test('refuses a write into stage evidence and says why that is different', () => {
+    const target = path.join(
+      repositoryRoot,
+      '.codex/stages/content-factory-next-or3/evidence/public-funnel-runtime/database.json'
+    );
+    const before = fs.readFileSync(target, 'utf8');
+
+    expect(() => fs.writeFileSync(target, '{}')).toThrow(/database\.json/);
+    expect(() => fs.writeFileSync(target, '{}')).toThrow(/records a run/i);
+    expect(() =>
+      fs.rmSync(path.dirname(target), { recursive: true, force: true })
+    ).toThrow(/public-funnel-runtime/);
+    expect(fs.readFileSync(target, 'utf8')).toBe(before);
+  });
+
+  test('leaves the rest of a stage — its summary and its plan — alone', () => {
+    const { isWatched } = require('./helpers/source-tree-guard.cjs');
+
+    expect(
+      isWatched(path.join(repositoryRoot, '.codex/stages/some-stage/summary.md'))
+    ).toBe(false);
+    expect(isWatched(path.join(repositoryRoot, '.codex/handoff.md'))).toBe(false);
+    // A fixture repository built in a temporary directory has the same shape
+    // and is not this repository's evidence.
+    expect(
+      isWatched(path.join(os.tmpdir(), 'fixture/.codex/stages/a/evidence/x.txt'))
+    ).toBe(false);
+  });
+
   test('leaves reads, build output and everything outside those trees alone', () => {
     expect(() =>
       fs.readFileSync(

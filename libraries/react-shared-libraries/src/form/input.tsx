@@ -6,9 +6,11 @@ import {
   InputHTMLAttributes,
   Ref,
   ReactNode,
+  useCallback,
   useEffect,
   useId,
   useMemo,
+  useRef,
 } from 'react';
 import { clsx } from 'clsx';
 import { useFormContext } from 'react-hook-form';
@@ -128,6 +130,22 @@ export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
       ? undefined
       : form.register(props.name);
 
+  // `form.register()` returns a fresh object — and a fresh `ref` — on every
+  // render, so a ref callback written inline is a new function every time.
+  // React detaches the old one and attaches the new one on each render, which
+  // means react-hook-form is handed `null` and then the element again on every
+  // keystroke. The callback below is stable, and the registration it forwards
+  // to is read at call time rather than captured, so it stays current.
+  const registrationRef = useRef(registration?.ref);
+  registrationRef.current = registration?.ref;
+  const setInputRef = useCallback(
+    (element: HTMLInputElement | null) => {
+      assignRef(registrationRef.current, element);
+      assignRef(ref, element);
+    },
+    [ref]
+  );
+
   return (
     <div
       className={clsx(
@@ -164,10 +182,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
           {...registration}
           {...rest}
           {...secretProps}
-          ref={(element) => {
-            assignRef(registration?.ref, element);
-            assignRef(ref, element);
-          }}
+          ref={setInputRef}
           style={withoutConsumerHeightStyle(style)}
           className={clsx(
             'h-full bg-transparent outline-none flex-1 min-w-0 text-[14px] text-cf-ink placeholder:text-cf-ink-muted',

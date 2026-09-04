@@ -19,7 +19,6 @@ import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.fro
 import { StripeService } from '@contentfactory/nestjs-libraries/services/stripe.service';
 import { Response, Request } from 'express';
 import { AuthService } from '@contentfactory/backend/services/auth/auth.service';
-import { AuthService as AuthChecker } from '@contentfactory/helpers/auth/auth.service';
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
 import { getCookieUrlFromDomain } from '@contentfactory/helpers/subdomain/subdomain.management';
@@ -39,7 +38,12 @@ import {
   UnlinkUserIdentityDto,
 } from '@contentfactory/nestjs-libraries/dtos/users/link-user-identity.dto';
 import {
+  assertSameOriginJsonMutation,
+  requestUserIdFromJwt,
+} from '@contentfactory/nestjs-libraries/auth/same-origin-mutation';
+import {
   acceptTeamInvitation,
+  declineTeamInvitation,
   inspectTeamInvitation,
   TeamInvitationError,
 } from '@contentfactory/nestjs-libraries/auth/team-invitation';
@@ -199,7 +203,7 @@ export class UsersController {
     // `user` is the impersonated account, so the admin id comes from the token.
     // Require an active impersonation session and never allow the admin's own
     // account in the swap — either would trade away the admin's login.
-    const adminId = this.getRequestUserId(req);
+    const adminId = requestUserIdFromJwt(req);
     if (
       !id ||
       !adminId ||
@@ -221,83 +225,36 @@ export class UsersController {
     return { success: true };
   }
 
-  private getRequestUserId(req: Request): string | null {
-    try {
-      const auth = (req.headers.auth as string) || req.cookies?.auth;
-      const payload = AuthChecker.verifyJWT(auth) as { id?: string } | null;
-      return payload?.id || null;
-    } catch {
-      return null;
-    }
-  }
-
   private assertIdentityMutationRequest(userId: string, req: Request) {
-    this.assertSameOriginJsonMutationRequest(userId, req, 'identity');
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'every identity mutation',
+        unavailableMessage:
+          'Sign-in method changes are unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'identity_mutations_unavailable',
+        forbiddenMessage: 'Forbidden identity mutation request',
+        forbiddenCode: 'identity_mutation_forbidden',
+      },
+      this._logger
+    );
   }
 
   private assertInvitationMutationRequest(userId: string, req: Request) {
-    this.assertSameOriginJsonMutationRequest(userId, req, 'invitation');
-  }
-
-  private assertSameOriginJsonMutationRequest(
-    userId: string,
-    req: Request,
-    boundary: 'identity' | 'invitation'
-  ) {
-    const contentType = String(req.headers['content-type'] || '')
-      .split(';', 1)[0]
-      .trim()
-      .toLowerCase();
-    let expectedOrigin: string | null = null;
-    try {
-      expectedOrigin = process.env.FRONTEND_URL
-        ? new URL(process.env.FRONTEND_URL).origin
-        : null;
-    } catch {
-      expectedOrigin = null;
-    }
-
-    // Without a configured origin every request looks foreign, and the refusal
-    // that follows is indistinguishable from an attack being blocked. Say which
-    // it is: this is a deployment fault, not the caller's.
-    if (!expectedOrigin) {
-      this._logger.error(
-        `FRONTEND_URL is missing or unparseable; refusing every ${boundary} mutation until it is set`
-      );
-      throw new HttpException(
-        {
-          message:
-            boundary === 'identity'
-              ? 'Sign-in method changes are unavailable: FRONTEND_URL is not configured'
-              : 'Invitation acceptance is unavailable: FRONTEND_URL is not configured',
-          code:
-            boundary === 'identity'
-              ? 'identity_mutations_unavailable'
-              : 'invitation_mutations_unavailable',
-        },
-        500
-      );
-    }
-
-    if (
-      contentType !== 'application/json' ||
-      req.headers.origin !== expectedOrigin ||
-      this.getRequestUserId(req) !== userId
-    ) {
-      throw new HttpException(
-        {
-          message:
-            boundary === 'identity'
-              ? 'Forbidden identity mutation request'
-              : 'Forbidden invitation mutation request',
-          code:
-            boundary === 'identity'
-              ? 'identity_mutation_forbidden'
-              : 'invitation_mutation_forbidden',
-        },
-        403
-      );
-    }
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'every invitation mutation',
+        unavailableMessage:
+          'Invitation acceptance is unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'invitation_mutations_unavailable',
+        forbiddenMessage: 'Forbidden invitation mutation request',
+        forbiddenCode: 'invitation_mutation_forbidden',
+      },
+      this._logger
+    );
   }
 
   @Post('/personal')
@@ -344,10 +301,22 @@ export class UsersController {
     return this._stripeService.getPackages();
   }
 
+  /**
+   * The preview is read by a signed-in browser, so it can answer for that
+   * account: whom the invitation names, and whether this account is already
+   * inside. Before `content-factory-next-fn33.11` it answered neither, and the
+   * page offered «Accept» to whoever happened to be signed in.
+   */
   @Get('/join-org')
-  async previewJoinOrg(@Query('org') org: string) {
+  async previewJoinOrg(
+    @GetUserFromRequest() user: User,
+    @Query('org') org: string
+  ) {
     try {
-      return await inspectTeamInvitation(org);
+      return await inspectTeamInvitation(org, {
+        email: user.email,
+        isMemberOf: (orgId) => this._orgService.isUserInOrg(user.id, orgId),
+      });
     } catch (error) {
       this.throwInvitationError(error);
     }
@@ -365,6 +334,7 @@ export class UsersController {
       const { invitation, added } = await acceptTeamInvitation(
         org,
         user.email,
+        (orgId) => this._orgService.isUserInOrg(user.id, orgId),
         ({ id, orgId, role }) =>
           this._orgService.addUserToOrg(user.id, id, orgId, role)
       );
@@ -398,6 +368,26 @@ export class UsersController {
         workspaceName: invitation.workspaceName,
         role: invitation.role,
       });
+    } catch (error) {
+      this.throwInvitationError(error);
+    }
+  }
+
+  /**
+   * Refusing an invitation is a state change, so it goes through the same door
+   * accepting goes through: JSON, our own origin, and the session that names
+   * this very account.
+   */
+  @Post('/join-org/decline')
+  async declineJoinOrg(
+    @GetUserFromRequest() user: User,
+    @Body('org') org: string,
+    @Req() req: Request
+  ) {
+    this.assertInvitationMutationRequest(user.id, req);
+    try {
+      await declineTeamInvitation(org, user.email);
+      return { declined: true };
     } catch (error) {
       this.throwInvitationError(error);
     }

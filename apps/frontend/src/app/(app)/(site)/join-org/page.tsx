@@ -14,6 +14,12 @@ type InvitationPreview = {
   inviterName: string;
   inviterEmail: string;
   role: InvitationRole;
+  /** The address the invitation was sent to; absent for a copied link. */
+  boundEmail?: string;
+  /** The signed-in account is not the one this invitation names. */
+  emailMismatch: boolean;
+  /** The signed-in account is already in this workspace. */
+  alreadyMember: boolean;
 };
 
 type InvitationSuccess = Pick<InvitationPreview, 'workspaceName' | 'role'>;
@@ -35,6 +41,7 @@ export default function JoinOrganizationPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [declined, setDeclined] = useState(false);
 
   const roleLabel = useCallback(
@@ -98,6 +105,38 @@ export default function JoinOrganizationPage() {
     }
   }, [fetch, token]);
 
+  /**
+   * `content-factory-next-fn33.5`: refusing used to change nothing but this
+   * component's state, and the link stayed live for the rest of its two days.
+   */
+  const decline = useCallback(async () => {
+    setDeclining(true);
+    setError('');
+    try {
+      const response = await fetch('/user/join-org/decline', {
+        method: 'POST',
+        body: JSON.stringify({ org: token }),
+      });
+      if (!response.ok) {
+        const code = await invitationErrorCode(response);
+        // A spent or expired invitation cannot be joined either, so what the
+        // person asked for already holds. Saying «unavailable» here would
+        // report a problem where there is none.
+        if (code === 'invite_used' || code === 'invite_invalid') {
+          setDeclined(true);
+          return;
+        }
+        setError(code);
+        return;
+      }
+      setDeclined(true);
+    } catch {
+      setError('invite_unknown');
+    } finally {
+      setDeclining(false);
+    }
+  }, [fetch, token]);
+
   const errorMessage = useMemo(() => {
     if (error === 'invite_email_mismatch') {
       return t(
@@ -109,6 +148,18 @@ export default function JoinOrganizationPage() {
       return t(
         'team_invitation_error_used',
         'This invitation has already been used. Ask the workspace administrator for a new one.'
+      );
+    }
+    if (error === 'invite_already_member') {
+      return t(
+        'team_invitation_error_already_member',
+        'You are already in this workspace. No invitation is needed.'
+      );
+    }
+    if (error === 'invite_membership_failed') {
+      return t(
+        'team_invitation_error_membership',
+        'This account could not be added to the workspace, and the invitation is spent. Ask the workspace administrator for a new one.'
       );
     }
     if (error === 'invite_invalid') {
@@ -143,7 +194,11 @@ export default function JoinOrganizationPage() {
           )}
 
           {!loading && success && (
-            <div role="status" aria-live="polite" className="flex flex-col gap-[16px]">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex flex-col gap-[16px]"
+            >
               <div className="rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[16px]">
                 <h2 className="cf-heading-md text-cf-accent [text-wrap:balance]">
                   {t('team_invitation_success_title', 'Invitation accepted')}
@@ -166,7 +221,11 @@ export default function JoinOrganizationPage() {
           )}
 
           {!loading && declined && !success && (
-            <div role="status" aria-live="polite" className="flex flex-col gap-[16px]">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex flex-col gap-[16px]"
+            >
               <div className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]">
                 <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
                   {t('team_invitation_declined_title', 'Invitation declined')}
@@ -194,9 +253,15 @@ export default function JoinOrganizationPage() {
                   {errorMessage}
                 </p>
               </div>
-              {error === 'invite_unknown' && (
+              {error === 'invite_unknown' ? (
                 <Button variant="secondary" onClick={() => void loadPreview()}>
                   {t('try_again', 'Try Again')}
+                </Button>
+              ) : (
+                // Every other error is final: nothing on this page can change
+                // it, so the one thing left to offer is the way out.
+                <Button variant="secondary" onClick={() => router.push('/')}>
+                  {t('continue', 'Continue')}
                 </Button>
               )}
             </div>
@@ -221,28 +286,70 @@ export default function JoinOrganizationPage() {
                   {t('team_invitation_inviter', 'Invited by')}
                 </dt>
                 <dd className="cf-body-md text-cf-ink [overflow-wrap:anywhere]">
-                  {preview.inviterName} · {preview.inviterEmail}
+                  {/* An inviter with no profile name is issued under their
+                      address, so name and address would print twice. */}
+                  {preview.inviterName.trim().toLowerCase() ===
+                  preview.inviterEmail.trim().toLowerCase()
+                    ? preview.inviterEmail
+                    : `${preview.inviterName} · ${preview.inviterEmail}`}
+                </dd>
+                <dt className="cf-label-sm text-cf-ink-muted">
+                  {t('team_invitation_recipient', 'For')}
+                </dt>
+                <dd className="cf-body-md text-cf-ink [overflow-wrap:anywhere]">
+                  {preview.boundEmail ||
+                    t(
+                      'team_invitation_recipient_any',
+                      'A copied link: any signed-in account can accept it.'
+                    )}
                 </dd>
               </dl>
-              <div className="flex flex-col-reverse gap-[8px] sm:flex-row sm:justify-end">
-                <Button
-                  variant="secondary"
-                  disabled={accepting}
-                  onClick={() => setDeclined(true)}
-                >
-                  {t('team_invitation_decline', 'Decline')}
-                </Button>
-                <Button
-                  loading={accepting}
-                  loadingLabel={t(
-                    'team_invitation_accept',
-                    'Accept invitation'
-                  )}
-                  onClick={() => void accept()}
-                >
-                  {t('team_invitation_accept', 'Accept invitation')}
-                </Button>
-              </div>
+              {preview.emailMismatch || preview.alreadyMember ? (
+                // Neither state has anything to accept or decline, so the same
+                // way onward the accepted and declined states already offer.
+                <div role="status" className="flex flex-col gap-[16px]">
+                  <div className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]">
+                    <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+                      {preview.emailMismatch
+                        ? t(
+                            'team_invitation_mismatch_notice',
+                            'This invitation is for {{email}}. Sign in with that address to accept it.',
+                            { email: preview.boundEmail }
+                          )
+                        : t(
+                            'team_invitation_already_member',
+                            'You are already in this workspace.'
+                          )}
+                    </p>
+                  </div>
+                  <Button variant="secondary" onClick={() => router.push('/')}>
+                    {t('continue', 'Continue')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col-reverse gap-[8px] sm:flex-row sm:justify-end">
+                  <Button
+                    variant="secondary"
+                    disabled={accepting}
+                    loading={declining}
+                    loadingLabel={t('team_invitation_decline', 'Decline')}
+                    onClick={() => void decline()}
+                  >
+                    {t('team_invitation_decline', 'Decline')}
+                  </Button>
+                  <Button
+                    loading={accepting}
+                    disabled={declining}
+                    loadingLabel={t(
+                      'team_invitation_accept',
+                      'Accept invitation'
+                    )}
+                    onClick={() => void accept()}
+                  >
+                    {t('team_invitation_accept', 'Accept invitation')}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </Panel>

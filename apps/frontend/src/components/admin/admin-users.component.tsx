@@ -16,6 +16,8 @@ import {
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
+import { displayName } from '@contentfactory/react/helpers/display-name';
+import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { AdminTelegramConnectComponent } from './admin-telegram-connect.component';
 
 export type AdminUserStatus = 'pending' | 'active' | 'all';
@@ -255,7 +257,7 @@ export function AdminUsersView({
             {data && data.users.length > 0 && (
               <div className="overflow-hidden rounded-[8px] border border-cf-border bg-cf-surface">
                 <div className="hidden grid-cols-[minmax(0,1fr)_100px_120px_140px_150px] gap-[12px] border-b border-cf-border bg-cf-surface-subtle px-[12px] py-[10px] cf-label-sm text-cf-ink-muted lg:grid">
-                  <div>{t('label_email', 'Email')}</div>
+                  <div>{t('user', 'User')}</div>
                   <div>{t('sign_in_method', 'Method')}</div>
                   <div>{t('registered', 'Registered')}</div>
                   <div>{t('state', 'State')}</div>
@@ -266,14 +268,29 @@ export function AdminUsersView({
                     key={row.id}
                     className="flex flex-col gap-[12px] border-b border-cf-border p-[12px] last:border-b-0 lg:grid lg:grid-cols-[minmax(0,1fr)_100px_120px_140px_150px] lg:items-center"
                   >
-                    <div className="min-w-0">
-                      <div className="break-words cf-body-sm text-cf-ink">
-                        {row.email}
-                      </div>
-                      <div className="break-words cf-caption text-cf-ink-muted">
-                        {row.name ||
-                          row.organizations[0]?.organization.name ||
-                          '—'}
+                    {/* The person first, the address under them. The list
+                        used to lead with the mailbox and drop to the workspace
+                        name when a profile had none — so an administrator read
+                        a workspace where a person should have been
+                        (`content-factory-next-fn33.16`). */}
+                    <div className="flex min-w-0 items-center gap-[8px]">
+                      <Avatar name={row.name} email={row.email} size={32} />
+                      <div className="min-w-0">
+                        <div className="break-words cf-body-sm text-cf-ink">
+                          {displayName(row)}
+                        </div>
+                        {/* Адрес — идентификатор, ему моноширинный `caption`
+                            и идёт. Название рабочего пространства — обычный
+                            текст, и в одной строке с адресом оно получало
+                            чужую гарнитуру. */}
+                        <div className="break-words cf-caption text-cf-ink-muted">
+                          {row.email}
+                        </div>
+                        {row.organizations[0]?.organization.name && (
+                          <div className="break-words cf-body-sm text-cf-ink-muted">
+                            {row.organizations[0].organization.name}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div>

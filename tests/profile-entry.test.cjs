@@ -9,7 +9,11 @@ describe('profile discovery', () => {
   test('the signed shell exposes a direct Profile entry', () => {
     const sidebar = read('apps/frontend/src/components/new-layout/sidebar.tsx');
 
-    expect(sidebar).toContain('href="/settings?tab=profile"');
+    // The route, not the attribute that carries it: since 04.09.2026 the
+    // entry is a `MenuItem` like every other navigation row, so the address
+    // sits in `path` rather than in a hand-written `href`
+    // (`content-factory-next-fn33.10`).
+    expect(sidebar).toContain('"/settings?tab=profile"');
     expect(sidebar).toContain("t('profile', 'Profile')");
   });
 

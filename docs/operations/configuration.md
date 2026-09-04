@@ -40,7 +40,7 @@
 
 Google login в текущей реализации использует `YOUTUBE_CLIENT_ID`/`YOUTUBE_CLIENT_SECRET`; default redirect — `${FRONTEND_URL}/integrations/social/youtube`. Он обязан точно совпадать с authorized redirect URI Google OAuth client.
 
-Для Telegram login точный redirect URI — `${FRONTEND_URL}/auth?provider=TELEGRAM`. Client id и secret выдаются отдельно в настройках Login Widget у BotFather; `TELEGRAM_TOKEN` для публикации в каналы их не заменяет.
+Для Telegram login точный redirect URI — `${FRONTEND_URL}/auth?provider=TELEGRAM`, и в Allowed URLs у BotFather он один: привязка Telegram из «Настройки → Способы входа» с 04.09.2026 идёт через этот же адрес. Две разные вещи решают две разные стороны, и при разборе сломанной привязки их не надо путать. **Куда вернуть человека** решает браузер: вкладка, начавшая привязку, оставляет заметку в `sessionStorage` (`content-factory:identity-link-intent`, пять минут), страница `/auth` её читает и сама уводит на `/settings` с тем же `code` и `state` — до всякого обращения к серверу. В Redis этой заметки нет. **Чем нельзя воспользоваться** решает сервер: в состоянии PKCE (`auth:telegram:pkce:<state>`, те же пять минут) лежит признак назначения `purpose` — `login` или `link`, — и код, выданный для входа, привязку не завершит, а код привязки не даст войти. Если привязка обрывается на `/auth` и человек остаётся на странице входа — потеряна заметка вкладки; если запрос отклонён с «issued for a different purpose» — не совпало назначение. Client id и secret выдаются отдельно в настройках Login Widget у BotFather; `TELEGRAM_TOKEN` для публикации в каналы их не заменяет.
 
 ### Telegram support relay
 

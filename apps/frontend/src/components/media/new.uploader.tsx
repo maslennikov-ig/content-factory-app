@@ -35,6 +35,81 @@ export class CompressionWrapper<M = any, B = any> extends Compressor<any, any> {
   }
 }
 
+/**
+ * What to tell the person when an upload does not land.
+ *
+ * The upload goes to `/media/upload-server` over XHR, outside `useFetch`, so
+ * nothing on the way back is interpreted for the interface: a refused file
+ * arrives as a Nest error body (`{ message, error, statusCode }`), a refused
+ * session arrives as a bare 401 with no body at all, and a reverse proxy
+ * refusing the size arrives as HTML or as nothing. Until 04.09.2026 all three
+ * were swallowed by an `error` handler that cleared the queue and said
+ * nothing, so every one of them looked like "the button does nothing".
+ *
+ * The status is kept next to the text because it is the one part that is
+ * always present and it is what separates those cases from each other.
+ */
+export function describeUploadFailure(error?: any, response?: any): string {
+  const rawStatus = response?.status ?? error?.status;
+  const status =
+    typeof rawStatus === 'number' && rawStatus > 0 ? rawStatus : undefined;
+
+  const text = serverMessage(response?.body) || cleanMessage(error?.message);
+
+  if (text && status) return `${text} (HTTP ${status})`;
+  if (text) return text;
+  if (status) return `HTTP ${status}`;
+  return '';
+}
+
+/** As much of a sentence as one line of the toast actually shows. */
+const TOAST_LINE = 120;
+
+const cleanMessage = (value: unknown): string => {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  // An HTML error page from a proxy is not a message; it is a wall of markup.
+  if (!trimmed || trimmed.startsWith('<')) return '';
+  // The toast is one 56px line with the overflow hidden, so anything past
+  // this is not read — it only pushes the beginning of the sentence out.
+  return trimmed.length > TOAST_LINE
+    ? `${trimmed.slice(0, TOAST_LINE)}…`
+    : trimmed;
+};
+
+/**
+ * The ceiling as a sentence, from the ceiling as a number.
+ *
+ * The copy used to spell the ceiling out beside the very constant it was
+ * meant to describe, in English, in four places. One number, formatted.
+ */
+export const formatSizeCeiling = (bytes: number): string =>
+  bytes % (1024 * 1024 * 1024) === 0
+    ? `${bytes / (1024 * 1024 * 1024)} GB`
+    : `${Math.round(bytes / (1024 * 1024))} MB`;
+
+const serverMessage = (body: unknown): string => {
+  if (!body) return '';
+
+  if (typeof body === 'string') {
+    try {
+      return serverMessage(JSON.parse(body)) || cleanMessage(body);
+    } catch {
+      return cleanMessage(body);
+    }
+  }
+
+  if (typeof body !== 'object') return '';
+
+  const { message, error } = body as { message?: unknown; error?: unknown };
+  // `class-validator` answers with an array of failures; Nest's own
+  // exceptions answer with one string.
+  if (Array.isArray(message)) {
+    return cleanMessage(message.filter(Boolean).join('; '));
+  }
+  return cleanMessage(message) || cleanMessage(error);
+};
+
 export function useUppyUploader(props: {
   // @ts-ignore
   onUploadSuccess: (result: UploadResult) => void;
@@ -44,6 +119,7 @@ export function useUppyUploader(props: {
 }) {
   const setLocked = useLaunchStore((state) => state.setLocked);
   const toast = useToaster();
+  const t = useT();
   const { storageProvider, backendUrl, disableImageCompression, transloadit } =
     useVariables();
   const { onUploadSuccess, allowedFileTypes } = props;
@@ -51,13 +127,35 @@ export function useUppyUploader(props: {
   return useMemo(() => {
     // Track file order to maintain original sequence after upload
     let fileOrderIndex = 0;
+    // The two events overlap: a per-file `upload-error` is followed by the
+    // run-wide `error`, and the checks below reject with an error they have
+    // already reported. One refusal, one toast.
+    let reported = false;
+
+    const reportFailure = (error?: any, response?: any) => {
+      if (reported) return;
+      reported = true;
+      const reason = describeUploadFailure(error, response);
+      toast.show(
+        reason
+          ? t('media_upload_failed_reason', 'Upload failed: {{reason}}', {
+              reason,
+            })
+          : t(
+              'media_upload_failed',
+              'Upload failed. The server did not accept the file.'
+            ),
+        'warning'
+      );
+    };
 
     const uppy2 = new Uppy({
       autoProceed: true,
       restrictions: {
         // maxNumberOfFiles: 5,
         // allowedFileTypes: allowedFileTypes.split(','),
-        maxFileSize: 1000000000, // Default 1GB, but we'll override with custom validation
+        // A ceiling for the queue; the checks below are the real ones.
+        maxFileSize: 1000000000,
       },
     });
 
@@ -104,15 +202,22 @@ export function useUppyUploader(props: {
             });
 
             if (!isAllowed) {
+              const message = t(
+                'media_upload_type_not_accepted',
+                'File type {{type}} is not accepted.',
+                { type: fileType || 'unknown' }
+              );
+              // The sentence the person reads, plus what a log needs and a
+              // sentence has no room for.
               const error = new Error(
-                `File type "${fileType}" is not allowed for file "${file.name}". Allowed types: ${allowedFileTypes}`
+                `${message} [${file.name}, accepts: ${allowedFileTypes}]`
               );
               uppy2.log(error.message, 'error');
-              uppy2.info(error.message, 'error', 5000);
-              toast.show(
-                `File type "${fileType}" is not allowed. Allowed types: ${allowedFileTypes}`,
-                'warning'
-              );
+              uppy2.info(message, 'error', 5000);
+              toast.show(message, 'warning');
+              // Already told them why; the run-wide `error` that follows
+              // must not say it a second time.
+              reported = true;
               uppy2.removeFile(file.id);
               return reject(error);
             }
@@ -132,31 +237,35 @@ export function useUppyUploader(props: {
             const isImage = file.type?.startsWith('image/');
             const isVideo = file.type?.startsWith('video/');
 
-            const maxImageSize = 30 * 1024 * 1024; // 30MB
-            const maxVideoSize = 1000 * 1024 * 1024; // 1GB
+            const maxImageSize = 30 * 1024 * 1024;
+            const maxVideoSize = 1000 * 1024 * 1024;
 
             if (isImage && file.size > maxImageSize) {
-              const error = new Error(
-                `Image file "${file.name}" is too large. Maximum size allowed is 30MB.`
+              const message = t(
+                'media_upload_image_over_limit',
+                'Image is over the {{max}} limit.',
+                { max: formatSizeCeiling(maxImageSize) }
               );
+              const error = new Error(`${message} [${file.name}]`);
               uppy2.log(error.message, 'error');
-              uppy2.info(error.message, 'error', 5000);
-              toast.show(
-                `Image file is too large. Maximum size allowed is 30MB.`
-              );
+              uppy2.info(message, 'error', 5000);
+              toast.show(message, 'warning');
+              reported = true;
               uppy2.removeFile(file.id); // Remove file from queue
               return reject(error);
             }
 
             if (isVideo && file.size > maxVideoSize) {
-              const error = new Error(
-                `Video file "${file.name}" is too large. Maximum size allowed is 1GB.`
+              const message = t(
+                'media_upload_video_over_limit',
+                'Video is over the {{max}} limit.',
+                { max: formatSizeCeiling(maxVideoSize) }
               );
+              const error = new Error(`${message} [${file.name}]`);
               uppy2.log(error.message, 'error');
-              uppy2.info(error.message, 'error', 5000);
-              toast.show(
-                `Video file is too large. Maximum size allowed is 1GB.`
-              );
+              uppy2.info(message, 'error', 5000);
+              toast.show(message, 'warning');
+              reported = true;
               uppy2.removeFile(file.id); // Remove file from queue
               return reject(error);
             }
@@ -192,17 +301,22 @@ export function useUppyUploader(props: {
         // Add more fields as needed
       });
     });
-    uppy2.on('error', (result) => {
+    // Per-file: the response that refused it is here and nowhere else.
+    uppy2.on('upload-error', (file, error, response) => {
+      reportFailure(error, response);
+    });
+    uppy2.on('error', (error) => {
+      reportFailure(error);
       uppy2.clear();
       setLocked(false);
       props.onEnd();
       fileOrderIndex = 0;
     });
     uppy2.on('upload-start', () => {
+      reported = false;
       props.onStart();
     });
     uppy2.on('complete', async (result) => {
-      console.log(result);
       for (const file of [...result.successful]) {
         uppy2.removeFile(file.id);
       }

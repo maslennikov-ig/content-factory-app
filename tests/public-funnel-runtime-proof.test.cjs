@@ -1,19 +1,32 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const evidenceDir = path.join(
-  root,
-  '.codex/stages/content-factory-next-or3/evidence/public-funnel-runtime'
-);
-const summaryPath = path.join(evidenceDir, 'summary.json');
-const authPath = path.join(evidenceDir, 'auth.json');
+
+// The proof writes a file that carries the day the run happened, so writing it
+// into `.codex/stages/.../public-funnel-runtime` left a dirty working tree
+// after every green `pnpm test` — and a release receipt then had to be
+// recorded on a tree somebody cleaned by hand (content-factory-next-4a79).
+// The committed evidence is a record of a run that happened; refreshing it is
+// a deliberate act with its own commit, not a side effect of the suite.
+let evidenceDir;
+let summaryPath;
+let authPath;
+
+beforeAll(() => {
+  evidenceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cf-public-funnel-'));
+  summaryPath = path.join(evidenceDir, 'summary.json');
+  authPath = path.join(evidenceDir, 'auth.json');
+});
+
+afterAll(() => {
+  if (evidenceDir) fs.rmSync(evidenceDir, { recursive: true, force: true });
+});
 
 describe('public funnel real Nest and PostgreSQL runtime proof', () => {
   test('produces a no-skip machine-readable PASS and leaves no Docker resources', () => {
-    fs.rmSync(evidenceDir, { recursive: true, force: true });
-
     const result = spawnSync(
       process.execPath,
       [

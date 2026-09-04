@@ -33,12 +33,24 @@ type TelegramConfig = {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
-  settingsRedirectUri: string;
+  linkIntentUri: string;
 };
+
+/**
+ * Signing in and connecting Telegram to an existing account both come back to
+ * `redirectUri` — BotFather holds one Allowed URL, and a second one was a
+ * setting nobody could see was missing until a person tried to connect. What
+ * the two flows do not share is this record: `purpose` is written when the link
+ * is generated and checked when the code is spent, so a code meant for one of
+ * them cannot be handed to the other.
+ */
+type TelegramPurpose = 'login' | 'link';
 
 type TelegramPkceState = {
   verifier: string;
+  /** The address Telegram was actually given, which the exchange must repeat. */
   redirectUri: string;
+  purpose: TelegramPurpose;
 };
 
 @AuthProvider({
@@ -59,7 +71,10 @@ export class TelegramProvider extends AuthProviderAbstract {
       clientId: TELEGRAM_CLIENT_ID,
       clientSecret: TELEGRAM_CLIENT_SECRET,
       redirectUri: `${frontendUrl}/auth?provider=TELEGRAM`,
-      settingsRedirectUri: new URL('/settings', frontendUrl).toString(),
+      // Never sent to Telegram. The settings page asks for this address to say
+      // which flow it is starting, and asks for it again when it spends the
+      // code; both requests are answered with the address above.
+      linkIntentUri: new URL('/settings', frontendUrl).toString(),
     };
   }
 
@@ -67,9 +82,14 @@ export class TelegramProvider extends AuthProviderAbstract {
     return `auth:telegram:pkce:${state}`;
   }
 
-  private selectRedirectUri(requested?: string) {
+  /**
+   * Reads what a caller asked for as an intent rather than as an address. No
+   * request is refused a redirect it would have been given before; the settings
+   * address simply now means "link", and anything else is refused as it was.
+   */
+  private purposeOf(requested?: string): TelegramPurpose {
     const config = this.getConfig();
-    if (!requested) return config.redirectUri;
+    if (!requested) return 'login';
 
     let parsed: URL;
     try {
@@ -77,44 +97,85 @@ export class TelegramProvider extends AuthProviderAbstract {
     } catch {
       throw new Error('Invalid Telegram redirect URI');
     }
-    if (parsed.toString() === config.redirectUri) return config.redirectUri;
+    if (parsed.toString() === config.redirectUri) return 'login';
     if (
-      parsed.toString() !== config.settingsRedirectUri ||
-      parsed.origin !== new URL(config.redirectUri).origin
+      parsed.toString() === config.linkIntentUri &&
+      parsed.origin === new URL(config.redirectUri).origin
     ) {
-      throw new Error('Invalid Telegram redirect URI');
+      return 'link';
     }
-    return config.settingsRedirectUri;
+    throw new Error('Invalid Telegram redirect URI');
   }
 
-  private readPkceState(value: string, fallbackRedirectUri: string) {
+  /**
+   * The address a stored state says Telegram was given. New states always carry
+   * the login address; a state written before this change may carry the
+   * settings one, and Telegram will accept nothing else for that code.
+   */
+  private storedRedirectUri(stored: string) {
+    const config = this.getConfig();
+    if (stored === config.redirectUri || stored === config.linkIntentUri) {
+      return stored;
+    }
+    throw new Error('Invalid Telegram redirect URI');
+  }
+
+  private readPkceState(
+    value: string,
+    fallbackRedirectUri: string
+  ): TelegramPkceState {
+    let parsed: Partial<TelegramPkceState> | undefined;
     try {
-      const parsed = JSON.parse(value) as Partial<TelegramPkceState>;
-      if (
-        typeof parsed.verifier === 'string' &&
-        parsed.verifier &&
-        typeof parsed.redirectUri === 'string' &&
-        parsed.redirectUri
-      ) {
-        return parsed as TelegramPkceState;
-      }
+      parsed = JSON.parse(value) as Partial<TelegramPkceState>;
     } catch {
-      // States issued by the previous version contain only the verifier. They
+      // States issued by the oldest version contain only the verifier. They
       // remain valid for their five-minute lifetime and use the login URI.
     }
-    return { verifier: value, redirectUri: fallbackRedirectUri };
+
+    // Deliberately outside the parse: a record that names an address this
+    // deployment never sends is refused, not quietly reread as a bare verifier
+    // — that would put the whole record where the verifier belongs.
+    if (
+      parsed &&
+      typeof parsed.verifier === 'string' &&
+      parsed.verifier &&
+      typeof parsed.redirectUri === 'string' &&
+      parsed.redirectUri
+    ) {
+      return {
+        verifier: parsed.verifier,
+        redirectUri: parsed.redirectUri,
+        // A state from the version that used two addresses names no purpose:
+        // there, the settings address was the connection flow and everything
+        // else was a sign-in. Those states keep their five minutes.
+        purpose:
+          parsed.purpose === 'link' || parsed.purpose === 'login'
+            ? parsed.purpose
+            : this.purposeOf(parsed.redirectUri),
+      };
+    }
+
+    return {
+      verifier: value,
+      redirectUri: fallbackRedirectUri,
+      purpose: 'login',
+    };
   }
 
   async generateLink(query?: { redirect_uri?: string }): Promise<string> {
-    const { clientId } = this.getConfig();
-    const redirectUri = this.selectRedirectUri(query?.redirect_uri);
+    const { clientId, redirectUri } = this.getConfig();
+    const purpose = this.purposeOf(query?.redirect_uri);
     const state = randomBytes(32).toString('base64url');
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
 
     await ioRedis.set(
       this.stateKey(state),
-      JSON.stringify({ verifier, redirectUri } satisfies TelegramPkceState),
+      JSON.stringify({
+        verifier,
+        redirectUri,
+        purpose,
+      } satisfies TelegramPkceState),
       'EX',
       PKCE_TTL_SECONDS
     );
@@ -137,9 +198,7 @@ export class TelegramProvider extends AuthProviderAbstract {
     callback?: AuthCallbackContext
   ): Promise<string> {
     const config = this.getConfig();
-    const requestedRedirectUri = redirectUri
-      ? this.selectRedirectUri(redirectUri)
-      : undefined;
+    const requestedPurpose = this.purposeOf(redirectUri);
 
     const state = callback?.state;
     const browserState = callback?.browserState;
@@ -158,10 +217,12 @@ export class TelegramProvider extends AuthProviderAbstract {
       throw new Error('Invalid or expired Telegram login state');
     }
     const pkce = this.readPkceState(storedState, config.redirectUri);
-    const selectedRedirectUri = this.selectRedirectUri(pkce.redirectUri);
-    if (requestedRedirectUri && requestedRedirectUri !== selectedRedirectUri) {
-      throw new Error('Invalid Telegram redirect URI');
+    if (requestedPurpose !== pkce.purpose) {
+      throw new Error(
+        'Telegram login state was issued for a different purpose'
+      );
     }
+    const selectedRedirectUri = this.storedRedirectUri(pkce.redirectUri);
 
     const response = await fetch(TELEGRAM_TOKEN_URL, {
       method: 'POST',

@@ -24,6 +24,11 @@ const REPO = path.resolve(__dirname, '..', '..');
 
 const WORKSPACE_ALIASES = [
   ['@contentfactory/backend/', 'apps/backend/src/'],
+  // The frontend alias resolves like the rest. A caller that mocks a frontend
+  // module still gets the mock — substitutes are consulted first — but one it
+  // does not name is now loaded rather than thrown at, which is what
+  // `@contentfactory/react/` has always done.
+  ['@contentfactory/frontend/', 'apps/frontend/src/'],
   ['@contentfactory/helpers/', 'libraries/helpers/src/'],
   ['@contentfactory/nestjs-libraries/', 'libraries/nestjs-libraries/src/'],
   ['@contentfactory/react/', 'libraries/react-shared-libraries/src/'],

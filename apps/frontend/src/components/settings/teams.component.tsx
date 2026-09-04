@@ -5,7 +5,8 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import React, { useCallback, useMemo } from 'react';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
-import { capitalize } from 'lodash';
+import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
+import { displayName } from '@contentfactory/react/helpers/display-name';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import { Input } from '@contentfactory/react/form/input';
 import { useForm, FormProvider, useWatch } from 'react-hook-form';
@@ -173,6 +174,7 @@ export const TeamsComponent = () => {
       role: OrganizationRole;
       user: {
         email: string;
+        name: string | null;
         id: string;
       };
     }>;
@@ -232,8 +234,25 @@ export const TeamsComponent = () => {
         <div className="flex flex-col gap-[16px]">
           {(data || []).map((p) => (
             <div key={p.user.id} className="flex items-center">
-              <div className="flex-1">
-                {capitalize(p.user.email.split('@')[0]).split('.')[0]}
+              {/* The person, by the name they entered. Until 04.09.2026 this
+                  cell cut a name out of the mailbox for everybody and the
+                  owner's own rows read «Maslennikov» and «Maslennikovig». The
+                  address stays visible under the name: two colleagues can
+                  share a first name, and a derived name is a guess. */}
+              <div className="flex flex-1 min-w-0 items-center gap-[8px]">
+                <Avatar
+                  name={p.user.name}
+                  email={p.user.email}
+                  size={32}
+                />
+                <div className="flex min-w-0 flex-col">
+                  <div className="cf-body-md text-cf-ink truncate">
+                    {displayName(p.user)}
+                  </div>
+                  <div className="cf-caption text-cf-ink-muted truncate">
+                    {p.user.email}
+                  </div>
+                </div>
               </div>
               <div className="flex-1">{roleName(p.role)}</div>
               {myLevel > organizationRoleLevel(p.role) ? (

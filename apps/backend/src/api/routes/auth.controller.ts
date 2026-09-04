@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
   Param,
   Post,
   Query,
@@ -22,6 +23,11 @@ import { EmailService } from '@contentfactory/nestjs-libraries/services/email.se
 import { RealIP } from 'nestjs-real-ip';
 import { UserAgent } from '@contentfactory/nestjs-libraries/user/user.agent';
 import { Provider } from '@prisma/client';
+import {
+  inspectTeamInvitation,
+  TeamInvitationError,
+  type TeamInvitationPreview,
+} from '@contentfactory/nestjs-libraries/auth/team-invitation';
 
 const OAUTH_STATE_COOKIE = 'oauth_state';
 const OAUTH_STATE_COOKIE_MAX_AGE = 1000 * 60 * 5;
@@ -57,25 +63,22 @@ export class AuthController {
 
   @Post('/register')
   async register(
-    @Req() req: Request,
     @Body() body: CreateOrgUserDto,
     @Res({ passthrough: false }) response: Response,
     @RealIP() ip: string,
     @UserAgent() userAgent: string
   ) {
     try {
-      const getOrgFromCookie = this._authService.getOrgFromCookie(
-        req?.cookies?.org
+      // No `org` cookie is ever set: the front-end proxy carries a pending
+      // invitation in its own cookie and the invitation is accepted through
+      // `/user/join-org` after sign-in. Reading one here only pretended to
+      // support a path that had already moved.
+      const { jwt, awaitingApproval } = await this._authService.routeAuth(
+        body.provider,
+        body,
+        ip,
+        userAgent
       );
-
-      const { jwt, addedOrg, awaitingApproval } =
-        await this._authService.routeAuth(
-          body.provider,
-          body,
-          ip,
-          userAgent,
-          getOrgFromCookie
-        );
 
       // The account was created and is waiting for an administrator. No
       // session cookie is set: the browser leaves registration with nothing it
@@ -111,24 +114,6 @@ export class AuthController {
         response.header('auth', jwt);
       }
 
-      if (typeof addedOrg !== 'boolean' && addedOrg?.organizationId) {
-        response.cookie('showorg', addedOrg.organizationId, {
-          domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-          ...(!process.env.NOT_SECURED
-            ? {
-                secure: true,
-                httpOnly: true,
-                sameSite: 'none',
-              }
-            : {}),
-          expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-        });
-
-        if (process.env.NOT_SECURED) {
-          response.header('showorg', addedOrg.organizationId);
-        }
-      }
-
       response.header('onboarding', 'true');
       response.status(200).json({
         register: true,
@@ -140,25 +125,22 @@ export class AuthController {
 
   @Post('/login')
   async login(
-    @Req() req: Request,
     @Body() body: LoginUserDto,
     @Res({ passthrough: false }) response: Response,
     @RealIP() ip: string,
     @UserAgent() userAgent: string
   ) {
     try {
-      const getOrgFromCookie = this._authService.getOrgFromCookie(
-        req?.cookies?.org
+      // No `org` cookie is ever set: the front-end proxy carries a pending
+      // invitation in its own cookie and the invitation is accepted through
+      // `/user/join-org` after sign-in. Reading one here only pretended to
+      // support a path that had already moved.
+      const { jwt, awaitingApproval } = await this._authService.routeAuth(
+        body.provider,
+        body,
+        ip,
+        userAgent
       );
-
-      const { jwt, addedOrg, awaitingApproval } =
-        await this._authService.routeAuth(
-          body.provider,
-          body,
-          ip,
-          userAgent,
-          getOrgFromCookie
-        );
 
       // Signing in through a provider can also create the account, and in
       // approval mode that account is not usable yet. Same treatment as
@@ -183,24 +165,6 @@ export class AuthController {
 
       if (process.env.NOT_SECURED) {
         response.header('auth', jwt);
-      }
-
-      if (typeof addedOrg !== 'boolean' && addedOrg?.organizationId) {
-        response.cookie('showorg', addedOrg.organizationId, {
-          domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-          ...(!process.env.NOT_SECURED
-            ? {
-                secure: true,
-                httpOnly: true,
-                sameSite: 'none',
-              }
-            : {}),
-          expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-        });
-
-        if (process.env.NOT_SECURED) {
-          response.header('showorg', addedOrg.organizationId);
-        }
       }
 
       response.header('reload', 'true');
@@ -375,5 +339,45 @@ export class AuthController {
     response.status(200).json({
       login: true,
     });
+  }
+
+  /**
+   * The invitation preview a browser without a session may ask for.
+   *
+   * `GET /user/join-org` answers the same question for someone already signed
+   * in, but `UsersController` sits behind `AuthMiddleware`, and a registration
+   * form has no session by definition: reading the invited address from that
+   * door came back Forbidden every time. So the registration form asks here.
+   *
+   * The answer is deliberately two fields. A token in a URL is not proof of
+   * anything — whoever pastes one gets it — and the inviter's name and address
+   * are not a stranger's business. The workspace name is what the form can say
+   * out loud, and `boundEmail` is what it fills in; an invitation copied out of
+   * the interface has no bound address and gets nothing to fill.
+   */
+  @Get('/join-org')
+  async previewInvitation(@Query('org') org: string) {
+    try {
+      // `boundEmail` is not part of the shared preview type today; it is added
+      // by the door that owns that contract, and this door only forwards it.
+      const preview = (await inspectTeamInvitation(
+        org
+      )) as TeamInvitationPreview & { boundEmail?: string };
+
+      return {
+        workspaceName: preview.workspaceName,
+        ...(preview.boundEmail ? { boundEmail: preview.boundEmail } : {}),
+      };
+    } catch (error) {
+      // The same codes and the same 410 the signed-in door answers with, so
+      // the two pages can share one set of messages.
+      if (error instanceof TeamInvitationError) {
+        throw new HttpException(
+          { message: error.message, code: error.code },
+          error.status
+        );
+      }
+      throw error;
+    }
   }
 }

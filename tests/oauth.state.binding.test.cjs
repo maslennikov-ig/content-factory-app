@@ -57,6 +57,12 @@ const { AuthController } = loadTypeScriptModule(
     '@nestjs/common': nestCommon,
     '@nestjs/swagger': { ApiTags: noopDecorator },
     express: {},
+    // The controller also carries the session-free invitation preview; this
+    // suite drives the OAuth routes and only needs the import to resolve.
+    '@contentfactory/nestjs-libraries/auth/team-invitation': {
+      inspectTeamInvitation: async () => ({}),
+      TeamInvitationError: class extends Error {},
+    },
     '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto': {
       CreateOrgUserDto: class {},
     },

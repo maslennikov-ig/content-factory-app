@@ -46,7 +46,10 @@ const { OrganizationRepository } = loadTypeScriptModule(
   }
 );
 
-function repositoryWithTransaction({ failInviteUpdate = false } = {}) {
+function repositoryWithTransaction({
+  failInviteUpdate = false,
+  alreadyMember = false,
+} = {}) {
   const committed = [];
   const outsideTransaction = new Proxy(
     {},
@@ -74,7 +77,12 @@ function repositoryWithTransaction({ failInviteUpdate = false } = {}) {
           }),
         },
         userOrganization: {
+          findFirst: async () => (alreadyMember ? { id: 'membership-0' } : null),
           create: async ({ data }) => {
+            if (alreadyMember)
+              throw new Error(
+                'Unique constraint failed on the fields: (`userId`,`organizationId`)'
+              );
             pending.push(['userOrganization.create', data]);
             return { id: 'membership-1', ...data };
           },
@@ -124,5 +132,22 @@ test('a failed invite marker update rolls back the membership creation', async (
   await expect(
     repository.addUserToOrg('user-1', 'invite-1', 'org-1', 'ADMIN')
   ).rejects.toThrow('invite marker update failed');
+  expect(committed).toEqual([]);
+});
+
+/**
+ * `content-factory-next-fn33.6`. The unique index on
+ * `(userId, organizationId)` turned a second membership into a raw Prisma
+ * error, which reached the person as a 500. The repository asks first, so the
+ * caller gets the same refusal it already understands.
+ */
+test('adding an account that is already in the organization refuses instead of colliding', async () => {
+  const { repository, committed } = repositoryWithTransaction({
+    alreadyMember: true,
+  });
+
+  await expect(
+    repository.addUserToOrg('user-1', 'invite-1', 'org-1', 'ADMIN')
+  ).resolves.toBe(false);
   expect(committed).toEqual([]);
 });

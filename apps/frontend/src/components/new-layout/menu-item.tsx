@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import Link from 'next/link';
 import {
@@ -19,6 +19,25 @@ import {
  * edge and a 10px gap — because that is the rail's rhythm rather than the
  * action scale's.
  */
+/**
+ * Разделы, у которых есть собственная строка навигации, хотя живут они внутри
+ * чужого пути. Пока такой один: «Профиль» — это `/settings?tab=profile`, и на
+ * нём не должны гореть «Настройки», иначе две строки объявляют себя текущей
+ * страницей одновременно.
+ *
+ * Список нужен потому, что строка ничего не знает о соседях: «Настройки» умеют
+ * сравнить свой путь с адресом, но не могут догадаться, что этот `tab` кто-то
+ * забрал себе. Появится вторая такая строка — её `tab` дописывается сюда, и
+ * `tests/menu-item.current.test.cjs` держит список рядом с поведением.
+ */
+export const TABS_WITH_THEIR_OWN_ROW = ['profile'] as const;
+
+/** Путь строки, разобранный на адрес и параметр `tab`, если он в нём есть. */
+const splitPath = (path: string) => {
+  const [route, query = ''] = path.split('?');
+  return { route, tab: new URLSearchParams(query).get('tab') };
+};
+
 export const MenuItem: FC<{
   label: string;
   icon: ReactNode;
@@ -28,8 +47,20 @@ export const MenuItem: FC<{
   onNavigate?: () => void;
 }> = ({ label, icon, path, onClick, collapsed = false, onNavigate }) => {
   const currentPath = usePathname();
+  const searchParams = useSearchParams();
   const isExternal = path.indexOf('http') === 0;
-  const isActive = !isExternal && path !== '#' && currentPath.indexOf(path) === 0;
+  const { route, tab } = splitPath(path);
+  const currentTab = searchParams?.get('tab') ?? null;
+  const isActive =
+    !isExternal &&
+    path !== '#' &&
+    currentPath.indexOf(route) === 0 &&
+    // Строка, назвавшая `tab`, горит ровно на нём. Строка без `tab` горит на
+    // своём пути, но уступает разделу, у которого есть отдельная строка.
+    (tab
+      ? currentTab === tab
+      : !currentTab ||
+        !(TABS_WITH_THEIR_OWN_ROW as readonly string[]).includes(currentTab));
 
   const rowClassName = clsx(
     'cf-nav-row group relative w-full h-[40px] flex items-center rounded-[8px] cf-body-md transition-colors duration-state',

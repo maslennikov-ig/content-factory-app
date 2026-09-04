@@ -10,8 +10,8 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { ForgotReturnPasswordDto } from '@contentfactory/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import {
-  PASSWORD_POLICY,
   PASSWORD_POLICY_ERROR_MESSAGE,
+  PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 type Inputs = {
   password: string;
@@ -37,7 +37,8 @@ export function ForgotReturn({ token }: { token: string }) {
     passwordError === PASSWORD_POLICY_ERROR_MESSAGE
       ? t(
           'password_policy_error',
-          'Use 7–64 characters with a letter, a number, and a special character.'
+          'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+          PASSWORD_POLICY_RANGE
         )
       : passwordError;
   const fetchData = useFetch();
@@ -84,7 +85,8 @@ export function ForgotReturn({ token }: { token: string }) {
                 placeholder={t('label_password', 'Password')}
                 helper={t(
                   'password_policy_hint',
-                  `Use ${PASSWORD_POLICY.minLength}–${PASSWORD_POLICY.maxLength} characters with a letter, a number, and a special character.`
+                  'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                  PASSWORD_POLICY_RANGE
                 )}
                 showPasswordLabel={t('show_password', 'Show password')}
                 hidePasswordLabel={t('hide_password', 'Hide password')}

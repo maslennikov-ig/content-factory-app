@@ -5,17 +5,21 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '@contentfactory/react/translation/get.translation.service.backend';
 import { LoginWithOidc } from '@contentfactory/frontend/components/auth/login.with.oidc';
+import { TelegramLinkReturn } from '@contentfactory/frontend/components/auth/telegram.link.return';
 export const metadata: Metadata = {
   title: 'Register',
   description: '',
 };
-export default async function Auth(params: {searchParams: Promise<{provider: string}>}) {
+export default async function Auth(params: {
+  searchParams: Promise<{ provider?: string; code?: string }>;
+}) {
   const t = await getT();
+  const searchParams = await params?.searchParams;
   if (process.env.DISABLE_REGISTRATION === 'true') {
     const canRegister = (
       await (await internalFetch('/auth/can-register')).json()
     ).register;
-    if (!canRegister && !(await params?.searchParams)?.provider) {
+    if (!canRegister && !searchParams?.provider) {
       return (
         <>
           <LoginWithOidc />
@@ -29,6 +33,19 @@ export default async function Auth(params: {searchParams: Promise<{provider: str
         </>
       );
     }
+  }
+  // Telegram has one address to return to, so a connection started in Settings
+  // comes back here too. The gate below sends that one onward and leaves an
+  // ordinary sign-in untouched.
+  if (
+    searchParams?.provider?.toUpperCase() === 'TELEGRAM' &&
+    searchParams?.code
+  ) {
+    return (
+      <TelegramLinkReturn>
+        <Register />
+      </TelegramLinkReturn>
+    );
   }
   return <Register />;
 }
