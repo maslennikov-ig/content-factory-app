@@ -3,8 +3,10 @@ import OpenAI from 'openai';
 import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { requireActiveAiConfig } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
-import { getOpenAiClient } from '@contentfactory/nestjs-libraries/openai/ai.clients';
+import {
+  getModelForRole,
+  getOpenAiClient,
+} from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 
 const PicturePrompt = z.object({
@@ -36,11 +38,13 @@ export class OpenaiService {
     );
   }
 
+  /** Reading a voice back off text the workspace already wrote. */
   generateVoiceFromText(organizationId: string, prompt: string) {
     return this.aiUsage.executeAiOperation(
       organizationId,
       'text_generation',
-      () => this.generateVoiceFromTextWithinOperation(organizationId, prompt)
+      () => this.generateVoiceFromTextWithinOperation(organizationId, prompt),
+      'extract'
     );
   }
 
@@ -56,15 +60,18 @@ export class OpenaiService {
     return this.aiUsage.executeAiOperation(
       organizationId,
       'text_generation',
-      () => this.extractWebsiteTextWithinOperation(organizationId, content)
+      () => this.extractWebsiteTextWithinOperation(organizationId, content),
+      'extract'
     );
   }
 
+  /** Cutting a body that already exists into posts: nothing is written here. */
   separatePosts(organizationId: string, content: string, len: number) {
     return this.aiUsage.executeAiOperation(
       organizationId,
       'text_generation',
-      () => this.separatePostsWithinOperation(organizationId, content, len)
+      () => this.separatePostsWithinOperation(organizationId, content, len),
+      'extract'
     );
   }
 
@@ -88,7 +95,7 @@ export class OpenaiService {
         await getOpenAiClient(organizationId)
       ).images.generate({
         prompt,
-        model: (await requireActiveAiConfig(organizationId)).imageModel,
+        model: await getModelForRole(organizationId, 'image'),
         size: isVertical ? '1024x1536' : '1024x1024',
       })
     ).data[0];
@@ -105,7 +112,7 @@ export class OpenaiService {
         await (
           await getOpenAiClient(organizationId)
         ).chat.completions.parse({
-          model: (await requireActiveAiConfig(organizationId)).textModel,
+          model: await getModelForRole(organizationId),
           messages: [
             {
               role: 'system',
@@ -131,7 +138,7 @@ export class OpenaiService {
         await (
           await getOpenAiClient(organizationId)
         ).chat.completions.parse({
-          model: (await requireActiveAiConfig(organizationId)).textModel,
+          model: await getModelForRole(organizationId),
           messages: [
             {
               role: 'system',
@@ -170,7 +177,7 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: (await requireActiveAiConfig(organizationId)).textModel,
+          model: await getModelForRole(organizationId),
         }),
         (
           await getOpenAiClient(organizationId)
@@ -188,7 +195,7 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: (await requireActiveAiConfig(organizationId)).textModel,
+          model: await getModelForRole(organizationId),
         }),
       ])
     ).flatMap((p) => p.choices);
@@ -231,7 +238,7 @@ export class OpenaiService {
           content,
         },
       ],
-      model: (await requireActiveAiConfig(organizationId)).textModel,
+      model: await getModelForRole(organizationId),
     });
 
     const { content: articleContent } = websiteContent.choices[0].message;
@@ -257,7 +264,7 @@ export class OpenaiService {
         await (
           await getOpenAiClient(organizationId)
         ).chat.completions.parse({
-          model: (await requireActiveAiConfig(organizationId)).textModel,
+          model: await getModelForRole(organizationId),
           messages: [
             {
               role: 'system',
@@ -292,9 +299,7 @@ export class OpenaiService {
                   await (
                     await getOpenAiClient(organizationId)
                   ).chat.completions.parse({
-                    model: (
-                      await requireActiveAiConfig(organizationId)
-                    ).textModel,
+                    model: await getModelForRole(organizationId),
                     messages: [
                       {
                         role: 'system',
@@ -335,7 +340,7 @@ export class OpenaiService {
             await (
               await getOpenAiClient(organizationId)
             ).chat.completions.parse({
-              model: (await requireActiveAiConfig(organizationId)).textModel,
+              model: await getModelForRole(organizationId),
               messages: [
                 {
                   role: 'system',

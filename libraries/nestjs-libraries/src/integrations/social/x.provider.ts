@@ -227,7 +227,7 @@ export class XProvider extends SocialAbstract implements SocialProvider {
     title: 'Auto plug post',
     disabled: !!process.env.DISABLE_X_ANALYTICS,
     description:
-      'When a post reached a certain number of likes, add another post to it so you followers get a notification about your promotion',
+      'When a post reached a certain number of likes, add another post to it so your followers get a notification about your promotion',
     runEveryMilliseconds: 21600000,
     totalRuns: 3,
     fields: [

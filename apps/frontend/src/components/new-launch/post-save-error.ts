@@ -85,7 +85,7 @@ export const POST_SAVE_REFUSAL_COPY: Record<
 };
 
 export const postSaveErrorMessage = async (
-  response: { json: () => Promise<any> },
+  response: { json: () => Promise<any>; status?: number },
   t: (key: string, fallback: string, values?: any) => unknown
 ): Promise<string> => {
   const fallback = String(
@@ -96,6 +96,14 @@ export const postSaveErrorMessage = async (
     body = await response.json();
   } catch {
     return fallback;
+  }
+  // Предел тарифа (402 без кода) уже показан общей модалкой из
+  // layout.context.tsx — второй голос поверх неё ничего не добавляет
+  // (content-factory-next-nkei, вторая половина fn33.105). Пустая строка —
+  // знак вызывающему промолчать. Отказ 402 С кодом модалка не берёт, поэтому
+  // его показывает это окно, как любой другой именованный отказ.
+  if (response.status === 402 && typeof body?.code !== 'string') {
+    return '';
   }
   const raw = Array.isArray(body?.message) ? body?.message[0] : body?.message;
   const serverMessage = typeof raw === 'string' ? raw.trim() : '';

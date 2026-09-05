@@ -27,6 +27,7 @@ import { Slider } from '@contentfactory/react/form/slider';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-launch/modal.wrapper.component';
+import { usePlugCopy } from '@contentfactory/frontend/components/plugs/plugs.copy';
 export function convertBackRegex(s: string) {
   const matches = s.match(/\/(.*)\/([a-z]*)/);
   const pattern = matches?.[1] || '';
@@ -92,6 +93,7 @@ export const PlugPop: FC<{
   const fetch = useFetch();
   const toaster = useToaster();
   const t = useT();
+  const { plugText, fieldText } = usePlugCopy();
   const values = useMemo(() => {
     if (!data?.data) {
       return {};
@@ -141,18 +143,35 @@ export const PlugPop: FC<{
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
         <div className="relative mx-auto">
-          <div className="my-[20px]">{plug.description}</div>
+          <div className="my-[20px]">
+            {plugText(plug.methodName, 'description', plug.description)}
+          </div>
           <div>
             {plug.fields.map((field) => (
               <div key={field.name}>
                 {field.type === 'richtext' ? (
-                  <TextArea name={field.name} placeHolder={field.placeholder} />
+                  <TextArea
+                    name={field.name}
+                    placeHolder={fieldText(
+                      field.name,
+                      'placeholder',
+                      field.placeholder
+                    )}
+                  />
                 ) : (
                   <Input
                     name={field.name}
-                    label={field.description}
+                    label={fieldText(
+                      field.name,
+                      'description',
+                      field.description
+                    )}
                     className="w-full mt-[8px] p-[8px] border border-tableBorder rounded-md text-black"
-                    placeholder={field.placeholder}
+                    placeholder={fieldText(
+                      field.name,
+                      'placeholder',
+                      field.placeholder
+                    )}
                     type={field.type}
                   />
                 )}
@@ -185,6 +204,8 @@ export const PlugItem: FC<{
     setActivated(!!data?.activated);
   }, [data?.activated]);
   const fetch = useFetch();
+  const t = useT();
+  const { plugText } = usePlugCopy();
   const changeActivated = useCallback(
     async (status: 'on' | 'off') => {
       await fetch(`/integrations/plugs/${data?.id}/activate`, {
@@ -208,7 +229,9 @@ export const PlugItem: FC<{
     >
       <div key={plug.title} className="p-[16px] h-full flex flex-col flex-1">
         <div className="flex">
-          <div className="text-[20px] mb-[8px] flex-1">{plug.title}</div>
+          <div className="text-[20px] mb-[8px] flex-1">
+            {plugText(plug.methodName, 'title', plug.title)}
+          </div>
           {!!data && (
             <div onClick={(e) => e.stopPropagation()}>
               <Slider
@@ -219,8 +242,12 @@ export const PlugItem: FC<{
             </div>
           )}
         </div>
-        <div className="flex-1">{plug.description}</div>
-        <Button>{!data ? 'Set Plug' : 'Edit Plug'}</Button>
+        <div className="flex-1">
+          {plugText(plug.methodName, 'description', plug.description)}
+        </div>
+        <Button>
+          {!data ? t('set_plug', 'Set plug') : t('edit_plug', 'Edit plug')}
+        </Button>
       </div>
     </div>
   );
@@ -230,6 +257,7 @@ export const Plug = () => {
   const modals = useModals();
   const fetch = useFetch();
   const t = useT();
+  const { plugText } = usePlugCopy();
   const load = useCallback(async () => {
     return (await fetch(`/integrations/${plug.providerId}/plugs`)).json();
   }, [plug.providerId]);
@@ -245,13 +273,16 @@ export const Plug = () => {
         plugFunction: string;
       }) => {
         modals.openModal({
-          withCloseButton: false,
+          // Крестик и Escape, как у соседних окон: без них единственный выход
+          // из формы плагина — включить его (content-factory-next-fn33.123).
+          withCloseButton: true,
+          closeOnEscape: true,
           onClose() {
             mutate();
           },
           size: '500px',
           title: t('auto_plug_named', 'Auto Plug: {{name}}', {
-            name: p.title,
+            name: plugText(p.methodName, 'title', p.title),
           }),
           children: (
             <PlugPop

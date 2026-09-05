@@ -193,3 +193,132 @@ describe('the permission says what it covers, where a reader will look', () => {
     expect(contract).toContain('host-artifact-retention.guard.test.cjs');
   });
 });
+
+/**
+ * The same rails, proven by running the script instead of reading it.
+ *
+ * Everything above matches regular expressions against the source. That is a
+ * fence against an obvious edit and nothing more — it cannot tell a removal of
+ * the right two names from a removal of the wrong two, and for the one script
+ * in this repository that holds a standing permission to delete on a shared
+ * host, that is the question worth answering.
+ *
+ * `tests/helpers/release-host-stub.cjs` puts a fake `ssh` and a fake `docker`
+ * first on `PATH`. The `docker` stub fails on any call it does not recognise,
+ * so a new way of calling docker shows up here as a failure rather than as a
+ * silent success. No real host is reachable from this file.
+ */
+describe('running the script against a fake host', () => {
+  const {
+    createFakeHost,
+    REPOSITORY,
+  } = require('./helpers/release-host-stub.cjs');
+
+  const TAGS = ['dddd00000004', 'cccc00000003', 'bbbb00000002', 'aaaa00000001'];
+  const DAYS = [
+    '2026-09-04 10:00:00 +0000 UTC',
+    '2026-09-03 10:00:00 +0000 UTC',
+    '2026-09-02 10:00:00 +0000 UTC',
+    '2026-09-01 10:00:00 +0000 UTC',
+  ];
+
+  /** Four of our tags on the host, newest first, running the newest. */
+  const hostWithFourTags = (overrides = {}) =>
+    createFakeHost({
+      images: TAGS.map((tag) => `${REPOSITORY}:${tag}`),
+      imagesList: TAGS.map((tag, index) => [DAYS[index], tag]),
+      runningImage: `${REPOSITORY}:${TAGS[0]}`,
+      ...overrides,
+    });
+
+  let host = null;
+  afterEach(() => {
+    if (host) host.cleanup();
+    host = null;
+  });
+
+  test('it keeps the running tag and the rollback target, and removes the rest by name', () => {
+    host = hostWithFourTags();
+    const result = host.run(SCRIPT);
+
+    expect(result.status).toBe(0);
+    expect(host.removed()).toEqual([
+      `${REPOSITORY}:${TAGS[2]}`,
+      `${REPOSITORY}:${TAGS[3]}`,
+    ]);
+    expect(result.stdout).toContain(`Keeping 2: ${TAGS[0]} ${TAGS[1]}`);
+    expect(result.stdout).toContain('rollback target present');
+  });
+
+  test('an image from another repository stops the step before anything is removed', () => {
+    // The whole keep list is built around the running tag: it heads the list
+    // and the rollback target is the tag after it. If the container is running
+    // something that is not ours, that reasoning is about a different row of
+    // tags than the one serving requests — the tag we actually run would be a
+    // removal candidate and the "rollback target" would be a guess.
+    host = hostWithFourTags({
+      runningImage: 'ghcr.io/maslennikov-ig/some-other-product:dddd00000004',
+    });
+    const result = host.run(SCRIPT);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('some-other-product');
+    expect(host.removed()).toEqual([]);
+  });
+
+  test('a container reported by digest rather than by tag is refused too', () => {
+    host = hostWithFourTags({
+      runningImage: `${REPOSITORY}@sha256:${'0'.repeat(64)}`,
+    });
+    const result = host.run(SCRIPT);
+
+    expect(result.status).toBe(1);
+    expect(host.removed()).toEqual([]);
+  });
+
+  test('an unhealthy container removes nothing', () => {
+    host = hostWithFourTags({ health: 'unhealthy' });
+    const result = host.run(SCRIPT);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("cf-next-app is 'unhealthy'");
+    expect(host.removed()).toEqual([]);
+  });
+
+  test('--dry-run removes no image and no configuration copy', () => {
+    host = hostWithFourTags({
+      extraFiles: TAGS.map((tag) => `.env.bak-before-${tag}`),
+    });
+    const before = host.remoteFiles();
+    const result = host.run(SCRIPT, ['--dry-run']);
+
+    expect(result.status).toBe(0);
+    expect(host.removed()).toEqual([]);
+    expect(host.remoteFiles()).toEqual(before);
+  });
+
+  test('CF_KEEP below two is refused without contacting the host', () => {
+    host = hostWithFourTags();
+    const result = host.run(SCRIPT, [], { CF_KEEP: '1' });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('CF_KEEP must be 2 or more');
+    expect(host.sshCalls()).toEqual([]);
+  });
+
+  test('the live configuration files are never touched, whatever else goes', () => {
+    host = hostWithFourTags({
+      extraFiles: TAGS.map((tag) => `.env.bak-before-${tag}`),
+    });
+    const result = host.run(SCRIPT, [], { CF_KEEP_BACKUPS: '1' });
+
+    expect(result.status).toBe(0);
+    const remaining = host.remoteFiles();
+    expect(remaining).toEqual(
+      expect.arrayContaining(['.env', 'app.env', 'docker-compose.yaml'])
+    );
+    // The copy a rollback would restore stays whatever the count says.
+    expect(remaining).toContain(`.env.bak-before-${TAGS[0]}`);
+    expect(remaining).toContain(`.env.bak-before-${TAGS[1]}`);
+  });
+});

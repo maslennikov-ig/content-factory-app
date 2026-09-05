@@ -4,12 +4,35 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 
 /**
- * The calendar card, and the decisions that keep it honest.
+ * The calendar card: the class decisions behind it, and nothing more.
  *
- * Two rounds of defects sit behind this file, both found by opening the
- * calendar in a browser — not one of them failed a test, and none of them
- * could have: every other test asserts the text a component renders, never the
- * box it renders into or the colour it renders in.
+ * WHAT THIS FILE CHECKS, PLAINLY. It reads two source files as text and looks
+ * for class names and call sites in them. It does not render anything, does
+ * not measure anything, and does not know what a card looks like. Its name
+ * said `fit` until 05.09.2026 and the commit that introduced it
+ * (`79127f23`) reads as held geometry; the audit of 02.09.2026 called that out
+ * (item 17, `content-factory-next-th1s`) and the name is now honest instead.
+ *
+ * What follows from that, and matters when this file is green:
+ *
+ *   • A card that overflows because a font token grew, a spacing step changed
+ *     or a container narrowed passes here without a word. Nothing in this file
+ *     can see it.
+ *   • Moving a `className` onto another line, or splitting it into a helper,
+ *     can turn this file red while the page is unchanged. That is a false red,
+ *     and the fix is to update the pattern, not the component.
+ *
+ * A test that would catch the first case needs a browser — a snapshot of the
+ * card at 320, 390 and 1440 with an explicit `executablePath`. That is a real
+ * option and it is deliberately not taken here: it is slower than everything
+ * else in this suite by two orders of magnitude, and the value it adds over
+ * this file is a second kind of evidence rather than a stronger one.
+ *
+ * WHY THE DECISIONS BELOW ARE WORTH HOLDING AT ALL. Two rounds of defects sit
+ * behind them, both found by opening the calendar in a browser — not one of
+ * them failed a test, and none of them could have: every other test asserts
+ * the text a component renders, never the box it renders into or the colour it
+ * renders in.
  *
  * 02.09.2026, measured at 1440px with the sidebar open. The card is 92px wide
  * in week view and 110px in month view:
@@ -38,9 +61,8 @@ const root = path.resolve(__dirname, '..');
  *   • A post to three channels was three cards, each claiming one channel.
  *
  * Each fix is one class or one call, and each is easy to drop in a later edit
- * without noticing — which is what this guard is for. It checks the decisions,
- * not the pixels: a layout test would need a browser, and the point here is
- * that the reason survives.
+ * without noticing. That — the class surviving, not the layout — is what this
+ * file holds.
  */
 
 function read(relative) {
@@ -50,8 +72,8 @@ function read(relative) {
 const CALENDAR = 'apps/frontend/src/components/launches/calendar.tsx';
 const PARTS = 'apps/frontend/src/components/launches/post-card.parts.tsx';
 
-describe('nothing on a calendar card is drawn outside it', () => {
-  test('the column holding the post sentence can shrink below its content', () => {
+describe('the classes that keep a card inside its own box', () => {
+  test('the post sentence class list declares min-w-0', () => {
     const source = read(CALENDAR);
     const sentence = source.match(
       /className="([^"]*line-clamp-1[^"]*)"/
@@ -66,7 +88,7 @@ describe('nothing on a calendar card is drawn outside it', () => {
     }).toEqual({ found: true, declares: true, hint: 'in step' });
   });
 
-  test('the post sentence is in flow, not an absolute overlay', () => {
+  test('no class list that clamps the sentence also positions it absolutely', () => {
     const source = read(CALENDAR);
     // Every class list that clamps the sentence to one line; none may position
     // it out of flow.
@@ -84,7 +106,7 @@ describe('nothing on a calendar card is drawn outside it', () => {
     }).toEqual({ overlay: false, hint: 'in step' });
   });
 
-  test('a day-view time slot stays as tall as the card inside it', () => {
+  test('the day-view time slot class list declares shrink-0', () => {
     const source = read(CALENDAR);
     const slot = source.match(/className="min-h-\[60px\]([^"]*)"/);
 
@@ -98,7 +120,7 @@ describe('nothing on a calendar card is drawn outside it', () => {
   });
 });
 
-describe('the card is coloured by what the product knows, not by what a user typed', () => {
+describe('the classes and call sites that colour the card', () => {
   test('no blend mode corrects the card text against an unknown colour', () => {
     const blended = [CALENDAR, PARTS].filter((file) =>
       /className=[^\n]*mix-blend/.test(read(file))
@@ -141,7 +163,7 @@ describe('the card is coloured by what the product knows, not by what a user typ
   });
 });
 
-describe('one word, one card, one post', () => {
+describe('the call sites behind one word, one card, one post', () => {
   test('the stage is written once — the band is the label', () => {
     const source = read(CALENDAR);
     const badge = /<EditorialStageBadge/.test(source);
@@ -189,8 +211,8 @@ describe('one word, one card, one post', () => {
   });
 });
 
-describe('the actions come on their own surface', () => {
-  test('the action bar paints a surface and a border of its own', () => {
+describe('the classes that give the actions a surface of their own', () => {
+  test('the action bar class list declares a surface and a border', () => {
     const source = read(PARTS);
     const bar = source.match(
       /'flex items-center gap-\[4px\][^']*rounded-\[8px\]',\s*'([^']*)'/
@@ -207,7 +229,7 @@ describe('the actions come on their own surface', () => {
     }).toEqual({ found: true, raised: true, bordered: true, hint: 'in step' });
   });
 
-  test('hidden actions do not swallow clicks meant for the card', () => {
+  test('the hidden action panel class list declares pointer-events-none', () => {
     const source = read(CALENDAR);
     const hides = /opacity-0 pointer-events-none/.test(source);
 

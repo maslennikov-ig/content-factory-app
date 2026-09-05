@@ -48,6 +48,25 @@ if [ -z "$tag" ]; then
   exit 2
 fi
 
+# The tag is pasted into a remote shell — into `sed` expressions, a `printf`
+# argument and file names — so it is checked here, before any `ssh`, rather
+# than trusted because whoever ran the script meant well. A release tag in this
+# repository is the twelve-character short commit; anything else is accepted
+# only if it is a plain tag: letters, digits, dot, underscore and dash. A
+# space, a quote, `$`, a backtick or a slash never reaches the host.
+case "$tag" in
+  *[!A-Za-z0-9._-]* | "" | -* | .*)
+    echo "Refusing the tag '${tag}': it is pasted into a remote shell." >&2
+    echo "Allowed: the 12-character commit sha, or [A-Za-z0-9][A-Za-z0-9._-]*." >&2
+    exit 2
+    ;;
+esac
+
+if [ "${#tag}" -gt 128 ]; then
+  echo "Refusing the tag '${tag}': longer than 128 characters." >&2
+  exit 2
+fi
+
 if [ -z "$host" ]; then
   cat >&2 <<'MESSAGE'
 CF_DEPLOY_HOST is not set. It names the production host and is
@@ -83,7 +102,17 @@ done"
 #    appended when the file does not carry it yet, so a fresh install ends up
 #    with a marker rather than without one.
 run "cd ${remote_dir} &&
+  if ! grep -q '^CF_IMAGE=' .env; then
+    echo 'No CF_IMAGE= line in ${remote_dir}/.env. sed would have edited' >&2;
+    echo 'nothing and said nothing, and the switch would have run the old' >&2;
+    echo 'image while reporting the new tag.' >&2;
+    exit 1;
+  fi &&
   sed -i 's|^CF_IMAGE=.*|CF_IMAGE=\"${image}\"|' .env &&
+  if ! grep -q '^CF_IMAGE=\"${image}\"\$' .env; then
+    echo 'CF_IMAGE in ${remote_dir}/.env is not ${image} after the edit.' >&2;
+    exit 1;
+  fi &&
   if grep -q '^CONTENT_FACTORY_RELEASE=' app.env; then
     sed -i 's|^CONTENT_FACTORY_RELEASE=.*|CONTENT_FACTORY_RELEASE=\"${tag}\"|' app.env;
   else
@@ -114,17 +143,28 @@ if [ "$status" != "healthy" ]; then
 fi
 
 # 6. The check the four drifts would have failed. What the container runs, what
-#    `.env` names and what the error collector will report must be one string.
+#    the container's own environment says, and what `app.env` will hand the
+#    next restart must be one string.
+#
+#    The marker is read from the CONTAINER, not from `app.env`. That is the
+#    whole point: `app.env` is what somebody just wrote, and reading back what
+#    you wrote yourself proves nothing about the process serving requests — a
+#    container started before the edit keeps the old value in its environment,
+#    and it is that environment Sentry ships as `release`. The file is read
+#    too, second, because it is what the next restart will use; both have to
+#    equal the tag.
 running_image="$(run "docker inspect cf-next-app --format '{{.Config.Image}}'")"
-marker="$(run "cd ${remote_dir} && grep '^CONTENT_FACTORY_RELEASE=' app.env | cut -d= -f2- | tr -d '\"'")"
 running_tag="${running_image##*:}"
+marker="$(run "cd ${remote_dir} && docker compose exec -T cf-app printenv CONTENT_FACTORY_RELEASE" | tr -d '\r' | tail -n 1)"
+file_marker="$(run "cd ${remote_dir} && grep '^CONTENT_FACTORY_RELEASE=' app.env | cut -d= -f2- | tr -d '\"'")"
 
-if [ "$running_tag" != "$tag" ] || [ "$marker" != "$tag" ]; then
+if [ "$running_tag" != "$tag" ] || [ "$marker" != "$tag" ] || [ "$file_marker" != "$tag" ]; then
   cat >&2 <<MESSAGE
-The three do not agree:
-  requested tag       ${tag}
-  container runs      ${running_tag}
-  CONTENT_FACTORY_RELEASE  ${marker}
+They do not agree:
+  requested tag                    ${tag}
+  container runs                   ${running_tag}
+  CONTENT_FACTORY_RELEASE in it    ${marker}
+  CONTENT_FACTORY_RELEASE in file  ${file_marker}
 Every error report from now on would name the wrong commit. Fix before
 calling this release done.
 MESSAGE
@@ -132,7 +172,7 @@ MESSAGE
 fi
 
 echo "Running ${running_image}"
-echo "CONTENT_FACTORY_RELEASE=${marker} — agrees with the container"
+echo "CONTENT_FACTORY_RELEASE=${marker} — read from the container, agrees with it"
 run "docker inspect cf-next-app --format 'restarts: {{.RestartCount}}'"
 run "docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}' cf-next-app"
 

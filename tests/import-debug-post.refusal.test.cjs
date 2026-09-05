@@ -41,8 +41,15 @@ describe('the debug import window survives a refused save', () => {
     const refusal = save.indexOf('if (!response.ok)');
     expect(refusal).toBeGreaterThan(-1);
 
-    const branch = save.slice(refusal, save.indexOf('}', refusal + 20));
-    expect(branch).toMatch(/toaster\.show\(\s*await postSaveErrorMessage\(/);
+    // Ветка отказа кончается своим `return;`: внутри неё вложенный блок, и
+    // первая закрывающая скобка уже не её. На 402 помощник отдаёт пустую
+    // строку и тоста нет — предел тарифа уже назвала общая модалка (nkei).
+    const branch = save.slice(
+      refusal,
+      save.indexOf('return;', refusal) + 'return;'.length
+    );
+    expect(branch).toMatch(/await postSaveErrorMessage\(response, t\)/);
+    expect(branch).toMatch(/if \(refusal\) \{\s*toaster\.show\(refusal, 'warning'\)/);
     expect(branch).toMatch(/return;/);
   });
 

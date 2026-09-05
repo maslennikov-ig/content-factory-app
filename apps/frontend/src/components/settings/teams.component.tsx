@@ -23,29 +23,7 @@ import {
   isOrganizationAdmin,
   organizationRoleLevel,
 } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import dayjs from 'dayjs';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-// The same locale set the calendar loads, for the same reason: a date written
-// in the wrong order is a different date to whoever reads it.
-import 'dayjs/locale/en';
-import 'dayjs/locale/he';
-import 'dayjs/locale/ru';
-import 'dayjs/locale/zh';
-import 'dayjs/locale/fr';
-import 'dayjs/locale/es';
-import 'dayjs/locale/pt';
-import 'dayjs/locale/de';
-import 'dayjs/locale/it';
-import 'dayjs/locale/ja';
-import 'dayjs/locale/ko';
-import 'dayjs/locale/ar';
-import 'dayjs/locale/tr';
-import 'dayjs/locale/vi';
-import 'dayjs/locale/bn';
-import 'dayjs/locale/ka';
-import i18next from '@contentfactory/react/translation/i18next';
-
-dayjs.extend(localizedFormat);
+import { formatLocalizedDateTime } from '@contentfactory/react/helpers/localized.date';
 import { useFieldErrorMessage } from '@contentfactory/frontend/components/auth/form.errors';
 
 /**
@@ -97,22 +75,9 @@ type IssuedInvitation = {
   boundEmail?: string;
 };
 
-/**
- * When the invitation stops working, written the way the reader's language
- * writes a date.
- *
- * `content-factory-next-fn33.35`: this used to be `toLocaleString()` with no
- * language at all, so a Russian screen printed «9/6/2026, 1:22:38 PM» — month
- * first, a 12-hour clock, and a stray seconds field nobody needs from an
- * expiry. `L, LT` is dayjs's own localized date and time, and the language is
- * the one i18next resolved for the interface, not the one the process happens
- * to run in. `ka_ge` is our locale id; dayjs calls that one `ka`, and an id
- * dayjs does not know falls back to English rather than throwing.
- */
-const formatExpiry = (value: string) =>
-  dayjs(value)
-    .locale((i18next.language || 'en').replace('ka_ge', 'ka'))
-    .format('L, LT');
+// Срок приглашения пишется так, как язык читателя пишет дату — одним решением
+// на продукт: `formatLocalizedDateTime` (fn33.35, fn33.115).
+const formatExpiry = formatLocalizedDateTime;
 
 export const AddMember = () => {
   const modals = useModals();

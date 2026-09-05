@@ -778,4 +778,126 @@ describe('Prisma production SQL apply guard', () => {
       expect(result.status).toBe(0);
     });
   });
+
+  /**
+   * `content-factory-next-fn33.32`. Deleting a workspace together with its
+   * content needs `ON DELETE CASCADE` on the Organization relations, and
+   * PostgreSQL has no `ALTER CONSTRAINT` for a delete rule: `prisma migrate
+   * diff` prints a drop of the foreign key followed by the same name added
+   * back. Refusing that pair left the whole change with no reviewable path,
+   * so the guard admits the drop — but only as one half of the pair.
+   */
+  describe('a foreign-key delete-rule swap', () => {
+    const drop = 'ALTER TABLE "Tags" DROP CONSTRAINT "Tags_orgId_fkey";';
+    const add =
+      'ALTER TABLE "Tags" ADD CONSTRAINT "Tags_orgId_fkey" FOREIGN KEY ("orgId") ' +
+      'REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;';
+
+    test('passes when the same file adds the constraint back', () => {
+      const sql = `-- DropForeignKey\n${drop}\n\n-- AddForeignKey\n${add}\n`;
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.stderr).toBe('');
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('2 explicitly selected statement(s)');
+    });
+
+    test('refuses a drop the file never adds back', () => {
+      const sql = `${drop}\n`;
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    test('refuses a drop that is added back on another table', () => {
+      const sql =
+        `${drop}\n` +
+        'ALTER TABLE "UsedCodes" ADD CONSTRAINT "Tags_orgId_fkey" FOREIGN KEY ("orgId") ' +
+        'REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;\n';
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags', 'UsedCodes'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    // `CASCADE` on the drop takes every dependent object with the constraint,
+    // which is a different operation from putting the same key back.
+    test('refuses DROP CONSTRAINT ... CASCADE even when the name comes back', () => {
+      const sql =
+        'ALTER TABLE "Tags" DROP CONSTRAINT "Tags_orgId_fkey" CASCADE;\n' +
+        `${add}\n`;
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    // The operator runs the selected file, so that file has to restore what it
+    // drops. An add left behind in the diff excuses nothing.
+    test('refuses a selected drop whose add stayed in the diff', () => {
+      const result = runGuard({
+        diff: `${drop}\n${add}\n`,
+        selected: `${drop}\n`,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    test('still refuses a table drop standing next to a swap', () => {
+      const sql = `${drop}\n${add}\nDROP TABLE "Tags";\n`;
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    test('still refuses a column drop standing next to a swap', () => {
+      const sql =
+        `${drop}\n${add}\n` +
+        'ALTER TABLE "Tags" DROP COLUMN "color";\n';
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['Tags'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('destructive');
+    });
+
+    test('holds the swapped table to --allow-table like any other statement', () => {
+      const sql = `${drop}\n${add}\n`;
+      const result = runGuard({
+        diff: sql,
+        selected: sql,
+        allowedTables: ['UsedCodes'],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('--allow-table');
+    });
+  });
 });

@@ -50,6 +50,15 @@ export const composeCopy = {
       'Источники противоречат друг другу — на них пока нельзя опереться.',
     stateUnavailable:
       'Контекста пока нет: подтверждённых источников не найдено.',
+    /**
+     * Второй ряд кругов под кругами выбора. Владелец прочитал его как
+     * повтор выбора, а красный крестик — как значок ошибки
+     * (`content-factory-next-fn33.76`). Ряд называет себя сам, и крестик
+     * говорит, что он делает.
+     */
+    selectedChannelsRow:
+      'Выбранные каналы: откройте канал, чтобы настроить его отдельно',
+    removeChannel: 'Убрать канал из поста',
   },
   en: {
     assembledFrom: (count: number) =>
@@ -68,5 +77,8 @@ export const composeCopy = {
     stateConflict:
       'The sources contradict each other, so nothing here can be leaned on yet.',
     stateUnavailable: 'There is no context yet: no confirmed sources were found.',
+    selectedChannelsRow:
+      'Selected channels: open one to set it up on its own',
+    removeChannel: 'Remove this channel from the post',
   },
 } satisfies Record<ComposeLocale, Record<string, unknown>>;

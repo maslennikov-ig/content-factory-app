@@ -1,15 +1,12 @@
 import { internalFetch } from '@contentfactory/helpers/utils/internal.fetch';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 export const dynamic = 'force-dynamic';
 import { Register } from '@contentfactory/frontend/components/auth/register';
-import { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '@contentfactory/react/translation/get.translation.service.backend';
 import { LoginWithOidc } from '@contentfactory/frontend/components/auth/login.with.oidc';
 import { TelegramLinkReturn } from '@contentfactory/frontend/components/auth/telegram.link.return';
-export const metadata: Metadata = {
-  title: 'Register',
-  description: '',
-};
+export const generateMetadata = pageTitle('sign_up', 'Sign Up');
 export default async function Auth(params: {
   searchParams: Promise<{ provider?: string; code?: string }>;
 }) {

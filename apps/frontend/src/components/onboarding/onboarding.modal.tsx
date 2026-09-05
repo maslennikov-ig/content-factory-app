@@ -11,7 +11,7 @@ import { AddProviderComponent } from '@contentfactory/frontend/components/launch
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
-import { Button } from '@contentfactory/react/form/button';
+import { Button, buttonClassName } from '@contentfactory/react/form/button';
 
 interface OnboardingModalProps {
   onClose: () => void;
@@ -293,10 +293,18 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
         >
           {t('back', 'Back')}
         </Button>
-        <Link href="/onboarding" onClick={onFinish}>
-          <Button className="font-[600] px-[16px] rounded-[8px] text-[14px]">
-            {t('get_started', 'Get Started')}
-          </Button>
+        {/*
+          One element (`content-factory-next-za05`, item 6). A `<button>`
+          inside an `<a>` is invalid HTML and gives a keyboard user two stops
+          for one action; the primitive keeps `buttonClassName` for exactly
+          this branch — a control that has to stay a link.
+        */}
+        <Link
+          href="/onboarding"
+          onClick={onFinish}
+          className={buttonClassName({ variant: 'primary' })}
+        >
+          {t('get_started', 'Get Started')}
         </Link>
       </div>
     </div>

@@ -578,6 +578,151 @@
       "task_id": "content-factory-next-fn33.28.16",
       "stream_owner": "stream-E-compose-2026-09-04",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.16.md"
+    },
+    {
+      "task_id": "content-factory-next-y5fb",
+      "stream_owner": "stream-V",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-y5fb.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.18",
+      "stream_owner": "stream-L1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.18.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.113",
+      "stream_owner": "stream-L1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.113.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.116",
+      "stream_owner": "stream-L1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.116.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.97",
+      "stream_owner": "stream-L1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.97.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.92",
+      "stream_owner": "stream-L1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.92.md"
+    },
+    {
+      "task_id": "content-factory-next-nq7e",
+      "stream_owner": "stream-R",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-nq7e.md"
+    },
+    {
+      "task_id": "content-factory-next-th1s",
+      "stream_owner": "stream-R",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-th1s.md"
+    },
+    {
+      "task_id": "content-factory-next-4s0l",
+      "stream_owner": "stream-P",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-4s0l.md"
+    },
+    {
+      "task_id": "content-factory-next-p3gq",
+      "stream_owner": "stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-p3gq.md"
+    },
+    {
+      "task_id": "content-factory-next-ni7x",
+      "stream_owner": "stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-ni7x.md"
+    },
+    {
+      "task_id": "content-factory-next-za05",
+      "stream_owner": "stream-B",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-za05.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.94",
+      "stream_owner": "stream-L2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.94.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.114",
+      "stream_owner": "stream-L2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.114.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.115",
+      "stream_owner": "stream-L2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.115.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.117",
+      "stream_owner": "stream-L2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.117.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.118",
+      "stream_owner": "stream-L2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.118.md"
+    },
+    {
+      "task_id": "content-factory-next-cl19",
+      "stream_owner": "stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-cl19.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.5",
+      "stream_owner": "stream-C",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.5.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.76",
+      "stream_owner": "stream-C",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.76.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.99",
+      "stream_owner": "stream-C",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.99.md"
+    },
+    {
+      "task_id": "content-factory-next-x63z",
+      "stream_owner": "stream-M",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-x63z.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.32",
+      "stream_owner": "stream-D",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.32.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.100",
+      "stream_owner": "stream-S",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.100.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.102",
+      "stream_owner": "stream-S",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.102.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.101",
+      "stream_owner": "stream-S",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.101.md"
+    },
+    {
+      "task_id": "content-factory-next-5w6u",
+      "stream_owner": "stream-S",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-5w6u.md"
+    },
+    {
+      "task_id": "content-factory-next-saas.2",
+      "stream_owner": "stream-S",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-saas.2.md"
+    },
+    {
+      "task_id": "content-factory-next-nkei",
+      "stream_owner": "stream-C2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-nkei.md"
     }
   ]
 }

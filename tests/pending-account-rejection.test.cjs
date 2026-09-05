@@ -20,7 +20,7 @@ const repositoryModule = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts',
   {
     '@nestjs/common': nest,
-    '@prisma/client': { Provider: {}, Role: {} },
+    '@prisma/client': { Provider: {}, Role: {}, Prisma: { DbNull: 'DbNull' } },
     '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
       PrismaRepository: class PrismaRepository {},
       PrismaTransaction: class PrismaTransaction {},
@@ -67,6 +67,7 @@ const controllerModule = loadTypeScriptModule(
   {
     '@nestjs/common': {
       ...nest,
+      Body: () => () => undefined,
       Controller: () => (target) => target,
       Get: () => () => undefined,
       Inject: () => () => undefined,

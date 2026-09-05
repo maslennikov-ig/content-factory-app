@@ -16,6 +16,11 @@ import {
   useModals,
 } from '@contentfactory/frontend/components/layout/new-modal';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import {
+  composeCopy,
+  resolveComposeLocale,
+} from '@contentfactory/frontend/components/new-launch/compose.copy';
 
 export function useHasScroll(ref: RefObject<HTMLElement | null>): boolean {
   const [hasHorizontalScroll, setHasHorizontalScroll] = useState(false);
@@ -51,9 +56,20 @@ export function useHasScroll(ref: RefObject<HTMLElement | null>): boolean {
   return hasHorizontalScroll;
 }
 
+/**
+ * Второй ряд кругов: у каждого выбранного канала — своя вкладка настроек.
+ *
+ * `content-factory-next-fn33.76`, живой прогон 04.09.2026: после выбора канала
+ * кругов становится два, и из экрана не следовало ни что это другой ряд, ни
+ * что крестик снимает выбор. Крестик к тому же был красным — цветом ошибки, —
+ * хотя ошибки здесь нет, есть действие. Теперь ряд называет себя сам, крестик
+ * говорит, что он делает, и набран цветами поверхности, а не тревоги.
+ */
 export const SelectCurrent: FC = () => {
   const modals = useDecisionModal();
   const t = useT();
+  const { language } = useVariables();
+  const copy = composeCopy[resolveComposeLocale(language)];
   const {
     selectedIntegrations,
     current,
@@ -101,6 +117,8 @@ export const SelectCurrent: FC = () => {
       <div className="select-none left-0 absolute w-full z-[100] px-[20px]">
         <div
           ref={contentRef}
+          role="group"
+          aria-label={copy.selectedChannelsRow}
           className={clsx(
             'flex gap-[6px] w-full overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary',
             locked && 'opacity-50 pointer-events-none'
@@ -137,10 +155,20 @@ export const SelectCurrent: FC = () => {
               )}
             >
               <div
+                role="button"
+                tabIndex={0}
+                aria-label={copy.removeChannel}
+                title={copy.removeChannel}
                 onClick={removeSocial(integration)}
-                className="absolute justify-center items-center flex w-[8px] h-[8px] -top-[1px] -start-[3px] bg-red-500 rounded-full text-white text-[8px]"
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                  }
+                  removeSocial(integration)(event);
+                }}
+                className="absolute justify-center items-center flex w-[16px] h-[16px] -top-[4px] -start-[4px] z-20 border border-cf-border-strong bg-cf-surface-raised rounded-full cf-caption text-cf-ink"
               >
-                X
+                ×
               </div>
               <IsGlobal id={integration.id} />
               <div

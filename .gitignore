@@ -112,3 +112,6 @@ scripts/evidence/voice-eval/corpora.json
 # Локальный кэш дизайн-хука: машинный, не переносится между машинами.
 .impeccable/
 .claude/worktrees/
+
+# квитанции промежуточных проверок оркестрации (y5fb): локальные, по хешу входов
+.codex/evidence/verification/

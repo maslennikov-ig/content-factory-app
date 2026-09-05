@@ -939,6 +939,14 @@ export class PostsRepository {
       // unscoped (a tenant-scoped one cannot tell "free" from "taken by
       // someone else"), and both cases answer the same 404 with the same
       // text, so the reply never says "it exists, but it is not yours".
+      //
+      // `content-factory-next-fn33.101`: this is now written into the ledger
+      // of `tests/tenant-isolation.guard.test.cjs` rather than hidden by it.
+      // The guard used to skip every `findMany`, on the reasoning that a
+      // listing without a filter is useless and obvious — true of a listing,
+      // untrue of a lookup by ids the client sent, which is what this is. It
+      // scans `findMany` whose `where` names a row now, so the next unscoped
+      // one is a decision somebody has to write down.
       const existingPosts = await client.post.findMany({
         where: { id: { in: requestedPostIds } },
         select: {

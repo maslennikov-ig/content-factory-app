@@ -48,6 +48,11 @@ function makeRepository(subscriptionRow) {
     async getSubscription() {
       return subscriptionRow;
     },
+    // content-factory-next-ni7x: `createSubscription` now asks how many the
+    // workspace already holds before it writes one.
+    async countSubscriptions() {
+      return 0;
+    },
     async createSubscription(organizationId, actorUserId, input) {
       return { id: subscriptionRow.id, ...input };
     },

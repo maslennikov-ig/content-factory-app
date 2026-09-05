@@ -160,6 +160,18 @@ const mocks = {
     __esModule: true,
     default: { language: 'ru' },
   },
+  // The shared date helper (`content-factory-next-fn33.115`) reaches i18next
+  // through the alias this loader cannot resolve, so the screen gets the same
+  // decision inline: dayjs `L, LT` in the interface language.
+  '@contentfactory/react/helpers/localized.date': {
+    __esModule: true,
+    formatLocalizedDateTime: (value) => {
+      const dayjs = require('dayjs');
+      dayjs.extend(require('dayjs/plugin/localizedFormat'));
+      require('dayjs/locale/ru');
+      return dayjs(value).locale('ru').format('L, LT');
+    },
+  },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => (_key, fallback, params) =>
       params

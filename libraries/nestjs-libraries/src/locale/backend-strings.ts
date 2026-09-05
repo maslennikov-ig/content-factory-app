@@ -853,6 +853,75 @@ const CATALOG = {
     bn: 'ভিডিওটি {{max}} GB-এর চেয়ে বড়। ছোট একটি ফাইল বেছে নিন।',
     ka_ge: 'ვიდეო {{max}} GB-ზე დიდია. აირჩიეთ უფრო მცირე ფაილი.',
   },
+  /**
+   * `content-factory-next-ni7x`. Two refusals from «Откуда идеи» that a
+   * person reads on the screen, not in an email — the leads tab prints the
+   * server's own sentence, so the sentence has to arrive in the language of
+   * the account that asked. Plain text destination: read them with
+   * `translateBackendText`, never `translateBackendString`.
+   */
+  lead_subscription_limit_reached: {
+    en: 'This workspace already has {{limit}} subscriptions. Unsubscribe from one to add another.',
+    he: 'לסביבת עבודה זו כבר יש {{limit}} מנויים. בטלו מנוי אחד כדי להוסיף חדש.',
+    ru: 'В этом пространстве уже {{limit}} подписок. Отпишитесь от одной, чтобы добавить новую.',
+    zh: '此工作区已有 {{limit}} 个订阅。请先退订一个，再添加新的。',
+    fr: 'Cet espace de travail compte déjà {{limit}} abonnements. Désabonnez-vous de l’un pour en ajouter un autre.',
+    es: 'Este espacio de trabajo ya tiene {{limit}} suscripciones. Cancela una para añadir otra.',
+    pt: 'Este espaço de trabalho já tem {{limit}} assinaturas. Cancele uma para adicionar outra.',
+    de: 'Dieser Arbeitsbereich hat bereits {{limit}} Abonnements. Beenden Sie eines, um ein weiteres hinzuzufügen.',
+    it: 'Questo spazio di lavoro ha già {{limit}} iscrizioni. Annullane una per aggiungerne un’altra.',
+    ja: 'このワークスペースにはすでに {{limit}} 件の購読があります。追加するには、いずれかを解除してください。',
+    ko: '이 워크스페이스에는 이미 구독이 {{limit}}개 있습니다. 하나를 해지한 뒤 추가하세요.',
+    ar: 'تحتوي مساحة العمل هذه بالفعل على {{limit}} اشتراكًا. ألغِ أحدها لإضافة اشتراك جديد.',
+    tr: 'Bu çalışma alanında zaten {{limit}} abonelik var. Yenisini eklemek için birinden çıkın.',
+    vi: 'Không gian làm việc này đã có {{limit}} đăng ký. Hãy hủy một mục để thêm mục mới.',
+    bn: 'এই কর্মক্ষেত্রে ইতিমধ্যে {{limit}}টি সাবস্ক্রিপশন আছে। নতুন যোগ করতে একটি বাতিল করুন।',
+    ka_ge: 'ამ სამუშაო სივრცეს უკვე აქვს {{limit}} გამოწერა. ახლის დასამატებლად გააუქმეთ ერთი.',
+  },
+  lead_check_too_soon: {
+    en: 'This subscription was checked less than a minute ago. Wait a moment and try again.',
+    he: 'המנוי הזה נבדק לפני פחות מדקה. המתינו רגע ונסו שוב.',
+    ru: 'Эту подписку проверяли меньше минуты назад. Подождите немного и попробуйте снова.',
+    zh: '该订阅在不到一分钟前刚检查过。请稍等片刻后重试。',
+    fr: 'Cet abonnement a été vérifié il y a moins d’une minute. Patientez un instant et réessayez.',
+    es: 'Esta suscripción se comprobó hace menos de un minuto. Espera un momento e inténtalo de nuevo.',
+    pt: 'Esta assinatura foi verificada há menos de um minuto. Aguarde um momento e tente novamente.',
+    de: 'Dieses Abonnement wurde vor weniger als einer Minute geprüft. Warten Sie einen Moment und versuchen Sie es erneut.',
+    it: 'Questa iscrizione è stata controllata meno di un minuto fa. Attendi un momento e riprova.',
+    ja: 'この購読は 1 分以内に確認済みです。少し待ってからもう一度お試しください。',
+    ko: '이 구독은 1분 이내에 확인했습니다. 잠시 후 다시 시도하세요.',
+    ar: 'تم فحص هذا الاشتراك قبل أقل من دقيقة. انتظر قليلًا ثم حاول مرة أخرى.',
+    tr: 'Bu abonelik bir dakikadan kısa süre önce kontrol edildi. Biraz bekleyip yeniden deneyin.',
+    vi: 'Đăng ký này vừa được kiểm tra chưa đầy một phút trước. Hãy đợi một lát rồi thử lại.',
+    bn: 'এই সাবস্ক্রিপশনটি এক মিনিটেরও কম আগে পরীক্ষা করা হয়েছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।',
+    ka_ge: 'ეს გამოწერა ერთ წუთზე ნაკლები ხნის წინ შემოწმდა. დაელოდეთ ცოტა ხანს და სცადეთ ხელახლა.',
+  },
+  /**
+   * `content-factory-next-5w6u`. The assistant doors had accounting and no
+   * ceiling, so a runaway loop could empty a month's model budget in an hour
+   * and the invoice would be the first thing to say so. The sentence is
+   * written for the person who is waiting rather than for the log: it says
+   * the wait is short, because it is — sixty a minute is a ceiling on a
+   * script, not a quota on writing.
+   */
+  ai_rate_limited: {
+    en: 'Too many assistant requests at once. Wait a minute and try again.',
+    he: 'יותר מדי בקשות לעוזר בבת אחת. המתינו דקה ונסו שוב.',
+    ru: 'Слишком много обращений к помощнику подряд. Подождите минуту и попробуйте снова.',
+    zh: '助手请求过于频繁。请等一分钟后再试。',
+    fr: "Trop de requêtes à l'assistant d'un coup. Attendez une minute et réessayez.",
+    es: 'Demasiadas solicitudes al asistente a la vez. Espera un minuto e inténtalo de nuevo.',
+    pt: 'Muitos pedidos ao assistente de uma vez. Espere um minuto e tente de novo.',
+    de: 'Zu viele Assistenz-Anfragen auf einmal. Warten Sie eine Minute und versuchen Sie es erneut.',
+    it: "Troppe richieste all'assistente in una volta. Aspetta un minuto e riprova.",
+    ja: 'アシスタントへのリクエストが多すぎます。1 分ほど待ってからもう一度お試しください。',
+    ko: '어시스턴트 요청이 너무 많습니다. 1분 기다린 뒤 다시 시도하세요.',
+    ar: 'طلبات كثيرة جدًا إلى المساعد دفعة واحدة. انتظر دقيقة ثم أعد المحاولة.',
+    tr: 'Asistana aynı anda çok fazla istek gönderildi. Bir dakika bekleyip yeniden deneyin.',
+    vi: 'Quá nhiều yêu cầu tới trợ lý cùng lúc. Hãy đợi một phút rồi thử lại.',
+    bn: 'সহকারীর কাছে একসঙ্গে অনেক বেশি অনুরোধ। এক মিনিট অপেক্ষা করে আবার চেষ্টা করুন।',
+    ka_ge: 'ასისტენტთან ერთდროულად ძალიან ბევრი მოთხოვნაა. დაელოდეთ ერთ წუთს და სცადეთ ხელახლა.',
+  },
 } satisfies Record<string, BackendStringEntry>;
 
 export type BackendStringKey = keyof typeof CATALOG;

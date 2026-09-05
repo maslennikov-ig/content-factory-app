@@ -3,7 +3,7 @@ import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { ContentSectionScreen } from '@contentfactory/frontend/components/content-intelligence/content-section.screen';
 import { resolveContentTab } from '@contentfactory/frontend/components/content-intelligence/content-section.tabs';
 
-export const generateMetadata = pageTitle('content', 'Content');
+export const generateMetadata = pageTitle('content_section', 'Content');
 
 /**
  * `content-factory-next-rrs9`: the section can be opened at a named tab.

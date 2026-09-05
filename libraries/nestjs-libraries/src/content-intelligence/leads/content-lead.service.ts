@@ -8,6 +8,14 @@ import { ContentLeadRepository } from './content-lead.repository';
 import { LeadFeedGateway } from './lead-feed.gateway';
 import { leadReason } from './lead-reason';
 import { ContentLeadError } from './errors';
+import {
+  MANUAL_CHECK_MIN_INTERVAL_MS,
+  MAX_LEAD_SUBSCRIPTIONS_PER_ORGANIZATION,
+} from './lead-limits';
+import {
+  resolveBackendLocale,
+  translateBackendText,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 const workflowIdFor = (subscriptionId: string) =>
   `content-lead-check-${subscriptionId}`;
@@ -165,8 +173,16 @@ export class ContentLeadService {
       canonicalUrl: string;
       checkIntervalMinutes?: number;
       linkedAutoPostId?: string;
-    }
+    },
+    /**
+     * The language of the account that asked, so a refusal arrives in it.
+     * The leads tab prints the server's own sentence (`readFailure` in
+     * `voice-materials.adapter.ts`), so this is the only place the sentence
+     * can be chosen. Anything unknown falls back to English.
+     */
+    language?: unknown
   ) {
+    const locale = resolveBackendLocale(language);
     const displayName = input.displayName.trim();
     if (!displayName) {
       throw new ContentLeadError(
@@ -183,6 +199,24 @@ export class ContentLeadService {
         throw new ContentLeadError('INVALID_URL', error.message, error.status);
       }
       throw error;
+    }
+    // content-factory-next-ni7x. Counted here, not in the repository's
+    // `create`: the unique index is `(organizationId, kind, canonicalUrl)`
+    // and stops only the same address twice, so nothing under it ever knew
+    // how many *different* feeds a workspace held — and each one is a
+    // perpetual Temporal workflow. A race between two creates can land one
+    // row over the ceiling; that is a cost the alternative (a transaction
+    // taking a lock on every create) does not repay for a limit whose job
+    // is to stop a workspace from opening hundreds.
+    const held = await this.repository.countSubscriptions(organizationId);
+    if (held >= MAX_LEAD_SUBSCRIPTIONS_PER_ORGANIZATION) {
+      throw new ContentLeadError(
+        'SUBSCRIPTION_LIMIT',
+        translateBackendText('lead_subscription_limit_reached', locale, {
+          limit: MAX_LEAD_SUBSCRIPTIONS_PER_ORGANIZATION,
+        }),
+        409
+      );
     }
     if (input.linkedAutoPostId) {
       await this.repository.getAutoPost(organizationId, input.linkedAutoPostId);
@@ -235,7 +269,17 @@ export class ContentLeadService {
   async checkSubscription(
     organizationId: string,
     subscriptionId: string,
-    options: { ensurePeriodicCheck?: boolean } = {}
+    options: {
+      ensurePeriodicCheck?: boolean;
+      /**
+       * Set only by "Проверить сейчас". It is what separates a click from
+       * the periodic workflow's own tick, and only a click is rate-limited:
+       * the tick already runs at the interval the row was created with, so
+       * throttling it would refuse the schedule the workspace chose.
+       */
+      manual?: boolean;
+      language?: unknown;
+    } = {}
   ) {
     const subscription = await this.repository.getSubscription(
       organizationId,
@@ -254,6 +298,25 @@ export class ContentLeadService {
     // runs again could never recover it.
     if (subscription.state !== 'ACTIVE' && subscription.state !== 'ERRORED') {
       return { checked: false, reason: 'NOT_ACTIVE', created: 0 };
+    }
+
+    // content-factory-next-ni7x. Before the recovery start and before the
+    // feed is opened: a refused check must cost neither an outbound request
+    // nor a Temporal round trip. `lastCheckedAt` is the honest last read —
+    // fn33.52 already made sure a refused check does not stamp it — so a
+    // subscription that has never been read is never throttled.
+    if (options.manual && subscription.lastCheckedAt) {
+      const since = now.getTime() - new Date(subscription.lastCheckedAt).getTime();
+      if (since >= 0 && since < MANUAL_CHECK_MIN_INTERVAL_MS) {
+        throw new ContentLeadError(
+          'CHECK_TOO_SOON',
+          translateBackendText(
+            'lead_check_too_soon',
+            resolveBackendLocale(options.language)
+          ),
+          429
+        );
+      }
     }
 
     if (options.ensurePeriodicCheck) {

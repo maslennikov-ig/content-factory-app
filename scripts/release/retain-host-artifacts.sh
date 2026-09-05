@@ -25,6 +25,10 @@
 #   - The image the app container actually runs is read from the container, not
 #     from `.env`, and is never a candidate. `CONTENT_FACTORY_RELEASE` has been
 #     wrong three releases running; the container cannot be.
+#   - That running image must belong to our repository. If it does not, the
+#     script refuses without removing anything: the running tag then names
+#     nothing in our row of tags, and the "rollback target" it would keep would
+#     be chosen from a different row than the one serving requests.
 #   - The rollback target is the newest remaining tag after the running one,
 #     and it is never a candidate either.
 #   - The app container must be healthy first. Deleting the previous image
@@ -106,7 +110,26 @@ fi
 # 2. What actually runs, read from the container itself.
 running_image="$(run "docker inspect cf-next-app --format '{{.Config.Image}}'")"
 running_tag="${running_image##*:}"
+running_repository="${running_image%:*}"
 echo "Running: ${running_image}"
+
+#    And it has to be OUR image. Everything below reasons about one row of
+#    tags: the running tag heads the keep list, the rollback target is the next
+#    tag in that row, and the configuration copies are kept by matching those
+#    two names. If the container is running something else — a hotfix built
+#    from another repository, a `docker run` by hand, an image that lost its
+#    tag and shows as a digest — then `running_tag` names nothing in our row.
+#    The keep list would then be one short, the tag we actually run would be a
+#    removal candidate, and the "rollback target" would be a tag chosen from a
+#    different row than the one serving requests. Refuse instead of guessing.
+if [ "$running_repository" != "$repository" ]; then
+  cat >&2 <<MESSAGE
+cf-next-app runs ${running_image}.
+That is not ${repository}, so which of our tags is running, and which one a
+rollback would go back to, are both unknown. Nothing removed.
+MESSAGE
+  exit 1
+fi
 
 # 3. Our tags on the host, newest first.
 mapfile -t tags < <(run "docker images --filter reference='${repository}' --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | cut -f2")

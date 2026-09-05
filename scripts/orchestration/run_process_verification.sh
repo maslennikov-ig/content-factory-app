@@ -54,6 +54,7 @@ required = [
     pathlib.Path("scripts/orchestration/cleanup_stage_workspace.py"),
     pathlib.Path("scripts/orchestration/report_child_completion.py"),
     pathlib.Path("scripts/orchestration/review_completion_inbox.py"),
+    pathlib.Path("scripts/orchestration/verification_evidence.py"),
 ]
 
 workspace = contract.get("workspace", {})

@@ -232,6 +232,24 @@ describe('the compose window survives a refused save', () => {
     }
   });
 
+  test('a 402 without a code stays silent: the plan refusal is already on screen', async () => {
+    const response = {
+      status: 402,
+      json: async () => ({ section: 'ai', action: 'create', message: 'x' }),
+    };
+    expect(await postSaveErrorMessage(response, t)).toBe('');
+  });
+
+  test('a 402 with a named code is still spoken here: the shared modal skips coded bodies', async () => {
+    const response = {
+      status: 402,
+      json: async () => ({ code: 'SOME_NAMED_REFUSAL', message: 'Named refusal' }),
+    };
+    expect(await postSaveErrorMessage(response, t)).toBe(
+      'The post was not saved: Named refusal'
+    );
+  });
+
   test('an unsuccessful answer shows the message and returns before closing', () => {
     const save = modalSource.slice(modalSource.indexOf("await fetch('/posts'"));
     const refusal = save.indexOf('if (!response.ok)');
@@ -240,8 +258,17 @@ describe('the compose window survives a refused save', () => {
     expect(refusal).toBeGreaterThan(-1);
     expect(closing).toBeGreaterThan(refusal);
 
-    const branch = save.slice(refusal, save.indexOf('}', refusal + 20));
-    expect(branch).toMatch(/toaster\.show\(\s*await postSaveErrorMessage\(/);
+    // Ветка отказа кончается своим `return;` — внутри неё теперь есть
+    // вложенный блок, и первая закрывающая скобка уже не её.
+    const branch = save.slice(
+      refusal,
+      save.indexOf('return;', refusal) + 'return;'.length
+    );
+    // Отказ проходит через postSaveErrorMessage и показывается тостом, когда
+    // есть что показать: на 402 помощник молчит, предел тарифа уже назвала
+    // общая модалка (content-factory-next-nkei).
+    expect(branch).toMatch(/await postSaveErrorMessage\(response, t\)/);
+    expect(branch).toMatch(/if \(refusal\) \{\s*toaster\.show\(refusal, 'warning'\)/);
     expect(branch).toMatch(/setLoading\(false\)/);
     expect(branch).toMatch(/return;/);
   });

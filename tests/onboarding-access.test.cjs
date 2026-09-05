@@ -54,22 +54,51 @@ describe('onboarding stays reachable after it is skipped', () => {
     expect(launches).toMatch(/<Onboarding\s*\/>/);
   });
 
-  test('the second step no longer promises a video it does not show', () => {
+  test('the video the product does not show is not named in any locale', () => {
     // Postiz upstream had a real embedded video on this step. It was removed
     // at rebrand time — correctly, it was about another product — but the
-    // step's label kept saying "watch" over four paragraphs of text.
-    const en = JSON.parse(
-      read(
-        'libraries/react-shared-libraries/src/translation/locales/en/translation.json'
-      )
-    );
-    const ru = JSON.parse(
-      read(
-        'libraries/react-shared-libraries/src/translation/locales/ru/translation.json'
+    // step's label kept saying "watch" over four paragraphs of text, and the
+    // keys outlived the screen: the walkthrough (`content-factory-next-rrs9`)
+    // reads none of them. `content-factory-next-za05` removed the eleven dead
+    // ones from all sixteen bundles, so the check is no longer «the wording
+    // was fixed» but «the key is gone» — a stronger statement, and the only
+    // one that stays true.
+    const dead = [
+      'watch_tutorial',
+      'watch_tutorial_title',
+      'watch_tutorial_description',
+      'onboarding_step_plan',
+      'onboarding_step_plan_body',
+      'onboarding_step_draft',
+      'onboarding_step_draft_body',
+      'onboarding_step_review',
+      'onboarding_step_review_body',
+      'onboarding_step_publish',
+      'onboarding_step_publish_body',
+    ];
+    const locales = fs.readdirSync(
+      path.join(
+        repositoryRoot,
+        'libraries/react-shared-libraries/src/translation/locales'
       )
     );
 
-    expect(en.watch_tutorial).not.toMatch(/watch/i);
-    expect(ru.watch_tutorial).not.toMatch(/смотреть/i);
+    expect(locales.length).toBe(16);
+
+    const survivors = [];
+    for (const locale of locales) {
+      const bundle = JSON.parse(
+        read(
+          `libraries/react-shared-libraries/src/translation/locales/${locale}/translation.json`
+        )
+      );
+      for (const key of dead) {
+        if (key in bundle) survivors.push(`${locale}/${key}`);
+      }
+      // The one key this screen does still read stays.
+      expect(bundle.onboarding_step_next).toBeTruthy();
+    }
+
+    expect(survivors).toEqual([]);
   });
 });

@@ -84,7 +84,7 @@ model Tags {
   deletedAt    DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-  organization Organization @relation(fields: [orgId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   posts        TagsPosts[]
 
   @@index([orgId])
@@ -96,8 +96,8 @@ model TagsPosts {
   tagId     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  post      Post     @relation(fields: [postId], references: [id])
-  tag       Tags     @relation(fields: [tagId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tags     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
   @@unique([postId, tagId])
@@ -215,7 +215,7 @@ model UsedCodes {
   orgId        String
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-  organization Organization @relation(fields: [orgId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([code])
 }
@@ -228,7 +228,7 @@ model UserOrganization {
   role           Role         @default(USER)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id])
 
   @@unique([userId, organizationId])
@@ -288,7 +288,7 @@ model GitHub {
   organizationId String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([login])
   @@index([organizationId])
@@ -351,7 +351,7 @@ model Media {
   thumbnail          String?
   alt                String?
   thumbnailTimestamp Int?
-  organization       Organization        @relation(fields: [organizationId], references: [id])
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agencies           SocialMediaAgency[]
   userPicture        User[]
   oauthApps          OAuthApp[]
@@ -405,7 +405,7 @@ model Credits {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   type           String       @default("ai_images")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([createdAt])
@@ -424,7 +424,7 @@ model Subscription {
   updatedAt                   DateTime         @updatedAt
   deletedAt                   DateTime?
   includedAiMonthlyOperations Int              @default(0)
-  organization                Organization     @relation(fields: [organizationId], references: [id])
+  organization                Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([deletedAt])
@@ -437,7 +437,7 @@ model Customer {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   deletedAt    DateTime?
-  organization Organization  @relation(fields: [orgId], references: [id])
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
   integrations Integration[]
 
   @@unique([orgId, name, deletedAt])
@@ -469,7 +469,7 @@ model Integration {
   contentLanguage       String                         @default("en")
   exisingPlugData       ExisingPlugData[]
   customer              Customer?                      @relation(fields: [customerId], references: [id])
-  organization          Organization                   @relation(fields: [organizationId], references: [id])
+  organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   webhooks              IntegrationsWebhooks[]
   orderItems            OrderItems[]
   plugs                 Plugs[]
@@ -497,7 +497,7 @@ model Signatures {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@index([organizationId])
@@ -513,8 +513,8 @@ model Comments {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  post           Post         @relation(fields: [postId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post           Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id])
 
   @@index([createdAt])
@@ -568,9 +568,9 @@ model Post {
   comments                   Comments[]
   errors                     Errors[]
   payoutProblems             PayoutProblems[]
-  integration                Integration                 @relation(fields: [integrationId], references: [id])
+  integration                Integration                 @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   lastMessage                Messages?                   @relation(fields: [lastMessageId], references: [id])
-  organization               Organization                @relation("organization", fields: [organizationId], references: [id])
+  organization               Organization                @relation("organization", fields: [organizationId], references: [id], onDelete: Cascade)
   parentPost                 Post?                       @relation("parentPostId", fields: [parentPostId], references: [id])
   childrenPost               Post[]                      @relation("parentPostId")
   submittedForOrder          Orders?                     @relation(fields: [submittedForOrderId], references: [id])
@@ -695,7 +695,7 @@ model Notifications {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@index([organizationId])
@@ -711,6 +711,10 @@ model MessagesGroup {
   updatedAt           DateTime     @updatedAt
   messages            Messages[]
   buyer               User         @relation("groupBuyer", fields: [buyerId], references: [id])
+  /// Deliberately no cascade: the marketplace chain (MessagesGroup -> Orders ->
+  /// OrderItems -> PayoutProblems) records money and a second party, so a
+  /// workspace deletion must not carry it away. `deleteAccount` refuses in
+  /// front of it instead (`content-factory-next-fn33.32`).
   buyerOrganization   Organization @relation(fields: [buyerOrganizationId], references: [id])
   seller              User         @relation("groupSeller", fields: [sellerId], references: [id])
   orders              Orders[]
@@ -795,8 +799,8 @@ model Plugs {
   data           String
   integrationId  String
   activated      Boolean      @default(true)
-  integration    Integration  @relation(fields: [integrationId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([plugFunction, integrationId])
   @@index([organizationId])
@@ -807,7 +811,7 @@ model ExisingPlugData {
   integrationId String
   methodName    String
   value         String
-  integration   Integration @relation(fields: [integrationId], references: [id])
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([integrationId, methodName, value])
 }
@@ -825,8 +829,8 @@ model PopularPosts {
 model IntegrationsWebhooks {
   integrationId String
   webhookId     String
-  integration   Integration @relation(fields: [integrationId], references: [id])
-  webhook       Webhooks    @relation(fields: [webhookId], references: [id])
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  webhook       Webhooks    @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@id([integrationId, webhookId])
   @@unique([integrationId, webhookId])
@@ -843,7 +847,7 @@ model Webhooks {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
   integrations   IntegrationsWebhooks[]
-  organization   Organization           @relation(fields: [organizationId], references: [id])
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([deletedAt])
@@ -871,7 +875,7 @@ model AutoPost {
   deletedAt             DateTime?
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
-  organization          Organization                @relation(fields: [organizationId], references: [id])
+  organization          Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   contentSource         ContentSource?              @relation(fields: [organizationId, contentSourceId], references: [organizationId, id])
   brandProfileVersion   ProjectBrandProfileVersion? @relation(fields: [organizationId, brandProfileVersionId], references: [organizationId, id])
   /// The other direction of `ContentLeadSubscription.linkedAutoPost` — an
@@ -894,7 +898,7 @@ model Sets {
   content        String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -909,7 +913,7 @@ model ThirdParty {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, internalId])
   @@index([organizationId])
@@ -925,8 +929,8 @@ model Errors {
   updatedAt      DateTime     @updatedAt
   postId         String
   body           String       @default("{}")
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  post           Post         @relation(fields: [postId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  post           Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([createdAt])
@@ -956,7 +960,7 @@ model OAuthApp {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   deletedAt      DateTime?
-  organization   Organization         @relation(fields: [organizationId], references: [id])
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   picture        Media?               @relation(fields: [pictureId], references: [id])
   authorizations OAuthAuthorization[]
 
@@ -977,9 +981,9 @@ model OAuthAuthorization {
   revokedAt         DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-  oauthApp          OAuthApp     @relation(fields: [oauthAppId], references: [id])
+  oauthApp          OAuthApp     @relation(fields: [oauthAppId], references: [id], onDelete: Cascade)
   user              User         @relation(fields: [userId], references: [id])
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([oauthAppId, userId, organizationId])
   @@index([accessToken])
@@ -1069,7 +1073,7 @@ model ProjectBrandProfileVersion {
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
   organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  profile           ProjectBrandProfile          @relation("ProfileVersions", fields: [organizationId, profileId], references: [organizationId, id])
+  profile           ProjectBrandProfile          @relation("ProfileVersions", fields: [organizationId, profileId], references: [organizationId, id], onDelete: Cascade)
   parentVersion     ProjectBrandProfileVersion?  @relation("BrandProfileVersionParent", fields: [organizationId, parentVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
   childVersions     ProjectBrandProfileVersion[] @relation("BrandProfileVersionParent")
   activeForProfiles ProjectBrandProfile[]        @relation("ActiveBrandProfileVersion")
@@ -1106,7 +1110,7 @@ model BrandProfileAuditEvent {
   contentDigest  String?
   createdAt      DateTime                    @default(now())
   organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  profile        ProjectBrandProfile         @relation(fields: [organizationId, profileId], references: [organizationId, id])
+  profile        ProjectBrandProfile         @relation(fields: [organizationId, profileId], references: [organizationId, id], onDelete: Cascade)
   version        ProjectBrandProfileVersion? @relation("BrandAuditVersion", fields: [organizationId, versionId], references: [organizationId, id])
   fromVersion    ProjectBrandProfileVersion? @relation("BrandAuditFromVersion", fields: [organizationId, fromVersionId], references: [organizationId, id])
   toVersion      ProjectBrandProfileVersion? @relation("BrandAuditToVersion", fields: [organizationId, toVersionId], references: [organizationId, id])
@@ -1189,7 +1193,7 @@ model SourceSyncRun {
   leaseExpiresAt    DateTime?
   createdAt         DateTime         @default(now())
   organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  source            ContentSource    @relation(fields: [organizationId, sourceId], references: [organizationId, id])
+  source            ContentSource    @relation(fields: [organizationId, sourceId], references: [organizationId, id], onDelete: Cascade)
   snapshots         SourceSnapshot[] @relation("SourceSyncRunSnapshots")
   resultSnapshot    SourceSnapshot?  @relation("SourceSyncRunResultSnapshot", fields: [organizationId, resultSnapshotId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -1270,7 +1274,7 @@ model SourceEvidence {
   tombstone        String?
   createdAt        DateTime                   @default(now())
   organization     Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  snapshot         SourceSnapshot             @relation(fields: [organizationId, sourceSnapshotId], references: [organizationId, id])
+  snapshot         SourceSnapshot             @relation(fields: [organizationId, sourceSnapshotId], references: [organizationId, id], onDelete: Cascade)
   assessment       ContentEvidenceAssessment?
   factLinks        ContentFactEvidence[]
   contextItems     ContentContextItem[]
@@ -1295,7 +1299,7 @@ model ContentEvidenceAssessment {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  evidence           SourceEvidence @relation(fields: [organizationId, evidenceId], references: [organizationId, id])
+  evidence           SourceEvidence @relation(fields: [organizationId, evidenceId], references: [organizationId, id], onDelete: Cascade)
 
   @@unique([organizationId, id])
   @@unique([organizationId, evidenceId])
@@ -1349,8 +1353,8 @@ model ContentFactEvidence {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  fact           ContentFact    @relation(fields: [organizationId, factId], references: [organizationId, id])
-  evidence       SourceEvidence @relation(fields: [organizationId, evidenceId], references: [organizationId, id])
+  fact           ContentFact    @relation(fields: [organizationId, factId], references: [organizationId, id], onDelete: Cascade)
+  evidence       SourceEvidence @relation(fields: [organizationId, evidenceId], references: [organizationId, id], onDelete: Cascade)
 
   @@unique([organizationId, id])
   @@unique([organizationId, factId, evidenceId])
@@ -1420,7 +1424,7 @@ model ContentContextItem {
   tombstone                String?
   createdAt                DateTime               @default(now())
   organization             Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  snapshot                 ContentContextSnapshot @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id])
+  snapshot                 ContentContextSnapshot @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id], onDelete: Cascade)
   fact                     ContentFact?           @relation(fields: [organizationId, factId], references: [organizationId, id])
   evidence                 SourceEvidence?        @relation(fields: [organizationId, evidenceId], references: [organizationId, id])
 
@@ -1446,8 +1450,8 @@ model ContentOutputContext {
   createdAt                DateTime                    @default(now())
   updatedAt                DateTime                    @updatedAt
   organization             Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  post                     Post                        @relation(fields: [organizationId, postId], references: [organizationId, id])
-  snapshot                 ContentContextSnapshot      @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id])
+  post                     Post                        @relation(fields: [organizationId, postId], references: [organizationId, id], onDelete: Cascade)
+  snapshot                 ContentContextSnapshot      @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id], onDelete: Cascade)
   brandProfileVersion      ProjectBrandProfileVersion? @relation(fields: [organizationId, brandProfileVersionId], references: [organizationId, id])
 
   @@unique([organizationId, id])
@@ -1469,9 +1473,9 @@ model DraftEvidence {
   tombstone                String?
   createdAt                DateTime               @default(now())
   organization             Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  post                     Post                   @relation(fields: [organizationId, postId], references: [organizationId, id])
-  evidence                 SourceEvidence         @relation(fields: [organizationId, evidenceId], references: [organizationId, id])
-  contextSnapshot          ContentContextSnapshot @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id])
+  post                     Post                   @relation(fields: [organizationId, postId], references: [organizationId, id], onDelete: Cascade)
+  evidence                 SourceEvidence         @relation(fields: [organizationId, evidenceId], references: [organizationId, id], onDelete: Cascade)
+  contextSnapshot          ContentContextSnapshot @relation(fields: [organizationId, contentContextSnapshotId], references: [organizationId, id], onDelete: Cascade)
 
   @@unique([organizationId, id])
   @@unique([organizationId, postId, evidenceId, contentContextSnapshotId])
@@ -1879,6 +1883,18 @@ model AiProviderSetting {
   apiKey         String?
   textModel      String?
   imageModel     String?
+  /// Which model each call role gets, as `{ "classify": "…", "draft": "…" }`.
+  ///
+  /// `content-factory-next-x63z`. One JSON column rather than a column per
+  /// role, and rather than a table of model names in the repository: the roles
+  /// are ours and few, the model ids are the tenant's and change every few
+  /// months, and a tenant on their own provider names ids we have never seen.
+  /// Unknown keys and unusable values are dropped on read (`ai.roles.ts`), so
+  /// a row written by an older or newer build is never a failed generation.
+  ///
+  /// NULL, and `{}`, both mean «nothing routed»: every role falls back to
+  /// `textModel`, which is exactly what the product did before this column.
+  roleModels     Json?
   searchEnabled  Boolean      @default(false)
   searchProvider String       @default("tavily")
   searchApiKey   String?
@@ -1910,6 +1926,18 @@ model AiUsageRecord {
   user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   usageMode      AiUsageMode
   operation      String
+  /// What the model was asked to do, beside what the product was doing.
+  ///
+  /// `content-factory-next-x63z`. The operation is a billing unit and the role
+  /// is the axis the model routing is configured on; they are one-to-one for
+  /// most doors and deliberately not for `text_generation`, which covers
+  /// drafting a post, reading a voice off samples and repairing a sentence.
+  /// Without this column «how much did classification spend» had no answer,
+  /// so no routing change could be judged after it was made.
+  ///
+  /// Nullable because rows written before the column exist and must stay
+  /// countable; a null reads as «recorded before roles», not as a role.
+  role           String?
   provider       String
   model          String?
   status         AiUsageStatus @default(admitted)

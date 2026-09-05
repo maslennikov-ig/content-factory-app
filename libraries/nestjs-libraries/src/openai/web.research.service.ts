@@ -290,8 +290,15 @@ export class WebResearchService {
       throw new WebSearchNotConfigured();
     }
 
+    /**
+     * The cheapest call in the product, and for two years it was billed as the
+     * most expensive one: one sentence in, five short fields out, on the same
+     * model that writes drafts. It says `classify` so a workspace can put it
+     * on a small model without touching anything the reader sees
+     * (`content-factory-next-x63z`).
+     */
     const classifier = (
-      await getChatModel(organizationId, 0)
+      await getChatModel(organizationId, 0, undefined, 'classify')
     ).withStructuredOutput(subjectClassification);
     const classification = await ChatPromptTemplate.fromTemplate(
       `Classify the research subject, then prepare search queries.

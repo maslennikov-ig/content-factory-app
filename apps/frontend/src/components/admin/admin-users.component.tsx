@@ -17,6 +17,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { displayName } from '@contentfactory/react/helpers/display-name';
+import { formatLocalizedDateTime } from '@contentfactory/react/helpers/localized.date';
 import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { AdminTelegramConnectComponent } from './admin-telegram-connect.component';
 
@@ -52,6 +53,42 @@ export interface AdminAccountRow {
   organizations: { role: string; organization: { id: string; name: string } }[];
 }
 
+/**
+ * What the server says would go with the workspace, when it answers
+ * `account_delete_workspace_confirm` (`content-factory-next-fn33.32`). Four
+ * counts rather than a total: «12 things» tells an administrator nothing, and
+ * a workspace is recognised by the shape of what is in it.
+ */
+export interface DeletionWorkspace {
+  name: string;
+  posts: number;
+  channels: number;
+  materials: number;
+  members: number;
+}
+
+/**
+ * Nest wraps an `HttpException` body once more when it is an object, so the
+ * same fields arrive either at the top level or one level down under
+ * `message`. Both shapes are the same shape, so it is one type.
+ */
+export interface DeletionBody {
+  code?: string;
+  workspace?: string;
+  workspaces?: DeletionWorkspace[];
+  message?: string | DeletionBody;
+}
+
+/** A refused action, read once out of the response body. */
+export interface DeletionFailure {
+  raw: string;
+  parsed?: DeletionBody;
+  code: string;
+}
+
+const nestedBody = (body?: DeletionBody) =>
+  body && typeof body.message === 'object' ? body.message : undefined;
+
 export interface AdminAccountsResponse {
   users: AdminAccountRow[];
   pending: number;
@@ -60,8 +97,6 @@ export interface AdminAccountsResponse {
 }
 
 const PAGE_SIZE = 25;
-const formatDate = (value: string) =>
-  new Date(value).toISOString().slice(0, 16).replace('T', ' ');
 
 /**
  * Three states, not two. A blocked account is off because somebody decided so,
@@ -342,7 +377,7 @@ export function AdminUsersView({
                         {t('registered', 'Registered')}
                       </span>
                       <span className="cf-label-sm text-cf-ink-muted">
-                        {formatDate(row.createdAt)}
+                        {formatLocalizedDateTime(row.createdAt)}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-[8px]">
@@ -479,13 +514,29 @@ export const AdminUsersComponent = () => {
    * two reasons it was. A raw body would show the person a JSON envelope, so the
    * code is read and answered in their language; anything unrecognised falls
    * back to the text the server sent.
+   *
+   * The body is read once and handed on: `account_delete_workspace_confirm`
+   * carries the workspaces and their counts, and a second `response.text()`
+   * would find the stream already spent.
    */
+  const readFailure = useCallback(async (response: Response) => {
+    const raw = await response.text();
+    try {
+      const parsed = JSON.parse(raw) as DeletionBody;
+      return {
+        raw,
+        parsed,
+        code: parsed?.code || nestedBody(parsed)?.code || '',
+      };
+    } catch {
+      // A plain-text body, which is what most failures send.
+      return { raw, parsed: undefined, code: '' };
+    }
+  }, []);
+
   const failureMessage = useCallback(
-    async (response: Response) => {
-      const raw = await response.text();
-      try {
-        const parsed = JSON.parse(raw);
-        const code = parsed?.code || parsed?.message?.code;
+    ({ raw, parsed, code }: DeletionFailure) => {
+      if (parsed) {
         if (code === 'account_delete_workspace_has_content') {
           return t(
             'account_delete_workspace_has_content',
@@ -499,7 +550,7 @@ export const AdminUsersComponent = () => {
          */
         if (code === 'account_delete_last_admin') {
           const workspace =
-            parsed?.workspace || parsed?.message?.workspace || '';
+            parsed?.workspace || nestedBody(parsed)?.workspace || '';
           return t(
             'account_delete_last_admin',
             'This account is the only administrator of «{{workspace}}» — give somebody else that role there first.',
@@ -512,12 +563,53 @@ export const AdminUsersComponent = () => {
             'This account still owns records inside the product. They have to be removed before the account can go.'
           );
         }
-        const message = parsed?.message?.message || parsed?.message;
-        if (typeof message === 'string' && message) return message;
-      } catch {
-        // A plain-text body, which is what most failures send.
+        const nested = nestedBody(parsed)?.message;
+        const message =
+          (typeof nested === 'string' ? nested : undefined) ||
+          (typeof parsed?.message === 'string' ? parsed.message : undefined);
+        if (message) return message;
       }
       return raw || t('action_failed', 'Action failed');
+    },
+    [t]
+  );
+
+  /**
+   * The second press. The server has already said what would go; this only
+   * reads it back in words — one line per workspace, with the four counts an
+   * administrator can recognise the workspace by — and asks once more.
+   */
+  const confirmWorkspaceDeletion = useCallback(
+    async (failure: DeletionFailure) => {
+      const body =
+        failure.parsed?.workspaces || nestedBody(failure.parsed)?.workspaces;
+      const workspaces: DeletionWorkspace[] = Array.isArray(body) ? body : [];
+      if (!workspaces.length) return false;
+
+      const summary = workspaces
+        .map((workspace) =>
+          t(
+            'delete_account_workspace_summary',
+            '«{{name}}» — posts: {{posts}}, channels: {{channels}}, materials: {{materials}}, members: {{members}}',
+            {
+              name: workspace.name,
+              posts: workspace.posts,
+              channels: workspace.channels,
+              materials: workspace.materials,
+              members: workspace.members,
+            }
+          )
+        )
+        .join('; ');
+
+      return deleteDialog(
+        t(
+          'delete_account_with_workspace_confirmation',
+          'This account is the only member of workspaces that still hold content: {{summary}}. Deleting the account deletes them and everything inside them. This cannot be undone.',
+          { summary }
+        ),
+        t('delete_account_with_workspace_confirm', 'Delete with the workspace')
+      );
     },
     [t]
   );
@@ -551,12 +643,32 @@ export const AdminUsersComponent = () => {
       setBusyId(row.id);
       setSuccessMessage('');
       try {
-        const response = await fetch(`/admin/users/${row.id}/${action}`, {
-          method: 'POST',
-        });
+        const send = (deleteWorkspaces: boolean) =>
+          fetch(`/admin/users/${row.id}/${action}`, {
+            method: 'POST',
+            // The flag rides in the body, never in the URL: a link that
+            // deletes a workspace with its content has no business in browser
+            // history or a proxy log.
+            body: JSON.stringify(deleteWorkspaces ? { deleteWorkspaces } : {}),
+          });
+
+        let response = await send(false);
+        let withWorkspaces = false;
         if (!response.ok) {
-          toaster.show(await failureMessage(response), 'warning');
-          return;
+          let failure = await readFailure(response);
+          if (
+            action === 'delete' &&
+            failure.code === 'account_delete_workspace_confirm'
+          ) {
+            if (!(await confirmWorkspaceDeletion(failure))) return;
+            withWorkspaces = true;
+            response = await send(true);
+            if (!response.ok) failure = await readFailure(response);
+          }
+          if (!response.ok) {
+            toaster.show(failureMessage(failure), 'warning');
+            return;
+          }
         }
         const message =
           action === 'approve'
@@ -566,7 +678,12 @@ export const AdminUsersComponent = () => {
               : action === 'reject'
                 ? t('account_rejected', 'Pending account rejected')
                 : action === 'delete'
-                  ? t('account_deleted', 'Account deleted')
+                  ? withWorkspaces
+                    ? t(
+                        'account_deleted_with_workspace',
+                        'Account and its workspaces deleted'
+                      )
+                    : t('account_deleted', 'Account deleted')
                   : t('account_blocked', 'Account blocked');
         setSuccessMessage(message);
         toaster.show(message, 'success');
@@ -575,7 +692,15 @@ export const AdminUsersComponent = () => {
         setBusyId('');
       }
     },
-    [failureMessage, fetch, mutate, toaster, t]
+    [
+      confirmWorkspaceDeletion,
+      failureMessage,
+      fetch,
+      mutate,
+      readFailure,
+      t,
+      toaster,
+    ]
   );
 
   return (

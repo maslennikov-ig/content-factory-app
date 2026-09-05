@@ -38,9 +38,10 @@ import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import { capitalize } from 'lodash';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
-import { CopilotPopup } from '@copilotkit/react-ui';
+import { AssistantPopup } from '@contentfactory/frontend/components/copilot/assistant.popup';
 import {
   CopilotProvider,
+  useAssistantAvailable,
   useHasCopilotProvider,
 } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { DummyCodeComponent } from '@contentfactory/frontend/components/new-launch/dummy.code.component';
@@ -59,25 +60,94 @@ import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 
 
 /**
+ * Что окно помнит поверх подъёма помощника.
+ *
+ * Помощник поднимается провайдером над содержимым окна, а появление провайдера
+ * пересобирает поддерево: React меняет место детей в дереве, и обычный
+ * `useState` внутри окна начался бы заново. Для двух значений это не мелочь —
+ * «подтверждения проверены» снова закрыло бы планирование, а открытые
+ * настройки канала захлопнулись бы посреди работы, — поэтому они живут выше
+ * провайдера и подъём переживают. Всё остальное окно держит в общем хранилище
+ * (`store.ts`), которому дерево React вообще не указ.
+ */
+type ComposeSession = {
+  /** Помощника позвали: только с этого момента поднимается провайдер. */
+  assistantOpen: boolean;
+  openAssistant: () => void;
+  contextReviewedAt: string | null;
+  setContextReviewedAt: (value: string | null) => void;
+  showSettings: boolean;
+  setShowSettings: (value: boolean) => void;
+};
+
+/**
  * Помощник монтируется у окна редактора поста, а не вокруг всего приложения:
  * его провайдер обращается к рантайму сразу при монтировании, поэтому в общей
  * оболочке это был запрос к модели на каждой загрузке любой страницы
  * (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
  */
-export const ManageModal: FC<AddEditModalProps> = (props) => (
+export const ManageModal: FC<AddEditModalProps> = (props) => {
+  const existingData = useExistingData();
+  /**
+   * `content-factory-next-fn33.99`: и в самом окне провайдер поднимается не
+   * при открытии, а когда помощника позвали.
+   *
+   * Библиотека шлёт `availableAgents` на монтировании безусловно, поэтому
+   * «окно открыли» стоило запроса — у пространства с настроенным поставщиком
+   * моделей платного — каждому, кто просто пишет пост. Решение то же, каким
+   * помощник ушёл с оболочки приложения: провайдер стоит там, где им
+   * пользуются, а теперь ещё и тогда, когда им пользуются.
+   */
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const openAssistant = useCallback(() => setAssistantOpen(true), []);
+  const [contextReviewedAt, setContextReviewedAt] = useState<string | null>(
+    ((existingData?.posts?.[0] as Record<string, any> | undefined)
+      ?.contentContextReviewedAt as string | undefined) ?? null
+  );
+  const [showSettings, setShowSettings] = useState(false);
+
+  const session: ComposeSession = {
+    assistantOpen,
+    openAssistant,
+    contextReviewedAt,
+    setContextReviewedAt,
+    showSettings,
+    setShowSettings,
+  };
+
+  const content = <ManageModalContent {...props} session={session} />;
+
+  if (!assistantOpen) {
+    return content;
+  }
+
   /**
    * `requireAvailable` — потому что у пространства без ключа AI каждое открытие
    * окна давало `POST /copilot/chat -> 503` и строку в консоли
    * (`content-factory-next-fn33.28.11`). Помощник, которого нельзя позвать, не
    * поднимается вовсе, и запрос не уходит.
    */
-  <CopilotProvider requireAvailable>
-    <ManageModalContent {...props} />
-  </CopilotProvider>
-);
+  return <CopilotProvider requireAvailable>{content}</CopilotProvider>;
+};
 
-const ManageModalContent: FC<AddEditModalProps> = (props) => {
+const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = (
+  props
+) => {
   const t = useT();
+  const {
+    assistantOpen,
+    openAssistant,
+    contextReviewedAt,
+    setContextReviewedAt,
+    showSettings,
+    setShowSettings,
+  } = props.session;
+  /**
+   * Есть ли помощнику чем ответить. Тот же вопрос и та же дверь остатка квоты,
+   * которые задаёт провайдер: кнопка, за которой ничего не поднимется, — это
+   * ещё один мёртвый контрол в окне, где владелец их уже читал.
+   */
+  const assistantAvailable = useAssistantAvailable(true);
   // Поднялся ли помощник над этим окном. У пространства без ключа AI он не
   // поднимается вовсе, и тогда рисовать его панель было бы обещанием
   // собеседника, которого нет (`content-factory-next-fn33.28.11`).
@@ -96,7 +166,6 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
   const [loading, setLoading] = useState(false);
   const toaster = useToaster();
   const modal = useModals();
-  const [showSettings, setShowSettings] = useState(false);
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
   const { addEditSets, mutate, customClose, dummy } = props;
@@ -174,9 +243,9 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
   const existingPost = existingData?.posts?.[0] as
     | (Record<string, any> & { id?: string })
     | undefined;
-  const [contextReviewedAt, setContextReviewedAt] = useState<string | null>(
-    existingPost?.contentContextReviewedAt ?? null
-  );
+  // Само значение живёт выше провайдера помощника: его подъём пересобирает
+  // это поддерево, и проверка, только что записанная человеком, начиналась бы
+  // заново (`content-factory-next-fn33.99`).
   const [reviewing, setReviewing] = useState(false);
   const confirmContextReview = useCallback(async () => {
     if (!existingPost?.id) return;
@@ -187,10 +256,10 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
         { method: 'POST' }
       );
       if (!response.ok) {
-        toaster.show(
-          await postSaveErrorMessage(response, t),
-          'warning'
-        );
+        const refusal = await postSaveErrorMessage(response, t);
+        if (refusal) {
+          toaster.show(refusal, 'warning');
+        }
         return;
       }
       const answer = await response.json().catch(() => null);
@@ -671,7 +740,10 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
           // (`content-factory-next-fn33.49`). Теперь неуспешный ответ
           // оставляет окно открытым и говорит причину словами сервера.
           if (!response.ok) {
-            toaster.show(await postSaveErrorMessage(response, t), 'warning');
+            const refusal = await postSaveErrorMessage(response, t);
+            if (refusal) {
+              toaster.show(refusal, 'warning');
+            }
             setLoading(false);
             return;
           }
@@ -904,6 +976,24 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
                 className="w-[160px]"
               />
             )}
+
+            {/*
+              Кнопка помощника: она и есть то нажатие, которым поднимается
+              провайдер (`content-factory-next-fn33.99`). До нажатия помощника
+              в дереве нет, поэтому нет и его собственной круглой кнопки —
+              вместо неё стоит эта, из того же ряда стандартных контролов.
+              Пропадает она только там, где помощника нельзя позвать: там его и
+              раньше было не позвать, просто это было видно не сразу.
+            */}
+            {!assistantOpen && assistantAvailable && (
+              <Button
+                type="button"
+                variant="quiet"
+                onClick={openAssistant}
+              >
+                {t('your_assistant', 'Your Assistant')}
+              </Button>
+            )}
           </div>
           <div className="pe-[20px] flex items-center justify-end gap-[8px]">
             {existingData?.integration && (
@@ -1025,7 +1115,8 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
         </div>
       </div>
       {hasCopilot && (
-      <CopilotPopup
+      <AssistantPopup
+        defaultOpen={true}
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`
@@ -1039,13 +1130,6 @@ Here are the things you can do:
 Post content can be added using the addPostContentFor{num} function.
 After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} function.
 `}
-        labels={{
-          title: t('your_assistant', 'Your Assistant'),
-          initial: t(
-            'assistant_initial_message',
-            'Hi! I can help you to refine your social media posts.'
-          ),
-        }}
       />
       )}
     </div>

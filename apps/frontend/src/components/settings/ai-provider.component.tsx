@@ -14,11 +14,34 @@ import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
 type Provider = 'openai' | 'openrouter';
 type UsageMode = 'included' | 'workspace_key';
 
+/**
+ * The call roles, in the order a person reads them: the cheap and frequent
+ * work first, the two that decide how the writing reads last.
+ *
+ * Declared again here because this bundle cannot import a backend module.
+ * `tests/ai-role-routing.guard.test.cjs` holds the two lists together through
+ * the locale keys, so a role added on the server without a name here fails
+ * rather than becoming a setting nobody can reach.
+ */
+const AI_ROLES = [
+  'classify',
+  'extract',
+  'research',
+  'draft',
+  'judge',
+  'image',
+] as const;
+
+type AiRole = (typeof AI_ROLES)[number];
+
+type RoleModels = Partial<Record<AiRole, string>>;
+
 interface AiSettings {
   usageMode: UsageMode;
   provider: Provider;
   textModel: string;
   imageModel: string;
+  roleModels: RoleModels;
   hasKey: boolean;
   searchEnabled: boolean;
   searchProvider: 'tavily';
@@ -41,6 +64,7 @@ interface AiSettings {
     email: string | null;
     operations: number;
   }>;
+  usageByRole: Array<{ role: string | null; operations: number }>;
 }
 
 interface ModelOption {
@@ -61,11 +85,26 @@ interface AiSettingsPayloadInput {
   apiKey: string;
   textModel: string;
   imageModel: string;
+  roleModels: RoleModels;
   searchEnabled: boolean;
   searchApiKey: string;
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
 }
+
+/**
+ * A blank row means «this role uses the text model», so it is dropped rather
+ * than sent as an empty string: the door refuses an empty model id, and a
+ * person who cleared one row would otherwise be told the whole form is wrong.
+ * The id is trimmed for the same reason — an invisible trailing space carried
+ * in by a paste is not a mistake worth a refused save.
+ */
+const submittedRoleModels = (roleModels: RoleModels) =>
+  Object.fromEntries(
+    AI_ROLES.map((role) => [role, (roleModels[role] || '').trim()]).filter(
+      ([, model]) => model
+    )
+  );
 
 export const buildAiSettingsPayload = ({
   usageMode,
@@ -73,6 +112,7 @@ export const buildAiSettingsPayload = ({
   apiKey,
   textModel,
   imageModel,
+  roleModels,
   searchEnabled,
   searchApiKey,
   searchTopic,
@@ -81,7 +121,9 @@ export const buildAiSettingsPayload = ({
   usageMode,
   provider,
   ...(usageMode === 'workspace_key' && apiKey ? { apiKey } : {}),
-  ...(usageMode === 'workspace_key' ? { textModel, imageModel } : {}),
+  ...(usageMode === 'workspace_key'
+    ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
+    : {}),
   searchEnabled,
   searchProvider: 'tavily' as const,
   ...(usageMode === 'workspace_key' && searchApiKey ? { searchApiKey } : {}),
@@ -218,6 +260,7 @@ const AiProviderComponent = () => {
   const [apiKey, setApiKey] = useState('');
   const [textModel, setTextModel] = useState('');
   const [imageModel, setImageModel] = useState('');
+  const [roleModels, setRoleModels] = useState<RoleModels>({});
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
@@ -234,6 +277,7 @@ const AiProviderComponent = () => {
     setProvider(data.provider);
     setTextModel(data.textModel);
     setImageModel(data.imageModel);
+    setRoleModels(data.roleModels || {});
     setSearchEnabled(data.searchEnabled);
     setSearchTopic(data.searchTopic);
     setSearchDepth(data.searchDepth);
@@ -254,6 +298,10 @@ const AiProviderComponent = () => {
       const returning = next === data?.provider;
       setTextModel(returning ? data?.textModel || '' : '');
       setImageModel(returning ? data?.imageModel || '' : '');
+      // Role ids belong to their provider for exactly the same reason, and a
+      // routed role left behind after a switch would send that one call to an
+      // id the new provider has never heard of.
+      setRoleModels(returning ? data?.roleModels || {} : {});
     },
     [data]
   );
@@ -284,6 +332,7 @@ const AiProviderComponent = () => {
             apiKey,
             textModel,
             imageModel,
+            roleModels,
             searchEnabled,
             searchApiKey,
             searchTopic,
@@ -313,6 +362,7 @@ const AiProviderComponent = () => {
     apiKey,
     textModel,
     imageModel,
+    roleModels,
     searchEnabled,
     searchApiKey,
     searchTopic,
@@ -450,6 +500,38 @@ const AiProviderComponent = () => {
         </div>
       )}
 
+      {/*
+        The same period, read along the other axis. Routing is configured per
+        role below, so it can only be judged per role: without this list
+        «classification now runs on a small model» is a claim nobody in the
+        product can check. Rows written before the ledger carried a role keep
+        their own line rather than being dropped, so the parts still add up.
+      */}
+      {!!data?.usageByRole?.length && (
+        <div className="flex flex-col gap-[8px]">
+          <div className="cf-label-sm text-cf-ink-muted">
+            {t('ai_usage_by_role', 'AI operations by role, this period')}
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            {data.usageByRole.map((row) => (
+              <div
+                key={row.role ?? 'unrecorded'}
+                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+              >
+                <span className="truncate">
+                  {row.role
+                    ? t(`ai_role_${row.role}`, row.role)
+                    : t('ai_usage_role_unknown', 'Recorded before roles')}
+                </span>
+                <span className="cf-caption text-cf-ink-muted">
+                  {row.operations}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Select
         label={t('provider', 'Provider')}
         name="provider"
@@ -541,6 +623,45 @@ const AiProviderComponent = () => {
         disabled={usageMode === 'included'}
         onChange={setImageModel}
       />
+
+      {/*
+        One model for everything was the whole cost problem
+        (`content-factory-next-x63z`): classifying a research subject — one
+        sentence in, five short fields out — was billed at the price of writing
+        a draft. Six rows, each a plain model id, each empty by default and
+        empty meaning «the text model above», so the screen adds a lever
+        without adding a decision anybody has to make.
+      */}
+      <div className="mt-[8px] border-t border-cf-border pt-[16px]">
+        <h4 className="cf-heading-md text-cf-ink">
+          {t('ai_role_models', 'Model per call role')}
+        </h4>
+        <div className="cf-body-sm text-cf-ink-muted">
+          {t(
+            'ai_role_models_hint',
+            'Empty means the text model above. A one-sentence classification does not need the model that writes your drafts.'
+          )}
+        </div>
+      </div>
+
+      {AI_ROLES.map((role) => (
+        <Input
+          key={role}
+          label={t(`ai_role_${role}`, role)}
+          name={`ai-role-model-${role}`}
+          value={roleModels[role] || ''}
+          placeholder={t('provider_default_model', 'Provider default')}
+          disableForm={true}
+          list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
+          disabled={usageMode === 'included'}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setRoleModels((current) => ({
+              ...current,
+              [role]: event.target.value,
+            }))
+          }
+        />
+      ))}
 
       {provider === 'openrouter' && models?.error && (
         <div className="cf-body-sm text-cf-danger">

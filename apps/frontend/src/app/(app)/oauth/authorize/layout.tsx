@@ -1,9 +1,7 @@
-import { Metadata } from 'next';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { ReactNode } from 'react';
 
-export const metadata: Metadata = {
-  title: 'Authorize Application',
-};
+export const generateMetadata = pageTitle('authorize_application', 'Authorize Application');
 
 export default async function OAuthLayout({
   children,

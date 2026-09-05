@@ -57,8 +57,12 @@ const { OrganizationService } = loadTypeScriptModule(
  * A workspace with the memberships given, and a service wired to it. Only the
  * three repository calls this path makes are answered.
  */
+const isAdministrator = (role) => ['ADMIN', 'SUPERADMIN'].includes(role);
+
 const workspaceOf = (memberships) => {
   const deleted = [];
+  const administrators = () =>
+    memberships.filter((membership) => isAdministrator(membership.role)).length;
   const repository = {
     getOrgsByUserId: async (userId) =>
       memberships
@@ -67,11 +71,20 @@ const workspaceOf = (memberships) => {
           id: 'org',
           users: [{ role: membership.role }],
         })),
-    countAdmins: async () =>
-      memberships.filter((membership) =>
-        ['ADMIN', 'SUPERADMIN'].includes(membership.role)
-      ).length,
+    /**
+     * The stand-in counts before it deletes, because since
+     * `content-factory-next-fn33.102` the real repository does — inside the
+     * transaction that deletes, which is the only place the count is still
+     * true when it is used. A stand-in that dropped the rule would let the
+     * cases below prove the service refuses something nothing refuses.
+     * `tests/organization.last-admin-race.test.cjs` is where the transaction
+     * itself is proven; this file owns who may act on whom.
+     */
     deleteTeamMember: async (orgId, userId) => {
+      const membership = memberships.find((one) => one.userId === userId);
+      if (isAdministrator(membership?.role) && administrators() <= 1) {
+        throw new Error('The workspace must keep at least one administrator');
+      }
       deleted.push(userId);
       return { orgId, userId };
     },

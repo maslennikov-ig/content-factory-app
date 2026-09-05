@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpException,
@@ -9,6 +10,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { DeleteAccountDto } from '@contentfactory/nestjs-libraries/dtos/users/delete-account.dto';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { User } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
@@ -221,16 +223,27 @@ export class AdminController {
    * rejection, and for a stronger reason: this one reaches accounts that have
    * been in the product, so a forged request would be a deletion, not a
    * declined registration.
+   *
+   * `content-factory-next-fn33.32`: one door, two presses. Without
+   * `deleteWorkspaces` an account that is the only member of a workspace still
+   * holding content is answered 409 with what would go; with it, the workspace
+   * and its content go too. The flag is a body field, not a query parameter —
+   * a URL that empties a workspace has no business in browser history.
    */
   @Post('/users/:id/delete')
   async deleteUser(
     @GetUserFromRequest() user: User,
     @Param('id') id: string,
-    @Req() req: Request
+    @Req() req: Request,
+    @Body() body?: DeleteAccountDto
   ) {
     this.assertSuperAdmin(user);
     this.assertAccountRemovalRequest(user.id, req);
-    await this._usersService.deleteAccount(id, user.id);
+    await this._usersService.deleteAccount(
+      id,
+      user.id,
+      body?.deleteWorkspaces === true
+    );
     return { success: true };
   }
 

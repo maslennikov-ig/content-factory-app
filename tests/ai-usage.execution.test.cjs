@@ -68,6 +68,13 @@ function loadUsage({ transaction, create, update, config }) {
           active.run({ organizationId, config: nextConfig }, callback),
         setAiProviderSettingReader: () => undefined,
       },
+      // Importless and shared with the settings screen, so the real one is
+      // loaded: a doubled role list would let the ledger record a role the
+      // product does not have (`content-factory-next-x63z`).
+      '@contentfactory/nestjs-libraries/openai/ai.roles':
+        require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/openai/ai.roles.ts'
+        ),
       '@contentfactory/nestjs-libraries/user/acting.user': {
         getActingUserId: () => actingUser.getStore(),
       },

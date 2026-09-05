@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { zodResponseFormat } from 'openai/helpers/zod';
-import { requireActiveAiConfig } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
-import { getOpenAiClient } from '@contentfactory/nestjs-libraries/openai/ai.clients';
+import {
+  getModelForRole,
+  getOpenAiClient,
+} from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { mapResultSchema, reduceResultSchema } from './assist.contract';
 import {
@@ -133,7 +135,7 @@ export class VoiceAssistService {
           async () => {
             const client = await getOpenAiClient(organizationId);
             const completion = await client.chat.completions.parse({
-              model: (await requireActiveAiConfig(organizationId)).textModel,
+              model: await getModelForRole(organizationId),
               messages: [
                 {
                   role: 'system',
@@ -150,7 +152,10 @@ export class VoiceAssistService {
             const parsed = completion.choices[0]?.message?.parsed;
             if (!parsed) throw new Error('model returned no structured answer');
             return parsed;
-          }
+          },
+          // Explaining numbers already counted from the author's own text.
+          // Nothing is written here, so this need not be the drafting model.
+          'extract'
         ),
     };
   }
@@ -180,7 +185,7 @@ export class VoiceAssistService {
       async () => {
         const client = await getOpenAiClient(input.organizationId);
         const completion = await client.chat.completions.parse({
-          model: (await requireActiveAiConfig(input.organizationId)).textModel,
+          model: await getModelForRole(input.organizationId),
           messages: [
             {
               role: 'system',
@@ -197,7 +202,10 @@ export class VoiceAssistService {
         const parsed = completion.choices[0]?.message?.parsed;
         if (!parsed) throw new Error('model returned no structured answer');
         return parsed;
-      }
+      },
+      // Weighing and rewriting one sentence against the author's manner: the
+      // expensive half of the voice work, and the one worth a capable model.
+      'judge'
     );
   }
 }

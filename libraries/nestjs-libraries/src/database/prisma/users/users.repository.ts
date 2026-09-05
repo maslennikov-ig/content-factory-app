@@ -3,8 +3,7 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { HttpException, Injectable } from '@nestjs/common';
-import { Provider, Role } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { Prisma, Provider, Role } from '@prisma/client';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
 import { EmailNotificationsDto } from '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto';
@@ -94,6 +93,29 @@ const EMPTY_ORGANIZATION_RELATIONS: Prisma.OrganizationWhereInput = {
   contentDerivations: { none: {} },
   contentLeadSubscriptions: { none: {} },
   contentLeads: { none: {} },
+};
+
+/**
+ * The rows a workspace deletion must not carry away, matched rather than
+ * counted: a marketplace conversation and an order item name a second party
+ * and a payment, so `MessagesGroup.buyerOrganizationId` and
+ * `OrderItems.integrationId` are the two Organization-reachable foreign keys
+ * left without `ON DELETE CASCADE` (`content-factory-next-fn33.32`). A
+ * workspace holding either is refused, with the code the screen already reads,
+ * instead of meeting a foreign-key error halfway through the delete.
+ *
+ * The marketplace has no screen in Content Factory, so in practice this matches
+ * nothing; it exists so that the day it does, the answer is a sentence.
+ */
+const MARKETPLACE_ORGANIZATION_ROWS: Prisma.OrganizationWhereInput = {
+  OR: [
+    { buyerOrganization: { some: {} } },
+    { Integration: { some: { orderItems: { some: {} } } } },
+    // Posts another workspace submitted here: `submittedForOrganizationId`
+    // is `SET NULL`, not cascade, so deleting this workspace would blank a
+    // row that belongs to someone else (review of the 05.09 wave).
+    { submittedPost: { some: {} } },
+  ],
 };
 
 /**
@@ -571,6 +593,9 @@ export class UsersRepository {
                 apiKey: null,
                 textModel: null,
                 imageModel: null,
+                // Карта «модель на роль» (x63z) — такая же настройка, как
+                // textModel: область, где её задали, уже не пустая.
+                roleModels: { equals: Prisma.DbNull },
                 searchEnabled: false,
                 searchApiKey: null,
               },
@@ -586,9 +611,10 @@ export class UsersRepository {
           );
         }
 
-        // UserOrganization has no schema cascade. Tags and AiProviderSetting are
-        // the registration seed; the query above proves every other direct org
-        // relation empty before any mutation, including cascade-backed content.
+        // UserOrganization cascades since fn33.32, but this path deletes the
+        // membership explicitly all the same: the proof above is about an
+        // *empty* workspace, and the order of the two deletes is the record of
+        // it. Tags and AiProviderSetting are the registration seed.
         await tx.userOrganization.deleteMany({
           where: { userId: user.id, organizationId },
         });
@@ -620,10 +646,18 @@ export class UsersRepository {
    * every workspace, removes the workspaces where they were the only member,
    * and leaves shared workspaces standing with their other members.
    *
-   * It refuses rather than guesses in three places. Two of them are because
-   * Postgres would otherwise refuse for us with a foreign-key error nobody can
-   * act on: a sole workspace that still holds content, and a person who still
-   * owns rows of their own (comments, marketplace records, an approved app).
+   * A sole workspace that still holds content is no longer a dead end
+   * (`content-factory-next-fn33.32`). The first call answers 409 with what
+   * would go — posts, channels, materials, members — and the second one, with
+   * `deleteWorkspaces`, carries it out. The Organization relations gained
+   * `ON DELETE CASCADE` for exactly this, so Postgres removes the content and
+   * this method removes the workspace; there is no list of `deleteMany` calls
+   * here that could fall behind the schema.
+   *
+   * It still refuses rather than guesses where the answer is not this door's
+   * to give: a person who still owns rows of their own (comments, marketplace
+   * records, an approved app), and a workspace holding marketplace rows, which
+   * record money and a second party and are deliberately outside the cascade.
    *
    * The third is `content-factory-next-fn33.108` and nothing would have
    * refused it: a shared workspace whose only administrator this account is.
@@ -637,12 +671,9 @@ export class UsersRepository {
    * different «supers», and once the creator became an ordinary `ADMIN` the
    * cover was gone.
    *
-   * All three refusals carry a code so the screen can say which one happened.
-   * Deleting a workspace *with* its content is deliberately not done here —
-   * almost no Organization relation carries a delete cascade, so it is a
-   * schema change and its own decision, not a flag on this call.
+   * Every refusal carries a code so the screen can say which one happened.
    */
-  async deleteAccount(id: string) {
+  async deleteAccount(id: string, deleteWorkspaces = false) {
     return this.serializableWithRetry(
       async (tx) => {
         const user = await tx.user.findUnique({
@@ -682,12 +713,15 @@ export class UsersRepository {
           }
         }
 
+        // The one thing the cascade deliberately does not carry away, so it is
+        // still a refusal and still the old code: a marketplace conversation or
+        // order records money and a second party.
         for (const organizationId of soleOrganizationIds) {
-          const empty = await tx.organization.findFirst({
-            where: { id: organizationId, ...EMPTY_ORGANIZATION_RELATIONS },
+          const marketplace = await tx.organization.findFirst({
+            where: { id: organizationId, ...MARKETPLACE_ORGANIZATION_ROWS },
             select: { id: true },
           });
-          if (!empty) {
+          if (marketplace) {
             throw new HttpException(
               {
                 message:
@@ -697,6 +731,50 @@ export class UsersRepository {
               409
             );
           }
+        }
+
+        const filledOrganizationIds: string[] = [];
+        for (const organizationId of soleOrganizationIds) {
+          const empty = await tx.organization.findFirst({
+            where: { id: organizationId, ...EMPTY_ORGANIZATION_RELATIONS },
+            select: { id: true },
+          });
+          if (!empty) filledOrganizationIds.push(organizationId);
+        }
+
+        // The second press is what authorises the workspace to go with its
+        // content. Without it the answer is not «no» but «this is what would
+        // go» — the names and the four counts the screen reads out.
+        if (filledOrganizationIds.length && !deleteWorkspaces) {
+          const workspaces = [];
+          for (const organizationId of filledOrganizationIds) {
+            const membership = user.organizations.find(
+              (row) => row.organizationId === organizationId
+            );
+            workspaces.push({
+              name: membership?.organization.name ?? '',
+              posts: await tx.post.count({ where: { organizationId } }),
+              channels: await tx.integration.count({
+                where: { organizationId },
+              }),
+              materials: await tx.contentPiece.count({
+                where: { organizationId },
+              }),
+              members: await tx.userOrganization.count({
+                where: { organizationId },
+              }),
+            });
+          }
+
+          throw new HttpException(
+            {
+              message:
+                'This account is the only member of a workspace that still holds content',
+              code: 'account_delete_workspace_confirm',
+              workspaces,
+            },
+            409
+          );
         }
 
         // The workspaces this account shares with somebody else. A sole
@@ -760,8 +838,11 @@ export class UsersRepository {
           );
         }
 
+        // No `deleteMany` list here on purpose. The schema carries the delete
+        // rule, so a table added later goes with its workspace without anybody
+        // remembering to add a line; a list would have to be kept in step and
+        // would fail with a foreign-key error the day it was not.
         for (const organizationId of soleOrganizationIds) {
-          await tx.tags.deleteMany({ where: { orgId: organizationId } });
           await tx.organization.delete({ where: { id: organizationId } });
         }
 
@@ -1253,7 +1334,9 @@ export class UsersRepository {
         id: userId,
       },
       data: {
-        name: body.fullname,
+        // Пустое имя — не имя из пробелов и не «undefined»: колонка
+        // очищается, и подпись берётся из адреса (fn33.96).
+        name: body.fullname?.trim() || null,
         bio: body.bio,
         picture: body.picture
           ? {

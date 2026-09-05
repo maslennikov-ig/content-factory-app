@@ -114,6 +114,58 @@ describe('a step closes because the work is done', () => {
   });
 });
 
+describe('the voice step counts the corpus the screens show', () => {
+  /**
+   * `content-factory-next-za05`. The count asked for every
+   * `BrandVoiceSample` row in the organisation. Two kinds of row are not
+   * corpus: one soft-deleted (`deletedAt`), which every other reader in
+   * `voice-sample.repository.ts` already skips, and a `STYLE_REFERENCE` past
+   * its retention date, whose `text` `purgeExpiredReferences` erases in place
+   * while keeping the row so the corpus history stays readable. Either one
+   * ticked the voice step for a workspace whose «Аватары» tab has nothing
+   * left to measure.
+   */
+  const loadRepository = () =>
+    require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+      FILES.repository,
+      {
+        '@nestjs/common': { Injectable: () => (target) => target },
+        '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {},
+      }
+    );
+
+  const askedFor = async () => {
+    const asked = {};
+    const counter = (name) => ({
+      count: async ({ where }) => {
+        asked[name] = where;
+        return 0;
+      },
+    });
+    const { OnboardingRepository } = loadRepository();
+    await new OnboardingRepository({
+      model: {
+        integration: counter('integration'),
+        brandVoiceSample: counter('brandVoiceSample'),
+        contentFact: counter('contentFact'),
+        post: counter('post'),
+      },
+    }).progress('org-a');
+    return asked;
+  };
+
+  test('a deleted sample is not counted', async () => {
+    const where = (await askedFor()).brandVoiceSample;
+    expect(where.organizationId).toBe('org-a');
+    expect(where.deletedAt).toBeNull();
+  });
+
+  test('a reference sample erased by its own retention date is not counted', async () => {
+    const where = (await askedFor()).brandVoiceSample;
+    expect(where.text).toEqual({ not: '' });
+  });
+});
+
 describe('the walkthrough leads into the product', () => {
   test('every step names somewhere to go, and it is not this page', () => {
     for (const step of adapter.ONBOARDING_STEP_KEYS) {

@@ -8,6 +8,13 @@ export type ContentLeadErrorCode =
   | 'POLICY_DISABLED'
   | 'SUBSCRIPTION_NOT_FOUND'
   | 'SUBSCRIPTION_CONFLICT'
+  // `content-factory-next-ni7x`. Two ceilings, not two failures: the
+  // workspace already holds as many feeds as it may, and the feed was
+  // opened a moment ago. Both are refusals a person can act on by waiting
+  // or by unsubscribing, which is why they carry their own codes rather
+  // than joining `CHECK_FAILED`.
+  | 'SUBSCRIPTION_LIMIT'
+  | 'CHECK_TOO_SOON'
   | 'LEAD_NOT_FOUND'
   | 'LEAD_NOT_NEW'
   | 'INVALID_URL'

@@ -39,6 +39,12 @@ import {
   type GroundingEnvelope,
 } from './content-archive.adapter';
 import { resolveContentLocale } from './content-section.copy';
+import {
+  ContentReadOnlyNote,
+  WRITE_ALLOWED,
+  readWriteRight,
+  type ContentWriteRight,
+} from './content-write-right';
 // The recut panel's own dictionary of platform and language names. Read from
 // there rather than restated, so one section cannot call the same platform
 // «ВКонтакте» on one screen and `vk` on the next
@@ -143,6 +149,10 @@ const copy = {
     importFailed: 'Материал не занёсся. Ничего не потеряно, проверьте поля и попробуйте ещё раз.',
     importSucceeded: 'Занесено в архив',
     rightsNote: 'Это ваш текст, поэтому подтверждать право на него не нужно.',
+    readOnlyRole:
+      'Заносить тексты в архив сейчас может только администратор рабочего пространства. Архив остаётся открытым для чтения.',
+    readOnlyPlan:
+      'Тариф рабочего пространства сейчас не разрешает занести ещё один текст. Архив остаётся открытым для чтения.',
   },
   en: {
     title: 'What has already been written',
@@ -207,6 +217,10 @@ const copy = {
     importFailed: 'The material was not brought in. Nothing is lost — check the fields and try again.',
     importSucceeded: 'Added to the archive',
     rightsNote: 'This is your own text, so no confirmation of rights is needed.',
+    readOnlyRole:
+      'Only a workspace administrator may bring texts into the archive right now. The archive stays open to read.',
+    readOnlyPlan:
+      "This workspace's plan does not allow bringing in another text right now. The archive stays open to read.",
   },
 } as const;
 
@@ -411,11 +425,20 @@ function ImportDialog({
   t,
   onClose,
   onImported,
+  onRefused,
 }: {
   locale: Locale;
   t: (typeof copy)[Locale];
   onClose: () => void;
   onImported: () => void;
+  /**
+   * `content-factory-next-cl19`: a refusal by right belongs to the screen,
+   * not to this form. `POST …/archive/import` carries
+   * `[Create, Sections.POSTS_PER_MONTH]`, and once it has answered `402` the
+   * whole «Занести текст» door is shut — keeping the dialog open over it
+   * would ask the person to keep typing into a form that cannot be saved.
+   */
+  onRefused: (right: ContentWriteRight) => void;
 }) {
   const request = useFetch();
   const read = useMemo(() => jsonReader(request), [request]);
@@ -433,11 +456,13 @@ function ImportDialog({
       });
       onImported();
     } catch (error) {
-      setFailure(readFailure(error, t.importFailed));
+      const right = readWriteRight(error);
+      if (!right.allowed) onRefused(right);
+      else setFailure(readFailure(error, t.importFailed));
     } finally {
       setBusy(false);
     }
-  }, [draft, onImported, read, t.importFailed]);
+  }, [draft, onImported, onRefused, read, t.importFailed]);
 
   return (
     <Dialog
@@ -607,6 +632,15 @@ export function ContentArchiveContainer() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [groundingRow, setGroundingRow] = useState<ArchiveRow | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  /** What the server has said about the right to bring a text in. */
+  const [writeRight, setWriteRight] = useState<ContentWriteRight>(WRITE_ALLOWED);
+  const canImport = writeRight.allowed;
+  const readOnlyNoteId = 'content-archive-read-only';
+
+  const refuseImport = useCallback((right: ContentWriteRight) => {
+    setWriteRight(right);
+    setImportOpen(false);
+  }, []);
 
   const toggleText = useCallback((id: string) => {
     setExpanded((current) => {
@@ -639,10 +673,25 @@ export function ContentArchiveContainer() {
           </h2>
           <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.body}</p>
         </div>
-        <Button variant="primary" onClick={() => setImportOpen(true)}>
+        <Button
+          variant="primary"
+          disabled={!canImport}
+          aria-describedby={canImport ? undefined : readOnlyNoteId}
+          onClick={() => setImportOpen(true)}
+        >
           {t.importAction}
         </Button>
       </div>
+
+      {!canImport && (
+        <ContentReadOnlyNote
+          id={readOnlyNoteId}
+          surface="archive"
+          refusal={writeRight.refusal ?? 'plan'}
+        >
+          {writeRight.refusal === 'role' ? t.readOnlyRole : t.readOnlyPlan}
+        </ContentReadOnlyNote>
+      )}
 
       {listFailure ? (
         <ErrorState
@@ -776,6 +825,7 @@ export function ContentArchiveContainer() {
             setImportOpen(false);
             void archive.mutate();
           }}
+          onRefused={refuseImport}
         />
       )}
     </section>

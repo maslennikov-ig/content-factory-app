@@ -34,6 +34,49 @@ const BACKEND_REFUSALS: Record<string, { key: string; fallback: string }> = {
     fallback: 'You are not allowed to perform this action.',
   },
 };
+/**
+ * Пределы тарифа, которые тот же фильтр присылает с 402, и ключ, под которым
+ * человек читает каждый на своём языке.
+ *
+ * `content-factory-next-nkei`. Устройство то же, что у таблицы выше, и по той
+ * же причине: сервер отвечает API, у него нет ни языка браузера, ни i18next, а
+ * его английская фраза — это ещё и то, что читает клиент API. Разница только в
+ * том, что здесь отказ можно снять оплатой, поэтому у модалки есть кнопка в
+ * тарифы.
+ *
+ * `tests/plan-refusal-localized.test.cjs` держит таблицу против фильтра.
+ */
+const PLAN_REFUSALS: Record<string, { key: string; fallback: string }> = {
+  'You have reached the maximum number of posts for your subscription. Please upgrade your subscription to add more posts.':
+    {
+      key: 'plan_refusal_posts',
+      fallback:
+        'You have used every post your plan includes this month. Change the plan to write more.',
+    },
+  'You have reached the maximum number of channels for your subscription. Please upgrade your subscription to add more channels.':
+    {
+      key: 'plan_refusal_channels',
+      fallback:
+        'You have connected every channel your plan includes. Change the plan to add more.',
+    },
+  'You have reached the maximum number of webhooks for your subscription. Please upgrade your subscription to add more webhooks.':
+    {
+      key: 'plan_refusal_webhooks',
+      fallback:
+        'You have added every webhook your plan includes. Change the plan to add more.',
+    },
+  'You have reached the maximum number of generated videos for your subscription. Please upgrade your subscription to generate more videos.':
+    {
+      key: 'plan_refusal_videos',
+      fallback:
+        'You have used every generated video your plan includes this month. Change the plan to generate more.',
+    },
+  'You are not allowed to perform this action.': {
+    key: 'plan_refusal_generic',
+    fallback:
+      'Your plan does not include this action. Change the plan to continue.',
+  },
+};
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -168,20 +211,46 @@ function LayoutContextInner(params: { children: ReactNode }) {
         return false;
       }
 
+      // Предел тарифа. Одно место показа на весь продукт: раньше модалка
+      // печатала `undefined` (у тела есть `message`, но читалось оно до того,
+      // как фильтр научился его писать), а экран под ней показывал вторую
+      // плашку без причины — человек с исчерпанным месячным пределом получал
+      // два сообщения и ни одного объяснения (`content-factory-next-nkei`).
       if (response.status === 402) {
+        const body = await response
+          .json()
+          .then((parsed: { message?: string | string[]; code?: string }) => parsed)
+          .catch(() => undefined);
+        // Отказ, который называет себя, принадлежит поверхности, которая
+        // спрашивала, — то же правило, что на 403 выше.
+        if (typeof body?.code === 'string' && body.code) {
+          return true;
+        }
+
+        const raw = Array.isArray(body?.message)
+          ? body?.message[0]
+          : body?.message;
+        const refusal = typeof raw === 'string' ? raw.trim() : '';
+        const known = PLAN_REFUSALS[refusal];
+        const description = known
+          ? i18next.t(known.key, known.fallback)
+          : refusal ||
+            i18next.t(
+              'plan_refusal_generic',
+              'Your plan does not include this action. Change the plan to continue.'
+            );
+
         if (
           await deleteDialog(
-            (
-              await response.json()
-            ).message,
-            'Move to billing',
-            'Payment Required'
+            description,
+            i18next.t('plan_refusal_billing', 'Move to billing'),
+            i18next.t('plan_refusal_title', 'Plan limit reached'),
+            i18next.t('close', 'Close')
           )
         ) {
           window.open('/billing', '_blank');
-          return false;
         }
-        return true;
+        return false;
       }
       return true;
     },

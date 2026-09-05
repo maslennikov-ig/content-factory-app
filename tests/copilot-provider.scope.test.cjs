@@ -35,10 +35,17 @@ const PICK_PLATFORMS =
  * Эти файлы пользуются помощником, но провайдер им даёт родитель: `editor.tsx`
  * рисуется только внутри окна редактора поста, `agent.input.tsx` — только
  * внутри чата агента, у которого свой <CopilotKit>.
+ *
+ * `assistant.popup.tsx` — сама панель помощника
+ * (`content-factory-next-fn33.118`): она не потребитель, который решает,
+ * поднимать ли провайдер, а то, что рисует поверхность, уже его поднявшая.
+ * Условие `hasCopilot` стоит у той поверхности, и проверка ниже — «панель
+ * помощника рисуется только под поднятым провайдером» — держит его на месте.
  */
 const PROVIDED_BY_PARENT = [
   'apps/frontend/src/components/new-launch/editor.tsx',
   'apps/frontend/src/components/agents/agent.input.tsx',
+  'apps/frontend/src/components/copilot/assistant.popup.tsx',
 ];
 
 /**
@@ -224,9 +231,11 @@ describe('помощник не поднимается там, где его н�
     const source = read(MODAL);
     expect(source).toMatch(/useHasCopilotProvider/);
     expect(source).toMatch(/hasCopilot && \(/);
-    // И сама панель стоит внутри этого условия, а не рядом с ним.
+    // И сама панель стоит внутри этого условия, а не рядом с ним. С
+    // `content-factory-next-fn33.118` окно рисует `AssistantPopup` — ту же
+    // панель библиотеки, но с русскими ярлыками кнопок.
     const guard = source.indexOf('hasCopilot && (');
-    const popup = source.indexOf('<CopilotPopup');
+    const popup = source.indexOf('<AssistantPopup');
     expect(guard).toBeGreaterThan(-1);
     expect(popup).toBeGreaterThan(guard);
   });

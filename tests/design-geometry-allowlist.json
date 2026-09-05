@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "total": 1006,
+  "total": 1002,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -61,7 +61,7 @@
       "priorSourceRoots": [
         "apps/frontend/src"
       ],
-      "priorTotal": 961,
+      "priorTotal": 957,
       "addedSourceRoots": {
         "libraries/react-shared-libraries/src": {
           "occurrences": 45,
@@ -73,13 +73,13 @@
         }
       },
       "addedOccurrences": 45,
-      "combinedTotal": 1006,
-      "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control. The 10 that came out on 04.09.2026 are the channel menu on the calendar: ten hand-positioned rows became menu items on the shared control, which states its own padding (`content-factory-next-fn33.91`)."
+      "combinedTotal": 1002,
+      "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control. The 10 that came out on 04.09.2026 are the channel menu on the calendar: ten hand-positioned rows became menu items on the shared control, which states its own padding (`content-factory-next-fn33.91`). The 1 that came out on 05.09.2026 is the handover button: a `<button>` wrapped in an `<a>` became one anchor drawing `buttonClassName`, so the action scale it had retyped comes from the primitive (`content-factory-next-za05`). Ещё 2 вышли 05.09.2026 вместе с крестиком «убрать канал» во втором ряду кругов окна поста: смещения -1px/-3px стали ритмичными -4px, когда 8-пиксельный значок ошибки стал 16-пиксельной кнопкой действия (`content-factory-next-fn33.76`). Ещё 1 вышел 05.09.2026 со счётчиком символов окна поста: три почти одинаковых блока «число/предел» стали одной строкой, и десятипиксельный размер записан один раз вместо двух (`content-factory-next-fn33.76`)."
     }
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 961,
+      "total": 957,
       "allowances": {
         "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
           "3px": 1,
@@ -304,7 +304,7 @@
         "apps/frontend/src/components/launches/information.component.tsx": {
           "5px": 1,
           "6px": 2,
-          "10px": 2,
+          "10px": 1,
           "14px": 1,
           "30px": 1
         },
@@ -613,8 +613,8 @@
           "17px": 1
         },
         "apps/frontend/src/components/new-launch/select.current.tsx": {
-          "1px": 2,
-          "3px": 2,
+          "1px": 1,
+          "3px": 1,
           "6px": 1,
           "26px": 3,
           "55px": 1
@@ -650,7 +650,7 @@
         "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
           "2px": 1,
           "13px": 1,
-          "14px": 10
+          "14px": 9
         },
         "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
           "14px": 1,

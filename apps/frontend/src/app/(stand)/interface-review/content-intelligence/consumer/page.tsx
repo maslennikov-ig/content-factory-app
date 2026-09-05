@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  ContentIntelligenceCitationSelector,
-  ContentIntelligenceContextSummary,
-} from '@contentfactory/frontend/components/new-launch/editor';
+import { ContentIntelligenceCitationSelector } from '@contentfactory/frontend/components/new-launch/editor';
+import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 import type { ContentIntelligenceProvenance } from '@contentfactory/frontend/components/new-launch/store';
 
 const readyContext: ContentIntelligenceProvenance = Object.freeze({
@@ -85,11 +83,7 @@ export default function ConsumerContentIntelligenceReviewPage() {
           <h2 id="ready-context-title" className="cf-heading-md mb-[12px]">
             Ready provenance
           </h2>
-          <ContentIntelligenceContextSummary
-            provenance={readyContext}
-            loadState="ready"
-            failure={null}
-          />
+          <ProvenanceLine provenance={readyContext} confirmationCount={1} />
           <ContentIntelligenceCitationSelector
             citations={readyContext.availableCitations}
             selectedCitationIds={selected}
@@ -111,26 +105,7 @@ export default function ConsumerContentIntelligenceReviewPage() {
           <h2 id="neutral-context-title" className="cf-heading-md mb-[12px]">
             Neutral fallback
           </h2>
-          <ContentIntelligenceContextSummary
-            provenance={neutralContext}
-            loadState="ready"
-            failure={null}
-          />
-        </section>
-
-        <section
-          className="rounded-[12px] border border-cf-border bg-cf-surface p-[16px]"
-          aria-labelledby="blocked-context-title"
-          data-review-state="error"
-        >
-          <h2 id="blocked-context-title" className="cf-heading-md mb-[12px]">
-            Evidence required
-          </h2>
-          <ContentIntelligenceContextSummary
-            provenance={null}
-            loadState="error"
-            failure="CONTENT_EVIDENCE_REQUIRED"
-          />
+          <ProvenanceLine provenance={neutralContext} />
         </section>
       </div>
     </main>

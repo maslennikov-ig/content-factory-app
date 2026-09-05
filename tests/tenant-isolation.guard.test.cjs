@@ -25,10 +25,13 @@
  *
  * It has two halves, and the split is the point. `ALLOWED` holds the ones that
  * were read and are legitimate, each with its reason. `UNREVIEWED` holds the
- * ones nobody has read yet: they keep the guard green so it can be turned on
- * today, and they are visible, counted and shrinking, so «green» never comes
- * to mean «checked». Blessing an unread query is how a suite ends up proving a
- * node instead of the wiring.
+ * ones nobody has read yet: it kept the guard green on the day it was turned
+ * on, while ten queries were still being worked through, and it is empty now.
+ * Empty is enforced rather than observed — the ceiling used to be ten, which
+ * was right while the backlog was shrinking and wrong the moment it emptied,
+ * because a list that «may only shrink» with ten free places can still grow
+ * ten times. Blessing an unread query is how a suite ends up proving a node
+ * instead of the wiring.
  *
  * Two holes were found the day it was written, and both were the same shape —
  * an organisation carried all the way down and dropped at the last line.
@@ -37,12 +40,22 @@
  * image list is whatever the person submitting it sent. In both cases the
  * neighbouring method — `deleteTag`, `deleteMedia` — had always filtered.
  *
- * One weakness to know about. An entry is keyed by file, model and operation,
- * so several call sites in one file collapse into one line: a legitimate one
- * can mask an illegitimate one beside it. Two entries below are marked as key
- * collapse for exactly that reason. Narrowing the key to a line number would
- * trade this for a ledger that churns on every edit; the honest answer is that
- * this guard finds the shape, and reading the file is still the check.
+ * The weakness this used to carry, and how it went. An entry was keyed by
+ * file, model and operation, so every call site in one file collapsed into one
+ * line and a legitimate one masked whatever stood beside it. Two entries were
+ * marked «key collapse» and left. `content-factory-next-5w6u` narrowed the key
+ * by the method the call sits in — not by line number, which would churn on
+ * every edit, and not by file, which was the defect. Twenty-four lines became
+ * forty, and the nineteen that appeared had never been read by anybody. Two of
+ * the old reasons turned out to describe a different call from the one they
+ * were filed under: `oAuthApp.findFirst` was excused as «the flagged
+ * occurrence does filter», and the occurrence that is actually flagged is
+ * `getAppByClientId`, which does not filter and should not.
+ *
+ * What is left of the weakness: two call sites of the same model and operation
+ * inside one method still share a line. Three such pairs exist and are listed
+ * in `COLLAPSED` with what the second one is, so a third call appearing inside
+ * one of those methods is a red test rather than a shrug.
  */
 
 const fs = require('node:fs');
@@ -107,15 +120,68 @@ const whereClause = (source, from) => {
 };
 
 /**
+ * Does this `where` name a row rather than describe a set?
+ *
+ * `id` as a key of the clause, at any depth the balanced read reaches. The
+ * character before it has to be a brace, a comma or space, which is what keeps
+ * `organizationId:` and `contentContextSnapshotId:` out — an identifier
+ * ending in `Id` is a foreign key, not the row's own name.
+ */
+const namesARow = (code) => /(^|[{,\s])id\s*:/.test(code);
+
+/**
+ * The method a call sits in, found by walking back to the nearest declaration.
+ *
+ * `content-factory-next-5w6u`. The ledger used to be keyed by file, so five
+ * `post.update` call sites in `posts.repository.ts` shared one line and one
+ * excuse; a sixth would have inherited it. A line number would be exact and
+ * would churn on every edit above it, which turns the ledger into noise and
+ * teaches everyone to re-record it without reading. A method name is stable
+ * for as long as the method means the same thing, and when it is renamed the
+ * entry goes stale — which is the ledger asking to be read again, correctly.
+ *
+ * Two shapes are recognised: a class member at two-space indentation, and a
+ * top-level function or arrow. Nothing else lives at those indentations in
+ * this package.
+ */
+const MEMBER =
+  /^ {2}(?:(?:public|private|protected|static|readonly|async|get|set)\s+)*([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\(/;
+const TOP_LEVEL =
+  /^(?:export\s+)?(?:async\s+)?(?:function\s+([A-Za-z_$][\w$]*)|const\s+([A-Za-z_$][\w$]*)\s*=)/;
+
+const enclosingMethod = (source, index) => {
+  const lines = source.slice(0, index).split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const member = MEMBER.exec(lines[i]);
+    if (member) return member[1];
+    const top = TOP_LEVEL.exec(lines[i]);
+    if (top) return top[1] || top[2];
+  }
+  return '(file)';
+};
+
+/**
  * Queries against an org-scoped model whose `where` does not name the
- * organisation. `findMany` and `count` are left out on purpose: a listing
- * without a filter is a listing of nothing useful and shows up immediately,
- * while a `findUnique` by id that quietly crosses a boundary does not.
+ * organisation.
+ *
+ * `count` is left out on purpose: a count without a filter answers a number
+ * about everybody, which is a different and much smaller thing than handing a
+ * row over.
+ *
+ * `findMany` used to be left out beside it, on the reasoning that a listing
+ * without a filter is a listing of nothing useful and shows up immediately.
+ * That is true of a listing. It is not true of `findMany` used as a lookup:
+ * `content-factory-next-fn33.101` found the ownership check in
+ * `posts.repository.ts` reading `{ id: { in: requestedPostIds } }` — ids the
+ * client sent — with no organisation named. That one is deliberate and is
+ * written into `ALLOWED` below with its reasoning, but the guard could not
+ * see it, and so could not have seen the next one. So `findMany` is scanned
+ * when its `where` names a row, and still ignored when it describes a set.
  */
 const unfilteredQueries = () => {
   const models = orgScopedModels();
   const call =
-    /\.(\w+)\.(findFirst|findUnique|update|delete|updateMany|deleteMany)\s*\(\s*\{/g;
+    /\.(\w+)\.(findFirst|findUnique|findMany|update|delete|updateMany|deleteMany)\s*\(\s*\{/g;
   const found = [];
   for (const file of sourceFiles(LIBRARY)) {
     const source = read(file);
@@ -132,112 +198,213 @@ const unfilteredQueries = () => {
         .replace(/\/\*[\s\S]*?\*\//g, ' ')
         .replace(/\/\/[^\n]*/g, ' ');
       if (/organizationId|orgId/.test(code)) continue;
-      found.push(`${file} ${model}.${operation}`);
+      if (operation === 'findMany' && !namesARow(code)) continue;
+      found.push(
+        `${file} ${model}.${operation} in ${enclosingMethod(source, match.index)}`
+      );
     }
   }
   return found.sort();
 };
 
+
+const PRISMA = 'libraries/nestjs-libraries/src/database/prisma';
+const CI = 'libraries/nestjs-libraries/src/content-intelligence';
+
 /**
- * Read on 03.09.2026 and legitimate: none is reachable with an identifier a
- * caller chose. This list may only shrink.
+ * Read and legitimate: none is reachable with an identifier a caller chose.
+ * This list may only shrink.
+ *
+ * Twenty-four of these were read on 03.09.2026 under a key that named only the
+ * file, and nineteen more became visible on 05.09.2026 when
+ * `content-factory-next-5w6u` narrowed the key to the method. The nineteen are
+ * marked with that date. Two of them had been standing behind a reason written
+ * about a different call.
  */
 const ALLOWED = new Map([
   [
-    'libraries/nestjs-libraries/src/database/prisma/users/users.repository.ts userOrganization.deleteMany',
-    'Account deletion by the instance administrator (`content-factory-next-fn33.23`): the subject is the person, not a workspace, so their membership rows go from every organisation at once; the rejection path three screens above keeps its `organizationId`.',
+    `${PRISMA}/users/users.repository.ts userOrganization.deleteMany in deleteAccount`,
+    'Account deletion by the instance administrator (`content-factory-next-fn33.23`): the subject is the person, not a workspace, so their membership rows go from every organisation at once; the rejection path in the same file keeps its `organizationId`.',
   ],
   [
-    'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-sample.repository.ts brandVoiceSample.updateMany',
+    `${CI}/brand-voice/voice-sample.repository.ts brandVoiceSample.updateMany in purgeExpiredReferences`,
     'Retention purge, deliberately across every organisation: a retention date is a promise about a calendar, not about who opens a page.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts post.updateMany',
-    'Cascade after the integration was found by the composite `organizationId_internalId` key three lines above; the posts are that integration\'s own.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts integration.update',
-    'Same cascade, same already-org-scoped `existing`.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts integration.updateMany',
-    'Deduplicates by `rootInternalId` across organisations by design: one reconnected account must not leave two live rows.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts post.findFirst',
-    'Marketplace order lookup, filtered by seller and buyer identity instead; the upstream marketplace is not enabled here.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts oAuthAuthorization.findFirst',
-    'An OAuth authorization is keyed by its own opaque code, which is the credential.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts oAuthAuthorization.update',
-    'Same row, same code.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts oAuthAuthorization.updateMany',
-    'Expiry sweep over codes, not over workspaces.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/organizations/organization.repository.ts userOrganization.findFirst',
-    'Reads a membership row by its own id in order to resolve which organisation it is; filtering by the answer would be circular.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts post.findFirst',
-    'An existence probe over a client-minted `group`, and it has to see across organisations to do its job: the composer mints the group before anything is saved, so "free" and "taken by someone else" have to be told apart. It selects `id`, nothing from the row is returned, and the only answer it can produce is the same 404 as a group that does not exist. Key collapse: the group lookup immediately above it is org-scoped, as the file shows.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts post.update',
-    '`changeState` is called only from Temporal workflows, with an id from their own payload — never from a request.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/product-events/product-events.repository.ts productEvent.deleteMany',
-    'Retention prune by age across every organisation.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts subscription.findFirst',
-    'Looked up by the billing provider\'s own identifier, which is what the webhook carries.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/openai/ai.usage.service.ts aiUsageRecord.update',
-    'Closes the ledger row this very call opened, by the id it just received back.',
-  ],
-  [
-    'libraries/nestjs-libraries/src/content-intelligence/source-registry/source-registry.repository.ts contentSource.findUnique',
+    `${CI}/source-registry/source-registry.repository.ts contentSource.findUnique in createOrGet`,
     'False positive of this scan: the `where` is a variable built above and it holds the composite `organizationId_kind_canonicalKey` key. The scan cannot follow indirection and errs towards flagging.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/autopost/autopost.repository.ts autoPost.findUnique',
+    `${CI}/source-registry/source-registry.repository.ts contentSource.findUnique in createManualSource`,
+    'Same variable, same composite key, same false positive. Read on 05.09.2026: the old ledger held one line for this file and this method was the half nobody had looked at.',
+  ],
+  [
+    `${PRISMA}/admin-stats/admin-stats.repository.ts integration.findMany in postStats`,
+    'Instance-wide statistics behind `assertSuperAdmin` on `GET /admin/stats`: counting every organisation is the point of the number. The ids come from this method\'s own `groupBy` over published posts, not from the request, and only `providerIdentifier` — the name of the network — is read back. Read on 05.09.2026, brought into view by `content-factory-next-fn33.101`.',
+  ],
+  [
+    `${PRISMA}/autopost/autopost.repository.ts autoPost.findUnique in getAutopost`,
     '`startAutopost` resolves which organisation an autopost belongs to and uses that answer for everything downstream; it runs from the scheduler, never from a request.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/autopost/autopost.repository.ts autoPost.update',
+    `${PRISMA}/autopost/autopost.repository.ts autoPost.update in updateUrl`,
     '`updateUrl` writes the last seen feed URL from a workflow state, with an id from that workflow. Its two request-facing neighbours, `deleteAutopost` and `changeActive`, both filter.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/integrations/integration.repository.ts plugs.findFirst',
+    `${PRISMA}/integrations/integration.repository.ts integration.update in updateIntegration`,
+    'Cascade after the integration was found by the composite `organizationId_internalId` key in the same method, and the only caller — `saveProviderPage` — has already resolved the channel through `getIntegrationById(org, id)`. Collapsed with a second write; see `COLLAPSED`.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts post.updateMany in updateIntegration`,
+    'Same cascade: the posts belong to the integration that composite key just resolved.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts integration.update in disableIntegrations`,
+    'Read on 05.09.2026. The ids come from the `findMany` six lines above, which filters by `organizationId`; this loop switches off channels over a plan\'s limit inside one workspace.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts integration.update in setBetweenRefreshSteps`,
+    'Read on 05.09.2026. Called only by `RefreshIntegrationService.setBetweenSteps`, with the id of the integration row that service is already holding — a token refresh running from the queue, not a request.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts integration.update in updateNameAndUrl`,
+    'Read on 05.09.2026. `POST /integrations/:id/nickname` resolves the channel through `getIntegrationById(org.id, id)` and refuses when it is not there, before the provider is called and this write happens.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts integration.updateMany in createOrUpdateIntegration`,
+    'Deduplicates by `rootInternalId` across organisations by design: one reconnected account must not leave two live rows.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts post.findFirst in getIntegrationForOrder`,
+    'Marketplace order lookup, filtered by seller and buyer identity instead; the upstream marketplace is not enabled here.',
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts plugs.findFirst in getPlug`,
     '`processPlugs` runs from the queue with a plug id out of its own job payload.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts oAuthApp.findFirst',
-    'Key collapse: the flagged occurrence does filter by `organizationId`. See the note on granularity above.',
+    `${PRISMA}/oauth/oauth.repository.ts oAuthApp.findFirst in getAppByClientId`,
+    'Read on 05.09.2026, and the reason it stood behind was about a different call: the old ledger excused this line as «the flagged occurrence does filter», which was true of a neighbour and never of this one. A `client_id` is the app\'s own name in the OAuth protocol, sent by an authorization request before anything is known about whose app it is; resolving it is how the server learns that. The row it returns is then used to check the redirect URL and the secret.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/oauth/oauth.repository.ts oAuthApp.update',
-    'Updates the row found by an org-filtered `findFirst` two lines above, by that row\'s own id.',
+    `${PRISMA}/oauth/oauth.repository.ts oAuthApp.update in updateApp`,
+    'Updates the row found by an org-filtered `findFirst` immediately above, by that row\'s own id.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts credits.delete',
-    'Compensating delete of the row this same call had just created, by the id it received back.',
+    `${PRISMA}/oauth/oauth.repository.ts oAuthApp.update in deleteApp`,
+    'Read on 05.09.2026. Same shape as `updateApp`: an org-filtered `findFirst` six lines above, then a soft delete of that row by its id.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts subscription.deleteMany',
+    `${PRISMA}/oauth/oauth.repository.ts oAuthApp.update in updateClientSecret`,
+    'Read on 05.09.2026. Same shape again, and the one where it matters most: the secret is rotated on the app the caller\'s own organisation owns, because that is the only app the `findFirst` above can return.',
+  ],
+  [
+    `${PRISMA}/oauth/oauth.repository.ts oAuthAuthorization.findFirst in findByCode`,
+    'An OAuth authorization is keyed by its own opaque code, which is the credential.',
+  ],
+  [
+    `${PRISMA}/oauth/oauth.repository.ts oAuthAuthorization.findFirst in findByAccessToken`,
+    'Read on 05.09.2026. The access token is the credential being presented; this is the lookup that decides which organisation the request belongs to, so filtering by the answer would be circular.',
+  ],
+  [
+    `${PRISMA}/oauth/oauth.repository.ts oAuthAuthorization.update in exchangeCodeForToken`,
+    'Same row, same code: the id comes from the authorization `findByCode` just returned.',
+  ],
+  [
+    `${PRISMA}/oauth/oauth.repository.ts oAuthAuthorization.update in revokeAuthorization`,
+    'Read on 05.09.2026. Filtered by `userId` rather than by organisation, which is the right scope for this door: «the apps I approved» is a list belonging to a person, and it is their own grant they are withdrawing.',
+  ],
+  [
+    `${PRISMA}/oauth/oauth.repository.ts oAuthAuthorization.updateMany in revokeAllForApp`,
+    'Read on 05.09.2026. Withdraws every grant of one app, and the app is the one `OAuthService.deleteApp` resolved through `getAppByOrgId(orgId)`. Every authorization of that app belongs to it by definition.',
+  ],
+  [
+    `${PRISMA}/organizations/organization.repository.ts userOrganization.findFirst in getUserOrg`,
+    'Reads a membership row by its own id in order to resolve which organisation it is; filtering by the answer would be circular.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.findFirst in createOrUpdatePostWithClient`,
+    'An existence probe over a client-minted `group`, and it has to see across organisations to do its job: the composer mints the group before anything is saved, so "free" and "taken by someone else" have to be told apart. It selects `id`, nothing from the row is returned, and the only answer it can produce is the same 404 as a group that does not exist.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.findMany in createOrUpdatePostWithClient`,
+    'The ownership check of `content-factory-next-fn33.49`, unscoped for the same reason as the group probe beside it: a tenant-scoped read cannot tell "free" from "taken by someone else". It selects six columns and returns none of them — every id belonging to another organisation, and every id deleted here, leaves through the same 404 with the same text. Read on 05.09.2026 for `content-factory-next-fn33.101`, which is why `findMany` is scanned at all now.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.findMany in getPostByForWebhookId`,
+    'Read on 05.09.2026. The body of an outgoing webhook, assembled by the `sendWebhooks` Temporal activity from the post id in its own payload — the post it has just published. The organisation is already settled: the webhooks it delivers to were fetched by `getWebhooks(orgId)` four lines above.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.update in changeState`,
+    '`changeState` is called only from Temporal workflows, with an id from their own payload — never from a request.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.update in updatePost`,
+    'Read on 05.09.2026. The publish result — state, release id, release URL — written by the `updatePost` Temporal activity with the id it was handed when the workflow was started.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.update in updateImages`,
+    'Read on 05.09.2026. Writes back the image list `PostsService.updateMedia` has just resolved, and both of its callers reached the post through an org-filtered read first (`getPostsByGroup(orgId, …)`, `getPostsRecursively(…, orgId, …)`). The media inside that list is org-scoped since the `getMediaById` hole was closed on 03.09.2026.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.update in submit`,
+    'Read on 05.09.2026. Upstream marketplace: a seller offering a post against an order. Nothing in this fork calls it — the marketplace is not enabled — and if it is ever turned on, the caller has to prove the post is the seller\'s before this line, because this line does not.',
+  ],
+  [
+    `${PRISMA}/posts/posts.repository.ts post.update in updateMessage`,
+    'Read on 05.09.2026. The other half of the same upstream marketplace: the last chat message id on a submitted post. Also uncalled in this fork, and carrying the same condition if it is ever wired up.',
+  ],
+  [
+    `${PRISMA}/product-events/product-events.repository.ts productEvent.deleteMany in pruneOlderThan`,
+    'Retention prune by age across every organisation.',
+  ],
+  [
+    `${PRISMA}/subscriptions/subscription.repository.ts subscription.findFirst in getSubscriptionByCustomerId`,
+    'Looked up by the billing provider\'s own identifier, which is what the webhook carries.',
+  ],
+  [
+    `${PRISMA}/subscriptions/subscription.repository.ts subscription.findFirst in getSubscriptionByIdentifier`,
+    'Read on 05.09.2026. The billing provider\'s subscription identifier, the same kind of key as the customer id beside it. Reachable only through a service passthrough that nothing in this fork calls.',
+  ],
+  [
+    `${PRISMA}/subscriptions/subscription.repository.ts subscription.deleteMany in deleteSubscriptionByCustomerId`,
     'Keyed by the billing provider\'s customer id, which is what its webhook carries.',
   ],
   [
-    'libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts usedCodes.findFirst',
+    `${PRISMA}/subscriptions/subscription.repository.ts credits.delete in useCredit`,
+    'Compensating delete of the row this same call had just created, by the id it received back.',
+  ],
+  [
+    `${PRISMA}/subscriptions/subscription.repository.ts usedCodes.findFirst in getCode`,
     'A redemption code is itself the credential being checked.',
+  ],
+  [
+    'libraries/nestjs-libraries/src/openai/ai.usage.service.ts aiUsageRecord.update in finishAdmission',
+    'Closes the ledger row this very call opened, by the id it just received back.',
+  ],
+]);
+
+/**
+ * The last of the key collapse, named rather than left implicit.
+ *
+ * A method name is not a call site, so two calls to the same model and
+ * operation inside one method still share a ledger line. Three do. The value
+ * says what the second call is, so that a *third* one appearing in one of
+ * these methods fails the count below instead of inheriting an excuse written
+ * for its neighbours.
+ */
+const COLLAPSED = new Map([
+  [
+    `${CI}/source-registry/source-registry.repository.ts contentSource.findUnique in createOrGet`,
+    2,
+  ],
+  [
+    `${CI}/source-registry/source-registry.repository.ts contentSource.findUnique in createManualSource`,
+    2,
+  ],
+  [
+    `${PRISMA}/integrations/integration.repository.ts integration.update in updateIntegration`,
+    2,
   ],
 ]);
 
@@ -278,17 +445,81 @@ describe('a workspace cannot reach another workspace', () => {
     }).toEqual({ added: [], stale: [], hint: 'in step' });
   });
 
-  test('the unreviewed backlog is named, counted and shrinking', () => {
-    // Ten on 03.09.2026, the day the guard was written. The number is here so
-    // that «green» never quietly starts meaning «all checked».
+  test('a findMany that names a row is in scope, not only a listing', () => {
+    // `content-factory-next-fn33.101`. The exclusion this replaces was not
+    // wrong about listings and was wrong about lookups, and the difference is
+    // invisible from the operation name alone. Pinned so that narrowing the
+    // scan back to "findMany is always a listing" cannot pass quietly.
+    expect(unfilteredQueries()).toContain(
+      `${PRISMA}/posts/posts.repository.ts post.findMany in createOrUpdatePostWithClient`
+    );
+  });
+
+  /**
+   * `content-factory-next-5w6u`. The ledger is keyed by method now, and a
+   * method is not a call site: a second call to the same model and operation
+   * inside one method still shares a line. Three do, and they are named. This
+   * is what stops a fourth from arriving under one of those names quietly —
+   * which is the whole defect the re-keying was for, one level down.
+   */
+  test('the call sites sharing a ledger line are counted, not assumed', () => {
+    const counted = new Map();
+    for (const one of unfilteredQueries()) {
+      counted.set(one, (counted.get(one) || 0) + 1);
+    }
+    // Sorted pairs rather than objects, so the comparison is about what is
+    // shared and how often, not about which order two maps were written in.
+    const asPairs = (entries) =>
+      [...entries].sort(([a], [b]) => a.localeCompare(b));
+    const sharing = asPairs([...counted].filter(([, times]) => times > 1));
+    const expected = asPairs(COLLAPSED);
+
     expect({
-      unreviewed: UNREVIEWED.size,
+      sharing,
       hint:
-        UNREVIEWED.size <= 10
+        JSON.stringify(sharing) === JSON.stringify(expected)
           ? 'in step'
-          : 'UNREVIEWED may only shrink. A query nobody has read does not belong on a list that keeps the guard green.',
-    }).toEqual({ unreviewed: UNREVIEWED.size, hint: 'in step' });
-    expect(UNREVIEWED.size).toBeLessThanOrEqual(10);
+          : 'Two calls to one model and operation inside one method share a ledger line, so one reason has to cover both. Read the new one and either give it its own method or record it in COLLAPSED.',
+    }).toEqual({ sharing: expected, hint: 'in step' });
+  });
+
+  test('the ledger names call sites, not files', () => {
+    // The five `post.update` sites in one repository used to be one line with
+    // one excuse. Spot-checked rather than counted, because a count is a
+    // number to update and this is a shape to keep.
+    const posts = [...ALLOWED.keys()].filter((one) =>
+      one.includes('posts.repository.ts post.update')
+    );
+    expect(posts.length).toBeGreaterThan(1);
+    expect(new Set(posts).size).toBe(posts.length);
+    for (const one of [...ALLOWED.keys(), ...UNREVIEWED]) {
+      expect(one).toMatch(/ in [A-Za-z_$][\w$]*$/);
+    }
+  });
+
+  /**
+   * `content-factory-next-saas.2`. Ten on 03.09.2026, the day the guard was
+   * written; empty by that evening, when all of them had been read and two
+   * turned out to be holes.
+   *
+   * The ceiling used to be ten, which was right while the backlog was being
+   * worked through and wrong the moment it emptied: a list that «may only
+   * shrink» with ten places still free is a list that can grow ten times.
+   * Zero is the only honest ceiling for an empty backlog, and it is what makes
+   * `UNREVIEWED` a place to stand while something is being read rather than a
+   * place to leave it.
+   *
+   * It stays in the file rather than being deleted, because a future finding
+   * needs an honest place to sit while somebody reads it — and putting one
+   * there now costs a red test and a conversation, which is the point.
+   */
+  test('nothing unread is keeping this guard green', () => {
+    expect({
+      unreviewed: [...UNREVIEWED],
+      hint: UNREVIEWED.size
+        ? 'A query nobody has read does not belong on a list that keeps the guard green. Read it, then move it to ALLOWED with its reason or fix it.'
+        : 'in step',
+    }).toEqual({ unreviewed: [], hint: 'in step' });
   });
 });
 

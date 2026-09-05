@@ -67,8 +67,14 @@ export const useHasCopilotProvider = (): boolean =>
  * случай», — это и есть тот самый запрос. Нечитаемый ответ считается «нельзя»
  * по той же причине; дверь при этом никого не блокирует — она только решает,
  * поднимать ли помощника.
+ *
+ * Наружу хук вышел ради кнопки, которая помощника зовёт
+ * (`content-factory-next-fn33.99`): окно поста рисует её до всякого
+ * провайдера, и показывать кнопку там, где помощника нельзя позвать, значило
+ * бы поставить в окно ещё один мёртвый контрол. Ключ SWR тот же, поэтому
+ * кнопка и провайдер спрашивают один раз на двоих.
  */
-const useAssistantAvailable = (enabled: boolean): boolean => {
+export const useAssistantAvailable = (enabled: boolean): boolean => {
   const request = useFetch();
 
   const load = useCallback(

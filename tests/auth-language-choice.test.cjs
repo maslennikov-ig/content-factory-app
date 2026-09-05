@@ -101,6 +101,11 @@ describe('the correction the pages were missing', () => {
   const switchSource = read(
     'apps/frontend/src/components/auth/language.switch.tsx'
   );
+  // Since `content-factory-next-fn33.97` the control itself is shared with the
+  // marketing shell and the sign-in side keeps only its band and its word, so
+  // the behaviour below is checked where it now lives. What stays local — that
+  // this page asks for the page tone, not the bar's — is checked on the switch.
+  const menuSource = read('apps/frontend/src/components/ui/language-menu.tsx');
 
   test('the sign-in column carries the picker', () => {
     const layout = read('apps/frontend/src/app/(app)/auth/layout.tsx');
@@ -114,18 +119,19 @@ describe('the correction the pages were missing', () => {
     // Both halves are needed: the cookie alone leaves the already-rendered
     // server markup in the previous language, and a reload alone changes
     // nothing.
-    expect(switchSource).toContain('setCookie(cookieName, option, 365)');
-    expect(switchSource).toContain('window.location.reload()');
+    expect(menuSource).toContain('setCookie(cookieName, option, 365)');
+    expect(menuSource).toContain('window.location.reload()');
   });
 
   test('the picker is a menu, not a div with a click handler', () => {
     // `LanguageComponent` is the one this replaces on these pages: its trigger
     // is a `div` with `onClick`, which no keyboard can reach.
-    expect(switchSource).toContain(
+    expect(menuSource).toContain(
       "from '@contentfactory/react/choice/choice.menu'"
     );
-    expect(switchSource).toContain('MenuButton');
-    expect(switchSource).toContain('aria-label');
+    expect(menuSource).toContain('MenuButton');
+    expect(menuSource).toContain('aria-label');
+    expect(switchSource).toContain('LanguageMenu');
   });
 
   test('every shipped language is offered', () => {
@@ -133,7 +139,7 @@ describe('the correction the pages were missing', () => {
       expect(i18nConfig.languages).toContain(language);
     }
     // Driven off the config rather than a second list beside it.
-    expect(switchSource).toContain('[...languages]');
+    expect(menuSource).toContain('[...languages]');
   });
 
   test('it wears page colours, not navigation-bar colours', () => {
@@ -141,7 +147,10 @@ describe('the correction the pages were missing', () => {
     // theme it is the same colour as `cf-surface`, so on this page the hover
     // state would be invisible.
     expect(switchSource).not.toContain('cf-navigation');
-    expect(switchSource).toContain('hover:bg-cf-surface-subtle');
+    expect(switchSource).toContain('tone="surface"');
+    expect(menuSource).toMatch(
+      /surface:\s*\n?\s*'[^']*hover:bg-cf-surface-subtle[^']*'/
+    );
   });
 });
 

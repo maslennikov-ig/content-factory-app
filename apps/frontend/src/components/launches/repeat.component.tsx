@@ -48,8 +48,11 @@ const getList = (t: (key: string, fallback: string) => string) => [
     label: t('month', 'Month'),
   },
   {
+    // «Не повторять» — это выбор, а не отказ от диалога. Раньше здесь стояло
+    // «Отмена», и пункт читался как «закрыть список», хотя он снимает повтор
+    // (`content-factory-next-fn33.76`).
     value: null,
-    label: t('cancel', 'Cancel'),
+    label: t('repeat_post_none_option', 'Do not repeat'),
   },
 ];
 export const RepeatComponent: FC<{
@@ -79,17 +82,24 @@ export const RepeatComponent: FC<{
     <div ref={ref} className="relative flex select-none items-center">
       <Menu open={isOpen} onOpenChange={setIsOpen}>
         <MenuButton
-          aria-label={t('repeat_post_every', 'Repeat Post Every...')}
           className="flex items-center gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
         >
           <RepeatIcon />
+          {/*
+            Подпись кнопки выбора, а не пустое поле.
+
+            «Повторять публикацию каждые…» с многоточием и без значения
+            читалось как незаполненный ввод — человек ждал, что туда пишут
+            (`content-factory-next-fn33.76`). Теперь кнопка называет предмет
+            выбора и текущий ответ: «Повтор: не повторять» или «Повтор:
+            Неделя».
+          */}
           <span>
-            {repeat
-              ? `${t(
-                  'repeat_post_every_label',
-                  'Repeat Post Every'
-                )} ${everyLabel}`
-              : t('repeat_post_every', 'Repeat Post Every...')}
+            {`${t('repeat_post_button', 'Repeat')}: ${
+              repeat
+                ? everyLabel
+                : t('repeat_post_none', 'do not repeat')
+            }`}
           </span>
           <DropdownArrowIcon size={12} rotated={isOpen} />
         </MenuButton>

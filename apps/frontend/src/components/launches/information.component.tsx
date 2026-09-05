@@ -105,6 +105,19 @@ export const InformationComponent: FC<{
     });
   }, [isGlobal, internal, selectedIntegrations]);
 
+  /**
+   * Черновик, к которому ещё не притронулись.
+   *
+   * `content-factory-next-fn33.76`: счётчик встречал человека красной плашкой
+   * с восклицательным знаком до первой буквы — без канала без числа вовсе, с
+   * каналом красным «0/4096». Пустой черновик — это не ошибка, а начало
+   * работы, и называть ошибкой то, чего человек ещё не успел сделать, значит
+   * пугать его зря. Состояние держится отдельно от `isValid`: сохранять
+   * пустой пост по-прежнему нельзя, и кнопки внизу об этом знают — молчит
+   * ровно плашка.
+   */
+  const isPristine = !isPicture && !totalChars && !showStripLinkWarning;
+
   const isValid = useMemo(() => {
     if (showStripLinkWarning) {
       return false;
@@ -169,28 +182,45 @@ export const InformationComponent: FC<{
     return validLimit ?? limits[0];
   }, [isGlobal, selectedIntegrations, chars, isInternal, totalChars]);
 
+  /**
+   * Одна строка счётчика вместо трёх одинаковых.
+   *
+   * Без канала предела ещё нет, и пара «число/предел» неполна — остаётся само
+   * число набранного, чтобы плашка не стояла пустой. Раньше здесь было два
+   * почти одинаковых блока, и третий случай пришлось бы писать третьим.
+   */
+  const counterText = !isGlobal
+    ? `${totalChars}/${totalAllowedChars}`
+    : globalDisplayLimit !== null
+    ? `${totalChars}/${globalDisplayLimit}`
+    : isPristine
+    ? `${totalChars}`
+    : null;
+
   return (
     <div
+      data-compose-counter={
+        isPristine ? 'pristine' : isValid ? 'valid' : 'invalid'
+      }
       className={clsx(
         'group rounded-[6px] gap-[4px] h-[30px] px-[6px] flex justify-center items-center relative',
-        isValid ? 'border border-newColColor' : 'bg-[#FF3F3F]'
+        isPristine
+          ? 'border border-cf-border-control'
+          : isValid
+          ? 'border border-newColColor'
+          : 'bg-[#FF3F3F]'
       )}
     >
-      {isValid ? <Valid /> : <Invalid />}
+      {isPristine ? null : isValid ? <Valid /> : <Invalid />}
 
-      {!isGlobal && (
-        <div className={clsx("text-[10px] font-[600] flex justify-center items-center", !isValid && 'text-white')}>
-          {totalChars}/{totalAllowedChars}
-        </div>
-      )}
-      {isGlobal && globalDisplayLimit !== null && (
-        <div className={clsx("text-[10px] font-[600] flex justify-center items-center", !isValid && 'text-white')}>
-          {totalChars}/{globalDisplayLimit}
+      {counterText !== null && (
+        <div className={clsx("text-[10px] font-[600] flex justify-center items-center", isPristine ? 'text-cf-ink-muted' : !isValid && 'text-white')}>
+          {counterText}
         </div>
       )}
       {((isGlobal && selectedIntegrations.length) || !isValid) && (
         <svg
-          className={clsx('group-hover:rotate-180', !isValid && 'text-white')}
+          className={clsx('group-hover:rotate-180', !isValid && !isPristine && 'text-white')}
           xmlns="http://www.w3.org/2000/svg"
           width="16"
           height="16"
@@ -207,13 +237,19 @@ export const InformationComponent: FC<{
         <div
           className={clsx(
             'z-[300] hidden rounded-[12px] bg-newBgColorInner group-hover:flex absolute end-0 bottom-[100%] mb-[5px] p-[12px] flex-col',
-            isValid ? 'border border-newColColor' : 'border border-[#FF3F3F]'
+            isPristine
+              ? 'border border-cf-border'
+              : isValid
+              ? 'border border-newColColor'
+              : 'border border-[#FF3F3F]'
           )}
         >
           {!isPicture && !totalChars && (
             <div
               className={clsx(
-                'text-sm text-[#FF3F3F] whitespace-nowrap',
+                'text-sm whitespace-nowrap',
+                // Подсказка, а не ошибка: пустой черновик только начат.
+                isPristine ? 'text-cf-ink-muted' : 'text-[#FF3F3F]',
                 isGlobal && selectedIntegrations.length && 'mb-[12px]'
               )}
             >

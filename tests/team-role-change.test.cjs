@@ -108,19 +108,37 @@ const ORG_ID = 'org-1';
  * The two reads the service does: the caller's own membership arrives on the
  * request with the organization, the target's is looked up by user.
  */
+const isAdministrator = (role) => ['ADMIN', 'SUPERADMIN'].includes(role);
+
 const serviceFor = ({ members, admins }) => {
-  const updateTeamMemberRole = jest.fn(async () => ({}));
+  // How many administrators the workspace has, counted the way the repository
+  // counts them unless a test says otherwise.
+  const administrators = () =>
+    typeof admins === 'number'
+      ? admins
+      : Object.values(members).filter(isAdministrator).length;
+  /**
+   * The stand-in refuses the last demotion, because since
+   * `content-factory-next-fn33.102` the real repository does: the count and
+   * the write are one serializable transaction, and a count taken out here
+   * would be a promise about a moment that has already passed. A stand-in that
+   * skipped it would let these tests prove the service refuses something
+   * nothing refuses. Where the transaction itself is proven is
+   * `tests/organization.last-admin-race.test.cjs`; what this file still owns
+   * is who may act on whom.
+   */
+  const updateTeamMemberRole = jest.fn(async (_orgId, userId, role) => {
+    if (
+      isAdministrator(members[userId]) &&
+      !isAdministrator(role) &&
+      administrators() <= 1
+    ) {
+      throw new Error('The workspace must keep at least one administrator');
+    }
+    return {};
+  });
   const repository = {
     updateTeamMemberRole,
-    // How many administrators the workspace has, counted the way the
-    // repository counts them unless a test says otherwise.
-    countAdmins: jest.fn(async () =>
-      typeof admins === 'number'
-        ? admins
-        : Object.values(members).filter((role) =>
-            ['ADMIN', 'SUPERADMIN'].includes(role)
-          ).length
-    ),
     getOrgsByUserId: jest.fn(async (userId) =>
       members[userId]
         ? [{ id: ORG_ID, users: [{ role: members[userId] }] }]
@@ -192,6 +210,11 @@ describe('changing a team member’s role', () => {
    * The clause that makes the equal case safe, and the same one removal
    * answers to: a workspace whose last administrator is demoted is a workspace
    * nobody can invite into or connect a channel to.
+   *
+   * The refusal now arrives from the write itself rather than before it
+   * (`content-factory-next-fn33.102`), so the call is made and the call is what
+   * says no. What the service still has to get right is that it does not stop
+   * this demotion for some other reason and take the credit.
    */
   test('the last administrator is not demoted', async () => {
     const { service, updateTeamMemberRole } = serviceFor({
@@ -207,7 +230,7 @@ describe('changing a team member’s role', () => {
         'USER'
       )
     ).rejects.toThrow('The workspace must keep at least one administrator');
-    expect(updateTeamMemberRole).not.toHaveBeenCalled();
+    expect(updateTeamMemberRole).toHaveBeenCalledWith(ORG_ID, 'only', 'USER');
   });
 
   test('an equal is not counted twice: raising an administrator to administrator asks nobody', async () => {

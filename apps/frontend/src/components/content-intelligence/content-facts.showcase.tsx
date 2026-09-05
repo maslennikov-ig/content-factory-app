@@ -35,6 +35,12 @@ import {
   type GroundingMethod,
 } from './content-facts.adapter';
 import { resolveContentLocale } from './content-section.copy';
+import {
+  ContentReadOnlyNote,
+  WRITE_ALLOWED,
+  readWriteRight,
+  type ContentWriteRight,
+} from './content-write-right';
 
 /**
  * «Откуда факты» — the witness screen (`content-factory-next-odb8.1`).
@@ -71,7 +77,7 @@ type Locale = 'ru' | 'en';
 const GROUNDING_FILTERS = ['ALL', 'OWN_WORD', 'OWN_MATERIAL', 'SEARCH_RESULT'] as const;
 type GroundingFilter = (typeof GROUNDING_FILTERS)[number];
 
-const copy = {
+export const factsShowcaseCopy = {
   ru: {
     title: 'Откуда факты',
     // content-factory-next-fn33.61: вкладки «Что пишем» на полосе нет —
@@ -128,6 +134,10 @@ const copy = {
     saving: 'Сохраняем…',
     cancel: 'Отмена',
     oldUnchanged: 'старое утверждение останется как есть',
+    readOnlyRole:
+      'Менять факты сейчас может только администратор рабочего пространства. Список остаётся открытым для чтения.',
+    readOnlyPlan:
+      'Тариф рабочего пространства сейчас не разрешает менять факты. Список остаётся открытым для чтения.',
   },
   en: {
     title: 'Where facts come from',
@@ -180,8 +190,19 @@ const copy = {
     saving: 'Saving…',
     cancel: 'Cancel',
     oldUnchanged: 'the old statement stays exactly as it is',
+    readOnlyRole:
+      'Only a workspace administrator may change facts right now. The list stays open to read.',
+    readOnlyPlan:
+      "This workspace's plan does not allow changing facts right now. The list stays open to read.",
   },
 } as const;
+
+/**
+ * The screen's own words, exported for the review scene
+ * (`content-factory-next-cl19`) so the state a reviewer looks at is drawn
+ * with the same sentences as the screen and cannot drift from them.
+ */
+const copy = factsShowcaseCopy;
 
 const GROUNDING_LABEL: Record<GroundingMethod, (t: (typeof copy)[Locale]) => string> = {
   OWN_WORD: (t) => t.groundingOwnWord,
@@ -223,11 +244,13 @@ function GroundingBadge({
   );
 }
 
-function FactRowView({
+export function FactRowView({
   fact,
   locale,
   t,
   busy,
+  canWrite,
+  noteId,
   expanded,
   onToggleExcerpt,
   onRetract,
@@ -239,6 +262,15 @@ function FactRowView({
   locale: Locale;
   t: (typeof copy)[Locale];
   busy: boolean;
+  /**
+   * Whether the server has already refused a write on this screen
+   * (`content-factory-next-cl19`). The actions stay in place and go dead
+   * rather than disappearing: the row is read alongside them, and a control
+   * that vanishes mid-screen leaves a person looking for what they just saw.
+   */
+  canWrite: boolean;
+  /** The read-only note every dead control points at, so none is a blank. */
+  noteId?: string;
   expanded: boolean;
   onToggleExcerpt: () => void;
   onRetract: () => void;
@@ -246,6 +278,8 @@ function FactRowView({
   onCopy: () => void;
   onConfirm: () => void;
 }) {
+  const blocked = busy || !canWrite;
+  const explains = canWrite ? undefined : noteId;
   const usable = isUsableFact(fact.status);
   const date = formatDate(fact.updatedAt ?? fact.createdAt, locale);
 
@@ -289,7 +323,8 @@ function FactRowView({
               <Button
                 density="dense"
                 variant="secondary"
-                disabled={busy}
+                disabled={blocked}
+                aria-describedby={explains}
                 onClick={onRestore}
               >
                 {t.restore}
@@ -349,7 +384,8 @@ function FactRowView({
             <Button
               density="dense"
               variant="primary"
-              disabled={busy}
+              disabled={blocked}
+              aria-describedby={explains}
               data-content-fact-confirm={fact.id}
               onClick={onConfirm}
             >
@@ -358,7 +394,13 @@ function FactRowView({
           </span>
         )}
         <span className="flex min-h-[44px] items-center sm:min-h-0">
-          <Button density="dense" variant="secondary" disabled={busy} onClick={onCopy}>
+          <Button
+            density="dense"
+            variant="secondary"
+            disabled={blocked}
+            aria-describedby={explains}
+            onClick={onCopy}
+          >
             {t.copyAction}
           </Button>
         </span>
@@ -366,7 +408,8 @@ function FactRowView({
           <Button
             density="dense"
             variant="secondary"
-            disabled={busy}
+            disabled={blocked}
+            aria-describedby={explains}
             onClick={onRetract}
           >
             {t.retract}
@@ -399,6 +442,16 @@ export function ContentFactsShowcase() {
   const [copyDraft, setCopyDraft] = useState<FactCopyDraft | null>(null);
   const [copyBusy, setCopyBusy] = useState(false);
   const [copyFailure, setCopyFailure] = useState<FactFailure | null>(null);
+  /**
+   * What the server has said about the right to write here
+   * (`content-factory-next-cl19`). It starts allowed and is never guessed:
+   * the doors behind these actions carry `Sections.AI`, a plan section every
+   * member passes on an instance without billing, so a screen that decided
+   * for itself would hide a working button.
+   */
+  const [writeRight, setWriteRight] = useState<ContentWriteRight>(WRITE_ALLOWED);
+  const canWrite = writeRight.allowed;
+  const readOnlyNoteId = 'content-facts-read-only';
 
   const rows: readonly FactRow[] = readFactsEnvelope(facts.data);
 
@@ -446,7 +499,12 @@ export function ContentFactsShowcase() {
         await read(url, { method: 'POST', body: JSON.stringify({}) });
         await facts.mutate();
       } catch (error) {
-        setActionFailure(readFailure(error, fallback));
+        const right = readWriteRight(error);
+        // A refusal by right is not a thing that went wrong: repeating it
+        // produces the same answer, so the screen changes instead of
+        // printing a sentence built from a status code.
+        if (!right.allowed) setWriteRight(right);
+        else setActionFailure(readFailure(error, fallback));
       } finally {
         setActionFactId(null);
       }
@@ -477,7 +535,15 @@ export function ContentFactsShowcase() {
       await facts.mutate();
       closeCopy();
     } catch (error) {
-      setCopyFailure(readFailure(error, t.copyFailed));
+      const right = readWriteRight(error);
+      if (!right.allowed) {
+        // Nothing in the dialog can be saved now, and leaving it open over a
+        // dead «Сохранить» would ask the person to keep typing into it.
+        setWriteRight(right);
+        closeCopy();
+      } else {
+        setCopyFailure(readFailure(error, t.copyFailed));
+      }
     } finally {
       setCopyBusy(false);
     }
@@ -485,11 +551,13 @@ export function ContentFactsShowcase() {
 
   const listFailure =
     facts.error && !facts.data ? readFailure(facts.error, t.listFallback) : null;
-  const state = screenState({
-    failure: listFailure,
-    busy: false,
-    loaded: !!facts.data || !!facts.error,
-  });
+  const state = canWrite
+    ? screenState({
+        failure: listFailure,
+        busy: false,
+        loaded: !!facts.data || !!facts.error,
+      })
+    : 'restricted';
 
   return (
     <section
@@ -583,6 +651,16 @@ export function ContentFactsShowcase() {
 
           {actionFailure && <ErrorState title={failureNotice(actionFailure)} />}
 
+          {!canWrite && (
+            <ContentReadOnlyNote
+              id={readOnlyNoteId}
+              surface="facts"
+              refusal={writeRight.refusal ?? 'plan'}
+            >
+              {writeRight.refusal === 'role' ? t.readOnlyRole : t.readOnlyPlan}
+            </ContentReadOnlyNote>
+          )}
+
           {visibleRows.length === 0 ? (
             <EmptyState title={t.emptyFiltered} />
           ) : (
@@ -594,6 +672,8 @@ export function ContentFactsShowcase() {
                   locale={locale}
                   t={t}
                   busy={actionFactId === fact.id}
+                  canWrite={canWrite}
+                  noteId={readOnlyNoteId}
                   expanded={expanded.has(fact.id)}
                   onToggleExcerpt={() => toggleExcerpt(fact.id)}
                   onRetract={() =>

@@ -5,7 +5,7 @@ import { NotificationService } from '@contentfactory/nestjs-libraries/database/p
 import { AddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { AdminAddTeamMemberDto } from '@contentfactory/nestjs-libraries/dtos/settings/admin.add.team.member.dto';
 import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/pricing';
-import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import { randomUUID } from 'node:crypto';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   ASSIGNABLE_ORGANIZATION_ROLES,
@@ -206,7 +206,21 @@ export class OrganizationService {
   }
 
   async inviteTeamMember(org: Organization, user: User, body: AddTeamMemberDto) {
-    const id = makeId(5);
+    /**
+     * `content-factory-next-fn33.100`. This is not a display name — it is the
+     * mark that says «this invitation has been answered», and both places that
+     * accept an invitation (`addUserToOrg`, `createInvitedUser`) refuse an id
+     * a user row already holds. That refusal is what stops one signed link
+     * from producing two accounts.
+     *
+     * Which is exactly why it was minted too narrow. Five characters of a
+     * 62-letter alphabet is about 9·10⁸ values, and the mark is spent by the
+     * invitee: the link is consumed and the token is gone before the collision
+     * is noticed, so the second person gets a flat «could not add» and nothing
+     * left to retry with. A few thousand invitations put an instance inside
+     * the birthday range for that alphabet. 122 random bits take it out.
+     */
+    const id = randomUUID();
     // `content-factory-next-fn33.24`. The address, not the checkbox, decides
     // whether the invitation is bound to one mailbox: an administrator who
     // types an address and then sends the link through Telegram still means
@@ -333,7 +347,11 @@ export class OrganizationService {
 
     const added = await this._organizationRepository.addUserToOrg(
       user.id,
-      makeId(5),
+      // The same mark as an invitation link carries, from the same space and
+      // for the same reason (`content-factory-next-fn33.100`): `addUserToOrg`
+      // reads it as «has this invitation been answered», and a collision here
+      // refuses a membership that nothing is wrong with.
+      randomUUID(),
       org.id,
       body.role as AssignableOrganizationRole
     );
@@ -379,15 +397,13 @@ export class OrganizationService {
     // never removable. Now that the creator is an ordinary `ADMIN`, the same
     // guarantee has to be counted: the last administrator stays, including
     // when they are removing themselves.
-    if (isOrganizationAdmin(userRole)) {
-      const admins = await this._organizationRepository.countAdmins(org.id);
-      if (admins <= 1) {
-        throw new Error(
-          'The workspace must keep at least one administrator'
-        );
-      }
-    }
-
+    //
+    // The counting used to happen right here, and that was the defect
+    // `content-factory-next-fn33.102` closed: a count taken in the service and
+    // a delete issued after it are two statements, and two administrators
+    // removing each other at the same moment both counted two. The count now
+    // happens inside the transaction that deletes. What stays here is the part
+    // that needs no transaction — who may act on whom.
     return this._organizationRepository.deleteTeamMember(org.id, userId);
   }
 
@@ -475,20 +491,10 @@ export class OrganizationService {
     // Demoting an administrator is the removal rule in a lighter form: a
     // workspace whose last administrator becomes a member is a workspace
     // nobody can invite into or connect a channel to, and getting back out of
-    // it needs database access.
-    if (
-      isOrganizationAdmin(membership.users[0].role) &&
-      !isOrganizationAdmin(role)
-    ) {
-      const admins = await this._organizationRepository.countAdmins(org.id);
-      if (admins <= 1) {
-        throw new HttpException(
-          'The workspace must keep at least one administrator',
-          400
-        );
-      }
-    }
-
+    // it needs database access. Counted inside the transaction that writes the
+    // role, for the reason `content-factory-next-fn33.102` records on
+    // `keepingAnAdministrator`: counted here it was a promise about a moment
+    // that had already passed by the time the write went out.
     await this._organizationRepository.updateTeamMemberRole(
       org.id,
       userId,

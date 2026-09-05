@@ -21,7 +21,6 @@ import { SignatureBox } from '@contentfactory/frontend/components/signature';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import {
   type ContentIntelligenceCitation,
-  type ContentIntelligenceProvenance,
   SelectedIntegrations,
   useLaunchStore,
 } from '@contentfactory/frontend/components/new-launch/store';
@@ -74,29 +73,8 @@ import {
 } from '@contentfactory/frontend/components/ui/icons';
 import { DelayComponent } from '@contentfactory/frontend/components/new-launch/delay.component';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
-import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
-
-/**
- * Совместимость для сцены обзора интерфейса.
- *
- * Панель «Проверенный контекст» жила здесь и печатала состояние сервера, срок
- * действия и версию профиля на поверхности письма. 04.09.2026 владелец решил,
- * что окно даёт только полезное: происхождение поста говорит одна строка
- * (`ProvenanceLine`), а состояний загрузки и отказа окно не показывает вовсе —
- * их причину печатает строка у самой кнопки (`compose-block-reason.tsx`).
- *
- * Имя оставлено только ради `app/(stand)/interface-review/...`, который лежит
- * вне зоны этой задачи. `loadState` и `failure` сюда ещё приходят и здесь
- * ничего не значат: как только сцена обзора начнёт звать `ProvenanceLine`
- * напрямую, эта обёртка уходит.
- */
-export const ContentIntelligenceContextSummary: FC<{
-  provenance: ContentIntelligenceProvenance | null;
-  loadState?: 'idle' | 'loading' | 'ready' | 'error';
-  failure?: 'CONTENT_EVIDENCE_REQUIRED' | 'CONTEXT_UNAVAILABLE' | null;
-}> = ({ provenance }) => <ProvenanceLine provenance={provenance} />;
 
 export const ContentIntelligenceCitationSelector: FC<{
   citations: readonly ContentIntelligenceCitation[];

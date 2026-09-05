@@ -68,6 +68,18 @@ export class ContentLeadRepository {
     }
   }
 
+  /**
+   * How many live subscriptions the workspace holds
+   * (`content-factory-next-ni7x`). Archived rows carry `deletedAt` and do
+   * not count — unsubscribing is how a workspace makes room, so a row that
+   * no longer ticks must not keep a slot.
+   */
+  async countSubscriptions(organizationId: string) {
+    return this.client().contentLeadSubscription.count({
+      where: { organizationId, deletedAt: null },
+    });
+  }
+
   async listSubscriptions(organizationId: string, now: Date) {
     const since = monthStart(now);
     const subscriptions = await this.client().contentLeadSubscription.findMany({

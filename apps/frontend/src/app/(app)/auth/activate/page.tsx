@@ -1,10 +1,7 @@
 export const dynamic = 'force-dynamic';
-import { Metadata } from 'next';
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
 import { Activate } from '@contentfactory/frontend/components/auth/activate';
-export const metadata: Metadata = {
-  title: 'Activate your account',
-  description: '',
-};
+export const generateMetadata = pageTitle('activate_your_account', 'Activate your account');
 export default async function Auth() {
   return <Activate />;
 }

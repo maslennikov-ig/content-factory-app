@@ -3,7 +3,8 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { Role, ShortLinkPreference, SubscriptionTier } from '@prisma/client';
-import { Injectable, Logger } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import {
   CONTENT_WORKFLOW_TAGS,
@@ -12,7 +13,10 @@ import {
 import { CONTENT_WORKFLOW_TAG_KEYS } from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { organizationRoleLevel } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationAdmin,
+  organizationRoleLevel,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
 import type { NewUserAccess } from '@contentfactory/helpers/auth/registration.approval';
 import { randomUUID } from 'node:crypto';
 import { normalizeIdentityIdentifier } from '@contentfactory/nestjs-libraries/database/prisma/users/user-identity';
@@ -25,6 +29,25 @@ import {
 // Order matches `CONTENT_WORKFLOW_TAGS`. The color in that array is fixed and
 // unrelated to language, so only the name is resolved per registration
 // language.
+
+/**
+ * The two roles that administer a workspace, as one list rather than as the
+ * same pair of enum members retyped at each query that needs it.
+ *
+ * `SUPERADMIN` is here for the rows written before
+ * `content-factory-next-fn33.19`: nothing grants that role any more, and the
+ * people who hold it are the same owners under the name the product used to
+ * print.
+ */
+const ADMINISTRATOR_ROLES = [Role.SUPERADMIN, Role.ADMIN];
+
+/**
+ * The one sentence a workspace hears when a removal or a demotion would leave
+ * it with nobody who can invite, connect a channel or hand it over. Written
+ * once because two doors reach it.
+ */
+const LAST_ADMINISTRATOR = 'The workspace must keep at least one administrator';
+
 @Injectable()
 export class OrganizationRepository {
   private readonly _logger = new Logger(OrganizationRepository.name);
@@ -812,36 +835,110 @@ export class OrganizationRepository {
     });
   }
 
-  async deleteTeamMember(orgId: string, userId: string) {
-    return this._userOrg.model.userOrganization.delete({
-      where: {
-        userId_organizationId: {
-          userId,
-          organizationId: orgId,
-        },
-      },
-    });
+  /**
+   * One serializable transaction with a bounded retry, for the writes that
+   * have to read the workspace before they are allowed to happen.
+   *
+   * The same shape as `UsersRepository.serializableWithRetry`, and the second
+   * copy of it in this package — see the note on
+   * `keepingAnAdministrator` below. `P2034` is Postgres refusing a write
+   * conflict, which is an instruction to retry rather than a failure to
+   * report; three attempts and then a plain «busy», so a person waiting on a
+   * button never waits forever.
+   */
+  private async serializableWithRetry<T>(
+    run: (tx: Prisma.TransactionClient) => Promise<T>,
+    busyMessage: string
+  ): Promise<T> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this._transaction.model.$transaction(run, {
+          isolationLevel: 'Serializable',
+        });
+      } catch (error: any) {
+        if (error?.code !== 'P2034') throw error;
+        if (attempt === 2) {
+          throw new HttpException(busyMessage, 503);
+        }
+      }
+    }
+
+    throw new Error('Unreachable serializable retry state');
   }
 
   /**
-   * How many people can still administer this workspace.
+   * `content-factory-next-fn33.102`. Both writes that can take a workspace's
+   * last administrator away, done as one transaction each: read the membership,
+   * count the administrators, write.
    *
-   * `content-factory-next-fn33.19`: the rule that protected a workspace from
-   * losing its owner used to be «a `SUPERADMIN` cannot be removed», and it
-   * worked only because exactly one membership per workspace ever held that
-   * role. With the creator now an ordinary `ADMIN`, the protection has to be
-   * counted rather than named: the last administrator is the one who cannot
-   * be removed, whichever of the two administrator roles they hold.
+   * The rule is older than this method — `content-factory-next-fn33.19` — and
+   * it was read correctly. What was wrong was where it was read. The count sat
+   * in `OrganizationService` as its own call and the write was another, so two
+   * administrators demoting each other at the same moment both counted two,
+   * both passed, and both wrote: a workspace with nobody who can invite,
+   * connect a channel or hand it over, and no way back without database
+   * access. The count was true when it was taken and false when it was used.
+   *
+   * `Serializable` rather than a lock, because Prisma has no `FOR UPDATE`
+   * without raw SQL and this repository does not write raw SQL. The count is a
+   * predicate read over the administrators of one workspace and the write
+   * lands inside that predicate, which is precisely the read-write cycle
+   * Postgres's serializable snapshot isolation refuses; the loser comes back
+   * as `P2034`, is retried by the helper above, re-reads the committed count
+   * and is then refused on the merits, with the sentence a person can act on.
+   *
+   * The refusal lives here rather than in the service because here is the only
+   * place it can be made to hold. The service still owns everything about
+   * *who* may act on *whom* — rank against rank — which is policy and needs no
+   * transaction.
    */
-  countAdmins(orgId: string) {
-    return this._userOrg.model.userOrganization.count({
-      where: {
-        organizationId: orgId,
-        role: {
-          in: [Role.SUPERADMIN, Role.ADMIN],
-        },
-      },
-    });
+  private async keepingAnAdministrator<T>(
+    orgId: string,
+    userId: string,
+    losesAnAdministrator: (role: Role) => boolean,
+    write: (tx: Prisma.TransactionClient) => Promise<T>
+  ): Promise<T> {
+    return this.serializableWithRetry(async (tx) => {
+      const membership = await tx.userOrganization.findFirst({
+        where: { userId, organizationId: orgId },
+        select: { id: true, role: true },
+      });
+
+      if (!membership) {
+        throw new HttpException('User is not part of this organization', 400);
+      }
+
+      if (losesAnAdministrator(membership.role)) {
+        const administrators = await tx.userOrganization.count({
+          where: {
+            organizationId: orgId,
+            role: { in: ADMINISTRATOR_ROLES },
+          },
+        });
+        if (administrators <= 1) {
+          throw new HttpException(LAST_ADMINISTRATOR, 400);
+        }
+      }
+
+      return write(tx);
+    }, 'This workspace is being changed right now; try again');
+  }
+
+  async deleteTeamMember(orgId: string, userId: string) {
+    return this.keepingAnAdministrator(
+      orgId,
+      userId,
+      (role) => isOrganizationAdmin(role),
+      (tx) =>
+        tx.userOrganization.delete({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId: orgId,
+            },
+          },
+        })
+    );
   }
 
   /**
@@ -860,7 +957,7 @@ export class OrganizationRepository {
       where: {
         organizationId: orgId,
         role: {
-          notIn: [Role.SUPERADMIN, Role.ADMIN],
+          notIn: ADMINISTRATOR_ROLES,
         },
       },
       data: {
@@ -900,16 +997,24 @@ export class OrganizationRepository {
    * repository writes what it is told, as the rest of this class does.
    */
   updateTeamMemberRole(orgId: string, userId: string, role: Role) {
-    return this._userOrg.model.userOrganization.update({
-      where: {
-        userId_organizationId: {
-          userId,
-          organizationId: orgId,
-        },
-      },
-      data: {
-        role,
-      },
-    });
+    return this.keepingAnAdministrator(
+      orgId,
+      userId,
+      // Only a demotion can cost the workspace an administrator. Promoting
+      // somebody, or moving a member between `USER` and `EDITOR`, never counts.
+      (current) => isOrganizationAdmin(current) && !isOrganizationAdmin(role),
+      (tx) =>
+        tx.userOrganization.update({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId: orgId,
+            },
+          },
+          data: {
+            role,
+          },
+        })
+    );
   }
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 757,
+  "total": 749,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 731,
+      "total": 723,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -245,8 +245,8 @@
         },
         "apps/frontend/src/components/launches/information.component.tsx": {
           "font-[500]": 1,
-          "font-[600]": 2,
-          "text-[10px]": 2,
+          "font-[600]": 1,
+          "text-[10px]": 1,
           "text-[14px]": 1,
           "text-sm": 2
         },
@@ -308,10 +308,6 @@
         "apps/frontend/src/components/layout/logout.component.tsx": {
           "text-[13px]": 1
         },
-        "apps/frontend/src/components/layout/new-modal.tsx": {
-          "font-[600]": 1,
-          "text-[24px]": 1
-        },
         "apps/frontend/src/components/layout/organization.selector.tsx": {
           "font-[600]": 4,
           "text-[13px]": 2,
@@ -355,9 +351,6 @@
           "text-[14px]": 2,
           "text-[15px]": 4,
           "text-[20px]": 1
-        },
-        "apps/frontend/src/components/new-launch/modal.wrapper.component.tsx": {
-          "text-[24px]": 1
         },
         "apps/frontend/src/components/new-launch/providers/continue-provider/gmb/gmb.continue.tsx": {
           "font-medium": 1,
@@ -479,9 +472,6 @@
           "text-[13px]": 1,
           "text-[14px]": 1
         },
-        "apps/frontend/src/components/new-launch/select.current.tsx": {
-          "text-[8px]": 1
-        },
         "apps/frontend/src/components/new-layout/billing.after.tsx": {
           "text-3xl": 1,
           "text-xl": 3
@@ -503,11 +493,11 @@
           "text-[11px]": 1
         },
         "apps/frontend/src/components/onboarding/onboarding.modal.tsx": {
-          "font-[600]": 3,
+          "font-[600]": 2,
           "font-medium": 4,
           "font-semibold": 3,
           "text-[13px]": 1,
-          "text-[14px]": 10,
+          "text-[14px]": 9,
           "text-[24px]": 1
         },
         "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {

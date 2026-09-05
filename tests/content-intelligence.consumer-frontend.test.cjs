@@ -480,7 +480,7 @@ describe('Content intelligence frontend consumer contract', () => {
     expect(source('review')).toMatch(/data-review-source="synthetic"/);
     expect(source('review')).toMatch(/data-review-network="disabled"/);
     expect(source('review')).toMatch(/data-review-persistence="disabled"/);
-    expect(source('review')).toMatch(/ContentIntelligenceContextSummary/);
+    expect(source('review')).toMatch(/ProvenanceLine/);
     expect(source('review')).toMatch(/ContentIntelligenceCitationSelector/);
     expect(source('review')).not.toMatch(/useFetch|useSWR|fetch\(/);
   });

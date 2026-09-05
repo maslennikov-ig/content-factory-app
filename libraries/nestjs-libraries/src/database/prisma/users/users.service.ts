@@ -335,7 +335,7 @@ export class UsersService {
    * are ways to lose every administrator at once, and recovering needs database
    * access.
    */
-  async deleteAccount(id: string, adminId: string) {
+  async deleteAccount(id: string, adminId: string, deleteWorkspaces = false) {
     const user = await this._usersRepository.getUserById(id);
     if (!user) {
       throw new HttpException('User not found', 404);
@@ -349,8 +349,18 @@ export class UsersService {
       throw new HttpException('An administrator account cannot be deleted', 400);
     }
 
-    const deleted = await this._usersRepository.deleteAccount(id);
-    this._logger.log(`Account ${id} deleted by ${adminId}`);
+    const deleted = await this._usersRepository.deleteAccount(
+      id,
+      deleteWorkspaces
+    );
+    // The log says which of the two presses it was: «deleted» and «deleted
+    // with its workspaces» are different amounts of data gone, and afterwards
+    // nothing else records which one happened.
+    this._logger.log(
+      deleteWorkspaces
+        ? `Account ${id} deleted with its workspaces by ${adminId}`
+        : `Account ${id} deleted by ${adminId}`
+    );
     return deleted;
   }
 

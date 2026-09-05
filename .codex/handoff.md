@@ -4,6 +4,37 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
+**Wave «cleanup» (05.09, owner away, «доделай всё и задеплой») — on
+`wave/cleanup-2026-09-05`, receipt green on `4a60c205` (354 suites / 4284
+tests, `node --test` 116/0, python OK), RELEASE PENDING; see the top of the
+file for the outcome once released.** Twelve Opus streams in worktrees:
+cascade deletion of a workspace with a second confirmation — 44 foreign keys
+`ON DELETE CASCADE`, `docs/operations/organization-cascade-schema-apply.sql`
+(`fn33.32`); model per call role with `AiProviderSetting.roleModels` and
+`AiUsageRecord.role`, `docs/operations/ai-role-models-schema-apply.sql`
+(`x63z`) — **both SQL files go before the image switch**; the admin count
+inside the writing Serializable transaction (`fn33.102`, the race really
+produced zero admins), uuid invite ids (`.100`), tenant-isolation ledger keyed
+by method and findMany with an id under check (`.101`, `5w6u`, `saas.2`
+UNREVIEWED pinned empty), 60/min ceiling on the AI doors (`5w6u`); copilot
+provider mounts on click (`.99`); composer counter/channel row/repeat/avatar
+words (`.76`); plugins, sets, native language names, one language menu,
+«область» everywhere, tab titles for auth/admin/oauth, heading follows the
+language, localized registration date, assistant panel in Russian (`.28.18`,
+`.113`, `.116`, `.97`, `.92`, `.94`, `.117`, `.114`, `.115`, `.118`); 402 plan
+refusal localized and shown once (`nkei`, `fn33.105`); subscriptions limit
+20 + CHECK_TOO_SOON (`ni7x`); onboarding nine items (`za05`); facts showcase
+read-only by the server's answer (`cl19`); release scripts validate the tag
+before ssh — **the old script executed a substitution from the tag** — and
+both guards execute the scripts with stubs (`nq7e`, `th1s`); content-addressed
+verification evidence (`y5fb`); display rules for 34 platform marks, eight
+mismatches for the owner (`4s0l`). Public CI's two extra jobs were run
+locally before the public push. New beads from the wave: `11qv` (44px on
+Button), `ebyq` (roles guard blind to policy variables), `nkei`, and the
+`serializableWithRetry` duplicate. Left for the owner: `fn33.28.4`, `fn33.90`,
+`c6k.16`, `3aw`, `or3.9` (+ `fn33.9`, `.103` wait on it), `odb8.4` search
+kind, `2ua` (paid), `cxd` (host GPG key), `fn33.21` (after a live case).
+
 **Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) —
 merged to `main` as `b27e25cc`, pushed, and RELEASED 05.09 as `fc9fa77148f6`
 (two `Post` columns applied before the switch, rollback `d782858045fa`).**
@@ -24,45 +55,19 @@ test-only reds (docker proof's hand-rolled `Post` table, `expect.any(Date)`
 under fake timers + time travel), fixed next commit. Open: `fn33.28.4`, `.5`, `.18`.
 
 **Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed) — merged to
-`main` as `8443eedc`, pushed, and RELEASED as `d782858045fa` (schema column
-before the switch, role data step after it).** The owner asked to fix
-everything found on his live pass and to continue the pass with subagents.
-Sixteen Opus streams in worktrees plus one integration stream; five walkers
-then walked blocks 1–8 on the local stand (`localhost:4200`, email off) and
-two more re-checked the fixes. **Fixed:** registration by invitation lands in
-the invited workspace with its role, no own workspace, active at once
-(`fn33.18`, `.29`, `.26`, `.37`, `.38`, `.40`); nothing grants workspace
-`SUPERADMIN` any more, the creator is `ADMIN`, the last admin cannot be removed,
-equal admins may demote each other while one remains (`.19`, `.50`); role change
-in the team list, invitation link on screen with its expiry (`.17`, `.24`,
-`.35`, `.51`); reject works for any empty workspace and logs, decline mails,
-delete account, unblock with its own state (`.22`, `.30`, `.23`, `.66`); password
-change inside the product (`.41`, `.42`, `.75`); a second workspace can be
-created (`.36`, `.34`); the language lives on the account (`.53`, `.39`, `.43`);
-media library opens as a modal, one upload ceiling (`.15`, `.20`, `.71`);
-**creating a post from the composer had returned 500 since 20.08 and editing
-one nulled `organizationId`** — both fixed (`.49`, `.88`); CopilotKit no longer
-mounts around the whole app (it sent a model call on every page load — `.48`),
-a 403 no longer hangs every «Сохраняем…» button (`.65`); composer copy, stage
-default `PLAN`, context panel in words (`.27`, `.28` quick part, `.31`, `.25`);
-the content section: fact form, leads, brief, materials, avatars, calendar
-(`.45`–`.91`, see beads). Design stage for the composer is published as a
-Claude Design canvas (`fn33.28` notes) with a brief in `docs/prompts/`.
-**Two release steps need the owner:** `docs/operations/user-blocked-at-schema-apply.sql`
-(one column, before the image switch) and
-`docs/operations/workspace-role-superadmin-to-admin.sql` (data). Open for the
-owner: `fn33.90` (what EDITOR may do), `fn33.32` (cascade deletion of a
-workspace), `fn33.28` (design → code), plus the assumptions listed in each
-bead's notes. A read-only review found one release blocker (the `blockedAt` column had no
-release step) and four «before release» items — all fixed in `fn33.108`
-(same-origin checks on approve/block/unblock and the three account doors, an
-open invitation link no longer skips approval, deleting the last admin of a
-shared workspace is refused, no CopilotKit around previews); the rest are
-beads `fn33.100`–`fn33.107`. Two control walks then found a dead password door (`fn33.109`, the middleware
-strips the hash) and a server-render 500 on every signed-in page (`fn33.110`,
-a regression of `fn33.81`) — both fixed and checked on the stand. Receipt on
-the final tree (`0edb16ee`): 328 suites / 4024 tests, `node --test`
-116/0, python OK, `tsc` 0 on three apps, process verification OK.
+`main` as `8443eedc`, RELEASED as `d782858045fa` (schema column before the
+switch, role data step after it).** Sixteen Opus streams, five walkers on the
+stand, two re-checks. Registration by invitation lands in the invited workspace
+with its role; nothing grants workspace `SUPERADMIN`, the creator is `ADMIN`,
+the last admin cannot be removed; role change and invitation link with expiry
+in the team list; reject/decline/delete/unblock for accounts; password change
+inside the product; second workspace; language on the account; media library
+as a modal; **creating a post from the composer had returned 500 since 20.08**
+(`.49`, `.88`); CopilotKit no longer mounts around the whole app (`.48`); a 403
+no longer hangs «Сохраняем…» (`.65`); the content section (`.45`–`.91`). A
+read-only review found one release blocker and four «before release» items,
+all fixed in `fn33.108`; two control walks found `fn33.109`/`.110`, fixed.
+Receipt on `0edb16ee`: 328 suites / 4024 tests, `node --test` 116/0.
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
@@ -79,15 +84,12 @@ in `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
 
 **Released 03.09: the audit (`w4ij`) of `93092c84..04c7c2f3`** as
 `a4f1863f9010`, then `efafe77fe64e` with the two test fixes below. Two
-read-only reviewers, no P1. Fixed in the tree: removing, disabling and enabling
-a channel ask for an administrator (three doors, matrix, menu — any member could
-delete a channel with every post on it); a declined agency gets its email
-(`p3gq`); reconnecting a dropped channel is hidden from a member in two places;
-the two-bars question is recorded once (`z0b0`); the runbook's
-01.09 paragraphs are back under their release and `a63227c58446` has a record
-naming what the releasing session did not write down; a guard holds the tabs
-module on the server side of the client boundary; a comment can no longer be
-attached to another workspace's post (`jjvz`). **The owner delegated the two
+read-only reviewers, no P1. Fixed: channel removal/disable/enable ask for an
+administrator (any member could delete a channel with every post on it); a
+declined agency gets its email (`p3gq`); reconnecting a dropped channel hidden
+from a member; the two-bars question recorded once (`z0b0`); runbook records
+restored for 01.09 and `a63227c58446`; a comment can no longer be attached to
+another workspace's post (`jjvz`). **The owner delegated the two
 open questions on 03.09** («даю все разрешения») and both are decided from
 §9.5, recorded as assumptions in the map §10: the two bars stay different
 (`z0b0`); a search excerpt is quoted beside the fact form, never typed into

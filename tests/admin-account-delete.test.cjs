@@ -91,6 +91,7 @@ const controllerModule = loadTypeScriptModule(
   {
     '@nestjs/common': {
       ...nest,
+      Body: () => () => undefined,
       Controller: () => (target) => target,
       Get: () => () => undefined,
       Inject: () => () => undefined,
@@ -143,9 +144,22 @@ function deletionRepository({
   members,
   emptyOrgs = [],
   userHasOwnRows = false,
+  marketplaceOrgs = [],
+  counts = {},
 }) {
   const mutations = [];
+  const countFor = (model, organizationId) =>
+    counts[organizationId]?.[model] ??
+    (model === 'userOrganization'
+      ? members.filter((row) => row.organizationId === organizationId).length
+      : 0);
+  const counter = (model) => ({
+    count: async ({ where }) => countFor(model, where.organizationId),
+  });
   const tx = {
+    post: counter('post'),
+    integration: counter('integration'),
+    contentPiece: counter('contentPiece'),
     user: {
       findUnique: async () => user,
       findFirst: async ({ where }) =>
@@ -167,14 +181,22 @@ function deletionRepository({
         ) || null,
       deleteMany: async ({ where }) =>
         mutations.push(['userOrganization.deleteMany', where]),
+      count: async ({ where }) =>
+        countFor('userOrganization', where.organizationId),
     },
     tags: {
       deleteMany: async ({ where }) =>
         mutations.push(['tags.deleteMany', where]),
     },
     organization: {
-      findFirst: async ({ where }) =>
-        emptyOrgs.includes(where.id) ? { id: where.id } : null,
+      // Two different questions reach the same door. The marketplace query is
+      // the one built out of `OR`; the emptiness query lists the relations.
+      findFirst: async ({ where }) => {
+        if (where.OR) {
+          return marketplaceOrgs.includes(where.id) ? { id: where.id } : null;
+        }
+        return emptyOrgs.includes(where.id) ? { id: where.id } : null;
+      },
       delete: async ({ where }) =>
         mutations.push(['organization.delete', where]),
     },
@@ -218,10 +240,12 @@ test('deleting an account removes its sole empty workspace with it', async () =>
     id: 'member-1',
     organizationIds: ['own-org'],
   });
+  // No `tags.deleteMany` any more: since `content-factory-next-fn33.32` the
+  // schema carries the delete rule, so the workspace takes its rows with it
+  // and no hand-written list can fall behind.
   expect(mutations).toEqual([
     ['userOrganization.deleteMany', { userId: 'member-1' }],
     ['user.deleteMany', { id: 'member-1', isSuperAdmin: false }],
-    ['tags.deleteMany', { orgId: 'own-org' }],
     ['organization.delete', { id: 'own-org' }],
   ]);
   expect(transactionOptions).toEqual([{ isolationLevel: 'Serializable' }]);
@@ -351,18 +375,108 @@ test('a sole workspace is not asked to keep an administrator', async () => {
   });
 });
 
-test('a sole workspace that still holds content is refused before any mutation', async () => {
+/**
+ * `content-factory-next-fn33.32`. A sole workspace that still holds content
+ * used to be a dead end: the answer was «remove that content first» and there
+ * was no way to say «take it too». Now the first press is answered with what
+ * would go, and nothing is touched until the second one.
+ */
+test('a sole workspace that still holds content asks a second time, with counts', async () => {
   const { repository, mutations } = deletionRepository({
     user: member,
     members: [{ userId: 'member-1', organizationId: 'own-org' }],
     emptyOrgs: [],
+    counts: {
+      'own-org': { post: 12, integration: 3, contentPiece: 5 },
+    },
   });
 
-  await expect(repository.deleteAccount('member-1')).rejects.toMatchObject({
-    status: 409,
-    code: 'account_delete_workspace_has_content',
-  });
+  const refusal = await repository.deleteAccount('member-1').catch((e) => e);
+
+  expect(refusal.status).toBe(409);
+  expect(refusal.code).toBe('account_delete_workspace_confirm');
+  expect(refusal.body.workspaces).toEqual([
+    {
+      name: 'Workspace own-org',
+      posts: 12,
+      channels: 3,
+      materials: 5,
+      members: 1,
+    },
+  ]);
   expect(mutations).toEqual([]);
+});
+
+test('the second press deletes the workspace with everything in it', async () => {
+  const { repository, mutations } = deletionRepository({
+    user: member,
+    members: [{ userId: 'member-1', organizationId: 'own-org' }],
+    emptyOrgs: [],
+    counts: { 'own-org': { post: 12, integration: 3, contentPiece: 5 } },
+  });
+
+  await expect(repository.deleteAccount('member-1', true)).resolves.toEqual({
+    id: 'member-1',
+    organizationIds: ['own-org'],
+  });
+  // The workspace goes; its rows go with it because the schema says so, which
+  // is why nothing here deletes them one table at a time.
+  expect(mutations).toEqual([
+    ['userOrganization.deleteMany', { userId: 'member-1' }],
+    ['user.deleteMany', { id: 'member-1', isSuperAdmin: false }],
+    ['organization.delete', { id: 'own-org' }],
+  ]);
+});
+
+test('a workspace with other members is left standing even on the second press', async () => {
+  const { repository, mutations } = deletionRepository({
+    user: {
+      ...member,
+      organizations: [membership('own-org'), membership('shared-org')],
+    },
+    members: [
+      { userId: 'member-1', organizationId: 'own-org', role: 'ADMIN' },
+      { userId: 'member-1', organizationId: 'shared-org', role: 'ADMIN' },
+      { userId: 'someone-else', organizationId: 'shared-org', role: 'ADMIN' },
+    ],
+    emptyOrgs: [],
+    counts: { 'own-org': { post: 1 } },
+  });
+
+  await expect(repository.deleteAccount('member-1', true)).resolves.toEqual({
+    id: 'member-1',
+    organizationIds: ['own-org'],
+  });
+  expect(mutations).toContainEqual(['organization.delete', { id: 'own-org' }]);
+  expect(mutations).not.toContainEqual([
+    'organization.delete',
+    { id: 'shared-org' },
+  ]);
+});
+
+/**
+ * The one thing the cascade deliberately does not carry away. A marketplace
+ * conversation or order names a second party and a payment, so those two
+ * foreign keys were left without `ON DELETE CASCADE` and this door refuses in
+ * front of them — with the old code, because the answer is still «no».
+ */
+test('a workspace holding marketplace rows is refused, second press or not', async () => {
+  for (const deleteWorkspaces of [false, true]) {
+    const { repository, mutations } = deletionRepository({
+      user: member,
+      members: [{ userId: 'member-1', organizationId: 'own-org' }],
+      emptyOrgs: [],
+      marketplaceOrgs: ['own-org'],
+    });
+
+    await expect(
+      repository.deleteAccount('member-1', deleteWorkspaces)
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'account_delete_workspace_has_content',
+    });
+    expect(mutations).toEqual([]);
+  }
 });
 
 test('a person who still owns rows of their own is refused before any mutation', async () => {
@@ -420,8 +534,8 @@ test('the service names the administrator in the log and sends no email', async 
   const users = service(
     {
       getUserById: async () => ({ id: 'member-1', isSuperAdmin: false }),
-      deleteAccount: async (id) => {
-        calls.push(id);
+      deleteAccount: async (id, deleteWorkspaces) => {
+        calls.push([id, deleteWorkspaces]);
         return { id, organizationIds: [] };
       },
     },
@@ -432,8 +546,36 @@ test('the service names the administrator in the log and sends no email', async 
     id: 'member-1',
     organizationIds: [],
   });
-  expect(calls).toEqual(['member-1']);
+  expect(calls).toEqual([['member-1', false]]);
   expect(logged).toContain('Account member-1 deleted by root');
+});
+
+/**
+ * Two presses are two different amounts of data gone, and afterwards nothing
+ * else records which one happened — the account and its rows are not there to
+ * be asked (`content-factory-next-fn33.32`).
+ */
+test('the service carries the second confirmation through and says so in the log', async () => {
+  const logged = [];
+  const calls = [];
+  const users = service(
+    {
+      getUserById: async () => ({ id: 'member-1', isSuperAdmin: false }),
+      deleteAccount: async (id, deleteWorkspaces) => {
+        calls.push([id, deleteWorkspaces]);
+        return { id, organizationIds: ['own-org'] };
+      },
+    },
+    logged
+  );
+
+  await expect(
+    users.deleteAccount('member-1', 'root', true)
+  ).resolves.toEqual({ id: 'member-1', organizationIds: ['own-org'] });
+  expect(calls).toEqual([['member-1', true]]);
+  expect(logged).toContain(
+    'Account member-1 deleted with its workspaces by root'
+  );
 });
 
 test.each([
@@ -472,7 +614,10 @@ test('the delete door is superadmin-only and proves its own origin', async () =>
   const controller = new AdminController(
     {},
     {},
-    { deleteAccount: async (id, adminId) => calls.push([id, adminId]) },
+    {
+      deleteAccount: async (id, adminId, deleteWorkspaces) =>
+        calls.push([id, adminId, deleteWorkspaces]),
+    },
     {},
     {}
   );
@@ -488,7 +633,7 @@ test('the delete door is superadmin-only and proves its own origin', async () =>
     await expect(
       controller.deleteUser({ id: 'root', isSuperAdmin: true }, 'member-1', request)
     ).resolves.toEqual({ success: true });
-    expect(calls).toEqual([['member-1', 'root']]);
+    expect(calls).toEqual([['member-1', 'root', false]]);
 
     await expect(
       controller.deleteUser({ id: 'member', isSuperAdmin: false }, 'member-1', request)
@@ -503,7 +648,30 @@ test('the delete door is superadmin-only and proves its own origin', async () =>
         cookies: { auth: 'root-session' },
       })
     ).rejects.toMatchObject({ status: 403 });
-    expect(calls).toEqual([['member-1', 'root']]);
+    expect(calls).toEqual([['member-1', 'root', false]]);
+
+    // The second press. The flag is a body field, so a URL alone can never
+    // carry it (`content-factory-next-fn33.32`).
+    await expect(
+      controller.deleteUser(
+        { id: 'root', isSuperAdmin: true },
+        'member-1',
+        request,
+        { deleteWorkspaces: true }
+      )
+    ).resolves.toEqual({ success: true });
+    expect(calls).toContainEqual(['member-1', 'root', true]);
+
+    // Anything but `true` is the ordinary deletion, not a confirmation.
+    await expect(
+      controller.deleteUser(
+        { id: 'root', isSuperAdmin: true },
+        'member-1',
+        request,
+        { deleteWorkspaces: 'yes' }
+      )
+    ).resolves.toEqual({ success: true });
+    expect(calls.at(-1)).toEqual(['member-1', 'root', false]);
   } finally {
     if (previousFrontendUrl === undefined) delete process.env.FRONTEND_URL;
     else process.env.FRONTEND_URL = previousFrontendUrl;
@@ -527,4 +695,68 @@ test('the accounts screen offers deletion to every non-administrator, behind a c
   // The two refusals the server can answer with are said in words, not JSON.
   expect(source).toContain('account_delete_workspace_has_content');
   expect(source).toContain('account_delete_user_has_content');
+});
+
+/**
+ * `content-factory-next-fn33.32`. The second confirmation is a whole second
+ * screen state: the counts the server sent, said in words, and a button that
+ * names what it does. Reading it out of the source keeps the two halves — the
+ * code the server sends and the code the screen answers — in one test.
+ */
+test('the accounts screen asks a second time before a workspace goes with its content', () => {
+  const source = fs.readFileSync(
+    path.join(
+      __dirname,
+      '../apps/frontend/src/components/admin/admin-users.component.tsx'
+    ),
+    'utf8'
+  );
+
+  expect(source).toContain('account_delete_workspace_confirm');
+  expect(source).toContain("'delete_account_with_workspace_confirmation',");
+  expect(source).toContain("'delete_account_with_workspace_confirm'");
+  // The four counts are read out, not summed into one meaningless number.
+  expect(source).toContain("'delete_account_workspace_summary',");
+  for (const count of ['posts', 'channels', 'materials', 'members']) {
+    expect(source).toContain(`${count}: workspace.${count}`);
+  }
+  // The flag travels in the body. A query string ends up in history and logs.
+  expect(source).toContain('body: JSON.stringify(');
+  expect(source).not.toMatch(/deleteWorkspaces=true/);
+});
+
+/**
+ * The schema is what makes the second press possible, so it is checked here
+ * rather than trusted. Two foreign keys are deliberately left without a
+ * cascade; if either gains one, this fails and somebody has to say why the
+ * marketplace may be deleted with a workspace.
+ */
+test('the Organization relations carry the delete rule the second press needs', () => {
+  const schema = fs.readFileSync(
+    path.join(
+      __dirname,
+      '../libraries/nestjs-libraries/src/database/prisma/schema.prisma'
+    ),
+    'utf8'
+  );
+
+  const relations = [...schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)]
+    .flatMap(([, model, body]) =>
+      body
+        .split('\n')
+        .filter((line) => /@relation\(fields:|@relation\("[^"]*", fields:/.test(line))
+        .map((line) => ({ model, line }))
+    )
+    .filter(({ line }) => /\bOrganization\b/.test(line));
+
+  const withoutCascade = relations
+    .filter(({ line }) => !/onDelete:\s*Cascade/.test(line))
+    .map(({ model, line }) => `${model}.${line.trim().split(/\s+/)[0]}`);
+
+  expect(withoutCascade.sort()).toEqual([
+    // Money and a second party: refused by `deleteAccount`, never cascaded.
+    'MessagesGroup.buyerOrganization',
+    // A post belongs to its own workspace and is only offered to this one.
+    'Post.submittedForOrganization',
+  ]);
 });

@@ -15,7 +15,10 @@ function usage() {
       '  --allow-enum names one enum type that `CREATE TYPE ... AS ENUM` may create in\n' +
       '  update mode. It admits nothing else: `ALTER TYPE ... ADD VALUE` stays refused\n' +
       '  because a value added inside a transaction cannot be used in that same\n' +
-      '  transaction, and apply runs in one.'
+      '  transaction, and apply runs in one.\n' +
+      '  `ALTER TABLE ... DROP CONSTRAINT ...` passes only when the same file adds the\n' +
+      '  same constraint back as a FOREIGN KEY; that pair is how a delete rule is\n' +
+      '  changed. DROP TABLE and DROP COLUMN stay refused.'
   );
 }
 
@@ -209,12 +212,52 @@ function isCreateEnumStatement(statement) {
   return new RegExp(`^CREATE TYPE ${IDENTIFIER} AS ENUM\\s*\\(`, 'i').test(statement);
 }
 
+// Changing the delete rule of a foreign key has no `ALTER CONSTRAINT` in
+// PostgreSQL, so `prisma migrate diff` prints the only shape there is: drop the
+// constraint and add it again with the new rule. That drop removes no table, no
+// column and no row — the constraint is back under the same name a few
+// statements later — and refusing it would leave a whole class of change with
+// no reviewable path at all.
+//
+// It is admitted only as one half of that pair. `constraintSwaps` holds
+// `table::constraint` for every `ADD CONSTRAINT ... FOREIGN KEY` in the *same*
+// file, so a drop whose constraint is never added back stays refused, and so
+// does `DROP CONSTRAINT ... CASCADE`, which would take dependent objects with
+// it. `DROP TABLE` and `DROP COLUMN` are untouched by this and stay refused.
+const DROP_CONSTRAINT = new RegExp(
+  `^ALTER TABLE (?:ONLY )?(${IDENTIFIER}) DROP CONSTRAINT (?:IF EXISTS )?(${IDENTIFIER})\\s*$`,
+  'i'
+);
+const ADD_FOREIGN_KEY = new RegExp(
+  `^ALTER TABLE (?:ONLY )?(${IDENTIFIER}) ADD CONSTRAINT (${IDENTIFIER}) FOREIGN KEY\\b`,
+  'i'
+);
+
+function foreignKeySwapNames(statements) {
+  const names = new Set();
+  for (const statement of statements) {
+    const match = statement.match(ADD_FOREIGN_KEY);
+    if (match) names.add(`${objectName(match[1])}::${objectName(match[2])}`);
+  }
+  return names;
+}
+
+function isForeignKeySwapDrop(statement, constraintSwaps) {
+  const match = statement.match(DROP_CONSTRAINT);
+  if (!match) return false;
+  return constraintSwaps.has(`${objectName(match[1])}::${objectName(match[2])}`);
+}
+
 // `CREATE TYPE ... AS ENUM` adds a type and touches no row, so it is additive
 // in both modes. What differs is how the operator authorises it: `bootstrap`
 // takes the whole non-Mastra diff, `update` requires the type to be named by
 // `--allow-enum`, which `targetIsAllowedInMode` checks.
-function isAllowedShape(statement) {
-  return isCreateEnumStatement(statement) || isAllowedAdditiveStatement(statement);
+function isAllowedShape(statement, constraintSwaps) {
+  return (
+    isCreateEnumStatement(statement) ||
+    isAllowedAdditiveStatement(statement) ||
+    isForeignKeySwapDrop(statement, constraintSwaps)
+  );
 }
 
 // `ALTER TYPE ... ADD VALUE` is additive, and it is still refused in both
@@ -275,6 +318,11 @@ function validate(options) {
   if (selectedStatements.length === 0) throw new Error('selected SQL contains no statements');
 
   const createdTables = createdTableNames(diffStatements);
+  // Each file authorises its own drops. A drop in the selected SQL is not
+  // excused by an add that stayed behind in the diff: the operator runs the
+  // selected file, and that file alone has to put the constraint back.
+  const diffConstraintSwaps = foreignKeySwapNames(diffStatements);
+  const selectedConstraintSwaps = foreignKeySwapNames(selectedStatements);
   const createdEnums = new Set();
   const remainingDiffStatements = new Map();
   for (const statement of diffStatements) {
@@ -286,13 +334,16 @@ function validate(options) {
     const target = targetForStatement(statement);
     if (!target) throw new Error('current migrate diff contains an unknown schema operation');
     if (isMastraOwnedTarget(target)) continue;
-    if (isDestructiveStatement(statement)) {
+    if (
+      !isForeignKeySwapDrop(statement, diffConstraintSwaps) &&
+      isDestructiveStatement(statement)
+    ) {
       throw new Error('current migrate diff contains a destructive or data-changing operation');
     }
     if (isConcurrentIndex(statement)) {
       throw new Error('current migrate diff contains CREATE INDEX CONCURRENTLY, which cannot run in one transaction');
     }
-    if (!isAllowedShape(statement)) {
+    if (!isAllowedShape(statement, diffConstraintSwaps)) {
       throw new Error('current migrate diff contains an operation that is not allowed additive schema operation');
     }
     if (!targetIsAllowedInMode(target, options, createdTables)) {
@@ -311,7 +362,10 @@ function validate(options) {
     const target = targetForStatement(statement);
     if (!target) throw new Error('selected SQL contains an unknown schema operation');
     if (isMastraOwnedTarget(target)) throw new Error('selected SQL references Mastra-owned storage');
-    if (isDestructiveStatement(statement)) {
+    if (
+      !isForeignKeySwapDrop(statement, selectedConstraintSwaps) &&
+      isDestructiveStatement(statement)
+    ) {
       throw new Error('selected SQL contains a destructive or data-changing operation');
     }
     if (isConcurrentIndex(statement)) {
@@ -321,7 +375,7 @@ function validate(options) {
     if (count === 0) throw new Error('selected statement is not printed by the current migrate diff');
     remainingDiffStatements.set(statement, count - 1);
 
-    if (!isAllowedShape(statement)) {
+    if (!isAllowedShape(statement, selectedConstraintSwaps)) {
       throw new Error('selected SQL is not an allowed additive schema operation');
     }
 

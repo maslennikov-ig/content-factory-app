@@ -74,7 +74,15 @@ export class ContentLeadController {
     @Body() body: CreateContentLeadSubscriptionDto
   ) {
     try {
-      return await this.leads.createSubscription(organization.id, user.id, body);
+      return await this.leads.createSubscription(
+        organization.id,
+        user.id,
+        body,
+        // content-factory-next-ni7x: the refusal for "too many feeds" is
+        // printed on the screen as the server wrote it, so the server needs
+        // the language of whoever asked.
+        user.language
+      );
     } catch (error) {
       safeHttpError(error);
     }
@@ -97,14 +105,21 @@ export class ContentLeadController {
   @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async check(
     @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
     @Param('id') id: string
   ) {
     try {
       // Doubles as recovery for a periodic workflow that never started (a
       // `createSubscription` whose Temporal call failed): see
       // `ContentLeadService.checkSubscription`.
+      //
+      // `manual` is what marks this as a click rather than the periodic
+      // workflow's tick, and it is the click that is rate-limited
+      // (content-factory-next-ni7x).
       return await this.leads.checkSubscription(organization.id, id, {
         ensurePeriodicCheck: true,
+        manual: true,
+        language: user.language,
       });
     } catch (error) {
       safeHttpError(error);

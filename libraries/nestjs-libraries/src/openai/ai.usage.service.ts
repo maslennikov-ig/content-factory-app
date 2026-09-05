@@ -10,6 +10,11 @@ import {
   setAiProviderSettingReader,
   withActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import {
+  AiRole,
+  modelFor,
+  roleForOperation,
+} from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
 
 export type AiOperation =
@@ -106,8 +111,16 @@ export class AiAdmissionContended extends HttpException {
   }
 }
 
-const modelFor = (config: AiConfig, operation: AiOperation) =>
-  operation === 'image_generation' ? config.imageModel : config.textModel;
+/**
+ * The role an operation runs under when the caller names none.
+ *
+ * An operation is a billing unit; a role is what the model is being asked to
+ * do. They are one-to-one for most doors and deliberately not for
+ * `text_generation`, which covers drafting a post, reading a voice off samples
+ * and repairing a sentence against it. Those name their own role at the call.
+ */
+const roleOf = (operation: AiOperation, role?: AiRole): AiRole =>
+  role ?? roleForOperation(operation);
 
 export const aiBillingPeriodStart = (createdAt: Date, now = new Date()) => {
   if (now < createdAt) return new Date(createdAt);
@@ -277,13 +290,16 @@ export class AiUsageService {
     callback: () => T
   ): T {
     this.assertTenant(organizationId);
+    // No role argument: the operation is already admitted under one, and
+    // `withActiveAiConfig` keeps whichever is in flight.
     return withActiveAiConfig(organizationId, config, callback);
   }
 
   private async createAdmission(
     organizationId: string,
     operation: AiOperation,
-    config: AiConfig
+    config: AiConfig,
+    role: AiRole
   ) {
     const data = {
       organizationId,
@@ -294,8 +310,19 @@ export class AiUsageService {
       userId: getActingUserId() ?? null,
       usageMode: config.usageMode,
       operation,
+      /**
+       * What the model was asked to do, beside what the product was doing.
+       *
+       * `content-factory-next-x63z`. The ledger recorded the operation and the
+       * model id, and the model id was the same for every text operation, so
+       * «what did classification cost us» had no answer at all — the two rows
+       * that differed in price looked identical. The role is the axis the
+       * routing is configured on, so it is the axis the spend has to be
+       * readable on, otherwise a change to it cannot be judged afterwards.
+       */
+      role,
       provider: config.provider,
-      model: modelFor(config, operation),
+      model: modelFor(role, config),
       status: 'admitted' as const,
     };
 
@@ -411,19 +438,32 @@ export class AiUsageService {
     };
   }
 
+  /**
+   * @param role what the model is being asked to do, when that is finer than
+   * the operation. Omitted, the operation's own role applies and the call
+   * keeps exactly the model it had before roles existed.
+   */
   async executeAiOperation<T>(
     organizationId: string,
     operation: AiOperation,
-    callback: () => Promise<T>
+    callback: () => Promise<T>,
+    role?: AiRole
   ): Promise<T> {
-    return this.executeOperationWithConfig(organizationId, operation, callback);
+    return this.executeOperationWithConfig(
+      organizationId,
+      operation,
+      callback,
+      undefined,
+      role
+    );
   }
 
   private async executeOperationWithConfig<T>(
     organizationId: string,
     operation: AiOperation,
     callback: () => Promise<T>,
-    preparedConfig?: AiConfig
+    preparedConfig?: AiConfig,
+    role?: AiRole
   ): Promise<T> {
     this.assertTenant(organizationId);
     if (getActiveAiConfig(organizationId)) {
@@ -433,13 +473,20 @@ export class AiUsageService {
     if (!config.apiKey) {
       throw new AiProviderNotConfigured();
     }
+    const chosen = roleOf(operation, role);
     const admission = await this.createAdmission(
       organizationId,
       operation,
-      config
+      config,
+      chosen
     );
     try {
-      const result = await withActiveAiConfig(organizationId, config, callback);
+      const result = await withActiveAiConfig(
+        organizationId,
+        config,
+        callback,
+        chosen
+      );
       await this.finishAdmission(admission.id, true);
       return result;
     } catch (error) {
@@ -451,7 +498,8 @@ export class AiUsageService {
   async *executeAiStreamOperation<T>(
     organizationId: string,
     operation: AiOperation,
-    factory: () => Promise<AsyncIterable<T>> | AsyncIterable<T>
+    factory: () => Promise<AsyncIterable<T>> | AsyncIterable<T>,
+    role?: AiRole
   ): AsyncGenerator<T> {
     this.assertTenant(organizationId);
     if (getActiveAiConfig(organizationId)) {
@@ -462,10 +510,12 @@ export class AiUsageService {
     if (!config.apiKey) {
       throw new AiProviderNotConfigured();
     }
+    const chosen = roleOf(operation, role);
     const admission = await this.createAdmission(
       organizationId,
       operation,
-      config
+      config,
+      chosen
     );
     let succeeded = false;
     let iterator: AsyncIterator<T> | undefined;
@@ -473,7 +523,8 @@ export class AiUsageService {
       const iterable = await withActiveAiConfig(
         organizationId,
         config,
-        factory
+        factory,
+        chosen
       );
       iterator = iterable[Symbol.asyncIterator]();
       while (true) {
@@ -576,7 +627,12 @@ export class AiUsageService {
     if (!config.apiKey) {
       throw new AiProviderNotConfigured();
     }
-    const model = await withActiveAiConfig(organizationId, config, factory);
+    const model = await withActiveAiConfig(
+      organizationId,
+      config,
+      factory,
+      roleOf(operation)
+    );
     return this.wrapModelExecution(organizationId, operation, model, config);
   }
 
@@ -584,7 +640,8 @@ export class AiUsageService {
     organizationId: string,
     operation: AiOperation,
     factory: () => Promise<T>,
-    preparedConfig?: AiConfig
+    preparedConfig?: AiConfig,
+    role?: AiRole
   ): Promise<T> {
     this.assertTenant(organizationId);
     if (getActiveAiConfig(organizationId)) {
@@ -594,14 +651,21 @@ export class AiUsageService {
     if (!config.apiKey) {
       throw new AiProviderNotConfigured();
     }
+    const chosen = roleOf(operation, role);
     const admission = await this.createAdmission(
       organizationId,
       operation,
-      config
+      config,
+      chosen
     );
     let result: T;
     try {
-      result = await withActiveAiConfig(organizationId, config, factory);
+      result = await withActiveAiConfig(
+        organizationId,
+        config,
+        factory,
+        chosen
+      );
     } catch (error) {
       await this.finishAdmission(admission.id, false);
       throw error;

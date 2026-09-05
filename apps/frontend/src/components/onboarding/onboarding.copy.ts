@@ -1,4 +1,5 @@
 import type { OnboardingStepKey } from './onboarding.adapter';
+import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
 
 /**
  * The walkthrough's words, written out in two languages beside the code —
@@ -35,7 +36,7 @@ type Words = {
   stepOf: (index: number, total: number) => string;
   todoLabel: string;
   current: string;
-  skipStep: string;
+  progressPending: string;
   allDoneTitle: string;
   allDoneBody: string;
   leave: string;
@@ -66,12 +67,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     stepOf: (index, total) => `Шаг ${index} из ${total}`,
     todoLabel: 'Что сделать',
     current: 'Сейчас на этом шаге',
-    skipStep: 'Пропустить шаг',
+    progressPending: 'считаем…',
     allDoneTitle: 'Всё пройдено',
     allDoneBody:
-      'Первый материал прошёл весь путь. Дальше можно не возвращаться сюда — но страница останется в меню помощи, если понадобится.',
+      'Первый материал прошёл весь путь. Дальше можно не возвращаться сюда — но страница останется в настройках, если понадобится.',
     leave: 'Закрыть и осмотреться',
-    comeBack: 'Закроете — вернётесь через «Помощь → С чего начать».',
+    comeBack: 'Закроете — вернётесь через «Настройки → С чего начать».',
     loading: 'Смотрим, что уже сделано',
     failed:
       'Не удалось узнать, что уже сделано. Шаги ниже те же самые — просто галочки пока не проставлены.',
@@ -142,12 +143,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     stepOf: (index, total) => `Step ${index} of ${total}`,
     todoLabel: 'What to do',
     current: 'You are here',
-    skipStep: 'Skip this step',
+    progressPending: 'counting…',
     allDoneTitle: 'All done',
     allDoneBody:
-      'Your first piece went the whole way. You do not need to come back here — but the page stays in the help menu if you ever do.',
+      'Your first piece went the whole way. You do not need to come back here — but the page stays in Settings if you ever do.',
     leave: 'Close and look around',
-    comeBack: 'Close this and you can return through Help → Where to start.',
+    comeBack: 'Close this and you can return through Settings → Where to start.',
     loading: 'Checking what is already done',
     failed:
       'We could not read what is already done. The steps below are the same — the ticks are just missing.',
@@ -210,7 +211,17 @@ export const onboardingCopy: { ru: Words; en: Words } = {
 
 export type OnboardingLocale = keyof typeof onboardingCopy;
 
+/**
+ * Which of the two languages a person reads, decided in one place.
+ *
+ * This used to spell the ternary out again — the eighth hand-written copy of
+ * `String(language ?? 'ru').toLowerCase().startsWith('ru')`, written two
+ * commits after `content-factory-next-w4vh` removed seven of them, and outside
+ * the folder `content-locale-single-decision.guard.test.cjs` watches. It is
+ * the same question with the same answer, so it delegates instead. The name
+ * stays: callers here ask for an onboarding locale, and this file is where
+ * that word means something.
+ */
 export const resolveOnboardingLocale = (
   language: string | undefined | null
-): OnboardingLocale =>
-  String(language ?? 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en';
+): OnboardingLocale => resolveContentLocale(language);

@@ -49,12 +49,59 @@ export const getCountryCodeForFlag = (languageCode: string) => {
 };
 
 /**
- * The language's own name in its own script. `Intl` takes BCP-47 only: handed
- * `ka_ge` it throws a RangeError, and the Georgian entry in the picker read
- * `ka_ge` instead of ქართული.
+ * The name of every shipped language, written the way that language writes it.
+ *
+ * `content-factory-next-fn33.116`. This used to be `Intl.DisplayNames`, and
+ * `Intl.DisplayNames` answers with whatever locale data the runtime happens to
+ * carry. Asked for Georgian in its own words, a build without Georgian data
+ * does not fail — it quietly falls back, so the list came out as `Georgian` on
+ * the server and `грузинский` in a browser whose default was Russian: a picker
+ * of native names with two impostors in it, and the one reader who most needs
+ * to find their language is the one who cannot.
+ *
+ * Sixteen names is a list, not a database. Written out, it is the same in every
+ * runtime, identical on the server and in the browser — which also means the
+ * picker cannot cause a hydration mismatch — and it is reviewable by anyone who
+ * reads one of these languages. A seventeenth language added to `i18n.config`
+ * without a name here is caught by `tests/language-menu.guard.test.cjs`.
+ *
+ * Written as labels: these appear in a list, where every entry is a name rather
+ * than a word in a sentence, so `Русский` and `Français` carry the capital that
+ * `Intl`'s prose form (`русский`, `français`) drops.
+ */
+const NATIVE_LANGUAGE_NAMES: Record<string, string> = {
+  ar: 'العربية',
+  bn: 'বাংলা',
+  de: 'Deutsch',
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  he: 'עברית',
+  it: 'Italiano',
+  ja: '日本語',
+  ka: 'ქართული',
+  ko: '한국어',
+  pt: 'Português',
+  ru: 'Русский',
+  tr: 'Türkçe',
+  vi: 'Tiếng Việt',
+  zh: '中文',
+};
+
+/**
+ * The language's own name in its own script.
+ *
+ * The table is the answer. `Intl` remains only as the fallback for a code that
+ * reaches here without an entry — a language the product does not ship, from a
+ * cookie or a profile — where a guessed name still beats a bare code. `Intl`
+ * takes BCP-47 only: handed `ka_ge` it throws a RangeError, so the tag is
+ * reduced to its primary subtag first.
  */
 export const getLanguageName = (languageCode: string) => {
   const { primary } = localeParts(languageCode);
+  if (NATIVE_LANGUAGE_NAMES[primary]) {
+    return NATIVE_LANGUAGE_NAMES[primary];
+  }
   try {
     const displayNames = new Intl.DisplayNames([primary], {
       type: 'language',
@@ -68,8 +115,10 @@ export const getLanguageName = (languageCode: string) => {
 };
 
 /**
- * The same name, as a label rather than as a word in a sentence.
+ * The same name, guaranteed to be in label form.
  *
+ * The shipped names are already written as labels, so for them this returns
+ * them unchanged. It still earns its place for a name that came from `Intl`:
  * `Intl` follows each language's own prose convention, so Russian returns
  * `русский` and French `français`. That is correct inside a sentence and wrong
  * in a picker, where every entry is a label and one lowercase initial among

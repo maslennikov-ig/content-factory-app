@@ -133,6 +133,10 @@ describe('AI provider search settings component', () => {
       includedUsedOperations: 0,
       includedRemainingOperations: 0,
       includedRestrictionReason: 'quota_unavailable',
+      // `content-factory-next-x63z`: the routing map and its breakdown are part
+      // of the settings response now, and the screen reads both.
+      roleModels: {},
+      usageByRole: [],
     };
   });
 
@@ -151,6 +155,7 @@ describe('AI provider search settings component', () => {
         apiKey: '',
         textModel: settings.textModel,
         imageModel: settings.imageModel,
+        roleModels: settings.roleModels,
         searchEnabled: settings.searchEnabled,
         searchApiKey: '',
         searchTopic: settings.searchTopic,

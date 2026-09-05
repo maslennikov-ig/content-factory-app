@@ -223,7 +223,7 @@ export const Sets: FC = () => {
               onClick={addSet()}
               className={clsx((data?.length || 0) > 0 && 'my-[16px]')}
             >
-              Add a set
+              {t('add_set', 'Add set')}
             </Button>
           </div>
         </div>

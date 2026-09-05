@@ -6,7 +6,7 @@ import useSWR from 'swr';
 import clsx from 'clsx';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { Button } from '@contentfactory/react/form/button';
+import { buttonClassName } from '@contentfactory/react/form/button';
 import {
   EMPTY_PROGRESS,
   ONBOARDING_PROGRESS_API,
@@ -76,7 +76,19 @@ export function OnboardingWalkthrough() {
   const progress = answer.data ? readProgress(answer.data) : EMPTY_PROGRESS;
   const done = doneCount(progress);
   const total = ONBOARDING_STEP_KEYS.length;
-  const active: OnboardingStepKey | null = currentStep(progress);
+  /**
+   * Whether the workspace has answered yet (`content-factory-next-za05`,
+   * item 5). Before it does, `progress` is `EMPTY_PROGRESS` — the right
+   * default for a reader that must never congratulate anyone, and the wrong
+   * thing to *print*: the bar read «0 из 6» and pointed at step one before
+   * anything had been looked at, which is a claim about someone's workspace
+   * made out of not knowing. An error still counts as an answer: the page
+   * says so in words above, and the ticks are honestly missing.
+   */
+  const answered = Boolean(answer.data) || Boolean(answer.error);
+  const active: OnboardingStepKey | null = answered
+    ? currentStep(progress)
+    : null;
   const activeIndex = active ? ONBOARDING_STEP_KEYS.indexOf(active) : -1;
   const step = active ? t.steps[active] : null;
 
@@ -124,23 +136,35 @@ export function OnboardingWalkthrough() {
                 {t.progressLabel}
               </span>
               <span
-                data-onboarding-progress={`${done}/${total}`}
+                data-onboarding-progress={
+                  answered ? `${done}/${total}` : 'pending'
+                }
                 className="cf-caption text-cf-ink"
               >
-                {t.progressValue(done, total)}
+                {answered ? t.progressValue(done, total) : t.progressPending}
               </span>
             </div>
             <div
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={total}
-              aria-valuenow={done}
-              aria-valuetext={t.progressValue(done, total)}
+              // An indeterminate bar leaves `aria-valuenow` out; a zero here
+              // would announce «nothing done» to a screen reader for the same
+              // reason the sighted bar printed «0 из 6».
+              aria-valuenow={answered ? done : undefined}
+              aria-valuetext={
+                answered ? t.progressValue(done, total) : t.progressPending
+              }
+              aria-busy={answered ? undefined : true}
               className="mt-[8px] h-[4px] overflow-hidden rounded-[4px] bg-cf-surface-raised"
             >
               <div
                 className="h-[4px] bg-cf-accent transition-[width] duration-state motion-reduce:transition-none"
-                style={{ width: `${Math.round((done / total) * 100)}%` }}
+                style={{
+                  width: answered
+                    ? `${Math.round((done / total) * 100)}%`
+                    : '0%',
+                }}
               />
             </div>
           </div>
@@ -231,10 +255,18 @@ export function OnboardingWalkthrough() {
                   {step.todo}
                 </p>
                 <div className="mt-[16px] flex flex-wrap items-center gap-[8px]">
+                  {/*
+                    The primitive's own paint and geometry, not a second copy
+                    of them (`content-factory-next-za05`, item 7). This anchor
+                    had spelled out the accent fill, the padding, the focus
+                    ring and a `min-h-[40px]` by hand — one more place for the
+                    action scale to drift. `buttonClassName` is the branch the
+                    system already keeps for a control that has to stay a link.
+                  */}
                   <Link
                     href={ONBOARDING_STEP_HREF[active]}
                     data-onboarding-action={active}
-                    className="inline-flex min-h-[40px] items-center rounded-[8px] bg-cf-accent px-[16px] cf-label-md text-cf-accent-ink transition-colors duration-state hover:bg-cf-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none"
+                    className={buttonClassName({ variant: 'primary' })}
                   >
                     {step.action}
                   </Link>
@@ -268,10 +300,21 @@ export function OnboardingWalkthrough() {
         <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
           {t.comeBack}
         </p>
-        <Link href="/launches" className="shrink-0">
-          <Button type="button" variant="secondary">
-            {t.leave}
-          </Button>
+        {/*
+          One element, not a `<button>` wrapped in an `<a>`
+          (`content-factory-next-za05`, item 6). Nested interactive elements
+          are invalid HTML and give a keyboard or screen-reader user two stops
+          for one action, with the inner one carrying the label and the outer
+          one carrying the destination.
+        */}
+        <Link
+          href="/launches"
+          className={buttonClassName({
+            variant: 'secondary',
+            className: 'shrink-0',
+          })}
+        >
+          {t.leave}
         </Link>
       </footer>
     </section>

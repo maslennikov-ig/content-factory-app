@@ -724,6 +724,11 @@ describe('product-events admin page boundary', () => {
           AdminProductEventsComponent,
         },
       '@contentfactory/react/layout': { PageShell },
+      // Заголовок вкладки идёт через общего помощника (fn33.94); здесь он не
+      // под проверкой — страница получает заглушку той же формы.
+      '@contentfactory/frontend/app/page-title': {
+        pageTitle: () => async () => ({ title: '', description: '' }),
+      },
       next: {},
     })(adminPagePath);
 

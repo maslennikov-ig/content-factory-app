@@ -675,6 +675,23 @@ h3 {
   display: none !important;
 }
 
+// Строка «Powered by CopilotKit» под полем ввода помощника
+// (`content-factory-next-fn33.118`). Пропа, который её убирает, в
+// `@copilotkit/react-ui@1.10.6` нет: `Input.tsx` считает её видимость как
+// `!copilotApiConfig.publicApiKey` — то есть показывает её всем, у кого нет
+// ключа облака CopilotKit. Библиотека пишет `display: block` и
+// `visibility: visible` прямо в атрибут `style`, поэтому правило перебивает
+// его через `!important`; это единственное место, где `.poweredBy`
+// встречается.
+// Собственное правило библиотеки `.poweredBy{display:block!important}` идёт
+// в сборке позже этого файла, и при равной специфичности побеждает оно
+// (прогон 05.09). Селектор сильнее — окно помощника плюс подпись.
+.copilotKitWindow .poweredBy,
+.copilotKitPopup .poweredBy,
+.poweredBy.poweredBy {
+  display: none !important;
+}
+
 html[dir='rtl'] .rbox {
   direction: rtl !important;
 }

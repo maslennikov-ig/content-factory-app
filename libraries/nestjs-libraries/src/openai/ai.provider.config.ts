@@ -1,6 +1,12 @@
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import {
+  AiRole,
+  AiRoleModels,
+  DEFAULT_AI_ROLE,
+  parseRoleModels,
+} from '@contentfactory/nestjs-libraries/openai/ai.roles';
 
 /**
  * One place that decides which language-model provider an organization talks
@@ -44,11 +50,29 @@ export interface AiConfig {
   baseUrl?: string;
   textModel: string;
   imageModel: string;
+  /**
+   * A model id per call role, empty when the workspace has named none.
+   *
+   * Never undefined: every reader falls back through `modelFor`, and an
+   * optional map would make «not configured» and «not loaded» look the same
+   * at the one place where the difference is a paid call to the wrong model.
+   */
+  roleModels: AiRoleModels;
   workspaceKeyConfigured: boolean;
   workspaceSearchKeyConfigured: boolean;
   includedAvailable: boolean;
   search: WebSearchConfig;
 }
+
+const readJson = (raw?: string): unknown => {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    console.error('AI_ROLE_MODELS is not valid JSON; ignoring it.');
+    return undefined;
+  }
+};
 
 const DEFAULT_MODELS: Record<AiProvider, { text: string; image: string }> = {
   openai: { text: 'gpt-4.1', image: 'chatgpt-image-latest' },
@@ -66,6 +90,15 @@ const envDefaults = () => {
       (provider === 'openrouter' ? OPENROUTER_BASE_URL : undefined),
     textModel: process.env.AI_TEXT_MODEL || DEFAULT_MODELS[provider].text,
     imageModel: process.env.AI_IMAGE_MODEL || DEFAULT_MODELS[provider].image,
+    /**
+     * The operator's own routing, for the modes where the bill is ours.
+     *
+     * One JSON variable rather than a list of model names in this repository:
+     * the bead is explicit that ids change and a tenant's provider may not be
+     * ours, so nothing here may hold a table of them. Unparseable reads as
+     * «none configured», which is the behaviour the product had before.
+     */
+    roleModels: parseRoleModels(readJson(process.env.AI_ROLE_MODELS)),
     search: {
       enabled: false,
       provider: 'tavily' as const,
@@ -86,6 +119,8 @@ export interface StoredAiProviderSetting {
   apiKey?: string | null;
   textModel?: string | null;
   imageModel?: string | null;
+  /** A JSON column, so its shape is whatever was written into it. */
+  roleModels?: unknown;
   searchEnabled: boolean;
   searchProvider?: string | null;
   searchApiKey?: string | null;
@@ -150,6 +185,14 @@ export const loadAiConfig = async (
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
+          /**
+           * The tenant's routing is deliberately not read here, for the same
+           * reason their `textModel` is not: in `included` mode the key is the
+           * operator's, and a model id chosen by whoever opened the settings
+           * screen would spend it. Only the operator's own `AI_ROLE_MODELS`
+           * applies, which is where the included bill can actually be cut.
+           */
+          roleModels: defaults.roleModels,
           search: {
             enabled: stored.searchEnabled,
             provider: (stored.searchProvider as SearchProvider) || 'tavily',
@@ -170,6 +213,12 @@ export const loadAiConfig = async (
             provider === 'openrouter' ? OPENROUTER_BASE_URL : defaults.baseUrl,
           textModel: stored.textModel || DEFAULT_MODELS[provider].text,
           imageModel: stored.imageModel || DEFAULT_MODELS[provider].image,
+          // On its own key the workspace routes only what it named itself.
+          // `AI_ROLE_MODELS` is the operator's lever for the `included` bill,
+          // and its names belong to the operator's provider: copied here they
+          // would refuse at generation time, far from where anyone set them
+          // (review of the 05.09 wave, P1).
+          roleModels: parseRoleModels(stored.roleModels),
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
@@ -231,6 +280,12 @@ export const requireAiConfig = async (
 interface ActiveAiConfig {
   organizationId: string;
   config: AiConfig;
+  /**
+   * The role the admitted operation runs under. A client built without naming
+   * a role picks this up, so what the ledger recorded and what the provider
+   * was actually asked for stay the same thing.
+   */
+  role: AiRole;
 }
 
 const activeAiConfig = new AsyncLocalStorage<ActiveAiConfig>();
@@ -238,16 +293,29 @@ const activeAiConfig = new AsyncLocalStorage<ActiveAiConfig>();
 export const getActiveAiOrganizationId = () =>
   activeAiConfig.getStore()?.organizationId;
 
+export const getActiveAiRole = () => activeAiConfig.getStore()?.role;
+
 export const getActiveAiConfig = (organizationId: string) => {
   const active = activeAiConfig.getStore();
   return active?.organizationId === organizationId ? active.config : undefined;
 };
 
+/**
+ * An omitted role keeps the one already in flight rather than resetting to the
+ * default. Re-entry is routine — a wrapped Mastra model, a stream pull — and a
+ * reset there would quietly move a cheap operation back onto the expensive
+ * model halfway through itself.
+ */
 export const withActiveAiConfig = <T>(
   organizationId: string,
   config: AiConfig,
-  callback: () => T
-): T => activeAiConfig.run({ organizationId, config }, callback);
+  callback: () => T,
+  role?: AiRole
+): T =>
+  activeAiConfig.run(
+    { organizationId, config, role: role ?? getActiveAiRole() ?? DEFAULT_AI_ROLE },
+    callback
+  );
 
 /** Client construction is legal only inside an admitted product operation. */
 export const requireActiveAiConfig = async (

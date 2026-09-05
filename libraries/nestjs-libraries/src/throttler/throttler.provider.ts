@@ -3,8 +3,17 @@ import {
   ThrottlerLimitDetail,
   ThrottlerRequest,
 } from '@nestjs/throttler';
-import { ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import {
+  ExecutionContext,
+  HttpException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { Request } from 'express';
+import {
+  resolveBackendLocale,
+  translateBackendText,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 import { createTransientClientTracker } from './transient-client-tracker';
 
 export { createTransientClientTracker } from './transient-client-tracker';
@@ -46,6 +55,49 @@ function authThrottlePath(
 }
 
 /**
+ * `content-factory-next-5w6u`: the doors that spend a workspace's model budget
+ * had no ceiling of any kind.
+ *
+ * There was accounting — `AiUsageService` writes a ledger row for every call —
+ * and accounting is not a limit: it says afterwards what was spent, and the
+ * bill has already happened. `content-factory-next-ni7x` put an allowance on
+ * the subscription tiers, which answers «how much in a month» and says nothing
+ * about how fast. A loop against `/copilot/agent` empties a month in an hour,
+ * and the only thing that would notice is the invoice.
+ *
+ * Sixty a minute, per workspace, per door. It is a ceiling on a runaway
+ * script, not a quota: a person writing with the assistant sends a handful of
+ * messages a minute, and ten people in one workspace all working at once are
+ * still nowhere near it. Deliberately loose, because a limit that interrupts
+ * ordinary writing would be removed within a week and then there would be
+ * none again.
+ *
+ * `POST` only, and only the doors that generate. `GET /copilot/credits` and
+ * `GET /copilot/list` read what is already there; the screen polls them, and
+ * throttling a poll breaks a page without protecting anything.
+ */
+const AI_THROTTLE = { limit: 60, ttl: 60_000 } as const;
+
+const AI_PATHS = ['/content-intelligence/sources/search'] as const;
+const AI_PREFIXES = ['/copilot/'] as const;
+// The two source doors that also spend the model: reading a source into a
+// material and drafting from it. `:id` sits in the middle, so these are
+// patterns, not paths (review of the 05.09 wave).
+const AI_PATTERNS = [
+  /^\/content-intelligence\/sources\/[^/]+\/(sync|draft-material)$/,
+] as const;
+
+function isAiSpendingPath(req: Record<string, any>): boolean {
+  if (req.method !== 'POST') return false;
+  const path = requestPath(req);
+  return (
+    (AI_PATHS as readonly string[]).includes(path) ||
+    AI_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
+    AI_PATTERNS.some((pattern) => pattern.test(path))
+  );
+}
+
+/**
  * Counts a request against its organization, never against `req.ip`.
  *
  * The default tracker of `@nestjs/throttler` is the remote address, and the
@@ -75,7 +127,8 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
     const request = context.switchToHttp().getRequest<Request>();
     if (
       (request.method === 'POST' && request.url.includes('/public/v1/posts')) ||
-      authThrottlePath(request)
+      authThrottlePath(request) ||
+      isAiSpendingPath(request)
     ) {
       return super.canActivate(context);
     }
@@ -91,6 +144,14 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
       return createTransientClientTracker(req);
     }
 
+    // The workspace pays for the model call, so the workspace is what the
+    // ceiling belongs to. `req.org` is on the request by the time a guard
+    // runs; the transient client stands in only for a call that arrived with
+    // no organisation at all, which these doors refuse anyway.
+    if (isAiSpendingPath(req)) {
+      return req.org?.id ? `${req.org.id}_ai` : createTransientClientTracker(req);
+    }
+
     return super.getTracker(req);
   }
 
@@ -99,15 +160,26 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
   ): Promise<boolean> {
     const req = request.context.switchToHttp().getRequest<Request>();
     const path = authThrottlePath(req);
-    if (!path) return super.handleRequest(request);
+    if (path) {
+      const throttle = AUTH_THROTTLES[path];
+      return super.handleRequest({
+        ...request,
+        limit: throttle.limit,
+        ttl: throttle.ttl,
+        blockDuration: throttle.ttl,
+      });
+    }
 
-    const throttle = AUTH_THROTTLES[path];
-    return super.handleRequest({
-      ...request,
-      limit: throttle.limit,
-      ttl: throttle.ttl,
-      blockDuration: throttle.ttl,
-    });
+    if (isAiSpendingPath(req)) {
+      return super.handleRequest({
+        ...request,
+        limit: AI_THROTTLE.limit,
+        ttl: AI_THROTTLE.ttl,
+        blockDuration: AI_THROTTLE.ttl,
+      });
+    }
+
+    return super.handleRequest(request);
   }
 
   protected override async throwThrottlingException(
@@ -118,6 +190,27 @@ export class ThrottlerBehindProxyGuard extends ThrottlerByOrganizationGuard {
     const path = authThrottlePath(request);
     if (path) {
       this.logger.warn(`Auth throttle exhausted for POST ${path}`);
+    }
+
+    if (isAiSpendingPath(request)) {
+      this.logger.warn(
+        `AI throttle exhausted for POST ${requestPath(request)} in organization ${
+          (request as any).org?.id ?? 'unknown'
+        }`
+      );
+      // A code the screen can branch on, and a sentence in the language of
+      // the person who is waiting. `super` would answer «ThrottlerException:
+      // Too Many Requests», which tells a writer nothing about what to do.
+      throw new HttpException(
+        {
+          code: 'ai_rate_limited',
+          message: translateBackendText(
+            'ai_rate_limited',
+            resolveBackendLocale((request as any).user?.language)
+          ),
+        },
+        429
+      );
     }
 
     return super.throwThrottlingException(context, throttlerLimitDetail);

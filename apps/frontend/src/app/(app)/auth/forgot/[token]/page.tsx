@@ -1,10 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { ForgotReturn } from '@contentfactory/frontend/components/auth/forgot-return';
-import { Metadata } from 'next';
-export const metadata: Metadata = {
-  title: 'Reset password',
-  description: '',
-};
+import { pageTitle } from '@contentfactory/frontend/app/page-title';
+export const generateMetadata = pageTitle('forgot_password', 'Forgot password');
 export default async function Auth(params: {
   params: Promise<{
     token: string;

@@ -118,7 +118,10 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
       // fn33.49`. Текст берётся тем же помощником, чтобы причина отказа
       // звучала одинаково в обоих окнах (`content-factory-next-fn33.81`).
       if (!response.ok) {
-        toaster.show(await postSaveErrorMessage(response, t), 'warning');
+        const refusal = await postSaveErrorMessage(response, t);
+        if (refusal) {
+          toaster.show(refusal, 'warning');
+        }
         return; // `finally` ниже снимает загрузку, окно остаётся открытым
       }
 

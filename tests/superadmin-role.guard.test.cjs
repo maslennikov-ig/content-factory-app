@@ -134,7 +134,12 @@ describe('Role.SUPERADMIN is never granted', () => {
     // the «how many administrators are left» count name the two roles
     // together. Naming only `ADMIN` would switch off, or orphan, the owners
     // of every workspace created before this change.
-    expect(repository).toContain('notIn: [Role.SUPERADMIN, Role.ADMIN]');
-    expect(repository).toContain('in: [Role.SUPERADMIN, Role.ADMIN]');
+    // С fn33.102 пара ролей записана один раз, а не переписана у каждого
+    // запроса: список назван, и оба фильтра читают его.
+    expect(repository).toContain(
+      'const ADMINISTRATOR_ROLES = [Role.SUPERADMIN, Role.ADMIN];'
+    );
+    expect(repository).toContain('notIn: ADMINISTRATOR_ROLES');
+    expect(repository).toContain('in: ADMINISTRATOR_ROLES');
   });
 });

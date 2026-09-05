@@ -12,6 +12,10 @@ import {
   aiBillingPeriodStart,
   includedUsageFilter,
 } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import {
+  AiRoleModels,
+  parseRoleModels,
+} from '@contentfactory/nestjs-libraries/openai/ai.roles';
 
 interface OpenRouterModel {
   id: string;
@@ -74,6 +78,30 @@ export class AiProviderService {
   }
 
   /**
+   * What each call role has spent this period.
+   *
+   * The companion to `usageByMember`, and needed for the same reason: routing
+   * is configured per role, so it can only be judged per role. Without it
+   * «classification now runs on a small model» is a claim nobody in the
+   * product can check. Rows written before the role column carry a null and
+   * come back under it, rather than being dropped and making the parts stop
+   * adding up to the whole.
+   *
+   * The organisation is the caller's own and is named in the `where`.
+   */
+  private async usageByRole(organizationId: string, since: Date) {
+    const grouped = await this._prisma.aiUsageRecord.groupBy({
+      by: ['role'],
+      where: { organizationId, createdAt: { gte: since } },
+      _count: { _all: true },
+    });
+
+    return grouped
+      .map((row) => ({ role: row.role, operations: row._count._all }))
+      .sort((a, b) => b.operations - a.operations);
+  }
+
+  /**
    * Never returns the key. The screen only needs to know whether one is
    * stored, so a stolen response is worth nothing.
    */
@@ -125,6 +153,7 @@ export class AiProviderService {
       provider: config.provider,
       textModel: config.textModel,
       imageModel: config.imageModel,
+      roleModels: config.roleModels,
       hasKey: config.workspaceKeyConfigured ?? !!config.apiKey,
       workspaceKeyConfigured: config.workspaceKeyConfigured,
       includedAvailable: config.includedAvailable,
@@ -133,6 +162,7 @@ export class AiProviderService {
       includedRemainingOperations,
       includedRestrictionReason,
       usageByMember: await this.usageByMember(organizationId, periodStart),
+      usageByRole: await this.usageByRole(organizationId, periodStart),
       searchEnabled: config.search.enabled,
       searchProvider: config.search.provider,
       searchTopic: config.search.topic,
@@ -152,6 +182,7 @@ export class AiProviderService {
       apiKey?: string;
       textModel?: string;
       imageModel?: string;
+      roleModels?: Record<string, string>;
       searchEnabled?: boolean;
       searchProvider?: Extract<SearchProvider, 'tavily'>;
       searchApiKey?: string;
@@ -171,6 +202,15 @@ export class AiProviderService {
         : {}),
       ...(workspaceSettings && body.imageModel !== undefined
         ? { imageModel: body.imageModel || null }
+        : {}),
+      /**
+       * Stored as `{}` rather than NULL when the screen clears every row: both
+       * read as «nothing routed», and one shape means the column never needs a
+       * null check anywhere above it. Parsed on the way in as well as on the
+       * way out, so a role this build does not know cannot be written at all.
+       */
+      ...(workspaceSettings && body.roleModels !== undefined
+        ? { roleModels: parseRoleModels(body.roleModels) as AiRoleModels }
         : {}),
       ...(workspaceSettings && body.apiKey
         ? { apiKey: AuthService.fixedEncryption(body.apiKey) }

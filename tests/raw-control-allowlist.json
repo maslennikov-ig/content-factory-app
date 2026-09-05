@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "total": 31,
+  "total": 33,
   "sourceRoots": [
     "apps/frontend/src",
     "libraries/react-shared-libraries/src"
   ],
   "rootTotals": {
-    "apps/frontend/src": 20,
+    "apps/frontend/src": 22,
     "libraries/react-shared-libraries/src": 11
   },
   "allowances": {
@@ -47,6 +47,14 @@
         "count": 1,
         "category": "third-party-adapter",
         "reason": "This reusable federated-provider adapter owns provider-specific behavior.",
+        "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/copilot/assistant.popup.tsx": {
+      "button": {
+        "count": 2,
+        "category": "third-party-adapter",
+        "reason": "CopilotKit styles the popup toggle and the header close by the classes copilotKitButton / copilotKitHeaderCloseButton on a bare <button>; the shared Button would layer its own scale and colour over the library contract. Both carry translated aria-labels (fn33.118).",
         "followUp": "no follow-up needed"
       }
     },

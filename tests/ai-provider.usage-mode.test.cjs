@@ -39,6 +39,13 @@ function loadConfigModule() {
           fixedDecryption: (value) => `decrypted:${value}`,
         },
       },
+      // Importless, and the thing that decides whether a stored role model is
+      // usable, so the real one is loaded rather than doubled
+      // (`content-factory-next-x63z`).
+      '@contentfactory/nestjs-libraries/openai/ai.roles':
+        require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/openai/ai.roles.ts'
+        ),
     }
   );
 }

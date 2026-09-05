@@ -18,7 +18,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { ModalWrapperComponent } from '../new-launch/modal.wrapper.component';
 import {
   getCountryCodeForFlag,
-  getLanguageName,
+  getLanguageLabel,
 } from '@contentfactory/frontend/components/layout/language.presentation';
 
 import clsx from 'clsx';
@@ -88,10 +88,10 @@ export const ChangeLanguageComponent = () => {
                 width: '1.5em',
                 height: '1.5em',
               }}
-              title={getLanguageName(language)}
+              title={getLanguageLabel(language)}
             />
             <Text weight={language === currentLanguage ? 'bold' : 'normal'}>
-              {getLanguageName(language)}
+              {getLanguageLabel(language)}
             </Text>
           </div>
         ))}
@@ -161,7 +161,7 @@ export const LanguageComponent = () => {
           transform: 'translate(-50%, -50%)',
           objectFit: 'cover',
         }}
-        title={getLanguageName(currentLanguage)}
+        title={getLanguageLabel(currentLanguage)}
       />
     </div>
   );

@@ -311,7 +311,6 @@ const WHITE_ALLOWED = [
   'apps/frontend/src/components/new-launch/editor.tsx',
   'apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/tiktok/tiktok.preview.tsx',
-  'apps/frontend/src/components/new-launch/select.current.tsx',
   'apps/frontend/src/components/third-parties/slider.component.tsx',
   'apps/frontend/src/components/third-parties/third-party.media-library.tsx',
 ];
@@ -454,7 +453,6 @@ const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx',
   'apps/frontend/src/components/new-launch/providers/warpcast/warpcast.provider.tsx',
   'apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx',
-  'apps/frontend/src/components/new-launch/select.current.tsx',
   'apps/frontend/src/components/plugs/plug.tsx',
   'apps/frontend/src/components/plugs/plugs.tsx',
   'apps/frontend/src/components/provider-preview/preview.provider.component.tsx',

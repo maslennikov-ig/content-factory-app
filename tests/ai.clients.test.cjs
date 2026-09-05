@@ -112,6 +112,18 @@ class TavilySearch {
 
 let configs = {};
 
+/**
+ * The real role vocabulary rather than a double: it is an importless module,
+ * and a stubbed one would let this suite keep passing while the model a role
+ * resolves to changed underneath it (`content-factory-next-x63z`).
+ */
+const aiRoles = require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/openai/ai.roles.ts'
+);
+
+/** The role of the operation the client is being built inside. */
+let activeRole;
+
 const clients = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/openai/ai.clients.ts',
   {
@@ -130,8 +142,10 @@ const clients = loadTypeScriptModule(
         if (!config?.apiKey) throw new Error('AI provider is not configured');
         return config;
       },
+      getActiveAiRole: () => activeRole,
       OPENROUTER_BASE_URL: 'https://openrouter.example/api/v1',
     },
+    '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles,
   }
 );
 

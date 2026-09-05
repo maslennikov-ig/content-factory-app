@@ -67,6 +67,10 @@ const loadConfigModule = (
           fixedDecryption: (value) => `decrypted:${value}`,
         },
       },
+      '@contentfactory/nestjs-libraries/openai/ai.roles':
+        require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/openai/ai.roles.ts'
+        ),
     }
   );
   // The module holds no client of its own; the application lends it one.
@@ -140,6 +144,15 @@ describe('organization web-search configuration', () => {
 
 const resetCacheSpy = jest.fn();
 
+/**
+ * The role vocabulary is a plain, importless module, so the real one is loaded
+ * rather than doubled: a stub would let a role list drift away from the one the
+ * settings service actually parses (`content-factory-next-x63z`).
+ */
+const aiRoles = require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/openai/ai.roles.ts'
+);
+
 const { AiProviderService } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/openai/ai.provider.service.ts',
   {
@@ -171,6 +184,7 @@ const { AiProviderService } = loadTypeScriptModule(
       resetAiConfigCache: resetCacheSpy,
       OPENROUTER_BASE_URL: 'https://openrouter.example',
     },
+    '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles,
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
       aiBillingPeriodStart: () => new Date('2026-08-01T00:00:00.000Z'),
       includedUsageFilter: () => ({}),
@@ -297,7 +311,8 @@ describe('saving the AI provider settings', () => {
 
 test('the settings DTO rejects OpenRouter as a primary search provider', async () => {
   const { AiProviderDto } = loadTypeScriptModule(
-    'libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts'
+    'libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts',
+    { '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles }
   );
   const { validate } = require('class-validator');
   const dto = Object.assign(new AiProviderDto(), {
@@ -316,7 +331,8 @@ test('the settings DTO rejects OpenRouter as a primary search provider', async (
 
 test('the settings DTO accepts only the two explicit usage modes', async () => {
   const { AiProviderDto } = loadTypeScriptModule(
-    'libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts'
+    'libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts',
+    { '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles }
   );
   const { validate } = require('class-validator');
   const invalid = Object.assign(new AiProviderDto(), {

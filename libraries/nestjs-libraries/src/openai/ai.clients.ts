@@ -4,8 +4,15 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { TavilySearch } from '@langchain/tavily';
 import {
   AiConfig,
+  getActiveAiRole,
   requireActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import {
+  AiRole,
+  DEFAULT_AI_ROLE,
+  modelFor,
+  roleModelFingerprint,
+} from '@contentfactory/nestjs-libraries/openai/ai.roles';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -58,11 +65,9 @@ const identity = (
 ) =>
   `${organizationId}|${config.usageMode}|${config.provider}|${config.apiKey}|${
     config.baseUrl ?? ''
-  }|${
-    config.textModel
-  }|${config.imageModel}|${config.search.enabled}|${config.search.provider}|${
-    config.search.apiKey
-  }|${config.search.topic}|${config.search.depth}|${extra}`;
+  }|${roleModelFingerprint(config)}|${config.search.enabled}|${
+    config.search.provider
+  }|${config.search.apiKey}|${config.search.topic}|${config.search.depth}|${extra}`;
 
 /**
  * One entry per distinct configuration rather than a single slot. With one
@@ -93,6 +98,30 @@ const memo = <T>() => {
   };
 };
 
+/**
+ * The role a client is built for when the caller names none: the one the
+ * admitted operation is running under. Every client factory here already
+ * refuses to run outside an admitted operation, so this is set in practice;
+ * the fallback only covers a role the ledger could not name.
+ *
+ * This is what lets a call site that was written before roles existed pick up
+ * its operation's routing without being edited, and it is why the model the
+ * ledger recorded is the model the provider is actually asked for.
+ */
+const activeRole = (role?: AiRole): AiRole =>
+  role ?? getActiveAiRole() ?? DEFAULT_AI_ROLE;
+
+/**
+ * The model id for one call, for the SDKs that take it per request rather than
+ * per client — `client.chat.completions.parse`, `images.generate`. Call sites
+ * ask for this instead of reading `textModel` themselves.
+ */
+export const getModelForRole = async (
+  organizationId: string,
+  role?: AiRole
+): Promise<string> =>
+  modelFor(activeRole(role), await requireActiveAiConfig(organizationId));
+
 const openAiMemo = memo<OpenAI>();
 export const getOpenAiClient = async (organizationId: string) => {
   const config = await requireActiveAiConfig(organizationId);
@@ -120,19 +149,27 @@ const chatMemo = memo<ChatOpenAI>();
 export const getChatModel = async (
   organizationId: string,
   temperature = 0.7,
-  maxTokens?: number
+  maxTokens?: number,
+  /**
+   * Last rather than first, so the dozen call sites written before roles
+   * existed keep compiling and keep the model they had. Naming it is how a
+   * call that is cheaper than its operation — classifying a research subject
+   * inside a research run — asks for a cheaper model.
+   */
+  role?: AiRole
 ) => {
   const config = await requireActiveAiConfig(organizationId);
+  const chosen = activeRole(role);
   return chatMemo(
     identity(
       organizationId,
       config,
-      `${temperature}:${maxTokens ?? 'no-ceiling'}`
+      `${chosen}:${temperature}:${maxTokens ?? 'no-ceiling'}`
     ),
     () =>
       new ChatOpenAI({
         apiKey: config.apiKey,
-        model: config.textModel,
+        model: modelFor(chosen, config),
         temperature,
         ...(maxTokens ? { maxTokens } : {}),
         timeout: CHAT_TIMEOUT_MS,
@@ -148,11 +185,11 @@ const dalleMemo = memo<DallEAPIWrapper>();
 export const getImageModel = async (organizationId: string) => {
   const config = await requireActiveAiConfig(organizationId);
   return dalleMemo(
-    identity(organizationId, config),
+    identity(organizationId, config, 'image'),
     () =>
       new DallEAPIWrapper({
         apiKey: config.apiKey,
-        model: config.imageModel,
+        model: modelFor('image', config),
         ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
       })
   );
@@ -372,12 +409,14 @@ export const getWebSearchClient = async (
         );
       }
 
+      // The fallback both searches and answers, so it is the `research` role
+      // rather than whatever the surrounding operation is drafting with.
       return new OpenRouterWebSearch(
         new OpenAI({
           apiKey: config.apiKey,
           baseURL: config.baseUrl,
         }),
-        config.textModel
+        modelFor('research', config)
       );
     }
   );

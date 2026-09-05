@@ -103,6 +103,7 @@ const mocks = {
     getCountryCodeForFlag: () => 'US',
     // The id itself is the visible label here: the test clicks what it names.
     getLanguageName: (language) => language,
+    getLanguageLabel: (language) => language,
   },
   '@contentfactory/frontend/components/layout/new-modal': {
     useModals: () => ({ closeCurrent, openModal: jest.fn() }),

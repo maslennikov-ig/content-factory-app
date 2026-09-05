@@ -30,8 +30,18 @@ export class OnboardingRepository {
         this._prisma.model.integration.count({
           where: { organizationId, deletedAt: null, disabled: false },
         }),
+        /*
+          The corpus as the screens see it, not every row that ever existed
+          (`content-factory-next-za05`). A deleted sample is gone from every
+          list and every count elsewhere — `voice-sample.repository.ts` says
+          so — and a `STYLE_REFERENCE` past its `retentionUntil` has had its
+          text erased in place by `purgeExpiredReferences`: the row survives
+          so the corpus history stays readable, the words do not. Counting
+          either one would tick the voice step for a workspace whose «Аватары»
+          tab shows nothing to measure.
+        */
         this._prisma.model.brandVoiceSample.count({
-          where: { organizationId },
+          where: { organizationId, deletedAt: null, text: { not: '' } },
         }),
         /*
           The same three statuses the brief refuses (`UNUSABLE_FACT_STATUSES`).
