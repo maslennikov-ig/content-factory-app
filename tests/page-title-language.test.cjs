@@ -148,3 +148,186 @@ describe('the browser tab speaks the language of the page', () => {
     expect(layout).toContain("template: '%s · Content Factory'");
   });
 });
+
+/**
+ * `content-factory-next-fn33.122`: the tab stayed English on a first sign-in.
+ *
+ * The title above is resolved from the `i18next` cookie. A browser that has
+ * just signed in for the first time has no such cookie, so the page is built in
+ * whatever the browser asked for and the profile language is applied a moment
+ * later, in the browser. Everything rendered follows; the tab cannot, because
+ * the response is finished and the title left as a plain string.
+ *
+ * The fix carries the key into the head and re-resolves it in the browser on
+ * `languageChanged`. What is checked here is that there is exactly one place a
+ * key is written — the route file — and that the browser reads it back rather
+ * than carrying a second table.
+ */
+describe('the tab follows a language chosen after the page arrived', () => {
+  const contract = read(path.join(appDir, 'page-title.contract.ts'));
+  const client = read(path.join(appDir, 'page-title.client.tsx'));
+  const helper = read(path.join(appDir, 'page-title.ts'));
+
+  const metaName = (constant) => {
+    const found = new RegExp(`${constant} = '([^']+)'`).exec(contract);
+    expect(found).not.toBeNull();
+    return found[1];
+  };
+
+  test('the server states the key it used in the page head', () => {
+    expect(helper).toMatch(/PAGE_TITLE_KEY_META\]: key/);
+    expect(helper).toMatch(/PAGE_TITLE_FALLBACK_META\]: fallback/);
+    // The names come from the shared contract, not from a literal on each side.
+    expect(helper).toContain(
+      "from '@contentfactory/frontend/app/page-title.contract'"
+    );
+    expect(client).toContain(
+      "from '@contentfactory/frontend/app/page-title.contract'"
+    );
+  });
+
+  test('the browser carries no second table of keys', () => {
+    // A route-to-key map copied into the client is the failure this guards
+    // against: two dozen route files already hold that list.
+    for (const key of ['calendar', 'settings', 'integrations', 'media']) {
+      expect(client).not.toContain(`'${key}'`);
+    }
+    expect(client).toMatch(/languageChanged/);
+  });
+
+  test('the product half of the title is read the same on both sides', () => {
+    const suffix = /PRODUCT_TITLE_SUFFIX = '([^']+)'/.exec(contract);
+    expect(suffix).not.toBeNull();
+    const layout = read(path.join(appDir, '(app)/layout.tsx'));
+    expect(layout).toContain(`template: '%s${suffix[1]}'`);
+  });
+
+  test('the companion is mounted where the profile language is applied', () => {
+    const shell = read(
+      path.join(root, 'apps/frontend/src/components/new-layout/layout.component.tsx')
+    );
+    expect(shell).toContain('<PageTitleLanguage />');
+    expect(shell).toContain(
+      "import { PageTitleLanguage } from '@contentfactory/frontend/app/page-title.client';"
+    );
+  });
+
+  describe('running in a browser', () => {
+    const { JSDOM } = require('jsdom');
+    const ts = require('typescript');
+    const React = require('react');
+
+    const dom = new JSDOM(
+      '<!doctype html><html><head>' +
+        `<meta name="${metaName('PAGE_TITLE_KEY_META')}" content="calendar">` +
+        `<meta name="${metaName('PAGE_TITLE_FALLBACK_META')}" content="Calendar">` +
+        '<title>Calendar · Content Factory</title></head><body></body></html>',
+      { pretendToBeVisual: true, url: 'http://localhost/launches' }
+    );
+    for (const key of Object.getOwnPropertyNames(dom.window)) {
+      if (key in global) continue;
+      Object.defineProperty(global, key, {
+        configurable: true,
+        get: () => dom.window[key],
+      });
+    }
+    for (const key of ['window', 'document', 'navigator']) {
+      Object.defineProperty(global, key, {
+        configurable: true,
+        value: key === 'window' ? dom.window : dom.window[key],
+      });
+    }
+    global.IS_REACT_ACT_ENVIRONMENT = true;
+    const { act, cleanup, render } = require('@testing-library/react');
+
+    /** i18next, reduced to the two things this component uses. */
+    const listeners = new Set();
+    const dictionary = {
+      en: { calendar: 'Calendar' },
+      ru: { calendar: 'Календарь' },
+    };
+    let language = 'en';
+    const i18next = {
+      t: (key, fallback) => dictionary[language]?.[key] ?? fallback,
+      on: (_event, handler) => listeners.add(handler),
+      off: (_event, handler) => listeners.delete(handler),
+    };
+    const changeLanguage = (next) => {
+      language = next;
+      act(() => {
+        for (const handler of listeners) handler();
+      });
+    };
+
+    const file = path.join(appDir, 'page-title.client.tsx');
+    const compiled = ts.transpileModule(read(file), {
+      fileName: file,
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2021,
+        esModuleInterop: true,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
+    }).outputText;
+    const mocks = {
+      '@contentfactory/react/translation/i18next': {
+        __esModule: true,
+        default: i18next,
+      },
+      '@contentfactory/frontend/app/page-title.contract': {
+        PAGE_TITLE_KEY_META: metaName('PAGE_TITLE_KEY_META'),
+        PAGE_TITLE_FALLBACK_META: metaName('PAGE_TITLE_FALLBACK_META'),
+        PRODUCT_TITLE_SUFFIX: ' · Content Factory',
+        composePageTitle: (name) => `${name} · Content Factory`,
+      },
+    };
+    const loaded = { exports: {} };
+    new Function('exports', 'require', 'module', compiled)(
+      loaded.exports,
+      (request) =>
+        Object.prototype.hasOwnProperty.call(mocks, request)
+          ? mocks[request]
+          : require(request),
+      loaded
+    );
+    const { PageTitleLanguage } = loaded.exports;
+
+    afterEach(() => {
+      cleanup();
+      listeners.clear();
+      language = 'en';
+      document.title = 'Calendar · Content Factory';
+    });
+
+    test('a language applied after the page arrived renames the tab', () => {
+      render(React.createElement(PageTitleLanguage, {}));
+      expect(document.title).toBe('Calendar · Content Factory');
+
+      changeLanguage('ru');
+
+      expect(document.title).toBe('Календарь · Content Factory');
+    });
+
+    test('a page that named no key is left as the server sent it', () => {
+      const meta = document.querySelector(
+        `meta[name="${metaName('PAGE_TITLE_KEY_META')}"]`
+      );
+      const parent = meta.parentNode;
+      meta.remove();
+      document.title = 'Content Factory';
+
+      render(React.createElement(PageTitleLanguage, {}));
+      changeLanguage('ru');
+
+      expect(document.title).toBe('Content Factory');
+      parent.appendChild(meta);
+    });
+
+    test('the listener leaves with the component', () => {
+      const { unmount } = render(React.createElement(PageTitleLanguage, {}));
+      expect(listeners.size).toBe(1);
+      unmount();
+      expect(listeners.size).toBe(0);
+    });
+  });
+});

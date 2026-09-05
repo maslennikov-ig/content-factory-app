@@ -4,10 +4,12 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave «cleanup» (05.09, owner away, «доделай всё и задеплой») — on
-`wave/cleanup-2026-09-05`, receipt green on `4a60c205` (354 suites / 4284
-tests, `node --test` 116/0, python OK), RELEASE PENDING; see the top of the
-file for the outcome once released.** Twelve Opus streams in worktrees:
+**Wave «cleanup» (05.09, owner away, «доделай всё и задеплой») — merged to
+`main` as `41447f87`, pushed, RELEASED as `dcb6eae72608` (both SQL files
+applied before the switch as one transaction, rollback `fc9fa77148f6`);
+receipt 355 suites / 4290 tests, `node --test` 116/0, python OK; review: no
+P0, one P1 fixed before release; walker: eleven P3 (`fn33.119`–`.129`, `.123`
+fixed).** Twelve Opus streams in worktrees:
 cascade deletion of a workspace with a second confirmation — 44 foreign keys
 `ON DELETE CASCADE`, `docs/operations/organization-cascade-schema-apply.sql`
 (`fn33.32`); model per call role with `AiProviderSetting.roleModels` and
@@ -29,11 +31,10 @@ before ssh — **the old script executed a substitution from the tag** — and
 both guards execute the scripts with stubs (`nq7e`, `th1s`); content-addressed
 verification evidence (`y5fb`); display rules for 34 platform marks, eight
 mismatches for the owner (`4s0l`). Public CI's two extra jobs were run
-locally before the public push. New beads from the wave: `11qv` (44px on
-Button), `ebyq` (roles guard blind to policy variables), `nkei`, and the
-`serializableWithRetry` duplicate. Left for the owner: `fn33.28.4`, `fn33.90`,
-`c6k.16`, `3aw`, `or3.9` (+ `fn33.9`, `.103` wait on it), `odb8.4` search
-kind, `2ua` (paid), `cxd` (host GPG key), `fn33.21` (after a live case).
+locally before the public push. New beads: `11qv` (44px on Button), `ebyq`
+(roles guard blind to policy variables), the `serializableWithRetry` duplicate,
+three review P2s. Not mine: `2ua` (paid), `cxd` (host GPG key), `fn33.21`
+(after a live case), `fn33.9`/`.103` (wait on `or3.9`).
 
 **Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) —
 merged to `main` as `b27e25cc`, pushed, and RELEASED 05.09 as `fc9fa77148f6`
@@ -98,17 +99,14 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`d782858045fa`** (04.09.2026, second half of the wave);
-rollback target `55c5e2362d8e`, also on the host. Backup before the schema:
-`postgres/20260904T144125Z-pre-blockedat-product-only`. **Public CI had been red for three releases
-and nobody had written it down**: the editorial-stage migration proof anchored
-on a `COMMIT;` the 02.09 audit removed, and `--setupFiles=` on the time-travel
-command line *replaces* the config list, so the source-tree write guard never
-loaded there and its probe wrote a real file. Both fixed; **«Build» on the
-public repository is green for the running commit, all four jobs.** The tag names a **public** commit: since 31.08 the image is
-built from the published tree, tied by a `Source-Commit` trailer, and the
-release refuses without a green receipt. **This release did change the schema**
-— see «Roles» below.
+Production runs **`dcb6eae72608`** (05.09.2026, wave «cleanup»); rollback
+`fc9fa77148f6`, also on the host. Backup before the schema:
+`postgres/20260905T075257Z-pre-cleanup-product-only`. **Public CI had been red
+for three releases unnoticed** (a migration proof anchored on a removed
+`COMMIT;`; `--setupFiles=` replacing the config list) — both fixed 03.09; the
+two extra jobs run locally before every public push since 05.09. The tag names
+a **public** commit: the image is built from the published tree, tied by a
+`Source-Commit` trailer, and the release refuses without a green receipt.
 
 Two release steps are scripts: **`switch-host-image.sh`** writes `CF_IMAGE` and
 `CONTENT_FACTORY_RELEASE` from one value and refuses if the container disagrees;
@@ -158,12 +156,14 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks production `fc9fa77148f6`** — composer without context (core + stage
-only), a post from the Content section (one provenance line, «Подтверждения
-проверены» opens scheduling), the allowance hint at «Найти» — and every gap
-goes to Beads first, fixes in one wave after. Confirm public CI `Build` is
-green on the follow-up commit. Then the owner's decisions: `fn33.28.4`,
-`fn33.90`, `fn33.32`, and the assumptions in the beads' notes.
+walks production `dcb6eae72608`** — composer (assistant on click, counter,
+channel row, repeat), a post from the Content section with «Подтверждения
+проверены», deleting a test account with its workspace (second confirmation),
+Settings → AI provider (model per role), plugins/sets/languages in Russian —
+every gap to Beads first, fixes in one wave after. Then the walker's P3s
+(`fn33.119`–`.129`) as one small wave, and the owner's decisions: `fn33.28.4`,
+`fn33.90`, `c6k.16`, `3aw`, `or3.9`, `odb8.4` search kind, eight platform-mark
+mismatches, «20 subscriptions» as a flat limit.
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram

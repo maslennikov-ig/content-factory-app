@@ -220,18 +220,29 @@ export class UsersService {
     limit: number;
   }) {
     const take = Math.min(Math.max(params.limit, 1), 100);
-    const [users, pending, total] = await Promise.all([
+    const [users, pending, total, matching] = await Promise.all([
       this._usersRepository.listAccounts({
         status: params.status,
         search: params.search,
         take,
         skip: Math.max(params.page, 0) * take,
       }),
-      this._usersRepository.countAccounts('pending'),
-      this._usersRepository.countAccounts('all'),
+      this._usersRepository.countAccounts({ status: 'pending' }),
+      this._usersRepository.countAccounts({ status: 'all' }),
+      // `matching` is the only count paging may be built on
+      // (`content-factory-next-fn33.126`). `pending` and `total` describe the
+      // instance and must not move when somebody types in the search box, so
+      // a search that found one row used to be paged as «1 / 2». Counted
+      // unconditionally rather than only when a search is present: a fourth
+      // `count` on an indexed table is cheaper than a branch that has to be
+      // right about which of the other two happens to mean the same thing.
+      this._usersRepository.countAccounts({
+        status: params.status,
+        search: params.search,
+      }),
     ]);
 
-    return { users, pending, total };
+    return { users, pending, total, matching };
   }
 
   /**

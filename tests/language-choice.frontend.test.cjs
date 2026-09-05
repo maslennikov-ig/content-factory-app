@@ -52,6 +52,7 @@ let account = { id: 'walker' };
 const requests = [];
 const changed = [];
 const closeCurrent = jest.fn();
+const openModal = jest.fn();
 
 const appFetch = jest.fn(async (url, options = {}) => {
   requests.push({
@@ -106,7 +107,23 @@ const mocks = {
     getLanguageLabel: (language) => language,
   },
   '@contentfactory/frontend/components/layout/new-modal': {
-    useModals: () => ({ closeCurrent, openModal: jest.fn() }),
+    useModals: () => ({ closeCurrent, openModal }),
+  },
+  // The shared primitive, reduced to the element it renders. What this test
+  // needs from it is exactly what the accessibility tree needs: a real
+  // `<button>` carrying the props the call site hands over.
+  '@contentfactory/react/form/button': {
+    Button: ({
+      children,
+      iconOnly: _iconOnly,
+      variant: _variant,
+      size: _size,
+      loading: _loading,
+      density: _density,
+      layout: _layout,
+      innerClassName: _innerClassName,
+      ...rest
+    }) => h('button', rest, children),
   },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => (_key, fallback) => fallback,
@@ -145,7 +162,8 @@ new Function(
   componentFile,
   path.dirname(componentFile)
 );
-const { ChangeLanguageComponent, LanguageFromProfile } = loaded.exports;
+const { ChangeLanguageComponent, LanguageFromProfile, LanguageComponent } =
+  loaded.exports;
 
 beforeEach(() => {
   cookie = '';
@@ -154,6 +172,7 @@ beforeEach(() => {
   changed.length = 0;
   appFetch.mockClear();
   closeCurrent.mockClear();
+  openModal.mockClear();
   document.documentElement.removeAttribute('dir');
 });
 
@@ -215,6 +234,57 @@ test('a profile without a language, or one we do not ship, changes nothing', () 
 
   expect(cookie).toBe('');
   expect(changed).toEqual([]);
+});
+
+/**
+ * `content-factory-next-fn33.120`: the flag in the header was a `div` with an
+ * `onClick`.
+ *
+ * It sat in a row of real buttons — administration, theme, workspace — and was
+ * the only one a keyboard could not reach and a screen reader could not name:
+ * the flag's `title` said «Русский», which is the current value, not what
+ * pressing it does. Both halves are checked here, because a control that opens
+ * a window the keyboard cannot then use is only half reachable.
+ */
+describe('the language control is a control', () => {
+  test('the header flag is a button that says what it does', () => {
+    render(h(LanguageComponent, {}));
+
+    const control = screen.getByRole('button', { name: 'Change Language' });
+    expect(control.tagName).toBe('BUTTON');
+    // A real button is operated by Enter and Space without a key handler; a
+    // `div` with a `tabindex` bolted on is what this replaced.
+    expect(control.getAttribute('tabindex')).toBeNull();
+
+    fireEvent.click(control);
+    expect(openModal).toHaveBeenCalledTimes(1);
+    expect(openModal.mock.calls[0][0].title).toBe('Change Language');
+  });
+
+  test('every language inside the window is reachable the same way', () => {
+    render(h(ChangeLanguageComponent, {}));
+
+    for (const language of ['en', 'ru', 'he']) {
+      expect(screen.getByRole('button', { name: language }).tagName).toBe(
+        'BUTTON'
+      );
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'ru' }));
+    expect(cookie).toBe('ru');
+  });
+
+  test('the current language is stated, not only drawn', () => {
+    cookie = 'ru';
+    render(h(ChangeLanguageComponent, {}));
+
+    expect(
+      screen.getByRole('button', { name: 'ru' }).getAttribute('aria-pressed')
+    ).toBe('true');
+    expect(
+      screen.getByRole('button', { name: 'en' }).getAttribute('aria-pressed')
+    ).toBe('false');
+  });
 });
 
 test('a stale profile does not undo a language just chosen here', () => {

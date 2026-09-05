@@ -24,6 +24,7 @@ import { NEWSLETTER_CONSENT_SOURCE_REGISTRATION } from '@contentfactory/helpers/
 import {
   resolveBackendLocale,
   translateBackendString,
+  translateBackendText,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 // Order matches `CONTENT_WORKFLOW_TAGS`. The color in that array is fixed and
@@ -541,7 +542,15 @@ export class OrganizationRepository {
     const locale = resolveBackendLocale(language);
     return {
       id,
-      name: (typeof name === 'string' && name.trim()) || 'Workspace',
+      // `content-factory-next-fn33.125`: the name field is optional, and an
+      // empty one used to become the English literal `'Workspace'` even for
+      // somebody who had just filled in a Russian form. The language of the
+      // registration is right here — the starter tags below already use it —
+      // so the fallback name uses it too. `translateBackendText` rather than
+      // `translateBackendString`: this is a name, not HTML.
+      name:
+        (typeof name === 'string' && name.trim()) ||
+        translateBackendText('workspace_default_name', locale),
       apiKey: AuthService.fixedEncryption(makeId(20)),
       allowTrial: true,
       isTrailing: true,

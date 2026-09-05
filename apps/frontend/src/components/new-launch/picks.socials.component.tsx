@@ -9,6 +9,7 @@ import type { Integrations } from '@contentfactory/frontend/components/launches/
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { ControlButton } from '@contentfactory/react/choice/control.button';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 export type ChannelPickerIntegration = Pick<
   Integrations,
@@ -18,6 +19,14 @@ export type ChannelPickerIntegration = Pick<
 export const PicksSocialsView: FC<{
   integrations: readonly ChannelPickerIntegration[];
   selectedIds: readonly string[];
+  /**
+   * What a screen reader calls this section. It arrives as a prop, like the
+   * restriction message beside it: this view is also rendered by the
+   * interface-review stand, which has no translation context, so the default
+   * has to stay a real English word rather than a key
+   * (`content-factory-next-fn33.127`).
+   */
+  label?: string;
   locked?: boolean;
   fixedIntegrationId?: string;
   restrictionMessage?: string;
@@ -27,6 +36,7 @@ export const PicksSocialsView: FC<{
 }> = ({
   integrations,
   selectedIds,
+  label = 'Channels',
   locked = false,
   fixedIntegrationId,
   restrictionMessage = 'Channel selection is locked while this post is being edited.',
@@ -45,7 +55,7 @@ export const PicksSocialsView: FC<{
     <section
       data-production-surface="settings-admin/channel-picker"
       data-live-provider-connection={String(liveProviderConnection)}
-      aria-label="Channels"
+      aria-label={label}
       className="flex flex-col gap-[12px] text-cf-ink"
     >
       {locked && (
@@ -125,6 +135,7 @@ export const PicksSocialsView: FC<{
 export const PicksSocialsComponent: FC<{ toolTip?: boolean }> = ({
   toolTip,
 }) => {
+  const t = useT();
   const existing = useExistingData();
   const {
     locked,
@@ -142,6 +153,7 @@ export const PicksSocialsComponent: FC<{ toolTip?: boolean }> = ({
 
   return (
     <PicksSocialsView
+      label={t('channels', 'Channels')}
       integrations={integrations}
       selectedIds={selectedIntegrations.map(
         ({ integration }) => integration.id

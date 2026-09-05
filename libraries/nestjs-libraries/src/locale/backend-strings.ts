@@ -897,6 +897,35 @@ const CATALOG = {
     ka_ge: 'ეს გამოწერა ერთ წუთზე ნაკლები ხნის წინ შემოწმდა. დაელოდეთ ცოტა ხანს და სცადეთ ხელახლა.',
   },
   /**
+   * `content-factory-next-fn33.125`. The workspace name on registration is
+   * optional, and an empty one used to become the literal `'Workspace'` —
+   * chosen on the server, in English, for a person who had just filled in a
+   * Russian form. It is the name of their own workplace, and it was the one
+   * English word on the screen.
+   *
+   * Deliberately a plain noun rather than anything possessive or clever: it is
+   * a placeholder for a name the owner has not chosen yet, and it has to read
+   * as one in every locale.
+   */
+  workspace_default_name: {
+    en: 'Workspace',
+    he: 'סביבת עבודה',
+    ru: 'Рабочая область',
+    zh: '工作区',
+    fr: 'Espace de travail',
+    es: 'Espacio de trabajo',
+    pt: 'Espaço de trabalho',
+    de: 'Arbeitsbereich',
+    it: 'Spazio di lavoro',
+    ja: 'ワークスペース',
+    ko: '작업 공간',
+    ar: 'مساحة العمل',
+    tr: 'Çalışma alanı',
+    vi: 'Không gian làm việc',
+    bn: 'কর্মক্ষেত্র',
+    ka_ge: 'სამუშაო სივრცე',
+  },
+  /**
    * `content-factory-next-5w6u`. The assistant doors had accounting and no
    * ceiling, so a runaway loop could empty a month's model budget in an hour
    * and the invoice would be the first thing to say so. The sentence is

@@ -123,3 +123,51 @@ describe('one language control, not two', () => {
     );
   });
 });
+
+/**
+ * `content-factory-next-fn33.119`: the label form was applied to every name,
+ * including the ones written out above.
+ *
+ * Georgian has no title case. Mtavruli is a case of the whole word, never of a
+ * first letter, so `ქართული` raised to `Ქართული` does not read as a capital —
+ * it reads as a typo, in the one list whose whole purpose is that each language
+ * is written the way that language writes it. The written-out names are already
+ * labels; the rule they were put through belongs to the `Intl` fallback alone,
+ * where a language the product does not ship arrives in prose form.
+ */
+describe('the label form leaves a written-out name alone', () => {
+  const ts = require('typescript');
+  const compiled = ts.transpileModule(read(PRESENTATION), {
+    fileName: PRESENTATION,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2021,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const loaded = { exports: {} };
+  new Function('exports', 'require', 'module', compiled)(
+    loaded.exports,
+    require,
+    loaded
+  );
+  const { getLanguageLabel } = loaded.exports;
+
+  test('Georgian keeps its own first letter', () => {
+    expect(getLanguageLabel('ka')).toBe('ქართული');
+    expect(getLanguageLabel('ka_ge')).toBe('ქართული');
+  });
+
+  test('every shipped name comes out exactly as it is written', () => {
+    for (const [code, name] of Object.entries(nativeNames() ?? {})) {
+      expect(getLanguageLabel(code)).toBe(name);
+    }
+  });
+
+  test('a language only Intl knows still arrives as a label', () => {
+    // Finnish is not shipped, so it comes from Intl in prose form (`suomi`),
+    // which is what the label form is still here for.
+    const finnish = getLanguageLabel('fi');
+    expect(finnish.charAt(0)).toBe(finnish.charAt(0).toLocaleUpperCase('fi'));
+  });
+});

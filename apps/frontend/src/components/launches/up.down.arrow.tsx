@@ -1,6 +1,7 @@
 import { FC, useCallback } from 'react';
 import { ChevronUpIcon } from '@contentfactory/frontend/components/ui/icons';
 import { Button } from '@contentfactory/react/form/button';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 const Arrow: FC<{
   flip: boolean;
@@ -20,6 +21,7 @@ export const UpDownArrow: FC<{
   onChange: (type: 'up' | 'down') => void;
 }> = (props) => {
   const { isUp, isDown, onChange } = props;
+  const t = useT();
   const changePosition = useCallback(
     (type: 'up' | 'down') => () => {
       onChange(type);
@@ -36,7 +38,7 @@ export const UpDownArrow: FC<{
       <Button
         iconOnly
         size={20}
-        aria-label="Move up"
+        aria-label={t('move_up', 'Move up')}
         variant="quiet"
         disabled={!isUp}
         onClick={changePosition('up')}
@@ -47,7 +49,7 @@ export const UpDownArrow: FC<{
       <Button
         iconOnly
         size={20}
-        aria-label="Move down"
+        aria-label={t('move_down', 'Move down')}
         variant="quiet"
         disabled={!isDown}
         onClick={changePosition('down')}

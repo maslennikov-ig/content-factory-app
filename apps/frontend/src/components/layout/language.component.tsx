@@ -10,8 +10,8 @@ import {
 import i18next from 'i18next';
 import useCookie from 'react-use-cookie';
 import ReactCountryFlag from 'react-country-flag';
-import { List, Box, Group, Text } from '@mantine/core';
 import React, { FC, useCallback, useEffect, useRef } from 'react';
+import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
@@ -73,27 +73,45 @@ export const ChangeLanguageComponent = () => {
     <div className="relative">
       <div className="grid grid-cols-4 gap-2">
         {availableLanguages.map((language) => (
-          <div
-            className={clsx(
-              'flex items-center flex-col bg-newTableHeader hover:bg-newTableBorder p-[20px] cursor-pointer gap-2',
-              language === currentLanguage ? 'border border-textColor' : ''
-            )}
+          <Button
             key={language}
+            type="button"
+            variant="secondary"
+            // A tile, not a control row: the flag sits above the name, so the
+            // height comes from the content rather than from the 40px rail.
+            layout="content"
+            innerClassName="flex-col gap-[8px]"
+            // The chosen language is a state of this control, so it is said
+            // rather than only drawn. A ring rather than a border: `secondary`
+            // already paints a border, and two border colours in one utility
+            // group have no reliable order in the stylesheet.
+            aria-pressed={language === currentLanguage}
             onClick={() => handleLanguageChange(language)}
+            className={clsx(
+              'py-[16px]',
+              language === currentLanguage && 'ring-2 ring-cf-accent'
+            )}
           >
             <ReactCountryFlag
               countryCode={getCountryCodeForFlag(language)}
               svg
+              aria-hidden="true"
               style={{
                 width: '1.5em',
                 height: '1.5em',
               }}
-              title={getLanguageLabel(language)}
             />
-            <Text weight={language === currentLanguage ? 'bold' : 'normal'}>
+            <span
+              className={clsx(
+                'truncate',
+                // Текущий язык выделен цветом акцента, а не весом: вес вне
+                // десяти токенов типографики, цвет — токен.
+                language === currentLanguage && 'text-cf-accent'
+              )}
+            >
               {getLanguageLabel(language)}
-            </Text>
-          </div>
+            </span>
+          </Button>
         ))}
       </div>
     </div>
@@ -144,25 +162,42 @@ export const LanguageComponent = () => {
       children: <ChangeLanguageComponent />,
     });
   };
+  const label = t('change_language', 'Change Language');
+
   return (
-    <div
+    <Button
+      iconOnly
+      variant="quiet"
+      type="button"
       onClick={openModal}
-      className="rounded-full overflow-hidden h-[22px] w-[22px] relative cursor-pointer"
+      aria-haspopup="dialog"
+      // `content-factory-next-fn33.120`: this was a `div` with an `onClick`,
+      // in a row of real buttons. A keyboard could not reach it at all, and a
+      // screen reader read only the flag's `title` — «Русский», the current
+      // value, never what pressing it does. The name says the action; the
+      // language it is currently on is what the flag shows.
+      aria-label={label}
+      title={label}
+      className="select-none flex items-center justify-center rounded-[8px]"
     >
-      <ReactCountryFlag
-        countryCode={getCountryCodeForFlag(currentLanguage)}
-        svg
-        style={{
-          width: '22px',
-          height: '22px',
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          objectFit: 'cover',
-        }}
-        title={getLanguageLabel(currentLanguage)}
-      />
-    </div>
+      <span
+        aria-hidden="true"
+        className="rounded-full overflow-hidden h-[22px] w-[22px] relative block"
+      >
+        <ReactCountryFlag
+          countryCode={getCountryCodeForFlag(currentLanguage)}
+          svg
+          style={{
+            width: '22px',
+            height: '22px',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            objectFit: 'cover',
+          }}
+        />
+      </span>
+    </Button>
   );
 };

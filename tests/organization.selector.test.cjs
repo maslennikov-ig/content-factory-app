@@ -88,6 +88,17 @@ const MenuContext = React.createContext({ open: false, onOpenChange: () => {} })
 
 const sharedMocks = {
   '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => appFetch },
+  // fn33.125: the shared helper reaches i18next through an alias this loader
+  // cannot resolve; the same decision inline — the legacy literal reads as the
+  // translated default, any other name as itself.
+  '@contentfactory/react/helpers/workspace-name': {
+    LEGACY_DEFAULT_WORKSPACE_NAME: 'Workspace',
+    workspaceDisplayName: (name, translate) => {
+      const translated = translate?.('workspace_default_name', 'Workspace') || 'Workspace';
+      if (!name || !name.trim()) return translated;
+      return name === 'Workspace' ? translated : name;
+    },
+  },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => t,
   },

@@ -10,6 +10,7 @@ import { Select } from '@contentfactory/react/form/select';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Dialog } from '../ui/layers';
 import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
@@ -102,8 +103,14 @@ const copy = {
     subscriptionsHint: 'Продукт заглядывает сам, по расписанию строки. «Проверить сейчас» не ждёт расписания.',
     checkNow: 'Проверить сейчас',
     checking: 'Проверяем…',
+    // Слово в слово как на карточке «Телеграм-канал» рядом: один и тот же
+    // факт — «оператор выключил это на сервере» — должен читаться одинаково.
+    checkOffHere: 'выключено на этом сервере',
     archive: 'Отписаться',
     archiveConfirm: 'Больше поводов от этой подписки не будет. Прежние остаются в списке.',
+    archiveConfirmTitle: 'Отписаться от ленты?',
+    archiveConfirmYes: 'Да, отписаться',
+    archiveConfirmNo: 'Нет, отмена',
     // content-factory-next-fn33.54: «за месяц: 2 поводов» — число
     // подставлялось без выбора формы слова. `plural` — та же тройка форм,
     // которой уже считаются образцы манеры и шкалы разбора.
@@ -181,8 +188,12 @@ const copy = {
     subscriptionsHint: 'The product checks on the row\'s own schedule. "Check now" does not wait for it.',
     checkNow: 'Check now',
     checking: 'Checking…',
+    checkOffHere: 'off on this server',
     archive: 'Unsubscribe',
     archiveConfirm: 'No more leads will come from this subscription. Earlier ones stay in the list.',
+    archiveConfirmTitle: 'Unsubscribe from this feed?',
+    archiveConfirmYes: 'Yes, unsubscribe',
+    archiveConfirmNo: 'No, cancel',
     monthStats: (total: number, accepted: number) =>
       `this month: ${total} leads, ${accepted} taken`,
     frequency: {
@@ -245,6 +256,7 @@ function SubscriptionRowView({
   t,
   busy,
   canManage,
+  checkEnabled,
   onCheckNow,
   onArchive,
 }: {
@@ -261,6 +273,16 @@ function SubscriptionRowView({
    * says once who may act.
    */
   canManage: boolean;
+  /**
+   * `LEAD_FEED_CHECK_ENABLED` on this server (content-factory-next-fn33.128).
+   * With it off, `…/:id/check` answers `CHECK_DISABLED` to everyone, and the
+   * button was live anyway: a person pressed it, waited, and learned from the
+   * answer what the banner above the list had already said. The Telegram card
+   * on this same screen had the honest shape all along — disabled, with the
+   * reason beside it — and this row now wears it too. Disabled rather than
+   * hidden, because the row and its schedule still make sense to read.
+   */
+  checkEnabled: boolean;
   onCheckNow: () => void;
   onArchive: () => void;
 }) {
@@ -312,8 +334,14 @@ function SubscriptionRowView({
       )}
       {canManage && (
         <div className="ml-auto flex shrink-0 gap-[8px]">
+          {!checkEnabled && <Status>{t.checkOffHere}</Status>}
           <span className="flex min-h-[44px] items-center sm:min-h-0">
-            <Button density="dense" variant="secondary" disabled={busy} onClick={onCheckNow}>
+            <Button
+              density="dense"
+              variant="secondary"
+              disabled={busy || !checkEnabled}
+              onClick={onCheckNow}
+            >
               {busy ? t.checking : t.checkNow}
             </Button>
           </span>
@@ -607,7 +635,21 @@ export function ContentLeadsTab({
 
   const archiveSubscription = useCallback(
     async (id: string) => {
-      if (typeof window !== 'undefined' && !window.confirm(t.archiveConfirm)) return;
+      // content-factory-next-fn33.129: this was the one confirmation in the
+      // interface asked with `window.confirm`. The browser's box answers in
+      // the browser's language, not the interface's, ignores the product's
+      // type and colour, and on a phone reads as a warning from the site.
+      // `deleteDialog` is the window every other irreversible action uses.
+      if (
+        !(await deleteDialog(
+          t.archiveConfirm,
+          t.archiveConfirmYes,
+          t.archiveConfirmTitle,
+          t.archiveConfirmNo
+        ))
+      ) {
+        return;
+      }
       setBusySubscriptionId(id);
       try {
         await read(archiveSubscriptionUrl(id), { method: 'POST', body: JSON.stringify({}) });
@@ -854,6 +896,7 @@ export function ContentLeadsTab({
                   t={t}
                   busy={busySubscriptionId === subscription.id}
                   canManage={canManageFeeds}
+                  checkEnabled={feedCheckEnabled}
                   onCheckNow={() => void checkNow(subscription.id)}
                   onArchive={() => void archiveSubscription(subscription.id)}
                 />

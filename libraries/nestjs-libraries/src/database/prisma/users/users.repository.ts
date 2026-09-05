@@ -853,17 +853,16 @@ export class UsersRepository {
   }
 
   /**
-   * Accounts as an administrator needs to see them: who is waiting, who is in,
-   * and enough to tell two people apart. Passwords and provider ids stay out
-   * of the projection — the page has no use for them.
+   * The `where` the list and the count must share. Kept as one function
+   * because they had drifted: the list filtered by search and the count did
+   * not, so a single match was paged as if the whole database matched
+   * (`content-factory-next-fn33.126`).
    */
-  listAccounts(params: {
+  private accountsWhere(params: {
     status: 'pending' | 'active' | 'all';
     search?: string;
-    take: number;
-    skip: number;
   }) {
-    const where = {
+    return {
       // «Awaiting approval» means nobody has decided yet. A blocked account is
       // switched off by a decision, so it belongs on «All» and nowhere else
       // (`content-factory-next-fn33.66`): before this column it landed among
@@ -890,9 +889,21 @@ export class UsersRepository {
           }
         : {}),
     };
+  }
 
+  /**
+   * Accounts as an administrator needs to see them: who is waiting, who is in,
+   * and enough to tell two people apart. Passwords and provider ids stay out
+   * of the projection — the page has no use for them.
+   */
+  listAccounts(params: {
+    status: 'pending' | 'active' | 'all';
+    search?: string;
+    take: number;
+    skip: number;
+  }) {
     return this._user.model.user.findMany({
-      where,
+      where: this.accountsWhere(params),
       select: {
         id: true,
         email: true,
@@ -916,17 +927,19 @@ export class UsersRepository {
     });
   }
 
-  countAccounts(status: 'pending' | 'active' | 'all') {
+  /**
+   * The same reading as the list above: blocked accounts are not waiting for
+   * anything, and counting them made the header say «Awaiting: 1» on an
+   * instance with approval switched off. `search` is optional because the two
+   * callers want different things — the header counts the instance, the paging
+   * counts what the person is looking at.
+   */
+  countAccounts(params: {
+    status: 'pending' | 'active' | 'all';
+    search?: string;
+  }) {
     return this._user.model.user.count({
-      where:
-        status === 'all'
-          ? {}
-          : status === 'active'
-            ? { activated: true }
-            : // The same reading as the list above: blocked accounts are not
-              // waiting for anything, and counting them made the header say
-              // «Awaiting: 1» on an instance with approval switched off.
-              { activated: false, blockedAt: null },
+      where: this.accountsWhere(params),
     });
   }
 

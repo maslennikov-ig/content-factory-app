@@ -17,6 +17,8 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { displayName } from '@contentfactory/react/helpers/display-name';
+import { providerLabel } from '@contentfactory/react/helpers/provider-label';
+import { workspaceDisplayName } from '@contentfactory/react/helpers/workspace-name';
 import { formatLocalizedDateTime } from '@contentfactory/react/helpers/localized.date';
 import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { AdminTelegramConnectComponent } from './admin-telegram-connect.component';
@@ -92,7 +94,15 @@ const nestedBody = (body?: DeletionBody) =>
 export interface AdminAccountsResponse {
   users: AdminAccountRow[];
   pending: number;
+  /** Accounts on the instance. A fact about the instance, not about the list. */
   total: number;
+  /**
+   * How many accounts the current tab and search select. Paging is built on
+   * this and only this: built on `total`, a search that found one row still
+   * offered «1 / 2» and a live «Next», and kept offering it after the row was
+   * deleted (`content-factory-next-fn33.126`).
+   */
+  matching: number;
   approvalRequired: boolean;
 }
 
@@ -190,7 +200,9 @@ export function AdminUsersView({
     { key: 'active' as const, label: t('active', 'Active') },
     { key: 'all' as const, label: t('all', 'All') },
   ];
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const totalPages = data
+    ? Math.max(1, Math.ceil(data.matching / PAGE_SIZE))
+    : 1;
 
   return (
     <section data-production-surface="settings-admin/users">
@@ -359,7 +371,10 @@ export function AdminUsersView({
                         </div>
                         {row.organizations[0]?.organization.name && (
                           <div className="break-words cf-body-sm text-cf-ink-muted">
-                            {row.organizations[0].organization.name}
+                            {workspaceDisplayName(
+                              row.organizations[0].organization.name,
+                              t
+                            )}
                           </div>
                         )}
                       </div>
@@ -368,8 +383,14 @@ export function AdminUsersView({
                       <span className="me-[8px] cf-caption text-cf-ink-muted lg:hidden">
                         {t('sign_in_method', 'Method')}
                       </span>
+                      {/* `providerName` is a Prisma enum value, and printing
+                          it put a column of `LOCAL` in the middle of a Russian
+                          table (`content-factory-next-fn33.124`). The same
+                          function the profile's «Sign-in methods» screen uses
+                          names it: a description for `LOCAL`, brands left as
+                          brands. */}
                       <span className="cf-label-sm text-cf-ink-muted">
-                        {row.providerName}
+                        {providerLabel(row.providerName, undefined, t)}
                       </span>
                     </div>
                     <div>

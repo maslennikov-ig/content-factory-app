@@ -128,7 +128,7 @@ describe('the column that tells a block from a wait', () => {
     const { calls, repository } = repositoryOver({});
 
     await repository.listAccounts({ status: 'pending', take: 25, skip: 0 });
-    await repository.countAccounts('pending');
+    await repository.countAccounts({ status: 'pending' });
 
     expect(calls.findMany[0].where).toMatchObject({
       activated: false,
@@ -141,7 +141,7 @@ describe('the column that tells a block from a wait', () => {
     const { calls, repository } = repositoryOver({});
 
     await repository.listAccounts({ status: 'active', take: 25, skip: 0 });
-    await repository.countAccounts('active');
+    await repository.countAccounts({ status: 'active' });
 
     expect(calls.findMany[0].where).toMatchObject({ activated: true });
     expect(calls.findMany[0].where.blockedAt).toBeUndefined();

@@ -64,16 +64,21 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
         );
     }
     if (request.startsWith('@contentfactory/react/')) {
-      const candidate = path.join(
-        repositoryRoot,
-        'libraries/react-shared-libraries/src',
-        `${request.slice('@contentfactory/react/'.length)}.tsx`
-      );
-      if (fs.existsSync(candidate))
-        return loadTypeScriptModule(
-          path.relative(repositoryRoot, candidate),
-          mocks
+      // Both extensions, like the frontend branch above: a shared helper with
+      // no JSX in it is a plain `.ts`, and looking only for `.tsx` made the
+      // whole suite fail to load the day one appeared (`provider-label`).
+      for (const extension of ['.tsx', '.ts']) {
+        const candidate = path.join(
+          repositoryRoot,
+          'libraries/react-shared-libraries/src',
+          `${request.slice('@contentfactory/react/'.length)}${extension}`
         );
+        if (fs.existsSync(candidate))
+          return loadTypeScriptModule(
+            path.relative(repositoryRoot, candidate),
+            mocks
+          );
+      }
     }
     return require(request);
   };

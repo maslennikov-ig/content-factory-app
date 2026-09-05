@@ -13,6 +13,11 @@ import useSWR from 'swr';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import clsx from 'clsx';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+// `content-factory-next-fn33.125`: a workspace whose owner never named it is
+// called `'Workspace'` in the database, and the switcher showed that English
+// word as the name of a Russian reader's own workplace. Rows are not renamed;
+// the reading happens here.
+import { workspaceDisplayName } from '@contentfactory/react/helpers/workspace-name';
 import {
   Menu,
   MenuButton,
@@ -130,7 +135,7 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
                   : 'border-cf-border bg-cf-surface text-cf-ink hover:bg-cf-surface-subtle'
               )}
             >
-              {org.name}
+              {workspaceDisplayName(org.name, t)}
             </MenuOption>
           ))}
         </MenuList>
@@ -142,11 +147,15 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
     <Menu open={open} onOpenChange={setOpen}>
       <div className="relative" ref={containerRef}>
         <MenuButton
-          aria-label={`${label}: ${current?.name ?? ''}`}
+          aria-label={`${label}: ${
+            current ? workspaceDisplayName(current.name, t) : ''
+          }`}
           density="dense"
           className="max-w-[180px] px-[10px] rounded-[8px] flex items-center gap-[6px] text-[13px] font-[600] text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink transition-colors duration-state"
         >
-          <span className="truncate">{current?.name ?? label}</span>
+          <span className="truncate">
+            {current ? workspaceDisplayName(current.name, t) : label}
+          </span>
           <svg
             width="12"
             height="12"
@@ -183,7 +192,7 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
                       : 'text-cf-ink hover:bg-cf-surface-subtle'
                   )}
                 >
-                  {org.name}
+                  {workspaceDisplayName(org.name, t)}
                 </MenuOption>
               ))}
             </MenuList>

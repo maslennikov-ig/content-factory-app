@@ -117,22 +117,31 @@ export const getLanguageName = (languageCode: string) => {
 /**
  * The same name, guaranteed to be in label form.
  *
- * The shipped names are already written as labels, so for them this returns
- * them unchanged. It still earns its place for a name that came from `Intl`:
- * `Intl` follows each language's own prose convention, so Russian returns
- * `русский` and French `français`. That is correct inside a sentence and wrong
- * in a picker, where every entry is a label and one lowercase initial among
- * capitals reads as a defect.
+ * This exists for a name that came from `Intl`: `Intl` follows each language's
+ * own prose convention, so Russian returns `русский` and French `français`.
+ * That is correct inside a sentence and wrong in a picker, where every entry is
+ * a label and one lowercase initial among capitals reads as a defect.
  *
- * The case is taken in the language's own rules — Turkish `i` uppercases to
- * `İ`, not `I` — which means the tag has to be reduced to its primary subtag
- * first: handed `ka_ge`, `toLocaleUpperCase` throws, and on a server render
- * that is a 500 rather than a wrong letter. Scripts without letter case pass
- * through untouched.
+ * A written-out name is returned untouched, and that is the whole point of
+ * `content-factory-next-fn33.119`. Raising a first letter is a Latin-and-
+ * Cyrillic habit, not a universal one: Georgian has no title case at all —
+ * mtavruli is a case of the whole word — so `ქართული` came out as `Ქართული`,
+ * which a reader of Georgian reads as a typo. The table already writes every
+ * shipped name the way its own language writes it, capital included where a
+ * capital belongs, so there is nothing left for this rule to fix there.
+ *
+ * On the fallback path the case is still taken in the language's own rules —
+ * Turkish `i` uppercases to `İ`, not `I` — which means the tag has to be
+ * reduced to its primary subtag first: handed `ka_ge`, `toLocaleUpperCase`
+ * throws, and on a server render that is a 500 rather than a wrong letter.
  */
 export const getLanguageLabel = (languageCode: string) => {
-  const name = getLanguageName(languageCode);
   const { primary } = localeParts(languageCode);
+  if (NATIVE_LANGUAGE_NAMES[primary]) {
+    return NATIVE_LANGUAGE_NAMES[primary];
+  }
+
+  const name = getLanguageName(languageCode);
   try {
     return name.charAt(0).toLocaleUpperCase(primary) + name.slice(1);
   } catch {

@@ -35,6 +35,7 @@ import {
   LanguageComponent,
   LanguageFromProfile,
 } from '@contentfactory/frontend/components/layout/language.component';
+import { PageTitleLanguage } from '@contentfactory/frontend/app/page-title.client';
 import { ChromeExtensionComponent } from '@contentfactory/frontend/components/layout/chrome.extension.component';
 import NotificationComponent from '@contentfactory/frontend/components/notifications/notification.component';
 import { OrganizationSelector } from '@contentfactory/frontend/components/layout/organization.selector';
@@ -87,6 +88,14 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
         profile arrives.
       */}
       <LanguageFromProfile language={user.language} />
+      {/*
+        And the tab follows it. The server named the tab from the cookie, which
+        that browser does not have yet, so the title stayed in the browser's own
+        language while the page turned Russian around it
+        (`content-factory-next-fn33.122`). Mounted beside the line above,
+        because it exists to answer it.
+      */}
+      <PageTitleLanguage />
       {/*
         Помощника здесь нет намеренно: его провайдер здоровается с рантаймом
         сразу при монтировании, поэтому вокруг всего приложения он стоил бы

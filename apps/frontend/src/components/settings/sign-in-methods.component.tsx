@@ -15,16 +15,15 @@ import {
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 import { IDENTITY_LINK_INTENT_KEY } from '@contentfactory/frontend/components/auth/identity-link-return';
 
-type IdentityProvider =
-  | 'LOCAL'
-  | 'GITHUB'
-  | 'GOOGLE'
-  | 'FARCASTER'
-  | 'WALLET'
-  | 'GENERIC'
-  | 'TELEGRAM';
-
-type ExternalIdentityProvider = Exclude<IdentityProvider, 'LOCAL'>;
+// The provider enum and its human names live beside the other shared display
+// helpers: the administrator's account list needs exactly the same reading,
+// and a second copy is how one screen drifts into printing `LOCAL`
+// (`content-factory-next-fn33.124`).
+import {
+  providerLabel,
+  type ExternalIdentityProvider,
+  type IdentityProvider,
+} from '@contentfactory/react/helpers/provider-label';
 
 export type UserIdentity = {
   provider: IdentityProvider;
@@ -78,15 +77,6 @@ const EXTERNAL_PROVIDERS = new Set<IdentityProvider>([
  * label that is a description rather than a name — the password method — goes
  * through `t` like all other copy.
  */
-const PROVIDER_NAMES: Record<Exclude<IdentityProvider, 'LOCAL'>, string> = {
-  GITHUB: 'GitHub',
-  GOOGLE: 'Google',
-  TELEGRAM: 'Telegram',
-  FARCASTER: 'Farcaster',
-  WALLET: 'Wallet',
-  GENERIC: 'Single sign-on',
-};
-
 /**
  * Every refusal the backend can name, and the translated sentence each one
  * becomes. The backend writes English for its logs; the page must never forward
@@ -444,19 +434,6 @@ export async function completeExternalIdentityLink({
     clearCallback();
   }
 }
-
-const providerLabel = (
-  provider: IdentityProvider,
-  genericName?: string,
-  t?: Translate
-) => {
-  if (provider === 'LOCAL')
-    return (
-      t?.('email_and_password', 'Email and password') || 'Email and password'
-    );
-  if (provider === 'GENERIC' && genericName) return genericName;
-  return PROVIDER_NAMES[provider] || provider;
-};
 
 const StatusMark = ({ connected = true }: { connected?: boolean }) => (
   <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none">

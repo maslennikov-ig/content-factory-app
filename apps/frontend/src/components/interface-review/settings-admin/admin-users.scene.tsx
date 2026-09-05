@@ -80,6 +80,7 @@ export function AdminUsersReviewScene({
     users: context.state === 'empty' ? [] : [account],
     pending: context.state === 'empty' ? 0 : 1,
     total: context.state === 'empty' ? 0 : 1,
+    matching: context.state === 'empty' ? 0 : 1,
     approvalRequired: true,
   };
 

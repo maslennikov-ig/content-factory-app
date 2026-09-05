@@ -19,14 +19,14 @@
     "url_1": "The same initialism with a colon."
   },
   "untranslatedTotals": {
-    "ar": 111,
-    "bn": 112,
-    "he": 130,
-    "ja": 134,
-    "ka_ge": 156,
-    "ko": 134,
+    "ar": 113,
+    "bn": 114,
+    "he": 132,
+    "ja": 136,
+    "ka_ge": 158,
+    "ko": 136,
     "ru": 0,
-    "zh": 134
+    "zh": 136
   },
   "untranslated": {
     "ar": [
@@ -140,7 +140,9 @@
       "validation_required",
       "validation_role_required",
       "validation_value_refused",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "bn": [
       "account_deleted_with_workspace",
@@ -254,7 +256,9 @@
       "validation_required",
       "validation_role_required",
       "validation_value_refused",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "he": [
       "account_deleted_with_workspace",
@@ -386,7 +390,9 @@
       "web_search",
       "web_search_description_org",
       "web_search_status",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "ja": [
       "account_deleted_with_workspace",
@@ -522,7 +528,9 @@
       "web_search",
       "web_search_description_org",
       "web_search_status",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "ka_ge": [
       "account_deleted_with_workspace",
@@ -680,7 +688,9 @@
       "web_search",
       "web_search_description_org",
       "web_search_status",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "ko": [
       "account_deleted_with_workspace",
@@ -816,7 +826,9 @@
       "web_search",
       "web_search_description_org",
       "web_search_status",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ],
     "ru": [],
     "zh": [
@@ -953,7 +965,9 @@
       "web_search",
       "web_search_description_org",
       "web_search_status",
-      "where_to_start"
+      "where_to_start",
+      "move_up",
+      "move_down"
     ]
   }
 }
