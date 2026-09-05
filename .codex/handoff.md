@@ -5,8 +5,9 @@ Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
 **Wave «cleanup» (05.09, owner away, «доделай всё и задеплой») — merged to
-`main` as `41447f87`, pushed, RELEASED as `dcb6eae72608` (both SQL files
-applied before the switch as one transaction, rollback `fc9fa77148f6`);
+`main` as `41447f87`, RELEASED as `dcb6eae72608` (both SQL files applied
+before the switch as one transaction); then the walker's ten P3s as a small
+wave, RELEASED as `035029af3c18` (no schema; rollback `dcb6eae72608`);
 receipt 355 suites / 4290 tests, `node --test` 116/0, python OK; review: no
 P0, one P1 fixed before release; walker: eleven P3 (`fn33.119`–`.129`, `.123`
 fixed).** Twelve Opus streams in worktrees:
@@ -33,8 +34,7 @@ verification evidence (`y5fb`); display rules for 34 platform marks, eight
 mismatches for the owner (`4s0l`). Public CI's two extra jobs were run
 locally before the public push. New beads: `11qv` (44px on Button), `ebyq`
 (roles guard blind to policy variables), the `serializableWithRetry` duplicate,
-three review P2s. Not mine: `2ua` (paid), `cxd` (host GPG key), `fn33.21`
-(after a live case), `fn33.9`/`.103` (wait on `or3.9`).
+three review P2s. Not mine: `2ua` (paid), `cxd` (host GPG key), `fn33.21`, `fn33.9`/`.103` (wait on `or3.9`).
 
 **Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) —
 merged to `main` as `b27e25cc`, pushed, and RELEASED 05.09 as `fc9fa77148f6`
@@ -99,8 +99,8 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`dcb6eae72608`** (05.09.2026, wave «cleanup»); rollback
-`fc9fa77148f6`, also on the host. Backup before the schema:
+Production runs **`035029af3c18`** (05.09.2026, walker P3 wave); rollback
+`dcb6eae72608`, also on the host. Backup before the schema:
 `postgres/20260905T075257Z-pre-cleanup-product-only`. **Public CI had been red
 for three releases unnoticed** (a migration proof anchored on a removed
 `COMMIT;`; `--setupFiles=` replacing the config list) — both fixed 03.09; the
@@ -156,14 +156,14 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks production `dcb6eae72608`** — composer (assistant on click, counter,
+walks production `035029af3c18`** — composer (assistant on click, counter,
 channel row, repeat), a post from the Content section with «Подтверждения
 проверены», deleting a test account with its workspace (second confirmation),
 Settings → AI provider (model per role), plugins/sets/languages in Russian —
-every gap to Beads first, fixes in one wave after. Then the walker's P3s
-(`fn33.119`–`.129`) as one small wave, and the owner's decisions: `fn33.28.4`,
-`fn33.90`, `c6k.16`, `3aw`, `or3.9`, `odb8.4` search kind, eight platform-mark
-mismatches, «20 subscriptions» as a flat limit.
+every gap to Beads first, fixes in one wave after. Then the owner's
+decisions: `fn33.28.4`, `fn33.90`, `c6k.16`, `3aw`, `or3.9`, `odb8.4` search
+kind, eight platform-mark mismatches, «20 subscriptions» as a flat limit,
+renaming production workspaces still called `Workspace`.
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram
