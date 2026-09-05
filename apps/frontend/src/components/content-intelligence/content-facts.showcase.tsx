@@ -122,6 +122,15 @@ export const factsShowcaseCopy = {
       name ? `${name} · ${date}` : date,
     materialMeta: (source: string, date: string) => `${source} · добавлен ${date}`,
     searchMeta: (source: string, date: string) => `${source} · прочитано ${date}`,
+    /**
+     * Подпись под найденным, которое ещё никто не подтвердил
+     * (`content-factory-next-ec48.2`). С 05.09.2026 такой фрагмент в текст
+     * идёт — с пометкой, — и подпись говорит ровно то же слово, что окно
+     * поста и промпт: «взято из поиска». Вторая половина фразы нужна потому,
+     * что здесь и стоит кнопка «Подтвердить»: подпись называет состояние,
+     * которое эта кнопка снимает.
+     */
+    searchNotConfirmed: 'Взято из поиска, не подтверждено',
     retractFailed: 'Факт не снялся. Попробуйте ещё раз.',
     restoreFailed: 'Факт не вернулся. Попробуйте ещё раз.',
     confirmFailed: 'Не подтвердилось. Попробуйте ещё раз.',
@@ -180,6 +189,7 @@ export const factsShowcaseCopy = {
       name ? `${name} · ${date}` : date,
     materialMeta: (source: string, date: string) => `${source} · added ${date}`,
     searchMeta: (source: string, date: string) => `${source} · read ${date}`,
+    searchNotConfirmed: 'From web search, not confirmed',
     retractFailed: 'The fact was not retracted. Try again.',
     restoreFailed: 'The fact was not restored. Try again.',
     confirmFailed: 'The confirmation did not go through. Try again.',
@@ -367,6 +377,19 @@ export function FactRowView({
         <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
           <GroundingBadge method={grounding.method} t={t} />
           <span className="cf-caption text-cf-ink-muted">{groundingMeta}</span>
+          {/*
+            Ярлык рядом говорит, чем подтверждено; подпись — что подтверждения
+            ещё нет (`content-factory-next-ec48.2`). Второе не следует из
+            первого: «найдено поиском» остаётся правдой и после того, как
+            человек нажал «Подтвердить», а подпись тогда уходит. Слово тут то
+            же, каким помечен фрагмент в окне поста, — иначе человек читает
+            два разных правила про одно и то же.
+          */}
+          {fact.needsLook && (
+            <span className="cf-caption text-cf-ink-muted">
+              {t.searchNotConfirmed}
+            </span>
+          )}
           {grounding.excerpt && (
             <Button
               type="button"

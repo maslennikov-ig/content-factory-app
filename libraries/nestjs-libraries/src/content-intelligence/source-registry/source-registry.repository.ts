@@ -895,6 +895,70 @@ export class ContentSourceRegistryRepository {
    * such snapshots because Postgres treats each `NULL` as distinct, so
    * `sequence` can stay `1` for every one of them without a lookup.
    */
+  /**
+   * Та же находка, уже сохранённая и ещё свежая, — или `null`.
+   *
+   * `content-factory-next-ec48.1`: генератор ходит в веб на каждой генерации,
+   * а поисковик на один и тот же предмет отдаёт одну и ту же страницу с той
+   * же выдержкой. Без этого поиска каждая генерация заводила бы новый снимок
+   * и новое доказательство, и витрина «Откуда факты» за неделю превратилась
+   * бы в список из сотни одинаковых строк, каждую из которых человеку
+   * предлагают подтвердить отдельно.
+   *
+   * `contentHash` считается из адреса и выдержки
+   * (`normalizeSearchResultAcceptance`), поэтому совпадение означает ровно
+   * «тот же кусок того же адреса». Изменилась страница — изменится и хеш, и
+   * появится честно новый снимок. `sourceId: null` стоит и ради смысла (у
+   * находки нет отслеживаемого источника), и ради указателя
+   * `[organizationId, sourceId, contentHash]`.
+   */
+  /**
+   * Свежая находка того же адреса (или того же куска), которую можно взять
+   * обратно вместо второго снимка.
+   *
+   * Рецензия `content-factory-next-ec48` (P2-2, P2-4): отвергнутое человеком
+   * (`REJECTED`) или закрытое оператором (`BLOCKED`) не возвращается — иначе
+   * «Взять как доказательство» молча отдавало бы запись, которая в текст всё
+   * равно не пойдёт. Совпадение по адресу нужно генератору: он ищет на каждой
+   * генерации, и один и тот же адрес с чуть иной выдержкой заводил бы новую
+   * строку на год вперёд.
+   */
+  async findFreshSearchProviderEvidence(
+    organizationId: string,
+    match: { contentHash: string } | { finalCanonicalUrl: string },
+    now: Date
+  ) {
+    const fresh = {
+      tombstone: null as string | null,
+      freshUntil: { gte: now },
+      OR: [
+        { assessment: { is: null } },
+        {
+          assessment: {
+            is: {
+              status: { not: 'REJECTED' },
+              trustTier: { not: 'BLOCKED' },
+            },
+          },
+        },
+      ],
+    };
+    return this.repository.model.sourceSnapshot.findFirst({
+      where: {
+        organizationId,
+        sourceId: null,
+        kind: 'SEARCH_PROVIDER_RESULT',
+        ...match,
+        purgedAt: null,
+        evidence: { some: fresh },
+      },
+      orderBy: { observedAt: 'desc' },
+      include: {
+        evidence: { where: fresh, orderBy: { observedAt: 'desc' }, take: 1 },
+      },
+    });
+  }
+
   async createSearchProviderEvidence(payload: SearchProviderEvidencePayload) {
     return this.repository.model.sourceSnapshot.create({
       data: {

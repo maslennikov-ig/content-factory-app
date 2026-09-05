@@ -69,6 +69,15 @@ describe('the post window gives only what is useful', () => {
     // контекст: контекст мог выдать двадцать, а в текст вошли три.
     expect(manage).toMatch(/usedCitationIds/);
     expect(manage).toMatch(/confirmationCount/);
+    // Взятое из поиска подтверждением не считается (рецензия ec48, P1-1):
+    // о находках говорит своя записка, а строка «Собрано из N подтверждений»
+    // не должна выдавать непроверенное за проверенное.
+    const counter = manage.slice(
+      manage.indexOf('const confirmationCount'),
+      manage.indexOf('return used.size;')
+    );
+    expect(counter).toMatch(/provenance === 'SEARCH'/);
+    expect(counter).toMatch(/if \(!searched\.has\(citationId\)\) used\.add\(citationId\)/);
 
     const line = code(FILES.line);
     expect(line).toMatch(/assembledFrom\(/);

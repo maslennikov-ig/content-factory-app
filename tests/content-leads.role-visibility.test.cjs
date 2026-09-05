@@ -240,33 +240,53 @@ describe('content-factory-next-fn33.54 — counted things are declined, not conc
 describe('content-factory-next-fn33.67 — an empty calendar cell does not reach around the hidden «Добавить канал»', () => {
   const source = fs.readFileSync(path.join(root, CALENDAR), 'utf8');
 
-  test('the empty-cell click asks about the role before it opens the provider catalogue', () => {
+  test('the empty-cell click asks about the role before it offers the provider catalogue', () => {
     expect(source).toContain('isOrganizationAdmin');
     expect(source).toMatch(/canAddChannel\s*=\s*isOrganizationAdmin\(user\?\.role\)/u);
-    // The catalogue is behind the role; the refusal is what a member gets.
+    /**
+     * `content-factory-next-fn33.148` changed the shape of the answer and not
+     * the rule behind it. The cell used to branch on the role: the
+     * administrator got the catalogue, everybody else a toast — one cell, two
+     * answers, and neither of them opened the compose window. Now every role
+     * meets the same card, and the role decides only whether it carries the
+     * button into the catalogue. The catalogue is still behind
+     * `canAddChannel`, which is the whole of what this defect was about.
+     */
     expect(source).toMatch(
-      /integrations\.length[\s\S]{0,80}addModal[\s\S]{0,80}canAddChannel[\s\S]{0,80}addProvider[\s\S]{0,80}refuseAddChannel/u
+      /!integrations\.length\s*\?\s*explainNoChannel/u
+    );
+    expect(source).toMatch(
+      /canAddChannel=\{canAddChannel\}[\s\S]{0,200}addProvider\(\)/u
     );
   });
 
   /**
-   * `content-factory-next-fn33.90`. The same cell, the other question, asked
-   * first: `POST /posts` carries the editor's section now, so opening the
-   * compose window for a `USER` would hand them a form with a dead button at
-   * the end of it — the very shape of `fn33.63` one screen over.
+   * `content-factory-next-fn33.90`. The same cell, the other question:
+   * `POST /posts` carries the editor's section now, so opening the compose
+   * window for a `USER` would hand them a form with a dead button at the end
+   * of it — the very shape of `fn33.63` one screen over. With a channel in
+   * the workspace the answer is still the one-line refusal; with no channel
+   * at all the card says both things at once.
    */
   test('the empty-cell click asks about writing a post before it opens the window', () => {
     expect(source).toMatch(
       /canWritePosts\s*=\s*isOrganizationEditor\(user\?\.role\)/u
     );
     expect(source).toMatch(
-      /!canWritePosts[\s\S]{0,40}refuseWritePost[\s\S]{0,80}integrations\.length/u
+      /!canWritePosts[\s\S]{0,40}refuseWritePost[\s\S]{0,40}addModal/u
     );
     expect(source).toContain('create_post_editor_only');
   });
 
-  test('the refusal says who adds a channel, in a key every locale carries', () => {
-    expect(source).toContain('add_channel_admin_only');
+  test('the answer says who adds a channel, in a key every locale carries', () => {
+    const notice = fs.readFileSync(
+      path.join(
+        root,
+        'apps/frontend/src/components/launches/no-channel.notice.tsx'
+      ),
+      'utf8'
+    );
+    expect(notice).toContain('add_channel_admin_only');
     const ru = JSON.parse(
       fs.readFileSync(
         path.join(

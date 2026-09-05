@@ -71,8 +71,19 @@ const copy = {
         'Взять нельзя: ссылка идёт через нестандартный порт, такие адреса продукт не хранит.',
       invalid_url: 'Взять нельзя: адрес разобрать не удалось.',
     },
+    /**
+     * Что случится с взятым — а не чего с ним не случится
+     * (`content-factory-next-ec48.2`).
+     *
+     * До 05.09.2026 строка была правдой: строитель контекста отбрасывал
+     * взятое поиском, и панель честно предупреждала об этом заранее. Владелец
+     * решил иначе — такое идёт в текст с пометкой, — и предупреждение стало
+     * неправдой. Подтверждение никуда не делось, но теперь оно не пропуск, а
+     * прибавка к доверию, и сказано это в том же порядке, в каком человек
+     * работает: сначала что будет с фрагментом, потом что даёт лишний шаг.
+     */
     unverifiedNote:
-      'Взятое поиском не считается подтверждённым само по себе: подтвердить его нужно на витрине «Откуда факты».',
+      'Взятое поиском пойдёт в текст с пометкой «взято из поиска»; подтверждение на витрине «Откуда факты» повышает доверие.',
   },
   en: {
     title: 'Find a confirmation',
@@ -103,7 +114,7 @@ const copy = {
       invalid_url: 'Cannot be taken: the address could not be read.',
     },
     unverifiedNote:
-      'Something taken from search does not count as confirmed on its own: confirm it on the "Where facts come from" screen.',
+      'What you take from search goes into the text marked “from web search”; confirming it on the “Where facts come from” screen raises the trust it carries.',
   },
 } as const;
 

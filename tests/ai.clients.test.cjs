@@ -369,8 +369,11 @@ describe('per-organization AI clients', () => {
       input: { query: 'local subject' },
       config: undefined,
     });
+    // `content-factory-next-fn33.134`: the snippet and the page reach the
+    // research port under their own names, and the service chooses.
     expect(result.results[0]).toMatchObject({
-      content: 'Full Tavily page\n\nSecond paragraph',
+      content: 'Short Tavily snippet',
+      rawContent: 'Full Tavily page\n\nSecond paragraph',
     });
   });
 

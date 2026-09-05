@@ -43,11 +43,24 @@ const base = 'apps/frontend/src/components/launches';
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
+/**
+ * `content-factory-next-fn33.146`: язык этим трём контролам даёт i18next —
+ * тот же источник, что и остальному интерфейсу, — а не переменная запроса,
+ * посчитанная один раз при серверной отрисовке. Переменная остаётся в дереве:
+ * на сервере она по-прежнему единственный источник, и `useInterfaceLanguage`
+ * читает её там.
+ */
+const i18next = loadTypeScriptModule(
+  'libraries/react-shared-libraries/src/translation/i18next.ts'
+).default;
 const badgeModule = loadTypeScriptModule(`${base}/editorial-stage.badge.tsx`);
 const selectModule = loadTypeScriptModule(`${base}/editorial-stage.select.tsx`);
 const filterModule = loadTypeScriptModule(`${base}/editorial-stage.filter.tsx`);
 
 const renderIn = async (locale, element) => {
+  await act(async () => {
+    await i18next.changeLanguage(locale);
+  });
   await act(async () => {
     render(
       React.createElement(

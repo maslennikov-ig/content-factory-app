@@ -140,10 +140,9 @@ describe('shared web research service', () => {
     invocations.length = 0;
     logEntries.length = 0;
     classification = {
-      scope: 'international',
       subjectLanguage: 'en',
       englishQuery: 'current topic',
-      localQuery: null,
+      subjectLanguageQuery: null,
       freshnessRequired: false,
     };
     aiConfig = {
@@ -202,18 +201,24 @@ describe('shared web research service', () => {
     });
   });
 
-  test('derives the Tavily country from a local Russian classification', async () => {
+  /**
+   * `content-factory-next-fn33.132`: Tavily has no language parameter — the
+   * language of a query is the language of its words — so a Russian subject
+   * that the classifier does not call «local» must still be asked in Russian,
+   * and the Russian query goes first because both queries share one excerpt
+   * budget.
+   */
+  test('asks in the subject language and boosts the country without a local classification', async () => {
     classification = {
-      scope: 'local',
       subjectLanguage: 'ru',
-      englishQuery: 'Moscow transport changes',
-      localQuery: 'изменения транспорта Москвы',
+      englishQuery: 'Telegram advertising labelling rules 2026',
+      subjectLanguageQuery: 'маркировка рекламы в Telegram ЕРИР штрафы 2026',
       freshnessRequired: false,
     };
 
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
-      'Что изменилось в транспорте Москвы?'
+      'Что изменилось в правилах маркировки рекламы в Telegram-каналах?'
     );
 
     expect(clientFactoryCalls[0]).toMatchObject({
@@ -221,10 +226,148 @@ describe('shared web research service', () => {
       options: { country: 'russia', freshnessRequired: false },
     });
     expect(invocations.map(({ input }) => input.query)).toEqual([
-      'Moscow transport changes',
-      'изменения транспорта Москвы',
+      'маркировка рекламы в Telegram ЕРИР штрафы 2026',
+      'Telegram advertising labelling rules 2026',
     ]);
     expect(result.facts).toHaveLength(2);
+  });
+
+  test('one failed query does not throw away the other answer (ec48.3)', async () => {
+    classification = {
+      subjectLanguage: 'ru',
+      englishQuery: 'Bank of Russia key rate September 2026',
+      subjectLanguageQuery: 'ключевая ставка Банка России сентябрь 2026',
+      freshnessRequired: true,
+    };
+    implementations.tavily = async (input) => {
+      if (input.query === 'Bank of Russia key rate September 2026') {
+        const error = new Error('timed out');
+        error.name = 'TimeoutError';
+        throw error;
+      }
+      return responseFor(input.query, 'tavily');
+    };
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ключевая ставка'
+    );
+
+    expect(result.facts).toEqual([
+      {
+        text: 'Fact for ключевая ставка Банка России сентябрь 2026',
+        sourceUrl:
+          'https://example.com/tavily/%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%B2%D0%B0%D1%8F%20%D1%81%D1%82%D0%B0%D0%B2%D0%BA%D0%B0%20%D0%91%D0%B0%D0%BD%D0%BA%D0%B0%20%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8%20%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8C%202026',
+      },
+    ]);
+    expect(
+      logEntries.some(
+        ({ level, message }) =>
+          level === 'warn' && /One of 2 web research queries failed/.test(message)
+      )
+    ).toBe(true);
+  });
+
+  test('when every query fails, the first failure is the answer (ec48.3)', async () => {
+    classification = {
+      subjectLanguage: 'ru',
+      englishQuery: 'Bank of Russia key rate September 2026',
+      subjectLanguageQuery: 'ключевая ставка Банка России сентябрь 2026',
+      freshnessRequired: true,
+    };
+    implementations.tavily = async () => {
+      const error = new Error('timed out');
+      error.name = 'TimeoutError';
+      throw error;
+    };
+
+    await expect(
+      new WebResearchService(aiUsage).research('organization-a', 'ставка')
+    ).rejects.toMatchObject({ name: 'TimeoutError' });
+  });
+
+  test('a subscription footer is chrome even when it has enough letters (fn33.134)', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Reuters',
+          url: 'https://example.com/reuters/amp',
+          content:
+            'Subscribers get fewer ads. Learn more about subscriptions, opens new tab. Terms & Conditions Privacy. Report AdImage 27 Image 28Image 29',
+        },
+        {
+          title: 'Reuters again',
+          url: 'https://example.com/reuters?outputType=amp',
+          content: 'Банк России сохранил ставку 14% годовых. Следующее заседание 11 сентября.',
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ставка'
+    );
+
+    expect(result.facts).toEqual([
+      {
+        text: 'Банк России сохранил ставку 14% годовых. Следующее заседание 11 сентября.',
+        sourceUrl: 'https://example.com/reuters',
+      },
+    ]);
+    // AMP-копия и обычная страница схлопнулись в один адрес (ec48.4).
+    expect(result.sources.map((source) => source.url)).toEqual([
+      'https://example.com/reuters',
+    ]);
+  });
+
+  test('asks once when the subject itself is English', async () => {
+    classification.subjectLanguageQuery = 'current topic in English again';
+
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Current topic'
+    );
+
+    expect(invocations.map(({ input }) => input.query)).toEqual([
+      'current topic',
+    ]);
+    expect(clientFactoryCalls[0].options.country).toBeUndefined();
+  });
+
+  test('does not pay twice when both queries came back the same', async () => {
+    classification = {
+      subjectLanguage: 'de',
+      englishQuery: 'Bundesbank',
+      subjectLanguageQuery: '  Bundesbank  ',
+      freshnessRequired: false,
+    };
+
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Bundesbank'
+    );
+
+    expect(invocations.map(({ input }) => input.query)).toEqual(['Bundesbank']);
+  });
+
+  test('leaves a non-Russian subject language unboosted', async () => {
+    classification = {
+      subjectLanguage: 'de',
+      englishQuery: 'German rental law',
+      subjectLanguageQuery: 'Mietrecht Deutschland',
+      freshnessRequired: false,
+    };
+
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Mietrecht'
+    );
+
+    expect(clientFactoryCalls[0].options.country).toBeUndefined();
+    expect(invocations.map(({ input }) => input.query)).toEqual([
+      'Mietrecht Deutschland',
+      'German rental law',
+    ]);
   });
 
   test('marks freshness for a Tavily news query', async () => {
@@ -571,5 +714,237 @@ describe('shared web research service', () => {
     ).toBe(true);
     expect(result.facts[4].text).toBe('a'.repeat(2_008));
     expect(result.facts.every(({ text }) => !text.includes('TAIL'))).toBe(true);
+  });
+  /**
+   * `content-factory-next-fn33.134`: the excerpt has to be an assertion.
+   * Tavily's `content` is the extract it chose for the query; its
+   * `raw_content` is the whole page, and a page opens with its menu.
+   */
+  test('prefers the provider snippet over the whole page', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Central bank',
+          url: 'https://example.com/rate',
+          content:
+            'Совет директоров сохранил ключевую ставку на уровне 14% годовых.',
+          rawContent: [
+            '[Skip to main content](https://example.com/rate#main)',
+            '* [Главная](/)',
+            '',
+            'Совет директоров сохранил ключевую ставку на уровне 14% годовых. Заседание прошло 11 сентября.',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ставка'
+    );
+
+    expect(result.facts).toEqual([
+      {
+        text: 'Совет директоров сохранил ключевую ставку на уровне 14% годовых.',
+        sourceUrl: 'https://example.com/rate',
+      },
+    ]);
+  });
+
+  test('a one-line snippet that cites its source stays a claim (review P1-3)', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'ФАС',
+          url: 'https://example.com/fas',
+          content:
+            'ФАС оштрафовала «Азбуку вкуса» на 300 000 ₽ за рекламу без пометки. Источник: https://fas.gov.ru/news/123',
+        },
+        {
+          title: 'ЕРИР',
+          url: 'https://example.com/erir',
+          content:
+            'По данным [ЕРИР](/erir), в 2026 году зарегистрировано 12 млн креативов — Москва / РИА Новости.',
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'маркировка'
+    );
+
+    expect(result.facts.map((fact) => fact.text)).toEqual([
+      'ФАС оштрафовала «Азбуку вкуса» на 300 000 ₽ за рекламу без пометки. Источник:',
+      'По данным ЕРИР, в 2026 году зарегистрировано 12 млн креативов — Москва / РИА Новости.',
+    ]);
+  });
+
+  test('cleans the page of navigation when the provider sent no snippet', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Central bank',
+          url: 'https://example.com/rate',
+          rawContent: [
+            '[Skip to main content](https://example.com/rate#main)',
+            '* [Главная](/)',
+            '* [Архив](/archive)',
+            '![cbr](https://example.com/common/images/logo.svg)',
+            'Image: Image 2: cbr',
+            '',
+            'Совет директоров Банка России сохранил ключевую ставку на уровне 14% годовых. Решение объясняется устойчивым инфляционным давлением.',
+            '',
+            '* [Контакты](/contacts)',
+            '© Банк России',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'ставка'
+    );
+
+    expect(result.facts).toEqual([
+      {
+        text: 'Совет директоров Банка России сохранил ключевую ставку на уровне 14% годовых. Решение объясняется устойчивым инфляционным давлением.',
+        sourceUrl: 'https://example.com/rate',
+      },
+    ]);
+  });
+
+  test('a page that is only a menu stays a source and is never offered as a claim', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Global Investigations Review',
+          url: 'https://example.com/menu',
+          content: '[Skip to main content](https://example.com/menu#main)',
+          rawContent: [
+            '* [GIR Alerts](/account/register)',
+            '* [Magazine](/Magazine)',
+            '* [Archive](/archive)',
+            '![Image 2](blob:http://localhost/8f0e-ad)',
+            'Report Ad',
+          ].join('\n'),
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'topic'
+    );
+
+    expect(result.facts).toEqual([]);
+    expect(result.sources).toEqual([
+      {
+        url: 'https://example.com/menu',
+        title: 'Global Investigations Review',
+        publishedAt: null,
+        provider: 'tavily',
+      },
+    ]);
+  });
+
+  test('a menu that lost its markup is still a menu', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Global Investigations Review',
+          url: 'https://example.com/flat-menu',
+          rawContent:
+            '* GIR Alerts /account/register * Magazine /Magazine * [Archive](/archive)',
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'topic'
+    );
+
+    expect(result.facts).toEqual([]);
+    expect(result.sources).toHaveLength(1);
+  });
+
+  test('a page label is too short to stand as an excerpt', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'Overview',
+          url: 'https://example.com/label',
+          rawContent: 'Overview',
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'topic'
+    );
+
+    expect(result.facts).toEqual([]);
+    expect(result.sources).toHaveLength(1);
+  });
+
+  /**
+   * `content-factory-next-fn33.132`: the same OFSI page came back twice, once
+   * over `http` and once over `https`, and the panel showed two rows for one
+   * address. Keeping only `https` collapses the pair and refuses the addresses
+   * a server-side fetch must never follow.
+   */
+  test('keeps https names only and collapses an http twin onto its https address', async () => {
+    implementations.tavily = async () => ({
+      results: [
+        {
+          title: 'OFSI penalty (plain)',
+          url: 'http://example.com/ofsi',
+          content: 'The Treasury imposed a penalty for a sanctions breach.',
+        },
+        {
+          title: 'OFSI penalty',
+          url: 'https://example.com/ofsi',
+          content: 'The Treasury imposed a penalty for a sanctions breach.',
+        },
+        {
+          title: 'Metadata service',
+          url: 'https://169.254.169.254/latest/meta-data',
+          content: 'The Treasury imposed a penalty for a sanctions breach.',
+        },
+        {
+          title: 'Odd port',
+          url: 'https://example.com:8443/ofsi',
+          content: 'The Treasury imposed a penalty for a sanctions breach.',
+        },
+        {
+          title: 'Not a name',
+          url: 'https://localhost/ofsi',
+          content: 'The Treasury imposed a penalty for a sanctions breach.',
+        },
+      ],
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'topic'
+    );
+
+    expect(result.sources).toEqual([
+      {
+        url: 'https://example.com/ofsi',
+        title: 'OFSI penalty',
+        publishedAt: null,
+        provider: 'tavily',
+      },
+    ]);
+    expect(result.facts).toEqual([
+      {
+        text: 'The Treasury imposed a penalty for a sanctions breach.',
+        sourceUrl: 'https://example.com/ofsi',
+      },
+    ]);
   });
 });

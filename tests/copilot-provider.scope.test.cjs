@@ -185,11 +185,19 @@ describe('помощник монтируется только там, где и
 describe('помощник не поднимается там, где его нельзя позвать', () => {
   const PROVIDER =
     'apps/frontend/src/components/copilot/copilot.provider.tsx';
+  /**
+   * Сам вопрос «есть ли чем ответить» уехал в отдельный модуль
+   * (`content-factory-next-fn33.153`): тот же ответ читает экран «Агент», а
+   * рантайм помощника ему для этого не нужен. Правило не изменилось, только
+   * файл, в котором оно живёт.
+   */
+  const AVAILABILITY =
+    'apps/frontend/src/components/copilot/assistant-availability.ts';
   const MODAL = 'apps/frontend/src/components/new-launch/manage.modal.tsx';
   const EDITOR = 'apps/frontend/src/components/new-launch/editor.tsx';
 
   test('доступность спрашивается у существующей двери, а не у своей новой', () => {
-    const source = read(PROVIDER);
+    const source = read(AVAILABILITY);
 
     // Та же дверь и тот же ключ SWR, что у строки остатка: на экране с обеими
     // это один запрос, а не два.
@@ -212,13 +220,19 @@ describe('помощник не поднимается там, где его н�
   });
 
   test('пока ответа нет, обёртки тоже нет: провайдер «на всякий случай» — это и есть запрос', () => {
-    const source = withoutBlockComments(read(PROVIDER));
-    expect(source).toMatch(/if \(isLoading \|\| error\) return false;/);
+    const source = withoutBlockComments(read(AVAILABILITY));
+    // «Ещё не знаем» и «дверь не ответила» — два разных ответа, и оба не
+    // «можно»: обёртки не будет ни в том, ни в другом случае.
+    expect(source).toMatch(/if \(isLoading\) return 'checking';/);
+    expect(source).toMatch(/if \(error\) return 'unknown';/);
+    expect(source).toMatch(
+      /useAssistantAvailable[\s\S]{0,200}useAssistantAvailability\(enabled\) === 'available'/
+    );
   });
 
   test('поверхность, которая проверки не просила, за неё и не платит', () => {
     // Ключ `null` — договор SWR о том, что запроса нет вовсе.
-    expect(withoutBlockComments(read(PROVIDER))).toMatch(
+    expect(withoutBlockComments(read(AVAILABILITY))).toMatch(
       /useSWR\(\s*enabled \? ALLOWANCE_API : null/
     );
   });

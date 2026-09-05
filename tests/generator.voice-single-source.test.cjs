@@ -209,6 +209,15 @@ const { AgentGraphService } = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service':
       { BrandProfileContextService: class {} },
+    // `content-factory-next-ec48.1`: граф складывает найденное поиском в
+    // реестр источников. Заглушка — этот набор судит голос, а не запись.
+    '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-registry.service':
+      { ContentSourceRegistryService: class {} },
+    // Один голый потолок из общего контракта: местный загрузчик не читает
+    // `.ts`, а `contracts.ts` — только константы и типы.
+    '@contentfactory/nestjs-libraries/content-intelligence/contracts': {
+      CONTENT_CONTEXT_MAX_EVIDENCE_V1: 8,
+    },
   }
 );
 

@@ -4,8 +4,10 @@ import {
   CONTENT_CONTEXT_MAX_EVIDENCE_V1,
   CONTENT_CONTEXT_MAX_FACTS_V1,
   CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1,
+  CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1,
   CONTENT_EVIDENCE_REQUIRED,
   type ContentContextEnvelopeV1,
+  type ContentEvidenceProvenanceV1,
   type ResolvedBrandProfileContextV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
@@ -106,6 +108,29 @@ function evidenceAccepted(evidence: EvidenceCandidateV1) {
     evidence.assessment?.status === 'ACCEPTED' &&
     evidence.assessment.trustTier !== 'BLOCKED'
   );
+}
+
+/**
+ * Откуда взялось доказательство — или `null`, если ему здесь не место.
+ *
+ * Решение владельца 05.09.2026 (`content-factory-next-ec48`). До него всё, у
+ * чего нет принятой оценки, отбрасывалось как `UNVERIFIED`; теперь результат
+ * поисковика проходит с пометкой `SEARCH`, а всё остальное — по-прежнему
+ * только с принятой оценкой.
+ *
+ * Два отказа остаются даже для находки, и оба — не про «не успели
+ * подтвердить», а про уже сказанное человеком: `BLOCKED` — это «этому
+ * источнику не верить», `REJECTED` — «эту находку я отверг». Владелец
+ * разрешил брать неподтверждённое, а не отменять отказы; чтобы отменить,
+ * нужен обратный жест на витрине, а не молчаливый проход мимо него.
+ */
+function evidenceProvenance(
+  evidence: EvidenceCandidateV1
+): ContentEvidenceProvenanceV1 | null {
+  if (evidence.assessment?.trustTier === 'BLOCKED') return null;
+  if (evidenceAccepted(evidence)) return 'CONFIRMED';
+  if (evidence.assessment?.status === 'REJECTED') return null;
+  return evidence.snapshot.kind === 'SEARCH_PROVIDER_RESULT' ? 'SEARCH' : null;
 }
 
 function trustRank(evidence: EvidenceCandidateV1) {
@@ -392,8 +417,21 @@ export class ContentContextBuilderV1 {
       }
     }
 
-    for (const item of [...candidates.evidence].sort((left, right) =>
-      left.id.localeCompare(right.id)
+    /**
+     * Подтверждённое идёт первым, найденное поиском — следом.
+     *
+     * Бюджеты те же, поэтому порядок здесь и есть само правило: если места
+     * хватает не всем, вытесняется находка, а не то, что человек подтвердил.
+     * Внутри каждой половины порядок прежний — по идентификатору, чтобы
+     * `selectionHash` одного и того же набора не менялся от прогона к
+     * прогону.
+     */
+    const provenanceById = new Map<string, ContentEvidenceProvenanceV1>();
+    for (const item of [...candidates.evidence].sort(
+      (left, right) =>
+        Number(evidenceProvenance(left) === 'SEARCH') -
+          Number(evidenceProvenance(right) === 'SEARCH') ||
+        left.id.localeCompare(right.id)
     )) {
       if (item.organizationId !== organizationId || evidenceIds.has(item.id)) {
         continue;
@@ -402,7 +440,8 @@ export class ContentContextBuilderV1 {
         rejected.set(item.id, 'DELETED');
         continue;
       }
-      if (!evidenceAccepted(item)) {
+      const provenance = evidenceProvenance(item);
+      if (!provenance) {
         rejected.set(item.id, 'UNVERIFIED');
         continue;
       }
@@ -421,6 +460,7 @@ export class ContentContextBuilderV1 {
         continue;
       }
       evidenceIds.add(item.id);
+      provenanceById.set(item.id, provenance);
       selectedEvidence.push(item);
       renderedCharacters += excerpt.length;
     }
@@ -464,7 +504,15 @@ export class ContentContextBuilderV1 {
         citationId: evidenceCitations.get(item.id)!,
         factId: null,
         evidenceId: item.id,
-        inclusionReason: item.explicit ? 'EXPLICIT' : 'FACT_SUPPORT',
+        // Причина включения у находки перебивает «явно выбрано»: именно она
+        // переживает снимок и отвечает на вопрос «откуда это взялось» при
+        // обратном чтении, когда оценка доказательства могла уже измениться.
+        inclusionReason:
+          provenanceById.get(item.id) === 'SEARCH'
+            ? CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1
+            : item.explicit
+            ? 'EXPLICIT'
+            : 'FACT_SUPPORT',
         statementHash: null,
         excerptHash:
           item.excerptHash ||
@@ -602,6 +650,13 @@ export class ContentContextBuilderV1 {
           | 'INTERNAL_ONLY',
         publishedAt: removed ? null : iso(value.snapshot.publishedAt),
         retrievedAt: iso(value.observedAt)!,
+        // Из причины включения, а не из текущей оценки: снимок обязан
+        // рассказывать о себе то же самое и через неделю, когда находку уже
+        // подтвердили или отвергли на витрине.
+        provenance: (item.inclusionReason ===
+        CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1
+          ? 'SEARCH'
+          : 'CONFIRMED') as ContentEvidenceProvenanceV1,
       };
     });
     const rejected = (snapshot.rejectionReasons || []).map((item) => ({

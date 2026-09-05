@@ -17,12 +17,30 @@ export interface Values {
   usedCitationIds?: string[];
 }
 
+/**
+ * Откуда взялся материал, в двух словах контракта конверта.
+ *
+ * `CONFIRMED` — доказательство с принятой оценкой, то самое, что продукт брал
+ * в текст всегда. `SEARCH` — свежий результат поиска, который никто ещё не
+ * подтвердил на витрине «Откуда факты». 05.09.2026 владелец решил такое в
+ * текст пускать, но называть «взято из поиска», а не «не проверено», — и
+ * тогда происхождение перестаёт быть внутренним делом строителя и становится
+ * словом на экране.
+ */
+export type ContentIntelligenceEvidenceProvenance = 'CONFIRMED' | 'SEARCH';
+
 export type ContentIntelligenceCitation = Readonly<{
   citationId: string;
   kind: 'FACT' | 'EVIDENCE';
   label: string;
   retrievedAt?: string;
   freshUntil?: string;
+  /**
+   * Поле необязательное, потому что старый конверт его не несёт: конверт без
+   * происхождения — это конверт, собранный до 05.09.2026, и всё в нём
+   * подтверждено по определению.
+   */
+  provenance?: ContentIntelligenceEvidenceProvenance;
 }>;
 
 export type ContentIntelligenceProvenance = Readonly<{
@@ -63,6 +81,16 @@ export type ContentIntelligenceProvenance = Readonly<{
    * конвертом контекста; у одной ранней привязки, до ответа сервера, его нет.
    */
   unverifiedCount?: number;
+  /**
+   * Сколько доказательств контекста взято из поиска и не подтверждено
+   * человеком.
+   *
+   * Это не отказ, а состав: такие фрагменты в текст вошли — с пометкой. Число
+   * считается по конверту, а не по отказам, поэтому оно и не мешается с
+   * `unverifiedCount`: там про то, чего в тексте нет, здесь про то, что в нём
+   * есть и на что нельзя ссылаться как на проверенный факт.
+   */
+  searchEvidenceCount?: number;
 }>;
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -407,11 +435,21 @@ export function mergeServerContentContextEnvelope(
       return null;
     }
     evidenceByCitation.add(evidence.citationId);
+    /*
+     * Читается одно значение, а не проверяется перечисление.
+     *
+     * Незнакомое слово здесь не роняет конверт: конверт — единственный
+     * носитель строки происхождения, и уронить его из-за слова, которого
+     * фронтенд ещё не знает, значит убрать с экрана и происхождение, и
+     * список материала разом. Контракт волны 05.09.2026 говорит то же самое
+     * с другой стороны: отсутствие поля — это `CONFIRMED`.
+     */
     evidenceCitations.push({
       citationId: evidence.citationId,
       kind: 'EVIDENCE',
       label: evidence.title,
       retrievedAt: evidence.retrievedAt,
+      provenance: evidence.provenance === 'SEARCH' ? 'SEARCH' : 'CONFIRMED',
     });
   }
 
@@ -435,10 +473,16 @@ export function mergeServerContentContextEnvelope(
       return null;
     }
     allCitationIds.add(fact.citationId);
+    /*
+     * Факт в конверте — это утверждение, которое кто-то подтвердил; иначе
+     * оно в конверт не попадает. Поэтому происхождение у него одно, и оно
+     * написано явно, а не оставлено читателю на догадку.
+     */
     factCitations.push({
       citationId: fact.citationId,
       kind: 'FACT',
       label: fact.statement,
+      provenance: 'CONFIRMED',
       ...(isIsoDate(fact.freshUntil) ? { freshUntil: fact.freshUntil } : {}),
     });
   }
@@ -455,12 +499,24 @@ export function mergeServerContentContextEnvelope(
     (item) => asRecord(item)?.reason === 'UNVERIFIED'
   ).length;
 
+  /**
+   * Взятое поиском, которое всё-таки вошло в текст.
+   *
+   * Считается по составу конверта, а не по его отказам: с 05.09.2026 такие
+   * фрагменты не отбрасываются, а идут в текст с пометкой, и число нужно
+   * ровно для того, чтобы окно поста сказало об этом человеку.
+   */
+  const searchEvidenceCount = evidenceCitations.filter(
+    (citation) => citation.provenance === 'SEARCH'
+  ).length;
+
   return {
     ...binding,
     builtAt: envelope.builtAt,
     expiresAt: envelope.expiresAt,
     availableCitations: [...factCitations, ...evidenceCitations],
     unverifiedCount,
+    searchEvidenceCount,
   };
 }
 

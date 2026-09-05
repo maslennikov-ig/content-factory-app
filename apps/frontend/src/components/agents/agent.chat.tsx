@@ -41,6 +41,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
 import { defaultContentLanguageForIntegrations } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { OpeningBand } from '@contentfactory/react/layout';
+import { AgentAvailabilityGate } from '@contentfactory/frontend/components/agents/agent.availability';
 
 export const AgentChat: FC = () => {
   const { backendUrl, language: interfaceLanguage } = useVariables();
@@ -64,60 +65,72 @@ export const AgentChat: FC = () => {
     );
   }, [properties]);
 
+  /**
+   * `content-factory-next-fn33.153`: сначала — есть ли чем звать модель, и
+   * только потом рантайм помощника. Пока звать нечем, `CopilotKit` в дереве не
+   * появляется, поэтому `POST /copilot/agent` с гарантированным 503 не уходит
+   * вовсе, а человек читает, чего не хватает, вместо приветствия.
+   */
   return (
-    <CopilotKit
-      {...(params.id === 'new' ? {} : { threadId: params.id })}
-      credentials="include"
-      runtimeUrl={backendUrl + '/copilot/agent'}
-      showDevConsole={false}
-      agent="content-factory"
-      properties={{
-        integrations: properties,
-        contentLanguage,
-      }}
-    >
-      <Hooks />
-      <LoadMessages id={params.id} />
-      <div
-        style={
-          {
-            '--copilot-kit-primary-color': 'var(--new-btn-text)',
-            '--copilot-kit-background-color': 'var(--new-bg-color)',
-          } as CopilotKitCSSProperties
-        }
-        className="trz agent bg-cf-surface flex min-h-0 flex-1 flex-col"
+    <AgentAvailabilityGate>
+      <CopilotKit
+        {...(params.id === 'new' ? {} : { threadId: params.id })}
+        credentials="include"
+        runtimeUrl={backendUrl + '/copilot/agent'}
+        showDevConsole={false}
+        agent="content-factory"
+        properties={{
+          integrations: properties,
+          contentLanguage,
+        }}
       >
-        {/* The divider is the separation here, so the band keeps no gap after
+        <Hooks />
+        <LoadMessages id={params.id} />
+        <div
+          style={
+            {
+              '--copilot-kit-primary-color': 'var(--new-btn-text)',
+              '--copilot-kit-background-color': 'var(--new-bg-color)',
+            } as CopilotKitCSSProperties
+          }
+          className="trz agent bg-cf-surface flex min-h-0 flex-1 flex-col"
+        >
+          {/* The divider is the separation here, so the band keeps no gap after
             it: the chat surface starts immediately under the border. */}
-        <OpeningBand className="mb-0 w-full justify-end border-b border-cf-border px-[16px]">
-          <label
-            htmlFor="agent-content-language"
-            className="flex items-center gap-[8px] text-[13px] font-[600] text-cf-ink"
-          >
-            <span>{t('content_language', 'Content language')}</span>
-            <Select standalone
-              id="agent-content-language"
-              value={contentLanguage}
-              onChange={(event) => {
-                languageWasSelected.current = true;
-                setContentLanguage(event.target.value === 'ru' ? 'ru' : 'en');
-              }}
-              className="rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+          <OpeningBand className="mb-0 w-full justify-end border-b border-cf-border px-[16px]">
+            <label
+              htmlFor="agent-content-language"
+              className="flex items-center gap-[8px] text-[13px] font-[600] text-cf-ink"
             >
-              <option value="en">{t('content_language_en', 'English')}</option>
-              <option value="ru">{t('content_language_ru', 'Russian')}</option>
-            </Select>
-          </label>
-        </OpeningBand>
-        <div className="relative min-h-0 w-full flex-1">
-          <div className="absolute inset-0 pb-[20px]">
-            <CopilotChat
-              className="h-full w-full"
-              labels={{
-                title: t('your_assistant', 'Your Assistant'),
-                initial: t(
-                  'agent_welcome_message',
-                  `Hello, I am your Content Factory agent 🙌🏻.
+              <span>{t('content_language', 'Content language')}</span>
+              <Select
+                standalone
+                id="agent-content-language"
+                value={contentLanguage}
+                onChange={(event) => {
+                  languageWasSelected.current = true;
+                  setContentLanguage(event.target.value === 'ru' ? 'ru' : 'en');
+                }}
+                className="rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] text-[14px] text-cf-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+              >
+                <option value="en">
+                  {t('content_language_en', 'English')}
+                </option>
+                <option value="ru">
+                  {t('content_language_ru', 'Russian')}
+                </option>
+              </Select>
+            </label>
+          </OpeningBand>
+          <div className="relative min-h-0 w-full flex-1">
+            <div className="absolute inset-0 pb-[20px]">
+              <CopilotChat
+                className="h-full w-full"
+                labels={{
+                  title: t('your_assistant', 'Your Assistant'),
+                  initial: t(
+                    'agent_welcome_message',
+                    `Hello, I am your Content Factory agent 🙌🏻.
               
 I can schedule a post or multiple posts to multiple channels and generate pictures and videos.
 
@@ -127,15 +140,16 @@ You can see your previous conversations from the right menu.
 
 You can also use me as an MCP Server, check Settings >> Public API
 `
-                ),
-              }}
-              UserMessage={Message}
-              Input={NewInput}
-            />
+                  ),
+                }}
+                UserMessage={Message}
+                Input={NewInput}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </CopilotKit>
+      </CopilotKit>
+    </AgentAvailabilityGate>
   );
 };
 

@@ -526,16 +526,44 @@ export class ContentSourceRegistryService {
    */
   async acceptSearchResult(
     organizationId: string,
-    input: Omit<AcceptSearchResultInput, 'organizationId' | 'now'>
+    input: Omit<AcceptSearchResultInput, 'organizationId' | 'now'>,
+    options: {
+      /**
+       * Чем считать «ту же находку». По умолчанию — тем же куском того же
+       * адреса (`hash`): человек с панели поиска взял именно эту выдержку.
+       * Генератор передаёт `url`: он стучится сюда на каждой генерации, и
+       * один адрес с чуть иной выдержкой не должен заводить строку на год.
+       */
+      reuseBy?: 'hash' | 'url';
+    } = {}
   ) {
+    const now = this.now();
     const payload = normalizeSearchResultAcceptance({
       ...input,
       organizationId,
-      now: this.now(),
+      now,
     });
-    const snapshot = await this.repository.createSearchProviderEvidence(
-      payload
-    );
+    // Запрет доменов оператора действует и на эту дверь (рецензия ec48,
+    // P2-3): раньше её открывал человек, теперь — генератор на каждой
+    // генерации, и `SOURCE_DENIED_DOMAINS` иначе не касался бы находок.
+    assertDomainAllowed(payload.finalCanonicalUrl, this.deniedDomains);
+    /**
+     * Ту же находку берём обратно, а не заводим вторую.
+     *
+     * `content-factory-next-ec48.1`: с этого дня в дверь стучится не только
+     * человек с витрины, но и генератор на каждой генерации. Одинаковый
+     * `contentHash` — это тот же кусок того же адреса, и второй снимок о нём
+     * не рассказал бы ничего нового, зато отвязал бы уже принятую человеком
+     * оценку от материала, который попадёт в текст.
+     */
+    const snapshot =
+      (await this.repository.findFreshSearchProviderEvidence(
+        organizationId,
+        options.reuseBy === 'url'
+          ? { finalCanonicalUrl: payload.finalCanonicalUrl }
+          : { contentHash: payload.contentHash },
+        now
+      )) || (await this.repository.createSearchProviderEvidence(payload));
     const evidence = snapshot.evidence[0];
     return {
       evidenceId: evidence.id,

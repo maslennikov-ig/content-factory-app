@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { ContentContextError } from './content-context.errors';
 
 type PrismaClientLike = Record<string, any>;
@@ -34,6 +35,20 @@ function evidenceCurrentlyUsable(item: any, organizationId: string, now: Date) {
   const freshUntil = source
     ? source.freshUntil
     : evidence?.freshUntil || evidence?.snapshot?.freshUntil;
+  /**
+   * Взятое поиском сохраняется вместе с постом, потому что строитель его туда
+   * и пустил (решение владельца 05.09.2026, `content-factory-next-ec48`).
+   *
+   * Читается причина включения, замороженная в снимке, а не текущая оценка:
+   * иначе черновик, который строитель только что собрал из находки, при
+   * сохранении получал бы `CONTENT_CONTEXT_INVALIDATED` — «выбранное
+   * доказательство больше не годится» о материале, который никто не трогал.
+   * Отвергнутое человеком и `BLOCKED` не проходят и здесь.
+   */
+  const searchUnconfirmed =
+    item.inclusionReason === CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1 &&
+    !source &&
+    evidence?.snapshot?.kind === 'SEARCH_PROVIDER_RESULT';
   return Boolean(
     evidence &&
       evidence.organizationId === organizationId &&
@@ -41,7 +56,9 @@ function evidenceCurrentlyUsable(item: any, organizationId: string, now: Date) {
       (source || evidence.freshnessStatus === 'FRESH') &&
       freshUntil &&
       new Date(freshUntil).getTime() >= now.getTime() &&
-      evidence.assessment?.status === 'ACCEPTED' &&
+      (searchUnconfirmed
+        ? evidence.assessment?.status !== 'REJECTED'
+        : evidence.assessment?.status === 'ACCEPTED') &&
       evidence.assessment?.trustTier !== 'BLOCKED' &&
       (source || evidence.snapshot?.kind === 'SEARCH_PROVIDER_RESULT')
   );

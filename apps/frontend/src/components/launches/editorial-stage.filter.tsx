@@ -8,7 +8,7 @@ import {
   editorialStageCopy,
   resolveEditorialStageLocale,
 } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 
 /**
  * Filters the calendar and the list by editorial stage — the same row as
@@ -21,8 +21,7 @@ export const EditorialStageFilter: FC<{
   value: EditorialStageValue | null;
   onChange: (value: EditorialStageValue | null) => void;
 }> = ({ value, onChange }) => {
-  const { language } = useVariables();
-  const locale = resolveEditorialStageLocale(language);
+  const locale = resolveEditorialStageLocale(useInterfaceLanguage());
   const copy = editorialStageCopy[locale];
 
   return (

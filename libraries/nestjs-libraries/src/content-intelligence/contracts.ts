@@ -2,6 +2,34 @@ export const CONTENT_CONTEXT_MAX_FACTS_V1 = 8 as const;
 export const CONTENT_CONTEXT_MAX_EVIDENCE_V1 = 8 as const;
 export const CONTENT_CONTEXT_MAX_RENDERED_CHARACTERS_V1 = 12_000 as const;
 
+/**
+ * Откуда взялась цитата: подтверждена человеком или найдена поиском.
+ *
+ * Решение владельца 05.09.2026 (`content-factory-next-ec48`): «можно
+ * разрешить брать непроверенные находки… делать не по метке „не проверено“, а
+ * „взято из поиска“… ограничивать я бы никак не стал». До этого дня строитель
+ * контекста отбрасывал взятое поиском как `UNVERIFIED`, и проверка качества
+ * (`docs/product/material-quality-check-2026-09-05.md`) показала, что из пяти
+ * постов ни один не опирался на материал.
+ *
+ * `CONFIRMED` — то же, что было всегда: доказательство с принятой оценкой.
+ * `SEARCH` — результат поисковика (`SEARCH_PROVIDER_RESULT`) без принятой
+ * оценки: свежий, не удалённый и не отвергнутый человеком. Поле обязательное
+ * на сервере; читающая сторона, не знающая о нём, считает отсутствие за
+ * `CONFIRMED` — так старый клиент никогда не примет находку за подтверждённое
+ * молча.
+ */
+export type ContentEvidenceProvenanceV1 = 'CONFIRMED' | 'SEARCH';
+
+/**
+ * `ContentContextItem.inclusionReason` у такой цитаты. Обычная строковая
+ * колонка, миграция не нужна; по ней же обратное чтение снимка возвращает
+ * `provenance`, потому что оценка доказательства к тому времени может уже
+ * измениться, а снимок обязан остаться тем, чем был.
+ */
+export const CONTENT_CONTEXT_SEARCH_INCLUSION_REASON_V1 =
+  'SEARCH_UNCONFIRMED' as const;
+
 export const CONTENT_EVIDENCE_REQUIRED = 'CONTENT_EVIDENCE_REQUIRED' as const;
 export const BRAND_PROFILE_VERSION_UNAVAILABLE =
   'BRAND_PROFILE_VERSION_UNAVAILABLE' as const;
@@ -91,6 +119,7 @@ export type ContentContextEnvelopeV1 = {
     exposure: 'PUBLIC' | 'INTERNAL_ONLY';
     publishedAt: string | null;
     retrievedAt: string;
+    provenance: ContentEvidenceProvenanceV1;
   }>;
   rejected: Array<{
     itemId: string;

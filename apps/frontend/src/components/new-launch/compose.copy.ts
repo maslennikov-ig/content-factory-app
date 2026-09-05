@@ -79,6 +79,32 @@ export const composeCopy = {
       ])} и в текст не ${plural(count, ['попал', 'попали', 'попали'])}.`,
     unverifiedNextStep: 'Подтвердить их можно на витрине',
     unverifiedLink: 'Откуда факты',
+    /**
+     * Куда смотреть за находкой — в список материала этого же окна: там она
+     * стоит с ярлыком. На витрину «Откуда факты» записка не ведёт: находка без
+     * факта там не показывается, и обещать подтверждение было бы неправдой.
+     */
+    searchNextStep:
+      'Они стоят в списке материала этого окна с ярлыком «Взято из поиска». Подтверждённым фрагмент становится только после проверки человеком.',
+    /**
+     * Не отказ, а состав: это вошло в текст, и вот под каким именем.
+     *
+     * 05.09.2026 владелец разрешил брать непроверенные находки и просил
+     * называть их «взято из поиска», а не «не проверено»
+     * (`content-factory-next-ec48`). Поэтому предложение говорит о том, что
+     * случилось, а не о том, чего не случилось, и повторяет ту самую
+     * пометку — она же стоит ярлыком в списке материала и строкой в промпте,
+     * и человек должен узнать её, а не встретить третье слово.
+     */
+    searchEvidenceUsed: (count: number) =>
+      `${count} ${plural(count, [
+        'фрагмент',
+        'фрагмента',
+        'фрагментов',
+      ])} ${plural(count, ['взят', 'взяты', 'взяты'])} из поиска и ${plural(
+        count,
+        ['вошёл', 'вошли', 'вошли']
+      )} в текст с пометкой «взято из поиска».`,
   },
   en: {
     assembledFrom: (count: number) =>
@@ -108,5 +134,11 @@ export const composeCopy = {
       } stayed out of the text.`,
     unverifiedNextStep: 'Confirm them under',
     unverifiedLink: 'Facts',
+    searchNextStep:
+      'They stand in this window’s material list under the “From web search” mark. A fragment counts as confirmed only after a person has checked it.',
+    searchEvidenceUsed: (count: number) =>
+      `${count} ${
+        count === 1 ? 'fragment' : 'fragments'
+      } came from web search and went into the text marked “from web search”.`,
   },
 } satisfies Record<ComposeLocale, Record<string, unknown>>;

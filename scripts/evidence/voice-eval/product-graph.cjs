@@ -57,6 +57,8 @@ const standMocks = (chatModel) => ({
     { ContentContextService: class {} },
   '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service':
     { BrandProfileContextService: class {} },
+  '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-registry.service':
+    { ContentSourceRegistryService: class {} },
 });
 
 /**
@@ -70,7 +72,12 @@ function loadAgentGraph({ chatModel, ref }) {
     standMocks(chatModel),
     ref
   );
-  return { service: new AgentGraphService({}, {}, {}, {}, {}, {}), AgentGraphService };
+  // Восьмым — реестр источников (`content-factory-next-ec48.1`). Стенд
+  // ничего не сохраняет: он судит промпт, а не поход в веб.
+  return {
+    service: new AgentGraphService({}, {}, {}, {}, {}, {}, null, null),
+    AgentGraphService,
+  };
 }
 
 module.exports = { loadAgentGraph, SERVICE, REPO };

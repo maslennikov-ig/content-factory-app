@@ -256,6 +256,7 @@ test('the service resolves the retrieval date server-side and never trusts a cli
   const now = new Date('2026-08-20T10:00:00.000Z');
   let repositoryPayload;
   const repository = {
+    findFreshSearchProviderEvidence: async () => null,
     createSearchProviderEvidence: async (payload) => {
       repositoryPayload = payload;
       return {
@@ -304,6 +305,113 @@ test('the service resolves the retrieval date server-side and never trusts a cli
       now.getTime() + SEARCH_PROVIDER_RESULT_FRESHNESS_MS
     ).toISOString(),
   });
+});
+
+/**
+ * `content-factory-next-ec48.1`: с 05.09.2026 в эту дверь стучится не только
+ * человек с витрины, но и генератор — на каждой генерации. Поисковик на один и
+ * тот же предмет отдаёт ту же страницу с той же выдержкой, и без
+ * переиспользования витрина «Откуда факты» за неделю стала бы списком из сотни
+ * одинаковых строк, каждую из которых человеку предлагают подтвердить
+ * отдельно. Хуже того: уже принятая человеком оценка осталась бы на старой
+ * строке, а в текст пошла бы новая, неподтверждённая.
+ */
+test('the same find is taken back rather than written a second time', async () => {
+  const now = new Date('2026-08-20T10:00:00.000Z');
+  let creates = 0;
+  let lookupArgs = null;
+  const existing = {
+    id: 'snapshot-existing',
+    finalCanonicalUrl: 'https://example.com/found',
+    normalizedTitle: 'Found article',
+    publishedAt: null,
+    evidence: [
+      {
+        id: 'evidence-existing',
+        excerpt: 'The article said exactly this.',
+        observedAt: new Date('2026-08-19T10:00:00.000Z'),
+        freshUntil: new Date('2027-08-19T10:00:00.000Z'),
+      },
+    ],
+  };
+  const repository = {
+    findFreshSearchProviderEvidence: async (...args) => {
+      lookupArgs = args;
+      return existing;
+    },
+    createSearchProviderEvidence: async () => {
+      creates += 1;
+      throw new Error('a repeated find must not create a second snapshot');
+    },
+  };
+  const service = new ContentSourceRegistryService(
+    repository,
+    {},
+    {},
+    {},
+    () => now
+  );
+
+  const result = await service.acceptSearchResult('org-a', {
+    url: 'https://example.com/found',
+    title: 'Found article',
+    excerpt: 'The article said exactly this.',
+    provider: 'tavily',
+  });
+
+  assert.equal(creates, 0);
+  assert.equal(result.evidenceId, 'evidence-existing');
+  assert.equal(result.sourceSnapshotId, 'snapshot-existing');
+  // С панели поиска ищется по организации, по хешу содержимого и по «сейчас»
+  // сервера: тот же адрес с другой выдержкой — это другая находка, которую
+  // человек выбрал сам.
+  assert.equal(lookupArgs[0], 'org-a');
+  assert.deepEqual(Object.keys(lookupArgs[1]), ['contentHash']);
+  assert.equal(lookupArgs[1].contentHash.length, 64);
+  assert.equal(lookupArgs[2].getTime(), now.getTime());
+
+  // Генератор просит искать по адресу (рецензия ec48, P2-4): он стучится сюда
+  // на каждой генерации, и один адрес с чуть иной выдержкой не должен заводить
+  // строку на год вперёд.
+  await service.acceptSearchResult(
+    'org-a',
+    {
+      url: 'https://example.com/found?utm=1#top',
+      excerpt: 'A slightly different excerpt of the same page.',
+      provider: 'tavily',
+    },
+    { reuseBy: 'url' }
+  );
+  assert.deepEqual(lookupArgs[1], {
+    finalCanonicalUrl: 'https://example.com/found?utm=1',
+  });
+});
+
+test('the operator deny-list closes the search-result door too (review ec48, P2-3)', async () => {
+  let creates = 0;
+  const service = new ContentSourceRegistryService(
+    {
+      findFreshSearchProviderEvidence: async () => null,
+      createSearchProviderEvidence: async () => {
+        creates += 1;
+        throw new Error('a denied domain must never reach the repository');
+      },
+    },
+    {},
+    {},
+    undefined,
+    () => new Date('2026-09-05T12:00:00.000Z'),
+    { deniedDomains: ['denied.example'] }
+  );
+  await assert.rejects(
+    service.acceptSearchResult('org-a', {
+      url: 'https://news.denied.example/story',
+      excerpt: 'Anything at all.',
+      provider: 'tavily',
+    }),
+    (error) => error.code === 'TERMS_DENIED' && error.status === 403
+  );
+  assert.equal(creates, 0);
 });
 
 // --- Section D: DTO and route wiring ---------------------------------------

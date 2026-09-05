@@ -37,6 +37,7 @@ import { ExistingDataContextProvider } from '@contentfactory/frontend/components
 import { useDrag, useDrop } from 'react-dnd';
 import { Integration, Post, State, Tags } from '@prisma/client';
 import { useAddProvider } from '@contentfactory/frontend/components/launches/add.provider.component';
+import { NoChannelNotice } from '@contentfactory/frontend/components/launches/no-channel.notice';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import {
@@ -57,6 +58,7 @@ import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add
 import { CreationMethodBadge } from '@contentfactory/frontend/components/launches/creation.method.badge';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import copy from 'copy-to-clipboard';
 import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
@@ -1008,19 +1010,9 @@ export const CalendarColumn: FC<{
    * `GET /integrations/social/:integration` — an administrator door
    * (`docs/product/roles-matrix.md`). `AddProviderButton` already hides
    * itself from a member for exactly that reason; the calendar reached the
-   * same modal around it. Now the click answers instead of promising: one
-   * sentence saying who adds a channel, and no catalogue nobody can use.
+   * same modal around it.
    */
   const canAddChannel = isOrganizationAdmin(user?.role);
-  const refuseAddChannel = useCallback(() => {
-    toaster.show(
-      t(
-        'add_channel_admin_only',
-        'Adding a channel is an administrator action. Ask an administrator of this workspace to connect one.'
-      ),
-      'warning'
-    );
-  }, [t, toaster]);
 
   /**
    * The same cell for somebody who may not write a post
@@ -1033,6 +1025,44 @@ export const CalendarColumn: FC<{
    * answers in one line instead.
    */
   const canWritePosts = isOrganizationEditor(user?.role);
+
+  /**
+   * The same cell in a workspace with no channel at all
+   * (`content-factory-next-fn33.148`).
+   *
+   * `fn33.67` above answered the member with a toast and still handed the
+   * administrator the catalogue, so one cell gave two roles two different
+   * answers and neither of them opened the compose window — which the
+   * calendar's own «План / Пишется / Проверка» band promises. A draft with no
+   * channel cannot exist today: `Post.integrationId` is required in
+   * `schema.prisma` and `Post.integration` is `@IsDefined()` in
+   * `create.post.dto.ts`, so opening the window would hand somebody a form
+   * that dies on save.
+   *
+   * One answer for everybody, in a card rather than a toast: a toast has no
+   * second reading, and the design rules keep the only copy of a state off
+   * one. The administrator gets the catalogue from a button
+   * inside the card instead of in place of it.
+   */
+  const explainNoChannel = useCallback(() => {
+    modal.openModal({
+      title: t('compose_needs_channel_title', 'Connect a channel to write posts'),
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+      withCloseButton: true,
+      children: (close: () => void) => (
+        <NoChannelNotice
+          canAddChannel={canAddChannel}
+          canWritePosts={canWritePosts}
+          onAddChannel={() => {
+            close();
+            addProvider();
+          }}
+        />
+      ),
+    });
+  }, [modal, t, canAddChannel, canWritePosts, addProvider]);
+
   const refuseWritePost = useCallback(() => {
     toaster.show(
       t(
@@ -1131,13 +1161,11 @@ export const CalendarColumn: FC<{
           <div
             className="pb-[2.5px] px-[5px] flex-1 flex"
             onClick={
-              !canWritePosts
+              !integrations.length
+                ? explainNoChannel
+                : !canWritePosts
                 ? refuseWritePost
-                : integrations.length
-                ? addModal
-                : canAddChannel
-                ? addProvider
-                : refuseAddChannel
+                : addModal
             }
           >
             <div
@@ -1270,7 +1298,8 @@ const CalendarItem: FC<{
     showTime,
     missingRelease,
   } = props;
-  const { disableXAnalytics, language } = useVariables();
+  const { disableXAnalytics } = useVariables();
+  const interfaceLanguage = useInterfaceLanguage();
   const user = useUser();
   const showCreationMethodBadge =
     user?.impersonate &&
@@ -1299,7 +1328,7 @@ const CalendarItem: FC<{
     [post.id, members.length]
   );
 
-  const locale = resolveEditorialStageLocale(language);
+  const locale = resolveEditorialStageLocale(interfaceLanguage);
   const tagNames = (post.tags || []).map((p) => p.tag.name).join(', ');
   /*
     The band says the stage. A post recorded before the stage field existed has

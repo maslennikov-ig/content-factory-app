@@ -73,6 +73,7 @@ import {
 } from '@contentfactory/frontend/components/ui/icons';
 import { DelayComponent } from '@contentfactory/frontend/components/new-launch/delay.component';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { SearchEvidenceMark } from '@contentfactory/frontend/components/new-launch/search-evidence.mark';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
@@ -115,11 +116,27 @@ export const ContentIntelligenceCitationSelector: FC<{
              * экране оставалось английским, хотя соседние подписи того же
              * блока переводятся (`content-factory-next-fn33.28.13`).
              */
-            label={`${
-              citation.kind === 'FACT'
-                ? t('citation_kind_fact', 'Fact')
-                : t('citation_kind_source', 'Source')
-            } · ${citation.label}`}
+            /*
+             * Ярлык стоит у самой строки, а не в общей записке под постом
+             * (`content-factory-next-ec48.2`). Записка отвечает на вопрос
+             * «сколько», а здесь вопрос другой и задаётся он в момент
+             * отметки: вот на это опереться можно как на подтверждённое, а
+             * вот на это — как на прочитанное в вебе.
+             */
+            label={
+              <span className="flex min-w-0 flex-wrap items-center gap-[8px]">
+                <span className="min-w-0 break-words">{`${
+                  citation.kind === 'FACT'
+                    ? t('citation_kind_fact', 'Fact')
+                    : t('citation_kind_source', 'Source')
+                } · ${citation.label}`}</span>
+                {citation.provenance === 'SEARCH' && (
+                  <SearchEvidenceMark
+                    label={t('citation_from_search', 'From web search')}
+                  />
+                )}
+              </span>
+            }
           />
         ))}
       </div>

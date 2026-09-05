@@ -1126,4 +1126,151 @@ if (fs.existsSync(builderPath)) {
     assert.equal(context.facts[0].evidenceCitationIds.length, 1);
     assert.equal(context.evidence.length, 1);
   });
+
+  /* -------------------------------------------------------------------------
+   * «Взято из поиска» (`content-factory-next-ec48.1`, решение владельца
+   * 05.09.2026).
+   *
+   * До этого дня строитель отбрасывал всё без принятой оценки как
+   * UNVERIFIED, и платная проверка 05.09 показала, что из пяти постов ни один
+   * не опирался на материал: находка доходила до витрины и дальше не шла.
+   * Владелец разрешил её брать — с пометкой «взято из поиска», а не «не
+   * проверено», и «ограничивать я бы никак не стал».
+   * ---------------------------------------------------------------------- */
+
+  function searchEvidence(id, overrides = {}) {
+    const base = evidence(id);
+    return {
+      ...base,
+      assessment: { status: 'PROPOSED', trustTier: 'UNRATED', trustPolicyVersion: 1 },
+      ...overrides,
+      snapshot: {
+        ...base.snapshot,
+        kind: 'SEARCH_PROVIDER_RESULT',
+        source: null,
+        ...(overrides.snapshot || {}),
+      },
+    };
+  }
+
+  test('a fresh search result enters the context marked SEARCH and reads back the same way', async () => {
+    const repository = new MemoryRepository([], [searchEvidence('found')]);
+    const builder = makeBuilder(repository);
+
+    const built = await builder.build(
+      'org-a',
+      request({ userMaterialEvidenceIds: ['found'] })
+    );
+
+    assert.equal(built.evidence.length, 1);
+    assert.equal(built.evidence[0].evidenceId, 'found');
+    assert.equal(built.evidence[0].provenance, 'SEARCH');
+    assert.equal(built.status, 'READY');
+    assert.equal(built.generationPolicy, 'ALLOW_GROUNDED');
+    // Причина включения переживает снимок: по ней и только по ней обратное
+    // чтение отвечает, откуда взялась цитата.
+    const stored = repository.snapshots.get(
+      `org-a:${built.contentContextSnapshotId}`
+    );
+    assert.equal(
+      stored.items.find((item) => item.evidenceId).inclusionReason,
+      'SEARCH_UNCONFIRMED'
+    );
+
+    const read = await builder.get('org-a', built.contentContextSnapshotId);
+    assert.equal(read.evidence[0].provenance, 'SEARCH');
+  });
+
+  test('an accepted evidence stays CONFIRMED and sorts before a search result', async () => {
+    // Идентификаторы выбраны так, чтобы прежний порядок «по id» поставил
+    // находку первой: проверяется именно происхождение, а не алфавит.
+    const repository = new MemoryRepository(
+      [],
+      [searchEvidence('a-found'), evidence('z-accepted')]
+    );
+    const builder = makeBuilder(repository);
+
+    const built = await builder.build(
+      'org-a',
+      request({ userMaterialEvidenceIds: ['a-found', 'z-accepted'] })
+    );
+
+    assert.deepEqual(
+      built.evidence.map((item) => [item.evidenceId, item.provenance]),
+      [
+        ['z-accepted', 'CONFIRMED'],
+        ['a-found', 'SEARCH'],
+      ]
+    );
+  });
+
+  test('REQUIRE_CURRENT is satisfied by a fresh search result alone', async () => {
+    const built = await makeBuilder(
+      new MemoryRepository([], [searchEvidence('found')])
+    ).build(
+      'org-a',
+      request({
+        freshnessMode: 'REQUIRE_CURRENT',
+        userMaterialEvidenceIds: ['found'],
+      })
+    );
+
+    assert.equal(built.status, 'READY');
+    assert.equal(built.generationPolicy, 'ALLOW_GROUNDED');
+    assert.equal(built.errorCode, null);
+  });
+
+  test('a stale search result is still refused, and so are blocked and rejected ones', async () => {
+    const built = await makeBuilder(
+      new MemoryRepository(
+        [],
+        [
+          searchEvidence('stale', { freshUntil: past, freshnessStatus: 'STALE' }),
+          searchEvidence('blocked', {
+            assessment: {
+              status: 'PROPOSED',
+              trustTier: 'BLOCKED',
+              trustPolicyVersion: 1,
+            },
+          }),
+          searchEvidence('refused', {
+            assessment: {
+              status: 'REJECTED',
+              trustTier: 'UNRATED',
+              trustPolicyVersion: 1,
+            },
+          }),
+        ]
+      )
+    ).build('org-a', request());
+
+    assert.equal(built.evidence.length, 0);
+    assert.deepEqual(built.rejected, [
+      { itemId: 'blocked', reason: 'UNVERIFIED' },
+      { itemId: 'refused', reason: 'UNVERIFIED' },
+      { itemId: 'stale', reason: 'STALE' },
+    ]);
+  });
+
+  test('a fetched source excerpt without an accepted assessment stays refused', async () => {
+    const built = await makeBuilder(
+      new MemoryRepository(
+        [],
+        [
+          evidence('fetched', {
+            assessment: {
+              status: 'PROPOSED',
+              trustTier: 'UNRATED',
+              trustPolicyVersion: 1,
+            },
+          }),
+        ]
+      )
+    ).build('org-a', request());
+
+    assert.equal(built.evidence.length, 0);
+    assert.deepEqual(built.rejected, [
+      { itemId: 'fetched', reason: 'UNVERIFIED' },
+    ]);
+  });
 }

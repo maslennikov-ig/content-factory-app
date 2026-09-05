@@ -15,7 +15,7 @@ import {
   editorialStageCopy,
   resolveEditorialStageLocale,
 } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 
 /**
  * The editor's own choice of the four editorial-stage values, plus the fifth
@@ -52,8 +52,7 @@ export const EditorialStageSelect: FC<{
   disabled?: boolean;
   className?: string;
 }> = ({ value, onChange, disabled, className }) => {
-  const { language } = useVariables();
-  const locale = resolveEditorialStageLocale(language);
+  const locale = resolveEditorialStageLocale(useInterfaceLanguage());
   const copy = editorialStageCopy[locale];
   const [isOpen, setIsOpen] = useState(false);
 

@@ -330,15 +330,27 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
   /**
    * Сколько подтверждений записано за этим постом — по коробкам, а не по
    * контексту: контекст мог выдать двадцать, а в текст вошли три.
+   *
+   * Взятое из поиска (`provenance === 'SEARCH'`, `content-factory-next-ec48`)
+   * подтверждением не считается: о нём говорит своя записка строкой ниже, и
+   * назвать находку подтверждением значило бы выдать непроверенное за
+   * проверенное — ровно то слово, которого владелец просил избегать.
    */
   const confirmationCount = useLaunchStore(
     useShallow((state) => {
       const boxes =
         state.internal.find((one) => one.integration.id === state.current)
           ?.integrationValue ?? state.global;
+      const searched = new Set(
+        (state.contentIntelligenceProvenance?.availableCitations || [])
+          .filter((citation) => citation.provenance === 'SEARCH')
+          .map((citation) => citation.citationId)
+      );
       const used = new Set<string>();
       for (const box of boxes) {
-        for (const citationId of box.usedCitationIds || []) used.add(citationId);
+        for (const citationId of box.usedCitationIds || []) {
+          if (!searched.has(citationId)) used.add(citationId);
+        }
       }
       return used.size;
     })
@@ -960,16 +972,21 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   </div>
                 )}
                 {/**
-                  * Отказ стоит под строкой происхождения, а не вместо неё.
+                  * Состав и отказ стоят под строкой происхождения, а не
+                  * вместо неё.
                   *
-                  * Строка говорит, из чего пост собран; это — чего в нём нет и
-                  * почему (`content-factory-next-fn33.131`). Два разных
-                  * вопроса, и второй возникает только тогда, когда человек
-                  * что-то брал: у поста без отброшенных фрагментов здесь
-                  * пусто.
+                  * Строка говорит, из чего пост собран; это — что в нём
+                  * помечено как взятое из поиска и чего в нём нет
+                  * (`content-factory-next-fn33.131`,
+                  * `content-factory-next-ec48.2`). Разные вопросы, и оба
+                  * возникают только тогда, когда человек что-то брал: у поста
+                  * без такого материала здесь пусто.
                   */}
                 <UnverifiedEvidenceNote
                   count={contentIntelligenceProvenance?.unverifiedCount}
+                  searchCount={
+                    contentIntelligenceProvenance?.searchEvidenceCount
+                  }
                   locale={voiceLocale}
                 />
                 <DraftGapNote gap={props.draftGap} locale={voiceLocale} />

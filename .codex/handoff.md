@@ -4,8 +4,10 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave «owner decisions» (05.09, owner away, «даю все разрешения — делай»;
-branch `wave/owner-decisions-2026-09-05`, release record in the runbook).**
+**Wave «owner decisions» (05.09, owner away, «даю все разрешения — делай») —
+merged to `main` as `9e4d7474`, RELEASED as `da34f1a9e832` (column
+`learnedRules` applied before the switch, rollback `035029af3c18`, backup
+`20260905T124600Z-pre-learnedrules`; receipt 374/4542, node 117/0).**
 Owner answered nine questions; six Opus streams + reviewer + paid check +
 roles walker. (A) **the avatar learns from edits** (`fn33.28.19`, `.28.19.1`):
 substantive was/became pairs (≥0.1 share and ≥3 words) kept ≤200 per avatar,
@@ -93,9 +95,9 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`035029af3c18`** (05.09.2026, walker P3 wave); rollback
-`dcb6eae72608`, also on the host. Backup before the schema:
-`postgres/20260905T075257Z-pre-cleanup-product-only`. **Public CI had been red
+Production runs **`da34f1a9e832`** (05.09.2026, owner-decisions wave); rollback
+`035029af3c18`, also on the host. Backup before the schema:
+`postgres/20260905T124600Z-pre-learnedrules-product-only`. **Public CI had been red
 for three releases unnoticed** (a migration proof anchored on a removed
 `COMMIT;`; `--setupFiles=` replacing the config list) — both fixed 03.09; the
 two extra jobs run locally before every public push since 05.09. The tag names
@@ -150,7 +152,7 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks production after the owner-decisions release** — as EDITOR and USER in
+walks production `da34f1a9e832`** — as EDITOR and USER in
 one workspace (view-first, refusals in Russian), the avatar screen «Чему
 научился на правках» after five real edits, word search in the archive, the
 composer's note on unverified evidence, the search panel in Russian — every

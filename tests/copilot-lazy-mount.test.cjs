@@ -28,6 +28,8 @@ const root = path.resolve(__dirname, '..');
 const MODAL = 'apps/frontend/src/components/new-launch/manage.modal.tsx';
 const PROVIDER = 'apps/frontend/src/components/copilot/copilot.provider.tsx';
 const BRIDGE = 'apps/frontend/src/components/copilot/assisted.textarea.tsx';
+const AVAILABILITY =
+  'apps/frontend/src/components/copilot/assistant-availability.ts';
 
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
@@ -70,9 +72,13 @@ describe('помощник в окне поста поднимается по н
 
   test('кнопки нет там, где помощнику нечем ответить', () => {
     const source = code(MODAL);
-    // Тот же вопрос, что задаёт провайдер, и та же дверь остатка квоты.
+    // Тот же вопрос, что задаёт провайдер, и та же дверь остатка квоты. Сам
+    // вопрос с `content-factory-next-fn33.153` живёт отдельным модулем — его
+    // читает и экран «Агент», которому рантайм помощника не нужен, — а
+    // провайдер выводит хук наружу под своим прежним именем.
     expect(source).toMatch(/useAssistantAvailable\(/);
-    expect(code(PROVIDER)).toMatch(/export const useAssistantAvailable/);
+    expect(code(AVAILABILITY)).toMatch(/export const useAssistantAvailable/);
+    expect(code(PROVIDER)).toMatch(/export \{ useAssistantAvailable \}/);
   });
 
   test('панель помощника по-прежнему рисуется только под поднятым провайдером', () => {

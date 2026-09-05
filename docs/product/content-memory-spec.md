@@ -1,8 +1,9 @@
 # Память фактов и единый контекст Content Factory
 
 **Статус:** accepted contract + implemented first vertical slice
-**Проверено:** 2026-08-20
-**Область:** `content-factory-next-9e9`, критерии AC-6 и AC-7
+**Проверено:** 2026-09-05
+**Область:** `content-factory-next-9e9`, критерии AC-6 и AC-7;
+`content-factory-next-ec48` (решение владельца 05.09.2026 о взятом из поиска)
 
 ## Решение
 
@@ -274,8 +275,11 @@ Tenant-bound many-to-many relation:
 
 Каждый `ContentContextItem` хранит snapshot id, ordinal, stable citation id
 (`F1`, `E1`), `factId`/`evidenceId`, inclusion reason и hashes выбранного
-statement/excerpt. Текст не дублируется: fixed renderer reconstructs его из
-write-once records. После privacy erasure UI показывает tombstone вместо
+statement/excerpt. Inclusion reason — `EXPLICIT`, `RANKED`, `FACT_SUPPORT` или
+`SEARCH_UNCONFIRMED`; последний означает «взято из поиска» и переживает
+снимок, поэтому обратное чтение возвращает `provenance` по нему, а не по
+текущей оценке доказательства (см. «Взято из поиска»). Текст не дублируется:
+fixed renderer reconstructs его из write-once records. После privacy erasure UI показывает tombstone вместо
 содержимого, но происхождение output остаётся доказуемым по id/hash.
 
 ### 6. `ContentOutputContext`
@@ -440,6 +444,7 @@ type ContentContextEnvelopeV1 = {
     exposure: 'PUBLIC' | 'INTERNAL_ONLY';
     publishedAt: string | null;
     retrievedAt: string;
+    provenance: 'CONFIRMED' | 'SEARCH';
   }>;
   rejected: Array<{
     itemId: string;
@@ -474,10 +479,14 @@ prompt/tool output. Foreign tenant ids возвращают обычный not-f
    и нормализованные tokens; embeddings и external search отсутствуют.
 4. Применить registry eligibility: source active, rights confirmed,
    policy/robots allowed, не purging. Затем исключить tombstoned/deleted/
-   unverified и вычислить freshness на `asOf`. Любой accepted contradiction
-   исключает всю claim group как conflicted.
+   unverified и вычислить freshness на `asOf`. Исключение с 05.09.2026 —
+   отдельно стоящее evidence вида `SEARCH_PROVIDER_RESULT` без принятой
+   оценки: оно входит как `provenance = SEARCH` (см. «Взято из поиска»).
+   Любой accepted contradiction исключает всю claim group как conflicted.
 5. Сортировать стабильным tuple: explicit selection, verified state,
    trust tier, lexical overlap, `freshUntil`, id. Trust не разрешает конфликт.
+   Отдельно стоящее evidence сортируется `CONFIRMED` перед `SEARCH`, затем по
+   id: бюджеты общие, поэтому при нехватке места вытесняется находка.
 6. Применить server hard limits: максимум 8 facts, 8 evidence, 800 символов на
    rendered excerpt и 12 000 символов на весь profile + memory block. Consumer
    может запросить меньше, но не больше.
@@ -516,12 +525,64 @@ Trust tier влияет на rank и ручной review. Он не означа
 `OWNER_VERIFIED` не может молча перекрыть accepted contradiction; конфликт
 требует нового evidence, retract/supersede или явного решения пользователя.
 
+## Взято из поиска
+
+Решение владельца 05.09.2026 (`content-factory-next-ec48`, дословно): «Да,
+конечно, можно разрешить брать непроверенные находки. Понимаешь, существуют же
+какие-то способы ресерча и использования его. … И можно делать не по метке „не
+проверено“, а, к примеру, „взято из поиска“, как-то так. Но ограничивать я бы
+никак не стал.»
+
+До этого дня всё, взятое поиском, оставалось `UNRATED/PROPOSED` и строитель
+отбрасывал его как `UNVERIFIED`. Платная проверка
+(`docs/product/material-quality-check-2026-09-05.md`) показала, чем это
+кончилось: из пяти постов ни один не опирался на материал. Дыра была не в
+поиске и не в модели, а ровно здесь — материал доходил до витрины и дальше не
+шёл.
+
+Что изменилось:
+
+- у каждого элемента `evidence` в конверте есть `provenance`. `CONFIRMED` —
+  доказательство с принятой оценкой, как было всегда. `SEARCH` — результат
+  поисковика (`SourceSnapshot.kind = SEARCH_PROVIDER_RESULT`) без принятой
+  оценки: свежий, не удалённый, не отвергнутый человеком;
+- два отказа остаются и для находки, и оба — про уже сказанное человеком:
+  `trustTier = BLOCKED` («этому источнику не верить») и
+  `status = REJECTED` («эту находку я отверг»). Владелец разрешил брать
+  неподтверждённое, а не отменять отказы;
+- факты (`ContentFact`) не меняются: подтвердить факт по-прежнему может только
+  `ACCEPTED + SUPPORTS`. Находка входит в контекст сама по себе, а не через
+  факт;
+- у хранимого элемента снимка `inclusionReason = SEARCH_UNCONFIRMED`. Обычная
+  строковая колонка, миграция не нужна. Обратное чтение снимка берёт
+  `provenance` из неё, а не из текущей оценки: через неделю находку могут
+  подтвердить или отвергнуть, а снимок обязан остаться тем, чем был;
+- `REQUIRE_CURRENT`, обеспеченный одним лишь свежим поисковым материалом,
+  считается обеспеченным. Ограничения здесь нет — это прямые слова владельца;
+- промпт называет такой материал по имени:
+  `[E1] EVIDENCE FROM WEB SEARCH, NOT CONFIRMED BY A PERSON (retrieved <дата>)`
+  плюс одна строка правила `Material marked as web search may be used; present
+  it as reported by its source, never as a confirmed fact of this workspace.`;
+- на экране: ярлык «Взято из поиска» (en: «From web search»), подпись на
+  витрине «Взято из поиска, не подтверждено» (en: «From web search, not
+  confirmed»).
+
+Генератор с этого дня ищет в вебе сам — но только когда человек не дал явного
+материала (`sourceIds`, `factIds`, `userMaterialEvidenceIds` пусты) и поиск
+включён в области. Найденное сохраняется тем же путём, что и находка с витрины
+(`ContentSourceRegistryService.acceptSearchResult`), и повторная находка с тем
+же `contentHash` переиспользует уже сохранённую свежую запись, а не заводит
+вторую. Отказ поиска не валит генерацию и не даёт ложного «поиск был»:
+`researchAvailable` остаётся ложью, а промпт получает честную строку запрета.
+
 ## Детерминированный fallback
 
 | Условие                                                                   | Builder                                                               | Consumer behavior                                                                              |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Нет профиля                                                               | `profile.mode=neutral_fallback`, reason `NO_PROFILE`                  | безопасный нейтральный голос; версия не выдумывается                                           |
 | Нет подходящей памяти, current не требуется                               | `UNAVAILABLE + ALLOW_USER_ONLY`                                       | draft только из явно введённого пользователем материала; без ярлыка «проверено»                |
+| Своего материала нет, поиск включён, находки свежие                       | обычный `READY`/`PARTIAL`, evidence с `provenance = SEARCH`           | материал идёт в текст с пометкой «взято из поиска, не подтверждено»; `REQUIRE_CURRENT` обеспечен |
+| Своего материала нет, поиск выключен или отказал                          | `UNAVAILABLE + ALLOW_USER_ONLY` (при `REQUIRE_CURRENT` — как строкой ниже) | генерация идёт дальше; промпт честно говорит, что материала нет, и не обещает web check      |
 | Research disabled/timeout, `REQUIRE_CURRENT`, свежего stored evidence нет | `CONTENT_EVIDENCE_REQUIRED`; policy `EVIDENCE_REQUIRED`               | модель не вызывается; deterministic сообщение/placeholder draft «нужно доказательство»         |
 | Research disabled, но есть свежий accepted stored evidence                | обычный `READY`                                                       | использовать только сохранённые citations; не обещать новый web check                          |
 | Только stale evidence и `REQUIRE_CURRENT`                                 | `BLOCKED_STALE + CONTENT_EVIDENCE_REQUIRED`                           | предложить reverification; старое можно показать только как review metadata                    |
@@ -541,7 +602,7 @@ tool. Именно это обеспечивает правило «нет не�
 
 | Consumer                        | Build point                                                                                | Обязательное применение                                                                                                                                                                                              | Сохранение результата                                                                                                                                                                                    |
 | ------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Generator / `AgentGraphService` | до `find-category`/`generate-hook`; один build на request                                  | это LangGraph generator, не Mastra-agent; все узлы получают один renderer block; старый `researchText` удаляется; Zod output возвращает citation ids                                                                 | stream возвращает `contentContextSnapshotId`; `PostBody -> PostsRepository` проверяет его и атомарно пишет Post relations/OutputContext при создании draft                                               |
+| Generator / `AgentGraphService` | до `find-category`/`generate-hook`; один build на request; с 05.09.2026 перед build идёт собственный веб-поиск, если человек не дал явного материала | это LangGraph generator, не Mastra-agent; все узлы получают один renderer block; старый `researchText` удаляется; Zod output возвращает citation ids                                                                 | stream возвращает `contentContextSnapshotId`; `PostBody -> PostsRepository` проверяет его и атомарно пишет Post relations/OutputContext при создании draft                                               |
 | Editor                          | server endpoint строит context из текущего draft и явного research action                  | UI показывает facts/evidence/status, а не provider summary как истину; Copilot `setPosts` не может добавить provenance сам                                                                                           | draft save передаёт только server-issued context id; source URL array остаётся compatibility view                                                                                                        |
 | Chat-agent                      | tenant-bound `getContentContext` tool на каждом request; organization скрыта от tool input | Mastra singleton не захватывает context/profile при construction; current request требует успешного context tool; draft tool повторно валидирует snapshot и citation ids                                             | только draft action этой feature vertical; tool связывает output server-side                                                                                                                             |
 | AutoPost                        | после безопасного feed fetch/capture и до text generation                                  | config pin-ит `brandProfileVersionId` (`ProjectBrandProfileVersion.id`); feed item становится evidence; optional web enrichment проходит тот же builder; при research outage нельзя добавлять внешние current claims | `type: draft`; resolved context/profile snapshot атомарно сохраняется на Post до обновления `lastUrl`; недоступная pinned version ставит requires-attention; новый `autoPostDraftWorkflowV2`/activity V2 |

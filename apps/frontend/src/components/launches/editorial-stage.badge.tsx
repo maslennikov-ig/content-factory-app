@@ -9,7 +9,7 @@ import {
   EditorialStageValue,
 } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
 import { Status, StatusTone } from '@contentfactory/frontend/components/ui/surface';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 
 /**
  * One tone per stage so four badges read apart at a glance without relying
@@ -44,9 +44,11 @@ export const EditorialStageBadge: FC<{
   withPrefix?: boolean;
   className?: string;
 }> = ({ stage, withPrefix = true, className }) => {
-  const { language } = useVariables();
+  // Хук зовётся до раннего выхода: порядок хуков не зависит от того,
+  // задан ли этап.
+  const interfaceLanguage = useInterfaceLanguage();
   if (!stage) return null;
-  const locale = resolveEditorialStageLocale(language);
+  const locale = resolveEditorialStageLocale(interfaceLanguage);
   const label = withPrefix
     ? editorialStageBadgeLabel(locale, stage)
     : editorialStageLabel(locale, stage);

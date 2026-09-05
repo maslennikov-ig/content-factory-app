@@ -878,6 +878,41 @@
       "task_id": "content-factory-next-fn33.90.11",
       "stream_owner": "stream-G",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.11.md"
+    },
+    {
+      "task_id": "content-factory-next-ec48.2",
+      "stream_owner": "b3-screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-ec48.2.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.132",
+      "stream_owner": "stream-B2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.132.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.134",
+      "stream_owner": "stream-B2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.134.md"
+    },
+    {
+      "task_id": "content-factory-next-ec48.1",
+      "stream_owner": "stream-B1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-ec48.1.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.146",
+      "stream_owner": "b4-cleanup",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.146.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.153",
+      "stream_owner": "b4-cleanup",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.153.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.148",
+      "stream_owner": "b4-cleanup",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.148.md"
     }
   ]
 }

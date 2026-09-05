@@ -1,14 +1,9 @@
 'use client';
 
-import { ReactNode, useCallback, useContext } from 'react';
-import useSWR from 'swr';
+import { ReactNode, useContext } from 'react';
 import { CopilotContext, CopilotKit } from '@copilotkit/react-core';
-import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import {
-  ALLOWANCE_API,
-  readAllowance,
-} from '@contentfactory/frontend/components/ui/allowance-hint';
+import { useAssistantAvailable } from '@contentfactory/frontend/components/copilot/assistant-availability';
 
 /**
  * Помощник заговаривает с рантаймом сразу, как его смонтировали.
@@ -57,41 +52,16 @@ export const useHasCopilotProvider = (): boolean =>
  * отвечает `AI_SELECTED_CREDENTIAL_UNAVAILABLE`. Человеку ошибка не видна, но
  * запрос уходит и падает каждый раз.
  *
- * Спрашиваем уже существующую дверь остатка квоты вместо того, чтобы заводить
- * свою: она отвечает `unavailable` ровно при том условии, при котором
- * `/copilot/chat` отвечает 503 — у выбранного режима нет ключа. Ключ SWR тот
- * же, что у строки остатка (`ALLOWANCE_API`), поэтому на экране с обеими это
- * один запрос, а не два, и он не повторяется при каждом открытии.
- *
- * Пока ответа нет, помощник не монтируется: провайдер, поднятый «на всякий
- * случай», — это и есть тот самый запрос. Нечитаемый ответ считается «нельзя»
- * по той же причине; дверь при этом никого не блокирует — она только решает,
- * поднимать ли помощника.
- *
- * Наружу хук вышел ради кнопки, которая помощника зовёт
+ * Сам вопрос переехал в `assistant-availability.ts`: с
+ * `content-factory-next-fn33.153` тот же ответ читает экран «Агент», которому
+ * рантайм помощника ради этого решения не нужен. Здесь остаётся только его
+ * применение — и повторный вывоз наружу ради кнопки, которая помощника зовёт
  * (`content-factory-next-fn33.99`): окно поста рисует её до всякого
  * провайдера, и показывать кнопку там, где помощника нельзя позвать, значило
  * бы поставить в окно ещё один мёртвый контрол. Ключ SWR тот же, поэтому
  * кнопка и провайдер спрашивают один раз на двоих.
  */
-export const useAssistantAvailable = (enabled: boolean): boolean => {
-  const request = useFetch();
-
-  const load = useCallback(
-    async () => (await request(ALLOWANCE_API)).json(),
-    [request]
-  );
-
-  // Ключ `null` — договор SWR о том, что запрос не нужен вовсе: поверхность,
-  // которая проверки не просила, не платит и за неё.
-  const { data, error, isLoading } = useSWR(enabled ? ALLOWANCE_API : null, load, {
-    revalidateOnFocus: false,
-  });
-
-  if (!enabled) return true;
-  if (isLoading || error) return false;
-  return readAllowance(data).status !== 'unavailable';
-};
+export { useAssistantAvailable };
 
 export const CopilotProvider = ({
   children,

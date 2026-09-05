@@ -211,7 +211,19 @@ export interface WebSearchResponse {
   results?: Array<{
     title?: string;
     url?: string;
+    /**
+     * The extract the provider chose for this query: an assertion, usually a
+     * sentence or two, and the only field that is about the subject rather
+     * than about the page.
+     */
     content?: string;
+    /**
+     * The whole page as markdown, when the provider fetched one. It starts
+     * with the site's navigation, its logo and its cookie bar, so it is
+     * material for a reader that cleans it, never an excerpt as it stands
+     * (`content-factory-next-fn33.134`).
+     */
+    rawContent?: string;
     published_date?: string;
     publishedAt?: string;
   }>;
@@ -267,8 +279,15 @@ const tavilyErrorStatus = (
 
 /**
  * LangChain exposes Tavily's `raw_content` beside the short content snippet.
- * The research port has one content field, so prefer the full page here and
- * let the shared service apply its strict prompt-size ceilings.
+ * Both reach the research port under their own names.
+ *
+ * Until 05.09.2026 this class collapsed them — `raw_content || content` into
+ * one `content` field — so the page always won and the snippet was thrown
+ * away before anyone could choose. A page begins with its menu, and that is
+ * what the search panel then offered as the fragment worth citing
+ * (`content-factory-next-fn33.134`). Which of the two is the excerpt is a
+ * judgment about the subject, not about the wire, so it belongs to the
+ * service; this class only stops destroying the evidence for it.
  */
 export class TavilyWebSearch implements WebSearchClient {
   constructor(private readonly client: TavilySearch) {}
@@ -296,9 +315,8 @@ export class TavilyWebSearch implements WebSearchClient {
       results: (response.results || []).map((result) => ({
         ...(result.title ? { title: result.title } : {}),
         ...(result.url ? { url: result.url } : {}),
-        ...(result.raw_content || result.content
-          ? { content: result.raw_content || result.content }
-          : {}),
+        ...(result.content ? { content: result.content } : {}),
+        ...(result.raw_content ? { rawContent: result.raw_content } : {}),
         ...(result.published_date
           ? { published_date: result.published_date }
           : {}),
