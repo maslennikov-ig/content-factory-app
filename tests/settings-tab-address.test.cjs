@@ -217,8 +217,15 @@ const settings = loadTypeScriptModule(
     '@contentfactory/frontend/components/ui/surface': {
       RestrictedState: Empty,
     },
+    // Both thresholds answered «yes»: this file is about the address bar and
+    // the tab it selects, not about who may see which tab. The role rules
+    // themselves are held by `roles-matrix.guard.test.cjs` and
+    // `role-doors.three-roles.test.cjs`. `isOrganizationEditor` joined them
+    // on 05.09.2026 (`content-factory-next-fn33.90`); without it here every
+    // render below threw «is not a function».
     '@contentfactory/nestjs-libraries/user/organization.roles': {
       isOrganizationAdmin: () => true,
+      isOrganizationEditor: () => true,
     },
   }
 );

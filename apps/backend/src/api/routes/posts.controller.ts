@@ -88,6 +88,7 @@ export class PostsController {
   }
 
   @Put('/:id/release-id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async updateReleaseId(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -117,6 +118,7 @@ export class PostsController {
   }
 
   @Post('/tags')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async createTag(
     @GetOrgFromRequest() org: Organization,
     @Body() body: CreateTagDto
@@ -125,6 +127,7 @@ export class PostsController {
   }
 
   @Put('/tags/:id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async editTag(
     @GetOrgFromRequest() org: Organization,
     @Body() body: CreateTagDto,
@@ -134,6 +137,7 @@ export class PostsController {
   }
 
   @Delete('/tags/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deleteTag(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -210,6 +214,7 @@ export class PostsController {
    * пост чужой области отвечает 404, как и остальные двери постов.
    */
   @Post('/:id/context-review')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async markContentContextReviewed(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -235,7 +240,14 @@ export class PostsController {
   }
 
   @Post('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // Two policies, read with AND (`permissions.guard.ts`). The plan limit is
+  // named first so a workspace out of posts for the month hears about the
+  // month; the role is second because a role is not sold
+  // (`docs/product/roles-matrix.md`, `content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async createPost(
     @GetOrgFromRequest() org: Organization,
     @Body() rawBody: any
@@ -286,7 +298,14 @@ export class PostsController {
   }
 
   @Post('/generator/draft')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // Two policies, read with AND (`permissions.guard.ts`). The plan limit is
+  // named first so a workspace out of posts for the month hears about the
+  // month; the role is second because a role is not sold
+  // (`docs/product/roles-matrix.md`, `content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   generatePostsDraft(
     @GetOrgFromRequest() org: Organization,
     @Body() body: CreateGeneratedPostsDto
@@ -295,7 +314,14 @@ export class PostsController {
   }
 
   @Post('/generator')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // Two policies, read with AND (`permissions.guard.ts`). The plan limit is
+  // named first so a workspace out of posts for the month hears about the
+  // month; the role is second because a role is not sold
+  // (`docs/product/roles-matrix.md`, `content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async generatePosts(
     @GetOrgFromRequest() org: Organization,
     @Body() body: GeneratorDto,
@@ -323,6 +349,7 @@ export class PostsController {
   }
 
   @Delete('/:group')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   deletePost(
     @GetOrgFromRequest() org: Organization,
     @Param('group') group: string
@@ -331,6 +358,7 @@ export class PostsController {
   }
 
   @Put('/:id/date')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   changeDate(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,

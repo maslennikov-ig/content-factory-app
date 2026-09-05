@@ -39,6 +39,8 @@ const FILES = {
   repository: `${MATERIALS}/content-material.repository.ts`,
   service: `${MATERIALS}/content-material.service.ts`,
   dto: 'libraries/nestjs-libraries/src/dtos/content-intelligence/content-material.dto.ts',
+  searchTerms:
+    'libraries/nestjs-libraries/src/content-intelligence/search-terms.ts',
   controller: 'apps/backend/src/api/routes/content-material.controller.ts',
   archiveController: 'apps/backend/src/api/routes/content-archive.controller.ts',
 };
@@ -774,6 +776,46 @@ describe('the material path prepares text and never reaches a platform', () => {
     expect([...RECUT_PLATFORM_VALUES].sort()).toEqual(
       [...RECUT_PLATFORMS].sort()
     );
+  });
+
+  test('поиск отказывает на слишком длинной строке и берёт обычную', async () => {
+    // `content-factory-next-odb8.4`: `q` — единственный параметр отбора,
+    // который уходит в базу как текст, поэтому он единственный, у кого есть
+    // настоящая проверка. Потолок один и тот же в DTO и в самом поиске.
+    const { plainToInstance } = require('class-transformer');
+    const { validate } = require('class-validator');
+    const { ArchiveListQueryDto } = load(FILES.dto);
+    const { MAX_SEARCH_QUERY_LENGTH } = load(FILES.searchTerms);
+
+    const atCeiling = plainToInstance(ArchiveListQueryDto, {
+      q: 'ф'.repeat(MAX_SEARCH_QUERY_LENGTH),
+    });
+    expect(await validate(atCeiling)).toEqual([]);
+
+    const overCeiling = plainToInstance(ArchiveListQueryDto, {
+      q: 'ф'.repeat(MAX_SEARCH_QUERY_LENGTH + 1),
+    });
+    const refusals = await validate(overCeiling);
+    expect(refusals).not.toEqual([]);
+    expect(refusals[0].property).toBe('q');
+
+    // Пустой отбор — это по-прежнему законный вопрос, а не отказ.
+    expect(await validate(plainToInstance(ArchiveListQueryDto, {}))).toEqual([]);
+  });
+
+  test('слой и площадка остаются свободными строками, а не отказом', async () => {
+    // Маршрут с самого начала читает нераспознанный слой как «фильтра нет»:
+    // старая закладка должна показать архив целиком, а не 400 про значение,
+    // которого человек не видел. Проверка `q` этого не меняет.
+    const { plainToInstance } = require('class-transformer');
+    const { validate } = require('class-validator');
+    const { ArchiveListQueryDto } = load(FILES.dto);
+
+    const stale = plainToInstance(ArchiveListQueryDto, {
+      layer: 'NO_SUCH_LAYER',
+      platform: 'no-such-platform',
+    });
+    expect(await validate(stale)).toEqual([]);
   });
 
   test('storage goes through Prisma models rather than raw SQL', () => {

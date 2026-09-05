@@ -86,6 +86,41 @@ export class VoiceProfileRepository {
     return { profile, versions, activeVersion };
   }
 
+  /**
+   * Что аватар уже выучил на правках, как оно лежит в колонке.
+   *
+   * Сырым `unknown`: это Json, и разбирает его `parseLearnedRules` — один раз
+   * и в одном месте, чтобы строка, дописанная руками в базу, не разошлась в
+   * двух читателях по-разному.
+   */
+  async learnedRules(
+    organizationId: string,
+    profileId: string
+  ): Promise<unknown> {
+    const row = (await this.client().projectBrandProfile.findFirst({
+      where: { organizationId, id: profileId },
+      select: { learnedRules: true },
+    })) as { learnedRules?: unknown } | null;
+    return row?.learnedRules ?? null;
+  }
+
+  /**
+   * Записать выученное. `updateMany` с `organizationId` в условии, а не
+   * `update` по одному `id`: аватар чужого пространства должен не найтись, а
+   * не обновиться.
+   */
+  async saveLearnedRules(
+    organizationId: string,
+    profileId: string,
+    value: unknown
+  ): Promise<number> {
+    const result = await this.client().projectBrandProfile.updateMany({
+      where: { organizationId, id: profileId },
+      data: { learnedRules: value as never },
+    });
+    return Number(result?.count ?? 0);
+  }
+
   getVersion(organizationId: string, versionId: string) {
     return this._profiles.getVersion(organizationId, versionId);
   }

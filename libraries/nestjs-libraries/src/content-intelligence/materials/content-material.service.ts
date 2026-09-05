@@ -13,6 +13,7 @@ import type {
   MaterialsResponseV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { archiveImportInvalid, materialNotFound, platformUnsupported } from './errors';
+import { searchWords } from '../search-terms';
 import {
   ARCHIVE_LAYERS,
   archiveLayerOf,
@@ -166,6 +167,8 @@ export class ContentMaterialService {
       platform?: string;
       from?: string;
       to?: string;
+      /** Поиск по словам, как его ввёл человек (`content-factory-next-odb8.4`). */
+      q?: string;
       page?: number;
       limit?: number;
     }
@@ -186,6 +189,22 @@ export class ContentMaterialService {
     const fromTime = parseFilterDate(filters.from);
     const toTime = parseFilterDate(filters.to);
 
+    /*
+      Поиск по словам спрашивает базу отдельно и отвечает множеством
+      идентификаторов, а не своим списком строк: коды материалов считаются по
+      полному списку и не должны переезжать от того, что человек что-то искал
+      (см. `searchPieceIds`). Пустой запрос до базы не доходит вовсе.
+    */
+    const words = searchWords(filters.q);
+    const matchedIds =
+      words.length > 0
+        ? new Set<string>(
+            (
+              await this.repository.searchPieceIds(organizationId, words)
+            ).map((piece: { id: string }) => piece.id)
+          )
+        : null;
+
     const counts = ARCHIVE_LAYERS.reduce(
       (acc, layer) => ({ ...acc, [layer]: 0 }),
       {} as Record<ArchiveLayer, number>
@@ -205,6 +224,7 @@ export class ContentMaterialService {
     });
 
     const filtered = decorated.filter((item) => {
+      if (matchedIds && !matchedIds.has(item.piece.id)) return false;
       if (filters.layer && item.layer !== filters.layer) return false;
       if (filters.platform && !item.platforms.includes(filters.platform)) {
         return false;

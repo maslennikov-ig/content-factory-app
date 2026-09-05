@@ -15,11 +15,13 @@ import {
   readAcceptedEvidence,
   readFailure,
   readSearchAnswer,
+  takeRefusal,
   type AcceptedEvidence,
   type SearchAnswer,
   type SearchFailure,
   type SearchResultRow,
 } from './content-search.adapter';
+import { formatLocalizedDate } from '@contentfactory/react/helpers/localized.date';
 import { resolveContentLocale } from './content-section.copy';
 
 /**
@@ -59,7 +61,16 @@ const copy = {
     notConfigured:
       'Поиск не подключён. Включите его и добавьте ключ Tavily в настройках модели.',
     searchFallback: 'Поиск не отработал. Ничего не потеряно — попробуйте ещё раз.',
+    searchUnavailable:
+      'Поисковики сейчас не отвечают. Это временный сбой, а не настройка: повторите запрос через минуту.',
     acceptFallback: 'Не удалось взять этот результат. Попробуйте ещё раз.',
+    refusal: {
+      not_https:
+        'Взять нельзя: ссылка идёт по http. Доказательство хранится только по https — поищите ту же страницу по https.',
+      unsupported_port:
+        'Взять нельзя: ссылка идёт через нестандартный порт, такие адреса продукт не хранит.',
+      invalid_url: 'Взять нельзя: адрес разобрать не удалось.',
+    },
     unverifiedNote:
       'Взятое поиском не считается подтверждённым само по себе: подтвердить его нужно на витрине «Откуда факты».',
   },
@@ -81,7 +92,16 @@ const copy = {
     notConfigured:
       'Search is not connected. Enable it and add a Tavily key in the model settings.',
     searchFallback: 'The search did not run. Nothing is lost — try again.',
+    searchUnavailable:
+      'The search providers are not answering right now. This is a passing outage, not a setting: try the same subject again in a minute.',
     acceptFallback: 'That result could not be taken. Try again.',
+    refusal: {
+      not_https:
+        'Cannot be taken: the link is plain http. Evidence is kept over https only — look for the same page on https.',
+      unsupported_port:
+        'Cannot be taken: the link uses a non-standard port, which the product does not store.',
+      invalid_url: 'Cannot be taken: the address could not be read.',
+    },
     unverifiedNote:
       'Something taken from search does not count as confirmed on its own: confirm it on the "Where facts come from" screen.',
   },
@@ -121,7 +141,11 @@ export function ContentSearchContainer({
     try {
       const body = await read(SEARCH_API, {
         method: 'POST',
-        body: JSON.stringify({ subject: subject.trim() }),
+        // `content-factory-next-fn33.133`: the summary comes back from a
+        // search provider, which answers in the language it was asked in —
+        // English on every run. The screen is the only side that knows which
+        // language the person is reading in, so it says so.
+        body: JSON.stringify({ subject: subject.trim(), language: locale }),
       });
       setAnswer(readSearchAnswer(body));
     } catch (error) {
@@ -133,15 +157,28 @@ export function ContentSearchContainer({
         knows, so the code is read off the error itself.
       */
       const code = (error as { code?: unknown } | null)?.code;
-      setFailure(
+      const named =
         code === 'CONTENT_SEARCH_NOT_CONFIGURED'
-          ? { code: null, message: t.notConfigured, screenState: 'error' }
+          ? t.notConfigured
+          : /*
+              `content-factory-next-fn33.139`: both providers silent is a
+              passing outage, and the one thing a person can do about it —
+              wait and press again — is the opposite of what «search is not
+              connected» asks for. Two refusals that read alike are two
+              refusals nobody acts on correctly.
+            */
+          code === 'CONTENT_SEARCH_UNAVAILABLE'
+          ? t.searchUnavailable
+          : null;
+      setFailure(
+        named
+          ? { code: null, message: named, screenState: 'error' }
           : readFailure(error, t.searchFallback)
       );
     } finally {
       setSearching(false);
     }
-  }, [read, subject, t]);
+  }, [locale, read, subject, t]);
 
   const accept = useCallback(
     async (row: SearchResultRow) => {
@@ -162,7 +199,16 @@ export function ContentSearchContainer({
         setNote(t.accepted);
         onEvidenceAccepted?.(evidence);
       } catch (error) {
-        setFailure(readFailure(error, t.acceptFallback));
+        const code = (error as { code?: unknown } | null)?.code;
+        setFailure(
+          code === 'UNSUPPORTED_PROTOCOL'
+            ? {
+                code: null,
+                message: t.refusal.not_https,
+                screenState: 'error',
+              }
+            : readFailure(error, t.acceptFallback)
+        );
       } finally {
         setAcceptingUrl(null);
       }
@@ -267,6 +313,18 @@ export function ContentSearchContainer({
               <ul className="mt-[8px] divide-y divide-cf-border">
                 {answer.results.map((row) => {
                   const taken = takenUrls.includes(row.url);
+                  const refusal = takeRefusal(row.url);
+                  /*
+                    `content-factory-next-fn33.135`: a provider dates a result
+                    however it likes — «Wed, 02 Sep 2026 15:54:46 GMT» from
+                    Tavily — and cutting ten characters off that string printed
+                    «Wed, 02 Se». The shared helper writes the date the way the
+                    reader's language writes one, and says nothing at all when
+                    the string is not a date.
+                  */
+                  const published = row.publishedAt
+                    ? formatLocalizedDate(row.publishedAt, locale)
+                    : '';
                   return (
                     <li
                       key={`${row.url}-${row.excerpt.slice(0, 32)}`}
@@ -290,9 +348,9 @@ export function ContentSearchContainer({
                         >
                           {row.title || row.url}
                         </a>
-                        {row.publishedAt && (
+                        {published && (
                           <span className="cf-caption text-cf-ink-muted">
-                            {t.published}: {row.publishedAt.slice(0, 10)}
+                            {t.published}: {published}
                           </span>
                         )}
                         <span className="cf-caption text-cf-ink-muted">
@@ -300,18 +358,27 @@ export function ContentSearchContainer({
                         </span>
                       </div>
                       <div className="mt-[8px]">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          density="dense"
-                          data-content-search-accept={row.url}
-                          disabled={taken || acceptingUrl !== null}
-                          onClick={() => void accept(row)}
-                        >
-                          {acceptingUrl === row.url
-                            ? t.accepting
-                            : t.accept}
-                        </Button>
+                        {refusal ? (
+                          <p
+                            data-content-search-refusal={row.url}
+                            className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                          >
+                            {t.refusal[refusal]}
+                          </p>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            density="dense"
+                            data-content-search-accept={row.url}
+                            disabled={taken || acceptingUrl !== null}
+                            onClick={() => void accept(row)}
+                          >
+                            {acceptingUrl === row.url
+                              ? t.accepting
+                              : t.accept}
+                          </Button>
+                        )}
                       </div>
                     </li>
                   );

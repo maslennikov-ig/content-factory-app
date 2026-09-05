@@ -773,6 +773,111 @@
       "task_id": "content-factory-next-fn33.127",
       "stream_owner": "stream-W1",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.127.md"
+    },
+    {
+      "task_id": "content-factory-next-uvh8",
+      "stream_owner": "stream-D2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-uvh8.md"
+    },
+    {
+      "task_id": "content-factory-next-odb8.4",
+      "stream_owner": "stream-C3",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-odb8.4.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.19",
+      "stream_owner": "stream-A2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.19.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90",
+      "stream_owner": "stream-B2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.19.1",
+      "stream_owner": "stream-A3",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.19.1.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.133",
+      "stream_owner": "stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.133.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.135",
+      "stream_owner": "stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.135.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.136",
+      "stream_owner": "stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.136.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.139",
+      "stream_owner": "stream-F",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.139.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.130",
+      "stream_owner": "stream-E",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.130.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.131",
+      "stream_owner": "stream-E",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.131.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.137",
+      "stream_owner": "stream-E",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.137.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.4",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.4.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.5",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.5.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.6",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.6.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.8",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.8.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.9",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.9.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.10",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.10.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.12",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.12.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.7",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.7.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.90.11",
+      "stream_owner": "stream-G",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.90.11.md"
     }
   ]
 }

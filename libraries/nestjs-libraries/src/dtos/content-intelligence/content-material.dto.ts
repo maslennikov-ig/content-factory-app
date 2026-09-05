@@ -10,6 +10,7 @@ import {
   ARCHIVE_PLATFORM_VALUES,
   IMPORTABLE_ARCHIVE_LAYERS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/materials/archive-presentation';
+import { MAX_SEARCH_QUERY_LENGTH } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
 
 /**
  * What the material routes accept.
@@ -95,4 +96,51 @@ export class ImportArchiveMaterialDto {
   @IsString()
   @MaxLength(500)
   note?: string;
+}
+
+/**
+ * Отбор и поиск на `GET /content-intelligence/materials`
+ * (`content-factory-next-odb8.4`).
+ *
+ * Слой, площадка, даты и страницы намеренно остаются свободными строками без
+ * `@IsIn`: маршрут с самого начала читает нераспознанное значение как «фильтра
+ * нет», а не отказывает — старая закладка или подправленный вручную адрес
+ * должны показать архив целиком, а не 400 про значение, которого человек не
+ * видел. Проверяется здесь одно `q`, и проверяется по-настоящему: это
+ * единственный параметр, который уходит в базу как текст.
+ */
+export class ArchiveListQueryDto {
+  @IsOptional()
+  @IsString()
+  layer?: string;
+
+  @IsOptional()
+  @IsString()
+  platform?: string;
+
+  @IsOptional()
+  @IsString()
+  from?: string;
+
+  @IsOptional()
+  @IsString()
+  to?: string;
+
+  /**
+   * Поиск по словам. Потолок — та же константа, по которой поиск режет
+   * запрос, чтобы граница была одна и не разъехалась на два числа
+   * (`content-intelligence/search-terms.ts`).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_QUERY_LENGTH)
+  q?: string;
+
+  @IsOptional()
+  @IsString()
+  page?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
 }

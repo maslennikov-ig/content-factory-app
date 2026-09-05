@@ -2,6 +2,11 @@ import { Injectable, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { htmlToPlainText } from './html-text';
+import {
+  LEARN_WINDOW,
+  MAX_STORED_EDITS,
+  isSubstantiveEdit,
+} from './voice-learning';
 
 /**
  * Что предложил продукт и что человек отправил вместо этого.
@@ -150,11 +155,42 @@ export class VoiceEditRepository {
         },
         select: { id: true },
       });
+      await this.prune(input.organizationId, input.avatarId);
       return row.id as string;
     } catch (error) {
       if (isUniqueViolation(error)) return null;
       throw error;
     }
+  }
+
+  /**
+   * Держать на аватаре не больше `MAX_STORED_EDITS` пар.
+   *
+   * Раньше таблица росла без границы, и границы ей никто не ставил, потому что
+   * читателей у неё был один и он брал двести свежих. Второй читатель появился
+   * 05.09.2026, а вместе с ним обещание владельца «чтобы он не разросся»:
+   * порог вытеснения взят равным той же двумстам, то есть отрезается ровно то,
+   * что и так никто не читал.
+   *
+   * Идентификаторы вычитываются и режутся здесь, а не `skip` в запросе,
+   * потому что рядов тут по построению около двухсот: один короткий `SELECT`
+   * дешевле, чем ещё одна форма запроса, о которой должны знать оба клиента.
+   */
+  private async prune(
+    organizationId: string,
+    avatarId: string
+  ): Promise<number> {
+    const rows = (await this.client().brandVoiceEdit.findMany({
+      where: { organizationId, avatarId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    })) as Array<{ id: string }>;
+    const stale = rows.slice(MAX_STORED_EDITS).map((one) => one.id);
+    if (!stale.length) return 0;
+    const result = await this.client().brandVoiceEdit.deleteMany({
+      where: { organizationId, avatarId, id: { in: stale } },
+    });
+    return Number(result?.count ?? 0);
   }
 
   /**
@@ -284,6 +320,66 @@ export class VoiceEditRepository {
       this.client().brandVoiceEdit.count({ where: { ...where, changed: true } }),
     ]);
     return { total: Number(total), changed: Number(changed) };
+  }
+
+  /**
+   * Пары, на которых аватару есть чему научиться.
+   *
+   * Существенные — то есть те, где человек переписал, а не поправил пробел;
+   * решает это `isSubstantiveEdit`, и решает по нормализованным словам, а не
+   * по строке. Отбор идёт после чтения, а не в `where`: «существенная» это
+   * счёт по двум текстам, и базу об этом не спросить, не заводя третью
+   * колонку ради того, что считается за микросекунды.
+   *
+   * `since` — время последнего прогона обучения. Пары старше него в этот
+   * прогон уже уходили: платить за них второй раз значило бы выучить одно и
+   * то же дважды и выдать это за новое наблюдение.
+   *
+   * Самые СТАРЫЕ первыми, и не больше `LEARN_WINDOW`: цена одного прогона
+   * обязана быть известна заранее, а очередь — двигаться.
+   *
+   * Порядок здесь и отметка `lastRunAt` — одно решение, снятое с двух сторон.
+   * Пока брались свежие тридцать, а отметка ставилась по времени прогона, при
+   * пятидесяти накопленных парах двадцать самых старых пропадали молча: в
+   * запрос они не попали, а «после последнего прогона» их уже не считало.
+   * Взятые по порядку, они уходят следующим прогоном, а отметка встаёт по
+   * времени последней взятой пары — см. `mergeLearnedRules`.
+   */
+  async substantivePairs(
+    organizationId: string,
+    avatarId: string,
+    since?: Date | null,
+    limit = LEARN_WINDOW
+  ): Promise<StoredVoiceEdit[]> {
+    const rows = (await this.client().brandVoiceEdit.findMany({
+      where: {
+        organizationId,
+        avatarId,
+        deletedAt: null,
+        changed: true,
+        ...(since ? { createdAt: { gt: since } } : {}),
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: MAX_STORED_EDITS,
+    })) as StoredVoiceEdit[];
+    return rows
+      .filter((one) => isSubstantiveEdit(one.proposedText, one.sentText))
+      .slice(0, limit);
+  }
+
+  /** Сколько таких пар накопилось. То же правило отбора, только число. */
+  async substantiveCount(
+    organizationId: string,
+    avatarId: string,
+    since?: Date | null
+  ): Promise<number> {
+    const pairs = await this.substantivePairs(
+      organizationId,
+      avatarId,
+      since,
+      MAX_STORED_EDITS
+    );
+    return pairs.length;
   }
 
   /**

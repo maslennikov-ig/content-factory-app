@@ -16,6 +16,7 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import {
+  ArchiveListQueryDto,
   MaterialDraftDto,
   MaterialRecutDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-material.dto';
@@ -75,7 +76,7 @@ export class ContentMaterialController {
    * The library, with the archive's selection layered on top of it
    * (`content-factory-next-odb8.4`).
    *
-   * A call with none of the six params below is answered exactly as before —
+   * A call with none of the seven params below is answered exactly as before —
    * `listMaterials`, unchanged, the same shape `VoiceMaterialsContainer`
    * already reads. Only a call that names at least one of them asks for the
    * archive's own answer: filtered, paginated, three layers named per row.
@@ -87,15 +88,11 @@ export class ContentMaterialController {
   @Get('/')
   async list(
     @GetOrgFromRequest() organization: Organization,
-    @Query('layer') layer?: string,
-    @Query('platform') platform?: string,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string
+    @Query() query: ArchiveListQueryDto = {}
   ) {
     try {
-      if (!layer && !platform && !from && !to && !page && !limit) {
+      const { layer, platform, from, to, q, page, limit } = query ?? {};
+      if (!layer && !platform && !from && !to && !q && !page && !limit) {
         return await this.materials.listMaterials(organization.id);
       }
       return await this.materials.listArchive(organization.id, {
@@ -106,6 +103,9 @@ export class ContentMaterialController {
         platform: platform || undefined,
         from: from || undefined,
         to: to || undefined,
+        // Слова человека доходят до поиска как есть; всё, что о них надо
+        // знать маршруту, уже проверено в `ArchiveListQueryDto`.
+        q: q || undefined,
         page: page ? parseInt(page, 10) || 0 : 0,
         limit: limit ? parseInt(limit, 10) || 20 : 20,
       });
@@ -127,6 +127,7 @@ export class ContentMaterialController {
   }
 
   @Post('/:id/recut-preview')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async recutPreview(
     @GetOrgFromRequest() organization: Organization,
     @Param('id') id: string,
@@ -140,7 +141,13 @@ export class ContentMaterialController {
   }
 
   @Post('/:id/draft')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // Two policies, read with AND: the plan limit answers first so a workspace
+  // out of posts hears about the plan, and the role second
+  // (`docs/product/roles-matrix.md`, `content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async draft(
     @GetOrgFromRequest() organization: Organization,
     @Param('id') id: string,

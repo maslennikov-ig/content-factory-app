@@ -8,6 +8,30 @@ import dayjs from 'dayjs';
 import { WebhooksService } from '@contentfactory/nestjs-libraries/database/prisma/webhooks/webhooks.service';
 import { AuthorizationActions, Sections } from './permission.exception.class';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationAdmin,
+  isOrganizationEditor,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
+
+/**
+ * The two sections that read a role, and the only place that says what each
+ * one means.
+ *
+ * Before 05.09.2026 the rule for `ADMIN` was an inline `['ADMIN',
+ * 'SUPERADMIN'].includes(...)` inside the loop below, which is how the same
+ * list came to be written by hand in the controllers and on the screens.
+ * Adding `EDITOR` with a second inline list would have doubled that. A door
+ * names a section; the section names one predicate; the predicate lives in
+ * `organization.roles.ts` and the browser reads the very same function.
+ *
+ * Everything not in this table is a plan limit and knows nothing about roles.
+ */
+const ROLE_SECTIONS: Partial<
+  Record<Sections, (role: OrganizationRole) => boolean>
+> = {
+  [Sections.ADMIN]: isOrganizationAdmin,
+  [Sections.EDITOR]: isOrganizationEditor,
+};
 
 export type AppAbility = Ability<[AuthorizationActions, Sections]>;
 
@@ -65,8 +89,12 @@ export class PermissionsService {
       : undefined;
 
     for (const [action, section] of requestedPermission) {
-      if (section === Sections.ADMIN) {
-        if (['ADMIN', 'SUPERADMIN'].includes(permission)) {
+      // A role section is decided before the plan is even looked up: no plan
+      // sells a role, and an instance with no billing at all must still
+      // refuse. This is the one branch `packageOptions` never reaches.
+      const holdsRole = ROLE_SECTIONS[section];
+      if (holdsRole) {
+        if (holdsRole(permission)) {
           can(action, section);
         }
         continue;

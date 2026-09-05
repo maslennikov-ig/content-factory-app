@@ -243,7 +243,7 @@ describe('the frontend tells a role refusal from a plan limit', () => {
       {},
       backendResponse(403, {
         code: 'VOICE_FORBIDDEN',
-        message: 'Менять голос бренда может администратор пространства.',
+        message: 'Менять голос бренда может редактор или администратор пространства.',
       })
     );
 

@@ -77,7 +77,7 @@ export class ContentSourceController {
   }
 
   @Post('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async create(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -111,7 +111,13 @@ export class ContentSourceController {
    * gate as the rest, never a `Get` something could prefetch.
    */
   @Post('/search')
-  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  // Two policies, read with AND (`permissions.guard.ts`): the plan's AI
+  // allowance answers first, so a workspace that has run out hears about the
+  // allowance and not about a role it cannot buy.
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.AI],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async searchForEvidence(
     @GetOrgFromRequest() organization: Organization,
     @Body() body: SearchForEvidenceDto
@@ -119,7 +125,11 @@ export class ContentSourceController {
     try {
       const research = await this.research.research(
         organization.id,
-        body.subject
+        body.subject,
+        // `content-factory-next-fn33.133`: the screen says which language it
+        // reads in. The search provider answers in the language it was asked
+        // in, and that is English on every run.
+        { language: body.language }
       );
       const sourceByUrl = new Map(
         research.sources.map((source) => [source.url, source])
@@ -152,6 +162,27 @@ export class ContentSourceController {
           409
         );
       }
+      /**
+       * `content-factory-next-fn33.139`: both providers stayed silent. Until
+       * now that left the pod's own 500 with no code, so the panel could only
+       * show its last-resort sentence — and a person read «try again» as the
+       * same dead end as a missing key. It is neither: the same subject
+       * searched a minute later answered.
+       *
+       * The message is deliberately plain. `WebSearchFallbackError` carries
+       * provider names and deadline milliseconds, and the registry spec
+       * forbids showing a raw exception; the code is what the screen reads,
+       * the log keeps the cause.
+       */
+      if (error instanceof Error && error.name === 'WebSearchFallbackError') {
+        throw new HttpException(
+          {
+            code: 'CONTENT_SEARCH_UNAVAILABLE',
+            message: 'Web search did not answer this time.',
+          },
+          503
+        );
+      }
       safeHttpError(error);
     }
   }
@@ -164,7 +195,13 @@ export class ContentSourceController {
    * capability, because it never creates a `ContentSource`).
    */
   @Post('/search-evidence')
-  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  // Two policies, read with AND (`permissions.guard.ts`): the plan's AI
+  // allowance answers first, so a workspace that has run out hears about the
+  // allowance and not about a role it cannot buy.
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.AI],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async acceptSearchResult(
     @GetOrgFromRequest() organization: Organization,
     @Body() body: AcceptSearchResultEvidenceDto
@@ -177,7 +214,7 @@ export class ContentSourceController {
   }
 
   @Post('/:id/rights')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async confirmRights(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -197,7 +234,7 @@ export class ContentSourceController {
   }
 
   @Post('/:id/activate')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async activate(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -211,7 +248,7 @@ export class ContentSourceController {
   }
 
   @Post('/:id/validate')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async validate(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -231,7 +268,7 @@ export class ContentSourceController {
   }
 
   @Post('/:id/sync')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async sync(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -263,7 +300,7 @@ export class ContentSourceController {
   }
 
   @Delete('/:id')
-  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async archive(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,

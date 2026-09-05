@@ -3,12 +3,22 @@
 import { ReactNode } from 'react';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export interface MenuItemInterface {
   name: string;
   icon: ReactNode;
   path: string;
   role?: string[];
+  /**
+   * Пункт для тех, кто пишет содержимое пространства.
+   *
+   * Отдельно от `role`, а не ещё одним списком строк в нём: список пришлось
+   * бы держать в согласии с `permissions.service.ts` руками, а решение
+   * владельца 05.09.2026 уже записано одной функцией
+   * (`organization.roles.ts`). Пункт, который её не проходит, не рисуется.
+   */
+  requireEditor?: boolean;
   hide?: boolean;
   requireBilling?: boolean;
   onClick?: () => void;
@@ -85,6 +95,12 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: '/agents',
+      // Помощник и агент — работа редактора: `POST /copilot/agent` несёт
+      // `Sections.EDITOR` (`content-factory-next-fn33.90.6`). Пункт вёл
+      // Пользователя на экран чата, который при загрузке отправлял два
+      // запроса и получал два 403 — молча, потому что ответ идёт мимо общего
+      // обработчика отказов через runtime CopilotKit.
+      requireEditor: true,
     },
     {
       name: t('analytics', 'Analytics'),
@@ -254,6 +270,7 @@ export const filterMenu = (
   items.filter((item) => {
     if (item.hide) return false;
     if (item.requireBilling && !billingEnabled) return false;
+    if (item.requireEditor && !isOrganizationEditor(user?.role)) return false;
     if (item.name === 'Billing' && user?.isLifetime) return false;
     if (item.role) return item.role.includes(user?.role!);
     return true;

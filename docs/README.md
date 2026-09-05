@@ -18,6 +18,7 @@
 | Понять безопасный реестр ручных, URL- и RSS-источников | [Единый реестр источников](product/content-source-registry-spec.md)                            |
 | Понять факты, доказательства и единый контекст         | [Память фактов и единый контекст](product/content-memory-spec.md)                              |
 | Понять аудиторию и принципы продукта                   | [PRODUCT.md](../PRODUCT.md)                                                                    |
+| Увидеть всё, на что может повлиять тариф               | [Карта тарифных рычагов](product/tariff-levers.md)                                             |
 | Использовать визуальную систему                        | [DESIGN.md](../DESIGN.md)                                                                      |
 | Реализовать бренд и интерфейс                          | [Спецификация интерфейса](design/content-factory-interface-specification.md)                   |
 | Увидеть систему целиком                                | [Обзор архитектуры](architecture/system-overview.md)                                           |

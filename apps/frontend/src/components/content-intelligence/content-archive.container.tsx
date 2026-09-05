@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -38,11 +38,14 @@ import {
   type ArchiveRow,
   type GroundingEnvelope,
 } from './content-archive.adapter';
+import { useUser } from '../layout/user.context';
 import { resolveContentLocale } from './content-section.copy';
+import { HighlightedWords, useDebouncedValue } from './content-search-words';
 import {
   ContentReadOnlyNote,
   WRITE_ALLOWED,
   readWriteRight,
+  writeRightFromRole,
   type ContentWriteRight,
 } from './content-write-right';
 // The recut panel's own dictionary of platform and language names. Read from
@@ -69,12 +72,13 @@ import {
  * dialog for a second-order view, the same "показать/скрыть" toggle for a
  * body too long to always show.
  *
- * There is deliberately no search field yet. §9.3 of
- * `docs/product/content-section-map.md`, decided 02.09.2026, settled the
- * owner's question — by words, nothing that promises meaning — so a search
- * box here would no longer be answering an open question silently; building
- * one is simply not done yet. Filtering by layer, platform and date needs no
- * such promise and is built in full.
+ * Поиск — по словам, и только по словам (§9.3 of
+ * `docs/product/content-section-map.md`, the owner's choice of 05.09.2026).
+ * The field asks the server, not the page: what is on screen is one page of a
+ * filtered list, so a box that hid rows client-side would search the page and
+ * look like it searched the archive. Nothing here promises meaning — no
+ * «похожие», no «связанные», no ranking; a row matches because the words are
+ * in it, and the marks say which ones.
  */
 
 type Locale = 'ru' | 'en';
@@ -93,6 +97,8 @@ const copy = {
     platformOther: 'Другая',
     fromLabel: 'С',
     toLabel: 'По',
+    searchLabel: 'Искать по словам',
+    searchHint: 'Ищет по заголовку и тексту. Найдётся то, где встречаются все слова.',
     shown: (visible: number, total: number) => `Показано ${visible} из ${total}`,
     prev: 'Назад',
     next: 'Дальше',
@@ -150,7 +156,7 @@ const copy = {
     importSucceeded: 'Занесено в архив',
     rightsNote: 'Это ваш текст, поэтому подтверждать право на него не нужно.',
     readOnlyRole:
-      'Заносить тексты в архив сейчас может только администратор рабочего пространства. Архив остаётся открытым для чтения.',
+      'Раздел открыт на чтение: заносить тексты в архив может редактор или администратор рабочего пространства.',
     readOnlyPlan:
       'Тариф рабочего пространства сейчас не разрешает занести ещё один текст. Архив остаётся открытым для чтения.',
   },
@@ -167,6 +173,8 @@ const copy = {
     platformOther: 'Other',
     fromLabel: 'From',
     toLabel: 'To',
+    searchLabel: 'Search by words',
+    searchHint: 'Searches the title and the text. A row matches when every word is in it.',
     shown: (visible: number, total: number) => `Showing ${visible} of ${total}`,
     prev: 'Back',
     next: 'Next',
@@ -218,7 +226,7 @@ const copy = {
     importSucceeded: 'Added to the archive',
     rightsNote: 'This is your own text, so no confirmation of rights is needed.',
     readOnlyRole:
-      'Only a workspace administrator may bring texts into the archive right now. The archive stays open to read.',
+      'The archive is open to read: bringing texts in is done by an editor or an administrator of this workspace.',
     readOnlyPlan:
       "This workspace's plan does not allow bringing in another text right now. The archive stays open to read.",
   },
@@ -354,6 +362,7 @@ function ArchiveRowView({
   row,
   locale,
   t,
+  query,
   expanded,
   onToggleText,
   onOpenGrounding,
@@ -361,6 +370,8 @@ function ArchiveRowView({
   row: ArchiveRow;
   locale: Locale;
   t: (typeof copy)[Locale];
+  /** Что искали — чтобы строка показала, чем именно она подошла. */
+  query: string;
   expanded: boolean;
   onToggleText: () => void;
   onOpenGrounding: () => void;
@@ -369,7 +380,9 @@ function ArchiveRowView({
     <li data-content-archive-row={row.id} data-content-archive-layer={row.layer} className="flex flex-col gap-[8px] py-[16px]">
       <div className="flex flex-wrap items-start justify-between gap-[8px]">
         <div className="min-w-0 flex-1">
-          <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">{row.title}</p>
+          <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+            <HighlightedWords text={row.title} query={query} />
+          </p>
           <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
             <LayerBadge layer={row.layer} t={t} />
             <span className="cf-caption text-cf-ink-muted">{t.codeWord(row.code)}</span>
@@ -624,6 +637,21 @@ export function ContentArchiveContainer() {
   const read = useMemo(() => jsonReader(request), [request]);
 
   const [filters, setFilters] = useState<ArchiveFilters>(emptyArchiveFilters);
+  /*
+    Набранное и спрошенное — два разных значения, и разница между ними и есть
+    задержка ввода. В поле живёт `typedQuery`, поэтому оно не дёргается; в
+    адрес — успокоившееся, поэтому «подшипники» уходят одним запросом, а не
+    одиннадцатью. Страница сбрасывается вместе с вопросом: третья страница
+    прежнего запроса к новому отношения не имеет.
+  */
+  const [typedQuery, setTypedQuery] = useState('');
+  const settledQuery = useDebouncedValue(typedQuery);
+  useEffect(() => {
+    setFilters((current) =>
+      current.q === settledQuery ? current : { ...current, q: settledQuery, page: 0 }
+    );
+  }, [settledQuery]);
+
   const url = archiveListUrl(filters, LIMIT);
   const archive = useSWR(url, () => read(url).then(readArchiveEnvelope), {
     revalidateOnFocus: false,
@@ -632,8 +660,21 @@ export function ContentArchiveContainer() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [groundingRow, setGroundingRow] = useState<ArchiveRow | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  /** What the server has said about the right to bring a text in. */
+  /**
+   * What is known about the right to bring a text in — from the session
+   * first, from the server after (`content-factory-next-fn33.90.8`).
+   *
+   * The role is read from the session before anything is drawn, so a `USER`
+   * never gets as far as filling in the form. The plan is still learned from
+   * the answer, and a plan refusal replaces this reading when it arrives.
+   */
+  const user = useUser();
   const [writeRight, setWriteRight] = useState<ContentWriteRight>(WRITE_ALLOWED);
+  useEffect(() => {
+    setWriteRight((current) =>
+      current.refusal === 'plan' ? current : writeRightFromRole(user?.role)
+    );
+  }, [user?.role]);
   const canImport = writeRight.allowed;
   const readOnlyNoteId = 'content-archive-read-only';
 
@@ -758,6 +799,23 @@ export function ContentArchiveContainer() {
               value={filters.to}
               onChange={(event) => setFilter('to', event.target.value)}
             />
+            {/*
+              `type="search"` — это поле с крестиком очистки и своей ролью для
+              скринридера; подпись задана `aria-label`, потому что рядом с
+              тремя подписанными фильтрами четвёртая подпись сверху ломала бы
+              ряд, а плейсхолдер один подписью не считается.
+            */}
+            <Input
+              disableForm
+              type="search"
+              name="archiveSearch"
+              aria-label={t.searchLabel}
+              placeholder={t.searchLabel}
+              title={t.searchHint}
+              value={typedQuery}
+              onChange={(event) => setTypedQuery(event.target.value)}
+              fieldClassName="min-w-[200px] max-w-[320px] flex-1"
+            />
             {envelope && (
               <span className="ml-auto cf-caption text-cf-ink-muted">
                 {t.shown(envelope.materials.length, envelope.total)} · {t.counts(envelope.counts)}
@@ -775,6 +833,7 @@ export function ContentArchiveContainer() {
                   row={row}
                   locale={locale}
                   t={t}
+                  query={filters.q}
                   expanded={expanded.has(row.id)}
                   onToggleText={() => toggleText(row.id)}
                   onOpenGrounding={() => setGroundingRow(row)}

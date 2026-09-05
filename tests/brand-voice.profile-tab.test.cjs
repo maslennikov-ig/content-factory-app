@@ -170,6 +170,21 @@ const VERSIONS = {
 };
 
 let calls = [];
+/**
+ * Чему аватар научился на правках: ничего, и это нормальное состояние.
+ *
+ * Пороги приходят с сервера — экран их не перепечатывает, и здесь они те же
+ * пять и десять, что объявлены в `voice-learning.ts`.
+ */
+const LEARNING = {
+  pending: 0,
+  rules: [],
+  minPairs: 5,
+  maxRules: 10,
+  canLearn: true,
+  lastRunAt: null,
+};
+
 let routes = {};
 
 const answer = (body, status = 200) => ({ body, status });
@@ -181,6 +196,9 @@ const resetBackend = () => {
     [adapter.VOICE_ROUTES.scales]: answer(SCALES),
     [adapter.VOICE_ROUTES.redactions]: answer(REDACTIONS),
     [adapter.VOICE_ROUTES.versions]: answer(VERSIONS),
+    // Пятая дверь страницы аватара: чему он научился на правках. Пусто —
+    // рабочее состояние, а не отказ, и блок его показывает молча.
+    [adapter.VOICE_ROUTES.learning]: answer(LEARNING),
   };
 };
 
@@ -267,20 +285,28 @@ describe('what feeds what', () => {
       redactions: only('redactions', 'GET'),
       versions: only('versions', 'GET'),
       restore: only('versions', 'POST'),
+      // Чему аватар научился на правках: читать, учить, отменить правило.
+      // Блок живёт на той же странице аватара (решение владельца 05.09.2026).
+      learning: only('learning', 'GET'),
+      learningRun: only('learning', 'POST', '/learning/run'),
+      learningForget: only('learning', 'POST', '/learning/forget'),
     });
   });
 
-  test('the tab asks four questions on mount and invents no fifth', async () => {
+  test('the tab asks five questions on mount and invents no sixth', async () => {
     renderTab();
     await screen.findByText(PASSPORT.voice.whoSpeaks);
 
-    await waitFor(() => expect(voiceCalls().length).toBe(4));
+    await waitFor(() => expect(voiceCalls().length).toBe(5));
     expect(voiceCalls().map((call) => call.path).sort()).toEqual(
       [
         adapter.VOICE_ROUTES.passport,
         adapter.VOICE_ROUTES.redactions,
         adapter.VOICE_ROUTES.scales,
         adapter.VOICE_ROUTES.versions,
+        // Пятый вопрос — что аватар выучил на правках. Чтение, как и
+        // остальные четыре.
+        adapter.VOICE_ROUTES.learning,
       ].sort()
     );
     expect(voiceCalls().every((call) => call.method === 'GET')).toBe(true);

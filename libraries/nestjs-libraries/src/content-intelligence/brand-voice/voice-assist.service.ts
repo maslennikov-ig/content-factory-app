@@ -12,6 +12,11 @@ import {
   type RepairResult,
 } from './sentence-repair';
 import { runAssist, type AssistResult, type AssistTransport } from './assist.pipeline';
+import {
+  LEARNED_RULES_SCHEMA_NAME,
+  learnedRulesSchema,
+  type LearnedRulesAnswer,
+} from './voice-learning';
 import type {
   BrandVoiceMeasurementResult,
   BrandVoiceSampleInput,
@@ -208,9 +213,54 @@ export class VoiceAssistService {
       'judge'
     );
   }
+
+  /**
+   * Один вызов на пачку правок, и роль у него самая дешёвая из текстовых.
+   *
+   * `extract`, а не `judge`: здесь ничего не пишут и ничего не взвешивают —
+   * из уже готовых пар «было/стало» вытаскивают то, что в них и так лежит,
+   * ровно как разбор голоса по образцам двумя методами выше. Роль решает,
+   * какая модель придёт (`ai.roles.ts`), и это единственный рычаг, которым
+   * цену этого прогона можно опустить, не трогая код.
+   *
+   * Модель зовут раз на пачку и никогда на правку: см. `voice-learning.ts`.
+   */
+  async learn(input: VoiceLearnInput): Promise<LearnedRulesAnswer> {
+    return this._aiUsage.executeAiOperation(
+      input.organizationId,
+      'text_generation',
+      async () => {
+        const client = await getOpenAiClient(input.organizationId);
+        const completion = await client.chat.completions.parse({
+          model: await getModelForRole(input.organizationId),
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Ты называешь привычки автора по тому, что он исправляет в чужих черновиках. Только про манеру письма, не про содержание. Короткими указаниями, без похвалы и без оценок.',
+            },
+            { role: 'user', content: input.prompt },
+          ],
+          response_format: zodResponseFormat(
+            learnedRulesSchema,
+            LEARNED_RULES_SCHEMA_NAME
+          ),
+        });
+        const parsed = completion.choices[0]?.message?.parsed;
+        if (!parsed) throw new Error('model returned no structured answer');
+        return parsed;
+      },
+      'extract'
+    );
+  }
 }
 
 export type VoiceRepairInput = {
+  organizationId: string;
+  prompt: string;
+};
+
+export type VoiceLearnInput = {
   organizationId: string;
   prompt: string;
 };
@@ -220,4 +270,9 @@ export type VoiceAssistPort = {
   propose(input: VoiceAssistInput): Promise<VoiceAssistOutcome>;
   /** Optional: an older wiring without it simply cannot offer the repair. */
   repair?(input: VoiceRepairInput): Promise<RepairResult>;
+  /**
+   * Необязательный по той же причине: сборка без него просто не предлагает
+   * учиться на правках, вместо того чтобы падать при старте.
+   */
+  learn?(input: VoiceLearnInput): Promise<LearnedRulesAnswer>;
 };

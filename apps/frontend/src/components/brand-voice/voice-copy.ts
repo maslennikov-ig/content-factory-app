@@ -688,9 +688,9 @@ export const voiceCopy = {
         'аватаров',
       ])} из ${limit}`,
     avatarsLimitBody: 'удалите ненужный или расширьте тариф',
-    avatarsRestrictedTitle: 'Аватары заводит владелец',
+    avatarsRestrictedTitle: 'Аватары заводит редактор или администратор',
     avatarsRestrictedBody:
-      'Ваша роль — редактор: список виден, выбрать аватар в черновике можно, править нельзя.',
+      'Ваша роль — пользователь: список виден, выбрать аватар в черновике можно, править нельзя.',
     avatarsErrorTitle: 'Имя не сохранилось',
     avatarsErrorBody: 'Текст остался в поле, аватар по умолчанию не менялся.',
     avatarsRetry: 'Сохранить ещё раз',
@@ -741,6 +741,45 @@ export const voiceCopy = {
       ])}.`,
     draftGapExampleLabel: 'Как это делаете вы',
     draftGapOptional: 'Пост готов и уходит как есть — отвечать не обязательно.',
+
+    // Чему аватар научился на правках человека (решение владельца 05.09.2026).
+    learnTitle: 'Чему научился на правках',
+    learnLead:
+      'Когда вы переписываете то, что аватар предложил, он смотрит на разницу. Косметика не в счёт — только там, где вы правда переписали. Раз на пачку он выводит из этого короткие правила и держит их не больше десяти.',
+    learnPending: (pending: number, min: number) =>
+      `Накопилось ${pending} ${plural(pending, [
+        'правка',
+        'правки',
+        'правок',
+      ])} из ${min}, нужных для одного разбора.`,
+    learnReady: (pending: number) =>
+      `Накопилось ${pending} ${plural(pending, [
+        'правка',
+        'правки',
+        'правок',
+      ])} — хватит, чтобы разобрать их одним заходом.`,
+    learnEmpty: 'Правок пока нет',
+    learnEmptyBody:
+      'Правка появляется, когда вы меняете текст, написанный аватаром, и сохраняете пост. Пока такого не было — учиться не на чем, и это не ошибка.',
+    learnNever: 'Ещё ничему не научился.',
+    learnLastRun: (date: string) => `Правки разобраны по ${date}.`,
+    learnRulesTitle: 'Выучено',
+    learnRuleMeta: (pairs: number, date: string) =>
+      `${date} · по ${pairs} ${plural(pairs, [
+        'правке',
+        'правкам',
+        'правкам',
+      ])}`,
+    learnCap: (max: number) =>
+      `Правил не больше ${max}: новое вытесняет самое старое.`,
+    learnNow: 'Учиться сейчас',
+    learnBusy: 'Разбираем правки…',
+    learnHint:
+      'Один разбор — один платный вызов модели на всю накопленную пачку. Текст ваших постов при этом не переписывается.',
+    learnForget: 'Отменить правило',
+    learnRestricted:
+      'Учить аватара и отменять правила — право редактора или администратора пространства. Читать выученное может любой участник.',
+    learnFailed: 'Разбор не состоялся. Правки на месте и уйдут в следующий заход.',
   },
   en: {
     hintFor: (subject: string) => `Hint: ${subject}`,
@@ -1292,9 +1331,9 @@ export const voiceCopy = {
       'Text is written in a neutral style until there is somebody to write as.',
     avatarsLimitTitle: (limit: number) => `${limit} of ${limit} avatars`,
     avatarsLimitBody: 'delete one you do not need, or raise the plan',
-    avatarsRestrictedTitle: 'The owner creates avatars',
+    avatarsRestrictedTitle: 'Avatars are created by an editor or an administrator',
     avatarsRestrictedBody:
-      'Your role is editor: the list is visible and you may pick an avatar in a draft, but not edit one.',
+      'Your role is user: the list is visible and you may pick an avatar in a draft, but not edit one.',
     avatarsErrorTitle: 'The name was not saved',
     avatarsErrorBody:
       'The text stayed in the field and the default avatar did not change.',
@@ -1333,6 +1372,33 @@ export const voiceCopy = {
       `Your own posts carry one in ${share}% of the ${of} analysed.`,
     draftGapExampleLabel: 'How you do it',
     draftGapOptional: 'The post is ready and goes as it is — answering is optional.',
+
+    // What the avatar learned from the author's edits.
+    learnTitle: 'What it learned from your edits',
+    learnLead:
+      'When you rewrite what the avatar proposed, it looks at the difference. Cosmetic changes do not count — only the places you really rewrote. Once per batch it turns that into short rules, and keeps at most ten of them.',
+    learnPending: (pending: number, min: number) =>
+      `${pending} ${pending === 1 ? 'edit' : 'edits'} collected of the ${min} one run needs.`,
+    learnReady: (pending: number) =>
+      `${pending} ${pending === 1 ? 'edit' : 'edits'} collected — enough to read in one run.`,
+    learnEmpty: 'No edits yet',
+    learnEmptyBody:
+      'An edit appears when you change text the avatar wrote and save the post. Nothing like that has happened yet, so there is nothing to learn from. That is not an error.',
+    learnNever: 'Nothing learned yet.',
+    learnLastRun: (date: string) => `Edits read up to ${date}.`,
+    learnRulesTitle: 'Learned',
+    learnRuleMeta: (pairs: number, date: string) =>
+      `${date} · from ${pairs} ${pairs === 1 ? 'edit' : 'edits'}`,
+    learnCap: (max: number) =>
+      `At most ${max} rules: a new one pushes out the oldest.`,
+    learnNow: 'Learn now',
+    learnBusy: 'Reading the edits…',
+    learnHint:
+      'One run is one paid model call over the whole collected batch. Your own text is never rewritten.',
+    learnForget: 'Undo this rule',
+    learnRestricted:
+      'Teaching the avatar and undoing rules belong to a workspace editor or administrator. Any member may read what was learned.',
+    learnFailed: 'The run did not happen. The edits are still there and go into the next one.',
   },
 } as const;
 

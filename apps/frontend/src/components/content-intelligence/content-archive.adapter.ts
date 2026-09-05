@@ -155,6 +155,8 @@ export type ArchiveFilters = {
   platform: string | 'ALL';
   from: string;
   to: string;
+  /** Поиск по словам (`content-factory-next-odb8.4`). */
+  q: string;
   page: number;
 };
 
@@ -163,6 +165,7 @@ export const emptyArchiveFilters: ArchiveFilters = {
   platform: 'ALL',
   from: '',
   to: '',
+  q: '',
   page: 0,
 };
 
@@ -173,6 +176,9 @@ export function archiveListUrl(filters: ArchiveFilters, limit: number): string {
   if (filters.platform !== 'ALL') params.set('platform', filters.platform);
   if (filters.from) params.set('from', filters.from);
   if (filters.to) params.set('to', filters.to);
+  // Пустое поле поиска ничего не добавляет к вопросу, поэтому и в адрес не
+  // попадает: `q=` в строке — это уже другой ключ SWR и лишний запрос.
+  if (filters.q.trim()) params.set('q', filters.q.trim());
   if (filters.page) params.set('page', String(filters.page));
   params.set('limit', String(limit));
   const query = params.toString();

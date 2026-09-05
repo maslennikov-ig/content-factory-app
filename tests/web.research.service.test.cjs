@@ -95,6 +95,12 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
       '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
         AiUsageService: class {},
       },
+      // Сводка приходит на языке читателя с 05.09.2026
+      // (`content-factory-next-fn33.133`): сервис знает список языков контента.
+      '@contentfactory/nestjs-libraries/dtos/content.language':
+        loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/dtos/content.language.ts'
+        ),
       '@contentfactory/nestjs-libraries/openai/ai.clients': {
         WEB_SEARCH_TIMEOUT_MS,
         WEB_SEARCH_PRIMARY_TIMEOUT_MS,

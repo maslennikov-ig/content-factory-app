@@ -327,8 +327,13 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
       '@contentfactory/frontend/components/ui/surface': {
         RestrictedState: Empty,
       },
+      // Обе роли отвечают «нет»: этот файл про способы входа, а не про то,
+      // кому какая вкладка видна. С 05.09.2026 экран спрашивает и второй
+      // порог (`content-factory-next-fn33.90`), и без него каждый рендер
+      // падал «is not a function».
       '@contentfactory/nestjs-libraries/user/organization.roles': {
         isOrganizationAdmin: () => false,
+        isOrganizationEditor: () => false,
       },
       '@contentfactory/react/choice/tabs': {
         Tabs: ({ value, children }) =>

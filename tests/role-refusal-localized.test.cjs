@@ -28,6 +28,7 @@ const screen = read('apps/frontend/src/components/layout/layout.context.tsx');
 /** The two refusals that are about a role rather than a plan limit. */
 const ROLE_REFUSALS = [
   'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.',
+  'This action is available to organization editors and administrators only. Ask an editor or administrator of your organization to do it for you.',
   'You are not allowed to perform this action.',
 ];
 
@@ -53,6 +54,7 @@ const LOCALES = [
 const KEYS = [
   'role_refusal_title',
   'role_refusal_admin_only',
+  'role_refusal_editor_only',
   'role_refusal_generic',
   // The button. It already existed; the dialog simply stopped hard-coding it.
   'close',

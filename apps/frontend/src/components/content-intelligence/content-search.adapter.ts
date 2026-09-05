@@ -108,6 +108,40 @@ export function readSearchAnswer(body: unknown): SearchAnswer | null {
   };
 }
 
+/**
+ * Whether the accepting door will take this row at all.
+ *
+ * `content-factory-next-fn33.136`: the search offered
+ * `http://globalinvestigationsreview.com/...` as its first result, the person
+ * pressed «Взять как доказательство», and the server answered 400
+ * `UNSUPPORTED_PROTOCOL`. The refusal is right — `canonicalizeSourceUrl`
+ * accepts HTTPS on port 443 and nothing else, and that is the accepted source
+ * network policy (`content-source-registry-spec.md`), not an oversight to
+ * route around. What was wrong is that the screen offered the press.
+ *
+ * So the same rule is read here, before the button is drawn. This mirrors the
+ * server's check rather than replacing it: the server still refuses, this only
+ * stops the product from proposing something it has already decided against.
+ * The row itself stays on screen — the link is still worth reading, and a
+ * result that silently disappears is a result a person will look for.
+ */
+export type TakeRefusal = 'not_https' | 'unsupported_port' | 'invalid_url';
+
+export function takeRefusal(url: string): TakeRefusal | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return 'invalid_url';
+  }
+  if (parsed.protocol !== 'https:') return 'not_https';
+  if (!parsed.hostname || parsed.username || parsed.password) {
+    return 'invalid_url';
+  }
+  if (parsed.port && parsed.port !== '443') return 'unsupported_port';
+  return null;
+}
+
 export function buildAcceptPayload(row: SearchResultRow) {
   return {
     url: row.url,

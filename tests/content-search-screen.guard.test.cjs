@@ -186,7 +186,12 @@ describe('a person can reach the accepting door', () => {
     const search = calls.find((call) => call.url === adapter.SEARCH_API);
     expect(search).toBeDefined();
     expect(search.method).toBe('POST');
-    expect(search.body).toEqual({ subject: 'повторные покупки' });
+    // Язык читателя уходит вместе с предметом с 05.09.2026: сводку пишет
+    // поисковик, и он отвечает на языке запроса (`content-factory-next-fn33.133`).
+    expect(search.body).toEqual({
+      subject: 'повторные покупки',
+      language: 'ru',
+    });
     // What was found is on screen, or there is nothing to accept.
     expect(
       screen.getByText('Доля повторных покупок выросла до 38 процентов.')

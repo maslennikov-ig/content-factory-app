@@ -27,19 +27,30 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 type RequestOrganization = Organization & {
   users?: Array<{ role: OrganizationRole }>;
 };
 
+/**
+ * A brand profile is the voice's written half, and since 05.09.2026 it is
+ * editorial work like the rest of it (`content-factory-next-fn33.90`). This
+ * flag decides whether the overview offers the form at all, so it moves with
+ * the policy below rather than a release after it.
+ */
 function canManageProfile(organization: RequestOrganization) {
-  return isOrganizationAdmin(organization.users?.[0]?.role);
+  return isOrganizationEditor(organization.users?.[0]?.role);
 }
 
-const adminPolicy: AbilityPolicy = [
+/**
+ * Named once and shared by the six changing routes, so the section they check
+ * and the flag above cannot drift apart. `roles-matrix.guard.test.cjs` follows
+ * the alias to its declaration rather than reading only the decorator text.
+ */
+const editorPolicy: AbilityPolicy = [
   AuthorizationActions.Create,
-  Sections.ADMIN,
+  Sections.EDITOR,
 ];
 
 @ApiTags('Content intelligence · brand profile')
@@ -68,7 +79,7 @@ export class BrandProfileController {
   }
 
   @Post('/drafts')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   createDraft(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -78,7 +89,7 @@ export class BrandProfileController {
   }
 
   @Put('/drafts/:versionId')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   updateDraft(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -89,7 +100,7 @@ export class BrandProfileController {
   }
 
   @Post('/versions/:versionId/activate')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   activateVersion(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -99,7 +110,7 @@ export class BrandProfileController {
   }
 
   @Post('/versions/:versionId/clone')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   cloneVersion(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -109,7 +120,7 @@ export class BrandProfileController {
   }
 
   @Post('/versions/:versionId/restore')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   restoreVersion(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -119,7 +130,7 @@ export class BrandProfileController {
   }
 
   @Delete('/')
-  @CheckPolicies(adminPolicy)
+  @CheckPolicies(editorPolicy)
   deactivate(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User

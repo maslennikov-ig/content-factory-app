@@ -16,8 +16,11 @@
 
 require('reflect-metadata');
 
+const fs = require('node:fs');
 const path = require('node:path');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+
+const root = path.resolve(__dirname, '..');
 
 const BRAND_VOICE =
   'libraries/nestjs-libraries/src/content-intelligence/brand-voice';
@@ -31,6 +34,8 @@ const FILES = {
   repository: `${MATERIALS}/content-material.repository.ts`,
   service: `${MATERIALS}/content-material.service.ts`,
   dto: 'libraries/nestjs-libraries/src/dtos/content-intelligence/content-material.dto.ts',
+  searchTerms:
+    'libraries/nestjs-libraries/src/content-intelligence/search-terms.ts',
   archiveController: 'apps/backend/src/api/routes/content-archive.controller.ts',
 };
 
@@ -46,6 +51,7 @@ const sources = {
   './material-presentation': FILES.presentation,
   './archive-presentation': FILES.archivePresentation,
   './content-material.repository': FILES.repository,
+  '../search-terms': FILES.searchTerms,
   './segment': `${BRAND_VOICE}/segment.ts`,
   './locale-pack.ru': `${BRAND_VOICE}/locale-pack.ru.ts`,
   '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/recut': `${BRAND_VOICE}/recut.ts`,
@@ -78,12 +84,28 @@ const archivePresentation = load(FILES.archivePresentation);
 
 const at = (iso) => new Date(iso);
 
+/*
+  Поддельная Prisma умеет ровно столько, сколько спрашивает код. Поиск по
+  словам (`content-factory-next-odb8.4`) добавил три формы: `AND` и `OR` как
+  списки под-условий и `contains` с `mode: 'insensitive'`. Без них проверка
+  «слова действительно отбирают» проверяла бы поддельный движок, а не запрос.
+*/
 const matches = (row, where = {}) =>
   Object.entries(where).every(([key, condition]) => {
+    if (key === 'AND') return condition.every((part) => matches(row, part));
+    if (key === 'OR') return condition.some((part) => matches(row, part));
     if (condition === null) return row[key] === null || row[key] === undefined;
     if (condition && typeof condition === 'object') {
       if ('in' in condition) return condition.in.includes(row[key]);
       if ('not' in condition) return row[key] !== condition.not;
+      if ('contains' in condition) {
+        const value = String(row[key] ?? '');
+        return condition.mode === 'insensitive'
+          ? value.toLocaleLowerCase().includes(
+              String(condition.contains).toLocaleLowerCase()
+            )
+          : value.includes(String(condition.contains));
+      }
     }
     return row[key] === condition;
   });
@@ -444,6 +466,138 @@ describe('the archive lists all three layers together and names each row', () =>
         expect(call.args.where.organizationId).toBe('org-a');
       }
     }
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Поиск по словам (`content-factory-next-odb8.4`, решение владельца 05.09.2026)
+ * ---------------------------------------------------------------------- */
+
+describe('поиск по архиву — по словам, и слова доезжают до запроса', () => {
+  const searchCall = (store) =>
+    store.calls.find(
+      (call) => call.name === 'contentPiece.findMany' && call.args.select?.id
+    );
+
+  test('запрос строится с organizationId, а слова лежат внутри него', async () => {
+    const { service: materials, store } = service();
+    await materials.listArchive('org-a', { q: 'старая статья' });
+
+    const where = searchCall(store).args.where;
+    // Граница пространства стоит рядом со словами, а не вместо них: набором
+    // слов чужой архив недостижим.
+    expect(where.organizationId).toBe('org-a');
+    expect(where.archivedAt).toBe(null);
+    // И по слову, и по полю: каждое слово обязано встретиться, встретиться
+    // может в заголовке или в тексте.
+    expect(where.AND).toHaveLength(2);
+    expect(where.AND[0].OR).toEqual([
+      { title: { contains: 'старая', mode: 'insensitive' } },
+      { body: { contains: 'старая', mode: 'insensitive' } },
+    ]);
+    expect(where.AND[1].OR[0]).toEqual({
+      title: { contains: 'статья', mode: 'insensitive' },
+    });
+  });
+
+  test('пустой поиск вообще не спрашивает базу — список тот же, что был', async () => {
+    const { service: materials, store } = service();
+    const answer = await materials.listArchive('org-a', { q: '   ' });
+
+    expect(searchCall(store)).toBeUndefined();
+    expect(answer.materials).toHaveLength(3);
+  });
+
+  test('слово из заголовка находит свою строку и только её', async () => {
+    const { service: materials } = service();
+    const answer = await materials.listArchive('org-a', { q: 'колонка' });
+
+    expect(answer.materials.map((row) => row.id)).toEqual(['piece-elsewhere-1']);
+    expect(answer.state).toBe('default');
+  });
+
+  test('регистр не имеет значения', async () => {
+    const { service: materials } = service();
+    const answer = await materials.listArchive('org-a', { q: 'КОЛОНКА' });
+
+    expect(answer.materials.map((row) => row.id)).toEqual(['piece-elsewhere-1']);
+  });
+
+  test('слово находится и в тексте, не только в заголовке', async () => {
+    const { service: materials } = service();
+    const answer = await materials.listArchive('org-a', { q: 'фабрикой' });
+
+    expect(answer.materials.map((row) => row.id)).toEqual(['piece-here-1']);
+  });
+
+  test('все слова обязаны встретиться, пусть и в разных полях', async () => {
+    const { service: materials } = service();
+
+    // «продукта» — в заголовке одной строки, «опубликованный» — в теле той же.
+    const both = await materials.listArchive('org-a', {
+      q: 'продукта опубликованный',
+    });
+    expect(both.materials.map((row) => row.id)).toEqual(['piece-elsewhere-1']);
+
+    // Второе слово нет ни у кого — значит, не найдено ничего, а не «нашлось
+    // по первому».
+    const neither = await materials.listArchive('org-a', {
+      q: 'продукта подшипники',
+    });
+    expect(neither.materials).toHaveLength(0);
+  });
+
+  test('ничего не найдено — это filtered-empty, а не пустой архив', async () => {
+    const { service: materials } = service();
+    const answer = await materials.listArchive('org-a', { q: 'подшипники' });
+
+    expect(answer.materials).toHaveLength(0);
+    expect(answer.state).toBe('filtered-empty');
+  });
+
+  test('поиск не переставляет коды материалов', async () => {
+    // Код — это место текста в общем списке от старых к новым. Если бы поиск
+    // сужал сам список, `cnt-03` при запросе стал бы `cnt-01`, то есть код
+    // перестал бы быть кодом.
+    const { service: materials } = service();
+    const all = await materials.listArchive('org-a', {});
+    const found = await materials.listArchive('org-a', { q: 'колонка' });
+
+    const codeOf = (answer, id) =>
+      answer.materials.find((row) => row.id === id).code;
+    expect(codeOf(found, 'piece-elsewhere-1')).toBe(
+      codeOf(all, 'piece-elsewhere-1')
+    );
+    expect(codeOf(found, 'piece-elsewhere-1')).toBe('cnt-03');
+  });
+
+  test('поиск складывается с отбором по слою, а не заменяет его', async () => {
+    const { service: materials } = service();
+    const answer = await materials.listArchive('org-a', {
+      q: 'колонка',
+      layer: 'IMPORTED_PRE_PRODUCT',
+    });
+
+    expect(answer.materials).toHaveLength(0);
+  });
+
+  test('длинный запрос режется по словам, а не отказывает', async () => {
+    const { service: materials, store } = service();
+    await materials.listArchive('org-a', {
+      q: 'один два три четыре пять шесть семь восемь девять десять',
+    });
+
+    // Предел один и тот же и в DTO, и в поиске; слова сверх него молча
+    // отбрасываются — отказ на длинной фразе человек прочитал бы как поломку.
+    expect(searchCall(store).args.where.AND).toHaveLength(8);
+  });
+
+  test('поиск идёт моделями Prisma, без сырого SQL и расширений Postgres', () => {
+    const code = fs.readFileSync(path.join(root, FILES.repository), 'utf8');
+
+    expect(code).not.toMatch(/\$queryRaw|\$executeRaw/);
+    expect(code).not.toMatch(/to_tsvector|pg_trgm|websearch_to_tsquery/i);
+    expect(code).toMatch(/searchPieceIds/);
   });
 });
 

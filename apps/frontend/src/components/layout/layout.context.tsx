@@ -29,6 +29,12 @@ const BACKEND_REFUSALS: Record<string, { key: string; fallback: string }> = {
       fallback:
         'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.',
     },
+  'This action is available to organization editors and administrators only. Ask an editor or administrator of your organization to do it for you.':
+    {
+      key: 'role_refusal_editor_only',
+      fallback:
+        'This action is available to organization editors and administrators only. Ask an editor or administrator of your organization to do it for you.',
+    },
   'You are not allowed to perform this action.': {
     key: 'role_refusal_generic',
     fallback: 'You are not allowed to perform this action.',

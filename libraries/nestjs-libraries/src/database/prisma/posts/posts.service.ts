@@ -69,6 +69,10 @@ import {
   calculateProductionAnalytics,
   productionAnalyticsWindow,
 } from '@contentfactory/nestjs-libraries/database/prisma/posts/production.analytics';
+import {
+  resolveBackendLocale,
+  translateBackendString,
+} from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 type PostWithConditionals = Post & {
   integration?: Integration;
@@ -1153,7 +1157,29 @@ export class PostsService {
       return randomDate;
     };
 
+    /**
+     * Ссылка на источник, если она вообще есть.
+     *
+     * `content-factory-next-fn33.137`: хвостовая коробка со ссылкой
+     * дописывалась всегда, и у черновика без источника рядом с русским текстом
+     * оказывался второй пост «Check out the full story here:» с пустой
+     * строкой вместо адреса — по посту на тему лишним. Пустая ссылка это не
+     * ссылка, поэтому и хвоста тогда нет.
+     */
+    const sourceLink = String(body.postId || body.url || '').trim();
+
     for (const integration of getAllIntegrations) {
+      /**
+       * Язык хвоста — язык канала, а не языка того, кто нажал кнопку.
+       *
+       * Эту строку читают подписчики канала, и она стоит внутри его же ветки
+       * поста. `contentLanguage` — то самое поле, которым канал отвечает на
+       * вопрос «на каком языке здесь пишут».
+       */
+      const linkLead = translateBackendString(
+        'generated_draft_source_link',
+        resolveBackendLocale(integration.contentLanguage)
+      );
       for (const toPost of body.posts) {
         const group = makeId(10);
         const randomDate = findTime();
@@ -1185,14 +1211,16 @@ export class PostsService {
                     delay: 0,
                     image: [],
                   })),
-                  {
-                    id: '',
-                    delay: 0,
-                    content: `Check out the full story here:\n${
-                      body.postId || body.url
-                    }`,
-                    image: [],
-                  },
+                  ...(sourceLink
+                    ? [
+                        {
+                          id: '',
+                          delay: 0,
+                          content: `${linkLead}\n${sourceLink}`,
+                          image: [],
+                        },
+                      ]
+                    : []),
                 ],
               },
             ],

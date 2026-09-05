@@ -237,6 +237,15 @@ export type BrandProfileRecordV1 = {
   kind?: PersonaKindV1;
   isDefault?: boolean;
   activeVersionId: string | null;
+  /**
+   * Выученное на правках человека, как оно лежит в колонке: `Json?`, то есть
+   * что угодно, включая `null` и мусор от чужой правки руками.
+   *
+   * `unknown`, а не разобранный тип, — намеренно: разбирает
+   * `parseLearnedRules`, и он один. Тип строки здесь только фиксирует, что
+   * колонка приезжает вместе с профилем и второго запроса за ней не нужно.
+   */
+  learnedRules?: unknown;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

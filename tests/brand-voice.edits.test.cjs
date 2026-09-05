@@ -374,16 +374,51 @@ describe('правки ни во что не подмешиваются', () => 
     expect(source).not.toMatch(/calibrate\(|renderVoiceInjection|examples/i);
   });
 
-  test('сервис голоса трогает правки в двух местах, и оба названы', () => {
+  test('сервис голоса трогает правки в четырёх местах, и все названы', () => {
     const source = code(`${voiceBase}/voice.service.ts`);
 
+    /**
+     * Было два, стало четыре — 05.09.2026, решением владельца
+     * (`content-factory-next-fn33.28.19`): «нам нужно научить аватара
+     * становиться похожим… на основе тех корректировок, которые вносит
+     * клиент». Два новых читателя — счётчик накопленного и пары для одного
+     * платного разбора; оба живут в блоке обучения и оба названы здесь
+     * поимённо, чтобы пятый не появился молча.
+     */
     const uses = source.match(/_edits[?.]/g) || [];
-    expect(uses).toHaveLength(2);
+    expect(uses).toHaveLength(4);
     // Первое: удаление аватара уносит его правки.
     expect(source).toMatch(/_edits\?\.eraseForAvatar/);
-    // Второе: отрицательные примеры для рабочей точки — и ничего больше.
+    // Второе: отрицательные примеры для рабочей точки.
     expect(source).toMatch(/_edits\.rewrittenDrafts/);
+    // Третье и четвёртое: сколько накопилось и что уходит в один разбор.
+    expect(source).toMatch(/_edits\.substantiveCount/);
+    expect(source).toMatch(/_edits\.substantivePairs/);
     expect(source).not.toMatch(/_edits\??\.list\(/);
+  });
+
+  test('выученное на правках не переписывает текст человека', () => {
+    const source = code(`${voiceBase}/voice.service.ts`);
+
+    /**
+     * Граница, которую владелец назвал вместе с самой задачей: механизм
+     * обновляет аватара, а не пост. Пары читаются, из них выводятся правила,
+     * правила ложатся на аватара — и ни в одном из трёх шагов сохранённый
+     * человеком текст не меняется.
+     *
+     * Проверяется на том, куда уходят пары: их видит только сборка запроса
+     * (`buildLearnPrompt`) и ничто больше. Ответ модели — правила, и они
+     * пишутся `saveLearnedRules`, то есть в колонку аватара, а не в пост.
+     */
+    const readers = source.match(/substantivePairs\(/g) || [];
+    expect(readers).toHaveLength(1);
+    expect(source).toMatch(/buildLearnPrompt\(/);
+    expect(source).toMatch(/saveLearnedRules\(/);
+    // Текст правки упоминается ровно один раз — в сборке запроса. Второе
+    // упоминание означало бы, что он куда-то ещё уходит, и покраснеет здесь
+    // раньше, чем доедет.
+    expect(source.match(/one\.sentText/g) || []).toHaveLength(1);
+    expect(source.match(/one\.proposedText/g) || []).toHaveLength(1);
   });
 
   test('прочитанные черновики уходят в порог и никуда больше', () => {

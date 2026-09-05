@@ -1,0 +1,51 @@
+-- Один столбец на ProjectBrandProfile. Применять ТОЛЬКО этот текст, дословно.
+--
+-- Зачем: решение владельца 05.09.2026 — «нам нужно научить аватара становиться
+-- похожим… на основе тех корректировок, которые вносит клиент»
+-- (`content-factory-next-fn33.28.19`). Механизм смотрит пары «было/стало» из
+-- `BrandVoiceEdit`, раз на пачку зовёт модель и складывает ответ сюда: до
+-- десяти коротких правил стиля, каждое со своим id, датой прогона и числом
+-- пар, на которых выведено. Форма — `LearnedVoiceRulesV1` из
+-- `libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-learning.ts`.
+--
+-- Почему колонка на аватаре, а не поле в содержимом версии голоса: правило
+-- обязано пережить пересборку голоса. Мастер собирает новую версию из корпуса,
+-- и выученного на правках в ней не будет — оно принадлежит аватару, а не
+-- одному замеру. Версия голоса к тому же неизменяема, а набор правил меняется
+-- при каждом прогоне и при каждом «Отменить правило».
+--
+-- Столбец nullable и без значения по умолчанию, поэтому оператор не
+-- переписывает таблицу и не требует окна простоя. Индекс не нужен: по нему не
+-- ищут, его читают вместе со строкой аватара. Существующие аватары получают
+-- NULL — «не учился ни разу». Это не то же самое, что пустой список: пустой
+-- означает, что человек отменил всё выученное, и код различает эти два случая.
+-- Шага данных нет, откат данных не нужен.
+--
+-- Код читает колонку на экране аватара (блок «Чему научился на правках») и
+-- пишет её на двух дверях: `POST /content-intelligence/voice/learning/run` и
+-- `POST /content-intelligence/voice/learning/forget`. Без колонки падает не
+-- редкий экран, а открытие аватара, ошибкой Prisma «column
+-- ProjectBrandProfile.learnedRules does not exist».
+--
+-- `prisma migrate diff` против боевой базы печатает этот оператор вместе с
+-- DROP TABLE на mastra_* таблицы, которых нет в schema.prisma. Их пропускает
+-- validate-prisma-migration-sql.cjs (Mastra-owned target), но проверять
+-- каждый раз всё равно нужно: db push и полный вывод migrate diff сносят их
+-- молча.
+--
+-- Порядок применения:
+--   1. prisma migrate diff --from-url <DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table ProjectBrandProfile --diff <шаг 1> --selected этот_файл
+--   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
+--   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
+--
+-- Валидатор отвергает BEGIN/COMMIT как неизвестные операции схемы;
+-- транзакционность обеспечивает флаг --single-transaction в psql.
+--
+-- Столбец добавлен в schema.prisma 05.09.2026 (content-factory-next-fn33.28.19).
+-- На боевой базе ПОКА НЕ ПРИМЕНЕНО. Повторно не запускать после применения:
+-- ADD COLUMN без IF NOT EXISTS откажет на существующей колонке.
+
+ALTER TABLE "ProjectBrandProfile" ADD COLUMN     "learnedRules" JSONB;

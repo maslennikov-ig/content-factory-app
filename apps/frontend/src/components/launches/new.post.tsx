@@ -8,12 +8,15 @@ import { SetSelectionModal } from '@contentfactory/frontend/components/launches/
 import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
 import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-launch/modal.wrapper.component';
 import { Button } from '@contentfactory/react/form/button';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export const NewPost = () => {
   const fetch = useFetch();
   const modal = useModals();
   const { integrations, reloadCalendarView, sets } = useCalendar();
   const t = useT();
+  const user = useUser();
 
   const createAPost = useCallback(async () => {
     const date = (await (await fetch('/posts/find-slot')).json()).date;
@@ -75,6 +78,17 @@ export const NewPost = () => {
       title: ``,
     });
   }, [integrations, sets]);
+
+  // Since 05.09.2026 the doors this button leads to — `POST /posts` and the
+  // schedule beside it — carry `Sections.EDITOR`
+  // (`content-factory-next-fn33.90`). The refusal they return is honest, but
+  // a person would meet it only after writing the post, so `USER` does not
+  // get the button at all. Same reasoning, and the same shape, as
+  // `add.provider.component.tsx`.
+  if (!isOrganizationEditor(user?.role)) {
+    return null;
+  }
+
   return (
     <Button
       onClick={createAPost}

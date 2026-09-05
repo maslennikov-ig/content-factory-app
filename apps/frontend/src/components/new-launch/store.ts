@@ -53,6 +53,16 @@ export type ContentIntelligenceProvenance = Readonly<{
   profileLabel?: string;
   validationStatus?: 'VALID';
   availableCitations: readonly ContentIntelligenceCitation[];
+  /**
+   * Сколько взятых человеком фрагментов контекст отбросил как
+   * неподтверждённые.
+   *
+   * Считается только `UNVERIFIED`, а не любой отказ: остальные причины
+   * (устарело, противоречит, чужая аренда, бюджет) — про другое, и «не
+   * подтверждены» было бы про них неправдой. Число появляется вместе с
+   * конвертом контекста; у одной ранней привязки, до ответа сервера, его нет.
+   */
+  unverifiedCount?: number;
 }>;
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -433,11 +443,24 @@ export function mergeServerContentContextEnvelope(
     });
   }
 
+  /**
+   * Отказы конверта, посчитанные по одной причине.
+   *
+   * `UNVERIFIED` — это «человек взял фрагмент поиском, но никто его не
+   * подтвердил на витрине «Откуда факты»»; ровно про него окно и говорит.
+   * Остальные причины отказа означают другое, и складывать их в одно число
+   * значило бы сказать человеку неправду о том, что делать дальше.
+   */
+  const unverifiedCount = envelope.rejected.filter(
+    (item) => asRecord(item)?.reason === 'UNVERIFIED'
+  ).length;
+
   return {
     ...binding,
     builtAt: envelope.builtAt,
     expiresAt: envelope.expiresAt,
     availableCitations: [...factCitations, ...evidenceCitations],
+    unverifiedCount,
   };
 }
 

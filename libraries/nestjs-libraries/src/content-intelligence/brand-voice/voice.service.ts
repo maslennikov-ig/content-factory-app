@@ -109,6 +109,15 @@ import {
 } from './voice-sample.repository';
 import { VoiceProfileRepository } from './voice-profile.repository';
 import { VoiceEditRepository } from './voice-edit.repository';
+import {
+  LEARN_MIN_PAIRS,
+  MAX_LEARNED_RULES,
+  buildLearnPrompt,
+  mergeLearnedRules,
+  parseLearnedRules,
+  withoutRule,
+  type LearnedVoiceRulesV1,
+} from './voice-learning';
 import type { VoiceAssistPort } from './voice-assist.service';
 import {
   ANALYZER_VERSION,
@@ -126,6 +135,8 @@ import {
   type VoiceAnalysisResponseV1,
   type VoiceInjectionPlanRequestV1,
   type VoiceInjectionPlanResponseV1,
+  type VoiceLearnForgetRequestV1,
+  type VoiceLearningResponseV1,
   VOICE_SAMPLE_PASTE_LIMITS,
   type VoiceOverviewResponseV1,
   type VoicePassportResponseV1,
@@ -408,7 +419,7 @@ export class VoiceService {
     if (actor.canManage) return;
     throw new VoiceError(
       'VOICE_FORBIDDEN',
-      'Изменение голоса бренда — право администратора рабочего пространства.'
+      'Изменение голоса бренда — право редактора или администратора рабочего пространства.'
     );
   }
 
@@ -422,7 +433,7 @@ export class VoiceService {
     };
     if (!actor.canManage) {
       const reason =
-        'Создание голоса — право администратора. Готовый голос виден всем участникам.';
+        'Создание голоса — право редактора или администратора. Готовый голос виден всем участникам.';
       disabledReasons.manual = reason;
       disabledReasons.own = reason;
       disabledReasons.reference = reason;
@@ -459,7 +470,7 @@ export class VoiceService {
       permissions: this.permissions(actor),
       note: actor.canManage
         ? undefined
-        : 'Раздел открыт на чтение: изменить голос может администратор.',
+        : 'Раздел открыт на чтение: изменить голос может редактор или администратор.',
       activeVersion: activeVersion
         ? this.versionSummary(activeVersion, activeVersion.id, actors)
         : undefined,
@@ -508,7 +519,7 @@ export class VoiceService {
       ...(actor.canManage
         ? {}
         : {
-            unavailableReason: `«${ORIGIN_LABELS[key]}» — загрузка доступна администратору.`,
+            unavailableReason: `«${ORIGIN_LABELS[key]}» — загрузка доступна редактору и администратору.`,
           }),
     }));
   }
@@ -2890,7 +2901,7 @@ export class VoiceService {
         ? {}
         : {
             notice:
-              'Аватары заводит владелец. Список виден всем, выбрать аватар в черновике можно, править нельзя.',
+              'Аватары заводит редактор или администратор. Список виден всем, выбрать аватар в черновике можно, править нельзя.',
           }),
     };
   }
@@ -2976,6 +2987,175 @@ export class VoiceService {
     await this._edits?.eraseForAvatar(actor.organizationId, body.avatarId);
     const answer = await this.avatars(actor);
     return { ...answer, state: 'success' };
+  }
+
+  /* ---------------------------------------------------------------------
+   * Чему аватар научился на правках
+   *
+   * Решение владельца 05.09.2026: аватар становится похожим на основе того,
+   * что человек в его черновиках исправил. Пары «было/стало» копятся и так —
+   * их пишет `VoiceEditRepository` на каждом сохранении поста. Здесь только
+   * три действия над ними: посмотреть, сколько накопилось; заплатить один раз
+   * за пачку; и отменить правило, которое человеку не подошло.
+   *
+   * Ни одно из трёх не переписывает текст человека и не трогает версии
+   * голоса: выученное живёт на самом аватаре и переживает пересборку голоса,
+   * потому что принадлежит автору, а не одному замеру.
+   * ------------------------------------------------------------------ */
+
+  /** Аватар, о котором идёт речь, и то, что он уже выучил. */
+  private async learnedFor(
+    actor: VoiceActor
+  ): Promise<{ profileId: string; current: LearnedVoiceRulesV1 }> {
+    const { profile } = await this._profiles.overview(
+      actor.organizationId,
+      actor.avatarId
+    );
+    if (!profile) {
+      throw new VoiceError(
+        'VOICE_PROFILE_NOT_FOUND',
+        'Учиться пока некому: аватара с голосом здесь нет.'
+      );
+    }
+    const current = parseLearnedRules(
+      await this._profiles.learnedRules(actor.organizationId, profile.id)
+    );
+    return { profileId: profile.id, current };
+  }
+
+  /**
+   * Ответ экрана. `pending` — существенные пары ПОСЛЕ последнего прогона:
+   * оплаченное второй раз не показывается как новый материал.
+   */
+  private async learningAnswer(
+    actor: VoiceActor,
+    profileId: string,
+    current: LearnedVoiceRulesV1
+  ): Promise<VoiceLearningResponseV1> {
+    const since = current.lastRunAt ? new Date(current.lastRunAt) : null;
+    const pending = this._edits
+      ? await this._edits.substantiveCount(
+          actor.organizationId,
+          profileId,
+          since
+        )
+      : 0;
+    return {
+      pending,
+      rules: current.rules,
+      minPairs: LEARN_MIN_PAIRS,
+      maxRules: MAX_LEARNED_RULES,
+      canLearn: actor.canManage,
+      lastRunAt: current.lastRunAt,
+    };
+  }
+
+  async learning(actor: VoiceActor): Promise<VoiceLearningResponseV1> {
+    const { profileId, current } = await this.learnedFor(actor);
+    return this.learningAnswer(actor, profileId, current);
+  }
+
+  /**
+   * Один вызов модели на пачку правок.
+   *
+   * Порог обязателен и для нажатия рукой: кнопка решает «когда», а не «на
+   * чём», и правило, выведенное из двух правок, описывает настроение.
+   *
+   * Отметка `lastRunAt` ставится вместе с правилами и только при успехе.
+   * Прогон, который не состоялся, не съедает материал: те же пары уйдут в
+   * следующий, и человек не платит дважды за то, что не получил.
+   */
+  async learnFromEdits(
+    actor: VoiceActor
+  ): Promise<VoiceLearningResponseV1> {
+    this.assertCanManage(actor);
+    const { profileId, current } = await this.learnedFor(actor);
+
+    const assist = this._assist;
+    if (!this._edits || !assist?.learn) {
+      throw new VoiceError(
+        'VOICE_LEARN_UNAVAILABLE',
+        'Обучение на правках в этой сборке не подключено.'
+      );
+    }
+
+    const since = current.lastRunAt ? new Date(current.lastRunAt) : null;
+    const pairs = await this._edits.substantivePairs(
+      actor.organizationId,
+      profileId,
+      since
+    );
+    if (pairs.length < LEARN_MIN_PAIRS) {
+      throw new VoiceError(
+        'VOICE_LEARN_NOT_ENOUGH',
+        `Правок пока ${pairs.length} из ${LEARN_MIN_PAIRS}. Одна-две правки — это настроение, а не привычка.`
+      );
+    }
+
+    const answer = await assist.learn({
+      organizationId: actor.organizationId,
+      prompt: buildLearnPrompt(
+        pairs.map((one) => ({
+          proposedText: one.proposedText,
+          sentText: one.sentText,
+        })),
+        current.rules,
+        // Язык запроса — один из двух, на которых продукт говорит о голосе;
+        // корпус может быть на любом из шестнадцати.
+        toReportLocale(actor.locale ?? 'ru')
+      ),
+    });
+
+    /**
+     * Отметка встаёт по последней ВЗЯТОЙ паре, а не по времени прогона.
+     *
+     * Пары приходят по возрастанию времени и обрезаны окном, поэтому остаток
+     * — всё, что новее последней взятой, — остаётся `pending` и уходит
+     * следующим прогоном. `createdAt` у строки есть всегда; страховка на
+     * `this._now()` нужна только для памяти, где пару могли положить руками.
+     */
+    const last = pairs[pairs.length - 1]?.createdAt;
+    const next = mergeLearnedRules(
+      current,
+      answer,
+      pairs.length,
+      this._now(),
+      last ? new Date(last) : this._now()
+    );
+    await this._profiles.saveLearnedRules(
+      actor.organizationId,
+      profileId,
+      next
+    );
+    return this.learningAnswer(actor, profileId, next);
+  }
+
+  /**
+   * Отменить одно правило.
+   *
+   * `lastRunAt` при этом не двигается: человек убрал вывод, а не материал, и
+   * пары, на которых он был сделан, уже оплачены.
+   */
+  async forgetLearnedRule(
+    actor: VoiceActor,
+    body: VoiceLearnForgetRequestV1
+  ): Promise<VoiceLearningResponseV1> {
+    this.assertCanManage(actor);
+    const { profileId, current } = await this.learnedFor(actor);
+    const next = withoutRule(current, (body?.ruleId ?? '').trim());
+    if (!next) {
+      throw new VoiceError(
+        'VOICE_LEARN_RULE_NOT_FOUND',
+        'Такого правила у аватара нет: возможно, его уже отменили.',
+        body?.ruleId
+      );
+    }
+    await this._profiles.saveLearnedRules(
+      actor.organizationId,
+      profileId,
+      next
+    );
+    return this.learningAnswer(actor, profileId, next);
   }
 
   /* ---------------------------------------------------------------------

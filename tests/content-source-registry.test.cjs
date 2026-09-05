@@ -1208,7 +1208,15 @@ test('controller uses the content-intelligence route and sends request tenant to
     { './permission.exception.class': permissionEnums }
   );
   const dtoModule = loadTypeScriptModule(
-    'libraries/nestjs-libraries/src/dtos/content-intelligence/content-source.dto.ts'
+    'libraries/nestjs-libraries/src/dtos/content-intelligence/content-source.dto.ts',
+    {
+      // Поиск принимает язык читателя с 05.09.2026
+      // (`content-factory-next-fn33.133`); загрузчик считает относительные
+      // пути от файла теста, поэтому список языков подаётся явно.
+      '../content.language': loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/dtos/content.language.ts'
+      ),
+    }
   );
   const controllerModule = loadTypeScriptModule(
     'apps/backend/src/api/routes/content-source.controller.ts',
@@ -1249,7 +1257,10 @@ test('controller uses the content-intelligence route and sends request tenant to
     Reflect.getMetadata('path', controllerModule.ContentSourceController),
     '/content-intelligence/sources'
   );
-  const adminPolicy = (action) => [[action, permissionEnums.Sections.ADMIN]];
+  // `content-factory-next-fn33.90`: регистр источников — работа редактора, а
+  // не администратора. Проверяется по-прежнему то же самое — что на каждой
+  // меняющей двери стоит политика с ожидаемым действием.
+  const editorPolicy = (action) => [[action, permissionEnums.Sections.EDITOR]];
   for (const [method, action] of [
     ['create', permissionEnums.AuthorizationActions.Create],
     ['confirmRights', permissionEnums.AuthorizationActions.Update],
@@ -1263,7 +1274,7 @@ test('controller uses the content-intelligence route and sends request tenant to
         permissionDecorators.CHECK_POLICIES_KEY,
         controllerModule.ContentSourceController.prototype[method]
       ),
-      adminPolicy(action),
+      editorPolicy(action),
       method
     );
   }

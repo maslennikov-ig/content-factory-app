@@ -38,6 +38,18 @@ export type FactFailure = MaterialFailure;
 
 export const FACTS_API = '/content-intelligence/facts';
 
+/**
+ * Витрина с поиском по словам (`content-factory-next-odb8.4`).
+ *
+ * Пустой запрос спрашивает ровно тот же адрес, что и раньше, — это и ключ
+ * SWR, и вопрос к серверу, и держать их одинаковыми дешевле, чем объяснять,
+ * почему `?q=` без значения тоже считается поиском.
+ */
+export const factsListUrl = (q: string): string => {
+  const query = q.trim();
+  return query ? `${FACTS_API}?q=${encodeURIComponent(query)}` : FACTS_API;
+};
+
 export type FactLanguage = 'ru' | 'en';
 export type FactTemporalKind = 'CURRENT' | 'DATED' | 'TIMELESS';
 

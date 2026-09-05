@@ -44,8 +44,14 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 export const EditorialStageSelect: FC<{
   value: EditorialStageValue | null;
   onChange: (value: EditorialStageValue | null) => void;
+  /**
+   * Выключен, когда окно поста открыто на чтение
+   * (`content-factory-next-fn33.90.10`). Выключенная кнопка не открывает
+   * список: выбрать было бы можно, а сохранить — нет.
+   */
+  disabled?: boolean;
   className?: string;
-}> = ({ value, onChange, className }) => {
+}> = ({ value, onChange, disabled, className }) => {
   const { language } = useVariables();
   const locale = resolveEditorialStageLocale(language);
   const copy = editorialStageCopy[locale];
@@ -85,12 +91,13 @@ export const EditorialStageSelect: FC<{
           name="editorialStage"
           aria-label={copy.fieldLabel}
           data-editorial-stage={value ?? ''}
+          disabled={disabled}
           className="flex w-full items-center justify-between gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
         >
           <span className="truncate">{current?.label ?? copy.unset}</span>
           <DropdownArrowIcon size={12} rotated={isOpen} />
         </MenuButton>
-        {isOpen && (
+        {isOpen && !disabled && (
           <MenuList
             aria-label={copy.fieldLabel}
             style={{ boxShadow: 'var(--cf-overlay-shadow)' }}

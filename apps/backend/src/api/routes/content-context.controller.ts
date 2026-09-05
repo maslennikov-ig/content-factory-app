@@ -5,6 +5,7 @@ import {
   HttpException,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Organization, User } from '@prisma/client';
@@ -21,6 +22,7 @@ import {
   CopyContentFactDto,
   CreateContentFactDto,
   LinkContentFactEvidenceDto,
+  ListContentFactsQueryDto,
   ReviewContentFactEvidenceDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-context.dto';
 import { ContentContextService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.service';
@@ -47,9 +49,23 @@ function safeContextError(error: unknown): never {
   throw error;
 }
 
+/**
+ * Who may look, and who may write.
+ *
+ * `Sections.AI` is a plan allowance and knows nothing about roles; the role
+ * lives in `Sections.EDITOR` beside it, and the guard reads two policies with
+ * AND. The allowance is named first on purpose — a workspace that has spent
+ * its month should hear about the month, not about a role nobody sells
+ * (`docs/product/roles-matrix.md`, «Двери»).
+ *
+ * Owner decision of 05.09.2026 (`content-factory-next-fn33.90`): facts and the
+ * evidence under them are the editor's работа. Reading them is any member's:
+ * `aiRead` stays alone.
+ */
 const aiRead = [AuthorizationActions.Read, Sections.AI] as const;
 const aiCreate = [AuthorizationActions.Create, Sections.AI] as const;
-const adminUpdate = [AuthorizationActions.Update, Sections.ADMIN] as const;
+const editorCreate = [AuthorizationActions.Create, Sections.EDITOR] as const;
+const editorUpdate = [AuthorizationActions.Update, Sections.EDITOR] as const;
 
 @ApiTags('Content intelligence · facts and context')
 @Controller('/content-intelligence')
@@ -73,7 +89,7 @@ export class ContentContextController {
   }
 
   @Post('/contexts')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async buildContext(
     @GetOrgFromRequest() organization: Organization,
     @Body() body: BuildContentContextDto
@@ -85,18 +101,30 @@ export class ContentContextController {
     }
   }
 
+  /**
+   * Витрина фактов, при желании суженная поиском по словам
+   * (`content-factory-next-odb8.4`).
+   *
+   * До этого поиск на витрине был клиентским: экран забирал каталог целиком и
+   * прятал лишние строки у себя. Каталог отдаётся с `take: 100`, поэтому
+   * такой поиск честно искал только по первой сотне фактов и молча не видел
+   * остальные. Слово, доехавшее до `where`, снимает именно это.
+   */
   @Get('/facts')
   @CheckPolicies(aiRead as any)
-  async listFacts(@GetOrgFromRequest() organization: Organization) {
+  async listFacts(
+    @GetOrgFromRequest() organization: Organization,
+    @Query() query: ListContentFactsQueryDto = {}
+  ) {
     try {
-      return { facts: await this.facts.listFacts(organization.id) };
+      return { facts: await this.facts.listFacts(organization.id, query?.q) };
     } catch (error) {
       safeContextError(error);
     }
   }
 
   @Post('/facts')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async createFact(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -115,7 +143,7 @@ export class ContentContextController {
    * write on the workspace's own memory, not an administrative review.
    */
   @Post('/facts/:factId/retract')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async retractFact(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -130,7 +158,7 @@ export class ContentContextController {
 
   /** «Вернуть»: the retracted row's only action. */
   @Post('/facts/:factId/restore')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async restoreFact(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -148,7 +176,7 @@ export class ContentContextController {
    * own row, the old one left exactly as it was.
    */
   @Post('/facts/:factId/copy')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async copyFact(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -163,7 +191,7 @@ export class ContentContextController {
   }
 
   @Post('/facts/:factId/evidence')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async linkEvidence(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -191,7 +219,7 @@ export class ContentContextController {
    * and unreachable from the interface, without replacing either.
    */
   @Post('/facts/:factId/evidence/:evidenceId/confirm')
-  @CheckPolicies(aiCreate as any)
+  @CheckPolicies(aiCreate as any, editorCreate as any)
   async confirmEvidence(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -211,7 +239,7 @@ export class ContentContextController {
   }
 
   @Post('/facts/:factId/evidence/:evidenceId/review')
-  @CheckPolicies(adminUpdate as any)
+  @CheckPolicies(editorUpdate as any)
   async reviewEvidenceLink(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -233,7 +261,7 @@ export class ContentContextController {
   }
 
   @Post('/evidence/:evidenceId/assessment')
-  @CheckPolicies(adminUpdate as any)
+  @CheckPolicies(editorUpdate as any)
   async assessEvidence(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,

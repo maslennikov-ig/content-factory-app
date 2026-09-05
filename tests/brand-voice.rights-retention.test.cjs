@@ -105,7 +105,7 @@ const { BrandVoiceController } = loadTypeScriptModule(
           Update: 'update',
           Delete: 'delete',
         },
-        Sections: { ADMIN: 'admin' },
+        Sections: { ADMIN: 'admin', EDITOR: 'editor' },
       },
     '@contentfactory/nestjs-libraries/dtos/content-intelligence/brand-voice.dto':
       {},
@@ -241,8 +241,11 @@ const fill = (service, count = 12) =>
   });
 
 describe('a right is a policy, not a prop', () => {
-  test('deleting a voice profile is an administrator route', () => {
-    expect(policyRecord.get('deleteProfile')).toEqual(['delete', 'admin']);
+  test('deleting a voice profile is an editor route', () => {
+    // `content-factory-next-fn33.90`: голос бренда — работа редактора, и
+    // удаление профиля вместе с ним. Пользователю дверь по-прежнему закрыта,
+    // и `VOICE_FORBIDDEN` ниже — по-прежнему 403.
+    expect(policyRecord.get('deleteProfile')).toEqual(['delete', 'editor']);
   });
 
   test('a member is refused with the code the screen turns into restricted', async () => {

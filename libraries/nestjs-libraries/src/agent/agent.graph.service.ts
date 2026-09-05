@@ -401,29 +401,59 @@ export class AgentGraphService {
       },
     });
 
+  /**
+   * Материал для промпта — и честный ответ на вопрос, был ли он вообще.
+   *
+   * `start()` строит контекст всегда, поэтому первая ветка срабатывает на
+   * каждой генерации, в том числе когда строитель контекста не отдал ничего:
+   * ничего подходящего не нашлось или всё взятое отклонено как
+   * неподтверждённое. Пустой контекст — это не «поиск прошёл и ничего не
+   * дал», это «годного материала нет», а по детерминированному откату
+   * (`docs/product/content-memory-spec.md`, UNAVAILABLE + ALLOW_USER_ONLY)
+   * писать тогда можно только из того, что человек ввёл сам. До
+   * `content-factory-next-fn33.130` здесь стояло `researchAvailable: true`
+   * без условия, и модель получала пустой блок материала вместе с молчаливым
+   * разрешением говорить о свежем — она и говорила, уверенно и без чисел.
+   */
   async research(state: WorkflowChannelsState) {
     if (state.contentContext) {
+      const facts = state.contentContext.facts.map((fact) => ({
+        text: `[${fact.citationId}] ${fact.statement}`,
+        sourceUrl:
+          state.contentContext!.evidence.find((evidence) =>
+            fact.evidenceCitationIds.includes(evidence.citationId)
+          )?.url || '',
+      }));
+      const sources = state.contentContext.evidence.map((evidence) => ({
+        title: `[${evidence.citationId}] ${evidence.title}`,
+        url: evidence.url || '',
+        publishedAt: evidence.publishedAt || undefined,
+      }));
       return {
         fresearch: {
           summary: state.contentContext.facts
             .map((fact) => `[${fact.citationId}] ${fact.statement}`)
             .join('\n'),
-          facts: state.contentContext.facts.map((fact) => ({
-            text: `[${fact.citationId}] ${fact.statement}`,
-            sourceUrl:
-              state.contentContext!.evidence.find((evidence) =>
-                fact.evidenceCitationIds.includes(evidence.citationId)
-              )?.url || '',
-          })),
-          sources: state.contentContext.evidence.map((evidence) => ({
-            title: `[${evidence.citationId}] ${evidence.title}`,
-            url: evidence.url || '',
-            publishedAt: evidence.publishedAt || undefined,
-          })),
+          facts,
+          sources,
         },
-        researchAvailable: true,
+        researchAvailable: facts.length > 0 || sources.length > 0,
       };
     }
+    /**
+     * Из генератора сюда не попасть, и это решение продукта, а не забытая
+     * ветка.
+     *
+     * `start()` собирает материал строителем контекста, который принимает
+     * только подтверждённое человеком на витрине «Откуда факты»; взятое
+     * поиском остаётся UNVERIFIED и отбрасывается. Подмешивать сюда веб-поиск
+     * в обход строителя значило бы вернуть в промпт неподтверждённое, поэтому
+     * ветка остаётся ровно для тех, кто зовёт `research()` без контекста —
+     * сегодня это чат-агент со своим инструментом
+     * (`chat/tools/web.research.tool.ts`) и подбор темы в `autopost.service`,
+     * которые ходят в `WebResearchService` сами, и наборы, проверяющие мягкую
+     * деградацию поиска (`tests/web.research.degradation.test.cjs`).
+     */
     const subject =
       state.question ||
       String(state.messages[state.messages.length - 1]?.content || '');
@@ -457,11 +487,22 @@ export class AgentGraphService {
     }
   }
 
+  /**
+   * Блок материала для промпта. Запрет сильнее рамки.
+   *
+   * `contextText` собран в `start()` из контекста и у пустого контекста
+   * состоит из двух служебных строк — рамки без единой ссылки внутри и
+   * указания «ссылайся только на идентификаторы отсюда». Раньше рамка
+   * проверялась первой и вытесняла честную строку: модель видела пустую
+   * рамку и ни слова о том, что материала нет. Теперь «материала нет»
+   * читается раньше — противоречия быть не может, `research()` выставляет
+   * `false` ровно тогда, когда в рамке пусто.
+   */
   private researchText(state: WorkflowChannelsState) {
-    if (state.contextText) return state.contextText;
     if (state.researchAvailable === false) {
       return 'No web research was performed. Do not claim current or fresh data unless the user supplied it.';
     }
+    if (state.contextText) return state.contextText;
 
     const research = state.fresearch;
     if (!research) return '';

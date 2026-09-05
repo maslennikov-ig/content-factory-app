@@ -4,6 +4,18 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { materialNotFound } from './errors';
+import { wordsWhere } from '../search-terms';
+
+/**
+ * По каким полям ищет поиск по словам.
+ *
+ * Заголовок и текст — обычные колонки, и поиск по ним честно уходит в базу.
+ * Происхождение занесённого текста (площадка, ссылка, заметка) лежит в
+ * `tags` — это JSON, и Prisma не умеет искать в нём без учёта регистра, а
+ * сырой SQL здесь запрещён. Площадка и так отбирается своим фильтром рядом,
+ * так что дыры в отборе это не оставляет; записано в карте раздела.
+ */
+const SEARCHABLE_PIECE_FIELDS = ['title', 'body'] as const;
 
 /**
  * Storage for the material library.
@@ -45,6 +57,28 @@ export class ContentMaterialRepository {
     private readonly repository: PrismaRepository<any>,
     private readonly transaction: PrismaTransaction
   ) {}
+
+  /**
+   * Поиск по словам: какие тексты этого пространства подходят под запрос
+   * (`content-factory-next-odb8.4`).
+   *
+   * Отдельный запрос за одними идентификаторами, а не сужение `listPieces`, и
+   * причина не в стиле. Код материала (`cnt-01`) — это его место в общем
+   * списке от старых к новым; сузь сам список — и `cnt-07` при поиске станет
+   * `cnt-02`, то есть код перестанет быть кодом. Поэтому список читается
+   * целиком, как и раньше, а поиск отвечает множеством, по которому список
+   * потом отбирается.
+   *
+   * `organizationId` стоит в `where` первым и вне слов: слова — это то, что
+   * человек ввёл, а границу пространства ввод не двигает ни при каком запросе.
+   */
+  searchPieceIds(organizationId: string, words: readonly string[]) {
+    const byWords = wordsWhere(words, SEARCHABLE_PIECE_FIELDS);
+    return (this.repository.model as any).contentPiece.findMany({
+      where: { organizationId, archivedAt: null, ...(byWords ?? {}) },
+      select: { id: true },
+    });
+  }
 
   listPieces(organizationId: string) {
     return (this.repository.model as any).contentPiece.findMany({

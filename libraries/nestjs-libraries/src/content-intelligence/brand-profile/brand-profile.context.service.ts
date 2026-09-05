@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { BRAND_PROFILE_VERSION_UNAVAILABLE } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
+import { parseLearnedRules } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-learning';
 import {
   BrandProfileRepositoryError,
   type BrandProfileContentV1,
@@ -31,6 +32,23 @@ function selectedOverride(
 function mergeUnique<T>(base: T[], additions: T[] | undefined) {
   return [...base, ...(additions || [])];
 }
+
+/**
+ * Выученные правила аватара — тексты, в порядке колонки, потолок держит разбор.
+ *
+ * Читается из строки профиля, которую репозиторий уже привёз: и
+ * `getActiveRuntimeVersion`, и `getPublishedRuntimeVersion` берут профиль
+ * целиком, с `organizationId` в условии, так что колонка приезжает бесплатно.
+ * Второй запрос за той же колонкой стоил бы обращения к базе на каждой
+ * генерации и ничего бы не добавил к изоляции — она уже в том же `where`.
+ *
+ * Правила живут в профиле, а не в версии, и это не оплошность: версия — это
+ * снимок голоса, который человек утвердил, а выученное аватар набирает между
+ * утверждениями. Поэтому возврат к старой версии не отменяет обучение, а
+ * кнопка «Отменить» на экране аватара отменяет ровно одно правило.
+ */
+const learnedRuleTexts = (raw: unknown): string[] =>
+  parseLearnedRules(raw).rules.map((rule) => rule.text);
 
 export function resolveEffectiveBrandVoiceV1(
   content: BrandProfileContentV1,
@@ -173,6 +191,7 @@ export class BrandProfileContextService {
 
     const { profile, version } = result;
     const override = selectedOverride(version.content, requestedProvider);
+    const learnedRules = learnedRuleTexts(profile.learnedRules);
     return {
       schemaVersion: 'brand-profile-context/v1',
       selection: selection.mode === 'active' ? 'active' : 'explicit',
@@ -185,10 +204,15 @@ export class BrandProfileContextService {
         contentDigest: version.contentDigest,
         ...(requestedProvider ? { provider: requestedProvider } : {}),
       },
-      effectiveVoice: resolveEffectiveBrandVoiceV1(
-        version.content,
-        requestedProvider
-      ),
+      effectiveVoice: {
+        ...resolveEffectiveBrandVoiceV1(version.content, requestedProvider),
+        /**
+         * Ключа нет, когда учить было нечему: аватар без единого правила
+         * отдаёт ровно тот же голос, что и до обучения, — вплоть до слепка,
+         * которым `content-context.builder` метит снимок контекста.
+         */
+        ...(learnedRules.length ? { learnedRules } : {}),
+      },
       warnings: override
         ? [`platform_override_applied:${requestedProvider}`]
         : [],

@@ -185,7 +185,14 @@ export function ContentFactsContainer({
   onFactCreated,
   pendingEvidence,
   onEvidenceDropped,
+  readOnly = false,
 }: {
+  /**
+   * `content-factory-next-fn33.90.7`: the owner of the tab already knows the
+   * reader may not write; the form is drawn disabled rather than refused on
+   * submit. Reading the catalogue below is untouched.
+   */
+  readOnly?: boolean;
   /**
    * `content-factory-next-lh5s`: an excerpt the person accepted in the search
    * panel above, already frozen and carrying its id.
@@ -497,10 +504,12 @@ export function ContentFactsContainer({
         data-content-facts-form="true"
         onSubmit={(event) => {
           event.preventDefault();
+          if (readOnly) return;
           void submit();
         }}
         className="mt-[16px] grid gap-x-[16px] gap-y-[12px] md:grid-cols-2"
       >
+        <fieldset disabled={readOnly} className="contents min-w-0">
         <h3 className="mb-[4px] cf-label-md text-cf-ink md:col-span-2">
           {t.formTitle}
         </h3>
@@ -619,10 +628,15 @@ export function ContentFactsContainer({
         </details>
 
         <div className="md:col-span-2">
-          <Button type="submit" variant="primary" disabled={busy || !!claimKeyProblem}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={busy || !!claimKeyProblem || readOnly}
+          >
             {busy ? t.submitting : t.submit}
           </Button>
         </div>
+        </fieldset>
       </form>
 
       <div className="mt-[20px] border-t border-cf-border pt-[16px]">

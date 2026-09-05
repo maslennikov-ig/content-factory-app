@@ -138,6 +138,30 @@ const CATALOG = {
     bn: 'সময়সূচী',
     ka_ge: 'განრიგი',
   },
+  /**
+   * Подпись хвостовой коробки со ссылкой на источник в сгенерированном
+   * черновике. Язык берётся у канала, в котором черновик появится
+   * (`Integration.contentLanguage`), а не у того, кто нажал кнопку: читать
+   * эту строку будут подписчики канала.
+   */
+  generated_draft_source_link: {
+    en: 'Check out the full story here:',
+    he: 'לקריאת הכתבה המלאה:',
+    ru: 'Читать целиком:',
+    zh: '阅读全文：',
+    fr: 'Lire l’article complet :',
+    es: 'Leer la historia completa:',
+    pt: 'Leia a história completa:',
+    de: 'Die ganze Geschichte lesen:',
+    it: 'Leggi la storia completa:',
+    ja: '全文はこちら：',
+    ko: '전체 내용 보기:',
+    ar: 'اقرأ القصة كاملة:',
+    tr: 'Tamamını okuyun:',
+    vi: 'Đọc toàn bộ câu chuyện:',
+    bn: 'সম্পূর্ণ গল্পটি পড়ুন:',
+    ka_ge: 'სრულად წაკითხვა:',
+  },
   email_activate_account_subject: {
     en: 'Activate your account',
     he: 'הפעילו את החשבון שלכם',

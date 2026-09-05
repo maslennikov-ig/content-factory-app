@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 /**
  * The right to write, on the two screens of «Контент» that only show things
@@ -16,20 +17,27 @@ import type { ReactNode } from 'react';
  *
  * What this module does NOT do, deliberately: guess in advance.
  *
- * The doors behind these buttons are `[Create, Sections.AI]` for the facts and
- * `[Create, Sections.POSTS_PER_MONTH]` for the archive import — plan sections,
- * not roles. `docs/product/roles-matrix.md` states the consequence in full:
- * with no billing configured, `permissions.service.ts` grants every non-ADMIN
- * section outright, so on this instance every signed-in member of the
- * workspace may retract, copy, confirm and import today. Hiding those buttons
- * from a member the way «Откуда идеи» hides its administrator actions
- * (`content-factory-next-fn33.63`) would be the opposite defect of the one
- * being fixed: a working door made unreachable by a screen that guessed.
+ * The doors behind these buttons carry a plan section and a role beside it:
+ * `[Create, AI]` plus `[Create, EDITOR]` for the facts, `[Create,
+ * POSTS_PER_MONTH]` plus `[Create, EDITOR]` for the archive import. Until
+ * 05.09.2026 there was no role on them at all, and this paragraph said so —
+ * with no billing configured every signed-in member could retract, copy,
+ * confirm and import. The owner's decision that day
+ * (`content-factory-next-fn33.90`) gave those doors to the editor, and this
+ * module needed no change to follow. That is the point of learning the right
+ * from the answer instead of guessing it in advance.
+ *
+ * Since `content-factory-next-fn33.90.8` the role half is known before the
+ * screen draws, the way «Откуда идеи» has always known it — see
+ * `writeRightFromRole` below for why reading the session is not guessing.
+ * The plan half is still learned from the answer: nothing in the browser
+ * holds a running count, and a working door made unreachable by a screen that
+ * guessed at one would be the opposite defect of the one being fixed.
  *
  * So the right is learned from the only authority that has it — the server —
  * and the screen changes the moment it answers. `403` is a role refusal
- * (`Sections.ADMIN` is the only section that produces one; a role is not sold,
- * so it is not `402`) and `402` is a plan limit. Anything else stays an
+ * (`Sections.ADMIN` and `Sections.EDITOR` are the two sections that produce
+ * one; a role is not sold, so it is not `402`) and `402` is a plan limit. Anything else stays an
  * ordinary error, because an ordinary error is what it is.
  */
 
@@ -45,6 +53,30 @@ export const WRITE_ALLOWED: ContentWriteRight = Object.freeze({
   allowed: true,
   refusal: null,
 });
+
+/**
+ * The right the session already knows, before any door has been knocked on.
+ *
+ * The paragraph above says these screens learn their threshold from the first
+ * refusal rather than guessing it, and that stays true of the plan: a plan
+ * limit is a running count and nothing in the browser holds it. A role is not
+ * a count. Since 05.09.2026 it is one function
+ * (`libraries/nestjs-libraries/src/user/organization.roles.ts`), the server
+ * reaches it through `Sections.EDITOR`, and the session carries the role — so
+ * this is not a guess but the same reading, done a moment earlier.
+ *
+ * That moment is the whole defect this closes
+ * (`content-factory-next-fn33.90.8`): on the live walkthrough of 05.09 a
+ * `USER` opened «Занести текст», filled in the title and the body, pressed
+ * «Занести» and lost the lot to a refusal that only arrived then.
+ *
+ * `WRITE_ALLOWED` for anyone who passes: passing the role says nothing about
+ * the plan, and the plan is still learned from the answer.
+ */
+export const writeRightFromRole = (
+  role: string | null | undefined
+): ContentWriteRight =>
+  isOrganizationEditor(role) ? WRITE_ALLOWED : { allowed: false, refusal: 'role' };
 
 /**
  * A refusal read as a verdict about the right, or `WRITE_ALLOWED` when the
@@ -88,7 +120,7 @@ export function ContentReadOnlyNote({
   /** Referenced by `aria-describedby` from every control it explains. */
   id: string;
   /** The screen, for the attribute a review scene and a test look for. */
-  surface: 'facts' | 'archive';
+  surface: 'facts' | 'archive' | 'brief';
   refusal: WriteRefusal;
   children: ReactNode;
 }) {

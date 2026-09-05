@@ -116,6 +116,18 @@ const serve = (table) => {
   };
 };
 
+/**
+ * Роль пришла в архив 05.09.2026 (`content-factory-next-fn33.90.8`): экран
+ * читает её из сеанса и не ждёт первого отказа. Этот набор про отказ по
+ * тарифу — тот в браузере не сосчитать, и он по-прежнему приходит ответом, —
+ * поэтому сеанс здесь администраторский: иначе роль закрыла бы дверь раньше
+ * тарифа и проверять было бы нечего. Саму роль держит
+ * `tests/content-archive.role.test.cjs`.
+ */
+const userContext = loadTypeScriptModule(
+  'apps/frontend/src/components/layout/user.context.tsx'
+);
+
 const renderScreen = async (element) => {
   await act(async () => {
     render(
@@ -123,9 +135,13 @@ const renderScreen = async (element) => {
         SWRConfig,
         { value: { provider: () => new Map(), dedupingInterval: 0 } },
         React.createElement(
-          variables.VariableContextComponent,
-          { language: 'ru' },
-          React.createElement(element)
+          userContext.UserContext.Provider,
+          { value: { role: 'ADMIN' } },
+          React.createElement(
+            variables.VariableContextComponent,
+            { language: 'ru' },
+            React.createElement(element)
+          )
         )
       )
     );

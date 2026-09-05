@@ -74,6 +74,7 @@ export class ContentBriefController {
   }
 
   @Post('/evaluate')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async evaluate(
     @GetOrgFromRequest() organization: Organization,
     @Body() body: EvaluateBriefDto
@@ -90,7 +91,13 @@ export class ContentBriefController {
   }
 
   @Post('/draft')
-  @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // Two policies, read with AND: the plan limit answers first so a workspace
+  // out of posts hears about the plan, and the role second
+  // (`docs/product/roles-matrix.md`, `content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async draft(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,

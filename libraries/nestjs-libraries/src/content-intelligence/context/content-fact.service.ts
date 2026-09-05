@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { ContentFactRepository } from './content-fact.repository';
 import { ContentContextError } from './content-context.errors';
+import { searchWords } from '../search-terms';
 import {
   humanize,
   topicKey,
@@ -110,8 +111,13 @@ export class ContentFactService {
     private readonly repository: ContentFactRepository
   ) {}
 
-  async listFacts(organizationId: string) {
-    const facts = await this.repository.listFacts(organizationId);
+  /**
+   * `q` — поиск по словам (`content-factory-next-odb8.4`). Без него вызов
+   * тот же, что был: бриф зовёт `listFacts(organizationId)` за всем каталогом
+   * и ничего об этом параметре знать не должен.
+   */
+  async listFacts(organizationId: string, q?: string) {
+    const facts = await this.repository.listFacts(organizationId, searchWords(q));
     return facts.map((fact: any) => ({
       id: fact.id,
       claimKey: fact.claimKey,

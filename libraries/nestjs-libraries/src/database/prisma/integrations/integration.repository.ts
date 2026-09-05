@@ -541,6 +541,12 @@ export class IntegrationRepository {
   }
 
   getPostsForChannel(org: string, id: string) {
+    // `integrationId: undefined` is not «no channel» to Prisma, it is «any
+    // channel»; an empty id would group every post of the workspace
+    // (`content-factory-next-fn33.90.3`).
+    if (!id) {
+      throw new Error('getPostsForChannel requires a channel id');
+    }
     return this._posts.model.post.groupBy({
       by: ['group'],
       where: {

@@ -101,6 +101,14 @@ const { PostsService } = loadTypeScriptModule(
       loadTypeScriptModule(
         'libraries/nestjs-libraries/src/database/prisma/posts/production.analytics.ts'
       ),
+    /**
+     * Настоящий каталог строк, а не заглушка: у него нет своих импортов, и
+     * сервис постов берёт из него подпись хвостовой ссылки в языке канала
+     * (`content-factory-next-fn33.137`). Местный загрузчик этого набора не
+     * разбирает `@contentfactory/*`, поэтому файл назван путём.
+     */
+    '@contentfactory/nestjs-libraries/locale/backend-strings':
+      loadTypeScriptModule('libraries/nestjs-libraries/src/locale/backend-strings.ts'),
     '@contentfactory/helpers/utils/has.extension': { hasExtension: () => true },
     '@contentfactory/helpers/utils/strip.links': { stripLinks: (value) => value },
     '@contentfactory/helpers/utils/strip.html.validation': {

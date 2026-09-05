@@ -43,7 +43,10 @@ import {
 } from '@contentfactory/frontend/components/settings/sign-in-methods.component';
 import { SettingsSurface } from '@contentfactory/frontend/components/settings/settings-surface.component';
 import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationAdmin,
+  isOrganizationEditor,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 /**
  * Every tab name this screen can render. `teams` and `api` are in the list even
@@ -110,6 +113,11 @@ export const SettingsPopup: FC<{
   const requestedTab = url.get('tab');
   const showLogout = !url.get('onboarding') || user?.tier?.current === 'FREE';
   const isAdmin = isOrganizationAdmin(user?.role);
+  // Навигация настроек не обещает раздел, за которым сервер ответит отказом.
+  // С 05.09.2026 таких порогов два, а не один: наборы, подписи и автопост
+  // ушли редактору (`content-factory-next-fn33.90`), а вебхуки — наоборот,
+  // строго администратору.
+  const isEditor = isOrganizationEditor(user?.role);
   const loadProfile = useCallback(async () => {
     const personal = await (await fetch('/user/personal')).json();
     form.setValue('fullname', personal.name || '');
@@ -185,10 +193,14 @@ export const SettingsPopup: FC<{
     if (isAdmin) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
     }
-    arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
-    arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
-    arr.push({ tab: 'sets', label: t('sets', 'Sets') });
-    arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
+    if (isAdmin) {
+      arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
+    }
+    if (isEditor) {
+      arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
+      arr.push({ tab: 'sets', label: t('sets', 'Sets') });
+      arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
+    }
     if (isAdmin) {
       arr.push({ tab: 'api', label: t('developers', 'Developers') });
     }
@@ -213,9 +225,20 @@ export const SettingsPopup: FC<{
     });
 
     return arr;
-  }, [isAdmin, isRussian, t]);
+  }, [isAdmin, isEditor, isRussian, t]);
 
-  const isRestrictedTab = !isAdmin && (tab === 'teams' || tab === 'api');
+  /**
+   * Вкладка, которую эта роль не открывает, — вписанная в адрес руками.
+   *
+   * Две причины отказа названы отдельно, потому что человеку нужны разные
+   * ответы: администратора просят у владельца пространства, а редактора — у
+   * того же администратора, и это разговор о другом.
+   */
+  const restrictedTab = !isAdmin && (tab === 'teams' || tab === 'api' || tab === 'webhooks')
+    ? 'admin'
+    : !isEditor && (tab === 'autopost' || tab === 'sets' || tab === 'signatures')
+    ? 'editor'
+    : null;
 
   useEffect(() => {
     loadProfile();
@@ -234,7 +257,7 @@ export const SettingsPopup: FC<{
         ) : undefined
       }
     >
-      {isRestrictedTab ? (
+      {restrictedTab === 'admin' ? (
         <RestrictedState
           title={t(
             'settings_admin_role_required_title',
@@ -243,6 +266,17 @@ export const SettingsPopup: FC<{
           reason={t(
             'settings_admin_role_required_reason',
             'You need an administrator role in this workspace to open this settings section.'
+          )}
+        />
+      ) : restrictedTab === 'editor' ? (
+        <RestrictedState
+          title={t(
+            'settings_editor_role_required_title',
+            'Editor access required'
+          )}
+          reason={t(
+            'settings_editor_role_required_reason',
+            'You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.'
           )}
         />
       ) : tab === 'sign_in_methods' ? (

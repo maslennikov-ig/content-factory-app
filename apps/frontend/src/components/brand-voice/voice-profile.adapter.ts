@@ -39,6 +39,7 @@ import type {
   VersionLifecycle,
   VoiceVersion,
 } from './voice-versions.screen';
+import type { LearnedRule } from './voice-learning.screen';
 import { SCALE_ORDER, type StyleScaleKey, type VoiceLocale } from './voice-copy';
 
 /**
@@ -74,6 +75,10 @@ export const VOICE_ROUTES = Object.freeze({
   redactions: routeOf('redactions', 'GET'),
   versions: routeOf('versions', 'GET'),
   restore: routeOf('versions', 'POST'),
+  /** Чему аватар научился на правках: читать, учить, отменить правило. */
+  learning: routeOf('learning', 'GET'),
+  learningRun: routeOf('learning', 'POST', '/learning/run'),
+  learningForget: routeOf('learning', 'POST', '/learning/forget'),
 });
 
 /* -------------------------------------------------------------------------
@@ -571,4 +576,51 @@ export function versionsPath(
     `${base}${separator}from=${encodeURIComponent(picked[0]!)}` +
     `&to=${encodeURIComponent(picked[1]!)}`
   );
+}
+
+/* -------------------------------------------------------------------------
+ * Чему аватар научился на правках
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Ответ двери обучения, приведённый к тому, что рисует блок.
+ *
+ * Даты форматируются здесь, той же функцией, что и в истории версий: экран,
+ * печатающий `2026-09-05T10:00:00.000Z` рядом с правилом, показывает читателю
+ * машинное время.
+ *
+ * Пороги приходят с сервера и здесь не подставляются числами: пять и десять
+ * решены в `voice-learning.ts`, и вторая копия этих чисел на экране разошлась
+ * бы с первой молча.
+ */
+export function mapLearning(
+  response: unknown,
+  locale: VoiceLocale
+): {
+  pending: number;
+  rules: readonly LearnedRule[];
+  minPairs: number;
+  maxRules: number;
+  canLearn: boolean;
+  lastRunAt: string;
+} {
+  const envelope = asRecord(response);
+  return {
+    pending: asNumber(envelope.pending),
+    rules: asArray(envelope.rules)
+      .map((value) => {
+        const rule = asRecord(value);
+        return {
+          id: asString(rule.id),
+          text: asString(rule.text),
+          learnedAt: formatVoiceDate(asString(rule.learnedAt), locale),
+          pairs: asNumber(rule.pairs),
+        };
+      })
+      .filter((rule) => rule.id && rule.text),
+    minPairs: asNumber(envelope.minPairs),
+    maxRules: asNumber(envelope.maxRules),
+    canLearn: envelope.canLearn === true,
+    lastRunAt: formatVoiceDate(asString(envelope.lastRunAt), locale),
+  };
 }

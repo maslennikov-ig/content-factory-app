@@ -455,3 +455,17 @@ export class VoiceListQueryDto {
   @Type(() => Number)
   take?: number;
 }
+
+/**
+ * Какое правило, выученное на правках, человек отменяет.
+ *
+ * Идентификатор, а не номер в списке: два человека, отменившие «первое
+ * правило» в двух вкладках, отменили бы разные — и второй узнал бы об этом
+ * только по тому, что осталось на экране.
+ */
+export class VoiceLearnForgetDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  ruleId: string;
+}

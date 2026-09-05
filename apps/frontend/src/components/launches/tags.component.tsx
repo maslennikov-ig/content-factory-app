@@ -31,6 +31,12 @@ export const TagsComponent: FC<{
   name: string;
   label: string;
   initial: any[];
+  /**
+   * Выключен, когда окно поста открыто на чтение
+   * (`content-factory-next-fn33.90.10`). Выключенная кнопка не открывает
+   * список: выбрать было бы можно, а сохранить — нет.
+   */
+  disabled?: boolean;
   onChange: (event: {
     target: {
       value: any[];
@@ -58,6 +64,7 @@ export const TagsComponentInner: FC<{
   label: string;
   initial: any[];
   allTags: any;
+  disabled?: boolean;
   mutate: () => Promise<any>;
   onChange: (event: {
     target: {
@@ -65,7 +72,7 @@ export const TagsComponentInner: FC<{
       name: string;
     };
   }) => void;
-}> = ({ initial, onChange, name, mutate, allTags: data }) => {
+}> = ({ initial, onChange, name, mutate, disabled, allTags: data }) => {
   const t = useT();
   const fetch = useFetch();
   const [isOpen, setIsOpen] = useState(false);
@@ -170,6 +177,7 @@ export const TagsComponentInner: FC<{
       <Menu open={isOpen} onOpenChange={setIsOpen}>
         <MenuButton
           aria-label={t('tags', 'Tags')}
+          disabled={disabled}
           className="flex items-center gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
         >
           <TagIcon />
@@ -189,7 +197,7 @@ export const TagsComponentInner: FC<{
           )}
           <DropdownArrowIcon size={12} rotated={isOpen} />
         </MenuButton>
-        {isOpen && (
+        {isOpen && !disabled && (
           <MenuList
             aria-label={t('tags', 'Tags')}
             style={{ boxShadow: 'var(--cf-overlay-shadow)' }}

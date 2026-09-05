@@ -48,8 +48,18 @@ const createPost = jest.fn();
 
 class WebSearchNotConfigured extends Error {}
 
+// Настоящий модуль правил: блок голоса берёт из него два потолка (сколько
+// выученных правил уходит в промпт и какой длины каждое).
+const voiceLearning = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-learning.ts',
+  {}
+);
 const voiceDirectives = loadTypeScriptModule(
-  'libraries/nestjs-libraries/src/agent/voice-directives.ts'
+  'libraries/nestjs-libraries/src/agent/voice-directives.ts',
+  {
+    '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-learning':
+      voiceLearning,
+  }
 );
 const { AutopostService } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts',

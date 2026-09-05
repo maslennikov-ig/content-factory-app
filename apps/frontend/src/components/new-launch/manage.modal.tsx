@@ -18,10 +18,12 @@ import { EditorWrapper } from '@contentfactory/frontend/components/new-launch/ed
 import { SelectCurrent } from '@contentfactory/frontend/components/new-launch/select.current';
 import {
   ComposeBlockReasonNote,
+  COMPOSE_BLOCK_REASON_NOTE_ID,
   composeBlockReason,
 } from '@contentfactory/frontend/components/new-launch/compose-block-reason';
 import { ShowAllProviders } from '@contentfactory/frontend/components/new-launch/providers/show.all.providers';
 import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
+import { UnverifiedEvidenceNote } from '@contentfactory/frontend/components/new-launch/unverified-evidence.note';
 import { DraftGapNote } from '@contentfactory/frontend/components/brand-voice/draft-gap-note';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
@@ -56,6 +58,8 @@ import { useHasScroll } from '@contentfactory/frontend/components/ui/is.scroll.h
 import { useShortlinkPreference } from '@contentfactory/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
 import { Button } from '@contentfactory/react/form/button';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 
 
@@ -290,9 +294,20 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
    * оставалась мёртвой. Причина считается здесь одним выражением, чтобы
    * надпись и запрет не могли разойтись.
    */
+  /**
+   * Пишет ли этот человек посты вообще (`content-factory-next-fn33.90`).
+   *
+   * Окно открывается и на чтение: Пользователь щёлкает по посту в календаре и
+   * должен увидеть, что там написано. Закрыто ровно то, что дверь всё равно
+   * отклонит, — сохранение, расписание, отправка и удаление.
+   */
+  const user = useUser();
+  const canWritePosts = isOrganizationEditor(user?.role);
+
   const blockReason = useMemo(
     () =>
       composeBlockReason({
+        canWrite: canWritePosts,
         locked,
         contentIntelligenceLoadState,
         contentIntelligenceFailure,
@@ -302,6 +317,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
         postSaved: !!existingPost?.id,
       }),
     [
+      canWritePosts,
       locked,
       contentIntelligenceLoadState,
       contentIntelligenceFailure,
@@ -804,7 +820,19 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               * показывал «WEB» и ничего больше.
               */}
             <div className="bg-newBgColor h-[64px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] cf-heading-md">
-              {t('create_post_title', 'Create Post')}
+              {/*
+                Заголовок называет то, что человек делает прямо сейчас
+                (`content-factory-next-fn33.90.10`). «Создать пост» стояло над
+                уже написанным постом, открытым из календаря, — и над постом,
+                открытым на чтение Пользователем, которому создавать нечего.
+                Три случая, три слова; выбирает их то же выражение, что
+                закрывает кнопки, поэтому шапка и низ окна не могут разойтись.
+              */}
+              {!existingData?.integration
+                ? t('create_post_title', 'Create Post')
+                : canWritePosts
+                ? t('edit_post_title', 'Edit Post')
+                : t('view_post_title', 'Post')}
             </div>
             <div className="flex-1 flex flex-col gap-[16px]">
               <div
@@ -830,7 +858,13 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   <div className="flex flex-1 gap-[6px] flex-col">
                     <div>{!existingData.integration && <SelectCurrent />}</div>
                     <div className="flex-1 flex">
-                      {!hide && <EditorWrapper totalPosts={1} value="" />}
+                      {!hide && (
+                        <EditorWrapper
+                          totalPosts={1}
+                          value=""
+                          readOnly={!canWritePosts}
+                        />
+                      )}
                     </div>
                     <div
                       id="social-empty"
@@ -925,6 +959,19 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                     />
                   </div>
                 )}
+                {/**
+                  * Отказ стоит под строкой происхождения, а не вместо неё.
+                  *
+                  * Строка говорит, из чего пост собран; это — чего в нём нет и
+                  * почему (`content-factory-next-fn33.131`). Два разных
+                  * вопроса, и второй возникает только тогда, когда человек
+                  * что-то брал: у поста без отброшенных фрагментов здесь
+                  * пусто.
+                  */}
+                <UnverifiedEvidenceNote
+                  count={contentIntelligenceProvenance?.unverifiedCount}
+                  locale={voiceLocale}
+                />
                 <DraftGapNote gap={props.draftGap} locale={voiceLocale} />
               </Scrollable>
             </div>
@@ -958,6 +1005,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               <TagsComponent
                 name="tags"
                 label={t('tags', 'Tags')}
+                disabled={!canWritePosts}
                 initial={tags}
                 onChange={(e) => {
                   setTags(e.target.value);
@@ -966,13 +1014,18 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
 
             {!dummy && (
-              <RepeatComponent repeat={repeater} onChange={setRepeater} />
+              <RepeatComponent
+                repeat={repeater}
+                onChange={setRepeater}
+                disabled={!canWritePosts}
+              />
             )}
 
             {!dummy && (
               <EditorialStageSelect
                 value={editorialStage}
                 onChange={setEditorialStage}
+                disabled={!canWritePosts}
                 className="w-[160px]"
               />
             )}
@@ -985,7 +1038,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               Пропадает она только там, где помощника нельзя позвать: там его и
               раньше было не позвать, просто это было видно не сразу.
             */}
-            {!assistantOpen && assistantAvailable && (
+            {!assistantOpen && assistantAvailable && canWritePosts && (
               <Button
                 type="button"
                 variant="quiet"
@@ -996,7 +1049,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
           </div>
           <div className="pe-[20px] flex items-center justify-end gap-[8px]">
-            {existingData?.integration && (
+            {existingData?.integration && canWritePosts && (
               <Button
                 variant="destructive"
                 onClick={deletePost}
@@ -1008,11 +1061,16 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                 <div>{t('delete_post', 'Delete Post')}</div>
               </Button>
             )}
-            <DatePicker onChange={setDate} date={date} />
+            <DatePicker
+              onChange={setDate}
+              date={date}
+              disabled={!canWritePosts}
+            />
             {!addEditSets && (
               <Button
                 variant="secondary"
                 disabled={
+                  !canWritePosts ||
                   selectedIntegrations.length === 0 ||
                   loading ||
                   locked ||
@@ -1020,6 +1078,11 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   contentIntelligenceLoadState === 'error' ||
                   contentIntelligenceProvenance?.errorCode ===
                     'CONTENT_EVIDENCE_REQUIRED'
+                }
+                aria-describedby={
+                  blockReason === 'none'
+                    ? undefined
+                    : COMPOSE_BLOCK_REASON_NOTE_ID
                 }
                 onClick={schedule('draft')}
                 className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] justify-center items-center flex rounded-[8px] text-[15px] font-[600]"
@@ -1036,8 +1099,9 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
             {addEditSets && (
               <Button
-                className="text-[15px] font-[600] min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
+                className="text-[15px] font-[600] min-w-[180px] btnSub disabled:cursor-not-allowed outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
                 disabled={
+                  !canWritePosts ||
                   selectedIntegrations.length === 0 || loading || locked
                 }
                 onClick={schedule('draft')}
@@ -1049,6 +1113,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               <div className="group cursor-pointer relative">
                 <Button
                   disabled={
+                    !canWritePosts ||
                     selectedIntegrations.length === 0 ||
                     loading ||
                     locked ||
@@ -1056,8 +1121,13 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                     contentIntelligenceLoadState === 'loading' ||
                     contentIntelligenceLoadState === 'error'
                   }
+                  aria-describedby={
+                    blockReason === 'none'
+                      ? undefined
+                      : COMPOSE_BLOCK_REASON_NOTE_ID
+                  }
                   onClick={schedule('schedule')}
-                  className="relative min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
+                  className="relative min-w-[180px] btnSub disabled:cursor-not-allowed outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
                 >
                   {loading && (
                     <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -1094,6 +1164,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   <Button
                     onClick={schedule('now')}
                     disabled={
+                      !canWritePosts ||
                       selectedIntegrations.length === 0 ||
                       loading ||
                       locked ||
@@ -1102,7 +1173,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       contentIntelligenceLoadState === 'error'
                     }
                     layout="content"
-                    className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] -left-[12px] p-[12px] w-[206px]"
+                    className="rounded-[8px] z-[300] disabled:cursor-not-allowed hidden group-hover:flex absolute bottom-[100%] -left-[12px] p-[12px] w-[206px]"
                   >
                     <div className="rounded-[8px] h-[44px] w-full flex justify-center items-center post-now">
                       {t('post_now', 'Post Now')}

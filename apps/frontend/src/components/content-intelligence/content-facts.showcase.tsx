@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import clsx from 'clsx';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -18,6 +18,7 @@ import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
   FACTS_API,
   buildFactCopyPayload,
+  factsListUrl,
   confirmEvidenceUrl,
   copyFactUrl,
   emptyFactCopyDraft,
@@ -35,6 +36,7 @@ import {
   type GroundingMethod,
 } from './content-facts.adapter';
 import { resolveContentLocale } from './content-section.copy';
+import { HighlightedWords, useDebouncedValue } from './content-search-words';
 import {
   ContentReadOnlyNote,
   WRITE_ALLOWED,
@@ -86,7 +88,9 @@ export const factsShowcaseCopy = {
     // «Бриф», в блоке «Или запомните новый факт»; английская строка ниже
     // называла её правильно всё это время.
     body: 'Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Добавляют факты там, где пишут: во вкладке «Бриф».',
-    searchLabel: 'Искать по утверждениям',
+    searchLabel: 'Искать по словам',
+    searchHint:
+      'Ищет по утверждению, теме и значению. Найдётся то, где встречаются все слова.',
     groundingFilterLabel: 'Чем подтверждено',
     groundingAll: 'Все',
     groundingOwnWord: 'Ваше слово',
@@ -142,7 +146,9 @@ export const factsShowcaseCopy = {
   en: {
     title: 'Where facts come from',
     body: 'What the product treats as true about your business and where it took that from. Whatever is not here does not go into a text. Facts are added where writing happens: the Brief tab.',
-    searchLabel: 'Search claims',
+    searchLabel: 'Search by words',
+    searchHint:
+      'Searches the claim, the topic and the value. A row matches when every word is in it.',
     groundingFilterLabel: 'Grounded by',
     groundingAll: 'All',
     groundingOwnWord: 'Your word',
@@ -248,6 +254,7 @@ export function FactRowView({
   fact,
   locale,
   t,
+  query = '',
   busy,
   canWrite,
   noteId,
@@ -259,6 +266,8 @@ export function FactRowView({
   onConfirm,
 }: {
   fact: FactRow;
+  /** Что искали — подсветить в утверждении ровно эти слова. */
+  query?: string;
   locale: Locale;
   t: (typeof copy)[Locale];
   busy: boolean;
@@ -298,7 +307,7 @@ export function FactRowView({
       >
         <div className="min-w-0 flex-1">
           <p className="max-w-[72ch] cf-body-md text-cf-ink line-through [text-wrap:pretty]">
-            {fact.statement}
+            <HighlightedWords text={fact.statement} query={query} />
           </p>
           <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
             <span className="cf-caption text-cf-ink-muted">{meta}</span>
@@ -353,7 +362,7 @@ export function FactRowView({
     >
       <div className="min-w-0 flex-1">
         <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
-          {fact.statement}
+          <HighlightedWords text={fact.statement} query={query} />
         </p>
         <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
           <GroundingBadge method={grounding.method} t={t} />
@@ -427,11 +436,19 @@ export function ContentFactsShowcase() {
   const t = copy[locale];
   const read = useMemo(() => jsonReader(request), [request]);
 
-  const facts = useSWR(FACTS_API, () => read(FACTS_API), {
-    revalidateOnFocus: false,
-  });
-
+  /*
+    Поиск спрашивает сервер (`content-factory-next-odb8.4`). До этого поле
+    отбирало уже полученные строки у себя, а каталог приходит с `take: 100` —
+    то есть поиск честно не видел ничего, что не попало в первую сотню, и
+    молчал об этом. Набранное ждёт 300 мс и только потом становится адресом.
+  */
   const [search, setSearch] = useState('');
+  const settledSearch = useDebouncedValue(search);
+  const factsUrl = factsListUrl(settledSearch);
+  const facts = useSWR(factsUrl, () => read(factsUrl), {
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+  });
   const [groundingFilter, setGroundingFilter] = useState<GroundingFilter>('ALL');
   const [topicFilter, setTopicFilter] = useState('ALL');
   const [showRetracted, setShowRetracted] = useState(false);
@@ -464,23 +481,22 @@ export function ContentFactsShowcase() {
   }, [rows]);
 
   const visibleRows = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
+    // Отбор по словам сделан сервером: повторять его здесь значило бы
+    // спрятать факт, который подошёл по теме или по значению, а не по
+    // тексту утверждения — то есть спорить с собственным ответом.
     return rows
       .filter((row) => (showRetracted ? true : isUsableFact(row.status)))
       .filter((row) =>
         groundingFilter === 'ALL' ? true : row.grounding.method === groundingFilter
       )
       .filter((row) => (topicFilter === 'ALL' ? true : row.topic === topicFilter))
-      .filter((row) =>
-        query ? row.statement.toLocaleLowerCase().includes(query) : true
-      )
       .slice()
       .sort((left, right) => {
         const leftDate = left.createdAt ? new Date(left.createdAt).getTime() : 0;
         const rightDate = right.createdAt ? new Date(right.createdAt).getTime() : 0;
         return rightDate - leftDate;
       });
-  }, [rows, search, groundingFilter, topicFilter, showRetracted]);
+  }, [rows, groundingFilter, topicFilter, showRetracted]);
 
   const toggleExcerpt = useCallback((id: string) => {
     setExpanded((current) => {
@@ -590,7 +606,13 @@ export function ContentFactsShowcase() {
         />
       ) : state === 'loading' && !facts.data ? (
         <SkeletonRows rows={3} label={t.loading} className="[&>*]:h-[56px]" />
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && !settledSearch.trim() ? (
+        /*
+          Пусто по-настоящему — фактов нет ни одного. Пусто из-за поиска — это
+          другое состояние: там ниже «ничего не найдено», и поле остаётся на
+          экране, иначе человек, набравший слово с опечаткой, теряет вместе с
+          ответом и само поле, которым мог бы поправить запрос.
+        */
         <EmptyState title={t.empty} />
       ) : (
         <>
@@ -600,6 +622,7 @@ export function ContentFactsShowcase() {
               type="search"
               aria-label={t.searchLabel}
               placeholder={t.searchLabel}
+              title={t.searchHint}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               fieldClassName="min-w-[200px] max-w-[320px] flex-1"
@@ -671,6 +694,7 @@ export function ContentFactsShowcase() {
                   fact={fact}
                   locale={locale}
                   t={t}
+                  query={settledSearch}
                   busy={actionFactId === fact.id}
                   canWrite={canWrite}
                   noteId={readOnlyNoteId}

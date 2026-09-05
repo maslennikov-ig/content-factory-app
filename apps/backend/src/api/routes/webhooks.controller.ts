@@ -30,7 +30,14 @@ export class WebhookController {
   }
 
   @Post('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.WEBHOOKS])
+  // A webhook is an outbound address: everything this workspace publishes
+  // starts arriving at somebody else's server. Owner assumption of 05.09.2026
+  // (`content-factory-next-fn33.90`) — that is an administrator's decision,
+  // not an editor's. Plan limit first, role second.
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.WEBHOOKS],
+    [AuthorizationActions.Create, Sections.ADMIN]
+  )
   async createAWebhook(
     @GetOrgFromRequest() org: Organization,
     @Body() body: WebhooksDto
@@ -39,6 +46,7 @@ export class WebhookController {
   }
 
   @Put('/')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateWebhook(
     @GetOrgFromRequest() org: Organization,
     @Body() body: UpdateDto
@@ -47,6 +55,7 @@ export class WebhookController {
   }
 
   @Delete('/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async deleteWebhook(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -55,6 +64,7 @@ export class WebhookController {
   }
 
   @Post('/send')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async sendWebhook(@Body() body: any, @Query() query: OnlyURL) {
     try {
       await fetch(query.url, {

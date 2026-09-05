@@ -168,6 +168,22 @@ export const VOICE_ERROR_CODES = {
    * what its confirmation promises.
    */
   VOICE_AVATAR_SUCCESSOR_REQUIRED: { status: 409, screenState: 'error' },
+  /**
+   * Просят учиться, а учиться пока не на чем.
+   *
+   * Свой код, а не «пусто»: экран говорит, сколько пар не хватает, и это
+   * ответ, а не поломка. Кнопка на экране уже выключена — но выключена она на
+   * той вкладке, которую человек смотрит, а не на второй, открытой полчаса
+   * назад.
+   */
+  VOICE_LEARN_NOT_ENOUGH: { status: 409, screenState: 'error' },
+  /**
+   * Модель не ответила, или ответила не по схеме. Ничего не выучено и ничего
+   * не потеряно: пары остаются на месте и уйдут в следующий прогон.
+   */
+  VOICE_LEARN_UNAVAILABLE: { status: 502, screenState: 'error' },
+  /** Отменяют правило, которого у аватара нет: две вкладки, одна отмена. */
+  VOICE_LEARN_RULE_NOT_FOUND: { status: 404, screenState: 'error' },
   MATERIAL_NOT_FOUND: { status: 404, screenState: 'error' },
   MATERIAL_PLATFORM_UNSUPPORTED: { status: 422, screenState: 'error' },
   BRIEF_FACT_UNGROUNDED: { status: 422, screenState: 'error' },
@@ -1500,6 +1516,44 @@ export type BriefDraftResponseV1 =
  * that has not been submitted yet. Every prop a component declares is one or
  * the other, and the test proves it in both directions.
  */
+/* -------------------------------------------------------------------------
+ * Чему аватар научился на правках
+ * ---------------------------------------------------------------------- */
+
+/** Одно выученное правило, как его читает человек. */
+export type VoiceLearnedRuleV1 = {
+  id: string;
+  text: string;
+  /** ISO. Экран показывает дату, а не «недавно». */
+  learnedAt: string;
+  /** На скольких парах выведено. Число рядом с утверждением. */
+  pairs: number;
+};
+
+/**
+ * Сколько накоплено, чему научились и можно ли учиться сейчас.
+ *
+ * `pending` — существенные пары, накопившиеся ПОСЛЕ последнего прогона:
+ * косметическая правка сюда не попадает, и уже оплаченная пара — тоже.
+ * `canLearn` — право этого человека, а не готовность материала: экран рисует
+ * выключенную кнопку по `pending < minPairs`, а отказ по праву выглядит
+ * иначе.
+ */
+export type VoiceLearningResponseV1 = {
+  pending: number;
+  rules: readonly VoiceLearnedRuleV1[];
+  /** Порог пачки и потолок набора — с сервера, чтобы экран их не перепечатывал. */
+  minPairs: number;
+  maxRules: number;
+  canLearn: boolean;
+  lastRunAt: string | null;
+};
+
+/** Какое правило отменяют. */
+export type VoiceLearnForgetRequestV1 = {
+  ruleId: string;
+};
+
 /** One screen, the routes that feed it, and the props each side owns. */
 export type VoiceSurfaceDefinitionV1 = {
   /** The design's number, or `null` for a surface the design never numbered. */
@@ -1960,6 +2014,52 @@ export const VOICE_SURFACES = {
         path: `${VOICE_API_BASE}/avatars`,
         request: 'VoiceAvatarDeleteRequestV1',
         response: 'VoiceAvatarsResponseV1',
+      },
+    ],
+  },
+  /**
+   * Чему аватар научился на правках человека.
+   *
+   * Без номера: дизайн этот блок не рисовал — он появился из решения владельца
+   * 05.09.2026 и живёт на странице аватара, между паспортом и историей версий,
+   * а не отдельным экраном. Отдельный экран настроек здесь был бы третьей
+   * дверью к одному объекту.
+   *
+   * Читает всякий, кто видит аватара; учат и отменяют — администратор, теми же
+   * правами, что правят голос.
+   */
+  learning: {
+    screen: null as string | null,
+    source: 'voice-learning.screen.tsx',
+    component: 'VoiceLearningScreen',
+    dataFields: [
+      'state',
+      'pending',
+      'rules',
+      'minPairs',
+      'maxRules',
+      'canLearn',
+      'lastRunAt',
+    ],
+    // Что держит браузер: идёт ли прогон прямо сейчас, подсказка про остаток
+    // допуска и отказ последнего нажатия. Ни одного из трёх сервер не знает.
+    clientOnlyProps: ['learning', 'allowanceHint', 'failure'],
+    routes: [
+      {
+        method: 'GET',
+        path: `${VOICE_API_BASE}/learning`,
+        response: 'VoiceLearningResponseV1',
+      },
+      {
+        method: 'POST',
+        path: `${VOICE_API_BASE}/learning/run`,
+        response: 'VoiceLearningResponseV1',
+      },
+      {
+        method: 'POST',
+        path: `${VOICE_API_BASE}/learning/forget`,
+        request: 'VoiceLearnForgetRequestV1',
+        response: 'VoiceLearningResponseV1',
       },
     ],
   },

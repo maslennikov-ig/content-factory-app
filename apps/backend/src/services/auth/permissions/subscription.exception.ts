@@ -64,6 +64,14 @@ const getErrorMessage = (error: {
         default:
           return 'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.';
       }
+    // The writer's role, drawn on 2026-09-05: the user looks, the editor
+    // writes. Without its own sentence every editor refusal fell into the
+    // generic one and the dialog did not say whom to ask.
+    case Sections.EDITOR:
+      switch (error.action) {
+        default:
+          return 'This action is available to organization editors and administrators only. Ask an editor or administrator of your organization to do it for you.';
+      }
     // Every section that reaches this filter must produce text. A refusal
     // whose message is `undefined` renders as an empty dialog.
     default:

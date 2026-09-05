@@ -66,6 +66,15 @@ const container = loadTypeScriptModule(FILE);
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
+/**
+ * Роль пришла в этот экран 05.09.2026 (`content-factory-next-fn33.90.8`):
+ * «Занести текст» открыто редактору, и экран читает это из сеанса, а не ждёт
+ * первого отказа. Набор ниже про слова и запросы, а не про роль, поэтому
+ * рисует его администратором; роль проверяет `tests/content-archive.role.test.cjs`.
+ */
+const userContext = loadTypeScriptModule(
+  'apps/frontend/src/components/layout/user.context.tsx'
+);
 
 const ROW = Object.freeze({
   id: 'piece-1',
@@ -121,9 +130,13 @@ const renderArchive = async (language = 'ru') => {
         SWRConfig,
         { value: { provider: () => new Map(), dedupingInterval: 0 } },
         React.createElement(
-          variables.VariableContextComponent,
-          { language },
-          React.createElement(container.ContentArchiveContainer)
+          userContext.UserContext.Provider,
+          { value: { role: 'ADMIN' } },
+          React.createElement(
+            variables.VariableContextComponent,
+            { language },
+            React.createElement(container.ContentArchiveContainer)
+          )
         )
       )
     );
@@ -227,5 +240,145 @@ describe('«Разбор» says what is true of the row', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.textContent).not.toContain('до того, как черновик стал');
     expect(dialog.textContent).toContain('Список фактов для этого текста не записан');
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Поиск по словам (`content-factory-next-odb8.4`, решение владельца 05.09.2026)
+ * ---------------------------------------------------------------------- */
+
+describe('архив спрашивает сервер словами, а не прячет строки у себя', () => {
+  const searchField = () =>
+    document.querySelector('input[name="archiveSearch"]');
+
+  const type = async (value) => {
+    await act(async () => {
+      fireEvent.change(searchField(), { target: { value } });
+    });
+  };
+
+  const waitDebounce = async () => {
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+    await act(async () => {});
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('поле стоит рядом с остальными фильтрами и подписано', async () => {
+    serve();
+    await renderArchive();
+
+    const field = searchField();
+    expect(field).not.toBeNull();
+    expect(field.getAttribute('type')).toBe('search');
+    expect(field.getAttribute('aria-label')).toBe('Искать по словам');
+  });
+
+  test('набранное уходит в q после задержки, а не на каждый символ', async () => {
+    serve();
+    await renderArchive();
+    calls.length = 0;
+
+    await type('под');
+    await type('подши');
+    await type('подшипники');
+    // Пока человек печатает, вопрос не задаётся ни разу.
+    expect(calls).toEqual([]);
+
+    await waitDebounce();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain(`q=${encodeURIComponent('подшипники')}`);
+    // И это по-прежнему один и тот же список, а не отдельный маршрут поиска.
+    expect(calls[0].url).toContain('/content-intelligence/materials?');
+  });
+
+  test('очищенное поле возвращает прежний вопрос, без пустого q', async () => {
+    serve();
+    await renderArchive();
+
+    await type('подшипники');
+    await waitDebounce();
+    const asked = calls.at(-1).url;
+    expect(asked).toContain('q=');
+
+    await type('');
+    await waitDebounce();
+
+    // `q=` без значения — это уже другой вопрос и другой ключ кэша, поэтому
+    // пустое поле спрашивает ровно тот адрес, что и до поиска. Здесь он
+    // берётся из кэша SWR и нового запроса не делает — важно, что ни один
+    // заданный вопрос не несёт пустого `q`.
+    for (const call of calls) {
+      expect(call.url).not.toMatch(/q=(&|$)/);
+    }
+    const row = document.querySelector('[data-content-archive-row="piece-1"]');
+    expect(row).not.toBeNull();
+  });
+
+  test('поиск возвращает на первую страницу', async () => {
+    // Третья страница прежнего вопроса к новому вопросу отношения не имеет.
+    serve({ ...ARCHIVE, total: 60 });
+    await renderArchive();
+
+    await click(screen.getByRole('button', { name: 'Дальше' }));
+    calls.length = 0;
+
+    await type('подшипники');
+    await waitDebounce();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).not.toContain('page=');
+  });
+
+  test('ничего не найдено — своя фраза, и поле остаётся на экране', async () => {
+    serve();
+    await renderArchive();
+
+    global.fetch = async (url, init = {}) => {
+      calls.push({ url, method: String(init.method || 'GET').toUpperCase() });
+      return ok({
+        ...ARCHIVE,
+        state: 'filtered-empty',
+        materials: [],
+        total: 0,
+      });
+    };
+
+    await type('подшипники');
+    await waitDebounce();
+
+    expect(document.body.textContent).toContain('По этим условиям ничего нет');
+    // Поле никуда не делось: иначе человек с опечаткой теряет вместе с
+    // ответом и то, чем мог бы её поправить.
+    expect(searchField()).not.toBeNull();
+    expect(searchField().value).toBe('подшипники');
+  });
+
+  test('найденные слова подсвечены через <mark> с токенами темы', async () => {
+    serve();
+    await renderArchive();
+
+    await type('поставщика');
+    await waitDebounce();
+
+    const marks = [...document.querySelectorAll('mark')];
+    expect(marks.map((mark) => mark.textContent.toLocaleLowerCase())).toContain(
+      'поставщика'
+    );
+    for (const mark of marks) {
+      // Токены темы и только они: `<mark>` в браузере жёлтый по умолчанию,
+      // а жёлтый по умолчанию — это цвет мимо темы и нечитаемый на тёмном.
+      expect(mark.className).toMatch(/cf-/);
+      expect(mark.className).not.toMatch(/#[0-9a-f]{3,8}/i);
+    }
   });
 });

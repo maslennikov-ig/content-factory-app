@@ -129,10 +129,18 @@ afterEach(() => {
   delete global.fetch;
 });
 
-describe('content-factory-next-fn33.63 — the feed doors are administrator doors, and the screen says so before the work', () => {
-  test('an editor is told the section is read-only and is offered none of the three actions', async () => {
+/**
+ * The threshold moved on 05.09.2026 and the shape of the fix did not.
+ *
+ * `content-factory-next-fn33.90`: the three feed doors carry `Sections.EDITOR`
+ * now, so the editor this defect was found under passes them and the hiding
+ * is aimed at `USER`. Every assertion below is the same assertion, asked of
+ * the role that is refused today.
+ */
+describe('content-factory-next-fn33.63 — the feed doors carry a role, and the screen says so before the work', () => {
+  test('a user is told the section is read-only and is offered none of the three actions', async () => {
     withSubscriptions();
-    await renderTab('EDITOR');
+    await renderTab('USER');
 
     expect(
       document.querySelector('[data-content-leads-read-only]')
@@ -140,14 +148,14 @@ describe('content-factory-next-fn33.63 — the feed doors are administrator door
     expect(screen.queryByRole('button', { name: 'Добавить подписку' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Проверить сейчас' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Отписаться' })).toBeNull();
-    // The list itself stays readable: reading who is watched is not an
-    // administrator door.
+    // The list itself stays readable: reading who is watched is not a role
+    // door.
     expect(document.body.textContent).toContain('Хабр — всё подряд');
   });
 
-  test('an editor looking at an empty section still sees the explanation, with the button disabled rather than live', async () => {
+  test('a user looking at an empty section still sees the explanation, with the button disabled rather than live', async () => {
     withNothing();
-    await renderTab('EDITOR');
+    await renderTab('USER');
 
     const start = screen.getByRole('button', { name: 'Указать ленту' });
     // The button that opened a form the server refuses on save.
@@ -157,22 +165,31 @@ describe('content-factory-next-fn33.63 — the feed doors are administrator door
     ).not.toBeNull();
   });
 
-  test('an administrator sees all three actions and no read-only note', async () => {
-    withSubscriptions();
-    await renderTab('ADMIN');
+  // Both roles above the threshold, and the editor is the one that changed:
+  // before 05.09.2026 this very screen refused it.
+  test.each([['EDITOR'], ['ADMIN']])(
+    '%s sees all three actions and no read-only note',
+    async (role) => {
+      withSubscriptions();
+      await renderTab(role);
 
-    expect(document.querySelector('[data-content-leads-read-only]')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Добавить подписку' })
-    ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Проверить сейчас' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Отписаться' })).toBeTruthy();
-  });
+      expect(
+        document.querySelector('[data-content-leads-read-only]')
+      ).toBeNull();
+      expect(
+        screen.getByRole('button', { name: 'Добавить подписку' })
+      ).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Проверить сейчас' })
+      ).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Отписаться' })).toBeTruthy();
+    }
+  );
 
-  test('the check is the shared role helper, not a second opinion about what an administrator is', () => {
+  test('the check is the shared role helper, not a second opinion about what an editor is', () => {
     const source = fs.readFileSync(path.join(root, LEADS), 'utf8');
-    expect(source).toContain('isOrganizationAdmin');
-    expect(source).not.toMatch(/role\s*===\s*'ADMIN'/u);
+    expect(source).toContain('isOrganizationEditor');
+    expect(source).not.toMatch(/role\s*===\s*'(ADMIN|EDITOR)'/u);
   });
 });
 
@@ -230,6 +247,22 @@ describe('content-factory-next-fn33.67 — an empty calendar cell does not reach
     expect(source).toMatch(
       /integrations\.length[\s\S]{0,80}addModal[\s\S]{0,80}canAddChannel[\s\S]{0,80}addProvider[\s\S]{0,80}refuseAddChannel/u
     );
+  });
+
+  /**
+   * `content-factory-next-fn33.90`. The same cell, the other question, asked
+   * first: `POST /posts` carries the editor's section now, so opening the
+   * compose window for a `USER` would hand them a form with a dead button at
+   * the end of it — the very shape of `fn33.63` one screen over.
+   */
+  test('the empty-cell click asks about writing a post before it opens the window', () => {
+    expect(source).toMatch(
+      /canWritePosts\s*=\s*isOrganizationEditor\(user\?\.role\)/u
+    );
+    expect(source).toMatch(
+      /!canWritePosts[\s\S]{0,40}refuseWritePost[\s\S]{0,80}integrations\.length/u
+    );
+    expect(source).toContain('create_post_editor_only');
   });
 
   test('the refusal says who adds a channel, in a key every locale carries', () => {

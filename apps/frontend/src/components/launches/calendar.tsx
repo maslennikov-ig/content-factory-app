@@ -39,7 +39,10 @@ import { Integration, Post, State, Tags } from '@prisma/client';
 import { useAddProvider } from '@contentfactory/frontend/components/launches/add.provider.component';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import {
+  isOrganizationAdmin,
+  isOrganizationEditor,
+} from '@contentfactory/nestjs-libraries/user/organization.roles';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { groupBy, random, sortBy } from 'lodash';
@@ -1019,6 +1022,27 @@ export const CalendarColumn: FC<{
     );
   }, [t, toaster]);
 
+  /**
+   * The same cell for somebody who may not write a post
+   * (`content-factory-next-fn33.90`, owner decision of 05.09.2026).
+   *
+   * `POST /posts` carries `Sections.EDITOR` now, so opening the compose
+   * window for a `USER` would hand them a form with a dead «Добавить в
+   * календарь» at the end of it. That is the shape of the defect
+   * `content-factory-next-fn33.63` was opened for, one screen over. The cell
+   * answers in one line instead.
+   */
+  const canWritePosts = isOrganizationEditor(user?.role);
+  const refuseWritePost = useCallback(() => {
+    toaster.show(
+      t(
+        'create_post_editor_only',
+        'Writing a post is an editor action. Ask an administrator of this workspace for the editor role.'
+      ),
+      'warning'
+    );
+  }, [t, toaster]);
+
   return (
     <div
       className={clsx(
@@ -1107,7 +1131,9 @@ export const CalendarColumn: FC<{
           <div
             className="pb-[2.5px] px-[5px] flex-1 flex"
             onClick={
-              integrations.length
+              !canWritePosts
+                ? refuseWritePost
+                : integrations.length
                 ? addModal
                 : canAddChannel
                 ? addProvider

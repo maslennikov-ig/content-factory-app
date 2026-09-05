@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useUser } from '../layout/user.context';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   ContentIntelligenceView,
   type ContentIntelligenceActions,
@@ -298,7 +298,10 @@ export function ContentIntelligenceSettings({
   );
   const data = useMemo<ContentIntelligenceData>(
     () => ({
-      canManage: isOrganizationAdmin(user?.role),
+      // Источники и факты — работа редактора с 05.09.2026
+      // (`content-factory-next-fn33.90`). Та же функция, что читает сервер в
+      // `Sections.EDITOR`: экран и дверь не могут разойтись во мнении.
+      canManage: isOrganizationEditor(user?.role),
       sources: sourceEnvelope.sources,
       sourceCapabilities: sourceEnvelope.capabilities,
       sourceDraftMaterial: draftMaterial,

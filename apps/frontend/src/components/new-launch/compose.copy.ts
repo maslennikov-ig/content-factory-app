@@ -59,6 +59,26 @@ export const composeCopy = {
     selectedChannelsRow:
       'Выбранные каналы: откройте канал, чтобы настроить его отдельно',
     removeChannel: 'Убрать канал из поста',
+    /**
+     * Отказ называется там, где он случился, и вместе со следующим шагом.
+     *
+     * Человек взял фрагменты поиском и ждёт их в тексте; продукт считает
+     * подтверждённым только то, что подтвердили на витрине «Откуда факты», и
+     * до тех пор в текст не берёт ничего. Слово «пока» здесь не украшение:
+     * это не отказ навсегда, а незакрытый шаг.
+     */
+    unverifiedDropped: (count: number) =>
+      `${count} ${plural(count, [
+        'взятый фрагмент',
+        'взятых фрагмента',
+        'взятых фрагментов',
+      ])} ${plural(count, [
+        'пока не подтверждён',
+        'пока не подтверждены',
+        'пока не подтверждены',
+      ])} и в текст не ${plural(count, ['попал', 'попали', 'попали'])}.`,
+    unverifiedNextStep: 'Подтвердить их можно на витрине',
+    unverifiedLink: 'Откуда факты',
   },
   en: {
     assembledFrom: (count: number) =>
@@ -80,5 +100,13 @@ export const composeCopy = {
     selectedChannelsRow:
       'Selected channels: open one to set it up on its own',
     removeChannel: 'Remove this channel from the post',
+    unverifiedDropped: (count: number) =>
+      `${count} taken ${
+        count === 1 ? 'fragment is' : 'fragments are'
+      } not confirmed yet, so ${
+        count === 1 ? 'it' : 'they'
+      } stayed out of the text.`,
+    unverifiedNextStep: 'Confirm them under',
+    unverifiedLink: 'Facts',
   },
 } satisfies Record<ComposeLocale, Record<string, unknown>>;

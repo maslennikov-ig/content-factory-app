@@ -68,9 +68,23 @@ const agentTopics = loadTypeScriptModule(
   {}
 );
 
+/**
+ * Настоящий, а не заглушка: у блока голоса он взят ради двух потолков —
+ * сколько выученных правил уходит в промпт и какой длины каждое. Заглушка с
+ * копией этих чисел означала бы, что набор проходит и тогда, когда продукт и
+ * его собственный потолок разошлись.
+ */
+const voiceLearning = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-learning.ts',
+  {}
+);
+
 const voiceDirectives = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/voice-directives.ts',
-  {}
+  {
+    '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-learning':
+      voiceLearning,
+  }
 );
 
 /** Настоящий, а не заглушка: проверка длины арифметическая и модель не зовёт. */

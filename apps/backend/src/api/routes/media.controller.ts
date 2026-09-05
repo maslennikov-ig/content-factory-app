@@ -13,6 +13,11 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
@@ -35,12 +40,23 @@ export class MediaController {
     private _subscriptionService: SubscriptionService
   ) {}
 
+  /*
+   * Media is what the workspace publishes, so every door that adds, changes
+   * or removes a file is the writer's door — the same line the rest of the
+   * product drew on 2026-09-05 (`content-factory-next-fn33.90.1`): the user
+   * looks, the editor writes. Reading the library stays open to every member;
+   * generation also spends the workspace allowance, and before this the only
+   * check on it ran when billing was configured, which on our instance it is
+   * not.
+   */
   @Delete('/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   deleteMedia(@GetOrgFromRequest() org: Organization, @Param('id') id: string) {
     return this._mediaService.deleteMedia(org.id, id);
   }
 
   @Post('/generate-video')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   generateVideo(
     @GetOrgFromRequest() org: Organization,
     @Body() body: VideoDto
@@ -50,6 +66,7 @@ export class MediaController {
   }
 
   @Post('/generate-image')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async generateImage(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
@@ -69,6 +86,7 @@ export class MediaController {
   }
 
   @Post('/generate-image-with-prompt')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
@@ -85,6 +103,7 @@ export class MediaController {
   }
 
   @Post('/upload-server')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new CustomFileValidationPipe())
   async uploadServer(
@@ -102,6 +121,7 @@ export class MediaController {
   }
 
   @Post('/save-media')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async saveMedia(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
@@ -120,6 +140,7 @@ export class MediaController {
   }
 
   @Post('/information')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   saveMediaInformation(
     @GetOrgFromRequest() org: Organization,
     @Body() body: SaveMediaInformationDto
@@ -128,6 +149,7 @@ export class MediaController {
   }
 
   @Post('/upload-simple')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new CustomFileValidationPipe())
   async uploadSimple(
@@ -152,6 +174,7 @@ export class MediaController {
   }
 
   @Post('/:endpoint')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async uploadFile(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
@@ -193,6 +216,7 @@ export class MediaController {
   }
 
   @Post('/video/function')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   videoFunction(
     @Body() body: VideoFunctionDto
   ) {

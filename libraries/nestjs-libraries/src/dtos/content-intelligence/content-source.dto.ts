@@ -7,6 +7,9 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+// Относительно, как в `dtos/users/*`: этот файл грузят несколько наборов
+// собственными загрузчиками модулей, которые не знают путей tsconfig.
+import { ContentLanguage, contentLanguages } from '../content.language';
 
 export class CreateContentSourceDto {
   @IsIn(['MANUAL', 'URL', 'RSS'])
@@ -62,6 +65,17 @@ export class SearchForEvidenceDto {
   @MinLength(2)
   @MaxLength(5_000)
   subject: string;
+
+  /**
+   * `content-factory-next-fn33.133`: the language the answer is read in. The
+   * summary comes back from a search provider, which answers in the language it
+   * was asked in — always English, because the English query is the one every
+   * run makes. Optional, so a client that does not say keeps what the provider
+   * wrote rather than being told a language it never picked.
+   */
+  @IsOptional()
+  @IsIn([...contentLanguages])
+  language?: ContentLanguage;
 }
 
 /**

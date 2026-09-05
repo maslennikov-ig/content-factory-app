@@ -28,14 +28,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+// The reading of the decorators lives next door since 05.09.2026: this guard
+// and `role-doors.three-roles.test.cjs` must not disagree about what the
+// doors are (`content-factory-next-fn33.90`).
+const { doorsWithPolicies } = require('./helpers/backend-doors.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
-const ROUTE_ROOTS = [
-  'apps/backend/src/api/routes',
-  'apps/backend/src/public-api/routes',
-];
 const MATRIX = 'docs/product/roles-matrix.md';
 const GUARD = 'apps/backend/src/services/auth/permissions/permissions.guard.ts';
 const ROLES = 'libraries/nestjs-libraries/src/user/organization.roles.ts';
@@ -43,88 +43,6 @@ const SCHEMA = 'libraries/nestjs-libraries/src/database/prisma/schema.prisma';
 const TEAM_SCREEN = 'apps/frontend/src/components/settings/teams.component.tsx';
 const SETTINGS_SCREEN = 'apps/frontend/src/components/layout/settings.component.tsx';
 const GLOBAL_SETTINGS = 'apps/frontend/src/components/settings/global.settings.tsx';
-
-const HTTP_METHODS = new Set(['Get', 'Post', 'Put', 'Delete', 'Patch']);
-
-const typeScriptFiles = (directory) => {
-  const absolute = path.join(root, directory);
-  if (!fs.existsSync(absolute)) return [];
-  return fs
-    .readdirSync(absolute, { withFileTypes: true })
-    .flatMap((entry) => {
-      const child = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) return typeScriptFiles(child);
-      return entry.name.endsWith('.ts') ? [child] : [];
-    });
-};
-
-const literalOf = (node) =>
-  node && ts.isStringLiteralLike(node) ? node.text : '';
-
-/** Every route handler that carries `@CheckPolicies`, with its sections. */
-const doorsWithPolicies = () => {
-  const doors = [];
-
-  for (const relative of ROUTE_ROOTS.flatMap(typeScriptFiles)) {
-    const source = ts.createSourceFile(
-      relative,
-      read(relative),
-      ts.ScriptTarget.Latest,
-      true
-    );
-
-    source.forEachChild((node) => {
-      if (!ts.isClassDeclaration(node)) return;
-
-      let prefix = null;
-      for (const decorator of ts.getDecorators(node) || []) {
-        const call = decorator.expression;
-        if (
-          ts.isCallExpression(call) &&
-          call.expression.getText() === 'Controller'
-        ) {
-          prefix = literalOf(call.arguments[0]);
-        }
-      }
-      if (prefix === null) return;
-
-      for (const member of node.members) {
-        if (!ts.isMethodDeclaration(member)) continue;
-
-        let method;
-        let route = '';
-        let sections;
-        for (const decorator of ts.getDecorators(member) || []) {
-          const call = decorator.expression;
-          if (!ts.isCallExpression(call)) continue;
-          const name = call.expression.getText();
-          if (HTTP_METHODS.has(name)) {
-            method = name.toUpperCase();
-            route = literalOf(call.arguments[0]);
-          }
-          if (name === 'CheckPolicies') {
-            sections = call.arguments
-              .map((argument) => argument.getText().match(/Sections\.(\w+)/))
-              .filter(Boolean)
-              .map((match) => match[1]);
-          }
-        }
-
-        if (!method || !sections?.length) continue;
-        doors.push({
-          method,
-          path: `${prefix}${route}`.replace(/\/$/, '') || '/',
-          sections,
-          file: relative,
-        });
-      }
-    });
-  }
-
-  return doors.sort((left, right) =>
-    `${left.path} ${left.method}`.localeCompare(`${right.path} ${right.method}`)
-  );
-};
 
 /** The rows of the «Двери» table, in document order. */
 const matrixRows = () => {
@@ -144,9 +62,21 @@ const matrixRows = () => {
         .map((cell) => cell.trim());
       return {
         path: cells[0].replace(/`/g, ''),
+        // A comma joins the policies on one door; a semicolon separates doors
+        // under the same row that carry different ones. `/webhooks` needs
+        // both: `POST` there is a plan limit and a role, `PUT` on the very
+        // same path is the role alone, and no split by path can tell them
+        // apart. Before 05.09.2026 every row happened to hold one combination
+        // and the cell was read as a single list.
         sections: cells[1]
-          .split(',')
-          .map((section) => section.trim())
+          .split(';')
+          .map((combination) =>
+            combination
+              .split(',')
+              .map((section) => section.trim())
+              .filter(Boolean)
+              .join(', ')
+          )
           .filter(Boolean),
         count: Number(cells[2]),
         audience: cells[3],
@@ -198,7 +128,7 @@ describe('the roles matrix describes the doors that exist', () => {
         ].sort(),
       }).toEqual({
         count: row.count,
-        sections: [row.sections.join(', ')],
+        sections: [...row.sections].sort(),
       });
     }
   );
@@ -370,14 +300,20 @@ describe('settings navigation follows the role matrix', () => {
 
   test('the matrix names the tabs visible to each workspace role', () => {
     expect(matrix).toContain('## Экран настроек');
-    expect(matrix).toContain('| `USER` и `EDITOR` |');
+    // Separate rows since 05.09.2026: the two roles no longer see the same
+    // screen, and one row for both would be the very claim
+    // `content-factory-next-fn33.90` was opened to remove.
+    expect(matrix).toContain('| `USER` |');
+    expect(matrix).toContain('| `EDITOR` |');
     expect(matrix).toContain('| `ADMIN` |');
     expect(matrix).toContain('| `SUPERADMIN` |');
+    expect(matrix).not.toContain('| `USER` и `EDITOR` |');
   });
 
   test('administrator-only tabs and global blocks use the shared role helper', () => {
+    expect(settings).toContain('isOrganizationAdmin');
     expect(settings).toContain(
-      "import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';"
+      "} from '@contentfactory/nestjs-libraries/user/organization.roles';"
     );
     expect(settings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
     expect(settings).toMatch(
@@ -386,9 +322,29 @@ describe('settings navigation follows the role matrix', () => {
     expect(settings).toMatch(
       /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'api'/
     );
+    expect(settings).toMatch(
+      /if \(isAdmin\) \{\s+arr\.push\(\{ tab: 'webhooks'/
+    );
     expect(globalSettings).toContain('const isAdmin = isOrganizationAdmin(user?.role);');
     expect(globalSettings).toMatch(/isAdmin && <ShortlinkPreferenceComponent \/>/);
     expect(globalSettings).toMatch(/isAdmin && <AiProviderComponent \/>/);
+  });
+
+  /**
+   * `content-factory-next-fn33.90`. Three tabs whose every control writes
+   * moved to the editor, and one — webhooks — moved the other way. A tab on
+   * which every button would be refused is not information; it is a promise.
+   */
+  test('editor-only tabs use the shared editor helper', () => {
+    expect(settings).toContain(
+      'const isEditor = isOrganizationEditor(user?.role);'
+    );
+    expect(settings).toMatch(
+      /if \(isEditor\) \{\s+arr\.push\(\{ tab: 'autopost'/
+    );
+    for (const tab of ['sets', 'signatures']) {
+      expect(settings).toContain(`arr.push({ tab: '${tab}'`);
+    }
   });
 
   /**
@@ -402,10 +358,10 @@ describe('settings navigation follows the role matrix', () => {
     sign_in_methods: 'Способы входа',
     content_intelligence: '«Знания о контенте»',
     teams: '[Команды]',
-    webhooks: 'Вебхуки',
-    autopost: 'Автопостинг',
-    sets: 'Наборы',
-    signatures: 'Подписи',
+    webhooks: '[Вебхуки]',
+    autopost: '(Автопостинг)',
+    sets: '(Наборы)',
+    signatures: '(Подписи)',
     api: '[Разработчики]',
     approved_apps: 'Одобренные приложения',
     onboarding: '«С чего начать»',
@@ -435,11 +391,17 @@ describe('settings navigation follows the role matrix', () => {
     expect(documented).toEqual(codeOrder.map((tab) => TAB_NAMES[tab]));
   });
 
-  test('a member opening an administrator tab from the address bar gets an in-page restriction', () => {
+  test('a member opening a tab their role has not got gets an in-page restriction', () => {
     expect(settings).toContain("const requestedTab = url.get('tab');");
     expect(settings).toContain('requestedTab ?? initialSettingsTab(url)');
     expect(settings).toContain('RestrictedState');
     expect(settings).toContain('settings_admin_role_required_title');
     expect(settings).toContain('settings_admin_role_required_reason');
+    // Two refusals, not one worded for both: an administrator is asked of the
+    // workspace owner and an editor of the administrator.
+    expect(settings).toContain('settings_editor_role_required_title');
+    expect(settings).toContain('settings_editor_role_required_reason');
+    expect(settings).toContain("restrictedTab === 'admin'");
+    expect(settings).toContain("restrictedTab === 'editor'");
   });
 });

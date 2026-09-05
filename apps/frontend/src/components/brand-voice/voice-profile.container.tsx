@@ -10,11 +10,14 @@ import { VoicePassportScreen } from './voice-passport.screen';
 import { VoiceScalesScreen, type CorridorEdit } from './voice-scales.screen';
 import { VoiceRedactionsScreen } from './voice-redactions.screen';
 import { VoiceVersionsScreen } from './voice-versions.screen';
+import { VoiceLearningScreen } from './voice-learning.screen';
+import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
 import type { RedactionCategory } from './voice-redactions.screen';
 import type { StyleScaleKey, VoiceLocale } from './voice-copy';
 import {
   VOICE_ROUTES,
   defaultComparedIds,
+  mapLearning,
   mapPassport,
   mapRedactions,
   mapScales,
@@ -93,6 +96,16 @@ export function VoiceProfileContainer({
   const [corridorSaved, setCorridorSaved] = useState(false);
   const [recalibrating, setRecalibrating] = useState(false);
   const [recalibrated, setRecalibrated] = useState(false);
+  /**
+   * Идёт ли разбор правок и чем кончилось последнее нажатие.
+   *
+   * Отказ держится здесь, а не в ошибке запроса: `POST` уходит мимо SWR, и его
+   * «правок пока три из пяти» иначе было бы некуда положить — экран показал бы
+   * прежнее число и ни слова о том, почему ничего не произошло.
+   */
+  const [learning, setLearning] = useState(false);
+  const [learnFailure, setLearnFailure] = useState<string | undefined>();
+  const [learned, setLearned] = useState(false);
 
   /** The route, with the avatar it is about. See the prop's own note. */
   const scoped = useCallback(
@@ -120,6 +133,7 @@ export function VoiceProfileContainer({
     read,
     options
   );
+  const learningQuery = useSWR(scoped(VOICE_ROUTES.learning), read, options);
 
   const failures: ReadonlyArray<readonly [string, VoiceFailure | null]> = [
     ['passport', readVoiceFailure(passportQuery.error)],
@@ -129,6 +143,14 @@ export function VoiceProfileContainer({
   ];
   const [passportFailure, scalesFailure, redactionsFailure, versionsFailure] =
     failures.map(([, failure]) => failure);
+  /**
+   * Отказ двери обучения — отдельно от общего списка, и намеренно.
+   *
+   * Баннеры наверху рисуются по этому списку, а блок обучения печатает свой
+   * отказ у себя: попав в список, «сервер отказал» о нём читалось бы дважды
+   * подряд, и оба раза — одним и тем же предложением.
+   */
+  const learningFailure = readVoiceFailure(learningQuery.error);
 
   const passport = useMemo(
     () => mapPassport(passportQuery.data),
@@ -142,6 +164,10 @@ export function VoiceProfileContainer({
   const versions = useMemo(
     () => mapVersions(versionsQuery.data, locale),
     [versionsQuery.data, locale]
+  );
+  const learningView = useMemo(
+    () => mapLearning(learningQuery.data, locale),
+    [learningQuery.data, locale]
   );
 
   /**
@@ -298,6 +324,59 @@ export function VoiceProfileContainer({
     [mutation, passportQuery, request, scalesQuery, scoped]
   );
 
+  /**
+   * Один разбор накопленных правок.
+   *
+   * Ответ кладётся в кэш без перечитывания: сервер вернул то же самое, что
+   * вернул бы `GET`, и второй запрос за той же строкой — это лишний круг по
+   * сети ради числа, которое уже пришло.
+   */
+  const learn = useCallback(
+    () =>
+      void (async () => {
+        setLearning(true);
+        setLearned(false);
+        setLearnFailure(undefined);
+        try {
+          const next = await readVoice(
+            request,
+            scoped(VOICE_ROUTES.learningRun),
+            { method: 'POST' }
+          );
+          await learningQuery.mutate(next, { revalidate: false });
+          setLearned(true);
+        } catch (error) {
+          setLearnFailure(
+            readVoiceFailure(error)?.message ?? t.failureLead
+          );
+        } finally {
+          setLearning(false);
+        }
+      })(),
+    [learningQuery, request, scoped, t.failureLead]
+  );
+
+  const forgetRule = useCallback(
+    (ruleId: string) =>
+      void (async () => {
+        setLearned(false);
+        setLearnFailure(undefined);
+        try {
+          const next = await readVoice(
+            request,
+            scoped(VOICE_ROUTES.learningForget),
+            { method: 'POST', body: JSON.stringify({ ruleId }) }
+          );
+          await learningQuery.mutate(next, { revalidate: false });
+        } catch (error) {
+          setLearnFailure(
+            readVoiceFailure(error)?.message ?? t.failureLead
+          );
+        }
+      })(),
+    [learningQuery, request, scoped, t.failureLead]
+  );
+
   const versionsState = restored
     ? 'success'
     : surfaceState({
@@ -359,6 +438,41 @@ export function VoiceProfileContainer({
               onRemoveExample: removeExample,
               onRefreshExamples: refreshExamples,
             }
+          : {})}
+      />
+
+      {/* Чему аватар научился на правках человека. Между паспортом и
+          шкалами: паспорт говорит, как аватар пишет, а этот блок — что в
+          этом человек постоянно исправляет. */}
+      <VoiceLearningScreen
+        locale={locale}
+        state={
+          learned
+            ? 'success'
+            : surfaceState({
+                loading: learningQuery.isLoading,
+                failure: learningFailure,
+                response: learningQuery.data,
+                fallback: 'default',
+              })
+        }
+        pending={learningView.pending}
+        rules={learningView.rules}
+        minPairs={learningView.minPairs}
+        maxRules={learningView.maxRules}
+        canLearn={learningView.canLearn}
+        {...(learningView.lastRunAt
+          ? { lastRunAt: learningView.lastRunAt }
+          : {})}
+        learning={learning}
+        {...(learnFailure || learningFailure
+          ? { failure: learnFailure ?? learningFailure!.message }
+          : {})}
+        // Платная кнопка называет остаток допуска до нажатия, как поиск
+        // подтверждений и мастер голоса.
+        allowanceHint={<AllowanceHint />}
+        {...(learningView.canLearn
+          ? { onLearn: learn, onForget: forgetRule }
           : {})}
       />
 

@@ -184,6 +184,9 @@ describe('the route joins the surface that already exists', () => {
       'ribbon',
       'materials',
       'avatars',
+      // Чему аватар научился на правках: блок страницы аватара, без номера у
+      // дизайна (решение владельца 05.09.2026).
+      'learning',
       'brief',
     ]);
     const paths = contract.VOICE_SURFACES.samples.routes.map(

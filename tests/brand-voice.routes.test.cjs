@@ -163,7 +163,7 @@ const controllerModule = loadTypeScriptModule(
           Update: 'update',
           Delete: 'delete',
         },
-        Sections: { ADMIN: 'admin' },
+        Sections: { ADMIN: 'admin', EDITOR: 'editor' },
       },
     '@contentfactory/nestjs-libraries/dtos/content-intelligence/brand-voice.dto':
       {},
@@ -373,6 +373,9 @@ describe('every screen the contract lists has a route that answers it', () => {
       'versions',
       'ribbon',
       'avatars',
+      // Чему аватар научился на правках: без номера у дизайна, блок на
+      // странице аватара (решение владельца 05.09.2026).
+      'learning',
     ]);
   });
 
@@ -386,24 +389,41 @@ describe('every screen the contract lists has a route that answers it', () => {
       'activateProposal',
       'setCorridor',
       'restoreVersion',
-      // Заводит, переименовывает, назначает и удаляет аватары — владелец.
-      // Без этих четырёх «Аватары заводит владелец» осталось бы надписью.
+      // Заводит, переименовывает, назначает и удаляет аватары — редактор.
+      // Без этих четырёх «Аватары заводит редактор» осталось бы надписью.
       'createAvatar',
       'updateAvatar',
       'setDefaultAvatar',
       'deleteAvatar',
+      // Учить аватара на правках стоит вызова модели, а отмена правила меняет
+      // то, чем он пишет: обе двери — администратора, как и правка голоса.
+      'learnFromEdits',
+      'forgetLearnedRule',
     ];
     for (const handler of changing) {
       expect(policyRecord.has(handler)).toBe(true);
       const [action, section] = policyRecord.get(handler);
       expect(['create', 'update', 'delete']).toContain(action);
-      expect(section).toBe('admin');
+      // Раздел `editor`, а не `admin`, с 05.09.2026: решение владельца
+      // (`content-factory-next-fn33.90`) отдало голос бренда и аватары
+      // редактору. Порог сдвинулся, требование «на каждой меняющей двери
+      // есть политика» — нет, и оно здесь главное.
+      expect(section).toBe('editor');
     }
     // Without this the `restricted` state the screens draw would be a drawing:
     // a member would be told no and would still have been able to write.
     // Список аватаров читает и участник: выбрать аватар в черновике он может,
     // значит должен видеть, какие есть.
-    for (const handler of ['overview', 'paths', 'samples', 'passport', 'avatars']) {
+    for (const handler of [
+      'overview',
+      'paths',
+      'samples',
+      'passport',
+      'avatars',
+      // Что аватар выучил, читает всякий, кто его видит: это то же чтение,
+      // что паспорт голоса.
+      'learning',
+    ]) {
       expect(policyRecord.has(handler)).toBe(false);
     }
   });

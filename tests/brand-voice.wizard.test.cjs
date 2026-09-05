@@ -419,7 +419,7 @@ describe('the voice wizard on live data', () => {
           canEdit: false,
           canDelete: false,
         }),
-        note: 'Раздел открыт на чтение: изменить голос может администратор.',
+        note: 'Раздел открыт на чтение: изменить голос может редактор или администратор.',
       }),
     });
     await renderWizard(server);
@@ -428,7 +428,7 @@ describe('the voice wizard on live data', () => {
     expect(empty).not.toBeNull();
     expect(empty.getAttribute('data-voice-state')).toBe('restricted');
     expect(empty.textContent).toContain(
-      'Раздел открыт на чтение: изменить голос может администратор.'
+      'Раздел открыт на чтение: изменить голос может редактор или администратор.'
     );
     expect(
       openWizard(screen).disabled
@@ -1308,7 +1308,7 @@ describe('the wizard adapter', () => {
       voiceFailureFrom(
         {
           code: 'VOICE_FORBIDDEN',
-          message: 'Изменение голоса — право администратора.',
+          message: 'Изменение голоса — право редактора или администратора.',
           status: 403,
         },
         'ru'
@@ -1316,7 +1316,7 @@ describe('the wizard adapter', () => {
     ).toMatchObject({
       code: 'VOICE_FORBIDDEN',
       screenState: 'restricted',
-      message: 'Изменение голоса — право администратора.',
+      message: 'Изменение голоса — право редактора или администратора.',
     });
     expect(
       voiceFailureFrom(

@@ -4,6 +4,21 @@ import {
   PrismaTransaction,
 } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { ContentContextError } from './content-context.errors';
+import { wordsWhere } from '../search-terms';
+
+/**
+ * По каким полям ищет поиск по словам на витрине фактов
+ * (`content-factory-next-odb8.4`).
+ *
+ * `statement` — то, что человек читает на карточке; `claimKey` — тема и
+ * признак, по которым витрина и так группирует (`тема|признак`), поэтому
+ * поиск по названию темы попадает именно сюда; `valueText` — само значение,
+ * то есть «20%» или «Новосибирск», ради которого факт и заводили.
+ * Источник факта живёт через связь `evidenceLinks → evidence → snapshot`;
+ * его в поиск не берут, чтобы один запрос не превращался в обход трёх таблиц
+ * с `contains` по каждой — записано в карте раздела как незакрытая часть.
+ */
+const SEARCHABLE_FACT_FIELDS = ['statement', 'claimKey', 'valueText'] as const;
 
 type PrismaClientLike = Record<string, any>;
 
@@ -67,9 +82,21 @@ export class ContentFactRepository {
     return this.repository.model as PrismaClientLike;
   }
 
-  async listFacts(organizationId: string) {
+  /**
+   * Витрина фактов, при желании суженная поиском по словам.
+   *
+   * `words` пустой — запрос ровно тот же, что был до поиска. Слова
+   * добавляются ВНУТРЬ того же `where`, рядом с `organizationId`, а не поверх
+   * него: чужое пространство недостижимо любым набором слов.
+   */
+  async listFacts(organizationId: string, words: readonly string[] = []) {
+    const byWords = wordsWhere(words, SEARCHABLE_FACT_FIELDS);
     const facts = await this.client().contentFact.findMany({
-      where: { organizationId, status: { not: 'TOMBSTONED' } },
+      where: {
+        organizationId,
+        status: { not: 'TOMBSTONED' },
+        ...(byWords ?? {}),
+      },
       orderBy: [{ claimKey: 'asc' }, { id: 'asc' }],
       take: 100,
       include: {

@@ -60,6 +60,7 @@ import { LoadingComponent } from '@contentfactory/frontend/components/layout/loa
 import { useDebounce } from 'use-debounce';
 import { ImageEditorModal } from '@contentfactory/frontend/components/media/image-editor/image-editor-modal';
 import { uploadEditedMedia } from '@contentfactory/frontend/components/media/image-editor/upload-edited-media';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   completeEditedMedia,
   completeMediaBoxEditorSave,
@@ -250,6 +251,33 @@ const isEditableImage = (
       hasExtension(value, extension)
     )
   );
+/**
+ * Одна строка о том, почему «Загрузить» не нажимается
+ * (`content-factory-next-fn33.90.9`).
+ *
+ * `docs/design/component-authoring-rules.md`: выключенный контрол объясняет
+ * себя, и объяснение — это текст, а не пустое место там, где была кнопка.
+ * `role="status"` — потому что это и есть состояние экрана, а не подсказка
+ * при наведении: до мыши тут дела нет. Кнопка ссылается на строку через
+ * `aria-describedby`, поэтому причина слышна и без взгляда на экран.
+ */
+export const ReadOnlyMediaNote: FC<{ id: string }> = ({ id }) => {
+  const t = useT();
+  return (
+    <p
+      id={id}
+      role="status"
+      data-media-read-only="library"
+      className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+    >
+      {t(
+        'media_read_only_role',
+        'The library is open to read. Adding and deleting media is done by an editor or an administrator of this workspace.'
+      )}
+    </p>
+  );
+};
+
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
@@ -288,6 +316,26 @@ export const MediaBox: FC<{
     null
   );
   const editorTrigger = useRef<HTMLElement | null>(null);
+  /**
+   * Библиотека читается всеми, пополняет её редактор
+   * (`content-factory-next-fn33.90.9`, `.90.12`).
+   *
+   * Все двери `/media`, кроме чтения списка, несут `Sections.EDITOR`
+   * (`docs/product/roles-matrix.md`). До этой правки экран об этом не знал:
+   * под Пользователем «Загрузить» была живой, загрузчик четыре раза подряд
+   * отправлял `POST /media/upload-server`, получал четыре 403 и печатал
+   * «Загрузка не удалась: Failed to upload probe.png» — половина строки
+   * по-английски, потому что Uppy пишет её сам, мимо перевода и мимо общего
+   * диалога отказа. Красный × на плитке вёл к тому же 403 после диалога
+   * подтверждения.
+   *
+   * Роль читается из сеанса той же функцией, что и на сервере, поэтому
+   * отказа ждать не нужно: экран знает свой порог до того, как что-то
+   * нарисует.
+   */
+  const user = useUser();
+  const canWriteMedia = isOrganizationEditor(user?.role);
+  const readOnlyNoteId = 'media-box-read-only';
 
   /**
    * Полоса загрузки говорит на языке экрана (`content-factory-next-fn33.28.15`).
@@ -466,7 +514,8 @@ export const MediaBox: FC<{
     return (
       <Button
         variant="secondary"
-        disabled={loading}
+        disabled={loading || !canWriteMedia}
+        aria-describedby={canWriteMedia ? undefined : readOnlyNoteId}
         onClick={() => uploaderRef?.current?.click()}
         className="relative cursor-pointer changeColor flex gap-[8px] px-[18px] justify-center items-center rounded-[8px]"
       >
@@ -482,7 +531,7 @@ export const MediaBox: FC<{
         </div>
       </Button>
     );
-  }, [t, loading]);
+  }, [t, loading, canWriteMedia, readOnlyNoteId]);
 
   const onEditedMediaSaved = useCallback(
     async (uploaded: UploadedMedia) => {
@@ -535,7 +584,7 @@ export const MediaBox: FC<{
         />
       )}
       <DropFiles
-        disabled={loading || !!editorSource}
+        disabled={loading || !!editorSource || !canWriteMedia}
         className="flex flex-col flex-1"
         onDrop={dragAndDrop}
       >
@@ -568,9 +617,12 @@ export const MediaBox: FC<{
             />
             <div className="flex gap-[8px]">
               {btn}
-              <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              {canWriteMedia && (
+                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              )}
             </div>
           </div>
+          {!canWriteMedia && <ReadOnlyMediaNote id={readOnlyNoteId} />}
           <div className="w-full pointer-events-none relative mt-[5px] mb-[5px]">
             <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
               <Dashboard
@@ -649,8 +701,11 @@ export const MediaBox: FC<{
                   </div>
                   <div className="forceChange flex gap-[8px]">
                     {btn}
-                    <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                    {canWriteMedia && (
+                      <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                    )}
                   </div>
+                  {!canWriteMedia && <ReadOnlyMediaNote id={readOnlyNoteId} />}
                 </>
               )}
               {isLoading && (
@@ -698,12 +753,12 @@ export const MediaBox: FC<{
                           {selected.findIndex((z: any) => z.id === media.id) +
                             1}
                         </div>
-                      ) : (
+                      ) : canWriteMedia ? (
                         <DeleteCircleIcon
                           className="cursor-pointer hidden z-[100] group-hover:block absolute -top-[5px] -end-[5px]"
                           onClick={deleteImage(media)}
                         />
-                      )}
+                      ) : null}
                       <div className="absolute bottom-[10px] end-[10px] z-[100]">
                         {media.originalName}
                       </div>
@@ -738,7 +793,7 @@ export const MediaBox: FC<{
                             alt="media"
                           />
                         )}
-                        {isEditableImage(media) && (
+                        {canWriteMedia && isEditableImage(media) && (
                           <Button
                             type="button"
                             iconOnly
@@ -816,6 +871,16 @@ export const MultiMediaComponent: FC<{
   label: string;
   description: string;
   mediaNotAvailable?: boolean;
+  /**
+   * Окно поста, открытое на чтение (`content-factory-next-fn33.90.10`).
+   *
+   * Отдельно от `mediaNotAvailable`: тот говорит «у этой площадки медиа не
+   * бывает», а этот — «показать вложения, но не давать их менять». Уже
+   * приложенные картинки видно; «Вставить медиа», картинка от ИИ, крестик и
+   * правка — нет, потому что за каждым из них дверь `/media` или `/posts`, а
+   * они несут `Sections.EDITOR`.
+   */
+  readOnly?: boolean;
   dummy: boolean;
   allData: {
     content: string;
@@ -860,6 +925,7 @@ export const MultiMediaComponent: FC<{
     toolBar,
     information,
     mediaNotAvailable,
+    readOnly,
   } = props;
   const user = useUser();
   const modals = useModals();
@@ -1037,43 +1103,46 @@ export const MultiMediaComponent: FC<{
                     )}
                   </div>
 
-                  {isEditableImage({
-                    path: media.path,
-                    name: media.path,
-                    originalName: null,
-                  }) && (
-                    <Button
-                      type="button"
-                      iconOnly
-                      density="dense"
-                      variant="secondary"
-                      aria-label={t('edit_image', 'Edit image')}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        editorTrigger.current = event.currentTarget;
-                        setEditorIndex(index);
-                      }}
-                      // Dense (32px) inside the 40px thumbnail, revealed on
-                      // hover like the settings control beside it, and kept off
-                      // the close circle in the opposite corner. Geometry comes
-                      // from the shared control; nothing here retypes a size.
-                      className="absolute bottom-0 start-0 z-[20] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                    >
-                      <DesignMediaIcon aria-hidden="true" />
-                    </Button>
-                  )}
+                  {!readOnly &&
+                    isEditableImage({
+                      path: media.path,
+                      name: media.path,
+                      originalName: null,
+                    }) && (
+                      <Button
+                        type="button"
+                        iconOnly
+                        density="dense"
+                        variant="secondary"
+                        aria-label={t('edit_image', 'Edit image')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          editorTrigger.current = event.currentTarget;
+                          setEditorIndex(index);
+                        }}
+                        // Dense (32px) inside the 40px thumbnail, revealed on
+                        // hover like the settings control beside it, and kept off
+                        // the close circle in the opposite corner. Geometry comes
+                        // from the shared control; nothing here retypes a size.
+                        className="absolute bottom-0 start-0 z-[20] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                      >
+                        <DesignMediaIcon aria-hidden="true" />
+                      </Button>
+                    )}
 
-                  <CloseCircleIcon
-                    onClick={clearMedia(index)}
-                    className="absolute -end-[4px] -top-[4px] z-[20] rounded-full bg-white"
-                  />
+                  {!readOnly && (
+                    <CloseCircleIcon
+                      onClick={clearMedia(index)}
+                      className="absolute -end-[4px] -top-[4px] z-[20] rounded-full bg-white"
+                    />
+                  )}
                 </div>
               ))}
             </ReactSortable>
           )}
         </div>
         <div className="flex gap-[8px] px-[12px] border-t border-newColColor w-full b1 text-textColor">
-          {!mediaNotAvailable && (
+          {!mediaNotAvailable && !readOnly && (
             <div className="flex py-[10px] b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
@@ -1104,7 +1173,7 @@ export const MultiMediaComponent: FC<{
               agent, Veo3, the Reddit options — it stood alone at the end of
               the row: a stray vertical stroke with nothing on its far side.
               A separator with one side is not a separator. */}
-          {!mediaNotAvailable && !!toolBar && (
+          {!mediaNotAvailable && !readOnly && !!toolBar && (
             <div className="text-newColColor h-full flex items-center">
               <VerticalDividerIcon />
             </div>

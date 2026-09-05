@@ -53,7 +53,7 @@ new Function('exports', 'require', 'module', '__filename', '__dirname', compiled
   helperFile,
   path.dirname(helperFile)
 );
-const { formatLocalizedDateTime } = loaded.exports;
+const { formatLocalizedDate, formatLocalizedDateTime } = loaded.exports;
 
 // Полдень по местному времени: в каком часовом поясе идёт прогон, значения не
 // имеет — час и минута собраны локально и локально же читаются.
@@ -80,6 +80,31 @@ test('our Georgian locale id is the one dayjs knows, and an unknown id falls bac
 
   language = 'kl_kl';
   expect(formatLocalizedDateTime(moment)).toBe('09/04/2026, 12:26 PM');
+});
+
+/**
+ * `content-factory-next-fn33.135`: у даты публикации источника нет часа, а
+ * форма строки — какая пришла от поисковика. Tavily датирует по RFC 822, и
+ * панель поиска печатала первые десять знаков этой строки: «Wed, 02 Se».
+ */
+test('дата без часа пишется языком читателя, из любого понятного формата', () => {
+  expect(formatLocalizedDate('Wed, 02 Sep 2026 15:54:46 GMT', 'ru')).toBe(
+    '02.09.2026'
+  );
+  expect(formatLocalizedDate('2026-09-02T15:54:46.000Z', 'ru')).toBe(
+    '02.09.2026'
+  );
+  expect(formatLocalizedDate('2026-09-02T15:54:46.000Z', 'en')).toBe(
+    '09/02/2026'
+  );
+  // Без явного языка берётся тот, что выбрал интерфейс.
+  language = 'ru';
+  expect(formatLocalizedDate('2026-09-02T15:54:46.000Z')).toBe('02.09.2026');
+});
+
+test('неразборная дата не печатается обрубком', () => {
+  expect(formatLocalizedDate('позавчера')).toBe('');
+  expect(formatLocalizedDate('')).toBe('');
 });
 
 test('the list of accounts asks the helper instead of writing its own date', () => {

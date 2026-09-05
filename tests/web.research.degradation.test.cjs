@@ -42,9 +42,18 @@ const agentTopics = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/agent.topics.ts'
 );
 
+// Настоящий модуль правил: блок голоса берёт из него два потолка (сколько
+// выученных правил уходит в промпт и какой длины каждое).
+const voiceLearning = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-learning.ts',
+  {}
+);
 const voiceDirectives = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/voice-directives.ts',
-  {}
+  {
+    '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-learning':
+      voiceLearning,
+  }
 );
 
 /** Настоящий, а не заглушка: проверка длины арифметическая и модель не зовёт. */

@@ -49,7 +49,8 @@ if (fs.existsSync(controllerPath)) {
     assert.match(controllerSource, /@Get\('\/contexts\/:id'\)/);
     assert.match(controllerSource, /@Post\('\/contexts'\)/);
     assert.match(controllerSource, /Sections\.AI/);
-    assert.match(controllerSource, /Sections\.ADMIN/);
+    // Writing doors are the editor's since 05.09.2026 (content-factory-next-fn33.90).
+    assert.match(controllerSource, /Sections\.EDITOR/);
     assert.doesNotMatch(dtoSource, /organizationId/);
   });
 }

@@ -4,71 +4,65 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave «cleanup» (05.09, owner away, «доделай всё и задеплой») — merged to
-`main` as `41447f87`, RELEASED as `dcb6eae72608` (both SQL files applied
-before the switch as one transaction); then the walker's ten P3s as a small
-wave, RELEASED as `035029af3c18` (no schema; rollback `dcb6eae72608`);
-receipt 355 suites / 4290 tests, `node --test` 116/0, python OK; review: no
-P0, one P1 fixed before release; walker: eleven P3 (`fn33.119`–`.129`, `.123`
-fixed).** Twelve Opus streams in worktrees:
-cascade deletion of a workspace with a second confirmation — 44 foreign keys
-`ON DELETE CASCADE`, `docs/operations/organization-cascade-schema-apply.sql`
-(`fn33.32`); model per call role with `AiProviderSetting.roleModels` and
-`AiUsageRecord.role`, `docs/operations/ai-role-models-schema-apply.sql`
-(`x63z`) — **both SQL files go before the image switch**; the admin count
-inside the writing Serializable transaction (`fn33.102`, the race really
-produced zero admins), uuid invite ids (`.100`), tenant-isolation ledger keyed
-by method and findMany with an id under check (`.101`, `5w6u`, `saas.2`
-UNREVIEWED pinned empty), 60/min ceiling on the AI doors (`5w6u`); copilot
-provider mounts on click (`.99`); composer counter/channel row/repeat/avatar
-words (`.76`); plugins, sets, native language names, one language menu,
-«область» everywhere, tab titles for auth/admin/oauth, heading follows the
-language, localized registration date, assistant panel in Russian (`.28.18`,
-`.113`, `.116`, `.97`, `.92`, `.94`, `.117`, `.114`, `.115`, `.118`); 402 plan
-refusal localized and shown once (`nkei`, `fn33.105`); subscriptions limit
-20 + CHECK_TOO_SOON (`ni7x`); onboarding nine items (`za05`); facts showcase
-read-only by the server's answer (`cl19`); release scripts validate the tag
-before ssh — **the old script executed a substitution from the tag** — and
-both guards execute the scripts with stubs (`nq7e`, `th1s`); content-addressed
-verification evidence (`y5fb`); display rules for 34 platform marks, eight
-mismatches for the owner (`4s0l`). Public CI's two extra jobs were run
-locally before the public push. New beads: `11qv` (44px on Button), `ebyq`
-(roles guard blind to policy variables), the `serializableWithRetry` duplicate,
-three review P2s. Not mine: `2ua` (paid), `cxd` (host GPG key), `fn33.21`, `fn33.9`/`.103` (wait on `or3.9`).
+**Wave «owner decisions» (05.09, owner away, «даю все разрешения — делай»;
+branch `wave/owner-decisions-2026-09-05`, release record in the runbook).**
+Owner answered nine questions; six Opus streams + reviewer + paid check +
+roles walker. (A) **the avatar learns from edits** (`fn33.28.19`, `.28.19.1`):
+substantive was/became pairs (≥0.1 share and ≥3 words) kept ≤200 per avatar,
+`POST /voice/learning/run` = one `extract` call per batch of the 30 OLDEST
+pending pairs, 1–3 rules, ≤10 kept in the new column
+`ProjectBrandProfile.learnedRules` (`docs/operations/
+brand-voice-learned-rules-schema-apply.sql`, **before the switch**),
+`lastRunAt` = createdAt of the last pair read; rules reach the prompt as
+observations after the habits (`voice-directives.ts`), fenced; the learn prompt
+fences the pairs. (B) **roles** (`fn33.90`, `.90.1`): USER view-first, EDITOR
+writes (posts, tags, whole Content section, sets, signatures, autopost,
+assistant incl. `/copilot/chat`, media), ADMIN owns (webhooks, channels incl.
+all `/integrations/:id/*` settings); `Sections.EDITOR` via `ROLE_SECTIONS`;
+editor refusal has its own text + `role_refusal_editor_only`; matrix 130 doors
+— the guard had been blind to policies declared as a constant (20 doors) and
+is still blind to doors with no policy at all (`fn33.90.2`). (C) word search
+`q` on materials and facts (`odb8.4`; posts `odb8.4.1`). (D)
+`docs/product/tariff-levers.md`: 31 levers, 13 questions — **no plan limit is
+live without `STRIPE_PUBLISHABLE_KEY`**, three mismatches under `or3.9.1`.
+(E, F) from the paid check `2ua` (`docs/product/material-quality-check-
+2026-09-05.md`, 0/5 topics grounded): honesty of the prompt when the context
+is empty (`fn33.130`), the composer names unverified evidence and links to
+«Откуда факты» (`.131`), the English «Check out the full story» tail only with
+a link and in the channel language (`.137`), search panel: summary in the
+reader's language, http refused on screen with a reason, 503 with a code
+instead of 500, dates (`.133`, `.136`, `.139`, `.135`). Review: no P0, three P1
+fixed before release. Roles walker on the stand: server doors match the matrix
+in all 40 probes; **`DELETE /integrations` with an empty body soft-deleted every
+post of the workspace** (`fn33.90.3`, DTO + lookup + repository guard); the
+USER screen leaked in eight places — menu, composer, media, brief, archive,
+agent now read the role first (`.90.4`–`.90.12`); P3s `.141`–`.144` open. **Owner question `2ua.1`: unverified search results stay
+out of drafts by spec — allow them labelled, or keep confirm-first?** Open from
+the check: `.132`, `.134`, `.138`, `.140`; `.28.19.2` dead repair door.
 
-**Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) —
-merged to `main` as `b27e25cc`, pushed, and RELEASED 05.09 as `fc9fa77148f6`
-(two `Post` columns applied before the switch, rollback `d782858045fa`).**
-The owner saw the old composer on production and decided: only what is
-useful. Five Opus streams: (A) `Post.contentContextReviewedAt/ById` and
-`POST /posts/:id/context-review` — the draft-only boundary is left by an
-explicit human decision tied to the snapshot (a swapped snapshot clears the
-mark); (B) composer = Postiz core + stage, context panel and voice ribbon
-became one provenance line for posts with context, research left the window,
-tag/repeat/stage on `Menu`, standard dialog shell, «Подтверждения»/«Кто
-пишет» everywhere; (C) `GET /settings/ai/allowance` + hint at paid buttons;
-(D, E) cleanup, Russian refusals by code, copilot never called without a key.
-**Found: every post with a content context failed to save with 500 since
-August** — `await import('@contentfactory/…')` that `nest build` never
-rewrites; production has it too; static import + guard. Receipt: 340 suites,
-4125 tests, `node --test` 116/0, python OK. Public CI on `fc9fa77`: two
-test-only reds (docker proof's hand-rolled `Post` table, `expect.any(Date)`
-under fake timers + time travel), fixed next commit. Open: `fn33.28.4`, `.5`, `.18`.
+**Wave «cleanup» (05.09) — `41447f87`, RELEASED `dcb6eae72608` (two SQL files
+as one transaction), then ten walker P3s as `035029af3c18`.** Cascade deletion
+of a workspace (44 FKs), model per role (`roleModels`, `AiUsageRecord.role`),
+admin count inside the Serializable write, tenant ledger by method, 60/min AI
+ceiling, copilot on click, Russian everywhere, 402 localized once, release
+scripts validate the tag before ssh, 34 platform marks. New: `11qv`, `ebyq`.
+
+**Wave «compose window» (04.09, `fn33.28.1`–`.17`) — `b27e25cc`, RELEASED
+`fc9fa77148f6`.** Composer = Postiz core + stage; `Post.contentContextReviewedAt/
+ById` + `POST /posts/:id/context-review`; allowance hint at paid buttons.
+**Every post with a content context had failed to save since August** —
+`await import('@contentfactory/…')` never rewritten by `nest build`. Open: `.28.5`, `.28.18`.
 
 **Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed) — merged to
 `main` as `8443eedc`, RELEASED as `d782858045fa` (schema column before the
 switch, role data step after it).** Sixteen Opus streams, five walkers on the
-stand, two re-checks. Registration by invitation lands in the invited workspace
-with its role; nothing grants workspace `SUPERADMIN`, the creator is `ADMIN`,
-the last admin cannot be removed; role change and invitation link with expiry
-in the team list; reject/decline/delete/unblock for accounts; password change
-inside the product; second workspace; language on the account; media library
-as a modal; **creating a post from the composer had returned 500 since 20.08**
-(`.49`, `.88`); CopilotKit no longer mounts around the whole app (`.48`); a 403
-no longer hangs «Сохраняем…» (`.65`); the content section (`.45`–`.91`). A
-read-only review found one release blocker and four «before release» items,
-all fixed in `fn33.108`; two control walks found `fn33.109`/`.110`, fixed.
-Receipt on `0edb16ee`: 328 suites / 4024 tests, `node --test` 116/0.
+stand, two re-checks. Invitations land in the invited workspace with the role;
+no workspace `SUPERADMIN`, creator is `ADMIN`, last admin protected; team list
+with role change and invitation expiry; account reject/decline/delete/unblock;
+password change; second workspace; language on the account; media modal;
+**composer returned 500 since 20.08** (`.49`, `.88`); CopilotKit off the app
+shell (`.48`); 403 no longer hangs saves (`.65`); content section (`.45`–`.91`).
+Review + two control walks: `fn33.108`–`.110` fixed. Receipt `0edb16ee`.
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
@@ -156,14 +150,13 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks production `035029af3c18`** — composer (assistant on click, counter,
-channel row, repeat), a post from the Content section with «Подтверждения
-проверены», deleting a test account with its workspace (second confirmation),
-Settings → AI provider (model per role), plugins/sets/languages in Russian —
-every gap to Beads first, fixes in one wave after. Then the owner's
-decisions: `fn33.28.4`, `fn33.90`, `c6k.16`, `3aw`, `or3.9`, `odb8.4` search
-kind, eight platform-mark mismatches, «20 subscriptions» as a flat limit,
-renaming production workspaces still called `Workspace`.
+walks production after the owner-decisions release** — as EDITOR and USER in
+one workspace (view-first, refusals in Russian), the avatar screen «Чему
+научился на правках» after five real edits, word search in the archive, the
+composer's note on unverified evidence, the search panel in Russian — every
+gap to Beads first, fixes in one wave after. Then answer `2ua.1` (unverified
+search into drafts?). Still his: `c6k.16`, `or3.9`, `cxd` (GPG key), Telegram
+binding, two pending accounts.
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram

@@ -1,4 +1,5 @@
 import { FC, useCallback, useState } from 'react';
+import clsx from 'clsx';
 import dayjs from 'dayjs';
 import { Calendar, TimeInput } from '@mantine/dates';
 import { useClickOutside } from '@mantine/hooks';
@@ -10,14 +11,24 @@ import { CalendarIcon } from '@contentfactory/frontend/components/ui/icons';
 export const DatePicker: FC<{
   date: dayjs.Dayjs;
   onChange: (day: dayjs.Dayjs) => void;
+  /**
+   * Выключен, когда окно поста открыто на чтение
+   * (`content-factory-next-fn33.90.10`). Дата поста — запись, а не подпись:
+   * под Пользователем календарь открывался и время выбиралось, хотя
+   * `PUT /posts/:id/date` несёт `Sections.EDITOR` и отказал бы.
+   */
+  disabled?: boolean;
 }> = (props) => {
-  const { date, onChange } = props;
+  const { date, onChange, disabled } = props;
   const [open, setOpen] = useState(false);
   const t = useT();
 
   const changeShow = useCallback(() => {
+    if (disabled) {
+      return;
+    }
     setOpen((prev) => !prev);
-  }, []);
+  }, [disabled]);
   const ref = useClickOutside<HTMLDivElement>(() => {
     setOpen(false);
   });
@@ -35,14 +46,18 @@ export const DatePicker: FC<{
   );
   return (
     <div
-      className="px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] font-[600] ml-[7px] select-none flex-1"
+      aria-disabled={disabled || undefined}
+      className={clsx(
+        'px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] font-[600] ml-[7px] select-none flex-1',
+        disabled && 'opacity-50 cursor-not-allowed'
+      )}
       onClick={changeShow}
       ref={ref}
     >
-      <div className="cursor-pointer">
+      <div className={disabled ? 'cursor-not-allowed' : 'cursor-pointer'}>
         <CalendarIcon />
       </div>
-      <div className="cursor-pointer">
+      <div className={disabled ? 'cursor-not-allowed' : 'cursor-pointer'}>
         {/*
           The reader's own notation. Two hand-written format strings could
           only ever be right for two of the sixteen languages the product
@@ -52,7 +67,7 @@ export const DatePicker: FC<{
         */}
         {formatDateTimeForReader(date.toDate())}
       </div>
-      {open && (
+      {open && !disabled && (
         <div
           onClick={(e) => e.stopPropagation()}
           className="animate-fadeIn absolute bottom-[100%] mb-[16px] start-[50%] -translate-x-[50%] bg-sixth border border-tableBorder text-textColor rounded-[16px] z-[300] p-[16px] flex flex-col"

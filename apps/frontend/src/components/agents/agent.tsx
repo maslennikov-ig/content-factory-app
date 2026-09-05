@@ -23,6 +23,9 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { OpeningBand } from '@contentfactory/react/layout';
+import { RestrictedState } from '@contentfactory/frontend/components/ui/surface';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export const MediaPortal: FC<{
   media: { path: string; id: string }[];
@@ -210,6 +213,40 @@ export const PropertiesContext = createContext<{
 }>({ properties: [] });
 export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
   const [properties, setProperties] = useState<AgentIntegration[]>([]);
+  const user = useUser();
+  const t = useT();
+
+  /**
+   * Экран агента объясняет отказ, а не молчит о нём
+   * (`content-factory-next-fn33.90.6`).
+   *
+   * `POST /copilot/agent` несёт `Sections.EDITOR` с 05.09.2026. Под
+   * Пользователем экран открывался как обычно и при загрузке отправлял два
+   * запроса; оба отвечали 403, но ответ идёт через runtime CopilotKit — мимо
+   * общего обработчика отказов в `layout.context.tsx`, — поэтому диалог «Так
+   * нельзя» не показывался, и на экране не было ни слова. В консоли
+   * оставалось «CopilotKit Error … Unknown error».
+   *
+   * Пункт «Агент» в левом меню Пользователю больше не рисуется
+   * (`top.menu.tsx`), но адрес остаётся набираемым и приходит по ссылке —
+   * поэтому запрет живёт здесь, где его не обойти, а меню лишь не ведёт
+   * туда, где всё равно откажут. Экран заменяется целиком: список каналов и
+   * лента разговоров без самого разговора — обстановка вокруг пустоты.
+   */
+  if (!isOrganizationEditor(user?.role)) {
+    return (
+      <div className="flex flex-1 items-start justify-center bg-newBgColorInner p-[40px]">
+        <RestrictedState
+          className="max-w-[560px]"
+          title={t('agent_read_only_title', 'The agent writes posts')}
+          reason={t(
+            'agent_read_only_reason',
+            'Only an editor or an administrator of this workspace may talk to the agent, because everything it does ends in a post. Ask an administrator for the editor role.'
+          )}
+        />
+      </div>
+    );
+  }
 
   return (
     <PropertiesContext.Provider value={{ properties }}>

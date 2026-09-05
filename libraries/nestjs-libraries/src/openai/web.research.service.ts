@@ -14,6 +14,10 @@ import {
   requireActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import {
+  ContentLanguage,
+  contentLanguageNames,
+} from '@contentfactory/nestjs-libraries/dtos/content.language';
 
 export interface WebResearchSource {
   url: string;
@@ -33,6 +37,20 @@ export interface WebResearchResult {
   sources: WebResearchSource[];
   provider: SearchProvider | 'mixed';
 }
+
+export interface WebResearchOptions {
+  /**
+   * The language the person reading the answer works in. Optional because the
+   * two callers that existed before the search panel — the copilot's tool list
+   * and autopost — hand the summary to a model that is already told which
+   * language to write in, and pay nothing extra for it.
+   */
+  language?: ContentLanguage;
+}
+
+const researchSummary = z.object({
+  summary: z.string(),
+});
 
 const subjectClassification = z.object({
   scope: z.enum(['international', 'local']),
@@ -215,6 +233,23 @@ const truncateAtParagraph = (value: string, maximum: number) => {
   return prefix.trimEnd();
 };
 
+/**
+ * `content-factory-next-fn33.133`: the summary is not ours to write. It is the
+ * search provider's `answer`, and a provider answers in the language it was
+ * asked in — always English here, because the English query is the one query
+ * every run makes. On a Russian screen the whole «Бриф» reads in Russian and
+ * one paragraph under «Коротко о найденном» reads in English.
+ *
+ * The check is a script test rather than a language detector on purpose. It
+ * decides one thing — whether to spend a second cheap model call — and it must
+ * never spend it on an answer that already reads right. Between the two
+ * content languages the product has, the script separates them completely.
+ */
+const containsCyrillic = (value: string) => /[А-ЯЁа-яё]/.test(value);
+
+const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
+  language === 'ru' ? !containsCyrillic(summary) : containsCyrillic(summary);
+
 export class WebSearchNotConfigured extends Error {
   constructor() {
     super(
@@ -270,18 +305,61 @@ export class WebResearchService {
     }
   }
 
+  /**
+   * The summary in the reader's own language.
+   *
+   * Same cheap `classify` role the subject classifier runs on: this rewrites
+   * one paragraph and decides nothing, so it must never be billed at the price
+   * of a draft. Nothing may be added or dropped — a number that changes
+   * between the provider's answer and the screen is worse than English.
+   *
+   * A failure here keeps the original summary. The person still gets the
+   * sources and the excerpts, which is what they came for; losing the whole
+   * search because one paragraph could not be restated would be the wrong
+   * trade.
+   */
+  private async summaryInLanguage(
+    organizationId: string,
+    summary: string,
+    language: ContentLanguage
+  ): Promise<string> {
+    try {
+      const writer = (
+        await getChatModel(organizationId, 0, undefined, 'classify')
+      ).withStructuredOutput(researchSummary);
+      const written = await ChatPromptTemplate.fromTemplate(
+        `Restate the web-research summary in {language}.
+Keep every fact, number, name, date and source exactly as given.
+Add nothing, drop nothing, and do not comment on the text.
+Summary: {summary}`
+      )
+        .pipe(writer)
+        .invoke({ language: contentLanguageNames[language], summary });
+      return written?.summary?.trim() || summary;
+    } catch (error) {
+      this.logger.warn(
+        `Web research summary stayed in its original language: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return summary;
+    }
+  }
+
   async research(
     organizationId: string,
-    subject: string
+    subject: string,
+    options: WebResearchOptions = {}
   ): Promise<WebResearchResult> {
     return this.aiUsage.executeAiOperation(organizationId, 'web_research', () =>
-      this.researchWithinOperation(organizationId, subject)
+      this.researchWithinOperation(organizationId, subject, options)
     );
   }
 
   private async researchWithinOperation(
     organizationId: string,
-    subject: string
+    subject: string,
+    options: WebResearchOptions
   ): Promise<WebResearchResult> {
     const config = await requireActiveAiConfig(organizationId);
     // Tavily is always primary. A missing Tavily key is configuration, not an
@@ -323,7 +401,7 @@ Subject: {subject}`
       queries.push(classification.localQuery);
     }
 
-    const options = {
+    const searchOptions = {
       country: countryForClassification(
         classification.scope,
         classification.subjectLanguage
@@ -332,7 +410,7 @@ Subject: {subject}`
     };
     const responses = await Promise.all(
       queries.map((query) =>
-        this.searchOne(organizationId, query, config, options)
+        this.searchOne(organizationId, query, config, searchOptions)
       )
     );
 
@@ -366,13 +444,23 @@ Subject: {subject}`
     const answeringProviders = [
       ...new Set(responses.map(({ provider }) => provider)),
     ];
+    const providerSummary = responses
+      .map(({ response }) => response.answer)
+      .filter((answer): answer is string => !!answer)
+      .join('\n\n');
+    const summary =
+      options.language && summaryNeedsLanguage(providerSummary, options.language)
+        ? await this.summaryInLanguage(
+            organizationId,
+            providerSummary,
+            options.language
+          )
+        : providerSummary;
+
     return {
       provider:
         answeringProviders.length === 1 ? answeringProviders[0] : 'mixed',
-      summary: responses
-        .map(({ response }) => response.answer)
-        .filter((answer): answer is string => !!answer)
-        .join('\n\n'),
+      summary,
       facts: [...facts.values()],
       sources: [...sources.values()],
     };

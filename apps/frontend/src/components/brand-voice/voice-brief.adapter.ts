@@ -229,6 +229,10 @@ export const briefCopy = {
     removeFact: 'Убрать',
     check: 'Проверить бриф',
     checking: 'Проверяем…',
+    // content-factory-next-fn33.90.7: the brief is a writer's tool; a reader
+    // sees it, fills nothing and is told whom to ask.
+    readOnlyRole:
+      'Бриф открыт на чтение. Проверить бриф и добавить факт может редактор или администратор области.',
     optional: 'необязательно',
     picked: (title: string) => `Тема взята в бриф: «${title}».`,
     radarFailure:
@@ -267,6 +271,8 @@ export const briefCopy = {
     removeFact: 'Remove',
     check: 'Check the brief',
     checking: 'Checking…',
+    readOnlyRole:
+      'The brief is read-only for you. Checking a brief and adding a fact is for an editor or an administrator of the workspace.',
     optional: 'optional',
     picked: (title: string) => `Topic taken into the brief: “${title}”.`,
     radarFailure:

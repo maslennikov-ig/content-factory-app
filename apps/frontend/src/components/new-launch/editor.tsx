@@ -79,8 +79,9 @@ const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 export const ContentIntelligenceCitationSelector: FC<{
   citations: readonly ContentIntelligenceCitation[];
   selectedCitationIds: readonly string[];
+  readOnly?: boolean;
   onChange: (citationId: string, checked: boolean) => void;
-}> = ({ citations, selectedCitationIds, onChange }) => {
+}> = ({ citations, selectedCitationIds, readOnly, onChange }) => {
   const t = useT();
   if (citations.length === 0) return null;
   return (
@@ -89,11 +90,11 @@ export const ContentIntelligenceCitationSelector: FC<{
         {t('used_citations', 'Used citations')}
       </legend>
       {/*
-        * `content-factory-next-fn33.28.13`: «выданные сервером» человеку,
-        * который пишет пост, не говорит ничего — это слово из устройства, а не
-        * из его работы. Ему важно другое: отметить, на что опирается вот этот
-        * текст.
-        */}
+       * `content-factory-next-fn33.28.13`: «выданные сервером» человеку,
+       * который пишет пост, не говорит ничего — это слово из устройства, а не
+       * из его работы. Ему важно другое: отметить, на что опирается вот этот
+       * текст.
+       */}
       <p className="cf-caption mb-[4px] text-cf-ink-muted text-pretty">
         {t(
           'used_citations_help',
@@ -105,6 +106,7 @@ export const ContentIntelligenceCitationSelector: FC<{
           <CheckboxField
             key={citation.citationId}
             checked={selectedCitationIds.includes(citation.citationId)}
+            disabled={readOnly}
             onChange={(event) =>
               onChange(citation.citationId, event.currentTarget.checked)
             }
@@ -197,7 +199,21 @@ const EditorCopilotBridge: FC<{
 export const EditorWrapper: FC<{
   totalPosts: number;
   value: string;
-}> = () => {
+  /**
+   * Окно поста, открытое на чтение (`content-factory-next-fn33.90.10`).
+   *
+   * Решение владельца 05.09.2026: двери `/posts` несут `Sections.EDITOR`, и
+   * Пользователь их не проходит. До этой правки окно честно выключало
+   * «Сохранить как черновик» и «Обновить», а всё, что ведёт к ним, оставляло
+   * живым: поле текста принимало ввод, счётчик считал допечатанное, панель
+   * начертаний работала, «Вставить медиа» открывало библиотеку. Человек
+   * набирал текст, которому некуда деться.
+   *
+   * Здесь ровно одно: показать написанное и не дать его менять. Никакая
+   * дверь отсюда не открывается — запрет остаётся на сервере.
+   */
+  readOnly?: boolean;
+}> = ({ readOnly }) => {
   const t = useT();
   // Поднялся ли помощник над окном: без ключа AI окно его не поднимает, и
   // рассказывать тогда некому (`content-factory-next-fn33.28.11`).
@@ -500,7 +516,7 @@ export const EditorWrapper: FC<{
           <div className="absolute w-full h-full left-0 top-0 bg-newBackdrop opacity-60 z-[100] rounded-[12px]" />
         </>
       )}
-      {!canEdit && !isCreateSet && (
+      {!canEdit && !isCreateSet && !readOnly && (
         <>
           <div
             onClick={() => {
@@ -561,6 +577,7 @@ export const EditorWrapper: FC<{
                   pictures={g.media}
                   setImages={changeImages(index)}
                   autoComplete={canEdit}
+                  readOnly={readOnly}
                   validateChars={true}
                   identifier={internalFromAll?.identifier || 'global'}
                   totalChars={totalChars}
@@ -570,7 +587,8 @@ export const EditorWrapper: FC<{
                   chars={chars}
                   childButton={
                     <>
-                      {(canEdit && items.length - 1 === index) || !comments ? (
+                      {!readOnly &&
+                      ((canEdit && items.length - 1 === index) || !comments) ? (
                         <div className="flex items-center">
                           <div className="flex-1">
                             {comments && (
@@ -615,13 +633,14 @@ export const EditorWrapper: FC<{
                     contentIntelligenceProvenance?.availableCitations || []
                   }
                   selectedCitationIds={g.usedCitationIds || []}
+                  readOnly={readOnly}
                   onChange={(citationId, checked) =>
                     changeCitations(index, citationId, checked)
                   }
                 />
               </div>
             </div>
-            {comments && (
+            {comments && !readOnly && (
               <div className="flex flex-col items-center gap-[10px] pe-[12px]">
                 <UpDownArrow
                   isUp={index !== 0}
@@ -662,6 +681,8 @@ export const Editor: FC<{
   setImages?: (value: any[]) => void;
   appendImages?: (value: any[]) => void;
   autoComplete?: boolean;
+  /** См. `EditorWrapper`: окно открыто на чтение. */
+  readOnly?: boolean;
   validateChars?: boolean;
   comments: boolean | 'no-media';
   identifier?: string;
@@ -683,6 +704,7 @@ export const Editor: FC<{
     chars,
     childButton,
     comments,
+    readOnly,
   } = props;
   const [id] = useState(makeId(10));
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -773,6 +795,7 @@ export const Editor: FC<{
   );
 
   const { getRootProps, isDragActive } = useDropzone({
+    disabled: readOnly,
     onDrop: (files) => {
       if (loading) {
         toaster.show(
@@ -786,7 +809,7 @@ export const Editor: FC<{
       }
       onDrop(files);
     },
-    noDrag: num > 0 && comments === 'no-media',
+    noDrag: readOnly || (num > 0 && comments === 'no-media'),
   });
 
   const valueWithoutHtml = useMemo(() => {
@@ -849,13 +872,14 @@ export const Editor: FC<{
                 editorType={editorType}
                 onChange={props.onChange}
                 paste={paste}
+                readOnly={readOnly}
                 ref={editorRef}
               />
             </div>
             <div
               className="bg-newBgColorInner flex-1"
               onClick={() => {
-                if (editorRef?.current?.editor?.isFocused) {
+                if (readOnly || editorRef?.current?.editor?.isFocused) {
                   return;
                 }
                 editorRef?.current?.editor?.commands?.focus('end');
@@ -880,7 +904,7 @@ export const Editor: FC<{
             <div
               className="w-full h-[46px] bg-newBgColorInner cursor-text"
               onClick={() => {
-                if (editorRef?.current?.editor?.isFocused) {
+                if (readOnly || editorRef?.current?.editor?.isFocused) {
                   return;
                 }
                 editorRef?.current?.editor?.commands?.focus('end');
@@ -896,6 +920,7 @@ export const Editor: FC<{
                   description=""
                   value={props.pictures}
                   dummy={dummy}
+                  readOnly={readOnly}
                   name="image"
                   information={
                     <InformationComponent
@@ -907,74 +932,79 @@ export const Editor: FC<{
                     />
                   }
                   toolBar={
-                    <div className="flex gap-[5px]">
-                      <SignatureBox editor={editorRef?.current?.editor} />
-                      {editorType !== 'none' && (
-                        <>
-                          <UText
-                            editor={editorRef?.current?.editor}
-                            currentValue={props.value!}
-                          />
-                          <BoldText
-                            editor={editorRef?.current?.editor}
-                            currentValue={props.value!}
-                          />
-                        </>
-                      )}
-                      {(editorType === 'markdown' || editorType === 'html') &&
-                        identifier !== 'telegram' && (
+                    readOnly ? null : (
+                      <div className="flex gap-[5px]">
+                        <SignatureBox editor={editorRef?.current?.editor} />
+                        {editorType !== 'none' && (
                           <>
-                            <AComponent
+                            <UText
                               editor={editorRef?.current?.editor}
                               currentValue={props.value!}
                             />
-                            <Bullets
-                              editor={editorRef?.current?.editor}
-                              currentValue={props.value!}
-                            />
-                            <HeadingComponent
+                            <BoldText
                               editor={editorRef?.current?.editor}
                               currentValue={props.value!}
                             />
                           </>
                         )}
-                      <div
-                        data-tooltip-id="tooltip"
-                        data-tooltip-content={t('insert_emoji', 'Insert Emoji')}
-                        className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
-                        onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
-                      >
-                        <EmojiIcon />
-                      </div>
-                      <div className="relative">
-                        <div
-                          className={clsx(
-                            'absolute z-[500] -start-[50px]',
-                            num === 0 && allValues?.length > 1
-                              ? 'top-[35px]'
-                              : 'bottom-[35px]'
+                        {(editorType === 'markdown' || editorType === 'html') &&
+                          identifier !== 'telegram' && (
+                            <>
+                              <AComponent
+                                editor={editorRef?.current?.editor}
+                                currentValue={props.value!}
+                              />
+                              <Bullets
+                                editor={editorRef?.current?.editor}
+                                currentValue={props.value!}
+                              />
+                              <HeadingComponent
+                                editor={editorRef?.current?.editor}
+                                currentValue={props.value!}
+                              />
+                            </>
                           )}
+                        <div
+                          data-tooltip-id="tooltip"
+                          data-tooltip-content={t(
+                            'insert_emoji',
+                            'Insert Emoji'
+                          )}
+                          className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
+                          onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
                         >
-                          <EmojiPicker
-                            height={400}
-                            // The library's default style is Apple, whose
-                            // images come from cdn.jsdelivr.net — opening the
-                            // panel would tell a CDN who is writing a post.
-                            // The system font draws them locally.
-                            emojiStyle={EmojiStyle.NATIVE}
-                            theme={
-                              (localStorage.getItem('mode') as Theme) ||
-                              Theme.DARK
-                            }
-                            onEmojiClick={(e) => {
-                              addText(e.emoji);
-                              setEmojiPickerOpen(false);
-                            }}
-                            open={emojiPickerOpen}
-                          />
+                          <EmojiIcon />
+                        </div>
+                        <div className="relative">
+                          <div
+                            className={clsx(
+                              'absolute z-[500] -start-[50px]',
+                              num === 0 && allValues?.length > 1
+                                ? 'top-[35px]'
+                                : 'bottom-[35px]'
+                            )}
+                          >
+                            <EmojiPicker
+                              height={400}
+                              // The library's default style is Apple, whose
+                              // images come from cdn.jsdelivr.net — opening the
+                              // panel would tell a CDN who is writing a post.
+                              // The system font draws them locally.
+                              emojiStyle={EmojiStyle.NATIVE}
+                              theme={
+                                (localStorage.getItem('mode') as Theme) ||
+                                Theme.DARK
+                              }
+                              onEmojiClick={(e) => {
+                                addText(e.emoji);
+                                setEmojiPickerOpen(false);
+                              }}
+                              open={emojiPickerOpen}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )
                   }
                   onChange={(value) => {
                     setImages(value.target.value);
@@ -999,8 +1029,9 @@ export const OnlyEditor = forwardRef<
     value: string;
     onChange: (value: string) => void;
     paste?: (event: ClipboardEvent | File[]) => void;
+    readOnly?: boolean;
   }
->(({ editorType, value, onChange, paste }, ref) => {
+>(({ editorType, value, onChange, paste, readOnly }, ref) => {
   const t = useT();
   const fetch = useFetch();
 
@@ -1166,6 +1197,13 @@ export const OnlyEditor = forwardRef<
       }),
     ],
     content: value || '',
+    /*
+      Tiptap рисует `contenteditable`, и «выключить» его — это `editable`, а
+      не рамка вокруг (`content-factory-next-fn33.90.10`). Пересчитывается
+      ниже: `useEditor` читает это значение один раз при создании, а роль
+      приходит из сеанса и может прийти позже первого кадра.
+    */
+    editable: !readOnly,
     shouldRerenderOnTransaction: true,
     immediatelyRender: false,
     // @ts-ignore
@@ -1174,6 +1212,11 @@ export const OnlyEditor = forwardRef<
       onChange?.(innerProps.editor.getHTML());
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   useImperativeHandle(ref, () => ({
     editor,

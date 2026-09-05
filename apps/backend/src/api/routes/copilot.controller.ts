@@ -140,7 +140,13 @@ export class CopilotController {
   }
 
   @Post('/research')
-  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  // The assistant writes the post, so it is the writer's door. The AI
+  // allowance is named first — a workspace out of allowance hears about the
+  // allowance (`content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.AI],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async research(
     @Body() body: WebResearchDto,
     @GetOrgFromRequest() organization: Organization,
@@ -163,6 +169,13 @@ export class CopilotController {
   }
 
   @Post('/chat')
+  // The chat is the same paid assistant as `/agent`: a member who may not
+  // write a post may not spend the workspace allowance talking about one
+  // (`content-factory-next-fn33.90.1`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.AI],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async chatAgent(
     @Req() req: Request,
     @Res() res: Response,
@@ -204,7 +217,13 @@ export class CopilotController {
   }
 
   @Post('/agent')
-  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  // The assistant writes the post, so it is the writer's door. The AI
+  // allowance is named first — a workspace out of allowance hears about the
+  // allowance (`content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.AI],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async agent(
     @Req() req: Request,
     @Res() res: Response,

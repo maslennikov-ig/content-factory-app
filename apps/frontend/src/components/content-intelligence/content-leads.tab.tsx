@@ -11,7 +11,7 @@ import { Hint } from '@contentfactory/react/layout/hint';
 import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Dialog } from '../ui/layers';
 import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
@@ -76,11 +76,12 @@ const copy = {
     body: 'Ленты, которые продукт читает за вас. Он приносит поводы написать — не готовые тексты. Что взять в работу, решаете вы.',
     addSubscription: 'Добавить подписку',
     // content-factory-next-fn33.63: три двери подписок — завести, проверить,
-    // архивировать — администраторские (`docs/product/roles-matrix.md`).
-    // Участник видел живую кнопку, заполнял форму и получал 403 только
-    // после «Сохранить». Слово в слово как на вкладке «Аватары».
+    // архивировать — несут роль (`docs/product/roles-matrix.md`). Пользователь
+    // видел живую кнопку, заполнял форму и получал 403 только после
+    // «Сохранить». С 05.09.2026 порог — редактор, а не администратор
+    // (`content-factory-next-fn33.90`), и надпись называет того, кого просить.
     readOnlyNote:
-      'Раздел открыт на чтение: заводить и проверять ленты может администратор.',
+      'Раздел открыт на чтение: заводить и проверять ленты может редактор.',
     loading: 'Загружаем подписки',
     listFallback: 'Список не загрузился. Попробуйте ещё раз.',
     retry: 'Повторить',
@@ -165,7 +166,7 @@ const copy = {
     body: 'Feeds the product reads for you. It brings reasons to write — not finished text. What to take to work is your call.',
     addSubscription: 'Add subscription',
     readOnlyNote:
-      'This section is read-only for you: an administrator adds and checks feeds.',
+      'This section is read-only for you: an editor adds and checks feeds.',
     loading: 'Loading subscriptions',
     listFallback: 'The list did not load. Try again.',
     retry: 'Retry',
@@ -572,20 +573,24 @@ export function ContentLeadsTab({
    * (content-factory-next-fn33.63).
    *
    * `POST /leads/subscriptions`, `…/:id/check` and `…/:id/archive` all carry
-   * `Sections.ADMIN`, and `docs/product/roles-matrix.md` records them as
+   * `Sections.ADMIN`, and `docs/product/roles-matrix.md` recorded them as
    * administrator doors. An editor saw «Указать ленту» live, filled the form
    * and lost the work to a 403 on save — while «Указать канал» right beside
    * it was correctly disabled for a different reason, so the screen
    * contradicted itself.
    *
+   * Since 05.09.2026 (`content-factory-next-fn33.90`) those doors carry
+   * `Sections.EDITOR` instead, so the editor this defect was found under now
+   * passes them and the hiding is aimed at `USER`. The threshold moved; the
+   * shape of the fix did not.
+   *
    * Read from the session rather than the envelope: `useUser().role` is the
    * same fact the Avatars tab and the team screen already branch on, and
-   * `isOrganizationAdmin` is the same helper the server's own check uses.
-   * The list itself stays open — reading who is watched is not an
-   * administrator door.
+   * `isOrganizationEditor` is the same helper the server's own check uses.
+   * The list itself stays open — reading who is watched is not a role door.
    */
   const user = useUser();
-  const canManageFeeds = isOrganizationAdmin(user?.role);
+  const canManageFeeds = isOrganizationEditor(user?.role);
 
   const subscriptions = useSWR(SUBSCRIPTIONS_API, () => read(SUBSCRIPTIONS_API), {
     revalidateOnFocus: false,

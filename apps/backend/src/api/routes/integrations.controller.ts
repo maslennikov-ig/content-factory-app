@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -19,6 +21,7 @@ import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscr
 import { ApiTags } from '@nestjs/swagger';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import { DeleteIntegrationDto } from '@contentfactory/nestjs-libraries/dtos/integrations/delete.integration.dto';
 import { IntegrationTimeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { PlugDto } from '@contentfactory/nestjs-libraries/dtos/plugs/plug.dto';
 import { RefreshToken } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
@@ -66,7 +69,16 @@ export class IntegrationsController {
     return this._integrationService.customers(org.id);
   }
 
+  /*
+   * A channel is the workspace's property, and so are its settings: the
+   * customer it belongs to, its group, its display name, posting times,
+   * preferences and automation plugs. Until 2026-09-05 these doors carried no
+   * policy at all while connecting and removing a channel were the
+   * administrator's; the matrix now says the same for all of them
+   * (`content-factory-next-fn33.90.1`).
+   */
   @Put('/:id/group')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateIntegrationGroup(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -80,6 +92,7 @@ export class IntegrationsController {
   }
 
   @Put('/:id/customer-name')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateOnCustomerName(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -128,6 +141,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/settings')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async updateProviderSettings(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -141,6 +155,7 @@ export class IntegrationsController {
   }
 
   @Put('/:id/content-language')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   updateContentLanguage(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -154,6 +169,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/nickname')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async setNickname(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -288,6 +304,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/time')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async setTime(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -442,8 +459,20 @@ export class IntegrationsController {
   @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
-    @Body('id') id: string
+    @Body() body: DeleteIntegrationDto
   ) {
+    const id = body.id;
+    // The channel must exist in this workspace before a single post is
+    // touched: with `id` missing, Prisma reads `integrationId: undefined` as
+    // no condition at all, and the loop below erased every post of the
+    // workspace (`content-factory-next-fn33.90.3`).
+    const channel = await this._integrationService.getIntegrationById(
+      org.id,
+      id
+    );
+    if (!channel) {
+      throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
+    }
     const isTherePosts = await this._integrationService.getPostsForChannel(
       org.id,
       id
@@ -471,6 +500,7 @@ export class IntegrationsController {
   }
 
   @Post('/:id/plugs')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async postPlugsByIntegrationId(
     @Param('id') id: string,
     @GetOrgFromRequest() org: Organization,
@@ -480,6 +510,7 @@ export class IntegrationsController {
   }
 
   @Put('/plugs/:id/activate')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async changePlugActivation(
     @Param('id') id: string,
     @GetOrgFromRequest() org: Organization,

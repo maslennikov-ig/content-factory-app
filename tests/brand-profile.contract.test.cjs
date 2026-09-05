@@ -553,6 +553,78 @@ test('resolver distinguishes neutral modes and rejects missing, foreign, draft a
   );
 });
 
+/**
+ * Выученное на правках доезжает до голоса — и только своего пространства.
+ *
+ * До 05.09.2026 `fn33.28.19` копил правила в `ProjectBrandProfile.learnedRules`
+ * и показывал их на экране аватара, а сборщик голоса о колонке не знал: аватар
+ * «учился», черновик не менялся. Здесь огорожены обе половины ответа — что
+ * правила попадают в `effectiveVoice`, и что читаются они из строки профиля,
+ * которую репозиторий уже привёз с `organizationId` в условии.
+ *
+ * Изоляция проверяется не заглядыванием в `where`, а результатом: у `org-a`
+ * профиль заведён первым, поэтому чтение без арендатора вернуло бы его строку
+ * обоим. `org-b`, получающий своё правило, — это и есть доказательство.
+ */
+test('a resolved voice carries what the avatar learned, and only from its own space', async () => {
+  const { prisma, service } = createHarness();
+  const draftA = await service.createDraft('org-a', 'admin-a', {
+    label: 'A',
+    content: validContent,
+  });
+  await service.activateVersion('org-a', 'admin-a', draftA.id);
+  const draftB = await service.createDraft('org-b', 'admin-b', {
+    label: 'B',
+    content: validContent,
+  });
+  await service.activateVersion('org-b', 'admin-b', draftB.id);
+
+  const profileOf = (organizationId) =>
+    prisma.state.profiles.find((row) => row.organizationId === organizationId);
+  const learnedAt = '2026-09-05T10:00:00.000Z';
+
+  profileOf('org-a').learnedRules = {
+    version: 1,
+    lastRunAt: learnedAt,
+    rules: [
+      { id: 'rule-1', text: 'Убирай вводные слова.', learnedAt, pairs: 6 },
+      { id: 'rule-2', text: 'Ставь цифру вместо оценки.', learnedAt, pairs: 5 },
+      // Строка без текста — то, что может лежать в `Json?` после чужой правки
+      // руками. Разбор её выбрасывает, а не роняет генерацию.
+      { id: 'rule-3', text: '   ', learnedAt, pairs: 5 },
+    ],
+  };
+  profileOf('org-b').learnedRules = {
+    version: 1,
+    lastRunAt: learnedAt,
+    rules: [
+      { id: 'rule-9', text: 'Правило чужого пространства.', learnedAt, pairs: 5 },
+    ],
+  };
+
+  const expected = ['Убирай вводные слова.', 'Ставь цифру вместо оценки.'];
+  const active = await service.resolveContext('org-a', { mode: 'active' });
+  assert.deepEqual(active.effectiveVoice.learnedRules, expected);
+
+  const pinned = await service.resolveContext('org-a', {
+    mode: 'version',
+    versionId: draftA.id,
+  });
+  assert.deepEqual(pinned.effectiveVoice.learnedRules, expected);
+
+  const foreign = await service.resolveContext('org-b', { mode: 'active' });
+  assert.deepEqual(foreign.effectiveVoice.learnedRules, [
+    'Правило чужого пространства.',
+  ]);
+
+  // Аватар, который ничему не научился, отдаёт ровно прежний голос: ключа нет,
+  // и слепок снимка контекста не меняется ни у одного существующего профиля.
+  profileOf('org-a').learnedRules = null;
+  const bare = await service.resolveContext('org-a', { mode: 'active' });
+  assert.equal('learnedRules' in bare.effectiveVoice, false);
+  assert.equal(bare.effectiveVoice.formality, 'neutral');
+});
+
 test('incomplete activation fails before persistence and exact soft-deactivate audit is atomic', async () => {
   const { prisma, service } = createHarness();
   const incomplete = clone(validContent);
@@ -747,7 +819,7 @@ test('controller exposes tenant-derived reads and protects every mutation with A
       '@contentfactory/backend/services/auth/permissions/permission.exception.class':
         {
           AuthorizationActions: { Create: 'create' },
-          Sections: { ADMIN: 'admin' },
+          Sections: { ADMIN: 'admin', EDITOR: 'editor' },
         },
     },
     { sources: commonSources }
@@ -767,7 +839,9 @@ test('controller exposes tenant-derived reads and protects every mutation with A
   ]) {
     assert.deepEqual(
       Reflect.getMetadata('check_policy', controller.prototype[method]),
-      [['create', 'admin']]
+      // `content-factory-next-fn33.90`: профиль бренда — письменная половина
+      // голоса, и он ушёл редактору вместе с ним.
+      [['create', 'editor']]
     );
   }
   assert.equal(

@@ -17,7 +17,7 @@ import type { Organization, User } from '@prisma/client';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
 import type { OrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
 import {
   AuthorizationActions,
@@ -30,6 +30,7 @@ import {
   VoiceAvatarDeleteDto,
   VoiceAvatarUpdateDto,
   VoiceInjectionPlanDto,
+  VoiceLearnForgetDto,
   VoicePassportFieldDto,
   VoiceProposalActivateDto,
   VoiceProposalFieldDto,
@@ -104,14 +105,22 @@ function safeHttpError(error: unknown): never {
 }
 
 /**
- * Managing a voice is an administrator's right; reading one is a member's.
+ * Managing a voice is an editor's right; reading one is any member's.
+ *
+ * Owner decision of 05.09.2026 (`content-factory-next-fn33.90`): who speaks
+ * for the brand, how it addresses a reader and which words it never uses is
+ * editorial work, so the eighteen doors below moved from `Sections.ADMIN` to
+ * `Sections.EDITOR`, and this flag — which is what the avatars screen reads to
+ * decide whether to offer «Создать аватар» — moved with them. Left behind, it
+ * would have told an editor the section was read-only while the door happily
+ * accepted the write.
  *
  * The role is read the same way `brand-profile.controller.ts` reads it, so the
  * two sections of the same product cannot disagree about who may change a
  * profile.
  */
 const canManageVoice = (organization: RequestOrganization): boolean =>
-  isOrganizationAdmin(organization.users?.[0]?.role);
+  isOrganizationEditor(organization.users?.[0]?.role);
 
 @ApiTags('Content intelligence · brand voice')
 @Controller('/content-intelligence/voice')
@@ -188,7 +197,7 @@ export class BrandVoiceController {
   // a `class-validator` failure would arrive as a shapeless 400 rather than
   // this code.
   @Post('/samples')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async addSamples(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -226,7 +235,7 @@ export class BrandVoiceController {
    * read, inside a process that cannot outlive eight seconds or 512 MB.
    */
   @Post('/samples/files')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   @UseGuards(VoiceUploadBatchGuard)
   @UseFilters(VoiceUploadExceptionFilter)
   @UseInterceptors(
@@ -270,7 +279,7 @@ export class BrandVoiceController {
   }
 
   @Delete('/samples')
-  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deleteSamples(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -301,7 +310,7 @@ export class BrandVoiceController {
   }
 
   @Post('/analysis')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async runAnalysis(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -327,7 +336,7 @@ export class BrandVoiceController {
    * действия заставляло бы читателя журнала гадать, за что списаны деньги.
    */
   @Post('/analysis/refresh')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async refreshMeasure(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -356,7 +365,7 @@ export class BrandVoiceController {
   }
 
   @Post('/proposal/portrait')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async proposalPortrait(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -374,7 +383,7 @@ export class BrandVoiceController {
   }
 
   @Post('/proposal/field')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async proposalField(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -411,7 +420,7 @@ export class BrandVoiceController {
   }
 
   @Post('/proposal/manual/field')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async manualProposalField(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -429,7 +438,7 @@ export class BrandVoiceController {
   }
 
   @Post('/proposal/activate')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async activateProposal(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -460,7 +469,7 @@ export class BrandVoiceController {
   }
 
   @Post('/passport/examples')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async setExamples(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -482,7 +491,7 @@ export class BrandVoiceController {
    * already in force and answers with the passport it just changed.
    */
   @Post('/passport/field')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async setPassportField(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -513,7 +522,7 @@ export class BrandVoiceController {
   }
 
   @Post('/scales/corridor')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async setCorridor(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -572,7 +581,7 @@ export class BrandVoiceController {
    *
    * The list is a read and open to every member: a person who may pick an
    * avatar in a draft has to be able to see which ones exist. The four writes
-   * carry `@CheckPolicies`, so «Аватары заводит владелец» is enforced and not
+   * carry `@CheckPolicies`, so «Аватары заводит редактор или администратор» is enforced and not
    * merely drawn.
    *
    * `/avatars` is declared above `/avatars/update` and `/avatars/default`
@@ -591,7 +600,7 @@ export class BrandVoiceController {
   }
 
   @Post('/avatars')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async createAvatar(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -608,7 +617,7 @@ export class BrandVoiceController {
   }
 
   @Post('/avatars/update')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async updateAvatar(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -625,7 +634,7 @@ export class BrandVoiceController {
   }
 
   @Post('/avatars/default')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async setDefaultAvatar(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -649,7 +658,7 @@ export class BrandVoiceController {
    * nobody promoted would write neutrally while four avatars sat on the list.
    */
   @Delete('/avatars')
-  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deleteAvatar(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -665,8 +674,66 @@ export class BrandVoiceController {
     }
   }
 
+  /* ---------------------------------------------------------------------
+   * Чему аватар научился на правках
+   *
+   * Читает всякий, кто видит аватара: «сколько накопилось и чему научились» —
+   * то же чтение, что паспорт голоса. Два письма — администратора, теми же
+   * правами, что и остальные изменения голоса: один из них тратит допуск ИИ,
+   * второй меняет то, чем аватар пишет.
+   * ------------------------------------------------------------------ */
+
+  @Get('/learning')
+  async learning(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @Query('avatar') avatar?: string
+  ) {
+    try {
+      return await this._voice.learning(
+        this.actor(organization, undefined, avatar)
+      );
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
+  /** Один вызов модели на накопленную пачку. Тело не нужно: пары уже лежат. */
+  @Post('/learning/run')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async learnFromEdits(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Query('avatar') avatar?: string
+  ) {
+    try {
+      return await this._voice.learnFromEdits(
+        this.actor(organization, user, avatar)
+      );
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
+  @Post('/learning/forget')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  async forgetLearnedRule(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Body() body: VoiceLearnForgetDto,
+    @Query('avatar') avatar?: string
+  ) {
+    try {
+      return await this._voice.forgetLearnedRule(
+        this.actor(organization, user, avatar),
+        body
+      );
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
   @Post('/versions/restore')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async restoreVersion(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,
@@ -692,7 +759,7 @@ export class BrandVoiceController {
    * separation somebody asking "delete my writing" actually means.
    */
   @Delete('/profile')
-  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deleteProfile(
     @GetOrgFromRequest() organization: RequestOrganization,
     @GetUserFromRequest() user: User,

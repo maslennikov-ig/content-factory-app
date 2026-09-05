@@ -57,9 +57,15 @@ const getList = (t: (key: string, fallback: string) => string) => [
 ];
 export const RepeatComponent: FC<{
   repeat: number | null;
+  /**
+   * Выключен, когда окно поста открыто на чтение
+   * (`content-factory-next-fn33.90.10`). Выключенная кнопка не открывает
+   * список: выбрать было бы можно, а сохранить — нет.
+   */
+  disabled?: boolean;
   onChange: (newVal: number) => void;
 }> = (props) => {
-  const { repeat } = props;
+  const { repeat, disabled } = props;
   const t = useT();
   const list = getList(t);
   const [isOpen, setIsOpen] = useState(false);
@@ -82,6 +88,7 @@ export const RepeatComponent: FC<{
     <div ref={ref} className="relative flex select-none items-center">
       <Menu open={isOpen} onOpenChange={setIsOpen}>
         <MenuButton
+          disabled={disabled}
           className="flex items-center gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
         >
           <RepeatIcon />
@@ -103,7 +110,7 @@ export const RepeatComponent: FC<{
           </span>
           <DropdownArrowIcon size={12} rotated={isOpen} />
         </MenuButton>
-        {isOpen && (
+        {isOpen && !disabled && (
           <MenuList
             aria-label={t('repeat_post_every', 'Repeat Post Every...')}
             style={{ boxShadow: 'var(--cf-overlay-shadow)' }}

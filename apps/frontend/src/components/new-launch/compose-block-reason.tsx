@@ -21,6 +21,7 @@ import { FC } from 'react';
  */
 export type ComposeBlockReason =
   | 'none'
+  | 'read-only'
   | 'locked'
   | 'context-loading'
   | 'context-error'
@@ -29,6 +30,16 @@ export type ComposeBlockReason =
   | 'context-save-draft-first';
 
 export interface ComposeBlockReasonInput {
+  /**
+   * Может ли этот человек вообще писать посты.
+   *
+   * Решение владельца 05.09.2026 (`content-factory-next-fn33.90`): двери
+   * `/posts` несут роль, и Пользователь их не проходит. Считается здесь, а не
+   * отдельной веткой в `manage.modal.tsx`, ровно по той же причине, по
+   * которой сюда вынесены остальные причины: подпись под кнопками и сам
+   * запрет должны считаться одним выражением.
+   */
+  canWrite?: boolean;
   locked?: boolean;
   contentIntelligenceLoadState: 'idle' | 'loading' | 'ready' | 'error';
   contentIntelligenceFailure:
@@ -57,6 +68,10 @@ export interface ComposeBlockReasonInput {
 export function composeBlockReason(
   input: ComposeBlockReasonInput
 ): ComposeBlockReason {
+  // Первой: роль не снимается ничем, что человек может сделать в этом окне,
+  // а все прочие причины предлагают шаг. Предложить шаг тому, кому дверь
+  // закрыта по роли, — отправить его по кругу.
+  if (input.canWrite === false) return 'read-only';
   if (input.locked) return 'locked';
   if (input.contentIntelligenceLoadState === 'loading') {
     return 'context-loading';
@@ -82,6 +97,11 @@ export const COMPOSE_BLOCK_REASON_COPY: Record<
   Exclude<ComposeBlockReason, 'none'>,
   { key: string; fallback: string }
 > = {
+  'read-only': {
+    key: 'compose_blocked_read_only',
+    fallback:
+      'This post is open to read. Writing posts is done by an editor or an administrator — ask an administrator of this workspace for the editor role.',
+  },
   locked: {
     key: 'compose_blocked_locked',
     fallback:
@@ -121,6 +141,8 @@ export const COMPOSE_BLOCK_REASON_COPY: Record<
  * должна быть услышана без перевода фокуса. Цвет приглушённый и один: цвет
  * здесь ничего не значит сам по себе, значение несёт текст.
  */
+export const COMPOSE_BLOCK_REASON_NOTE_ID = 'compose-block-reason';
+
 export const ComposeBlockReasonNote: FC<{
   reason: ComposeBlockReason;
   t: (key: string, fallback: string) => string;
@@ -129,6 +151,10 @@ export const ComposeBlockReasonNote: FC<{
   const copy = COMPOSE_BLOCK_REASON_COPY[reason];
   return (
     <p
+      // Кнопки, которые эта строка объясняет, ссылаются на неё через
+      // `aria-describedby`: причина должна быть слышна тем, кто до неё
+      // не досмотрит (`content-factory-next-fn33.90.10`).
+      id={COMPOSE_BLOCK_REASON_NOTE_ID}
       role="status"
       data-compose-block-reason={reason}
       className="max-w-[52ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"

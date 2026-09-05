@@ -67,7 +67,7 @@ export class ContentLeadController {
   }
 
   @Post('/subscriptions')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async createSubscription(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -89,7 +89,7 @@ export class ContentLeadController {
   }
 
   @Post('/subscriptions/:id/archive')
-  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async archiveSubscription(
     @GetOrgFromRequest() organization: Organization,
     @Param('id') id: string
@@ -102,7 +102,7 @@ export class ContentLeadController {
   }
 
   @Post('/subscriptions/:id/check')
-  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async check(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -142,6 +142,7 @@ export class ContentLeadController {
   }
 
   @Post('/:id/dismiss')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async dismiss(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
@@ -155,6 +156,7 @@ export class ContentLeadController {
   }
 
   @Post('/:id/accept')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async accept(
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,

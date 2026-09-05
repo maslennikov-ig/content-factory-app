@@ -12,6 +12,22 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { MAX_SEARCH_QUERY_LENGTH } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
+
+/**
+ * Поиск по словам на витрине фактов (`content-factory-next-odb8.4`).
+ *
+ * Единственный параметр `GET /content-intelligence/facts`, и единственное,
+ * что о нём нужно знать маршруту: это строка, и она не длиннее того, что
+ * поиск вообще берёт в работу. Пустое поле сюда не приходит — экран не
+ * ставит `q` в адрес, пока в нём ничего не набрано.
+ */
+export class ListContentFactsQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_QUERY_LENGTH)
+  q?: string;
+}
 
 export class BrandProfileSelectionDto {
   @IsIn(['active', 'version', 'none'])

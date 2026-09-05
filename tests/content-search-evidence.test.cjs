@@ -361,7 +361,15 @@ test('the route is an everyday AI-gated write, not an admin source-registry acti
       permissionDecorators.CHECK_POLICIES_KEY,
       ContentSourceController.prototype.acceptSearchResult
     ),
-    [[permissionEnums.AuthorizationActions.Create, permissionEnums.Sections.AI]]
+    // Две политики с 05.09.2026: допуск тарифа отвечает первым, роль второй
+    // (`content-factory-next-fn33.90`).
+    [
+      [permissionEnums.AuthorizationActions.Create, permissionEnums.Sections.AI],
+      [
+        permissionEnums.AuthorizationActions.Create,
+        permissionEnums.Sections.EDITOR,
+      ],
+    ]
   );
 });
 

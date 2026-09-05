@@ -13,6 +13,11 @@ import { VoiceBriefScreen } from './voice-brief.screen';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 import { ContentFactsContainer } from '../content-intelligence/content-facts.container';
 import { ContentSearchContainer } from '../content-intelligence/content-search.container';
+import { useUser } from '../layout/user.context';
+import {
+  ContentReadOnlyNote,
+  writeRightFromRole,
+} from '../content-intelligence/content-write-right';
 import type { AcceptedEvidence } from '../content-intelligence/content-search.adapter';
 import {
   EDITOR_MODAL,
@@ -66,6 +71,15 @@ export function VoiceBriefContainer() {
     : 'en';
   const t = voiceCopy[locale];
   const w = briefCopy[locale];
+  /**
+   * The brief is a writer's tool (`content-factory-next-fn33.90.7`): the role
+   * is read from the session before anything is drawn, so a `USER` sees the
+   * questions, fills nothing and is told whom to ask — the same reading the
+   * archive makes, from the same function, not a second list of roles.
+   */
+  const user = useUser();
+  const canWrite = writeRightFromRole(user?.role).allowed;
+  const readOnlyNoteId = 'voice-brief-read-only';
 
   const read = useMemo(() => jsonReader(request), [request]);
   const { data: channels } = useIntegrationList();
@@ -376,10 +390,21 @@ export function VoiceBriefContainer() {
         data-voice-brief-form="true"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canWrite) return;
           void evaluate();
         }}
         className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
       >
+        {!canWrite && (
+          <ContentReadOnlyNote id={readOnlyNoteId} surface="brief" refusal="role">
+            {w.readOnlyRole}
+          </ContentReadOnlyNote>
+        )}
+        <fieldset
+          disabled={!canWrite}
+          aria-describedby={canWrite ? undefined : readOnlyNoteId}
+          className="contents min-w-0"
+        >
         <div>
           <h3 className="cf-label-sm uppercase text-cf-ink-muted">
             {w.formTitle}
@@ -503,6 +528,8 @@ export function VoiceBriefContainer() {
             <Button
               type="button"
               variant="secondary"
+              disabled={!canWrite}
+              aria-describedby={canWrite ? undefined : readOnlyNoteId}
               onClick={() =>
                 setDraft((current) => ({
                   ...current,
@@ -533,10 +560,16 @@ export function VoiceBriefContainer() {
         </div>
 
         <div className="flex flex-wrap gap-[8px]">
-          <Button type="submit" variant="primary" disabled={busy}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={busy || !canWrite}
+            aria-describedby={canWrite ? undefined : readOnlyNoteId}
+          >
             {busy ? w.checking : w.check}
           </Button>
         </div>
+        </fieldset>
       </form>
 
       {/*
@@ -566,6 +599,7 @@ export function VoiceBriefContainer() {
             onEvidenceAccepted={setPendingEvidence}
           />
           <ContentFactsContainer
+            readOnly={!canWrite}
             onFactCreated={handleFactCreated}
             pendingEvidence={pendingEvidence}
             onEvidenceDropped={dropPendingEvidence}

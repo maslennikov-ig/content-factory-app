@@ -35,7 +35,13 @@ export class AutopostController {
   }
 
   @Post('/v2')
-  @CheckPolicies([AuthorizationActions.Create, Sections.WEBHOOKS])
+  // `Sections.WEBHOOKS` counts how many the plan allows and says nothing
+  // about who; the role stands beside it, plan limit first
+  // (`content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.WEBHOOKS],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async createAutopostDraftV2(
     @GetOrgFromRequest() org: Organization,
     @Body() body: AutopostDraftV2Dto
@@ -63,7 +69,13 @@ export class AutopostController {
   }
 
   @Post('/')
-  @CheckPolicies([AuthorizationActions.Create, Sections.WEBHOOKS])
+  // `Sections.WEBHOOKS` counts how many the plan allows and says nothing
+  // about who; the role stands beside it, plan limit first
+  // (`content-factory-next-fn33.90`).
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.WEBHOOKS],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
   async createAutopost(
     @GetOrgFromRequest() org: Organization,
     @Body() body: AutopostDto
@@ -72,6 +84,7 @@ export class AutopostController {
   }
 
   @Put('/:id')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async updateAutopost(
     @GetOrgFromRequest() org: Organization,
     @Body() body: AutopostDto,
@@ -81,6 +94,7 @@ export class AutopostController {
   }
 
   @Delete('/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
   async deleteAutopost(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -89,6 +103,7 @@ export class AutopostController {
   }
 
   @Post('/:id/active')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
   async changeActive(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -98,6 +113,7 @@ export class AutopostController {
   }
 
   @Post('/send')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async sendWebhook(@Query() query: OnlyURL) {
     return this._autopostsService.loadXML(query.url);
   }

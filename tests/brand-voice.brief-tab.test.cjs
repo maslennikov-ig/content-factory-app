@@ -73,6 +73,9 @@ const container = loadTypeScriptModule(FILES.container);
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
 );
+const userContext = loadTypeScriptModule(
+  'apps/frontend/src/components/layout/user.context.tsx'
+);
 
 /* -------------------------------------------------------------------------
  * A server, stubbed at the one place the product talks to it
@@ -158,10 +161,17 @@ const renderTab = async (locale = 'ru') => {
       React.createElement(
         SWRConfig,
         { value: { provider: () => new Map(), dedupingInterval: 0 } },
+        // `content-factory-next-fn33.90.7`: the brief writes, so the tab is
+        // rendered under a role that may — these tests are about the brief,
+        // not about the role.
         React.createElement(
-          variables.VariableContextComponent,
-          { language: locale },
-          React.createElement(container.VoiceBriefContainer)
+          userContext.UserContext.Provider,
+          { value: { role: 'ADMIN' } },
+          React.createElement(
+            variables.VariableContextComponent,
+            { language: locale },
+            React.createElement(container.VoiceBriefContainer)
+          )
         )
       )
     );
