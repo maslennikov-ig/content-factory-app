@@ -37,8 +37,10 @@
 -- транзакционность обеспечивает флаг --single-transaction в psql.
 --
 -- Столбцы добавлены в schema.prisma 04.09.2026 (content-factory-next-fn33.28.1).
--- На боевой базе НЕ применено: применять до переключения на выпуск волны
--- «окно поста», запись — в production-deploy.md.
+-- На боевой базе ПРИМЕНЕНО 05.09.2026 до переключения на выпуск fc9fa77148f6
+-- (копия 20260905T050233Z-pre-contextreview-product-only, повторный diff пуст),
+-- запись — в production-deploy.md. Повторно не запускать: ADD COLUMN без
+-- IF NOT EXISTS откажет на существующей колонке.
 
 ALTER TABLE "Post" ADD COLUMN     "contentContextReviewedAt" TIMESTAMP(3),
 ADD COLUMN     "contentContextReviewedById" TEXT;

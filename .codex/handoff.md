@@ -4,8 +4,9 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) — on
-branch `wave/compose-2026-09-04` at `ad750a0f`, NOT merged, NOT released.**
+**Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) —
+merged to `main` as `b27e25cc`, pushed, and RELEASED 05.09 as `fc9fa77148f6`
+(two `Post` columns applied before the switch, rollback `d782858045fa`).**
 The owner saw the old composer on production and decided: only what is
 useful. Five Opus streams: (A) `Post.contentContextReviewedAt/ById` and
 `POST /posts/:id/context-review` — the draft-only boundary is left by an
@@ -18,9 +19,9 @@ tag/repeat/stage on `Menu`, standard dialog shell, «Подтверждения�
 **Found: every post with a content context failed to save with 500 since
 August** — `await import('@contentfactory/…')` that `nest build` never
 rewrites; production has it too; static import + guard. Receipt: 340 suites,
-4125 tests, `node --test` 116/0, python OK. Release: schema
-`post-context-review-schema-apply.sql` **before** the switch. Open:
-`fn33.28.4` (owner: where the «sounds like you» check lives), `.5`, `.18`.
+4125 tests, `node --test` 116/0, python OK. Public CI on `fc9fa77`: two
+test-only reds (docker proof's hand-rolled `Post` table, `expect.any(Date)`
+under fake timers + time travel), fixed next commit. Open: `fn33.28.4`, `.5`, `.18`.
 
 **Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed) — merged to
 `main` as `8443eedc`, pushed, and RELEASED as `d782858045fa` (schema column
@@ -154,15 +155,13 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **release the
-compose wave** — merge `wave/compose-2026-09-04` into `main`, push, public
-tree, image, apply `post-context-review-schema-apply.sql` **before** the
-switch (`psql` only), switch, retain; then the owner walks production:
-composer without context (core + stage only), a post from the Content section
-(one provenance line, «Подтверждения проверены» opens scheduling), the
-allowance hint at «Найти». Every step past the merge needs fresh authority.
-Then the owner's decisions: `fn33.28.4`, `fn33.90`, `fn33.32`, and the
-assumptions in the beads' notes.
+Next stage id: `content-factory-next-vme`. Recommended action: **the owner
+walks production `fc9fa77148f6`** — composer without context (core + stage
+only), a post from the Content section (one provenance line, «Подтверждения
+проверены» opens scheduling), the allowance hint at «Найти» — and every gap
+goes to Beads first, fixes in one wave after. Confirm public CI `Build` is
+green on the follow-up commit. Then the owner's decisions: `fn33.28.4`,
+`fn33.90`, `fn33.32`, and the assumptions in the beads' notes.
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram

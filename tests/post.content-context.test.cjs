@@ -925,7 +925,10 @@ test(
           "group" text NOT NULL,
           "state" text NOT NULL,
           "deletedAt" timestamptz,
-          "parentPostId" text
+          "parentPostId" text,
+          "contentContextSnapshotId" text,
+          "contentContextReviewedAt" timestamptz,
+          "contentContextReviewedById" text
         )
       `);
       await admin.query(

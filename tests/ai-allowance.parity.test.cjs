@@ -163,10 +163,17 @@ describe('the member line and the administrator screen count one allowance', () 
 
     // Именно эта ветка `OR` и была разницей: экран администратора её не имел и
     // потому считал брошенные сутки назад `admitted` наравне с настоящими.
-    expect(adminSide.wheres[0].OR).toEqual([
-      { status: { not: 'admitted' } },
-      { createdAt: { gte: expect.any(Date) } },
-    ]);
+    const [staleStatus, activeWindow] = adminSide.wheres[0].OR;
+    expect(staleStatus).toEqual({ status: { not: 'admitted' } });
+    // Не `expect.any(Date)`: под фейковыми таймерами Jest `Date` в тесте — это
+    // `ClockDate`, а под сдвинутым календарём (`test:time-travel`) — ещё один
+    // класс поверх него. Модуль под тестом строит момент своим `Date`, и
+    // сравнение классов расходится там, где само значение верно. Проверяем
+    // форму: это дата, и она не «Invalid Date».
+    expect(Object.prototype.toString.call(activeWindow.createdAt.gte)).toBe(
+      '[object Date]'
+    );
+    expect(Number.isNaN(activeWindow.createdAt.gte.getTime())).toBe(false);
   });
 
   test('and therefore the two screens print the same remainder', async () => {
