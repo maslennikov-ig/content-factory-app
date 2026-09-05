@@ -198,6 +198,8 @@ describe('the post window under an ordinary member', () => {
       FILES.reason
     );
 
+    // Пост с подтверждениями, ещё не проверенными человеком: планирование
+    // закрыто, и строка называет ровно этот шаг.
     expect(
       composeBlockReason({
         locked: false,
@@ -205,8 +207,38 @@ describe('the post window under an ordinary member', () => {
         contentIntelligenceFailure: null,
         provenanceErrorCode: null,
         hasProvenance: true,
+        contextReviewedAt: null,
+        postSaved: true,
       })
-    ).toBe('context-draft-only');
+    ).toBe('context-review-required');
+
+    // Тот же пост, ещё не сохранённый: сказать «проверено» некому, и строка
+    // просит сначала черновик.
+    expect(
+      composeBlockReason({
+        locked: false,
+        contentIntelligenceLoadState: 'ready',
+        contentIntelligenceFailure: null,
+        provenanceErrorCode: null,
+        hasProvenance: true,
+        contextReviewedAt: null,
+        postSaved: false,
+      })
+    ).toBe('context-save-draft-first');
+
+    // Человек посмотрел подтверждения и сказал, что проверил их: причины
+    // больше нет.
+    expect(
+      composeBlockReason({
+        locked: false,
+        contentIntelligenceLoadState: 'ready',
+        contentIntelligenceFailure: null,
+        provenanceErrorCode: null,
+        hasProvenance: true,
+        contextReviewedAt: '2026-09-04T18:00:00.000Z',
+        postSaved: true,
+      })
+    ).toBe('none');
 
     expect(
       composeBlockReason({
@@ -242,14 +274,14 @@ describe('the post window under an ordinary member', () => {
 
     render(
       h(ComposeBlockReasonNote, {
-        reason: 'context-draft-only',
+        reason: 'context-review-required',
         t: (key, fallback) => fallback,
       })
     );
     const note = document.querySelector('[data-compose-block-reason]');
     expect(note).toBeTruthy();
     expect(note.getAttribute('role')).toBe('status');
-    expect(note.textContent).toMatch(/saved as a draft/i);
+    expect(note.textContent).toMatch(/confirm it/i);
   });
 
   test('the window renders the reason beside the buttons it explains', () => {
@@ -270,7 +302,9 @@ describe('the post window under an ordinary member', () => {
       'compose_blocked_context_loading',
       'compose_blocked_context_error',
       'compose_blocked_evidence_required',
-      'compose_blocked_context_draft_only',
+      'compose_blocked_context_review_required',
+      'compose_blocked_context_save_draft_first',
+      'context_review_confirm',
     ];
     const localesDir = path.join(
       repositoryRoot,
@@ -288,6 +322,9 @@ describe('the post window under an ordinary member', () => {
     const ru = JSON.parse(
       fs.readFileSync(path.join(localesDir, 'ru', 'translation.json'), 'utf8')
     );
-    expect(ru.compose_blocked_context_draft_only).toMatch(/черновик/i);
+    expect(ru.compose_blocked_context_review_required).toMatch(
+      /подтверждени/i
+    );
+    expect(ru.compose_blocked_context_save_draft_first).toMatch(/черновик/i);
   });
 });

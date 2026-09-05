@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -164,6 +165,7 @@ export function VoiceSamplesScreen({
   onToggle,
   onDeleteSelected,
   onNext,
+  allowanceHint,
   notice,
 }: {
   locale: VoiceLocale;
@@ -182,6 +184,13 @@ export function VoiceSamplesScreen({
   onToggle?: (code: string, checked: boolean) => void;
   onDeleteSelected?: () => void;
   onNext?: () => void;
+  /**
+   * What is left of the AI allowance, beside the button that spends it
+   * (`content-factory-next-fn33.28.3`). A slot rather than a component: this
+   * screen stays free of network calls, so the review scenes keep rendering it
+   * with nothing behind them.
+   */
+  allowanceHint?: ReactNode;
   notice?: string;
 }) {
   const t = voiceCopy[locale];
@@ -592,6 +601,7 @@ export function VoiceSamplesScreen({
             {ready ? null : (
               <span className="cf-caption text-cf-ink-muted">{t.opensAt}</span>
             )}
+            {allowanceHint}
           </div>
         </div>
       </div>

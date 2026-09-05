@@ -343,7 +343,7 @@ export const voiceCopy = {
 
 
     // Screen 10 — the applied-voice ribbon.
-    ribbonLabel: 'Применённый аватар',
+    ribbonLabel: 'Кто пишет',
     ribbonNeutral: 'Нейтрально · аватар не применён',
     ribbonNeutralBody:
       'Профиля нет, текст собирается нейтральным стилем. Это рабочий режим, а не ошибка.',
@@ -998,7 +998,7 @@ export const voiceCopy = {
     consentRecorded: 'Manner taken, content not',
     consentRecordedBody: 'The report is kept in Provenance.',
 
-    ribbonLabel: 'Applied avatar',
+    ribbonLabel: 'Who writes',
     ribbonNeutral: 'Neutral · no avatar applied',
     ribbonNeutralBody:
       'There is no profile, so the text is written in a neutral style. That is a working mode, not an error.',

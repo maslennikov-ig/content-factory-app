@@ -552,6 +552,8 @@ model Post {
   researchSources            String                      @default("[]")
   contentContextSnapshotId   String?
   brandProfileVersionId      String?
+  contentContextReviewedAt   DateTime?
+  contentContextReviewedById String?
   image                      String?
   submittedForOrderId        String?
   submittedForOrganizationId String?

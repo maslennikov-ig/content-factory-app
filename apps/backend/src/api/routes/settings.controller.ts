@@ -23,6 +23,7 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { AiProviderService } from '@contentfactory/nestjs-libraries/openai/ai.provider.service';
+import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { AiProviderDto } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
@@ -31,7 +32,8 @@ import type { AssignableOrganizationRole } from '@contentfactory/nestjs-librarie
 export class SettingsController {
   constructor(
     private _organizationService: OrganizationService,
-    private _aiProviderService: AiProviderService
+    private _aiProviderService: AiProviderService,
+    private _aiUsageService: AiUsageService
   ) {}
 
   @Get('/team')
@@ -150,6 +152,22 @@ export class SettingsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async clearSearchKey(@GetOrgFromRequest() organization: Organization) {
     return this._aiProviderService.clearSearchKey(organization.id);
+  }
+
+  /**
+   * `content-factory-next-fn33.28.3`: what is left, for the person about to
+   * spend it.
+   *
+   * The neighbouring `/settings/ai` doors are administrator-only because they
+   * read and write the workspace's key and show who spent what. This one is
+   * neither: it answers with counts and a date, and every paid button in the
+   * product is open to any member, so the number in front of that button has
+   * to be too. Nothing here identifies a person, and the organisation comes
+   * from the request like everywhere else.
+   */
+  @Get('/ai/allowance')
+  async getAiAllowance(@GetOrgFromRequest() organization: Organization) {
+    return this._aiUsageService.readAllowance(organization.id);
   }
 
   @Get('/ai/models')

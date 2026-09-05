@@ -18,8 +18,8 @@ import {
   useFormContext,
 } from 'react-hook-form';
 import { Input } from '@contentfactory/react/form/input';
-import { CopilotTextarea } from '@copilotkit/react-textarea';
 import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
+import { AssistedTextarea } from '@contentfactory/frontend/components/copilot/assisted.textarea';
 import clsx from 'clsx';
 import { string, object } from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -46,11 +46,12 @@ export const TextArea: FC<{
       {/*
   Помощник монтируется у самого поля, а не вокруг всего приложения: его
   провайдер обращается к рантайму сразу при монтировании
-  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`), и не
+  монтируется вовсе там, где отвечать некому: без ключа AI это был
+  `POST /copilot/chat -> 503` на каждом открытии (`content-factory-next-fn33.28.16`).
 */}
-      <CopilotProvider>
-        <CopilotTextarea
-          disableBranding={true}
+      <CopilotProvider requireAvailable>
+        <AssistedTextarea
           placeholder={props.placeHolder}
           value={value}
           className={clsx(
@@ -64,10 +65,7 @@ export const TextArea: FC<{
               },
             });
           }}
-          autosuggestionsConfig={{
-            textareaPurpose: `Assist me in writing social media posts.`,
-            chatApiConfigs: {},
-          }}
+          purpose={`Assist me in writing social media posts.`}
         />
       </CopilotProvider>
 

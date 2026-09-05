@@ -17,7 +17,15 @@ import {
   DropdownArrowIcon,
   PlusIcon,
   CheckmarkIcon,
+  CloseIcon,
 } from '@contentfactory/frontend/components/ui/icons';
+import {
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuOption,
+} from '@contentfactory/react/choice/choice.menu';
+import { Status } from '@contentfactory/frontend/components/ui/surface';
 
 export const TagsComponent: FC<{
   name: string;
@@ -158,122 +166,120 @@ export const TagsComponentInner: FC<{
   );
 
   return (
-    <div
-      ref={ref}
-      className={clsx(
-        'border rounded-[8px] justify-center flex items-center relative h-[44px] text-[15px] font-[600] select-none',
-        isOpen ? 'border-cf-accent' : 'border-newTextColor/10'
-      )}
-    >
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-[16px] justify-center flex gap-[8px] items-center h-full select-none flex-1"
-      >
-        <div className="cursor-pointer">
+    <div ref={ref} className="relative flex select-none items-center">
+      <Menu open={isOpen} onOpenChange={setIsOpen}>
+        <MenuButton
+          aria-label={t('tags', 'Tags')}
+          className="flex items-center gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
+        >
           <TagIcon />
-        </div>
-        <div className="cursor-pointer flex gap-[4px]">
           {tagValue.length === 0 ? (
-            t('add_new_tag', 'Add New Tag')
+            <span>{t('add_new_tag', 'Add New Tag')}</span>
           ) : (
-            <>
-              <div
-                className="h-full flex justify-center items-center px-[8px] rounded-[4px]"
-                style={{ backgroundColor: tagValue[0].color }}
-              >
-                <span className="text-shadow-tags text-[#fff]">
-                  {tagValue[0].name}
+            <span className="flex items-center gap-[8px]">
+              <Status icon={<TagDot color={tagValue[0].color} />}>
+                {tagValue[0].name}
+              </Status>
+              {tagValue.length > 1 ? (
+                <span className="cf-label-sm text-cf-ink-muted">
+                  +{tagValue.length - 1}
                 </span>
-              </div>
-              {tagValue.length > 1 ? <span>+{tagValue.length - 1}</span> : null}
-            </>
+              ) : null}
+            </span>
           )}
-        </div>
-        <div className="cursor-pointer">
-          <DropdownArrowIcon rotated={isOpen} />
-        </div>
-      </div>
-      {isOpen && (
-        <div className="z-[300] absolute start-0 bottom-[100%] w-[240px] bg-newBgColorInner p-[12px] menu-shadow -translate-y-[10px] flex flex-col">
-          {(data?.tags || []).map((p: any) => (
-            <div
-              onClick={() => {
-                const exists = !!tagValue.find((a) => a.id === p.id);
-                let modify = [];
-                if (exists) {
-                  modify = tagValue.filter((a) => a.id !== p.id);
-                } else {
-                  modify = [...tagValue, p];
-                }
-                setTagValue(modify);
-                onChange({
-                  target: {
-                    value: modify.map((p: any) => ({
-                      label: p.name,
-                      value: p.name,
-                    })),
-                    name,
-                  },
-                });
-              }}
-              key={p.name}
-              className="min-h-[40px] py-[8px] px-[20px] -mx-[12px] flex gap-[8px] items-center group"
-            >
-              <Check
-                onChange={() => {}}
-                value={!!tagValue.find((a) => a.id === p.id)}
-              />
-              <div className="h-full flex items-center flex-1 break-all">
-                <span
-                  className="text-[#fff] px-[8px] rounded-[8px] text-shadow-tags"
-                  style={{ backgroundColor: p.color }}
-                >
-                  {p.name}
-                </span>
-              </div>
-              {!tagValue.find((a) => a.id === p.id) && (
-                <div
-                  onClick={(e) => deleteTag(p, e)}
-                  className="ms-auto transition-opacity cursor-pointer text-red-500 text-[14px] font-[600]"
-                >
-                  ×
-                </div>
-              )}
-            </div>
-          ))}
-          <div
-            onClick={addTag}
-            className="cursor-pointer gap-[8px] flex w-full h-[34px] rounded-[8px] mt-[12px] px-[16px] justify-center items-center bg-cf-accent text-cf-accent-ink"
+          <DropdownArrowIcon size={12} rotated={isOpen} />
+        </MenuButton>
+        {isOpen && (
+          <MenuList
+            aria-label={t('tags', 'Tags')}
+            style={{ boxShadow: 'var(--cf-overlay-shadow)' }}
+            className="absolute bottom-[100%] start-0 z-[300] mb-[8px] flex w-[240px] flex-col rounded-[8px] border border-cf-border-strong bg-cf-surface-raised p-[8px]"
           >
-            <div>
+            {(data?.tags || []).map((p: any) => (
+              <div key={p.name} className="flex items-center gap-[4px]">
+                <MenuOption
+                  keepOpen
+                  layout="content"
+                  selected={!!tagValue.find((a) => a.id === p.id)}
+                  onClick={() => {
+                    const exists = !!tagValue.find((a) => a.id === p.id);
+                    const modify = exists
+                      ? tagValue.filter((a) => a.id !== p.id)
+                      : [...tagValue, p];
+                    setTagValue(modify);
+                    onChange({
+                      target: {
+                        value: modify.map((one: any) => ({
+                          label: one.name,
+                          value: one.name,
+                        })),
+                        name,
+                      },
+                    });
+                  }}
+                  className="flex flex-1 items-center gap-[8px] rounded-[8px] px-[8px] text-start hover:bg-cf-surface-subtle"
+                >
+                  <Check value={!!tagValue.find((a) => a.id === p.id)} />
+                  <span className="flex min-w-0 flex-1 items-center">
+                    <Status icon={<TagDot color={p.color} />}>{p.name}</Status>
+                  </span>
+                </MenuOption>
+                {!tagValue.find((a) => a.id === p.id) && (
+                  <Button
+                    variant="quiet"
+                    iconOnly
+                    density="dense"
+                    aria-label={t('delete_tag', 'Delete Tag')}
+                    onClick={(e) => deleteTag(p, e)}
+                    className="text-cf-danger"
+                  >
+                    <CloseIcon size={12} />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addTag}
+              className="mt-[8px] flex items-center justify-center gap-[8px]"
+            >
               <PlusIcon />
-            </div>
-            <div className="text-[13px] font-[600]">
-              {t('add_new_tag', 'Add New Tag')}
-            </div>
-          </div>
-        </div>
-      )}
+              <span>{t('add_new_tag', 'Add New Tag')}</span>
+            </Button>
+          </MenuList>
+        )}
+      </Menu>
     </div>
   );
 };
 
-const Check: FC<{ value: boolean; onChange: (value: boolean) => void }> = ({
-  value,
-  onChange,
-}) => {
-  return (
-    <div
-      onClick={() => onChange(!value)}
-      className={clsx(
-        'text-[10px] font-[500] text-center flex border border-btnSimple rounded-[6px] min-w-[20px] min-h-[20px] w-[20px] h-[20px] justify-center items-center',
-        value && 'bg-cf-accent'
-      )}
-    >
-      {value ? <CheckmarkIcon className="text-cf-accent-ink" /> : ''}
-    </div>
-  );
-};
+/**
+ * Цвет тега — это данные, а не оформление.
+ *
+ * Раньше имя тега печаталось белым по этому цвету: белый текст на цвете,
+ * который выбрал человек, читается через раз и не поддаётся расчёту контраста.
+ * Точка ставит тот же цвет рядом с именем, а имя берёт цвет у `Status`.
+ */
+const TagDot: FC<{ color?: string }> = ({ color }) => (
+  <span
+    aria-hidden="true"
+    className="inline-block h-[8px] w-[8px] rounded-full border border-cf-border"
+    style={color ? { backgroundColor: color } : undefined}
+  />
+);
+
+const Check: FC<{ value: boolean }> = ({ value }) => (
+  <span
+    aria-hidden="true"
+    className={clsx(
+      'flex h-[20px] w-[20px] min-w-[20px] items-center justify-center rounded-[6px] border border-cf-border-control',
+      value && 'bg-cf-accent border-transparent'
+    )}
+  >
+    {value ? <CheckmarkIcon className="text-cf-accent-ink" /> : ''}
+  </span>
+);
 export const TagsComponentA: FC<{
   name: string;
   label: string;

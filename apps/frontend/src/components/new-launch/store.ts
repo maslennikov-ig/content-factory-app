@@ -622,7 +622,6 @@ interface StoreState {
     index: number,
     citationIds: string[]
   ) => void;
-  clearAllValueCitationIds: () => void;
   setComments: (comments: boolean | 'no-media') => void;
 }
 
@@ -690,20 +689,6 @@ export const useLaunchStore = create<StoreState>()((set) => ({
             }
           : item
       ),
-    })),
-  clearAllValueCitationIds: () =>
-    set((state) => ({
-      global: state.global.map((item) => ({
-        ...item,
-        usedCitationIds: [],
-      })),
-      internal: state.internal.map((item) => ({
-        ...item,
-        integrationValue: item.integrationValue.map((value) => ({
-          ...value,
-          usedCitationIds: [],
-        })),
-      })),
     })),
   setCurrent: (current: string) =>
     set((state) => ({

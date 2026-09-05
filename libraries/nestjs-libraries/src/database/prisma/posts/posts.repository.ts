@@ -20,7 +20,19 @@ import utc from 'dayjs/plugin/utc';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateTagDto } from '@contentfactory/nestjs-libraries/dtos/posts/create.tag.dto';
 import { safeErrorLedgerPayload } from '@contentfactory/nestjs-libraries/database/prisma/errors/error-ledger.payload';
-import type { ContentContextDraftBindingV1 } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize';
+/**
+ * Статический импорт, не `await import()`: компилятор бэкенда переписывает
+ * псевдоним `@contentfactory/...` в относительный путь только у статических
+ * импортов, а строку внутри динамического оставляет как есть, и в сборке
+ * модуль не находится — любой пост с контекстом падал на сохранении с 500
+ * (`content-factory-next-fn33.28.7`). Страж:
+ * `tests/backend-no-dynamic-alias-import.guard.test.cjs`.
+ */
+import {
+  validateContentContextForDraft,
+  writeContentContextDraftProvenance,
+  type ContentContextDraftBindingV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -607,11 +619,31 @@ export class PostsRepository {
       );
     }
     if (body.contentContextSnapshotId) {
-      if (!['draft', 'update'].includes(state)) {
+      /**
+       * Планирование и публикация поста с проверенным контекстом решаются не
+       * здесь, а в `createOrUpdatePostWithClient`: ответ зависит от того, что
+       * стоит в строке поста (`contentContextReviewedAt`), а её видно только
+       * внутри транзакции. Единственное, что известно уже тут, — у нового
+       * поста нет ни строки, ни связки, значит и подтверждать было нечего.
+       *
+       * Связка (`group`) отсюда уезжает вниз нетронутой намеренно
+       * (`content-factory-next-fn33.28.6`). Человек, который подтвердил
+       * подтверждения, а потом удалил все сохранённые коробки и написал текст
+       * заново, присылает пост без единого `item.id` — и раньше слышал
+       * «сначала сохраните черновиком» при открытой кнопке на экране. Строки
+       * его связки при этом стоят в базе с отметкой о проверке. Ответ на этот
+       * вопрос есть только в данных, поэтому его даёт проверка внутри
+       * транзакции, а не эта.
+       */
+      if (
+        !['draft', 'update'].includes(state) &&
+        !body.value.some((item) => item.id) &&
+        !body.group
+      ) {
         repositoryError(
           'CONTENT_CONTEXT_DRAFT_ONLY',
           409,
-          'Content intelligence output can only be saved as a draft'
+          'A post built from checked context is saved as a draft first, and can be scheduled after someone confirms the checks'
         );
       }
       if (body.value.length > 1 && body.usedCitationIds !== undefined) {
@@ -637,9 +669,6 @@ export class PostsRepository {
         async (client: any) => {
           let bindings: ContentContextDraftBindingV1[] | undefined;
           if (body.contentContextSnapshotId) {
-            const { validateContentContextForDraft } = await import(
-              '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize'
-            );
             bindings = [];
             for (const value of body.value) {
               bindings.push(
@@ -719,9 +748,6 @@ export class PostsRepository {
           return { created: false, posts: [] as Post[] };
         }
         const created: Post[] = [];
-        const { validateContentContextForDraft } = await import(
-          '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize'
-        );
         for (const body of input.posts) {
           const bindings: ContentContextDraftBindingV1[] = [];
           for (const value of body.value) {
@@ -772,6 +798,110 @@ export class PostsRepository {
     );
   }
 
+  /**
+   * «Подтверждения проверены»: человек снимает с поста границу черновика.
+   *
+   * Пост, собранный из проверенного контекста, до 04.09.2026 не мог выйти из
+   * черновика вовсе. Спецификации раздела «Контент» требуют явного решения
+   * человека перед публикацией — это оно и есть, а не отмена требования.
+   *
+   * Отметка ставится на всю связку поста (`group`), потому что человек
+   * подтверждает пост, а не отдельное сообщение ветки. Повторный вызов ничего
+   * не переписывает и отвечает той же датой: кнопку нажимают дважды чаще, чем
+   * кажется, и второе нажатие не должно двигать след первого решения.
+   */
+  async markContentContextReviewed(orgId: string, id: string, userId: string) {
+    const post = await this._post.model.post.findFirst({
+      where: { id, organizationId: orgId, deletedAt: null },
+      select: {
+        id: true,
+        group: true,
+        contentContextSnapshotId: true,
+        contentContextReviewedAt: true,
+        contentContextReviewedById: true,
+      },
+    });
+    // Чужой пост и удалённый отвечают одинаково: «не найден», без намёка на
+    // то, что он существует у кого-то ещё.
+    if (!post) {
+      repositoryError('POST_NOT_FOUND', 404, 'Post was not found');
+    }
+    if (!post.contentContextSnapshotId) {
+      repositoryError(
+        'CONTENT_CONTEXT_NOT_FOUND',
+        409,
+        'This post carries no checked context, so there is nothing to confirm'
+      );
+    }
+    if (post.contentContextReviewedAt) {
+      return {
+        contentContextReviewedAt: post.contentContextReviewedAt,
+        contentContextReviewedById: post.contentContextReviewedById,
+      };
+    }
+    /**
+     * Идемпотентность держится на данных, а не на чтении перед записью.
+     *
+     * Раньше здесь стояли `findFirst` и следом `updateMany` двумя запросами, и
+     * обещание «повторный вызов не двигает след первого решения» это не
+     * выполняло: при двух одновременных нажатиях оба чтения видели пусто, оба
+     * писали, и два ответа несли разные даты — то есть след первого решения
+     * как раз сдвигался (`content-factory-next-fn33.28.6`).
+     *
+     * Условие `contentContextReviewedAt: null` перенесено в сам `where`, и
+     * решает его база. Ноль затронутых строк означает, что кто-то успел
+     * раньше; тогда мы перечитываем строку и отвечаем ЕГО датой и ЕГО именем,
+     * а не своими. Проверка на пусто выше остаётся: она отвечает без записи в
+     * обычном случае повторного нажатия.
+     */
+    const reviewedAt = new Date();
+    // Связка, а если её нет — сам пост. `organizationId` в оба запроса ниже
+    // вписан отдельно, а не приезжает спредом: страж межарендных запросов
+    // (`tests/tenant-isolation.guard.test.cjs`) читает `where` статически и
+    // сквозь спред область не видит. Запрос, у которого нельзя прочитать
+    // аренду, для стража неотличим от запроса без неё — и правильно.
+    const reach = post.group ? { group: post.group } : { id: post.id };
+    const claimed = await this._post.model.post.updateMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        ...reach,
+        contentContextReviewedAt: null,
+      },
+      data: {
+        contentContextReviewedAt: reviewedAt,
+        contentContextReviewedById: userId,
+      },
+    });
+    if (claimed.count === 0) {
+      const winner = await this._post.model.post.findFirst({
+        where: {
+          organizationId: orgId,
+          deletedAt: null,
+          ...reach,
+          contentContextReviewedAt: { not: null },
+        },
+        select: {
+          contentContextReviewedAt: true,
+          contentContextReviewedById: true,
+        },
+      });
+      // Строка могла исчезнуть между двумя запросами — удалённый пост отвечает
+      // так же, как чужой, и здесь тоже.
+      if (!winner) {
+        repositoryError('POST_NOT_FOUND', 404, 'Post was not found');
+      }
+      return {
+        contentContextReviewedAt: winner.contentContextReviewedAt,
+        contentContextReviewedById: winner.contentContextReviewedById,
+      };
+    }
+    return {
+      contentContextReviewedAt: reviewedAt,
+      contentContextReviewedById: userId,
+    };
+  }
+
   private async createOrUpdatePostWithClient(
     client: any,
     state: 'draft' | 'schedule' | 'now' | 'update',
@@ -789,9 +919,17 @@ export class PostsRepository {
     // read once by the ownership check below, and used again after the
     // `upsert` to know whether a row is being updated or was just created.
     const existingPostIds = new Set<string>();
+    const storedSnapshotIds = new Map<string, string | null>();
     const requestedPostIds = [
       ...new Set(body.value.map((item) => item.id).filter(Boolean)),
     ] as string[];
+    /**
+     * Подтверждён ли контекст этого поста и правится ли уже опубликованный —
+     * два ответа, которые собираются по присланным id, а решаются ниже: у
+     * поста без единого id ответ всё равно может быть у его связки.
+     */
+    let reviewed = false;
+    let editsPublished = false;
     if (requestedPostIds.length) {
       // The composer mints its own id for a post that does not exist yet and
       // sends it here, so an id nobody holds is a create, not an attack: the
@@ -808,6 +946,8 @@ export class PostsRepository {
           organizationId: true,
           deletedAt: true,
           state: true,
+          contentContextSnapshotId: true,
+          contentContextReviewedAt: true,
         },
       });
       if (
@@ -817,15 +957,79 @@ export class PostsRepository {
       ) {
         repositoryError('POST_NOT_FOUND', 404, 'Post was not found');
       }
-      for (const post of existingPosts) existingPostIds.add(post.id);
-      if (
-        contextBindings &&
-        existingPosts.some((post: any) => post.state && post.state !== 'DRAFT')
-      ) {
+      for (const post of existingPosts) {
+        existingPostIds.add(post.id);
+        storedSnapshotIds.set(post.id, post.contentContextSnapshotId);
+      }
+      /**
+       * Явное решение человека, а не вечный запрет
+       * (`content-factory-next-fn33.28.1`). Пост, собранный из проверенного
+       * контекста, живёт черновиком, пока кто-нибудь не подтвердит проверку
+       * подтверждений дверью `POST /posts/:id/context-review`; после этого его
+       * можно ставить в план и публиковать.
+       *
+       * Достаточно одной проверенной строки среди запрошенных, а не всех.
+       * Проверку принимает пост, и дверь ставит её на всю его связку; но у
+       * ветки можно дописать новое звено, у которого строки ещё нет, — и
+       * требование «все проверены» отменяло бы решение человека при каждом
+       * дописанном сообщении.
+       *
+       * Правка текста проверку не снимает: `upsert` ниже полей проверки не
+       * трогает. Решение владельца 04.09.2026 — подтверждают контекст и
+       * подтверждения, а не конкретную редакцию текста.
+       *
+       * Но подтверждают именно ТОТ контекст. Отметка считается только вместе
+       * со снимком, под которым её поставили: пост, проверенный под одним
+       * снимком и присланный с другим, — не проверен, и ниже отметка с него
+       * снимается (рецензия волны 04.09, P1). Иначе запись «проверено
+       * тогда-то тем-то» утверждала бы про новый снимок то, чего не было.
+       */
+      reviewed = existingPosts.some(
+        (post: any) =>
+          post.contentContextReviewedAt &&
+          post.contentContextSnapshotId === body.contentContextSnapshotId
+      );
+      editsPublished = existingPosts.some(
+        (post: any) => post.state && post.state !== 'DRAFT'
+      );
+    }
+    /**
+     * Тот же вопрос, заданный связке, а не коробкам.
+     *
+     * Подтверждение ставится дверью `context-review` на всю связку, поэтому
+     * оно переживает удаление любой отдельной коробки — и всех сразу. Спросить
+     * связку нужно только тогда, когда по присланным id ответа не нашлось: у
+     * нового поста связка пуста, и он честно получает «сначала черновиком».
+     *
+     * Снимок сверяется здесь так же, как выше: подтверждали именно тот
+     * контекст, и подмена снимка отметку не наследует.
+     */
+    if (contextBindings && !reviewed && body.group) {
+      const reviewedInGroup = await client.post.findFirst({
+        where: {
+          organizationId: orgId,
+          group: body.group,
+          deletedAt: null,
+          contentContextReviewedAt: { not: null },
+          contentContextSnapshotId: body.contentContextSnapshotId,
+        },
+        select: { id: true },
+      });
+      reviewed = Boolean(reviewedInGroup);
+    }
+    if (contextBindings && !reviewed) {
+      if (!['draft', 'update'].includes(state)) {
         repositoryError(
           'CONTENT_CONTEXT_DRAFT_ONLY',
           409,
-          'Content intelligence output can only update a draft'
+          'A post built from checked context is saved as a draft first, and can be scheduled after someone confirms the checks'
+        );
+      }
+      if (editsPublished) {
+        repositoryError(
+          'CONTENT_CONTEXT_DRAFT_ONLY',
+          409,
+          'A post built from checked context can only be edited as a draft until someone confirms the checks'
         );
       }
     }
@@ -968,6 +1172,20 @@ export class PostsRepository {
           ? {}
           : { brandProfileVersionId: null }
         : { contentContextSnapshotId: null, brandProfileVersionId: null };
+      /**
+       * Снимок подменили — отметка о проверке относилась к прежнему и
+       * снимается вместе с ним. Снятие контекста целиком отметку не трогает:
+       * без контекста граница к посту не относится, а след решения остаётся
+       * (карта §9.6).
+       */
+      if (
+        contextBinding &&
+        existingPostIds.has(postId) &&
+        storedSnapshotIds.get(postId) !== contextBinding.contentContextSnapshotId
+      ) {
+        clearedProvenance.contentContextReviewedAt = null;
+        clearedProvenance.contentContextReviewedById = null;
+      }
       if (
         existingPostIds.has(postId) &&
         Object.keys(clearedProvenance).length
@@ -979,9 +1197,6 @@ export class PostsRepository {
       }
 
       if (contextBinding) {
-        const { writeContentContextDraftProvenance } = await import(
-          '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize'
-        );
         await writeContentContextDraftProvenance(client, {
           organizationId: orgId,
           postId: posts[posts.length - 1].id,

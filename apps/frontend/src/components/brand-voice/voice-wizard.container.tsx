@@ -8,6 +8,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
 import type {
   VoicePathKeyV1,
   VoiceScreenStateV1,
@@ -726,6 +727,12 @@ export function VoiceWizardContainer({
             }
             onDeleteSelected={deleteSelected}
             onNext={runAnalysis}
+            /*
+              The analysis is the most expensive button in the product: it maps
+              the whole corpus through the model. What is left is said here,
+              before it is pressed (`content-factory-next-fn33.28.3`).
+            */
+            allowanceHint={<AllowanceHint />}
           />
 
           {intake ? (

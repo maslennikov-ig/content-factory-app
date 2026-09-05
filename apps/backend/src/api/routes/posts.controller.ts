@@ -200,6 +200,32 @@ export class PostsController {
     return this._postsService.getPost(org.id, id);
   }
 
+  /**
+   * «Подтверждения проверены» — явное решение человека по посту с проверенным
+   * контекстом (`content-factory-next-fn33.28.1`). До него такой пост живёт
+   * черновиком; после — его можно ставить в план и публиковать.
+   *
+   * Политики на двери нет намеренно: подтверждает тот же, кто правит пост, то
+   * есть любой участник области. Область берётся из запроса, id — из пути, и
+   * пост чужой области отвечает 404, как и остальные двери постов.
+   */
+  @Post('/:id/context-review')
+  async markContentContextReviewed(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string
+  ) {
+    try {
+      return await this._postsService.markContentContextReviewed(
+        org.id,
+        id,
+        user.id
+      );
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
   @Post('/valid')
   async validatePosts(
     @GetOrgFromRequest() org: Organization,

@@ -22,8 +22,8 @@ import { PickPlatforms } from '@contentfactory/frontend/components/launches/help
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
-import { CopilotTextarea } from '@copilotkit/react-textarea';
 import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
+import { AssistedTextarea } from '@contentfactory/frontend/components/copilot/assisted.textarea';
 import { Slider } from '@contentfactory/react/form/slider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -432,11 +432,12 @@ export const AddOrEditWebhook: FC<{
                 {/*
   Помощник монтируется у самого поля, а не вокруг всего приложения: его
   провайдер обращается к рантайму сразу при монтировании
-  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
+  (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`), и не
+  монтируется вовсе там, где отвечать некому: без ключа AI это был
+  `POST /copilot/chat -> 503` на каждом открытии (`content-factory-next-fn33.28.16`).
 */}
-                <CopilotProvider>
-                  <CopilotTextarea
-                    disableBranding={true}
+                <CopilotProvider requireAvailable>
+                  <AssistedTextarea
                     className={clsx(
                       '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-cf-accent bg-customColor2 outline-none mb-[16px] border-fifth border rounded-[4px]'
                     )}
@@ -448,12 +449,9 @@ export const AddOrEditWebhook: FC<{
                       'write_your_post_placeholder',
                       'Write your post...'
                     )}
-                    autosuggestionsConfig={{
-                      textareaPurpose: `Assist me in writing a social media post. Write every human-readable part of the post in ${
-                        contentLanguage === 'ru' ? 'Russian' : 'English'
-                      }.`,
-                      chatApiConfigs: {},
-                    }}
+                    purpose={`Assist me in writing a social media post. Write every human-readable part of the post in ${
+                      contentLanguage === 'ru' ? 'Russian' : 'English'
+                    }.`}
                   />
                 </CopilotProvider>
               </>

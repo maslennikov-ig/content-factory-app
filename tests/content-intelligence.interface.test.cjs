@@ -116,8 +116,10 @@ describe('applied voice strip review scene', () => {
     expect(markup).toContain('data-voice-surface="ribbon"');
     expect(markup).toContain('data-interface-review-data="synthetic"');
     // The strip always says something. An empty one would read as "no voice
-    // was applied" when what happened is that the component broke.
-    expect(markup).toMatch(/Applied avatar/);
+    // was applied" when what happened is that the component broke. Подпись
+    // называется «Кто пишет» с 04.09.2026: «Применённый аватар» описывал
+    // устройство продукта, а не то, что человек хочет узнать.
+    expect(markup).toMatch(/Who writes/);
   });
 
   test('lands on one of its own four states, never on a review state', async () => {
@@ -167,8 +169,8 @@ describe('applied voice strip review scene', () => {
     }
 
     expect(markup).toContain('data-interface-review-locale="ru"');
-    expect(markup).toContain('Применённый аватар');
-    expect(markup).not.toContain('Applied voice');
+    expect(markup).toContain('Кто пишет');
+    expect(markup).not.toContain('Who writes');
   });
 });
 

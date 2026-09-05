@@ -362,15 +362,21 @@ describe('the voice is held across a long generation', () => {
     );
   });
 
-  test('a single post is not repeated at', async () => {
+  /**
+   * У одиночного поста строки о повторах нет вовсе.
+   *
+   * Она говорила «голос назван один раз: у одиночного поста нет границы,
+   * повтор был бы шумом» — это объяснение устройства генератора человеку,
+   * который просто пишет пост (замечание владельца 04.09.2026). Повтор
+   * по-прежнему не планируется; молчит теперь и экран.
+   */
+  test('a single post is neither repeated at nor talked about', async () => {
     const { calls } = mount({ chunks: ['Один пост, одна мысль.'] });
 
     await waitFor(() => expect(called(calls, PLAN)).toHaveLength(1));
     const [plan] = called(calls, PLAN);
     expect(plan.body.boundaries).toEqual([]);
-    await waitFor(() =>
-      expect(retentionLine()?.getAttribute('data-voice-retention')).toBe('1')
-    );
+    expect(retentionLine()).toBeNull();
   });
 
   test('nothing is planned when there is no voice to inject', async () => {
@@ -595,35 +601,33 @@ describe('три состояния молчания различимы и пр�
 });
 
 /* -------------------------------------------------------------------------
- * 5. The post form mounts the live strip, not a hand-built one.
+ * 5. The post window: one line of provenance, and no strip.
  * ---------------------------------------------------------------------- */
 
-describe('the post form', () => {
-  test('mounts the container rather than deciding the state itself', () => {
+describe('the post window', () => {
+  /**
+   * Ленты голоса в окне поста больше нет.
+   *
+   * 04.09.2026 владелец сказал: окно даёт только полезное. Лента отвечала на
+   * вопрос «что применено» пятью значениями через точку и двумя кнопками, а
+   * рядом стояла панель контекста с тем же ответом другими словами. Вместо
+   * них — одна строка происхождения, и только у поста, который контекст
+   * несёт. Контейнер ленты остался: он живёт своей проверкой и своим
+   * маршрутом, но окно его больше не зовёт.
+   */
+  test('does not mount the strip any more', () => {
     const form = code(FORM_FILE);
 
-    expect(form).toContain('VoiceRibbonContainer');
-    expect(form).toContain('brand-voice/voice-ribbon.container');
+    expect(form).not.toContain('VoiceRibbonContainer');
+    expect(form).not.toContain('brand-voice/voice-ribbon.container');
   });
 
-  test('hands it the thread the form actually holds', () => {
+  test('shows one line of provenance, and only when the post carries context', () => {
     const form = code(FORM_FILE);
 
-    // The boxes of the post being edited: the per-channel override when one
-    // is open, the shared thread otherwise — the same choice the editor makes.
-    expect(form).toContain('integrationValue');
-    expect(form).toMatch(/chunks=\{/);
-  });
-
-  test('the strip is no longer hidden when the draft has no provenance', () => {
-    const form = code(FORM_FILE);
-    const mountIndex = form.indexOf('<VoiceRibbonContainer');
-    expect(mountIndex).toBeGreaterThan(-1);
-
-    // Working without a resolved profile is a working mode, and the strip
-    // says so. Rendering it only when provenance exists left the reader with
-    // no answer in the one case the answer matters most.
-    const preceding = form.slice(Math.max(0, mountIndex - 400), mountIndex);
-    expect(preceding).not.toMatch(/contentIntelligenceProvenance\s*&&/);
+    expect(form).toContain('<ProvenanceLine');
+    const mountIndex = form.indexOf('<ProvenanceLine');
+    const preceding = form.slice(Math.max(0, mountIndex - 200), mountIndex);
+    expect(preceding).toMatch(/contentIntelligenceProvenance\s*&&/);
   });
 });

@@ -289,6 +289,17 @@ export const MediaBox: FC<{
   );
   const editorTrigger = useRef<HTMLElement | null>(null);
 
+  /**
+   * Полоса загрузки говорит на языке экрана (`content-factory-next-fn33.28.15`).
+   *
+   * Подписи внутри неё рисует не наша разметка, а `@uppy/dashboard`: у него
+   * свой словарь, и без него на русском экране оставалось английское
+   * «Drop files here or browse files». Переопределяем ровно те строки, что
+   * видны в этой полосе высотой 46 пикселей; `%{browseFiles}` — подстановка
+   * самого Uppy, поэтому она проходит сквозь перевод как есть.
+   */
+  const uploaderLocale = useUploaderLocale(t);
+
   const uppy = useUppyUploader({
     allowedFileTypes:
       type == 'image'
@@ -566,6 +577,7 @@ export const MediaBox: FC<{
                 height={46}
                 uppy={uppy}
                 id={`uploader`}
+                locale={uploaderLocale}
                 showProgressDetails={true}
                 hideUploadButton={true}
                 hideRetryButton={true}
@@ -781,6 +793,25 @@ export const MediaBox: FC<{
     </>
   );
 };
+/**
+ * Словарь полосы загрузки Uppy — один на оба места, где она рисуется:
+ * «Медиатека» и полоса под редактором окна поста (`fn33.28.15`, `fn33.28.17`).
+ */
+export const useUploaderLocale = (t: ReturnType<typeof useT>) =>
+  useMemo(
+    () => ({
+      strings: {
+        dropPasteFiles: t(
+          'media_drop_paste_files',
+          'Drop files here or %{browseFiles}'
+        ),
+        browseFiles: t('media_browse_files', 'browse files'),
+        dropHint: t('media_drop_hint', 'Drop your files here'),
+      },
+    }),
+    [t]
+  );
+
 export const MultiMediaComponent: FC<{
   label: string;
   description: string;

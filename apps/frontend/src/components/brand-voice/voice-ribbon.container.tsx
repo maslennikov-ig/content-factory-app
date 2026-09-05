@@ -94,8 +94,6 @@ const copy = {
       `Голос назван ${count} ${timesRu(
         count
       )} — перед каждым куском ветки, чтобы он не растворился к концу.`,
-    retentionSingle:
-      'Голос назван один раз: у одиночного поста нет границы, повтор был бы шумом.',
     similarityLabel: 'Похоже ли это на вас',
     /**
      * Заголовок над двумя долями ошибок.
@@ -113,8 +111,6 @@ const copy = {
       'Could not read which voice is applied. Nothing is claimed until it answers.',
     retentionThread: (count: number) =>
       `The voice is stated ${count} times — once before every thread item, so it does not dissolve by the end.`,
-    retentionSingle:
-      'Stated once: a single post has no boundary, and repeating it would only be noise.',
     similarityLabel: 'Does this read like you',
     errorsLabel: 'How often the check was wrong',
     repairFailed:
@@ -316,14 +312,20 @@ export function VoiceRibbonContainer({
         onAction={onAction}
       />
 
-      {injections ? (
+      {/*
+        Строка о повторах — только у ветки.
+        Одиночному посту она говорила «голос назван один раз: у одиночного
+        поста нет границы, повтор был бы шумом» — объяснение устройства
+        генератора человеку, который просто пишет пост (замечание владельца
+        04.09.2026). У ветки из нескольких кусков вопрос настоящий: там голос
+        действительно может раствориться к концу, и число повторов — ответ.
+      */}
+      {injections && injections > 1 ? (
         <p
           data-voice-retention={injections}
           className="cf-caption text-cf-ink-muted [text-wrap:pretty]"
         >
-          {injections > 1
-            ? t.retentionThread(injections)
-            : t.retentionSingle}
+          {t.retentionThread(injections)}
         </p>
       ) : null}
 

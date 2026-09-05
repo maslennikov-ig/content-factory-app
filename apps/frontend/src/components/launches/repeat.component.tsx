@@ -1,12 +1,15 @@
 'use client';
 
 import { FC, useMemo, useState } from 'react';
-import { Select } from '@contentfactory/react/form/select';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useClickOutside } from '@mantine/hooks';
-import { isUSCitizen } from '@contentfactory/frontend/components/launches/helpers/isuscitizen.utils';
-import clsx from 'clsx';
 import { RepeatIcon, DropdownArrowIcon } from '@contentfactory/frontend/components/ui/icons';
+import {
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuOption,
+} from '@contentfactory/react/choice/choice.menu';
 const getList = (t: (key: string, fallback: string) => string) => [
   {
     value: 1,
@@ -73,45 +76,43 @@ export const RepeatComponent: FC<{
   }, [repeat, list]);
 
   return (
-    <div
-      ref={ref}
-      className={clsx(
-        'border rounded-[8px] justify-center flex items-center relative h-[44px] text-[15px] font-[600] select-none',
-        isOpen ? 'border-cf-accent' : 'border-newTextColor/10',
-      )}
-    >
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="px-[16px] justify-center flex gap-[8px] items-center h-full select-none flex-1"
-      >
-        <div className="cursor-pointer">
+    <div ref={ref} className="relative flex select-none items-center">
+      <Menu open={isOpen} onOpenChange={setIsOpen}>
+        <MenuButton
+          aria-label={t('repeat_post_every', 'Repeat Post Every...')}
+          className="flex items-center gap-[8px] rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
+        >
           <RepeatIcon />
-        </div>
-        <div className="cursor-pointer">
-          {repeat
-            ? `${t('repeat_post_every_label', 'Repeat Post Every')} ${everyLabel}`
-            : t('repeat_post_every', 'Repeat Post Every...')}
-        </div>
-        <div className="cursor-pointer">
-          <DropdownArrowIcon rotated={isOpen} />
-        </div>
-      </div>
-      {isOpen && (
-        <div className="z-[300] absolute start-0 bottom-[100%] w-[240px] bg-newBgColorInner p-[12px] menu-shadow -translate-y-[10px] flex flex-col">
-          {list.map((p) => (
-            <div
-              onClick={() => {
-                props.onChange(Number(p.value));
-                setIsOpen(false);
-              }}
-              key={p.label}
-              className="h-[40px] py-[8px] px-[20px] -mx-[12px] hover:bg-newBgColor"
-            >
-              {p.label}
-            </div>
-          ))}
-        </div>
-      )}
+          <span>
+            {repeat
+              ? `${t(
+                  'repeat_post_every_label',
+                  'Repeat Post Every'
+                )} ${everyLabel}`
+              : t('repeat_post_every', 'Repeat Post Every...')}
+          </span>
+          <DropdownArrowIcon size={12} rotated={isOpen} />
+        </MenuButton>
+        {isOpen && (
+          <MenuList
+            aria-label={t('repeat_post_every', 'Repeat Post Every...')}
+            style={{ boxShadow: 'var(--cf-overlay-shadow)' }}
+            className="absolute bottom-[100%] start-0 z-[300] mb-[8px] flex w-[240px] flex-col rounded-[8px] border border-cf-border-strong bg-cf-surface-raised p-[8px]"
+          >
+            {list.map((p) => (
+              <MenuOption
+                key={p.label}
+                layout="content"
+                selected={repeat === p.value}
+                onClick={() => props.onChange(Number(p.value))}
+                className="flex items-center rounded-[8px] px-[8px] text-start cf-body-sm text-cf-ink hover:bg-cf-surface-subtle"
+              >
+                {p.label}
+              </MenuOption>
+            ))}
+          </MenuList>
+        )}
+      </Menu>
     </div>
   );
 };

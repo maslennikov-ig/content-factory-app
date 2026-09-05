@@ -102,7 +102,9 @@ describe('помощник монтируется только там, где и
 
   test.each(CONSUMER_SURFACES)('%s монтирует провайдер сам', (relative) => {
     const source = read(relative);
-    expect(source).toMatch(/<CopilotProvider>/);
+    // Признак `requireAvailable` тоже считается монтированием: он про то,
+    // спрашивать ли доступность помощника, а не про то, поднимать ли его.
+    expect(source).toMatch(/<CopilotProvider[\s>]/);
   });
 
   test('выбор каналов не поднимает помощника, а только подсказывает уже поднятому', () => {
@@ -158,5 +160,92 @@ describe('помощник монтируется только там, где и
     for (const relative of [COPILOT_KIT_DOOR, ...COPILOT_KIT_GRANDFATHERED]) {
       expect(withoutBlockComments(read(relative))).toMatch(/<CopilotKit[\s>]/);
     }
+  });
+});
+
+/**
+ * `content-factory-next-fn33.28.11`: без доступного помощника запрос не уходит.
+ *
+ * У пространства без ключа AI каждое открытие окна поста давало
+ * `POST /copilot/chat -> 503` и строку в консоли. Провайдер библиотеки шлёт
+ * `availableAgents` на монтировании безусловно, поэтому «не слать запрос» и
+ * «не монтировать провайдер» — это одно и то же решение.
+ *
+ * Проверяется дорога решения, а не разметка: доступность спрашивается у уже
+ * существующей двери остатка квоты, монтирование от неё зависит, а
+ * потребители под провайдером умеют жить без него.
+ */
+describe('помощник не поднимается там, где его нельзя позвать', () => {
+  const PROVIDER =
+    'apps/frontend/src/components/copilot/copilot.provider.tsx';
+  const MODAL = 'apps/frontend/src/components/new-launch/manage.modal.tsx';
+  const EDITOR = 'apps/frontend/src/components/new-launch/editor.tsx';
+
+  test('доступность спрашивается у существующей двери, а не у своей новой', () => {
+    const source = read(PROVIDER);
+
+    // Та же дверь и тот же ключ SWR, что у строки остатка: на экране с обеими
+    // это один запрос, а не два.
+    expect(source).toMatch(/ALLOWANCE_API/);
+    expect(source).toMatch(/readAllowance/);
+    expect(source).toMatch(/useSWR\(/);
+    // Своей двери у помощника не заведено.
+    expect(source).not.toMatch(/'\/copilot\/(availability|status|health)'/);
+  });
+
+  test('пространство без ключа AI провайдера не поднимает', () => {
+    const source = withoutBlockComments(read(PROVIDER));
+
+    // Решение сформулировано именно как «нет доступа — нет обёртки».
+    expect(source).toMatch(/if \(requireAvailable && !available\)/);
+    const gate = source.indexOf('if (requireAvailable && !available)');
+    const mount = source.indexOf('<CopilotKit');
+    expect(gate).toBeGreaterThan(-1);
+    expect(mount).toBeGreaterThan(gate);
+  });
+
+  test('пока ответа нет, обёртки тоже нет: провайдер «на всякий случай» — это и есть запрос', () => {
+    const source = withoutBlockComments(read(PROVIDER));
+    expect(source).toMatch(/if \(isLoading \|\| error\) return false;/);
+  });
+
+  test('поверхность, которая проверки не просила, за неё и не платит', () => {
+    // Ключ `null` — договор SWR о том, что запроса нет вовсе.
+    expect(withoutBlockComments(read(PROVIDER))).toMatch(
+      /useSWR\(\s*enabled \? ALLOWANCE_API : null/
+    );
+  });
+
+  test('окно поста просит проверку доступности', () => {
+    expect(read(MODAL)).toMatch(/<CopilotProvider requireAvailable>/);
+  });
+
+  test('панель помощника рисуется только под поднятым провайдером', () => {
+    const source = read(MODAL);
+    expect(source).toMatch(/useHasCopilotProvider/);
+    expect(source).toMatch(/hasCopilot && \(/);
+    // И сама панель стоит внутри этого условия, а не рядом с ним.
+    const guard = source.indexOf('hasCopilot && (');
+    const popup = source.indexOf('<CopilotPopup');
+    expect(guard).toBeGreaterThan(-1);
+    expect(popup).toBeGreaterThan(guard);
+  });
+
+  test('редактор рассказывает помощнику о себе только под поднятым провайдером', () => {
+    const source = read(EDITOR);
+
+    // Хуки не бывают условными, поэтому условие переехало на узел.
+    expect(source).toMatch(/const EditorCopilotBridge/);
+    expect(source).toMatch(/hasCopilot && \(/);
+    const bridge = source.indexOf('const EditorCopilotBridge');
+    const readable = source.indexOf('useCopilotReadable({');
+    const action = source.indexOf('useCopilotAction({');
+    expect(bridge).toBeGreaterThan(-1);
+    // Оба хука живут внутри узла, а не в теле редактора.
+    expect(readable).toBeGreaterThan(bridge);
+    expect(action).toBeGreaterThan(bridge);
+    const wrapper = source.indexOf('export const EditorWrapper');
+    expect(readable).toBeLessThan(wrapper);
+    expect(action).toBeLessThan(wrapper);
   });
 });

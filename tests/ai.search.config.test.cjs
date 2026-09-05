@@ -173,6 +173,7 @@ const { AiProviderService } = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
       aiBillingPeriodStart: () => new Date('2026-08-01T00:00:00.000Z'),
+      includedUsageFilter: () => ({}),
     },
   }
 );

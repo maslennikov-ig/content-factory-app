@@ -106,7 +106,25 @@ describe('EditorialStageBadge', () => {
   });
 });
 
-describe('EditorialStageSelect (the editor\'s picker)', () => {
+/**
+ * `content-factory-next-fn33.28.12`: этап рисует продукт, а не браузер.
+ *
+ * Раньше это был нативный `select`, и в ряду «тег / повтор / этап» один
+ * контрол из трёх рисовала система. Проверки ниже спрашивают у контрола то же,
+ * что спрашивали у `select`, — пять выборов, отчёт значением, `null` за
+ * «этап не записан», — но уже на примитиве `Menu`, том же, что у соседей.
+ */
+describe("EditorialStageSelect (the editor's picker)", () => {
+  const trigger = () =>
+    document.querySelector('button[name="editorialStage"]');
+
+  const openMenu = async () => {
+    await act(async () => {
+      fireEvent.click(trigger());
+    });
+    return [...document.querySelectorAll('[data-editorial-stage-option]')];
+  };
+
   test('offers a real, selectable "unset" option alongside the four stages', async () => {
     await renderIn(
       'en',
@@ -115,10 +133,18 @@ describe('EditorialStageSelect (the editor\'s picker)', () => {
         onChange: () => {},
       })
     );
-    const select = document.querySelector('select[name="editorialStage"]');
-    const options = [...select.querySelectorAll('option')].map((o) => o.value);
-    expect(options).toEqual(['', 'PLAN', 'DRAFT', 'REVIEW', 'SCHEDULED']);
-    expect(select.value).toBe('REVIEW');
+
+    const options = await openMenu();
+    expect(
+      options.map((option) => option.getAttribute('data-editorial-stage-option'))
+    ).toEqual(['', 'PLAN', 'DRAFT', 'REVIEW', 'SCHEDULED']);
+    // Выбранное значение видно и на кнопке, и в состоянии самого выбора.
+    expect(trigger().getAttribute('data-editorial-stage')).toBe('REVIEW');
+    expect(
+      options
+        .find((option) => option.getAttribute('data-editorial-stage-option') === 'REVIEW')
+        .getAttribute('aria-checked')
+    ).toBe('true');
   });
 
   test('choosing the blank option reports null, not the empty string', async () => {
@@ -132,9 +158,14 @@ describe('EditorialStageSelect (the editor\'s picker)', () => {
         },
       })
     );
-    const select = document.querySelector('select[name="editorialStage"]');
+
+    const options = await openMenu();
     await act(async () => {
-      fireEvent.change(select, { target: { value: '' } });
+      fireEvent.click(
+        options.find(
+          (option) => option.getAttribute('data-editorial-stage-option') === ''
+        )
+      );
     });
     expect(reported).toBeNull();
   });
@@ -150,11 +181,54 @@ describe('EditorialStageSelect (the editor\'s picker)', () => {
         },
       })
     );
-    const select = document.querySelector('select[name="editorialStage"]');
+
+    const options = await openMenu();
     await act(async () => {
-      fireEvent.change(select, { target: { value: 'SCHEDULED' } });
+      fireEvent.click(
+        options.find(
+          (option) =>
+            option.getAttribute('data-editorial-stage-option') === 'SCHEDULED'
+        )
+      );
     });
     expect(reported).toBe('SCHEDULED');
+  });
+
+  test('the picker is a product control, not one the browser draws', async () => {
+    await renderIn(
+      'en',
+      React.createElement(selectModule.EditorialStageSelect, {
+        value: 'PLAN',
+        onChange: () => {},
+      })
+    );
+
+    // Нативного `select` в этом контроле больше нет вовсе — именно он и был
+    // единственным местом, где форму указателя выбирал браузер.
+    expect(document.querySelector('select[name="editorialStage"]')).toBeNull();
+    expect(trigger()).toBeTruthy();
+    expect(trigger().getAttribute('aria-haspopup')).toBe('menu');
+  });
+
+  test('the row shares one type size and one pointer with its neighbours', () => {
+    const fs = require('node:fs');
+    const sourceOf = (name) =>
+      fs.readFileSync(path.join(root, base, name), 'utf8');
+
+    const stage = sourceOf('editorial-stage.select.tsx');
+    const repeat = sourceOf('repeat.component.tsx');
+    const tags = sourceOf('tags.component.tsx');
+
+    // Тот же примитив, что у соседей, — а значит и та же анатомия кнопки.
+    for (const source of [stage, repeat, tags]) {
+      expect(source).toMatch(/choice\/choice\.menu/);
+      expect(source).toMatch(/<MenuButton/);
+    }
+    // Один кегль на весь ряд и один указатель.
+    expect(stage).toMatch(/cf-label-md/);
+    expect(repeat).toMatch(/cf-label-md/);
+    expect(stage).toMatch(/<DropdownArrowIcon size=\{12\} rotated=\{isOpen\} \/>/);
+    expect(repeat).toMatch(/<DropdownArrowIcon size=\{12\} rotated=\{isOpen\} \/>/);
   });
 });
 

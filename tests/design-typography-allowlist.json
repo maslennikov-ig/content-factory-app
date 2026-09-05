@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 781,
+  "total": 757,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 755,
+      "total": 731,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -69,10 +69,10 @@
         },
         "apps/frontend/src/components/analytics/stars.and.forks.tsx": {
           "leading-[60px]": 2,
-          "text-3xl": 2,
           "text-[20px]": 3,
           "text-[24px]": 3,
-          "text-[50px]": 2
+          "text-[50px]": 2,
+          "text-3xl": 2
         },
         "apps/frontend/src/components/analytics/stars.table.component.tsx": {
           "text-[24px]": 1
@@ -268,10 +268,6 @@
         "apps/frontend/src/components/launches/new.post.tsx": {
           "text-[14px]": 1
         },
-        "apps/frontend/src/components/launches/repeat.component.tsx": {
-          "font-[600]": 1,
-          "text-[15px]": 1
-        },
         "apps/frontend/src/components/launches/separate.post.tsx": {
           "text-sm": 1
         },
@@ -292,13 +288,8 @@
           "tracking-tight": 1
         },
         "apps/frontend/src/components/launches/tags.component.tsx": {
-          "font-[500]": 1,
-          "font-[600]": 3,
-          "text-[10px]": 1,
           "text-[12px]": 2,
-          "text-[13px]": 1,
-          "text-[14px]": 2,
-          "text-[15px]": 1
+          "text-[14px]": 1
         },
         "apps/frontend/src/components/launches/time.table.tsx": {
           "font-medium": 2,
@@ -353,20 +344,17 @@
           "text-[13px]": 2
         },
         "apps/frontend/src/components/new-launch/editor.tsx": {
-          "font-[600]": 6,
-          "text-[12px]": 3,
-          "text-[13px]": 2,
-          "text-[14px]": 4,
+          "font-[600]": 4,
+          "text-[13px]": 1,
+          "text-[14px]": 3,
           "text-sm": 1
         },
         "apps/frontend/src/components/new-launch/manage.modal.tsx": {
           "font-[500]": 1,
-          "font-[600]": 8,
-          "text-[12px]": 1,
-          "text-[13px]": 1,
+          "font-[600]": 5,
           "text-[14px]": 2,
           "text-[15px]": 4,
-          "text-[20px]": 3
+          "text-[20px]": 1
         },
         "apps/frontend/src/components/new-launch/modal.wrapper.component.tsx": {
           "text-[24px]": 1
@@ -578,9 +566,9 @@
         },
         "apps/frontend/src/components/third-parties/providers/heygen.provider.tsx": {
           "leading-[50px]": 1,
-          "text-3xl": 1,
           "text-[12px]": 3,
           "text-[14px]": 3,
+          "text-3xl": 1,
           "text-lg": 3
         },
         "apps/frontend/src/components/third-parties/third-party.component.tsx": {

@@ -5,6 +5,7 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { AllowanceHint } from '@contentfactory/frontend/components/ui/allowance-hint';
 import {
   SEARCH_API,
   SEARCH_EVIDENCE_API,
@@ -224,7 +225,12 @@ export function ContentSearchContainer({
             {t.subjectHelp}
           </p>
         </div>
-        <div>
+        {/*
+          The search spends the workspace's AI allowance — a model call to read
+          the subject and a search call — so what is left is said beside the
+          button rather than after the wait (`content-factory-next-fn33.28.3`).
+        */}
+        <div className="flex flex-wrap items-center gap-[8px]">
           <Button
             type="submit"
             variant="secondary"
@@ -232,6 +238,7 @@ export function ContentSearchContainer({
           >
             {searching ? t.running : t.run}
           </Button>
+          <AllowanceHint />
         </div>
       </form>
 

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "total": 1027,
+  "total": 1006,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -61,7 +61,7 @@
       "priorSourceRoots": [
         "apps/frontend/src"
       ],
-      "priorTotal": 982,
+      "priorTotal": 961,
       "addedSourceRoots": {
         "libraries/react-shared-libraries/src": {
           "occurrences": 45,
@@ -73,13 +73,13 @@
         }
       },
       "addedOccurrences": 45,
-      "combinedTotal": 1027,
+      "combinedTotal": 1006,
       "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control. The 10 that came out on 04.09.2026 are the channel menu on the calendar: ten hand-positioned rows became menu items on the shared control, which states its own padding (`content-factory-next-fn33.91`)."
     }
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 982,
+      "total": 961,
       "allowances": {
         "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
           "3px": 1,
@@ -330,10 +330,6 @@
           "14px": 1,
           "21px": 1
         },
-        "apps/frontend/src/components/launches/repeat.component.tsx": {
-          "10px": 1,
-          "15px": 1
-        },
         "apps/frontend/src/components/launches/select.customer.tsx": {
           "6px": 1,
           "10px": 1,
@@ -358,11 +354,8 @@
           "3px": 3,
           "5px": 3,
           "6px": 1,
-          "10px": 3,
-          "13px": 1,
-          "14px": 2,
-          "15px": 1,
-          "34px": 1,
+          "10px": 1,
+          "14px": 1,
           "50px": 1
         },
         "apps/frontend/src/components/launches/time.table.tsx": {
@@ -448,10 +441,10 @@
         },
         "apps/frontend/src/components/new-launch/editor.tsx": {
           "5px": 2,
-          "6px": 8,
-          "10px": 5,
-          "13px": 2,
-          "14px": 4,
+          "6px": 5,
+          "10px": 3,
+          "13px": 1,
+          "14px": 3,
           "30px": 2,
           "35px": 2,
           "46px": 2,
@@ -470,12 +463,10 @@
         },
         "apps/frontend/src/components/new-launch/manage.modal.tsx": {
           "5px": 2,
-          "6px": 3,
-          "10px": 4,
-          "13px": 1,
+          "6px": 1,
+          "10px": 3,
           "14px": 2,
           "15px": 4,
-          "65px": 2,
           "206px": 1
         },
         "apps/frontend/src/components/new-launch/mention.component.tsx": {

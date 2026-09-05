@@ -1556,7 +1556,7 @@ export const VOICE_SURFACES = {
     dataFields: ['state', 'samples', 'sources', 'notice'],
     // What the browser is holding before it sends: the files that were picked,
     // and whether the request is out. The server knows neither.
-    clientOnlyProps: ['selectedCodes', 'upload'],
+    clientOnlyProps: ['selectedCodes', 'upload', 'allowanceHint'],
     routes: [
       {
         method: 'GET',

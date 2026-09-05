@@ -8,7 +8,10 @@ import {
   loadAiConfig,
   resetAiConfigCache,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
-import { aiBillingPeriodStart } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import {
+  aiBillingPeriodStart,
+  includedUsageFilter,
+} from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 
 interface OpenRouterModel {
   id: string;
@@ -89,14 +92,20 @@ export class AiProviderService {
     );
     const includedMonthlyOperations =
       subscription?.includedAiMonthlyOperations ?? 0;
+    /**
+     * The same predicate admission uses, not a second one that looks like it.
+     *
+     * Until `content-factory-next-fn33.28.6` this counted every `included` row
+     * of the period, including admissions abandoned a day ago that admission
+     * itself no longer charges. The member's line beside a paid button and the
+     * administrator's settings screen therefore showed two different «left»
+     * numbers for one workspace, and no words in the product told a person
+     * which of the two to believe. One allowance, one count.
+     */
     const includedUsedOperations =
       subscription && includedMonthlyOperations > 0
         ? ((await this._prisma.aiUsageRecord?.count({
-            where: {
-              organizationId,
-              usageMode: 'included',
-              createdAt: { gte: periodStart },
-            },
+            where: includedUsageFilter(organizationId, periodStart),
           })) ?? 0)
         : 0;
     const includedRemainingOperations = Math.max(

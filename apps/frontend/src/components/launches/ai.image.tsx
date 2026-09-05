@@ -188,7 +188,12 @@ export const AiImage: FC<{
             </svg>
           </div>
           <div className="text-[10px] font-[600] iconBreak:hidden block">
-            {t('ai', 'AI')} Image
+            {/*
+              Подпись целиком из локали, а не «переведённое ИИ» плюс
+              зашитое английское `Image` (`content-factory-next-fn33.28.15`):
+              склейка давала «ИИ Image» на русском экране.
+            */}
+            {t('ai_image', 'AI image')}
           </div>
         </div>
       </div>

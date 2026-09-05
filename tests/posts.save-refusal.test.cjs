@@ -165,20 +165,23 @@ describe('a refused save answers with its own status, not 500', () => {
 
 describe('the compose window survives a refused save', () => {
   // The component itself pulls in half the editor; only the message helper is
-  // needed here, so it is compiled out of the same file by hand rather than
-  // mocked into existence.
-  const postSaveErrorMessage = (...args) => {
-    const helper = helperSource.match(
-      /export const postSaveErrorMessage[\s\S]*?\n};\n/
-    );
-    expect(helper).toBeTruthy();
-    const compiled = require('typescript').transpileModule(helper[0], {
+  // needed here, so it is compiled out of the same file rather than mocked
+  // into existence.
+  // Файл намеренно без единого импорта (см. его шапку), поэтому он
+  // компилируется целиком, а не вырезается по одной функции: с
+  // `content-factory-next-fn33.28.8` помощник читает соседнюю таблицу кодов, и
+  // вырезанная в одиночку функция про неё бы не знала.
+  const helper = (() => {
+    expect(helperSource).not.toMatch(/^\s*import\s/m);
+    const compiled = require('typescript').transpileModule(helperSource, {
       compilerOptions: { module: 1, target: 7 },
     }).outputText;
     const module = { exports: {} };
     new Function('exports', 'module', compiled)(module.exports, module);
-    return module.exports.postSaveErrorMessage(...args);
-  };
+    return module.exports;
+  })();
+  const postSaveErrorMessage = (...args) =>
+    helper.postSaveErrorMessage(...args);
 
   const t = (key, fallback, values) =>
     Object.entries(values || {}).reduce(
@@ -186,12 +189,31 @@ describe('the compose window survives a refused save', () => {
       fallback
     );
 
-  test('the message the server sent is what the person is told', async () => {
+  test('a code the window knows is told in the window language, not the server one', async () => {
+    // `content-factory-next-fn33.28.8`: сервер прислал английский `message`, а
+    // на экране должен оказаться текст по ключу — язык знает только клиент.
     const message = await postSaveErrorMessage(
       { json: async () => ({ code: 'POST_NOT_FOUND', message: 'Post was not found' }) },
       t
     );
-    expect(message).toBe('The post was not saved: Post was not found');
+    expect(message).toBe(
+      'The post was not saved: This post was not found. It may have already been deleted.'
+    );
+  });
+
+  test('a code the window does not know still says what the server said', async () => {
+    const message = await postSaveErrorMessage(
+      {
+        json: async () => ({
+          code: 'SOMETHING_NEW_ON_THE_SERVER',
+          message: 'A refusal nobody has translated yet',
+        }),
+      },
+      t
+    );
+    expect(message).toBe(
+      'The post was not saved: A refusal nobody has translated yet'
+    );
   });
 
   test('a body with nothing readable in it falls back to a plain sentence', async () => {

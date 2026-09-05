@@ -25,7 +25,8 @@ export type ComposeBlockReason =
   | 'context-loading'
   | 'context-error'
   | 'evidence-required'
-  | 'context-draft-only';
+  | 'context-review-required'
+  | 'context-save-draft-first';
 
 export interface ComposeBlockReasonInput {
   locked?: boolean;
@@ -36,6 +37,13 @@ export interface ComposeBlockReasonInput {
     | null;
   provenanceErrorCode?: 'CONTENT_EVIDENCE_REQUIRED' | null;
   hasProvenance: boolean;
+  /**
+   * Когда человек сказал, что проверил подтверждения. Пусто — планирование
+   * закрыто; дата — открыто. Решение принимает человек, а не расчёт.
+   */
+  contextReviewedAt?: string | null;
+  /** Сохранён ли пост: у нового поста ещё нет адреса, которому сказать «проверено». */
+  postSaved?: boolean;
 }
 
 /**
@@ -60,7 +68,13 @@ export function composeBlockReason(
     return 'evidence-required';
   }
   if (input.contentIntelligenceLoadState === 'error') return 'context-error';
-  if (input.hasProvenance) return 'context-draft-only';
+  if (input.hasProvenance && !input.contextReviewedAt) {
+    // Порядок здесь — порядок шагов человека: сначала у поста должен появиться
+    // адрес, и только потом ему есть чему сказать «подтверждения проверены».
+    return input.postSaved
+      ? 'context-review-required'
+      : 'context-save-draft-first';
+  }
   return 'none';
 }
 
@@ -88,10 +102,15 @@ export const COMPOSE_BLOCK_REASON_COPY: Record<
     fallback:
       'Current evidence is required. Verify the context before this draft can be saved.',
   },
-  'context-draft-only': {
-    key: 'compose_blocked_context_draft_only',
+  'context-review-required': {
+    key: 'compose_blocked_context_review_required',
     fallback:
-      'A post that carries verified context can only be saved as a draft. Choosing a channel does not open scheduling.',
+      'This post was assembled from evidence. Check the evidence and confirm it — that opens scheduling.',
+  },
+  'context-save-draft-first': {
+    key: 'compose_blocked_context_save_draft_first',
+    fallback:
+      'This post was assembled from evidence. Save it as a draft first, then confirm the evidence — that opens scheduling.',
   },
 };
 

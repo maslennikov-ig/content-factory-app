@@ -22,18 +22,20 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import {
   type ContentIntelligenceCitation,
   type ContentIntelligenceProvenance,
-  parseServerContentContextEnvelope,
-  type ResearchSource,
   SelectedIntegrations,
   useLaunchStore,
 } from '@contentfactory/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { AddPostButton } from '@contentfactory/frontend/components/new-launch/add.post.button';
-import { MultiMediaComponent } from '@contentfactory/frontend/components/media/media.component';
+import {
+  MultiMediaComponent,
+  useUploaderLocale,
+} from '@contentfactory/frontend/components/media/media.component';
 import { UpDownArrow } from '@contentfactory/frontend/components/launches/up.down.arrow';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
 import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
+import { useHasCopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { useDropzone } from 'react-dropzone';
 import { useUppyUploader } from '@contentfactory/frontend/components/media/new.uploader';
 import { Dashboard } from '@uppy/react';
@@ -71,235 +73,30 @@ import {
   DelayIcon,
 } from '@contentfactory/frontend/components/ui/icons';
 import { DelayComponent } from '@contentfactory/frontend/components/new-launch/delay.component';
-import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import dayjs from 'dayjs';
-import { formatDateTimeForReader } from '@contentfactory/frontend/components/launches/helpers/isuscitizen.utils';
+import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
+/**
+ * Совместимость для сцены обзора интерфейса.
+ *
+ * Панель «Проверенный контекст» жила здесь и печатала состояние сервера, срок
+ * действия и версию профиля на поверхности письма. 04.09.2026 владелец решил,
+ * что окно даёт только полезное: происхождение поста говорит одна строка
+ * (`ProvenanceLine`), а состояний загрузки и отказа окно не показывает вовсе —
+ * их причину печатает строка у самой кнопки (`compose-block-reason.tsx`).
+ *
+ * Имя оставлено только ради `app/(stand)/interface-review/...`, который лежит
+ * вне зоны этой задачи. `loadState` и `failure` сюда ещё приходят и здесь
+ * ничего не значат: как только сцена обзора начнёт звать `ProvenanceLine`
+ * напрямую, эта обёртка уходит.
+ */
 export const ContentIntelligenceContextSummary: FC<{
   provenance: ContentIntelligenceProvenance | null;
-  loadState: 'idle' | 'loading' | 'ready' | 'error';
-  failure: 'CONTENT_EVIDENCE_REQUIRED' | 'CONTEXT_UNAVAILABLE' | null;
-  researchSources?: ResearchSource[];
-}> = ({ provenance, loadState, failure, researchSources = [] }) => {
-  const t = useT();
-  const { language } = useVariables();
-  const isRussian = language === 'ru';
-  const isGrounded =
-    provenance?.generationPolicy === 'ALLOW_GROUNDED' &&
-    (provenance.contentContextStatus === 'READY' ||
-      provenance.contentContextStatus === 'PARTIAL');
-  const draftPolicyCopy = isGrounded
-    ? t(
-        'content_context_grounded_draft_only',
-        isRussian
-          ? 'Контент с подтверждёнными источниками можно сохранить только как черновик.'
-          : 'Grounded output can be saved as a draft only.'
-      )
-    : provenance?.generationPolicy === 'ALLOW_USER_ONLY'
-    ? t(
-        'content_context_user_only_draft',
-        isRussian
-          ? 'В черновик можно сохранить только материалы пользователя.'
-          : 'Only user-provided material can be saved as a draft.'
-      )
-    : t(
-        'content_context_evidence_required',
-        isRussian
-          ? 'Сначала подтвердите контекст: без доказательств сохранить черновик нельзя.'
-          : 'Verify the context first; evidence is required before this draft can be saved.'
-      );
-  /**
-   * The context's state, in words.
-   *
-   * `UNAVAILABLE` was printed straight from the enum onto the writing surface,
-   * next to an ISO timestamp. An enum value is what the server calls this; it
-   * is not what a person calls it, and it has no translation, so the Russian
-   * interface printed English shouting. Each of the five statuses gets a
-   * sentence, and an unrecognised one falls back to the neutral sentence rather
-   * than leaking the identifier.
-   */
-  const statusCopy = !provenance
-    ? ''
-    : provenance.contentContextStatus === 'READY'
-    ? t(
-        'content_context_state_ready',
-        isRussian
-          ? 'Контекст собран и проверен.'
-          : 'The context is gathered and verified.'
-      )
-    : provenance.contentContextStatus === 'PARTIAL'
-    ? t(
-        'content_context_state_partial',
-        isRussian
-          ? 'Контекст собран частично: часть источников не ответила.'
-          : 'The context is partly gathered: some sources did not answer.'
-      )
-    : provenance.contentContextStatus === 'BLOCKED_STALE'
-    ? t(
-        'content_context_state_stale',
-        isRussian
-          ? 'Контекст устарел — соберите его заново.'
-          : 'The context is out of date — gather it again.'
-      )
-    : provenance.contentContextStatus === 'BLOCKED_CONFLICT'
-    ? t(
-        'content_context_state_conflict',
-        isRussian
-          ? 'Источники противоречат друг другу — на них пока нельзя опереться.'
-          : 'The sources contradict each other, so nothing here can be leaned on yet.'
-      )
-    : t(
-        'content_context_state_unavailable',
-        isRussian
-          ? 'Контекста пока нет: подтверждённых источников не найдено.'
-          : 'There is no context yet: no confirmed sources were found.'
-      );
-
-  /**
-   * The freshness date in the reader's own notation, through the same helper
-   * the calendar and the date picker read. An ISO timestamp is a machine's way
-   * of writing a date and it was being shown to a person mid-sentence; two
-   * hand-written format strings then picked the American one off the browser
-   * locale rather than off anything the person chose
-   * (`content-factory-next-fn33.87`).
-   */
-  const formatUserDate = (value: string) => {
-    const parsed = dayjs(value);
-    if (!parsed.isValid()) return value;
-    return formatDateTimeForReader(parsed.toDate());
-  };
-
-  if (loadState === 'idle' && researchSources.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-[10px] border-t border-cf-border pt-[12px]">
-      {loadState === 'loading' && (
-        <p className="cf-body-sm text-cf-ink-muted" role="status">
-          {t(
-            'content_context_loading',
-            'Loading trusted context and freshness…'
-          )}
-        </p>
-      )}
-      {loadState === 'error' && (
-        <div
-          className="rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] text-cf-danger"
-          role="alert"
-        >
-          <div className="cf-label-md">
-            {failure === 'CONTENT_EVIDENCE_REQUIRED'
-              ? 'CONTENT_EVIDENCE_REQUIRED'
-              : t(
-                  'content_context_unavailable',
-                  'Content provenance is unavailable'
-                )}
-          </div>
-          <p className="cf-body-sm mt-[4px] text-pretty">
-            {failure === 'CONTENT_EVIDENCE_REQUIRED'
-              ? t(
-                  'content_evidence_required_help',
-                  'Verify current evidence before generating or saving this draft.'
-                )
-              : t(
-                  'content_context_unavailable_help',
-                  'The draft is not treated as grounded and cannot save provenance until the server context is verified.'
-                )}
-          </p>
-        </div>
-      )}
-      {provenance && (
-        <div
-          className="flex flex-col gap-[8px]"
-          role="status"
-          aria-label={t('applied_content_context', 'Applied content context')}
-        >
-          <p className="cf-body-sm text-cf-ink text-pretty">
-            {statusCopy}
-          </p>
-          <p className="cf-body-sm text-cf-ink-muted text-pretty">
-            {draftPolicyCopy}
-          </p>
-          {/*
-            The identifiers below answer "which profile, valid until when" —
-            a question that only comes up when something looks wrong. They were
-            the first thing on the panel, in monospace, printed as the enum
-            value and an ISO timestamp, and they made the writing surface read
-            like a debugger. They stay, because the answer has to be reachable;
-            they just stop being the opening line.
-
-            A native disclosure rather than a component: the browser already
-            owns the button role, the expanded state and Enter/Space, and the
-            product has no disclosure primitive to reuse.
-          */}
-          <details className="group">
-            <summary className="inline-flex w-fit cursor-pointer list-none items-center gap-[4px] cf-body-sm text-cf-ink-muted underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
-              {t('content_context_details', 'Details')}
-            </summary>
-            <div className="mt-[8px] flex flex-wrap gap-x-[16px] gap-y-[4px]">
-              <span className="cf-label-sm text-cf-ink">
-                {provenance.brandProfileSelection.mode === 'resolved'
-                  ? `${
-                      provenance.profileLabel ||
-                      t('applied_brand_profile', 'Applied brand profile')
-                    } · v${provenance.brandProfileSelection.versionNumber}`
-                  : t('neutral_voice', 'Neutral voice')}
-              </span>
-              {provenance.expiresAt && (
-                <span className="cf-caption text-cf-ink-muted">
-                  {t(
-                    'context_expires',
-                    isRussian ? 'Срок действия контекста' : 'Context expires'
-                  )}
-                  : {formatUserDate(provenance.expiresAt)}
-                </span>
-              )}
-              {provenance.validationStatus === 'VALID' && (
-                <span className="cf-caption text-cf-ink-muted">
-                  {t('content_context_checked', 'Checked against the server')}
-                </span>
-              )}
-            </div>
-          </details>
-        </div>
-      )}
-      {researchSources.length > 0 && (
-        <div>
-          <div className="mb-[6px] text-[12px] font-[600] text-cf-ink">
-            {t('compatibility_sources', 'Compatibility sources')}
-          </div>
-          <p className="mb-[8px] text-[13px] text-cf-ink-muted text-pretty">
-            {t(
-              'compatibility_sources_help',
-              'Legacy links are display-only and do not establish provenance.'
-            )}
-          </p>
-          <ul className="flex flex-col gap-[6px]">
-            {researchSources.map((source) => (
-              <li key={source.url} className="text-[12px]">
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="text-cf-accent underline underline-offset-2"
-                >
-                  {source.title}
-                </a>
-                {source.publishedAt && (
-                  <span className="ms-[6px] text-cf-ink-muted">
-                    {source.publishedAt}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
+  loadState?: 'idle' | 'loading' | 'ready' | 'error';
+  failure?: 'CONTENT_EVIDENCE_REQUIRED' | 'CONTEXT_UNAVAILABLE' | null;
+}> = ({ provenance }) => <ProvenanceLine provenance={provenance} />;
 
 export const ContentIntelligenceCitationSelector: FC<{
   citations: readonly ContentIntelligenceCitation[];
@@ -313,10 +110,16 @@ export const ContentIntelligenceCitationSelector: FC<{
       <legend className="cf-label-sm px-[4px] text-cf-ink">
         {t('used_citations', 'Used citations')}
       </legend>
+      {/*
+        * `content-factory-next-fn33.28.13`: «выданные сервером» человеку,
+        * который пишет пост, не говорит ничего — это слово из устройства, а не
+        * из его работы. Ему важно другое: отметить, на что опирается вот этот
+        * текст.
+        */}
       <p className="cf-caption mb-[4px] text-cf-ink-muted text-pretty">
         {t(
           'used_citations_help',
-          'Choose the server-issued facts and evidence used by this item.'
+          'Mark which facts and sources this text leans on.'
         )}
       </p>
       <div className="flex flex-col">
@@ -327,9 +130,16 @@ export const ContentIntelligenceCitationSelector: FC<{
             onChange={(event) =>
               onChange(citation.citationId, event.currentTarget.checked)
             }
-            label={`${citation.kind === 'FACT' ? 'Fact' : 'Source'} · ${
-              citation.label
-            }`}
+            /*
+             * Слово «Fact» / «Source» было зашито в разметке и на русском
+             * экране оставалось английским, хотя соседние подписи того же
+             * блока переводятся (`content-factory-next-fn33.28.13`).
+             */
+            label={`${
+              citation.kind === 'FACT'
+                ? t('citation_kind_fact', 'Fact')
+                : t('citation_kind_source', 'Source')
+            } · ${citation.label}`}
           />
         ))}
       </div>
@@ -365,16 +175,55 @@ const InterceptUnderlineShortcut = Extension.create({
   },
 });
 
+/**
+ * Всё, что редактор рассказывает помощнику, — одним узлом
+ * (`content-factory-next-fn33.28.11`).
+ *
+ * Хуки `useCopilotReadable` и `useCopilotAction` стояли в теле самого
+ * редактора, а хуки не бывают условными. Пока провайдер помощника поднимался
+ * всегда, это было незаметно; с тех пор как окно перестало поднимать
+ * помощника без ключа AI, безусловный вызов упал бы исключением библиотеки
+ * «Remember to wrap your app in a <CopilotKit>».
+ *
+ * Поэтому связь с помощником живёт отдельным узлом: он рисуется только под
+ * поднятым провайдером и ничего не рисует собой. Условие переехало с хука на
+ * узел — единственное место, где условие вообще законно.
+ */
+const EditorCopilotBridge: FC<{
+  contents: string[];
+  onSetPosts: (value: string[]) => void;
+}> = ({ contents, onSetPosts }) => {
+  useCopilotReadable({
+    description: 'Current content of posts',
+    value: contents,
+  });
+
+  useCopilotAction({
+    name: 'setPosts',
+    description: 'a thread of posts',
+    parameters: [
+      {
+        name: 'content',
+        type: 'string[]',
+        description: 'a thread of posts',
+      },
+    ],
+    handler: async ({ content }) => {
+      onSetPosts(content);
+    },
+  });
+
+  return null;
+};
+
 export const EditorWrapper: FC<{
   totalPosts: number;
   value: string;
 }> = () => {
   const t = useT();
-  const fetch = useFetch();
-  const toaster = useToaster();
-  const [researching, setResearching] = useState(false);
-  const researchRequestRef = useRef(0);
-  const { language: interfaceLanguage } = useVariables();
+  // Поднялся ли помощник над окном: без ключа AI окно его не поднимает, и
+  // рассказывать тогда некому (`content-factory-next-fn33.28.11`).
+  const hasCopilot = useHasCopilotProvider();
   const {
     setGlobalValueText,
     setInternalValueText,
@@ -407,34 +256,18 @@ export const EditorWrapper: FC<{
     selectedIntegration,
     chars,
     comments,
-    researchSources,
-    setResearchSources,
     contentIntelligenceProvenance,
-    setContentIntelligenceProvenance,
-    contentIntelligenceLoadState,
-    setContentIntelligenceLoadState,
-    contentIntelligenceFailure,
-    setContentIntelligenceFailure,
     setGlobalValueCitationIds,
     setInternalValueCitationIds,
-    clearAllValueCitationIds,
   } = useLaunchStore(
     useShallow((state) => ({
       internal: state.internal.find((p) => p.integration.id === state.current),
       internalFromAll: state.integrations.find((p) => p.id === state.current),
       global: state.global,
       comments: state.comments,
-      researchSources: state.researchSources,
-      setResearchSources: state.setResearchSources,
       contentIntelligenceProvenance: state.contentIntelligenceProvenance,
-      setContentIntelligenceProvenance: state.setContentIntelligenceProvenance,
-      contentIntelligenceLoadState: state.contentIntelligenceLoadState,
-      setContentIntelligenceLoadState: state.setContentIntelligenceLoadState,
-      contentIntelligenceFailure: state.contentIntelligenceFailure,
-      setContentIntelligenceFailure: state.setContentIntelligenceFailure,
       setGlobalValueCitationIds: state.setGlobalValueCitationIds,
       setInternalValueCitationIds: state.setInternalValueCitationIds,
-      clearAllValueCitationIds: state.clearAllValueCitationIds,
       current: state.current,
       addRemoveInternal: state.addRemoveInternal,
       dummy: state.dummy,
@@ -510,138 +343,6 @@ export const EditorWrapper: FC<{
     },
     [internal, items]
   );
-
-  useCopilotReadable({
-    description: 'Current content of posts',
-    value: items.map((p) => p.content),
-  });
-
-  useCopilotAction({
-    name: 'setPosts',
-    description: 'a thread of posts',
-    parameters: [
-      {
-        name: 'content',
-        type: 'string[]',
-        description: 'a thread of posts',
-      },
-    ],
-    handler: async ({ content }) => {
-      setValue(content);
-    },
-  });
-
-  const researchSubject = useMemo(
-    () =>
-      items
-        .map((item) => stripHtmlValidation('normal', item.content, true))
-        .filter(Boolean)
-        .join('\n'),
-    [items]
-  );
-
-  const researchWeb = useCallback(
-    async (subject: string) => {
-      const requestId = ++researchRequestRef.current;
-      setContentIntelligenceLoadState('loading');
-      setContentIntelligenceFailure(null);
-      const contentLanguage =
-        internalFromAll?.contentLanguage ||
-        (interfaceLanguage === 'ru' ? 'ru' : 'en');
-      const response = await fetch(
-        `/copilot/research?language=${encodeURIComponent(contentLanguage)}`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ subject }),
-        }
-      );
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        if (requestId !== researchRequestRef.current) return null;
-        const failure =
-          error?.code === 'CONTENT_EVIDENCE_REQUIRED'
-            ? 'CONTENT_EVIDENCE_REQUIRED'
-            : 'CONTEXT_UNAVAILABLE';
-        setContentIntelligenceProvenance(null);
-        setContentIntelligenceFailure(failure);
-        setContentIntelligenceLoadState('error');
-        throw new Error(
-          failure === 'CONTENT_EVIDENCE_REQUIRED'
-            ? t(
-                'content_evidence_required',
-                'CONTENT_EVIDENCE_REQUIRED: Current evidence is required before generation.'
-              )
-            : error?.message ||
-              t('web_research_failed', 'Web research is unavailable')
-        );
-      }
-      const result = await response.json();
-      if (requestId !== researchRequestRef.current) return null;
-      const provenance = parseServerContentContextEnvelope(result);
-      if (!provenance) {
-        setContentIntelligenceProvenance(null);
-        setContentIntelligenceFailure('CONTEXT_UNAVAILABLE');
-        setContentIntelligenceLoadState('error');
-        throw new Error(
-          t(
-            'content_context_invalid',
-            'The server did not return a valid content context.'
-          )
-        );
-      }
-      setContentIntelligenceProvenance(provenance);
-      setContentIntelligenceFailure(null);
-      setContentIntelligenceLoadState('ready');
-      clearAllValueCitationIds();
-      return provenance;
-    },
-    [
-      current,
-      clearAllValueCitationIds,
-      fetch,
-      interfaceLanguage,
-      internal,
-      internalFromAll?.contentLanguage,
-      items,
-      setContentIntelligenceFailure,
-      setContentIntelligenceLoadState,
-      setContentIntelligenceProvenance,
-      setGlobalValueCitationIds,
-      setInternalValueCitationIds,
-      t,
-    ]
-  );
-
-  useCopilotAction({
-    name: 'researchWeb',
-    description:
-      'Research the requested subject on the web and show cited material beside the current draft',
-    parameters: [
-      {
-        name: 'subject',
-        type: 'string',
-        description: 'The subject to research',
-        required: true,
-      },
-    ],
-    handler: async ({ subject }) => researchWeb(subject),
-  });
-
-  const researchCurrentDraft = useCallback(async () => {
-    setResearching(true);
-    try {
-      await researchWeb(researchSubject);
-    } catch (error) {
-      toaster.show(
-        error instanceof Error
-          ? error.message
-          : t('web_research_failed', 'Web research is unavailable'),
-        'warning'
-      );
-    } finally {
-      setResearching(false);
-    }
-  }, [researchSubject, researchWeb, t, toaster]);
 
   const changeCitations = useCallback(
     (index: number, citationId: string, checked: boolean) => {
@@ -796,6 +497,12 @@ export const EditorWrapper: FC<{
           'bg-newSettings rounded-[12px]'
       )}
     >
+      {hasCopilot && (
+        <EditorCopilotBridge
+          contents={items.map((p) => p.content)}
+          onSetPosts={setValue}
+        />
+      )}
       {isCreateSet && current !== 'global' && (
         <>
           <div className="text-center absolute w-full h-full left-0 top-0 items-center justify-center flex z-[101] flex-col gap-[16px]">
@@ -844,39 +551,6 @@ export const EditorWrapper: FC<{
           </div>
           <div className="absolute w-full h-full left-0 top-0 bg-newBackdrop opacity-60 z-[100] rounded-[12px]" />
         </>
-      )}
-      {canEdit && (
-        <div className="mx-[12px] mt-[12px] flex flex-col gap-[12px] rounded-[10px] border border-cf-border bg-cf-surface p-[12px]">
-          <div className="flex flex-wrap items-center justify-between gap-[12px]">
-            <div>
-              <div className="text-[14px] font-[600] text-cf-ink">
-                {t('trusted_context', 'Trusted context')}
-              </div>
-              <div className="text-[12px] text-cf-ink-muted">
-                {t(
-                  'web_research_editor_hint',
-                  'Build a server-issued context, then choose citations for each draft item.'
-                )}
-              </div>
-            </div>
-            <Button
-              type="button"
-              secondary={true}
-              disabled={researching || !researchSubject.trim()}
-              onClick={researchCurrentDraft}
-            >
-              {researching
-                ? t('researching', 'Researching…')
-                : t('research_current_draft', 'Research current draft')}
-            </Button>
-          </div>
-          <ContentIntelligenceContextSummary
-            provenance={contentIntelligenceProvenance}
-            loadState={contentIntelligenceLoadState}
-            failure={contentIntelligenceFailure}
-            researchSources={researchSources}
-          />
-        </div>
       )}
       {items.map((g, index) => (
         <div
@@ -1035,6 +709,7 @@ export const Editor: FC<{
   const [id] = useState(makeId(10));
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const t = useT();
+  const uploaderLocale = useUploaderLocale(t);
   const toaster = useToaster();
   const editorRef = useRef<undefined | { editor: any }>(undefined);
   const [loading, setLoading] = useState(false);
@@ -1214,6 +889,7 @@ export const Editor: FC<{
                   height={46}
                   uppy={uppy}
                   id={`prog-${num}`}
+                  locale={uploaderLocale}
                   showProgressDetails={true}
                   hideUploadButton={true}
                   hideRetryButton={true}

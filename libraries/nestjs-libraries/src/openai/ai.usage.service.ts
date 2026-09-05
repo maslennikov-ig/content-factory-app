@@ -141,6 +141,80 @@ export const aiBillingPeriodStart = (createdAt: Date, now = new Date()) => {
 };
 
 /**
+ * When the current period ends, which is when the included allowance is whole
+ * again. Thirty-two days after the period start lands inside the next period
+ * and never past it: two consecutive periods are at least 59 days long, and a
+ * single one is at most 31.
+ */
+export const aiBillingPeriodEnd = (createdAt: Date, now = new Date()) =>
+  aiBillingPeriodStart(
+    createdAt,
+    new Date(
+      aiBillingPeriodStart(createdAt, now).getTime() + 32 * 24 * 60 * 60 * 1_000
+    )
+  );
+
+/**
+ * The rows that count against the included allowance this period, written once
+ * so the number a person is shown and the number that decides admission cannot
+ * drift apart. Admission owns this predicate; reading it changes nothing.
+ *
+ * Exported since `content-factory-next-fn33.28.6`. The administrator's settings
+ * screen counted every row of the period instead, so the two screens of one
+ * workspace printed different «left» numbers and nothing in the product
+ * explained the difference. There is one allowance, so there is one predicate:
+ * `ai.provider.service.ts` reads this same function rather than repeating its
+ * `where` by hand.
+ */
+export const includedUsageFilter = (
+  organizationId: string,
+  periodStart: Date
+) => ({
+  organizationId,
+  usageMode: 'included' as const,
+  createdAt: { gte: periodStart },
+  OR: [
+    { status: { not: 'admitted' as const } },
+    {
+      createdAt: {
+        gte: new Date(Date.now() - ACTIVE_ADMISSION_WINDOW_MS),
+      },
+    },
+  ],
+});
+
+/**
+ * What a person may be told before they press a paid button. Counts only: no
+ * key, no member, nothing another workspace could read from it.
+ *
+ * A workspace key carries no counted ceiling, so it says so in words instead
+ * of inventing a number.
+ */
+export type AiAllowanceView =
+  /**
+   * Ни включённого лимита, ни ключа: пространству нечем позвать модель вовсе.
+   *
+   * `content-factory-next-fn33.28.9`. Свежее пространство отвечало
+   * `{mode:'included', limit:0, remaining:0}`, и экран читал это как
+   * «исчерпано»: `remaining <= 0` истинно и тогда, когда потратили всё, и
+   * тогда, когда выдавать было нечего. Человеку, который ничего не тратил,
+   * говорили, что лимит кончился.
+   *
+   * Это ровно то условие, при котором `/copilot/chat` и любая платная дверь
+   * отвечают 503 `AI_SELECTED_CREDENTIAL_UNAVAILABLE`: у выбранного режима нет
+   * ключа. Счётчиков здесь нет, потому что считать нечего.
+   */
+  | { mode: 'unavailable' }
+  | { mode: 'workspace_key' }
+  | {
+      mode: 'included';
+      used: number;
+      limit: number;
+      remaining: number;
+      resetsAt: string;
+    };
+
+/**
  * `P2034` is a serializable write conflict; `P2028` covers the transaction API
  * giving up, which is what both bound above surface as. Neither says anything
  * about whether the operation is allowed, only that the ledger could not settle
@@ -241,21 +315,10 @@ export class AiUsageService {
             if (quota <= 0) throw new AiIncludedQuotaExceeded();
 
             const used = await tx.aiUsageRecord.count({
-              where: {
+              where: includedUsageFilter(
                 organizationId,
-                usageMode: 'included',
-                createdAt: {
-                  gte: aiBillingPeriodStart(subscription.createdAt),
-                },
-                OR: [
-                  { status: { not: 'admitted' } },
-                  {
-                    createdAt: {
-                      gte: new Date(Date.now() - ACTIVE_ADMISSION_WINDOW_MS),
-                    },
-                  },
-                ],
-              },
+                aiBillingPeriodStart(subscription.createdAt)
+              ),
             });
             if (used >= quota) throw new AiIncludedQuotaExceeded();
             return tx.aiUsageRecord.create({ data });
@@ -290,6 +353,62 @@ export class AiUsageService {
       // into a client-visible failure and invite a second paid call.
       console.error('Failed to finalize AI usage record status');
     }
+  }
+
+  /**
+   * The allowance, read and never written.
+   *
+   * The screen asks this before a paid button is pressed, so it answers with
+   * the same counting rule admission uses. The admin settings screen counts
+   * every row in the period instead, including admissions abandoned a day ago;
+   * that number is the ledger's, this one is the next click's.
+   *
+   * The organisation comes from the caller's request and is named in the
+   * `where`, so this cannot read another workspace's ledger.
+   */
+  async readAllowance(organizationId: string): Promise<AiAllowanceView> {
+    this.assertTenant(organizationId);
+    const config = await loadAiConfig(organizationId);
+    /**
+     * Сначала «а есть ли чем», и только потом «сколько осталось».
+     *
+     * `config.apiKey` пуст ровно тогда, когда у выбранного режима нет ключа:
+     * у `workspace_key` его не задал администратор, у `included` его нет у
+     * оператора. Это то же условие, по которому `hasAiProvider` отвечает
+     * «нет», а платные двери — 503. Пустой ключ наружу не уезжает: наружу
+     * уезжает одно слово о том, что позвать модель нечем.
+     */
+    if (!config.apiKey) return { mode: 'unavailable' };
+    if (config.usageMode !== 'included') return { mode: 'workspace_key' };
+
+    const subscription = await this.prisma.subscription?.findUnique({
+      where: { organizationId },
+      select: { includedAiMonthlyOperations: true, createdAt: true },
+    });
+    const organization = await this.prisma.organization?.findUnique({
+      where: { id: organizationId },
+      select: { createdAt: true },
+    });
+    // The subscription anchors the period when there is one; without it the
+    // workspace's own birthday does, exactly as the settings screen reads it.
+    const anchor =
+      subscription?.createdAt ?? organization?.createdAt ?? new Date();
+    const limit = subscription?.includedAiMonthlyOperations ?? 0;
+    const periodStart = aiBillingPeriodStart(anchor);
+    const used =
+      limit > 0
+        ? (await this.prisma.aiUsageRecord?.count({
+            where: includedUsageFilter(organizationId, periodStart),
+          })) ?? 0
+        : 0;
+
+    return {
+      mode: 'included',
+      used,
+      limit,
+      remaining: Math.max(0, limit - used),
+      resetsAt: aiBillingPeriodEnd(anchor).toISOString(),
+    };
   }
 
   async executeAiOperation<T>(

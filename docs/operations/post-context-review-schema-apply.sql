@@ -1,0 +1,44 @@
+-- Два столбца на Post. Применять ТОЛЬКО этот текст, дословно.
+--
+-- Зачем: пост, собранный из проверенного контекста, до сих пор мог быть
+-- только черновиком — `createOrUpdatePost` отвечал `CONTENT_CONTEXT_DRAFT_ONLY`
+-- (409) на планирование и публикацию навсегда (`content-factory-next-fn33.27`).
+-- Решение владельца 04.09.2026: граница остаётся, но выход из неё — явное
+-- решение человека, а не вечный запрет. `contentContextReviewedAt` — отметка
+-- времени этого решения, `contentContextReviewedById` — кто его принял.
+-- NULL у всех постов, которых человек не подтверждал.
+--
+-- Оба столбца nullable и без значения по умолчанию, поэтому оператор не
+-- переписывает таблицу и не требует окна простоя. Индекс не нужен: по ним не
+-- ищут, их читают вместе со строкой поста. Существующие строки получают NULL,
+-- то есть «подтверждения никто не проверял»: черновики с контекстом, которые
+-- уже лежат на боевой, после применения остаются черновиками, пока человек не
+-- нажмёт «Подтверждения проверены». Это и есть ожидаемое поведение, откат
+-- данных не нужен.
+--
+-- Внешнего ключа на `User` нет намеренно: это след решения, а не связь. Удалённый
+-- аккаунт не должен ни удалять пост, ни блокировать своё удаление постом.
+--
+-- `prisma migrate diff` против боевой базы печатает эти операторы вместе с
+-- DROP TABLE на mastra_* таблицы, которых нет в schema.prisma. Их пропускает
+-- validate-prisma-migration-sql.cjs (Mastra-owned target), но проверять
+-- каждый раз всё равно нужно: db push и полный вывод migrate diff сносят их
+-- молча.
+--
+-- Порядок применения:
+--   1. prisma migrate diff --from-url <DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table Post --diff <шаг 1> --selected этот_файл
+--   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
+--   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
+--
+-- Валидатор отвергает BEGIN/COMMIT как неизвестные операции схемы;
+-- транзакционность обеспечивает флаг --single-transaction в psql.
+--
+-- Столбцы добавлены в schema.prisma 04.09.2026 (content-factory-next-fn33.28.1).
+-- На боевой базе НЕ применено: применять до переключения на выпуск волны
+-- «окно поста», запись — в production-deploy.md.
+
+ALTER TABLE "Post" ADD COLUMN     "contentContextReviewedAt" TIMESTAMP(3),
+ADD COLUMN     "contentContextReviewedById" TEXT;

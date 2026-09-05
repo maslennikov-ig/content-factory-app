@@ -21,8 +21,7 @@ import {
   composeBlockReason,
 } from '@contentfactory/frontend/components/new-launch/compose-block-reason';
 import { ShowAllProviders } from '@contentfactory/frontend/components/new-launch/providers/show.all.providers';
-import { AppliedVoiceLine } from '@contentfactory/frontend/components/new-launch/applied-voice.line';
-import { VoiceRibbonContainer } from '@contentfactory/frontend/components/brand-voice/voice-ribbon.container';
+import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 import { DraftGapNote } from '@contentfactory/frontend/components/brand-voice/draft-gap-note';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
@@ -40,9 +39,11 @@ import { useModals } from '@contentfactory/frontend/components/layout/new-modal'
 import { capitalize } from 'lodash';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
 import { CopilotPopup } from '@copilotkit/react-ui';
-import { CopilotProvider } from '@contentfactory/frontend/components/copilot/copilot.provider';
+import {
+  CopilotProvider,
+  useHasCopilotProvider,
+} from '@contentfactory/frontend/components/copilot/copilot.provider';
 import { DummyCodeComponent } from '@contentfactory/frontend/components/new-launch/dummy.code.component';
-import { CreationMethodBadge } from '@contentfactory/frontend/components/launches/creation.method.badge';
 import {
   SettingsIcon,
   ChevronDownIcon,
@@ -64,13 +65,23 @@ import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
  * (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
  */
 export const ManageModal: FC<AddEditModalProps> = (props) => (
-  <CopilotProvider>
+  /**
+   * `requireAvailable` — потому что у пространства без ключа AI каждое открытие
+   * окна давало `POST /copilot/chat -> 503` и строку в консоли
+   * (`content-factory-next-fn33.28.11`). Помощник, которого нельзя позвать, не
+   * поднимается вовсе, и запрос не уходит.
+   */
+  <CopilotProvider requireAvailable>
     <ManageModalContent {...props} />
   </CopilotProvider>
 );
 
 const ManageModalContent: FC<AddEditModalProps> = (props) => {
   const t = useT();
+  // Поднялся ли помощник над этим окном. У пространства без ключа AI он не
+  // поднимается вовсе, и тогда рисовать его панель было бы обещанием
+  // собеседника, которого нет (`content-factory-next-fn33.28.11`).
+  const hasCopilot = useHasCopilotProvider();
   const { language } = useVariables();
   /**
    * Два языка, а не шестнадцать, — как у всех голосовых экранов.
@@ -90,6 +101,14 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
 
   const { addEditSets, mutate, customClose, dummy } = props;
 
+  /**
+   * Ссылки исследования по-прежнему уезжают вместе с постом, но окно их
+   * больше не показывает: исследование начинается в разделе «Контент», а не
+   * здесь (решение владельца 04.09.2026). Читаем значение, ничего им не рисуя,
+   * чтобы сохранение не теряло то, что у поста уже было.
+   */
+  const researchSources = useLaunchStore((state) => state.researchSources);
+
   const {
     selectedIntegrations,
     hide,
@@ -107,7 +126,6 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
     current,
     activateExitButton,
     setHide,
-    researchSources,
     contentIntelligenceProvenance,
     contentIntelligenceLoadState,
     contentIntelligenceFailure,
@@ -115,7 +133,6 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
     useShallow((state) => ({
       hide: state.hide,
       setHide: state.setHide,
-      researchSources: state.researchSources,
       contentIntelligenceProvenance: state.contentIntelligenceProvenance,
       contentIntelligenceLoadState: state.contentIntelligenceLoadState,
       contentIntelligenceFailure: state.contentIntelligenceFailure,
@@ -136,49 +153,64 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
     }))
   );
 
-  /**
-   * The boxes of the post being written, in order.
-   *
-   * The same choice the editor makes: a channel opened for its own version
-   * edits `integrationValue`, everything else edits the shared thread. The
-   * applied-voice strip needs it because a thread is where a long generation
-   * loses the voice, and the boundaries it is restated at are these boxes and
-   * not a guess about them.
-   */
-  const voiceChunks = useLaunchStore(
-    useShallow((state) =>
-      (
-        state.internal.find((one) => one.integration.id === state.current)
-          ?.integrationValue ?? state.global
-      ).map((value) => value.content)
-    )
-  );
-
-  /**
-   * Writing one box back, after the person accepts a repair.
-   *
-   * The same fork the reader above takes, in the same order: a channel opened
-   * for its own version owns its boxes, everything else edits the shared
-   * thread. Reading from one and writing to the other would put the repair in
-   * a box nobody is looking at.
-   */
-  const replaceVoiceChunk = useCallback(
-    (index: number, next: string) => {
-      const state = useLaunchStore.getState();
-      const own = state.internal.find(
-        (one) => one.integration.id === state.current
-      );
-      if (own) state.setInternalValueText(own.integration.id, index, next);
-      else state.setGlobalValueText(index, next);
-    },
-    []
-  );
-
   useEffect(() => {
     if (hide) {
       setHide(false);
     }
   }, [hide]);
+
+  /**
+   * Явное решение человека: подтверждения проверены.
+   *
+   * Пост, собранный из подтверждений, до 04.09.2026 уходил только в черновик
+   * и планирование не открывалось никогда (`content-factory-next-fn33.27`).
+   * Граница осталась, но выход из неё теперь есть, и открывает его человек, а
+   * не расчёт: он смотрит подтверждения и говорит, что проверил их. Поля и
+   * дверь описаны контрактом сервера (`content-factory-next-fn33.28.1`):
+   * `POST /posts/:id/context-review` отвечает `{ contentContextReviewedAt }`,
+   * а сам пост приносит `contentContextReviewedAt` и
+   * `contentContextReviewedById`.
+   */
+  const existingPost = existingData?.posts?.[0] as
+    | (Record<string, any> & { id?: string })
+    | undefined;
+  const [contextReviewedAt, setContextReviewedAt] = useState<string | null>(
+    existingPost?.contentContextReviewedAt ?? null
+  );
+  const [reviewing, setReviewing] = useState(false);
+  const confirmContextReview = useCallback(async () => {
+    if (!existingPost?.id) return;
+    setReviewing(true);
+    try {
+      const response = await fetch(
+        `/posts/${existingPost.id}/context-review`,
+        { method: 'POST' }
+      );
+      if (!response.ok) {
+        toaster.show(
+          await postSaveErrorMessage(response, t),
+          'warning'
+        );
+        return;
+      }
+      const answer = await response.json().catch(() => null);
+      // Дата приходит с сервера: она и есть запись о проверке. Своей мы бы
+      // открыли кнопки над постом, у которого на сервере проверки нет.
+      if (typeof answer?.contentContextReviewedAt === 'string') {
+        setContextReviewedAt(answer.contentContextReviewedAt);
+      } else {
+        toaster.show(
+          t(
+            'context_review_failed',
+            'The check could not be recorded. Scheduling stays closed.'
+          ),
+          'warning'
+        );
+      }
+    } finally {
+      setReviewing(false);
+    }
+  }, [existingPost?.id, fetch, t, toaster]);
 
   /**
    * Почему кнопки внизу не нажимаются, если дело не в кругах.
@@ -197,13 +229,34 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
         contentIntelligenceFailure,
         provenanceErrorCode: contentIntelligenceProvenance?.errorCode ?? null,
         hasProvenance: !!contentIntelligenceProvenance,
+        contextReviewedAt,
+        postSaved: !!existingPost?.id,
       }),
     [
       locked,
       contentIntelligenceLoadState,
       contentIntelligenceFailure,
       contentIntelligenceProvenance,
+      contextReviewedAt,
+      existingPost?.id,
     ]
+  );
+
+  /**
+   * Сколько подтверждений записано за этим постом — по коробкам, а не по
+   * контексту: контекст мог выдать двадцать, а в текст вошли три.
+   */
+  const confirmationCount = useLaunchStore(
+    useShallow((state) => {
+      const boxes =
+        state.internal.find((one) => one.integration.id === state.current)
+          ?.integrationValue ?? state.global;
+      const used = new Set<string>();
+      for (const box of boxes) {
+        for (const citationId of box.usedCitationIds || []) used.add(citationId);
+      }
+      return used.size;
+    })
   );
 
   const currentIntegrationText = useMemo(() => {
@@ -324,13 +377,14 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
       }
       if (
         contentIntelligenceProvenance &&
+        !contextReviewedAt &&
         type !== 'draft' &&
         type !== 'update'
       ) {
         toaster.show(
           t(
-            'content_context_draft_only',
-            'Content-intelligence output can only be saved as a draft.'
+            'compose_blocked_context_review_required',
+            'This post was assembled from evidence. Check the evidence and confirm it — that opens scheduling.'
           ),
           'warning'
         );
@@ -652,20 +706,33 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
       contentIntelligenceProvenance,
       contentIntelligenceLoadState,
       contentIntelligenceFailure,
+      contextReviewedAt,
     ]
   );
 
   return (
     <div className="w-full h-full flex-1 p-[40px] flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] flex-col">
+      <div className="flex flex-1 bg-newBgColorInner rounded-[12px] flex-col">
         <div className="flex-1 flex">
           <div className="flex flex-col flex-1 border-e border-newBorder">
-            <div className="bg-newBgColor h-[65px] rounded-s-[20px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] text-[20px] font-[600]">
+            {/*
+              * Значок происхождения снят с первого экрана окна
+              * (`content-factory-next-fn33.28.10`).
+              *
+              * Он печатал `creationMethod` как есть — сырое значение
+              * перечисления: «WEB», «API», «MCP», «AUTOPOST», «CLI», — и
+              * подсказку к нему по-английски («Created via WEB»). Человеку,
+              * который открыл своё окно поста, слово «WEB» не сообщает
+              * ничего: он и так знает, что пишет пост в браузере, потому что
+              * прямо сейчас это и делает.
+              *
+              * Значок не удалён из продукта: в календаре и в предпросмотре он
+              * различает посты, пришедшие из API, MCP и автопостинга, и там
+              * это настоящий факт о записи. Убран он ровно оттуда, где всегда
+              * показывал «WEB» и ничего больше.
+              */}
+            <div className="bg-newBgColor h-[64px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] cf-heading-md">
               {t('create_post_title', 'Create Post')}
-              <CreationMethodBadge
-                creationMethod={existingData?.posts?.[0]?.creationMethod}
-                size="sm"
-              />
             </div>
             <div className="flex-1 flex flex-col gap-[16px]">
               <div
@@ -750,7 +817,7 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
             </div>
           </div>
           <div className="w-[580px] flex flex-col">
-            <div className="bg-newBgColor h-[65px] rounded-e-[20px] !rounded-b-[0] flex items-center px-[20px] text-[20px] font-[600]">
+            <div className="bg-newBgColor h-[64px] rounded-e-[12px] !rounded-b-[0] flex items-center px-[20px] cf-heading-md">
               <div className="flex-1">{t('post_preview', 'Post Preview')}</div>
               <div className="cursor-pointer">
                 <CloseIcon onClick={askClose} className="text-[#A3A3A3]" />
@@ -763,81 +830,54 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
               >
                 <ShowAllProviders ref={ref} />
                 {/**
-                  * Предложение стоит ПОД лентой голоса, а не над ней.
+                  * Одна строка происхождения вместо двух поверхностей.
                   *
-                  * Лента отвечает «кто пишет этот текст» и обязана быть первой:
-                  * она про сам инструмент. Предложение — про один конкретный
-                  * черновик, и человек доходит до него, уже зная, чьим голосом
-                  * текст написан. Отсутствие предложения — обычный исход, и
-                  * тогда здесь нет вообще ничего: пустой блок «всё в порядке»
-                  * читался бы как отчёт о проверке, которой не было.
+                  * Здесь стояли панель «Проверенный контекст» и лента
+                  * «Применённый аватар»: пять значений через точку, две кнопки
+                  * без разницы между ними и объяснение устройства генератора
+                  * человеку, который просто пишет пост. 04.09.2026 владелец
+                  * решил, что окно даёт только полезное. У поста без контекста
+                  * здесь нет вообще ничего — обычный пост человек написал сам,
+                  * и сообщать ему об этом нечего.
+                  *
+                  * Предложение по черновику стоит ниже: оно про один
+                  * конкретный текст, а не про инструмент.
                   */}
-                <div className="mt-[16px]">
-                  <VoiceRibbonContainer
-                    chunks={voiceChunks}
-                    onReplaceChunk={replaceVoiceChunk}
-                    fallback={
-                      contentIntelligenceProvenance ? (
-                        <AppliedVoiceLine
-                          voice={
-                            contentIntelligenceProvenance.brandProfileSelection
-                              .mode === 'resolved'
-                              ? {
-                                  label:
-                                    contentIntelligenceProvenance.profileLabel ??
-                                    null,
-                                  versionNumber:
-                                    contentIntelligenceProvenance
-                                      .brandProfileSelection.versionNumber,
-                                }
-                              : null
-                          }
-                          loading={contentIntelligenceLoadState === 'loading'}
-                        />
-                      ) : null
-                    }
-                  />
-                </div>
-                <DraftGapNote gap={props.draftGap} locale={voiceLocale} />
-                {researchSources.length > 0 && (
-                  <div className="mt-[16px] rounded-[10px] border border-cf-border bg-cf-surface p-[12px]">
-                    <div className="mb-[8px] text-[13px] font-[600] text-cf-ink">
-                      {t('compatibility_sources', 'Compatibility sources')}
-                    </div>
-                    <p className="cf-caption mb-[8px] text-cf-ink-muted text-pretty">
-                      {t(
-                        'compatibility_sources_help',
-                        'Legacy links are shown for reference only. They do not establish draft provenance.'
-                      )}
-                    </p>
-                    <ul className="flex flex-col gap-[6px]">
-                      {researchSources.map((source) => (
-                        <li key={source.url} className="text-[12px]">
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-cf-accent underline underline-offset-2"
-                          >
-                            {source.title}
-                          </a>
-                          {source.publishedAt && (
-                            <span className="ms-[6px] text-cf-ink-muted">
-                              {source.publishedAt}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                {contentIntelligenceProvenance && (
+                  <div className="mt-[16px]">
+                    <ProvenanceLine
+                      provenance={contentIntelligenceProvenance}
+                      confirmationCount={
+                        confirmationCount > 0 ? confirmationCount : undefined
+                      }
+                    />
                   </div>
                 )}
+                <DraftGapNote gap={props.draftGap} locale={voiceLocale} />
               </Scrollable>
             </div>
           </div>
         </div>
         {blockReason !== 'none' && (
-          <div className="select-none px-[20px] pb-[8px] flex justify-end">
+          <div className="select-none px-[20px] pb-[8px] flex items-center justify-end gap-[12px]">
             <ComposeBlockReasonNote reason={blockReason} t={t} />
+            {/*
+              Кнопка стоит у самой причины, а не в общем ряду: она снимает
+              именно эту причину и появляется только вместе с ней. У поста,
+              который ещё не сохранён, адреса для проверки нет — там та же
+              строка говорит, что делать сначала, и кнопки нет.
+            */}
+            {blockReason === 'context-review-required' && (
+              <Button
+                type="button"
+                variant="secondary"
+                loading={reviewing}
+                disabled={reviewing}
+                onClick={confirmContextReview}
+              >
+                {t('context_review_confirm', 'Evidence checked')}
+              </Button>
+            )}
           </div>
         )}
         <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center">
@@ -922,7 +962,7 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
                     selectedIntegrations.length === 0 ||
                     loading ||
                     locked ||
-                    !!contentIntelligenceProvenance ||
+                    (!!contentIntelligenceProvenance && !contextReviewedAt) ||
                     contentIntelligenceLoadState === 'loading' ||
                     contentIntelligenceLoadState === 'error'
                   }
@@ -967,7 +1007,7 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
                       selectedIntegrations.length === 0 ||
                       loading ||
                       locked ||
-                      !!contentIntelligenceProvenance ||
+                      (!!contentIntelligenceProvenance && !contextReviewedAt) ||
                       contentIntelligenceLoadState === 'loading' ||
                       contentIntelligenceLoadState === 'error'
                     }
@@ -984,6 +1024,7 @@ const ManageModalContent: FC<AddEditModalProps> = (props) => {
           </div>
         </div>
       </div>
+      {hasCopilot && (
       <CopilotPopup
         hitEscapeToClose={false}
         clickOutsideToClose={true}
@@ -1006,6 +1047,7 @@ After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} f
           ),
         }}
       />
+      )}
     </div>
   );
 };

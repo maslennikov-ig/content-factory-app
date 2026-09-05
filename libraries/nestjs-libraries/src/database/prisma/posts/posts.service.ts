@@ -604,9 +604,37 @@ export class PostsService {
       integrationPicture: posts[0]?.integration?.picture,
       integration: posts[0].integrationId,
       settings: JSON.parse(posts[0].settings || '{}'),
+      /**
+       * Состояние проверки подтверждений — рядом с постом, а не только внутри
+       * его строк: окно поста читает его при открытии, чтобы знать, показывать
+       * ли кнопку «Подтверждения проверены» или уже дату решения
+       * (`content-factory-next-fn33.28.1`).
+       */
+      contentContextReviewedAt:
+        (posts[0] as any)?.contentContextReviewedAt ?? null,
+      contentContextReviewedById:
+        (posts[0] as any)?.contentContextReviewedById ?? null,
     };
 
     return list;
+  }
+
+  /**
+   * «Подтверждения проверены» для поста с контекстом: явное решение человека,
+   * после которого пост можно ставить в план и публиковать.
+   */
+  async markContentContextReviewed(orgId: string, id: string, userId: string) {
+    const reviewed = await this._postRepository.markContentContextReviewed(
+      orgId,
+      id,
+      userId
+    );
+    return {
+      contentContextReviewedAt:
+        reviewed.contentContextReviewedAt?.toISOString?.() ??
+        reviewed.contentContextReviewedAt,
+      contentContextReviewedById: reviewed.contentContextReviewedById,
+    };
   }
 
   async getOldPosts(orgId: string, date: string) {

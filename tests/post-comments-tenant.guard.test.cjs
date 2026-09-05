@@ -33,6 +33,13 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
 const { PostsRepository } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
   {
+      '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize': {
+        // Статический импорт с ff7cfe3c (fn33.28.7); этим тестам контекст не нужен.
+        validateContentContextForDraft: async () => {
+          throw new Error('content context is not part of this test');
+        },
+        writeContentContextDraftProvenance: async () => undefined,
+      },
     '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
       PrismaRepository: class {},
     },

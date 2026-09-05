@@ -161,12 +161,17 @@ describe('the date is written the way the reader was written to', () => {
     const picker = read(
       'apps/frontend/src/components/launches/helpers/date.picker.tsx'
     );
-    const editor = read('apps/frontend/src/components/new-launch/editor.tsx');
+    // Дата происхождения уехала из редактора в строку происхождения: с
+    // 04.09.2026 окно поста говорит о контексте одной строкой, и печатает её
+    // она (`content-factory-next-fn33.28.2`). Помощник тот же самый.
+    const line = read(
+      'apps/frontend/src/components/new-launch/provenance.line.tsx'
+    );
 
     expect(picker).toContain('formatDateTimeForReader');
     expect(picker).not.toContain('MM/DD/YYYY');
-    expect(editor).toContain('formatDateTimeForReader');
-    expect(editor).not.toContain('MM/DD/YYYY');
+    expect(line).toContain('formatDateTimeForReader');
+    expect(line).not.toContain('MM/DD/YYYY');
   });
 });
 

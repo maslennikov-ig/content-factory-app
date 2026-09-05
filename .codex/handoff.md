@@ -4,8 +4,27 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed, 22 open) — on branch
-`wave/fixes-2026-09-04`, NOT released, NOT pushed.** The owner asked to fix
+**Wave «compose window» (evening 04.09, `fn33.28.1`–`.17`, 16 closed) — on
+branch `wave/compose-2026-09-04` at `ad750a0f`, NOT merged, NOT released.**
+The owner saw the old composer on production and decided: only what is
+useful. Five Opus streams: (A) `Post.contentContextReviewedAt/ById` and
+`POST /posts/:id/context-review` — the draft-only boundary is left by an
+explicit human decision tied to the snapshot (a swapped snapshot clears the
+mark); (B) composer = Postiz core + stage, context panel and voice ribbon
+became one provenance line for posts with context, research left the window,
+tag/repeat/stage on `Menu`, standard dialog shell, «Подтверждения»/«Кто
+пишет» everywhere; (C) `GET /settings/ai/allowance` + hint at paid buttons;
+(D, E) cleanup, Russian refusals by code, copilot never called without a key.
+**Found: every post with a content context failed to save with 500 since
+August** — `await import('@contentfactory/…')` that `nest build` never
+rewrites; production has it too; static import + guard. Receipt: 340 suites,
+4125 tests, `node --test` 116/0, python OK. Release: schema
+`post-context-review-schema-apply.sql` **before** the switch. Open:
+`fn33.28.4` (owner: where the «sounds like you» check lives), `.5`, `.18`.
+
+**Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed) — merged to
+`main` as `8443eedc`, pushed, and RELEASED as `d782858045fa` (schema column
+before the switch, role data step after it).** The owner asked to fix
 everything found on his live pass and to continue the pass with subagents.
 Sixteen Opus streams in worktrees plus one integration stream; five walkers
 then walked blocks 1–8 on the local stand (`localhost:4200`, email off) and
@@ -46,26 +65,14 @@ the final tree (`0edb16ee`): 328 suites / 4024 tests, `node --test`
 
 ## Wave twelve — the audit of waves ten and eleven (02.09.2026)
 
-The owner asked for a full audit of what the orchestrator reported as «all
-done». Two read-only reviewers over `7bf12bcc^..11fe62a3`, four bounded
-workers; every guard shown red before green. **«All done» was not true**: of
-seventeen beads thirteen were closed; `lh5s` was reopened (nothing called the
-producer) and built with `tyrk`, `rrs9`, `4zef` on 03.09, walked by hand.
-
-**Built.** `tyrk` — §9.5: producers write `ContentEvidenceAssessment` (own
-material `ACCEPTED`, search `PROPOSED`); a fact without evidence is `VERIFIED`
-on creation, honouring its `freshUntil`; `confirmEvidence` + `POST
-/facts/:factId/evidence/:evidenceId/confirm` with «Подтвердить» only on
-product-found rows; a `SUPERSEDED` fact cannot be restored over its copy. §9.4
-— the archive is a **view inside «Материалы»**, five tabs, old `?tab=archive`
-links land on it. Email v2 has a **bounded retry** (5 attempts, 30 min); the
-lead-check workflow `continueAsNew`s every 100 passes; feed items without
-id/guid/link get a content hash; Telegram binding rechecks `isSuperAdmin`.
-The runbook prescribes schema **before** the image switch from a throwaway
-container; the editorial-stage migration proof runs in docker-CI.
-**Deferred, each a bead:** `ni7x`, `cl19`, `th1s`; older debt: eleven
-`PrismaRepository<any>`, the archive read whole into memory. Receipt in
-`.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
+The owner asked for a full audit of «all done». Two read-only reviewers, four
+bounded workers; every guard red before green. **«All done» was not true**:
+`lh5s` was reopened and built (`tyrk`, `rrs9`, `4zef`, 03.09): §9.5 evidence
+assessments and «Подтвердить» on product-found rows, §9.4 archive as a view
+inside «Материалы», bounded email retry, `continueAsNew` on the lead check,
+Telegram binding rechecks `isSuperAdmin`. Deferred: `ni7x`, `cl19`, `th1s`;
+eleven `PrismaRepository<any>`, the archive read whole into memory. Receipt
+in `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
 
 ## Current state
 
@@ -88,8 +95,9 @@ the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
 was committed and pushed; the live pass brief → search → fact → showcase was
 done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
 
-Production runs **`55c5e2362d8e`** (04.09.2026, the walkthrough wave);
-rollback target `f1cea968184e`, also on the host. **Public CI had been red for three releases
+Production runs **`d782858045fa`** (04.09.2026, second half of the wave);
+rollback target `55c5e2362d8e`, also on the host. Backup before the schema:
+`postgres/20260904T144125Z-pre-blockedat-product-only`. **Public CI had been red for three releases
 and nobody had written it down**: the editorial-stage migration proof anchored
 on a `COMMIT;` the 02.09 audit removed, and `--setupFiles=` on the time-travel
 command line *replaces* the config list, so the source-tree write guard never
@@ -127,15 +135,13 @@ README.md`; norm `voice-norm/ru-2026-08-30`; the two-voice rule is undecided.
 ## Explicit defers
 
 Owner decisions; do not absorb or close them elsewhere (`content-factory-next-`):
-`or3.9` pricing/trial/card; `3aw`, `c6k.16` owner choices; `cxd` the owner's GPG
-key; `2ua` a Tavily key and paid-call authority; `71m.7` a Google channel.
-Parent epics `71m`, `c6k`, `ry5`, `saas` stay open with them.
-
-**The legal pair is shelved, its bans are not.** `saas.6` and `rry` are closed
-01.09.2026 as **shelved, not decided**; the lawyer's `privacy.*.md` review waits. Two bans survive: no production deploy as SaaS and no public
-residency/SLA promise. The product is **not** declared outside the EU market —
-that needs its own ADR, and the marking grace period ends 02.12.2026. `2la` is
-decided 31.08.2026: 48px against a published 100px, accepted as risk.
+`or3.9` pricing/trial/card; `3aw`, `c6k.16` owner choices; `cxd` GPG key;
+`2ua` Tavily key and paid-call authority; `71m.7` a Google channel. Parents
+`71m`, `c6k`, `ry5`, `saas` stay open. **Legal pair shelved, bans not:**
+`saas.6`, `rry` closed 01.09 as shelved; the lawyer's `privacy.*.md` review
+waits; no SaaS production deploy, no residency/SLA promise; not declared
+outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
+48px against a published 100px, accepted as risk 31.08.
 
 ## Durable entrypoints
 
@@ -149,15 +155,14 @@ decided 31.08.2026: 48px against a published 100px, accepted as risk.
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **release the
-wave** — merge `wave/fixes-2026-09-04` into `main`, push, build the image from
-the public tree, apply `user-blocked-at-schema-apply.sql` **before** the switch, switch, then
-`workspace-role-superadmin-to-admin.sql` **after** it (the old image had no
-last-admin protection), `psql` only, never `db push`, retain, then walk on production: composer draft create and
-edit, role refusal, password change, second workspace, `/admin/users` with
-«Заблокирован». Every step past the merge needs the owner's fresh authority.
-Then the owner's decisions: `fn33.90`, `fn33.32`, `fn33.28` design → code, and
-the assumptions in the beads' notes (one line each, they are listed in
-`.codex/stages/content-factory-next-fn33/artifacts/`).
+compose wave** — merge `wave/compose-2026-09-04` into `main`, push, public
+tree, image, apply `post-context-review-schema-apply.sql` **before** the
+switch (`psql` only), switch, retain; then the owner walks production:
+composer without context (core + stage only), a post from the Content section
+(one provenance line, «Подтверждения проверены» opens scheduling), the
+allowance hint at «Найти». Every step past the merge needs fresh authority.
+Then the owner's decisions: `fn33.28.4`, `fn33.90`, `fn33.32`, and the
+assumptions in the beads' notes.
 
 **What still waits on him, and only him.** Approving or declining the two
 pending production accounts (decline exists since `fn33`); pressing the Telegram
@@ -173,26 +178,22 @@ is closed; do not re-open its decisions. Before any voice check run
 `rebuild-voice.cjs --dry-run`: an analysis older than the ruler carries no
 print and every verdict reads «сравнить не с чем» — that is not a defect.
 
-Traps: the dev stand must be opened at `localhost:4200`, not `127.0.0.1` — Next
-16 dev refuses its own resources for a foreign host and the page never
-hydrates (forms submit as GET). `git add -A` after subagent worktrees swallows
-`.claude/worktrees/*` as gitlinks — now ignored. A Nest provider with a
-constructor parameter passes every unit test and stops the app (`@Optional()`,
-`tests/upload-module.wiring.test.cjs`). Test fakes of `Response` need
-`clone()` since `custom.fetch.func.ts` clones. `/home/me/.local/bin/node` shadows nvm — check `node -v` is 22.23.2 first,
-or prefix `PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`. A full Jest run
-leaves the frontend stand answering 500 until `apps/frontend/.next` is removed
-*and* the server restarted; `libraries/` changes need `apps/backend/dist` and
-`tsconfig.tsbuildinfo` gone; `tsc --noEmit` is separate from Jest and is **zero
-on all three apps since the audit — keep it so**. `pnpm test` is three runs
-joined by `&&`, so a red first half means the other two never ran. This handoff
-is capped at 200 lines by `test_orchestration_closeout.py`. Beads rolls back
-closures while agents run: close in one batch, then verify by name.
+Traps: open the dev stand at `localhost:4200`, not `127.0.0.1` (Next 16 dev
+never hydrates for a foreign host). `git add -A` after subagent worktrees
+swallows `.claude/worktrees/*` — now ignored. A Nest provider with a
+constructor parameter passes unit tests and stops the app (`@Optional()`,
+`tests/upload-module.wiring.test.cjs`). Fakes of `Response` need `clone()`.
+`/home/me/.local/bin/node` shadows nvm — prefix
+`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`. `libraries/` changes
+need `apps/backend/dist` rebuilt; `tsc --noEmit` is separate from Jest and is
+**zero on all three apps — keep it so**. `pnpm test` is three runs joined by
+`&&`. Never `await import('@contentfactory/…')` in backend code — `nest build`
+does not rewrite it (guard `backend-no-dynamic-alias-import`). This handoff is
+capped at 200 lines. Beads rolls back closures while agents run: close in one
+batch, then verify by name. Artifact `evidence` entries are labels, not paths.
 
-**A red check must actually go red, and check it yourself.** This wave the
-audit found a guard that had skipped on every run since it was written, and a
-closure whose «producer» no screen could reach. A green suite proves the unit,
-never the wiring: open the page. Never `git checkout` a file you have edited to
-undo a mutation. Deleting on the shared host, paid calls, DNS, deploys, pushes
-and secrets each need fresh owner authority, recorded where the next reader
-will look.
+**A red check must actually go red, and check it yourself.** The audit found
+a guard that had skipped on every run and a closure whose «producer» no screen
+could reach. A green suite proves the unit, never the wiring: open the page.
+Deleting on the shared host, paid calls, DNS, deploys, pushes and secrets each
+need fresh owner authority, recorded where the next reader will look.

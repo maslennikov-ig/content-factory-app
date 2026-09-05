@@ -513,6 +513,71 @@
       "task_id": "content-factory-next-fn33.112",
       "stream_owner": "stream-r-worker",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.112.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.1",
+      "stream_owner": "stream-a-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.1.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.3",
+      "stream_owner": "worker-stream-c-allowance",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.3.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.2",
+      "stream_owner": "stream-b-worker",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.2.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.6",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.6.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.8",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.8.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.9",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.9.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.10",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.10.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.11",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.11.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.12",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.12.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.13",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.13.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.14",
+      "stream_owner": "stream-D-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.14.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.15",
+      "stream_owner": "stream-E-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.15.md"
+    },
+    {
+      "task_id": "content-factory-next-fn33.28.16",
+      "stream_owner": "stream-E-compose-2026-09-04",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.28.16.md"
     }
   ]
 }

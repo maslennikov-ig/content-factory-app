@@ -19,12 +19,22 @@ const { formatDateTimeForReader } = loadTypeScriptModule(
   'apps/frontend/src/components/launches/helpers/isuscitizen.utils.tsx'
 );
 global.__formatDateTimeForReader = formatDateTimeForReader;
+// Слова строки происхождения живут двумя языками в своём файле, как у
+// голосовых экранов: русское число выбирает слово из трёх, а ключ i18next
+// такого выбора не даёт.
+const { composeCopy, resolveComposeLocale } = loadTypeScriptModule(
+  'apps/frontend/src/components/new-launch/compose.copy.ts'
+);
+global.__composeCopy = composeCopy;
+global.__resolveComposeLocale = resolveComposeLocale;
 const files = {
   generator: 'apps/frontend/src/components/launches/generator/generator.tsx',
   editor: 'apps/frontend/src/components/new-launch/editor.tsx',
   manage: 'apps/frontend/src/components/new-launch/manage.modal.tsx',
   modal: 'apps/frontend/src/components/new-launch/add.edit.modal.tsx',
   store: 'apps/frontend/src/components/new-launch/store.ts',
+  provenance: 'apps/frontend/src/components/new-launch/provenance.line.tsx',
+  composeCopy: 'apps/frontend/src/components/new-launch/compose.copy.ts',
   review:
     'apps/frontend/src/app/(stand)/interface-review/content-intelligence/consumer/page.tsx',
 };
@@ -63,11 +73,21 @@ function loadStore() {
   return loaded.exports;
 }
 
-function loadEditorSummary(language = 'en') {
+/**
+ * Строка происхождения, вынутая из своего файла и запущенная в одиночку.
+ *
+ * До 04.09.2026 то же самое делалось с панелью `ContentIntelligenceContextSummary`
+ * в `editor.tsx`. Панель ушла с первого экрана вместе с лентой аватара:
+ * владелец решил, что окно даёт только полезное, а происхождение поста —
+ * это одна строка с «Подробнее». Проверяется здесь ровно то, что
+ * проверялось: состояние словами, дата в формате настроек, ни одного ISO и
+ * ни одного значения перечисления на экране.
+ */
+function loadProvenanceLine(language = 'en') {
   // The helper reads the interface language, which is where the notation comes
   // from — not the browser's locale.
   i18next.resolvedLanguage = language;
-  const filename = path.join(root, files.editor);
+  const filename = path.join(root, files.provenance);
   const contents = fs.readFileSync(filename, 'utf8');
   const parsed = ts.createSourceFile(
     filename,
@@ -82,7 +102,7 @@ function loadEditorSummary(language = 'en') {
       node.declarationList.declarations.some(
         (declaration) =>
           ts.isIdentifier(declaration.name) &&
-          declaration.name.text === 'ContentIntelligenceContextSummary'
+          declaration.name.text === 'ProvenanceLine'
       )
   );
   expect(statement).toBeDefined();
@@ -96,6 +116,8 @@ function loadEditorSummary(language = 'en') {
     // non-US format the assertions below read.
     const isUSCitizen = () => false;
     const formatDateTimeForReader = global.__formatDateTimeForReader;
+    const composeCopy = global.__composeCopy;
+    const resolveComposeLocale = global.__resolveComposeLocale;
     ${statement.getText(parsed)}
   `;
   const compiled = ts.transpileModule(isolated, {
@@ -113,7 +135,7 @@ function loadEditorSummary(language = 'en') {
     require,
     loaded
   );
-  return loaded.exports.ContentIntelligenceContextSummary;
+  return loaded.exports.ProvenanceLine;
 }
 
 const resolvedBinding = Object.freeze({
@@ -344,11 +366,12 @@ describe('Content intelligence frontend consumer contract', () => {
     expect(source('generator')).toMatch(/const usedCitationIds/);
     expect(source('generator')).toMatch(/usedCitationIds,/);
     expect(source('generator')).toMatch(/contentIntelligenceProvenance=/);
-    expect(source('editor')).toMatch(/\/copilot\/research/);
-    expect(source('editor')).toMatch(/parseServerContentContextEnvelope/);
-    expect(source('editor')).toMatch(/researchRequestRef/);
+    // Исследование ушло из окна поста: платное исследование начинается в
+    // разделе «Контент» (решение владельца 04.09.2026). Дверь на сервере
+    // осталась — окно её больше не зовёт.
+    expect(source('editor')).not.toMatch(/\/copilot\/research/);
+    expect(source('editor')).not.toMatch(/researchRequestRef/);
     expect(source('editor')).toMatch(/setGlobalValueCitationIds/);
-    expect(source('editor')).toMatch(/clearAllValueCitationIds/);
     expect(source('manage')).toMatch(
       /contentContextSnapshotId:\s*contentIntelligenceProvenance\.contentContextSnapshotId/
     );
@@ -363,82 +386,94 @@ describe('Content intelligence frontend consumer contract', () => {
   test('rehydrates only server-returned binding metadata and fails closed visibly', () => {
     expect(source('modal')).toMatch(/outputContext/);
     expect(source('modal')).toMatch(/setContentIntelligenceProvenance/);
-    expect(source('editor')).toMatch(/CONTENT_EVIDENCE_REQUIRED/);
-    expect(source('editor')).toMatch(/role=["']alert["']/);
-    expect(source('editor')).toMatch(/Applied brand profile/);
-    expect(source('editor')).toMatch(/Neutral voice/);
-    expect(source('editor')).toMatch(/expiresAt/);
+    // Отказ виден, но не в редакторе: причину печатает строка у самой
+    // кнопки (`compose-block-reason.tsx`), а происхождение — одна строка.
+    expect(source('manage')).toMatch(/ComposeBlockReasonNote/);
+    expect(source('provenance')).toMatch(/expiresAt/);
+    expect(source('provenance')).toMatch(/brandProfileSelection/);
     expect(source('editor')).not.toMatch(
       /provider.*contentContextSnapshotId/is
     );
   });
 
-  test('renders READY provenance with context expiry and grounded draft copy', () => {
+  test("renders one line of provenance with the count and the reader's date", () => {
     const React = require('react');
     const { renderToStaticMarkup } = require('react-dom/server');
-    const Summary = loadEditorSummary('en');
+    const Line = loadProvenanceLine('en');
     const html = renderToStaticMarkup(
-      React.createElement(Summary, {
+      React.createElement(Line, {
         provenance: {
           ...resolvedBinding,
           errorCode: null,
           expiresAt: '2026-08-21T10:00:00.000Z',
+          profileLabel: 'Editorial voice',
           validationStatus: 'VALID',
           availableCitations: [],
         },
-        loadState: 'ready',
-        failure: null,
+        confirmationCount: 3,
       })
     );
-    expect(html).toContain('Context expires:');
-    expect(html).toContain('Grounded output can be saved as a draft only.');
-    expect(html).not.toContain('Fresh until');
-    // The state is a sentence and the date is written the way the person set
-    // it in Settings. The panel used to print the enum value and the ISO
-    // timestamp straight onto the writing surface.
+    // Одно предложение: из скольких подтверждений собран пост и чей это голос.
+    expect(html).toContain('Assembled from 3 confirmations');
+    expect(html).toContain('written by the ');
+    expect(html).toContain('Editorial voice');
+    // Подробности — под «Подробнее», и только там.
+    expect(html).toContain('Details');
     expect(html).toContain('The context is gathered and verified.');
-    // `content-factory-next-fn33.87` replaced two hand-written format strings
-    // with `Intl` over the interface language: an English interface writes the
-    // month first, and a Russian one writes «21.08.2026» — which is the whole
-    // point of reading the language instead of the browser.
+    // `content-factory-next-fn33.87`: дата в формате, выбранном в настройках.
     expect(html).toContain('08/21/2026');
+    // Ни значения перечисления, ни ISO-даты на поверхности письма.
     expect(html).not.toContain('READY');
     expect(html).not.toContain('2026-08-21T10:00:00.000Z');
   });
 
-  test('renders neutral user-only provenance without grounded language', () => {
+  test('says nothing at all about a post that carries no context', () => {
     const React = require('react');
     const { renderToStaticMarkup } = require('react-dom/server');
-    const Summary = loadEditorSummary('ru');
-    const html = renderToStaticMarkup(
-      React.createElement(Summary, {
-        provenance: {
-          contentContextSnapshotId: 'context-neutral',
-          brandProfileVersionId: null,
-          brandProfileSelection: {
-            mode: 'neutral_fallback',
-            reason: 'NO_PROFILE',
-          },
-          contentContextStatus: 'UNAVAILABLE',
-          generationPolicy: 'ALLOW_USER_ONLY',
-          selectionHash: 'selection-neutral',
-          errorCode: null,
-          expiresAt: '2026-08-21T10:00:00.000Z',
-          availableCitations: [],
-        },
-        loadState: 'ready',
-        failure: null,
-      })
+    const Line = loadProvenanceLine('ru');
+    // Обычный пост человек написал сам. Пустая строка «происхождения нет»
+    // читалась бы как отчёт о проверке, которой не было.
+    expect(
+      renderToStaticMarkup(React.createElement(Line, { provenance: null }))
+    ).toBe('');
+  });
+
+  test('counts confirmations in Russian, and says nothing it cannot count', () => {
+    const React = require('react');
+    const { renderToStaticMarkup } = require('react-dom/server');
+    const Line = loadProvenanceLine('ru');
+    const provenance = {
+      contentContextSnapshotId: 'context-neutral',
+      brandProfileVersionId: null,
+      brandProfileSelection: { mode: 'neutral_fallback', reason: 'NO_PROFILE' },
+      contentContextStatus: 'UNAVAILABLE',
+      generationPolicy: 'ALLOW_USER_ONLY',
+      selectionHash: 'selection-neutral',
+      errorCode: null,
+      expiresAt: '2026-08-21T10:00:00.000Z',
+      availableCitations: [],
+    };
+
+    const one = renderToStaticMarkup(
+      React.createElement(Line, { provenance, confirmationCount: 1 })
     );
-    expect(html).toContain('Срок действия контекста:');
-    expect(html).toContain(
-      'В черновик можно сохранить только материалы пользователя.'
+    expect(one).toContain('Собрано из 1 подтверждения');
+    expect(one).toContain('пишет нейтральный стиль');
+
+    const three = renderToStaticMarkup(
+      React.createElement(Line, { provenance, confirmationCount: 3 })
     );
-    expect(html).not.toContain('Grounded output');
-    expect(html).toContain(
+    expect(three).toContain('Собрано из 3 подтверждений');
+
+    // Подтверждений за коробками нет — числа тоже нет.
+    const unknown = renderToStaticMarkup(
+      React.createElement(Line, { provenance })
+    );
+    expect(unknown).toContain('Собрано из подтверждений');
+    expect(unknown).toContain(
       'Контекста пока нет: подтверждённых источников не найдено.'
     );
-    expect(html).not.toContain('UNAVAILABLE');
+    expect(unknown).not.toContain('UNAVAILABLE');
   });
 
   test('keeps the browser-review route synthetic and network/persistence free', () => {

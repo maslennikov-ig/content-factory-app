@@ -384,6 +384,9 @@ describe('generator screen shows one voice control', () => {
   const ribbon = read(
     'apps/frontend/src/components/brand-voice/voice-ribbon.tsx'
   );
+  const provenanceLine = read(
+    'apps/frontend/src/components/new-launch/provenance.line.tsx'
+  );
 
   test('has no personal/company select left to disagree with the profile', () => {
     // Hidden is not enough: while the control is visible the user believes it
@@ -425,15 +428,25 @@ describe('generator screen shows one voice control', () => {
     expect(generator).toContain('<AppliedVoiceLine');
   });
 
-  test('the result shows the line too, from provenance', () => {
-    expect(editor).toContain('<AppliedVoiceLine');
-    expect(editor).toContain('brandProfileSelection');
+  /**
+   * Окно поста отвечает на тот же вопрос, но одной строкой.
+   *
+   * 04.09.2026 владелец убрал из окна ленту аватара и панель контекста: они
+   * говорили о происхождении дважды и языком отладчика. Правило не изменилось
+   * — читатель должен знать, чем написан текст, — изменилось место ответа:
+   * в генераторе это `AppliedVoiceLine`, в окне поста `ProvenanceLine`, и обе
+   * читают одно и то же `brandProfileSelection`.
+   */
+  test('the post window answers the same question in one line', () => {
+    expect(editor).toContain('<ProvenanceLine');
+    expect(provenanceLine).toContain('brandProfileSelection');
+    expect(editor).not.toContain('<VoiceRibbonContainer');
+    expect(editor).not.toContain('<AppliedVoiceLine');
   });
 
-  test('the same line serves both, so the two cannot drift apart', () => {
-    const importPath =
-      "@contentfactory/frontend/components/new-launch/applied-voice.line";
-    expect(generator).toContain(importPath);
-    expect(editor).toContain(importPath);
+  test('the generator keeps the shared line rather than its own copy', () => {
+    expect(generator).toContain(
+      '@contentfactory/frontend/components/new-launch/applied-voice.line'
+    );
   });
 });

@@ -19,6 +19,9 @@
 -- того, как встанет заменяющая: между двумя моментами область можно оставить
 -- без администратора, и обратного шага у этого нет.
 -- Флаг User.isSuperAdmin (администратор инстанса) этим шагом не затрагивается.
+--
+-- Выполнено на боевой базе 04.09.2026 после переключения на выпуск
+-- d782858045fa: строк SUPERADMIN до — 5, обновлено 5, после — 0.
 
 UPDATE "UserOrganization" SET role = 'ADMIN' WHERE role = 'SUPERADMIN';
 SELECT count(*) AS superadmin_left FROM "UserOrganization" WHERE role = 'SUPERADMIN';

@@ -276,6 +276,36 @@ export async function writeContentContextDraftProvenance(
       contentContextSnapshotId: input.binding.contentContextSnapshotId,
     },
   };
+  /**
+   * След происхождения у поста один, потому что снимок у поста один.
+   *
+   * `content-factory-next-fn33.28.14`. Запись велась одним `upsert` по тройке
+   * (организация, пост, снимок), и подмена снимка просто заводила вторую
+   * строку: у поста оставались две записи `ContentOutputContext`, обе со
+   * статусом `VALID`, и прежняя продолжала утверждать, что пост собран из
+   * старого снимка и проверен, — хотя `Post.contentContextSnapshotId` уже
+   * другой и отметка проверки с него снята.
+   *
+   * На экран это не выходило: `posts.repository.ts` берёт `take: 1` с
+   * `orderBy createdAt desc`, то есть свежую. Но след «откуда это взялось»
+   * противоречил сам себе, а внешний ключ мёртвой строки держал старый снимок
+   * от удаления по сроку хранения.
+   *
+   * Соседний `DraftEvidence` чистится правильно и давно — `deleteMany` по
+   * посту, затем `createMany`. Здесь то же самое, только уже, потому что
+   * строку текущего снимка перезапишет `upsert` ниже: убираем записи этого
+   * поста под ЛЮБЫМ другим снимком. Всё в той же транзакции, что и запись, —
+   * клиент сюда приходит транзакционный.
+   */
+  await client.contentOutputContext.deleteMany({
+    where: {
+      organizationId: input.organizationId,
+      postId: input.postId,
+      contentContextSnapshotId: {
+        not: input.binding.contentContextSnapshotId,
+      },
+    },
+  });
   await client.contentOutputContext.upsert({
     where: unique,
     create: {
