@@ -15,6 +15,11 @@
 
 import type { Brief } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
 import { truncateChars } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/text-truncate';
+// Обе функции переехали в `editor-html.ts` без правки поведения
+// (`content-factory-next-tu3k.1`): вход одной мыслью собирает разметку
+// черновика теми же двумя, и второй `escape` рядом был бы вторым местом, где
+// однажды забудут про амперсанд.
+import { escape, paragraph } from './editor-html';
 
 export type ComposeLanguage = 'ru' | 'en';
 
@@ -22,16 +27,6 @@ const LABELS = {
   ru: { facts: 'На чём это стоит', source: 'источник', against: 'С чем можно не согласиться' },
   en: { facts: 'What it rests on', source: 'source', against: 'What somebody could disagree with' },
 } as const;
-
-const escape = (value: string) =>
-  value
-    .replace(/&/gu, '&amp;')
-    .replace(/</gu, '&lt;')
-    .replace(/>/gu, '&gt;')
-    .replace(/"/gu, '&quot;');
-
-const paragraph = (value?: string | null) =>
-  value && value.trim() ? `<p>${escape(value.trim())}</p>` : '';
 
 /**
  * The post body, in the HTML the editor and the providers already speak.

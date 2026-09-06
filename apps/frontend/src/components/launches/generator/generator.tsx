@@ -1,5 +1,21 @@
 'use client';
 
+/**
+ * Генератор постов: дверь из календаря убрана 06.09.2026, файл оставлен.
+ *
+ * `content-factory-next-tu3k.4`, решение владельца (пункт 1): в рейке
+ * календаря вместо `GeneratorComponent` стоит `IntakeDoor` — одна дверь во
+ * вход одной мыслью, видимая редактору независимо от оплаты. Прежняя кнопка
+ * показывалась только при `billingEnabled` и оплаченном тарифе с ИИ, и на
+ * боевом её не видел никто.
+ *
+ * Удалять файл незачем: `GeneratorPopup` открывается и по своему адресу
+ * `/posts/generator`, а `POST /posts/generator` — тот самый двигатель, на
+ * который вход и опирается. Его собственные тесты
+ * (`tests/generator.voice-single-source.test.cjs` и соседние) продолжают
+ * читать этот файл.
+ */
+
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { useRouter } from 'next/navigation';

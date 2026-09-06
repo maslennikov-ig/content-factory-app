@@ -1,0 +1,619 @@
+/**
+ * Провод между экраном входа и дверью `/content-intelligence/intake`.
+ *
+ * `content-factory-next-tu3k.4`. Здесь нет ни одного React-импорта нарочно:
+ * разбор события стрима, сборка тела запроса и решение «на что это похоже»
+ * проверяются без документа, а экран остаётся тем, что рисует.
+ *
+ * Типы берутся из `voice-wiring.contract.ts` и не переписываются. Второй
+ * экземпляр `IntakeEventV1` рядом с первым — это ровно тот способ, каким
+ * событие сервера и его чтение расходятся на третьем поле.
+ */
+
+import {
+  INTAKE_INPUT_MIN_CHARS,
+  INTAKE_MAX_CHANNELS,
+  INTAKE_ROUTES,
+  type AntiCopyReportV1,
+  type BriefFieldOriginV1,
+  type BriefFilledFactV1,
+  type BriefFilledV1,
+  type ChannelWritingProfileResponseV1,
+  type ChannelWritingProfileV1,
+  type IntakeClaimV1,
+  type IntakeEventNameV1,
+  type IntakeEventV1,
+  type IntakeFormatV1,
+  type IntakeInputKindV1,
+  type IntakeOptionsV1,
+  type IntakeQuestionV1,
+  type IntakeRequestV1,
+  type SlopFindingV1,
+  type SlopReportV1,
+  type SlopVerdictV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
+
+export type {
+  AntiCopyReportV1,
+  BriefField,
+  BriefFieldOriginV1,
+  BriefFilledFactV1,
+  BriefFilledV1,
+  ChannelWritingProfileResponseV1,
+  ChannelWritingProfileV1,
+  IntakeClaimV1,
+  IntakeEventNameV1,
+  IntakeEventV1,
+  IntakeFormatV1,
+  IntakeInputKindV1,
+  IntakeOptionsV1,
+  IntakeQuestionV1,
+  IntakeRequestV1,
+  SlopFindingV1,
+  SlopReportV1,
+  SlopVerdictV1,
+};
+
+export {
+  INTAKE_INPUT_MIN_CHARS,
+  INTAKE_MAX_CHANNELS,
+};
+
+/** Адреса, по одному месту на каждый. */
+export const INTAKE_API = {
+  intake: INTAKE_ROUTES.intake.path,
+  slopCheck: INTAKE_ROUTES.slopCheck.path,
+  writingProfile: INTAKE_ROUTES.writingProfile,
+} as const;
+
+/** Два уточнения — предел, решение владельца от 06.09.2026. */
+export const INTAKE_MAX_ROUNDS = 2;
+
+/* -------------------------------------------------------------------------
+ * Отказ, который экран может напечатать
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Ответ, который нельзя прочитать как событие стрима.
+ *
+ * Отдельный класс, а не `Error`: контейнер отличает «сервер отказал словами»
+ * от «пришло что-то, чего в контракте нет», и во втором случае говорит прямо
+ * — ничего не сохранено. Тот же приём, что у
+ * `GeneratorStreamContractError` в `new-launch/store.ts`.
+ */
+export class IntakeContractError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'IntakeContractError';
+    this.code = code;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Чтение событий
+ * ---------------------------------------------------------------------- */
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const asText = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' ? value : fallback;
+
+const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+const KNOWN_ORIGINS: readonly BriefFieldOriginV1[] = [
+  'input',
+  'person',
+  'avatar',
+  'memory',
+  'search',
+  'model',
+];
+
+export const readOrigin = (value: unknown): BriefFieldOriginV1 =>
+  KNOWN_ORIGINS.includes(value as BriefFieldOriginV1)
+    ? (value as BriefFieldOriginV1)
+    : 'model';
+
+const KNOWN_KINDS: readonly IntakeInputKindV1[] = ['thought', 'link', 'foreign_post'];
+
+export const readInputKind = (value: unknown): IntakeInputKindV1 =>
+  KNOWN_KINDS.includes(value as IntakeInputKindV1)
+    ? (value as IntakeInputKindV1)
+    : 'thought';
+
+/**
+ * Событие стрима, прочитанное как размеченное объединение контракта.
+ *
+ * Имя, которого в контракте нет, не выбрасывается и не роняет экран: оно
+ * становится шагом (`step`). Сервер волен добавить событие аддитивно — так
+ * сказано в шапке самого контракта, — и экран, падающий на неизвестном имени,
+ * превратил бы это разрешение в поломку. А вот строка, которая не разбирается
+ * как JSON, или событие без имени вовсе — это уже неполный ответ, и о нём
+ * говорят вслух.
+ */
+export type IntakeReading =
+  | { kind: 'event'; event: IntakeEventV1 }
+  | { kind: 'step'; name: string };
+
+export function readIntakeEvent(line: string): IntakeReading | null {
+  if (!line.trim()) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    throw new IntakeContractError(
+      'INTAKE_STREAM_INVALID',
+      'The intake response was incomplete.'
+    );
+  }
+
+  const record = asRecord(parsed);
+  if (!record) {
+    throw new IntakeContractError(
+      'INTAKE_STREAM_INVALID',
+      'The intake response was incomplete.'
+    );
+  }
+
+  // Ошибка узнаётся по флагу, а не по имени: граф генератора пробрасывается
+  // как есть и метит отказ именно так (`store.ts`).
+  if (record.error === true || record.name === 'error') {
+    return {
+      kind: 'event',
+      event: {
+        name: 'error',
+        error: true,
+        code: asText(record.code, asText(record.errorCode, 'INTAKE_FAILED')),
+        message: asText(record.message, 'Failed to write the text.'),
+        ...(typeof record.integrationId === 'string'
+          ? { integrationId: record.integrationId }
+          : {}),
+      },
+    };
+  }
+
+  const name = asText(record.name);
+  if (!name) {
+    throw new IntakeContractError(
+      'INTAKE_STREAM_INVALID',
+      'The intake response was incomplete.'
+    );
+  }
+
+  switch (name) {
+    case 'intake-started':
+      return {
+        kind: 'event',
+        event: {
+          name: 'intake-started',
+          inputKind: readInputKind(record.inputKind),
+          channels: asArray(record.channels).flatMap((entry) => {
+            const channel = asRecord(entry);
+            if (!channel || typeof channel.id !== 'string') return [];
+            return [
+              {
+                id: channel.id,
+                name: asText(channel.name, channel.id),
+                providerIdentifier: asText(channel.providerIdentifier),
+              },
+            ];
+          }),
+        },
+      };
+
+    case 'link-fetched':
+      return {
+        kind: 'event',
+        event: {
+          name: 'link-fetched',
+          url: asText(record.url),
+          title: typeof record.title === 'string' ? record.title : null,
+          evidenceId: asText(record.evidenceId),
+        },
+      };
+
+    case 'claims':
+      return {
+        kind: 'event',
+        event: { name: 'claims', claims: readClaims(record.claims) },
+      };
+
+    case 'brief-filled': {
+      const brief = readBrief(record.brief);
+      if (!brief) {
+        throw new IntakeContractError(
+          'INTAKE_STREAM_INVALID',
+          'The brief arrived without its fields.'
+        );
+      }
+      return { kind: 'event', event: { name: 'brief-filled', brief } };
+    }
+
+    case 'questions':
+      return {
+        kind: 'event',
+        event: { name: 'questions', questions: readQuestions(record.questions) },
+      };
+
+    case 'channel-started':
+      return {
+        kind: 'event',
+        event: {
+          name: 'channel-started',
+          integrationId: asText(record.integrationId),
+        },
+      };
+
+    case 'content-context':
+      return {
+        kind: 'event',
+        event: {
+          name: 'content-context',
+          integrationId: asText(record.integrationId),
+          data: { output: asRecord(record.data)?.output },
+        },
+      };
+
+    case 'generator':
+      return {
+        kind: 'event',
+        event: {
+          name: 'generator',
+          integrationId: asText(record.integrationId),
+          event: record.event,
+        },
+      };
+
+    case 'draft': {
+      const postId = asText(record.postId);
+      if (!postId) {
+        throw new IntakeContractError(
+          'INTAKE_STREAM_INVALID',
+          'The draft arrived without an identifier.'
+        );
+      }
+      const checks = asRecord(record.checks) ?? {};
+      return {
+        kind: 'event',
+        event: {
+          name: 'draft',
+          integrationId: asText(record.integrationId),
+          postId,
+          pieceId: typeof record.pieceId === 'string' ? record.pieceId : null,
+          content: asArray(record.content).flatMap((entry) => {
+            const piece = asRecord(entry);
+            if (!piece || typeof piece.content !== 'string') return [];
+            return [
+              {
+                content: piece.content,
+                usedCitationIds: asArray(piece.usedCitationIds).filter(
+                  (id): id is string => typeof id === 'string'
+                ),
+              },
+            ];
+          }),
+          provenance: record.provenance,
+          draftGaps: asArray(record.draftGaps),
+          checks: {
+            antiCopy: (asRecord(checks.antiCopy) ??
+              null) as AntiCopyReportV1 | null,
+            slop: readSlopReport(checks.slop),
+          },
+        },
+      };
+    }
+
+    case 'done':
+      return {
+        kind: 'event',
+        event: {
+          name: 'done',
+          postIds: asArray(record.postIds).filter(
+            (id): id is string => typeof id === 'string'
+          ),
+        },
+      };
+
+    default:
+      // Аддитивное событие, о котором этот экран ничего не знает. Оно всё
+      // равно означает «работа идёт», и это единственное, что нужно строке
+      // прогресса.
+      return { kind: 'step', name };
+  }
+}
+
+const readClaims = (value: unknown): IntakeClaimV1[] =>
+  asArray(value).flatMap((entry) => {
+    const claim = asRecord(entry);
+    if (!claim || typeof claim.text !== 'string') return [];
+    const status = claim.status;
+    return [
+      {
+        text: claim.text,
+        hasNumber: claim.hasNumber === true,
+        status:
+          status === 'verified' || status === 'unverified' || status === 'skipped'
+            ? status
+            : 'skipped',
+        evidenceId: typeof claim.evidenceId === 'string' ? claim.evidenceId : null,
+        sourceUrl: typeof claim.sourceUrl === 'string' ? claim.sourceUrl : null,
+      },
+    ];
+  });
+
+const readQuestions = (value: unknown): IntakeQuestionV1[] =>
+  asArray(value).flatMap((entry) => {
+    const question = asRecord(entry);
+    if (!question || typeof question.field !== 'string') return [];
+    return [
+      {
+        field: question.field as BriefField,
+        question: asText(question.question),
+        options: asArray(question.options).filter(
+          (option): option is string => typeof option === 'string'
+        ),
+      },
+    ];
+  });
+
+const nullableText = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value : null;
+
+export function readBrief(value: unknown): BriefFilledV1 | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const origins = asRecord(record.origins) ?? {};
+  const format = record.format;
+  return {
+    inputKind: readInputKind(record.inputKind),
+    goal: nullableText(record.goal),
+    thesis: nullableText(record.thesis),
+    position: nullableText(record.position),
+    disagreement: nullableText(record.disagreement),
+    audience: nullableText(record.audience),
+    format: FORMATS.includes(format as IntakeFormatV1)
+      ? (format as IntakeFormatV1)
+      : null,
+    facts: asArray(record.facts).flatMap((entry) => {
+      const fact = asRecord(entry);
+      if (!fact || typeof fact.statement !== 'string') return [];
+      return [
+        {
+          statement: fact.statement,
+          sourceUrl: typeof fact.sourceUrl === 'string' ? fact.sourceUrl : null,
+          factId: typeof fact.factId === 'string' ? fact.factId : null,
+          evidenceId: typeof fact.evidenceId === 'string' ? fact.evidenceId : null,
+          origin: readOrigin(fact.origin),
+          verified: fact.verified === true,
+        },
+      ];
+    }),
+    origins: Object.fromEntries(
+      RECEIPT_FIELDS.filter((field) => field in origins).map((field) => [
+        field,
+        readOrigin(origins[field]),
+      ])
+    ),
+    ungrounded: asArray(record.ungrounded).filter(
+      (entry): entry is string => typeof entry === 'string'
+    ),
+  };
+}
+
+export function readSlopReport(value: unknown): SlopReportV1 | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const verdict = record.verdict;
+  if (verdict !== 'clean' && verdict !== 'review' && verdict !== 'rewrite') {
+    return null;
+  }
+  return {
+    ...(record as unknown as SlopReportV1),
+    verdict,
+    findings: asArray(record.findings).flatMap((entry) => {
+      const finding = asRecord(entry);
+      if (!finding) return [];
+      const hint = asRecord(finding.hint) ?? {};
+      return [
+        {
+          ruleId: asText(finding.ruleId),
+          severity: finding.severity === 'error' ? 'error' : 'warn',
+          start: Number(finding.start) || 0,
+          end: Number(finding.end) || 0,
+          excerpt: asText(finding.excerpt),
+          hint: { ru: asText(hint.ru), en: asText(hint.en) },
+          ...(typeof finding.count === 'number' ? { count: finding.count } : {}),
+        },
+      ];
+    }),
+  };
+}
+
+/* -------------------------------------------------------------------------
+ * Поля квитанции
+ * ---------------------------------------------------------------------- */
+
+export const RECEIPT_FIELDS = [
+  'thesis',
+  'position',
+  'disagreement',
+  'audience',
+  'goal',
+  'format',
+] as const;
+
+export type ReceiptField = (typeof RECEIPT_FIELDS)[number];
+
+export const FORMATS: readonly IntakeFormatV1[] = [
+  'auto',
+  'opinion',
+  'announcement',
+  'list',
+  'expert',
+  'case',
+  'story',
+];
+
+/** Порядок переключения «Это не так» по кругу, без выпадающего списка. */
+export const INPUT_KIND_CYCLE: readonly IntakeInputKindV1[] = [
+  'thought',
+  'link',
+  'foreign_post',
+];
+
+export const nextInputKind = (kind: IntakeInputKindV1): IntakeInputKindV1 =>
+  INPUT_KIND_CYCLE[
+    (INPUT_KIND_CYCLE.indexOf(kind) + 1) % INPUT_KIND_CYCLE.length
+  ];
+
+/* -------------------------------------------------------------------------
+ * Запрос
+ * ---------------------------------------------------------------------- */
+
+/**
+ * На что похож ввод — ровно одно решение и только про ссылку.
+ *
+ * Клиент отличает URL и больше ничего: разница между мыслью и чужим постом
+ * держится на языке, а не на форме, и второе мнение об этом на экране — это
+ * подсказка, которая расходится с тем, что сервер потом решит на самом деле.
+ * Поэтому `undefined` здесь честнее «мысли»: экран молчит, сервер решает.
+ */
+export function detectInputKind(input: string): IntakeInputKindV1 | undefined {
+  const trimmed = input.trim();
+  if (!trimmed || /\s/.test(trimmed)) return undefined;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'http:' || url.protocol === 'https:'
+      ? 'link'
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export type IntakeAnswer = { field: BriefField; text: string };
+
+export function buildIntakePayload(input: {
+  input: string;
+  integrationIds: readonly string[];
+  language: 'ru' | 'en';
+  answers?: readonly IntakeAnswer[];
+  decide?: readonly BriefField[];
+  briefOverrides?: Partial<Record<ReceiptField, string>>;
+  inputKind?: IntakeInputKindV1;
+  options?: IntakeOptionsV1;
+  sourceLeadId?: string;
+}): IntakeRequestV1 {
+  const kind = input.inputKind ?? detectInputKind(input.input);
+  const overrides = Object.fromEntries(
+    Object.entries(input.briefOverrides ?? {}).filter(
+      ([, value]) => typeof value === 'string' && value.trim()
+    )
+  );
+
+  return {
+    input: input.input.trim(),
+    ...(kind ? { inputKind: kind } : {}),
+    // Больше трёх каналов дверь отказывает до первого байта; экран не шлёт
+    // заведомый отказ, он просто не даёт выбрать четвёртый.
+    integrationIds: input.integrationIds.slice(0, INTAKE_MAX_CHANNELS),
+    language: input.language,
+    ...(input.answers?.length ? { answers: [...input.answers] } : {}),
+    ...(input.decide?.length ? { decide: [...input.decide] } : {}),
+    ...(Object.keys(overrides).length
+      ? { briefOverrides: overrides as IntakeRequestV1['briefOverrides'] }
+      : {}),
+    ...(input.options ? { options: input.options } : {}),
+    ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
+  };
+}
+
+/**
+ * Повод из «Откуда идеи», превращённый в первый экран входа.
+ *
+ * До 06.09.2026 «Взять в работу» открывало вкладку «Бриф» и оставляло
+ * человека перед пустой формой из восьми полей — ровно та жалоба, из которой
+ * выросла эта волна. Заголовок и выдержка склеиваются в один текст, потому
+ * что вход принимает один текст; ссылка идёт третьей строкой, чтобы сервер
+ * увидел её и взял страницу как источник.
+ */
+export function leadToIntakePrefill(lead: {
+  title: string;
+  excerpt?: string | null;
+  sourceUrl?: string;
+  id?: string;
+}): { input: string; sourceLeadId?: string } {
+  const parts = [lead.title.trim()];
+  if (lead.excerpt && lead.excerpt.trim()) parts.push(lead.excerpt.trim());
+  if (lead.sourceUrl && lead.sourceUrl.trim()) parts.push(lead.sourceUrl.trim());
+  return {
+    input: parts.filter(Boolean).join('\n\n'),
+    ...(lead.id ? { sourceLeadId: lead.id } : {}),
+  };
+}
+
+/* -------------------------------------------------------------------------
+ * Состояние экрана
+ * ---------------------------------------------------------------------- */
+
+export type IntakeScreenState =
+  | 'checking'
+  | 'restricted'
+  | 'read-only'
+  | 'no-channel'
+  | 'idle'
+  | 'streaming'
+  | 'questions'
+  | 'draft'
+  | 'error';
+
+/**
+ * Одно место, где решается, что человек видит.
+ *
+ * Порядок здесь — это порядок отказов, а не порядок красоты: сначала то, о чём
+ * ещё нет ответа (`checking`), затем то, чего человеку нельзя
+ * (`restricted`/`read-only`), затем то, чего нет у пространства
+ * (`no-channel`), и только потом сама работа. Экран, который решает это в
+ * пяти тернарниках по дороге, рано или поздно покажет форму тому, кому она
+ * ничего не даст.
+ */
+export function screenState(input: {
+  availability: 'checking' | 'available' | 'unavailable' | 'unknown';
+  canWrite: boolean;
+  hasChannel: boolean;
+  busy: boolean;
+  questions: number;
+  draft: boolean;
+  failed: boolean;
+}): IntakeScreenState {
+  if (input.availability === 'checking') return 'checking';
+  if (input.availability === 'unavailable') return 'restricted';
+  if (!input.canWrite) return 'read-only';
+  if (!input.hasChannel) return 'no-channel';
+  if (input.busy) return 'streaming';
+  if (input.failed) return 'error';
+  if (input.questions > 0) return 'questions';
+  if (input.draft) return 'draft';
+  return 'idle';
+}
+
+/** Почему «Написать» не нажимается, или `null`, когда нажимается. */
+export type IntakeBlockReason = 'input' | 'channel' | 'checking' | null;
+
+export function blockReason(input: {
+  availability: 'checking' | 'available' | 'unavailable' | 'unknown';
+  input: string;
+  selected: readonly string[];
+}): IntakeBlockReason {
+  if (input.availability === 'checking') return 'checking';
+  if (input.input.trim().length < INTAKE_INPUT_MIN_CHARS) return 'input';
+  if (input.selected.length === 0) return 'channel';
+  return null;
+}

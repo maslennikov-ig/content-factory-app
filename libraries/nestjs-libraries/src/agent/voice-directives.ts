@@ -389,7 +389,7 @@ const guardrailLines = (voice: EffectiveVoice): string[] => {
  * after the draft is where a number belongs, and `postLength` keeps feeding it,
  * the token ceiling and the suppression of the inherited «Post should be long».
  */
-const avatarLines = (voice: EffectiveVoice): string[] => {
+const avatarLines = (voice: EffectiveVoice, extra: string[]): string[] => {
   const portrait = voice.persona?.portrait as string;
   return [
     voice.persona?.kind === 'BRAND'
@@ -397,6 +397,7 @@ const avatarLines = (voice: EffectiveVoice): string[] => {
       : `You are writing as this person, not as an assistant. This is who they are: ${portrait}`,
     ...learnedRuleLines(voice),
     ...exampleLines(voice),
+    ...extra,
     ...guardrailLines(voice),
   ];
 };
@@ -410,9 +411,21 @@ const avatarLines = (voice: EffectiveVoice): string[] => {
  * which by definition cannot be reached here. It is not deprecated: a space
  * that typed its voice in by hand has no corpus to be measured from, and this
  * is the whole of what such a voice knows.
+ *
+ * `extra` — строки, которые знает не голос, а вызывающий: с 06.09.2026 это
+ * обычай канала (`channel-directives.ts`, `content-factory-next-tu3k.2`).
+ * Место у них одно и то же в обеих ветках — после примеров автора и перед
+ * guardrails. Порядок здесь и есть правило: примеры — свидетельство о манере,
+ * канал — обычай площадки, а guardrails закрывают блок, потому что они одни во
+ * всём блоке отдают приказы и должны стоять после всего, что с ними может
+ * поспорить. Пустой список ничего не меняет, поэтому всякий, кто звал функцию
+ * с одним аргументом, получает ровно тот же блок.
  */
-export function voiceInstructionLines(voice: EffectiveVoice): string[] {
-  if (isAvatar(voice)) return avatarLines(voice);
+export function voiceInstructionLines(
+  voice: EffectiveVoice,
+  extra: string[] = []
+): string[] {
+  if (isAvatar(voice)) return avatarLines(voice, extra);
 
   const lines: string[] = [];
 
@@ -481,6 +494,7 @@ export function voiceInstructionLines(voice: EffectiveVoice): string[] {
 
   lines.push(...learnedRuleLines(voice));
   lines.push(...exampleLines(voice));
+  lines.push(...extra);
   lines.push(...guardrailLines(voice));
 
   return lines;
@@ -492,9 +506,13 @@ export function voiceInstructionLines(voice: EffectiveVoice): string[] {
  * A machine caller that knows nothing about profiles keeps working unchanged;
  * the profile wins wherever one resolved.
  */
-export function toneFallbackLines(tone: 'personal' | 'company'): string[] {
+export function toneFallbackLines(
+  tone: 'personal' | 'company',
+  extra: string[] = []
+): string[] {
   return [
     `Make sure it sounds ${tone}`,
     `Use ${tone === 'personal' ? '1st' : '3rd'} person mode`,
+    ...extra,
   ];
 }

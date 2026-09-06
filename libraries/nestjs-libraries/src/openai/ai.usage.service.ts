@@ -31,7 +31,15 @@ export type AiOperation =
    * introduces no billing semantics of its own — agreed in
    * `content-intelligence-brand-profile-spec.md` §9.2.
    */
-  | 'brand_profile_assist';
+  | 'brand_profile_assist'
+  /**
+   * Вход одной мыслью: разбор чужого текста и заполнение брифа
+   * (`content-factory-next-tu3k.1`). Своя операция ради наблюдаемости и ради
+   * потолка: два вызова на один вход — это то, что видно в ленте расхода
+   * отдельно от генерации, которая платит за себя сама. Роль — `extract`
+   * (`ai.roles.ts`): здесь из данного текста достают то, что в нём уже есть.
+   */
+  | 'intake';
 
 /**
  * Admission is a count-then-insert against one organization's ledger, both

@@ -26,6 +26,16 @@ import { AutopostRepository } from '@contentfactory/nestjs-libraries/database/pr
 import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/integrations/refresh.integration.service';
 import { TemporalService } from 'nestjs-temporal-core';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
+import {
+  CHANNEL_MIN_IDEAL_LENGTH,
+  CHANNEL_NOTES_LIMIT,
+  resolveChannelWritingProfile,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import type {
+  ChannelWritingProfileResponseV1,
+  ChannelWritingProfileV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
 import { AnalyticsSnapshotService } from '@contentfactory/nestjs-libraries/integrations/analytics.snapshot.service';
 
 dayjs.extend(utc);
@@ -93,6 +103,154 @@ export class IntegrationService {
       id,
       contentLanguage
     );
+  }
+
+  /**
+   * Карточка канала «Как пишем сюда» — вместе с тем, что о площадке знает
+   * провайдер.
+   *
+   * Лимиты знаков и вид редактора спрашиваются у провайдера, а не хранятся:
+   * `content-factory-next-tu3k.2` завёл одну колонку под решения человека, и
+   * второе место для числа 4096 сделало бы их два, расходящихся при первом же
+   * изменении у площадки.
+   */
+  async getWritingProfile(
+    org: string,
+    id: string
+  ): Promise<ChannelWritingProfileResponseV1> {
+    const integration = await this._integrationRepository.getWritingProfile(
+      org,
+      id
+    );
+    if (!integration) {
+      throw new HttpException(
+        { code: 'INTEGRATION_NOT_FOUND' },
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return this.writingProfileResponse(integration);
+  }
+
+  /**
+   * Сохранить карточку или (при `null`) вернуть канал к умолчаниям.
+   *
+   * Три проверки, и все три про то, что карточка не может обещать больше, чем
+   * площадка принимает: пост короче `CHANNEL_MIN_IDEAL_LENGTH` — не пост, а
+   * диапазон или потолок выше лимита площадки — обещание, которое кончится
+   * отказом при публикации, а не при сохранении.
+   */
+  async updateWritingProfile(
+    org: string,
+    id: string,
+    body: IntegrationWritingProfileDto | null
+  ): Promise<ChannelWritingProfileResponseV1> {
+    const integration = await this._integrationRepository.getWritingProfile(
+      org,
+      id
+    );
+    if (!integration) {
+      throw new HttpException(
+        { code: 'INTEGRATION_NOT_FOUND' },
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    const stored = body
+      ? this.validatedWritingProfile(body, integration.providerIdentifier)
+      : null;
+    const saved = await this._integrationRepository.updateWritingProfile(
+      org,
+      id,
+      stored
+    );
+    return this.writingProfileResponse(saved);
+  }
+
+  private providerLimits(providerIdentifier: string) {
+    const provider = this._integrationManager.getSocialIntegration(
+      providerIdentifier
+    );
+    if (!provider) {
+      throw new HttpException(
+        { code: 'INTEGRATION_PROVIDER_UNKNOWN' },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    return {
+      name: provider.name,
+      maxLength: provider.maxLength([]),
+      maxCaptionLength: provider.maxCaptionLength?.() ?? null,
+      editor: provider.editor,
+    };
+  }
+
+  private writingProfileResponse(integration: {
+    id: string;
+    providerIdentifier: string;
+    contentLanguage: string;
+    writingProfile: unknown;
+  }): ChannelWritingProfileResponseV1 {
+    const { profile, stored } = resolveChannelWritingProfile(
+      integration.writingProfile,
+      integration.providerIdentifier,
+      integration.contentLanguage
+    );
+    return {
+      integrationId: integration.id,
+      providerIdentifier: integration.providerIdentifier,
+      provider: this.providerLimits(integration.providerIdentifier),
+      profile,
+      stored,
+    };
+  }
+
+  private validatedWritingProfile(
+    body: IntegrationWritingProfileDto,
+    providerIdentifier: string
+  ): ChannelWritingProfileV1 {
+    const limits = this.providerLimits(providerIdentifier);
+    const refuse = (reason: string) => {
+      throw new HttpException(
+        { code: 'CHANNEL_WRITING_PROFILE_INVALID', reason },
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    };
+
+    let lengthPolicy: ChannelWritingProfileV1['lengthPolicy'] = 'provider_max';
+    if (body.lengthPolicy === 'range') {
+      const range = body.length;
+      if (!range) refuse('LENGTH_RANGE_REQUIRED');
+      const { idealMin, idealMax, hardMax } = range!;
+      if (idealMin < CHANNEL_MIN_IDEAL_LENGTH) refuse('IDEAL_MIN_TOO_SMALL');
+      if (idealMax < idealMin) refuse('IDEAL_MAX_BELOW_MIN');
+      // Потолок площадки — тот, который она примет без картинки: карточка
+      // описывает канал целиком, а подпись под картинкой короче у всех.
+      if (idealMax > limits.maxLength) refuse('IDEAL_MAX_ABOVE_PROVIDER');
+      if (hardMax !== undefined && hardMax !== null) {
+        if (hardMax < idealMax) refuse('HARD_MAX_BELOW_IDEAL_MAX');
+        if (hardMax > limits.maxLength) refuse('HARD_MAX_ABOVE_PROVIDER');
+      }
+      lengthPolicy = {
+        idealMin,
+        idealMax,
+        hardMax: hardMax === undefined ? null : hardMax,
+      };
+    }
+
+    const notes = (body.notes ?? '').trim();
+    if (notes.length > CHANNEL_NOTES_LIMIT) refuse('NOTES_TOO_LONG');
+
+    return {
+      version: 'channel-writing-profile/v1',
+      lengthPolicy,
+      emojiLevel: body.emojiLevel,
+      linkPolicy: body.linkPolicy,
+      hashtagPolicy: body.hashtagPolicy,
+      ctaKind: body.ctaKind,
+      formatPreference: body.formatPreference,
+      notes: notes || null,
+      output: 'text',
+    };
   }
 
   checkPreviousConnections(org: string, id: string) {

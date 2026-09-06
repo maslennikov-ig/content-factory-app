@@ -64,6 +64,8 @@ import { ContentMaterialController } from '@contentfactory/backend/api/routes/co
 import { ContentArchiveController } from '@contentfactory/backend/api/routes/content-archive.controller';
 import { ContentBriefController } from '@contentfactory/backend/api/routes/content-brief.controller';
 import { ContentLeadController } from '@contentfactory/backend/api/routes/content-lead.controller';
+import { ContentIntakeController } from '@contentfactory/backend/api/routes/content-intake.controller';
+import { ContentTextQualityController } from '@contentfactory/backend/api/routes/content-text-quality.controller';
 
 const authenticatedController = [
   UsersController,
@@ -95,6 +97,8 @@ const authenticatedController = [
   ContentArchiveController,
   ContentBriefController,
   ContentLeadController,
+  ContentIntakeController,
+  ContentTextQualityController,
 ];
 @Module({
   imports: [UploadModule],

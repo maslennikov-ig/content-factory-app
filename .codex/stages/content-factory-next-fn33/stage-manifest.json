@@ -913,6 +913,26 @@
       "task_id": "content-factory-next-fn33.148",
       "stream_owner": "b4-cleanup",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-fn33.148.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.1",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.2",
+      "stream_owner": "S2",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.3",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.4",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.4.md"
     }
   ]
 }

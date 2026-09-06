@@ -103,6 +103,17 @@ const { AgentGraphService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/locale-pack':
       localePack,
     '@contentfactory/nestjs-libraries/agent/draft-pick': draftPick,
+    /**
+     * Строки канала и антикопия — настоящие, по той же причине, что и всё
+     * выше: узел только читает их, и заглушка здесь проверяла бы согласие двух
+     * заглушек (`content-factory-next-tu3k.2`).
+     */
+    '@contentfactory/nestjs-libraries/agent/channel-directives': loadReal(
+      'libraries/nestjs-libraries/src/agent/channel-directives.ts'
+    ),
+    '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy': loadReal(
+      'libraries/nestjs-libraries/src/content-intelligence/text-quality/anti-copy.ts'
+    ),
     '@nestjs/common': {
       Injectable: () => (target) => target,
       Inject: () => () => {},

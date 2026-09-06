@@ -8,6 +8,7 @@ import { PostComment } from '@contentfactory/frontend/components/new-launch/prov
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import type { ResearchSource } from '@contentfactory/frontend/components/new-launch/research.sources';
 import type { EditorialStageValue } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
+import { createNdjsonSplitter } from '@contentfactory/frontend/components/new-launch/ndjson';
 
 export interface Values {
   id: string;
@@ -267,7 +268,6 @@ function generatorBindingsEqual(
 export function createGeneratorNdjsonConsumer(
   onEvent: (event: Record<string, unknown>) => void = () => undefined
 ) {
-  let buffer = '';
   let output: any;
   let earlyProvenance: ContentIntelligenceProvenance | null = null;
   let finalProvenance: ContentIntelligenceProvenance | null = null;
@@ -354,16 +354,21 @@ export function createGeneratorNdjsonConsumer(
     onEvent(event);
   };
 
+  /*
+   * `content-factory-next-tu3k.4`: разбивка на строки вынесена в
+   * `ndjson.ts` — вход одной мыслью читает свой стрим ровно так же, и
+   * второй экземпляр той же работы рядом с первым расходится на хвосте.
+   * Смысл строкам по-прежнему придаёт `consumeLine` здесь: модуль разбивки
+   * не знает ни о контексте, ни об ошибке, ни о результате.
+   */
+  const splitter = createNdjsonSplitter(consumeLine);
+
   return {
     push(chunk: string) {
-      buffer += chunk;
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) consumeLine(line);
+      splitter.push(chunk);
     },
     finish() {
-      if (buffer.trim()) consumeLine(buffer);
-      buffer = '';
+      splitter.finish();
       return { output, provenance: finalProvenance };
     },
   };

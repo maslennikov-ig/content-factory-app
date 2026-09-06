@@ -21,7 +21,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { Calendar } from './calendar';
 import { useDrag, useDrop } from 'react-dnd';
 import { DNDProvider } from '@contentfactory/frontend/components/launches/helpers/dnd.provider';
-import { GeneratorComponent } from './generator/generator';
+import { IntakeDoor } from './intake.door';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { NewPost } from '@contentfactory/frontend/components/launches/new.post';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
@@ -528,9 +528,18 @@ export const LaunchesComponent = () => {
               <AddProviderButton update={() => update(true)} />
               <div className="flex gap-[8px] group-[.sidebar]:flex-col">
                 {sortedIntegrations?.length > 0 && <NewPost />}
-                {sortedIntegrations?.length > 0 &&
-                  user?.tier?.ai &&
-                  billingEnabled && <GeneratorComponent />}
+                {/*
+                  `content-factory-next-tu3k.4`, решение владельца 06.09.2026:
+                  здесь стояла «Generate Posts», спрятанная за `billingEnabled`
+                  и оплаченным тарифом с ИИ, — на боевом её не видел никто.
+                  Дверь «Из мысли» видна редактору независимо от оплаты; чем
+                  звать модель и есть ли оно вообще, решает уже сам экран и
+                  говорит об этом словами. `generator/generator.tsx` остаётся
+                  на диске: у него свой адрес `/posts/generator` и свои тесты.
+                */}
+                {sortedIntegrations?.length > 0 && (
+                  <IntakeDoor collapsed={collapseMenu === '1'} />
+                )}
               </div>
             </div>
             <div className="gap-[32px] flex flex-col select-none flex-1">

@@ -18,6 +18,8 @@ import { ContentFactsShowcase } from './content-facts.showcase';
 import { ContentLeadsTab } from './content-leads.tab';
 import { VoiceTab } from '../brand-voice/voice-tab';
 import { VoiceBriefContainer } from '../brand-voice/voice-brief.container';
+import { IntakeContainer } from './intake/intake.container';
+import { leadToIntakePrefill } from './intake/intake.adapter';
 import { VoiceMaterialsContainer } from '../brand-voice/voice-materials.container';
 import { ContentArchiveContainer } from './content-archive.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
@@ -164,6 +166,69 @@ export function MaterialsViewSwitch({
 }
 
 /**
+ * The same switch on the Brief tab, and the intake is the view it opens on.
+ *
+ * `content-factory-next-tu3k.4`, decided by the owner 06.09.2026. On the live
+ * walkthrough the Brief tab met a person with eight fields and a separate
+ * fact form — «слишком сложно» for the everyday case of «появилась мысль».
+ * The tab now opens on the intake: one field, the channels, and a model that
+ * fills the brief itself. The eight-field form is not deleted and not hidden
+ * behind anything — it is the second view, «Вручную», reachable in one press,
+ * because the person who knows exactly what they want to say is still right.
+ *
+ * A copy of `MaterialsViewSwitch` rather than a shared component: the two
+ * switches answer different questions («вид списка» / «как начать»), and one
+ * parameterised switch over two unrelated pairs of labels is the kind of
+ * shared thing that has to be untangled the moment the third view appears.
+ * §9.4's own reasoning for `RadioGroup` applies unchanged — choosing is cheap,
+ * reversible and navigates nowhere.
+ */
+export type BriefView = 'intake' | 'manual';
+
+const BRIEF_VIEWS: readonly BriefView[] = ['intake', 'manual'];
+
+export function BriefViewSwitch({
+  locale,
+  view,
+  onChange,
+}: {
+  locale: ContentSectionLocale;
+  view: BriefView;
+  onChange: (view: BriefView) => void;
+}) {
+  const words = contentSectionCopy[locale];
+  const label = {
+    intake: words.briefViewIntake,
+    manual: words.briefViewManual,
+  } as const;
+
+  return (
+    <RadioGroup
+      value={view}
+      onChange={(value) => onChange(value as BriefView)}
+      aria-label={words.briefViewLabel}
+      className="inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]"
+    >
+      {BRIEF_VIEWS.map((option) => (
+        <RadioOption
+          key={option}
+          value={option}
+          layout="content"
+          className={clsx(
+            'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+            view === option
+              ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
+              : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
+          )}
+        >
+          {label[option]}
+        </RadioOption>
+      ))}
+    </RadioGroup>
+  );
+}
+
+/**
  * The frame: a heading, five tabs and one panel.
  *
  * Separate from the screen because it holds no data and makes no request, so
@@ -275,6 +340,17 @@ export function ContentSectionScreen({
   const [materialsView, setMaterialsView] = useState<MaterialsView>(
     initialTab === 'archive' ? 'archive' : 'materials'
   );
+  // Вкладка «Бриф» открывается входом одной мыслью; ручная форма — второй вид.
+  const [briefView, setBriefView] = useState<BriefView>('intake');
+  /*
+    Повод из «Откуда идеи», перенесённый во вход. До 06.09.2026 «Взять в
+    работу» открывало вкладку «Бриф» и оставляло человека перед пустой формой
+    — заголовок повода приходилось переписывать руками.
+  */
+  const [intakePrefill, setIntakePrefill] = useState<{
+    input: string;
+    sourceLeadId?: string;
+  } | null>(null);
 
   /**
    * The address follows the screen (content-factory-next-fn33.60).
@@ -314,12 +390,35 @@ export function ContentSectionScreen({
         <VoiceTab />
       ) : tab === 'leads' ? (
         // «Откуда идеи» (`content-factory-next-odb8.3`): subscriptions and
-        // the leads they bring back. «Взять в работу» spends the lead and
-        // opens the Brief tab; it does not prefill the brief's thesis field
-        // — `voice-brief.container.tsx` is outside this task's write zone.
-        <ContentLeadsTab onNavigateToBrief={() => changeTab('brief')} />
+        // the leads they bring back. Since `content-factory-next-tu3k.4`
+        // «Взять в работу» spends the lead *and* carries it: the title, the
+        // excerpt and the address land in the intake's one field, so the
+        // Brief tab opens on something to write from rather than on a blank
+        // form.
+        <ContentLeadsTab
+          onNavigateToBrief={(lead) => {
+            setIntakePrefill(leadToIntakePrefill(lead));
+            setBriefView('intake');
+            changeTab('brief');
+          }}
+        />
       ) : tab === 'brief' ? (
-        <VoiceBriefContainer />
+        <div className="flex min-w-0 flex-col gap-[16px]">
+          <BriefViewSwitch
+            locale={locale}
+            view={briefView}
+            onChange={setBriefView}
+          />
+          {briefView === 'intake' ? (
+            <IntakeContainer
+              surface="brief"
+              prefill={intakePrefill}
+              onSwitchToManual={() => setBriefView('manual')}
+            />
+          ) : (
+            <VoiceBriefContainer />
+          )}
+        </div>
       ) : tab === 'materials' ? (
         <div className="flex min-w-0 flex-col gap-[16px]">
           <MaterialsViewSwitch

@@ -1,0 +1,53 @@
+-- Один столбец на Integration. Применять ТОЛЬКО этот текст, дословно.
+--
+-- Зачем: решение владельца 06.09.2026 (пункт 5, `content-factory-next-tu3k`) —
+-- у канала появляется карточка «Как пишем сюда», и правит её редактор или
+-- администратор. До этой волны продукт знал о канале ровно одно, язык
+-- (`Integration.contentLanguage`), и писал в Telegram так же, как в рассылку.
+-- В колонке лежит `ChannelWritingProfileV1` из
+-- `libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts`:
+-- диапазон длины, уровень эмодзи, политика ссылок и хэштегов, вид призыва,
+-- предпочтительный формат и заметка человека (≤500 знаков).
+--
+-- Почему колонка на канале, а не отдельная таблица: карточка — свойство
+-- канала, живёт и умирает вместе с ним и читается всегда вместе с его строкой.
+-- Искать по ней не будут, поэтому индекса нет. Лимит знаков площадки сюда не
+-- переносится вовсе — его знает провайдер (`maxLength`, `maxCaptionLength`), и
+-- третьего места, где живёт число 4096, продукт не заводит.
+--
+-- Столбец nullable и без значения по умолчанию, поэтому оператор не
+-- переписывает таблицу и окно простоя не нужно. Существующие каналы получают
+-- NULL — «карточки нет, действуют умолчания провайдера». Это не то же самое,
+-- что сохранённая карточка с теми же значениями: дверь
+-- `DELETE /integrations/:id/writing-profile` возвращает именно NULL. Шага
+-- данных нет, обратного шага не нужно: на старом образе лишняя
+-- nullable-колонка никому не мешает.
+--
+-- Код читает колонку на трёх дверях —
+-- `GET/PUT/DELETE /integrations/:id/writing-profile` — и на входе одной мыслью,
+-- который собирает из неё строки промпта. Без колонки падает не редкий экран,
+-- а разбор карточки канала, ошибкой Prisma «column Integration.writingProfile
+-- does not exist».
+--
+-- `prisma migrate diff` против боевой базы печатает этот оператор вместе с
+-- DROP TABLE на mastra_* таблицы, которых нет в schema.prisma. Их пропускает
+-- validate-prisma-migration-sql.cjs (Mastra-owned target), но проверять
+-- каждый раз всё равно нужно: db push и полный вывод migrate diff сносят их
+-- молча.
+--
+-- Порядок применения:
+--   1. prisma migrate diff --from-url <DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table Integration --diff <шаг 1> --selected этот_файл
+--   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
+--   4. Повторный migrate diff должен вернуть только mastra_* DROP TABLE.
+--
+-- Валидатор отвергает BEGIN/COMMIT как неизвестные операции схемы;
+-- транзакционность обеспечивает флаг --single-transaction в psql.
+--
+-- Столбец добавлен в schema.prisma 06.09.2026 (content-factory-next-tu3k.2).
+-- На боевой базе ПОКА НЕ ПРИМЕНЕНО. Повторно не запускать после применения:
+-- ADD COLUMN без IF NOT EXISTS откажет на существующей колонке.
+
+ALTER TABLE "Integration" ADD COLUMN     "writingProfile" JSONB;

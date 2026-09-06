@@ -62,10 +62,16 @@ import { resolveContentLocale } from './content-section.copy';
  * The owner's open question — whether an accepted lead becomes material a
  * brief can cite as evidence — is unanswered on purpose. «Взять в работу»
  * marks the lead spent and opens the Brief tab; it writes no `ContentFact` and
- * no `SourceEvidence`. See the task report for why, and for what «ведущий в
- * бриф» does and does not do yet: the Brief tab's own thesis field is not
- * prefilled from here — `voice-brief.container.tsx` is outside this task's
- * write zone.
+ * no `SourceEvidence`.
+ *
+ * Since `content-factory-next-tu3k.4` (06.09.2026) the lead travels with the
+ * navigation instead of being left behind. The paragraph that used to stand
+ * here said the Brief tab's thesis field was not prefilled because
+ * `voice-brief.container.tsx` was out of that task's write zone; the Brief tab
+ * now opens on the intake, whose one field takes the whole lead — title,
+ * excerpt and address — and the model fills the brief from it. The lead is
+ * handed over as data (`onNavigateToBrief(lead)`), not as a prefilled form:
+ * what to do with it is the intake's decision, not this tab's.
  */
 
 type Locale = 'ru' | 'en';
@@ -559,8 +565,13 @@ function AddSubscriptionDialog({
 export function ContentLeadsTab({
   onNavigateToBrief,
 }: {
-  /** Where «Взять в работу» sends the person, once the lead is spent. */
-  onNavigateToBrief?: () => void;
+  /**
+   * Where «Взять в работу» sends the person, once the lead is spent — and
+   * what it hands over. The row itself, not a sentence built from it: the
+   * intake decides how a lead becomes a first line, and a second opinion
+   * about that here would be a second answer to the same question.
+   */
+  onNavigateToBrief?: (lead: LeadRow) => void;
 } = {}) {
   const request = useFetch();
   const { language } = useVariables();
@@ -692,7 +703,7 @@ export function ContentLeadsTab({
         await read(acceptLeadUrl(lead.id), { method: 'POST', body: JSON.stringify({}) });
         await queue.mutate();
         setNotice(t.acceptedNotice(lead.title));
-        onNavigateToBrief?.();
+        onNavigateToBrief?.(lead);
       } catch (error) {
         setLeadFailure(readFailure(error, t.acceptFailed));
       } finally {

@@ -26,13 +26,23 @@ export const SEARCH_PROVIDER_RESULT_MAX_EXCERPT_CHARACTERS = 8_000;
 
 export type WebResearchProvider = 'tavily' | 'openrouter' | 'mixed';
 
+/**
+ * Кто принёс находку.
+ *
+ * `user_link` — ссылку дал сам человек, вставив её во вход одной мыслью
+ * (`content-factory-next-tu3k.1`). Это не поисковик, но путь тот же: страница
+ * прочитана один раз, выдержка заморожена, адрес сохранён. Колонка
+ * `retrievalProvider` — обычная строка, миграции здесь нет.
+ */
+export type AcceptedResultProvider = WebResearchProvider | 'user_link';
+
 export type AcceptSearchResultInput = {
   organizationId: string;
   url: string;
   title?: string | null;
   excerpt: string;
   publishedAt?: string | Date | null;
-  provider: WebResearchProvider;
+  provider: AcceptedResultProvider;
   now: Date;
 };
 

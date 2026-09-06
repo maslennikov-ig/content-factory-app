@@ -98,16 +98,44 @@ export class ContentBriefRepository {
       providerIdentifier: string;
       content: string;
       date: string;
+      /**
+       * На чём стоит текст, если черновик написала модель
+       * (`content-factory-next-tu3k.1`). Все три поля необязательны и приходят
+       * вместе: бриф собирает текст сам, без единого вызова модели, и ему
+       * цитировать нечего, а вход одной мыслью получает их от генератора.
+       *
+       * Порядок проверки не наш: `PostsRepository.createOrUpdatePost`
+       * отказывает `CONTENT_CONTEXT_INPUT_INVALID`, если версия голоса или
+       * цитаты пришли без снимка контекста. Поэтому без снимка два других
+       * поля не отправляются вовсе — иначе строка происхождения в окне поста
+       * стоила бы человеку черновика.
+       */
+      contentContextSnapshotId?: string | null;
+      brandProfileVersionId?: string | null;
+      usedCitationIds?: string[];
     }
   ): Promise<string | null> {
+    const snapshotId = input.contentContextSnapshotId || undefined;
     const created = await this.posts.createOrUpdatePost(
       'draft',
       organizationId,
       input.date,
       {
         integration: { id: input.channelId },
-        value: [{ content: input.content, image: [] }],
+        value: [
+          {
+            content: input.content,
+            image: [],
+            ...(snapshotId && input.usedCitationIds
+              ? { usedCitationIds: input.usedCitationIds }
+              : {}),
+          },
+        ],
         settings: { __type: input.providerIdentifier },
+        ...(snapshotId ? { contentContextSnapshotId: snapshotId } : {}),
+        ...(snapshotId && input.brandProfileVersionId
+          ? { brandProfileVersionId: input.brandProfileVersionId }
+          : {}),
       } as any,
       [],
       'WEB' as CreationMethod

@@ -37,6 +37,7 @@ import {
 import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/integrations/refresh.integration.service';
 import { IntegrationContentLanguageDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.content.language.dto';
+import { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -166,6 +167,48 @@ export class IntegrationsController {
       id,
       body.contentLanguage
     );
+  }
+
+  /**
+   * Карточка канала «Как пишем сюда»: читает любой участник, правит редактор.
+   *
+   * Единственная дверь под `/integrations/…`, которая не админская, и это не
+   * недосмотр. Граница ролей 05.09.2026 проведена по имуществу: канал — общий
+   * актив, поэтому подключение, удаление, группа и настройки площадки
+   * администраторские. Здесь же настраивается не канал, а **письмо в него** —
+   * длина, эмодзи, призыв, — то есть та самая работа, ради которой роль
+   * редактора и заведена. Владелец подтвердил это 06.09.2026: карточку правят
+   * редактор и администратор.
+   *
+   * Чтение без политик, как и `GET /integrations/:id`: пользователь видит, по
+   * каким правилам пишут в канал, и не может их изменить.
+   */
+  @Get('/:id/writing-profile')
+  getWritingProfile(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._integrationService.getWritingProfile(org.id, id);
+  }
+
+  @Put('/:id/writing-profile')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  updateWritingProfile(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: IntegrationWritingProfileDto
+  ) {
+    return this._integrationService.updateWritingProfile(org.id, id, body);
+  }
+
+  /** Убрать карточку: канал возвращается к умолчаниям своей площадки. */
+  @Delete('/:id/writing-profile')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  deleteWritingProfile(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._integrationService.updateWritingProfile(org.id, id, null);
   }
 
   @Post('/:id/nickname')

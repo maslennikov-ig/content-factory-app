@@ -119,6 +119,9 @@ describe('the doors that spend a model budget have a ceiling', () => {
     ['assistant web research', '/copilot/research'],
     ['reading a source into a material', '/content-intelligence/sources/src-1/sync'],
     ['drafting from a source', '/content-intelligence/sources/src-1/draft-material'],
+    // Вход одной мыслью тратит больше всех: два разбора, до трёх поисков и до
+    // трёх генераций на один запрос (`content-factory-next-tu3k.1`).
+    ['writing from one thought', '/content-intelligence/intake'],
   ])('%s is refused past the ceiling', async (_label, url) => {
     const guard = await createGuard();
 

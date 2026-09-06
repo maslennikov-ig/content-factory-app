@@ -78,7 +78,13 @@ function authThrottlePath(
  */
 const AI_THROTTLE = { limit: 60, ttl: 60_000 } as const;
 
-const AI_PATHS = ['/content-intelligence/sources/search'] as const;
+const AI_PATHS = [
+  '/content-intelligence/sources/search',
+  // Вход одной мыслью тратит больше всех: два разбора, до трёх поисков и до
+  // трёх генераций на один запрос (`content-factory-next-tu3k.1`). Дверь, за
+  // которой стоит столько, не может быть единственной без потолка.
+  '/content-intelligence/intake',
+] as const;
 const AI_PREFIXES = ['/copilot/'] as const;
 // The two source doors that also spend the model: reading a source into a
 // material and drafting from it. `:id` sits in the middle, so these are

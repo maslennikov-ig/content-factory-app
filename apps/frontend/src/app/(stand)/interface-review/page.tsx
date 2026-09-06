@@ -110,6 +110,12 @@ const CONTENT_SCENES: readonly SceneEntry[] = [
     task: '36r.9',
   },
   {
+    path: 'intake',
+    screen: null,
+    title: { ru: 'Написать из мысли', en: 'Write from a thought' },
+    task: 'tu3k.4',
+  },
+  {
     path: 'sources',
     screen: null,
     title: { ru: 'Источники', en: 'Sources' },

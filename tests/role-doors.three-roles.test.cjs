@@ -153,6 +153,11 @@ const EDITOR_DOORS = [
   ['POST', '/autopost', 'завести правило автопоста'],
   ['POST', '/copilot/agent', 'позвать помощника'],
   ['POST', '/copilot/chat', 'говорить с помощником'],
+  [
+    'PUT',
+    '/integrations/:id/writing-profile',
+    'править карточку «Как пишем сюда»',
+  ],
   ['DELETE', '/media/:id', 'удалить файл из библиотеки'],
   ['POST', '/media/generate-image', 'сгенерировать картинку'],
 ];

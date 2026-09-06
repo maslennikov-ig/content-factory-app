@@ -50,6 +50,12 @@ export const contentSectionCopy = {
     materialsPending: 'Пока пусто',
     // §9.4 (02.09.2026): «Материалы» и «Что уже написали» — одно место с
     // двумя представлениями, не две вкладки. Подписи переключателя вида.
+    // `content-factory-next-tu3k.4` (06.09.2026): вкладка «Бриф» открывается
+    // входом одной мыслью, а прежняя ручная форма остаётся второй витриной —
+    // тот же приём «одно место, два вида», что у «Материалов».
+    briefViewLabel: 'Как начать',
+    briefViewIntake: 'По мысли',
+    briefViewManual: 'Вручную',
     materialsViewLabel: 'Вид списка',
     materialsViewMaterials: 'На что опираются',
     materialsViewArchive: 'Что уже написали',
@@ -70,6 +76,9 @@ export const contentSectionCopy = {
     materialsBody:
       'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the Brief tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
     materialsPending: 'Nothing here yet',
+    briefViewLabel: 'How to start',
+    briefViewIntake: 'From a thought',
+    briefViewManual: 'By hand',
     materialsViewLabel: 'List view',
     materialsViewMaterials: 'What we rely on',
     materialsViewArchive: 'What we already wrote',

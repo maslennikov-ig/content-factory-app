@@ -35,6 +35,7 @@ import type { RecutPlatform } from './recut';
 import type { SampleOrigin, SampleUsagePurpose } from './sample-intake';
 import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
+import type { BrandProfileSelectionV1 } from '../contracts';
 
 /**
  * The versions a measurement is read back with a year later.
@@ -2105,3 +2106,281 @@ export const VOICE_SURFACES = {
 } satisfies Record<string, VoiceSurfaceDefinitionV1>;
 
 export type VoiceSurfaceKey = keyof typeof VOICE_SURFACES;
+
+/* -------------------------------------------------------------------------
+ * Вход одной мыслью (intake)
+ *
+ * `content-factory-next-tu3k`, решение владельца 06.09.2026: человек даёт
+ * мысль, ссылку или чужой пост и выбирает каналы; модель заполняет бриф сама,
+ * спрашивает не больше двух вещей и только когда неясен тезис или нет ни
+ * одного факта, а черновик появляется сразу и сохраняется как DRAFT в каждом
+ * выбранном канале. Это не чат: ход ограничен, бриф типизирован, происхождение
+ * каждого поля видно.
+ *
+ * Типы здесь — общая правда четырёх потоков волны (сервер входа, канал и граф,
+ * качество текста, экраны). Меняются только аддитивно; экран не регистрируется
+ * в `VOICE_SURFACES`, потому что живёт не в `brand-voice`, а в
+ * `content-intelligence/intake` (страж реестра проверяет папку экрана).
+ * ---------------------------------------------------------------------- */
+
+export const INTAKE_API_BASE = '/content-intelligence/intake' as const;
+export const TEXT_QUALITY_API_BASE = '/content-intelligence/text-quality' as const;
+export const INTAKE_MAX_CHANNELS = 3 as const;
+export const INTAKE_MAX_VERIFIED_CLAIMS = 3 as const;
+export const INTAKE_MAX_QUESTIONS = 2 as const;
+/** Сколько кругов уточнений допускает экран, прежде чем предложить ручной бриф. */
+export const INTAKE_MAX_ROUNDS = 2 as const;
+export const INTAKE_INPUT_MAX_CHARS = 20_000 as const;
+export const INTAKE_INPUT_MIN_CHARS = 10 as const;
+
+export type IntakeInputKindV1 = 'thought' | 'link' | 'foreign_post';
+
+/**
+ * Откуда взялось значение поля брифа. `person` — из ответа или правки
+ * человека, оно неприкосновенно; `model` — предположение модели, которое
+ * квитанция помечает словом «предположение».
+ */
+export type BriefFieldOriginV1 =
+  | 'input'
+  | 'person'
+  | 'avatar'
+  | 'memory'
+  | 'search'
+  | 'model';
+
+export type BriefFilledFactV1 = {
+  statement: string;
+  sourceUrl?: string | null;
+  factId?: string | null;
+  evidenceId?: string | null;
+  origin: BriefFieldOriginV1;
+  /** `true`, когда число или утверждение сверено поиском или взято из памяти. */
+  verified: boolean;
+};
+
+export type BriefFilledV1 = {
+  inputKind: IntakeInputKindV1;
+  goal?: string | null;
+  thesis?: string | null;
+  position?: string | null;
+  disagreement?: string | null;
+  audience?: string | null;
+  format?: IntakeFormatV1 | null;
+  facts: BriefFilledFactV1[];
+  origins: Partial<
+    Record<
+      'goal' | 'thesis' | 'position' | 'disagreement' | 'audience' | 'format',
+      BriefFieldOriginV1
+    >
+  >;
+  /** Утверждения из чужого текста, которые нечем подтвердить: в материал не идут. */
+  ungrounded: string[];
+};
+
+export type IntakeFormatV1 =
+  | 'auto'
+  | 'opinion'
+  | 'announcement'
+  | 'list'
+  | 'expert'
+  | 'case'
+  | 'story';
+
+export type IntakeClaimStatusV1 = 'verified' | 'unverified' | 'skipped';
+
+export type IntakeClaimV1 = {
+  text: string;
+  hasNumber: boolean;
+  status: IntakeClaimStatusV1;
+  evidenceId?: string | null;
+  sourceUrl?: string | null;
+};
+
+export type IntakeQuestionV1 = {
+  field: BriefField;
+  question: string;
+  /** Готовые варианты ответа; человек может выбрать свой или отдать решение модели. */
+  options?: string[];
+};
+
+export type IntakeOptionsV1 = {
+  /** По умолчанию `true`: числа из чужого поста и мысль без фактов проверяются поиском. */
+  searchEnrichment?: boolean;
+  /** По умолчанию `false`: проверка на ИИ-штампы только по желанию человека. */
+  slopCheck?: boolean;
+  isPicture?: boolean;
+};
+
+export type IntakeRequestV1 = {
+  input: string;
+  /** Клиент распознаёт только ссылку; остальное решает сервер. */
+  inputKind?: IntakeInputKindV1;
+  integrationIds: string[];
+  language: 'ru' | 'en';
+  /** Ответы на вопросы прошлого хода: поле становится `person` и больше не спрашивается. */
+  answers?: Array<{ field: BriefField; text: string }>;
+  /** Поля, которые человек отдал модели («Реши сама»): заполняются с origin `model`, вопрос не повторяется. */
+  decide?: BriefField[];
+  /** Правки квитанции перед пересборкой: тоже `person`. */
+  briefOverrides?: Partial<
+    Pick<BriefFilledV1, 'goal' | 'thesis' | 'position' | 'disagreement' | 'audience' | 'format'>
+  >;
+  options?: IntakeOptionsV1;
+  brandProfileSelection?: BrandProfileSelectionV1;
+  /** Повод из «Откуда идеи», из которого пришёл текст; сервер вправе не знать его. */
+  sourceLeadId?: string;
+};
+
+/* ---- Карточка канала «Как пишем сюда» ------------------------------------ */
+
+export const CHANNEL_WRITING_PROFILE_VERSION = 'channel-writing-profile/v1' as const;
+
+export type ChannelLengthPolicyV1 =
+  | 'provider_max'
+  | { idealMin: number; idealMax: number; hardMax?: number | null };
+
+export type ChannelWritingProfileV1 = {
+  version: typeof CHANNEL_WRITING_PROFILE_VERSION;
+  lengthPolicy: ChannelLengthPolicyV1;
+  /** `few` — 1–3 эмодзи не больше двух видов, никогда как маркеры списка. */
+  emojiLevel: 'none' | 'few' | 'free';
+  linkPolicy: 'none' | 'end' | 'inline';
+  hashtagPolicy: 'none' | 'end_1_3' | 'free';
+  ctaKind: 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';
+  formatPreference: IntakeFormatV1;
+  /** Слова человека, ≤500 знаков; в промпт идут очищенными, как выученные правила аватара. */
+  notes?: string | null;
+  /** Зарезервировано под нетекстовые выходы (видео-промпт); сейчас всегда `text`. */
+  output?: 'text';
+};
+
+export type ChannelWritingProfileResponseV1 = {
+  integrationId: string;
+  providerIdentifier: string;
+  provider: {
+    name: string;
+    maxLength: number;
+    maxCaptionLength?: number | null;
+    editor: 'none' | 'normal' | 'markdown' | 'html';
+  };
+  profile: ChannelWritingProfileV1;
+  /** `false` — карточка не сохранялась, действуют умолчания провайдера. */
+  stored: boolean;
+};
+
+/* ---- Качество текста: штампы и антикопия ---------------------------------- */
+
+export type SlopSeverityV1 = 'error' | 'warn';
+
+export type SlopFindingV1 = {
+  ruleId: string;
+  severity: SlopSeverityV1;
+  start: number;
+  end: number;
+  excerpt: string;
+  hint: { ru: string; en: string };
+  /** Для правил-счётчиков (например, «честно» больше одного раза). */
+  count?: number;
+};
+
+export type SlopVerdictV1 = 'clean' | 'review' | 'rewrite';
+
+export type SlopReportV1 = {
+  version: 'slop-check/1.0.0';
+  platform: string;
+  locale: 'ru' | 'en';
+  /** Не больше пятнадцати: сначала `error`, затем по позиции. */
+  findings: SlopFindingV1[];
+  truncated: boolean;
+  metrics: {
+    sentences: number;
+    words: number;
+    meanNeighbourDiff: number | null;
+    shortSentences: number;
+    questions: number;
+    boldSpans: number;
+    emojiKinds: number;
+    dashPer1k: number;
+    lists: number;
+    listItemsMax: number;
+  };
+  /** errors × 3 + warnings. */
+  score: number;
+  /** ≤3 clean, ≤10 review, 11+ rewrite. */
+  verdict: SlopVerdictV1;
+};
+
+export type SlopCheckRequestV1 = {
+  text: string;
+  platform?: string;
+  locale?: 'ru' | 'en';
+  /** `true`, когда текст пришёл из редактора как HTML. */
+  html?: boolean;
+};
+
+export type AntiCopyRunV1 = { text: string; start: number; end: number };
+
+export type AntiCopyReportV1 = {
+  minWords: number;
+  runs: AntiCopyRunV1[];
+  retried: boolean;
+  clean: boolean;
+};
+
+/* ---- События стрима ------------------------------------------------------- */
+
+export type IntakeDraftContentV1 = {
+  content: string;
+  usedCitationIds: string[];
+};
+
+export type IntakeEventV1 =
+  | {
+      name: 'intake-started';
+      inputKind: IntakeInputKindV1;
+      channels: Array<{ id: string; name: string; providerIdentifier: string }>;
+    }
+  | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string }
+  | { name: 'claims'; claims: IntakeClaimV1[] }
+  | { name: 'brief-filled'; brief: BriefFilledV1 }
+  /** Терминальное: черновика нет, клиент повторяет запрос с `answers`/`decide`. */
+  | { name: 'questions'; questions: IntakeQuestionV1[] }
+  | { name: 'channel-started'; integrationId: string }
+  | { name: 'content-context'; integrationId: string; data: { output: unknown } }
+  /** Проброс события графа генератора как есть. */
+  | { name: 'generator'; integrationId: string; event: unknown }
+  | {
+      name: 'draft';
+      integrationId: string;
+      postId: string;
+      pieceId?: string | null;
+      content: IntakeDraftContentV1[];
+      provenance: unknown;
+      draftGaps: unknown[];
+      checks: { antiCopy?: AntiCopyReportV1 | null; slop?: SlopReportV1 | null };
+    }
+  | { name: 'done'; postIds: string[] }
+  | {
+      name: 'error';
+      error: true;
+      code: string;
+      message: string;
+      integrationId?: string;
+    };
+
+export type IntakeEventNameV1 = IntakeEventV1['name'];
+
+/** Отказы до первого байта стрима — обычные HTTP 422 с этим кодом. */
+export type IntakePreflightErrorCodeV1 =
+  | 'INTAKE_INPUT_TOO_SHORT'
+  | 'INTAKE_CHANNEL_REQUIRED'
+  | 'INTAKE_CHANNEL_UNKNOWN'
+  | 'INTAKE_TOO_MANY_CHANNELS'
+  | 'INTAKE_CHANNEL_UNSUPPORTED';
+
+export const INTAKE_ROUTES = {
+  intake: { method: 'POST', path: INTAKE_API_BASE },
+  slopCheck: { method: 'POST', path: `${TEXT_QUALITY_API_BASE}/slop-check` },
+  writingProfile: (integrationId: string) =>
+    `/integrations/${integrationId}/writing-profile`,
+} as const;

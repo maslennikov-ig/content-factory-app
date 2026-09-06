@@ -4,6 +4,54 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
+**Wave «вход одной мыслью» (06.09, epic `tu3k`, owner on the live walk:
+the eight-field brief is «слишком сложно» — one field, the model fills the
+brief) — on branch `wave/intake-2026-09-06`, NOT yet merged/released when this
+paragraph was written; see the release record in `production-deploy.md` if
+it exists.** Four Opus streams, no reviewer and no paid stand pass (owner:
+«скорость, тестировать буду на боевом»). `POST /content-intelligence/intake`
+(NDJSON, EDITOR+POSTS_PER_MONTH, ≤3 channels): thought / link / foreign post
+→ one `extract` call for claims, ≤3 number checks by search, one `extract`
+fill, `evaluateBrief` unchanged, ≤2 questions only for thesis/facts (position,
+disagreement, audience the model proposes as «предположение»), then
+`AgentGraphService.start` per channel with `body.intake` hints (brief block,
+channel lines after examples before guardrails, `provider` into context and
+voice, 8-word anti-copy with one retry) and a DRAFT post per channel with
+context. New column `Integration.writingProfile Json?` (`docs/operations/
+integration-writing-profile-schema-apply.sql`, **before the switch**), doors
+`GET/PUT/DELETE /integrations/:id/writing-profile` (EDITOR — writing, not
+ownership). Slop check `text-quality/slop-check.ts` (30 RU + 15 EN rules, no
+model; JS `\b` is ASCII — boundaries are `\p{L}` lookarounds) behind
+`POST /content-intelligence/text-quality/slop-check` and `options.slopCheck`.
+Screens: one `IntakeContainer`, two doors (calendar «Из мысли» replacing the
+billing-gated generator; `/content?tab=brief` intake-first, «Вручную» second
+view), questions card, receipt «Что модель поняла», channel card «Как пишем в
+«X»», findings by click only. Found on the way: LangGraph drops undeclared
+state keys — `draftGaps` never reached the screen since 05.09 (fixed). Open:
+`SOURCE_DIRECT_FETCH` is off on production → link input answers «вставьте
+текст» until the owner turns it on; `stored` flag for the channel badge,
+`search-started` event, slop noise on «данные»/«не только» (P3s under `tu3k`).
+
+**Wave «search into drafts» (05.09, epic `ec48`, owner's answer to `2ua.1`:
+«можно… не „не проверено“, а „взято из поиска“… ограничивать я бы никак не
+стал») — merged to `main` as `da056915`, RELEASED as `443bd0a450c8` (no schema
+change, rollback `da34f1a9e832`; receipt 379/4607, node 124/0, python 46 OK).**
+Four Opus streams + reviewer (no P0; 3 P1 + 4 P2 fixed before release) + paid
+second pass on the stand (`docs/product/material-quality-check-2026-09-05-
+second-pass.md`: **5 of 7 texts grounded vs 0 of 5**; found `ec48.3`, half of
+the search lost to the other query's deadline — fixed) + production walker
+(`fn33.145`: roles correct; no channel → no composer for anyone `fn33.148`,
+Agent screen silent about missing AI `fn33.153`, stage-filter language
+`fn33.146` — all fixed; ten P3 `fn33.147`–`.158` open). Builder admits fresh
+search evidence as `provenance: SEARCH` (`inclusionReason SEARCH_UNCONFIRMED`),
+prompt marks it and forbids numbers outside the block; generator searches once
+per generation when no explicit material (reuse by URL, deny-list applies);
+subject-language query first; excerpt hygiene (menus, footers, AMP, https
+only); labels «Взято из поиска» in the composer, showcase and search panel.
+Also: `cxd` restore rehearsal DONE (key is on the host, no passphrase; **key
+expires 16.09.2026**), `c6k.16` closed (decided 17.08). Open: `fn33.132`
+(subject drift), `ec48.6`, `.7`, `fn33.159` (draft without channel — owner).
+
 **Wave «owner decisions» (05.09, owner away, «даю все разрешения — делай») —
 merged to `main` as `9e4d7474`, RELEASED as `da34f1a9e832` (column
 `learnedRules` applied before the switch, rollback `035029af3c18`, backup
@@ -38,9 +86,8 @@ fixed before release. Roles walker on the stand: server doors match the matrix
 in all 40 probes; **`DELETE /integrations` with an empty body soft-deleted every
 post of the workspace** (`fn33.90.3`, DTO + lookup + repository guard); the
 USER screen leaked in eight places — menu, composer, media, brief, archive,
-agent now read the role first (`.90.4`–`.90.12`); P3s `.141`–`.144` open. **Owner question `2ua.1`: unverified search results stay
-out of drafts by spec — allow them labelled, or keep confirm-first?** Open from
-the check: `.132`, `.134`, `.138`, `.140`; `.28.19.2` dead repair door.
+agent now read the role first (`.90.4`–`.90.12`); P3s `.141`–`.144` open.
+`2ua.1` answered 05.09 → wave `ec48`. Open from the check: `.132`, `.138`.
 
 **Wave «cleanup» (05.09) — `41447f87`, RELEASED `dcb6eae72608` (two SQL files
 as one transaction), then ten walker P3s as `035029af3c18`.** Cascade deletion
@@ -49,63 +96,15 @@ admin count inside the Serializable write, tenant ledger by method, 60/min AI
 ceiling, copilot on click, Russian everywhere, 402 localized once, release
 scripts validate the tag before ssh, 34 platform marks. New: `11qv`, `ebyq`.
 
-**Wave «compose window» (04.09, `fn33.28.1`–`.17`) — `b27e25cc`, RELEASED
-`fc9fa77148f6`.** Composer = Postiz core + stage; `Post.contentContextReviewedAt/
-ById` + `POST /posts/:id/context-review`; allowance hint at paid buttons.
-**Every post with a content context had failed to save since August** —
-`await import('@contentfactory/…')` never rewritten by `nest build`. Open: `.28.5`, `.28.18`.
+**Wave «compose window» (04.09, `fn33.28.1`–`.17`) — RELEASED `fc9fa77148f6`.**
+Composer = Postiz core + stage; context review door; **posts with a context had
+failed to save since August** (`await import` never rewritten). Open: `.28.5`, `.28.18`.
 
-**Wave of 04.09, second half (`fn33.15`–`fn33.118`, 81 closed) — merged to
-`main` as `8443eedc`, RELEASED as `d782858045fa` (schema column before the
-switch, role data step after it).** Sixteen Opus streams, five walkers on the
-stand, two re-checks. Invitations land in the invited workspace with the role;
-no workspace `SUPERADMIN`, creator is `ADMIN`, last admin protected; team list
-with role change and invitation expiry; account reject/decline/delete/unblock;
-password change; second workspace; language on the account; media modal;
-**composer returned 500 since 20.08** (`.49`, `.88`); CopilotKit off the app
-shell (`.48`); 403 no longer hangs saves (`.65`); content section (`.45`–`.91`).
-Review + two control walks: `fn33.108`–`.110` fixed. Receipt `0edb16ee`.
-
-## Wave twelve — the audit of waves ten and eleven (02.09.2026)
-
-The owner asked for a full audit of «all done». Two read-only reviewers, four
-bounded workers; every guard red before green. **«All done» was not true**:
-`lh5s` was reopened and built (`tyrk`, `rrs9`, `4zef`, 03.09): §9.5 evidence
-assessments and «Подтвердить» on product-found rows, §9.4 archive as a view
-inside «Материалы», bounded email retry, `continueAsNew` on the lead check,
-Telegram binding rechecks `isSuperAdmin`. Deferred: `ni7x`, `cl19`, `th1s`;
-eleven `PrismaRepository<any>`, the archive read whole into memory. Receipt
-in `.codex/stages/content-factory-next-vme/evidence/audit-2026-09-02/`.
+**Wave of 04.09, second half (`fn33.15`–`fn33.118`) — RELEASED `d782858045fa`;
+wave twelve (02.09) audited waves ten and eleven: `lh5s` reopened and built.
 
 ## Current state
 
-**Released 03.09: the audit (`w4ij`) of `93092c84..04c7c2f3`** as
-`a4f1863f9010`, then `efafe77fe64e` with the two test fixes below. Two
-read-only reviewers, no P1. Fixed: channel removal/disable/enable ask for an
-administrator (any member could delete a channel with every post on it); a
-declined agency gets its email (`p3gq`); reconnecting a dropped channel hidden
-from a member; the two-bars question recorded once (`z0b0`); runbook records
-restored for 01.09 and `a63227c58446`; a comment can no longer be attached to
-another workspace's post (`jjvz`). **The owner delegated the two
-open questions on 03.09** («даю все разрешения») and both are decided from
-§9.5, recorded as assumptions in the map §10: the two bars stay different
-(`z0b0`); a search excerpt is quoted beside the fact form, never typed into
-the statement (`d1rx`). Deferred: `nq7e`, `za05`, `5w6u`. Receipt in
-`evidence/audit-2026-09-03/`. Before it, the 02.09 wave and everything after
-was committed and pushed; the live pass brief → search → fact → showcase was
-done on 03.09 and the unified context returned one fact with `ALLOW_GROUNDED`.
-
-Production runs **`da34f1a9e832`** (05.09.2026, owner-decisions wave); rollback
-`035029af3c18`, also on the host. Backup before the schema:
-`postgres/20260905T124600Z-pre-learnedrules-product-only`. **Public CI had been red
-for three releases unnoticed** (a migration proof anchored on a removed
-`COMMIT;`; `--setupFiles=` replacing the config list) — both fixed 03.09; the
-two extra jobs run locally before every public push since 05.09. The tag names
-a **public** commit: the image is built from the published tree, tied by a
-`Source-Commit` trailer, and the release refuses without a green receipt.
-
-Two release steps are scripts: **`switch-host-image.sh`** writes `CF_IMAGE` and
-`CONTENT_FACTORY_RELEASE` from one value and refuses if the container disagrees;
 **`retain-host-artifacts.sh`** keeps two images and three configuration copies —
 a **standing permission** since 03.09, scoped in the runbook, nothing else.
 
@@ -152,19 +151,13 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks production `da34f1a9e832`** — as EDITOR and USER in
-one workspace (view-first, refusals in Russian), the avatar screen «Чему
-научился на правках» after five real edits, word search in the archive, the
-composer's note on unverified evidence, the search panel in Russian — every
-gap to Beads first, fixes in one wave after. Then answer `2ua.1` (unverified
-search into drafts?). Still his: `c6k.16`, `or3.9`, `cxd` (GPG key), Telegram
-binding, two pending accounts.
-
-**What still waits on him, and only him.** Approving or declining the two
-pending production accounts (decline exists since `fn33`); pressing the Telegram
-binding link — until he does, nothing has ever bound. Shelved: may a domain
-owner step over `robots.txt` for his own site. The two bars are decided by
-delegation (map §10) — one line from him reverses it.
+continues the live walk from stage D on the new intake** — open «Контент →
+Бриф» (or «Из мысли» on the calendar), paste a thought, then a foreign post
+with three numbers, pick the Telegram channel, read the receipt origins and
+the «не подтверждено» facts, open the editor, run «Проверить на штампы». Every
+gap to Beads first, fixes in one wave after. Still his: `SOURCE_DIRECT_FETCH`
+on production (link input), GPG key before 16.09.2026, «Подключить Telegram»,
+`fn33.159`, `or3.9`, `fn33.132` after another paid check.
 
 ## Starter prompt for next orchestrator
 

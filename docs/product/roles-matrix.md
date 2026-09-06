@@ -112,6 +112,7 @@ if (!packageOptions) {
 | `/content-intelligence/contexts` | AI; AI, EDITOR | 2 | чтение — любой участник, сборка — редактор |
 | `/content-intelligence/evidence` | EDITOR | 1 | редактор |
 | `/content-intelligence/facts` | AI; AI, EDITOR; EDITOR | 8 | чтение — любой участник, правка — редактор |
+| `/content-intelligence/intake` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/leads` | EDITOR | 2 | редактор |
 | `/content-intelligence/leads/subscriptions` | EDITOR | 3 | редактор |
 | `/content-intelligence/materials/:id/draft` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
@@ -120,6 +121,7 @@ if (!packageOptions) {
 | `/content-intelligence/sources` | EDITOR | 6 | редактор |
 | `/content-intelligence/sources/search` | AI, EDITOR | 1 | редактор |
 | `/content-intelligence/sources/search-evidence` | AI, EDITOR | 1 | редактор |
+| `/content-intelligence/text-quality/slop-check` | EDITOR | 1 | редактор |
 | `/content-intelligence/voice` | EDITOR | 20 | редактор |
 | `/copilot` | AI; AI, EDITOR | 5 | чтение — любой участник, помощник — редактор |
 | `/integrations` | ADMIN | 9 | **администратор** — удаление и все настройки канала |
@@ -128,6 +130,7 @@ if (!packageOptions) {
 | `/integrations/provider/:id/connect` | CHANNEL | 1 | любой участник |
 | `/integrations/social-connect/:integration` | CHANNEL | 1 | обратный вызов провайдера |
 | `/integrations/social/:integration` | CHANNEL, ADMIN | 1 | **администратор** |
+| `/integrations/:id/writing-profile` | EDITOR | 2 | редактор — правила письма в канал; чтение — любой участник |
 | `/media` | EDITOR | 10 | редактор — библиотека читается всеми, добавить, сгенерировать и удалить может редактор |
 | `/posts` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/posts/:group` | EDITOR | 1 | редактор |
@@ -185,6 +188,18 @@ if (!packageOptions) {
 по той же причине, по какой пустая клетка календаря не открывает ему окно
 поста (`content-factory-next-fn33.90.4`).
 
+`/integrations/:id/writing-profile` — единственная дверь под `/integrations/…`,
+которая не админская, и это решение, а не пропуск. Граница проведена по
+имуществу: канал — общий актив, поэтому подключение, удаление, группа, язык и
+настройки площадки принадлежат администратору. Карточка «Как пишем сюда»
+настраивает не канал, а **письмо в него** — длину, эмодзи, ссылки, хэштеги, вид
+призыва, — то есть ровно ту работу, ради которой роль редактора и заведена: она
+стоит рядом с голосом бренда, а не рядом с токеном доступа. Владелец
+подтвердил это 06.09.2026 (`content-factory-next-tu3k`, пункт 5): карточку
+правят редактор и администратор. Чтение политик не несёт, как и
+`GET /integrations/:id`, — пользователь видит, по каким правилам пишут в канал,
+и изменить их не может.
+
 `/integrations/provider/:id/connect` — второй шаг того же добавления. Роли на нём
 нет и не нужно: начать подключение может только администратор, а без начала
 второму шагу нечего продолжать.
@@ -227,6 +242,14 @@ if (!packageOptions) {
 «Не надо» (`/content-intelligence/leads/:id/*`) — до 05.09.2026 были открыты
 любому участнику; теперь они тоже редакторские, потому что «взять в работу»
 заводит черновик поста, а завести его Пользователь не может.
+
+`/content-intelligence/text-quality/slop-check` — проверка написанного текста
+на ИИ-штампы (`content-factory-next-tu3k.3`, 06.09.2026). Раздела `AI` в её
+политике нет намеренно: проверка не ходит в модель и не тратит допуск, это
+чистый разбор строки, поэтому её нет ни в расходе, ни в списке дверей под
+ограничитель частоты. В базу она тоже не ходит — текст приходит в теле и никуда
+не сохраняется. Право редактора у неё по другой причине: проверяет тот, кто
+пишет, а Пользователю проверять нечего — черновика у него нет.
 
 `/webhooks` ушёл под администратора тем же решением, и это самое строгое место
 всей раскладки: вебхук — исходящий адрес, после которого всё, что пространство

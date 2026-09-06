@@ -4,6 +4,7 @@ import * as sources from '../../../../../components/content-intelligence/sources
 import * as provenance from '../../../../../components/content-intelligence/provenance.review-scene';
 import * as contentSection from '../../../../../components/content-intelligence/content-section.review-scene';
 import * as contentFacts from '../../../../../components/content-intelligence/content-facts.review-scene';
+import * as intake from '../../../../../components/content-intelligence/intake/intake.review-scene';
 import * as voiceEmpty from '../../../../../components/brand-voice/voice-empty.review-scene';
 import * as voicePaths from '../../../../../components/brand-voice/voice-paths.review-scene';
 import * as voiceSamples from '../../../../../components/brand-voice/voice-samples.review-scene';
@@ -25,6 +26,7 @@ const scenes = {
   provenance,
   'content-section': contentSection,
   'content-facts': contentFacts,
+  intake,
   'voice-empty': voiceEmpty,
   'voice-paths': voicePaths,
   'voice-samples': voiceSamples,

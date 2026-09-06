@@ -262,7 +262,7 @@ const truncateAtParagraph = (value: string, maximum: number) => {
  * The returned string is `URL`-normalized, so it is also the key both lists
  * are built on and the two lists cannot disagree about one page.
  */
-const usableHttpsUrl = (value: string | undefined) => {
+export const usableHttpsUrl = (value: string | undefined) => {
   if (!value || value.length > 2_000) return undefined;
   let parsed: URL;
   try {

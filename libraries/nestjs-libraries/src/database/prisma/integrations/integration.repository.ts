@@ -1,7 +1,7 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import dayjs from 'dayjs';
-import { Integration } from '@prisma/client';
+import { Integration, Prisma } from '@prisma/client';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { IntegrationTimeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
@@ -115,6 +115,57 @@ export class IntegrationRepository {
       select: {
         id: true,
         contentLanguage: true,
+      },
+    });
+  }
+
+  /**
+   * Карточка канала и то немногое, что нужно, чтобы её прочесть.
+   *
+   * Колонок пять, а не вся строка: в строке канала лежит токен доступа, и
+   * тащить его ради шести настроек письма — значит носить секрет туда, где он
+   * не нужен. Язык здесь потому, что от него зависят умолчания (в русском
+   * Telegram эмодзи есть, в английском нет), имя и площадка — потому, что их
+   * показывает экран.
+   */
+  getWritingProfile(org: string, id: string) {
+    return this._integration.model.integration.findFirst({
+      where: {
+        id,
+        organizationId: org,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        providerIdentifier: true,
+        contentLanguage: true,
+        writingProfile: true,
+      },
+    });
+  }
+
+  /**
+   * Сохранить карточку или вернуть канал к умолчаниям.
+   *
+   * `null` — не пустая карточка, а её отсутствие: умолчания провайдера. Это
+   * ровно то, что делает `DELETE` на той же двери.
+   */
+  updateWritingProfile(org: string, id: string, profile: unknown | null) {
+    return this._integration.model.integration.update({
+      where: {
+        id,
+        organizationId: org,
+      },
+      data: {
+        writingProfile: profile === null ? Prisma.DbNull : (profile as any),
+      },
+      select: {
+        id: true,
+        name: true,
+        providerIdentifier: true,
+        contentLanguage: true,
+        writingProfile: true,
       },
     });
   }

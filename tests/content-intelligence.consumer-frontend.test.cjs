@@ -63,6 +63,17 @@ function loadStore() {
     '@contentfactory/frontend/components/layout/set.timezone': {
       newDayjs: () => ({}),
     },
+    /*
+      `content-factory-next-tu3k.4`: разбивка NDJSON на строки уехала из
+      `store.ts` в свой модуль — тем же способом читает стрим вход одной
+      мыслью. Здесь подставляется настоящий модуль, а не заглушка: подделка
+      разбивки в наборе, который проверяет именно разбивку по кускам,
+      проверяла бы саму себя.
+    */
+    '@contentfactory/frontend/components/new-launch/ndjson':
+      loadTypeScriptModule(
+        'apps/frontend/src/components/new-launch/ndjson.ts'
+      ),
   };
   const localRequire = (request) => mocks[request] || {};
   new Function('exports', 'require', 'module', compiled)(

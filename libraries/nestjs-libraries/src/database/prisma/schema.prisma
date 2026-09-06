@@ -467,6 +467,20 @@ model Integration {
   rootInternalId        String?
   additionalSettings    String?                        @default("[]")
   contentLanguage       String                         @default("en")
+  /// Как пишут в этот канал: длина, эмодзи, ссылки, хэштеги, призыв, формат и
+  /// заметка человека. Форма — `ChannelWritingProfileV1` из
+  /// `content-intelligence/channels/channel-writing-profile.ts`.
+  ///
+  /// Здесь, а не в отдельной таблице: карточка — свойство канала, живёт и
+  /// умирает вместе с ним, и читается всегда вместе с его строкой. Лимит
+  /// знаков площадки сюда не переносится — его знает провайдер
+  /// (`maxLength`, `maxCaptionLength`), и третьего места для числа 4096 не
+  /// заводится.
+  ///
+  /// `NULL` — карточки нет, человек ничего не решал, действуют умолчания
+  /// провайдера. Это не то же самое, что сохранённая карточка с теми же
+  /// значениями: дверь «Вернуть умолчания» возвращает именно `NULL`.
+  writingProfile        Json?
   exisingPlugData       ExisingPlugData[]
   customer              Customer?                      @relation(fields: [customerId], references: [id])
   organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)

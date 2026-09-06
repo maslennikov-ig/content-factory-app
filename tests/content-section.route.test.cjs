@@ -188,7 +188,7 @@ describe('the Content screen', () => {
     expect(source('screen')).toContain('showHeader={false}');
   });
 
-  test('the Brief tab mounts the live gate rather than the review fixture', () => {
+  test('the Brief tab opens on the intake, with the manual form one press away', () => {
     render(
       withLanguage(
         'ru',
@@ -196,6 +196,43 @@ describe('the Content screen', () => {
           initialTab: 'brief',
         })
       )
+    );
+
+    /*
+      `content-factory-next-tu3k.4`, решение владельца 06.09.2026: вкладка
+      открывается входом одной мыслью, а форма из восьми полей остаётся
+      вторым видом «Вручную». Проверяется и то и другое — переключатель,
+      который щёлкает, но открывает пустоту, прошёл бы проверку только на
+      подпись.
+    */
+    const panel = screen.getByRole('tabpanel');
+    expect(panel.querySelector('[data-content-panel="intake"]')).not.toBeNull();
+
+    const switchGroup = within(panel).getByRole('radiogroup');
+    const [intakeOption, manualOption] = within(switchGroup).getAllByRole('radio');
+    expect(intakeOption.textContent).toBe('По мысли');
+    expect(manualOption.textContent).toBe('Вручную');
+    expect(intakeOption.getAttribute('aria-checked')).toBe('true');
+    // Ручная форма не смонтирована, пока её вид не выбран.
+    expect(panel.querySelector('[data-voice-brief-form="true"]')).toBeNull();
+
+    fireEvent.click(manualOption);
+    expect(panel.querySelector('[data-content-panel="intake"]')).toBeNull();
+    expect(source('screen')).toContain('IntakeContainer');
+  });
+
+  test('the manual view still mounts the live gate rather than the review fixture', () => {
+    render(
+      withLanguage(
+        'ru',
+        React.createElement(contentScreen.ContentSectionScreen, {
+          initialTab: 'brief',
+        })
+      )
+    );
+
+    fireEvent.click(
+      within(screen.getByRole('tabpanel')).getAllByRole('radio')[1]
     );
 
     // `content-factory-next-07h.4` built the screen, the gate and the radar and

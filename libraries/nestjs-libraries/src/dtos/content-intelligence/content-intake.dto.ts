@@ -1,0 +1,184 @@
+/**
+ * Что дверь входа одной мыслью принимает снаружи.
+ *
+ * `content-factory-next-tu3k.1`, форма — `IntakeRequestV1` из
+ * `voice-wiring.contract.ts`. Два поля контракта здесь намеренно отсутствуют, и
+ * оба — те, которые сервер ставит сам: организация приходит из запроса
+ * (`@GetOrgFromRequest`), а подсказки генератору (`intake`) собирает
+ * `IntakeService`. Принимать их от клиента значило бы разрешить чужому телу
+ * запроса решать, чьей памятью писать.
+ *
+ * Пределы длин повторяют контракт, а не изобретают свои: `input` ≤ 20 000
+ * знаков, ответ на вопрос ≤ 2 000, каналов от одного до трёх.
+ */
+
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
+import {
+  INTAKE_INPUT_MAX_CHARS,
+  INTAKE_MAX_CHANNELS,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
+
+/** Пять полей ворот брифа — единственные, о которых вход спрашивает. */
+export const INTAKE_BRIEF_FIELDS: BriefField[] = [
+  'thesis',
+  'facts',
+  'position',
+  'disagreement',
+  'audience',
+];
+
+/** Форматы материала из контракта. `auto` — «решай сама». */
+const INTAKE_FORMATS = [
+  'auto',
+  'opinion',
+  'announcement',
+  'list',
+  'expert',
+  'case',
+  'story',
+] as const;
+
+export class IntakeAnswerDto {
+  @IsIn(INTAKE_BRIEF_FIELDS)
+  field: BriefField;
+
+  @IsString()
+  @MaxLength(2_000)
+  text: string;
+}
+
+/**
+ * Правки квитанции перед пересборкой.
+ *
+ * Каждое поле — слово человека, и сервер обязан взять его дословно. Поэтому
+ * здесь нет ни одного `MinLength`: короткий ответ — это ответ, а не ошибка
+ * ввода, и ворота брифа сами решат, довольно ли его.
+ */
+export class IntakeBriefOverridesDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  goal?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  thesis?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  disagreement?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  audience?: string;
+
+  @IsOptional()
+  @IsIn(INTAKE_FORMATS)
+  format?: (typeof INTAKE_FORMATS)[number];
+}
+
+export class IntakeOptionsDto {
+  /** По умолчанию `true`: числа и мысль без фактов проверяются поиском. */
+  @IsOptional()
+  @IsBoolean()
+  searchEnrichment?: boolean;
+
+  /** По умолчанию `false`: проверка на ИИ-штампы только по желанию. */
+  @IsOptional()
+  @IsBoolean()
+  slopCheck?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPicture?: boolean;
+}
+
+export class IntakeDto {
+  /**
+   * Мысль, ссылка или чужой пост.
+   *
+   * Нижней границы здесь нет намеренно: слишком короткий вход — это
+   * `INTAKE_INPUT_TOO_SHORT` с человеческим предложением, а не «input must be
+   * longer than or equal to 10 characters» из проверяющего.
+   */
+  @IsString()
+  @MaxLength(INTAKE_INPUT_MAX_CHARS)
+  input: string;
+
+  /** Клиент распознаёт только ссылку; остальное решает сервер. */
+  @IsOptional()
+  @IsIn(['thought', 'link', 'foreign_post'])
+  inputKind?: 'thought' | 'link' | 'foreign_post';
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(INTAKE_MAX_CHANNELS)
+  @IsString({ each: true })
+  @MaxLength(128, { each: true })
+  integrationIds: string[];
+
+  @IsIn(['ru', 'en'])
+  language: 'ru' | 'en';
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @Type(() => IntakeAnswerDto)
+  @ValidateNested({ each: true })
+  answers?: IntakeAnswerDto[];
+
+  /** Поля, которые человек отдал модели («Реши сама»). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsIn(INTAKE_BRIEF_FIELDS, { each: true })
+  decide?: BriefField[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeBriefOverridesDto)
+  briefOverrides?: IntakeBriefOverridesDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeOptionsDto)
+  options?: IntakeOptionsDto;
+
+  /**
+   * Тем же вложенным классом, что и у генератора: выбор аватара — одно
+   * решение продукта, и второе его описание разошлось бы с первым.
+   */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GeneratorBrandProfileSelectionDto)
+  brandProfileSelection?: GeneratorBrandProfileSelectionDto;
+
+  /** Повод из «Откуда идеи», если текст пришёл оттуда. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  sourceLeadId?: string;
+}

@@ -129,6 +129,11 @@ const ROLE_BY_OPERATION: Record<string, AiRole> = {
   autopost: 'draft',
   content_classification: 'classify',
   brand_profile_assist: 'extract',
+  // Вход одной мыслью достаёт из данного текста то, что в нём уже есть:
+  // тему, угол, утверждения, поля брифа (`content-factory-next-tu3k.1`).
+  // Ни одна из двух его просьб ничего не пишет — писать будет генератор,
+  // и он платит за себя по роли `draft`.
+  intake: 'extract',
 };
 
 export const roleForOperation = (operation: string): AiRole =>

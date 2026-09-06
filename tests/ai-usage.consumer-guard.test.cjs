@@ -10,6 +10,9 @@ const consumers = [
   'libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts',
   'libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts',
   'libraries/nestjs-libraries/src/chat/load.tools.service.ts',
+  // Вход одной мыслью: два разбора на один вход, своя операция `intake`
+  // (`content-factory-next-tu3k.1`).
+  'libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts',
 ];
 
 test('every direct AI consumer is behind the explicit operation seam', () => {

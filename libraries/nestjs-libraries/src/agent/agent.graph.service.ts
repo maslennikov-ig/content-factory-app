@@ -61,6 +61,24 @@ import {
   type DraftVoiceJudge,
   type DraftVoiceJudgePort,
 } from '@contentfactory/nestjs-libraries/agent/draft-pick';
+import {
+  channelCtaLine,
+  channelInstructionLines,
+} from '@contentfactory/nestjs-libraries/agent/channel-directives';
+import type {
+  GeneratorRunInput,
+  IntakeGenerationHintsV1,
+} from '@contentfactory/nestjs-libraries/agent/generator-run-input';
+/**
+ * Антикопия — общий счёт волны «вход одной мыслью»: восемь слов подряд из
+ * чужого материала считаются копией. Живёт в `text-quality/anti-copy.ts`
+ * (поток S3), граф лишь спрашивает у него, что совпало.
+ */
+import {
+  ANTI_COPY_MIN_WORDS,
+  sharedRuns,
+} from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy';
+import type { AntiCopyReportV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 interface WorkflowChannelsState {
   messages: BaseMessage[];
@@ -133,6 +151,32 @@ interface WorkflowChannelsState {
    * нечего».
    */
   draftGaps?: DraftGap[];
+  /**
+   * Что вход одной мыслью успел понять про эту генерацию.
+   *
+   * Необязательно и приходит только из сервера входа: `POST /posts/generator`
+   * передаёт обычный DTO, и без подсказок каждая строка промпта та же, что
+   * была (`content-factory-next-tu3k.2`). Здесь лежит бриф, разобранный чужой
+   * пост и канал вместе с его карточкой письма.
+   */
+  intake?: IntakeGenerationHintsV1;
+  /**
+   * Обычай канала, сказанный строками промпта.
+   *
+   * Считается один раз в `start()`, а не в узле: строк семь-двенадцать, они не
+   * зависят ни от чего, что меняется по ходу графа, а узлов, которые их
+   * читают, три — хук, контент и повторная вставка голоса в треде.
+   */
+  channelLines?: string[];
+  /**
+   * Куски чужого текста, с которыми сверяется черновик.
+   *
+   * В промпт не идут: решение владельца 06.09.2026 (пункт 3) — тему, угол и
+   * строение берём, слова нет. Читаются после черновика.
+   */
+  foreignShingles?: string[];
+  /** Чем кончилась сверка с чужим текстом. `undefined` — сверять было не с чем. */
+  antiCopy?: AntiCopyReportV1;
 }
 
 const category = z.object({
@@ -220,12 +264,74 @@ const effectiveVoiceOf = (state: WorkflowChannelsState) =>
 
 const voiceDirectives = (state: WorkflowChannelsState) => {
   const voice = effectiveVoiceOf(state);
-  const lines = voice ? voiceInstructionLines(voice) : [];
-  const chosen = lines.length
-    ? lines
-    : toneFallbackLines(state.tone || 'personal');
+  const channel = state.channelLines ?? [];
+  /**
+   * Что откат к тону включает — по-прежнему один только голос.
+   *
+   * Строки канала спрашиваются отдельно и вторым аргументом: спроси их вместе
+   * с голосом, и пустой голос с непустой карточкой перестал бы считаться
+   * пустым — область без разбора голоса молча потеряла бы унаследованные
+   * строки тона.
+   */
+  const speaks = voice ? voiceInstructionLines(voice).length > 0 : false;
+  const chosen = speaks
+    ? voiceInstructionLines(voice as EffectiveVoice, channel)
+    : toneFallbackLines(state.tone || 'personal', channel);
   return chosen.map((line) => `- ${line}`).join('\n        ');
 };
+
+/**
+ * Бриф автора — как значение шаблона, а не как кусок промпта.
+ *
+ * Внутри — слова человека и предположения модели о нём: одна фигурная скобка в
+ * тезисе, попади она в текст шаблона, была бы прочитана как место для
+ * подстановки и уронила бы генерацию. Ровно та же причина, по которой значением
+ * идёт голос.
+ *
+ * Пустая строка, когда подсказок нет, — и промпт тогда читается ровно как до
+ * волны `tu3k`.
+ */
+const briefBlock = (state: WorkflowChannelsState): string => {
+  const brief = state.intake?.brief;
+  if (!brief) return '';
+  return [
+    'Brief (from the author, follow it):',
+    `- Claim: ${brief.thesis ?? ''}`,
+    `- The author's position: ${brief.position ?? ''}`,
+    `- Who would disagree and why: ${brief.disagreement ?? ''}`,
+    `- Written for: ${brief.audience ?? ''}`,
+    ...(brief.goal ? [`- What the post has to do: ${brief.goal}`] : []),
+  ].join('\n        ');
+};
+
+/**
+ * Унаследованный запрет хэштегов — и канал, который вправе его отменить.
+ *
+ * «Don't add any hashtags» стоял в промпте всегда и всем. Для Telegram это
+ * верно, для канала, где хэштеги — способ навигации, нет; решает карточка.
+ * Без подсказок строка остаётся на месте слово в слово.
+ */
+const hashtagInstruction = (state: WorkflowChannelsState): string => {
+  const policy = state.intake?.channel.writingProfile.hashtagPolicy;
+  return policy && policy !== 'none' ? '' : "- Don't add any hashtags";
+};
+
+/**
+ * Призыв к действию: обычай канала вместо унаследованного «попробуй что-нибудь».
+ */
+const ctaInstruction = (state: WorkflowChannelsState): string => {
+  const profile = state.intake?.channel.writingProfile;
+  return profile
+    ? channelCtaLine(profile.ctaKind)
+    : 'Try to put some call to action at the end of the post';
+};
+
+/** Текст черновика одной строкой — то, что антикопия сравнивает с источником. */
+const draftContentText = (content: any): string =>
+  (Array.isArray(content) ? content : [content])
+    .map((item) => (typeof item?.content === 'string' ? item.content : ''))
+    .filter(Boolean)
+    .join('\n\n');
 
 /**
  * The long-form length instruction, or the author's own range instead of it.
@@ -420,6 +526,21 @@ export class AgentGraphService {
          */
         draftCandidates: null,
         draftPick: null,
+        /**
+         * Объявлены все четыре, и `draftGaps` вместе с ними.
+         *
+         * Ключ, которого нет среди каналов, LangGraph молча выбрасывает из
+         * состояния — проверено на `@langchain/langgraph` 1.2.8: узел вернул
+         * лишнее поле, `invoke` отдал состояние без него. Поэтому `draftGaps`,
+         * который узел возвращает с 05.09.2026, до потока `values` не доходил
+         * вовсе, и экран генератора читал `load.draftGaps` всегда пустым.
+         * Строка ниже — то же исправление, что и объявление новых каналов.
+         */
+        draftGaps: null,
+        intake: null,
+        channelLines: null,
+        foreignShingles: null,
+        antiCopy: null,
       },
     });
 
@@ -627,7 +748,7 @@ export class AgentGraphService {
         - ${contentLanguageInstruction(state.language)}
         - Make sure you add "\n" between the lines
         - Don't take the hook from "request of the user"
-
+        {brief}
         <!-- BEGIN request of the user -->
         {request}
         <!-- END request of the user -->
@@ -645,6 +766,7 @@ export class AgentGraphService {
       .pipe(structuredOutput)
       .invoke({
         voice: voiceDirectives(state),
+        brief: briefBlock(state),
         request: state.messages[0].content,
         hooks: state.popularPosts!.map((p) => p.hook).join('\n'),
         text: this.researchText(state),
@@ -669,7 +791,7 @@ export class AgentGraphService {
     const promptTemplate = ChatPromptTemplate.fromTemplate(
       `
         You are an assistant that gets existing hook of a social media, content and generate only the content.
-        - Don't add any hashtags
+        ${hashtagInstruction(state)}
         {voice}
         - ${
           state.format === 'one_short' || state.format === 'thread_short'
@@ -701,10 +823,10 @@ export class AgentGraphService {
             ? '- The hook may already state the strongest fact from the material below — do not reopen the post with that same fact in other words; start from what it means or what to do about it'
             : ''
         }
-        - Try to put some call to action at the end of the post
+        - ${ctaInstruction(state)}
         - Make sure you add "\n" between the lines
         - Add "\n" after every "."
-
+        {brief}
         Hook:
         {hook}
 
@@ -742,6 +864,7 @@ export class AgentGraphService {
     const attempt = async (repairHint: string) => {
       const { content: outputContent } = await promptTemplate.invoke({
         voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
+        brief: briefBlock(state),
         hook: state.hook,
         request: state.messages[0].content,
         information: this.researchText(state),
@@ -771,8 +894,72 @@ export class AgentGraphService {
       );
     }
 
-    const content = await this.trimToAuthorLength(state, normalized);
-    return { content, draftGaps: this.gapsIn(state, content) };
+    const checked = await this.repairForeignCopy(state, normalized, attempt);
+    const content = await this.trimToAuthorLength(state, checked.content);
+    return {
+      content,
+      draftGaps: this.gapsIn(state, content),
+      ...(checked.report ? { antiCopy: checked.report } : {}),
+    };
+  }
+
+  /**
+   * Восемь слов подряд из чужого поста — и одна попытка сказать это иначе.
+   *
+   * Решение владельца 06.09.2026 (пункт 3): тему, угол и строение чужого текста
+   * брать можно, слова — нет. Проверка арифметическая и стоит ноль; повторная
+   * генерация стоит один вызов, и она одна — та же форма, что у починки
+   * ссылок выше, и по той же причине: просить второй раз теми же словами
+   * бессмысленно, а третий раз платить не за что.
+   *
+   * Второй черновик берётся даже если совпадение осталось. Это находка, а не
+   * отказ: пост, похожий на источник, лучше отсутствия поста, а квитанция
+   * (`antiCopy`) всё равно скажет, что нашлось и помогла ли попытка.
+   *
+   * Стоит между разбором ответа и подрезкой длины: сравнивать надо тот текст,
+   * который написала модель, а не тот, который после подрезки написала другая.
+   */
+  private async repairForeignCopy(
+    state: WorkflowChannelsState,
+    normalized: any,
+    attempt: (repairHint: string) => Promise<any>
+  ): Promise<{ content: any; report: AntiCopyReportV1 | null }> {
+    const shingles = state.foreignShingles;
+    if (!shingles?.length) return { content: normalized, report: null };
+
+    const runs = sharedRuns(draftContentText(normalized), shingles);
+    if (!runs.length) {
+      return {
+        content: normalized,
+        report: {
+          minWords: ANTI_COPY_MIN_WORDS,
+          runs: [],
+          retried: false,
+          clean: true,
+        },
+      };
+    }
+
+    // Три отрезка, а не все: подсказка должна помещаться в внимание модели, а
+    // четвёртое совпадение обычно из той же переписанной фразы.
+    const quoted = runs
+      .slice(0, 3)
+      .map((run) => `«${run.text}»`)
+      .join('; ');
+    const second = await attempt(
+      `REWRITE REQUIRED: these word sequences repeat the source post verbatim: ${quoted}. ` +
+        'Keep the meaning, say it in your own words.'
+    );
+    const left = sharedRuns(draftContentText(second), shingles);
+    return {
+      content: second,
+      report: {
+        minWords: ANTI_COPY_MIN_WORDS,
+        runs: left,
+        retried: true,
+        clean: left.length === 0,
+      },
+    };
   }
 
   /**
@@ -1237,7 +1424,16 @@ export class AgentGraphService {
     return evidenceIds;
   }
 
-  async *start(orgId: string, body: GeneratorDto) {
+  /**
+   * Генерация одного поста — и то немногое, что о ней может знать вход.
+   *
+   * `body.intake` необязателен и приходит только изнутри продукта: снаружи, на
+   * `POST /posts/generator`, живёт всё тот же `GeneratorDto`, и подсказок в нём
+   * нет. Без них ни одна строка промпта не меняется
+   * (`content-factory-next-tu3k.2`).
+   */
+  async *start(orgId: string, body: GeneratorRunInput) {
+    const hints = body.intake;
     const explicitMaterial = [
       body.sourceIds,
       body.factIds,
@@ -1253,6 +1449,10 @@ export class AgentGraphService {
         purpose: 'DRAFT_CREATE',
         query: body.research,
         language: body.language,
+        // Площадка называется строителю и разрешителю голоса только когда она
+        // известна: `PlatformVoiceOverrideV1` применяется по имени провайдера,
+        // и без него профиль области отвечает как отвечал.
+        ...(hints ? { provider: hints.channel.providerIdentifier } : {}),
         freshnessMode: body.freshnessMode || 'PREFER_FRESH',
         brandProfileSelection:
           body.brandProfileSelection?.mode === 'version' &&
@@ -1303,10 +1503,14 @@ export class AgentGraphService {
     let resolvedBrandProfile: ResolvedBrandProfileContextV1 | undefined;
     if (contentContext.profile.mode === 'resolved') {
       try {
-        resolvedBrandProfile = await this.brandProfileContexts.resolve(orgId, {
-          mode: 'version',
-          versionId: contentContext.profile.versionId,
-        });
+        resolvedBrandProfile = await this.brandProfileContexts.resolve(
+          orgId,
+          {
+            mode: 'version',
+            versionId: contentContext.profile.versionId,
+          },
+          hints?.channel.providerIdentifier
+        );
       } catch {
         yield {
           name: 'error',
@@ -1320,6 +1524,34 @@ export class AgentGraphService {
     const provenance = this.provenance(contentContext);
     yield { name: 'content-context', data: { output: provenance } } as any;
     const draftJudge = await this.judgeFor(orgId, provenance.brandProfileVersionId);
+    /**
+     * Обычай канала — один раз на генерацию.
+     *
+     * Строки не зависят ни от чего, что меняется по ходу графа, а читают их три
+     * узла; считать их в узле значило бы собирать один и тот же список на
+     * каждой попытке черновика.
+     *
+     * Имя площадки берётся из её идентификатора с заглавной буквы: подсказки
+     * несут `providerIdentifier`, а показывать модели «You are writing for
+     * telegram» — значит учить её писать имя площадки со строчной.
+     */
+    const channelLines = hints
+      ? channelInstructionLines(
+          hints.channel.writingProfile,
+          {
+            name: hints.channel.providerIdentifier.replace(/^./, (first) =>
+              first.toUpperCase()
+            ),
+            maxLength: hints.channel.maxLength,
+            maxCaptionLength: hints.channel.maxCaptionLength,
+            editor: hints.channel.editor,
+          },
+          {
+            withPicture: body.isPicture,
+            foreignShingles: hints.foreignShingles,
+          }
+        )
+      : undefined;
     const state = AgentGraphService.state();
     const workflow = state
       .addNode('research', this.research.bind(this))
@@ -1375,6 +1607,9 @@ export class AgentGraphService {
           draftJudge,
           draftPickEnabled: this.draftPick,
           contextText: this.renderContext(contentContext),
+          intake: hints,
+          channelLines,
+          foreignShingles: hints?.foreignShingles ?? undefined,
           ...provenance,
         },
         {
