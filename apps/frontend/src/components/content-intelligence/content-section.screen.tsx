@@ -404,11 +404,21 @@ export function ContentSectionScreen({
         </div>
       ) : tab === 'materials' ? (
         <div className="flex min-w-0 flex-col gap-[16px]">
-          <MaterialsViewSwitch
-            locale={locale}
-            view={materialsView}
-            onChange={setMaterialsView}
-          />
+          {/*
+            Полоса и подпись рядом: «Что уже написали» — не второй список
+            того же, а источник ссылок на прошлые тексты, и без этой строки
+            вкладка выглядела двумя видами одного и того же.
+          */}
+          <div className="flex min-w-0 flex-wrap items-center gap-[16px]">
+            <MaterialsViewSwitch
+              locale={locale}
+              view={materialsView}
+              onChange={setMaterialsView}
+            />
+            <span className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              {contentSectionCopy[locale].materialsViewHint}
+            </span>
+          </div>
           {materialsView === 'materials' ? (
             // «Заготовки» (`content-factory-next-tu3k.9`, 06.09.2026): таблица
             // заготовок по колонке на площадку. Она заменила витрину «На что

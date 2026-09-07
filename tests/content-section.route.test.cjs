@@ -110,10 +110,13 @@ describe('content lives in the working menu', () => {
     const paths = workMenu.map((item) => item.path);
 
     expect(paths).toContain('/content');
-    // Second, right after the calendar. The mockup puts it there and the
-    // reason is not decoration: it is the section the calendar sends people to.
-    expect(paths.indexOf('/content')).toBe(1);
-    expect(workMenu[1].name).toBe('Content');
+    // Right after the calendar. The mockup puts it there and the reason is not
+    // decoration: it is the section the calendar sends people to. Стоящий
+    // выше «С чего начать» (07.09.2026) — временная строка, она пропадает,
+    // когда все шесть шагов пройдены, поэтому проверяется соседство с
+    // календарём, а не место в списке.
+    expect(paths.indexOf('/content')).toBe(paths.indexOf('/launches') + 1);
+    expect(workMenu[paths.indexOf('/content')].name).toBe('Content');
   });
 
   test('the entry is in the working menu, not the administrative one', () => {
@@ -156,11 +159,15 @@ describe('the Content screen', () => {
   // and renamed it «Заготовки»: the list of pieces is where the work starts.
   // The key stayed `materials`, so every address and every `initialTab`
   // survived the rename.
+  // `content-factory-next-m2eg` (07.09.2026) relabelled «Бриф» to «Новая
+  // заготовка» for the same reason and by the same rule: behind it stands the
+  // one-thought intake, which makes a piece — the eight-field form it was
+  // named after is not what opens there. The key stayed `brief`.
   test.each([
-    ['en', ['Pieces', 'Avatars', 'Ideas', 'Brief', 'Facts']],
+    ['en', ['Pieces', 'Avatars', 'Ideas', 'New piece', 'Facts']],
     [
       'ru',
-      ['Заготовки', 'Аватары', 'Откуда идеи', 'Бриф', 'Откуда факты'],
+      ['Заготовки', 'Аватары', 'Откуда идеи', 'Новая заготовка', 'Откуда факты'],
     ],
   ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
@@ -370,7 +377,7 @@ describe('the Content screen', () => {
       )
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Бриф' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Новая заготовка' }));
     expect(dom.window.location.search).toBe('?tab=brief');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Откуда идеи' }));

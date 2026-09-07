@@ -515,6 +515,30 @@ const RULES = [
     allowed: [],
     fix: 'use the `cf-control-h` token',
   },
+  /**
+   * The arbitrary breakpoint that generates nothing.
+   *
+   * Tailwind 3.4 refuses the `min-*` and `max-*` variants outright when
+   * `screens` holds an object with `raw` — `tailwind.config.cjs` holds six of
+   * them — and refuses them by writing `complex-screen-config` into the build
+   * log and emitting no rule at all. Nothing is red: the class sits in the
+   * markup, the CSS never contains it, and the element keeps whichever
+   * unprefixed display it was given.
+   *
+   * That is not a hypothetical. `min-[720px]:hidden` / `min-[720px]:block`
+   * shipped on the pieces table, and the table never rendered once in
+   * production — the cards below the breakpoint were all anybody ever saw.
+   * A named screen (`table: '720px'`) is an ordinary breakpoint and is
+   * unaffected, so the allowance here is empty: there is no such class left,
+   * and a new one is a silently dead rule rather than a style debt.
+   */
+  {
+    name: 'arbitrary breakpoint variant Tailwind does not generate',
+    pattern: '(min|max)-\\[[^]]+\\]:',
+    allowed: [],
+    roots: ['apps/frontend/src', 'libraries'],
+    fix: 'add a named screen in `tailwind.config.cjs` and use its variant',
+  },
 ];
 
 const GEOMETRY_ALLOWLIST_PATH = path.join(

@@ -244,9 +244,14 @@ export class ContentBriefRepository {
    * куда-нибудь адаптировали. «Только заготовка, без каналов» — обычный исход
    * этой волны, а не полстроки.
    *
-   * Отказ записи возвращается как `null`, а не бросается: суть уже написана и
-   * черновики уже будут, и терять их из-за неудачной строки в библиотеке
-   * человеку незачем.
+   * Отказ записи **бросается**, и это изменение волны
+   * `content-factory-next-m2eg`. До неё он возвращался как `null`: суть уже
+   * написана, черновики уже будут, и терять их из-за неудачной строки казалось
+   * лишним. Живой прогон 07.09.2026 показал цену такой любезности — заготовки
+   * нет, стрим идёт дальше как ни в чём не бывало, и человеку об этом не
+   * говорят вовсе. Теперь весь раздел стоит на том, что заготовка записана
+   * первой, поэтому её отсутствие — это отказ с кодом `PIECE_NOT_SAVED`, а не
+   * тишина.
    */
   async recordCore(
     organizationId: string,
@@ -261,37 +266,67 @@ export class ContentBriefRepository {
       brandProfileVersionId?: string | null;
       contentContextSnapshotId?: string | null;
     }
-  ): Promise<{ id: string; code: string } | null> {
-    try {
-      const piece = await this.client().contentPiece.create({
-        data: {
-          organizationId,
-          kind: 'CORE',
-          title: input.title,
-          body: input.body,
-          brief: input.brief as any,
-          language: input.language,
-          createdByUserId: input.createdByUserId,
-          brandProfileVersionId: input.brandProfileVersionId ?? null,
-          contentContextSnapshotId: input.contentContextSnapshotId ?? null,
-        },
-        select: { id: true, createdAt: true },
-      });
-      if (!piece?.id) return null;
-      /*
-        Код возвращается вместе с идентификатором, потому что стрим обещает
-        человеку строку «Заготовка сохранена — cnt-NN» сразу (§11.3 карты
-        раздела), а код — это место строки в списке области. Только что
-        созданная стоит последней, поэтому её место — это число уже
-        существующих минус одна. Счёт, а не выборка: тела остальных заготовок
-        ради одного числа никому не нужны.
-      */
-      const total = await this.client().contentPiece.count({
-        where: { organizationId },
-      });
-      return { id: piece.id, code: materialCode(Math.max(0, total - 1)) };
-    } catch {
-      return null;
+  ): Promise<{ id: string; code: string }> {
+    const piece = await this.client().contentPiece.create({
+      data: {
+        organizationId,
+        kind: 'CORE',
+        title: input.title,
+        body: input.body,
+        brief: input.brief as any,
+        language: input.language,
+        createdByUserId: input.createdByUserId,
+        brandProfileVersionId: input.brandProfileVersionId ?? null,
+        contentContextSnapshotId: input.contentContextSnapshotId ?? null,
+      },
+      select: { id: true, createdAt: true },
+    });
+    if (!piece?.id) {
+      throw new Error('The piece was written but the library kept no row');
+    }
+    /*
+      Код возвращается вместе с идентификатором, потому что стрим обещает
+      человеку строку «Заготовка сохранена — cnt-NN» сразу (§11.3 карты
+      раздела), а код — это место строки в списке области. Только что
+      созданная стоит последней, поэтому её место — это число уже
+      существующих минус одна. Счёт, а не выборка: тела остальных заготовок
+      ради одного числа никому не нужны.
+    */
+    const total = await this.client().contentPiece.count({
+      where: { organizationId },
+    });
+    return { id: piece.id, code: materialCode(Math.max(0, total - 1)) };
+  }
+
+  /**
+   * Переписанная суть и её бриф — той же строкой, что и была.
+   *
+   * `content-factory-next-m2eg`: человек ответил на открытые вопросы, суть
+   * переписана, и версии здесь нет намеренно. Заготовка — это то, о чём
+   * человек хочет рассказать, а не журнал того, как он это формулировал;
+   * происхождение вышедшего текста хранит адаптация, и её ответ этот метод не
+   * трогает вовсе.
+   *
+   * `updateMany` вместо `update` ровно ради `organizationId` в `where`: у
+   * `update` условие обязано быть уникальным ключом, и запись в чужую область
+   * отличалась бы от этой одной строкой.
+   */
+  async updateCore(
+    organizationId: string,
+    pieceId: string,
+    input: {
+      /** Нейтральная суть простым текстом. */
+      body: string;
+      /** `ZagotovkaCoreV1` без `text`. */
+      brief: unknown;
+    }
+  ): Promise<void> {
+    const written = await this.client().contentPiece.updateMany({
+      where: { organizationId, id: pieceId },
+      data: { body: input.body, brief: input.brief as any },
+    });
+    if (!written?.count) {
+      throw new Error('The rewritten core matched no piece of this workspace');
     }
   }
 

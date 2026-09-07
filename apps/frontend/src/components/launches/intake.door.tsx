@@ -11,6 +11,7 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { IntakeContainer } from '@contentfactory/frontend/components/content-intelligence/intake/intake.container';
+import { railPairClass } from '@contentfactory/frontend/components/launches/channel-rail';
 
 /**
  * Первая из двух дверей во вход одной мыслью — рядом с «Чистым листом».
@@ -69,6 +70,13 @@ export function IntakeDoor({ collapsed = false }: { collapsed?: boolean }) {
     литералами и мимо всех остальных языков.
   */
   const label = t('intake_door', 'New piece');
+  /*
+    Развёрнутая рейка даёт кнопке половину строки — 110px, и «Новая заготовка»
+    туда не помещается ни на одном языке (`content-factory-next-tu3k.13`).
+    Короткая подпись называет ту же вещь одним словом; полное имя остаётся
+    именем двери для чтения с экрана.
+  */
+  const shortLabel = t('intake_door_short', 'Piece');
 
   const open = useCallback(() => {
     modal.openModal({
@@ -97,10 +105,16 @@ export function IntakeDoor({ collapsed = false }: { collapsed?: boolean }) {
       variant="secondary"
       data-intake-door="calendar"
       iconOnly={collapsed}
-      aria-label={label}
+      density="standard"
+      aria-label={collapsed ? label : shortLabel}
+      className={railPairClass(collapsed)}
       onClick={open}
     >
-      {collapsed ? <IntakeMark /> : label}
+      {collapsed ? (
+        <IntakeMark />
+      ) : (
+        <span className="truncate">{shortLabel}</span>
+      )}
     </Button>
   );
 }

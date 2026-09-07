@@ -121,11 +121,12 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/sources` | EDITOR | 6 | редактор |
 | `/content-intelligence/sources/search` | AI, EDITOR | 1 | редактор |
 | `/content-intelligence/sources/search-evidence` | AI, EDITOR | 1 | редактор |
 | `/content-intelligence/text-quality/slop-check` | EDITOR | 1 | редактор |
-| `/content-intelligence/voice` | EDITOR | 20 | редактор |
+| `/content-intelligence/voice` | EDITOR | 21 | редактор |
 | `/copilot` | AI; AI, EDITOR | 5 | чтение — любой участник, помощник — редактор |
 | `/integrations` | ADMIN | 9 | **администратор** — удаление и все настройки канала |
 | `/integrations/disable` | ADMIN | 1 | **администратор** |

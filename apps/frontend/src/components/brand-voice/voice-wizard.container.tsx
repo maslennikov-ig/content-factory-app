@@ -13,6 +13,7 @@ import type {
   VoicePathKeyV1,
   VoiceScreenStateV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { createNdjsonSplitter } from '../new-launch/ndjson';
 import { VoiceEmptyScreen } from './voice-empty.screen';
 import { VoicePathsScreen } from './voice-paths.screen';
 import { VoiceSamplesScreen, type SampleOriginLabel } from './voice-samples.screen';
@@ -20,18 +21,19 @@ import { VoiceAnalysisScreen } from './voice-analysis.screen';
 import { VoiceProposalScreen, type ProposalFieldKey } from './voice-proposal.screen';
 import type { VoiceLocale } from './voice-copy';
 import {
-  ANALYSIS_POLL_MS,
-  ANALYSIS_TIMEOUT_MS,
+  ANALYSIS_PROGRESS_START,
+  ANALYSIS_SILENCE_MS,
   VOICE_ROUTES,
+  advanceAnalysis,
   buildFilePayload,
   buildIntakePayload,
   chooseFiles,
   emptyIntake,
   intakeNotice,
-  pause,
   pickedRefusalNote,
   proposalRoutesFor,
   readAnalysis,
+  readAnalysisEvent,
   readOverview,
   readPaths,
   readProposal,
@@ -40,6 +42,7 @@ import {
   voiceFailureFrom,
   voiceHttpError,
   wizardCopy,
+  type AnalysisProgress,
   type AnalysisReading,
   type IntakeDraft,
   type VoiceFailure,
@@ -113,8 +116,9 @@ export function VoiceWizardContainer({
   const [upload, setUpload] = useState<{
     phase: 'idle' | 'chosen' | 'sending';
     files: File[];
+    origin: SampleOriginLabel;
     refused: { name: string; note: string }[];
-  }>({ phase: 'idle', files: [], refused: [] });
+  }>({ phase: 'idle', files: [], origin: 'FILE', refused: [] });
   const [fileRights, setFileRights] = useState({
     confirmed: false,
     retentionUntil: '',
@@ -124,7 +128,7 @@ export function VoiceWizardContainer({
   >(null);
   const [notice, setNotice] = useState<SurfaceNotice | null>(null);
   const [analysing, setAnalysing] = useState(false);
-  const [progress, setProgress] = useState<AnalysisReading | null>(null);
+  const [progress, setProgress] = useState<AnalysisProgress | null>(null);
   const [analysisResult, setAnalysisResult] = useState<
     Extract<AnalysisReading, { outcome: 'ready' }> | null
   >(null);
@@ -247,52 +251,88 @@ export function VoiceWizardContainer({
   );
 
   /**
-   * The analysis, with an end.
+   * The analysis, read line by line, with an end.
    *
-   * Three things give it one. The abort cuts a request that never answers, so
-   * the spinner cannot outlive it. The run counter drops an answer that
-   * arrives after the person moved on, instead of dragging them back. And
-   * `pending` is followed rather than parked: the deterministic pass finishes
-   * in the POST, the agent pass may not, and a step that stopped reading at
-   * the first `pending` would leave a finished analysis unshown.
+   * The run is a stream now (`content-factory-next-m2eg.15`): the server was
+   * making up to twenty-eight model calls inside one request, which nothing
+   * between the browser and it will hold open — the owner's 88-sample corpus
+   * came back as a 504 from the ingress, sixty seconds in. A response that
+   * starts immediately and arrives as lines has no such ceiling, and it
+   * carries what is happening instead of a bar drawn from nothing.
+   *
+   * Three things still give the run an end. The abort cuts a stream that went
+   * silent, so the spinner cannot outlive it. The run counter drops lines that
+   * arrive after the person moved on. And a stream that stops without `done`
+   * is a refusal — followed by the same read-back that recovers what the
+   * server already saved.
    */
   const runAnalysis = useCallback(async () => {
     const run = ++analysisRun.current;
     const controller = new AbortController();
     analysisAbort.current = controller;
-    const timer = setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS);
+    // Считается тишина между строками, а не длительность хода: ход честно
+    // идёт минуты, а вот молчащий поток нужно обрывать.
+    let timer = setTimeout(() => controller.abort(), ANALYSIS_SILENCE_MS);
+    const heard = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), ANALYSIS_SILENCE_MS);
+    };
     setFailure(null);
     setNotice(null);
     setShortfall(null);
-    setProgress(null);
+    setProgress(ANALYSIS_PROGRESS_START);
     setAnalysisResult(null);
     setAnalysing(true);
     setStep('analysis');
     try {
-      let result = readAnalysis(
-        await read(VOICE_ROUTES.analysis, {
-          method: 'POST',
-          body: JSON.stringify({ language: locale, withAssist: true }),
-          signal: controller.signal,
-        })
-      );
-      let asked = 0;
-      while (result.outcome === 'pending' && !controller.signal.aborted) {
-        if (run !== analysisRun.current) return;
-        setProgress(result);
-        // The first re-read is immediate — the server has just said it is
-        // working — and every one after it waits, so a long run is followed
-        // rather than hammered.
-        if (asked > 0) await pause(ANALYSIS_POLL_MS, controller.signal);
-        asked += 1;
-        result = readAnalysis(
-          await read(VOICE_ROUTES.analysis, { signal: controller.signal })
+      const response = await request(VOICE_ROUTES.analysisStream, {
+        method: 'POST',
+        body: JSON.stringify({ language: locale, withAssist: true }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw await voiceHttpError(response);
+      if (!response.body) throw new Error('voice analysis stream had no body');
+
+      let result: ReturnType<typeof readAnalysis> | null = null;
+      let refusal: { code: string | null; message: string } | null = null;
+      const splitter = createNdjsonSplitter((line) => {
+        const event = readAnalysisEvent(line);
+        if (!event) return;
+        heard();
+        if (event.name === 'done') {
+          result = event.analysis;
+          return;
+        }
+        if (event.name === 'error') {
+          refusal = event;
+          return;
+        }
+        setProgress((current) =>
+          advanceAnalysis(current ?? ANALYSIS_PROGRESS_START, event)
         );
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        splitter.push(decoder.decode(value, { stream: true }));
       }
+      splitter.finish();
+
       if (run !== analysisRun.current) return;
+      // Отказ последней строкой — это отказ сервера, и он идёт тем же путём,
+      // что и обычный: с кодом, по которому экран выбирает состояние.
+      if (refusal) throw refusal;
+      if (!result) {
+        // Поток кончился, не сказав ни `done`, ни `error`: причина здешняя,
+        // и она идёт тем же путём отказа, что и любая другая.
+        throw new Error('voice analysis was cut off');
+      }
       if (result.outcome === 'pending') {
-        // Aborted mid-flight: the reason is the wizard's own, not the
-        // server's, and it goes through the same refusal path as any other.
+        // `done` со словом «ещё считается» — это ход, который кончился, не
+        // кончив: строка терминальная, а результата в ней нет.
         throw new Error('voice analysis was cut off');
       }
       if (result.outcome === 'insufficient') {
@@ -334,7 +374,7 @@ export function VoiceWizardContainer({
         setProgress(null);
       }
     }
-  }, [fail, locale, read]);
+  }, [fail, locale, read, request]);
 
   /** Stopping mid-run: the request is cut, and the corpus step is where it left off. */
   const stopAnalysis = useCallback(() => {
@@ -368,13 +408,16 @@ export function VoiceWizardContainer({
 
   /** What the browser will send, and what it refused before sending. */
   const pickFiles = useCallback(
-    (files: readonly File[]) => {
+    (files: readonly File[], origin: SampleOriginLabel = 'FILE') => {
       const { picked, refused } = chooseFiles(files);
       setFailure(null);
       setNotice(null);
       setUpload({
         phase: picked.length ? 'chosen' : 'idle',
         files: picked,
+        // Откуда выбрали, чтобы список выбранного встал под той карточкой, в
+        // которой человек нажал кнопку, а не под обеими сразу.
+        origin,
         refused: refused.map((one) => ({
           name: one.name,
           note: pickedRefusalNote(one, locale),
@@ -408,7 +451,7 @@ export function VoiceWizardContainer({
         ),
       });
       setFailure(null);
-      setUpload({ phase: 'idle', files: [], refused: [] });
+      setUpload({ phase: 'idle', files: [], origin: 'FILE', refused: [] });
       // A partial refusal is the ordinary case, not a failure: what was read
       // is counted, and what was not is named with the reason and the file.
       setNotice({
@@ -590,7 +633,10 @@ export function VoiceWizardContainer({
     ? analysisFailure.screenState
     : analysisResult
     ? 'success'
-    : analysing && progress === null
+    : // Идёт — значит идёт. Раньше это состояние держалось только до первой
+      // доли прогресса, потому что доля приходила одна на весь ход; теперь
+      // строки идут всю дорогу, и шаг остаётся `loading`, пока они идут.
+      analysing
     ? 'loading'
     : !canManage
     ? 'restricted'
@@ -692,6 +738,7 @@ export function VoiceWizardContainer({
                 name: file.name,
                 size: file.size,
               })),
+              origin: upload.origin,
               ...(upload.refused.length ? { refused: upload.refused } : {}),
               // Somebody else's writing costs the same two promises whether it
               // was pasted or uploaded, and they are asked in the card the
@@ -707,10 +754,10 @@ export function VoiceWizardContainer({
             }}
             notice={samplesFailure?.message ?? noticeOn('samples') ?? samples.notice}
             onAdd={(origin: SampleOriginLabel) => setIntake(emptyIntake(origin))}
-            onPickFiles={pickFiles}
+            onPickFiles={(files, origin) => pickFiles(files, origin)}
             onSendFiles={() => void sendFiles()}
             onClearFiles={() =>
-              setUpload({ phase: 'idle', files: [], refused: [] })
+              setUpload({ phase: 'idle', files: [], origin: 'FILE', refused: [] })
             }
             onRightsChange={(confirmed) =>
               setFileRights((current) => ({ ...current, confirmed }))
@@ -829,8 +876,9 @@ export function VoiceWizardContainer({
         <VoiceAnalysisScreen
           locale={locale}
           state={analysisState}
-          progress={progress?.outcome === 'pending' ? progress.progress : undefined}
-          stage={progress?.outcome === 'pending' ? progress.stage : undefined}
+          progress={progress?.percent}
+          stage={progress?.stage}
+          assisted={progress?.assisted}
           sampleCount={analysisResult?.sampleCount}
           charCount={analysisResult?.charCount}
           holdoutCount={analysisResult?.holdoutCount}

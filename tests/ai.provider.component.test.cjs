@@ -70,7 +70,10 @@ const component = loadTypeScriptModule(
       Input: ({
         label,
         disableForm: _disableForm,
-        helper: _helper,
+        // Рисуется, а не выбрасывается: с 07.09.2026 под каждым полем роли
+        // стоит строка о том, что эта роль делает, и проглоченная подсказка
+        // сделала бы набор слепым ровно к тому, что он проверяет.
+        helper,
         action,
         // Mirrors the real Input: `secret` is a pasted credential, not a
         // password, so it becomes a plain text field the browser's password
@@ -86,7 +89,8 @@ const component = loadTypeScriptModule(
             ...props,
             ...(secret ? { type: 'text', autoComplete: 'off' } : {}),
           }),
-          action
+          action,
+          helper ? React.createElement('span', null, helper) : null
         ),
     },
     '@contentfactory/react/helpers/delete.dialog': {
@@ -108,6 +112,14 @@ const component = loadTypeScriptModule(
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ language: 'en' }),
     },
+    // Слова, которых нет в шестнадцати файлах локалей: объяснение ролей вызова
+    // и строка «пока 0» живут рядом с экраном на двух языках, как у «Контента»
+    // и обхода (`content-factory-next-m2eg.24`). Загружается настоящий файл —
+    // проверяется в том числе то, что там написано.
+    '@contentfactory/frontend/components/settings/ai-provider.copy':
+      require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+        'apps/frontend/src/components/settings/ai-provider.copy.ts'
+      ),
   }
 );
 
@@ -137,7 +149,74 @@ describe('AI provider search settings component', () => {
       // of the settings response now, and the screen reads both.
       roleModels: {},
       usageByRole: [],
+      usageByMember: [],
     };
+  });
+
+  /**
+   * `content-factory-next-m2eg.24`. Владелец 07.09.2026: «расходы по
+   * участнику… не понимаю, где смотреть, потому что там же их нет». Обе
+   * таблицы рисовались только при непустом списке, а список пуст до первого
+   * вызова модели — вместе со строками исчезал и заголовок.
+   */
+  describe('расход виден и когда его нет', () => {
+    test('обе таблицы на месте при нулевом расходе', () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('data-ai-usage="member"');
+      expect(markup).toContain('data-ai-usage="role"');
+      expect(markup).toContain('AI operations by member, this period');
+      expect(markup).toContain('AI operations by role, this period');
+      // Ноль — это ответ. Он напечатан, а не выражен отсутствием раздела.
+      expect(markup).toContain('Nothing yet');
+      expect(markup).toContain('after the first model call');
+      // Шесть ролей с нулями: список ролей виден раньше полей ниже.
+      const roleRows = markup.slice(
+        markup.indexOf('data-ai-usage="role"'),
+        markup.indexOf('after the first model call', markup.indexOf('data-ai-usage="role"'))
+      );
+      for (const role of ['classify', 'extract', 'research', 'draft', 'judge', 'image']) {
+        expect(roleRows).toContain(`>${role}</span>`);
+      }
+      expect(translationCalls).toEqual(
+        expect.arrayContaining(['ai_role_classify', 'ai_role_image'])
+      );
+    });
+
+    test('непустой расход печатает строки, а не заглушку', () => {
+      settings = {
+        ...settings,
+        usageByMember: [
+          { userId: 'u-1', email: 'writer@example.com', operations: 12 },
+          { userId: null, email: null, operations: 3 },
+        ],
+        usageByRole: [{ role: 'draft', operations: 15 }],
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('writer@example.com');
+      expect(markup).toContain('Scheduled and API work');
+      expect(markup).not.toContain('Nothing yet');
+    });
+
+    test('роли вызова объяснены словами, а не одним заголовком', () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      // Что это такое, что значит пусто, зачем менять — три разных вопроса.
+      expect(markup).toContain('data-ai-roles-hint="true"');
+      expect(markup).toContain('A call role is the job');
+      expect(markup).toContain('the provider default');
+      expect(markup).toContain('money');
+      // И одна строка про каждую роль рядом с её полем.
+      expect(markup).toContain('one sentence in');
+      expect(markup).toContain('the one role that needs a model which can draw');
+    });
   });
 
   test('renders saved basic depth and preserves it in the save payload', () => {

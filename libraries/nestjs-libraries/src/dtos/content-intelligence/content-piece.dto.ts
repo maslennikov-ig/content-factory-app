@@ -44,6 +44,22 @@ export const PIECE_ADAPTATION_KINDS = [
   'audio',
 ] as const;
 
+/**
+ * Поля брифа — те же пять, что `BriefField`.
+ *
+ * Список написан здесь заново по той же причине, что и виды адаптации: тип из
+ * ворот брифа в проверяющий не попадает, `IsIn` нужна строка во время
+ * выполнения. Что оба списка совпадают, стережёт
+ * `tests/content-piece.routes.test.cjs`.
+ */
+export const PIECE_BRIEF_FIELDS = [
+  'thesis',
+  'facts',
+  'position',
+  'disagreement',
+  'audience',
+] as const;
+
 /** Ключи вопросов интервью — те же девять, что `PieceQuestionKeyV1`. */
 export const PIECE_QUESTION_KEYS = [
   'key_idea',
@@ -184,6 +200,44 @@ export class PieceAdaptDto {
   @ValidateNested()
   @Type(() => GeneratorBrandProfileSelectionDto)
   brandProfileSelection?: GeneratorBrandProfileSelectionDto;
+}
+
+/**
+ * Ответ человека на открытый вопрос заготовки.
+ *
+ * Опознаётся полем брифа, а не ключом вопроса: с волны
+ * `content-factory-next-m2eg` вопрос ворот и вопрос интервью — это один
+ * вопрос про одно поле, и второе имя для него было бы вторым способом
+ * спросить то же самое.
+ */
+export class PieceFieldAnswerDto {
+  @IsIn(PIECE_BRIEF_FIELDS)
+  field: (typeof PIECE_BRIEF_FIELDS)[number];
+
+  /**
+   * Дословно, без нижней границы: короткий ответ — это ответ, а не ошибка
+   * ввода. Пустой отбрасывает сервис — «не знаю» говорится кнопкой «Реши
+   * сама», а не пустым полем.
+   */
+  @IsString()
+  @MaxLength(2_000)
+  text: string;
+}
+
+export class PieceAnswerDoorDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PIECE_BRIEF_FIELDS.length)
+  @Type(() => PieceFieldAnswerDto)
+  @ValidateNested({ each: true })
+  answers?: PieceFieldAnswerDto[];
+
+  /** Поля, которые человек отдал модели («Реши сама»): о них не спрашивают. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PIECE_BRIEF_FIELDS.length)
+  @IsIn(PIECE_BRIEF_FIELDS, { each: true })
+  decide?: (typeof PIECE_BRIEF_FIELDS)[number][];
 }
 
 export class PieceArchiveDto {

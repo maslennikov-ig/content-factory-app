@@ -240,6 +240,17 @@ export const voiceCopy = {
     analysisLoading: 'Читаем образцы',
     analysisDone: 'Разбор завершён',
     analysisCountedOnly: 'Числа посчитаны, предложение — нет',
+    /** Арифметика сохранена, модель ещё не спрошена. */
+    analysisStageCounted: 'Числа посчитаны',
+    /**
+     * Счёт вызовов модели, а не проценты.
+     *
+     * Полоса говорит «сколько осталось», строка — «сколько сделано из
+     * скольких». Второе человек может сверить с тем, что видит, а процент
+     * без знаменателя проверить нечем.
+     */
+    analysisStageProposing: (done: number, total: number) =>
+      `Собираем предложение: ${done} из ${total}`,
 
     // Screen 05 — the proposal.
     proposalTitle: 'Вот что получилось из ваших текстов',
@@ -943,6 +954,9 @@ export const voiceCopy = {
     analysisLoading: 'Reading the samples',
     analysisDone: 'The analysis is finished',
     analysisCountedOnly: 'Counted, but no proposal',
+    analysisStageCounted: 'The numbers are counted',
+    analysisStageProposing: (done: number, total: number) =>
+      `Drafting the proposal: ${done} of ${total}`,
 
     proposalTitle: 'Here is what came out of your texts',
     proposalSubtitle: (accepted: number, total: number) =>

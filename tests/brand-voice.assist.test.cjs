@@ -217,20 +217,25 @@ describe('the pipeline', () => {
   });
 
   test('a sample that fails twice is named and the rest continue', async () => {
-    const { transport } = scripted([
-      { nonsense: true },
-      { nonsense: true },
-      mapAnswer('smp-02'),
-      reduceAnswer({
-        fields: [
-          {
-            field: 'WHO_SPEAKS',
-            text: 'Служба новостей завода.',
-            observationRefs: ['smp-02#1'],
-          },
-        ],
-      }),
-    ]);
+    // Отвечает по образцу, а не по очереди: с 07.09.2026 образцы читаются по
+    // три, и очередь ответов больше не совпадает с порядком образцов —
+    // повторный вопрос по smp-01 забрал бы ответ, заготовленный для smp-02.
+    const transport = {
+      complete: async ({ stage, prompt }) =>
+        stage === 'reduce'
+          ? reduceAnswer({
+              fields: [
+                {
+                  field: 'WHO_SPEAKS',
+                  text: 'Служба новостей завода.',
+                  observationRefs: ['smp-02#1'],
+                },
+              ],
+            })
+          : prompt.includes('SAMPLE smp-01')
+            ? { nonsense: true }
+            : mapAnswer('smp-02'),
+    };
 
     const result = await pipeline.runAssist({
       samples: [sample('smp-01'), sample('smp-02')],
@@ -397,6 +402,150 @@ describe('the pipeline', () => {
     expect(result.rejected).toEqual([
       { sampleCode: 'smp-99', reason: 'UNKNOWN_SAMPLE' },
     ]);
+  });
+});
+
+describe('three at a time, and the order that survives it', () => {
+  const claim = (code) =>
+    observation({ claim: `Наблюдение из ${code}.` });
+
+  /** Транспорт, у которого первые образцы отвечают дольше последних. */
+  const staggered = (delays) => {
+    let inFlight = 0;
+    const peak = { value: 0 };
+    const transport = {
+      complete: async ({ stage, prompt }) => {
+        if (stage === 'reduce') return reduceAnswer();
+        const code = /SAMPLE (\S+)/u.exec(prompt)[1];
+        inFlight += 1;
+        peak.value = Math.max(peak.value, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, delays[code] ?? 0));
+        inFlight -= 1;
+        return mapAnswer(code, [claim(code)]);
+      },
+    };
+    return { transport, peak };
+  };
+
+  test('three calls are in flight at once, never four', async () => {
+    // Один за другим — это минуты ожидания на корпусе, ради которых стрим и
+    // заведён; все сразу — это отказ провайдера по частоте на первом же
+    // большом корпусе. Три.
+    const codes = Array.from(
+      { length: 6 },
+      (unused, index) => `smp-0${index + 1}`
+    );
+    const { transport, peak } = staggered({
+      'smp-01': 40,
+      'smp-02': 30,
+      'smp-03': 20,
+    });
+
+    const result = await pipeline.runAssist({
+      samples: codes.map(sample),
+      measurement,
+      transport,
+    });
+
+    expect(peak.value).toBe(3);
+    expect(result.proposal).not.toBeNull();
+  });
+
+  test('the observations come back in the corpus order, not in the answering order', async () => {
+    // Ссылка на наблюдение — это `образец#место внутри образца`, и порядок
+    // сборки решает, каким номером оно названо в reduce-подсказке. Список,
+    // собранный по порядку ответов, перенумеровывал бы наблюдения на каждом
+    // прогоне (`content-factory-next-vme.21.9` — та же поломка другим путём).
+    const codes = ['smp-01', 'smp-02', 'smp-03', 'smp-04'];
+    const { transport } = staggered({
+      'smp-01': 40,
+      'smp-02': 30,
+      'smp-03': 20,
+      'smp-04': 0,
+    });
+
+    const result = await pipeline.runAssist({
+      samples: codes.map(sample),
+      measurement,
+      transport,
+    });
+
+    expect(result.observations.map((one) => one.sampleCode)).toEqual(codes);
+    // И журнал вызовов — тоже: он отчитывается о работе, а не о гонке.
+    expect(result.calls.filter((one) => one.stage === 'map')).toHaveLength(4);
+  });
+});
+
+describe('what happens is told while it happens', () => {
+  test('one progress event per model call, with the sample it is about', async () => {
+    const { transport } = scripted([
+      mapAnswer('smp-01'),
+      mapAnswer('smp-02'),
+      reduceAnswer(),
+    ]);
+    const seen = [];
+
+    await pipeline.runAssist({
+      samples: [sample('smp-01'), sample('smp-02')],
+      measurement,
+      transport,
+      onProgress: (event) => seen.push(event),
+    });
+
+    expect(seen).toHaveLength(3);
+    const maps = seen
+      .filter((one) => one.stage === 'map')
+      .sort((left, right) => left.index - right.index);
+    expect(maps).toEqual([
+      { stage: 'map', index: 1, total: 2, ok: true },
+      { stage: 'map', index: 2, total: 2, ok: true },
+    ]);
+    // Сборка предложения — один вызов на весь корпус, и он последний.
+    expect(seen[seen.length - 1]).toEqual({
+      stage: 'reduce',
+      index: 1,
+      total: 1,
+      ok: true,
+    });
+  });
+
+  test('a repaired answer does not push the count backwards', async () => {
+    // Индекс — место образца, а не номер попытки. Иначе полоса на экране
+    // откатывалась бы каждый раз, когда модель ответила невалидно.
+    let asked = 0;
+    const transport = {
+      complete: async ({ stage }) => {
+        if (stage === 'reduce') return reduceAnswer();
+        asked += 1;
+        return asked === 1 ? { nonsense: true } : mapAnswer('smp-01');
+      },
+    };
+    const seen = [];
+
+    await pipeline.runAssist({
+      samples: [sample('smp-01')],
+      measurement,
+      transport,
+      onProgress: (event) => seen.push(event),
+    });
+
+    expect(seen.filter((one) => one.stage === 'map')).toEqual([
+      { stage: 'map', index: 1, total: 1, ok: false },
+      { stage: 'map', index: 1, total: 1, ok: true },
+    ]);
+  });
+
+  test('a run nobody is watching behaves exactly the same', async () => {
+    const { transport } = scripted([mapAnswer('smp-01'), reduceAnswer()]);
+
+    const result = await pipeline.runAssist({
+      samples: [sample('smp-01')],
+      measurement,
+      transport,
+    });
+
+    expect(result.proposal).not.toBeNull();
+    expect(result.calls).toHaveLength(2);
   });
 });
 

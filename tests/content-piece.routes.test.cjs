@@ -177,6 +177,9 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${contract.PIECE_ROUTES.adapt.method} ${contract.PIECE_ROUTES.adapt.path(
       ':id'
     )}`,
+    `${contract.PIECE_ROUTES.answer.method} ${contract.PIECE_ROUTES.answer.path(
+      ':id'
+    )}`,
     `${contract.PIECE_ROUTES.archive.method} ${contract.PIECE_ROUTES.archive.path(
       ':id'
     )}`,
@@ -228,6 +231,9 @@ describe('чтение открыто области, запись — реда�
 
   test.each([
     ["@Post('/:id/adapt')", ['POSTS_PER_MONTH', 'EDITOR']],
+    // Ответ на уточнение может стоить одной генерации — тарифный предел
+    // назван первым, как и у адаптации (`content-factory-next-m2eg`).
+    ["@Post('/:id/answer')", ['POSTS_PER_MONTH', 'EDITOR']],
     ["@Delete('/:id/adaptations/:adaptationId')", ['EDITOR']],
     ["@Post('/:id/archive')", ['EDITOR']],
   ])('%s несёт %s', (decorator, sections) => {
@@ -562,6 +568,37 @@ describe('DTO отказывает мусору и принимает то, чт
     expect(await codes(dto.PieceAdaptDto, { integrationId: '' })).toEqual([
       'integrationId',
     ]);
+  });
+
+  test('поля брифа в двери ответов — те же пять, что знают ворота', async () => {
+    /*
+      Список в DTO написан заново: `IsIn` нужна строка во время выполнения, а
+      тип `BriefField` в проверяющий не попадает. Здесь он сверяется с воротами
+      — двум спискам одного решения незачем расходиться.
+    */
+    expect([...dto.PIECE_BRIEF_FIELDS].sort()).toEqual(
+      ['thesis', 'facts', 'position', 'disagreement', 'audience'].sort()
+    );
+  });
+
+  test('ответ опознаётся полем брифа, а чужое поле не проходит', async () => {
+    expect(await codes(dto.PieceAnswerDoorDto, {})).toEqual([]);
+    expect(
+      await codes(dto.PieceAnswerDoorDto, {
+        answers: [{ field: 'facts', text: 'своими словами' }],
+      })
+    ).toEqual([]);
+    expect(
+      await codes(dto.PieceAnswerDoorDto, {
+        answers: [{ field: 'wallet_seed', text: 'нет' }],
+      })
+    ).toEqual(['answers']);
+    expect(
+      await codes(dto.PieceAnswerDoorDto, { decide: ['wallet_seed'] })
+    ).toEqual(['decide']);
+    expect(await codes(dto.PieceAnswerDoorDto, { decide: ['facts'] })).toEqual(
+      []
+    );
   });
 
   test('архив требует сказанного решения, а не пустого тела', async () => {

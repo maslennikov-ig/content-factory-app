@@ -19,6 +19,7 @@ import {
   ArchiveListQueryDto,
   MaterialDraftDto,
   MaterialRecutDto,
+  RelatedTextsQueryDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-material.dto';
 import { ContentMaterialService } from '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service';
 import {
@@ -30,7 +31,7 @@ const isArchiveLayer = (value: unknown): value is ArchiveLayer =>
   typeof value === 'string' && (ARCHIVE_LAYERS as readonly string[]).includes(value);
 
 /**
- * The four routes screen 11 was drawn against.
+ * The routes screen 11 was drawn against, plus the one it grew on 07.09.2026.
  *
  * Every one of them takes the organisation from the request rather than from
  * the body: a material identifier is not a permission, and a workspace that
@@ -108,6 +109,37 @@ export class ContentMaterialController {
         q: q || undefined,
         page: page ? parseInt(page, 10) || 0 : 0,
         limit: limit ? parseInt(limit, 10) || 20 : 20,
+      });
+    } catch (error) {
+      safeHttpError(error);
+    }
+  }
+
+  /**
+   * «Свои тексты по теме» — вышедшие тексты области, на которые можно
+   * сослаться (`content-factory-next-m2eg.19`, решение владельца 07.09.2026).
+   *
+   * Политика та же, что у списка материалов, то есть её нет: дверь отдаёт
+   * заголовки и адреса СОБСТВЕННЫХ вышедших постов рабочего пространства —
+   * то же самое, что список библиотеки уже показывает любому участнику, и то
+   * же самое, что каждый из этих постов показывает всему интернету по своему
+   * адресу. Закрыть её ролью значило бы сказать, что читать свой архив может
+   * не всякий, кто его и так видит.
+   *
+   * Стоит выше `/:id/derivations` не по необходимости, а по порядку чтения:
+   * `related` — один сегмент, `/:id/derivations` — два, и спутать их
+   * маршрутизатор не может.
+   */
+  @Get('/related')
+  async related(
+    @GetOrgFromRequest() organization: Organization,
+    @Query() query: RelatedTextsQueryDto = {}
+  ) {
+    try {
+      return await this.materials.listRelated(organization.id, {
+        q: query?.q || undefined,
+        platform: query?.platform || undefined,
+        limit: query?.limit ? parseInt(query.limit, 10) || 3 : 3,
       });
     } catch (error) {
       safeHttpError(error);

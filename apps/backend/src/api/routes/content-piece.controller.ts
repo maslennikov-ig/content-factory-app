@@ -21,6 +21,7 @@ import {
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import {
   PieceAdaptDto,
+  PieceAnswerDoorDto,
   PieceArchiveDto,
   PiecesQueryDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
@@ -228,6 +229,69 @@ export class ContentPieceController {
             error instanceof Error && error.message
               ? error.message
               : 'Something went wrong while adapting the piece, please try again.',
+        }) + '\n'
+      );
+    } finally {
+      response.end();
+    }
+  }
+
+  /**
+   * Ответы на открытые вопросы заготовки: NDJSON, строка на событие.
+   *
+   * `content-factory-next-m2eg`. Заготовка уже записана входом, поэтому дверь
+   * ничего не создаёт: она принимает слова человека, переписывает суть и
+   * возвращает заготовку с обновлённым брифом. Тупика у неё нет — `piece`
+   * приходит всегда, а `questions` только пока есть о чём спрашивать.
+   *
+   * Политики те же две и в том же порядке, что у адаптации: ответ может стоить
+   * одной генерации, и тарифный предел называется первым.
+   */
+  @Post('/:id/answer')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Create, Sections.EDITOR]
+  )
+  async answer(
+    @GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: PieceAnswerDoorDto,
+    @Res({ passthrough: false }) response: Response,
+    @Query('language') requested?: string
+  ) {
+    // До первого байта — обычный HTTP: заготовка, архив, наличие сути.
+    let plan;
+    try {
+      plan = await this.pieces.prepareAnswer(
+        organization.id,
+        id,
+        body as any,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Answer request failed');
+    }
+
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    try {
+      for await (const event of this.pieces.answer(
+        organization.id,
+        plan,
+        user?.id
+      )) {
+        response.write(JSON.stringify(event) + '\n');
+      }
+    } catch (error) {
+      response.write(
+        JSON.stringify({
+          name: 'error',
+          error: true,
+          code: streamErrorCode(error),
+          message:
+            error instanceof Error && error.message
+              ? error.message
+              : 'Something went wrong while answering, please try again.',
         }) + '\n'
       );
     } finally {

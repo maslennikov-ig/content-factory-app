@@ -124,7 +124,11 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
   const record = asRecord(value);
   if (!record) return DEFAULT_WRITING_PROFILE;
   const length = record.lengthPolicy;
-  const lengthRecord = asRecord(length);
+  // Дверь отвечает союзом контракта, но то же чтение принимает и форму тела
+  // запроса (`lengthPolicy: 'range'` плюс отдельное `length`) — иначе
+  // сохранённое и прочитанное расходились бы на одном поле.
+  const lengthRecord =
+    length === 'range' ? asRecord(record.length) : asRecord(length);
   return {
     version: CHANNEL_WRITING_PROFILE_VERSION,
     lengthPolicy:
@@ -188,14 +192,69 @@ export function readWritingProfileResponse(
   };
 }
 
+/**
+ * Тело `PUT`, как его ждёт дверь.
+ *
+ * `content-factory-next-m2eg.12`. Это не тот же объект, что показан в форме, и
+ * различие здесь ровно одно: длина. В ответе двери длина — союз «строка или
+ * тройка чисел» (`ChannelLengthPolicyV1`), а в теле запроса —
+ * `IntegrationWritingProfileDto`: слово `provider_max` либо `range`, и тройка
+ * отдельным полем `length`. Причина названа в самом DTO: приложение включает
+ * `transform: true`, и `@Type(() => …)` на поле, которому законно прийти
+ * строкой, превратил бы «длину держит площадка» в пустой диапазон ещё до
+ * проверки.
+ *
+ * Пока карточка отправляла форму ответа, дверь отвечала `400` на КАЖДОМ
+ * сохранении: `lengthPolicy` приезжал объектом, а `@IsIn(['provider_max',
+ * 'range'])` объект не принимает.
+ */
+export type WritingProfileLengthRangePayload = {
+  idealMin: number;
+  idealMax: number;
+  hardMax?: number;
+};
+
+export type WritingProfilePayload = {
+  lengthPolicy: 'provider_max' | 'range';
+  length?: WritingProfileLengthRangePayload;
+  emojiLevel: ChannelWritingProfileV1['emojiLevel'];
+  linkPolicy: ChannelWritingProfileV1['linkPolicy'];
+  hashtagPolicy: ChannelWritingProfileV1['hashtagPolicy'];
+  ctaKind: ChannelWritingProfileV1['ctaKind'];
+  formatPreference: IntakeFormatV1;
+  notes?: string;
+};
+
 export function buildWritingProfilePayload(
   profile: ChannelWritingProfileV1
-): ChannelWritingProfileV1 {
+): WritingProfilePayload {
+  const notes = (profile.notes ?? '').trim().slice(0, PROFILE_NOTES_MAX);
+  // Пустые заметки не отправляются вовсе: у двери поле необязательное, а
+  // `notes: null` — это не «нет заметок», это значение, которое @IsString
+  // разбирал бы отдельной веткой.
+  const common = {
+    emojiLevel: profile.emojiLevel,
+    linkPolicy: profile.linkPolicy,
+    hashtagPolicy: profile.hashtagPolicy,
+    ctaKind: profile.ctaKind,
+    formatPreference: profile.formatPreference,
+    ...(notes ? { notes } : {}),
+  };
+
+  if (profile.lengthPolicy === 'provider_max') {
+    return { lengthPolicy: 'provider_max', ...common };
+  }
+
+  const { idealMin, idealMax, hardMax } = profile.lengthPolicy;
   return {
-    ...profile,
-    version: CHANNEL_WRITING_PROFILE_VERSION,
-    notes: profile.notes?.trim()
-      ? profile.notes.trim().slice(0, PROFILE_NOTES_MAX)
-      : null,
+    lengthPolicy: 'range',
+    length: {
+      idealMin,
+      idealMax,
+      // `hardMax` необязателен, и `null` для него — не значение: потолок
+      // карточки либо назван числом, либо не назван.
+      ...(typeof hardMax === 'number' ? { hardMax } : {}),
+    },
+    ...common,
   };
 }

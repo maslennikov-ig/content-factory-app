@@ -8,10 +8,14 @@
  * аватар» уходят с первого экрана, а вместо них одна строка происхождения и
  * только у поста, который контекст несёт; кнопка «Исследовать текущий
  * черновик» уходит из окна совсем — платное исследование начинается в разделе
- * «Контент», а дверь на сервере остаётся нетронутой; пост с подтверждениями
- * ждёт явного решения человека, и оно открывает планирование; ряд
- * тег/повтор/этап собран из стандартных примитивов; оболочка — стандартный
- * диалог, без своих чисел.
+ * «Контент», а дверь на сервере остаётся нетронутой; ряд тег/повтор/этап
+ * собран из стандартных примитивов; оболочка — стандартный диалог, без своих
+ * чисел.
+ *
+ * Четвёртое решение того вечера — «пост с подтверждениями ждёт явного решения
+ * человека» — отменено 07.09.2026 (`content-factory-next-m2eg.17`): «Выключить
+ * совсем, без галочек и без кнопки „Проверил“». Здесь проверяется, что ворот
+ * больше нет, а дверь на сервере цела.
  *
  * Проверяется здесь то, что переживёт правку: поведение расчёта причины,
  * разметка строки происхождения и отсутствие исследовательского потока в
@@ -107,57 +111,58 @@ describe('the post window gives only what is useful', () => {
   });
 
   /* ---------------------------------------------------------------------
-   * 3. Scheduling is closed until a person says the evidence is checked.
+   * 3. Ворота «Проверил» сняты (`content-factory-next-m2eg.17`).
+   *
+   * Решение владельца 07.09.2026, дословно: «Выключить совсем, без галочек и
+   * без кнопки „Проверил“». Кнопка ничего не проверяла — она записывала, что
+   * человек сказал «проверил», — и стояла перед каждым постом, написанным
+   * продуктом. Дверь на сервере осталась; окно её больше не зовёт.
    * ------------------------------------------------------------------ */
 
-  test('a post assembled from evidence waits for an explicit human decision', () => {
+  test('a post assembled from evidence is no longer held back', () => {
     const { composeBlockReason } = loadTypeScriptModule(FILES.reason);
     const carrying = {
       locked: false,
       contentIntelligenceLoadState: 'ready',
       contentIntelligenceFailure: null,
       provenanceErrorCode: null,
-      hasProvenance: true,
     };
 
-    expect(
-      composeBlockReason({ ...carrying, postSaved: true, contextReviewedAt: null })
-    ).toBe('context-review-required');
+    expect(composeBlockReason(carrying)).toBe('none');
 
-    // У нового поста ещё нет адреса, которому сказать «проверено»: та же
-    // строка говорит, что делать сначала.
+    // Причины, которые остались, отвечают ровно как отвечали: снятие ворот не
+    // открывает окно, у которого контекст ещё грузится или отказал.
     expect(
-      composeBlockReason({ ...carrying, postSaved: false, contextReviewedAt: null })
-    ).toBe('context-save-draft-first');
-
+      composeBlockReason({ ...carrying, contentIntelligenceLoadState: 'loading' })
+    ).toBe('context-loading');
     expect(
       composeBlockReason({
         ...carrying,
-        postSaved: true,
-        contextReviewedAt: '2026-09-04T18:00:00.000Z',
+        contentIntelligenceLoadState: 'error',
+        contentIntelligenceFailure: 'CONTEXT_UNAVAILABLE',
       })
-    ).toBe('none');
+    ).toBe('context-error');
   });
 
-  test('the window wires the decision to the door and opens the buttons with it', () => {
+  test('the window neither calls the review door nor keeps a button for it', () => {
     const manage = code(FILES.manage);
 
-    // Дверь потока A, слово в слово, и ответ читается, а не выдумывается.
-    expect(manage).toMatch(/\/posts\/\$\{[^}]*\}\/context-review/);
-    expect(manage).toMatch(/contentContextReviewedAt/);
-    expect(manage).toMatch(/setContextReviewedAt\(/);
+    expect(manage).not.toMatch(/context-review/);
+    expect(manage).not.toMatch(/contentContextReviewedAt/);
+    expect(manage).not.toMatch(/contextReviewedAt/);
+    expect(manage).not.toMatch(/context_review_confirm/);
 
-    // Кнопка причины появляется только вместе со своей причиной.
-    expect(manage).toMatch(
-      /blockReason === 'context-review-required'[\s\S]{0,400}context_review_confirm/
-    );
+    // И ни одного условия, закрывавшего планирование и «опубликовать сейчас».
+    expect(
+      manage.match(/!!contentIntelligenceProvenance && !contextReviewedAt/g)
+    ).toBeNull();
+  });
 
-    // Планирование и «опубликовать сейчас» закрыты, пока проверки нет, — и
-    // открываются, когда она есть. Двух списков условий быть не должно.
-    const closed = manage.match(
-      /!!contentIntelligenceProvenance && !contextReviewedAt/g
-    );
-    expect(closed).toHaveLength(2);
+  test('the server door itself stays where it is', () => {
+    // Снимать дверь и колонки — отдельная работа: след уже принятых решений
+    // не переписывается задним числом.
+    const controller = read('apps/backend/src/api/routes/posts.controller.ts');
+    expect(controller).toMatch(/context-review/);
   });
 
   /* ---------------------------------------------------------------------

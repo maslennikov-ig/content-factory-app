@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { ContentIntelligenceCitationSelector } from '@contentfactory/frontend/components/new-launch/editor';
 import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 import type { ContentIntelligenceProvenance } from '@contentfactory/frontend/components/new-launch/store';
@@ -55,7 +54,6 @@ const neutralContext: ContentIntelligenceProvenance = Object.freeze({
 });
 
 export default function ConsumerContentIntelligenceReviewPage() {
-  const [selected, setSelected] = useState<string[]>(['F1']);
   return (
     <main
       className="min-h-screen bg-cf-canvas p-[24px] text-cf-ink"
@@ -86,14 +84,6 @@ export default function ConsumerContentIntelligenceReviewPage() {
           <ProvenanceLine provenance={readyContext} confirmationCount={1} />
           <ContentIntelligenceCitationSelector
             citations={readyContext.availableCitations}
-            selectedCitationIds={selected}
-            onChange={(citationId, checked) =>
-              setSelected((current) =>
-                checked
-                  ? [...new Set([...current, citationId])].sort()
-                  : current.filter((item) => item !== citationId)
-              )
-            }
           />
         </section>
 

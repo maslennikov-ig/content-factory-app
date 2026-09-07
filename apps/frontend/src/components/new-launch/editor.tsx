@@ -72,75 +72,78 @@ import {
   DelayIcon,
 } from '@contentfactory/frontend/components/ui/icons';
 import { DelayComponent } from '@contentfactory/frontend/components/new-launch/delay.component';
-import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { SearchEvidenceMark } from '@contentfactory/frontend/components/new-launch/search-evidence.mark';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import {
+  composeCopy,
+  resolveComposeLocale,
+} from '@contentfactory/frontend/components/new-launch/compose.copy';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
+/**
+ * «Что взято и откуда» — справка под текстом поста, без единой отметки.
+ *
+ * До 07.09.2026 это был список галочек: человек сам отмечал, на какие факты
+ * и источники опирается его текст, и без хотя бы одной отметки окно не
+ * выпускало пост в расписание. Решение владельца на живом прогоне, дословно:
+ * «Выключить совсем, без галочек и без кнопки „Проверил“»
+ * (`content-factory-next-m2eg.17`). Работа была двойной: модель уже
+ * возвращает `usedCitationIds` за каждой коробкой текста, то есть то же самое
+ * знание, только полученное от того, кто писал.
+ *
+ * Что осталось и почему:
+ *
+ *  - список стоит на месте. Человек спрашивает «откуда это в моём тексте», и
+ *    ответ на этот вопрос полезен ровно так же, как был;
+ *  - ярлык «Взято из поиска» остался у строки (`content-factory-next-ec48.2`):
+ *    подтверждённое и прочитанное в вебе — разные вещи, и у поста, собранного
+ *    до этой правки, разница видна там же, где была;
+ *  - `readOnly` больше ни на что не влияет и снят: отмечать нечего, а
+ *    выключенная справка — это та же справка.
+ *
+ * Слова блока живут в `compose.copy.ts` двумя языками, как и строка
+ * происхождения рядом: одно предложение здесь стоит между шестнадцатью
+ * локалями и двумя, и вторая половина окна уже выбрала вторые.
+ */
 export const ContentIntelligenceCitationSelector: FC<{
   citations: readonly ContentIntelligenceCitation[];
-  selectedCitationIds: readonly string[];
-  readOnly?: boolean;
-  onChange: (citationId: string, checked: boolean) => void;
-}> = ({ citations, selectedCitationIds, readOnly, onChange }) => {
+}> = ({ citations }) => {
   const t = useT();
+  const { language } = useVariables();
+  const copy = composeCopy[resolveComposeLocale(language)];
   if (citations.length === 0) return null;
   return (
-    <fieldset className="mx-[12px] mb-[12px] min-w-0 border-t border-cf-border pt-[12px]">
-      <legend className="cf-label-sm px-[4px] text-cf-ink">
-        {t('used_citations', 'Used citations')}
-      </legend>
-      {/*
-       * `content-factory-next-fn33.28.13`: «выданные сервером» человеку,
-       * который пишет пост, не говорит ничего — это слово из устройства, а не
-       * из его работы. Ему важно другое: отметить, на что опирается вот этот
-       * текст.
-       */}
+    <section className="mx-[12px] mb-[12px] min-w-0 border-t border-cf-border pt-[12px]">
+      <h4 className="cf-label-sm text-cf-ink">{copy.materialUsedTitle}</h4>
       <p className="cf-caption mb-[4px] text-cf-ink-muted text-pretty">
-        {t(
-          'used_citations_help',
-          'Mark which facts and sources this text leans on.'
-        )}
+        {copy.materialUsedHelp}
       </p>
-      <div className="flex flex-col">
+      <ul className="flex flex-col gap-[4px]">
         {citations.map((citation) => (
-          <CheckboxField
+          <li
             key={citation.citationId}
-            checked={selectedCitationIds.includes(citation.citationId)}
-            disabled={readOnly}
-            onChange={(event) =>
-              onChange(citation.citationId, event.currentTarget.checked)
-            }
-            /*
+            className="flex min-w-0 flex-wrap items-center gap-[8px]"
+          >
+            {/*
              * Слово «Fact» / «Source» было зашито в разметке и на русском
              * экране оставалось английским, хотя соседние подписи того же
              * блока переводятся (`content-factory-next-fn33.28.13`).
-             */
-            /*
-             * Ярлык стоит у самой строки, а не в общей записке под постом
-             * (`content-factory-next-ec48.2`). Записка отвечает на вопрос
-             * «сколько», а здесь вопрос другой и задаётся он в момент
-             * отметки: вот на это опереться можно как на подтверждённое, а
-             * вот на это — как на прочитанное в вебе.
-             */
-            label={
-              <span className="flex min-w-0 flex-wrap items-center gap-[8px]">
-                <span className="min-w-0 break-words">{`${
-                  citation.kind === 'FACT'
-                    ? t('citation_kind_fact', 'Fact')
-                    : t('citation_kind_source', 'Source')
-                } · ${citation.label}`}</span>
-                {citation.provenance === 'SEARCH' && (
-                  <SearchEvidenceMark
-                    label={t('citation_from_search', 'From web search')}
-                  />
-                )}
-              </span>
-            }
-          />
+             */}
+            <span className="min-w-0 break-words cf-body-sm text-cf-ink">{`${
+              citation.kind === 'FACT'
+                ? t('citation_kind_fact', 'Fact')
+                : t('citation_kind_source', 'Source')
+            } · ${citation.label}`}</span>
+            {citation.provenance === 'SEARCH' && (
+              <SearchEvidenceMark
+                label={t('citation_from_search', 'From web search')}
+              />
+            )}
+          </li>
         ))}
-      </div>
-    </fieldset>
+      </ul>
+    </section>
   );
 };
 
@@ -268,8 +271,6 @@ export const EditorWrapper: FC<{
     chars,
     comments,
     contentIntelligenceProvenance,
-    setGlobalValueCitationIds,
-    setInternalValueCitationIds,
   } = useLaunchStore(
     useShallow((state) => ({
       internal: state.internal.find((p) => p.integration.id === state.current),
@@ -277,8 +278,6 @@ export const EditorWrapper: FC<{
       global: state.global,
       comments: state.comments,
       contentIntelligenceProvenance: state.contentIntelligenceProvenance,
-      setGlobalValueCitationIds: state.setGlobalValueCitationIds,
-      setInternalValueCitationIds: state.setInternalValueCitationIds,
       current: state.current,
       addRemoveInternal: state.addRemoveInternal,
       dummy: state.dummy,
@@ -355,26 +354,12 @@ export const EditorWrapper: FC<{
     [internal, items]
   );
 
-  const changeCitations = useCallback(
-    (index: number, citationId: string, checked: boolean) => {
-      const selected = new Set(items[index]?.usedCitationIds || []);
-      if (checked) selected.add(citationId);
-      else selected.delete(citationId);
-      const next = [...selected].sort();
-      if (internal) {
-        setInternalValueCitationIds(current, index, next);
-      } else {
-        setGlobalValueCitationIds(index, next);
-      }
-    },
-    [
-      current,
-      internal,
-      items,
-      setGlobalValueCitationIds,
-      setInternalValueCitationIds,
-    ]
-  );
+  /*
+    Здесь стоял `changeCitations` — рука человека на списке цитат. С
+    07.09.2026 отметок нет (`content-factory-next-m2eg.17`), и единственный,
+    кто пишет `usedCitationIds`, — тот, кто писал текст: генератор возвращает
+    их вместе с каждой коробкой, а окно только несёт их на сохранение.
+  */
 
   const changeValue = useCallback(
     (index: number) => (value: string) => {
@@ -648,11 +633,6 @@ export const EditorWrapper: FC<{
                 <ContentIntelligenceCitationSelector
                   citations={
                     contentIntelligenceProvenance?.availableCitations || []
-                  }
-                  selectedCitationIds={g.usedCitationIds || []}
-                  readOnly={readOnly}
-                  onChange={(citationId, checked) =>
-                    changeCitations(index, citationId, checked)
                   }
                 />
               </div>

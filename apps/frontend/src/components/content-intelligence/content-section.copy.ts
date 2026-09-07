@@ -30,7 +30,12 @@ export const contentSectionCopy = {
     // `ContentIntelligenceSettings`/`sources.review-scene.tsx` всё ещё её
     // читают.
     sources: 'Источники',
-    brief: 'Бриф',
+    // `content-factory-next-m2eg` (07.09.2026): за вкладкой стоит вход одной
+    // мыслью, и он делает заготовку. «Бриф» называл форму, которой там больше
+    // нет, — владелец прочитал подпись как «здесь заполняют восемь полей».
+    // Ключ `brief` не менялся: по нему живут адреса, тесты и
+    // `ContentIntelligenceSection`.
+    brief: 'Новая заготовка',
     // `content-factory-next-tu3k.9` (06.09.2026): вкладка называется
     // «Заготовки» и стоит первой. Ключ `materials` не менялся — по нему живут
     // адреса, тесты и `ContentIntelligenceSection`.
@@ -64,6 +69,8 @@ export const contentSectionCopy = {
     // внутри вкладки две витрины — заготовки и «Что уже написали».
     materialsViewMaterials: 'Заготовки',
     materialsViewArchive: 'Что уже написали',
+    /* Зачем второй вид вообще нужен — одной строкой рядом с самой полосой. */
+    materialsViewHint: 'отсюда модель берёт ссылки на ваши старые тексты',
   },
   en: {
     title: 'Content',
@@ -73,7 +80,7 @@ export const contentSectionCopy = {
     avatars: 'Avatars',
     leads: 'Ideas',
     sources: 'Sources',
-    brief: 'Brief',
+    brief: 'New piece',
     materials: 'Pieces',
     provenance: 'Facts',
     archive: 'Archive',
@@ -87,6 +94,7 @@ export const contentSectionCopy = {
     materialsViewLabel: 'List view',
     materialsViewMaterials: 'Pieces',
     materialsViewArchive: 'What we already wrote',
+    materialsViewHint: 'this is where the model takes links to your older texts from',
   },
 } as const;
 

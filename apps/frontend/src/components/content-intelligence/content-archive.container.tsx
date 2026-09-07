@@ -108,15 +108,29 @@ const copy = {
     loading: 'Загружаем архив',
     listFallback: 'Архив не загрузился. Попробуйте ещё раз.',
     retry: 'Повторить',
-    showText: 'показать текст',
-    hideText: 'скрыть текст',
-    grounding: 'Разбор',
+    purpose:
+      'Отсюда модель берёт ссылки на ваши старые тексты: когда новый пост о том же, она может сказать «я уже писал об этом» и дать адрес.',
+    showText: 'Показать текст',
+    hideText: 'Скрыть текст',
+    // «Разбор» ничего не обещало человеку: разбор чего и кем. Кнопка
+    // открывает список фактов и источников, на которых стоит текст
+    // (`content-factory-next-m2eg.20`).
+    grounding: 'Откуда взято',
     importAction: 'Занести текст',
     // content-factory-next-fn33.54: «постов: 1» — счёт без выбора формы
     // слова. `plural` — та же тройка форм, что уже считает образцы и шкалы.
-    postsWord: (n: number) => `${n} ${plural(n, ['пост', 'поста', 'постов'])}`,
+    //
+    // 07.09.2026 число получило имя (`content-factory-next-m2eg.20`). «3
+    // поста» рядом с «черновиков: 2» читалось как «всего постов три», хотя
+    // считало только вышедшие: у текста, который никуда ещё не ушёл, строка
+    // говорила «0 постов» над двумя существующими черновиками.
+    postsWord: (n: number) => `вышло: ${n}`,
     queuedWord: (n: number) => `в очереди: ${n}`,
     draftsWord: (n: number) => `черновиков: ${n}`,
+    /** Сколько всего постов у этого текста — сумма трёх состояний. */
+    totalPostsWord: (n: number) =>
+      `${n} ${plural(n, ['пост', 'поста', 'постов'])} из этого текста`,
+    noPostsWord: 'постов из этого текста ещё нет',
     codeWord: (code: string) => code,
     counts: (counts: Record<ArchiveLayer, number>) =>
       `сделано здесь ${counts.MADE_HERE} · до продукта ${counts.IMPORTED_PRE_PRODUCT} · мимо продукта ${counts.PUBLISHED_ELSEWHERE}`,
@@ -184,13 +198,18 @@ const copy = {
     loading: 'Loading the archive',
     listFallback: 'The archive did not load. Try again.',
     retry: 'Retry',
-    showText: 'show text',
-    hideText: 'hide text',
-    grounding: 'Grounding',
+    purpose:
+      'This is where the model finds your earlier texts: when a new post is about the same thing, it can say “I have written about this” and give the link.',
+    showText: 'Show text',
+    hideText: 'Hide text',
+    grounding: 'Where it came from',
     importAction: 'Bring in a text',
-    postsWord: (n: number) => `posts: ${n}`,
+    postsWord: (n: number) => `published: ${n}`,
     queuedWord: (n: number) => `queued: ${n}`,
     draftsWord: (n: number) => `drafts: ${n}`,
+    totalPostsWord: (n: number) =>
+      `${n} ${n === 1 ? 'post' : 'posts'} from this text`,
+    noPostsWord: 'no posts from this text yet',
     codeWord: (code: string) => code,
     counts: (counts: Record<ArchiveLayer, number>) =>
       `made here ${counts.MADE_HERE} · before the product ${counts.IMPORTED_PRE_PRODUCT} · elsewhere ${counts.PUBLISHED_ELSEWHERE}`,
@@ -358,6 +377,19 @@ function GroundingDialog({
   );
 }
 
+/**
+ * Сколько всего постов связано с этим текстом.
+ *
+ * Связь одна и та же во всех трёх слагаемых — строка `ContentDerivation` с
+ * живым постом, — и другой в схеме нет: у занесённого текста происхождение
+ * лежит в `tags.archive.*` адресом чужой площадки, а не ссылкой на пост этой
+ * области. Поэтому «все посты, связанные с текстом» — это ровно вышедшие,
+ * стоящие в очереди и черновики, и ни одного числа сверх того здесь не
+ * придумывается (`content-factory-next-m2eg.20`).
+ */
+const postsFrom = (row: ArchiveRow): number =>
+  row.postCount + row.queuedCount + row.draftCount;
+
 function ArchiveRowView({
   row,
   locale,
@@ -392,7 +424,25 @@ function ArchiveRowView({
                 {platformLabel(platform, locale)}
               </span>
             ))}
-            {row.layer === 'MADE_HERE' && (
+            {/*
+              Сколько постов у этого текста — честно и одним числом
+              (`content-factory-next-m2eg.20`).
+
+              Две правки против того, что было. Первая: сумма всех трёх
+              состояний идёт первой, а разбивка — за ней. «0 постов» стояло
+              над двумя черновиками, потому что первое число считало только
+              вышедшие, и человек читал его как итог. Вторая: числа
+              показываются у КАЖДОГО слоя, а не только у «сделано здесь».
+              Занесённый текст тоже перекраивают в черновик
+              (`ContentMaterialService.createDraft`), и у такой строки
+              счётчики были, а на экран не выходили вовсе.
+            */}
+            <span className="cf-caption text-cf-ink-muted">
+              {postsFrom(row) === 0
+                ? t.noPostsWord
+                : t.totalPostsWord(postsFrom(row))}
+            </span>
+            {postsFrom(row) > 0 && (
               <>
                 <span className="cf-caption text-cf-ink-muted">{t.postsWord(row.postCount)}</span>
                 {row.queuedCount > 0 && (
@@ -713,6 +763,17 @@ export function ContentArchiveContainer() {
             {t.title}
           </h2>
           <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.body}</p>
+          {/*
+            Зачем этот экран вообще нужен — одной строкой и своими словами
+            (`content-factory-next-m2eg.20`, решение владельца 07.09.2026).
+            Раздел назывался «Что уже написали» и объяснял себя списком
+            фильтров; на живом прогоне вопрос был другой: «а зачем он?».
+            С 07.09 архив кормит внутренний поиск, и адаптация берёт отсюда
+            свои прежние тексты, чтобы на них сослаться.
+          */}
+          <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {t.purpose}
+          </p>
         </div>
         <Button
           variant="primary"

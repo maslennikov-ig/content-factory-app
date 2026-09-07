@@ -43,6 +43,7 @@ import type {
   AnalysisLexiconRow,
   AnalysisPunctuationRow,
   AnalysisRejectedRow,
+  AnalysisStage,
 } from './voice-analysis.screen';
 import {
   MIN_CORPUS_SAMPLES,
@@ -57,6 +58,15 @@ export const VOICE_ROUTES = Object.freeze({
   samples: `${VOICE_API_BASE}/samples`,
   samplesFiles: `${VOICE_API_BASE}/samples/files`,
   analysis: `${VOICE_API_BASE}/analysis`,
+  /**
+   * Тот же разбор, отданный строками NDJSON.
+   *
+   * Мастер ходит сюда, а не на `analysis`: двадцать восемь вызовов модели
+   * подряд не укладываются в шестьдесят секунд ingress'а, и одиночный ответ
+   * приезжал как 504 (живой прогон 07.09.2026). Старая дверь осталась на
+   * месте — её читает всё, что не показывает ход.
+   */
+  analysisStream: `${VOICE_API_BASE}/analysis/stream`,
   proposal: `${VOICE_API_BASE}/proposal`,
   proposalField: `${VOICE_API_BASE}/proposal/field`,
   proposalPortrait: `${VOICE_API_BASE}/proposal/portrait`,
@@ -71,29 +81,16 @@ export const proposalRoutesFor = (path: VoicePathKeyV1 | undefined) =>
     ? { read: VOICE_ROUTES.proposalManual, write: VOICE_ROUTES.proposalManualField }
     : { read: VOICE_ROUTES.proposal, write: VOICE_ROUTES.proposalField };
 
-/** How long an analysis may run before the wizard stops waiting for it. */
-export const ANALYSIS_TIMEOUT_MS = 120_000;
-
-/** How long the wizard waits between two readings of a running analysis. */
-export const ANALYSIS_POLL_MS = 2_000;
-
-/** A pause that ends when the wait is over or when the run is cut off. */
-export const pause = (ms: number, signal?: AbortSignal): Promise<void> =>
-  new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true }
-    );
-  });
+/**
+ * Сколько мастер ждёт следующей строки разбора, прежде чем оборвать поток.
+ *
+ * Тишина, а не длительность. Пределом была длительность — две минуты на весь
+ * ход, — и она отмеряла ровно то, что ходу и нужно: на 88 образцах разбор
+ * идёт минутами, и обрывать его на второй значило бы отменять работу, за
+ * которую уже заплачено. Молчащий поток обрывать по-прежнему надо, и две
+ * минуты между двумя строками — это уже не «долго», а «никто не отвечает».
+ */
+export const ANALYSIS_SILENCE_MS = 120_000;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -159,7 +156,8 @@ export const wizardCopy = {
       AI_ARTEFACT: 'следы генерации: нужен текст, написанный человеком',
       DUPLICATE: 'такой текст уже есть в наборе',
       UNREADABLE: 'не читается: пришлите текст другим способом',
-      EXTENSION: 'такой формат не читаем: подойдут txt, md, docx, pdf',
+      EXTENSION:
+        'такой формат не читаем: подойдут txt, md, docx, pdf и json выгрузки Telegram',
       TOO_LARGE: 'слишком большой: разделите на части поменьше',
       BINARY: 'внутри не текст, а двоичные данные: проверьте, тот ли это файл',
       PASSWORD_PROTECTED: 'файл под паролем: снимите пароль и пришлите снова',
@@ -174,7 +172,7 @@ export const wizardCopy = {
     pickedTooLarge: (limit: string) => `тяжелее ${limit}`,
     pickedTooMany: (limit: number) => `сверх ${limit} файлов за раз`,
     pickedBatchTooLarge: (limit: string) => `партия тяжелее ${limit}`,
-    pickedExtension: 'формат не читается: txt, md, docx, pdf',
+    pickedExtension: 'формат не читается: txt, md, docx, pdf, json',
   },
   en: {
     analysing: 'Reading your texts',
@@ -205,7 +203,8 @@ export const wizardCopy = {
       AI_ARTEFACT: 'traces of generation: this needs text a person wrote',
       DUPLICATE: 'this text is already in the corpus',
       UNREADABLE: 'unreadable: send the text another way',
-      EXTENSION: 'this format is not read: txt, md, docx and pdf are',
+      EXTENSION:
+        'this format is not read: txt, md, docx, pdf and a Telegram json export are',
       TOO_LARGE: 'too large: split it into smaller parts',
       BINARY: 'the contents are binary, not text: check this is the right file',
       PASSWORD_PROTECTED: 'the file has a password: remove it and send again',
@@ -220,7 +219,7 @@ export const wizardCopy = {
     pickedTooLarge: (limit: string) => `heavier than ${limit}`,
     pickedTooMany: (limit: number) => `beyond ${limit} files at a time`,
     pickedBatchTooLarge: (limit: string) => `the batch is heavier than ${limit}`,
-    pickedExtension: 'this format is not read: txt, md, docx, pdf',
+    pickedExtension: 'this format is not read: txt, md, docx, pdf, json',
   },
 } as const;
 
@@ -537,6 +536,150 @@ export function readAnalysis(value: unknown): AnalysisReading {
       };
     }),
   };
+}
+
+/* -------------------------------------------------------------------------
+ * Разбор строками: события стрима и полоса, которую они двигают
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Событие разбора, прочитанное из строки NDJSON.
+ *
+ * Читается так же осторожно, как и всё остальное на этой стороне: строка
+ * приходит из сети, и неизвестное имя события — это не поломка, а более новый
+ * сервер. Такая строка молча пропускается, а не роняет ход.
+ */
+export type AnalysisStreamEvent =
+  | { name: 'started'; samples: number; planned: number }
+  | { name: 'measured'; sampleCount: number; charCount: number }
+  | {
+      name: 'call';
+      stage: 'map' | 'reduce';
+      index: number;
+      total: number;
+      ok: boolean;
+    }
+  | { name: 'done'; analysis: AnalysisReading }
+  | { name: 'error'; code: string | null; message: string };
+
+export function readAnalysisEvent(line: string): AnalysisStreamEvent | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  const event = asRecord(parsed);
+  switch (event.name) {
+    case 'started':
+      return {
+        name: 'started',
+        samples: asCount(event.samples),
+        planned: asCount(event.planned),
+      };
+    case 'measured':
+      return {
+        name: 'measured',
+        sampleCount: asCount(event.sampleCount),
+        charCount: asCount(event.charCount),
+      };
+    case 'call':
+      return {
+        name: 'call',
+        stage: event.stage === 'reduce' ? 'reduce' : 'map',
+        index: asCount(event.index),
+        total: asCount(event.total),
+        ok: event.ok === true,
+      };
+    case 'done':
+      return { name: 'done', analysis: readAnalysis(event.analysis) };
+    case 'error':
+      return {
+        name: 'error',
+        code: isErrorCode(event.code) ? event.code : null,
+        message: asText(event.message),
+      };
+    default:
+      return null;
+  }
+}
+
+/** Что показывает шаг разбора прямо сейчас. */
+export type AnalysisProgress = Readonly<{
+  stage: AnalysisStage;
+  /** 0–100 для полосы. */
+  percent: number;
+  /** Вызовов модели вернулось из скольких. Пусто, пока модель не спрошена. */
+  assisted?: { done: number; total: number };
+}>;
+
+/**
+ * Доля до первой строки: запрос ушёл, ответ ещё не начался.
+ *
+ * Не ноль и не шесть процентов, нарисованных в вёрстке: ноль читается как
+ * «ничего не происходит», а любое другое число до первого события — выдумка.
+ * Четыре — цена самого запроса, и она единственная, что уже потрачена.
+ */
+export const ANALYSIS_PROGRESS_START: AnalysisProgress = {
+  stage: 'READING',
+  percent: 4,
+};
+
+/**
+ * Где кончается арифметика и начинается модель.
+ *
+ * Числа считаются в процессе и занимают секунды; вызовы модели занимают
+ * минуты. Полоса поделена в ту же сторону: пятая часть на подсчёт, остальное
+ * на образцы.
+ */
+const MEASURED_PERCENT = 20;
+const ASSIST_PERCENT = 75;
+
+/**
+ * Следующее состояние полосы, по одному событию за раз.
+ *
+ * Счёт идёт по месту образца в списке, а не по числу ответов: образцы
+ * читаются по три, поэтому строка может опережать самый медленный из них на
+ * два — и зато не откатывается назад, когда модель ответила невалидно и
+ * вопрос задан второй раз.
+ */
+export function advanceAnalysis(
+  current: AnalysisProgress,
+  event: AnalysisStreamEvent
+): AnalysisProgress {
+  switch (event.name) {
+    case 'started':
+      return {
+        stage: 'READING',
+        percent: 8,
+        ...(event.planned > 0
+          ? { assisted: { done: 0, total: event.planned } }
+          : {}),
+      };
+    case 'measured':
+      return {
+        ...current,
+        stage: 'MEASURED',
+        percent: current.assisted ? MEASURED_PERCENT : 95,
+      };
+    case 'call': {
+      if (event.stage === 'reduce') {
+        return { ...current, stage: 'ASSISTING', percent: 96 };
+      }
+      const total = event.total || current.assisted?.total || 0;
+      const done = Math.max(current.assisted?.done ?? 0, event.index);
+      return {
+        stage: 'ASSISTING',
+        percent: total
+          ? MEASURED_PERCENT +
+            Math.round((ASSIST_PERCENT * Math.min(done, total)) / total)
+          : current.percent,
+        assisted: { done: Math.min(done, total || done), total },
+      };
+    }
+    default:
+      return { ...current, percent: 100 };
+  }
 }
 
 export type ProposalReading =

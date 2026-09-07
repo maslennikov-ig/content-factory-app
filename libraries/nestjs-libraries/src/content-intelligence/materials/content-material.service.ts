@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
   previewRecut,
@@ -11,9 +11,12 @@ import type {
   MaterialRecutRequestV1,
   MaterialRowV1,
   MaterialsResponseV1,
+  RelatedTextsResponseV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { archiveImportInvalid, materialNotFound, platformUnsupported } from './errors';
 import { searchWords } from '../search-terms';
+import { relatedOwnPostsOf } from '../search/text-search.index';
+import { TextSearchService } from '../search/text-search.service';
 import {
   ARCHIVE_LAYERS,
   archiveLayerOf,
@@ -101,7 +104,25 @@ function parseFilterDate(value: string | undefined): number | null {
 export class ContentMaterialService {
   constructor(
     private readonly repository: ContentMaterialRepository,
-    @Optional() private readonly now: () => Date = () => new Date()
+    @Optional() private readonly now: () => Date = () => new Date(),
+    /**
+     * Внутренний поиск области (`content-factory-next-m2eg.19`).
+     *
+     * Необязательный и последний: наборы собирают сервис руками, а порядок
+     * параметров конструктора — часть договора. Без него поиск по словам
+     * отвечает ровно как отвечал с 05.09.2026, и это не деградация, а
+     * запасной путь, объявленный решением владельца заранее.
+     *
+     * `@Inject` здесь обязателен вместе с `@Optional()`, и это не украшение.
+     * Тип параметра — объединение с `null`, а `emitDecoratorMetadata` пишет
+     * для объединения `Object`: Nest пошёл бы искать провайдера `Object`, не
+     * нашёл, и `@Optional()` молча подставил бы `undefined`. Поиск был бы
+     * выключен на боевом при зелёных наборах — ровно та форма поломки, из-за
+     * которой в этом репозитории уже живёт `upload-module.wiring.test.cjs`.
+     */
+    @Optional()
+    @Inject(TextSearchService)
+    private readonly search: TextSearchService | null = null
   ) {}
 
   private row(piece: PieceRow, index: number, counts: Map<string, number>) {
@@ -221,20 +242,23 @@ export class ContentMaterialService {
     const toTime = parseFilterDate(filters.to);
 
     /*
-      Поиск по словам спрашивает базу отдельно и отвечает множеством
-      идентификаторов, а не своим списком строк: коды материалов считаются по
-      полному списку и не должны переезжать от того, что человек что-то искал
-      (см. `searchPieceIds`). Пустой запрос до базы не доходит вовсе.
+      Поиск отвечает множеством идентификаторов, а не своим списком строк:
+      коды материалов считаются по полному списку и не должны переезжать от
+      того, что человек что-то искал (см. `searchPieceIds`). Пустой запрос до
+      поиска не доходит вовсе.
+
+      С 07.09.2026 первым спрашивают внутренний индекс
+      (`content-factory-next-m2eg.19`): он знает стемминг, и «сроки» находят
+      «срок». Отбор при этом тот же, что был, — встретиться должно каждое
+      слово, — потому что менять смысл одного и того же запроса посреди эпика
+      значило бы, что список отвечает по-разному в зависимости от даты
+      выпуска. Пустой индекс (холодная область, отказ сборки) возвращает
+      `null`, и тогда отвечает поиск по словам через базу, слово в слово как
+      с 05.09.2026.
     */
-    const words = searchWords(filters.q);
     const matchedIds =
-      words.length > 0
-        ? new Set<string>(
-            (
-              await this.repository.searchPieceIds(organizationId, words)
-            ).map((piece: { id: string }) => piece.id)
-          )
-        : null;
+      (await this.search?.matchingIds(organizationId, filters.q ?? '', 'PIECE')) ??
+      (await this.searchPieceIdsByWords(organizationId, filters.q));
 
     const counts = ARCHIVE_LAYERS.reduce(
       (acc, layer) => ({ ...acc, [layer]: 0 }),
@@ -354,7 +378,53 @@ export class ContentMaterialService {
       language: input.language,
       tags,
     });
+    // Занесённый текст обязан находиться сразу: человек только что сказал,
+    // что он у него есть (`content-factory-next-m2eg.19`).
+    this.search?.invalidate(organizationId);
     return { id: created.id, layer: input.origin };
+  }
+
+  /** Запасной поиск по словам: тот самый, что стоял здесь до внутреннего индекса. */
+  private async searchPieceIdsByWords(
+    organizationId: string,
+    q: string | undefined
+  ): Promise<Set<string> | null> {
+    const words = searchWords(q);
+    if (!words.length) return null;
+    const found: Array<{ id: string }> = await this.repository.searchPieceIds(
+      organizationId,
+      words
+    );
+    return new Set(found.map((piece) => piece.id));
+  }
+
+  /**
+   * «Свои тексты по теме» — вышедшие тексты области, на которые можно
+   * сослаться (`content-factory-next-m2eg.19`).
+   *
+   * Отвечает и экрану, и адаптации, и это один и тот же список: если бы
+   * человек видел одно, а модель получала другое, ссылка в тексте перестала
+   * бы быть проверяемой. Условие «есть адрес» стоит в самом запросе, а не
+   * фильтром после: сослаться можно только на то, что читатель откроет.
+   *
+   * Отбор здесь ранжирующий, а не «встретиться должно всё»: вопрос другой —
+   * «что у меня написано об этом», — и лишняя строка внизу списка стоит
+   * дёшево, а пропущенная дорого.
+   */
+  async listRelated(
+    organizationId: string,
+    filters: { q?: string; platform?: string; limit?: number }
+  ): Promise<RelatedTextsResponseV1> {
+    const query = String(filters.q || '').trim();
+    if (!query || !this.search) return { related: [] };
+    const hits = await this.search.search(organizationId, query, {
+      ...(filters.platform ? { platform: filters.platform } : {}),
+      kinds: ['ADAPTATION', 'POST'],
+      linkableOnly: true,
+      limit: Math.min(Math.max(filters.limit ?? 3, 1), 10),
+      mode: 'ranked',
+    });
+    return { related: relatedOwnPostsOf(hits) };
   }
 
   private async open(organizationId: string, id: string) {
@@ -460,6 +530,7 @@ export class ContentMaterialService {
       publishDate: this.now(),
       group: randomUUID(),
     });
+    this.search?.invalidate(organizationId);
 
     return {
       postId: written.postId,

@@ -37,7 +37,16 @@ export type VoiceAnalysisState =
   | 'disabled'
   | 'long-content';
 
-export type AnalysisStage = 'MEASURING' | 'ASSISTING';
+/**
+ * Что идёт прямо сейчас, словами стрима разбора.
+ *
+ * `MEASURING`/`ASSISTING` — то, чем стадия называлась, пока разбор отвечал
+ * одним ответом с полем `stage`. `READING` и `MEASURED` добавились вместе со
+ * стримом: первое — корпус прочитан и модель ещё не спрошена, второе —
+ * арифметика сохранена, и это отдельная новость, потому что она переживает
+ * модель.
+ */
+export type AnalysisStage = 'READING' | 'MEASURING' | 'MEASURED' | 'ASSISTING';
 
 export type AnalysisLexiconRow = Readonly<{ term: string; count: number }>;
 
@@ -91,6 +100,7 @@ export function VoiceAnalysisScreen({
   state = 'default',
   progress,
   stage,
+  assisted,
   sampleCount,
   charCount,
   holdoutCount,
@@ -106,9 +116,17 @@ export function VoiceAnalysisScreen({
 }: {
   locale: VoiceLocale;
   state?: VoiceAnalysisState;
-  /** 0–100. Present while the run is `pending`. */
+  /** 0–100. Present while the run is going. */
   progress?: number;
   stage?: AnalysisStage;
+  /**
+   * Сколько вызовов модели уже вернулось из скольких.
+   *
+   * Считанное, а не оценённое: `total` приходит с сервера первой строкой
+   * стрима, `done` растёт на каждом ответе. Без него стадия «составляем
+   * аватар» — это одна надпись на несколько минут.
+   */
+  assisted?: Readonly<{ done: number; total: number }>;
   sampleCount?: number;
   charCount?: number;
   /** Accepted samples deliberately kept out of the measurement. */
@@ -142,14 +160,34 @@ export function VoiceAnalysisScreen({
   const counted = sampleCount != null && charCount != null;
   const countedOnly = state === 'error' && counted;
   const showMeasured = ready || state === 'long-content' || countedOnly;
-  const shownPercent = progress ?? (ready || countedOnly ? 100 : 0);
+  const shownPercent = progress ?? (ready ? 100 : 0);
+  /**
+   * Прерванный ход не показывает долю.
+   *
+   * «Разбор прерван» над «100 %» — два утверждения об одном ходе, и они
+   * противоречат друг другу: полоса читается как «всё сделано», заголовок —
+   * как «не сделано ничего» (живой прогон 07.09.2026, `C1_1`). Сделана
+   * половина, и честно про неё говорит строка «Числа посчитаны, предложение —
+   * нет», а не число.
+   */
+  const showPercent = state !== 'error';
   const stageLabel =
-    stage === 'ASSISTING' ? t.analysisStageAssisting : t.analysisStageMeasuring;
+    stage === 'ASSISTING'
+      ? assisted && assisted.total > 0
+        ? t.analysisStageProposing(assisted.done, assisted.total)
+        : t.analysisStageAssisting
+      : stage === 'MEASURING'
+        ? t.analysisStageMeasuring
+        : stage === 'MEASURED'
+          ? t.analysisStageCounted
+          : t.analysisLoading;
   const progressLabel = ready
     ? t.analysisDone
     : countedOnly
       ? t.analysisCountedOnly
-      : stageLabel;
+      : state === 'error'
+        ? t.analysisErrorTitle
+        : stageLabel;
 
   // A state that already carries its own alert or status banner (error,
   // restricted, disabled) does not also make the progress line a second live
@@ -239,29 +277,20 @@ export function VoiceAnalysisScreen({
                 : 'border-cf-border bg-cf-surface'
             )}
           >
-            {state === 'loading' && progress == null ? (
-              <>
-                <p role={progressStatusRole} className="cf-body-sm text-cf-ink">
-                  {t.analysisLoading}
-                </p>
-                <ProgressBar percent={6} label={t.analysisLoading} />
-              </>
-            ) : (
-              <>
-                <div
-                  role={progressStatusRole}
-                  className="flex items-baseline gap-[8px]"
-                >
-                  <span className="cf-label-md text-cf-ink">
-                    {progressLabel}
-                  </span>
-                  <span className="ms-auto cf-label-sm text-cf-ink-muted">
-                    {shownPercent}%
-                  </span>
-                </div>
-                <ProgressBar percent={shownPercent} label={stageLabel} />
-              </>
-            )}
+            <div
+              role={progressStatusRole}
+              className="flex items-baseline gap-[8px]"
+            >
+              <span className="cf-label-md text-cf-ink">{progressLabel}</span>
+              {showPercent ? (
+                <span className="ms-auto cf-label-sm text-cf-ink-muted">
+                  {shownPercent}%
+                </span>
+              ) : null}
+            </div>
+            {showPercent ? (
+              <ProgressBar percent={shownPercent} label={stageLabel} />
+            ) : null}
           </div>
           <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
             {t.analysisNote}

@@ -69,6 +69,7 @@ import type {
   GeneratorRunInput,
   IntakeGenerationHintsV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
+import type { RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 /**
  * Антикопия — общий счёт волны «вход одной мыслью»: восемь слов подряд из
  * чужого материала считаются копией. Живёт в `text-quality/anti-copy.ts`
@@ -168,6 +169,15 @@ interface WorkflowChannelsState {
    * читают, три — хук, контент и повторная вставка голоса в треде.
    */
   channelLines?: string[];
+  /**
+   * Свои прежние тексты по теме — вышедшие и со своими адресами.
+   *
+   * Считает их внутренний поиск области и передаёт готовыми
+   * (`content-factory-next-m2eg.19`); граф их только печатает. Второе место,
+   * которое умеет искать, — это второй порядок ранжирования и второй ответ на
+   * один вопрос.
+   */
+  relatedOwnPosts?: RelatedOwnPostV1[];
   /**
    * Куски чужого текста, с которыми сверяется черновик.
    *
@@ -322,6 +332,45 @@ const briefBlock = (state: WorkflowChannelsState): string => {
           ...answers.map((answer) => `- ${answer}`),
         ]
       : []),
+  ].join('\n        ');
+};
+
+/**
+ * «Свои тексты по теме» — как значение шаблона, а не как кусок промпта.
+ *
+ * Решение владельца 07.09.2026 (`content-factory-next-m2eg.19`): «нам это
+ * нужно сразу сделать, чтобы модель научилась на них ссылаться». Список
+ * приходит готовым из внутреннего поиска области — заголовок, первые строки и
+ * адрес, — и здесь только печатается.
+ *
+ * Правило сказано трижды в одном абзаце, и это не многословие. Модель,
+ * которой дали список ссылок, по умолчанию делает из него список ссылок:
+ * перечисляет всё, что ей показали, вместо того чтобы упомянуть одну вещь,
+ * если она к месту. Поэтому запрет перечислять стоит рядом с разрешением
+ * сослаться, а не абзацем ниже.
+ *
+ * Пример фразы даётся на языке поста: правило пишется по-английски, как и
+ * весь промпт, а фраза, которую человек увидит в своём тексте, — по-русски,
+ * когда пост русский. Английская вставка в русский текст — это ровно та
+ * поломка, ради которой в этом файле уже живёт `contentLanguageInstruction`.
+ *
+ * Тела в блоке нет — только заголовок и выдержка. Прежний пост целиком в
+ * промпте означал бы, что модель перепишет его, а не сошлётся на него, и
+ * платный вызов вырос бы на длину архива.
+ */
+const relatedBlock = (state: WorkflowChannelsState): string => {
+  const related = state.relatedOwnPosts || [];
+  if (!related.length) return '';
+  const example =
+    state.language === 'ru'
+      ? 'Я уже писал об этом: <адрес>'
+      : 'I have written about this before: <url>';
+  return [
+    "Your own earlier posts on this platform, already published, closest to what you are writing now:",
+    ...related.map(
+      (post) => `- "${post.title}" — ${post.url}\n          ${post.excerpt}`
+    ),
+    `Refer to ONE of them only if it genuinely fits this post, and then in the author's own words, like: «${example}». Never list them, never mention one just because it is here, and never write a link that is not printed above.`,
   ].join('\n        ');
 };
 
@@ -560,6 +609,12 @@ export class AgentGraphService {
         draftGaps: null,
         intake: null,
         channelLines: null,
+        /**
+         * Объявлен здесь по той же причине, что и `draftGaps` выше: ключ,
+         * которого нет среди каналов, LangGraph молча выбрасывает, и блок
+         * «свои тексты по теме» не доехал бы до промпта вовсе.
+         */
+        relatedOwnPosts: null,
         foreignShingles: null,
         antiCopy: null,
       },
@@ -848,6 +903,7 @@ export class AgentGraphService {
         - Make sure you add "\n" between the lines
         - Add "\n" after every "."
         {brief}
+        {related}
         Hook:
         {hook}
 
@@ -886,6 +942,7 @@ export class AgentGraphService {
       const { content: outputContent } = await promptTemplate.invoke({
         voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
         brief: briefBlock(state),
+        related: relatedBlock(state),
         hook: state.hook,
         request: state.messages[0].content,
         information: this.researchText(state),
@@ -1374,11 +1431,16 @@ export class AgentGraphService {
    * ждёт, что человек сходит поискать сам. Пять генераций подряд опирались ни
    * на что.
    *
-   * Три условия, и все три — про то, чтобы не мешать человеку:
+   * Четыре условия, и все четыре — про то, чтобы не мешать человеку:
    *
    * - явный материал (`sourceIds`/`factIds`/`userMaterialEvidenceIds`) отменяет
    *   поиск целиком: человек уже сказал, на чём стоять, и добавлять к этому
    *   находки — значит спорить с ним деньгами области;
+   * - `materialPolicy: 'PIECE_ONLY'` отменяет поиск, даже когда явного
+   *   материала не передали. Решение владельца 07.09.2026
+   *   (`content-factory-next-m2eg.16`): адаптация заготовки пишется из сути и
+   *   ответов человека, и второй раз ходить в веб на каждой площадке не за
+   *   чем;
    * - поиск выключён в области — `WebResearchService` бросает
    *   `WebSearchNotConfigured` ещё до платного вызова, и это не поломка, а
    *   настройка;
@@ -1460,9 +1522,14 @@ export class AgentGraphService {
       body.factIds,
       body.userMaterialEvidenceIds,
     ].some((ids) => Boolean(ids?.length));
-    const searchedEvidenceIds = explicitMaterial
-      ? []
-      : await this.searchForMaterial(orgId, body);
+    // Политика материала читается ДО поиска и отдельно от явного материала:
+    // «писать из того, что уже есть» — это решение вызывающей стороны, а не
+    // следствие того, что ей случилось передать (`content-factory-next-m2eg.16`).
+    const searchAllowed = body.materialPolicy !== 'PIECE_ONLY';
+    const searchedEvidenceIds =
+      explicitMaterial || !searchAllowed
+        ? []
+        : await this.searchForMaterial(orgId, body);
     let contentContext: ContentContextEnvelopeResultV1;
     try {
       contentContext = await this.contentContexts.build(orgId, {
@@ -1630,6 +1697,7 @@ export class AgentGraphService {
           contextText: this.renderContext(contentContext),
           intake: hints,
           channelLines,
+          relatedOwnPosts: body.relatedOwnPosts ?? undefined,
           foreignShingles: hints?.foreignShingles ?? undefined,
           ...provenance,
         },

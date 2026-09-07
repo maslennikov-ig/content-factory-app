@@ -100,7 +100,8 @@ const choice = (file) => loadModule(path.join(choiceRoot, file));
 const { ControlButton } = choice('control.button.tsx');
 const { RadioGroup, RadioOption } = choice('radio.group.tsx');
 const { Tabs, TabList, Tab, TabPanel } = choice('tabs.tsx');
-const { Menu, MenuButton, MenuList, MenuOption } = choice('choice.menu.tsx');
+const { Menu, MenuButton, MenuCommand, MenuList, MenuOption } =
+  choice('choice.menu.tsx');
 const { Listbox, ListboxOption } = choice('listbox.tsx');
 
 const h = React.createElement;
@@ -461,6 +462,75 @@ describe('Menu', () => {
   });
 });
 
+/**
+ * Команды в меню (`content-factory-next-m2eg.18`, 07.09.2026).
+ *
+ * `MenuOption` — это выбор значения: `role="menuitemradio"` и `aria-checked`.
+ * «Опубликовать сейчас» ничего не выбирает, оно происходит, и радиокнопка,
+ * которая никогда не отмечена, читает человеку с экрана неправду о том, где он
+ * находится. Клавиатура при этом та же самая, и проверяется здесь именно это:
+ * новая роль, старые стрелки.
+ */
+const CommandHarness = ({ onRun = () => undefined }) => {
+  const [open, setOpen] = React.useState(false);
+  return h(Menu, { open, onOpenChange: setOpen }, [
+    h(MenuButton, { key: 'button' }, 'Отправить'),
+    open
+      ? h(MenuList, { key: 'list', 'aria-label': 'Отправить' }, [
+          h(MenuCommand, { key: 'now', onClick: () => onRun('now') }, 'Сейчас'),
+          h(
+            MenuCommand,
+            { key: 'later', onClick: () => onRun('later') },
+            'По расписанию'
+          ),
+        ])
+      : null,
+  ]);
+};
+
+describe('MenuCommand', () => {
+  test('a command is a command, not a radio nobody ever checks', () => {
+    const { container } = render(h(CommandHarness, {}));
+    press(container.querySelector('button'), 'ArrowDown');
+
+    const items = options(container, 'menuitem');
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(item.getAttribute('aria-checked')).toBeNull();
+    }
+    // Первая команда — единственная точка входа с Tab, как и у выбора.
+    expect(tabStops(items)).toEqual([0, -1]);
+  });
+
+  test('the same arrows, the same Escape, the same trigger', () => {
+    const { container } = render(h(CommandHarness, {}));
+    const trigger = container.querySelector('button');
+    press(trigger, 'ArrowDown');
+    const items = options(container, 'menuitem');
+
+    expect(document.activeElement).toBe(items[0]);
+    press(items[0], 'ArrowDown');
+    expect(document.activeElement).toBe(items[1]);
+
+    press(items[1], 'Escape');
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test('running a command closes the menu', () => {
+    const ran = [];
+    const { container } = render(
+      h(CommandHarness, { onRun: (name) => ran.push(name) })
+    );
+    press(container.querySelector('button'), 'ArrowDown');
+
+    fireEvent.click(options(container, 'menuitem')[0]);
+
+    expect(ran).toEqual(['now']);
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+});
+
 // ------------------------------------------------------- role ownership guard
 
 /**
@@ -478,8 +548,28 @@ const OWNED_ROLES = new Set([
   'tabpanel',
   'menu',
   'menuitemradio',
+  // `MenuCommand` с 07.09.2026 (`content-factory-next-m2eg.18`): команда в
+  // меню, а не выбор. Роль теперь принадлежит примитиву — значит, написанная
+  // руками в файле приложения, она снова строит то, что уже есть.
+  'menuitem',
   'listbox',
   'option',
+]);
+
+/**
+ * Что было здесь до того, как роль обзавелась примитивом.
+ *
+ * Правило репозитория для новой проверки: «grandfather what already exists and
+ * fail only what is new» (`AGENTS.md`). `menuitem` попал в список владения
+ * 07.09.2026 вместе с `MenuCommand` (`content-factory-next-m2eg.18`), а два
+ * места писали эту роль руками задолго до него — унаследованное меню календаря
+ * и слой `MenuItem`. Их перевод на примитив — своя работа со своим прогоном по
+ * клавиатуре, а не довесок к меню окна поста. Список закрыт: третьего имени в
+ * нём появиться не может, любая новая роль руками падает.
+ */
+const GRANDFATHERED = new Set([
+  'apps/frontend/src/components/launches/menu/menu.tsx role="menuitem"',
+  'apps/frontend/src/components/ui/layers.tsx role="menuitem"',
 ]);
 
 const parser = require('@typescript-eslint/parser');
@@ -519,6 +609,7 @@ describe('choice roles belong to the shared primitives', () => {
         const value =
           node.value?.type === 'Literal' ? node.value.value : undefined;
         if (typeof value === 'string' && OWNED_ROLES.has(value)) {
+          if (GRANDFATHERED.has(`${file} role="${value}"`)) return;
           offenders.push(`${file}:${node.loc.start.line} role="${value}"`);
         }
       });

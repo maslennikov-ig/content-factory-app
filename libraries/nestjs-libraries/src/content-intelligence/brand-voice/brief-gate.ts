@@ -31,6 +31,18 @@ export type BriefFact = {
   sourceUrl?: string | null;
   /** A fact carried from the memory of the workspace, with its own id. */
   factId?: string | null;
+  /**
+   * The person asserted this themselves, in answer to the gate's own question.
+   *
+   * It grounds the fact, and that is a product rule rather than a loosening
+   * (§9.5 of the section map: an author's own claim is confirmed the moment
+   * they write it). Without it the gate asks "what does it rest on", takes the
+   * answer, finds no URL in it, and asks the same question again — which is
+   * exactly what the owner hit on the 07.09.2026 walkthrough. Only an explicit
+   * answer sets it: a claim the model lifted out of somebody else's post is
+   * not the person's word and never gets this flag.
+   */
+  own?: boolean;
 };
 
 export type Brief = {
@@ -55,8 +67,11 @@ const QUESTIONS: Record<BriefField, BriefQuestion['question']> = {
     en: 'What exactly are you claiming? One sentence somebody could argue with.',
   },
   facts: {
-    ru: 'На чём это стоит? Нужен хотя бы один факт со ссылкой, которую можно проверить.',
-    en: 'What does it rest on? At least one fact with a source a reader can check.',
+    // Вопрос переписан по слову владельца (07.09.2026): «на чём это стоит»
+    // читалось не по-русски, а требование ссылки звучало как условие, хотя
+    // своё утверждение автора — тоже опора (`own` ниже).
+    ru: 'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть',
+    en: 'What does it rest on? At least one fact the text rests on — with a source, if there is one.',
   },
   position: {
     ru: 'Что вы об этом думаете? Пересказ чужого материала не нуждается в вашем голосе.',
@@ -81,11 +96,13 @@ const filled = (value?: string | null) =>
 /**
  * A fact needs somewhere it came from. One taken from the workspace's own
  * memory carries a `factId` instead of a URL, which is the same guarantee by a
- * different route: it was checked when it entered.
+ * different route: it was checked when it entered. And one the author asserted
+ * themselves carries `own`, which is the third route and the oldest: the
+ * person who was there is the source.
  */
 const grounded = (fact: BriefFact) =>
   Boolean(fact.statement?.trim()) &&
-  Boolean(fact.sourceUrl?.trim() || fact.factId?.trim());
+  Boolean(fact.sourceUrl?.trim() || fact.factId?.trim() || fact.own);
 
 export type BriefVerdict = {
   ready: boolean;

@@ -1,6 +1,12 @@
 'use client';
 
-import { FC, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
+import {
+  FC,
+  HTMLAttributes,
+  ReactNode,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from 'react';
 import { clsx } from 'clsx';
 
 /**
@@ -27,12 +33,26 @@ export const Table: FC<{
 );
 
 export const Th: FC<
-  { numeric?: boolean } & ThHTMLAttributes<HTMLTableCellElement>
-> = ({ numeric, className, children, ...rest }) => (
+  {
+    numeric?: boolean;
+    /**
+     * The header row as a tonal band: `surface-subtle` behind it and the
+     * stronger rule under it, so a long table keeps its column names when the
+     * body scrolls past them. It is a prop rather than two classes at the call
+     * site because a `bg-*` and a `border-*` handed in from outside land at the
+     * same specificity as the defaults here, and which of the pair wins is
+     * decided by the order Tailwind happens to emit them in.
+     */
+    banded?: boolean;
+  } & ThHTMLAttributes<HTMLTableCellElement>
+> = ({ numeric, banded, className, children, ...rest }) => (
   <th
     scope="col"
     className={clsx(
-      'h-[36px] px-[12px] border-b border-cf-border',
+      'h-[36px] px-[12px] border-b',
+      banded
+        ? 'bg-cf-surface-subtle border-cf-border-strong'
+        : 'border-cf-border',
       'cf-label-sm text-cf-ink-muted font-[600]',
       numeric && 'text-right',
       className
@@ -58,11 +78,12 @@ export const Td: FC<
   </td>
 );
 
-export const Tr: FC<{
-  children: ReactNode;
-  selected?: boolean;
-  className?: string;
-}> = ({ children, selected, className }) => (
+export const Tr: FC<
+  {
+    children: ReactNode;
+    selected?: boolean;
+  } & HTMLAttributes<HTMLTableRowElement>
+> = ({ children, selected, className, ...rest }) => (
   <tr
     aria-selected={selected || undefined}
     className={clsx(
@@ -70,6 +91,7 @@ export const Tr: FC<{
       selected && 'bg-cf-accent-soft',
       className
     )}
+    {...rest}
   >
     {children}
   </tr>

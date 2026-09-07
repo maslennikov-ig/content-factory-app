@@ -31,7 +31,8 @@ export const intakeCopy = {
     /* --- Каналы, язык, действие ------------------------------------------ */
     channelsLabel: 'Куда',
     channelsHint: 'Необязательно. До трёх каналов за раз — для каждого получится свой текст.',
-    writingProfileLink: (name: string) => `Как пишем в «${name}»`,
+    writingProfileAction: (name: string) =>
+      `Настроить: как пишем в «${name}»`,
     writingProfileStored: 'настроено',
     writingProfileDefault: 'по умолчанию',
     languageLabel: 'Язык текста',
@@ -83,9 +84,6 @@ export const intakeCopy = {
     manualForm: 'Заполнить бриф вручную',
     addFact: 'Добавить факт',
     blockedUnanswered: 'Ответьте или нажмите «Реши сама»',
-    roundsSpentTitle: 'Больше спрашивать не будем',
-    roundsSpentBody:
-      'Два уточнения — предел: дальше это уже анкета, а не текст. Заполните бриф руками или добавьте факт, на котором текст будет стоять.',
 
     /* --- Квитанция -------------------------------------------------------- */
     receiptTitle: 'Что модель поняла',
@@ -201,7 +199,8 @@ export const intakeCopy = {
 
     channelsLabel: 'Where to',
     channelsHint: 'Optional. Up to three channels at a time — each gets its own text.',
-    writingProfileLink: (name: string) => `How we write in “${name}”`,
+    writingProfileAction: (name: string) =>
+      `Set up: how we write in “${name}”`,
     writingProfileStored: 'set up',
     writingProfileDefault: 'defaults',
     languageLabel: 'Text language',
@@ -237,9 +236,6 @@ export const intakeCopy = {
     manualForm: 'Fill the brief by hand',
     addFact: 'Add a fact',
     blockedUnanswered: 'Answer, or press “You decide”',
-    roundsSpentTitle: 'We will not ask again',
-    roundsSpentBody:
-      'Two rounds is the limit: past that it is a questionnaire, not a text. Fill the brief by hand, or add a fact for the text to stand on.',
 
     receiptTitle: 'What the model understood',
     receiptLead:

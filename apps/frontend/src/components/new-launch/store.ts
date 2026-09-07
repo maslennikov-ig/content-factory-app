@@ -700,12 +700,12 @@ interface StoreState {
   setContentIntelligenceFailure: (
     failure: 'CONTENT_EVIDENCE_REQUIRED' | 'CONTEXT_UNAVAILABLE' | null
   ) => void;
-  setGlobalValueCitationIds: (index: number, citationIds: string[]) => void;
-  setInternalValueCitationIds: (
-    integrationId: string,
-    index: number,
-    citationIds: string[]
-  ) => void;
+  /*
+    `setGlobalValueCitationIds` и `setInternalValueCitationIds` сняты
+    07.09.2026 (`content-factory-next-m2eg.17`): их звала только рука человека
+    на галочках цитат, а галочек больше нет. Само поле `usedCitationIds` у
+    коробки осталось — его пишет генератор, а окно несёт на сохранение.
+  */
   setComments: (comments: boolean | 'no-media') => void;
 }
 
@@ -755,25 +755,6 @@ export const useLaunchStore = create<StoreState>()((set) => ({
     set({ contentIntelligenceLoadState }),
   setContentIntelligenceFailure: (contentIntelligenceFailure) =>
     set({ contentIntelligenceFailure }),
-  setGlobalValueCitationIds: (index, usedCitationIds) =>
-    set((state) => ({
-      global: state.global.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, usedCitationIds } : item
-      ),
-    })),
-  setInternalValueCitationIds: (integrationId, index, usedCitationIds) =>
-    set((state) => ({
-      internal: state.internal.map((item) =>
-        item.integration.id === integrationId
-          ? {
-              ...item,
-              integrationValue: item.integrationValue.map((value, valueIndex) =>
-                valueIndex === index ? { ...value, usedCitationIds } : value
-              ),
-            }
-          : item
-      ),
-    })),
   setCurrent: (current: string) =>
     set((state) => ({
       current: current,

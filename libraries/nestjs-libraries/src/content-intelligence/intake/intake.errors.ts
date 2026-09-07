@@ -76,3 +76,16 @@ export const INTAKE_LINK_UNREACHABLE_MESSAGES = {
   ru: 'Страницу по ссылке не удалось прочитать. Вставьте текст поста прямо в поле.',
   en: 'The page behind the link could not be read. Paste the text into the field instead.',
 } as const;
+
+/**
+ * Второй такой отказ: заготовка написана, но не записалась.
+ *
+ * `content-factory-next-m2eg`. Раньше здесь была тишина — `recordCore`
+ * возвращал `null`, и ход шёл дальше как ни в чём не бывало. Теперь весь
+ * раздел стоит на том, что заготовка появляется первой, поэтому её отсутствие
+ * называется вслух, а не остаётся между строк.
+ */
+export const PIECE_NOT_SAVED_MESSAGES = {
+  ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
+  en: 'The piece could not be saved. Nothing is lost — try again.',
+} as const;

@@ -16,18 +16,13 @@ import {
 } from '../../ui/surface';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import { BriefReceipt, type BriefOverrides } from './brief.receipt';
-import { QuestionsCard, SuggestedQuestionsCard } from './questions.card';
 import { DraftResult } from '../shared/draft-result';
-import { piecesCopy } from '../pieces/pieces.copy';
 import { intakeActionLabel } from './intake.adapter';
 import type {
-  BriefField,
   BriefFilledV1,
   IntakeBlockReason,
   IntakeInputKindV1,
-  IntakeQuestionV1,
   IntakeScreenState,
-  PieceQuestionV1,
   ReceiptField,
 } from './intake.adapter';
 
@@ -54,6 +49,12 @@ import type {
  * Результат — две колонки: слева текст, справа квитанция и находки. Текст
  * шире (3:2), потому что читают его, а не расписку; на узком экране колонки
  * встают друг под друга, и первым остаётся текст.
+ *
+ * Вопросов на этом экране больше нет — волна `content-factory-next-m2eg`.
+ * Заготовка теперь записывается до них, экран уходит на её страницу, и
+ * уточнения живут там, рядом с сутью, которую они правят. Здесь остался
+ * последний кадр перед переходом: строка «Заготовка сохранена» и, если
+ * переход не случился, кнопка «Открыть заготовку».
  */
 
 export type IntakeChannel = ChannelPickerIntegration & {
@@ -70,8 +71,6 @@ export function IntakeScreen({
   selectedIds,
   language,
   step,
-  questions,
-  pieceQuestions = [],
   piece,
   brief,
   overrides,
@@ -84,16 +83,12 @@ export function IntakeScreen({
   notice,
   restrictedReason,
   readOnlyNote,
-  roundsSpent,
   slopKey,
   onInputChange,
   onToggleChannel,
   onLanguageChange,
   onWrite,
   onCancel,
-  onAnswer,
-  onPieceAnswer,
-  onSkipInterview,
   onOpenPiece,
   onOverride,
   onKindChange,
@@ -114,9 +109,6 @@ export function IntakeScreen({
   selectedIds: readonly string[];
   language: 'ru' | 'en';
   step: string | null;
-  questions: readonly IntakeQuestionV1[];
-  /** Вопросы при создании заготовки: у каждого есть ответ модели. */
-  pieceQuestions?: readonly PieceQuestionV1[];
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
   piece?: { pieceId: string; code: string } | null;
   brief: BriefFilledV1 | null;
@@ -130,7 +122,6 @@ export function IntakeScreen({
   notice?: string | null;
   restrictedReason: ReactNode;
   readOnlyNote?: ReactNode;
-  roundsSpent: boolean;
   /** Меняется на каждую пересборку: находки прошлого текста стираются вместе с ним. */
   slopKey: string;
   onInputChange: (value: string) => void;
@@ -138,15 +129,6 @@ export function IntakeScreen({
   onLanguageChange: (language: 'ru' | 'en') => void;
   onWrite: () => void;
   onCancel: () => void;
-  onAnswer: (
-    answers: readonly { field: BriefField; text: string }[],
-    decide: readonly BriefField[]
-  ) => void;
-  onPieceAnswer?: (
-    answers: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
-    decideKeys: readonly string[]
-  ) => void;
-  onSkipInterview?: () => void;
   onOpenPiece?: (pieceId: string) => void;
   onOverride: (field: ReceiptField, value: string) => void;
   onKindChange: (kind: IntakeInputKindV1) => void;
@@ -159,7 +141,6 @@ export function IntakeScreen({
   writingProfileStored: Readonly<Record<string, boolean>>;
 }) {
   const t = intakeCopy[locale];
-  const p = piecesCopy[locale];
   const busy = state === 'streaming';
   const actionLabel = intakeActionLabel(
     selectedIds,
@@ -292,12 +273,11 @@ export function IntakeScreen({
                 >
                   <Button
                     type="button"
-                    variant="quiet"
-                    density="dense"
+                    variant="secondary"
                     data-intake-writing-profile={channel.id}
                     onClick={() => onOpenWritingProfile(channel.id)}
                   >
-                    {t.writingProfileLink(channel.name)}
+                    {t.writingProfileAction(channel.name)}
                   </Button>
                   <Status tone={writingProfileStored[channel.id] ? 'accent' : 'neutral'}>
                     {writingProfileStored[channel.id]
@@ -352,6 +332,31 @@ export function IntakeScreen({
                   {t.cancel}
                 </Button>
               )}
+              {/*
+                Шаг стрима стоит РЯДОМ с кнопкой, а не отдельной строкой ниже.
+                Волна `content-factory-next-m2eg`: экран теперь уходит на
+                страницу заготовки сам, и те секунды, что он ещё здесь, — это
+                единственное место, где человек видит, что работа идёт. Строка
+                под другими блоками читалась как надпись у страницы, а не как
+                состояние нажатой кнопки. `aria-live="polite"` и
+                `data-intake-step` на одном узле: человек слышит ход, а не
+                гадает по крутящемуся кружку.
+              */}
+              {step && (
+                <p
+                  aria-live="polite"
+                  data-intake-step={step}
+                  className="cf-body-sm text-cf-ink-muted"
+                >
+                  {step === 'claims'
+                    ? t.stepClaims
+                    : step === 'search'
+                    ? t.stepSearch
+                    : step === 'writing'
+                    ? t.stepWriting
+                    : t.stepStarted}
+                </p>
+              )}
               {blockedWord && !busy && (
                 <p
                   role="status"
@@ -365,30 +370,10 @@ export function IntakeScreen({
           </fieldset>
 
           {/*
-            Шаг стрима: одна строка, которая меняется. `aria-live="polite"`
-            и `data-intake-step` на одном узле — человек слышит, что работа
-            идёт, а не гадает по крутящемуся кружку.
-          */}
-          {step && (
-            <p
-              aria-live="polite"
-              data-intake-step={step}
-              className="cf-body-sm text-cf-ink-muted"
-            >
-              {step === 'claims'
-                ? t.stepClaims
-                : step === 'search'
-                ? t.stepSearch
-                : step === 'writing'
-                ? t.stepWriting
-                : t.stepStarted}
-            </p>
-          )}
-
-          {/*
-            Заготовка записана до цикла по каналам, и её код — первое, что
-            человек получает: он остаётся верным, даже если текст для канала
-            потом не собрался.
+            Заготовка записана до цикла по каналам и до единого вопроса, и её
+            код — первое, что человек получает. Дальше экран уходит на её
+            страницу сам, поэтому эта строка — последний кадр здесь; кнопка
+            рядом остаётся на случай, когда переход не случился.
           */}
           {piece && (
             <p
@@ -410,77 +395,28 @@ export function IntakeScreen({
             </p>
           )}
 
-          {pieceQuestions.length > 0 && onPieceAnswer && onSkipInterview && (
-            <SuggestedQuestionsCard
-              words={{
-                badge: p.interviewBadge,
-                title: p.interviewTitle,
-                lead: p.interviewLead,
-                suggestedLead: p.suggestedLead,
-                yes: p.answerYes,
-                fix: p.answerFix,
-                decide: p.answerDecide,
-                skip: p.answerSkip,
-                ownAnswerLabel: p.ownAnswerLabel,
-                ownAnswerHint: p.ownAnswerHint,
-                send: p.interviewSend,
-                skipAll: p.skipInterview,
-              }}
-              questions={pieceQuestions.map((question) => ({
-                key: question.key,
-                question: question.question,
-                suggested: question.suggested,
-                ...(question.why ? { why: question.why } : {}),
-              }))}
-              busy={busy}
-              onSubmit={onPieceAnswer}
-              onSkipAll={onSkipInterview}
-            />
-          )}
-
-          {state === 'questions' && questions.length > 0 && (
-            <QuestionsCard
-              locale={locale}
-              questions={questions}
-              busy={busy}
-              onSubmit={onAnswer}
-              onManual={onManual}
-            />
-          )}
-
-          {/*
-            Третьего круга нет. Два уточнения — предел решения владельца, и
-            вместо третьего вопроса экран честно предлагает два выхода:
-            ручную форму брифа и добавление факта. Это не отказ, это конец
-            расспросов.
-          */}
-          {roundsSpent && (
-            <section
-              data-intake-rounds-spent="true"
-              className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]"
-            >
-              <p className="cf-label-md text-cf-ink">{t.roundsSpentTitle}</p>
-              <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                {t.roundsSpentBody}
-              </p>
-              {onManual && (
-                <div className="flex flex-wrap gap-[8px]">
-                  <Button type="button" variant="secondary" onClick={onManual}>
-                    {t.manualForm}
-                  </Button>
-                </div>
-              )}
-            </section>
-          )}
-
           {state === 'error' && (
             <ErrorState
               title={errorTitle ?? t.errorTitle}
               description={errorMessage ?? t.errorFallback}
               action={
-                <Button type="button" variant="secondary" onClick={onRetry}>
-                  {t.retry}
-                </Button>
+                /*
+                  Два выхода, и второй — не любезность. Ручная форма брифа
+                  живёт рядом с отказом, а не после расспросов: расспросов
+                  здесь больше нет вовсе (`content-factory-next-m2eg`), а
+                  вход, который не собрался, — это ровно тот случай, когда
+                  человеку нужен другой путь, а не третья попытка.
+                */
+                <span className="flex flex-wrap gap-[8px]">
+                  <Button type="button" variant="secondary" onClick={onRetry}>
+                    {t.retry}
+                  </Button>
+                  {onManual && (
+                    <Button type="button" variant="quiet" onClick={onManual}>
+                      {t.manualForm}
+                    </Button>
+                  )}
+                </span>
               }
             />
           )}

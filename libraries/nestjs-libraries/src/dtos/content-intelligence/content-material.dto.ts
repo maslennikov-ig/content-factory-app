@@ -144,3 +144,27 @@ export class ArchiveListQueryDto {
   @IsString()
   limit?: string;
 }
+
+/**
+ * «Свои тексты по теме»: что экран спрашивает у внутреннего поиска
+ * (`content-factory-next-m2eg.19`).
+ *
+ * Тот же потолок длины запроса, что и у архива, и по той же причине: граница
+ * одна и не должна разъехаться на два числа. Область в параметрах не
+ * называется никогда — её берёт из сессии сам маршрут.
+ */
+export class RelatedTextsQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_QUERY_LENGTH)
+  q?: string;
+
+  /** `providerIdentifier` канала: ссылка из Telegram ведёт в Telegram. */
+  @IsOptional()
+  @IsString()
+  platform?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
+}

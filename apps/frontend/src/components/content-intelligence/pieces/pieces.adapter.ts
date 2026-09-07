@@ -51,11 +51,13 @@ import {
   type PieceTargetV1,
   type PiecesQueryV1,
   type PiecesResponseV1,
+  type PieceQuestionsV1,
   type VoiceScreenStateV1,
   type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   readBrief,
+  readQuestions as readIntakeQuestions,
   readSlopReport,
   type AntiCopyReportV1,
   type SlopVerdictV1,
@@ -76,6 +78,7 @@ export type {
   PieceOriginV1,
   PieceQuestionKeyV1,
   PieceQuestionV1,
+  PieceQuestionsV1,
   PieceRowV1,
   PieceTargetV1,
   PiecesQueryV1,
@@ -380,6 +383,34 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
     slop: readSlopReport(record.slop),
     writtenBy: record.writtenBy === 'fallback' ? 'fallback' : 'model',
     authorNumbers: record.authorNumbers === true,
+    // Что осталось спросить (`content-factory-next-m2eg`). Заготовки до этой
+    // волны вопросов не несут вовсе, и это читается как «спрашивать нечего», а
+    // не как пробел: `null` здесь — обычное состояние готовой заготовки.
+    questions: readOpenQuestions(record.questions),
+  };
+};
+
+/** Открытые вопросы заготовки: круг, сами вопросы и то, что уже закрыто. */
+export const readOpenQuestions = (
+  value: unknown
+): PieceQuestionsV1 | null => {
+  const record = asRecord(value);
+  if (!record) return null;
+  return {
+    round: Number(record.round) || 0,
+    items: readIntakeQuestions(record.items) as PieceQuestionsV1['items'],
+    answered: asArray(record.answered).flatMap((entry) => {
+      const answer = asRecord(entry);
+      if (!answer || typeof answer.field !== 'string') return [];
+      return [
+        {
+          field: answer.field as PieceQuestionsV1['answered'][number]['field'],
+          text: asText(answer.text),
+          origin: answer.origin === 'model' ? 'model' : 'person',
+          answeredAt: asText(answer.answeredAt),
+        } as PieceQuestionsV1['answered'][number],
+      ];
+    }),
   };
 };
 

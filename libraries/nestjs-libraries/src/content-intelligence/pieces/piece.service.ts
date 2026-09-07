@@ -41,18 +41,26 @@ import { slopCheck as runSlopCheck } from '@contentfactory/nestjs-libraries/cont
 import type {
   AdaptationKindV1,
   AdaptationV1,
+  BriefFilledFactV1,
   BriefFilledV1,
   PieceAdaptEventV1,
   PieceAdaptRequestV1,
+  PieceAnswerEventV1,
+  PieceAnswerRequestV1,
   PieceAnswerV1,
   PieceCellV1,
   PieceDetailV1,
+  PieceFieldAnswerV1,
+  PieceOpenQuestionV1,
   PieceOriginV1,
+  PieceQuestionKeyV1,
   PieceQuestionV1,
+  PieceQuestionsV1,
   PieceRowV1,
   PieceTargetV1,
   PiecesQueryV1,
   PiecesResponseV1,
+  RelatedOwnPostV1,
   SlopReportV1,
   ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -62,10 +70,18 @@ import {
   PIECE_EXCERPT_LINES,
   PIECE_MAX_INTERVIEW_ROUNDS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
+/*
+  Значением, а не типом: `@Optional()` без метаданных типа отдал бы `undefined`
+  вместо сотрудника, и дверь ответов молча перестала бы сохранять. Один и тот
+  же учёт расхода, что у входа одной мыслью.
+*/
+import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
   adaptationState,
   bestCell,
   columnsOf,
+  promoteNoChannel,
   kindsOfProvider,
   materialCode,
   materialDate,
@@ -74,14 +90,24 @@ import {
   voiceVersionLabel,
 } from '../materials/material-presentation';
 import type { AdaptationRow } from '../materials/content-material.repository';
+import { relatedOwnPostsOf } from '../search/text-search.index';
+import { TextSearchService } from '../search/text-search.service';
 import {
   parseWritingProfile,
   type ChannelWritingProfileV1,
 } from '../channels/channel-writing-profile';
 import { questionsForChannel } from '../channels/channel-questions';
 import { editorHtml } from '../brief/editor-html';
+import { ContentBriefRepository } from '../brief/content-brief.repository';
+import { singleLinkOf } from '../intake/intake-kind';
+import {
+  CORE_QUESTION_FIELDS,
+  coreQuestionText,
+  openQuestionsFor,
+} from './core-questions';
+import { writeCore } from './core-write';
 import { PieceRepository, type PieceIntegrationRow, type PieceRow } from './piece.repository';
-import { PieceError, pieceError } from './errors';
+import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
 
 /** Шов проверки на ИИ-штампы: в наборах подменяется, в продукте настоящий. */
 export type PieceSlopCheckPort = (
@@ -134,6 +160,21 @@ export type PieceAdaptPlanV1 = {
   title: string;
 };
 
+/**
+ * План уточнения: заготовка прочитана, суть у неё есть, архив проверен.
+ *
+ * `core` здесь не может быть `null` — это и есть разница с планом адаптации:
+ * адаптировать материал до волны можно (у него есть тело), а отвечать на
+ * вопросы о несуществующей сути нельзя.
+ */
+export type PieceAnswerPlanV1 = {
+  pieceId: string;
+  language: 'ru' | 'en';
+  request: PieceAnswerRequestV1;
+  core: ZagotovkaCoreV1;
+  title: string;
+};
+
 @Injectable()
 export class PieceService {
   private readonly logger = new Logger(PieceService.name);
@@ -146,7 +187,32 @@ export class PieceService {
     @Inject(IntegrationManager)
     private readonly integrationManager: IntegrationManager,
     @Optional() now: () => Date = () => new Date(),
-    @Optional() slopCheck: PieceSlopCheckPort | null = null
+    @Optional() slopCheck: PieceSlopCheckPort | null = null,
+    /**
+     * Учёт расхода и запись сути. Оба нужны одной двери — ответам на открытые
+     * вопросы (`answer`), которая переписывает суть и сохраняет её той же
+     * строкой. Оба необязательны и стоят в конце: порядок параметров — часть
+     * договора с наборами, которые собирают сервис руками.
+     */
+    @Optional() private readonly aiUsage?: AiUsageService,
+    @Optional() private readonly briefs?: ContentBriefRepository,
+    /**
+     * Внутренний поиск области (`content-factory-next-m2eg.19`).
+     *
+     * Необязательный и последний — порядок параметров здесь часть договора.
+     * Без него список ищет по словам, как искал, а «свои тексты по теме» при
+     * адаптации не собираются вовсе: список, которого не из чего собрать, не
+     * подменяется пустым обещанием.
+     *
+     * `@Inject` стоит рядом с `@Optional()` не для красоты: тип параметра —
+     * объединение с `null`, а `emitDecoratorMetadata` пишет для объединения
+     * `Object`. Nest искал бы провайдера `Object`, не нашёл, и `@Optional()`
+     * молча подставил бы `undefined` — поиск был бы выключен на боевом при
+     * зелёных наборах.
+     */
+    @Optional()
+    @Inject(TextSearchService)
+    private readonly search: TextSearchService | null = null
   ) {
     this.now = now || (() => new Date());
     this.slopCheck = slopCheck || defaultSlopCheck;
@@ -179,17 +245,39 @@ export class PieceService {
     );
     const byPiece = this.group(adaptations);
     const columns = columnsOf(integrations, adaptations);
-    const matched = await this.pieces.searchPieceIds(
-      organizationId,
-      query.q,
-      Boolean(query.includeArchived)
-    );
+    /*
+      Сначала внутренний индекс, потом поиск по словам через базу
+      (`content-factory-next-m2eg.19`). Индекс знает стемминг — «сроки»
+      находят «срок», — а отбор остаётся тем же: встретиться должно каждое
+      слово. Пустой индекс отвечает `null`, и тогда список ищет ровно так, как
+      искал с 05.09.2026.
+
+      Архивные строки индекс держит всегда, как и `listPieces`: прячет их
+      экран, а не поиск, — иначе «в архиве» и «найдено» никогда не
+      пересекаются (`content-factory-next-tu3k.11`).
+    */
+    const matched =
+      (await this.search?.matchingIds(organizationId, query.q ?? '', 'PIECE')) ??
+      (await this.pieces.searchPieceIds(
+        organizationId,
+        query.q,
+        Boolean(query.includeArchived)
+      ));
 
     const rows: PieceRowV1[] = [];
     for (let index = 0; index < all.length; index += 1) {
       const piece = all[index];
       const mine = byPiece.get(piece.id) ?? [];
-      const cells = columns.map((column) => bestCell(column.platform, mine));
+      /*
+        Клетка сама не знает про каналы, а список знает: `promoteNoChannel`
+        поднимает «ещё нет» до «нет канала» ровно там, где площадка колонкой
+        стала, а подключённого канала под ней нет. Без этого шага состояние
+        `no_channel` жило только в контракте и в словах экрана, а в ответе не
+        появлялось ни разу.
+      */
+      const cells = columns.map((column) =>
+        promoteNoChannel(bestCell(column.platform, mine), column)
+      );
       if (piece.archivedAt && !query.includeArchived) continue;
       if (matched && !matched.has(piece.id)) continue;
       if (query.missingOn && this.writesTo(mine, query.missingOn)) continue;
@@ -222,7 +310,9 @@ export class PieceService {
     ]);
     const index = order.findIndex((row) => row.id === pieceId);
     const columns = columnsOf(integrations, adaptations);
-    const cells = columns.map((column) => bestCell(column.platform, adaptations));
+    const cells = columns.map((column) =>
+      promoteNoChannel(bestCell(column.platform, adaptations), column)
+    );
     const core = this.coreOf(piece);
 
     return {
@@ -393,6 +483,15 @@ export class PieceService {
     }
 
     const hints = this.hintsOf(plan, answers);
+    const brief = this.briefMaterial(plan);
+    /*
+      Свои прежние тексты по теме — до генерации и одним списком для экрана и
+      для модели (`content-factory-next-m2eg.19`). Событие идёт только когда
+      что-то нашлось: «ничего не нашлось» не новость для человека, который
+      просил написать пост.
+    */
+    const related = await this.relatedPosts(organizationId, plan);
+    if (related.length) yield { name: 'related', related };
     const request: GeneratorRunInput = {
       // Предмет генерации — тезис заготовки, а сама суть едет подсказкой: она
       // не запрос человека, а материал, слова которого переносятся дословно.
@@ -407,6 +506,28 @@ export class PieceService {
         ? { brandProfileSelection: plan.request.brandProfileSelection as any }
         : {}),
       intake: hints,
+      /*
+        Адаптация в интернет не ходит (`content-factory-next-m2eg.16`,
+        решение владельца 07.09.2026: «Выключить совсем»). Материал у неё уже
+        на руках — суть заготовки, бриф и ответы человека под канал, — а поиск
+        добавлял к нему находки на КАЖДОЙ площадке: одна заготовка, четыре
+        канала, четыре платных обхода веба и четыре набора чужих цитат в
+        тексте, которых человек не просил.
+      */
+      materialPolicy: 'PIECE_ONLY',
+      /*
+        Факты брифа, у которых уже есть запись в памяти области, называются
+        строителю контекста явно. Без них он собрал бы контекст из того, что
+        сам сочтёт подходящим; с ними адаптация стоит ровно на том, на чём
+        стоит заготовка. Список пустой у заготовки, чей бриф собран из слов
+        человека и ничем не подтверждён, — и тогда контекст просто пуст, что
+        честно печатает `research()`.
+      */
+      ...(brief.factIds.length ? { factIds: brief.factIds } : {}),
+      ...(brief.evidenceIds.length
+        ? { userMaterialEvidenceIds: brief.evidenceIds }
+        : {}),
+      ...(related.length ? { relatedOwnPosts: related } : {}),
     } as GeneratorRunInput;
 
     let output: any = null;
@@ -528,6 +649,9 @@ export class PieceService {
       brandProfileVersionId: versionId,
     });
     if (!row) return null;
+    // Новая адаптация должна находиться сразу: следующий канал этой же
+    // заготовки уже вправе на неё сослаться (`content-factory-next-m2eg.19`).
+    this.search?.invalidate(organizationId);
 
     const checks = {
       antiCopy: output.antiCopy ?? null,
@@ -575,6 +699,266 @@ export class PieceService {
       checks,
     };
     return { adaptation, event };
+  }
+
+  /* -----------------------------------------------------------------------
+   * Уточнения заготовки
+   * -------------------------------------------------------------------- */
+
+  /**
+   * Всё, что можно отклонить обычным HTTP, отклоняется здесь.
+   *
+   * Та же граница, что у адаптации и у входа. Отвечать нечему у материала до
+   * волны заготовок: сути у него нет, есть тело одного канала, и переписывать
+   * его по ответам значило бы выдать чужую разметку за нейтральную суть.
+   */
+  async prepareAnswer(
+    organizationId: string,
+    pieceId: string,
+    request: PieceAnswerRequestV1,
+    language: 'ru' | 'en'
+  ): Promise<PieceAnswerPlanV1> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', language, pieceId);
+    const core = this.coreOf(piece);
+    if (!core) throw pieceError('PIECE_CORE_MISSING', language, pieceId);
+    return { pieceId, language, request: request || {}, core, title: piece.title };
+  }
+
+  /**
+   * Ответы на открытые вопросы заготовки: суть переписывается, вопросы тают.
+   *
+   * `content-factory-next-m2eg`, живой прогон 07.09.2026. Заготовка уже
+   * существует — её записал вход, до всяких вопросов, — поэтому здесь нет и не
+   * может быть тупика: ответ либо переписывает суть, либо ничего не меняет, но
+   * заготовка остаётся на месте, и `piece` приходит всегда.
+   *
+   * Три правила, каждое куплено разом на прогоне:
+   *
+   *  - **ответ дословен**. Он ложится в бриф как слово человека (`person`) и
+   *    едет в промпт сути парой «вопрос → ответ». Опечатка — это материал;
+   *  - **об отвеченном не спрашивают**. Ни на этом круге, ни на следующем: и
+   *    ответ, и «Реши сама» одинаково закрывают поле навсегда. Для `facts`
+   *    «Реши сама» значит «суть стоит на словах человека», а не «опоры нет»;
+   *  - **кругов не больше двух**. Исчерпав их, дверь просто перестаёт
+   *    возвращать вопросы. Отказа нет: ответ человека принимается и на третьем
+   *    круге, если клиент его прислал, — отказаться записать то, что человек
+   *    уже написал, хуже, чем принять лишнее.
+   *
+   * Цена: не больше одной генерации роли `draft` под операцией `intake`, и
+   * только когда ответ действительно что-то изменил.
+   */
+  async *answer(
+    organizationId: string,
+    plan: PieceAnswerPlanV1,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    actorUserId?: string
+  ): AsyncGenerator<PieceAnswerEventV1> {
+    const language = plan.language;
+    const before: PieceQuestionsV1 = plan.core.questions ?? {
+      round: 0,
+      items: [],
+      answered: [],
+    };
+    const round = (before.round ?? 0) + 1;
+    yield { name: 'answer-started', pieceId: plan.pieceId, round };
+
+    const answeredAt = this.now().toISOString();
+    const given = this.fieldAnswers(plan.request);
+    const decided = (plan.request.decide || []).filter(
+      (field) => !given.some((answer) => answer.field === field)
+    );
+    const fresh: PieceFieldAnswerV1[] = [
+      ...given.map((answer) => ({ ...answer, origin: 'person' as const, answeredAt })),
+      ...decided.map((field) => ({
+        field,
+        text: '',
+        origin: 'model' as const,
+        answeredAt,
+      })),
+    ];
+
+    const brief = given.length
+      ? this.briefWithAnswers(plan.core.brief, given)
+      : plan.core.brief;
+    const answered = [...before.answered, ...fresh];
+    const settled = [...new Set(answered.map((answer) => answer.field))];
+    const items =
+      round >= PIECE_MAX_INTERVIEW_ROUNDS
+        ? []
+        : openQuestionsFor({
+            brief,
+            // Вариантов модели у записанной заготовки нет: они жили в ответе
+            // заполнения брифа и в строку не сохраняются. Предложение теперь
+            // берётся из самого брифа — из того, что модель уже сказала.
+            options: {},
+            language,
+            settled,
+          });
+    const questions: PieceQuestionsV1 = { round, items, answered };
+
+    /*
+      Модель зовётся только когда есть что переписывать. «Реши сама» без единого
+      ответа ничего в брифе не меняет — она снимает вопрос, а не добавляет
+      слово, — и платить за пересборку той же сути было бы платой за нажатие.
+    */
+    let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
+    if (given.length && this.aiUsage) {
+      const said = this.promptAnswers(given, answeredAt);
+      const rewritten = await writeCore(
+        {
+          organizationId,
+          language,
+          brief,
+          answers: [...plan.core.answers, ...said],
+          questionTextByKey: Object.fromEntries(
+            said.map((answer) => [
+              answer.key,
+              coreQuestionText(answer.key, language),
+            ])
+          ),
+          // Слова человека, с которых началась заготовка. Чужого текста здесь
+          // нет ни одним полем и быть не может: он не сохраняется вовсе.
+          personText: plan.core.personText ?? '',
+          borrowed: null,
+          foreignShingles: [],
+        },
+        {
+          aiUsage: this.aiUsage,
+          slopCheck: this.slopCheck,
+          warn: (message) => this.logger.warn(message),
+        }
+      );
+      core = { ...rewritten, questions, personText: plan.core.personText ?? '' };
+    }
+
+    try {
+      if (!this.briefs) {
+        throw new Error('The piece service was built without its repository');
+      }
+      await this.briefs.updateCore(organizationId, plan.pieceId, {
+        body: core.text,
+        brief: this.storedCore(core),
+      });
+    } catch (error) {
+      this.logger.error(
+        `The answered core could not be saved: ${describeError(error)}`
+      );
+      yield {
+        name: 'error',
+        error: true,
+        code: 'PIECE_NOT_SAVED',
+        message: PIECE_ERROR_MESSAGES.PIECE_NOT_SAVED[language],
+      };
+      return;
+    }
+
+    /*
+      Страница перечитывается целиком, а не собирается здесь второй раз: код
+      заготовки — это её место в списке области, и считать его тут значило бы
+      завести второе такое место.
+    */
+    const fresher = await this.detail(organizationId, plan.pieceId, language);
+    yield {
+      name: 'piece',
+      pieceId: plan.pieceId,
+      code: fresher.piece.code,
+      core: fresher.core ?? core,
+    };
+    if (items.length) yield { name: 'questions', questions: items, round };
+    yield { name: 'done', pieceId: plan.pieceId };
+  }
+
+  /** Ответы запроса: дословно, по одному на поле, пустые — не ответы. */
+  private fieldAnswers(
+    request: PieceAnswerRequestV1
+  ): Array<{ field: BriefField; text: string }> {
+    const byField = new Map<BriefField, string>();
+    for (const answer of request.answers || []) {
+      // Дословно: ни заглавной буквы, ни правки опечатки. Обрезаются только
+      // пробелы по краям, потому что пустая строка — это не ответ.
+      if (answer?.field && trimmed(answer.text)) {
+        byField.set(answer.field, answer.text.trim());
+      }
+    }
+    return [...byField].map(([field, text]) => ({ field, text }));
+  }
+
+  /**
+   * Бриф с ответами человека, где слово человека сильнее ответа модели.
+   *
+   * Ответ про факты становится фактом с происхождением `person`, и адрес
+   * внутри него — его опорой. Без адреса опора всё равно есть: это слово
+   * автора, и ворота считают его опорой (`brief-gate.ts`, `own`). Ровно из-за
+   * обратного правила вопрос «на что это опирается» задавался по кругу.
+   */
+  private briefWithAnswers(
+    brief: BriefFilledV1,
+    given: ReadonlyArray<{ field: BriefField; text: string }>
+  ): BriefFilledV1 {
+    const next: BriefFilledV1 = {
+      ...brief,
+      origins: { ...brief.origins },
+      facts: [...brief.facts],
+    };
+    for (const answer of given) {
+      if (answer.field === 'facts') {
+        const url = singleLinkOf(answer.text);
+        const fact: BriefFilledFactV1 = {
+          statement: url
+            ? answer.text.replace(url, '').trim() || answer.text
+            : answer.text,
+          sourceUrl: url,
+          factId: null,
+          evidenceId: null,
+          origin: 'person',
+          verified: Boolean(url),
+        };
+        next.facts = [...next.facts, fact];
+        continue;
+      }
+      next[answer.field] = answer.text;
+      next.origins[answer.field] = 'person';
+    }
+    next.ungrounded = next.facts
+      .filter((fact) => !fact.verified && fact.origin !== 'person')
+      .map((fact) => fact.statement);
+    return next;
+  }
+
+  /** Те же ответы для промпта сути: по ключу вопроса, дословно. */
+  private promptAnswers(
+    given: ReadonlyArray<{ field: BriefField; text: string }>,
+    answeredAt: string
+  ): PieceAnswerV1[] {
+    const keyOf = new Map<BriefField, PieceQuestionKeyV1>(
+      Object.entries(CORE_QUESTION_FIELDS).map(([key, field]) => [
+        field as BriefField,
+        key as PieceQuestionKeyV1,
+      ])
+    );
+    return given.flatMap((answer) => {
+      const key = keyOf.get(answer.field);
+      return key
+        ? [
+            {
+              key,
+              text: answer.text,
+              origin: 'person' as const,
+              step: 'core' as const,
+              answeredAt,
+            },
+          ]
+        : [];
+    });
+  }
+
+  /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */
+  private storedCore(core: ZagotovkaCoreV1): Record<string, unknown> {
+    const { text, ...stored } = core;
+    void text;
+    return stored;
   }
 
   /* -----------------------------------------------------------------------
@@ -671,6 +1055,23 @@ export class PieceService {
       slop: (stored.slop as SlopReportV1) ?? null,
       writtenBy: stored.writtenBy === 'fallback' ? 'fallback' : 'model',
       authorNumbers: stored.authorNumbers === true,
+      // Открытых вопросов у заготовки до волны `m2eg` не было вовсе, и это
+      // читается как «спрашивать нечего», а не как пробел.
+      questions: this.questionsOf(stored.questions),
+      ...(typeof stored.personText === 'string'
+        ? { personText: stored.personText }
+        : {}),
+    };
+  }
+
+  /** Открытые вопросы из строки: чужой формы здесь быть не должно, но бывает. */
+  private questionsOf(value: unknown): PieceQuestionsV1 | null {
+    const stored = (value || null) as PieceQuestionsV1 | null;
+    if (!stored || typeof stored !== 'object') return null;
+    return {
+      round: Number(stored.round) || 0,
+      items: Array.isArray(stored.items) ? stored.items : [],
+      answered: Array.isArray(stored.answered) ? stored.answered : [],
     };
   }
 
@@ -842,6 +1243,81 @@ export class PieceService {
       (request?.answers || []).length > 0 ||
       (request?.decideKeys || []).length > 0;
     return answered ? 2 : 1;
+  }
+
+  /**
+   * Свои прежние тексты по теме этой заготовки.
+   *
+   * Решение владельца 07.09.2026 (`content-factory-next-m2eg.19`): «нам это
+   * нужно сразу сделать, чтобы модель научилась на них ссылаться».
+   *
+   * Три условия отбора, и каждое — про то, чтобы ссылка была настоящей:
+   *
+   *  - только ВЫШЕДШИЕ тексты со своим адресом (`linkableOnly`): сослаться
+   *    можно лишь на то, что читатель откроет;
+   *  - только эта площадка: ссылка из Telegram на пост в Telegram —
+   *    продолжение разговора, а ссылка на чужую площадку — уход с неё;
+   *  - три штуки. Список — материал для одной фразы, а не витрина; длинный
+   *    список модель начинает пересказывать вместо того, чтобы писать.
+   *
+   * Спрашивается тем же, чем человек назвал предмет: тезисом заготовки, а не
+   * заголовком канала. Отказ поиска — пустой список: адаптация пишется и без
+   * ссылок, а вот пустое обещание «нашлось» она бы уже не отработала.
+   */
+  private async relatedPosts(
+    organizationId: string,
+    plan: PieceAdaptPlanV1
+  ): Promise<RelatedOwnPostV1[]> {
+    if (!this.search) return [];
+    const query =
+      trimmed(plan.core?.brief?.thesis) ||
+      trimmed(plan.core?.text) ||
+      plan.title;
+    if (!query) return [];
+    try {
+      const hits = await this.search.search(organizationId, query, {
+        platform: plan.channel.providerIdentifier,
+        kinds: ['ADAPTATION', 'POST'],
+        linkableOnly: true,
+        limit: 3,
+        mode: 'ranked',
+      });
+      return relatedOwnPostsOf(hits);
+    } catch (error) {
+      this.logger.warn(
+        `Related own posts could not be gathered; the adaptation goes on without them: ${describeError(
+          error
+        )}`
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Материал заготовки, названный явно: факты и доказательства её брифа.
+   *
+   * Адаптация не ищет в вебе (`materialPolicy: 'PIECE_ONLY'`), поэтому то, на
+   * чём стоит заготовка, обязано доехать до строителя контекста своими
+   * идентификаторами. Берётся только записанное: у факта — `factId`, у
+   * доказательства — `evidenceId`. Утверждение брифа без записи в памяти
+   * области идентификатора не имеет, и выдумывать его здесь нечем — оно уже
+   * доехало словами, внутри сути и брифа.
+   */
+  private briefMaterial(plan: PieceAdaptPlanV1): {
+    factIds: string[];
+    evidenceIds: string[];
+  } {
+    const facts = plan.core?.brief?.facts || [];
+    return {
+      factIds: [
+        ...new Set(facts.map((fact) => trimmed(fact?.factId)).filter(Boolean)),
+      ],
+      evidenceIds: [
+        ...new Set(
+          facts.map((fact) => trimmed(fact?.evidenceId)).filter(Boolean)
+        ),
+      ],
+    };
   }
 
   /** Подсказки генератору: канал, бриф заготовки, суть и ответы под канал. */

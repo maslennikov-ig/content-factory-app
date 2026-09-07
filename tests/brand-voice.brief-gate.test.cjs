@@ -80,6 +80,38 @@ describe('a brief without substance produces questions, not a draft', () => {
     expect(verdict.ready).toBe(true);
   });
 
+  test('a fact the author asserted themselves counts, and stops the loop', () => {
+    /*
+      `content-factory-next-m2eg`, the walkthrough of 07.09.2026. The gate asked
+      "what does it rest on", the person answered in their own words with no
+      link in the sentence, the answer arrived unverified — and the gate asked
+      the same question again. An author's own claim is grounded the moment they
+      write it (§9.5 of the section map), and `own` is how the intake says so.
+    */
+    const verdict = gate.evaluateBrief({
+      ...complete,
+      facts: [
+        { statement: 'Из шести дедлайнов сдвинулись пять, я считал', own: true },
+      ],
+    });
+
+    expect(verdict.ready).toBe(true);
+    expect(verdict.missing).not.toContain('facts');
+    expect(verdict.ungroundedFacts).toEqual([]);
+  });
+
+  test('the question about facts asks what the text rests on, in plain Russian', () => {
+    // Правка владельца 07.09.2026: «на чём это стоит» звучало не по-русски, а
+    // ссылка читалась как условие, хотя слово автора — тоже опора.
+    const verdict = gate.evaluateBrief({ ...complete, facts: [] });
+    const asked = verdict.questions.find((one) => one.field === 'facts');
+
+    expect(asked.question.ru).toBe(
+      'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть'
+    );
+    expect(asked.question.ru).not.toContain('На чём это стоит');
+  });
+
   test('a one-word answer does not get past the gate', () => {
     // A field filled to make the button light up is the failure this exists
     // to catch, not an edge case.

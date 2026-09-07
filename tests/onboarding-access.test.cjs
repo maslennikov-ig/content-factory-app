@@ -29,15 +29,34 @@ describe('onboarding stays reachable after it is skipped', () => {
     // has nothing to switch to.
     expect(settings).toContain("tab: 'onboarding'");
 
-    // Rendered: the panel for that tab value, pointing at the walkthrough.
-    // `content-factory-next-rrs9` moved the destination from
-    // `/launches?onboarding=true` — a screen with a modal over it — to a page
-    // of its own, which is what a person can leave and come back to. The
-    // requirement this guards did not change: the way back exists in a menu.
+    // Rendered: the panel for that tab value, and since 07.09.2026 it draws
+    // the walkthrough itself rather than a button that opens it elsewhere.
+    // The owner pressed the tab and found a heading, a paragraph and a link:
+    // «я не вижу смысла дополнительной кнопки в настройках… А так я попадаю
+    // как будто бы в раздел, которого и не существует». One door that is the
+    // room, not two doors to the same room.
     const panelStart = settings.indexOf("tab === 'onboarding'");
     expect(panelStart).toBeGreaterThan(-1);
     const panel = settings.slice(panelStart, panelStart + 1600);
-    expect(panel).toMatch(/href="\/onboarding"/);
+    expect(panel).toMatch(/<OnboardingWalkthrough\b/);
+    expect(settings).toContain(
+      "@contentfactory/frontend/components/onboarding/onboarding.walkthrough'"
+    );
+  });
+
+  test('the walkthrough is also the first row of the working menu', () => {
+    // Владелец 07.09.2026: «раздел «С чего начать» должен быть просто
+    // отдельным пунктом меню вынесен». Пункт стоит первым и пропадает сам,
+    // когда все шесть шагов пройдены, — по данным области, а не по флагу.
+    const menu = read('apps/frontend/src/components/layout/top.menu.tsx');
+    const first = menu.indexOf("path: '/onboarding'");
+    expect(first).toBeGreaterThan(-1);
+    expect(first).toBeLessThan(menu.indexOf("path: '/launches'"));
+    expect(menu).toContain('hide: onboardingFinished');
+    expect(menu).toContain('allStepsDone');
+    // Пока область не ответила — пункт на месте: спрятать его по незнанию
+    // значит спрятать единственный вход у того, кто ещё ничего не сделал.
+    expect(menu).toContain('onboarding.answered && allStepsDone');
   });
 
   test('the onboarding modal actually opens on that query parameter', () => {

@@ -10,8 +10,18 @@ import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-l
 import { Button } from '@contentfactory/react/form/button';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { railPairClass } from '@contentfactory/frontend/components/launches/channel-rail';
 
-export const NewPost = () => {
+/**
+ * Главное действие рейки каналов.
+ *
+ * `content-factory-next-tu3k.13`: кнопка отличается от соседей заливкой и
+ * ничем больше — та же высота 40, тот же радиус, тот же шаг. Свёрнутая рейка
+ * оставляет знак и уводит имя в `aria-label`; развёрнутая пара «Пост» и
+ * «Заготовка» делит строку пополам, и подпись там короткая — «Чистый лист» в
+ * половину строки не помещается.
+ */
+export const NewPost = ({ collapsed = false }: { collapsed?: boolean }) => {
   const fetch = useFetch();
   const modal = useModals();
   const { integrations, reloadCalendarView, sets } = useCalendar();
@@ -71,31 +81,48 @@ export const NewPost = () => {
     return null;
   }
 
+  /*
+    Подпись развёрнутой кнопки — существующий ключ `post`: «Пост». Половина
+    строки рейки это 110px, и «Чистый лист» рядом со знаком туда не встаёт
+    (`content-factory-next-tu3k.13`).
+
+    Доступное имя равно тому, что видно: кнопка с подписью «Пост» и
+    `aria-label` «Чистый лист» — это две разные кнопки для того, кто говорит
+    экрану вслух. Полное имя двери остаётся именем свёрнутой кнопки, где
+    подписи нет вовсе.
+  */
+  const label = t('create_new_post', 'Blank page');
+  const shortLabel = t('post', 'Post');
+
   return (
     <Button
       onClick={createAPost}
       variant="primary"
- className="flex-1 px-[16px] group-[.sidebar]:p-0 rounded-md flex justify-center items-center outline-none"
+      iconOnly={collapsed}
+      density="standard"
+      aria-label={collapsed ? label : shortLabel}
+      className={railPairClass(collapsed, 'flex items-center outline-none')}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="21"
-        height="20"
-        viewBox="0 0 21 20"
-        fill="none"
-        className="min-w-[21px] min-h-[20px]"
-      >
-        <path
-          d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <div className="flex-1 text-start text-[14px] group-[.sidebar]:hidden">
-        {t('create_new_post', 'Create Post')}
-      </div>
+      {collapsed ? (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="21"
+          height="20"
+          viewBox="0 0 21 20"
+          fill="none"
+          className="min-w-[21px] min-h-[20px]"
+        >
+          <path
+            d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <div className="text-[14px] truncate">{shortLabel}</div>
+      )}
     </Button>
   );
 };

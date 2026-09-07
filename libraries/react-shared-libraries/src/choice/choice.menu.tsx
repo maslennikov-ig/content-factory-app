@@ -184,6 +184,49 @@ export const MenuList = forwardRef<HTMLDivElement, MenuListProps>(
   }
 );
 
+type MenuCommandProps = Omit<ControlButtonProps, 'role'> & {
+  /** Keep the menu open after the command runs — rare, and never the default. */
+  keepOpen?: boolean;
+};
+
+/**
+ * A command in a menu — something that HAPPENS, not a value that gets chosen.
+ *
+ * `MenuOption` next door is `role="menuitemradio"` with `aria-checked`, and
+ * that is right for what it does: pick the organization, pick the view. It is
+ * wrong for «Опубликовать сейчас», which has no checked state to announce and
+ * never will. A screen reader reading a radio that is never checked tells the
+ * person the menu is a choice they have not made yet.
+ *
+ * Everything else is shared on purpose: the same `Menu` state, the same
+ * `MenuList` with its arrows, Escape and Tab, the same roving tab stop. Only
+ * the role differs, so only the role is written twice
+ * (`content-factory-next-m2eg.18`, 07.09.2026 — the post window's publishing
+ * menu is the first command menu in this product, and `component-inventory.md`
+ * said the second place is when to extract, not the first).
+ */
+export const MenuCommand = forwardRef<HTMLButtonElement, MenuCommandProps>(
+  ({ keepOpen, onClick, ...props }, ref) => {
+    const menu = useContext(MenuContext);
+
+    const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event);
+      if (event.defaultPrevented) return;
+      if (!keepOpen) menu?.setOpen(false);
+    };
+
+    return (
+      <ControlButton
+        {...props}
+        {...{ [OPTION_ATTRIBUTE]: '' }}
+        ref={ref}
+        role="menuitem"
+        onClick={handleClick}
+      />
+    );
+  }
+);
+
 type MenuOptionProps = Omit<ControlButtonProps, 'role'> & {
   selected: boolean;
   /** Keep the menu open after choosing — rare, and never the default. */

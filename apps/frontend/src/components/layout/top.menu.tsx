@@ -4,6 +4,12 @@ import { ReactNode } from 'react';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { allStepsDone } from '@contentfactory/frontend/components/onboarding/onboarding.adapter';
+import {
+  onboardingCopy,
+  resolveOnboardingLocale,
+} from '@contentfactory/frontend/components/onboarding/onboarding.copy';
+import { useOnboardingProgress } from '@contentfactory/frontend/components/onboarding/use-onboarding-progress';
 
 export interface MenuItemInterface {
   name: string;
@@ -25,10 +31,55 @@ export interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral } = useVariables();
+  const { isGeneral, language } = useVariables();
   const t = useT();
 
+  /**
+   * «С чего начать» — первый пункт меню, пока есть что начинать.
+   *
+   * Решение владельца 07.09.2026: «раздел «С чего начать» должен быть просто
+   * отдельным пунктом меню вынесен… я не вижу смысла дополнительной кнопки в
+   * настройках… А так я попадаю как будто бы в раздел, которого и не
+   * существует». Раньше единственная дверь была вкладкой настроек, и
+   * страница, до которой доходили через две двери, читалась как несуществующая.
+   *
+   * Пункт исчезает сам, когда пройдены все шесть шагов, — навсегда, потому что
+   * шаги считаются по строкам области и назад они не идут. Пока область не
+   * ответила, пункт показан: спрятать его по незнанию — это спрятать
+   * единственный вход в продукт у того, кто ещё ничего не сделал.
+   *
+   * Подпись живёт в словах самой страницы, а не семнадцатым ключом i18next:
+   * `onboarding.copy.ts` уже держит два языка рядом с кодом, и вторая копия
+   * той же строки — это два разных названия одного раздела.
+   */
+  const onboarding = useOnboardingProgress();
+  const onboardingWords = onboardingCopy[resolveOnboardingLocale(language)];
+  const onboardingFinished =
+    onboarding.answered && allStepsDone(onboarding.progress);
+
   const firstMenu = [
+    {
+      name: onboardingWords.menuLabel,
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+        >
+          <path
+            d="M2.5 6.5L4.16667 8.16667L7.5 4.83333M2.5 14.1667L4.16667 15.8333L7.5 12.5M10.8333 6.5H17.5M10.8333 14.1667H17.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/onboarding',
+      hide: onboardingFinished,
+    },
     {
       name: isGeneral ? t('calendar', 'Calendar') : t('launches', 'Launches'),
       icon: (

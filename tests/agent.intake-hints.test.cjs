@@ -243,6 +243,70 @@ describe('the brief and the channel reach the prompt', () => {
     expect(prompt).toContain('- Written for: Владельцы небольших каналов');
   });
 
+  /**
+   * «Свои тексты по теме» (`content-factory-next-m2eg.19`, решение владельца
+   * 07.09.2026): «нам это нужно сразу сделать, чтобы модель научилась на них
+   * ссылаться».
+   */
+  describe('свои тексты по теме доезжают до промпта', () => {
+    const related = [
+      {
+        id: 'adaptation-7',
+        kind: 'ADAPTATION',
+        title: 'Срок, о котором знает клиент',
+        excerpt: 'Срок держится, когда о нём знает кто-то ещё.',
+        url: 'https://t.me/studio/17',
+        platform: 'telegram',
+        publishedAt: '2026-08-03T12:00:00.000Z',
+        score: 1.4,
+      },
+    ];
+
+    test('заголовок, адрес и правило ссылки стоят в промпте', async () => {
+      const chatModel = capturingModel([draft('Текст поста')]);
+      const { service } = loadAgentGraph({ chatModel });
+
+      await service.generateContent(
+        withHints({ relatedOwnPosts: related })
+      );
+      const prompt = chatModel.prompts[0];
+
+      expect(prompt).toContain('Срок, о котором знает клиент');
+      expect(prompt).toContain('https://t.me/studio/17');
+      // Правило и запрет стоят рядом: список ссылок модель по умолчанию
+      // превращает в список ссылок.
+      expect(prompt).toContain('only if it genuinely fits this post');
+      expect(prompt).toContain('Never list them');
+      expect(prompt).toContain(
+        'never write a link that is not printed above'
+      );
+    });
+
+    test('пример фразы даётся на языке поста', async () => {
+      const russian = capturingModel([draft('Текст поста')]);
+      await loadAgentGraph({ chatModel: russian }).service.generateContent(
+        withHints({ relatedOwnPosts: related })
+      );
+      expect(russian.prompts[0]).toContain('Я уже писал об этом:');
+
+      const english = capturingModel([draft('A post')]);
+      await loadAgentGraph({ chatModel: english }).service.generateContent(
+        withHints({ relatedOwnPosts: related, language: 'en' })
+      );
+      expect(english.prompts[0]).toContain('I have written about this before:');
+      expect(english.prompts[0]).not.toContain('Я уже писал');
+    });
+
+    test('без находок промпт читается ровно как читался', async () => {
+      const chatModel = capturingModel([draft('Текст поста')]);
+      const { service } = loadAgentGraph({ chatModel });
+
+      await service.generateContent(withHints());
+
+      expect(chatModel.prompts[0]).not.toContain('Your own earlier posts');
+    });
+  });
+
   test('a brace in the brief is text, not a placeholder', async () => {
     const chatModel = capturingModel([draft('Текст поста')]);
     const { service } = loadAgentGraph({ chatModel });

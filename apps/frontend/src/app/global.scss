@@ -952,19 +952,8 @@ html[dir='rtl'] [dir='ltr'] {
   box-shadow: var(--cf-overlay-shadow);
 }
 
-.post-now {
-  box-shadow: var(--cf-overlay-shadow);
-}
-
 .uppyChange .uppy-Dashboard-inner {
   width: 100% !important;
-}
-
-.btnSub:disabled .arrow-change {
-  display: none !important;
-}
-.btnSub:disabled + button {
-  display: none !important;
 }
 
 .tiptap p.is-editor-empty:first-child::before {

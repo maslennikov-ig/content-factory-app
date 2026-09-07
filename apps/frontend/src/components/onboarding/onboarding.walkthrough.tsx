@@ -1,24 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
 import Link from 'next/link';
-import useSWR from 'swr';
 import clsx from 'clsx';
-import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { buttonClassName } from '@contentfactory/react/form/button';
 import {
-  EMPTY_PROGRESS,
-  ONBOARDING_PROGRESS_API,
   ONBOARDING_STEP_HREF,
   ONBOARDING_STEP_KEYS,
   currentStep,
   doneCount,
-  readProgress,
   stepDetail,
   stepIsDone,
   type OnboardingStepKey,
 } from './onboarding.adapter';
+import { useOnboardingProgress } from './use-onboarding-progress';
 import { onboardingCopy, resolveOnboardingLocale } from './onboarding.copy';
 
 /**
@@ -53,39 +48,29 @@ const CheckIcon = () => (
   </svg>
 );
 
-export function OnboardingWalkthrough() {
-  const request = useFetch();
+export function OnboardingWalkthrough({
+  embedded = false,
+}: {
+  /**
+   * Внутри вкладки настроек, а не на своей странице.
+   *
+   * The settings tab used to hold a paragraph and a button that opened this
+   * page. Owner, 07.09.2026: «я не вижу смысла дополнительной кнопки в
+   * настройках… А так я попадаю как будто бы в раздел, которого и не
+   * существует». So the tab renders the steps themselves. Two things change
+   * and nothing else: the heading is an `h2`, because the settings screen
+   * already owns the page's `h1`, and the «закрыть и осмотреться» link goes —
+   * you are inside settings, there is nothing to close.
+   */
+  embedded?: boolean;
+} = {}) {
   const { language } = useVariables();
   const t = onboardingCopy[resolveOnboardingLocale(language)];
 
-  const read = useMemo(
-    () => async (url: string) => {
-      const response = await request(url);
-      if (!response.ok) throw new Error(String(response.status));
-      return response.json();
-    },
-    [request]
-  );
+  const { progress, answered, loading, error } = useOnboardingProgress();
 
-  const answer = useSWR(
-    ONBOARDING_PROGRESS_API,
-    () => read(ONBOARDING_PROGRESS_API),
-    { revalidateOnFocus: true }
-  );
-
-  const progress = answer.data ? readProgress(answer.data) : EMPTY_PROGRESS;
   const done = doneCount(progress);
   const total = ONBOARDING_STEP_KEYS.length;
-  /**
-   * Whether the workspace has answered yet (`content-factory-next-za05`,
-   * item 5). Before it does, `progress` is `EMPTY_PROGRESS` — the right
-   * default for a reader that must never congratulate anyone, and the wrong
-   * thing to *print*: the bar read «0 из 6» and pointed at step one before
-   * anything had been looked at, which is a claim about someone's workspace
-   * made out of not knowing. An error still counts as an answer: the page
-   * says so in words above, and the ticks are honestly missing.
-   */
-  const answered = Boolean(answer.data) || Boolean(answer.error);
   const active: OnboardingStepKey | null = answered
     ? currentStep(progress)
     : null;
@@ -99,18 +84,27 @@ export function OnboardingWalkthrough() {
       className="w-full rounded-[8px] border border-cf-border bg-cf-surface"
     >
       <header className="border-b border-cf-border p-[20px]">
-        <h1
-          id="onboarding-title"
-          className="cf-heading-lg text-cf-ink [text-wrap:balance]"
-        >
-          {t.pageTitle}
-        </h1>
+        {embedded ? (
+          <h2
+            id="onboarding-title"
+            className="cf-heading-md text-cf-ink [text-wrap:balance]"
+          >
+            {t.pageTitle}
+          </h2>
+        ) : (
+          <h1
+            id="onboarding-title"
+            className="cf-heading-lg text-cf-ink [text-wrap:balance]"
+          >
+            {t.pageTitle}
+          </h1>
+        )}
         <p className="mt-[4px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
           {t.pageLead}
         </p>
       </header>
 
-      {answer.error && (
+      {error && (
         <p
           role="alert"
           className="m-[20px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
@@ -231,7 +225,7 @@ export function OnboardingWalkthrough() {
         </nav>
 
         <div className="min-w-0 flex-1 p-[20px]">
-          {!answer.data && !answer.error ? (
+          {loading ? (
             <p aria-busy="true" className="cf-body-sm text-cf-ink-muted">
               {t.loading}
             </p>
@@ -297,9 +291,29 @@ export function OnboardingWalkthrough() {
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-[12px] border-t border-cf-border p-[16px]">
-        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-          {t.comeBack}
-        </p>
+        <div className="min-w-0">
+          {/*
+            Where the ticks come from, and why there is no «начать заново».
+            Owner, 07.09.2026: «нужна, наверное, возможность сбросить
+            прохождение». There is nothing to reset — a step is closed by a
+            channel, a sample, a claim, a заготовка, a draft, a post in the
+            schedule, all of which are the workspace's own rows. A button that
+            unticked them would either delete someone's work or set a flag that
+            lies, and the second one is what makes ticks worthless. So the page
+            says so plainly instead of hiding it.
+          */}
+          <p
+            data-onboarding-note="counted"
+            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {t.counted}
+          </p>
+          {!embedded && (
+            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {t.comeBack}
+            </p>
+          )}
+        </div>
         {/*
           One element, not a `<button>` wrapped in an `<a>`
           (`content-factory-next-za05`, item 6). Nested interactive elements
@@ -307,15 +321,17 @@ export function OnboardingWalkthrough() {
           for one action, with the inner one carrying the label and the outer
           one carrying the destination.
         */}
-        <Link
-          href="/launches"
-          className={buttonClassName({
-            variant: 'secondary',
-            className: 'shrink-0',
-          })}
-        >
-          {t.leave}
-        </Link>
+        {!embedded && (
+          <Link
+            href="/launches"
+            className={buttonClassName({
+              variant: 'secondary',
+              className: 'shrink-0',
+            })}
+          >
+            {t.leave}
+          </Link>
+        )}
       </footer>
     </section>
   );

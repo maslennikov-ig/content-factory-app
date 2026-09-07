@@ -29,8 +29,20 @@ import { useIntegrationList } from '@contentfactory/frontend/components/launches
 import useCookie from 'react-use-cookie';
 import { Onboarding } from '@contentfactory/frontend/components/onboarding/onboarding';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
-import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { Button } from '@contentfactory/react/form/button';
+import { ChannelMark } from '@contentfactory/frontend/components/ui/brand/channel-mark';
+import {
+  RAIL_AVATAR,
+  RAIL_AVATAR_PX,
+  RAIL_BADGE_PX,
+  RAIL_CONTROL_GAP,
+  RAIL_DIVIDER,
+  RAIL_QUIET_SLOT,
+  RAIL_SECTION_GAP,
+  railActionRowClass,
+  railActionsClass,
+  railWidthClass,
+} from '@contentfactory/frontend/components/launches/channel-rail';
 
 /** Flat selection marker; the inherited gradient bar is gone. */
 export const SVGLine = () => (
@@ -236,7 +248,8 @@ export const MenuComponent: FC<
           }
         : {})}
       className={clsx(
-        'flex gap-[12px] items-center bg-newBgColorInner hover:bg-boxHover group/profile transition-all rounded-e-[8px]',
+        'flex items-center group/profile transition-colors rounded-[8px] hover:bg-cf-surface-subtle',
+        collapsed ? 'flex-col gap-[8px]' : 'gap-[12px]',
         canRefresh && 'cursor-pointer'
       )}
     >
@@ -251,7 +264,7 @@ export const MenuComponent: FC<
         </div>
         {(integration.inBetweenSteps || integration.refreshNeeded) && (
           <div
-            className="absolute start-0 top-0 w-[48px] h-[48px] cursor-pointer"
+            className="absolute start-0 top-0 w-[40px] h-[40px] cursor-pointer"
             onClick={
               integration.refreshNeeded
                 ? canRefresh
@@ -263,27 +276,35 @@ export const MenuComponent: FC<
             <div className="bg-red-500 w-[15px] h-[15px] rounded-full start-[5px] top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
               !
             </div>
-            <div className="bg-primary/60 w-[48px] h-[48px] start-0 top-0 absolute rounded-full z-[199]" />
+            <div className="bg-primary/60 w-[40px] h-[40px] start-0 top-0 absolute rounded-full z-[199]" />
           </div>
         )}
         {integration.picture ? (
           <img
             src={integration.picture}
-            className="rounded-[8px] min-w-[48px] min-h-[48px]"
+            className={clsx(RAIL_AVATAR, 'object-cover')}
             alt={integration.name}
-            width={48}
-            height={48}
+            width={RAIL_AVATAR_PX}
+            height={RAIL_AVATAR_PX}
             onError={({ currentTarget }) => {
               currentTarget.onerror = null;
               currentTarget.src = '/no-picture.jpg';
             }}
           />
         ) : (
-          <PlatformSymbol identifier={integration.identifier} size={48} />
+          /*
+            Запасной знак берёт имя канала, а не площадку: в свёрнутой рейке
+            имени рядом нет, а четыре Telegram-канала под одним `Tg` там
+            неразличимы. `PlatformSymbol` живёт шагами 32/48/64 и в квадрат 40
+            рейки не встаёт; `ChannelMark` — тот же знак канала, который уже
+            стоит в окне поста, и он принимает размер строки
+            (`content-factory-next-tu3k.13`).
+          */
+          <ChannelMark name={integration.name} size={RAIL_AVATAR_PX} />
         )}
         <PlatformBadge
           identifier={integration.identifier}
-          size={24}
+          size={RAIL_BADGE_PX}
           className="absolute z-10 -bottom-[4px] -end-[4px]"
         />
       </div>
@@ -302,25 +323,36 @@ export const MenuComponent: FC<
           : {})}
         role="Handle"
         className={clsx(
-          'group-[.sidebar]:hidden flex-1 whitespace-nowrap text-ellipsis overflow-hidden cursor-move',
+          // Свёрнутая рейка прячет имя от глаз, но не от чтения с экрана:
+          // знак канала остаётся декоративным, а имя — единственное, что
+          // отличает четыре канала одной площадки друг от друга.
+          collapsed
+            ? 'sr-only'
+            : 'flex-1 min-w-0 whitespace-nowrap text-ellipsis overflow-hidden cursor-move',
           integration.disabled && 'opacity-50'
         )}
       >
         {integration.name}
       </div>
-      <Menu
-        canChangeProfilePicture={integration.changeProfilePicture}
-        canChangeNickName={integration.changeNickName}
-        refreshChannel={refreshChannel}
-        mutate={mutate}
-        onChange={update}
-        id={integration.id}
-        canEnable={
-          user?.totalChannels! > totalNonDisabledChannels &&
-          integration.disabled
-        }
-        canDisable={!integration.disabled}
-      />
+      {/*
+        «⋮» — тихая кнопка 32×32. Гнездо задаёт ось: развёрнуто у правого края
+        строки, свёрнуто под аватаром. Свою ширину примитив меню держит сам.
+      */}
+      <div className={RAIL_QUIET_SLOT}>
+        <Menu
+          canChangeProfilePicture={integration.changeProfilePicture}
+          canChangeNickName={integration.changeNickName}
+          refreshChannel={refreshChannel}
+          mutate={mutate}
+          onChange={update}
+          id={integration.id}
+          canEnable={
+            user?.totalChannels! > totalNonDisabledChannels &&
+            integration.disabled
+          }
+          canDisable={!integration.disabled}
+        />
+      </div>
     </div>
   );
 };
@@ -334,6 +366,13 @@ export const LaunchesComponent = () => {
   const t = useT();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  /*
+    Одно состояние рейки, прочитанное один раз. До `content-factory-next-tu3k.13`
+    сравнение `collapseMenu === '1'` стояло в шести местах, а половина кнопок
+    вместо него читала класс `group-[.sidebar]`, и два способа сказать одно и то
+    же разошлись: свёрнутая рейка выдавала четыре разных размера кнопки.
+  */
+  const collapsed = collapseMenu === '1';
   const [mode] = useCookie('mode', 'dark');
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
@@ -473,39 +512,44 @@ export const LaunchesComponent = () => {
         <div
           className={clsx(
             'flex relative flex-col shrink-0 w-full',
-            collapseMenu === '1' ? 'group sidebar md:w-[100px]' : 'md:w-[260px]'
+            collapsed && 'group sidebar',
+            railWidthClass(collapsed)
           )}
         >
           <div
             className={clsx(
-              'bg-cf-surface border-b md:border-b-0 md:border-e border-cf-border p-[16px] flex flex-col gap-[16px] transition-all',
+              'bg-cf-surface border-b md:border-b-0 md:border-e border-cf-border p-[16px] flex flex-col transition-all',
+              RAIL_SECTION_GAP,
               'static max-h-[45vh] md:absolute md:start-0 md:top-0 md:max-h-none md:h-full w-full overflow-x-hidden overflow-y-auto'
             )}
           >
-            <div className="flex items-center gap-[8px]">
-              <h2 className="group-[.sidebar]:hidden flex-1 text-[15px] font-[650] text-cf-ink">
-                {t('channels')}
-              </h2>
+            <div className={clsx('flex items-center', RAIL_CONTROL_GAP)}>
+              {!collapsed && (
+                <h2 className="flex-1 text-[15px] font-[650] text-cf-ink">
+                  {t('channels')}
+                </h2>
+              )}
               <Button
                 iconOnly
-                size={28}
+                density="dense"
                 variant="quiet"
                 type="button"
-                aria-expanded={collapseMenu !== '1'}
+                aria-expanded={!collapsed}
                 aria-label={
-                  collapseMenu === '1'
+                  collapsed
                     ? t('expand_channels', 'Expand channels')
                     : t('collapse_channels', 'Collapse channels')
                 }
                 title={
-                  collapseMenu === '1'
+                  collapsed
                     ? t('expand_channels', 'Expand channels')
                     : t('collapse_channels', 'Collapse channels')
                 }
-                onClick={() =>
-                  setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-                }
-                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto rounded-[8px] flex items-center justify-center cursor-pointer select-none transition-colors duration-state"
+                onClick={() => setCollapseMenu(collapsed ? '0' : '1')}
+                className={clsx(
+                  'rounded-[8px] flex items-center justify-center cursor-pointer select-none transition-colors duration-state',
+                  collapsed && 'rotate-[180deg] mx-auto'
+                )}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -524,10 +568,15 @@ export const LaunchesComponent = () => {
                 </svg>
               </Button>
             </div>
-            <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
-              <AddProviderButton update={() => update(true)} />
-              <div className="flex gap-[8px] group-[.sidebar]:flex-col">
-                {sortedIntegrations?.length > 0 && <NewPost />}
+            <div className={railActionsClass(collapsed)}>
+              <AddProviderButton
+                collapsed={collapsed}
+                update={() => update(true)}
+              />
+              <div className={railActionRowClass(collapsed)}>
+                {sortedIntegrations?.length > 0 && (
+                  <NewPost collapsed={collapsed} />
+                )}
                 {/*
                   `content-factory-next-tu3k.4`, решение владельца 06.09.2026:
                   здесь стояла «Generate Posts», спрятанная за `billingEnabled`
@@ -538,12 +587,15 @@ export const LaunchesComponent = () => {
                   на диске: у него свой адрес `/posts/generator` и свои тесты.
                 */}
                 {sortedIntegrations?.length > 0 && (
-                  <IntakeDoor collapsed={collapseMenu === '1'} />
+                  <IntakeDoor collapsed={collapsed} />
                 )}
               </div>
             </div>
+            {sortedIntegrations?.length > 0 && (
+              <div className={RAIL_DIVIDER} aria-hidden />
+            )}
             <div className="gap-[32px] flex flex-col select-none flex-1">
-              {sortedIntegrations.length === 0 && collapseMenu === '0' && (
+              {sortedIntegrations.length === 0 && !collapsed && (
                 <EmptyState
                   title={t('no_channels', 'No channels yet')}
                   description={t('connect_your_accounts')}
@@ -551,7 +603,7 @@ export const LaunchesComponent = () => {
               )}
               {menuIntegrations.map((menu) => (
                 <MenuGroupComponent
-                  collapsed={collapseMenu === '1'}
+                  collapsed={collapsed}
                   changeItemGroup={changeItemGroup}
                   key={menu.name}
                   group={menu}

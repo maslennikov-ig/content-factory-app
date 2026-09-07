@@ -8,6 +8,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { useUser } from '../../layout/user.context';
 import { ContentReadOnlyNote, writeRightFromRole } from '../content-write-right';
 import { resolveContentLocale } from '../content-section.copy';
+import { useDebouncedValue } from '../content-search-words';
 import { useOpenPost } from '../shared/use-open-post';
 import { PiecesScreen, type PieceExpansion } from './pieces.screen';
 import { piecesCopy } from './pieces.copy';
@@ -48,6 +49,13 @@ import {
  * **Раскрытая строка спрашивает дверь заготовки.** Список несёт выдержку, но
  * не квитанцию и не адаптации поимённо; вторая дверь на раскрытие честнее,
  * чем список, который тянет всё про всех ради одной открытой строки.
+ *
+ * **Поиск не отбирает фокус.** Ключ SWR собирается из «успокоившегося»
+ * запроса (`useDebouncedValue`, 300 мс — те же, что у архива и у витрины
+ * фактов), а `keepPreviousData` оставляет прежний ответ на время нового. Без
+ * этой пары ключ менялся на каждый символ, `state` уходил в `loading`, экран
+ * подменял поле поиска скелетоном — и каретка исчезала после первой буквы.
+ * Скелетон теперь бывает ровно один раз, до первого ответа.
  */
 
 export function PiecesContainer() {
@@ -69,7 +77,19 @@ export function PiecesContainer() {
     )
   );
 
-  const url = piecesListUrl(filters);
+  /*
+    Запрос уходит на сервер не раньше, чем человек перестал печатать, и тот же
+    успокоившийся запрос отбирает строки в ответе и подсвечивает слова: три
+    разных значения «что ищем» на одном экране разъехались бы на первом же
+    быстром вводе.
+  */
+  const settledQuery = useDebouncedValue(filters.q);
+  const settledFilters = useMemo(
+    () => ({ ...filters, q: settledQuery }),
+    [filters, settledQuery]
+  );
+
+  const url = piecesListUrl(settledFilters);
   const list = useSWR(
     url,
     async () => {
@@ -77,7 +97,7 @@ export function PiecesContainer() {
       if (!response.ok) throw new Error('pieces unavailable');
       return readPiecesResponse(await response.json());
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, keepPreviousData: true }
   );
 
   const detailUrl = expandedId ? PIECES_API.detail(expandedId) : null;
@@ -109,8 +129,8 @@ export function PiecesContainer() {
     : envelope.state;
 
   const rows = useMemo(
-    () => filterPieces(envelope?.pieces ?? [], filters),
-    [envelope?.pieces, filters]
+    () => filterPieces(envelope?.pieces ?? [], settledFilters),
+    [envelope?.pieces, settledFilters]
   );
 
   const { shown, rest } = useMemo(
@@ -167,6 +187,7 @@ export function PiecesContainer() {
       columns={shown}
       restColumns={rest}
       filters={filters}
+      query={settledQuery}
       expandedId={expandedId}
       expansion={expansion}
       canWrite={canWrite}

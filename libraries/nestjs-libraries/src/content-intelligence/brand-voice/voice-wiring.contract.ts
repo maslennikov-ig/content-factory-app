@@ -626,6 +626,51 @@ export type VoiceAnalysisResponseV1 =
       holdoutCount?: number;
     };
 
+/**
+ * Тот же конверт NDJSON, что у входа: строка — событие, последняя — `done`
+ * или `error`.
+ *
+ * Зачем стрим, когда рядом есть `POST /analysis`. Разбор корпуса — это один
+ * вызов модели на образец, до 28 подряд, и целиком он не укладывается в
+ * шестьдесят секунд, после которых ingress обрывает запрос: владелец получил
+ * 504 на 88 образцах 07.09.2026. Ответ, который начинается сразу и идёт
+ * строками, не упирается ни в один такой предел — и заодно показывает, что
+ * происходит, вместо полосы, нарисованной наугад.
+ *
+ * `progress`/`stage` старого ответа здесь не повторяются: доля считается из
+ * `index`/`total` события `call`, а стадию называет само имя события. Число,
+ * посчитанное на сервере, было бы вторым источником правды о той же полосе.
+ */
+export type VoiceAnalysisEventV1 =
+  /** Корпус прочитан: сколько текстов в нём и сколько из них увидит модель. */
+  | { name: 'started'; samples: number; planned: number }
+  /**
+   * Арифметика сохранена. Она принадлежит человеку и переживает модель, а
+   * потому называется отдельным событием: дальше может не ответить никто, и
+   * сказанное здесь всё равно останется правдой.
+   */
+  | {
+      name: 'measured';
+      measurementId: string;
+      sampleCount: number;
+      charCount: number;
+      wordCount: number;
+      sentenceCount: number;
+    }
+  /** Один вызов модели. `ok: false` — попытка, которую пришлось повторить. */
+  | {
+      name: 'call';
+      stage: 'map' | 'reduce';
+      /** 1..`total` — какой это образец, а не какая это по счёту попытка. */
+      index: number;
+      total: number;
+      ok: boolean;
+    }
+  | { name: 'done'; analysis: VoiceAnalysisResponseV1 }
+  | { name: 'error'; error: true; code: string; message: string };
+
+export type VoiceAnalysisEventNameV1 = VoiceAnalysisEventV1['name'];
+
 /* -------------------------------------------------------------------------
  * Screen 05 — the proposal
  * ---------------------------------------------------------------------- */
@@ -1649,15 +1694,20 @@ export const VOICE_SURFACES = {
     /**
      * `VoiceAnalysisResponseV1` is a union of three outcomes, and the screen's
      * props are the flattened reading of all three rather than the union
-     * itself: `progress`/`stage` come from `pending`, the rest from `ready`,
-     * and `insufficient` never reaches this screen — the wizard routes a
-     * shortfall back to the corpus step instead, the same way `36r` already
-     * treats "not enough yet" as a result rather than a failure state here.
+     * itself: the rest come from `ready`, and `insufficient` never reaches
+     * this screen — the wizard routes a shortfall back to the corpus step
+     * instead, the same way `36r` already treats "not enough yet" as a result
+     * rather than a failure state here.
+     *
+     * `progress`, `stage` and `assisted` are read from the stream below rather
+     * than from a response body: the run is `VoiceAnalysisEventV1` lines now,
+     * and the three of them are what those lines say about what is happening.
      */
     dataFields: [
       'state',
       'progress',
       'stage',
+      'assisted',
       'sampleCount',
       'charCount',
       'holdoutCount',
@@ -1680,6 +1730,18 @@ export const VOICE_SURFACES = {
         method: 'GET',
         path: `${VOICE_API_BASE}/analysis`,
         response: 'VoiceAnalysisResponseV1',
+      },
+      /**
+       * Тот же разбор строками NDJSON — дверь, на которую ходит мастер.
+       *
+       * Соседняя `POST /analysis` осталась: она отвечает одним объектом, и её
+       * читает всё, что не показывает ход.
+       */
+      {
+        method: 'POST',
+        path: `${VOICE_API_BASE}/analysis/stream`,
+        request: 'VoiceAnalysisRequestV1',
+        response: 'VoiceAnalysisEventV1',
       },
       /**
        * The same texts, measured again with the ruler this build ships.
@@ -1938,6 +2000,19 @@ export const VOICE_SURFACES = {
         path: MATERIALS_API_BASE,
         response: 'MaterialsResponseV1',
       },
+      /**
+       * «Свои тексты по теме» (`content-factory-next-m2eg.19`).
+       *
+       * Отвечает не `MaterialsResponseV1`, а тем же списком, который при
+       * адаптации получает модель: это другой вопрос — «что у меня уже вышло
+       * об этом». Один список для экрана и для модели, иначе ссылка в готовом
+       * тексте перестала бы быть проверяемой глазами.
+       */
+      {
+        method: 'GET',
+        path: `${MATERIALS_API_BASE}/related`,
+        response: 'RelatedTextsResponseV1',
+      },
       {
         method: 'GET',
         path: `${MATERIALS_API_BASE}/:id/derivations`,
@@ -2127,6 +2202,14 @@ export const INTAKE_API_BASE = '/content-intelligence/intake' as const;
 export const TEXT_QUALITY_API_BASE = '/content-intelligence/text-quality' as const;
 export const INTAKE_MAX_CHANNELS = 3 as const;
 export const INTAKE_MAX_VERIFIED_CLAIMS = 3 as const;
+/**
+ * Сколько вопросов задавал вход, пока вопрос был терминальным.
+ *
+ * С волны `content-factory-next-m2eg` счёт ведёт `PIECE_MAX_QUESTIONS`: вопросы
+ * ворот и вопросы интервью сведены в один список по полям брифа, и предел у
+ * него один. Константа оставлена ради читателей старого контракта и новым
+ * кодом не читается.
+ */
 export const INTAKE_MAX_QUESTIONS = 2 as const;
 /** Сколько кругов уточнений допускает экран, прежде чем предложить ручной бриф. */
 export const INTAKE_MAX_ROUNDS = 2 as const;
@@ -2201,6 +2284,14 @@ export type IntakeQuestionV1 = {
   question: string;
   /** Готовые варианты ответа; человек может выбрать свой или отдать решение модели. */
   options?: string[];
+  /**
+   * Вариант модели, словами «я думаю, вот так». `null` — она честно не нашла
+   * ответа и просит слова человека; поля нет вовсе у вопроса, заданного до
+   * волны `m2eg`, когда предлагать было нечего.
+   */
+  suggested?: string | null;
+  /** Подсказка, почему это спрашивается. */
+  why?: string;
 };
 
 export type IntakeOptionsV1 = {
@@ -2343,8 +2434,13 @@ export type IntakeEventV1 =
   | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string }
   | { name: 'claims'; claims: IntakeClaimV1[] }
   | { name: 'brief-filled'; brief: BriefFilledV1 }
-  /** Терминальное: черновика нет, клиент повторяет запрос с `answers`/`decide`. */
-  | { name: 'questions'; questions: IntakeQuestionV1[] }
+  /**
+   * Что осталось спросить — и **не терминальное** с волны
+   * `content-factory-next-m2eg`: заготовка уже записана событием `piece`, а
+   * вопросы живут на её странице и отвечаются дверью `answer`. `round` —
+   * который это круг; клиент вправе его не читать.
+   */
+  | { name: 'questions'; questions: IntakeQuestionV1[]; round?: number }
   | { name: 'channel-started'; integrationId: string }
   | { name: 'content-context'; integrationId: string; data: { output: unknown } }
   /** Проброс события графа генератора как есть. */
@@ -2610,6 +2706,53 @@ export type PieceAnswerInputV1 = {
   origin: Exclude<PieceAnswerOriginV1, 'model'>;
 };
 
+/* ---- Открытые вопросы заготовки --------------------------------------- */
+
+/**
+ * Вопрос, на который заготовка ещё ждёт ответа.
+ *
+ * `content-factory-next-m2eg`, живой прогон 07.09.2026. До этой волны вопрос
+ * был терминальным: пока человек не ответил, заготовки не существовало, и на
+ * втором круге экран упирался в тупик «больше спрашивать не будем» — а
+ * записать было нечего. Теперь порядок обратный: заготовка пишется сразу,
+ * вопросы едут вместе с ней и живут на её странице.
+ *
+ * Опознаётся **полем брифа**, а не ключом вопроса, и это устраняет повтор,
+ * который владелец увидел на прогоне: ворота брифа спрашивали «на чём это
+ * стоит», интервью следом спрашивало «есть личная история или факт», и это был
+ * один и тот же вопрос про `facts`, заданный дважды подряд.
+ */
+export type PieceOpenQuestionV1 = IntakeQuestionV1 & {
+  /** Вариант модели или честный `null` — «прошу ваши слова». */
+  suggested: string | null;
+};
+
+/** Ответ человека на открытый вопрос; `answeredAt` ставит сервер. */
+export type PieceFieldAnswerV1 = {
+  field: BriefField;
+  /** Дословно, как написал человек. Пусто у `origin: 'model'`. */
+  text: string;
+  /** `person` — свои слова или «Так и есть»; `model` — «Реши сама». */
+  origin: 'person' | 'model';
+  /** ISO. */
+  answeredAt: string;
+};
+
+/**
+ * Что у заготовки осталось спросить и что уже спрошено.
+ *
+ * Живёт в существующей колонке `ContentPiece.brief` рядом с брифом и ответами
+ * интервью — своей таблицы у вопроса нет и не заводится. `round` считает круги
+ * ответов: их не больше `PIECE_MAX_INTERVIEW_ROUNDS`, и после последнего
+ * `items` остаётся пустым навсегда.
+ */
+export type PieceQuestionsV1 = {
+  round: number;
+  items: PieceOpenQuestionV1[];
+  /** Уже отвеченное и отданное модели: об этом не спрашивают второй раз. */
+  answered: PieceFieldAnswerV1[];
+};
+
 /* ---- Суть и адаптация ------------------------------------------------- */
 
 /**
@@ -2630,6 +2773,18 @@ export type ZagotovkaCoreV1 = {
   writtenBy: 'model' | 'fallback';
   /** Автор принёс хотя бы одно своё число; иначе страница показывает то же предложение, что окно поста. */
   authorNumbers: boolean;
+  /**
+   * Что осталось спросить. `null` или отсутствие — спрашивать нечего, и это
+   * обычное состояние готовой заготовки, а не пробел (`m2eg`).
+   */
+  questions?: PieceQuestionsV1 | null;
+  /**
+   * Слова человека, с которых началась заготовка, дословно. Нужны переписи
+   * сути после ответа: без них второй вызов модели писал бы по одному брифу,
+   * потеряв ровно то, ради чего продукт хранит формулировки автора. У
+   * вставленного чужого поста своих слов нет, и здесь пусто.
+   */
+  personText?: string;
 };
 
 export type AdaptationV1 = {
@@ -2715,6 +2870,19 @@ export type PieceAdaptRequestV1 = {
   brandProfileSelection?: BrandProfileSelectionV1;
 };
 
+/**
+ * Ответы на открытые вопросы заготовки.
+ *
+ * Опознаются полем брифа: `answers` — слова человека дословно, `decide` —
+ * поля, отданные модели («Реши сама»). Отданное поле — это решение, а не
+ * пустой ответ: о нём больше не спрашивают ни разу, и для `facts` оно значит
+ * «суть стоит на словах человека», а не «опоры нет».
+ */
+export type PieceAnswerRequestV1 = {
+  answers?: Array<{ field: BriefField; text: string }>;
+  decide?: BriefField[];
+};
+
 export type PieceArchiveRequestV1 = {
   archived: boolean;
 };
@@ -2765,6 +2933,40 @@ export type IntakeEventWithPieceV1 =
     });
 
 /** Тот же конверт NDJSON, что у входа: строка — событие, последняя — `done` или `error`. */
+/**
+ * Свой прежний текст, на который новый может сослаться.
+ *
+ * Решение владельца 07.09.2026 (`content-factory-next-m2eg.19`): «нам это
+ * нужно сразу сделать, чтобы модель научилась на них ссылаться». Строка —
+ * это ВЫШЕДШИЙ пост со своим адресом: сослаться можно только на то, что
+ * читатель откроет, поэтому у черновика адреса нет и в этот список он не
+ * попадает.
+ *
+ * `score` — вес находки внутреннего поиска, а не оценка качества текста.
+ * Он есть в ответе двери потому, что порядок строк на экране обязан
+ * совпадать с порядком, в котором их увидела модель.
+ */
+export type RelatedOwnPostV1 = {
+  /** `ContentPiece.id`, `ContentDerivation.id` или `Post.id` — что нашлось. */
+  id: string;
+  kind: 'PIECE' | 'ADAPTATION' | 'POST';
+  title: string;
+  /** Первые строки текста: столько, сколько нужно, чтобы узнать пост. */
+  excerpt: string;
+  /** Адрес вышедшего поста. Без него ссылаться не на что. */
+  url: string;
+  /** `providerIdentifier` канала, где текст вышел. */
+  platform: string | null;
+  /** ISO — когда вышел. */
+  publishedAt: string | null;
+  score: number;
+};
+
+/** Ответ двери «свои тексты по теме». */
+export type RelatedTextsResponseV1 = {
+  related: RelatedOwnPostV1[];
+};
+
 export type PieceAdaptEventV1 =
   | {
       name: 'adapt-started';
@@ -2775,6 +2977,14 @@ export type PieceAdaptEventV1 =
   /** Терминальное: адаптации нет, клиент повторяет запрос с `answers`/`decideKeys`/`skipInterview`. */
   | { name: 'questions'; questions: PieceQuestionV1[]; round: number }
   | { name: 'content-context'; data: { output: unknown } }
+  /**
+   * Свои прежние тексты по теме — то же, что увидела модель.
+   *
+   * Идёт до генерации и информационно: экран показывает список, отмечать в
+   * нём нечего. Пустой список не отправляется вовсе — «ничего не нашлось» это
+   * не новость для человека, который просил написать пост.
+   */
+  | { name: 'related'; related: RelatedOwnPostV1[] }
   /** Проброс события графа генератора как есть. */
   | { name: 'generator'; event: unknown }
   | {
@@ -2789,6 +2999,25 @@ export type PieceAdaptEventV1 =
   | { name: 'error'; error: true; code: string; message: string };
 
 export type PieceAdaptEventNameV1 = PieceAdaptEventV1['name'];
+
+/**
+ * Тот же конверт NDJSON у двери ответов: строка — событие, последняя — `done`
+ * или `error`.
+ *
+ * Тупика здесь нет ни на каком круге. Ответ либо переписывает суть, либо
+ * ничего не меняет, но заготовка остаётся на месте, и `piece` приходит всегда.
+ * `questions` появляется, только если спросить ещё есть о чём и круги не
+ * исчерпаны; его отсутствие — это «больше не спросим», сказанное молчанием, а
+ * не отказом.
+ */
+export type PieceAnswerEventV1 =
+  | { name: 'answer-started'; pieceId: string; round: number }
+  | { name: 'piece'; pieceId: string; code: string; core: ZagotovkaCoreV1 }
+  | { name: 'questions'; questions: PieceOpenQuestionV1[]; round: number }
+  | { name: 'done'; pieceId: string }
+  | { name: 'error'; error: true; code: string; message: string };
+
+export type PieceAnswerEventNameV1 = PieceAnswerEventV1['name'];
 
 /* ---- Отказы --------------------------------------------------------------- */
 
@@ -2810,6 +3039,18 @@ export const PIECE_ERROR_CODES = {
   ADAPTATION_PUBLISHED: { status: 409, screenState: 'error' },
   /** Интервью исчерпало `PIECE_MAX_INTERVIEW_ROUNDS`: дальше — «Реши сама» или ручной бриф. */
   PIECE_INTERVIEW_EXHAUSTED: { status: 422, screenState: 'error' },
+  /**
+   * Отвечать нечему: у материала до волны заготовок сути нет, а есть тело
+   * одного канала. Вопросы к нему бессмысленны, и молчание в ответ было бы
+   * хуже названного отказа.
+   */
+  PIECE_CORE_MISSING: { status: 422, screenState: 'error' },
+  /**
+   * Заготовка не записалась. С волны `m2eg` это отказ, а не тишина: до неё
+   * `recordCore` возвращал `null`, стрим шёл дальше, и человек получал
+   * черновики без заготовки, о чём никто ему не говорил.
+   */
+  PIECE_NOT_SAVED: { status: 500, screenState: 'error' },
 } as const satisfies Record<
   string,
   { status: number; screenState: VoiceScreenStateV1 }
@@ -2837,6 +3078,11 @@ export const PIECE_ROUTES = {
   adapt: {
     method: 'POST',
     path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/adapt`,
+  },
+  /** NDJSON по `PieceAnswerEventV1`: ответы на открытые вопросы заготовки. */
+  answer: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/answer`,
   },
   archive: {
     method: 'POST',

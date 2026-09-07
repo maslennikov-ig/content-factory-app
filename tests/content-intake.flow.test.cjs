@@ -10,8 +10,9 @@
  *
  * Пять вещей, ради которых набор существует:
  *
- *  - тонкий ввод отвечает вопросами, а не отказом, и второй запрос несёт
- *    ответы прошлого хода — иначе тот же вопрос задаётся дважды;
+ *  - тонкий ввод даёт заготовку с первого же хода и уходит на её страницу:
+ *    второго запроса нет вовсе, а вопросы уехали туда, где стоит суть
+ *    (`content-factory-next-m2eg`, живой прогон 07.09.2026);
  *  - чужой пост показывает подтверждённое и неподтверждённое разными
  *    строками: число, которого нет в тексте, обязано быть названо;
  *  - правка квитанции уходит на сервер только по «Пересобрать» и только как
@@ -23,12 +24,30 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const React = require('react');
-const { JSDOM } = require('jsdom');
+const { JSDOM, VirtualConsole } = require('jsdom');
 
 const root = path.resolve(__dirname, '..');
+/*
+  Уходы со страницы записываются, а не случаются. `window.location` в jsdom
+  подменить нельзя — он «неподделываемый», — но всякая попытка навигации
+  приходит сюда ошибкой окружения, и набор считает именно попытки: экран обязан
+  уйти на страницу заготовки, и это видно.
+*/
+const navigations = [];
+const virtualConsole = new VirtualConsole();
+virtualConsole.on('jsdomError', (error) => {
+  if (String(error?.message || '').includes('Not implemented: navigation')) {
+    navigations.push(error.message);
+    return;
+  }
+  // Остальное окружение по-прежнему говорит вслух.
+  console.error(error);
+});
+
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   pretendToBeVisual: true,
   url: 'http://localhost/',
+  virtualConsole,
 });
 for (const key of ['window', 'document', 'navigator']) {
   Object.defineProperty(global, key, {
@@ -269,6 +288,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   opened = [];
+  navigations.length = 0;
 });
 
 afterEach(() => {
@@ -278,84 +298,41 @@ afterEach(() => {
 
 /* ---------------------------------------------------------------------- */
 
-describe('a thin thought is answered with questions, not with a refusal', () => {
-  test('two questions, no draft, and the second run carries what was answered', async () => {
-    serve(
-      baseTable(
-        intakeDoor(
-          streamed(scenario('thin-input')),
-          streamed(scenario('two-channels').filter((e) => e.name !== 'intake-started'))
-        )
-      )
-    );
-    await open();
-    await start();
-
-    expect(panel().getAttribute('data-intake-state')).toBe('questions');
-    const card = document.querySelector('[data-intake-questions="true"]');
-    expect(card.querySelectorAll('[data-intake-question]')).toHaveLength(2);
-    // Черновика нет: вопрос — это и есть весь ответ этого хода.
-    expect(document.querySelector('[data-intake-draft]')).toBeNull();
-
-    // Первый вопрос — своим ответом, второй отдан модели.
-    await click(
-      within(card.querySelector('[data-intake-question="thesis"]')).getByRole(
-        'radio',
-        { name: 'Свой ответ' }
-      )
-    );
-    await type('[name="intake-answer-thesis"]', 'Про ИИ надо писать реже и точнее');
-    await click(
-      within(card.querySelector('[data-intake-question="facts"]')).getByRole(
-        'radio',
-        { name: 'Реши сама' }
-      )
-    );
-    await click(within(card).getByRole('button', { name: 'Написать' }));
-
-    expect(intakeAnswers).toHaveLength(2);
-    // Первый ход ничего не нёс — спрашивать было ещё не о чем.
-    expect(intakeAnswers[0].answers).toBeUndefined();
-    expect(intakeAnswers[1].answers).toEqual([
-      { field: 'thesis', text: 'Про ИИ надо писать реже и точнее' },
-    ]);
-    expect(intakeAnswers[1].decide).toEqual(['facts']);
-    // И тот же ввод и тот же канал: ход второй, а работа одна.
-    expect(intakeAnswers[1].integrationIds).toEqual(['int-tg']);
-  });
-
-  test('a third round is refused on the screen, before any request', async () => {
+describe('a thin thought is answered with a piece, not with a dead end', () => {
+  test('one run, a saved piece, and the screen leaves for its page', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('thin-input')))));
     await open();
     await start();
 
-    // Первый круг вопросов.
-    let card = document.querySelector('[data-intake-questions="true"]');
-    await click(
-      within(card).getByRole('button', { name: 'Реши всё сама' }),
-      () => panel().getAttribute('data-intake-state') === 'questions'
-    );
-    // Второй круг: сервер снова спросил.
-    card = document.querySelector('[data-intake-questions="true"]');
-    expect(card).not.toBeNull();
-    await click(
-      within(card).getByRole('button', { name: 'Реши всё сама' }),
-      () => document.querySelector('[data-intake-rounds-spent="true"]') !== null
-    );
+    // Один ход и один запрос: второго круга не бывает вовсе.
+    expect(intakeAnswers).toHaveLength(1);
+    expect(intakeAnswers[0].answers).toBeUndefined();
+
+    // Заготовка названа кодом — это первое, что человек получает.
+    const line = document.querySelector('[data-intake-piece="cnt-07"]');
+    expect(line).not.toBeNull();
+    expect(line.textContent).toContain('Заготовка сохранена — cnt-07');
+
+    // И экран ушёл на её страницу сам.
+    expect(navigations).toHaveLength(1);
+  });
+
+  test('neither a question card nor a dead end is ever drawn', async () => {
+    serve(baseTable(intakeDoor(streamed(scenario('thin-input')))));
+    await open();
+    await start();
 
     /*
-      Ходов было два: первый — сам ввод, второй — ответ на первый круг
-      вопросов. Второй круг пришёл в ответ на него, и на нём расспросы
-      кончаются: третьего запроса нет, и решается это здесь, на экране, а не
-      ожиданием отказа от сервера.
+      Ровно то, обо что владелец споткнулся на прогоне 07.09.2026: два круга
+      вопросов и «больше спрашивать не будем» вместо заготовки. Вопросы теперь
+      живут на странице заготовки, поэтому здесь их нет ни одного.
     */
-    expect(intakeAnswers).toHaveLength(2);
-
-    card = document.querySelector('[data-intake-questions="true"]');
-    expect(card).toBeNull();
-    const spent = document.querySelector('[data-intake-rounds-spent="true"]');
-    expect(spent).not.toBeNull();
-    expect(spent.textContent).toContain('Больше спрашивать не будем');
+    expect(document.querySelector('[data-intake-questions="true"]')).toBeNull();
+    expect(document.querySelector('[data-piece-questions="true"]')).toBeNull();
+    expect(document.querySelector('[data-intake-rounds-spent="true"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Больше спрашивать не будем');
+    // И отказом это не читается: заготовка есть, ход кончился «done».
+    expect(panel().getAttribute('data-intake-state')).not.toBe('error');
   });
 });
 

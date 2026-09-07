@@ -36,6 +36,10 @@ const FILES = {
     'libraries/nestjs-libraries/src/database/prisma/onboarding/onboarding.repository.ts',
   modal: 'apps/frontend/src/components/onboarding/onboarding.modal.tsx',
   layout: 'apps/frontend/src/components/layout/layout.context.tsx',
+  progressHook:
+    'apps/frontend/src/components/onboarding/use-onboarding-progress.ts',
+  menu: 'apps/frontend/src/components/layout/top.menu.tsx',
+  settings: 'apps/frontend/src/components/layout/settings.component.tsx',
 };
 
 const read = (key) => fs.readFileSync(path.join(root, FILES[key]), 'utf8');
@@ -72,14 +76,73 @@ describe('a step closes because the work is done', () => {
     expect(adapter.stepIsDone('fact', only({ facts: 1 }))).toBe(true);
     expect(adapter.stepIsDone('brief', only({ facts: 1 }))).toBe(false);
 
-    // A draft is what a brief produces and the product keeps no separate
-    // record of «a brief was filled in», so these two close together. Said
-    // out loud in the adapter rather than left for someone to discover.
+    // A draft is what the brief produced when the brief was the only way in,
+    // so it still closes both. Said out loud in the adapter rather than left
+    // for someone to discover.
     expect(adapter.stepIsDone('brief', only({ drafts: 1 }))).toBe(true);
     expect(adapter.stepIsDone('preview', only({ drafts: 1 }))).toBe(true);
     expect(adapter.stepIsDone('schedule', only({ drafts: 1 }))).toBe(false);
 
     expect(adapter.stepIsDone('schedule', only({ scheduled: 1 }))).toBe(true);
+  });
+
+  /**
+   * `content-factory-next-m2eg.23`. Владелец 07.09.2026 сделал заготовку и
+   * шаг остался открытым: «У меня все пройдено, кроме пункта… Хотя, по идее,
+   * я же создал новую заготовку». Он прав — шаг просит заполненный бриф, а
+   * заготовка `kind='CORE'` несёт его внутри себя.
+   */
+  test('заготовка закрывает шаг брифа и не закрывает предпросмотр', () => {
+    const only = (patch) => ({ ...adapter.EMPTY_PROGRESS, ...patch });
+
+    expect(adapter.stepIsDone('brief', only({ pieces: 1 }))).toBe(true);
+    // Смотреть ещё нечего: черновика под канал заготовка сама по себе не даёт.
+    expect(adapter.stepIsDone('preview', only({ pieces: 1 }))).toBe(false);
+    expect(adapter.stepIsDone('schedule', only({ pieces: 1 }))).toBe(false);
+  });
+
+  test('the repository counts a live заготовка and not an archived one', () => {
+    // `ContentPiece` has no `deletedAt` — the list hides a row by
+    // `archivedAt`, so the count asks the same question the screens do. A row
+    // without `kind` predates the wave and carries no brief.
+    const repository = read('repository');
+    expect(repository).toMatch(
+      /contentPiece\(\)\.count\(\{\s*where:\s*\{\s*organizationId,\s*kind:\s*'CORE',\s*archivedAt:\s*null\s*\}/
+    );
+    // Узкий тип поверх клиента называет ровно те колонки, что есть у таблицы.
+    // `deletedAt` у неё нет, и написанный сюда он прошёл бы проверку типов и
+    // упал бы на боевой базе.
+    const counter = repository.slice(
+      repository.indexOf('type PieceCounter'),
+      repository.indexOf('};', repository.indexOf('type PieceCounter'))
+    );
+    expect(counter).toContain('archivedAt: null');
+    expect(counter).not.toContain('deletedAt');
+  });
+
+  test('all six done is one function, not a number retyped per caller', () => {
+    expect(adapter.allStepsDone(adapter.EMPTY_PROGRESS)).toBe(false);
+    expect(
+      adapter.allStepsDone({
+        channels: 1,
+        voiceSamples: 1,
+        facts: 1,
+        pieces: 1,
+        drafts: 1,
+        scheduled: 1,
+      })
+    ).toBe(true);
+    // Заготовка без черновика — предпросмотр ещё открыт, значит не всё.
+    expect(
+      adapter.allStepsDone({
+        channels: 1,
+        voiceSamples: 1,
+        facts: 1,
+        pieces: 1,
+        drafts: 0,
+        scheduled: 0,
+      })
+    ).toBe(false);
   });
 
   test('a published post keeps the last step closed', () => {
@@ -148,6 +211,7 @@ describe('the voice step counts the corpus the screens show', () => {
         integration: counter('integration'),
         brandVoiceSample: counter('brandVoiceSample'),
         contentFact: counter('contentFact'),
+        contentPiece: counter('contentPiece'),
         post: counter('post'),
       },
     }).progress('org-a');
@@ -204,6 +268,45 @@ describe('the walkthrough leads into the product', () => {
 describe('it can be found again', () => {
   test('a fresh space lands on the page, not on a screen with a modal over it', () => {
     expect(read('layout')).toContain("window.location.href = '/onboarding'");
+  });
+
+  /**
+   * Владелец 07.09.2026: «раздел «С чего начать» должен быть просто отдельным
+   * пунктом меню вынесен… я не вижу смысла дополнительной кнопки в
+   * настройках». Две двери к одной странице читались как отсутствие страницы.
+   */
+  test('the page is the first row of the menu and the settings tab itself', () => {
+    const menu = read('menu');
+    expect(menu.indexOf("path: '/onboarding'")).toBeLessThan(
+      menu.indexOf("path: '/launches'")
+    );
+    expect(menu).toContain('hide: onboardingFinished');
+
+    // Вкладка настроек рисует сам обход, а не кнопку к нему.
+    const settings = read('settings');
+    expect(settings).toMatch(/<OnboardingWalkthrough\s+embedded=\{true\}/);
+  });
+
+  test('the menu and the page ask one question through one hook', () => {
+    // Два вызова `useSWR` с одним ключом делят один запрос и один кэш; две
+    // руками написанные загрузки не делят ничего, и строка меню продолжала бы
+    // показывать состояние, которое страница уже прошла.
+    const hook = read('progressHook');
+    expect(hook).toContain('ONBOARDING_PROGRESS_API');
+    for (const key of ['screen', 'menu']) {
+      expect(read(key)).toContain('useOnboardingProgress');
+    }
+  });
+
+  test('the page says where the ticks come from and that there is no reset', () => {
+    // Владелец 07.09.2026: «нужна, наверное, возможность сбросить
+    // прохождение». Сбрасывать нечего — галочки это строки области, а флаг,
+    // который их снимает, врёт. Страница говорит это словами.
+    const screen = read('screen');
+    expect(screen).toContain('data-onboarding-note="counted"');
+    const copy = read('copy');
+    expect(copy).toContain('Сбросить нельзя');
+    expect(copy).toContain('There is no reset');
   });
 
   test('the modal hands over instead of teaching a loop of its own', () => {

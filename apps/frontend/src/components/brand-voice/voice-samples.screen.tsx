@@ -75,6 +75,13 @@ export type VoiceUploadState = Readonly<{
   /** Refused here, before sending, with the file named. */
   refused?: readonly { name: string; note: string }[];
   /**
+   * В какой карточке файлы выбраны.
+   *
+   * Карточек с выбором две — «Файлы» и выгрузка Telegram, — а выбранный набор
+   * один. Без этого поля список выбранного печатался бы под обеими.
+   */
+  origin?: SampleOriginLabel;
+  /**
    * Set on the path that takes somebody else's writing.
    *
    * The same two promises the pasted path makes — a confirmed right and the
@@ -101,9 +108,32 @@ export type VoiceSamplesState =
  *
  * A filter rather than a rule: a person can always override it in the dialog,
  * and `file-intake.ts` refuses by extension on the server regardless. It is
- * here so the four formats that work are the four the dialog shows first.
+ * here so the formats that work are the ones the dialog shows first. `.json`
+ * is among them because the same card takes a Telegram export too — the
+ * dedicated card below is the shorter way in, not the only one.
  */
-const FILE_ACCEPT = '.txt,.md,.markdown,.docx,.pdf';
+const FILE_ACCEPT = '.txt,.md,.markdown,.docx,.pdf,.json';
+
+/**
+ * Выгрузка Telegram Desktop — один файл и одного вида.
+ *
+ * Карточка обещает `result.json` из «Экспорт истории», и до 07.09.2026 её
+ * кнопка открывала форму вставки текста: человек, у кого весь корпус лежит в
+ * канале, читал обещание файла и получал поле для копирования вручную
+ * (`content-factory-next-m2eg.14`). Разбор json сервер умеет с `vme.21.13`, не
+ * было выбора файла.
+ *
+ * Без `multiple`: выгрузка канала — один файл, из которого получаются сотни
+ * образцов, и предложить выбрать несколько значило бы обещать сложение,
+ * которого этот путь не делает.
+ */
+const TELEGRAM_ACCEPT = '.json';
+
+/** Карточки, у которых вместо кнопки — выбор файла, и что каждая берёт. */
+const FILE_PICKERS: Partial<Record<SampleOriginLabel, string>> = {
+  FILE: FILE_ACCEPT,
+  TELEGRAM_EXPORT: TELEGRAM_ACCEPT,
+};
 
 const ORIGIN_KEYS = [
   'OWN_POST',
@@ -176,7 +206,7 @@ export function VoiceSamplesScreen({
   /** The files picked in this browser, before the server has seen them. */
   upload?: VoiceUploadState;
   onAdd?: (origin: SampleOriginLabel) => void;
-  onPickFiles?: (files: readonly File[]) => void;
+  onPickFiles?: (files: readonly File[], origin: SampleOriginLabel) => void;
   onSendFiles?: () => void;
   onClearFiles?: () => void;
   onRightsChange?: (confirmed: boolean) => void;
@@ -266,8 +296,15 @@ export function VoiceSamplesScreen({
             // The card that promised a file is the card that takes one. Its
             // button used to open the paste box, which was the only thing
             // behind it: the three parsers existed and no route accepted a
-            // file for any origin at all.
-            const isFileCard = key === 'FILE';
+            // file for any origin at all. С 07.09.2026 это верно и для
+            // выгрузки Telegram — она обещала `result.json` и открывала ту же
+            // форму вставки.
+            const accept = FILE_PICKERS[key];
+            const isFileCard = accept !== undefined;
+            // Выбранные файлы показываются под той карточкой, в которой их
+            // выбрали. Список один, карточек с выбором две, и напечатать его
+            // под обеими значило бы показать один и тот же файл дважды.
+            const showsPicked = isFileCard && (upload?.origin ?? 'FILE') === key;
             const disabled = !source.available || state === 'restricted';
             return (
               <div
@@ -290,12 +327,16 @@ export function VoiceSamplesScreen({
                   </div>
                   {isFileCard ? (
                     <FileInput
-                      name="voice-sample-files"
+                      name={
+                        key === 'FILE'
+                          ? 'voice-sample-files'
+                          : 'voice-sample-telegram'
+                      }
                       label={meta.action}
-                      accept={FILE_ACCEPT}
-                      multiple
+                      accept={accept}
+                      multiple={key === 'FILE'}
                       disabled={disabled || sending}
-                      onFiles={(files) => onPickFiles?.(files)}
+                      onFiles={(files) => onPickFiles?.(files, key)}
                     />
                   ) : (
                     <Button
@@ -309,7 +350,7 @@ export function VoiceSamplesScreen({
                   )}
                 </div>
 
-                {isFileCard ? (
+                {showsPicked ? (
                   <div data-voice-upload={upload?.phase ?? 'idle'}>
                     {picked.length ? (
                       <ul className="mt-[12px] flex flex-col gap-[4px]">

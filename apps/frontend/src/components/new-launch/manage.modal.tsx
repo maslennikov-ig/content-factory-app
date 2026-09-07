@@ -24,6 +24,11 @@ import {
 import { ShowAllProviders } from '@contentfactory/frontend/components/new-launch/providers/show.all.providers';
 import { ProvenanceLine } from '@contentfactory/frontend/components/new-launch/provenance.line';
 import { UnverifiedEvidenceNote } from '@contentfactory/frontend/components/new-launch/unverified-evidence.note';
+import {
+  RelatedOwnPostsNote,
+  relatedQueryOf,
+  useRelatedOwnPosts,
+} from '@contentfactory/frontend/components/new-launch/related-own-posts.note';
 import { DraftGapNote } from '@contentfactory/frontend/components/brand-voice/draft-gap-note';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
@@ -57,7 +62,14 @@ import {
 import { useHasScroll } from '@contentfactory/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@contentfactory/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
-import { Button } from '@contentfactory/react/form/button';
+import { Button, buttonClassName } from '@contentfactory/react/form/button';
+import {
+  Menu,
+  MenuButton,
+  MenuCommand,
+  MenuList,
+} from '@contentfactory/react/choice/choice.menu';
+import { composeCopy } from '@contentfactory/frontend/components/new-launch/compose.copy';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
@@ -68,18 +80,18 @@ import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
  *
  * Помощник поднимается провайдером над содержимым окна, а появление провайдера
  * пересобирает поддерево: React меняет место детей в дереве, и обычный
- * `useState` внутри окна начался бы заново. Для двух значений это не мелочь —
- * «подтверждения проверены» снова закрыло бы планирование, а открытые
- * настройки канала захлопнулись бы посреди работы, — поэтому они живут выше
- * провайдера и подъём переживают. Всё остальное окно держит в общем хранилище
- * (`store.ts`), которому дерево React вообще не указ.
+ * `useState` внутри окна начался бы заново. Для открытых настроек канала это
+ * не мелочь — они захлопнулись бы посреди работы, — поэтому значение живёт
+ * выше провайдера и подъём переживает. Всё остальное окно держит в общем
+ * хранилище (`store.ts`), которому дерево React вообще не указ.
+ *
+ * Второе такое значение — «подтверждения проверены» — ушло отсюда 07.09.2026
+ * вместе с самими воротами (`content-factory-next-m2eg.17`).
  */
 type ComposeSession = {
   /** Помощника позвали: только с этого момента поднимается провайдер. */
   assistantOpen: boolean;
   openAssistant: () => void;
-  contextReviewedAt: string | null;
-  setContextReviewedAt: (value: string | null) => void;
   showSettings: boolean;
   setShowSettings: (value: boolean) => void;
 };
@@ -91,7 +103,6 @@ type ComposeSession = {
  * (`content-factory-next-fn33.48`, `content-factory-next-fn33.93`).
  */
 export const ManageModal: FC<AddEditModalProps> = (props) => {
-  const existingData = useExistingData();
   /**
    * `content-factory-next-fn33.99`: и в самом окне провайдер поднимается не
    * при открытии, а когда помощника позвали.
@@ -104,17 +115,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
    */
   const [assistantOpen, setAssistantOpen] = useState(false);
   const openAssistant = useCallback(() => setAssistantOpen(true), []);
-  const [contextReviewedAt, setContextReviewedAt] = useState<string | null>(
-    ((existingData?.posts?.[0] as Record<string, any> | undefined)
-      ?.contentContextReviewedAt as string | undefined) ?? null
-  );
   const [showSettings, setShowSettings] = useState(false);
 
   const session: ComposeSession = {
     assistantOpen,
     openAssistant,
-    contextReviewedAt,
-    setContextReviewedAt,
     showSettings,
     setShowSettings,
   };
@@ -138,14 +143,8 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
   props
 ) => {
   const t = useT();
-  const {
-    assistantOpen,
-    openAssistant,
-    contextReviewedAt,
-    setContextReviewedAt,
-    showSettings,
-    setShowSettings,
-  } = props.session;
+  const { assistantOpen, openAssistant, showSettings, setShowSettings } =
+    props.session;
   /**
    * Есть ли помощнику чем ответить. Тот же вопрос и та же дверь остатка квоты,
    * которые задаёт провайдер: кнопка, за которой ничего не поднимется, — это
@@ -233,59 +232,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
   }, [hide]);
 
   /**
-   * Явное решение человека: подтверждения проверены.
-   *
-   * Пост, собранный из подтверждений, до 04.09.2026 уходил только в черновик
-   * и планирование не открывалось никогда (`content-factory-next-fn33.27`).
-   * Граница осталась, но выход из неё теперь есть, и открывает его человек, а
-   * не расчёт: он смотрит подтверждения и говорит, что проверил их. Поля и
-   * дверь описаны контрактом сервера (`content-factory-next-fn33.28.1`):
-   * `POST /posts/:id/context-review` отвечает `{ contentContextReviewedAt }`,
-   * а сам пост приносит `contentContextReviewedAt` и
-   * `contentContextReviewedById`.
-   */
-  const existingPost = existingData?.posts?.[0] as
-    | (Record<string, any> & { id?: string })
-    | undefined;
-  // Само значение живёт выше провайдера помощника: его подъём пересобирает
-  // это поддерево, и проверка, только что записанная человеком, начиналась бы
-  // заново (`content-factory-next-fn33.99`).
-  const [reviewing, setReviewing] = useState(false);
-  const confirmContextReview = useCallback(async () => {
-    if (!existingPost?.id) return;
-    setReviewing(true);
-    try {
-      const response = await fetch(
-        `/posts/${existingPost.id}/context-review`,
-        { method: 'POST' }
-      );
-      if (!response.ok) {
-        const refusal = await postSaveErrorMessage(response, t);
-        if (refusal) {
-          toaster.show(refusal, 'warning');
-        }
-        return;
-      }
-      const answer = await response.json().catch(() => null);
-      // Дата приходит с сервера: она и есть запись о проверке. Своей мы бы
-      // открыли кнопки над постом, у которого на сервере проверки нет.
-      if (typeof answer?.contentContextReviewedAt === 'string') {
-        setContextReviewedAt(answer.contentContextReviewedAt);
-      } else {
-        toaster.show(
-          t(
-            'context_review_failed',
-            'The check could not be recorded. Scheduling stays closed.'
-          ),
-          'warning'
-        );
-      }
-    } finally {
-      setReviewing(false);
-    }
-  }, [existingPost?.id, fetch, t, toaster]);
-
-  /**
    * Почему кнопки внизу не нажимаются, если дело не в кругах.
    *
    * Условия выключения ниже собраны из четырёх слагаемых, а подпись на кнопке
@@ -312,9 +258,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
         contentIntelligenceLoadState,
         contentIntelligenceFailure,
         provenanceErrorCode: contentIntelligenceProvenance?.errorCode ?? null,
-        hasProvenance: !!contentIntelligenceProvenance,
-        contextReviewedAt,
-        postSaved: !!existingPost?.id,
       }),
     [
       canWritePosts,
@@ -322,8 +265,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
       contentIntelligenceLoadState,
       contentIntelligenceFailure,
       contentIntelligenceProvenance,
-      contextReviewedAt,
-      existingPost?.id,
     ]
   );
 
@@ -355,6 +296,79 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
       return used.size;
     })
   );
+
+  /**
+   * «Свои тексты по теме» — то же, что видит модель
+   * (`content-factory-next-m2eg.19`).
+   *
+   * Запрос собирается из текста, который человек уже написал: у поста нет ни
+   * заголовка, ни названной темы, а первые триста знаков — это ровно то, о
+   * чём он пишет. Площадка берётся у выбранного канала: ссылка из Telegram
+   * ведёт в Telegram, а не в чужую ленту.
+   */
+  const relatedQuery = useLaunchStore(
+    useShallow((state) => {
+      const boxes =
+        state.internal.find((one) => one.integration.id === state.current)
+          ?.integrationValue ?? state.global;
+      return relatedQueryOf(boxes.map((box) => box.content).join(' '));
+    })
+  );
+  const relatedPlatform =
+    integrations.find((one) => one.id === current)?.identifier ?? null;
+  const relatedOwnPosts = useRelatedOwnPosts(relatedQuery, relatedPlatform);
+
+  /**
+   * Отправка: одно выражение запрета, одна подпись действия
+   * (`content-factory-next-m2eg.18`).
+   *
+   * До 07.09.2026 условия выключения были выписаны дважды — у основной кнопки
+   * и у «Опубликовать сейчас», — слово в слово. Два списка одного запрета
+   * расходятся ровно тогда, когда кто-то правит один из них.
+   */
+  const publishDisabled =
+    !canWritePosts ||
+    selectedIntegrations.length === 0 ||
+    loading ||
+    locked ||
+    contentIntelligenceLoadState === 'loading' ||
+    contentIntelligenceLoadState === 'error';
+
+  const mainActionLabel = useMemo(() => {
+    if (selectedIntegrations.length === 0) {
+      // A button says what pressing it is for. "Check the circles above"
+      // described the furniture instead — it named a shape on the screen and
+      // left the reason out.
+      return t('select_channel_first', 'Pick a channel');
+    }
+    if (dummy) return t('create_output', 'Create output');
+    if (!existingData?.integration) return t('add_to_calendar', 'Add to calendar');
+    if (existingData?.posts?.[0]?.state === 'DRAFT') return t('schedule', 'Schedule');
+    return t('update', 'Update');
+  }, [selectedIntegrations.length, dummy, existingData, t]);
+
+  /** Что произойдёт со временем поста, если выбрать основное действие. */
+  const mainActionHint = existingData?.integration
+    ? composeCopy[voiceLocale].keepScheduledAt(date.local().format('HH:mm'))
+    : composeCopy[voiceLocale].addToCalendarHint;
+
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
+  const publishMenuRef = useRef<HTMLDivElement | null>(null);
+  /*
+    Щелчок мимо закрывает меню. `Menu` — это только состояние: где список
+    стоит и чем он закрывается, решает место вызова, и так и написано в самом
+    примитиве. Escape и Tab закрывает `MenuList` сам.
+  */
+  useEffect(() => {
+    if (!publishMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!publishMenuRef.current?.contains(event.target as Node)) {
+        setPublishMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [publishMenuOpen]);
 
   const currentIntegrationText = useMemo(() => {
     if (current === 'global') {
@@ -468,21 +482,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                 'content_context_unavailable',
                 'Content provenance could not be verified. Reload or research the draft before saving.'
               ),
-          'warning'
-        );
-        return;
-      }
-      if (
-        contentIntelligenceProvenance &&
-        !contextReviewedAt &&
-        type !== 'draft' &&
-        type !== 'update'
-      ) {
-        toaster.show(
-          t(
-            'compose_blocked_context_review_required',
-            'This post was assembled from evidence. Check the evidence and confirm it — that opens scheduling.'
-          ),
           'warning'
         );
         return;
@@ -806,7 +805,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
       contentIntelligenceProvenance,
       contentIntelligenceLoadState,
       contentIntelligenceFailure,
-      contextReviewedAt,
     ]
   );
 
@@ -1010,31 +1008,33 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   }
                   locale={voiceLocale}
                 />
+                {/**
+                  * Свои прежние тексты по теме — справка, а не выбор
+                  * (`content-factory-next-m2eg.19`). Стоит рядом с «Что взято
+                  * и откуда» и по той же причине: оба блока отвечают на
+                  * вопрос «что стоит за этим текстом», и разводить их по
+                  * разным углам окна значило бы задавать один вопрос дважды.
+                  */}
+                <RelatedOwnPostsNote
+                  related={relatedOwnPosts}
+                  locale={voiceLocale}
+                />
                 <DraftGapNote gap={props.draftGap} locale={voiceLocale} />
               </Scrollable>
             </div>
           </div>
         </div>
+        {/*
+          Причина без кнопки рядом — и это не потеря.
+          07.09.2026 отсюда ушла «Проверил» вместе со своей причиной
+          (`content-factory-next-m2eg.17`): она не проверяла ничего, она
+          записывала, что человек сказал «проверил», и стояла перед каждым
+          постом, написанным продуктом. Оставшиеся причины шага не предлагают —
+          они называют состояние, которое человек снимает не здесь.
+        */}
         {blockReason !== 'none' && (
           <div className="select-none px-[20px] pb-[8px] flex items-center justify-end gap-[12px]">
             <ComposeBlockReasonNote reason={blockReason} t={t} />
-            {/*
-              Кнопка стоит у самой причины, а не в общем ряду: она снимает
-              именно эту причину и появляется только вместе с ней. У поста,
-              который ещё не сохранён, адреса для проверки нет — там та же
-              строка говорит, что делать сначала, и кнопки нет.
-            */}
-            {blockReason === 'context-review-required' && (
-              <Button
-                type="button"
-                variant="secondary"
-                loading={reviewing}
-                disabled={reviewing}
-                onClick={confirmContextReview}
-              >
-                {t('context_review_confirm', 'Evidence checked')}
-              </Button>
-            )}
           </div>
         )}
         <div className="select-none h-[84px] py-[20px] border-t border-cf-border flex items-center">
@@ -1132,7 +1132,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
             {addEditSets && (
               <Button
-                className="min-w-[180px] btnSub gap-[8px] ps-[20px] pe-[16px]"
+                className="min-w-[180px] px-[20px]"
                 disabled={
                   !canWritePosts ||
                   selectedIntegrations.length === 0 || loading || locked
@@ -1144,68 +1144,95 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                 {t('save_set', 'Save Set')}
               </Button>
             )}
+            {/**
+              * Отправка: одна кнопка и меню рядом с ней
+              * (`content-factory-next-m2eg.18`, макет одобрен владельцем
+              * 07.09.2026).
+              *
+              * До этого «Опубликовать сейчас» появлялась по НАВЕДЕНИЮ на
+              * основную кнопку и висела над ней. С клавиатуры до неё было не
+              * дойти вовсе, на сенсорном экране наведения нет, а мышью её
+              * находили случайно — самое необратимое действие окна открывалось
+              * жестом, которого никто не просил. Теперь его открывает стрелка:
+              * щелчок или Enter, стрелки внутри, Escape закрывает. Наведение не
+              * делает ничего.
+              *
+              * Меню — общий примитив `Menu`/`MenuList`, а не своя разметка:
+              * `role="menu"`, написанный руками в файле приложения, валит
+              * `tests/choice-control.contract.test.cjs`, и правильно валит —
+              * роль без кареточной навигации за ней это обещание, которого
+              * клавиатура не получает.
+              */}
             {!addEditSets && (
-              <div className="group cursor-pointer relative">
-                <Button
-                  disabled={
-                    !canWritePosts ||
-                    selectedIntegrations.length === 0 ||
-                    loading ||
-                    locked ||
-                    (!!contentIntelligenceProvenance && !contextReviewedAt) ||
-                    contentIntelligenceLoadState === 'loading' ||
-                    contentIntelligenceLoadState === 'error'
-                  }
-                  aria-describedby={
-                    blockReason === 'none'
-                      ? undefined
-                      : COMPOSE_BLOCK_REASON_NOTE_ID
-                  }
-                  onClick={schedule('schedule')}
-                  loading={loading}
-                  className="min-w-[180px] btnSub gap-[8px] ps-[20px] pe-[16px]"
-                >
-                  <div>
-                    {selectedIntegrations.length === 0
-                      ? // A button says what pressing it is for. "Check the
-                        // circles above" described the furniture instead — it
-                        // named a shape on the screen and left the reason out.
-                        t('select_channel_first', 'Pick a channel')
-                      : dummy
-                      ? t('create_output', 'Create output')
-                      : !existingData?.integration
-                      ? t('add_to_calendar', 'Add to calendar')
-                      : existingData?.posts?.[0]?.state === 'DRAFT'
-                      ? t('schedule', 'Schedule')
-                      : t('update', 'Update')}
-                  </div>
-                  {!dummy && (
-                    <div className="flex justify-center items-center h-[20px] w-[20px] pt-[4px] arrow-change">
-                      <DropdownArrowSmallIcon className="group-hover:rotate-180" />
-                    </div>
-                  )}
-                </Button>
-
-                {!dummy && (
+              <div className="relative flex" ref={publishMenuRef}>
+                <Menu open={publishMenuOpen} onOpenChange={setPublishMenuOpen}>
                   <Button
-                    onClick={schedule('now')}
-                    disabled={
-                      !canWritePosts ||
-                      selectedIntegrations.length === 0 ||
-                      loading ||
-                      locked ||
-                      (!!contentIntelligenceProvenance && !contextReviewedAt) ||
-                      contentIntelligenceLoadState === 'loading' ||
-                      contentIntelligenceLoadState === 'error'
+                    disabled={publishDisabled}
+                    aria-describedby={
+                      blockReason === 'none'
+                        ? undefined
+                        : COMPOSE_BLOCK_REASON_NOTE_ID
                     }
-                    layout="content"
-                    className="rounded-[8px] z-[300] disabled:cursor-not-allowed hidden group-hover:flex absolute bottom-[100%] -left-[12px] p-[12px] w-[206px]"
+                    onClick={schedule('schedule')}
+                    loading={loading}
+                    className={clsx(
+                      'min-w-[180px] px-[20px]',
+                      // Половинки склеены в один контрол: скругления снаружи,
+                      // стык внутри. У окна без меню кнопка круглая с обеих
+                      // сторон, как была.
+                      dummy ? 'rounded-[8px]' : 'rounded-s-[8px] rounded-e-none'
+                    )}
                   >
-                    <div className="rounded-[8px] h-[44px] w-full flex justify-center items-center post-now">
-                      {t('post_now', 'Post Now')}
-                    </div>
+                    {mainActionLabel}
                   </Button>
-                )}
+                  {!dummy && (
+                    <MenuButton
+                      aria-label={composeCopy[voiceLocale].morePublishingActions}
+                      disabled={publishDisabled}
+                      className={buttonClassName({
+                        variant: 'primary',
+                        className:
+                          'w-[40px] px-0 rounded-s-none rounded-e-[8px] border-s border-cf-accent-ink',
+                      })}
+                    >
+                      <DropdownArrowSmallIcon />
+                    </MenuButton>
+                  )}
+                  {publishMenuOpen && !dummy && (
+                    <MenuList className="menu-shadow absolute bottom-[calc(100%+8px)] end-0 z-[300] flex w-[280px] flex-col gap-[4px] border border-cf-border bg-cf-surface-raised p-[8px]">
+                      {/*
+                        «Опубликовать сейчас» стоит первым: меню открывают
+                        ради него, а второй пункт повторяет то, что уже
+                        написано на кнопке рядом, — он здесь для полноты
+                        списка, а не для нового действия.
+                      */}
+                      <MenuCommand
+                        layout="content"
+                        onClick={schedule('now')}
+                        className="flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
+                      >
+                        <span className="cf-label-md text-cf-ink">
+                          {t('post_now', 'Post Now')}
+                        </span>
+                        <span className="cf-caption text-cf-ink-muted">
+                          {composeCopy[voiceLocale].postNowHint}
+                        </span>
+                      </MenuCommand>
+                      <MenuCommand
+                        layout="content"
+                        onClick={schedule('schedule')}
+                        className="flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
+                      >
+                        <span className="cf-label-md text-cf-ink">
+                          {mainActionLabel}
+                        </span>
+                        <span className="cf-caption text-cf-ink-muted">
+                          {mainActionHint}
+                        </span>
+                      </MenuCommand>
+                    </MenuList>
+                  )}
+                </Menu>
               </div>
             )}
           </div>

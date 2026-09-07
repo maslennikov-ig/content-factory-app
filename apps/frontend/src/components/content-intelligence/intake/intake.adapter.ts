@@ -77,9 +77,6 @@ export const INTAKE_API = {
   writingProfile: INTAKE_ROUTES.writingProfile,
 } as const;
 
-/** Два уточнения — предел, решение владельца от 06.09.2026. */
-export const INTAKE_MAX_ROUNDS = 2;
-
 /* -------------------------------------------------------------------------
  * Отказ, который экран может напечатать
  * ---------------------------------------------------------------------- */
@@ -292,7 +289,11 @@ export function readIntakeEvent(line: string): IntakeReading | null {
     case 'questions':
       return {
         kind: 'event',
-        event: { name: 'questions', questions: readQuestions(record.questions) },
+        event: {
+          name: 'questions',
+          questions: readQuestions(record.questions),
+          ...(typeof record.round === 'number' ? { round: record.round } : {}),
+        },
       };
 
     case 'piece':
@@ -425,7 +426,7 @@ const readClaims = (value: unknown): IntakeClaimV1[] =>
     ];
   });
 
-const readQuestions = (value: unknown): IntakeQuestionV1[] =>
+export const readQuestions = (value: unknown): IntakeQuestionV1[] =>
   asArray(value).flatMap((entry) => {
     const question = asRecord(entry);
     if (!question || typeof question.field !== 'string') return [];
@@ -436,6 +437,14 @@ const readQuestions = (value: unknown): IntakeQuestionV1[] =>
         options: asArray(question.options).filter(
           (option): option is string => typeof option === 'string'
         ),
+        // `null` — модель честно не нашла ответа и просит слова человека. Это
+        // не то же самое, что пустая строка, и подменять одно другим значит
+        // напечатать «я думаю, вот так» с пустотой под этим.
+        suggested:
+          typeof question.suggested === 'string' && question.suggested.trim()
+            ? question.suggested
+            : null,
+        ...(typeof question.why === 'string' ? { why: question.why } : {}),
       },
     ];
   });
@@ -656,7 +665,6 @@ export type IntakeScreenState =
   | 'no-channel'
   | 'idle'
   | 'streaming'
-  | 'questions'
   | 'draft'
   | 'error';
 
@@ -675,7 +683,6 @@ export function screenState(input: {
   canWrite: boolean;
   hasChannel: boolean;
   busy: boolean;
-  questions: number;
   draft: boolean;
   failed: boolean;
 }): IntakeScreenState {
@@ -690,7 +697,6 @@ export function screenState(input: {
   */
   if (input.busy) return 'streaming';
   if (input.failed) return 'error';
-  if (input.questions > 0) return 'questions';
   if (input.draft) return 'draft';
   return 'idle';
 }

@@ -80,6 +80,14 @@ export const PIECE_ERROR_MESSAGES: Record<
     ru: 'Уточнения кончились. Ответьте своими словами или дайте модели решить самой.',
     en: 'No more questions. Answer in your own words, or let the model decide.',
   },
+  PIECE_CORE_MISSING: {
+    ru: 'У этого материала нет выделенной сути: он сделан до заготовок, и уточнять в нём нечего.',
+    en: 'This material has no extracted substance: it predates pieces, and there is nothing to clarify in it.',
+  },
+  PIECE_NOT_SAVED: {
+    ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
+    en: 'The piece could not be saved. Nothing is lost — try again.',
+  },
 };
 
 export const pieceError = (

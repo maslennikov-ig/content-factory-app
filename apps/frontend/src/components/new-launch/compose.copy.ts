@@ -105,6 +105,42 @@ export const composeCopy = {
         count,
         ['вошёл', 'вошли', 'вошли']
       )} в текст с пометкой «взято из поиска».`,
+    /**
+     * Справка «Что взято и откуда» под текстом поста
+     * (`content-factory-next-m2eg.17`).
+     *
+     * Заголовок отвечает на вопрос человека, а не называет устройство: он
+     * смотрит на свой текст и спрашивает, откуда в нём эти числа. До
+     * 07.09.2026 здесь стояло «Использованные цитаты» и просьба отметить
+     * нужное — работа, которую продукт с тех пор делает сам.
+     */
+    materialUsedTitle: 'Что взято и откуда',
+    materialUsedHelp:
+      'Факты и источники, на которые опирается этот текст. Отмечать ничего не нужно.',
+    /**
+     * «Свои тексты по теме» (`content-factory-next-m2eg.19`).
+     *
+     * Подпись говорит, зачем список здесь: это то же, что видит модель, когда
+     * пишет. Обещания «мы поняли смысл» в словах нет — поиск ищет по словам,
+     * пусть и со стеммингом.
+     */
+    relatedTitle: 'Свои тексты по теме',
+    relatedHelp:
+      'Ваши вышедшие посты, близкие по словам. Их же видит модель — и может сослаться на один из них, если это к месту.',
+    /**
+     * Имя стрелки рядом с основной кнопкой (`content-factory-next-m2eg.18`).
+     * Кнопка без подписи обязана иметь имя, иначе с экрана её читают как
+     * «кнопка».
+     */
+    morePublishingActions: 'Другие способы отправить',
+    /**
+     * Подписи пунктов меню отправки. Каждая говорит, что случится со ВРЕМЕНЕМ
+     * поста: это единственное, чем два пункта различаются, и раньше об этом не
+     * было сказано нигде.
+     */
+    postNowHint: 'в канал сразу, минуя расписание',
+    keepScheduledAt: (time: string) => `оставить в расписании на ${time}`,
+    addToCalendarHint: 'поставить в календарь на выбранное время',
   },
   en: {
     assembledFrom: (count: number) =>
@@ -140,5 +176,15 @@ export const composeCopy = {
       `${count} ${
         count === 1 ? 'fragment' : 'fragments'
       } came from web search and went into the text marked “from web search”.`,
+    materialUsedTitle: 'What this text is built on',
+    materialUsedHelp:
+      'The facts and sources this text leans on. Nothing here needs marking.',
+    relatedTitle: 'Your own posts on this topic',
+    relatedHelp:
+      'Your published posts that share words with this one. The model sees the same list and may point back at one of them when it fits.',
+    morePublishingActions: 'Other ways to send this',
+    postNowHint: 'straight to the channel, skipping the schedule',
+    keepScheduledAt: (time: string) => `keep it scheduled for ${time}`,
+    addToCalendarHint: 'put it on the calendar at the chosen time',
   },
 } satisfies Record<ComposeLocale, Record<string, unknown>>;

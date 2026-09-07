@@ -171,6 +171,12 @@ const settings = loadTypeScriptModule(
     '@contentfactory/frontend/components/settings/global.settings': {
       GlobalSettings: Panel('global_settings'),
     },
+    // Вкладка «С чего начать» рисует сам обход с 07.09.2026, а не кнопку к
+    // нему. Здесь проверяется адресация вкладок, поэтому обход — панель по
+    // имени, как и остальные.
+    '@contentfactory/frontend/components/onboarding/onboarding.walkthrough': {
+      OnboardingWalkthrough: Panel('onboarding'),
+    },
     '@contentfactory/frontend/components/approved-apps/approved-apps.component':
       { ApprovedAppsComponent: Empty },
     '@contentfactory/frontend/components/settings/about-project.component': {

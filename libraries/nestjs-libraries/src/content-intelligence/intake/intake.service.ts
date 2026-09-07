@@ -5,8 +5,15 @@
  * остановился на вкладке «Бриф» — восемь полей и отдельная форма факта — со
  * словами «слишком сложно» для ежедневного «появилась мысль или скопировал
  * чужой пост → хочу свой пост». Здесь и живёт ответ: человек даёт одно поле и
- * выбирает каналы, бриф заполняет модель, вопросов не больше двух и только про
- * тезис и факты, черновик появляется сразу.
+ * выбирает каналы, бриф заполняет модель, черновик появляется сразу.
+ *
+ * **Порядок с волны `content-factory-next-m2eg` (живой прогон 07.09.2026):
+ * сначала заготовка, потом вопросы.** До неё было наоборот — вопрос обрывал
+ * ход, и человек, ответивший дважды, упирался в «больше спрашивать не будем»,
+ * не получив ни заготовки, ни текста. Теперь `run` всегда доходит до
+ * `writeCore` и `recordCore`, событие `piece` идёт первым, а то, что осталось
+ * спросить, едет в его брифе и отвечается уже на странице заготовки дверью
+ * `POST /content-intelligence/pieces/:id/answer`.
  *
  * Что этот файл решает, а что нет:
  *
@@ -16,8 +23,10 @@
  * - он **не заводит второй способ создать пост**. Черновик сохраняется через
  *   `ContentBriefRepository.createDraft`, то есть через `PostsRepository`, в
  *   состоянии `DRAFT`, и ничего никуда не публикует;
- * - он **не меняет ворота брифа**. `evaluateBrief` вызывается как есть; ново
- *   здесь только то, кто заполняет поля и о чём спрашивают человека.
+ * - он **не решает сам, о чём спрашивать**. Список вопросов считает
+ *   `openQuestionsFor` в `pieces/core-questions.ts` — одно место на вход и на
+ *   дверь ответов, потому что двум местам нечем помешать спросить одно и то же
+ *   дважды, и однажды они это уже сделали.
  *
  * Цена одного входа названа числом и держится этим файлом: не больше двух
  * вызовов модели своей операцией `intake` (разбор чужого текста и заполнение
@@ -67,11 +76,7 @@ import {
 import { ContentFactService } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-fact.service';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import { CONTENT_CONTEXT_MAX_EVIDENCE_V1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
-import { evaluateBrief } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
-import type {
-  Brief,
-  BriefField,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
+import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
 import type {
   BriefFieldOriginV1,
   BriefFilledFactV1,
@@ -80,26 +85,25 @@ import type {
   IntakeEventV1,
   IntakeFormatV1,
   IntakeInputKindV1,
-  IntakeQuestionV1,
   IntakeEventWithPieceV1,
   PieceAnswerInputV1,
   PieceAnswerV1,
+  PieceFieldAnswerV1,
+  PieceOpenQuestionV1,
   PieceQuestionKeyV1,
-  PieceQuestionV1,
   SlopReportV1,
   ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   INTAKE_INPUT_MIN_CHARS,
   INTAKE_MAX_CHANNELS,
-  INTAKE_MAX_QUESTIONS,
   INTAKE_MAX_VERIFIED_CLAIMS,
-  PIECE_MAX_INTERVIEW_ROUNDS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   CORE_QUESTION_FIELDS,
+  briefForGate,
   coreQuestionText,
-  coreQuestionsFor,
+  openQuestionsFor,
 } from '../pieces/core-questions';
 import { writeCore, type CoreBorrowedV1 } from '../pieces/core-write';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -115,6 +119,7 @@ import {
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
   IntakeError,
+  PIECE_NOT_SAVED_MESSAGES,
   intakeError,
 } from './intake.errors';
 import { detectInputKind, singleLinkOf, wordShingles } from './intake-kind';
@@ -237,7 +242,6 @@ type FilledBrief = {
   brief: BriefFilledV1;
   /** Поля, которые модель честно оставила пустыми, и её варианты для них. */
   options: Partial<Record<BriefField, string[]>>;
-  modelReturnedNull: Partial<Record<BriefField, boolean>>;
   factIds: string[];
   evidenceIds: string[];
   /**
@@ -524,39 +528,29 @@ export class IntakeService {
     }
     yield { name: 'brief-filled', brief: filled.brief };
 
-    // Ворота брифа первые и главные: без тезиса или факта дальше не идут
-    // вовсе. Интервью заготовки — уже поверх годного брифа, и оба вопроса
-    // терминальны, поэтому больше трёх за шаг не бывает никогда.
-    const questions = this.questionsFor(filled, plan);
-    if (questions.length) {
-      yield { name: 'questions', questions };
-      return;
-    }
-    const interview = this.interviewFor(filled, plan);
-    if (interview.length) {
-      yield {
-        name: 'piece-questions',
-        questions: interview,
-        round: this.interviewRound(plan),
-      };
-      return;
-    }
-
     /*
-      Суть — один раз, до цикла по каналам. Это и есть волна «заготовка и
-      адаптации»: три канала дают ОДНУ заготовку и три адаптации, а не три
-      материала с HTML одного канала в теле.
+      Суть — один раз, до цикла по каналам и ДО единого вопроса. Это второе
+      изменение волны `content-factory-next-m2eg` и главное из них.
 
-      Единственный случай, когда её не пишут, — ход, у которого нет ни автора,
-      ни канала: записать заготовку не под кого, генерировать нечего, и платный
-      вызов ушёл бы в никуда.
+      До неё вопрос был терминальным: ворота брифа или интервью обрывали ход,
+      заготовки не существовало, и на живом прогоне 07.09.2026 владелец дважды
+      ответил, упёрся в «больше спрашивать не будем» — и остался ни с чем.
+      Теперь заготовка пишется всегда, а вопросы едут вместе с ней и живут на
+      её странице: ответ на них переписывает суть дверью `answer`, а не
+      повторяет весь вход заново.
+
+      Единственный случай, когда суть не пишут, — ход, у которого нет ни
+      автора, ни канала: записать заготовку не под кого, генерировать нечего, и
+      платный вызов ушёл бы в никуда.
     */
     if (!actorUserId && !plan.channels.length) {
       yield { name: 'done', postIds: [] };
       return;
     }
+    const open = this.openQuestions(filled, plan);
     const answers = this.interviewAnswers(plan);
-    const core = await writeCore(
+    const personText = extraction ? '' : plan.input;
+    const written = await writeCore(
       {
         organizationId,
         language,
@@ -570,7 +564,7 @@ export class IntakeService {
         ),
         // Чужой текст в суть не идёт ни одним полем: для вставленного поста
         // словами человека не располагаем вовсе, и блок остаётся пустым.
-        personText: extraction ? '' : plan.input,
+        personText,
         borrowed: extraction ? this.borrowedForCore(extraction) : null,
         foreignShingles,
       },
@@ -580,19 +574,53 @@ export class IntakeService {
         warn: (message) => this.logger.warn(message),
       }
     );
+    const core: ZagotovkaCoreV1 = {
+      ...written,
+      questions: {
+        round: 0,
+        items: open,
+        answered: this.settledAnswers(plan),
+      },
+      personText,
+    };
 
-    const piece = actorUserId
-      ? await this.briefRepository.recordCore(organizationId, {
-          title: briefTitle(this.gateBrief(filled.brief), plan.language),
+    let piece: { id: string; code: string } | null = null;
+    if (actorUserId) {
+      try {
+        piece = await this.briefRepository.recordCore(organizationId, {
+          title: briefTitle(briefForGate(filled.brief), plan.language),
           body: core.text,
           brief: this.storedCore(core),
           language: plan.language,
           createdByUserId: actorUserId,
-        })
-      : null;
+        });
+      } catch (error) {
+        // Заготовка — то, ради чего весь ход. Не записалась она — дальше идти
+        // некуда: черновики без заготовки это та самая библиотека из трёх
+        // «текстов» на один, от которой волна `tu3k.9` и уходила.
+        this.logger.error(
+          `The piece could not be recorded: ${describeError(error)}`
+        );
+        yield {
+          name: 'error',
+          error: true,
+          code: 'PIECE_NOT_SAVED',
+          message: PIECE_NOT_SAVED_MESSAGES[language],
+        };
+        return;
+      }
+    }
     const pieceId = piece?.id ?? null;
     if (piece) {
       yield { name: 'piece', pieceId: piece.id, code: piece.code, core };
+    }
+    /*
+      Вопросы после заготовки и не вместо неё. Событие осталось прежним, чтобы
+      старый читатель стрима не сломался, но терминальным быть перестало:
+      человек уже на странице заготовки, и отвечает он там.
+    */
+    if (open.length) {
+      yield { name: 'questions', questions: open, round: 0 };
     }
 
     const postIds: string[] = [];
@@ -982,32 +1010,64 @@ export class IntakeService {
     }));
   }
 
-  /** Который это круг уточнений: ответы в запросе означают, что круг был. */
-  private interviewRound(plan: IntakePlanV1): number {
-    return plan.interview.length || plan.decideKeys.length ? 2 : 1;
-  }
-
   /**
-   * Три вопроса заготовки — и молчание, когда спрашивать больше нельзя.
+   * Что осталось спросить у только что записанной заготовки.
    *
-   * Исчерпав `PIECE_MAX_INTERVIEW_ROUNDS`, продукт не отказывает
-   * (`PIECE_INTERVIEW_EXHAUSTED` остаётся дверям Z3 на случай, когда клиент
-   * сам просит третий круг), а решает сам: человек уже дважды ответил, и взять
-   * ответы, не дав текста, — худшее, что можно сделать после этого.
+   * Ничего терминального: список едет вместе с заготовкой и живёт в её брифе,
+   * а отвечают на него на её странице. `skipInterview` по-прежнему значит
+   * «модель решает всё сама» — тогда не спрашивают вовсе.
    */
-  private interviewFor(
+  private openQuestions(
     filled: FilledBrief,
     plan: IntakePlanV1
-  ): PieceQuestionV1[] {
+  ): PieceOpenQuestionV1[] {
     if (plan.skipInterview) return [];
-    if (this.interviewRound(plan) > PIECE_MAX_INTERVIEW_ROUNDS) return [];
-    return coreQuestionsFor({
+    return openQuestionsFor({
       brief: filled.brief,
       options: filled.options,
       language: plan.language,
-      answeredKeys: plan.interview.map((answer) => answer.key),
-      decideKeys: plan.decideKeys,
+      settled: this.settledFields(plan),
     });
+  }
+
+  /**
+   * Поля, по которым решение уже принято: человек ответил, поправил квитанцию
+   * или отдал поле модели. О них не спрашивают ни первым кругом, ни вторым.
+   */
+  private settledFields(plan: IntakePlanV1): BriefField[] {
+    const fields = new Set<BriefField>(
+      Object.keys(this.personFields(plan)) as BriefField[]
+    );
+    for (const field of plan.decide) fields.add(field);
+    for (const key of plan.decideKeys) {
+      const field = CORE_QUESTION_FIELDS[key];
+      if (field) fields.add(field);
+    }
+    return [...fields];
+  }
+
+  /** Те же решения, записанные в бриф заготовки: ответы и «Реши сама». */
+  private settledAnswers(plan: IntakePlanV1): PieceFieldAnswerV1[] {
+    const answeredAt = this.now().toISOString();
+    const person = this.personFields(plan);
+    const answers: PieceFieldAnswerV1[] = Object.entries(person).map(
+      ([field, text]) => ({
+        field: field as BriefField,
+        text,
+        origin: 'person' as const,
+        answeredAt,
+      })
+    );
+    const decided = new Set<BriefField>(plan.decide);
+    for (const key of plan.decideKeys) {
+      const field = CORE_QUESTION_FIELDS[key];
+      if (field) decided.add(field);
+    }
+    for (const field of decided) {
+      if (person[field]) continue;
+      answers.push({ field, text: '', origin: 'model', answeredAt });
+    }
+    return answers;
   }
 
   /** Портрет, аудитории и запреты аватара — строками для промпта. */
@@ -1171,7 +1231,6 @@ export class IntakeService {
   }): Promise<FilledBrief> {
     const { plan, answer, person, avatar, memory, evidence } = input;
     const knownFacts = new Set(memory.map((fact) => fact.id));
-    const modelReturnedNull: Partial<Record<BriefField, boolean>> = {};
     const origins: BriefFilledV1['origins'] = {};
 
     const originOf = (field: string): BriefFieldOriginV1 | null => {
@@ -1201,7 +1260,6 @@ export class IntakeService {
           originOf(field) || 'model';
         return proposed;
       }
-      modelReturnedNull[field as BriefField] = true;
       // «Реши сама»: человек отдал поле модели, и её же первый вариант
       // становится ответом — переспрашивать про отданное значило бы не
       // услышать сказанного.
@@ -1223,7 +1281,6 @@ export class IntakeService {
       // — спрашивать о том, что продукт уже записал.
       audience = avatar.audience;
       origins.audience = 'avatar';
-      modelReturnedNull.audience = true;
     }
 
     const facts: BriefFilledFactV1[] = [];
@@ -1298,13 +1355,12 @@ export class IntakeService {
     return {
       ...this.settled(brief),
       options,
-      modelReturnedNull,
       pendingSearch,
     };
   }
 
   /** Идентификаторы опоры пересчитываются по фактам, а не копятся рядом. */
-  private settled(brief: BriefFilledV1): Omit<FilledBrief, 'options' | 'modelReturnedNull' | 'pendingSearch'> {
+  private settled(brief: BriefFilledV1): Omit<FilledBrief, 'options' | 'pendingSearch'> {
     return {
       brief,
       factIds: [
@@ -1432,63 +1488,6 @@ export class IntakeService {
       }
     }
     return found;
-  }
-
-  /* -----------------------------------------------------------------------
-   * Ворота и вопросы
-   * -------------------------------------------------------------------- */
-
-  /**
-   * Не больше двух вопросов, и только о том, чего модель знать не может.
-   *
-   * Ворота брифа не тронуты: `evaluateBrief` считает то же самое, что и на
-   * вкладке «Бриф». Разница в том, о чём спрашивают. Тезис и факты спрашивают
-   * всегда, когда их нет, — это решение владельца: «вопросы только когда
-   * непонятен тезис или нет ни одного факта». Позицию, возражение и адресата
-   * модель предлагает сама, и спрашивают о них только тогда, когда она честно
-   * вернула пустоту и человек не отдал поле ей же.
-   *
-   * Отсюда следствие, которое стоит сказать вслух: бриф без позиции может
-   * дойти до генерации, а без тезиса или факта — нет. Это и есть разница между
-   * «продукт предлагает» и «продукт допрашивает».
-   */
-  private questionsFor(
-    filled: FilledBrief,
-    plan: IntakePlanV1
-  ): IntakeQuestionV1[] {
-    const verdict = evaluateBrief(this.gateBrief(filled.brief));
-    if (verdict.ready) return [];
-    const asked = verdict.questions.filter((question) => {
-      if (question.field === 'thesis' || question.field === 'facts') return true;
-      return (
-        filled.modelReturnedNull[question.field] === true &&
-        !plan.decide.includes(question.field)
-      );
-    });
-    return asked.slice(0, INTAKE_MAX_QUESTIONS).map((question) => ({
-      field: question.field,
-      question: question.question[plan.language],
-      ...(filled.options[question.field]
-        ? { options: filled.options[question.field] }
-        : {}),
-    }));
-  }
-
-  /** Заполненный бриф в том виде, в каком его читают ворота. */
-  private gateBrief(brief: BriefFilledV1): Brief {
-    return {
-      goal: brief.goal ?? undefined,
-      thesis: brief.thesis ?? undefined,
-      format: brief.format ?? undefined,
-      position: brief.position ?? undefined,
-      disagreement: brief.disagreement ?? undefined,
-      audience: brief.audience ?? undefined,
-      facts: brief.facts.map((fact) => ({
-        statement: fact.statement,
-        sourceUrl: fact.sourceUrl ?? null,
-        factId: fact.factId ?? null,
-      })),
-    };
   }
 
   /* -----------------------------------------------------------------------

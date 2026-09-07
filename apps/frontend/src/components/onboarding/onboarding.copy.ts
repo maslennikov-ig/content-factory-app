@@ -41,6 +41,10 @@ type Words = {
   allDoneBody: string;
   leave: string;
   comeBack: string;
+  /** Откуда берутся галочки и почему нет кнопки «начать заново». */
+  counted: string;
+  /** Подпись пункта бокового меню. */
+  menuLabel: string;
   loading: string;
   failed: string;
   channels: (n: number) => string;
@@ -72,7 +76,10 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     allDoneBody:
       'Первый материал прошёл весь путь. Дальше можно не возвращаться сюда — но страница останется в настройках, если понадобится.',
     leave: 'Закрыть и осмотреться',
-    comeBack: 'Закроете — вернётесь через «Настройки → С чего начать».',
+    comeBack: 'Закроете — вернётесь через пункт меню «С чего начать».',
+    counted:
+      'Шаги считаются по данным области. Сбросить нельзя: пройдите заново в новой области.',
+    menuLabel: 'С чего начать',
     loading: 'Смотрим, что уже сделано',
     failed:
       'Не удалось узнать, что уже сделано. Шаги ниже те же самые — просто галочки пока не проставлены.',
@@ -104,16 +111,17 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Найдите то, на что будете опираться',
         why: 'Продукт не даст собрать черновик, пока нет ни одного утверждения. Без опоры модель напишет гладкий текст ни о чём, и в разборе поста показать будет нечего.',
         todo: 'Добавьте одно утверждение о своём деле — цену, срок, цифру, которую вы точно знаете. Или найдите его поиском и подтвердите.',
-        action: 'Открыть «Бриф»',
+        action: 'Открыть «Новая заготовка»',
         closes: 'Шаг закроется, когда появится первое утверждение.',
       },
       brief: {
-        short: 'Собрать бриф',
-        title: 'Соберите бриф и получите черновик',
-        why: 'Черновик собирается из брифа, а не из темы. Пока в брифе нет сути, модель пишет складно и ни о чём.',
-        todo: 'Ответьте на вопросы брифа и нажмите «собрать черновик».',
-        action: 'Открыть бриф',
-        closes: 'Шаг закроется, когда появится первый черновик.',
+        short: 'Сделать заготовку',
+        title: 'Сделайте заготовку и получите черновик',
+        why: 'Заготовка — это суть материала: одна мысль, записанная простыми словами, и заполненный бриф рядом с ней. Из неё собираются черновики под каждый канал. Пока сути нет, модель пишет складно и ни о чём.',
+        todo: 'Нажмите «Новая заготовка», войдите одной мыслью — что вы хотите сказать — и ответьте на вопросы брифа.',
+        action: 'Открыть «Заготовки»',
+        closes:
+          'Шаг закроется, когда в области появится первая заготовка — или первый черновик, если вы шли прежним путём.',
       },
       preview: {
         short: 'Посмотреть черновик в канале',
@@ -122,7 +130,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         todo: 'Откройте черновик и посмотрите предпросмотр канала.',
         action: 'Открыть календарь',
         closes:
-          'Шаг закрывается вместе с предыдущим: продукт не хранит отдельно, смотрели вы предпросмотр или нет.',
+          'Шаг закроется, когда появится первый черновик: продукт не хранит отдельно, смотрели вы предпросмотр или нет.',
       },
       schedule: {
         short: 'Поставить в расписание',
@@ -148,7 +156,10 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     allDoneBody:
       'Your first piece went the whole way. You do not need to come back here — but the page stays in Settings if you ever do.',
     leave: 'Close and look around',
-    comeBack: 'Close this and you can return through Settings → Where to start.',
+    comeBack: 'Close this and you can return through the "Where to start" menu item.',
+    counted:
+      'The ticks are counted from what is in this workspace. There is no reset: start again in a new workspace.',
+    menuLabel: 'Where to start',
     loading: 'Checking what is already done',
     failed:
       'We could not read what is already done. The steps below are the same — the ticks are just missing.',
@@ -177,16 +188,17 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Find what the piece will stand on',
         why: 'The product refuses to build a draft while there is not a single claim. With nothing to stand on the model writes something fluent about nothing, and a post review has nothing to show.',
         todo: 'Add one claim about your own work — a price, a deadline, a number you know. Or find one by search and confirm it.',
-        action: 'Open "Brief"',
+        action: 'Open "New piece"',
         closes: 'This closes when the first claim exists.',
       },
       brief: {
-        short: 'Fill the brief',
-        title: 'Fill the brief and get a draft',
-        why: 'A draft is built from the brief, not from the topic. While the brief has no substance, the model writes something fluent about nothing.',
-        todo: 'Answer the brief and press "build a draft".',
-        action: 'Open the brief',
-        closes: 'This closes when the first draft exists.',
+        short: 'Make a piece',
+        title: 'Make a piece and get a draft',
+        why: 'A piece is the substance: one thought written out in plain words, with the filled brief beside it. Drafts for each channel are cut from it. While there is no substance, the model writes something fluent about nothing.',
+        todo: 'Press "New piece", start with one thought — what you want to say — and answer the brief.',
+        action: 'Open "Pieces"',
+        closes:
+          'This closes when the workspace has its first piece — or its first draft, if you came the older way.',
       },
       preview: {
         short: 'See it in the channel',
@@ -195,7 +207,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         todo: 'Open the draft and look at the channel preview.',
         action: 'Open the calendar',
         closes:
-          'This closes together with the previous step: the product does not record separately whether you looked.',
+          'This closes when the first draft exists: the product does not record separately whether you looked.',
       },
       schedule: {
         short: 'Put it in the schedule',

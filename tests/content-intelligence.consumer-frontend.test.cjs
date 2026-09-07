@@ -382,7 +382,12 @@ describe('Content intelligence frontend consumer contract', () => {
     // осталась — окно её больше не зовёт.
     expect(source('editor')).not.toMatch(/\/copilot\/research/);
     expect(source('editor')).not.toMatch(/researchRequestRef/);
-    expect(source('editor')).toMatch(/setGlobalValueCitationIds/);
+    // 07.09.2026 галочки цитат сняты (`content-factory-next-m2eg.17`): их
+    // писала рука человека, а `usedCitationIds` возвращает тот, кто писал
+    // текст. Окно больше не трогает список, только несёт его на сохранение —
+    // и последняя проверка в этом тесте о том же.
+    expect(source('editor')).not.toMatch(/setGlobalValueCitationIds/);
+    expect(source('editor')).not.toMatch(/onChange=\{\(citationId/);
     expect(source('manage')).toMatch(
       /contentContextSnapshotId:\s*contentIntelligenceProvenance\.contentContextSnapshotId/
     );

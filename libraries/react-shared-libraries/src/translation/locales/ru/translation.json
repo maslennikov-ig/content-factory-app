@@ -1699,5 +1699,6 @@
   "settings_editor_role_required_title": "Нужна роль редактора",
   "settings_editor_role_required_reason": "Чтобы открыть этот раздел настроек, нужна роль редактора в рабочей области. Её выдаёт администратор.",
   "close_post_window": "Закрыть окно поста",
-  "intake_door": "Новая заготовка"
+  "intake_door": "Новая заготовка",
+  "intake_door_short": "Заготовка"
 }

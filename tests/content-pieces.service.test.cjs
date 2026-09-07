@@ -112,7 +112,14 @@ const { PieceService } = loadWithMocks(PIECES, {
   '@contentfactory/nestjs-libraries/integrations/integration.manager': {
     IntegrationManager: class {},
   },
+  // Дверь ответов переписывает суть тем же `writeCore`, что и вход, поэтому
+  // сюда приезжает тот же поддельный чат — ни одного платного вызова.
+  '@contentfactory/nestjs-libraries/openai/ai.clients': {
+    WEB_SEARCH_MAX_SOURCE_CHARS: 8_000,
+    ...chatModel,
+  },
   './piece.repository': { PieceRepository: class {} },
+  '../brief/content-brief.repository': { ContentBriefRepository: class {} },
 });
 
 /* -------------------------------------------------------------------------
@@ -569,19 +576,28 @@ describe('интервью заготовки', () => {
     });
 
   test('не больше трёх вопросов, у каждого предложение или честный null', async () => {
-    const { service, calls } = buildIntake({ models: [guessedBrief()] });
+    const { service, calls } = buildIntake({
+      models: [guessedBrief(), { text: CORE_TEXT }],
+    });
     const plan = await service.prepare(
       'org-a',
       request({ skipInterview: false })
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    const [asked] = named(events, 'piece-questions');
-    expect(asked.round).toBe(1);
+    /*
+      Вопросы опознаются полем брифа, а не ключом
+      (`content-factory-next-m2eg`): «главная мысль» и «что именно вы
+      утверждаете» — один вопрос про `thesis`, «личная история» и «на что это
+      опирается» — один про `facts`. Так повтор, который владелец увидел на
+      живом прогоне 07.09.2026, стал невозможен по устройству.
+    */
+    const [asked] = named(events, 'questions');
+    expect(asked.round).toBe(0);
     expect(asked.questions.length).toBeLessThanOrEqual(3);
-    expect(asked.questions.map((row) => row.key)).toEqual([
-      'key_idea',
-      'personal_detail',
+    expect(asked.questions.map((row) => row.field)).toEqual([
+      'thesis',
+      'facts',
       'position',
     ]);
     for (const question of asked.questions) {
@@ -594,9 +610,9 @@ describe('интервью заготовки', () => {
     );
     // А личную деталь она честно не выдумывает.
     expect(asked.questions[1].suggested).toBeNull();
-    // Вопрос терминален: ни сути, ни черновика на этом ходу нет.
-    expect(calls.recordCore).toEqual([]);
-    expect(calls.start).toEqual([]);
+    // И вопрос больше ничего не обрывает: заготовка записана, черновик написан.
+    expect(calls.recordCore).toHaveLength(1);
+    expect(calls.start).toHaveLength(1);
   });
 
   test('ответ хранится дословно, с опечаткой, и попадает в бриф как слово человека', async () => {
@@ -649,7 +665,7 @@ describe('интервью заготовки', () => {
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    expect(named(events, 'piece-questions')).toEqual([]);
+    expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'piece')).toHaveLength(1);
   });
 });
@@ -735,7 +751,13 @@ const buildPieces = (options = {}) => {
     createAdaptation: [],
     deleted: [],
     search: [],
+    usage: [],
+    updateCore: [],
+    related: [],
+    invalidate: [],
   };
+  modelCalls.length = 0;
+  modelAnswers = [...(options.models || [])];
   // `piece: null` — это «заготовки нет», а не «умолчание»: `??` съел бы её и
   // отказ `PIECE_NOT_FOUND` никогда бы не проверился.
   const piece = 'piece' in options ? options.piece : pieceRow();
@@ -769,6 +791,22 @@ const buildPieces = (options = {}) => {
     archive: async () => ({ count: 1 }),
   };
 
+  /**
+   * Внутренний поиск области (`content-factory-next-m2eg.19`). Передаётся
+   * только когда набор о нём просит: адаптация без него пишется ровно как
+   * писала, и это тоже проверяется.
+   */
+  const search = options.related
+    ? {
+        search: async (...args) => {
+          calls.related.push(args);
+          return options.related;
+        },
+        invalidate: (organizationId) => calls.invalidate.push(organizationId),
+        matchingIds: async () => null,
+      }
+    : null;
+
   const service = new PieceService(
     repository,
     {
@@ -778,7 +816,21 @@ const buildPieces = (options = {}) => {
       },
     },
     { getSocialIntegration: (identifier) => PROVIDERS[identifier] },
-    () => new Date('2026-09-06T11:00:00.000Z')
+    () => new Date('2026-09-06T11:00:00.000Z'),
+    null,
+    {
+      executeAiOperation: async (organizationId, operation, callback, role) => {
+        calls.usage.push([organizationId, operation, role]);
+        return callback();
+      },
+    },
+    {
+      updateCore: async (organizationId, pieceId, input) => {
+        calls.updateCore.push([organizationId, pieceId, input]);
+        if (options.updateFails) throw new Error('the library refused');
+      },
+    },
+    search
   );
 
   return { service, calls };
@@ -842,6 +894,184 @@ describe('адаптация под канал', () => {
     expect(calls.createAdaptation).toHaveLength(1);
   });
 
+  /**
+   * `content-factory-next-m2eg.16`, решение владельца 07.09.2026 на живом
+   * прогоне: адаптация в интернет не ходит. Материал у неё уже на руках, а
+   * поиск повторялся на каждой площадке и приносил в текст чужие находки.
+   */
+  test('адаптация не ищет в интернете и говорит об этом генератору', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    await drain(service.adapt('org-a', plan));
+
+    expect(calls.start[0][1].materialPolicy).toBe('PIECE_ONLY');
+  });
+
+  test('записанные факты брифа заготовки называются генератору явно', async () => {
+    const { service, calls } = buildPieces({
+      piece: pieceRow({
+        brief: {
+          ...CORE_BRIEF,
+          brief: {
+            ...CORE_BRIEF.brief,
+            facts: [
+              // Записанный факт: у него есть идентификатор в памяти области.
+              {
+                statement: 'из шести дедлайнов сдвинулись пять',
+                factId: 'fact-1',
+                evidenceId: 'evidence-1',
+                origin: 'input',
+                verified: true,
+              },
+              // Слово человека без записи: идентификатора нет, и выдумывать
+              // его неоткуда — оно доехало текстом сути.
+              {
+                statement: 'клиентский срок держится',
+                origin: 'input',
+                verified: false,
+              },
+            ],
+          },
+        },
+      }),
+    });
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    await drain(service.adapt('org-a', plan));
+
+    expect(calls.start[0][1].factIds).toEqual(['fact-1']);
+    expect(calls.start[0][1].userMaterialEvidenceIds).toEqual(['evidence-1']);
+  });
+
+  test('заготовка без записанных фактов не шлёт пустых списков', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    await drain(service.adapt('org-a', plan));
+
+    expect(calls.start[0][1].factIds).toBeUndefined();
+    expect(calls.start[0][1].userMaterialEvidenceIds).toBeUndefined();
+  });
+
+  /**
+   * `content-factory-next-m2eg.19`, решение владельца 07.09.2026: «нам это
+   * нужно сразу сделать, чтобы модель научилась на них ссылаться».
+   */
+  describe('свои тексты по теме', () => {
+    const RELATED = [
+      {
+        id: 'adaptation-7',
+        kind: 'ADAPTATION',
+        title: 'Срок, о котором знает клиент',
+        excerpt: 'Срок держится, когда о нём знает кто-то ещё.',
+        url: 'https://t.me/studio/17',
+        platform: 'telegram',
+        publishedAt: '2026-08-03T12:00:00.000Z',
+        pieceId: 'piece-3',
+        score: 1.4,
+      },
+    ];
+
+    test('находки идут и на экран событием, и в генератор материалом', async () => {
+      const { service, calls } = buildPieces({ related: RELATED });
+      const plan = await service.prepareAdapt(
+        'org-a',
+        'piece-12',
+        { integrationId: 'int-tg', skipInterview: true },
+        'ru'
+      );
+      const events = await drain(service.adapt('org-a', plan));
+
+      // Событие стоит до генерации: человек видит список тогда же, когда его
+      // видит модель.
+      expect(events.map((event) => event.name)).toEqual([
+        'adapt-started',
+        'related',
+        'generator',
+        'adaptation',
+        'done',
+      ]);
+      const [shown] = named(events, 'related');
+      expect(shown.related[0].url).toBe('https://t.me/studio/17');
+      expect(calls.start[0][1].relatedOwnPosts).toEqual(shown.related);
+    });
+
+    test('спрашивается тезисом заготовки, площадкой канала и только вышедшее', async () => {
+      const { service, calls } = buildPieces({ related: RELATED });
+      const plan = await service.prepareAdapt(
+        'org-a',
+        'piece-12',
+        { integrationId: 'int-tg', skipInterview: true },
+        'ru'
+      );
+      await drain(service.adapt('org-a', plan));
+
+      const [organizationId, query, options] = calls.related[0];
+      expect(organizationId).toBe('org-a');
+      expect(query).toBe(CORE_BRIEF.brief.thesis);
+      expect(options).toMatchObject({
+        platform: 'telegram',
+        linkableOnly: true,
+        limit: 3,
+        mode: 'ranked',
+      });
+    });
+
+    test('пустая находка не шлёт события и не кладёт поля в запрос', async () => {
+      const { service, calls } = buildPieces({ related: [] });
+      const plan = await service.prepareAdapt(
+        'org-a',
+        'piece-12',
+        { integrationId: 'int-tg', skipInterview: true },
+        'ru'
+      );
+      const events = await drain(service.adapt('org-a', plan));
+
+      expect(named(events, 'related')).toEqual([]);
+      expect(calls.start[0][1].relatedOwnPosts).toBeUndefined();
+    });
+
+    test('без внутреннего поиска адаптация пишется как писала', async () => {
+      const { service, calls } = buildPieces();
+      const plan = await service.prepareAdapt(
+        'org-a',
+        'piece-12',
+        { integrationId: 'int-tg', skipInterview: true },
+        'ru'
+      );
+      const events = await drain(service.adapt('org-a', plan));
+
+      expect(named(events, 'related')).toEqual([]);
+      expect(named(events, 'adaptation')).toHaveLength(1);
+    });
+
+    test('записанная адаптация сбрасывает индекс области', async () => {
+      const { service, calls } = buildPieces({ related: RELATED });
+      const plan = await service.prepareAdapt(
+        'org-a',
+        'piece-12',
+        { integrationId: 'int-tg', skipInterview: true },
+        'ru'
+      );
+      await drain(service.adapt('org-a', plan));
+
+      expect(calls.invalidate).toEqual(['org-a']);
+    });
+  });
+
   test('ответы под канал хранятся дословно и едут в подсказки', async () => {
     const { service, calls } = buildPieces();
     const plan = await service.prepareAdapt(
@@ -888,6 +1118,197 @@ describe('адаптация под канал', () => {
     const { service } = buildPieces(stand);
     try {
       await service.prepareAdapt('org-a', 'piece-12', body, 'ru');
+      throw new Error('the door should have refused');
+    } catch (error) {
+      expect(error.code).toBe(code);
+      expect(typeof error.status).toBe('number');
+    }
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Уточнения заготовки: дверь ответов
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Заготовка с открытыми вопросами: та же строка, что пишет вход.
+ *
+ * Вопрос про `facts` здесь — это ровно тот вопрос, который на живом прогоне
+ * 07.09.2026 задавался по кругу.
+ */
+const OPEN_QUESTIONS = {
+  round: 0,
+  items: [
+    {
+      field: 'facts',
+      question:
+        'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть',
+      suggested: null,
+      options: [],
+    },
+    {
+      field: 'position',
+      question: 'Где вы стоите в этом споре?',
+      suggested: 'Ставлю себе срок только вместе с клиентом',
+      options: [],
+    },
+  ],
+  answered: [],
+};
+
+const askedPiece = (questions = OPEN_QUESTIONS) =>
+  pieceRow({
+    brief: {
+      ...CORE_BRIEF,
+      brief: { ...CORE_BRIEF.brief, position: null, origins: { thesis: 'input' } },
+      questions,
+      personText: THOUGHT,
+    },
+  });
+
+const answerDrain = async (service, body) => {
+  const plan = await service.prepareAnswer('org-a', 'piece-12', body, 'ru');
+  return drain(service.answer('org-a', plan, 'user-1'));
+};
+
+describe('ответы на открытые вопросы заготовки', () => {
+  test('ответ ложится в бриф дословно, суть переписана, повтора нет', async () => {
+    const { service, calls } = buildPieces({
+      piece: askedPiece(),
+      models: [{ text: 'Суть с ответом человека.' }],
+    });
+
+    const events = await answerDrain(service, {
+      answers: [
+        {
+          field: 'facts',
+          text: 'из шести дедлайнов сдивнулись пять, я считал сам',
+        },
+      ],
+    });
+
+    expect(events.map((event) => event.name)).toEqual([
+      'answer-started',
+      'piece',
+      'questions',
+      'done',
+    ]);
+
+    // Суть переписана и сохранена той же строкой.
+    expect(calls.updateCore).toHaveLength(1);
+    const [, savedId, saved] = calls.updateCore[0];
+    expect(savedId).toBe('piece-12');
+    expect(saved.body).toBe('Суть с ответом человека.');
+
+    // Ответ хранится дословно, с опечаткой, и стал фактом со словом человека.
+    const answeredFact = saved.brief.brief.facts.find((fact) =>
+      fact.statement.includes('сдивнулись')
+    );
+    expect(answeredFact.origin).toBe('person');
+    expect(answeredFact.statement).toBe(
+      'из шести дедлайнов сдивнулись пять, я считал сам'
+    );
+    expect(saved.brief.questions.answered[0]).toMatchObject({
+      field: 'facts',
+      origin: 'person',
+    });
+
+    /*
+      И главное: вопрос про `facts` не задан второй раз. Без опоры слово
+      человека раньше приезжало `verified: false`, ворота считали факт
+      несуществующим — и спрашивали снова.
+    */
+    const [asked] = events.filter((event) => event.name === 'questions');
+    expect(asked.questions.map((row) => row.field)).toEqual(['position']);
+    expect(saved.brief.questions.items.map((row) => row.field)).toEqual([
+      'position',
+    ]);
+
+    // Ответ приехал в промпт сути парой «вопрос → ответ», тоже дословно.
+    const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
+    expect(prompt).toContain('сдивнулись');
+    // И слова, с которых началась заготовка, в промпте тоже: суть
+    // переписывается, а не пишется заново по одному брифу.
+    expect(prompt).toContain('сдивнулся');
+  });
+
+  test('«Реши сама» закрывает вопрос и не зовёт модель', async () => {
+    const { service, calls } = buildPieces({ piece: askedPiece(), models: [] });
+
+    const events = await answerDrain(service, { decide: ['facts', 'position'] });
+
+    // Ни одного платного вызова: отданное поле снимает вопрос, а не добавляет
+    // слово, и платить за пересборку той же сути было бы платой за нажатие.
+    expect(calls.usage).toEqual([]);
+    expect(modelCalls).toEqual([]);
+    expect(events.filter((event) => event.name === 'questions')).toEqual([]);
+
+    const [, , saved] = calls.updateCore[0];
+    expect(
+      saved.brief.questions.answered.map((row) => [row.field, row.origin])
+    ).toEqual([
+      ['facts', 'model'],
+      ['position', 'model'],
+    ]);
+    expect(saved.brief.questions.items).toEqual([]);
+  });
+
+  test('после двух кругов не спрашивают, а заготовка на месте', async () => {
+    const { service, calls } = buildPieces({
+      piece: askedPiece({ ...OPEN_QUESTIONS, round: 1 }),
+      models: [{ text: 'Суть после второго круга.' }],
+    });
+
+    const events = await answerDrain(service, {
+      answers: [{ field: 'facts', text: 'своими словами, без ссылки' }],
+    });
+
+    expect(events.map((event) => event.name)).toEqual([
+      'answer-started',
+      'piece',
+      'done',
+    ]);
+    const [, , saved] = calls.updateCore[0];
+    expect(saved.brief.questions.round).toBe(2);
+    expect(saved.brief.questions.items).toEqual([]);
+    // Заготовка никуда не делась и осталась годной.
+    expect(events.find((event) => event.name === 'piece').pieceId).toBe(
+      'piece-12'
+    );
+  });
+
+  test('несохранённый ответ — отказ с кодом, а не тишина', async () => {
+    const { service } = buildPieces({
+      piece: askedPiece(),
+      models: [{ text: 'Суть, которую не сохранили.' }],
+      updateFails: true,
+    });
+
+    const events = await answerDrain(service, {
+      answers: [{ field: 'facts', text: 'своими словами' }],
+    });
+
+    const [failure] = events.filter((event) => event.name === 'error');
+    expect(failure.code).toBe('PIECE_NOT_SAVED');
+    expect(events.some((event) => event.name === 'done')).toBe(false);
+  });
+
+  test.each([
+    ['нет заготовки', { piece: null }, 'PIECE_NOT_FOUND'],
+    [
+      'заготовка в архиве',
+      { piece: pieceRow({ archivedAt: new Date('2026-09-05T00:00:00.000Z') }) },
+      'PIECE_ARCHIVED',
+    ],
+    [
+      'материал до заготовок',
+      { piece: pieceRow({ kind: null, brief: null, body: '<p>Старый текст</p>' }) },
+      'PIECE_CORE_MISSING',
+    ],
+  ])('отказ до первого байта: %s', async (_label, stand, code) => {
+    const { service } = buildPieces(stand);
+    try {
+      await service.prepareAnswer('org-a', 'piece-12', {}, 'ru');
       throw new Error('the door should have refused');
     } catch (error) {
       expect(error.code).toBe(code);
@@ -991,6 +1412,92 @@ describe('список и страница', () => {
       'none',
     ]);
     expect(row.cells[0].url).toBe('https://t.me/example/412');
+  });
+
+  /*
+    `content-factory-next-m2eg.10`. Состояние «нет канала» было в контракте, в
+    словах экрана и в клетке — и ни разу в ответе: `bestCell` видит только
+    адаптации и честно отдаёт `none`, а поднять его до `no_channel` умеет
+    только тот, у кого есть список каналов. Никто этого не делал, так что
+    отключённая площадка выглядела как «сюда ещё не писали», и человек нажимал
+    на клетку, чтобы узнать про отсутствие канала после нажатия.
+  */
+  test('площадка без канала отдаёт «нет канала», а не «ещё нет»', async () => {
+    const { service } = buildPieces({
+      // Только Telegram подключён. VK и сайт остаются колонками, потому что
+      // туда уже писали, но каналов под ними нет.
+      integrations: CHANNELS.filter(
+        (channel) => channel.providerIdentifier === 'telegram'
+      ),
+      adaptations: [
+        {
+          id: 'a-vk',
+          contentPieceId: 'piece-12',
+          postId: null,
+          integrationId: null,
+          platform: 'vk',
+          format: 'короткий',
+          kind: 'post',
+          title: null,
+          body: 'текст',
+          mediaId: null,
+          brandProfileVersionId: null,
+          createdAt: new Date('2026-09-06T09:41:00.000Z'),
+          post: null,
+        },
+      ],
+    });
+
+    const answer = await service.list('org-a', {}, 'ru');
+    const [row] = answer.pieces;
+    const stateOf = (platform) =>
+      row.cells[
+        answer.columns.findIndex((column) => column.platform === platform)
+      ].state;
+
+    // Telegram подключён и пуст — это по-прежнему «ещё нет», возможность.
+    expect(stateOf('telegram')).toBe('none');
+    // VK колонкой стал из-за адаптации, а канала под ним нет — но черновик
+    // там есть, и состояние остаётся своим: поднимается ровно `none`.
+    expect(stateOf('vk')).toBe('draft');
+
+    // И то же самое на странице заготовки, а не только в списке.
+    const page = await service.detail('org-a', 'piece-12', 'ru');
+    expect(
+      page.piece.cells.find((cell) => cell.platform === 'telegram').state
+    ).toBe('none');
+  });
+
+  test('колонка без каналов и без адаптаций поднимается до «нет канала»', async () => {
+    const { service } = buildPieces({
+      integrations: CHANNELS.filter(
+        (channel) => channel.providerIdentifier === 'telegram'
+      ),
+      adaptations: [
+        {
+          id: 'a-vk',
+          contentPieceId: 'piece-12',
+          postId: null,
+          integrationId: null,
+          platform: 'vk',
+          format: 'короткий',
+          kind: 'post',
+          title: null,
+          body: 'текст',
+          mediaId: null,
+          brandProfileVersionId: null,
+          createdAt: new Date('2026-09-06T09:41:00.000Z'),
+          post: null,
+        },
+      ],
+      pieces: [pieceRow({ id: 'piece-12' }), pieceRow({ id: 'piece-13' })],
+    });
+
+    const answer = await service.list('org-a', {}, 'ru');
+    const vk = answer.columns.findIndex((column) => column.platform === 'vk');
+    expect(answer.columns[vk].channels).toBe(0);
+    // У второй заготовки в VK нет ничего, и канала тоже нет: это «нет канала».
+    expect(answer.pieces[1].cells[vk].state).toBe('no_channel');
   });
 
   test('фильтр «ещё нет в …» убирает то, куда уже писали', async () => {

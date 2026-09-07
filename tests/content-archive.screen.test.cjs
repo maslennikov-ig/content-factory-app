@@ -218,15 +218,17 @@ describe('a version made by a recut is visible on the row', () => {
     await renderArchive();
 
     const row = document.querySelector('[data-content-archive-row="piece-1"]');
-    // `content-factory-next-fn33.54` moved the counter to «0 постов» — the
-    // count first and the word in its own form — so the row is read here in
-    // that wording rather than in the one it replaced.
-    expect(within(row).getByText('0 постов')).toBeTruthy();
+    // 07.09.2026 итог идёт первым и считает все три состояния
+    // (`content-factory-next-m2eg.20`): «0 постов» стояло над двумя
+    // черновиками, потому что первое число считало только вышедшие, а человек
+    // читал его как итог.
+    expect(within(row).getByText('2 поста из этого текста')).toBeTruthy();
+    expect(within(row).getByText('вышло: 0')).toBeTruthy();
     expect(within(row).getByText('черновиков: 2')).toBeTruthy();
   });
 });
 
-describe('«Разбор» says what is true of the row', () => {
+describe('«Откуда взято» says what is true of the row', () => {
   test('a text with no recorded context is not blamed on the product’s age', async () => {
     // `content-factory-next-fn33.89`: this sentence was printed over drafts
     // that were minutes old, which reads as a fact about the text and is a
@@ -235,7 +237,7 @@ describe('«Разбор» says what is true of the row', () => {
     await renderArchive();
 
     const row = document.querySelector('[data-content-archive-row="piece-1"]');
-    await click(within(row).getByRole('button', { name: 'Разбор' }));
+    await click(within(row).getByRole('button', { name: 'Откуда взято' }));
 
     const dialog = screen.getByRole('dialog');
     expect(dialog.textContent).not.toContain('до того, как черновик стал');

@@ -229,6 +229,64 @@ describe('«Ещё нет в…» keeps the rows that platform has nothing on', 
   });
 });
 
+/*
+  `content-factory-next-m2eg.7` и `.8`. Две поломки, которые волна 07.09.2026
+  нашла на боевой и которые проверялись бы одна другой: таблицы не было в CSS
+  вовсе, а раскрывала строку безымянная кнопка, про существование которой из
+  разметки узнать было нельзя.
+*/
+describe('the table renders as a table, and the row says how to open it', () => {
+  test('the breakpoint is a named screen Tailwind actually emits', () => {
+    drawTable();
+    const table = document.querySelector('[data-piece-table]');
+    const cards = document.querySelector('[data-piece-cards]');
+    const panel = table.closest('.hidden');
+
+    // Именованный экран `table` объявлен в `tailwind.config.cjs` строкой и
+    // потому выпускается. Произвольный вариант с шириной в скобках Tailwind
+    // 3.4 молча выбрасывает, пока в `screens` есть объект с `raw`, — так
+    // таблица и уехала на боевой невидимой.
+    expect(panel.className).toContain('table:block');
+    expect(cards.className).toContain('table:hidden');
+    expect(`${panel.className} ${cards.className}`).not.toMatch(
+      /(min|max)-\[[^\]]+\]:/
+    );
+  });
+
+  test('the arrow that opens the row has a name, and it changes when it is open', () => {
+    drawTable();
+    const shut = screen.getAllByRole('button', { name: 'Раскрыть строку' });
+    expect(shut.length).toBeGreaterThan(0);
+    expect(shut[0].getAttribute('aria-expanded')).toBe('false');
+
+    cleanup();
+    drawTable({ expandedId: ROWS[0].id });
+    const open = screen.getAllByRole('button', { name: 'Свернуть строку' });
+    expect(open.length).toBeGreaterThan(0);
+    expect(open[0].getAttribute('aria-expanded')).toBe('true');
+  });
+
+  test('the cell carries no empty platform badge any more', () => {
+    drawTable();
+    const cell = document
+      .querySelector('[data-piece-row="cnt-12"]')
+      .querySelector('[data-piece-cell="linkedin"]');
+    // Пустая клетка несла `PlatformBadge` с пустым запасным вариантом — на
+    // боевой это был квадрат без содержимого рядом со словом «ещё нет».
+    expect(cell.querySelector('img')).toBeNull();
+    expect(cell.textContent.trim()).toBe('ещё нет');
+  });
+
+  test('the words a person searched for are marked in the title', () => {
+    drawTable({ query: 'дедлайн' });
+    const marks = [...document.querySelectorAll('mark')].map(
+      (one) => one.textContent.toLocaleLowerCase()
+    );
+    expect(marks.length).toBeGreaterThan(0);
+    for (const mark of marks) expect(mark).toContain('дедлайн');
+  });
+});
+
 describe('the intake button names what will happen', () => {
   const CHANNELS = [
     {

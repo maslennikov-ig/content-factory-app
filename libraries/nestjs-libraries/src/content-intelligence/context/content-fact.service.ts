@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ContentFactRepository } from './content-fact.repository';
 import { ContentContextError } from './content-context.errors';
 import { searchWords } from '../search-terms';
+import { TextSearchService } from '../search/text-search.service';
 import {
   humanize,
   topicKey,
@@ -108,16 +109,48 @@ function needsLookFor(evidenceLinks: any[]): boolean {
 export class ContentFactService {
   constructor(
     @Inject(ContentFactRepository)
-    private readonly repository: ContentFactRepository
+    private readonly repository: ContentFactRepository,
+    /**
+     * Внутренний поиск области (`content-factory-next-m2eg.19`).
+     *
+     * Необязательный и последний: наборы собирают сервис руками. Без него
+     * витрина ищет по словам через базу — ровно как с 05.09.2026.
+     *
+     * `@Inject` обязателен рядом с `@Optional()`: тип — объединение с `null`,
+     * и `emitDecoratorMetadata` пишет для него `Object`. Без явного токена
+     * Nest подставил бы `undefined` молча.
+     */
+    @Optional()
+    @Inject(TextSearchService)
+    private readonly search: TextSearchService | null = null
   ) {}
 
   /**
    * `q` — поиск по словам (`content-factory-next-odb8.4`). Без него вызов
    * тот же, что был: бриф зовёт `listFacts(organizationId)` за всем каталогом
    * и ничего об этом параметре знать не должен.
+   *
+   * С 07.09.2026 первым спрашивают внутренний индекс: он знает стемминг, и
+   * «сроки» находят «срок» (`content-factory-next-m2eg.19`). Отбор при этом
+   * тот же — встретиться должно каждое слово.
+   *
+   * Индекс отвечает идентификаторами, а каталог всё равно читается из базы:
+   * утверждение приезжает со своими доказательствами, оценками и автором, а
+   * этого в индексе нет и не должно быть — иначе память фактов оказалась бы
+   * в двух местах сразу. Каталог области читается целиком и без запроса — это
+   * тот самый вызов, которым живёт бриф, — так что цена уже известна.
    */
   async listFacts(organizationId: string, q?: string) {
-    const facts = await this.repository.listFacts(organizationId, searchWords(q));
+    const matched = await this.search?.matchingIds(
+      organizationId,
+      q ?? '',
+      'FACT'
+    );
+    const facts = matched
+      ? (await this.repository.listFacts(organizationId, [])).filter(
+          (fact: any) => matched.has(fact.id)
+        )
+      : await this.repository.listFacts(organizationId, searchWords(q));
     return facts.map((fact: any) => ({
       id: fact.id,
       claimKey: fact.claimKey,
@@ -213,6 +246,10 @@ export class ContentFactService {
     // is not a claim that anything was checked — it is the honest status for
     // a claim that stands on the person's own say-so.
     const now = new Date();
+    // Только что записанное утверждение должно находиться сразу
+    // (`content-factory-next-m2eg.19`). Сброс, а не дозапись: правила сборки
+    // документа живут в одном месте.
+    this.search?.invalidate(organizationId);
     return this.repository.createFact(organizationId, actorUserId, {
       claimKey,
       statement: normalized(input.statement),

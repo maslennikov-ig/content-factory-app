@@ -212,12 +212,101 @@ function createServer(routes) {
     }
     const answer =
       typeof handler === 'function' ? await handler(body, init) : handler;
+    // Стрим отдаётся как есть: у него тело читается ридером, а не `json()`,
+    // и завернуть его в `json(200, …)` значило бы подменить проверку.
+    if (answer && answer.body && typeof answer.body.getReader === 'function') {
+      return answer;
+    }
     return answer && typeof answer.status === 'number' && 'body' in answer
       ? json(answer.status, answer.body)
       : json(200, answer);
   };
   return { request, calls };
 }
+
+/* -------------------------------------------------------------------------
+ * Разбор приезжает строками: тело, которое отдаёт их по команде
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Ответ-стрим, у которого строки выпускаются вручную.
+ *
+ * Разбор голоса — до двадцати восьми вызовов модели, и с 07.09.2026 он едет
+ * NDJSON: по строке на событие. Проверять его одним готовым телом мало —
+ * половина смысла в том, что человек читает ход, пока он идёт, — поэтому
+ * строки выпускаются по одной и между ними можно посмотреть на экран.
+ */
+const liveStream = () => {
+  const encoder = new TextEncoder();
+  const queue = [];
+  let waiting = null;
+  let closed = false;
+  const settle = () => {
+    if (!waiting) return;
+    if (queue.length) {
+      const resolve = waiting;
+      waiting = null;
+      resolve({ done: false, value: queue.shift() });
+      return;
+    }
+    if (closed) {
+      const resolve = waiting;
+      waiting = null;
+      resolve({ done: true, value: undefined });
+    }
+  };
+  const reader = {
+    read: () =>
+      new Promise((resolve) => {
+        waiting = resolve;
+        settle();
+      }),
+  };
+  return {
+    response: {
+      ok: true,
+      status: 200,
+      body: { getReader: () => reader },
+      json: async () => ({}),
+    },
+    push(event) {
+      queue.push(encoder.encode(`${JSON.stringify(event)}\n`));
+      settle();
+    },
+    close() {
+      closed = true;
+      settle();
+    },
+  };
+};
+
+/** Тот же стрим, но целиком готовый: события уже в нём, и он закрыт. */
+const streamOf = (...events) => () => {
+  const live = liveStream();
+  for (const event of events) live.push(event);
+  live.close();
+  return live.response;
+};
+
+const MEASURED_EVENT = {
+  name: 'measured',
+  measurementId: 'measurement-1',
+  sampleCount: 8,
+  charCount: 16000,
+  wordCount: 1260,
+  sentenceCount: 100,
+};
+
+/** Обычный ход: прочитали, посчитали, спросили модель, отдали разбор. */
+const analysisStream = (analysis) =>
+  streamOf(
+    { name: 'started', samples: 8, planned: 2 },
+    MEASURED_EVENT,
+    { name: 'call', stage: 'map', index: 1, total: 2, ok: true },
+    { name: 'call', stage: 'map', index: 2, total: 2, ok: true },
+    { name: 'call', stage: 'reduce', index: 1, total: 1, ok: true },
+    { name: 'done', analysis }
+  );
 
 const readiness = (over = {}) => ({
   ready: false,
@@ -495,10 +584,13 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: {
-        outcome: 'insufficient',
-        readiness: readiness({ missingChars: 8600, missingSamples: 3 }),
-      },
+      [`POST ${VOICE_API}/analysis/stream`]: streamOf({
+        name: 'done',
+        analysis: {
+          outcome: 'insufficient',
+          readiness: readiness({ missingChars: 8600, missingSamples: 3 }),
+        },
+      }),
     });
     await renderWizard(server);
     await click(openWizard(screen));
@@ -520,7 +612,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: () =>
+      [`POST ${VOICE_API}/analysis/stream`]: () =>
         new Promise((resolve) => {
           finish = resolve;
         }),
@@ -563,14 +655,20 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: {
-        status: 502,
-        body: {
+      // Отказ модели приходит последней строкой уже начавшегося стрима:
+      // код ответа к тому моменту давно отдан, и другого способа назвать
+      // причину у сервера нет.
+      [`POST ${VOICE_API}/analysis/stream`]: streamOf(
+        { name: 'started', samples: 8, planned: 2 },
+        MEASURED_EVENT,
+        {
+          name: 'error',
+          error: true,
           code: 'VOICE_ASSIST_UNAVAILABLE',
           message:
             'Модель не ответила. Числа разбора сохранены, предложение голоса не составлено.',
-        },
-      },
+        }
+      ),
       [`GET ${VOICE_API}/analysis`]: analysisReady(),
     });
     await renderWizard(server);
@@ -591,23 +689,25 @@ describe('the voice wizard on live data', () => {
     expect(
       analysis.querySelector('[data-voice-analysis-sentence-length]')
     ).not.toBeNull();
-    expect(analysis.textContent).toContain('100%');
+    // И ни одной доли рядом с «Разбор прерван». «100 %» над словом
+    // «прервано» — два утверждения об одном ходе, и они противоречат друг
+    // другу (живой прогон 07.09.2026, `C1_1`). Сделана половина, и о ней
+    // говорит строка, а не число.
+    expect(analysis.textContent).not.toContain('%');
+    expect(analysis.textContent).toContain('Числа посчитаны, предложение — нет');
   });
 
-  test('an analysis that answers "pending" is followed until it finishes', async () => {
-    // The deterministic pass finishes inside the POST; the agent pass may not,
-    // and the contract has a `pending` outcome for it. A step that stopped
-    // reading at the first `pending` would leave the finished proposal unshown.
+  test('the step says what is running now, and the count comes from the stream', async () => {
+    // Двадцать восемь вызовов модели — это минуты, и всё это время экран
+    // раньше показывал одну надпись над полосой, нарисованной на шести
+    // процентах. Теперь каждая строка стрима — это то, что человек читает:
+    // сначала «Читаем образцы», потом «Числа посчитаны», потом счёт вызовов.
+    const live = liveStream();
     const server = createServer({
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: {
-        outcome: 'pending',
-        progress: 40,
-        stage: 'ASSISTING',
-      },
-      [`GET ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: () => live.response,
       [`GET ${VOICE_API}/proposal`]: proposalEnvelope([proposalField('TONE')]),
     });
     await renderWizard(server);
@@ -615,13 +715,28 @@ describe('the voice wizard on live data', () => {
     await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
     await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
 
-    expect(
-      server.calls.some(
-        (call) => call.method === 'GET' && call.route === `${VOICE_API}/analysis`
-      )
-    ).toBe(true);
-    // The finished pass stays on screen 04 — the person reads what was
-    // counted — until they choose to move on.
+    const said = () => screen.getByRole('status').textContent;
+    expect(said()).toMatch(/Читаем образцы/i);
+
+    await act(async () => {
+      live.push({ name: 'started', samples: 8, planned: 3 });
+      live.push(MEASURED_EVENT);
+    });
+    expect(said()).toMatch(/Числа посчитаны/i);
+
+    await act(async () => {
+      live.push({ name: 'call', stage: 'map', index: 2, total: 3, ok: true });
+    });
+    // Счёт, а не проценты: «2 из 3» человек может сверить с тем, что видит.
+    expect(said()).toContain('2 из 3');
+
+    await act(async () => {
+      live.push({ name: 'done', analysis: analysisReady() });
+      live.close();
+    });
+
+    // Готовый разбор остаётся на шаге 04 — человек читает посчитанное — пока
+    // сам не решит идти дальше.
     expect(surface('analysis').getAttribute('data-voice-state')).toBe(
       'success'
     );
@@ -635,7 +750,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
       [`GET ${VOICE_API}/proposal`]: proposalEnvelope([
         proposalField('WHO_SPEAKS'),
         proposalField('TONE'),
@@ -672,7 +787,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: () => stored.samples,
-      [`POST ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
       [`GET ${VOICE_API}/proposal`]: () => proposalEnvelope(stored.fields),
       [`POST ${VOICE_API}/proposal/field`]: (body) => {
         const field = stored.fields.find((one) => one.key === body.key);
@@ -834,7 +949,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
       [`GET ${VOICE_API}/proposal`]: () => ({
         ...proposalEnvelope(fields),
         ...(server.calls.some(
@@ -933,6 +1048,61 @@ describe('the voice wizard on live data', () => {
     // what was not is named with the file and one thing to do about it.
     expect(screen.getByRole('status').textContent).toContain('скан.pdf');
     expect(screen.getByRole('status').textContent).toContain('это скан');
+  });
+
+  test('the Telegram card takes result.json instead of offering to retype a channel', async () => {
+    // Находка живого прогона 07.09.2026 (`content-factory-next-m2eg.14`):
+    // карточка обещала файл `result.json` из «Экспорт истории», а её кнопка
+    // открывала поле для вставки текста. Разбор такой выгрузки сервер умеет
+    // с `vme.21.13` — не было выбора файла, и человек с каналом на сотни
+    // постов читал обещание и получал форму ручного копирования.
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview(),
+      [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
+      [`GET ${VOICE_API}/samples`]: samplesEnvelope({ samples: [] }),
+      [`POST ${VOICE_API}/samples/files`]: {
+        accepted: [sampleRow(1), sampleRow(2)],
+        rejected: [],
+        readiness: readiness(),
+      },
+    });
+    await renderWizard(server);
+    await click(openWizard(screen));
+    await click(screen.getByRole('button', { name: 'Собрать из моих текстов' }));
+
+    const card = document.querySelector('[data-voice-source="TELEGRAM_EXPORT"]');
+    const picker = card.querySelector('input[type="file"]');
+    expect(picker).not.toBeNull();
+    expect(picker.getAttribute('accept')).toBe('.json');
+    // Выгрузка канала — один файл, из которого получаются сотни образцов.
+    expect(picker.hasAttribute('multiple')).toBe(false);
+    expect(card.textContent).toContain('Загрузить');
+
+    await pick(picker, [makeFile('result.json', 120_000)]);
+
+    // Выбранное показано в той карточке, в которой выбрано, и только в ней:
+    // карточек с выбором две, а набор один — напечатать его под обеими
+    // значило бы показать один файл дважды.
+    expect(
+      card.querySelector('[data-voice-upload-file="result.json"]')
+    ).not.toBeNull();
+    expect(
+      document
+        .querySelector('[data-voice-source="FILE"]')
+        .querySelector('[data-voice-upload-file]')
+    ).toBeNull();
+    // И ни одной формы ручной вставки — это была вся находка.
+    expect(document.querySelector('[data-voice-intake]')).toBeNull();
+
+    await click(screen.getByRole('button', { name: 'Загрузить 1 файл' }));
+
+    const posted = server.calls.find((call) =>
+      call.route.includes('/samples/files')
+    );
+    expect(posted.method).toBe('POST');
+    expect(posted.body.getAll('files').map((one) => one.name)).toEqual([
+      'result.json',
+    ]);
   });
 
   test('a reference upload asks for the right and the erasure date in the same card', async () => {
@@ -1183,7 +1353,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
       [`GET ${VOICE_API}/proposal`]: () => proposalEnvelope(fields),
       [`POST ${VOICE_API}/proposal/field`]: (body) => {
         if (body.action === 'SAVE') {
@@ -1238,7 +1408,7 @@ describe('the voice wizard on live data', () => {
       [`GET ${VOICE_API}/overview`]: overview(),
       [`GET ${VOICE_API}/paths`]: { state: 'default', ...pathAvailability() },
       [`GET ${VOICE_API}/samples`]: samplesEnvelope(),
-      [`POST ${VOICE_API}/analysis`]: analysisReady(),
+      [`POST ${VOICE_API}/analysis/stream`]: analysisStream(analysisReady()),
       [`GET ${VOICE_API}/proposal`]: () => proposalEnvelope(fields),
       [`POST ${VOICE_API}/proposal/field`]: (body) => {
         const field = fields.find((one) => one.key === body.key);

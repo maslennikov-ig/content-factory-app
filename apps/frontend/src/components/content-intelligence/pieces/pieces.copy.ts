@@ -66,6 +66,7 @@ export const piecesCopy = {
     openPost: 'Открыть пост',
     adapt: 'Адаптировать',
     expand: 'Раскрыть строку',
+    collapse: 'Свернуть строку',
 
     /* --- Пустота, загрузка, отказы ---------------------------------------- */
     loading: 'Загружаем заготовки',
@@ -89,6 +90,14 @@ export const piecesCopy = {
       'Это старый материал: тело — текст одного канала, а не нейтральная суть. Адаптация будет опираться на него как есть.',
     slopTitle: 'Проверка на штампы',
     slopAtCreation: 'Считана при создании сути, а не по кнопке.',
+    /* Подпись строкой под сутью: та же проверка, свёрнутая до одного слова. */
+    slopNoFindings: 'находок нет',
+    slopFound: (count: number) =>
+      `${count} ${plural(count, ['находка', 'находки', 'находок'])}`,
+    ownNumberHas: 'своё число есть',
+    ownNumberNone: 'своего числа нет',
+    breadcrumbSection: 'Контент',
+    laterShort: 'видео и аудио — позже',
     slopRewriteNote:
       'Модель советует переписать. Адаптировать это не мешает — решаете вы.',
     targetsTitle: 'Куда адаптировать',
@@ -136,6 +145,16 @@ export const piecesCopy = {
     interviewSend: 'Дальше',
     interviewExhausted:
       'Больше спрашивать не будем: два круга — предел. Дальше решает модель.',
+
+    /* --- Уточнение заготовки ----------------------------------------------- */
+    // `content-factory-next-m2eg`: вопросы приезжают вместе с заготовкой и
+    // живут здесь, рядом с сутью, которую они правят.
+    clarifyLead:
+      'Заготовка уже сохранена. Ответьте — и суть перепишется с вашими словами; не ответите — останется как есть.',
+    clarifySkip: 'Оставить как есть',
+    clarifyBusy: 'Переписываем суть…',
+    clarifyDone: 'Суть переписана с вашими словами.',
+    clarifyFailed: 'Ответ не сохранился. Попробуйте ещё раз.',
   },
   en: {
     title: 'Pieces',
@@ -183,6 +202,7 @@ export const piecesCopy = {
     openPost: 'Open the post',
     adapt: 'Adapt',
     expand: 'Expand the row',
+    collapse: 'Collapse the row',
 
     loading: 'Loading the pieces',
     emptyTitle: 'No pieces yet',
@@ -204,6 +224,13 @@ export const piecesCopy = {
       'This is older material: the body is one channel’s text, not neutral substance. An adaptation will lean on it as it is.',
     slopTitle: 'Cliché check',
     slopAtCreation: 'Taken when the substance was written, not on a button.',
+    slopNoFindings: 'no findings',
+    slopFound: (count: number) =>
+      `${count} ${count === 1 ? 'finding' : 'findings'}`,
+    ownNumberHas: 'a figure of yours is there',
+    ownNumberNone: 'no figure of yours',
+    breadcrumbSection: 'Content',
+    laterShort: 'video and audio — later',
     slopRewriteNote:
       'The model suggests a rewrite. That does not stop an adaptation — you decide.',
     targetsTitle: 'Where to adapt',
@@ -250,6 +277,13 @@ export const piecesCopy = {
     interviewSend: 'Next',
     interviewExhausted:
       'We will not ask again: two rounds is the limit. The model decides from here.',
+
+    clarifyLead:
+      'The piece is already saved. Answer and the substance is rewritten with your words; leave it and it stays as it is.',
+    clarifySkip: 'Leave it as it is',
+    clarifyBusy: 'Rewriting the substance…',
+    clarifyDone: 'The substance is rewritten with your words.',
+    clarifyFailed: 'The answer was not saved. Try again.',
   },
 } as const;
 

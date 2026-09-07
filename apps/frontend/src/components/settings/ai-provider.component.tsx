@@ -8,8 +8,13 @@ import { Select } from '@contentfactory/react/form/select';
 import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
+import {
+  aiProviderCopy,
+  resolveAiProviderLocale,
+} from '@contentfactory/frontend/components/settings/ai-provider.copy';
 
 type Provider = 'openai' | 'openrouter';
 type UsageMode = 'included' | 'workspace_key';
@@ -241,6 +246,8 @@ const ModelField = ({
 
 const AiProviderComponent = () => {
   const t = useT();
+  const { language } = useVariables();
+  const words = aiProviderCopy[resolveAiProviderLocale(language)];
   const fetch = useFetch();
   const toaster = useToaster();
 
@@ -476,11 +483,19 @@ const AiProviderComponent = () => {
         schedule, the API key — are shown as their own row rather than
         dropped, so the rows still add up to the total above.
       */}
-      {!!data?.usageByMember?.length && (
-        <div className="flex flex-col gap-[8px]">
-          <div className="cf-label-sm text-cf-ink-muted">
-            {t('ai_usage_by_member', 'AI operations by member, this period')}
-          </div>
+      {/*
+        Рисуется всегда, а не только при непустом списке
+        (`content-factory-next-m2eg.24`). Владелец 07.09.2026: «расходы по
+        участнику… не понимаю, где смотреть, потому что там же их нет». Их и
+        правда не было: до первого вызова модели список пуст, а вместе с ним
+        исчезал и заголовок — человек искал раздел, которого в этот момент не
+        существовало на странице. Ноль — это ответ, и он печатается.
+      */}
+      <div data-ai-usage="member" className="flex flex-col gap-[8px]">
+        <div className="cf-label-sm text-cf-ink-muted">
+          {t('ai_usage_by_member', 'AI operations by member, this period')}
+        </div>
+        {data?.usageByMember?.length ? (
           <div className="flex flex-col gap-[4px]">
             {data.usageByMember.map((member) => (
               <div
@@ -497,8 +512,18 @@ const AiProviderComponent = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink">
+              <span className="truncate">{words.usageNone}</span>
+              <span className="cf-caption text-cf-ink-muted">0</span>
+            </div>
+            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {words.usageNoneHint}
+            </p>
+          </>
+        )}
+      </div>
 
       {/*
         The same period, read along the other axis. Routing is configured per
@@ -507,11 +532,11 @@ const AiProviderComponent = () => {
         product can check. Rows written before the ledger carried a role keep
         their own line rather than being dropped, so the parts still add up.
       */}
-      {!!data?.usageByRole?.length && (
-        <div className="flex flex-col gap-[8px]">
-          <div className="cf-label-sm text-cf-ink-muted">
-            {t('ai_usage_by_role', 'AI operations by role, this period')}
-          </div>
+      <div data-ai-usage="role" className="flex flex-col gap-[8px]">
+        <div className="cf-label-sm text-cf-ink-muted">
+          {t('ai_usage_by_role', 'AI operations by role, this period')}
+        </div>
+        {data?.usageByRole?.length ? (
           <div className="flex flex-col gap-[4px]">
             {data.usageByRole.map((row) => (
               <div
@@ -529,8 +554,31 @@ const AiProviderComponent = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            {/*
+              Шесть нулей, а не одна строка «пусто»: роли известны заранее
+              (`AI_ROLES`), и напечатанный ноль напротив каждой — это и есть
+              ответ на вопрос «а где смотреть». Заодно список ролей виден
+              раньше, чем человек доходит до полей ниже.
+            */}
+            <div className="flex flex-col gap-[4px]">
+              {AI_ROLES.map((role) => (
+                <div
+                  key={role}
+                  className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+                >
+                  <span className="truncate">{t(`ai_role_${role}`, role)}</span>
+                  <span className="cf-caption text-cf-ink-muted">0</span>
+                </div>
+              ))}
+            </div>
+            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {words.usageNoneHint}
+            </p>
+          </>
+        )}
+      </div>
 
       <Select
         label={t('provider', 'Provider')}
@@ -636,11 +684,26 @@ const AiProviderComponent = () => {
         <h4 className="cf-heading-md text-cf-ink">
           {t('ai_role_models', 'Model per call role')}
         </h4>
-        <div className="cf-body-sm text-cf-ink-muted">
-          {t(
-            'ai_role_models_hint',
-            'Empty means the text model above. A one-sentence classification does not need the model that writes your drafts.'
-          )}
+        {/*
+          Три предложения вместо одного, и каждое отвечает на свой вопрос
+          (`content-factory-next-m2eg.24`). Владелец 07.09.2026: «разделы
+          «модель на роль вызова»… непонятно написаны, непонятно, а зачем они
+          нужны». Заголовок называл настройку, подсказка объясняла пустое поле,
+          и нигде не было сказано, что такое роль вызова и зачем её трогать.
+        */}
+        <div
+          data-ai-roles-hint="true"
+          className="mt-[4px] flex flex-col gap-[4px]"
+        >
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {words.rolesWhat}
+          </p>
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {words.rolesEmpty}
+          </p>
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {words.rolesWhy}
+          </p>
         </div>
       </div>
 
@@ -652,6 +715,10 @@ const AiProviderComponent = () => {
           value={roleModels[role] || ''}
           placeholder={t('provider_default_model', 'Provider default')}
           disableForm={true}
+          // Одна строка про саму роль, рядом с её полем: список из шести
+          // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
+          // его впервые.
+          helper={words.roles[role].what}
           list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
           disabled={usageMode === 'included'}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) =>

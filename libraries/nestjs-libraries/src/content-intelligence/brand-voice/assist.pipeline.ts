@@ -61,8 +61,44 @@ export type AssistResult = {
   calls: { stage: 'map' | 'reduce'; attempt: number; ok: boolean }[];
 };
 
+/**
+ * A call that has just happened, told to whoever is waiting.
+ *
+ * The same fact `calls` records, handed over while the run is still going
+ * rather than after it: a corpus of 28 samples is 28 calls, and a person
+ * watching a bar that cannot move until all of them finish is watching a
+ * guess. `index` is the sample's own place in the chosen list, so the bar
+ * measures work rather than attempts — a repaired schema violation does not
+ * push it backwards.
+ */
+export type AssistProgressEvent = {
+  stage: 'map' | 'reduce';
+  index: number;
+  total: number;
+  ok: boolean;
+};
+
 /** The schema repair loop: one retry, then the sample is dropped and named. */
 const MAX_ATTEMPTS = 2;
+
+/**
+ * How many samples are read at once, and why not one and not all of them.
+ *
+ * One at a time is what this did until 07.09.2026, and it is the reason the
+ * owner's 88-sample run died on the ingress: twenty sequential calls at a few
+ * seconds each is minutes of one waiting request. All at once is the other
+ * extreme and buys a rate-limit refusal from the provider on the first
+ * corpus large enough to matter, which loses the whole run rather than
+ * slowing it.
+ *
+ * Three is the number that fits both: it divides the wait by three and keeps
+ * the burst small enough that a per-organisation quota is checked three times
+ * over rather than twenty. The results are still assembled in the samples'
+ * own order — the reduce prompt names observations by `sampleCode#position`,
+ * and a list whose order depends on which call answered first would renumber
+ * them differently on every run.
+ */
+const MAP_CONCURRENCY = 3;
 
 const SCALE_SENTENCE = (
   measurement: BrandVoiceMeasurementResult,
@@ -242,7 +278,10 @@ async function attempt<T>(
   prompt: string,
   schemaName: string,
   parse: (value: unknown) => T,
-  calls: AssistResult['calls']
+  calls: AssistResult['calls'],
+  /** Where this call sits in the run, for the line a person is reading. */
+  place: { index: number; total: number },
+  onProgress?: (event: AssistProgressEvent) => void
 ): Promise<{ value: T } | { error: string }> {
   let lastError = 'unknown';
   for (let index = 1; index <= MAX_ATTEMPTS; index += 1) {
@@ -260,13 +299,40 @@ async function attempt<T>(
       });
       const value = parse(raw);
       calls.push({ stage, attempt: index, ok: true });
+      onProgress?.({ stage, ...place, ok: true });
       return { value };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
       calls.push({ stage, attempt: index, ok: false });
+      onProgress?.({ stage, ...place, ok: false });
     }
   }
   return { error: lastError };
+}
+
+/**
+ * A bounded number of workers over one list, results in the list's order.
+ *
+ * Written here rather than reached for as a dependency: it is nine lines, and
+ * the one property that matters — `results[i]` belongs to `items[i]` however
+ * the calls interleaved — is easier to see than to look up.
+ */
+async function mapWithLimit<In, Out>(
+  items: readonly In[],
+  limit: number,
+  run: (item: In, index: number) => Promise<Out>
+): Promise<Out[]> {
+  const results = new Array<Out>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (let at = next++; at < items.length; at = next++) {
+      results[at] = await run(items[at], at);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  );
+  return results;
 }
 
 export async function runAssist({
@@ -275,6 +341,7 @@ export async function runAssist({
   transport,
   locale = 'ru',
   sampleLimit,
+  onProgress,
 }: {
   samples: readonly BrandVoiceSampleInput[];
   measurement: BrandVoiceMeasurementResult;
@@ -282,6 +349,14 @@ export async function runAssist({
   locale?: 'ru' | 'en';
   /** Overridden only by a test that wants a shorter run. */
   sampleLimit?: number;
+  /**
+   * Told about each call as it happens, for a caller streaming to a person.
+   *
+   * Optional and never awaited: this pipeline decides nothing by it, and a
+   * listener that throws must not be able to lose a run that is being paid
+   * for.
+   */
+  onProgress?: (event: AssistProgressEvent) => void;
 }): Promise<AssistResult> {
   const chosen = selectSamples(
     samples,
@@ -292,15 +367,24 @@ export async function runAssist({
   const rejected: AssistRejection[] = [];
   const collected: (Observation & { sampleCode: string; ref: string })[] = [];
 
-  for (const sample of chosen) {
-    const outcome = await attempt<MapResult>(
+  // Three at a time, and every sample keeps its own call log, so the record
+  // and the observations read in the corpus's order however the calls raced.
+  const mapped = await mapWithLimit(chosen, MAP_CONCURRENCY, (sample, at) => {
+    const own: AssistResult['calls'] = [];
+    return attempt<MapResult>(
       transport,
       'map',
       mapPrompt(sample, measurement, locale),
       'brand-voice-observations',
       (raw) => mapResultSchema.parse(raw),
-      calls
-    );
+      own,
+      { index: at + 1, total: chosen.length },
+      onProgress
+    ).then((outcome) => ({ sample, outcome, own }));
+  });
+
+  for (const { sample, outcome, own } of mapped) {
+    calls.push(...own);
 
     if ('error' in outcome) {
       // One sample failing does not end the run: the others still describe
@@ -361,7 +445,10 @@ export async function runAssist({
     reducePrompt(observations, locale, measurement.postHabits, measurement.postLayout),
     'brand-voice-proposal',
     (raw) => reduceResultSchema.parse(raw),
-    calls
+    calls,
+    // One reduce for the whole corpus: the last step, and its own step.
+    { index: 1, total: 1 },
+    onProgress
   );
 
   if ('error' in reduced) {

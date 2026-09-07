@@ -340,7 +340,11 @@ function database(seed = fixture()) {
   return { model, calls, seed };
 }
 
-function service(seed = fixture(), now = () => at('2026-08-22T10:00:00.000Z')) {
+function service(
+  seed = fixture(),
+  now = () => at('2026-08-22T10:00:00.000Z'),
+  search = null
+) {
   const store = database(seed);
   const repository = new ContentMaterialRepository(
     { model: store.model },
@@ -348,9 +352,34 @@ function service(seed = fixture(), now = () => at('2026-08-22T10:00:00.000Z')) {
   );
   return {
     store,
-    service: new ContentMaterialService(repository, now),
+    service: new ContentMaterialService(repository, now, search),
   };
 }
+
+/**
+ * Подставной внутренний поиск (`content-factory-next-m2eg.19`).
+ *
+ * Записывает, о чём его спросили, и отвечает тем, что ему велели. Настоящий
+ * индекс судит `tests/text-search.test.cjs`; здесь важно, кого сервис
+ * спрашивает первым и на что откатывается.
+ */
+const searchStub = (options = {}) => {
+  const calls = { matchingIds: [], search: [], invalidate: [] };
+  return {
+    calls,
+    stub: {
+      matchingIds: async (...args) => {
+        calls.matchingIds.push(args);
+        return options.matched ?? null;
+      },
+      search: async (...args) => {
+        calls.search.push(args);
+        return options.related ?? [];
+      },
+      invalidate: (organizationId) => calls.invalidate.push(organizationId),
+    },
+  };
+};
 
 const failure = async (run) => {
   try {
@@ -463,6 +492,167 @@ describe('word search sees the archive only when asked', () => {
     );
     expect(query.args.where.organizationId).toBe('org-a');
     expect(query.args.where).not.toHaveProperty('archivedAt');
+  });
+});
+
+/**
+ * Внутренний поиск спрашивается первым, поиск по словам остаётся запасным
+ * (`content-factory-next-m2eg.19`, решение владельца 07.09.2026).
+ */
+describe('the archive asks the internal index before the database', () => {
+  test('the index answers, and the database is never asked for words', async () => {
+    const { calls, stub } = searchStub({ matched: new Set(['piece-a']) });
+    const { service: materials, store } = service(
+      fixture(),
+      () => at('2026-08-22T10:00:00.000Z'),
+      stub
+    );
+
+    const answer = await materials.listArchive('org-a', { q: 'сроки' });
+
+    expect(calls.matchingIds).toEqual([['org-a', 'сроки', 'PIECE']]);
+    expect(answer.materials.map((row) => row.id)).toEqual(['piece-a']);
+    // Ни одного `contains` в базе: индекс уже ответил.
+    const words = store.calls.filter(
+      (call) =>
+        call.name === 'contentPiece.findMany' &&
+        JSON.stringify(call.args.where || {}).includes('contains')
+    );
+    expect(words).toEqual([]);
+  });
+
+  test('an empty index falls back to the word search it replaced', async () => {
+    const { calls, stub } = searchStub({ matched: null });
+    const { service: materials, store } = service(
+      fixture(),
+      () => at('2026-08-22T10:00:00.000Z'),
+      stub
+    );
+
+    await materials.listArchive('org-a', { q: 'дедлайн' });
+
+    expect(calls.matchingIds).toHaveLength(1);
+    const words = store.calls.filter(
+      (call) =>
+        call.name === 'contentPiece.findMany' &&
+        JSON.stringify(call.args.where || {}).includes('contains')
+    );
+    expect(words.length).toBeGreaterThan(0);
+  });
+
+  test('no question means no search at all, by either road', async () => {
+    const { calls, stub } = searchStub({ matched: new Set(['piece-a']) });
+    const { service: materials } = service(
+      fixture(),
+      () => at('2026-08-22T10:00:00.000Z'),
+      stub
+    );
+
+    const answer = await materials.listArchive('org-a', {});
+
+    // Пустой запрос доезжает до поиска и получает `null` — «отбирать нечего»,
+    // — а не пустое множество, которое спрятало бы каждую строку.
+    expect(calls.matchingIds).toEqual([['org-a', '', 'PIECE']]);
+    expect(answer.materials.length).toBeGreaterThan(0);
+  });
+});
+
+describe('«свои тексты по теме» ask for published texts with an address', () => {
+  const HIT = {
+    id: 'adaptation-7',
+    kind: 'ADAPTATION',
+    title: 'Срок, о котором знает клиент',
+    excerpt: 'Срок держится, когда о нём знает кто-то ещё.',
+    url: 'https://t.me/studio/17',
+    platform: 'telegram',
+    publishedAt: '2026-08-03T12:00:00.000Z',
+    pieceId: 'piece-a',
+    score: 1.4,
+  };
+
+  test('the question carries the platform, the link rule and a small limit', async () => {
+    const { calls, stub } = searchStub({ related: [HIT] });
+    const { service: materials } = service(
+      fixture(),
+      () => at('2026-08-22T10:00:00.000Z'),
+      stub
+    );
+
+    const answer = await materials.listRelated('org-a', {
+      q: 'сроки поставки',
+      platform: 'telegram',
+    });
+
+    // Ответ — «свой текст по теме», а не находка поиска: `pieceId` и прочее
+    // устройство индекса на экран не едет, а адрес обязателен.
+    expect(answer.related).toEqual([
+      {
+        id: 'adaptation-7',
+        kind: 'ADAPTATION',
+        title: 'Срок, о котором знает клиент',
+        excerpt: 'Срок держится, когда о нём знает кто-то ещё.',
+        url: 'https://t.me/studio/17',
+        platform: 'telegram',
+        publishedAt: '2026-08-03T12:00:00.000Z',
+        score: 1.4,
+      },
+    ]);
+    expect(calls.search[0][0]).toBe('org-a');
+    expect(calls.search[0][1]).toBe('сроки поставки');
+    expect(calls.search[0][2]).toMatchObject({
+      platform: 'telegram',
+      kinds: ['ADAPTATION', 'POST'],
+      linkableOnly: true,
+      limit: 3,
+      mode: 'ranked',
+    });
+  });
+
+  test('an empty question asks nothing and answers with nothing', async () => {
+    const { calls, stub } = searchStub({ related: [HIT] });
+    const { service: materials } = service(
+      fixture(),
+      () => at('2026-08-22T10:00:00.000Z'),
+      stub
+    );
+
+    expect(await materials.listRelated('org-a', { q: '  ' })).toEqual({
+      related: [],
+    });
+    expect(calls.search).toEqual([]);
+  });
+
+  test('a workspace without the index gets an empty list, not a failure', async () => {
+    const { service: materials } = service();
+
+    expect(await materials.listRelated('org-a', { q: 'сроки' })).toEqual({
+      related: [],
+    });
+  });
+
+  test('a text brought into the archive is findable at once', async () => {
+    const { calls, stub } = searchStub();
+    // Своё хранилище на один вызов: занесение — единственная запись этого
+    // сервиса, которой нет в общем стенде чтения.
+    const materials = new ContentMaterialService(
+      {
+        createArchivePiece: async () => ({
+          id: 'piece-new',
+          createdAt: at('2026-09-07T10:00:00.000Z'),
+        }),
+      },
+      () => at('2026-09-07T10:00:00.000Z'),
+      stub
+    );
+
+    await materials.importArchiveMaterial('org-a', 'user-1', {
+      origin: 'IMPORTED_PRE_PRODUCT',
+      title: 'Занесённый текст',
+      body: 'Тело занесённого текста.',
+      language: 'ru',
+    });
+
+    expect(calls.invalidate).toEqual(['org-a']);
   });
 });
 
@@ -692,7 +882,11 @@ describe('the controller answers exactly the routes the contract declares', () =
       '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service':
         { ContentMaterialService: class {} },
       '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-material.dto':
-        { MaterialRecutDto: class {}, MaterialDraftDto: class {} },
+        {
+          MaterialRecutDto: class {},
+          MaterialDraftDto: class {},
+          RelatedTextsQueryDto: class {},
+        },
       '@contentfactory/nestjs-libraries/content-intelligence/materials/archive-presentation':
         load(FILES.archivePresentation),
     },
@@ -763,13 +957,64 @@ describe('the controller answers exactly the routes the contract declares', () =
     const organization = { id: 'org-a' };
 
     await controller.list(organization);
+    await controller.related(organization, { q: 'сроки' });
     await controller.derivations(organization, 'piece-a');
     await controller.recutPreview(organization, 'piece-a', {
       platform: 'telegram',
     });
     await controller.draft(organization, 'piece-a', { platform: 'telegram' });
 
-    expect(seen).toEqual(['org-a', 'org-a', 'org-a', 'org-a']);
+    expect(seen).toEqual(['org-a', 'org-a', 'org-a', 'org-a', 'org-a']);
+  });
+
+  /**
+   * «Свои тексты по теме» (`content-factory-next-m2eg.19`, решение владельца
+   * 07.09.2026).
+   */
+  describe('the related door', () => {
+    const call = async (query) => {
+      const seen = [];
+      const controller = new ContentMaterialController({
+        listRelated: async (organizationId, filters) => {
+          seen.push([organizationId, filters]);
+          return { related: [] };
+        },
+      });
+      const answer = await controller.related({ id: 'org-a' }, query);
+      return { seen, answer };
+    };
+
+    test('hands the words, the platform and a limit to the service', async () => {
+      const { seen } = await call({
+        q: 'сроки поставки',
+        platform: 'telegram',
+        limit: '2',
+      });
+
+      expect(seen).toEqual([
+        ['org-a', { q: 'сроки поставки', platform: 'telegram', limit: 2 }],
+      ]);
+    });
+
+    test('three is the answer when nobody asked for a number', async () => {
+      const { seen } = await call({ q: 'сроки' });
+
+      expect(seen[0][1]).toEqual({
+        q: 'сроки',
+        platform: undefined,
+        limit: 3,
+      });
+    });
+
+    test('an empty question is a question, not a refusal', async () => {
+      // Пустой запрос доезжает до сервиса и получает пустой список: отказ 400
+      // на пустое поле означал бы красную строку в окне поста, которое просто
+      // ещё не написано.
+      const { seen, answer } = await call({});
+
+      expect(seen[0][1].q).toBeUndefined();
+      expect(answer).toEqual({ related: [] });
+    });
   });
 });
 

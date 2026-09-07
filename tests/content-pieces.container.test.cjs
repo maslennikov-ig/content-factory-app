@@ -86,6 +86,34 @@ const PIECE_ID = fixture.PIECE_FIXTURE_DETAIL.piece.id;
 const DETAIL_URL = adapter.PIECES_API.detail(PIECE_ID);
 const ADAPT_URL = adapter.PIECES_API.adapt(PIECE_ID);
 const ARCHIVE_URL = adapter.PIECES_API.archive(PIECE_ID);
+const ANSWER_URL = routes.PIECE_ROUTES.answer.path(PIECE_ID);
+
+/**
+ * Заготовка с открытым вопросом про факты.
+ *
+ * Тот самый вопрос, который на живом прогоне 07.09.2026 задавался по кругу на
+ * экране входа (`content-factory-next-m2eg`). Теперь он приезжает в брифе
+ * заготовки и живёт на её странице.
+ */
+const ASKED_DETAIL = {
+  ...fixture.PIECE_FIXTURE_DETAIL,
+  core: {
+    ...fixture.PIECE_FIXTURE_DETAIL.core,
+    questions: {
+      round: 0,
+      items: [
+        {
+          field: 'facts',
+          question:
+            'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть',
+          suggested: null,
+          options: [],
+        },
+      ],
+      answered: [],
+    },
+  },
+};
 
 /* -------------------------------------------------------------------------
  * Сеть: ответы дверей и поток строк
@@ -184,11 +212,12 @@ const adaptDoor = (...runs) => {
   };
 };
 
-const table = ({ detail, adapt, archive }) => ({
+const table = ({ detail, adapt, archive, answer }) => ({
   'GET /integrations/list': ok({ integrations: [] }),
   [`GET ${DETAIL_URL}`]: detail ?? detailDoor(ok(fixture.PIECE_FIXTURE_DETAIL)),
   [`POST ${ADAPT_URL}`]: adapt ?? adaptDoor(streamed(fixture.PIECE_FIXTURE_ADAPT_STREAM)),
   ...(archive ? { [`POST ${ARCHIVE_URL}`]: archive } : {}),
+  ...(answer ? { [`POST ${ANSWER_URL}`]: answer } : {}),
 });
 
 /* -------------------------------------------------------------------------
@@ -377,6 +406,137 @@ describe('a refusal is printed in the words the server sent', () => {
   });
 });
 
+describe('уточнение стоит там, где стоит суть', () => {
+  /*
+    Given/When/Then живого прогона 07.09.2026: заготовка уже записана, вопрос
+    приехал в её брифе; человек отвечает — суть переписывается, и повторного
+    «на что это опирается» не бывает.
+  */
+  test('the open question is drawn on the page, above the substance', async () => {
+    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
+    await open();
+
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain('На что это опирается?');
+    // Заготовка уже сохранена, и карточка говорит это словами.
+    expect(card.textContent).toContain('Заготовка уже сохранена');
+  });
+
+  test('an answer travels by field, and the piece is read again', async () => {
+    const answered = [];
+    serve(
+      table({
+        detail: detailDoor(ok(ASKED_DETAIL), ok(fixture.PIECE_FIXTURE_DETAIL)),
+        answer: (call) => {
+          answered.push(call.body);
+          return streamed([
+            {
+              name: 'answer-started',
+              pieceId: PIECE_ID,
+              round: 1,
+            },
+            {
+              name: 'piece',
+              pieceId: PIECE_ID,
+              code: 'cnt-12',
+              core: fixture.PIECE_FIXTURE_DETAIL.core,
+            },
+            { name: 'done', pieceId: PIECE_ID },
+          ])();
+        },
+      })
+    );
+    await open();
+
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    await click(
+      within(card.querySelector('[data-piece-question="facts"]')).getByRole(
+        'radio',
+        { name: 'Поправить' }
+      )
+    );
+    const field = document.querySelector('[name="piece-answer-facts"]');
+    expect(field).not.toBeNull();
+    await act(async () => {
+      fireEvent.change(field, {
+        target: { value: 'из шести дедлайнов сдивнулись пять, я считал' },
+      });
+    });
+    await click(within(card).getByRole('button', { name: 'Дальше' }), () =>
+      answered.length > 0
+    );
+
+    // Ответ опознан полем брифа и доехал дословно, с опечаткой.
+    expect(answered).toEqual([
+      {
+        answers: [
+          {
+            field: 'facts',
+            text: 'из шести дедлайнов сдивнулись пять, я считал',
+          },
+        ],
+      },
+    ]);
+    // Дверь ответила без вопросов — карточка ушла, и второго круга нет.
+    await settle(
+      () => document.querySelector('[data-piece-clarify="true"]') === null
+    );
+    expect(document.querySelector('[data-piece-clarify="true"]')).toBeNull();
+    expect(detailReads).toBe(2);
+  });
+
+  test('«Реши сама» hands the field over and asks nothing again', async () => {
+    const answered = [];
+    serve(
+      table({
+        detail: detailDoor(ok(ASKED_DETAIL), ok(fixture.PIECE_FIXTURE_DETAIL)),
+        answer: (call) => {
+          answered.push(call.body);
+          return streamed([
+            { name: 'answer-started', pieceId: PIECE_ID, round: 1 },
+            {
+              name: 'piece',
+              pieceId: PIECE_ID,
+              code: 'cnt-12',
+              core: fixture.PIECE_FIXTURE_DETAIL.core,
+            },
+            { name: 'done', pieceId: PIECE_ID },
+          ])();
+        },
+      })
+    );
+    await open();
+
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    await click(
+      within(card.querySelector('[data-piece-question="facts"]')).getByRole(
+        'radio',
+        { name: 'Реши сама' }
+      )
+    );
+    await click(within(card).getByRole('button', { name: 'Дальше' }), () =>
+      answered.length > 0
+    );
+
+    expect(answered).toEqual([{ decide: ['facts'] }]);
+  });
+
+  test('«Оставить как есть» sends nothing at all', async () => {
+    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
+    await open();
+
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    await click(
+      within(card).getByRole('button', { name: 'Оставить как есть' })
+    );
+
+    // Ни одного запроса: заготовка уже годится, и это законный исход.
+    expect(calls.filter((call) => call.url === ANSWER_URL)).toEqual([]);
+    expect(document.querySelector('[data-piece-clarify="true"]')).toBeNull();
+  });
+});
+
 describe('«В архив»', () => {
   test('the door of the contract is asked, and the piece is read again', async () => {
     const archived = {
@@ -403,6 +563,12 @@ describe('«В архив»', () => {
     const asked = calls.filter((call) => call.url === ARCHIVE_URL);
     expect(asked).toHaveLength(1);
     expect(asked[0].method).toBe(routes.PIECE_ROUTES.archive.method);
+    /*
+      Тело обязательно. `PieceArchiveDto` требует `archived` и умолчания не
+      имеет — намеренно, — а страница слала запрос без тела и получала 400 на
+      живом прогоне 07.09.2026 (`content-factory-next-m2eg`).
+    */
+    expect(asked[0].body).toEqual({ archived: true });
     // Состояние приходит с перечитанной заготовки, а не из памяти о нажатии.
     expect(detailReads).toBe(2);
     await settle(() => document.body.textContent.includes('в архиве'));
@@ -411,22 +577,30 @@ describe('«В архив»', () => {
     expect(document.querySelector('[data-piece-archive="true"]')).toBeNull();
   });
 
-  test('a refused door is printed in the same band as every other refusal', async () => {
+  test('a refused door is printed in the words the server sent', async () => {
+    /*
+      Слово сервера доходит как есть. Своей ветки под `PIECE_ARCHIVED` здесь
+      больше нет: дверь архива не отказывает уже архивной заготовке — сервис
+      знает только `PIECE_NOT_FOUND`, — и ветка на недостижимый код была
+      подписью под отказом, которого не бывает.
+    */
     serve(
       table({
-        archive: refused(409, {
-          code: 'PIECE_ARCHIVED',
-          message: 'ignored: the screen says this in its own words',
+        archive: refused(404, {
+          code: 'PIECE_NOT_FOUND',
+          message: 'Такой заготовки в рабочем пространстве нет.',
         }),
       })
     );
     await open();
 
     await click(document.querySelector('[data-piece-archive="true"]'), () =>
-      document.body.textContent.includes('уже в архиве')
+      document.body.textContent.includes('Такой заготовки')
     );
 
-    expect(document.body.textContent).toContain('Заготовка уже в архиве.');
+    expect(document.body.textContent).toContain(
+      'Такой заготовки в рабочем пространстве нет.'
+    );
     // Отказ не выдаёт заготовку за архивную: кнопка на месте.
     expect(document.querySelector('[data-piece-archive="true"]')).not.toBeNull();
   });
@@ -458,7 +632,13 @@ describe('the kind of an adaptation is a person’s choice', () => {
     const target = document.querySelector('[data-piece-target="wordpress"]');
     // Умолчание — первый вид площадки, пока человек не сказал иначе.
     expect(target.getAttribute('data-piece-target-kind')).toBe('article');
-    const choice = target.querySelector('[data-piece-kind-choice="wordpress"]');
+    /*
+      С 07.09.2026 полоса вида стоит в шапке панели «Куда адаптировать», рядом
+      с её названием, а не внутри самой кнопки: вопрос «что именно напишется»
+      задаётся один раз над рядом кнопок. Связь с площадкой держит
+      `data-piece-kind-choice`, поэтому ищется она по панели, а не по кнопке.
+    */
+    const choice = document.querySelector('[data-piece-kind-choice="wordpress"]');
     expect(choice).not.toBeNull();
     expect(
       [...choice.querySelectorAll('[role="radio"]')].map((one) => one.textContent)

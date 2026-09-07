@@ -193,50 +193,19 @@ describe('the post window under an ordinary member', () => {
    * 3. The refusal names itself.
    * -------------------------------------------------------------------- */
 
-  test('a post carrying verified context says why it cannot be scheduled', () => {
+  test('a post whose context failed says why it cannot be scheduled', () => {
     const { composeBlockReason, ComposeBlockReasonNote } = loadTypeScriptModule(
       FILES.reason
     );
 
-    // Пост с подтверждениями, ещё не проверенными человеком: планирование
-    // закрыто, и строка называет ровно этот шаг.
+    // Пост с подтверждениями больше ничего не ждёт: ворота «Проверил» сняты
+    // решением владельца 07.09.2026 (`content-factory-next-m2eg.17`).
     expect(
       composeBlockReason({
         locked: false,
         contentIntelligenceLoadState: 'ready',
         contentIntelligenceFailure: null,
         provenanceErrorCode: null,
-        hasProvenance: true,
-        contextReviewedAt: null,
-        postSaved: true,
-      })
-    ).toBe('context-review-required');
-
-    // Тот же пост, ещё не сохранённый: сказать «проверено» некому, и строка
-    // просит сначала черновик.
-    expect(
-      composeBlockReason({
-        locked: false,
-        contentIntelligenceLoadState: 'ready',
-        contentIntelligenceFailure: null,
-        provenanceErrorCode: null,
-        hasProvenance: true,
-        contextReviewedAt: null,
-        postSaved: false,
-      })
-    ).toBe('context-save-draft-first');
-
-    // Человек посмотрел подтверждения и сказал, что проверил их: причины
-    // больше нет.
-    expect(
-      composeBlockReason({
-        locked: false,
-        contentIntelligenceLoadState: 'ready',
-        contentIntelligenceFailure: null,
-        provenanceErrorCode: null,
-        hasProvenance: true,
-        contextReviewedAt: '2026-09-04T18:00:00.000Z',
-        postSaved: true,
       })
     ).toBe('none');
 
@@ -246,7 +215,6 @@ describe('the post window under an ordinary member', () => {
         contentIntelligenceLoadState: 'error',
         contentIntelligenceFailure: 'CONTEXT_UNAVAILABLE',
         provenanceErrorCode: null,
-        hasProvenance: false,
       })
     ).toBe('context-error');
 
@@ -256,7 +224,6 @@ describe('the post window under an ordinary member', () => {
         contentIntelligenceLoadState: 'ready',
         contentIntelligenceFailure: null,
         provenanceErrorCode: 'CONTENT_EVIDENCE_REQUIRED',
-        hasProvenance: true,
       })
     ).toBe('evidence-required');
 
@@ -268,27 +235,25 @@ describe('the post window under an ordinary member', () => {
         contentIntelligenceLoadState: 'idle',
         contentIntelligenceFailure: null,
         provenanceErrorCode: null,
-        hasProvenance: false,
       })
     ).toBe('none');
 
     render(
       h(ComposeBlockReasonNote, {
-        reason: 'context-review-required',
+        reason: 'context-error',
         t: (key, fallback) => fallback,
       })
     );
     const note = document.querySelector('[data-compose-block-reason]');
     expect(note).toBeTruthy();
     expect(note.getAttribute('role')).toBe('status');
-    expect(note.textContent).toMatch(/confirm it/i);
+    expect(note.textContent).toMatch(/could not be verified/i);
   });
 
   test('the window renders the reason beside the buttons it explains', () => {
     const manage = code(FILES.manage);
 
-    // The four conditions that switch the main button off.
-    expect(manage).toMatch(/!!contentIntelligenceProvenance/);
+    // The conditions that switch the main button off.
     expect(manage).toMatch(/contentIntelligenceLoadState === 'error'/);
 
     // And the line that reads them back to the person.
@@ -302,9 +267,6 @@ describe('the post window under an ordinary member', () => {
       'compose_blocked_context_loading',
       'compose_blocked_context_error',
       'compose_blocked_evidence_required',
-      'compose_blocked_context_review_required',
-      'compose_blocked_context_save_draft_first',
-      'context_review_confirm',
     ];
     const localesDir = path.join(
       repositoryRoot,
@@ -322,9 +284,18 @@ describe('the post window under an ordinary member', () => {
     const ru = JSON.parse(
       fs.readFileSync(path.join(localesDir, 'ru', 'translation.json'), 'utf8')
     );
-    expect(ru.compose_blocked_context_review_required).toMatch(
-      /подтверждени/i
-    );
-    expect(ru.compose_blocked_context_save_draft_first).toMatch(/черновик/i);
+    expect(ru.compose_blocked_context_error).toMatch(/контекст/i);
+    expect(ru.compose_blocked_evidence_required).toMatch(/доказательств/i);
+  });
+
+  /**
+   * `content-factory-next-m2eg.17`: ворота «Проверил» сняты целиком, а не
+   * спрятаны за условием.
+   */
+  test('the two evidence-review reasons are gone from the code', () => {
+    const reason = code(FILES.reason);
+    expect(reason).not.toMatch(/context-review-required/);
+    expect(reason).not.toMatch(/context-save-draft-first/);
+    expect(reason).not.toMatch(/contextReviewedAt/);
   });
 });

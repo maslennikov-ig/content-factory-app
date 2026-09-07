@@ -77,6 +77,12 @@ import {
   VOICE_ASSIST_PORT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice.service';
 import { DRAFT_VOICE_JUDGE } from '@contentfactory/nestjs-libraries/agent/draft-pick';
+// Внутренний поиск области (`content-factory-next-m2eg.19`). Стоит в
+// глобальном `DatabaseModule`, потому что спрашивают его четверо из разных
+// модулей — архив, заготовки, факты и адаптация, — а читает он те же строки,
+// что и соседи по этому файлу.
+import { TextSearchRepository } from '@contentfactory/nestjs-libraries/content-intelligence/search/text-search.repository';
+import { TextSearchService } from '@contentfactory/nestjs-libraries/content-intelligence/search/text-search.service';
 import { ContentMaterialRepository } from '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.repository';
 import { ContentMaterialService } from '@contentfactory/nestjs-libraries/content-intelligence/materials/content-material.service';
 import { ContentBriefRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.repository';
@@ -170,6 +176,8 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     // голосовой модуль в генерацию значило бы завести вторую сборку мерки, а
     // мерка в этом эпике одна.
     { provide: DRAFT_VOICE_JUDGE, useExisting: VoiceService },
+    TextSearchRepository,
+    TextSearchService,
     ContentMaterialRepository,
     ContentMaterialService,
     ContentBriefRepository,

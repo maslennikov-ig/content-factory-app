@@ -30,6 +30,11 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
+import { clsx } from 'clsx';
+import {
+  RAIL_CONTROL_GAP,
+  railActionClass,
+} from '@contentfactory/frontend/components/launches/channel-rail';
 const resolver = classValidatorResolver(ApiKeyDto);
 
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
@@ -49,8 +54,10 @@ export const useAddProvider = (update?: () => void, invite?: boolean) => {
 };
 export const AddProviderButton: FC<{
   update?: () => void;
+  /** Свёрнутая рейка каналов: у кнопки остаётся только знак. */
+  collapsed?: boolean;
 }> = (props) => {
-  const { update } = props;
+  const { update, collapsed = false } = props;
   const add = useAddProvider(update);
   const invite = useAddProvider(update, true);
   const t = useT();
@@ -65,10 +72,13 @@ export const AddProviderButton: FC<{
   }
 
   return (
-    <div className="flex group-[.sidebar]:block gap-[8px]">
+    <div className={clsx('flex', RAIL_CONTROL_GAP)}>
       <Button
         variant="secondary"
-        className="flex-1 group-[.sidebar]:w-[100%] group-[.sidebar]:flex-none px-[16px] justify-center items-center flex rounded-[8px] gap-[8px]"
+        iconOnly={collapsed}
+        density="standard"
+        aria-label={t('add_channel', 'Add Channel')}
+        className={railActionClass(collapsed, 'items-center flex')}
         onClick={add}
       >
         <div>
@@ -88,49 +98,53 @@ export const AddProviderButton: FC<{
             />
           </svg>
         </div>
-        <div className="text-start text-[14px] group-[.sidebar]:hidden">
-          {t('add_channel', 'Add Channel')}
-        </div>
+        {!collapsed && (
+          <div className="text-start text-[14px] truncate">
+            {t('add_channel', 'Add Channel')}
+          </div>
+        )}
       </Button>
-      <Button
-        iconOnly
-        size={32}
-        aria-label={t(
-          'invite_link',
-          'Send Invite Link to a customer to add channel'
-        )}
-        variant="quiet"
-        onClick={invite}
-        data-tooltip-id="tooltip"
-        data-tooltip-content={t(
-          'invite_link',
-          'Send Invite Link to a customer to add channel'
-        )}
-        className="group-[.sidebar]:hidden justify-center items-center flex rounded-[8px] cursor-pointer"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 16 16"
-          fill="none"
+      {!collapsed && (
+        <Button
+          iconOnly
+          density="dense"
+          aria-label={t(
+            'invite_link',
+            'Send Invite Link to a customer to add channel'
+          )}
+          variant="quiet"
+          onClick={invite}
+          data-tooltip-id="tooltip"
+          data-tooltip-content={t(
+            'invite_link',
+            'Send Invite Link to a customer to add channel'
+          )}
+          className="justify-center items-center flex rounded-[8px] cursor-pointer"
         >
-          <g clipPath="url(#clip0_2452_193804)">
-            <path
-              d="M6.6668 8.66599C6.9531 9.04875 7.31837 9.36545 7.73783 9.59462C8.1573 9.82379 8.62114 9.96007 9.0979 9.99422C9.57466 10.0284 10.0532 9.95957 10.501 9.79251C10.9489 9.62546 11.3555 9.36404 11.6935 9.02599L13.6935 7.02599C14.3007 6.39732 14.6366 5.55531 14.629 4.68132C14.6215 3.80733 14.2709 2.97129 13.6529 2.35326C13.0348 1.73524 12.1988 1.38467 11.3248 1.37708C10.4508 1.36948 9.60881 1.70547 8.98013 2.31266L7.83347 3.45266M9.33347 7.33266C9.04716 6.94991 8.68189 6.6332 8.26243 6.40403C7.84297 6.17486 7.37913 6.03858 6.90237 6.00444C6.4256 5.97029 5.94708 6.03908 5.49924 6.20614C5.0514 6.3732 4.64472 6.63461 4.3068 6.97266L2.3068 8.97266C1.69961 9.60133 1.36363 10.4433 1.37122 11.3173C1.37881 12.1913 1.72938 13.0274 2.3474 13.6454C2.96543 14.2634 3.80147 14.614 4.67546 14.6216C5.54945 14.6292 6.39146 14.2932 7.02013 13.686L8.16013 12.546"
-              stroke="currentColor"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            ></path>
-          </g>
-          <defs>
-            <clipPath id="clip0_2452_193804">
-              <rect width="16" height="16" fill="textColor"></rect>
-            </clipPath>
-          </defs>
-        </svg>
-      </Button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <g clipPath="url(#clip0_2452_193804)">
+              <path
+                d="M6.6668 8.66599C6.9531 9.04875 7.31837 9.36545 7.73783 9.59462C8.1573 9.82379 8.62114 9.96007 9.0979 9.99422C9.57466 10.0284 10.0532 9.95957 10.501 9.79251C10.9489 9.62546 11.3555 9.36404 11.6935 9.02599L13.6935 7.02599C14.3007 6.39732 14.6366 5.55531 14.629 4.68132C14.6215 3.80733 14.2709 2.97129 13.6529 2.35326C13.0348 1.73524 12.1988 1.38467 11.3248 1.37708C10.4508 1.36948 9.60881 1.70547 8.98013 2.31266L7.83347 3.45266M9.33347 7.33266C9.04716 6.94991 8.68189 6.6332 8.26243 6.40403C7.84297 6.17486 7.37913 6.03858 6.90237 6.00444C6.4256 5.97029 5.94708 6.03908 5.49924 6.20614C5.0514 6.3732 4.64472 6.63461 4.3068 6.97266L2.3068 8.97266C1.69961 9.60133 1.36363 10.4433 1.37122 11.3173C1.37881 12.1913 1.72938 13.0274 2.3474 13.6454C2.96543 14.2634 3.80147 14.614 4.67546 14.6216C5.54945 14.6292 6.39146 14.2932 7.02013 13.686L8.16013 12.546"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              ></path>
+            </g>
+            <defs>
+              <clipPath id="clip0_2452_193804">
+                <rect width="16" height="16" fill="textColor"></rect>
+              </clipPath>
+            </defs>
+          </svg>
+        </Button>
+      )}
     </div>
   );
 };

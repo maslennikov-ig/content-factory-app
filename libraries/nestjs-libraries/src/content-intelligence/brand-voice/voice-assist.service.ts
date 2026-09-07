@@ -11,7 +11,12 @@ import {
   repairResultSchema,
   type RepairResult,
 } from './sentence-repair';
-import { runAssist, type AssistResult, type AssistTransport } from './assist.pipeline';
+import {
+  runAssist,
+  type AssistProgressEvent,
+  type AssistResult,
+  type AssistTransport,
+} from './assist.pipeline';
 import {
   LEARNED_RULES_SCHEMA_NAME,
   learnedRulesSchema,
@@ -56,6 +61,15 @@ export type VoiceAssistInput = {
   samples: readonly BrandVoiceSampleInput[];
   measurement: BrandVoiceMeasurementResult;
   locale?: 'ru' | 'en';
+  /**
+   * Told about each model call while the run is still going.
+   *
+   * Additive and optional: `POST /analysis` passes nothing and behaves exactly
+   * as it did, while the streaming door turns each of these into a line a
+   * person reads. It carries no decision — a caller that ignores it gets the
+   * same proposal.
+   */
+  onProgress?: (event: AssistProgressEvent) => void;
 };
 
 /**
@@ -97,6 +111,7 @@ export async function runVoiceAssist(
       measurement: input.measurement,
       transport,
       locale: input.locale ?? 'ru',
+      ...(input.onProgress ? { onProgress: input.onProgress } : {}),
     });
     last = result;
     const verdict = classifyAssistResult(result);
@@ -170,6 +185,7 @@ export class VoiceAssistService {
       samples: input.samples,
       measurement: input.measurement,
       locale: input.locale,
+      ...(input.onProgress ? { onProgress: input.onProgress } : {}),
     });
   }
 

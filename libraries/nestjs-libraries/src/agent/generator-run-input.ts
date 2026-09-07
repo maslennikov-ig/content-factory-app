@@ -18,7 +18,10 @@
  */
 
 import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
-import type { ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type {
+  ChannelWritingProfileV1,
+  RelatedOwnPostV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 export const INTAKE_HINTS_VERSION = 'intake-hints/v1' as const;
 
@@ -71,6 +74,33 @@ export type IntakeGenerationHintsV1 = {
   channel: IntakeChannelHintsV1;
 };
 
+/**
+ * Ищет ли генерация материал в вебе сама.
+ *
+ * `SEARCH_IF_EMPTY` — то, что было всегда и остаётся умолчанием: своего
+ * материала нет, значит `AgentGraphService.searchForMaterial` сходит в веб
+ * перед сборкой контекста (`content-factory-next-ec48.1`).
+ *
+ * `PIECE_ONLY` — «писать из того, что уже есть, и больше ниоткуда». Решение
+ * владельца 07.09.2026 на живом прогоне (`content-factory-next-m2eg.16`):
+ * адаптация заготовки берёт суть, бриф и ответы человека — материал у неё
+ * уже на руках, — а поиск на каждой площадке добавлял к нему чужие находки,
+ * стоил денег области и приносил в текст то, чего человек не просил. Флаг
+ * ставит только сервер; снаружи, на `POST /posts/generator`, его нет, как нет
+ * и `intake`.
+ */
+export type GeneratorMaterialPolicyV1 = 'SEARCH_IF_EMPTY' | 'PIECE_ONLY';
+
 export type GeneratorRunInput = GeneratorDto & {
   intake?: IntakeGenerationHintsV1;
+  materialPolicy?: GeneratorMaterialPolicyV1;
+  /**
+   * Свои прежние тексты по теме — материал для промпта, а не поиск в вебе.
+   *
+   * Считает их `TextSearchService` по внутреннему индексу области и передаёт
+   * сюда уже готовыми (`content-factory-next-m2eg.19`). Граф их только
+   * печатает: второе место, которое умеет искать, — это второй порядок
+   * ранжирования и второй ответ на один вопрос.
+   */
+  relatedOwnPosts?: RelatedOwnPostV1[];
 };

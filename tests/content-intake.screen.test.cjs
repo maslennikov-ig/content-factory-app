@@ -113,20 +113,17 @@ const draw = (props = {}) =>
       selectedIds: [],
       language: 'ru',
       step: null,
-      questions: [],
       brief: null,
       overrides: {},
       draftText: null,
       blocked: 'input',
       restrictedReason: 'ИИ пока недоступен',
-      roundsSpent: false,
       slopKey: 'k',
       onInputChange: noop,
       onToggleChannel: noop,
       onLanguageChange: noop,
       onWrite: noop,
       onCancel: noop,
-      onAnswer: noop,
       onOverride: noop,
       onKindChange: noop,
       onRevertOverrides: noop,
@@ -207,13 +204,17 @@ describe('the door is one field, and its refusals are readable', () => {
 });
 
 describe('channels, and the writing card behind one of them', () => {
-  test('a picked Telegram channel offers «Как пишем в «X»»; VK does not', () => {
+  test('a picked Telegram channel offers «Настроить: …»; VK does not', () => {
     draw({ selectedIds: ['int-tg', 'int-vk'], blocked: null });
     expect(
-      screen.getByRole('button', { name: 'Как пишем в «Мой канал»' })
+      screen.getByRole('button', {
+        name: 'Настроить: как пишем в «Мой канал»',
+      })
     ).toBeTruthy();
     expect(
-      screen.queryByRole('button', { name: 'Как пишем в «Сообщество»' })
+      screen.queryByRole('button', {
+        name: 'Настроить: как пишем в «Сообщество»',
+      })
     ).toBeNull();
   });
 
@@ -340,96 +341,57 @@ describe('the run, and the result beside its receipt', () => {
   });
 });
 
-describe('the questions, and the end of them', () => {
-  const QUESTIONS = [
-    {
-      field: 'thesis',
-      question: 'Что именно вы утверждаете?',
-      options: ['Первый вариант', 'Второй вариант'],
-    },
-    { field: 'facts', question: 'На чём это стоит?', options: [] },
-  ];
+describe('the questions left this screen with the wave', () => {
+  /*
+    `content-factory-next-m2eg`, живой прогон 07.09.2026. Заготовка теперь
+    записывается до вопросов, экран уходит на её страницу, и уточнения живут
+    там. Здесь судится отсутствие: карточки вопросов нет, тупика «больше
+    спрашивать не будем» нет, а строка хода стоит рядом с кнопкой — это
+    единственное, что человек видит, пока экран ещё здесь.
+  */
+  test('no question card and no dead end are drawn at all', () => {
+    draw({ state: 'idle', blocked: null, onManual: noop });
 
-  test('both questions are visible at once, each with three ways to close it', () => {
-    draw({ state: 'questions', blocked: null, questions: QUESTIONS });
-    const card = document.querySelector('[data-intake-questions="true"]');
-    expect(card).not.toBeNull();
-    expect(card.textContent).toContain('Два вопроса — и пишем');
-    expect(card.querySelectorAll('[data-intake-question]')).toHaveLength(2);
-
-    const first = card.querySelector('[data-intake-question="thesis"]');
-    const options = within(first).getAllByRole('radio');
-    expect(options.map((one) => one.textContent)).toEqual([
-      'Первый вариант',
-      'Второй вариант',
-      'Свой ответ',
-      'Реши сама',
-    ]);
+    expect(document.querySelector('[data-intake-questions="true"]')).toBeNull();
+    expect(document.querySelector('[data-piece-questions="true"]')).toBeNull();
+    expect(document.querySelector('[data-intake-rounds-spent="true"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Больше спрашивать не будем');
   });
 
-  test('one question counts itself in Russian', () => {
-    draw({ state: 'questions', blocked: null, questions: [QUESTIONS[0]] });
-    expect(document.body.textContent).toContain('Один вопрос — и пишем');
+  test('the step in flight stands beside the button, not under the page', () => {
+    draw({ state: 'streaming', step: 'writing', blocked: null });
+    const step = document.querySelector('[data-intake-step="writing"]');
+    const action = document.querySelector('[data-intake-action]');
+
+    expect(step).not.toBeNull();
+    // Один и тот же ряд: строка объясняет нажатую кнопку, а не страницу.
+    expect(step.parentElement).toBe(action.parentElement);
   });
 
-  test('«Написать» waits for an answer and says what it waits for', () => {
-    draw({ state: 'questions', blocked: null, questions: QUESTIONS });
-    const card = document.querySelector('[data-intake-questions="true"]');
-    const write = within(card).getByRole('button', { name: 'Написать' });
-    expect(write.disabled).toBe(true);
-    expect(
-      card.querySelector('[data-intake-block-reason="answers"]').textContent
-    ).toBe('Ответьте или нажмите «Реши сама»');
-    // «Реши всё сама» не ждёт ничего: человек не обязан знать ответ.
-    expect(within(card).getByRole('button', { name: 'Реши всё сама' }).disabled).toBe(
-      false
-    );
-  });
-
-  test('«Свой ответ» opens a field, and the answer travels by field name', async () => {
-    const sent = [];
+  test('the saved piece is named with its code and can be opened', async () => {
+    const opened = [];
     draw({
-      state: 'questions',
+      state: 'idle',
       blocked: null,
-      questions: QUESTIONS,
-      onAnswer: (answers, decide) => sent.push({ answers, decide }),
+      piece: { pieceId: 'piece-12', code: 'cnt-07' },
+      onOpenPiece: (id) => opened.push(id),
     });
-    const card = document.querySelector('[data-intake-questions="true"]');
 
-    await click(
-      within(card.querySelector('[data-intake-question="thesis"]')).getByRole(
-        'radio',
-        { name: 'Свой ответ' }
-      )
-    );
-    const field = document.querySelector('[name="intake-answer-thesis"]');
-    expect(field).not.toBeNull();
-    await type(field, 'Свой тезис');
-
-    // Второй вопрос отдан модели.
-    await click(
-      within(card.querySelector('[data-intake-question="facts"]')).getByRole(
-        'radio',
-        { name: 'Реши сама' }
-      )
-    );
-    await click(within(card).getByRole('button', { name: 'Написать' }));
-
-    expect(sent).toEqual([
-      {
-        answers: [{ field: 'thesis', text: 'Свой тезис' }],
-        decide: ['facts'],
-      },
-    ]);
+    const line = document.querySelector('[data-intake-piece="cnt-07"]');
+    expect(line.textContent).toContain('Заготовка сохранена — cnt-07');
+    await click(within(line).getByRole('button', { name: 'Открыть заготовку' }));
+    expect(opened).toEqual(['piece-12']);
   });
 
-  test('after two rounds the screen stops asking and offers a way out', () => {
-    draw({ state: 'idle', blocked: null, roundsSpent: true, onManual: noop });
-    const panel = document.querySelector('[data-intake-rounds-spent="true"]');
-    expect(panel).not.toBeNull();
-    expect(panel.textContent).toContain('Больше спрашивать не будем');
+  test('a failed run offers the manual brief as the second way out', () => {
+    draw({
+      state: 'error',
+      blocked: null,
+      errorMessage: 'Текст не собрался.',
+      onManual: noop,
+    });
     expect(
-      within(panel).getByRole('button', { name: 'Заполнить бриф вручную' })
+      screen.getByRole('button', { name: 'Заполнить бриф вручную' })
     ).toBeTruthy();
   });
 });

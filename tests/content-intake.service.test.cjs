@@ -10,9 +10,13 @@
  * писался: ворота брифа (`evaluateBrief`), разбор вида входа, сверка чисел и
  * сборка разметки черновика.
  *
- * Что здесь судится, по решениям владельца 06.09.2026:
+ * Что здесь судится, по решениям владельца 06.09.2026 и правке живого прогона
+ * 07.09.2026 (`content-factory-next-m2eg`):
  *
- *  - тонкий вход отвечает вопросами, а не текстом, и до генератора не доходит;
+ *  - **заготовка пишется до вопросов**: событие `piece` приходит первым, а
+ *    вопросы едут вместе с ней и ход не обрывают;
+ *  - один вопрос на поле брифа: «на что это опирается» и «есть личная
+ *    история» больше не задаются подряд как два разных вопроса про `facts`;
  *  - числа чужого поста входят в бриф только подтверждёнными, непроверенное
  *    видно отдельной строкой и в текст не идёт;
  *  - **сам чужой текст не попадает в аргументы `start()` ни одним полем** —
@@ -361,6 +365,8 @@ const build = (options = {}) => {
       // `content-factory-next-tu3k.9`: первая одна на вход, вторая на канал.
       recordCore: async (organizationId, input) => {
         calls.recordCore.push([organizationId, input]);
+        // Отказ записи с волны `m2eg` бросается, а не возвращается как `null`.
+        if (options.recordCoreFails) throw new Error('the library refused');
         return { id: `piece-${calls.recordCore.length}`, code: 'cnt-01' };
       },
       recordAdaptation: async (organizationId, input) => {
@@ -408,26 +414,49 @@ const request = (overrides = {}) => ({
  * Наборы
  * ---------------------------------------------------------------------- */
 
-describe('тонкий вход отвечает вопросами, а не текстом', () => {
-  test('два вопроса, тезис и факты, и генератор не тронут', async () => {
-    const { service, calls } = build({ models: [thinBriefAnswer()] });
+describe('тонкий вход отвечает заготовкой, а вопросы едут вместе с ней', () => {
+  test('заготовка первой, вопросы после, и ход не обрывается', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer(), { text: 'Суть из тонкого ввода.' }],
+    });
     const plan = await service.prepare('org-a', request());
     const events = await drain(service, 'org-a', plan);
 
-    expect(events.map((event) => event.name)).toEqual([
-      'intake-started',
-      'brief-filled',
-      'questions',
-    ]);
+    /*
+      Порядок и есть предмет проверки (`content-factory-next-m2eg`). До живого
+      прогона 07.09.2026 стрим кончался на `questions`, заготовки не
+      существовало, и человек, ответивший дважды, оставался ни с чем. Теперь
+      `piece` идёт раньше вопросов, а вопросы ничего не обрывают.
+    */
+    const names = events.map((event) => event.name);
+    expect(names.indexOf('piece')).toBeGreaterThanOrEqual(0);
+    expect(names.indexOf('piece')).toBeLessThan(names.indexOf('questions'));
+    expect(names[names.length - 1]).toBe('done');
+    expect(calls.recordCore).toHaveLength(1);
+
+    /*
+      Три вопроса — предел шага, и все три про разные поля. Одного «facts»
+      достаточно: вопрос ворот и вопрос про личную историю сведены в один,
+      потому что закрывают они одно и то же.
+    */
     const [questions] = named(events, 'questions');
     expect(questions.questions.map((row) => row.field)).toEqual([
       'thesis',
       'facts',
+      'position',
     ]);
     // Варианты приходят от модели: человек отвечает нажатием, а не сочинением.
     expect(questions.questions[0].options).toHaveLength(2);
-    expect(calls.start).toEqual([]);
-    expect(calls.createDraft).toEqual([]);
+    // И те же вопросы лежат в брифе записанной заготовки: отвечать на них
+    // человек будет уже на её странице.
+    const [, stored] = calls.recordCore[0];
+    expect(stored.brief.questions.items.map((row) => row.field)).toEqual([
+      'thesis',
+      'facts',
+      'position',
+    ]);
+    expect(stored.brief.questions.round).toBe(0);
+
     // Аватар знает, для кого пишет область, и об этом не спрашивают.
     const [filled] = named(events, 'brief-filled');
     expect(filled.brief.audience).toBe(
@@ -436,12 +465,17 @@ describe('тонкий вход отвечает вопросами, а не т�
     expect(filled.brief.origins.audience).toBe('avatar');
   });
 
-  test('расход — только собственная операция входа, генерации нет', async () => {
-    const { service, calls } = build({ models: [thinBriefAnswer()] });
+  test('расход — разбор брифа и одна суть, и ни одной генерации сверх канала', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer(), { text: 'Суть из тонкого ввода.' }],
+    });
     const plan = await service.prepare('org-a', request());
     await drain(service, 'org-a', plan);
 
-    expect(calls.usage).toEqual([['org-a', 'intake', 'extract']]);
+    expect(calls.usage).toEqual([
+      ['org-a', 'intake', 'extract'],
+      ['org-a', 'intake', 'draft'],
+    ]);
   });
 
   test('поле, отданное модели, заполняется её же первым вариантом', async () => {
@@ -465,9 +499,16 @@ describe('тонкий вход отвечает вопросами, а не т�
     );
     expect(filled.brief.origins.position).toBe('model');
     expect(filled.brief.disagreement).toBe('Те, кто считает, что тема выгорела');
-    // Про отданное не переспрашивают: остаётся один вопрос — про факты.
-    expect(named(events, 'questions')[0].questions.map((row) => row.field)).toEqual(
-      ['facts']
+    /*
+      Про отданное не переспрашивают. Остаются два: тезис, который придумала
+      сама модель (и она же отвечает на него первой), и факты, которых нет ни
+      одного. Позиция отдана — её нет в списке, и это ровно то, что «Реши
+      сама» означает.
+    */
+    const [asked] = named(events, 'questions');
+    expect(asked.questions.map((row) => row.field)).toEqual(['thesis', 'facts']);
+    expect(asked.questions[0].suggested).toBe(
+      'Про ИИ надо писать реже, но проверять каждое число'
     );
   });
 });
@@ -776,7 +817,17 @@ describe('слово человека и выключенный поиск', () 
     expect(fact.origin).toBe('person');
     expect(fact.verified).toBe(true);
     expect(fact.sourceUrl).toBe('https://example.test/notes');
-    expect(named(events, 'questions')).toEqual([]);
+    /*
+      Про факты больше не спрашивают: человек ответил, и поле закрыто. Остаётся
+      позиция, которую модель предположила сама, — и она же отвечает на неё
+      первой. Вопрос про `facts` в списке ровно ноль раз: повтор, который
+      владелец увидел на прогоне, невозможен по устройству.
+    */
+    const fields = named(events, 'questions')[0].questions.map(
+      (row) => row.field
+    );
+    expect(fields).toEqual(['position']);
+    expect(fields.filter((field) => field === 'facts')).toEqual([]);
   });
 
   test('поиск, не настроенный в области, не роняет ход', async () => {
@@ -798,12 +849,15 @@ describe('слово человека и выключенный поиск', () 
     expect(claims.claims.every((claim) => claim.status === 'skipped')).toBe(true);
     expect(named(events, 'error')).toEqual([]);
     expect(named(events, 'brief-filled')).toHaveLength(1);
-    // Опоры не нашлось, поэтому ход честно кончается вопросом про факты, а не
-    // черновиком, под которым нечего процитировать.
+    /*
+      Опоры не нашлось, и продукт про неё спрашивает — но заготовку всё равно
+      записывает. Это и есть правка живого прогона: вопрос перестал быть
+      условием существования заготовки.
+    */
     expect(named(events, 'questions')[0].questions.map((row) => row.field)).toEqual(
-      ['facts']
+      ['facts', 'position']
     );
-    expect(calls.start).toEqual([]);
+    expect(calls.recordCore).toHaveLength(1);
   });
 
   test('мысль без опоры ищет её сама, когда поиск включён', async () => {
@@ -825,7 +879,66 @@ describe('слово человека и выключенный поиск', () 
     expect(calls.research).toHaveLength(1);
     expect(filled.brief.facts[0].origin).toBe('search');
     expect(filled.brief.facts[0].sourceUrl).toBe('https://example.test/study');
-    expect(named(events, 'questions')).toEqual([]);
+    /*
+      Опора нашлась поиском — и вопроса «на что это опирается» нет. Остался
+      другой вопрос про то же поле, и звучит он иначе: своего у человека
+      по-прежнему нет, и продукт просит личную историю, а не источник.
+    */
+    const [asked] = named(events, 'questions');
+    expect(asked.questions.map((row) => row.field)).toEqual([
+      'facts',
+      'position',
+    ]);
+    expect(asked.questions[0].question).toBe(
+      'Есть личная история или неожиданный факт?'
+    );
+  });
+});
+
+describe('заготовка появляется первой', () => {
+  /*
+    Given/When/Then живого прогона 07.09.2026: дано пустая область без канала;
+    когда человек шлёт мысль — в стриме первым приходит `piece`, и заготовка в
+    базе. До этой волны того же хода не случалось вовсе: без канала и без
+    ответов на вопросы стрим кончался вопросом.
+  */
+  test('без единого канала мысль всё равно даёт заготовку', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer(), { text: 'Суть без канала.' }],
+    });
+    const plan = await service.prepare('org-a', request({ integrationIds: [] }));
+    const events = await drain(service, 'org-a', plan);
+
+    const names = events.map((event) => event.name);
+    expect(names).toEqual([
+      'intake-started',
+      'brief-filled',
+      'piece',
+      'questions',
+      'done',
+    ]);
+    expect(calls.recordCore).toHaveLength(1);
+    expect(calls.recordCore[0][1].body).toBe('Суть без канала.');
+    expect(named(events, 'piece')[0].pieceId).toBe('piece-1');
+    expect(named(events, 'done')[0].postIds).toEqual([]);
+  });
+
+  test('незаписанная заготовка — отказ с кодом, а не тишина', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer(), { text: 'Суть, которую не сохранили.' }],
+      recordCoreFails: true,
+    });
+    const plan = await service.prepare('org-a', request());
+    const events = await drain(service, 'org-a', plan);
+
+    const [failure] = named(events, 'error');
+    expect(failure.code).toBe('PIECE_NOT_SAVED');
+    expect(failure.message).toContain('Заготовку не удалось сохранить');
+    // И ни одной генерации после: черновики без заготовки — это та самая
+    // библиотека из трёх «текстов» на один, от которой волна и уходила.
+    expect(calls.start).toEqual([]);
+    expect(calls.createDraft).toEqual([]);
+    expect(named(events, 'done')).toEqual([]);
   });
 });
 

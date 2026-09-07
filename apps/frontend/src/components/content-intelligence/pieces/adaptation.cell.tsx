@@ -1,7 +1,6 @@
 'use client';
 
 import clsx from 'clsx';
-import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { Status, type StatusTone } from '../../ui/surface';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import {
@@ -32,9 +31,10 @@ import {
  * **`unknown` — это не «ещё нет».** Ответ без клеток означает, что публикацию
  * ещё не прочитали, и «ещё нет» поверх существующих постов было бы враньём.
  *
- * Цвет не единственный носитель смысла: у каждого состояния своё слово, а
- * дата стоит рядом отдельной строкой в моноширинном `caption` — это дата,
- * а не подпись.
+ * Цвет не единственный носитель смысла: у каждого состояния своё слово, и
+ * дата стоит внутри того же чипа моноширинной — «опубликовано · 07.09»
+ * читается одним движением, а не двумя строками, из которых вторая ничего
+ * про себя не говорит.
  */
 
 const TONE: Partial<Record<PieceCellStateV1, StatusTone>> = {
@@ -121,7 +121,11 @@ export function AdaptationCell({
         data-piece-cell-state={cell.state}
         disabled={off}
         title={reason}
-        aria-label={t.cellLabel(platformName, word)}
+        aria-label={
+          reason
+            ? `${t.cellLabel(platformName, word)} — ${reason}`
+            : t.cellLabel(platformName, word)
+        }
         onClick={() => {
           if (action === 'post') onOpenPost?.(cell);
           if (action === 'adapt') onAdapt?.(cell);
@@ -135,25 +139,41 @@ export function AdaptationCell({
           // Пунктир — единственное, чем «ещё нет» отличается от занятой
           // клетки. Ни цвета, ни знака: это возможность, а не пропуск.
           cell.state === 'none' && 'border-dashed',
-          cell.state === 'no_channel' && 'opacity-70'
+          cell.state === 'no_channel' && 'border-dashed opacity-70'
         )}
       >
-        <PlatformBadge identifier={cell.platform} name={platformName} size={16} />
-        {tone ? (
-          <Status tone={tone}>{word}</Status>
-        ) : (
-          <span className="cf-caption text-cf-ink-muted">{word}</span>
-        )}
+        {/*
+          Знака площадки в клетке нет, и это исправление, а не упрощение.
+          `PlatformBadge` на 16 px для площадки без своей отрисовки давал
+          пустой квадрат — на боевой он стоял в каждой клетке «ещё нет» и
+          читался как сломанная картинка. Площадку называет колонка, в которой
+          клетка стоит, а на узком экране — доступное имя (`cellLabel`); знак
+          повторял бы шапку и ничего не добавлял.
+        */}
+        <Status tone={tone ?? 'neutral'}>
+          {word}
+          {date ? (
+            <>
+              {' · '}
+              <span
+                data-piece-cell-date={cell.platform}
+                className="tabular-nums"
+              >
+                {date}
+              </span>
+            </>
+          ) : null}
+        </Status>
       </button>
-      {date ? (
-        <span
-          data-piece-cell-date={cell.platform}
-          className="cf-caption tabular-nums text-cf-ink-muted"
-        >
-          {date}
-        </span>
-      ) : null}
-      {reason ? (
+      {/*
+        Причина стоит строкой только у `unknown` — он редок и объясняет сам
+        экран. У `no_channel` она ушла в `title` и в доступное имя: с тех пор
+        как сервер честно поднимает «ещё нет» до «нет канала», такая клетка
+        стоит в каждой строке неподключённой площадки, и абзац в 24 знака под
+        каждой превращает колонку в стену одного и того же текста. Отказ
+        по-прежнему до нажатия, а не после: кнопка выключена, имя её объясняет.
+      */}
+      {reason && cell.state === 'unknown' ? (
         <span className="max-w-[24ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
           {reason}
         </span>

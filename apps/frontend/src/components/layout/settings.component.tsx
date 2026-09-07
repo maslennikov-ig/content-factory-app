@@ -34,6 +34,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { GlobalSettings } from '@contentfactory/frontend/components/settings/global.settings';
 import { ApprovedAppsComponent } from '@contentfactory/frontend/components/approved-apps/approved-apps.component';
 import { AboutProjectComponent } from '@contentfactory/frontend/components/settings/about-project.component';
+import { OnboardingWalkthrough } from '@contentfactory/frontend/components/onboarding/onboarding.walkthrough';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { Input } from '@contentfactory/react/form/input';
@@ -367,31 +368,17 @@ export const SettingsPopup: FC<{
           </ButtonLink>
         </section>
       ) : tab === 'onboarding' ? (
-        // Reachable from a menu everyone already has, instead of a new one
-        // built to hold a single link. `content-factory-next-rrs9`: what it
-        // links to is now a walkthrough that reads how far the workspace
-        // actually got, not four paragraphs about the inherited loop — so the
-        // words here name the page rather than promising a video.
-        <section
-          data-onboarding-entry="settings"
-          className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
-        >
-          <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
-            {isRussian ? 'С чего начать' : 'Where to start'}
-          </h2>
-          <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
-            {isRussian
-              ? 'Шесть шагов по одному материалу: канал, голос, на что опереться, бриф, черновик, расписание. Пройденное отмечено — страница смотрит, что уже сделано в пространстве.'
-              : 'Six steps through one piece: channel, voice, something to stand on, brief, draft, schedule. What is done is ticked — the page reads the workspace itself.'}
-          </p>
-          <ButtonLink
-            href="/onboarding"
-            variant="primary"
-            className="mt-[16px] cf-control-h"
-          >
-            {isRussian ? 'Открыть' : 'Open'}
-          </ButtonLink>
-        </section>
+        // Сами шаги, а не приглашение к ним. Владелец 07.09.2026: «я не вижу
+        // смысла дополнительной кнопки в настройках… А так я попадаю как будто
+        // бы в раздел, которого и не существует». Вкладка держала заголовок,
+        // абзац и кнопку, которая вела на `/onboarding` — то есть обещала
+        // раздел, вместо того чтобы им быть. Теперь тот же обход рисуется
+        // здесь, той же страницей, с теми же галочками из данных области; свой
+        // адрес `/onboarding` у него остался, и с 07.09.2026 на него ведёт
+        // первый пункт бокового меню.
+        <div data-onboarding-entry="settings">
+          <OnboardingWalkthrough embedded={true} />
+        </div>
       ) : (
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(submit)}>

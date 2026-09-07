@@ -27,22 +27,17 @@ import { intakeCopy } from './intake.copy';
 import {
   INTAKE_API,
   INTAKE_MAX_CHANNELS,
-  INTAKE_MAX_ROUNDS,
   IntakeContractError,
   blockReason,
   buildIntakePayload,
   detectInputKind,
   readIntakeEvent,
   screenState,
-  type BriefField,
   type BriefFilledV1,
   type IntakeInputKindV1,
-  type IntakeQuestionV1,
-  type PieceAnswerInputV1,
-  type PieceQuestionKeyV1,
-  type PieceQuestionV1,
   type ReceiptField,
 } from './intake.adapter';
+import { piecePath } from '../pieces/pieces.adapter';
 import type { BriefOverrides } from './brief.receipt';
 import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 
@@ -71,10 +66,12 @@ import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.co
  * уходе с экрана — иначе закрытая модалка продолжает получать события и
  * писать в размонтированное состояние.
  *
- * Ответы копятся между ходами. Второй запрос несёт `answers` и `decide`
- * первого — сервер обещает, что отвеченное поле больше не спрашивается, и
- * терять их между ходами означало бы задать тот же вопрос дважды. Третьего
- * хода нет: предел в два уточнения проверяется здесь, до запроса.
+ * Ход теперь один, и это волна `content-factory-next-m2eg` (живой прогон
+ * 07.09.2026). Раньше их было до трёх: сервер отвечал вопросами, экран собирал
+ * ответы и слал весь вход заново, а на третьем круге показывал тупик «больше
+ * спрашивать не будем» — и человек оставался ни с чем. Теперь первый же ход
+ * записывает заготовку, экран уходит на её страницу, и уточнения живут там,
+ * рядом с сутью, которую они правят.
  */
 
 export function IntakeContainer({
@@ -136,7 +133,6 @@ export function IntakeContainer({
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<readonly IntakeQuestionV1[]>([]);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
   const [draft, setDraft] = useState<{
     postId: string;
@@ -149,29 +145,16 @@ export function IntakeContainer({
     null
   );
   const [notice, setNotice] = useState<string | null>(null);
-  const [rounds, setRounds] = useState(0);
-  const [answers, setAnswers] = useState<
-    readonly { field: BriefField; text: string }[]
-  >([]);
-  const [decided, setDecided] = useState<readonly BriefField[]>([]);
   const [profileFor, setProfileFor] = useState<string | null>(null);
   const [runId, setRunId] = useState(0);
   /*
-    Заготовка волны `tu3k.9`: она записывается до цикла по каналам, поэтому
-    её код приходит раньше черновика и живёт отдельно от него — текст для
-    канала может не собраться, а заготовка всё равно сохранена.
+    Заготовка волны `tu3k.9`: она записывается до цикла по каналам и до единого
+    вопроса, поэтому её код приходит раньше черновика и живёт отдельно от него
+    — текст для канала может не собраться, а заготовка всё равно сохранена.
   */
   const [piece, setPiece] = useState<{ pieceId: string; code: string } | null>(
     null
   );
-  const [pieceQuestions, setPieceQuestions] = useState<
-    readonly PieceQuestionV1[]
-  >([]);
-  const [interview, setInterview] = useState<readonly PieceAnswerInputV1[]>([]);
-  const [decidedKeys, setDecidedKeys] = useState<readonly PieceQuestionKeyV1[]>(
-    []
-  );
-  const [skipInterview, setSkipInterview] = useState(false);
 
   const abort = useRef<AbortController | null>(null);
 
@@ -209,7 +192,6 @@ export function IntakeContainer({
     // остаётся в вызове, потому что его читают другие ветки состояния.
     hasChannel: true,
     busy,
-    questions: questions.length,
     draft: draft !== null,
     failed: failure !== null,
   });
@@ -226,19 +208,27 @@ export function IntakeContainer({
     );
   }, []);
 
+  /**
+   * Уход на страницу заготовки — обычным адресом, а не подменой вида.
+   *
+   * `window.location.assign`, а не `router.push`: страница заготовки читает
+   * свои данные сама и ничего не наследует от этого экрана, а вход открывается
+   * и вкладкой раздела, и модалкой календаря — из модалки `router.push` оставил
+   * бы её висеть поверх новой страницы.
+   */
+  const goToPiece = useCallback((pieceId: string) => {
+    if (typeof window === 'undefined') return;
+    window.location.assign(piecePath(pieceId));
+  }, []);
+
   /* ---------------------------------------------------------------------
    * Один ход
    * ------------------------------------------------------------------ */
 
   const run = useCallback(
     async (extra: {
-      answers?: readonly { field: BriefField; text: string }[];
-      decide?: readonly BriefField[];
       briefOverrides?: BriefOverrides;
       inputKind?: IntakeInputKindV1;
-      interview?: readonly PieceAnswerInputV1[];
-      decideKeys?: readonly PieceQuestionKeyV1[];
-      skipInterview?: boolean;
     }) => {
       abort.current?.abort();
       const controller = new AbortController();
@@ -247,24 +237,8 @@ export function IntakeContainer({
       setBusy(true);
       setFailure(null);
       setNotice(null);
-      setQuestions([]);
-      setPieceQuestions([]);
       setStep('started');
       setRunId((current) => current + 1);
-
-      const nextAnswers = [...answers, ...(extra.answers ?? [])];
-      const nextDecided = [...decided, ...(extra.decide ?? [])];
-      setAnswers(nextAnswers);
-      setDecided(nextDecided);
-
-      // Ответы интервью тоже копятся между ходами: отвеченный вопрос сервер
-      // больше не задаёт, и потерять ответ означало бы спросить дважды.
-      const nextInterview = [...interview, ...(extra.interview ?? [])];
-      const nextDecidedKeys = [...decidedKeys, ...(extra.decideKeys ?? [])];
-      const nextSkip = skipInterview || extra.skipInterview === true;
-      setInterview(nextInterview);
-      setDecidedKeys(nextDecidedKeys);
-      setSkipInterview(nextSkip);
 
       try {
         const response = await request(INTAKE_API.intake, {
@@ -275,16 +249,11 @@ export function IntakeContainer({
               input,
               integrationIds: selectedIds,
               language: language0,
-              answers: nextAnswers,
-              decide: nextDecided,
               briefOverrides: extra.briefOverrides,
               inputKind: extra.inputKind ?? kindOverride,
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
                 : {}),
-              interview: nextInterview,
-              decideKeys: nextDecidedKeys,
-              skipInterview: nextSkip,
             })
           ),
         });
@@ -302,9 +271,8 @@ export function IntakeContainer({
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let sawQuestions = false;
         let sawDraft = false;
-        let sawPiece = false;
+        let recorded: string | null = null;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readIntakeEvent(line);
@@ -317,17 +285,15 @@ export function IntakeContainer({
             return;
           }
           if (reading.kind === 'piece') {
+            // Заготовка записана. Её адрес запоминается здесь, а уходят на неё
+            // после последней строки: увести страницу посреди стрима значило
+            // бы оборвать адаптации, которые сервер как раз пишет.
             if (reading.event.name === 'piece') {
-              sawPiece = true;
+              recorded = reading.event.pieceId;
               setPiece({
                 pieceId: reading.event.pieceId,
                 code: reading.event.code,
               });
-            } else {
-              sawQuestions = true;
-              setPieceQuestions(reading.event.questions);
-              setRounds((current) => current + 1);
-              setStep(null);
             }
             return;
           }
@@ -347,10 +313,8 @@ export function IntakeContainer({
               setStep('writing');
               break;
             case 'questions':
-              sawQuestions = true;
-              setQuestions(event.questions);
-              setRounds((current) => current + 1);
-              setStep(null);
+              // Вопросы больше не показываются здесь и не обрывают ход: они
+              // уехали в бриф заготовки и живут на её странице.
               break;
             case 'channel-started':
               setStep('writing');
@@ -387,9 +351,17 @@ export function IntakeContainer({
         splitter.finish();
         setStep(null);
 
-        if (!sawQuestions && !sawDraft && !sawPiece) {
+        if (!sawDraft && !recorded) {
           setFailure({ title: w.errorTitle, message: w.errorIncomplete });
+          return;
         }
+        /*
+          Заготовка есть — дальше человек работает с ней, а не с этим экраном:
+          суть, квитанция, уточнения и адаптации живут на её странице. Переход
+          настоящий, адресом, а не подменой вида: заготовку можно открыть
+          заново, послать ссылкой и вернуться на неё назад.
+        */
+        if (recorded) goToPiece(recorded);
       } catch (error) {
         if ((error as { name?: string } | null)?.name === 'AbortError') return;
         setFailure({
@@ -404,80 +376,16 @@ export function IntakeContainer({
         setStep(null);
       }
     },
-    [
-      answers,
-      decided,
-      decidedKeys,
-      input,
-      interview,
-      kindOverride,
-      language0,
-      prefill?.sourceLeadId,
-      request,
-      selectedIds,
-      skipInterview,
-      w,
-    ]
+    [goToPiece, input, kindOverride, language0, prefill?.sourceLeadId, request, selectedIds, w]
   );
 
   const write = useCallback(() => {
     setDraft(null);
     setBrief(null);
     setOverrides({});
-    setAnswers([]);
-    setDecided([]);
-    setRounds(0);
     setPiece(null);
-    setInterview([]);
-    setDecidedKeys([]);
-    setSkipInterview(false);
     void run({});
   }, [run]);
-
-  /** Ответы интервью заготовки: тот же ход, что и уточнения брифа. */
-  const answerInterview = useCallback(
-    (
-      given: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
-      decideKeys: readonly string[]
-    ) => {
-      if (rounds >= INTAKE_MAX_ROUNDS) {
-        setPieceQuestions([]);
-        void run({ skipInterview: true });
-        return;
-      }
-      void run({
-        interview: given.map((one) => ({
-          key: one.key as PieceQuestionKeyV1,
-          text: one.text,
-          origin: one.origin,
-        })),
-        decideKeys: decideKeys as PieceQuestionKeyV1[],
-      });
-    },
-    [rounds, run]
-  );
-
-  const skipTheInterview = useCallback(() => {
-    setPieceQuestions([]);
-    void run({ skipInterview: true });
-  }, [run]);
-
-  const answer = useCallback(
-    (
-      given: readonly { field: BriefField; text: string }[],
-      decide: readonly BriefField[]
-    ) => {
-      // Третий круг не начинается. Предел в два уточнения проверяется здесь,
-      // до запроса: сервер тоже его знает, но человеку незачем ждать ответа,
-      // чтобы услышать «больше спрашивать не будем».
-      if (rounds >= INTAKE_MAX_ROUNDS) {
-        setQuestions([]);
-        return;
-      }
-      void run({ answers: given, decide });
-    },
-    [rounds, run]
-  );
 
   const rebuild = useCallback(() => {
     setDraft(null);
@@ -557,8 +465,6 @@ export function IntakeContainer({
         selectedIds={selectedIds}
         language={language0}
         step={step}
-        questions={questions}
-        pieceQuestions={pieceQuestions}
         piece={piece}
         brief={brief}
         overrides={overrides}
@@ -586,7 +492,6 @@ export function IntakeContainer({
             </ContentReadOnlyNote>
           ) : undefined
         }
-        roundsSpent={rounds >= INTAKE_MAX_ROUNDS && !draft && questions.length === 0}
         slopKey={`${draft?.postId ?? 'none'}-${runId}`}
         onInputChange={setInput}
         onToggleChannel={toggleChannel}
@@ -598,14 +503,7 @@ export function IntakeContainer({
           setBusy(false);
           setStep(null);
         }}
-        onAnswer={answer}
-        onPieceAnswer={answerInterview}
-        onSkipInterview={skipTheInterview}
-        onOpenPiece={(pieceId) => {
-          if (typeof window !== 'undefined') {
-            window.location.assign(`/content/pieces/${encodeURIComponent(pieceId)}`);
-          }
-        }}
+        onOpenPiece={goToPiece}
         onOverride={(field: ReceiptField, value: string) =>
           setOverrides((current) => ({ ...current, [field]: value }))
         }

@@ -11,6 +11,7 @@ import { ContentReadOnlyNote, writeRightFromRole } from '../content-write-right'
 import { resolveContentLocale } from '../content-section.copy';
 import { useOpenPost } from '../shared/use-open-post';
 import { PieceScreen } from './piece.screen';
+import { PieceQuestions } from './piece-questions';
 import { piecesCopy } from './pieces.copy';
 import {
   PIECES_API,
@@ -26,6 +27,8 @@ import {
   type PieceQuestionV1,
   type VoiceScreenStateV1,
 } from './pieces.adapter';
+import { readQuestions, type BriefField, type IntakeQuestionV1 } from '../intake/intake.adapter';
+import { PIECE_ROUTES } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
  * Страница заготовки: чтение двери, стрим адаптации и отказы.
@@ -35,9 +38,17 @@ import {
  * разбор строки контрактом. `AbortController` заводится на ход и обрывается
  * при уходе со страницы — иначе закрытая страница продолжает получать события.
  *
- * Событие `questions` терминально: адаптации в этот раз не будет, и клиент
- * повторяет запрос с ответами. Кругов не больше двух — предел проверяется
- * здесь, до запроса, чтобы человек не ждал ответа ради «больше не спросим».
+ * Событие `questions` при адаптации терминально: адаптации в этот раз не
+ * будет, и клиент повторяет запрос с ответами. Кругов не больше двух — предел
+ * проверяется здесь, до запроса, чтобы человек не ждал ответа ради «больше не
+ * спросим».
+ *
+ * Уточнения самой заготовки устроены иначе (`content-factory-next-m2eg`).
+ * Заготовка уже существует — её записал вход, до всяких вопросов, — поэтому
+ * тупика нет и предел кругов держит только сервер: экрану нечего беречь от
+ * лишнего запроса, а «ничего не изменилось» — законный исход. Вопросы
+ * приезжают в брифе заготовки, ответ идёт дверью `answer`, и после него
+ * страница перечитывается целиком.
  *
  * Удаление адаптации опубликованного поста отказывается кодом
  * `ADAPTATION_PUBLISHED`, и отказ печатается словами: происхождение
@@ -97,6 +108,14 @@ export function PieceContainer({
   );
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /*
+    Уточнения волны `content-factory-next-m2eg`. Открытые вопросы приезжают в
+    брифе заготовки, поэтому первый их источник — сама страница, а не стрим;
+    ответ дверью `answer` присылает следующий круг или не присылает ничего, и
+    тогда спрашивать больше нечего.
+  */
+  const [answering, setAnswering] = useState(false);
+  const [asked, setAsked] = useState<readonly IntakeQuestionV1[] | null>(null);
 
   const abort = useRef<AbortController | null>(null);
   useEffect(
@@ -255,6 +274,107 @@ export function PieceContainer({
     void run({ integrationId: channelId, kind, skipInterview: true });
   }, [channelId, kind, run]);
 
+  /* ---------------------------------------------------------------------
+   * Уточнения заготовки
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Ответ на открытые вопросы: суть переписывается, страница перечитывается.
+   *
+   * Тупика здесь нет ни на каком круге — заготовка уже существует, и худшее,
+   * что может случиться, это «ничего не изменилось». Поэтому предел кругов
+   * держит сервер, а экран его не дублирует: ему нечего беречь от лишнего
+   * запроса, кроме одного вызова модели, о котором сервер знает лучше.
+   *
+   * Два события, и оба уже умеет читать раздел: `questions` разбирает тот же
+   * `readQuestions`, что и стрим входа, а `piece` несёт только идентификатор —
+   * саму заготовку страница всё равно перечитывает целиком.
+   */
+  const answerQuestions = useCallback(
+    async (
+      given: readonly { field: BriefField; text: string }[],
+      decide: readonly BriefField[]
+    ) => {
+      abort.current?.abort();
+      const controller = new AbortController();
+      abort.current = controller;
+
+      setAnswering(true);
+      setFailure(null);
+      setNotice(null);
+      try {
+        const response = await request(PIECE_ROUTES.answer.path(pieceId), {
+          method: 'POST',
+          signal: controller.signal,
+          body: JSON.stringify({
+            ...(given.length ? { answers: [...given] } : {}),
+            ...(decide.length ? { decide: [...decide] } : {}),
+          }),
+        });
+
+        if (!response.ok || !response.body) {
+          const body = await response.json().catch(() => null);
+          setFailure(
+            (body && typeof body.message === 'string' && body.message) ||
+              w.clarifyFailed
+          );
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let next: readonly IntakeQuestionV1[] = [];
+        let sawError = false;
+
+        const splitter = createNdjsonSplitter((line) => {
+          if (!line.trim()) return;
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(line);
+          } catch {
+            return;
+          }
+          if (parsed?.error === true || parsed?.name === 'error') {
+            sawError = true;
+            setFailure(
+              typeof parsed.message === 'string' && parsed.message
+                ? parsed.message
+                : w.clarifyFailed
+            );
+            return;
+          }
+          if (parsed?.name === 'questions') {
+            next = readQuestions(parsed.questions);
+          }
+        });
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          splitter.push(decoder.decode(value, { stream: true }));
+        }
+        splitter.finish();
+        if (sawError) return;
+
+        // Пустой список — это «спрашивать больше нечего», и он тоже ответ:
+        // карточка исчезает, а `null` вернул бы вопросы из брифа обратно.
+        setAsked(next);
+        setNotice(w.clarifyDone);
+        void detail.mutate();
+      } catch (error) {
+        if ((error as { name?: string } | null)?.name === 'AbortError') return;
+        setFailure(w.clarifyFailed);
+      } finally {
+        setAnswering(false);
+      }
+    },
+    [detail, pieceId, request, w]
+  );
+
+  /** «Оставить как есть»: вопросы уходят с экрана и ничего не спрашивают. */
+  const skipQuestions = useCallback(() => setAsked([]), []);
+
   /*
     «В архив»: одна дверь, одно перечитывание и никакого подтверждения.
     Архив прячет заготовку из списка и не трогает посты, включая
@@ -266,13 +386,17 @@ export function PieceContainer({
     try {
       const response = await request(PIECES_API.archive(pieceId), {
         method: 'POST',
+        // Тело обязательно: `PieceArchiveDto` требует `archived` без значения
+        // по умолчанию, и запрос без тела дверь отклоняла как 400
+        // (`content-factory-next-m2eg`, живой прогон 07.09.2026). Умолчания у
+        // поля нет намеренно — «пустое тело значит убрать» это ровно та ошибка,
+        // которой раздел не повторяет.
+        body: JSON.stringify({ archived: true }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         setFailure(
-          body?.code === 'PIECE_ARCHIVED'
-            ? w.archiveRefused
-            : (typeof body?.message === 'string' && body.message) || w.errorBody
+          (typeof body?.message === 'string' && body.message) || w.errorBody
         );
         return;
       }
@@ -334,9 +458,17 @@ export function PieceContainer({
     ? 'loading'
     : failure
     ? 'error'
-    : busy
+    : busy || answering
     ? 'disabled'
     : detail.data.state;
+
+  /*
+    Что спросить: сначала то, что вернула дверь ответов, потом то, что лежит в
+    брифе заготовки. `null` от двери не бывает — пустой список означает
+    «спрашивать больше нечего», и он должен пересилить бриф, который экран уже
+    перечитывает.
+  */
+  const openQuestions = asked ?? detail.data?.core?.questions?.items ?? [];
 
   const adaptingChannel = useMemo(() => {
     if (!channelId || !detail.data) return null;
@@ -363,7 +495,7 @@ export function PieceContainer({
         failure ??
         (detail.error ? (detail.error as Error).message || w.pieceNotFound : undefined)
       }
-      notice={notice}
+      notice={answering ? w.clarifyBusy : notice}
       restrictedReason={t(
         'ai_allowance_unavailable',
         'AI is not available in this workspace yet.'
@@ -378,6 +510,17 @@ export function PieceContainer({
             {w.restrictedBody}
           </ContentReadOnlyNote>
         )
+      }
+      questionsSlot={
+        canWrite && openQuestions.length > 0 ? (
+          <PieceQuestions
+            locale={locale}
+            questions={openQuestions}
+            busy={answering}
+            onAnswer={(given, decide) => void answerQuestions(given, decide)}
+            onSkip={skipQuestions}
+          />
+        ) : undefined
       }
       onAdapt={adapt}
       onArchive={() => void archive()}

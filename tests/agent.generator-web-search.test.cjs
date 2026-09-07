@@ -206,6 +206,56 @@ describe('the generator looks for material itself when nobody handed it any', ()
     expect(calls.build[0][1].userMaterialEvidenceIds).toBeUndefined();
   });
 
+  /**
+   * `content-factory-next-m2eg.16`, решение владельца 07.09.2026: адаптация
+   * заготовки в интернет не ходит. Материал у неё уже на руках — суть, бриф и
+   * ответы человека, — а поиск повторялся на каждой площадке.
+   */
+  test('a caller that says «write from what is already here» is not sent to the web', async () => {
+    const { calls } = await run({
+      research: () => {
+        throw new Error('web search must not run under PIECE_ONLY');
+      },
+      accept: acceptsInOrder(),
+      requestBody: body({ materialPolicy: 'PIECE_ONLY' }),
+    });
+
+    expect(calls.research).toEqual([]);
+    expect(calls.accept).toEqual([]);
+    // Контекст всё равно строится: политика отменяет поиск, а не память
+    // области.
+    expect(calls.build).toHaveLength(1);
+    expect(calls.build[0][1].userMaterialEvidenceIds).toBeUndefined();
+  });
+
+  test('the piece brief names its own facts instead of searching for new ones', async () => {
+    const { calls } = await run({
+      research: () => {
+        throw new Error('web search must not run under PIECE_ONLY');
+      },
+      accept: acceptsInOrder(),
+      requestBody: body({
+        materialPolicy: 'PIECE_ONLY',
+        factIds: ['fact-1'],
+        userMaterialEvidenceIds: ['evidence-7'],
+      }),
+    });
+
+    expect(calls.research).toEqual([]);
+    expect(calls.build[0][1].factIds).toEqual(['fact-1']);
+    expect(calls.build[0][1].userMaterialEvidenceIds).toEqual(['evidence-7']);
+  });
+
+  test('the default is still the behaviour of 05.09: no policy means search', async () => {
+    const { calls } = await run({
+      research: searchAnswer,
+      accept: acceptsInOrder(),
+      requestBody: body({ materialPolicy: 'SEARCH_IF_EMPTY' }),
+    });
+
+    expect(calls.research).toHaveLength(1);
+  });
+
   test('search switched off in the workspace is a setting, not a failure', async () => {
     const { calls, first } = await run({
       research: () => {

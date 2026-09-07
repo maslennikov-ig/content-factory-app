@@ -404,3 +404,120 @@ describe('the channel list reads only the columns it prints', () => {
     expect(controllerSource).not.toMatch(/getIntegrationsList\(/);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Тело, которое карточка на самом деле отправляет, проходит дверь.
+ *
+ * `content-factory-next-m2eg.12`. До этой правки `PUT` отвечал `400` на КАЖДОМ
+ * сохранении, а ни одна проверка этого не видела: тела здесь писались руками, и
+ * писались правильными. Разошлись две формы длины — ответ двери несёт союз
+ * «`provider_max` или тройка чисел», а DTO ждёт слово `provider_max`/`range` и
+ * отдельное `length`, — и карточка отправляла форму ответа.
+ *
+ * Поэтому проверяется не выдуманное тело, а результат настоящего
+ * `buildWritingProfilePayload` из экрана, пропущенный через настоящий DTO
+ * настоящим `class-validator`. Пересказ обеих сторон повторил бы ту же ошибку
+ * согласованно.
+ */
+const { plainToInstance } = require('class-transformer');
+const { validateSync } = require('class-validator');
+
+const { IntegrationWritingProfileDto } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/dtos/integrations/integration.writing.profile.dto.ts'
+);
+
+const {
+  DEFAULT_WRITING_PROFILE,
+  LENGTH_PRESETS,
+  buildWritingProfilePayload,
+  readWritingProfile,
+} = loadWithMocks(
+  'apps/frontend/src/components/content-intelligence/intake/writing-profile.adapter.ts'
+);
+
+// `transform: true` и `whitelist: true` стоят в `apps/backend/src/main.ts`;
+// без них проверка увидела бы не то тело, которое видит дверь.
+const refusals = (body) =>
+  validateSync(
+    plainToInstance(IntegrationWritingProfileDto, body, {
+      enableImplicitConversion: false,
+    }),
+    { whitelist: true }
+  ).map((failure) => failure.property);
+
+const profileWith = (extra) => ({ ...DEFAULT_WRITING_PROFILE, ...extra });
+
+describe('the body the card sends is a body the door accepts', () => {
+  test('the default card — a length range — passes validation', () => {
+    const body = buildWritingProfilePayload(profileWith({}));
+
+    expect(body.lengthPolicy).toBe('range');
+    expect(body.length).toEqual(LENGTH_PRESETS.ideal);
+    expect(refusals(body)).toEqual([]);
+  });
+
+  test.each([['short'], ['ideal'], ['long'], ['max']])(
+    'the «%s» preset passes too',
+    (preset) => {
+      const body = buildWritingProfilePayload(
+        profileWith({ lengthPolicy: LENGTH_PRESETS[preset] })
+      );
+
+      expect(refusals(body)).toEqual([]);
+    }
+  );
+
+  test('«the platform holds the length» passes and carries no range', () => {
+    const body = buildWritingProfilePayload(
+      profileWith({ lengthPolicy: 'provider_max' })
+    );
+
+    expect(body).not.toHaveProperty('length');
+    expect(refusals(body)).toEqual([]);
+  });
+
+  test('the range object in lengthPolicy is exactly what the door refused', () => {
+    // Форма до правки, слово в слово: она и давала 400 на каждом сохранении.
+    expect(refusals({ ...DEFAULT_WRITING_PROFILE })).toContain('lengthPolicy');
+  });
+
+  test('notes are trimmed to the limit and empty notes are not sent at all', () => {
+    const long = buildWritingProfilePayload(
+      profileWith({ notes: 'я'.repeat(600) })
+    );
+    const blank = buildWritingProfilePayload(profileWith({ notes: '   ' }));
+
+    expect(long.notes).toHaveLength(500);
+    expect(refusals(long)).toEqual([]);
+    expect(blank).not.toHaveProperty('notes');
+    expect(refusals(blank)).toEqual([]);
+  });
+
+  test('what the door answers reads back into the same form', () => {
+    // Дверь отвечает союзом контракта — так карточка и открывается снова.
+    const saved = buildWritingProfilePayload(
+      profileWith({ lengthPolicy: LENGTH_PRESETS.long, notes: 'коротко' })
+    );
+
+    expect(
+      readWritingProfile({
+        version: 'channel-writing-profile/v1',
+        lengthPolicy: LENGTH_PRESETS.long,
+        emojiLevel: saved.emojiLevel,
+        linkPolicy: saved.linkPolicy,
+        hashtagPolicy: saved.hashtagPolicy,
+        ctaKind: saved.ctaKind,
+        formatPreference: saved.formatPreference,
+        notes: saved.notes,
+      }).lengthPolicy
+    ).toEqual(LENGTH_PRESETS.long);
+
+    // И та же форма, что уходит в дверь, читается тем же чтением.
+    expect(readWritingProfile(saved).lengthPolicy).toEqual(LENGTH_PRESETS.long);
+    expect(readWritingProfile({ lengthPolicy: 'provider_max' }).lengthPolicy).toBe(
+      'provider_max'
+    );
+  });
+});

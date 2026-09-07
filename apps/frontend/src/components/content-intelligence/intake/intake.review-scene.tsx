@@ -9,21 +9,21 @@ import {
 import { ReviewLocaleProvider } from '../../interface-review/review-i18n';
 import { IntakeScreen, type IntakeChannel } from './intake.screen';
 import { intakeCopy } from './intake.copy';
-import type {
-  BriefFilledV1,
-  IntakeQuestionV1,
-  IntakeScreenState,
-} from './intake.adapter';
+import type { BriefFilledV1, IntakeScreenState } from './intake.adapter';
 
 /**
  * Экран входа во всех девяти состояниях, без единого запроса.
  *
  * Смотреть здесь надо не на «нарисовалось», а на четыре места, где этот
  * экран легче всего сделать неправильно: причина, по которой «Написать» не
- * нажимается, — читается ли она рядом с кнопкой; карточка вопросов — видно ли
- * оба вопроса сразу и равны ли по весу три способа ответить; квитанция — не
- * теряется ли слово «предположение» рядом с «из вашего текста»; и две
- * колонки результата на 768 и 390 — кто из них остаётся первым.
+ * нажимается, — читается ли она рядом с кнопкой; строка хода — стоит ли она
+ * там же, у кнопки, а не отдельной надписью ниже; квитанция — не теряется ли
+ * слово «предположение» рядом с «из вашего текста»; и две колонки результата
+ * на 768 и 390 — кто из них остаётся первым.
+ *
+ * Состояния вопросов здесь больше нет: с волны `content-factory-next-m2eg`
+ * уточнения живут на странице заготовки, и `selected` показывает вставленную
+ * ссылку с выбранным каналом — то, что человек видит перед нажатием.
  */
 
 export const INTAKE_REVIEW_STATES = [
@@ -54,23 +54,6 @@ const CHANNELS: readonly IntakeChannel[] = [
     picture: '',
     disabled: false,
     inBetweenSteps: false,
-  },
-];
-
-const QUESTIONS: readonly IntakeQuestionV1[] = [
-  {
-    field: 'thesis',
-    question: 'Что именно вы утверждаете? Одно предложение, которое можно оспорить.',
-    options: [
-      'Писать про ИИ надо чаще, потому что читатели ждут именно этого',
-      'Про ИИ пишут все, и это повод писать реже, но точнее',
-    ],
-  },
-  {
-    field: 'facts',
-    question:
-      'На чём это стоит? Нужен хотя бы один факт со ссылкой, которую можно проверить.',
-    options: [],
   },
 ];
 
@@ -132,7 +115,6 @@ export const scene = defineInterfaceReviewScene({
   id: 'content-intelligence/intake',
   fixture: {
     channels: CHANNELS.map((one) => one.id),
-    questions: QUESTIONS.length,
     facts: BRIEF.facts.length,
   },
   states: INTAKE_REVIEW_STATES,
@@ -181,7 +163,7 @@ const STATE_OF: Record<InterfaceReviewState, IntakeScreenState> = {
   loading: 'checking',
   empty: 'no-channel',
   default: 'idle',
-  selected: 'questions',
+  selected: 'idle',
   success: 'draft',
   error: 'error',
   restricted: 'restricted',
@@ -217,10 +199,13 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             inputKind={context.state === 'selected' ? 'link' : 'foreign_post'}
             detectedLink={context.state === 'selected'}
             channels={state === 'no-channel' ? [] : CHANNELS}
-            selectedIds={state === 'idle' || state === 'no-channel' ? [] : ['int-tg']}
+            selectedIds={
+              context.state === 'default' || state === 'no-channel'
+                ? []
+                : ['int-tg']
+            }
             language={locale}
             step={state === 'streaming' ? 'writing' : null}
-            questions={state === 'questions' ? QUESTIONS : []}
             brief={showsDraft ? (long ? LONG_BRIEF : BRIEF) : null}
             overrides={{}}
             draftText={showsDraft ? (long ? LONG_DRAFT : DRAFT) : null}
@@ -228,20 +213,18 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             blocked={
               state === 'checking'
                 ? 'checking'
-                : state === 'idle'
+                : context.state === 'default'
                 ? 'input'
                 : null
             }
             errorMessage={t.errorIncomplete}
             restrictedReason={t.restrictedTitle}
-            roundsSpent={false}
             slopKey="review"
             onInputChange={() => undefined}
             onToggleChannel={() => undefined}
             onLanguageChange={() => undefined}
             onWrite={() => undefined}
             onCancel={() => undefined}
-            onAnswer={() => undefined}
             onOverride={() => undefined}
             onKindChange={() => undefined}
             onRevertOverrides={() => undefined}

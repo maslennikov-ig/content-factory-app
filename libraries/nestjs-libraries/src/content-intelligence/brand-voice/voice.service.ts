@@ -119,11 +119,13 @@ import {
   type LearnedVoiceRulesV1,
 } from './voice-learning';
 import type { VoiceAssistPort } from './voice-assist.service';
+import { sampleLimitFor } from './assist.pipeline';
 import {
   ANALYZER_VERSION,
   LOCALE_PACK_VERSION,
   VOICE_CONTRACT_VERSION,
   type CorpusReadinessV1,
+  type VoiceAnalysisEventV1,
   type VoiceAnalysisRequestV1,
   type VoiceAvatarCreateRequestV1,
   type VoiceAvatarDefaultRequestV1,
@@ -1099,18 +1101,58 @@ export class VoiceService {
     };
   }
 
-  async runAnalysis(
+  /**
+   * Право на разбор — единственное, что решается до первого байта стрима.
+   *
+   * После первого байта код ответа уже не изменить, поэтому отказ «нет прав»
+   * обязан случиться раньше: иначе участник без прав получил бы 200 и строку
+   * с ошибкой внутри, а экран показал бы её как поломку, а не как запрет.
+   * Короткий корпус сюда не относится — это результат, и он едет `done`.
+   */
+  assertAnalysisAllowed(actor: VoiceActor): void {
+    this.assertCanManage(actor);
+  }
+
+  /**
+   * Разбор как последовательность событий, а не как один долгий ответ.
+   *
+   * Тело у него ровно то же, что у `runAnalysis` ниже: `runAnalysis` —
+   * это тот же ход, дочитанный до `done`. Двух копий одного разбора быть не
+   * должно — они разошлись бы на первой же правке, и одна дверь начала бы
+   * сохранять числа, а вторая нет.
+   *
+   * Что даёт стрим: строку в минуту вместо тишины и отсутствие потолка на
+   * длительность. Двадцать восемь вызовов модели подряд не укладываются в
+   * шестьдесят секунд ingress'а, и 07.09.2026 владелец получил на них 504.
+   */
+  async *analysisStream(
     actor: VoiceActor,
     body: VoiceAnalysisRequestV1 = {}
-  ): Promise<VoiceAnalysisResponseV1> {
+  ): AsyncGenerator<VoiceAnalysisEventV1> {
     this.assertCanManage(actor);
 
     const corpus = await this.corpusFor(actor);
     const inputs = corpus.map(toInput);
     const readiness = corpusReadiness(inputs);
     if (!readiness.ready) {
-      return { outcome: 'insufficient', readiness: toReadiness(readiness) };
+      // Короткий корпус — это результат, а не отказ, и он едет тем же
+      // терминальным событием, что и готовый разбор.
+      yield {
+        name: 'done',
+        analysis: { outcome: 'insufficient', readiness: toReadiness(readiness) },
+      };
+      return;
     }
+
+    // Сколько текстов и сколько из них увидит модель — до того, как будет
+    // сделан первый вызов: полосе нужен знаменатель с самого начала.
+    yield {
+      name: 'started',
+      samples: inputs.length,
+      planned: body.withAssist
+        ? Math.min(inputs.length, sampleLimitFor(inputs.length))
+        : 0,
+    };
 
     let result;
     try {
@@ -1156,6 +1198,17 @@ export class VoiceService {
       }
     );
 
+    // Числа сохранены — и это сказано до того, как спрошена модель, потому
+    // что дальше может не ответить никто, а посчитанное всё равно останется.
+    yield {
+      name: 'measured',
+      measurementId: measurement.id,
+      sampleCount: result.sampleCount,
+      charCount: result.charCount,
+      wordCount: result.wordCount,
+      sentenceCount: result.sentenceCount,
+    };
+
     let proposal: StoredVoiceProposalV1 | undefined;
     if (body.withAssist) {
       if (!this._assist) {
@@ -1165,7 +1218,7 @@ export class VoiceService {
         );
       }
       const byCode = new Map(inputs.map((sample) => [sample.code, sample]));
-      const outcome = await this._assist.propose({
+      const outcome = yield* this.whileProposing({
         organizationId: actor.organizationId,
         samples: inputs,
         measurement: result,
@@ -1215,10 +1268,97 @@ export class VoiceService {
         measurement.id,
         { metrics }
       );
-      return this.measurementReady({ ...measurement, metrics });
+      yield {
+        name: 'done',
+        analysis: this.measurementReady({ ...measurement, metrics }),
+      };
+      return;
     }
 
-    return this.measurementReady(measurement);
+    yield { name: 'done', analysis: this.measurementReady(measurement) };
+  }
+
+  /**
+   * Предложение голоса, пока оно составляется.
+   *
+   * Мост между колбэком и генератором: `propose` отчитывается о вызовах через
+   * `onProgress`, а стрим обязан отдавать строки. Событие кладётся в очередь,
+   * ожидающий её цикл просыпается и выдаёт — так строка «Собираем
+   * предложение: 7 из 20» уходит человеку в тот момент, когда седьмой вызов
+   * действительно вернулся, а не после всего хода.
+   *
+   * Отказ модели пересекает мост как отказ: он возвращается значением, а
+   * бросается уже здесь, после того как выданы все накопленные строки.
+   * Иначе `VOICE_ASSIST_UNAVAILABLE` обгонял бы события, которые до него
+   * произошли.
+   */
+  private async *whileProposing(
+    input: Parameters<VoiceAssistPort['propose']>[0]
+  ): AsyncGenerator<
+    VoiceAnalysisEventV1,
+    Awaited<ReturnType<VoiceAssistPort['propose']>>
+  > {
+    const queue: VoiceAnalysisEventV1[] = [];
+    let wake: (() => void) | null = null;
+    let finished = false;
+    const nudge = () => {
+      const resume = wake;
+      wake = null;
+      resume?.();
+    };
+
+    const running = this._assist!.propose({
+      ...input,
+      onProgress: (event) => {
+        queue.push({ name: 'call', ...event });
+        nudge();
+      },
+    }).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    );
+    void running.then(() => {
+      finished = true;
+      nudge();
+    });
+
+    for (;;) {
+      while (queue.length) yield queue.shift()!;
+      if (finished) break;
+      await new Promise<void>((resolve) => {
+        wake = resolve;
+      });
+    }
+
+    const outcome = await running;
+    if (outcome.ok === false) throw outcome.error;
+    return outcome.value;
+  }
+
+  /**
+   * Тот же разбор, дочитанный до конца и отданный одним ответом.
+   *
+   * Дверь `POST /analysis` осталась ровно такой, какой была: те же отказы, те
+   * же сохранённые числа, тот же ответ. Здесь нет второй копии разбора — есть
+   * чтение того же хода до терминального события.
+   */
+  async runAnalysis(
+    actor: VoiceActor,
+    body: VoiceAnalysisRequestV1 = {}
+  ): Promise<VoiceAnalysisResponseV1> {
+    this.assertCanManage(actor);
+
+    let answer: VoiceAnalysisResponseV1 | undefined;
+    for await (const event of this.analysisStream(actor, body)) {
+      if (event.name === 'done') answer = event.analysis;
+    }
+    // Недостижимо: ход либо бросает, либо заканчивается `done`. Если это
+    // перестанет быть так, пусть падает здесь, а не отдаёт `undefined`
+    // экрану, который прочтёт его как «разбор не готов».
+    if (!answer) {
+      throw new VoiceError('VOICE_ANALYSIS_FAILED', 'Разбор не удалось завершить.');
+    }
+    return answer;
   }
 
   /**

@@ -6,6 +6,7 @@ import {
   HttpException,
   Post,
   Query,
+  Res,
   UploadedFiles,
   UseFilters,
   UseGuards,
@@ -13,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import type { Organization, User } from '@prisma/client';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
@@ -102,6 +104,19 @@ function safeHttpError(error: unknown): never {
     );
   }
   throw error;
+}
+
+/**
+ * Код отказа, который уже начавшийся стрим кладёт последней строкой.
+ *
+ * Та же форма, что у двери входа: там она называется так же и делает то же.
+ * Общего модуля у них нет, потому что общего модуля нет и у `safeHttpError`,
+ * который стоит на четырёх контроллерах, — вынести стоит обе разом, и это
+ * правка по всем контроллерам сразу, а не по одному.
+ */
+function streamErrorCode(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code ? code : 'VOICE_ANALYSIS_FAILED';
 }
 
 /**
@@ -324,6 +339,61 @@ export class BrandVoiceController {
       );
     } catch (error) {
       safeHttpError(error);
+    }
+  }
+
+  /**
+   * Тот же разбор, отданный строками NDJSON.
+   *
+   * Отдельная дверь, а не флаг на соседней: у них разные ответы. `POST
+   * /analysis` отдаёт один объект, и его читают экран мастера, набор тестов и
+   * всё, что уже написано; менять форму ответа существующей двери ради
+   * прогресса значило бы сломать их все. Здесь тело — по строке на событие,
+   * как на двери входа (`content-intake.controller.ts`) и на двери заготовок.
+   *
+   * Права те же: разбор зовёт модель и тратит долю области, и это работа
+   * редактора независимо от того, каким конвертом уезжает ответ.
+   *
+   * До первого байта — обычный HTTP. После него код ответа уже не изменить,
+   * поэтому право проверяется здесь, а не внутри стрима: участник без прав
+   * обязан получить 403, а не 200 со строкой отказа внутри.
+   */
+  @Post('/analysis/stream')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async runAnalysisStream(
+    @GetOrgFromRequest() organization: RequestOrganization,
+    @GetUserFromRequest() user: User,
+    @Body() body: VoiceAnalysisDto,
+    @Res({ passthrough: false }) response: Response,
+    @Query('avatar') avatar?: string
+  ) {
+    const actor = this.actor(organization, user, avatar);
+    try {
+      this._voice.assertAnalysisAllowed(actor);
+    } catch (error) {
+      safeHttpError(error);
+    }
+
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    try {
+      for await (const event of this._voice.analysisStream(actor, body ?? {})) {
+        response.write(JSON.stringify(event) + '\n');
+      }
+    } catch (error) {
+      // Стрим уже начался, обычного отказа больше не будет: последняя строка
+      // называет код и причину — те же, что отдала бы соседняя дверь, — чтобы
+      // экран показал названную причину, а не «что-то пошло не так».
+      response.write(
+        JSON.stringify({
+          name: 'error',
+          error: true,
+          code: streamErrorCode(error),
+          message:
+            error instanceof Error ? error.message : 'Voice analysis failed',
+        }) + '\n'
+      );
+    } finally {
+      response.end();
     }
   }
 

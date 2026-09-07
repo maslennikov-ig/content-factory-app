@@ -18,6 +18,17 @@ import { FC } from 'react';
  *
  * Здесь считается только причина. Ни одна кнопка отсюда не открывается:
  * дверь остаётся закрытой ровно там, где её закрыл контентный контракт.
+ *
+ * 07.09.2026 из этого списка ушли две причины — «проверьте подтверждения» и
+ * «сначала сохраните черновик» (`content-factory-next-m2eg.17`). Решение
+ * владельца на живом прогоне, дословно: «Выключить совсем, без галочек и без
+ * кнопки „Проверил“». Ворота стояли перед КАЖДЫМ постом, который нёс
+ * происхождение, то есть перед каждым написанным продуктом текстом, и
+ * требовали щелчка по кнопке, которая ничего не проверяла — она записывала,
+ * что человек сказал «проверил». Дверь `POST /posts/:id/context-review` и
+ * колонки `Post.contentContextReviewedAt/ById` остались на сервере: снимать
+ * их — отдельная работа, а след уже принятых решений не переписывается.
+ * Цитаты теперь показываются справкой в самом окне, без отметок.
  */
 export type ComposeBlockReason =
   | 'none'
@@ -25,9 +36,7 @@ export type ComposeBlockReason =
   | 'locked'
   | 'context-loading'
   | 'context-error'
-  | 'evidence-required'
-  | 'context-review-required'
-  | 'context-save-draft-first';
+  | 'evidence-required';
 
 export interface ComposeBlockReasonInput {
   /**
@@ -47,14 +56,6 @@ export interface ComposeBlockReasonInput {
     | 'CONTEXT_UNAVAILABLE'
     | null;
   provenanceErrorCode?: 'CONTENT_EVIDENCE_REQUIRED' | null;
-  hasProvenance: boolean;
-  /**
-   * Когда человек сказал, что проверил подтверждения. Пусто — планирование
-   * закрыто; дата — открыто. Решение принимает человек, а не расчёт.
-   */
-  contextReviewedAt?: string | null;
-  /** Сохранён ли пост: у нового поста ещё нет адреса, которому сказать «проверено». */
-  postSaved?: boolean;
 }
 
 /**
@@ -83,13 +84,8 @@ export function composeBlockReason(
     return 'evidence-required';
   }
   if (input.contentIntelligenceLoadState === 'error') return 'context-error';
-  if (input.hasProvenance && !input.contextReviewedAt) {
-    // Порядок здесь — порядок шагов человека: сначала у поста должен появиться
-    // адрес, и только потом ему есть чему сказать «подтверждения проверены».
-    return input.postSaved
-      ? 'context-review-required'
-      : 'context-save-draft-first';
-  }
+  // Пост, собранный из подтверждений, дальше ничем не задерживается: ворота
+  // «Проверил» сняты решением владельца 07.09.2026.
   return 'none';
 }
 
@@ -121,16 +117,6 @@ export const COMPOSE_BLOCK_REASON_COPY: Record<
     key: 'compose_blocked_evidence_required',
     fallback:
       'Current evidence is required. Verify the context before this draft can be saved.',
-  },
-  'context-review-required': {
-    key: 'compose_blocked_context_review_required',
-    fallback:
-      'This post was assembled from evidence. Check the evidence and confirm it — that opens scheduling.',
-  },
-  'context-save-draft-first': {
-    key: 'compose_blocked_context_save_draft_first',
-    fallback:
-      'This post was assembled from evidence. Save it as a draft first, then confirm the evidence — that opens scheduling.',
   },
 };
 

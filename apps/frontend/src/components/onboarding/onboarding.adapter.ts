@@ -28,6 +28,8 @@ export type OnboardingProgress = {
   channels: number;
   voiceSamples: number;
   facts: number;
+  /** Заготовки области: `ContentPiece` c `kind='CORE'`, не в архиве. */
+  pieces: number;
   drafts: number;
   scheduled: number;
 };
@@ -36,6 +38,7 @@ export const EMPTY_PROGRESS: OnboardingProgress = {
   channels: 0,
   voiceSamples: 0,
   facts: 0,
+  pieces: 0,
   drafts: 0,
   scheduled: 0,
 };
@@ -56,6 +59,7 @@ export function readProgress(body: unknown): OnboardingProgress {
     channels: count(record.channels),
     voiceSamples: count(record.voiceSamples),
     facts: count(record.facts),
+    pieces: count(record.pieces),
     drafts: count(record.drafts),
     scheduled: count(record.scheduled),
   };
@@ -93,7 +97,11 @@ export const ONBOARDING_STEP_HREF: Record<OnboardingStepKey, string> = {
   channel: '/launches',
   voice: '/content?tab=avatars',
   fact: '/content?tab=brief',
-  brief: '/content?tab=brief',
+  // «Заготовки», ключ которых остался `materials`
+  // (`content-section.tabs.ts`). The step used to send people to the brief
+  // tab, which was the only way to a draft before the «заготовка и адаптации»
+  // wave; «Новая заготовка» is where that work starts now.
+  brief: '/content?tab=materials',
   preview: '/launches',
   schedule: '/launches',
 };
@@ -101,11 +109,17 @@ export const ONBOARDING_STEP_HREF: Record<OnboardingStepKey, string> = {
 /**
  * What counts as done, read off one answer.
  *
- * `brief` and `preview` share the draft count on purpose: a draft is what a
- * brief produces, and the product has no separate record of «a brief was
- * filled in». Claiming otherwise would need a new column to hold a fact the
- * walkthrough is the only consumer of, and the honest reading is that the two
- * steps close together — you get a draft, you look at it.
+ * `brief` closes on a заготовка as well as on a draft. Owner, 07.09.2026:
+ * «У меня все пройдено, кроме пункта… Хотя, по идее, я же создал новую
+ * заготовку». He was right — the step asks for a filled brief, and since the
+ * «заготовка и адаптации» wave a `CORE` piece carries one inside it. Reading
+ * only the draft count left the step open for someone who had done exactly
+ * what it asked.
+ *
+ * `preview` still reads the drafts alone, and the two steps no longer close
+ * together: a заготовка is the brief done, a draft is the thing there is to
+ * look at, and only the second one can honestly tick «посмотрите, как это
+ * выйдет в канале».
  */
 export function stepIsDone(
   step: OnboardingStepKey,
@@ -119,6 +133,9 @@ export function stepIsDone(
     case 'fact':
       return progress.facts > 0;
     case 'brief':
+      return (
+        progress.pieces > 0 || progress.drafts > 0 || progress.scheduled > 0
+      );
     case 'preview':
       return progress.drafts > 0 || progress.scheduled > 0;
     case 'schedule':
@@ -164,4 +181,18 @@ export function stepDetail(
     default:
       return null;
   }
+}
+
+/**
+ * Пройдены ли все шесть шагов.
+ *
+ * Read by the sidebar, which drops «С чего начать» once there is nothing left
+ * to start (owner, 07.09.2026: «раздел «С чего начать» должен быть просто
+ * отдельным пунктом меню вынесен»). One function rather than a second
+ * `doneCount(...) === 6` written where the menu is built: the total is the
+ * length of the list above, and two places counting it apart is how a menu row
+ * outlives its reason.
+ */
+export function allStepsDone(progress: OnboardingProgress): boolean {
+  return doneCount(progress) === ONBOARDING_STEP_KEYS.length;
 }

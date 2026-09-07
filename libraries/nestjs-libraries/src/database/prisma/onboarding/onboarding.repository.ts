@@ -2,6 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 
 /**
+ * `ContentPiece` в том виде, в каком этот счёт её спрашивает.
+ *
+ * Колонка `kind` появилась в схеме позже, чем сгенерирован клиент Prisma в
+ * дереве, и `ContentPieceWhereInput` про неё ещё не знает — `tsc` отказывает
+ * на живом запросе. `piece.repository.ts` и `content-brief.repository.ts`
+ * ходят в ту же таблицу тем же способом, через собственный узкий тип поверх
+ * клиента; заводить здесь второй способ значит развести две правды об одной
+ * таблице. Тип узкий намеренно: это единственный вопрос, который отсюда
+ * задаётся.
+ */
+type PieceCounter = {
+  count(args: {
+    where: { organizationId: string; kind: string; archivedAt: null };
+  }): Promise<number>;
+};
+
+/**
  * `content-factory-next-rrs9`: how far along a workspace actually is.
  *
  * The walkthrough closes a step when the thing exists, not when a person
@@ -10,22 +27,38 @@ import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/pris
  * teaches nothing, and a step that stays open until the work is done is the
  * product telling the truth about where you are.
  *
- * Five counts in one answer rather than five requests from the browser. The
+ * Six counts in one answer rather than six requests from the browser. The
  * page asks one question — how far along am I — and a screen that assembles
  * that from four endpoints has four ways to be half-right, each with its own
  * spinner and its own failure. Counts only: nothing here reads content, so it
  * stays cheap enough to ask on every visit to the page.
+ *
+ * `pieces` joined them on 07.09.2026. The owner had made a заготовка and the
+ * brief step stayed open: «У меня все пройдено, кроме пункта… Хотя, по идее,
+ * я же создал новую заготовку». The step was reading the draft count, which
+ * is what the brief produced back when the brief was the only way in. Since
+ * the «заготовка и адаптации» wave a `ContentPiece` with `kind='CORE'` is the
+ * other way in and carries the filled brief inside it, so a workspace that
+ * has one has done the work the step asks for.
  */
 @Injectable()
 export class OnboardingRepository {
   constructor(
     private _prisma: PrismaRepository<
-      'integration' | 'brandVoiceSample' | 'contentFact' | 'post'
+      | 'integration'
+      | 'brandVoiceSample'
+      | 'contentFact'
+      | 'post'
+      | 'contentPiece'
     >
   ) {}
 
+  private contentPiece(): PieceCounter {
+    return this._prisma.model.contentPiece as unknown as PieceCounter;
+  }
+
   async progress(organizationId: string) {
-    const [channels, voiceSamples, facts, drafts, scheduled] =
+    const [channels, voiceSamples, facts, pieces, drafts, scheduled] =
       await Promise.all([
         this._prisma.model.integration.count({
           where: { organizationId, deletedAt: null, disabled: false },
@@ -55,6 +88,16 @@ export class OnboardingRepository {
             status: { notIn: ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'] },
           },
         }),
+        /*
+          Заготовка: `kind='CORE'` и не в архиве. The table has no `deletedAt`
+          — `piece.repository.ts` reads `archivedAt` and the list hides an
+          archived row — so that is the column asked for here too. A row
+          without `kind` predates the wave: its brief was never filled in, so
+          it cannot answer for this step.
+        */
+        this.contentPiece().count({
+          where: { organizationId, kind: 'CORE', archivedAt: null },
+        }),
         this._prisma.model.post.count({
           where: { organizationId, deletedAt: null, state: 'DRAFT' },
         }),
@@ -72,6 +115,6 @@ export class OnboardingRepository {
         }),
       ]);
 
-    return { channels, voiceSamples, facts, drafts, scheduled };
+    return { channels, voiceSamples, facts, pieces, drafts, scheduled };
   }
 }

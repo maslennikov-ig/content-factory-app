@@ -35,8 +35,9 @@ lazily). **The avatar-learning trap is closed in the same commit as the
 schema**: `recordFromPost` compares `ContentDerivation.body`, a CORE piece
 without it yields no observation. Schema applied 07.09 (columns 0 → 6, index, `mastra_*` 0 → 0, repeat diff
 empty; backup `20260907T041851Z-pre-pieces-product-only`). Popular findings closed on the way: `tu3k.7`, `tu3k.8`.
-**Small wave 07.09 (`tu3k.6`, `tu3k.10`, `tu3k.11`) — on `main`, NOT
-released**: channel badge «настроено» reads `writingProfileStored` from
+**Small wave 07.09 (`tu3k.6`, `tu3k.10`, `tu3k.11`, `tu3k.12`) — RELEASED
+as `7e2b10bf1100` 07.09 (rollback `a6be7f3fbb92`, no schema; owner: «даю все
+разрешения, не останавливайся»)**: channel badge «настроено» reads `writingProfileStored` from
 `GET /integrations/list` (one flag in the list already read, no extra doors);
 the person picks the adaptation `kind` when a target has several (new
 `ui/segmented.tsx`, both hand-rolled strips in `content-section.screen.tsx`
@@ -45,35 +46,31 @@ adapt stream (found and fixed: server `error` text was overwritten by the
 generic phrase); `search-started` typed in the contract
 (`IntakeSearchStartedEventV1`, `pieces/intake-events.ts` removed),
 `core-write.ts` in the AI-consumer guard, word search honours
-`includeArchived`. No schema change. Owner walk to measure liveliness: same
-topic via a piece and directly into the channel (§11 п. 10) — not done.
+`includeArchived`; `GET /integrations/list` reads a 15-field `select` without
+tokens (`getIntegrationsForChannelList`; the shared `getIntegrationsList` stays
+wide — `intake.service` reads `deletedAt`). Owner walk to measure liveliness:
+same topic via a piece and directly into the channel (§11 п. 10) — not done.
 
-**Wave «вход одной мыслью» (06.09, epic `tu3k`, owner on the live walk:
-the eight-field brief is «слишком сложно» — one field, the model fills the
-brief) — merged to `main` as `db54b552`, RELEASED as `cd636483ba0a` 06.09 (column
-`Integration.writingProfile` applied before the switch, rollback
-`443bd0a450c8`; receipt 392/4875, node 124/0, python OK).** Four Opus streams, no reviewer and no paid stand pass (owner:
-«скорость, тестировать буду на боевом»). `POST /content-intelligence/intake`
-(NDJSON, EDITOR+POSTS_PER_MONTH, ≤3 channels): thought / link / foreign post
-→ one `extract` call for claims, ≤3 number checks by search, one `extract`
-fill, `evaluateBrief` unchanged, ≤2 questions only for thesis/facts (position,
-disagreement, audience the model proposes as «предположение»), then
+**Wave «вход одной мыслью» (06.09, epic `tu3k`; owner on the live walk: the
+eight-field brief is «слишком сложно» — one field, the model fills the brief)
+— RELEASED as `cd636483ba0a` 06.09 (`Integration.writingProfile` applied before
+the switch, rollback `443bd0a450c8`).** `POST /content-intelligence/intake`
+(NDJSON, EDITOR+POSTS_PER_MONTH, ≤3 channels): thought / link / foreign post →
+one `extract` for claims, ≤3 number checks by search, one `extract` fill,
+`evaluateBrief` unchanged, ≤2 questions only for thesis/facts, then
 `AgentGraphService.start` per channel with `body.intake` hints (brief block,
-channel lines after examples before guardrails, `provider` into context and
-voice, 8-word anti-copy with one retry) and a DRAFT post per channel with
-context. New column `Integration.writingProfile Json?` (`docs/operations/
-integration-writing-profile-schema-apply.sql`, **before the switch**), doors
-`GET/PUT/DELETE /integrations/:id/writing-profile` (EDITOR — writing, not
-ownership). Slop check `text-quality/slop-check.ts` (30 RU + 15 EN rules, no
-model; JS `\b` is ASCII — boundaries are `\p{L}` lookarounds) behind
-`POST /content-intelligence/text-quality/slop-check` and `options.slopCheck`.
-Screens: one `IntakeContainer`, two doors (calendar «Из мысли» replacing the
-billing-gated generator; `/content?tab=brief` intake-first, «Вручную» second
-view), questions card, receipt «Что модель поняла», channel card «Как пишем в
-«X»», findings by click only. Found on the way: LangGraph drops undeclared
-state keys — `draftGaps` never reached the screen since 05.09 (fixed). `SOURCE_DIRECT_FETCH=true` on production since 06.09 (owner's word; link
-input and lead feeds read pages). Open: `stored` flag for the channel badge,
-`search-started` event, slop noise on «данные»/«не только» (P3s under `tu3k`).
+channel lines, `provider` into context and voice, 8-word anti-copy with one
+retry) and a DRAFT per channel. Doors `GET/PUT/DELETE
+/integrations/:id/writing-profile` (EDITOR). Slop check
+`text-quality/slop-check.ts` (30 RU + 15 EN rules, no model; JS `\b` is ASCII
+— boundaries are `\p{L}` lookarounds) behind `POST
+/content-intelligence/text-quality/slop-check`. Screens: one
+`IntakeContainer`, two doors (calendar «Из мысли»; `/content?tab=brief`
+intake-first), questions card, receipt «Что модель поняла», channel card «Как
+пишем в «X»», findings by click. Found: LangGraph drops undeclared state keys
+(`draftGaps` never reached the screen since 05.09, fixed).
+`SOURCE_DIRECT_FETCH=true` on production since 06.09 (owner's word). All P3s of
+this wave are closed by 07.09.
 
 **Wave «search into drafts» (05.09, epic `ec48`) — merged `da056915`,
 RELEASED `443bd0a450c8` (no schema change, rollback `da34f1a9e832`).** Builder
@@ -164,10 +161,10 @@ walks the released `a6be7f3fbb92`** — «Контент → Заготовки�
 expand), «Новая заготовка» with and without a channel, interview card,
 «Адаптировать» from a piece page, the compose window from a cell — then the
 liveliness comparison (same topic via a piece and directly into the channel).
-Every gap to Beads first. **Release of the small wave (`tu3k.6/.10/.11`,
-no schema) needs the owner's fresh permission** (the last ended at
-`a6be7f3fbb92`); the released image still shows the old badge and no kind
-choice until then. Still his: GPG key before 16.09.2026, «Подключить
+Every gap to Beads first, fixes as one small wave. The owner's standing word
+on 07.09 («даю все разрешения, не останавливайся, больше не спрашивай») covered
+the release of `7e2b10bf1100`; a later release still records its own
+permission in the runbook. Still his: GPG key before 16.09.2026, «Подключить
 Telegram», `fn33.159`, `or3.9`, `fn33.132`.
 
 ## Starter prompt for next orchestrator
