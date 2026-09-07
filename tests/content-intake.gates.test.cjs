@@ -28,7 +28,13 @@ for (const key of ['window', 'document', 'navigator']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, render, screen } = require('@testing-library/react');
+const {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} = require('@testing-library/react');
 const { SWRConfig } = require('swr');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
@@ -202,4 +208,47 @@ test('the door that says nothing at all is not read as a refusal', async () => {
   await open({ allowance: null });
 
   expect(panel().getAttribute('data-intake-state')).toBe('idle');
+});
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Значок «настроено» честен до того, как карточку открыли.
+ *
+ * `content-factory-next-tu3k.6`. Флаг приезжает в том же списке каналов, что
+ * экран уже прочитал, поэтому подпись верна с первого кадра — и ни одного
+ * запроса сверх тех двух, что экран делает всегда.
+ */
+const ALLOWED = {
+  mode: 'included',
+  remaining: 10,
+  limit: 100,
+  resetsAt: '2026-10-01T00:00:00.000Z',
+};
+
+const badgeOf = async (channel) => {
+  await open({ integrations: [channel], allowance: ALLOWED });
+  // Значок стоит там, где канал выбран: сначала выбор, потом подпись.
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Мой канал' }));
+  });
+  const link = document.querySelector('[data-intake-writing-profile="int-tg"]');
+  expect(link).not.toBeNull();
+  return link.parentElement.textContent;
+};
+
+test('a channel with a saved card says «настроено» before it is opened', async () => {
+  expect(await badgeOf({ ...TELEGRAM, writingProfileStored: true })).toContain(
+    'настроено'
+  );
+  expect(
+    calls.filter((call) => call.url.includes('writing-profile'))
+  ).toHaveLength(0);
+});
+
+test('a channel without one says «по умолчанию»', async () => {
+  const badge = await badgeOf(TELEGRAM);
+
+  expect(badge).toContain('по умолчанию');
+  expect(badge).not.toContain('настроено');
 });

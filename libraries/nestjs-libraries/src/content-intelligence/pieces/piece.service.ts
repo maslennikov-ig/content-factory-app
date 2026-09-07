@@ -179,7 +179,11 @@ export class PieceService {
     );
     const byPiece = this.group(adaptations);
     const columns = columnsOf(integrations, adaptations);
-    const matched = await this.pieces.searchPieceIds(organizationId, query.q);
+    const matched = await this.pieces.searchPieceIds(
+      organizationId,
+      query.q,
+      Boolean(query.includeArchived)
+    );
 
     const rows: PieceRowV1[] = [];
     for (let index = 0; index < all.length; index += 1) {

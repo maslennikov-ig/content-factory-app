@@ -137,17 +137,20 @@ export class PieceRepository {
    * (`ContentMaterialRepository.searchPieceIds`), и не второй его экземпляр:
    * два поиска по одной таблице, разошедшиеся правилом разбора слов, — это две
    * разные вкладки, отвечающие на один запрос по-разному. Пустой запрос до
-   * базы не доходит.
+   * базы не доходит. Архив входит в ответ только по флагу — тем же, что
+   * показывает архивные строки в списке.
    */
   async searchPieceIds(
     organizationId: string,
-    query: string | null | undefined
+    query: string | null | undefined,
+    includeArchived = false
   ): Promise<Set<string> | null> {
     const words = searchWords(query);
     if (!words.length) return null;
     const found: Array<{ id: string }> = await this.materials.searchPieceIds(
       organizationId,
-      words
+      words,
+      { includeArchived }
     );
     return new Set(found.map((row) => row.id));
   }

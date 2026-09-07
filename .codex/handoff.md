@@ -5,8 +5,10 @@ Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
 **Wave «заготовка и адаптации» (06.09–07.09, epic `tu3k.9` under `tu3k`, plan
-`lexical-sauteeing-bubble`) — merged to `wave/pieces-2026-09-07` at
-`0024732b`, NOT yet on `main`, NOT released.** Six streams (Z4 root, Z1/Z2
+`lexical-sauteeing-bubble`) — merged to `main` as `4895c8fa`, RELEASED as
+`a6be7f3fbb92` 07.09 (schema `piece-adaptation-schema-apply.sql` applied
+BEFORE the switch from the new image's own `migrate diff`, rollback
+`cd636483ba0a`, public CI green; owner: «Разрешение на деплой даю»).** Six streams (Z4 root, Z1/Z2
 complex, Z3/Z6 worker, Z5 frontend), no reviewer, no paid stand pass (owner:
 «скорость важнее тестов и UX-проверок»). Full `pnpm test` three halves green
 (jest 396/4973, node 128/0, python OK), `tsc` zero on three apps, process
@@ -31,16 +33,20 @@ intake is «Новая заготовка»; compose window on product tokens, o
 `new-launch/compose.modal.options.ts` + `useOpenPostEditor` (editor loaded
 lazily). **The avatar-learning trap is closed in the same commit as the
 schema**: `recordFromPost` compares `ContentDerivation.body`, a CORE piece
-without it yields no observation. Schema step for production:
-`docs/operations/piece-adaptation-schema-apply.sql` (three statements, six
-columns, one index), validator passed, **apply BEFORE the image switch**, not
-applied on 06.09. Popular findings closed on the way: `tu3k.7`, `tu3k.8`.
-Open from the wave: `tu3k.6` (stored badge), Z5 defers (no container tests for
-the adapt stream; `kind` not chosen by the person; `POST /archive` unused by a
-button), Z2 defers (`search-started` typed in `pieces/intake-events.ts`, not
-in the contract; `core-write.ts` not in the AI-consumer guard list; word search
-ignores `includeArchived`). Owner walk to measure liveliness: same topic via a
-piece and directly into the channel (§11 п. 10).
+without it yields no observation. Schema applied 07.09 (columns 0 → 6, index, `mastra_*` 0 → 0, repeat diff
+empty; backup `20260907T041851Z-pre-pieces-product-only`). Popular findings closed on the way: `tu3k.7`, `tu3k.8`.
+**Small wave 07.09 (`tu3k.6`, `tu3k.10`, `tu3k.11`) — on `main`, NOT
+released**: channel badge «настроено» reads `writingProfileStored` from
+`GET /integrations/list` (one flag in the list already read, no extra doors);
+the person picks the adaptation `kind` when a target has several (new
+`ui/segmented.tsx`, both hand-rolled strips in `content-section.screen.tsx`
+moved onto it), «В архив» button on the piece page, 8 container tests on the
+adapt stream (found and fixed: server `error` text was overwritten by the
+generic phrase); `search-started` typed in the contract
+(`IntakeSearchStartedEventV1`, `pieces/intake-events.ts` removed),
+`core-write.ts` in the AI-consumer guard, word search honours
+`includeArchived`. No schema change. Owner walk to measure liveliness: same
+topic via a piece and directly into the channel (§11 п. 10) — not done.
 
 **Wave «вход одной мыслью» (06.09, epic `tu3k`, owner on the live walk:
 the eight-field brief is «слишком сложно» — one field, the model fills the
@@ -153,17 +159,15 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **release the
-wave «заготовка и адаптации» with the owner's fresh permission** (the last
-permission ended at `cd636483ba0a`): merge `wave/pieces-2026-09-07` to
-`main`, receipt for `HEAD`, «через год», docker check, public tree, image,
-`.env` absence check; **before the switch** backup + apply
-`piece-adaptation-schema-apply.sql` in one transaction with the `mastra_*`
-count check; then switch, four addresses, retain artifacts. After the switch
-the owner walks: «Контент → Заготовки» (table, cells, expand), «Новая
-заготовка» with and without a channel, interview card, «Адаптировать» from a
-piece page, the compose window from a cell; then the liveliness comparison.
-Every gap to Beads first. Still his: GPG key before 16.09.2026, «Подключить
+Next stage id: `content-factory-next-vme`. Recommended action: **the owner
+walks the released `a6be7f3fbb92`** — «Контент → Заготовки» (table, cells,
+expand), «Новая заготовка» with and without a channel, interview card,
+«Адаптировать» from a piece page, the compose window from a cell — then the
+liveliness comparison (same topic via a piece and directly into the channel).
+Every gap to Beads first. **Release of the small wave (`tu3k.6/.10/.11`,
+no schema) needs the owner's fresh permission** (the last ended at
+`a6be7f3fbb92`); the released image still shows the old badge and no kind
+choice until then. Still his: GPG key before 16.09.2026, «Подключить
 Telegram», `fn33.159`, `or3.9`, `fn33.132`.
 
 ## Starter prompt for next orchestrator

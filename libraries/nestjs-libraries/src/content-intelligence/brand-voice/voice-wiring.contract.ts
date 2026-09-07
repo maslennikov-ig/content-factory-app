@@ -2739,9 +2739,27 @@ export type IntakePieceEventV1 =
       round: number;
     };
 
+/**
+ * Вход говорит вслух, что сейчас идёт поиск (`content-factory-next-tu3k.7`):
+ * те несколько секунд, пока числа чужого поста сверяются, экран иначе читает
+ * как зависание. Объявлено в контракте с волны `tu3k.11`; до неё жило рядом с
+ * сервисом в `pieces/intake-events.ts`.
+ */
+export type IntakeSearchStartedEventV1 = {
+  name: 'search-started';
+  /**
+   * Зачем ищем: `claims` — сверка чисел чужого поста, `facts` — опора для
+   * мысли, у которой не нашлось ни одного факта.
+   */
+  reason: 'claims' | 'facts';
+  /** Сколько запросов уйдёт. Экран показывает число, а не крутилку без конца. */
+  count: number;
+};
+
 export type IntakeEventWithPieceV1 =
   | IntakeEventV1
   | IntakePieceEventV1
+  | IntakeSearchStartedEventV1
   | (Extract<IntakeEventV1, { name: 'draft' }> & {
       adaptationId?: string | null;
     });

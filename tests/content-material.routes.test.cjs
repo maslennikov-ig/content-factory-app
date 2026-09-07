@@ -434,6 +434,38 @@ describe('the library lists what a workspace already wrote', () => {
  * Provenance
  * ---------------------------------------------------------------------- */
 
+describe('word search sees the archive only when asked', () => {
+  test('the old tab keeps archived rows out of its search', async () => {
+    const { store } = service();
+    const repository = new ContentMaterialRepository(
+      { model: store.model },
+      { model: store.model }
+    );
+    await repository.searchPieceIds('org-a', ['дедлайн']);
+    const query = store.calls.find(
+      (call) => call.name === 'contentPiece.findMany'
+    );
+    expect(query.args.where.organizationId).toBe('org-a');
+    expect(query.args.where.archivedAt).toBeNull();
+  });
+
+  test('the pieces list asks with includeArchived and gets the archive back', async () => {
+    const { store } = service();
+    const repository = new ContentMaterialRepository(
+      { model: store.model },
+      { model: store.model }
+    );
+    await repository.searchPieceIds('org-a', ['дедлайн'], {
+      includeArchived: true,
+    });
+    const query = store.calls.find(
+      (call) => call.name === 'contentPiece.findMany'
+    );
+    expect(query.args.where.organizationId).toBe('org-a');
+    expect(query.args.where).not.toHaveProperty('archivedAt');
+  });
+});
+
 describe('a material says which posts came out of it', () => {
   test('provenance names the platform and the state of each post', async () => {
     const { service: materials } = service();

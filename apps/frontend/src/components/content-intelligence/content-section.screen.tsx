@@ -2,12 +2,9 @@
 
 import { useCallback, useState, type ReactNode } from 'react';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
-import {
-  RadioGroup,
-  RadioOption,
-} from '@contentfactory/react/choice/radio.group';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import clsx from 'clsx';
+import { Segmented } from '../ui/segmented';
 import { ContentIntelligenceSettings } from './content-intelligence.settings';
 import {
   contentSectionCopy,
@@ -114,8 +111,8 @@ import { CONTENT_TABS } from './content-section.tabs';
  * navigate anywhere — which is what separates a radio group from a tab list
  * in this design system, not just which panel happens to be underneath it.
  *
- * The pill styling below is the same fill-versus-surface split
- * `form/button.tsx` uses for its own variants: a filled, accent pill for the
+ * The strip itself is `ui/segmented`: the same fill-versus-surface split
+ * `form/button.tsx` uses for its own variants — a filled, accent pill for the
  * current view and a quiet one for the other, `cf-pressed-fill`/`cf-pressed`
  * for the press each already carries. The wrapping panel forces every button
  * inside it to a 44px mobile hit area (`ContentSectionShell`'s own
@@ -148,28 +145,15 @@ export function MaterialsViewSwitch({
   const t = materialsViewCopy(locale);
 
   return (
-    <RadioGroup
+    <Segmented<MaterialsView>
+      label={t.label}
       value={view}
-      onChange={(value) => onChange(value as MaterialsView)}
-      aria-label={t.label}
-      className="inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]"
-    >
-      {MATERIALS_VIEWS.map((option) => (
-        <RadioOption
-          key={option}
-          value={option}
-          layout="content"
-          className={clsx(
-            'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
-            view === option
-              ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
-              : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
-          )}
-        >
-          {t[option]}
-        </RadioOption>
-      ))}
-    </RadioGroup>
+      onChange={onChange}
+      options={MATERIALS_VIEWS.map((option) => ({
+        value: option,
+        label: t[option],
+      }))}
+    />
   );
 }
 
@@ -184,12 +168,14 @@ export function MaterialsViewSwitch({
  * behind anything — it is the second view, «Вручную», reachable in one press,
  * because the person who knows exactly what they want to say is still right.
  *
- * A copy of `MaterialsViewSwitch` rather than a shared component: the two
- * switches answer different questions («вид списка» / «как начать»), and one
- * parameterised switch over two unrelated pairs of labels is the kind of
- * shared thing that has to be untangled the moment the third view appears.
- * §9.4's own reasoning for `RadioGroup` applies unchanged — choosing is cheap,
- * reversible and navigates nowhere.
+ * The words stay separate from `MaterialsViewSwitch`: the two switches answer
+ * different questions («вид списка» / «как начать»), and one parameterised
+ * switch over two unrelated pairs of labels is the kind of shared thing that
+ * has to be untangled the moment the third view appears. What they do share is
+ * the strip itself — border, 4px step, radius and the fill of the current
+ * choice — and since 07.09.2026 that lives once, in `ui/segmented`. §9.4's own
+ * reasoning for `RadioGroup` applies unchanged — choosing is cheap, reversible
+ * and navigates nowhere.
  */
 export type BriefView = 'intake' | 'manual';
 
@@ -211,28 +197,15 @@ export function BriefViewSwitch({
   } as const;
 
   return (
-    <RadioGroup
+    <Segmented<BriefView>
+      label={words.briefViewLabel}
       value={view}
-      onChange={(value) => onChange(value as BriefView)}
-      aria-label={words.briefViewLabel}
-      className="inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]"
-    >
-      {BRIEF_VIEWS.map((option) => (
-        <RadioOption
-          key={option}
-          value={option}
-          layout="content"
-          className={clsx(
-            'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
-            view === option
-              ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
-              : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
-          )}
-        >
-          {label[option]}
-        </RadioOption>
-      ))}
-    </RadioGroup>
+      onChange={onChange}
+      options={BRIEF_VIEWS.map((option) => ({
+        value: option,
+        label: label[option],
+      }))}
+    />
   );
 }
 

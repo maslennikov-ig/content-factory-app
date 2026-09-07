@@ -729,7 +729,13 @@ const pieceRow = (overrides = {}) => ({
 });
 
 const buildPieces = (options = {}) => {
-  const calls = { start: [], createDraft: [], createAdaptation: [], deleted: [] };
+  const calls = {
+    start: [],
+    createDraft: [],
+    createAdaptation: [],
+    deleted: [],
+    search: [],
+  };
   // `piece: null` — это «заготовки нет», а не «умолчание»: `??` съел бы её и
   // отказ `PIECE_NOT_FOUND` никогда бы не проверился.
   const piece = 'piece' in options ? options.piece : pieceRow();
@@ -740,7 +746,10 @@ const buildPieces = (options = {}) => {
     getPiece: async () => piece,
     listIntegrations: async () => options.integrations ?? CHANNELS,
     adaptationsByPiece: async () => options.adaptations || [],
-    searchPieceIds: async () => options.matched ?? null,
+    searchPieceIds: async (...args) => {
+      calls.search.push(args);
+      return options.matched ?? null;
+    },
     createDraft: async (organizationId, input) => {
       calls.createDraft.push([organizationId, input]);
       return 'post-9';
@@ -1011,6 +1020,30 @@ describe('список и страница', () => {
     expect(
       (await service.list('org-a', { missingOn: 'vk' }, 'ru')).pieces
     ).toHaveLength(1);
+  });
+
+  test('поиск по словам видит архив ровно тогда, когда список его показывает', async () => {
+    const archived = pieceRow({
+      id: 'piece-old',
+      archivedAt: new Date('2026-09-05T00:00:00.000Z'),
+    });
+    const { service, calls } = buildPieces({
+      pieces: [archived],
+      matched: new Set(['piece-old']),
+    });
+
+    expect((await service.list('org-a', { q: 'дедлайн' }, 'ru')).pieces).toEqual(
+      []
+    );
+    expect(calls.search[0]).toEqual(['org-a', 'дедлайн', false]);
+
+    const shown = await service.list(
+      'org-a',
+      { q: 'дедлайн', includeArchived: true },
+      'ru'
+    );
+    expect(shown.pieces.map((row) => row.id)).toEqual(['piece-old']);
+    expect(calls.search[1]).toEqual(['org-a', 'дедлайн', true]);
   });
 
   test('страница отдаёт суть, цели и строку «позже»', async () => {

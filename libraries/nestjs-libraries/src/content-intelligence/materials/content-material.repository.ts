@@ -109,10 +109,19 @@ export class ContentMaterialRepository {
    * `organizationId` стоит в `where` первым и вне слов: слова — это то, что
    * человек ввёл, а границу пространства ввод не двигает ни при каком запросе.
    */
-  searchPieceIds(organizationId: string, words: readonly string[]) {
+  searchPieceIds(
+    organizationId: string,
+    words: readonly string[],
+    options: { includeArchived?: boolean } = {}
+  ) {
     const byWords = wordsWhere(words, SEARCHABLE_PIECE_FIELDS);
+    // Старая вкладка архива не видит, и её поиск тоже; список заготовок
+    // показывает архив по флагу, и поиск обязан отвечать тем же множеством —
+    // иначе «в архиве» и «найдено» никогда не пересекаются
+    // (`content-factory-next-tu3k.11`).
+    const archived = options.includeArchived ? {} : { archivedAt: null };
     return (this.repository.model as any).contentPiece.findMany({
-      where: { organizationId, archivedAt: null, ...(byWords ?? {}) },
+      where: { organizationId, ...archived, ...(byWords ?? {}) },
       select: { id: true },
     });
   }

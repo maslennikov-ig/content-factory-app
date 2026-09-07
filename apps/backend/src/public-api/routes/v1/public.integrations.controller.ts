@@ -294,7 +294,9 @@ export class PublicIntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @Query('group') group?: string
   ) {
-    return (await this._integrationService.getIntegrationsList(org.id))
+    return (
+      await this._integrationService.getIntegrationsForChannelList(org.id)
+    )
       .filter((integration) => !group || integration.customer?.id === group)
       .map((integration) => ({
         id: integration.id,

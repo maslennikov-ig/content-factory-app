@@ -13,6 +13,9 @@ const consumers = [
   // Вход одной мыслью: два разбора на один вход, своя операция `intake`
   // (`content-factory-next-tu3k.1`).
   'libraries/nestjs-libraries/src/content-intelligence/intake/intake.service.ts',
+  // Суть заготовки: один вызов роли `draft` под операцией `intake`
+  // (`content-factory-next-tu3k.9.2`, в список — `tu3k.11`).
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/core-write.ts',
 ];
 
 test('every direct AI consumer is behind the explicit operation seam', () => {

@@ -251,5 +251,16 @@ export const resolveChannelWritingProfile = (
   contentLanguage?: string | null
 ): { profile: ChannelWritingProfileV1; stored: boolean } => ({
   profile: parseWritingProfile(raw, providerIdentifier, contentLanguage),
-  stored: Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw),
+  stored: isStoredWritingProfile(raw),
 });
+
+/**
+ * Сохранял ли карточку человек — один ответ на два вопроса.
+ *
+ * Спрашивают в двух местах: дверь карточки отдаёт `stored`, а список каналов —
+ * `writingProfileStored` для значка на экране входа. Пустая колонка, `null`,
+ * строка и массив — это «нет карточки»; второе написание этой проверки
+ * разошлось бы с первым при первом же изменении.
+ */
+export const isStoredWritingProfile = (raw: unknown): boolean =>
+  Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw);

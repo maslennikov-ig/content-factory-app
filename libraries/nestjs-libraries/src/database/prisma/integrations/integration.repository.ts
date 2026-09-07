@@ -567,6 +567,48 @@ export class IntegrationRepository {
     });
   }
 
+  /**
+   * Список каналов для дверей, которые его печатают.
+   *
+   * Отдельный метод, а не `select` внутри `getIntegrationsList`, потому что у
+   * общего списка восемь вызывающих, и часть из них читает строку иначе:
+   * `intake.service` смотрит на `deletedAt`, чтобы отсеять удалённый канал.
+   * Сузить общий метод — тихо отдать таким читателям `undefined` там, где
+   * раньше было значение; узкая дверь такой цены не стоит.
+   *
+   * Поля здесь — ровно те, которые печатает `GET /integrations/list` (и
+   * подмножество которых печатает `GET /public/v1/integrations`). Секретов
+   * среди них нет: `token`, `refreshToken`, `tokenExpiration` и
+   * `customInstanceDetails` в ответ не попадали никогда, а до этого метода
+   * всё равно ехали в память сервиса и контроллера. `customer` берётся
+   * целиком — ответ двери отдаёт его как есть, и форма не меняется.
+   */
+  getIntegrationsForChannelList(org: string) {
+    return this._integration.model.integration.findMany({
+      where: {
+        organizationId: org,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        internalId: true,
+        name: true,
+        picture: true,
+        providerIdentifier: true,
+        type: true,
+        disabled: true,
+        inBetweenSteps: true,
+        refreshNeeded: true,
+        profile: true,
+        postingTimes: true,
+        additionalSettings: true,
+        contentLanguage: true,
+        writingProfile: true,
+        customer: true,
+      },
+    });
+  }
+
   async disableChannel(org: string, id: string) {
     await this._integration.model.integration.update({
       where: {

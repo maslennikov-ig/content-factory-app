@@ -1,9 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
+import { Segmented } from '../../ui/segmented';
 import {
   EmptyState,
   ErrorState,
@@ -50,6 +51,12 @@ import type {
  * **Видео и аудио — строка «позже», а не выключенные кнопки.** Выключенная
  * кнопка обещает, что скоро включится; строка честно говорит, что этого
  * сейчас нет.
+ *
+ * **Вид адаптации выбирает человек, а не первая строка списка.** Пока
+ * площадка умеет один вид, выбора нет и спрашивать нечего. Умеет несколько —
+ * рядом с «Адаптировать» стоит полоса `Segmented`, и до запроса видно, что
+ * именно сейчас напишется: подпись или статья — это два разных текста, и
+ * «первый из списка» здесь был решением экрана за человека.
  */
 
 export function PieceScreen({
@@ -68,6 +75,7 @@ export function PieceScreen({
   restrictedReason,
   readOnlyNote,
   onAdapt,
+  onArchive,
   onAnswer,
   onSkipInterview,
   onCancel,
@@ -92,6 +100,7 @@ export function PieceScreen({
   restrictedReason?: ReactNode;
   readOnlyNote?: ReactNode;
   onAdapt: (channelId: string, kind: AdaptationKindV1) => void;
+  onArchive: () => void;
   onAnswer: (
     answers: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
     decideKeys: readonly string[]
@@ -105,6 +114,15 @@ export function PieceScreen({
 }) {
   const t = piecesCopy[locale];
   const v = voiceCopy[locale];
+
+  /*
+    Выбранный вид — по площадке, а не один на страницу: Instagram и сайт
+    отвечают на разные вопросы, и общий выбор перепрыгивал бы между ними.
+    Пусто — значит человек ещё не выбирал, и берётся первый вид площадки.
+  */
+  const [chosenKinds, setChosenKinds] = useState<
+    Readonly<Record<string, AdaptationKindV1>>
+  >({});
 
   const kindWord = (kind: AdaptationKindV1) =>
     kind === 'caption'
@@ -163,12 +181,31 @@ export function PieceScreen({
       className="flex min-w-0 flex-col gap-[16px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
       <header className="flex min-w-0 flex-col gap-[4px]">
-        <div className="flex flex-wrap items-center gap-[8px]">
+        <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
           <span className="cf-label-sm text-cf-ink-muted">{piece.code}</span>
           <span className="cf-caption tabular-nums text-cf-ink-muted">
             {piece.date}
           </span>
           {piece.archivedAt ? <Status>{t.archived}</Status> : null}
+          {/*
+            «В архив» — второстепенное действие рядом с состоянием, а не
+            главная кнопка страницы. Подтверждения нет намеренно: архив прячет
+            заготовку из списка и не трогает ни одного поста, в том числе
+            опубликованного, — спрашивать «вы уверены?» о том, что ничего не
+            ломает, значит обесценить вопрос там, где он нужен.
+          */}
+          {!piece.archivedAt ? (
+            <Button
+              type="button"
+              variant="secondary"
+              density="dense"
+              data-piece-archive="true"
+              disabled={!canWrite || busy}
+              onClick={onArchive}
+            >
+              {t.archive}
+            </Button>
+          ) : null}
         </div>
         <h1 className="cf-heading-lg text-cf-ink [text-wrap:balance]">
           {piece.title}
@@ -359,7 +396,8 @@ export function PieceScreen({
         <h2 className="cf-heading-md text-cf-ink">{t.targetsTitle}</h2>
         <ul className="flex flex-wrap gap-[8px]">
           {detail.targets.map((target) => {
-            const kind = target.kinds[0] ?? 'post';
+            const kind =
+              chosenKinds[target.platform] ?? target.kinds[0] ?? 'post';
             const channel = target.channels[0];
             const off = !target.available || !channel || !canWrite || busy;
             return (
@@ -367,8 +405,31 @@ export function PieceScreen({
                 key={target.platform}
                 data-piece-target={target.platform}
                 data-piece-target-available={target.available ? 'true' : 'false'}
+                data-piece-target-kind={kind}
                 className="flex min-w-0 flex-col items-start gap-[4px]"
               >
+                {/*
+                  Выбор вида — только там, где видов больше одного. Полоса из
+                  одного варианта ничего не спрашивает, а место и внимание
+                  занимает.
+                */}
+                {target.kinds.length > 1 ? (
+                  <Segmented<AdaptationKindV1>
+                    label={`${t.kindLabel} · ${target.name}`}
+                    value={kind}
+                    options={target.kinds.map((one) => ({
+                      value: one,
+                      label: kindWord(one),
+                    }))}
+                    onChange={(next) =>
+                      setChosenKinds((current) => ({
+                        ...current,
+                        [target.platform]: next,
+                      }))
+                    }
+                    data-piece-kind-choice={target.platform}
+                  />
+                ) : null}
                 <Button
                   type="button"
                   variant="secondary"

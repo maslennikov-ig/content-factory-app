@@ -118,6 +118,9 @@ export interface Integrations {
   changeProfilePicture: boolean;
   additionalSettings: string;
   contentLanguage?: 'en' | 'ru';
+  // Настроена ли карточка «Как пишем сюда» — булев флаг из `/integrations/list`,
+  // не сама карточка. Необязательно: список отдают и сцены, и старые ответы.
+  writingProfileStored?: boolean;
   changeNickName: boolean;
   time: {
     time: number;

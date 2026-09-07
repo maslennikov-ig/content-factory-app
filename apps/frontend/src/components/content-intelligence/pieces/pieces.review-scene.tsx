@@ -134,6 +134,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
               adaptingChannel={state === 'disabled' ? 'Мой канал' : null}
               restrictedReason={t.restrictedBody}
               onAdapt={noop}
+              onArchive={noop}
               onAnswer={noop}
               onSkipInterview={noop}
               onCancel={noop}

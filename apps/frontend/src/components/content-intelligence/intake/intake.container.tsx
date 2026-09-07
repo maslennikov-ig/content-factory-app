@@ -116,6 +116,21 @@ export function IntakeContainer({
     [channels]
   );
 
+  /*
+    Настроена ли у канала карточка «Как пишем сюда».
+
+    Один флаг едет в списке каналов, который экран и так читает: значок честен
+    сразу, до того как карточку открыли. Опрашивать дверь карточки у каждого
+    канала — это шесть запросов ради подписи в два слова.
+  */
+  const writingProfileStored = useMemo(
+    () =>
+      Object.fromEntries(
+        channels.map((one) => [one.id, Boolean(one.writingProfileStored)])
+      ),
+    [channels]
+  );
+
   const [input, setInput] = useState(prefill?.input ?? '');
   const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
@@ -622,15 +637,5 @@ export function IntakeContainer({
     </>
   );
 }
-
-/**
- * Настроена ли карточка канала — пока неизвестно ни одному каналу.
- *
- * Экран не спрашивает шесть дверей подряд ради шести значков: карточка
- * отвечает про себя, когда её открывают, и до тех пор строка честно говорит
- * «по умолчанию». Опрос всех каналов при каждом открытии экрана — это шесть
- * запросов ради подписи, которую никто не просил.
- */
-const writingProfileStored: Readonly<Record<string, boolean>> = Object.freeze({});
 
 export default IntakeContainer;

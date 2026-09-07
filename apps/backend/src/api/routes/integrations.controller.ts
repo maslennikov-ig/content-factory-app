@@ -38,6 +38,7 @@ import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/integrations/refresh.integration.service';
 import { IntegrationContentLanguageDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.content.language.dto';
 import { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
+import { isStoredWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -102,12 +103,20 @@ export class IntegrationsController {
     return this._integrationService.updateOnCustomerName(org.id, id, body.name);
   }
 
+  /**
+   * Список каналов рабочей области — то, из чего экраны собирают выбор канала.
+   *
+   * `writingProfileStored` — булев флаг, а не сама карточка «Как пишем сюда»:
+   * экрану входа нужен один значок «настроено» / «по умолчанию» у каждого
+   * канала, а карточка целиком — шесть настроек и заметки — поехала бы в
+   * ответе, который читают все экраны, ради подписи в два слова.
+   */
   @Get('/list')
   async getIntegrationList(@GetOrgFromRequest() org: Organization) {
     return {
       integrations: await Promise.all(
         (
-          await this._integrationService.getIntegrationsList(org.id)
+          await this._integrationService.getIntegrationsForChannelList(org.id)
         ).map(async (p) => {
           const findIntegration = this._integrationManager.getSocialIntegration(
             p.providerIdentifier
@@ -135,6 +144,7 @@ export class IntegrationsController {
             customer: p.customer,
             additionalSettings: p.additionalSettings || '[]',
             contentLanguage: p.contentLanguage,
+            writingProfileStored: isStoredWritingProfile(p.writingProfile),
           };
         })
       ),

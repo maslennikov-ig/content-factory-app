@@ -81,6 +81,7 @@ import type {
   IntakeFormatV1,
   IntakeInputKindV1,
   IntakeQuestionV1,
+  IntakeEventWithPieceV1,
   PieceAnswerInputV1,
   PieceAnswerV1,
   PieceQuestionKeyV1,
@@ -101,7 +102,6 @@ import {
   coreQuestionsFor,
 } from '../pieces/core-questions';
 import { writeCore, type CoreBorrowedV1 } from '../pieces/core-write';
-import type { IntakeEventWithSearchV1 } from '../pieces/intake-events';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
@@ -440,7 +440,7 @@ export class IntakeService {
     organizationId: string,
     plan: IntakePlanV1,
     actorUserId?: string
-  ): AsyncGenerator<IntakeEventWithSearchV1> {
+  ): AsyncGenerator<IntakeEventWithPieceV1> {
     const language = plan.language;
     yield {
       name: 'intake-started',
@@ -1511,7 +1511,7 @@ export class IntakeService {
     foreignShingles: string[],
     core: ZagotovkaCoreV1,
     pieceId: string | null
-  ): AsyncGenerator<IntakeEventWithSearchV1, string | undefined> {
+  ): AsyncGenerator<IntakeEventWithPieceV1, string | undefined> {
     const hints: IntakeGenerationHintsV1 = {
       version: INTAKE_HINTS_VERSION,
       // Суть едет материалом, а не запросом: она уже написана и уже
@@ -1702,7 +1702,7 @@ export class IntakeService {
         })
       : null;
 
-    const event: IntakeEventWithSearchV1 = {
+    const event: IntakeEventWithPieceV1 = {
       name: 'draft',
       integrationId: channel.id,
       postId,

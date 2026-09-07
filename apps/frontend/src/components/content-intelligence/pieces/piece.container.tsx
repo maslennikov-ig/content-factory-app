@@ -42,6 +42,12 @@ import {
  * Удаление адаптации опубликованного поста отказывается кодом
  * `ADAPTATION_PUBLISHED`, и отказ печатается словами: происхождение
  * опубликованного текста не стирается.
+ *
+ * «В архив» — единственное действие страницы, которое ничего не пишет и
+ * ничего не удаляет: заготовка исчезает из списка, посты остаются. Поэтому
+ * подтверждения нет, а после успеха страница перечитывает заготовку и сама
+ * показывает состояние «в архиве» — вместо того чтобы рисовать его по памяти
+ * о собственном нажатии.
  */
 
 export function PieceContainer({
@@ -139,6 +145,7 @@ export function PieceContainer({
         const decoder = new TextDecoder();
         let sawQuestions = false;
         let sawAdaptation = false;
+        let sawError = false;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readAdaptEvent(line);
@@ -166,6 +173,7 @@ export function PieceContainer({
               });
               break;
             case 'error':
+              sawError = true;
               setFailure(event.message);
               break;
             default:
@@ -181,7 +189,12 @@ export function PieceContainer({
         }
         splitter.finish();
 
-        if (!sawQuestions && !sawAdaptation) {
+        /*
+          Общее «попробуйте ещё раз» — только когда сервер не сказал ничего
+          своего. Строка `error` несёт причину словами, и затирать её общей
+          фразой значит потерять единственное объяснение, которое было.
+        */
+        if (!sawQuestions && !sawAdaptation && !sawError) {
           setFailure(w.errorBody);
         }
         if (sawAdaptation) void detail.mutate();
@@ -241,6 +254,35 @@ export function PieceContainer({
     if (!channelId) return;
     void run({ integrationId: channelId, kind, skipInterview: true });
   }, [channelId, kind, run]);
+
+  /*
+    «В архив»: одна дверь, одно перечитывание и никакого подтверждения.
+    Архив прячет заготовку из списка и не трогает посты, включая
+    опубликованные, — поэтому даже заготовка с опубликованной адаптацией
+    уходит туда одним нажатием. Отказ двери (`PIECE_ARCHIVED` — она уже там)
+    печатается той же полосой, что и все остальные отказы страницы.
+  */
+  const archive = useCallback(async () => {
+    try {
+      const response = await request(PIECES_API.archive(pieceId), {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setFailure(
+          body?.code === 'PIECE_ARCHIVED'
+            ? w.archiveRefused
+            : (typeof body?.message === 'string' && body.message) || w.errorBody
+        );
+        return;
+      }
+      setFailure(null);
+      setNotice(w.archiveDone);
+      void detail.mutate();
+    } catch {
+      setFailure(w.errorBody);
+    }
+  }, [detail, pieceId, request, w]);
 
   const removeAdaptation = useCallback(
     async (adaptation: AdaptationV1) => {
@@ -338,6 +380,7 @@ export function PieceContainer({
         )
       }
       onAdapt={adapt}
+      onArchive={() => void archive()}
       onAnswer={answer}
       onSkipInterview={skipInterview}
       onCancel={() => {
