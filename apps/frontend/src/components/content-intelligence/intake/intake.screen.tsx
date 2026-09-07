@@ -16,8 +16,10 @@ import {
 } from '../../ui/surface';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import { BriefReceipt, type BriefOverrides } from './brief.receipt';
-import { QuestionsCard } from './questions.card';
-import { SlopFindings } from './slop-findings';
+import { QuestionsCard, SuggestedQuestionsCard } from './questions.card';
+import { DraftResult } from '../shared/draft-result';
+import { piecesCopy } from '../pieces/pieces.copy';
+import { intakeActionLabel } from './intake.adapter';
 import type {
   BriefField,
   BriefFilledV1,
@@ -25,6 +27,7 @@ import type {
   IntakeInputKindV1,
   IntakeQuestionV1,
   IntakeScreenState,
+  PieceQuestionV1,
   ReceiptField,
 } from './intake.adapter';
 
@@ -68,6 +71,8 @@ export function IntakeScreen({
   language,
   step,
   questions,
+  pieceQuestions = [],
+  piece,
   brief,
   overrides,
   kindOverride,
@@ -87,6 +92,9 @@ export function IntakeScreen({
   onWrite,
   onCancel,
   onAnswer,
+  onPieceAnswer,
+  onSkipInterview,
+  onOpenPiece,
   onOverride,
   onKindChange,
   onRevertOverrides,
@@ -107,6 +115,10 @@ export function IntakeScreen({
   language: 'ru' | 'en';
   step: string | null;
   questions: readonly IntakeQuestionV1[];
+  /** Вопросы при создании заготовки: у каждого есть ответ модели. */
+  pieceQuestions?: readonly PieceQuestionV1[];
+  /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
+  piece?: { pieceId: string; code: string } | null;
   brief: BriefFilledV1 | null;
   overrides: BriefOverrides;
   kindOverride?: IntakeInputKindV1;
@@ -130,6 +142,12 @@ export function IntakeScreen({
     answers: readonly { field: BriefField; text: string }[],
     decide: readonly BriefField[]
   ) => void;
+  onPieceAnswer?: (
+    answers: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
+    decideKeys: readonly string[]
+  ) => void;
+  onSkipInterview?: () => void;
+  onOpenPiece?: (pieceId: string) => void;
   onOverride: (field: ReceiptField, value: string) => void;
   onKindChange: (kind: IntakeInputKindV1) => void;
   onRevertOverrides: () => void;
@@ -141,7 +159,13 @@ export function IntakeScreen({
   writingProfileStored: Readonly<Record<string, boolean>>;
 }) {
   const t = intakeCopy[locale];
+  const p = piecesCopy[locale];
   const busy = state === 'streaming';
+  const actionLabel = intakeActionLabel(
+    selectedIds,
+    (id) => channels.find((channel) => channel.id === id)?.name,
+    t
+  );
   const receiptDirty =
     Object.keys(overrides).length > 0 ||
     (kindOverride !== undefined && brief !== null && kindOverride !== brief.inputKind);
@@ -307,13 +331,21 @@ export function IntakeScreen({
             </div>
 
             <div className="flex flex-wrap items-center gap-[8px]">
+              {/*
+                Надпись меняется от выбора: кнопка называет то, что сейчас
+                произойдёт. Без каналов будет только заготовка, и обещать
+                текст она не вправе (`content-factory-next-tu3k.9`).
+              */}
               <Button
                 type="button"
                 variant="primary"
+                data-intake-action={
+                  selectedIds.length === 0 ? 'piece' : 'piece-and-write'
+                }
                 disabled={busy || blocked !== null || state === 'read-only'}
                 onClick={onWrite}
               >
-                {busy ? t.writing : t.write}
+                {busy ? t.writing : actionLabel}
               </Button>
               {busy && (
                 <Button type="button" variant="secondary" onClick={onCancel}>
@@ -351,6 +383,59 @@ export function IntakeScreen({
                 ? t.stepWriting
                 : t.stepStarted}
             </p>
+          )}
+
+          {/*
+            Заготовка записана до цикла по каналам, и её код — первое, что
+            человек получает: он остаётся верным, даже если текст для канала
+            потом не собрался.
+          */}
+          {piece && (
+            <p
+              role="status"
+              data-intake-piece={piece.code}
+              className="flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink"
+            >
+              {t.pieceSaved(piece.code)}
+              {onOpenPiece && (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  onClick={() => onOpenPiece(piece.pieceId)}
+                >
+                  {t.openPiece}
+                </Button>
+              )}
+            </p>
+          )}
+
+          {pieceQuestions.length > 0 && onPieceAnswer && onSkipInterview && (
+            <SuggestedQuestionsCard
+              words={{
+                badge: p.interviewBadge,
+                title: p.interviewTitle,
+                lead: p.interviewLead,
+                suggestedLead: p.suggestedLead,
+                yes: p.answerYes,
+                fix: p.answerFix,
+                decide: p.answerDecide,
+                skip: p.answerSkip,
+                ownAnswerLabel: p.ownAnswerLabel,
+                ownAnswerHint: p.ownAnswerHint,
+                send: p.interviewSend,
+                skipAll: p.skipInterview,
+              }}
+              questions={pieceQuestions.map((question) => ({
+                key: question.key,
+                question: question.question,
+                suggested: question.suggested,
+                ...(question.why ? { why: question.why } : {}),
+              }))}
+              busy={busy}
+              onSubmit={onPieceAnswer}
+              onSkipAll={onSkipInterview}
+            />
           )}
 
           {state === 'questions' && questions.length > 0 && (
@@ -407,28 +492,26 @@ export function IntakeScreen({
           )}
 
           {draftText !== null && brief && (
-            <div className="grid min-w-0 gap-[16px] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-              <div className="flex min-w-0 flex-col gap-[8px]">
-                <h3 className="cf-heading-md text-cf-ink">{t.draftTitle}</h3>
-                <article
-                  data-intake-draft="true"
-                  className="min-w-0 whitespace-pre-wrap rounded-[8px] border border-cf-border bg-cf-surface p-[16px] cf-body-md text-cf-ink [text-wrap:pretty]"
-                >
-                  {draftText}
-                </article>
-                <div className="flex flex-wrap gap-[8px]">
-                  <Button type="button" variant="primary" onClick={onOpenEditor}>
-                    {t.openInEditor}
+            /*
+              Блок результата общий с страницей заготовки
+              (`shared/draft-result.tsx`): текст, «Открыть в редакторе»,
+              проверка на штампы и находки. Квитанция — то, что этот экран
+              ставит рядом со своим текстом, и она остаётся его решением.
+            */
+            <DraftResult
+              locale={locale}
+              text={draftText}
+              platform={draftPlatform}
+              slopKey={slopKey}
+              onOpenEditor={onOpenEditor}
+              actions={
+                receiptDirty ? (
+                  <Button type="button" variant="secondary" onClick={onRebuild}>
+                    {t.rebuild}
                   </Button>
-                  {receiptDirty && (
-                    <Button type="button" variant="secondary" onClick={onRebuild}>
-                      {t.rebuild}
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-[16px]">
+                ) : null
+              }
+              aside={
                 <BriefReceipt
                   locale={locale}
                   brief={brief}
@@ -439,14 +522,8 @@ export function IntakeScreen({
                   onKindChange={onKindChange}
                   onRevert={onRevertOverrides}
                 />
-                <SlopFindings
-                  key={slopKey}
-                  locale={locale}
-                  text={draftText}
-                  platform={draftPlatform}
-                />
-              </div>
-            </div>
+              }
+            />
           )}
         </>
       )}

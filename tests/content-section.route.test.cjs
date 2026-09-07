@@ -152,11 +152,15 @@ describe('the Content screen', () => {
   // it is not a sixth tab: §9.4 of the map, decided 02.09.2026, folds it into
   // «Материалы» as a view switch inside that one tab instead — see the
   // `MaterialsViewSwitch` tests below for that surface.
+  // `content-factory-next-tu3k.9` (06.09.2026) moved that tab to the front
+  // and renamed it «Заготовки»: the list of pieces is where the work starts.
+  // The key stayed `materials`, so every address and every `initialTab`
+  // survived the rename.
   test.each([
-    ['en', ['Avatars', 'Ideas', 'Brief', 'Material', 'Facts']],
+    ['en', ['Pieces', 'Avatars', 'Ideas', 'Brief', 'Facts']],
     [
       'ru',
-      ['Аватары', 'Откуда идеи', 'Бриф', 'Материалы', 'Откуда факты'],
+      ['Заготовки', 'Аватары', 'Откуда идеи', 'Бриф', 'Откуда факты'],
     ],
   ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
@@ -262,7 +266,9 @@ describe('the Content screen', () => {
     // that is the point — the tab is wired, not drawn.
     const panel = screen.getByRole('tabpanel');
     expect(panel.textContent).not.toMatch(/being built|Раздел готовится/);
-    expect(source('screen')).toContain('VoiceMaterialsContainer');
+    // Витрина «На что опираются» убрана (§11.5): первый вид вкладки — таблица
+    // заготовок, второй — архив.
+    expect(source('screen')).toContain('PiecesContainer');
   });
 
   test('the Materials tab mounts the view switch, defaulting to the library', () => {
@@ -279,7 +285,7 @@ describe('the Content screen', () => {
     const switchGroup = within(panel).getByRole('radiogroup');
     const [materialsOption, archiveOption] = within(switchGroup).getAllByRole('radio');
 
-    expect(materialsOption.textContent).toBe('На что опираются');
+    expect(materialsOption.textContent).toBe('Заготовки');
     expect(archiveOption.textContent).toBe('Что уже написали');
     expect(materialsOption.getAttribute('aria-checked')).toBe('true');
     expect(archiveOption.getAttribute('aria-checked')).toBe('false');
@@ -336,7 +342,7 @@ describe('the Content screen', () => {
       )
     );
 
-    const materialsTab = screen.getByRole('tab', { name: 'Материалы' });
+    const materialsTab = screen.getByRole('tab', { name: 'Заготовки' });
     expect(materialsTab.getAttribute('aria-selected')).toBe('true');
 
     const panel = screen.getByRole('tabpanel');

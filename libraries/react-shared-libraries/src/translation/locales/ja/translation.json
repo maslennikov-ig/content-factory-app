@@ -1,6 +1,7 @@
 {
   "calendar": "カレンダー",
   "content_section": "コンテンツ",
+  "content_piece": "ピース",
   "webhooks": "ウェブフック",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "ウェブフックは、Content Factoryで何かが起こったときにHTTPリクエストを通じて通知を受け取る方法です。",
   "name": "名前",
@@ -177,7 +178,7 @@
   "selected_customer": "選択された顧客",
   "customer": "顧客：",
   "repeat_post_every": "投稿を繰り返す間隔...",
-  "create_new_post": "投稿を作成",
+  "create_new_post": "白紙から",
   "update_post": "既存の投稿を更新",
   "merge_comments_into_one_post": "コメントを1つの投稿にまとめる",
   "accounts_that_will_engage": "エンゲージするアカウント：",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "管理者アクセスが必要です",
   "settings_admin_role_required_reason": "この設定を開くには、このワークスペースの管理者ロールが必要です。",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "投稿ウィンドウを閉じる",
+  "intake_door": "新しい素材"
 }

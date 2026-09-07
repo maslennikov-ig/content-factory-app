@@ -5,7 +5,7 @@ import { useCalendar } from '@contentfactory/frontend/components/launches/calend
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { SetSelectionModal } from '@contentfactory/frontend/components/launches/calendar';
-import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
+import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launch/compose.modal';
 import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-launch/modal.wrapper.component';
 import { Button } from '@contentfactory/react/form/button';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
@@ -17,6 +17,7 @@ export const NewPost = () => {
   const { integrations, reloadCalendarView, sets } = useCalendar();
   const t = useT();
   const user = useUser();
+  const openPostEditor = useOpenPostEditor();
 
   const createAPost = useCallback(async () => {
     const date = (await (await fetch('/posts/find-slot')).json()).date;
@@ -51,33 +52,14 @@ export const NewPost = () => {
 
     if (set === 'exit') return;
 
-    modal.openModal({
-      id: 'add-edit-modal',
-      closeOnClickOutside: false,
-      removeLayout: true,
-      closeOnEscape: false,
-      withCloseButton: false,
-      askClose: true,
-      fullScreen: true,
-      classNames: {
-        modal: 'w-[100%] max-w-[1400px] text-textColor',
-      },
-      children: (
-        <AddEditModal
-          allIntegrations={integrations.map((p) => ({
-            ...p,
-          }))}
-          {...(set?.content ? { set: JSON.parse(set.content) } : {})}
-          reopenModal={createAPost}
-          mutate={reloadCalendarView}
-          integrations={integrations}
-          date={dayjs.utc(date).local()}
-        />
-      ),
-      size: '80%',
-      title: ``,
+    await openPostEditor({
+      integrations,
+      ...(set?.content ? { set: JSON.parse(set.content) } : {}),
+      reopenModal: createAPost,
+      mutate: reloadCalendarView,
+      date: dayjs.utc(date).local(),
     });
-  }, [integrations, sets]);
+  }, [integrations, sets, openPostEditor]);
 
   // Since 05.09.2026 the doors this button leads to — `POST /posts` and the
   // schedule beside it — carry `Sections.EDITOR`

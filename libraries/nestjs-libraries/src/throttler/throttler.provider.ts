@@ -91,6 +91,11 @@ const AI_PREFIXES = ['/copilot/'] as const;
 // patterns, not paths (review of the 05.09 wave).
 const AI_PATTERNS = [
   /^\/content-intelligence\/sources\/[^/]+\/(sync|draft-material)$/,
+  // Адаптация заготовки под канал (`content-factory-next-tu3k.9`): разбор,
+  // интервью и генерация на один запрос — тот же расход, что у входа, и по
+  // той же причине с потолком. Остальные двери заготовок сюда не попадают:
+  // список и страница только читают, архив и удаление модели не касаются.
+  /^\/content-intelligence\/pieces\/[^/]+\/adapt$/,
 ] as const;
 
 function isAiSpendingPath(req: Record<string, any>): boolean {

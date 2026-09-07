@@ -167,9 +167,12 @@ describe('the door is one field, and its refusals are readable', () => {
     expect(panel.getAttribute('aria-busy')).toBe('false');
   });
 
-  test('«Написать» is off and the reason stands beside it in words', () => {
+  // `content-factory-next-tu3k.9`: дверь делает заготовку, и надпись на
+  // кнопке зависит от выбора каналов. Без выбранного канала она обещает
+  // ровно заготовку.
+  test('the action is off and the reason stands beside it in words', () => {
     draw({ blocked: 'input' });
-    const button = screen.getByRole('button', { name: 'Написать' });
+    const button = screen.getByRole('button', { name: 'Сделать заготовку' });
     expect(button.disabled).toBe(true);
     const reason = document.querySelector('[data-intake-block-reason="input"]');
     expect(reason).not.toBeNull();
@@ -452,7 +455,7 @@ describe('refusals a person can act on', () => {
     // Ни поля, ни кнопки: показать форму, которая ничего не даст, хуже, чем
     // объяснить, почему её нет.
     expect(document.querySelector('[name="intake-input"]')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Написать' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Сделать заготовку' })).toBeNull();
   });
 
   test('a reader sees the whole screen, disabled, with the reason above it', () => {
@@ -463,6 +466,8 @@ describe('refusals a person can act on', () => {
     });
     expect(document.body.textContent).toContain('Здесь только читают');
     expect(document.querySelector('fieldset').disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Написать' }).disabled).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Сделать заготовку' }).disabled
+    ).toBe(true);
   });
 });

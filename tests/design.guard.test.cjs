@@ -273,7 +273,6 @@ const HEX_ALLOWED = [
   'apps/frontend/src/components/layout/click.outside.tsx',
   'apps/frontend/src/components/media/media.component.tsx',
   'apps/frontend/src/components/new-launch/editor.tsx',
-  'apps/frontend/src/components/new-launch/manage.modal.tsx',
   // Platform previews below: external platform colours are the point.
   'apps/frontend/src/components/new-launch/providers/facebook/facebook.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/facebook/facebook.provider.tsx',
@@ -438,7 +437,6 @@ const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/components/layout/streak.component.tsx',
   'apps/frontend/src/components/media/media.component.tsx',
   'apps/frontend/src/components/new-launch/editor.tsx',
-  'apps/frontend/src/components/new-launch/manage.modal.tsx',
   'apps/frontend/src/components/new-launch/mention.component.tsx',
   'apps/frontend/src/components/new-launch/providers/continue-provider/tumblr/tumblr.continue.tsx',
   'apps/frontend/src/components/new-launch/providers/continue-provider/youtube/youtube.continue.tsx',

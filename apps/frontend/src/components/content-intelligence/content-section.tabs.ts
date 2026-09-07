@@ -24,10 +24,14 @@ export type ContentTab =
 
 /** In the order the strip shows them. See the screen's own note for why each. */
 export const CONTENT_TABS: readonly ContentTab[] = [
+  // `content-factory-next-tu3k.9` (06.09.2026): «Заготовки» — первая вкладка
+  // раздела. Ключ остался `materials`, потому что по нему живут адреса
+  // (`?tab=materials`, `?tab=archive`), тесты и `initialTab`; поменялись
+  // подпись и место, а не имя.
+  'materials',
   'avatars',
   'leads',
   'brief',
-  'materials',
   'provenance',
 ];
 

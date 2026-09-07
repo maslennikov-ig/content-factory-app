@@ -66,6 +66,9 @@ import { ContentBriefController } from '@contentfactory/backend/api/routes/conte
 import { ContentLeadController } from '@contentfactory/backend/api/routes/content-lead.controller';
 import { ContentIntakeController } from '@contentfactory/backend/api/routes/content-intake.controller';
 import { ContentTextQualityController } from '@contentfactory/backend/api/routes/content-text-quality.controller';
+// `PieceService` приезжает из глобального `AgentModule` — там же, где стоит
+// `IntakeService`, и по той же причине (`content-factory-next-tu3k.9`).
+import { ContentPieceController } from '@contentfactory/backend/api/routes/content-piece.controller';
 
 const authenticatedController = [
   UsersController,
@@ -98,6 +101,7 @@ const authenticatedController = [
   ContentBriefController,
   ContentLeadController,
   ContentIntakeController,
+  ContentPieceController,
   ContentTextQualityController,
 ];
 @Module({

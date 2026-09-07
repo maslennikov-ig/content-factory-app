@@ -166,6 +166,11 @@ function fixture() {
         brandProfileVersion: null,
       },
     ],
+    // Состояние с волны «заготовка и адаптации» читается из поста, а не
+    // из колонки `ContentDerivation.state` — она три месяца была зеркалом,
+    // которое никто не обновлял. Колонка остаётся в фикстуре рядом с постом
+    // именно потому, что в базе она никуда не делась. `post-2` стоит в `QUEUE` —
+    // настоящее имя состояния поста, а не `QUEUED` с экрана.
     derivations: [
       {
         id: 'der-1',
@@ -178,6 +183,12 @@ function fixture() {
         brandProfileVersionId: 'version-3',
         state: 'PUBLISHED',
         createdAt: at('2026-08-06T09:00:00.000Z'),
+        post: {
+          state: 'PUBLISHED',
+          releaseURL: 'https://t.me/cex/1',
+          publishDate: at('2026-08-06T10:00:00.000Z'),
+          deletedAt: null,
+        },
       },
       {
         id: 'der-2',
@@ -190,6 +201,12 @@ function fixture() {
         brandProfileVersionId: 'version-3',
         state: 'QUEUED',
         createdAt: at('2026-08-07T09:00:00.000Z'),
+        post: {
+          state: 'QUEUE',
+          releaseURL: null,
+          publishDate: at('2026-08-09T10:00:00.000Z'),
+          deletedAt: null,
+        },
       },
       {
         id: 'der-3',
@@ -202,6 +219,12 @@ function fixture() {
         brandProfileVersionId: 'version-3',
         state: 'DRAFT',
         createdAt: at('2026-08-08T09:00:00.000Z'),
+        post: {
+          state: 'DRAFT',
+          releaseURL: null,
+          publishDate: at('2026-08-08T10:00:00.000Z'),
+          deletedAt: null,
+        },
       },
     ],
     integrations: [

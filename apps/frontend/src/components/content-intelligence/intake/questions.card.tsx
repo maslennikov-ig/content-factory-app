@@ -29,6 +29,20 @@ import type { BriefField, IntakeQuestionV1 } from './intake.adapter';
  * примитива: выбор дешёвый и обратимый, ничего никуда не ведёт. Раскрывашки
  * здесь нет намеренно — оба вопроса видны сразу, иначе человек отвечает на
  * первый и не знает, что есть второй.
+ *
+ * ## Второй вопрос того же вида: интервью заготовки
+ *
+ * `content-factory-next-tu3k.9.9` (Z5) добавляет в этот же файл
+ * `SuggestedQuestionsCard` — карточку, где модель уже ответила первой («я
+ * думаю, вот так»), а человек соглашается, правит, отдаёт решение модели или
+ * пропускает вопрос. Это та же работа и та же геометрия, поэтому она живёт
+ * рядом, а не третьей карточкой вопросов в соседней папке: у продукта уже был
+ * случай, когда одна работа разъехалась по двум компонентам и они разошлись
+ * на третьем поле.
+ *
+ * Слова карточка не знает: они приходят пропсом `words`. Ей одинаково служат
+ * словарь входа и словарь заготовок, и ни один из них не становится её
+ * зависимостью.
  */
 
 /** Что человек выбрал по одному полю. */
@@ -242,6 +256,270 @@ export function QuestionsCard({
             {t.blockedUnanswered}
           </p>
         )}
+      </footer>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * Интервью заготовки: модель отвечает первой
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Вопрос, у которого уже есть ответ модели.
+ *
+ * `suggested: null` — модель честно не нашла ответа в тексте и просит слова
+ * человека. Тогда «Так и есть» не показывается вовсе: соглашаться не с чем, а
+ * кнопка, подтверждающая пустоту, — это способ получить пустую строку в
+ * брифе.
+ */
+export type SuggestedQuestion = {
+  key: string;
+  question: string;
+  suggested: string | null;
+  why?: string;
+};
+
+export type SuggestedAnswer = {
+  key: string;
+  text: string;
+  /** `confirmed` — «Так и есть»; `person` — свои слова. */
+  origin: 'person' | 'confirmed';
+};
+
+export type SuggestedQuestionsWords = {
+  badge: string;
+  title: (count: number) => string;
+  lead: string;
+  suggestedLead: string;
+  yes: string;
+  fix: string;
+  decide: string;
+  skip: string;
+  ownAnswerLabel: string;
+  ownAnswerHint: string;
+  send: string;
+  skipAll: string;
+};
+
+const FIX = '__fix__';
+const DECIDE = '__decide__';
+const SKIP = '__skip__';
+
+export function SuggestedQuestionsCard({
+  words,
+  questions,
+  busy = false,
+  onSubmit,
+  onSkipAll,
+}: {
+  words: SuggestedQuestionsWords;
+  questions: readonly SuggestedQuestion[];
+  busy?: boolean;
+  /** Ответы уходят одним ходом; остальные ключи — «реши сама». */
+  onSubmit: (
+    answers: readonly SuggestedAnswer[],
+    decideKeys: readonly string[]
+  ) => void;
+  onSkipAll: () => void;
+}) {
+  const [answers, setAnswers] = useState<QuestionAnswers>({});
+
+  const optionClass = (active: boolean) =>
+    clsx(
+      'w-full justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none',
+      active
+        ? 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed'
+        : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle cf-pressed'
+    );
+
+  const submit = () => {
+    const given: SuggestedAnswer[] = [];
+    const decided: string[] = [];
+    for (const question of questions) {
+      const answer = answers[question.key];
+      if (!answer || answer.mode === 'decide') {
+        decided.push(question.key);
+        continue;
+      }
+      const text =
+        answer.mode === 'option' ? question.suggested ?? '' : answer.text.trim();
+      if (!text) {
+        decided.push(question.key);
+        continue;
+      }
+      given.push({
+        key: question.key,
+        text,
+        // «Так и есть» — подтверждение слова модели, а не слово человека.
+        // Контракт различает их, и квитанция потом тоже.
+        origin: answer.mode === 'option' ? 'confirmed' : 'person',
+      });
+    }
+    onSubmit(given, decided);
+  };
+
+  return (
+    <section
+      data-piece-questions="true"
+      className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+    >
+      <header className="flex flex-col gap-[8px]">
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <Status tone="info">{words.badge}</Status>
+          <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
+            {words.title(questions.length)}
+          </h3>
+        </div>
+        <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          {words.lead}
+        </p>
+      </header>
+
+      {questions.map((question) => {
+        const answer = answers[question.key];
+        const value =
+          answer?.mode === 'option'
+            ? question.suggested ?? ''
+            : answer?.mode === 'own'
+            ? answer.text === SKIP
+              ? SKIP
+              : FIX
+            : answer?.mode === 'decide'
+            ? DECIDE
+            : null;
+
+        return (
+          <div
+            key={question.key}
+            data-piece-question={question.key}
+            className="flex min-w-0 flex-col gap-[8px]"
+          >
+            <p className="max-w-[72ch] cf-body-md text-cf-ink [text-wrap:pretty]">
+              {question.question}
+            </p>
+            {question.why ? (
+              <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                {question.why}
+              </p>
+            ) : null}
+
+            {/*
+              Ответ модели стоит выше кнопок и целиком: «Так и есть» под
+              свёрнутой цитатой — это согласие вслепую.
+            */}
+            {question.suggested ? (
+              <blockquote
+                data-piece-suggested={question.key}
+                className="border-s-2 border-cf-border-strong ps-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+              >
+                <span className="block cf-label-sm uppercase text-cf-ink-muted">
+                  {words.suggestedLead}
+                </span>
+                {question.suggested}
+              </blockquote>
+            ) : null}
+
+            <RadioGroup
+              value={value}
+              aria-label={question.question}
+              onChange={(next) =>
+                setAnswers((current) => ({
+                  ...current,
+                  [question.key]:
+                    next === DECIDE
+                      ? { mode: 'decide' }
+                      : next === SKIP
+                      ? { mode: 'own', text: SKIP }
+                      : next === FIX
+                      ? { mode: 'own', text: question.suggested ?? '' }
+                      : { mode: 'option', text: next },
+                }))
+              }
+              className="flex flex-col gap-[4px]"
+            >
+              {question.suggested ? (
+                <RadioOption
+                  value={question.suggested}
+                  layout="content"
+                  className={optionClass(answer?.mode === 'option')}
+                >
+                  {words.yes}
+                </RadioOption>
+              ) : null}
+              <RadioOption
+                value={FIX}
+                layout="content"
+                className={optionClass(
+                  answer?.mode === 'own' && answer.text !== SKIP
+                )}
+              >
+                {words.fix}
+              </RadioOption>
+              <RadioOption
+                value={DECIDE}
+                layout="content"
+                className={optionClass(answer?.mode === 'decide')}
+              >
+                {words.decide}
+              </RadioOption>
+              <RadioOption
+                value={SKIP}
+                layout="content"
+                className={optionClass(
+                  answer?.mode === 'own' && answer.text === SKIP
+                )}
+              >
+                {words.skip}
+              </RadioOption>
+            </RadioGroup>
+
+            {/*
+              Модель ответа не нашла — поле открыто сразу: вопрос, до поля
+              которого надо ещё дожать кнопку, читается как необязательный.
+            */}
+            {(answer?.mode === 'own' && answer.text !== SKIP) ||
+            !question.suggested ? (
+              <div className="flex min-w-0 flex-col gap-[4px]">
+                <Input
+                  standalone
+                  removeError
+                  name={`piece-answer-${question.key}`}
+                  label={words.ownAnswerLabel}
+                  value={answer?.mode === 'own' && answer.text !== SKIP ? answer.text : ''}
+                  onChange={(event) =>
+                    setAnswers((current) => ({
+                      ...current,
+                      [question.key]: { mode: 'own', text: event.target.value },
+                    }))
+                  }
+                />
+                <p className="cf-caption text-cf-ink-muted">
+                  {words.ownAnswerHint}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <footer className="flex flex-wrap items-center gap-[8px]">
+        <Button type="button" variant="primary" disabled={busy} onClick={submit}>
+          {words.send}
+        </Button>
+        {/*
+          Второй выход, равный по силе первому: интервью пропускается целиком
+          одной кнопкой — правило владельца, а не любезность.
+        */}
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          data-piece-skip-interview="true"
+          onClick={onSkipAll}
+        >
+          {words.skipAll}
+        </Button>
       </footer>
     </section>
   );

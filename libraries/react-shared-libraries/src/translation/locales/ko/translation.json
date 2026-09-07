@@ -1,6 +1,7 @@
 {
   "calendar": "캘린더",
   "content_section": "콘텐츠",
+  "content_piece": "피스",
   "webhooks": "웹훅",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "웹훅은 Content Factory에서 무언가 발생할 때 HTTP 요청을 통해 알림을 받는 방법입니다.",
   "name": "이름",
@@ -177,7 +178,7 @@
   "selected_customer": "선택된 고객",
   "customer": "고객:",
   "repeat_post_every": "게시 반복 주기...",
-  "create_new_post": "게시물 만들기",
+  "create_new_post": "빈 페이지",
   "update_post": "기존 게시물 업데이트",
   "merge_comments_into_one_post": "댓글을 하나의 게시물로 합치기",
   "accounts_that_will_engage": "참여할 계정:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "관리자 권한이 필요합니다",
   "settings_admin_role_required_reason": "이 설정 섹션을 열려면 이 워크스페이스의 관리자 역할이 필요합니다.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "게시물 창 닫기",
+  "intake_door": "새 초안 재료"
 }

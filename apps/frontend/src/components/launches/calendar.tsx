@@ -33,7 +33,6 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import clsx from 'clsx';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { ExistingDataContextProvider } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
 import { useDrag, useDrop } from 'react-dnd';
 import { Integration, Post, State, Tags } from '@prisma/client';
 import { useAddProvider } from '@contentfactory/frontend/components/launches/add.provider.component';
@@ -54,7 +53,7 @@ import { StatisticsModal } from '@contentfactory/frontend/components/launches/st
 import { MissingReleaseModal } from '@contentfactory/frontend/components/launches/missing-release.modal';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import i18next from 'i18next';
-import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
+import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launch/compose.modal';
 import { CreationMethodBadge } from '@contentfactory/frontend/components/launches/creation.method.badge';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -226,6 +225,7 @@ const usePostActions = (onMutate?: () => void) => {
   const fetch = useFetch();
   const modal = useModals();
   const toaster = useToaster();
+  const openPostEditor = useOpenPostEditor();
   const { integrations, reloadCalendarView } = useCalendar();
 
   const mutate = useCallback(() => {
@@ -240,62 +240,15 @@ const usePostActions = (onMutate?: () => void) => {
         publishDate: loadPost.actualDate || loadPost.publishDate,
       };
 
-      const data = await (await fetch(`/posts/group/${post.group}`)).json();
-      const date = !isDuplicate
-        ? null
-        : (await (await fetch('/posts/find-slot')).json()).date;
-      const publishDate = dayjs.utc(date || data.posts[0].publishDate).local();
-      const ExistingData = !isDuplicate
-        ? ExistingDataContextProvider
-        : Fragment;
-      modal.openModal({
-        id: 'add-edit-modal',
-        closeOnClickOutside: false,
-        removeLayout: true,
-        closeOnEscape: false,
-        withCloseButton: false,
-        askClose: true,
-        fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
-        children: (
-          <ExistingData value={data}>
-            <AddEditModal
-              {...(isDuplicate
-                ? {
-                    onlyValues: data.posts.map(
-                      ({ image, settings, content }: any) => ({
-                        image,
-                        settings,
-                        content,
-                      })
-                    ),
-                  }
-                : {})}
-              allIntegrations={integrations.map((p) => ({ ...p }))}
-              reopenModal={editPost(post)}
-              mutate={mutate}
-              integrations={
-                isDuplicate
-                  ? integrations
-                  : integrations
-                      .slice(0)
-                      .filter((f) => f.id === data.integration)
-                      .map((p) => ({
-                        ...p,
-                        picture: data.integrationPicture,
-                      }))
-              }
-              date={publishDate}
-            />
-          </ExistingData>
-        ),
-        size: '80%',
-        title: ``,
+      await openPostEditor({
+        group: post.group,
+        duplicate: isDuplicate,
+        integrations,
+        mutate,
+        reopenModal: editPost(post),
       });
     },
-    [integrations, fetch, modal, mutate]
+    [integrations, openPostEditor, mutate]
   );
 
   const copyDebugJson = useCallback(
@@ -755,6 +708,7 @@ export const CalendarColumn: FC<{
   } = useCalendar();
   const modal = useModals();
   const fetch = useFetch();
+  const openPostEditor = useOpenPostEditor();
 
   // Use shared post actions hook
   const {
@@ -953,50 +907,21 @@ export const CalendarColumn: FC<{
 
     if (set === 'exit') return;
 
-    modal.openModal({
-      id: 'add-edit-modal',
-      closeOnClickOutside: false,
-      removeLayout: true,
-      closeOnEscape: false,
-      withCloseButton: false,
-      askClose: true,
-      fullScreen: true,
-      classNames: {
-        modal: 'w-[100%] max-w-[1400px] text-textColor',
-      },
-      children: (
-        <AddEditModal
-          allIntegrations={integrations.map((p) => ({
-            ...p,
-          }))}
-          integrations={integrations.slice(0).map((p) => ({
-            ...p,
-          }))}
-          mutate={reloadCalendarView}
-          {...(signature?.id && !set
-            ? {
-                onlyValues: [
-                  {
-                    content: '\n' + signature.content,
-                  },
-                ],
-              }
-            : {})}
-          date={
-            randomHour
-              ? getDate.hour(Math.floor(Math.random() * 24))
-              : getDate.format('YYYY-MM-DDTHH:mm:ss') ===
-                newDayjs().startOf('hour').format('YYYY-MM-DDTHH:mm:ss')
-              ? newDayjs().add(10, 'minute')
-              : getDate
-          }
-          {...(set?.content ? { set: JSON.parse(set.content) } : {})}
-          reopenModal={() => ({})}
-        />
-      ),
-      size: '80%',
+    await openPostEditor({
+      integrations: integrations.slice(0).map((p) => ({ ...p })),
+      mutate: reloadCalendarView,
+      ...(signature?.id && !set
+        ? { onlyValues: [{ content: '\n' + signature.content }] }
+        : {}),
+      date: randomHour
+        ? getDate.hour(Math.floor(Math.random() * 24))
+        : getDate.format('YYYY-MM-DDTHH:mm:ss') ===
+          newDayjs().startOf('hour').format('YYYY-MM-DDTHH:mm:ss')
+        ? newDayjs().add(10, 'minute')
+        : getDate,
+      ...(set?.content ? { set: JSON.parse(set.content) } : {}),
     });
-  }, [integrations, getDate, sets, signature]);
+  }, [integrations, getDate, sets, signature, openPostEditor]);
 
   const addProvider = useAddProvider();
   const toaster = useToaster();

@@ -1,6 +1,7 @@
 {
   "calendar": "Lịch",
   "content_section": "Nội dung",
+  "content_piece": "Mảnh nội dung",
   "webhooks": "Webhook",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "Webhook là một cách để nhận thông báo khi có sự kiện xảy ra trong Content Factory thông qua một yêu cầu HTTP.",
   "name": "Tên",
@@ -177,7 +178,7 @@
   "selected_customer": "Khách hàng đã chọn",
   "customer": "Khách hàng:",
   "repeat_post_every": "Lặp lại bài đăng mỗi...",
-  "create_new_post": "Tạo bài viết",
+  "create_new_post": "Trang trắng",
   "update_post": "Cập nhật bài viết hiện có",
   "merge_comments_into_one_post": "Gộp bình luận vào một bài đăng",
   "accounts_that_will_engage": "Các tài khoản sẽ tương tác:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "Cần quyền quản trị viên",
   "settings_admin_role_required_reason": "Bạn cần có vai trò quản trị viên trong không gian làm việc này để mở mục cài đặt này.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "Đóng cửa sổ bài viết",
+  "intake_door": "Bản phác mới"
 }

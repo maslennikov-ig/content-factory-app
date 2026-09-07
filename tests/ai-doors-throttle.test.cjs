@@ -122,6 +122,12 @@ describe('the doors that spend a model budget have a ceiling', () => {
     // Вход одной мыслью тратит больше всех: два разбора, до трёх поисков и до
     // трёх генераций на один запрос (`content-factory-next-tu3k.1`).
     ['writing from one thought', '/content-intelligence/intake'],
+    // Адаптация заготовки под канал тратит столько же: разбор, интервью и
+    // генерация на один запрос (`content-factory-next-tu3k.9.4`).
+    [
+      'adapting a piece for a channel',
+      '/content-intelligence/pieces/piece-1/adapt',
+    ],
   ])('%s is refused past the ceiling', async (_label, url) => {
     const guard = await createGuard();
 
@@ -231,6 +237,15 @@ describe('the doors that spend a model budget have a ceiling', () => {
     for (let i = 0; i < LIMIT + 5; i += 1) {
       await expect(
         guard.canActivate(requestContext('/posts', { method: 'POST' }))
+      ).resolves.toBe(true);
+      // Соседи адаптации по разделу: архив заготовки модели не касается, и
+      // потолок ИИ-дверей ему не судья.
+      await expect(
+        guard.canActivate(
+          requestContext('/content-intelligence/pieces/piece-1/archive', {
+            method: 'POST',
+          })
+        )
       ).resolves.toBe(true);
     }
   });

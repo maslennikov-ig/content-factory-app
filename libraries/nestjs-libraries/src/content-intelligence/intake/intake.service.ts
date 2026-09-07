@@ -81,21 +81,37 @@ import type {
   IntakeFormatV1,
   IntakeInputKindV1,
   IntakeQuestionV1,
+  PieceAnswerInputV1,
+  PieceAnswerV1,
+  PieceQuestionKeyV1,
+  PieceQuestionV1,
   SlopReportV1,
+  ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   INTAKE_INPUT_MIN_CHARS,
   INTAKE_MAX_CHANNELS,
   INTAKE_MAX_QUESTIONS,
   INTAKE_MAX_VERIFIED_CLAIMS,
+  PIECE_MAX_INTERVIEW_ROUNDS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import {
+  CORE_QUESTION_FIELDS,
+  coreQuestionText,
+  coreQuestionsFor,
+} from '../pieces/core-questions';
+import { writeCore, type CoreBorrowedV1 } from '../pieces/core-write';
+import type { IntakeEventWithSearchV1 } from '../pieces/intake-events';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { briefTitle } from '../brief/content-brief.compose';
 import { editorHtml } from '../brief/editor-html';
-import { materialFormat } from '../materials/material-presentation';
+import {
+  kindsOfProvider,
+  materialFormat,
+} from '../materials/material-presentation';
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
   IntakeError,
@@ -175,9 +191,20 @@ export type IntakePlanV1 = {
   input: string;
   inputKind: IntakeInputKindV1;
   language: ContentLanguage;
+  /**
+   * Каналы, в которые пишутся адаптации. Пустой список — законный ход
+   * (`content-factory-next-tu3k.9`): человек делает заготовку и решает потом,
+   * во что её превратить.
+   */
   channels: IntakeChannelV1[];
   answers: Array<{ field: BriefField; text: string }>;
   decide: BriefField[];
+  /** Ответы интервью заготовки, дословно, как их дал человек. */
+  interview: PieceAnswerInputV1[];
+  /** Ключи вопросов заготовки, отданные модели («Реши сама»). */
+  decideKeys: PieceQuestionKeyV1[];
+  /** Интервью пропущено одной кнопкой: модель решает всё сама. */
+  skipInterview: boolean;
   briefOverrides: Record<string, string>;
   options: {
     searchEnrichment: boolean;
@@ -213,6 +240,11 @@ type FilledBrief = {
   modelReturnedNull: Partial<Record<BriefField, boolean>>;
   factIds: string[];
   evidenceIds: string[];
+  /**
+   * О чём стоит поискать опору, если её не нашлось ни одной. `null` — искать
+   * нечего или незачем; поиск делает `run`, объявив о нём событием.
+   */
+  pendingSearch: string | null;
 };
 
 @Injectable()
@@ -282,12 +314,22 @@ export class IntakeService {
           .filter(Boolean)
       ),
     ] as string[];
-    if (!wanted.length) throw intakeError('INTAKE_CHANNEL_REQUIRED', language);
+    /*
+      Пустого списка каналов эта дверь больше не отвергает
+      (`content-factory-next-tu3k.9`, решение владельца 06.09.2026). Раньше
+      «вход одной мыслью» существовал только ради черновика, и просьба без
+      канала была бессмысленной; теперь его результат — заготовка, а канал
+      выбирают потом. `INTAKE_CHANNEL_REQUIRED` из контракта не исчез: он
+      остался у двери адаптации как `PIECE_CHANNEL_REQUIRED`, где отсутствие
+      канала действительно означает «нечего адаптировать во что».
+    */
     if (wanted.length > INTAKE_MAX_CHANNELS) {
       throw intakeError('INTAKE_TOO_MANY_CHANNELS', language);
     }
 
-    const owned = await this.integrations.getIntegrationsList(organizationId);
+    const owned = wanted.length
+      ? await this.integrations.getIntegrationsList(organizationId)
+      : [];
     const channels: IntakeChannelV1[] = [];
     for (const id of wanted) {
       const integration = (owned || []).find(
@@ -342,6 +384,22 @@ export class IntakeService {
       decide: (Array.isArray(body?.decide) ? body.decide : []).filter(
         (field: unknown): field is BriefField => typeof field === 'string'
       ),
+      // Ответы интервью берутся как есть: опечатки и шероховатости и есть
+      // материал, и приглаживать их здесь значило бы стереть ровно то, ради
+      // чего продукт спрашивал.
+      interview: (Array.isArray(body?.interview) ? body.interview : [])
+        .map(
+          (answer: any): PieceAnswerInputV1 => ({
+            key: answer?.key as PieceQuestionKeyV1,
+            text: typeof answer?.text === 'string' ? answer.text : '',
+            origin: answer?.origin === 'confirmed' ? 'confirmed' : 'person',
+          })
+        )
+        .filter((answer: PieceAnswerInputV1) => answer.key && answer.text.trim()),
+      decideKeys: (Array.isArray(body?.decideKeys) ? body.decideKeys : []).filter(
+        (key: unknown): key is PieceQuestionKeyV1 => typeof key === 'string'
+      ),
+      skipInterview: body?.skipInterview === true,
       briefOverrides: overrides,
       options: {
         searchEnrichment: body?.options?.searchEnrichment !== false,
@@ -382,7 +440,7 @@ export class IntakeService {
     organizationId: string,
     plan: IntakePlanV1,
     actorUserId?: string
-  ): AsyncGenerator<IntakeEventV1> {
+  ): AsyncGenerator<IntakeEventWithSearchV1> {
     const language = plan.language;
     yield {
       name: 'intake-started',
@@ -432,28 +490,109 @@ export class IntakeService {
     let foreignShingles: string[] = [];
     if (borrowedText) {
       extraction = await this.extract(organizationId, borrowedText, language);
+      const checkable = this.claimsToCheck(extraction, plan);
+      if (checkable.length) {
+        // Экран молчал те несколько секунд, что идёт проверка чисел, и человек
+        // читал молчание как зависание (`content-factory-next-tu3k.7`).
+        yield { name: 'search-started', reason: 'claims', count: checkable.length };
+      }
       const claims = await this.checkClaims(
         organizationId,
         extraction,
         plan,
-        evidence
+        evidence,
+        checkable
       );
       yield { name: 'claims', claims };
       foreignShingles = wordShingles(borrowedText);
     }
 
-    const filled = await this.fillBrief(
+    let filled = await this.fillBrief(
       organizationId,
       plan,
       extraction,
       evidence
     );
+    if (filled.pendingSearch) {
+      yield { name: 'search-started', reason: 'facts', count: 1 };
+      filled = await this.addSearchedFacts(
+        organizationId,
+        plan,
+        filled,
+        evidence
+      );
+    }
     yield { name: 'brief-filled', brief: filled.brief };
 
+    // Ворота брифа первые и главные: без тезиса или факта дальше не идут
+    // вовсе. Интервью заготовки — уже поверх годного брифа, и оба вопроса
+    // терминальны, поэтому больше трёх за шаг не бывает никогда.
     const questions = this.questionsFor(filled, plan);
     if (questions.length) {
       yield { name: 'questions', questions };
       return;
+    }
+    const interview = this.interviewFor(filled, plan);
+    if (interview.length) {
+      yield {
+        name: 'piece-questions',
+        questions: interview,
+        round: this.interviewRound(plan),
+      };
+      return;
+    }
+
+    /*
+      Суть — один раз, до цикла по каналам. Это и есть волна «заготовка и
+      адаптации»: три канала дают ОДНУ заготовку и три адаптации, а не три
+      материала с HTML одного канала в теле.
+
+      Единственный случай, когда её не пишут, — ход, у которого нет ни автора,
+      ни канала: записать заготовку не под кого, генерировать нечего, и платный
+      вызов ушёл бы в никуда.
+    */
+    if (!actorUserId && !plan.channels.length) {
+      yield { name: 'done', postIds: [] };
+      return;
+    }
+    const answers = this.interviewAnswers(plan);
+    const core = await writeCore(
+      {
+        organizationId,
+        language,
+        brief: filled.brief,
+        answers,
+        questionTextByKey: Object.fromEntries(
+          answers.map((answer) => [
+            answer.key,
+            coreQuestionText(answer.key, language),
+          ])
+        ),
+        // Чужой текст в суть не идёт ни одним полем: для вставленного поста
+        // словами человека не располагаем вовсе, и блок остаётся пустым.
+        personText: extraction ? '' : plan.input,
+        borrowed: extraction ? this.borrowedForCore(extraction) : null,
+        foreignShingles,
+      },
+      {
+        aiUsage: this.aiUsage,
+        slopCheck: this.slopCheck,
+        warn: (message) => this.logger.warn(message),
+      }
+    );
+
+    const piece = actorUserId
+      ? await this.briefRepository.recordCore(organizationId, {
+          title: briefTitle(this.gateBrief(filled.brief), plan.language),
+          body: core.text,
+          brief: this.storedCore(core),
+          language: plan.language,
+          createdByUserId: actorUserId,
+        })
+      : null;
+    const pieceId = piece?.id ?? null;
+    if (piece) {
+      yield { name: 'piece', pieceId: piece.id, code: piece.code, core };
     }
 
     const postIds: string[] = [];
@@ -466,12 +605,33 @@ export class IntakeService {
         filled,
         extraction,
         foreignShingles,
-        actorUserId
+        core,
+        pieceId
       );
       if (outcome) postIds.push(outcome);
     }
 
     yield { name: 'done', postIds };
+  }
+
+  /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */
+  private storedCore(core: ZagotovkaCoreV1): Record<string, unknown> {
+    const { text, ...stored } = core;
+    void text;
+    return stored;
+  }
+
+  /** Взятое из чужого текста — для промпта сути. Сам текст сюда не кладётся. */
+  private borrowedForCore(extraction: IntakeExtractionV1): CoreBorrowedV1 {
+    return {
+      topic: trimmed(extraction.topic),
+      angle: trimmed(extraction.angle),
+      structure: (extraction.structure || []).slice(0, 8).map(trimmed),
+      claims: (extraction.claims || [])
+        .slice(0, 12)
+        .map((claim) => trimmed(claim?.text))
+        .filter(Boolean),
+    };
   }
 
   /* -----------------------------------------------------------------------
@@ -585,21 +745,36 @@ export class IntakeService {
    * человеком или не настроен в области. Выключенный поиск — это настройка, а
    * не поломка, и `WebSearchNotConfigured` здесь никого не роняет.
    */
-  private async checkClaims(
-    organizationId: string,
-    extraction: IntakeExtractionV1,
-    plan: IntakePlanV1,
-    evidence: Map<string, AcceptedEvidence>
-  ): Promise<IntakeClaimV1[]> {
-    const claims = (extraction.claims || []).slice(0, 12).map((claim) => ({
+  /** Утверждения разбора, как их читает и проверка, и событие о ней. */
+  private claimsOf(extraction: IntakeExtractionV1) {
+    return (extraction.claims || []).slice(0, 12).map((claim) => ({
       text: trimmed(claim?.text),
       hasNumber: Boolean(claim?.hasNumber),
       searchQuery: textOrNull(claim?.searchQuery),
     }));
+  }
 
-    const checkable = plan.options.searchEnrichment
-      ? claims.filter((claim) => claim.hasNumber && claim.text).slice(0, INTAKE_MAX_VERIFIED_CLAIMS)
-      : [];
+  /**
+   * Какие числа уйдут в поиск. Считается до самого поиска, потому что об этом
+   * говорит событие `search-started`, а обещать число проверок после того, как
+   * они прошли, поздно.
+   */
+  private claimsToCheck(extraction: IntakeExtractionV1, plan: IntakePlanV1) {
+    if (!plan.options.searchEnrichment) return [];
+    return this.claimsOf(extraction)
+      .filter((claim) => claim.hasNumber && claim.text)
+      .slice(0, INTAKE_MAX_VERIFIED_CLAIMS);
+  }
+
+  private async checkClaims(
+    organizationId: string,
+    extraction: IntakeExtractionV1,
+    plan: IntakePlanV1,
+    evidence: Map<string, AcceptedEvidence>,
+    checkable: ReturnType<IntakeService['claimsToCheck']>
+  ): Promise<IntakeClaimV1[]> {
+    const claims = this.claimsOf(extraction);
+
     const results = await Promise.allSettled(
       checkable.map((claim) =>
         this.research.research(
@@ -781,7 +956,58 @@ export class IntakeService {
     for (const answer of plan.answers) {
       if (answer.text) fields[answer.field] = answer.text;
     }
+    // Ответ интервью — такое же слово человека, как ответ на вопрос ворот, и
+    // ложится в то же поле брифа с тем же происхождением `person`. Дословно:
+    // ни `trim` внутри, ни заглавной буквы в начале.
+    for (const answer of plan.interview) {
+      const field = CORE_QUESTION_FIELDS[answer.key];
+      if (field && answer.text.trim()) fields[field] = answer.text;
+    }
     return fields;
+  }
+
+  /* -----------------------------------------------------------------------
+   * Интервью заготовки
+   * -------------------------------------------------------------------- */
+
+  /** Ответы интервью, дословно, с происхождением и шагом. */
+  private interviewAnswers(plan: IntakePlanV1): PieceAnswerV1[] {
+    const answeredAt = this.now().toISOString();
+    return plan.interview.map((answer) => ({
+      key: answer.key,
+      text: answer.text,
+      origin: answer.origin,
+      step: 'core' as const,
+      answeredAt,
+    }));
+  }
+
+  /** Который это круг уточнений: ответы в запросе означают, что круг был. */
+  private interviewRound(plan: IntakePlanV1): number {
+    return plan.interview.length || plan.decideKeys.length ? 2 : 1;
+  }
+
+  /**
+   * Три вопроса заготовки — и молчание, когда спрашивать больше нельзя.
+   *
+   * Исчерпав `PIECE_MAX_INTERVIEW_ROUNDS`, продукт не отказывает
+   * (`PIECE_INTERVIEW_EXHAUSTED` остаётся дверям Z3 на случай, когда клиент
+   * сам просит третий круг), а решает сам: человек уже дважды ответил, и взять
+   * ответы, не дав текста, — худшее, что можно сделать после этого.
+   */
+  private interviewFor(
+    filled: FilledBrief,
+    plan: IntakePlanV1
+  ): PieceQuestionV1[] {
+    if (plan.skipInterview) return [];
+    if (this.interviewRound(plan) > PIECE_MAX_INTERVIEW_ROUNDS) return [];
+    return coreQuestionsFor({
+      brief: filled.brief,
+      options: filled.options,
+      language: plan.language,
+      answeredKeys: plan.interview.map((answer) => answer.key),
+      decideKeys: plan.decideKeys,
+    });
   }
 
   /** Портрет, аудитории и запреты аватара — строками для промпта. */
@@ -1037,23 +1263,22 @@ export class IntakeService {
       });
     }
 
-    if (
+    /*
+      Мысль без единого факта: продукт ищет опору сам, тем же путём, что и
+      генератор с 05.09.2026, и не спрашивает человека о том, что может найти.
+      Вопрос про факты остаётся на случай, когда не нашлось ничего.
+
+      Сам поиск отсюда вынесен (`content-factory-next-tu3k.7`): он занимает
+      секунды, а этот метод не генератор и сказать о них человеку не может.
+      Здесь остаётся только решение «искать и о чём», а ищет `run`, объявив об
+      этом событием `search-started`.
+    */
+    const pendingSearch =
       !facts.some((fact) => fact.verified) &&
       plan.options.searchEnrichment &&
       !input.extraction
-    ) {
-      // Мысль без единого факта: продукт ищет опору сам, тем же путём, что и
-      // генератор с 05.09.2026, и не спрашивает человека о том, что может
-      // найти. Вопрос про факты остаётся на случай, когда не нашлось ничего.
-      for (const found of await this.searchForFacts(
-        input.organizationId,
-        factsAnswer || thesis || plan.input,
-        plan,
-        evidence
-      )) {
-        facts.push(found);
-      }
-    }
+        ? factsAnswer || thesis || plan.input
+        : null;
 
     const brief: BriefFilledV1 = {
       inputKind: plan.inputKind,
@@ -1071,23 +1296,63 @@ export class IntakeService {
     };
 
     return {
-      brief,
+      ...this.settled(brief),
       options,
       modelReturnedNull,
+      pendingSearch,
+    };
+  }
+
+  /** Идентификаторы опоры пересчитываются по фактам, а не копятся рядом. */
+  private settled(brief: BriefFilledV1): Omit<FilledBrief, 'options' | 'modelReturnedNull' | 'pendingSearch'> {
+    return {
+      brief,
       factIds: [
         ...new Set(
-          facts
+          brief.facts
             .map((fact) => fact.factId)
             .filter((id): id is string => Boolean(id))
         ),
       ],
       evidenceIds: [
         ...new Set(
-          facts
+          brief.facts
             .map((fact) => fact.evidenceId)
             .filter((id): id is string => Boolean(id))
         ),
       ],
+    };
+  }
+
+  /**
+   * Опора, найденная поиском, дописывается в уже собранный бриф.
+   *
+   * Отдельным шагом ровно потому, что о нём надо успеть сказать человеку:
+   * событие `search-started` уходит до него, а не после
+   * (`content-factory-next-tu3k.7`).
+   */
+  private async addSearchedFacts(
+    organizationId: string,
+    plan: IntakePlanV1,
+    filled: FilledBrief,
+    evidence: Map<string, AcceptedEvidence>
+  ): Promise<FilledBrief> {
+    if (!filled.pendingSearch) return filled;
+    const found = await this.searchForFacts(
+      organizationId,
+      filled.pendingSearch,
+      plan,
+      evidence
+    );
+    if (!found.length) return { ...filled, pendingSearch: null };
+    const brief: BriefFilledV1 = {
+      ...filled.brief,
+      facts: [...filled.brief.facts, ...found],
+    };
+    return {
+      ...filled,
+      ...this.settled(brief),
+      pendingSearch: null,
     };
   }
 
@@ -1244,10 +1509,14 @@ export class IntakeService {
     filled: FilledBrief,
     extraction: IntakeExtractionV1 | null,
     foreignShingles: string[],
-    actorUserId?: string
-  ): AsyncGenerator<IntakeEventV1, string | undefined> {
+    core: ZagotovkaCoreV1,
+    pieceId: string | null
+  ): AsyncGenerator<IntakeEventWithSearchV1, string | undefined> {
     const hints: IntakeGenerationHintsV1 = {
       version: INTAKE_HINTS_VERSION,
+      // Суть едет материалом, а не запросом: она уже написана и уже
+      // нейтральна, и адаптация переносит её слова дословно.
+      core: core.text,
       brief: {
         thesis: filled.brief.thesis ?? null,
         position: filled.brief.position ?? null,
@@ -1349,9 +1618,8 @@ export class IntakeService {
       organizationId,
       plan,
       channel,
-      filled,
       output,
-      actorUserId
+      pieceId
     );
     if (!draft) {
       yield {
@@ -1368,21 +1636,26 @@ export class IntakeService {
   }
 
   /**
-   * Черновик в базе и событие о нём.
+   * Черновик в базе, строка адаптации и событие о них.
    *
    * Пишется тем же путём, что и любой другой пост: `createDraft` зовёт
    * `PostsRepository.createOrUpdatePost('draft', …)`, состояние `DRAFT`,
    * доставки нет. Вместе с текстом едут снимок контекста, версия голоса и
    * метки цитат — без них окно поста не сможет показать строку происхождения,
    * ради которой всё это и собиралось.
+   *
+   * `recordPiece` отсюда ушёл (`content-factory-next-tu3k.9`). Он заводил по
+   * материалу на канал, и три канала давали три «текста» там, где текст один;
+   * теперь заготовка записана один раз до цикла, а здесь пишется только
+   * адаптация — с площадкой, видом и текстом простым текстом. Сам
+   * `recordPiece` живёт: его зовёт перекройка материала.
    */
   private async persist(
     organizationId: string,
     plan: IntakePlanV1,
     channel: IntakeChannelV1,
-    filled: FilledBrief,
     output: any,
-    actorUserId?: string
+    pieceId: string | null
   ) {
     const pieces = (output.content as any[])
       .filter((item) => trimmed(item?.content))
@@ -1413,26 +1686,28 @@ export class IntakeService {
     });
     if (!postId) return null;
 
-    const pieceId = actorUserId
-      ? await this.briefRepository.recordPiece(organizationId, {
+    const adaptation = pieceId
+      ? await this.briefRepository.recordAdaptation(organizationId, {
+          pieceId,
           postId,
           integrationId: channel.id,
           platform: channel.providerIdentifier,
-          title: briefTitle(this.gateBrief(filled.brief), plan.language),
-          body: html,
-          format: materialFormat(html, null, plan.language),
-          language: plan.language,
-          createdByUserId: actorUserId,
+          // Вид спрашивается у площадки, а не пишется словом: Instagram берёт
+          // подпись, сайт — статью, и вход не должен знать этого списка сам.
+          kind: kindsOfProvider(channel.providerIdentifier)[0],
+          // Текст адаптации хранится простым текстом; разметку несёт пост.
+          body: plain,
+          format: materialFormat(plain, null, plan.language),
           brandProfileVersionId: versionId,
-          contentContextSnapshotId: snapshotId,
         })
       : null;
 
-    const event: IntakeEventV1 = {
+    const event: IntakeEventWithSearchV1 = {
       name: 'draft',
       integrationId: channel.id,
       postId,
       pieceId,
+      adaptationId: adaptation?.id ?? null,
       content: pieces,
       provenance: {
         contentContextSnapshotId: snapshotId,

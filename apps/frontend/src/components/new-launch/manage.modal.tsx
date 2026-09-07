@@ -743,7 +743,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
           title: '',
           children: <DummyCodeComponent code={data} />,
           classNames: {
-            modal: 'w-[100%] bg-transparent text-textColor',
+            modal: 'w-[100%] bg-transparent text-cf-ink',
           },
           size: '100%',
           withCloseButton: false,
@@ -812,9 +812,9 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
 
   return (
     <div className="w-full h-full flex-1 p-[40px] flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[12px] flex-col">
+      <div className="flex flex-1 bg-cf-surface border border-cf-border rounded-[12px] flex-col">
         <div className="flex-1 flex">
-          <div className="flex flex-col flex-1 border-e border-newBorder">
+          <div className="flex flex-col flex-1 border-e border-cf-border">
             {/*
               * Значок происхождения снят с первого экрана окна
               * (`content-factory-next-fn33.28.10`).
@@ -831,7 +831,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               * это настоящий факт о записи. Убран он ровно оттуда, где всегда
               * показывал «WEB» и ничего больше.
               */}
-            <div className="bg-newBgColor h-[64px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] cf-heading-md">
+            <div className="bg-cf-canvas border-b border-cf-border h-[64px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] cf-heading-md">
               {/*
                 Заголовок называет то, что человек делает прямо сейчас
                 (`content-factory-next-fn33.90.10`). «Создать пост» стояло над
@@ -852,7 +852,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               >
                 <div
                   id="social-content"
-                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
+                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface"
                 >
                   <div className="flex w-full">
                     <div className="flex flex-1">
@@ -896,7 +896,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   current === 'global' && 'hidden'
                 )}
               >
-                <div className="flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings">
+                <div className="flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-cf-surface-subtle">
                   <div
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(
@@ -904,7 +904,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       showSettings ? '!rounded-b-none' : ''
                     )}
                   >
-                    <div className="flex-1 text-[14px] font-[600] text-cf-accent-ink">
+                    <div className="flex-1 cf-label-md text-cf-accent-ink">
                       {currentIntegrationText}
                     </div>
                     <div>
@@ -917,13 +917,13 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   <div
                     className={clsx(
                       !showSettings ? 'hidden' : 'flex-1',
-                      'text-[14px] text-textColor font-[500] relative'
+                      'cf-body-sm text-cf-ink relative'
                     )}
                   >
-                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newBgColorInner scrollbar-track-newColColor">
+                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface-subtle">
                       <div
                         id="social-settings"
-                        className="flex flex-col gap-[20px] bg-newBgColor"
+                        className="flex flex-col gap-[20px] bg-cf-canvas"
                       />
                     </div>
                   </div>
@@ -935,16 +935,37 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             </div>
           </div>
           <div className="w-[580px] flex flex-col">
-            <div className="bg-newBgColor h-[64px] rounded-e-[12px] !rounded-b-[0] flex items-center px-[20px] cf-heading-md">
+            <div className="bg-cf-canvas border-b border-cf-border h-[64px] rounded-e-[12px] !rounded-b-[0] flex items-center px-[20px] cf-heading-md">
               <div className="flex-1">{t('post_preview', 'Post Preview')}</div>
-              <div className="cursor-pointer">
-                <CloseIcon onClick={askClose} className="text-[#A3A3A3]" />
-              </div>
+              {/*
+                Крестик — кнопка, а не значок с обработчиком нажатия
+                (`content-factory-next-tu3k.9.11`). До этого закрыть окно
+                мышью было можно, а с клавиатуры нет: `<svg onClick>` не
+                получает фокус, не отзывается на Enter и Space и не имеет
+                имени, которое прочла бы программа чтения с экрана. Теперь это
+                обычная кнопка системы: имя у неё есть, фокус виден, обе
+                клавиши работают сами.
+
+                Escape здесь не обрабатывается намеренно: оболочка окна
+                (`layout/new-modal.tsx`) вешает его на верхнее окно всегда и
+                спрашивает тем же вопросом. Второй обработчик задал бы вопрос
+                дважды.
+              */}
+              <Button
+                type="button"
+                variant="quiet"
+                iconOnly
+                aria-label={t('close_post_window', 'Close the post window')}
+                title={t('close_post_window', 'Close the post window')}
+                onClick={askClose}
+              >
+                <CloseIcon className="text-cf-ink-muted" />
+              </Button>
             </div>
             <div className="flex-1 relative">
               <Scrollable
                 scrollClasses="!pe-[20px]"
-                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
+                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface"
               >
                 <ShowAllProviders ref={ref} />
                 {/**
@@ -1016,7 +1037,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             )}
           </div>
         )}
-        <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center">
+        <div className="select-none h-[84px] py-[20px] border-t border-cf-border flex items-center">
           <div className="flex-1 flex ps-[20px] gap-[8px]">
             {!dummy && (
               <TagsComponent
@@ -1070,7 +1091,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               <Button
                 variant="destructive"
                 onClick={deletePost}
-                className="cursor-pointer flex gap-[8px] items-center text-[15px] font-[600]"
+                className="flex gap-[8px] items-center"
               >
                 <div>
                   <TrashIcon />
@@ -1102,28 +1123,25 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                     : COMPOSE_BLOCK_REASON_NOTE_ID
                 }
                 onClick={schedule('draft')}
-                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] justify-center items-center flex rounded-[8px] text-[15px] font-[600]"
+                loading={loading}
+                loadingLabel={t('save_as_draft', 'Save as Draft')}
+                className="px-[20px]"
               >
-                {loading && (
-                  <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
-                    <div className="animate-spin h-[20px] w-[20px] border-4 border-textColor border-t-transparent rounded-full" />
-                  </div>
-                )}
-                <div className={clsx(loading && 'invisible')}>
-                  {t('save_as_draft', 'Save as Draft')}
-                </div>
+                {t('save_as_draft', 'Save as Draft')}
               </Button>
             )}
             {addEditSets && (
               <Button
-                className="text-[15px] font-[600] min-w-[180px] btnSub disabled:cursor-not-allowed outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
+                className="min-w-[180px] btnSub gap-[8px] ps-[20px] pe-[16px]"
                 disabled={
                   !canWritePosts ||
                   selectedIntegrations.length === 0 || loading || locked
                 }
+                loading={loading}
+                loadingLabel={t('save_set', 'Save Set')}
                 onClick={schedule('draft')}
               >
-                Save Set
+                {t('save_set', 'Save Set')}
               </Button>
             )}
             {!addEditSets && (
@@ -1144,19 +1162,10 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       : COMPOSE_BLOCK_REASON_NOTE_ID
                   }
                   onClick={schedule('schedule')}
-                  className="relative min-w-[180px] btnSub disabled:cursor-not-allowed outline-none gap-[8px] flex justify-center items-center rounded-[8px] ps-[20px] pe-[16px]"
+                  loading={loading}
+                  className="min-w-[180px] btnSub gap-[8px] ps-[20px] pe-[16px]"
                 >
-                  {loading && (
-                    <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
-                      <div className="animate-spin h-[20px] w-[20px] border-4 border-white border-t-transparent rounded-full" />
-                    </div>
-                  )}
-                  <div
-                    className={clsx(
-                      'text-[15px] font-[600]',
-                      loading && 'invisible'
-                    )}
-                  >
+                  <div>
                     {selectedIntegrations.length === 0
                       ? // A button says what pressing it is for. "Check the
                         // circles above" described the furniture instead — it

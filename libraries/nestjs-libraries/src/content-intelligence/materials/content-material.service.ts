@@ -24,6 +24,7 @@ import {
   type ImportableArchiveLayer,
 } from './archive-presentation';
 import {
+  adaptationState,
   countImages,
   countLinks,
   derivationState,
@@ -34,7 +35,10 @@ import {
   PLATFORM_PROVIDERS,
   voiceVersionLabel,
 } from './material-presentation';
-import { ContentMaterialRepository } from './content-material.repository';
+import {
+  ContentMaterialRepository,
+  type AdaptationRow,
+} from './content-material.repository';
 
 /**
  * The material library, its provenance, and the draft that comes out of it.
@@ -121,19 +125,50 @@ export class ContentMaterialService {
     return row;
   }
 
+  /**
+   * Состояние адаптации в словаре старой вкладки.
+   *
+   * Читается из поста (`adaptationState`) и сужается до трёх имён, которые
+   * знает `MaterialDerivedPostV1`. Ошибка публикации для этой вкладки —
+   * черновик: пост не ушёл, и на этом экране никакого другого слова для «не
+   * ушёл» нет. Удалённый пост состояния не даёт вовсе и не считается нигде.
+   */
+  private legacyState(row: AdaptationRow): 'DRAFT' | 'QUEUED' | 'PUBLISHED' {
+    return derivationState(adaptationState(row.post));
+  }
+
+  /**
+   * Библиотека и всё, что о ней говорят её же производные, — двумя запросами.
+   *
+   * Адаптации читаются один раз на страницу и обслуживают сразу три вопроса:
+   * счётчики строки, площадки для фильтра архива и раскрытый список
+   * производных. Раньше это были три разных запроса, и первые два верили
+   * колонке `ContentDerivation.state`; теперь источник один — пост.
+   */
   private async library(organizationId: string) {
     const pieces: PieceRow[] = await this.repository.listPieces(organizationId);
-    const grouped = await this.repository.countDerivations(
+    const adaptations = await this.repository.adaptationsByPiece(
       organizationId,
       pieces.map((piece) => piece.id)
     );
+
     const counts = new Map<string, number>();
-    for (const entry of grouped) {
-      const key = `${entry.contentPieceId}|${derivationState(entry.state)}`;
-      counts.set(key, (counts.get(key) || 0) + (entry._count?._all || 0));
+    const byPiece = new Map<string, AdaptationRow[]>();
+    for (const row of adaptations) {
+      const list = byPiece.get(row.contentPieceId) ?? [];
+      list.push(row);
+      byPiece.set(row.contentPieceId, list);
+      // Удалённый пост не считается ни одним из трёх чисел: строка библиотеки
+      // обещает «столько вышло, столько ждёт», а не «столько строк в таблице».
+      if (!adaptationState(row.post)) continue;
+      const key = `${row.contentPieceId}|${this.legacyState(row)}`;
+      counts.set(key, (counts.get(key) || 0) + 1);
     }
+
     return {
       pieces,
+      adaptations,
+      byPiece,
       rows: pieces.map((piece, index) => this.row(piece, index, counts)),
     };
   }
@@ -180,11 +215,7 @@ export class ContentMaterialService {
     total: number;
     counts: Record<ArchiveLayer, number>;
   }> {
-    const { pieces, rows } = await this.library(organizationId);
-    const platformsByPiece = await this.repository.platformsByPiece(
-      organizationId,
-      pieces.map((piece) => piece.id)
-    );
+    const { pieces, rows, byPiece } = await this.library(organizationId);
 
     const fromTime = parseFilterDate(filters.from);
     const toTime = parseFilterDate(filters.to);
@@ -214,9 +245,20 @@ export class ContentMaterialService {
       const layer = archiveLayerOf(piece.tags);
       counts[layer] += 1;
       const origin = archiveOriginOf(piece.tags);
+      // Площадки берутся из данных — какие `platform` действительно стоят у
+      // производных этой заготовки, — а не из `RECUT_PLATFORMS`. Список
+      // перекройки знает четыре имени, а адаптации с этой волны пишут
+      // `providerIdentifier` канала, и Instagram в четвёрку не входит: отбор по
+      // константе молча терял бы всё, чего в ней нет. Имена НЕ схлопываются в
+      // провайдера: здесь они не показываются, а сравниваются с тем, что
+      // прислал фильтр, и фильтр говорит на языке хранимой строки.
       const platforms =
         layer === 'MADE_HERE'
-          ? platformsByPiece.get(piece.id) ?? []
+          ? [
+              ...new Set(
+                (byPiece.get(piece.id) ?? []).map((one) => one.platform)
+              ),
+            ].filter(Boolean)
           : origin?.platform
           ? [origin.platform]
           : [];
@@ -316,17 +358,16 @@ export class ContentMaterialService {
   }
 
   private async open(organizationId: string, id: string) {
-    const { pieces, rows } = await this.library(organizationId);
+    const { pieces, rows, byPiece } = await this.library(organizationId);
     const index = pieces.findIndex((piece) => piece.id === id);
     if (index < 0) throw materialNotFound(id);
-    const derivations = await this.repository.listDerivations(
-      organizationId,
-      id
-    );
-    const derived: MaterialDerivedPostV1[] = derivations.map(
-      (derivation: any) => ({
+    // Своего запроса за производными больше нет: `library` уже прочитала их
+    // все одним `adaptationsByPiece`, и второй запрос за тем же ответил бы по
+    // тем же строкам, но другой ценой.
+    const derived: MaterialDerivedPostV1[] = (byPiece.get(id) ?? []).map(
+      (derivation) => ({
         platform: derivation.platform as RecutPlatform,
-        state: derivationState(derivation.state),
+        state: this.legacyState(derivation),
         date: materialDate(derivation.createdAt, pieces[index].language),
       })
     );

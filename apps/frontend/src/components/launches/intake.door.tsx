@@ -9,12 +9,11 @@ import {
 } from '@contentfactory/frontend/components/launches/calendar.context';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { IntakeContainer } from '@contentfactory/frontend/components/content-intelligence/intake/intake.container';
 
 /**
- * Первая из двух дверей во вход одной мыслью — рядом с «Создать пост».
+ * Первая из двух дверей во вход одной мыслью — рядом с «Чистым листом».
  *
  * `content-factory-next-tu3k.4`, решение владельца 06.09.2026 (пункт 1). На
  * этом месте стояла кнопка «Generate Posts» (`generator/generator.tsx`), и её
@@ -61,16 +60,22 @@ export function IntakeDoor({ collapsed = false }: { collapsed?: boolean }) {
   const modal = useModals();
   const user = useUser();
   const all = useCalendar();
-  const { language } = useVariables();
-  const locale = resolveContentLocale(language);
-  const label = locale === 'ru' ? 'Из мысли' : 'From a thought';
+  const t = useT();
+  /*
+    Имя двери — то, что через неё получают, а не то, с чем в неё входят
+    (решение владельца 06.09.2026, §11 п. 11). «Из мысли» называло сырьё;
+    «Новая заготовка» называет вещь, которая появится. Строка переехала в
+    `translation.json`, потому что до этого дверь переводила себя сама двумя
+    литералами и мимо всех остальных языков.
+  */
+  const label = t('intake_door', 'New piece');
 
   const open = useCallback(() => {
     modal.openModal({
       title: '',
       withCloseButton: false,
       askClose: true,
-      classNames: { modal: 'bg-transparent text-textColor' },
+      classNames: { modal: 'bg-transparent text-cf-ink' },
       size: 'xl',
       children: (
         <CalendarWeekProvider {...all}>

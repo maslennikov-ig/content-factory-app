@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "total": 33,
+  "total": 34,
   "sourceRoots": [
     "apps/frontend/src",
     "libraries/react-shared-libraries/src"
   ],
   "rootTotals": {
-    "apps/frontend/src": 22,
+    "apps/frontend/src": 23,
     "libraries/react-shared-libraries/src": 11
   },
   "allowances": {
@@ -48,6 +48,14 @@
         "category": "third-party-adapter",
         "reason": "This reusable federated-provider adapter owns provider-specific behavior.",
         "followUp": "no follow-up needed"
+      }
+    },
+    "apps/frontend/src/components/content-intelligence/pieces/adaptation.cell.tsx": {
+      "button": {
+        "count": 1,
+        "category": "missing-capability",
+        "reason": "The adaptation state cell needs a tone per state and a dashed border for «ещё нет»; the shared Button has no state-cell variant, and stacking its variant classes under the cell's own would make two rules fight over one border.",
+        "followUp": "Give the shared Button a state-cell variant and move the cell onto it (content-factory-next-tu3k.9.9)"
       }
     },
     "apps/frontend/src/components/copilot/assistant.popup.tsx": {

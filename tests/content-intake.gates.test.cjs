@@ -167,20 +167,22 @@ test('a USER reads the screen and writes nothing, and is told whom to ask', asyn
   // Экран виден целиком, но выключен: пустое место вместо кнопки ничего не
   // объясняет.
   expect(document.querySelector('fieldset').disabled).toBe(true);
-  expect(screen.getByRole('button', { name: 'Написать' }).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Сделать заготовку' }).disabled).toBe(true);
   expect(intakeCalls()).toHaveLength(0);
 });
 
-test('a workspace with no usable channel is sent to the step it is missing', async () => {
+test('a workspace with no usable channel still makes a piece, and offers no channel', async () => {
   await open({
     integrations: [{ ...TELEGRAM, disabled: true }],
     allowance: { mode: 'included', remaining: 10, limit: 100, resetsAt: '2026-10-01T00:00:00.000Z' },
   });
 
-  expect(panel().getAttribute('data-intake-state')).toBe('no-channel');
-  expect(screen.getByRole('link', { name: 'К каналам' }).getAttribute('href')).toBe(
-    '/launches'
-  );
+  // С волны «заготовка и адаптации» (решение владельца 06.09.2026) канал
+  // необязателен: без единого канала заготовка всё равно делается, кнопка
+  // читается «Сделать заготовку», а выбирать некого.
+  expect(panel().getAttribute('data-intake-state')).toBe('idle');
+  expect(screen.getByRole('button', { name: 'Сделать заготовку' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Мой канал' })).toBeNull();
   expect(intakeCalls()).toHaveLength(0);
 });
 
@@ -190,7 +192,8 @@ test('a channel still half-connected does not count as somewhere to write', asyn
     allowance: { mode: 'included', remaining: 10, limit: 100, resetsAt: '2026-10-01T00:00:00.000Z' },
   });
 
-  expect(panel().getAttribute('data-intake-state')).toBe('no-channel');
+  expect(panel().getAttribute('data-intake-state')).toBe('idle');
+  expect(screen.queryByRole('button', { name: 'Мой канал' })).toBeNull();
 });
 
 test('the door that says nothing at all is not read as a refusal', async () => {

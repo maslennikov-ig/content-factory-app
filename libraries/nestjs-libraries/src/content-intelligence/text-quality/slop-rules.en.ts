@@ -31,6 +31,64 @@ const HEDGES = [
   'it is possible that',
 ];
 
+const WEASEL_ATTRIBUTION = [
+  'experts say',
+  'experts agree',
+  'studies show',
+  'research suggests',
+  'researchers claim',
+  'analysts note',
+  'observers note',
+  'it is widely believed',
+  'according to various sources',
+];
+
+const AI_VOCABULARY = [
+  'delve',
+  'delving',
+  'tapestry',
+  'realm of',
+  'underscore',
+  'meticulous',
+  'game-changer',
+  'harness the power',
+  'navigating the complexities',
+];
+
+const TEMPLATE_TRANSITION = [
+  'it is important to note',
+  'it is worth noting',
+  'it should be noted',
+  'it is worth mentioning',
+];
+
+const STOCK_OPENING = [
+  'in the modern world',
+  'in this day and age',
+  'as we all know',
+  'it is no secret that',
+];
+
+/**
+ * The phrases a prompt can be told to avoid, in words rather than as patterns.
+ *
+ * Same reason and same shape as `RU_FORBIDDEN_PHRASE_GROUPS` beside it: the
+ * core of a piece is written by a prompt that lists the turns of phrase it must
+ * not use, and it has to take that list from this catalogue rather than from a
+ * second copy. Only entries that read as text belong here — `delve[sd]?` is a
+ * pattern, and a model handed it would write the brackets.
+ */
+export const EN_FORBIDDEN_PHRASE_GROUPS: readonly (readonly string[])[] = [
+  TEMPLATE_TRANSITION,
+  STOCK_OPENING,
+  WEASEL_ATTRIBUTION,
+  AI_VOCABULARY,
+  HEDGES,
+];
+
+export const EN_FORBIDDEN_PHRASES: readonly string[] =
+  EN_FORBIDDEN_PHRASE_GROUPS.flat();
+
 export const EN_RULES: SlopRule[] = [
   {
     id: 'artefact',
@@ -58,17 +116,7 @@ export const EN_RULES: SlopRule[] = [
     id: 'weasel-attribution',
     severity: 'warn',
     kind: 'regex',
-    pattern: list([
-      'experts say',
-      'experts agree',
-      'studies show',
-      'research suggests',
-      'researchers claim',
-      'analysts note',
-      'observers note',
-      'it is widely believed',
-      'according to various sources',
-    ]),
+    pattern: list(WEASEL_ATTRIBUTION),
     hint: {
       ru: 'Размытая ссылка. Назовите, кто именно это сказал, или уберите утверждение.',
       en: 'A vague attribution. Name who said it, or drop the claim.',

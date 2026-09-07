@@ -54,6 +54,7 @@ const FILES = {
   container: `${base}/voice-materials.container.tsx`,
   adapter: `${base}/voice-materials.adapter.ts`,
   calendar: 'apps/frontend/src/components/launches/calendar.tsx',
+  composeModal: 'apps/frontend/src/components/new-launch/compose.modal.options.ts',
 };
 
 const source = (key) => fs.readFileSync(path.join(root, FILES[key]), 'utf8');
@@ -758,7 +759,10 @@ describe('the draft opens in the product’s own editor', () => {
     // Not a route of its own: the product has one post editor and one modal
     // identity for it. A second door here is a second thing to keep in step.
     expect(adapter.EDITOR_MODAL.id).toBe('add-edit-modal');
-    expect(source('calendar')).toContain("id: 'add-edit-modal'");
+    // Идентификатор окна с волны «заготовка и адаптации» пишет один объект
+    // флагов `compose.modal.ts`; календарь открывает окно через него.
+    expect(source('composeModal')).toContain("id: 'add-edit-modal'");
+    expect(source('calendar')).toContain('useOpenPostEditor');
 
     const containerCode = code('container');
     expect(containerCode).toContain('AddEditModal');

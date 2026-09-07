@@ -9,13 +9,13 @@
  * запроса решать, чьей памятью писать.
  *
  * Пределы длин повторяют контракт, а не изобретают свои: `input` ≤ 20 000
- * знаков, ответ на вопрос ≤ 2 000, каналов от одного до трёх.
+ * знаков, ответ на вопрос ≤ 2 000, каналов не больше трёх — и ни одного тоже
+ * можно, с волны «заготовка и адаптации».
  */
 
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -29,8 +29,43 @@ import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-librar
 import {
   INTAKE_INPUT_MAX_CHARS,
   INTAKE_MAX_CHANNELS,
+  PIECE_MAX_QUESTIONS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { PieceQuestionKeyV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
+
+/**
+ * Ключи вопросов интервью — все девять из контракта.
+ *
+ * Дверь входа принимает и вопросы под канал: короткий путь «сразу для
+ * Telegram» задаёт их в том же ходе, и разрешать здесь только три ключа
+ * создания значило бы отвергать ответ, который сам же и попросил.
+ */
+export const PIECE_QUESTION_KEYS: PieceQuestionKeyV1[] = [
+  'key_idea',
+  'personal_detail',
+  'position',
+  'hook',
+  'cta',
+  'format',
+  'own_number',
+  'screenshot',
+  'log',
+];
+
+export class PieceInterviewAnswerDto {
+  @IsIn(PIECE_QUESTION_KEYS)
+  key: PieceQuestionKeyV1;
+
+  @IsString()
+  @MaxLength(2_000)
+  text: string;
+
+  /** «Так и есть» — это `confirmed`; свои слова — `person`. */
+  @IsOptional()
+  @IsIn(['person', 'confirmed'])
+  origin?: 'person' | 'confirmed';
+}
 
 /** Пять полей ворот брифа — единственные, о которых вход спрашивает. */
 export const INTAKE_BRIEF_FIELDS: BriefField[] = [
@@ -132,12 +167,21 @@ export class IntakeDto {
   @IsIn(['thought', 'link', 'foreign_post'])
   inputKind?: 'thought' | 'link' | 'foreign_post';
 
+  /**
+   * Каналы, в которые пишутся адаптации, — необязательны с волны «заготовка и
+   * адаптации» (`content-factory-next-tu3k.9`).
+   *
+   * `ArrayMinSize(1)` снят намеренно, а не забыт: результат этой двери теперь
+   * заготовка, а канал человек выбирает потом. Пустой список — законный ход
+   * «только заготовка»; отсутствие канала там, где адаптация действительно
+   * нужна, отвергает дверь адаптации кодом `PIECE_CHANNEL_REQUIRED`.
+   */
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(INTAKE_MAX_CHANNELS)
   @IsString({ each: true })
   @MaxLength(128, { each: true })
-  integrationIds: string[];
+  integrationIds?: string[];
 
   @IsIn(['ru', 'en'])
   language: 'ru' | 'en';
@@ -181,4 +225,29 @@ export class IntakeDto {
   @MinLength(1)
   @MaxLength(128)
   sourceLeadId?: string;
+
+  /**
+   * Ответы интервью заготовки — дословно, вместе с опечатками.
+   *
+   * `MinLength` здесь нет по той же причине, что и у правок квитанции:
+   * короткий ответ — это ответ, а не ошибка ввода.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PIECE_MAX_QUESTIONS)
+  @Type(() => PieceInterviewAnswerDto)
+  @ValidateNested({ each: true })
+  interview?: PieceInterviewAnswerDto[];
+
+  /** Ключи вопросов заготовки, отданные модели («Реши сама»). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(PIECE_MAX_QUESTIONS)
+  @IsIn(PIECE_QUESTION_KEYS, { each: true })
+  decideKeys?: PieceQuestionKeyV1[];
+
+  /** Пропустить интервью целиком одной кнопкой. */
+  @IsOptional()
+  @IsBoolean()
+  skipInterview?: boolean;
 }

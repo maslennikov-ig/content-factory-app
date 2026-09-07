@@ -113,13 +113,22 @@ function harness() {
     versionNumber: 1,
   });
 
-  /** Черновик, написанный продуктом, и пост, выросший из него. */
-  const draft = (postId, body) => {
+  /**
+   * Черновик, написанный продуктом, и пост, выросший из него.
+   *
+   * `piece` — то, что лежит в материале, `adaptation` — то, что лежит в
+   * производной. До волны «заготовка и адаптации» было только первое, и оно и
+   * было черновиком; с волны тело материала это нейтральная суть, а увиденный
+   * человеком текст живёт в производной. Поэтому подделка умеет обе формы:
+   * `kind` у материала и `body` у производной.
+   */
+  const draft = (postId, body, { kind = null, adaptation = null } = {}) => {
     const piece = prisma.model.contentPiece.create({
       data: {
         organizationId: ORG,
         title: 'Черновик',
         body,
+        kind,
         language: 'ru',
         createdByUserId: 'user-1',
         brandProfileVersionId: VERSION,
@@ -132,6 +141,8 @@ function harness() {
         postId,
         platform: 'telegram',
         format: 'post',
+        kind: kind ? 'post' : null,
+        body: adaptation,
         brandProfileVersionId: VERSION,
         state: 'DRAFT',
       },
@@ -220,6 +231,49 @@ describe('продукт запоминает, что автор исправи�
     // наблюдение на число нажатий «сохранить».
     expect(second).toBeNull();
     expect(prisma.state.brandVoiceEdit).toHaveLength(1);
+  });
+
+  test('текст адаптации побеждает тело материала', async () => {
+    const { prisma, edits, draft } = harness();
+    // Материал волны: тело — нейтральная суть, а человек видел в форме
+    // адаптацию под канал.
+    draft('post-1', 'Суть: поставщика поменяли, новый возит по графику.', {
+      kind: 'CORE',
+      adaptation: PROPOSED,
+    });
+
+    await edits.recordFromPost(ORG, 'post-1', SENT);
+
+    // Сравнивается то, что человек правил, а не то, из чего это выросло.
+    // Иначе в правку автора попало бы всё, что сделала сама адаптация, и
+    // аватар выучил бы привычки машины: резать текст и добавлять эмодзи.
+    expect(prisma.state.brandVoiceEdit[0].proposedText).toBe(PROPOSED);
+  });
+
+  test('заготовка без текста адаптации наблюдения не даёт', async () => {
+    const { prisma, edits, draft } = harness();
+    draft('post-1', 'Суть: поставщика поменяли, новый возит по графику.', {
+      kind: 'CORE',
+    });
+
+    const id = await edits.recordFromPost(ORG, 'post-1', SENT);
+
+    // Нейтральную суть нельзя сравнивать с постом: разница между ними — это
+    // работа адаптации, а не правка автора. Пустая клетка видна, испорченная
+    // пара выглядит как материал и портит порог молча.
+    expect(id).toBeNull();
+    expect(prisma.state.brandVoiceEdit).toHaveLength(0);
+  });
+
+  test('материал до волны читается по-прежнему, из тела материала', async () => {
+    const { prisma, edits, draft } = harness();
+    // Ни `kind` у материала, ни `body` у производной — строка, написанная до
+    // волны. Для неё тело материала и было черновиком.
+    draft('post-1', PROPOSED);
+
+    await edits.recordFromPost(ORG, 'post-1', SENT);
+
+    expect(prisma.state.brandVoiceEdit[0].proposedText).toBe(PROPOSED);
   });
 
   test('пост, написанный человеком с нуля, наблюдением не становится', async () => {

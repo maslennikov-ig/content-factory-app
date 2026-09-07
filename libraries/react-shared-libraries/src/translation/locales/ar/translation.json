@@ -1,6 +1,7 @@
 {
   "calendar": "التقويم",
   "content_section": "المحتوى",
+  "content_piece": "قطعة",
   "webhooks": "روابط الويب (Webhooks)",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "روابط الويب هي وسيلة لتلقي الإشعارات عند حدوث شيء ما في Content Factory عبر طلب HTTP.",
   "name": "الاسم",
@@ -177,7 +178,7 @@
   "selected_customer": "العميل المحدد",
   "customer": "العميل:",
   "repeat_post_every": "تكرار النشر كل...",
-  "create_new_post": "إنشاء منشور",
+  "create_new_post": "صفحة فارغة",
   "update_post": "تحديث المنشور الحالي",
   "merge_comments_into_one_post": "دمج التعليقات في منشور واحد",
   "accounts_that_will_engage": "الحسابات التي ستتفاعل:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "يلزم وصول المسؤول",
   "settings_admin_role_required_reason": "تحتاج إلى دور مسؤول في مساحة العمل هذه لفتح قسم الإعدادات هذا.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "إغلاق نافذة المنشور",
+  "intake_door": "مسودة جديدة"
 }

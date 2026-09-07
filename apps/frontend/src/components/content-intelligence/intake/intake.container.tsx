@@ -38,6 +38,9 @@ import {
   type BriefFilledV1,
   type IntakeInputKindV1,
   type IntakeQuestionV1,
+  type PieceAnswerInputV1,
+  type PieceQuestionKeyV1,
+  type PieceQuestionV1,
   type ReceiptField,
 } from './intake.adapter';
 import type { BriefOverrides } from './brief.receipt';
@@ -138,6 +141,22 @@ export function IntakeContainer({
   const [decided, setDecided] = useState<readonly BriefField[]>([]);
   const [profileFor, setProfileFor] = useState<string | null>(null);
   const [runId, setRunId] = useState(0);
+  /*
+    Заготовка волны `tu3k.9`: она записывается до цикла по каналам, поэтому
+    её код приходит раньше черновика и живёт отдельно от него — текст для
+    канала может не собраться, а заготовка всё равно сохранена.
+  */
+  const [piece, setPiece] = useState<{ pieceId: string; code: string } | null>(
+    null
+  );
+  const [pieceQuestions, setPieceQuestions] = useState<
+    readonly PieceQuestionV1[]
+  >([]);
+  const [interview, setInterview] = useState<readonly PieceAnswerInputV1[]>([]);
+  const [decidedKeys, setDecidedKeys] = useState<readonly PieceQuestionKeyV1[]>(
+    []
+  );
+  const [skipInterview, setSkipInterview] = useState(false);
 
   const abort = useRef<AbortController | null>(null);
 
@@ -171,7 +190,9 @@ export function IntakeContainer({
   const state = screenState({
     availability,
     canWrite,
-    hasChannel: available.length > 0,
+    // Канал больше не обязателен: без него получается заготовка. Значение
+    // остаётся в вызове, потому что его читают другие ветки состояния.
+    hasChannel: true,
     busy,
     questions: questions.length,
     draft: draft !== null,
@@ -200,6 +221,9 @@ export function IntakeContainer({
       decide?: readonly BriefField[];
       briefOverrides?: BriefOverrides;
       inputKind?: IntakeInputKindV1;
+      interview?: readonly PieceAnswerInputV1[];
+      decideKeys?: readonly PieceQuestionKeyV1[];
+      skipInterview?: boolean;
     }) => {
       abort.current?.abort();
       const controller = new AbortController();
@@ -209,6 +233,7 @@ export function IntakeContainer({
       setFailure(null);
       setNotice(null);
       setQuestions([]);
+      setPieceQuestions([]);
       setStep('started');
       setRunId((current) => current + 1);
 
@@ -216,6 +241,15 @@ export function IntakeContainer({
       const nextDecided = [...decided, ...(extra.decide ?? [])];
       setAnswers(nextAnswers);
       setDecided(nextDecided);
+
+      // Ответы интервью тоже копятся между ходами: отвеченный вопрос сервер
+      // больше не задаёт, и потерять ответ означало бы спросить дважды.
+      const nextInterview = [...interview, ...(extra.interview ?? [])];
+      const nextDecidedKeys = [...decidedKeys, ...(extra.decideKeys ?? [])];
+      const nextSkip = skipInterview || extra.skipInterview === true;
+      setInterview(nextInterview);
+      setDecidedKeys(nextDecidedKeys);
+      setSkipInterview(nextSkip);
 
       try {
         const response = await request(INTAKE_API.intake, {
@@ -233,6 +267,9 @@ export function IntakeContainer({
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
                 : {}),
+              interview: nextInterview,
+              decideKeys: nextDecidedKeys,
+              skipInterview: nextSkip,
             })
           ),
         });
@@ -252,12 +289,31 @@ export function IntakeContainer({
         const decoder = new TextDecoder();
         let sawQuestions = false;
         let sawDraft = false;
+        let sawPiece = false;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readIntakeEvent(line);
           if (!reading) return;
           if (reading.kind === 'step') {
-            setStep(reading.name);
+            // `search-started` приходит перед проверкой чисел поиском
+            // (`content-factory-next-tu3k.7`): строка «Проверяем цифры
+            // поиском…» встаёт вовремя, а не после того, как поиск закончился.
+            setStep(reading.name === 'search-started' ? 'search' : reading.name);
+            return;
+          }
+          if (reading.kind === 'piece') {
+            if (reading.event.name === 'piece') {
+              sawPiece = true;
+              setPiece({
+                pieceId: reading.event.pieceId,
+                code: reading.event.code,
+              });
+            } else {
+              sawQuestions = true;
+              setPieceQuestions(reading.event.questions);
+              setRounds((current) => current + 1);
+              setStep(null);
+            }
             return;
           }
           const event = reading.event;
@@ -316,7 +372,7 @@ export function IntakeContainer({
         splitter.finish();
         setStep(null);
 
-        if (!sawQuestions && !sawDraft) {
+        if (!sawQuestions && !sawDraft && !sawPiece) {
           setFailure({ title: w.errorTitle, message: w.errorIncomplete });
         }
       } catch (error) {
@@ -336,12 +392,15 @@ export function IntakeContainer({
     [
       answers,
       decided,
+      decidedKeys,
       input,
+      interview,
       kindOverride,
       language0,
       prefill?.sourceLeadId,
       request,
       selectedIds,
+      skipInterview,
       w,
     ]
   );
@@ -353,7 +412,39 @@ export function IntakeContainer({
     setAnswers([]);
     setDecided([]);
     setRounds(0);
+    setPiece(null);
+    setInterview([]);
+    setDecidedKeys([]);
+    setSkipInterview(false);
     void run({});
+  }, [run]);
+
+  /** Ответы интервью заготовки: тот же ход, что и уточнения брифа. */
+  const answerInterview = useCallback(
+    (
+      given: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
+      decideKeys: readonly string[]
+    ) => {
+      if (rounds >= INTAKE_MAX_ROUNDS) {
+        setPieceQuestions([]);
+        void run({ skipInterview: true });
+        return;
+      }
+      void run({
+        interview: given.map((one) => ({
+          key: one.key as PieceQuestionKeyV1,
+          text: one.text,
+          origin: one.origin,
+        })),
+        decideKeys: decideKeys as PieceQuestionKeyV1[],
+      });
+    },
+    [rounds, run]
+  );
+
+  const skipTheInterview = useCallback(() => {
+    setPieceQuestions([]);
+    void run({ skipInterview: true });
   }, [run]);
 
   const answer = useCallback(
@@ -452,6 +543,8 @@ export function IntakeContainer({
         language={language0}
         step={step}
         questions={questions}
+        pieceQuestions={pieceQuestions}
+        piece={piece}
         brief={brief}
         overrides={overrides}
         kindOverride={kindOverride}
@@ -491,6 +584,13 @@ export function IntakeContainer({
           setStep(null);
         }}
         onAnswer={answer}
+        onPieceAnswer={answerInterview}
+        onSkipInterview={skipTheInterview}
+        onOpenPiece={(pieceId) => {
+          if (typeof window !== 'undefined') {
+            window.location.assign(`/content/pieces/${encodeURIComponent(pieceId)}`);
+          }
+        }}
         onOverride={(field: ReceiptField, value: string) =>
           setOverrides((current) => ({ ...current, [field]: value }))
         }

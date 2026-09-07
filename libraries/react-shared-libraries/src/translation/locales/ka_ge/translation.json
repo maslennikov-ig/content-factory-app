@@ -1,6 +1,7 @@
 {
   "calendar": "კალენდარი",
   "content_section": "კონტენტი",
+  "content_piece": "ნამუშევარი",
   "webhooks": "ვებჰუქები",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "ვებჰუქები საშუალებას გაძლევთ მიიღოთ შეტყობინება, როცა Content Factory-ში რაიმე ხდება HTTP მოთხოვნის მეშვეობით.",
   "name": "სახელი",
@@ -175,7 +176,7 @@
   "selected_customer": "არჩეული კლიენტი",
   "customer": "კლიენტი:",
   "repeat_post_every": "პოსტის გამეორება ყოველ...",
-  "create_new_post": "პოსტის შექმნა",
+  "create_new_post": "ცარიელი ფურცელი",
   "update_post": "არსებული პოსტის განახლება",
   "merge_comments_into_one_post": "კომენტარების გაერთიანება ერთ პოსტად",
   "accounts_that_will_engage": "ანგარიშები, რომლებიც ჩაერთვებიან:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "საჭიროა ადმინისტრატორის წვდომა",
   "settings_admin_role_required_reason": "ამ პარამეტრების განყოფილების გასახსნელად ამ სამუშაო სივრცეში ადმინისტრატორის როლი გჭირდებათ.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "პოსტის ფანჯრის დახურვა",
+  "intake_door": "ახალი მონახაზი"
 }

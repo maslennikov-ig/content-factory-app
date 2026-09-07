@@ -593,6 +593,13 @@ describe('предложения самопроверки владельца д�
     expect(found).toContain('chopped-drama');
   });
 
+  test('голое «не только» и слово «данные» живого текста не шумят (tu3k.8)', () => {
+    expect(fires('negative-parallelism', 'Не только я так думаю, спросите любого.')).toBe(false);
+    expect(fires('negative-parallelism', 'Это не только цена, но и время.')).toBe(true);
+    expect(fires('bureaucratic', 'Данные за август показали рост.')).toBe(false);
+    expect(fires('bureaucratic', 'В рамках данной задачи.')).toBe(true);
+  });
+
   test('чистая фраза из lint.py --self-test ошибок не даёт', () => {
     const ok =
       'Обычный текст - с коротким тире, без слопа. Цифры 12 и 87 на месте.\n> цитата\n+ пункт списка';

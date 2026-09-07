@@ -63,6 +63,7 @@
 - `apps/backend/src/api/routes/{brand-profile,content-source,content-context}.controller.ts`
   и `libraries/nestjs-libraries/src/content-intelligence/` — tenant-safe API и
   доменные границы профиля, источников, фактов и снимков контекста.
+- `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
 - `apps/frontend/src/components/content-intelligence/` — Settings-поверхности
   профиля, источников и provenance; local-only review routes покрывают полные
   состояния без API, модели и внешней сети.

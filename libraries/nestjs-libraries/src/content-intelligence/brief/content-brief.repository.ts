@@ -19,6 +19,9 @@ import { PostsRepository } from '@contentfactory/nestjs-libraries/database/prism
 import type { CreationMethod } from '@prisma/client';
 // Which avatar a space means when it does not say — one rule, one place.
 import { DEFAULT_AVATAR_FIRST } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.types';
+// Код заготовки печатается одной функцией на весь раздел: `cnt-12` в стриме и
+// `cnt-12` в списке — это одно и то же число, а не два похожих.
+import { materialCode } from '@contentfactory/nestjs-libraries/content-intelligence/materials/material-presentation';
 
 type PrismaClientLike = Record<string, any>;
 
@@ -223,6 +226,120 @@ export class ContentBriefRepository {
         return created;
       });
       return piece?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Заготовка: суть простым текстом и то, что модель поняла, — одной строкой.
+   *
+   * `content-factory-next-tu3k.9.3`. Пишется ОДИН раз до цикла по каналам, и в
+   * этом вся разница с `recordPiece` выше: тот заводил по материалу на каждый
+   * канал с HTML одного канала в теле, и в библиотеке лежало три «текста» там,
+   * где текст был один. `recordPiece` остался и не изменился — его зовёт
+   * старая перекройка, — но со входа он больше не вызывается.
+   *
+   * Без производной, тоже намеренно: заготовка существует и до того, как её
+   * куда-нибудь адаптировали. «Только заготовка, без каналов» — обычный исход
+   * этой волны, а не полстроки.
+   *
+   * Отказ записи возвращается как `null`, а не бросается: суть уже написана и
+   * черновики уже будут, и терять их из-за неудачной строки в библиотеке
+   * человеку незачем.
+   */
+  async recordCore(
+    organizationId: string,
+    input: {
+      title: string;
+      /** Нейтральная суть простым текстом. */
+      body: string;
+      /** `ZagotovkaCoreV1` без `text`. */
+      brief: unknown;
+      language: string;
+      createdByUserId: string;
+      brandProfileVersionId?: string | null;
+      contentContextSnapshotId?: string | null;
+    }
+  ): Promise<{ id: string; code: string } | null> {
+    try {
+      const piece = await this.client().contentPiece.create({
+        data: {
+          organizationId,
+          kind: 'CORE',
+          title: input.title,
+          body: input.body,
+          brief: input.brief as any,
+          language: input.language,
+          createdByUserId: input.createdByUserId,
+          brandProfileVersionId: input.brandProfileVersionId ?? null,
+          contentContextSnapshotId: input.contentContextSnapshotId ?? null,
+        },
+        select: { id: true, createdAt: true },
+      });
+      if (!piece?.id) return null;
+      /*
+        Код возвращается вместе с идентификатором, потому что стрим обещает
+        человеку строку «Заготовка сохранена — cnt-NN» сразу (§11.3 карты
+        раздела), а код — это место строки в списке области. Только что
+        созданная стоит последней, поэтому её место — это число уже
+        существующих минус одна. Счёт, а не выборка: тела остальных заготовок
+        ради одного числа никому не нужны.
+      */
+      const total = await this.client().contentPiece.count({
+        where: { organizationId },
+      });
+      return { id: piece.id, code: materialCode(Math.max(0, total - 1)) };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Адаптация: текст под площадку и связь с постом, который его несёт.
+   *
+   * `state: 'DRAFT'` пишется, хотя ни одна строка кода эту колонку больше не
+   * читает (`content-factory-next-tu3k.9.2`: состояние берётся из поста).
+   * Колонка не обнулена и не снята — снос это отдельный план миграции, — и
+   * пока она есть, писать в неё правду дешевле, чем оставлять её пустой для
+   * того, кто прочтёт её старым кодом.
+   */
+  async recordAdaptation(
+    organizationId: string,
+    input: {
+      pieceId: string;
+      postId: string | null;
+      integrationId: string;
+      /** `providerIdentifier` канала: площадка, а не имя перекройки. */
+      platform: string;
+      kind: string;
+      title?: string | null;
+      /** Текст адаптации простым текстом, не разметкой редактора. */
+      body: string;
+      format: string;
+      brandProfileVersionId?: string | null;
+      mediaId?: string | null;
+    }
+  ): Promise<{ id: string; createdAt: Date } | null> {
+    try {
+      const derivation = await this.client().contentDerivation.create({
+        data: {
+          organizationId,
+          contentPieceId: input.pieceId,
+          postId: input.postId,
+          integrationId: input.integrationId,
+          platform: input.platform,
+          format: input.format,
+          kind: input.kind,
+          title: input.title ?? null,
+          body: input.body,
+          mediaId: input.mediaId ?? null,
+          brandProfileVersionId: input.brandProfileVersionId ?? null,
+          state: 'DRAFT',
+        },
+        select: { id: true, createdAt: true },
+      });
+      return derivation ?? null;
     } catch {
       return null;
     }

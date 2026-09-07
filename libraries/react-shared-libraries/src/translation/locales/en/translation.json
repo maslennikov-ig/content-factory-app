@@ -1,6 +1,7 @@
 {
   "calendar": "Calendar",
   "content_section": "Content",
+  "content_piece": "Piece",
   "webhooks": "Webhooks",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "Webhooks are a way to get notified when something happens in Content Factory via\n an HTTP request.",
   "name": "Name",
@@ -177,7 +178,7 @@
   "selected_customer": "Selected Customer",
   "customer": "Customer:",
   "repeat_post_every": "Repeat Post Every...",
-  "create_new_post": "Create Post",
+  "create_new_post": "Blank page",
   "update_post": "Update Existing Post",
   "merge_comments_into_one_post": "Merge comments into one post",
   "accounts_that_will_engage": "Accounts that will engage:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "Administrator access required",
   "settings_admin_role_required_reason": "You need an administrator role in this workspace to open this settings section.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "Close the post window",
+  "intake_door": "New piece"
 }

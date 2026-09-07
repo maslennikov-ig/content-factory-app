@@ -36,7 +36,7 @@ import {
 import dayjs from 'dayjs';
 import { Select } from '@contentfactory/react/form/select';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
+import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launch/compose.modal';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import useSWR from 'swr';
@@ -82,7 +82,7 @@ const activeVoiceFromOverview = (overview: unknown): AppliedVoice | null => {
 
 const FirstStep: FC = (props) => {
   const { integrations, reloadCalendarView } = useCalendar();
-  const modal = useModals();
+  const openPostEditor = useOpenPostEditor();
   const fetch = useFetch();
   const toaster = useToaster();
   const [loading, setLoading] = useState(false);
@@ -338,47 +338,26 @@ const FirstStep: FC = (props) => {
           };
         });
         setShowStep('');
-        modal.openModal({
-          id: 'add-edit-modal',
-          closeOnClickOutside: false,
-          removeLayout: true,
-          closeOnEscape: false,
-          withCloseButton: false,
-          askClose: true,
-          fullScreen: true,
-          classNames: {
-            modal: 'w-[100%] max-w-[1400px] text-textColor',
-          },
-          children: (
-            <AddEditModal
-              allIntegrations={integrations.map((p) => ({
-                ...p,
-              }))}
-              integrations={integrations.slice(0).map((p) => ({
-                ...p,
-              }))}
-              mutate={reloadCalendarView}
-              date={dayjs.utc(load.date).local()}
-              reopenModal={() => ({})}
-              onlyValues={messages}
-              researchSources={load.fresearch?.sources || []}
-              contentIntelligenceProvenance={contentIntelligenceProvenance}
-              /**
-               * Предложение приезжает вместе с черновиком, а не считается здесь.
-               *
-               * Сервер знает три вещи, которых у клиента нет: привычку автора с
-               * её знаменателем, приложил ли человек факты, и то, что этот текст
-               * написал продукт, а не человек. Последнее и есть условие: тот же
-               * расчёт над напечатанным вручную текстом был бы анкетой.
-               *
-               * Одно на генерацию — сервер уже свёл; здесь берётся первое.
-               */
-              draftGap={
-                Array.isArray(load.draftGaps) ? load.draftGaps[0] ?? null : null
-              }
-            />
-          ),
-          size: '80%',
+        await openPostEditor({
+          integrations: integrations.slice(0).map((p) => ({ ...p })),
+          mutate: reloadCalendarView,
+          date: dayjs.utc(load.date).local(),
+          onlyValues: messages,
+          researchSources: load.fresearch?.sources || [],
+          contentIntelligenceProvenance,
+          /**
+           * Предложение приезжает вместе с черновиком, а не считается здесь.
+           *
+           * Сервер знает три вещи, которых у клиента нет: привычку автора с её
+           * знаменателем, приложил ли человек факты, и то, что этот текст
+           * написал продукт, а не человек. Последнее и есть условие: тот же
+           * расчёт над напечатанным вручную текстом был бы анкетой.
+           *
+           * Одно на генерацию — сервер уже свёл; здесь берётся первое.
+           */
+          draftGap: Array.isArray(load.draftGaps)
+            ? load.draftGaps[0] ?? null
+            : null,
         });
       } catch (e: any) {
         toaster.show(
@@ -394,7 +373,7 @@ const FirstStep: FC = (props) => {
         setLoading(false);
       }
     },
-    [integrations, reloadCalendarView, fetch, generateStep, modal, toaster, t]
+    [integrations, reloadCalendarView, fetch, generateStep, openPostEditor, toaster, t]
   );
   return (
     <form

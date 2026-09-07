@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 749,
+  "total": 737,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 723,
+      "total": 711,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -346,10 +346,6 @@
           "text-sm": 1
         },
         "apps/frontend/src/components/new-launch/manage.modal.tsx": {
-          "font-[500]": 1,
-          "font-[600]": 5,
-          "text-[14px]": 2,
-          "text-[15px]": 4,
           "text-[20px]": 1
         },
         "apps/frontend/src/components/new-launch/providers/continue-provider/gmb/gmb.continue.tsx": {

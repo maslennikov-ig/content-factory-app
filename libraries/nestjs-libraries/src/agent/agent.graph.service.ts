@@ -294,6 +294,8 @@ const voiceDirectives = (state: WorkflowChannelsState) => {
 const briefBlock = (state: WorkflowChannelsState): string => {
   const brief = state.intake?.brief;
   if (!brief) return '';
+  const core = (state.intake?.core || '').trim();
+  const answers = state.intake?.answers || [];
   return [
     'Brief (from the author, follow it):',
     `- Claim: ${brief.thesis ?? ''}`,
@@ -301,6 +303,25 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     `- Who would disagree and why: ${brief.disagreement ?? ''}`,
     `- Written for: ${brief.audience ?? ''}`,
     ...(brief.goal ? [`- What the post has to do: ${brief.goal}`] : []),
+    /*
+      Суть заготовки — материал, а не запрос (`content-factory-next-tu3k.9`).
+      Она уже написана и уже нейтральна; эта генерация делает из неё версию
+      для одной площадки, и её слова, числа и примеры переносятся дословно.
+      Правило сказано здесь, а не только в промпте сути: находка постфактум —
+      это переписывание, а сказанное заранее чаще всего просто работает.
+    */
+    ...(core
+      ? [
+          "The author's own neutral core of this piece. Carry its words, numbers, names and examples over VERBATIM; change only what this platform requires:",
+          core,
+        ]
+      : []),
+    ...(answers.length
+      ? [
+          "The author's answers about this channel, in their own words — quote them rather than paraphrase:",
+          ...answers.map((answer) => `- ${answer}`),
+        ]
+      : []),
   ].join('\n        ');
 };
 

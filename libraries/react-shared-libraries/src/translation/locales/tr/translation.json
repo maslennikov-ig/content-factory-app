@@ -1,6 +1,7 @@
 {
   "calendar": "Takvim",
   "content_section": "İçerik",
+  "content_piece": "Taslak parça",
   "webhooks": "Web kancaları",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "Web kancaları, Content Factory'de bir şey olduğunda bir HTTP isteği aracılığıyla bildirim almanın bir yoludur.",
   "name": "İsim",
@@ -177,7 +178,7 @@
   "selected_customer": "Seçili Müşteri",
   "customer": "Müşteri:",
   "repeat_post_every": "Gönderiyi Her ... Tekrarla",
-  "create_new_post": "Gönderi Oluştur",
+  "create_new_post": "Boş sayfa",
   "update_post": "Mevcut Gönderiyi Güncelle",
   "merge_comments_into_one_post": "Yorumları tek gönderide birleştir",
   "accounts_that_will_engage": "Etkileşime Geçecek Hesaplar:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "Yönetici erişimi gerekli",
   "settings_admin_role_required_reason": "Bu ayarlar bölümünü açmak için bu çalışma alanında yönetici rolüne sahip olmalısınız.",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "Gönderi penceresini kapat",
+  "intake_door": "Yeni taslak"
 }

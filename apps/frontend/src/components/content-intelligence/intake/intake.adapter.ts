@@ -28,9 +28,14 @@ import {
   type IntakeOptionsV1,
   type IntakeQuestionV1,
   type IntakeRequestV1,
+  type PieceAnswerInputV1,
+  type PieceCreateRequestV1,
+  type PieceQuestionKeyV1,
+  type PieceQuestionV1,
   type SlopFindingV1,
   type SlopReportV1,
   type SlopVerdictV1,
+  type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
 
@@ -50,9 +55,14 @@ export type {
   IntakeOptionsV1,
   IntakeQuestionV1,
   IntakeRequestV1,
+  PieceAnswerInputV1,
+  PieceCreateRequestV1,
+  PieceQuestionKeyV1,
+  PieceQuestionV1,
   SlopFindingV1,
   SlopReportV1,
   SlopVerdictV1,
+  ZagotovkaCoreV1,
 };
 
 export {
@@ -137,9 +147,52 @@ export const readInputKind = (value: unknown): IntakeInputKindV1 =>
  * как JSON, или событие без имени вовсе — это уже неполный ответ, и о нём
  * говорят вслух.
  */
+/**
+ * Что вход добавил в волне заготовок (`content-factory-next-tu3k.9`).
+ *
+ * Заготовка записывается до цикла по каналам, поэтому её событие приходит
+ * раньше черновиков, а вопросы при создании приходят со своим именем —
+ * `piece-questions`, — потому что у них есть ответ модели, а у старых
+ * `questions` его нет. Отдельный союз, а не расширение `IntakeEventV1`:
+ * контракт объявил их так же и по той же причине — старые читатели не
+ * ломаются.
+ */
+export type IntakePieceReadEventV1 =
+  | { name: 'piece'; pieceId: string; code: string; core: ZagotovkaCoreV1 | null }
+  | { name: 'piece-questions'; questions: PieceQuestionV1[]; round: number };
+
 export type IntakeReading =
   | { kind: 'event'; event: IntakeEventV1 }
+  | { kind: 'piece'; event: IntakePieceReadEventV1 }
   | { kind: 'step'; name: string };
+
+/** Вопрос интервью заготовки: у него всегда есть ответ модели или честное `null`. */
+export const readPieceQuestions = (value: unknown): PieceQuestionV1[] =>
+  asArray(value).flatMap((entry) => {
+    const question = asRecord(entry);
+    if (!question || typeof question.key !== 'string') return [];
+    return [
+      {
+        key: question.key as PieceQuestionKeyV1,
+        question: asText(question.question),
+        suggested:
+          typeof question.suggested === 'string' && question.suggested.trim()
+            ? question.suggested
+            : null,
+        ...(typeof question.field === 'string'
+          ? { field: question.field as BriefField }
+          : {}),
+        ...(Array.isArray(question.options)
+          ? {
+              options: question.options.filter(
+                (option): option is string => typeof option === 'string'
+              ),
+            }
+          : {}),
+        ...(typeof question.why === 'string' ? { why: question.why } : {}),
+      },
+    ];
+  });
 
 export function readIntakeEvent(line: string): IntakeReading | null {
   if (!line.trim()) return null;
@@ -240,6 +293,30 @@ export function readIntakeEvent(line: string): IntakeReading | null {
       return {
         kind: 'event',
         event: { name: 'questions', questions: readQuestions(record.questions) },
+      };
+
+    case 'piece':
+      return {
+        kind: 'piece',
+        event: {
+          name: 'piece',
+          pieceId: asText(record.pieceId),
+          code: asText(record.code),
+          // Суть читается тем же разбором, что на странице заготовки, и её
+          // отсутствие не роняет строку «Заготовка сохранена»: код и адрес
+          // человеку нужнее, чем разобранный бриф.
+          core: null,
+        },
+      };
+
+    case 'piece-questions':
+      return {
+        kind: 'piece',
+        event: {
+          name: 'piece-questions',
+          questions: readPieceQuestions(record.questions),
+          round: Number(record.round) || 1,
+        },
       };
 
     case 'channel-started':
@@ -510,7 +587,13 @@ export function buildIntakePayload(input: {
   inputKind?: IntakeInputKindV1;
   options?: IntakeOptionsV1;
   sourceLeadId?: string;
-}): IntakeRequestV1 {
+  /** Ответы интервью заготовки; сервер ставит им время и происхождение шага. */
+  interview?: readonly PieceAnswerInputV1[];
+  /** «Реши сама» по ключам вопросов заготовки. */
+  decideKeys?: readonly PieceQuestionKeyV1[];
+  /** Интервью пропущено целиком одной кнопкой. */
+  skipInterview?: boolean;
+}): PieceCreateRequestV1 {
   const kind = input.inputKind ?? detectInputKind(input.input);
   const overrides = Object.fromEntries(
     Object.entries(input.briefOverrides ?? {}).filter(
@@ -532,6 +615,9 @@ export function buildIntakePayload(input: {
       : {}),
     ...(input.options ? { options: input.options } : {}),
     ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
+    ...(input.interview?.length ? { interview: [...input.interview] } : {}),
+    ...(input.decideKeys?.length ? { decideKeys: [...input.decideKeys] } : {}),
+    ...(input.skipInterview ? { skipInterview: true } : {}),
   };
 }
 
@@ -596,7 +682,12 @@ export function screenState(input: {
   if (input.availability === 'checking') return 'checking';
   if (input.availability === 'unavailable') return 'restricted';
   if (!input.canWrite) return 'read-only';
-  if (!input.hasChannel) return 'no-channel';
+  /*
+    Пустого пространства без каналов здесь больше нет.
+    `content-factory-next-tu3k.9`: без канала получается заготовка, и это
+    полноценный исход, а не недостающий шаг. Ветка `no-channel` осталась —
+    её показывают экраны, которым канал действительно нужен, и сцена обзора.
+  */
   if (input.busy) return 'streaming';
   if (input.failed) return 'error';
   if (input.questions > 0) return 'questions';
@@ -604,9 +695,18 @@ export function screenState(input: {
   return 'idle';
 }
 
-/** Почему «Написать» не нажимается, или `null`, когда нажимается. */
+/** Почему кнопка не нажимается, или `null`, когда нажимается. */
 export type IntakeBlockReason = 'input' | 'channel' | 'checking' | null;
 
+/**
+ * Канал перестал быть обязательным (`content-factory-next-tu3k.9`, 06.09.2026).
+ *
+ * До волны заготовок без канала писать было незачем: текст пишется под
+ * площадку. Теперь без канала получается заготовка — нейтральная суть, — и
+ * требовать канал ради неё значит просить человека решить, куда он это
+ * положит, раньше, чем он решил, что он вообще хочет сказать. Значение
+ * `'channel'` осталось в союзе: его печатают экраны, где канал всё ещё нужен.
+ */
 export function blockReason(input: {
   availability: 'checking' | 'available' | 'unavailable' | 'unknown';
   input: string;
@@ -614,6 +714,30 @@ export function blockReason(input: {
 }): IntakeBlockReason {
   if (input.availability === 'checking') return 'checking';
   if (input.input.trim().length < INTAKE_INPUT_MIN_CHARS) return 'input';
-  if (input.selected.length === 0) return 'channel';
   return null;
+}
+
+/**
+ * Что написано на кнопке входа — от того, что человек выбрал.
+ *
+ * Три надписи, а не одна с подписью рядом: кнопка должна называть то, что
+ * сейчас произойдёт. Без каналов будет только заготовка; с одним — заготовка
+ * и текст для него поимённо; с несколькими — заготовка и текст в каждый, и
+ * счёт называется числом, потому что перечислять три имени на кнопке нельзя.
+ */
+export function intakeActionLabel(
+  selected: readonly string[],
+  nameOf: (id: string) => string | undefined,
+  words: {
+    makePiece: string;
+    makeAndWrite: (name: string) => string;
+    makeAndWriteMany: (count: number) => string;
+  }
+): string {
+  if (selected.length === 0) return words.makePiece;
+  if (selected.length === 1) {
+    const name = nameOf(selected[0]);
+    return name ? words.makeAndWrite(name) : words.makePiece;
+  }
+  return words.makeAndWriteMany(selected.length);
 }

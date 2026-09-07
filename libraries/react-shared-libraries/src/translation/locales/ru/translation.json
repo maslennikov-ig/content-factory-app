@@ -1,6 +1,7 @@
 {
   "calendar": "Календарь",
   "content_section": "Контент",
+  "content_piece": "Заготовка",
   "webhooks": "Вебхуки",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "Вебхуки — это способ получать уведомления о событиях в Content Factory через HTTP-запрос.",
   "name": "Имя",
@@ -177,7 +178,7 @@
   "selected_customer": "Выбранный клиент",
   "customer": "Клиент:",
   "repeat_post_every": "Повторять публикацию каждые...",
-  "create_new_post": "Создать пост",
+  "create_new_post": "Чистый лист",
   "update_post": "Обновить существующий пост",
   "merge_comments_into_one_post": "Объединить комментарии в один пост",
   "accounts_that_will_engage": "Аккаунты, которые будут взаимодействовать:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "Нужна роль администратора",
   "settings_admin_role_required_reason": "Чтобы открыть этот раздел настроек, нужна роль администратора в рабочей области.",
   "settings_editor_role_required_title": "Нужна роль редактора",
-  "settings_editor_role_required_reason": "Чтобы открыть этот раздел настроек, нужна роль редактора в рабочей области. Её выдаёт администратор."
+  "settings_editor_role_required_reason": "Чтобы открыть этот раздел настроек, нужна роль редактора в рабочей области. Её выдаёт администратор.",
+  "close_post_window": "Закрыть окно поста",
+  "intake_door": "Новая заготовка"
 }

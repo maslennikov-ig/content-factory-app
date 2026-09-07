@@ -267,6 +267,8 @@ const build = (options = {}) => {
     start: [],
     createDraft: [],
     recordPiece: [],
+    recordCore: [],
+    recordAdaptation: [],
     usage: [],
     fetch: [],
   };
@@ -354,6 +356,19 @@ const build = (options = {}) => {
       recordPiece: async (organizationId, input) => {
         calls.recordPiece.push([organizationId, input]);
         return `piece-${calls.recordPiece.length}`;
+      },
+      // Заготовка и адаптация — две разные записи с волны
+      // `content-factory-next-tu3k.9`: первая одна на вход, вторая на канал.
+      recordCore: async (organizationId, input) => {
+        calls.recordCore.push([organizationId, input]);
+        return { id: `piece-${calls.recordCore.length}`, code: 'cnt-01' };
+      },
+      recordAdaptation: async (organizationId, input) => {
+        calls.recordAdaptation.push([organizationId, input]);
+        return {
+          id: `adaptation-${calls.recordAdaptation.length}`,
+          createdAt: new Date('2026-09-06T09:00:00.000Z'),
+        };
       },
     },
     { getIntegrationsList: async () => CHANNELS },
@@ -458,12 +473,20 @@ describe('тонкий вход отвечает вопросами, а не т�
 });
 
 describe('чужой пост: числа входят только проверенными', () => {
+  /*
+    `skipInterview` стоит здесь с волны «заготовка и адаптации»
+    (`content-factory-next-tu3k.9`): после брифа продукт задаёт до трёх
+    вопросов о заготовке и это терминально, как и вопросы ворот. Сценарии ниже
+    судят дорогу ДО черновика, а не интервью — его собственный набор
+    `content-pieces.service.test.cjs`.
+  */
   const foreignPlan = (service, overrides = {}) =>
     service.prepare(
       'org-a',
       request({
         input: foreignPost,
         options: { searchEnrichment: true },
+        skipInterview: true,
         ...overrides,
       })
     );
@@ -679,6 +702,7 @@ describe('два канала — два черновика', () => {
         input: foreignPost,
         integrationIds: ['int-tg', 'int-vk'],
         options: { searchEnrichment: false },
+        skipInterview: true,
       })
     );
     const events = await drain(service, 'org-a', plan);
@@ -818,7 +842,9 @@ describe('каналы проверяются до первого байта', (
 
   test.each([
     ['короткий вход', { input: 'ага' }, 'INTAKE_INPUT_TOO_SHORT'],
-    ['без канала', { integrationIds: [] }, 'INTAKE_CHANNEL_REQUIRED'],
+    // Пустой список каналов дверь больше не отвергает: с волны «заготовка и
+    // адаптации» её результат — заготовка, а канал выбирают потом.
+    ['без канала', { integrationIds: [] }, null],
     ['чужой канал', { integrationIds: ['int-nope'] }, 'INTAKE_CHANNEL_UNKNOWN'],
     ['выключенный канал', { integrationIds: ['int-off'] }, 'INTAKE_CHANNEL_UNKNOWN'],
     [

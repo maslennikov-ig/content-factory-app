@@ -31,7 +31,10 @@ export const contentSectionCopy = {
     // читают.
     sources: 'Источники',
     brief: 'Бриф',
-    materials: 'Материалы',
+    // `content-factory-next-tu3k.9` (06.09.2026): вкладка называется
+    // «Заготовки» и стоит первой. Ключ `materials` не менялся — по нему живут
+    // адреса, тесты и `ContentIntelligenceSection`.
+    materials: 'Заготовки',
     // Ключ вкладки не менялся (`tab === 'provenance'` держат несколько
     // тестов и `ContentIntelligenceSection`), поменялась только подпись:
     // экран за ней теперь витрина фактов, а не проверка происхождения.
@@ -57,7 +60,9 @@ export const contentSectionCopy = {
     briefViewIntake: 'По мысли',
     briefViewManual: 'Вручную',
     materialsViewLabel: 'Вид списка',
-    materialsViewMaterials: 'На что опираются',
+    // Витрина «На что опираются» убрана решением владельца 06.09.2026 (§11.5):
+    // внутри вкладки две витрины — заготовки и «Что уже написали».
+    materialsViewMaterials: 'Заготовки',
     materialsViewArchive: 'Что уже написали',
   },
   en: {
@@ -69,7 +74,7 @@ export const contentSectionCopy = {
     leads: 'Ideas',
     sources: 'Sources',
     brief: 'Brief',
-    materials: 'Material',
+    materials: 'Pieces',
     provenance: 'Facts',
     archive: 'Archive',
     materialsTitle: 'No material yet',
@@ -80,7 +85,7 @@ export const contentSectionCopy = {
     briefViewIntake: 'From a thought',
     briefViewManual: 'By hand',
     materialsViewLabel: 'List view',
-    materialsViewMaterials: 'What we rely on',
+    materialsViewMaterials: 'Pieces',
     materialsViewArchive: 'What we already wrote',
   },
 } as const;

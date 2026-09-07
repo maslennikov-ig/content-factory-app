@@ -27,7 +27,7 @@ import { CustomVariables } from '@contentfactory/frontend/components/launches/ad
 import { useRouter } from 'next/navigation';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { AddEditModal } from '@contentfactory/frontend/components/new-launch/add.edit.modal';
+import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launch/compose.modal';
 import dayjs from 'dayjs';
 import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-launch/modal.wrapper.component';
 import copy from 'copy-to-clipboard';
@@ -128,6 +128,7 @@ export const Menu: FC<{
   const { integrations, reloadCalendarView } = useCalendar();
   const toast = useToaster();
   const modal = useModals();
+  const openPostEditor = useOpenPostEditor();
   const [show, setShow] = useState<false | { x: number; y: number }>(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const ref = useClickOutside<HTMLDivElement>(() => {
@@ -293,35 +294,15 @@ export const Menu: FC<{
         await fetch(`/posts/find-slot/${integration.id}`)
       ).json();
 
-      modal.openModal({
-        id: 'add-edit-modal',
-        closeOnClickOutside: false,
-        removeLayout: true,
-        closeOnEscape: false,
-        withCloseButton: false,
-        askClose: true,
-        fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
-        children: (
-          <AddEditModal
-            allIntegrations={integrations.map((p) => ({
-              ...p,
-            }))}
-            reopenModal={createPost(integration)}
-            mutate={reloadCalendarView}
-            integrations={integrations}
-            selectedChannels={[integration.id]}
-            // focusedChannel={integration.id}
-            date={dayjs.utc(date).local()}
-          />
-        ),
-        size: '80%',
-        title: ``,
+      await openPostEditor({
+        integrations,
+        reopenModal: createPost(integration),
+        mutate: reloadCalendarView,
+        selectedChannels: [integration.id],
+        date: dayjs.utc(date).local(),
       });
     },
-    [integrations]
+    [integrations, openPostEditor]
   );
 
   const changeBotPicture = useCallback(() => {

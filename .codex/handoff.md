@@ -4,11 +4,49 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
+**Wave «заготовка и адаптации» (06.09–07.09, epic `tu3k.9` under `tu3k`, plan
+`lexical-sauteeing-bubble`) — merged to `wave/pieces-2026-09-07` at
+`0024732b`, NOT yet on `main`, NOT released.** Six streams (Z4 root, Z1/Z2
+complex, Z3/Z6 worker, Z5 frontend), no reviewer, no paid stand pass (owner:
+«скорость важнее тестов и UX-проверок»). Full `pnpm test` three halves green
+(jest 396/4973, node 128/0, python OK), `tsc` zero on three apps, process
+verification OK. What it does: `ContentPiece.kind='CORE'` + `brief` hold the
+neutral core and the brief; `ContentDerivation.kind/title/body/mediaId` make an
+adaptation with its own text; publication state is READ from the post
+(`published > queued > error > draft`), never stored; intake writes the piece
+ONCE before the channel loop (channels optional; `piece`, `piece-questions`,
+`search-started` events; `adaptationId` on `draft`); core = one `draft` call
+under operation `intake` (`pieces/core-write.ts`, verbatim words, no avatar,
+forbidden phrases from the slop catalogue, deterministic fallback, slop report
+stored with the piece); interview ≤3 questions per step with the model's
+`suggested` first, answers kept verbatim; channel questions in
+`channels/channel-questions.ts` (Telegram: hook, cta, format); doors
+`GET/GET :id/POST :id/adapt (NDJSON)/DELETE :id/adaptations/:aid/POST
+:id/archive` under `/content-intelligence/pieces` (EDITOR writes, `adapt`
+under `AI_THROTTLE`); screens `content-intelligence/pieces/*` — table with a
+column per platform, state cell (`adaptation.cell.tsx`, in the raw-control
+ledger with a follow-up), row expands in place, piece page
+`/content/pieces/[id]`, tab «Заготовки» first (key `materials` unchanged),
+intake is «Новая заготовка»; compose window on product tokens, one flag object
+`new-launch/compose.modal.options.ts` + `useOpenPostEditor` (editor loaded
+lazily). **The avatar-learning trap is closed in the same commit as the
+schema**: `recordFromPost` compares `ContentDerivation.body`, a CORE piece
+without it yields no observation. Schema step for production:
+`docs/operations/piece-adaptation-schema-apply.sql` (three statements, six
+columns, one index), validator passed, **apply BEFORE the image switch**, not
+applied on 06.09. Popular findings closed on the way: `tu3k.7`, `tu3k.8`.
+Open from the wave: `tu3k.6` (stored badge), Z5 defers (no container tests for
+the adapt stream; `kind` not chosen by the person; `POST /archive` unused by a
+button), Z2 defers (`search-started` typed in `pieces/intake-events.ts`, not
+in the contract; `core-write.ts` not in the AI-consumer guard list; word search
+ignores `includeArchived`). Owner walk to measure liveliness: same topic via a
+piece and directly into the channel (§11 п. 10).
+
 **Wave «вход одной мыслью» (06.09, epic `tu3k`, owner on the live walk:
 the eight-field brief is «слишком сложно» — one field, the model fills the
-brief) — on branch `wave/intake-2026-09-06`, NOT yet merged/released when this
-paragraph was written; see the release record in `production-deploy.md` if
-it exists.** Four Opus streams, no reviewer and no paid stand pass (owner:
+brief) — merged to `main` as `db54b552`, RELEASED as `cd636483ba0a` 06.09 (column
+`Integration.writingProfile` applied before the switch, rollback
+`443bd0a450c8`; receipt 392/4875, node 124/0, python OK).** Four Opus streams, no reviewer and no paid stand pass (owner:
 «скорость, тестировать буду на боевом»). `POST /content-intelligence/intake`
 (NDJSON, EDITOR+POSTS_PER_MONTH, ≤3 channels): thought / link / foreign post
 → one `extract` call for claims, ≤3 number checks by search, one `extract`
@@ -27,67 +65,32 @@ Screens: one `IntakeContainer`, two doors (calendar «Из мысли» replacin
 billing-gated generator; `/content?tab=brief` intake-first, «Вручную» second
 view), questions card, receipt «Что модель поняла», channel card «Как пишем в
 «X»», findings by click only. Found on the way: LangGraph drops undeclared
-state keys — `draftGaps` never reached the screen since 05.09 (fixed). Open:
-`SOURCE_DIRECT_FETCH` is off on production → link input answers «вставьте
-текст» until the owner turns it on; `stored` flag for the channel badge,
+state keys — `draftGaps` never reached the screen since 05.09 (fixed). `SOURCE_DIRECT_FETCH=true` on production since 06.09 (owner's word; link
+input and lead feeds read pages). Open: `stored` flag for the channel badge,
 `search-started` event, slop noise on «данные»/«не только» (P3s under `tu3k`).
 
-**Wave «search into drafts» (05.09, epic `ec48`, owner's answer to `2ua.1`:
-«можно… не „не проверено“, а „взято из поиска“… ограничивать я бы никак не
-стал») — merged to `main` as `da056915`, RELEASED as `443bd0a450c8` (no schema
-change, rollback `da34f1a9e832`; receipt 379/4607, node 124/0, python 46 OK).**
-Four Opus streams + reviewer (no P0; 3 P1 + 4 P2 fixed before release) + paid
-second pass on the stand (`docs/product/material-quality-check-2026-09-05-
-second-pass.md`: **5 of 7 texts grounded vs 0 of 5**; found `ec48.3`, half of
-the search lost to the other query's deadline — fixed) + production walker
-(`fn33.145`: roles correct; no channel → no composer for anyone `fn33.148`,
-Agent screen silent about missing AI `fn33.153`, stage-filter language
-`fn33.146` — all fixed; ten P3 `fn33.147`–`.158` open). Builder admits fresh
-search evidence as `provenance: SEARCH` (`inclusionReason SEARCH_UNCONFIRMED`),
-prompt marks it and forbids numbers outside the block; generator searches once
-per generation when no explicit material (reuse by URL, deny-list applies);
-subject-language query first; excerpt hygiene (menus, footers, AMP, https
-only); labels «Взято из поиска» in the composer, showcase and search panel.
-Also: `cxd` restore rehearsal DONE (key is on the host, no passphrase; **key
-expires 16.09.2026**), `c6k.16` closed (decided 17.08). Open: `fn33.132`
-(subject drift), `ec48.6`, `.7`, `fn33.159` (draft without channel — owner).
+**Wave «search into drafts» (05.09, epic `ec48`) — merged `da056915`,
+RELEASED `443bd0a450c8` (no schema change, rollback `da34f1a9e832`).** Builder
+admits fresh search evidence as `provenance: SEARCH`; generator searches once
+per generation when no explicit material; labels «Взято из поиска» in the
+composer, showcase and search panel. Paid second pass: 5 of 7 texts grounded
+vs 0 of 5. `cxd` restore rehearsal DONE (**GPG key expires 16.09.2026**).
+Open: `fn33.132`, `ec48.6`, `.7`, `fn33.159` (owner).
 
-**Wave «owner decisions» (05.09, owner away, «даю все разрешения — делай») —
-merged to `main` as `9e4d7474`, RELEASED as `da34f1a9e832` (column
-`learnedRules` applied before the switch, rollback `035029af3c18`, backup
-`20260905T124600Z-pre-learnedrules`; receipt 374/4542, node 117/0).**
-Owner answered nine questions; six Opus streams + reviewer + paid check +
-roles walker. (A) **the avatar learns from edits** (`fn33.28.19`, `.28.19.1`):
-substantive was/became pairs (≥0.1 share and ≥3 words) kept ≤200 per avatar,
-`POST /voice/learning/run` = one `extract` call per batch of the 30 OLDEST
-pending pairs, 1–3 rules, ≤10 kept in the new column
-`ProjectBrandProfile.learnedRules` (`docs/operations/
-brand-voice-learned-rules-schema-apply.sql`, **before the switch**),
-`lastRunAt` = createdAt of the last pair read; rules reach the prompt as
-observations after the habits (`voice-directives.ts`), fenced; the learn prompt
-fences the pairs. (B) **roles** (`fn33.90`, `.90.1`): USER view-first, EDITOR
-writes (posts, tags, whole Content section, sets, signatures, autopost,
-assistant incl. `/copilot/chat`, media), ADMIN owns (webhooks, channels incl.
-all `/integrations/:id/*` settings); `Sections.EDITOR` via `ROLE_SECTIONS`;
-editor refusal has its own text + `role_refusal_editor_only`; matrix 130 doors
-— the guard had been blind to policies declared as a constant (20 doors) and
-is still blind to doors with no policy at all (`fn33.90.2`). (C) word search
-`q` on materials and facts (`odb8.4`; posts `odb8.4.1`). (D)
-`docs/product/tariff-levers.md`: 31 levers, 13 questions — **no plan limit is
-live without `STRIPE_PUBLISHABLE_KEY`**, three mismatches under `or3.9.1`.
-(E, F) from the paid check `2ua` (`docs/product/material-quality-check-
-2026-09-05.md`, 0/5 topics grounded): honesty of the prompt when the context
-is empty (`fn33.130`), the composer names unverified evidence and links to
-«Откуда факты» (`.131`), the English «Check out the full story» tail only with
-a link and in the channel language (`.137`), search panel: summary in the
-reader's language, http refused on screen with a reason, 503 with a code
-instead of 500, dates (`.133`, `.136`, `.139`, `.135`). Review: no P0, three P1
-fixed before release. Roles walker on the stand: server doors match the matrix
-in all 40 probes; **`DELETE /integrations` with an empty body soft-deleted every
-post of the workspace** (`fn33.90.3`, DTO + lookup + repository guard); the
-USER screen leaked in eight places — menu, composer, media, brief, archive,
-agent now read the role first (`.90.4`–`.90.12`); P3s `.141`–`.144` open.
-`2ua.1` answered 05.09 → wave `ec48`. Open from the check: `.132`, `.138`.
+**Wave «owner decisions» (05.09) — merged `9e4d7474`, RELEASED `da34f1a9e832`
+(column `learnedRules` applied before the switch, rollback `035029af3c18`).**
+(A) the avatar learns from edits: substantive pairs ≤200 per avatar, `POST
+/voice/learning/run` = one `extract` call per 30 OLDEST pairs, ≤10 rules in
+`ProjectBrandProfile.learnedRules`, fenced into the prompt after the habits.
+(B) roles `fn33.90`: USER view-first, EDITOR writes, ADMIN owns channels and
+webhooks; `roles-matrix.guard` still blind to doors with no policy
+(`fn33.90.2`). (C) word search `q` on materials and facts. (D)
+`tariff-levers.md` — no plan limit is live without `STRIPE_PUBLISHABLE_KEY`.
+(E, F) from the paid check `2ua`: prompt honesty on empty context, composer
+names unverified evidence, search panel in the reader's language. Roles
+walker: **`DELETE /integrations` with an empty body soft-deleted every post**
+(`fn33.90.3`, fixed: DTO + lookup + repository guard). Open: `.132`, `.138`,
+`.141`–`.144`.
 
 **Wave «cleanup» (05.09) — `41447f87`, RELEASED `dcb6eae72608` (two SQL files
 as one transaction), then ten walker P3s as `035029af3c18`.** Cascade deletion
@@ -150,14 +153,18 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-continues the live walk from stage D on the new intake** — open «Контент →
-Бриф» (or «Из мысли» on the calendar), paste a thought, then a foreign post
-with three numbers, pick the Telegram channel, read the receipt origins and
-the «не подтверждено» facts, open the editor, run «Проверить на штампы». Every
-gap to Beads first, fixes in one wave after. Still his: `SOURCE_DIRECT_FETCH`
-on production (link input), GPG key before 16.09.2026, «Подключить Telegram»,
-`fn33.159`, `or3.9`, `fn33.132` after another paid check.
+Next stage id: `content-factory-next-vme`. Recommended action: **release the
+wave «заготовка и адаптации» with the owner's fresh permission** (the last
+permission ended at `cd636483ba0a`): merge `wave/pieces-2026-09-07` to
+`main`, receipt for `HEAD`, «через год», docker check, public tree, image,
+`.env` absence check; **before the switch** backup + apply
+`piece-adaptation-schema-apply.sql` in one transaction with the `mastra_*`
+count check; then switch, four addresses, retain artifacts. After the switch
+the owner walks: «Контент → Заготовки» (table, cells, expand), «Новая
+заготовка» with and without a channel, interview card, «Адаптировать» from a
+piece page, the compose window from a cell; then the liveliness comparison.
+Every gap to Beads first. Still his: GPG key before 16.09.2026, «Подключить
+Telegram», `fn33.159`, `or3.9`, `fn33.132`.
 
 ## Starter prompt for next orchestrator
 

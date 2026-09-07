@@ -20,7 +20,7 @@ import { VoiceTab } from '../brand-voice/voice-tab';
 import { VoiceBriefContainer } from '../brand-voice/voice-brief.container';
 import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
-import { VoiceMaterialsContainer } from '../brand-voice/voice-materials.container';
+import { PiecesContainer } from './pieces/pieces.container';
 import { ContentArchiveContainer } from './content-archive.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
 
@@ -89,6 +89,14 @@ export type { ContentSectionLocale };
  * separate stop on the strip. `ContentSectionScreen` below owns the switch
  * and mounts `ContentArchiveContainer` under it; `content-archive.adapter.ts`
  * and the container itself are unchanged.
+ *
+ * `content-factory-next-tu3k.9` (06.09.2026) moves that tab to the front and
+ * renames it «Заготовки»: the list of pieces is where the work starts now, and
+ * the first tab and the section's default address should be the same place.
+ * Its key stays `materials` — `?tab=materials`, `?tab=archive`, `initialTab`
+ * and several suites all name it — and the first view behind it is the pieces
+ * table instead of the library; «На что опираются» is gone from the strip by
+ * the owner's decision (§11.5 of the section map).
  */
 export { CONTENT_TABS } from './content-section.tabs';
 import { CONTENT_TABS } from './content-section.tabs';
@@ -323,7 +331,9 @@ export function ContentSectionShell({
 }
 
 export function ContentSectionScreen({
-  initialTab = 'avatars',
+  // «Заготовки» — первая вкладка полосы с 06.09.2026, и раздел без адреса
+  // открывается на ней: первой вкладкой и точкой входа должно быть одно место.
+  initialTab = 'materials',
 }: {
   // `'archive'` is accepted here and nowhere else: a caller that still asks
   // for the tab from before §9.4 folded it into Materials as a view gets a
@@ -427,7 +437,11 @@ export function ContentSectionScreen({
             onChange={setMaterialsView}
           />
           {materialsView === 'materials' ? (
-            <VoiceMaterialsContainer />
+            // «Заготовки» (`content-factory-next-tu3k.9`, 06.09.2026): таблица
+            // заготовок по колонке на площадку. Она заменила витрину «На что
+            // опираются» — решение владельца §11.5, — и ключ вида остался
+            // прежним, чтобы `?tab=archive` и `initialTab` продолжали работать.
+            <PiecesContainer />
           ) : (
             // «Что уже написали» (`content-factory-next-odb8.4`): three
             // layers — made here, brought in from before the product,

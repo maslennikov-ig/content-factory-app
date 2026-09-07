@@ -20,15 +20,17 @@ export type IntakeLocale = 'ru' | 'en';
 export const intakeCopy = {
   ru: {
     /* --- Шапка и поле ввода --------------------------------------------- */
-    title: 'Написать из мысли',
-    lead: 'Дайте мысль, ссылку или чужой пост. Бриф соберётся сам, а спросят вас только о том, чего в тексте действительно нет.',
+    // `content-factory-next-tu3k.9` (06.09.2026): дверь делает заготовку —
+    // нейтральную суть без площадки, — а канал стал необязательным.
+    title: 'Новая заготовка',
+    lead: 'Дайте мысль, ссылку или чужой пост. Получится заготовка — суть без площадки; выберете канал — сразу напишем и текст для него.',
     inputLabel: 'С чего начинаем',
     inputPlaceholder: 'Вставьте мысль, ссылку или чужой пост…',
     kindLink: 'Похоже на ссылку — прочитаем страницу и возьмём её как источник.',
 
     /* --- Каналы, язык, действие ------------------------------------------ */
     channelsLabel: 'Куда',
-    channelsHint: 'До трёх каналов за раз. Для каждого получится свой текст.',
+    channelsHint: 'Необязательно. До трёх каналов за раз — для каждого получится свой текст.',
     writingProfileLink: (name: string) => `Как пишем в «${name}»`,
     writingProfileStored: 'настроено',
     writingProfileDefault: 'по умолчанию',
@@ -36,8 +38,18 @@ export const intakeCopy = {
     languageRu: 'Русский',
     languageEn: 'English',
     write: 'Написать',
+    makePiece: 'Сделать заготовку',
+    makeAndWrite: (name: string) => `Сделать и написать для «${name}»`,
+    makeAndWriteMany: (count: number) =>
+      `Сделать и написать в ${count} ${plural(count, [
+        'канал',
+        'канала',
+        'каналов',
+      ])}`,
     writing: 'Пишем…',
     cancel: 'Отменить',
+    pieceSaved: (code: string) => `Заготовка сохранена — ${code}`,
+    openPiece: 'Открыть заготовку',
 
     /* --- Почему кнопка не нажимается ------------------------------------- */
     blockedNoInput: 'Напишите хотя бы пару слов',
@@ -181,14 +193,14 @@ export const intakeCopy = {
     formatStory: 'история',
   },
   en: {
-    title: 'Write from a thought',
-    lead: 'Give a thought, a link or somebody else’s post. The brief fills itself, and you are asked only about what the text genuinely lacks.',
+    title: 'New piece',
+    lead: 'Give a thought, a link or somebody else’s post. You get a piece — substance with no platform; pick a channel and we write its text too.',
     inputLabel: 'Where we start',
     inputPlaceholder: 'Paste a thought, a link or somebody else’s post…',
     kindLink: 'Looks like a link — we will read the page and take it as a source.',
 
     channelsLabel: 'Where to',
-    channelsHint: 'Up to three channels at a time. Each gets its own text.',
+    channelsHint: 'Optional. Up to three channels at a time — each gets its own text.',
     writingProfileLink: (name: string) => `How we write in “${name}”`,
     writingProfileStored: 'set up',
     writingProfileDefault: 'defaults',
@@ -196,8 +208,13 @@ export const intakeCopy = {
     languageRu: 'Русский',
     languageEn: 'English',
     write: 'Write',
+    makePiece: 'Make a piece',
+    makeAndWrite: (name: string) => `Make it and write for “${name}”`,
+    makeAndWriteMany: (count: number) => `Make it and write for ${count} channels`,
     writing: 'Writing…',
     cancel: 'Cancel',
+    pieceSaved: (code: string) => `The piece is saved — ${code}`,
+    openPiece: 'Open the piece',
 
     blockedNoInput: 'Write at least a couple of words',
     blockedNoChannel: 'Pick a channel',

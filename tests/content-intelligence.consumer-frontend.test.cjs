@@ -376,7 +376,7 @@ describe('Content intelligence frontend consumer contract', () => {
     expect(source('generator')).toMatch(/createGeneratorNdjsonConsumer/);
     expect(source('generator')).toMatch(/const usedCitationIds/);
     expect(source('generator')).toMatch(/usedCitationIds,/);
-    expect(source('generator')).toMatch(/contentIntelligenceProvenance=/);
+    expect(source('generator')).toMatch(/contentIntelligenceProvenance[=,]/);
     // Исследование ушло из окна поста: платное исследование начинается в
     // разделе «Контент» (решение владельца 04.09.2026). Дверь на сервере
     // осталась — окно её больше не зовёт.

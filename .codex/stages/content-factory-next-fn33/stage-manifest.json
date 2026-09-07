@@ -933,6 +933,36 @@
       "task_id": "content-factory-next-tu3k.4",
       "stream_owner": "S4",
       "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.1",
+      "stream_owner": "Z4_root_contract",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.2",
+      "stream_owner": "Z1_schema_and_publication",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.3",
+      "stream_owner": "Z2_core_adapt_intake",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.4",
+      "stream_owner": "Z3_doors",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.9",
+      "stream_owner": "Z5_screens",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.9.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.9.11",
+      "stream_owner": "Z6_compose_window",
+      "artifact_path": ".codex/stages/content-factory-next-fn33/artifacts/content-factory-next-tu3k.9.11.md"
     }
   ]
 }

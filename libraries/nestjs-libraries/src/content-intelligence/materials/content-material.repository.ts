@@ -31,10 +31,47 @@ const SEARCHABLE_PIECE_FIELDS = ['title', 'body'] as const;
  * `docs/product/migration-map.md` states.
  */
 
-export type DerivationCount = {
+/**
+ * Одна адаптация, как её читает список заготовок и старая вкладка материалов.
+ *
+ * Форма подписана: от неё зависит поток `Z2`. Состояние публикации в ней не
+ * поле, а вложенный пост — потому что состояние с этой волны читается из
+ * поста, а не хранится (`ContentDerivation.state` три месяца было зеркалом,
+ * которое никто не обновлял).
+ *
+ * Канал приходит ЧЕРЕЗ ПОСТ, а не по `integrationId` строки, и это не
+ * небрежность: у `ContentDerivation.integrationId` нет внешнего ключа, и
+ * заводить его ради имени канала было бы неверно по той же причине, по которой
+ * его нет у `Post.contentContextReviewedById` — это след решения, а не связь,
+ * и отвязанный канал не должен ни удалять происхождение текста, ни блокировать
+ * своё отвязывание им. Поэтому у адаптации без поста имени канала нет, есть
+ * только `integrationId`, и разрешает его в имя тот, у кого на руках список
+ * каналов области.
+ */
+export type AdaptationRow = {
+  id: string;
   contentPieceId: string;
-  state: string;
-  _count: { _all: number };
+  postId: string | null;
+  integrationId: string | null;
+  platform: string;
+  format: string;
+  kind: string | null;
+  title: string | null;
+  body: string | null;
+  mediaId: string | null;
+  brandProfileVersionId: string | null;
+  createdAt: Date;
+  post: {
+    state: string;
+    releaseURL: string | null;
+    publishDate: Date;
+    deletedAt: Date | null;
+    integration: {
+      id: string;
+      name: string;
+      providerIdentifier: string;
+    } | null;
+  } | null;
 };
 
 export type DraftInput = {
@@ -105,55 +142,59 @@ export class ContentMaterialRepository {
   }
 
   /**
-   * How many posts came out of each piece, by state, in one query.
+   * Все адаптации этих заготовок — одним запросом, вместе с публикацией.
    *
-   * Grouped rather than joined: a library of forty pieces should not load
-   * every post any of them produced to print two numbers per row.
+   * Один `findMany` на страницу, а не запрос на строку и не три запроса на
+   * разные надобности. До этой волны их было именно три: `countDerivations`
+   * считала состояния группировкой, `platformsByPiece` брала площадки
+   * `distinct`, `listDerivations` читала строки одной заготовки — и каждая
+   * верила колонке `ContentDerivation.state`, которая обновлялась не всегда.
+   * Все три сняты: состояние теперь читается из поста по индексу
+   * `[organizationId, postId]`, и один ответ закрывает счётчики, площадки,
+   * клетки матрицы и раскрытую строку сразу.
+   *
+   * `organizationId` в `where` стоит первым и не зависит ни от одного
+   * пришедшего значения: идентификаторы заготовок сужают выборку внутри
+   * области, а границу области не двигает ничто.
+   *
+   * Порядок — от старых к новым, потому что «первая адаптация» и «первая
+   * публикация» это одна и та же строка, и клетка выбирает лучшее состояние
+   * среди равных по этому порядку.
    */
-  async countDerivations(
+  async adaptationsByPiece(
     organizationId: string,
-    contentPieceIds: string[]
-  ): Promise<DerivationCount[]> {
-    if (!contentPieceIds.length) return [];
-    return (this.repository.model as any).contentDerivation.groupBy({
-      by: ['contentPieceId', 'state'],
-      where: { organizationId, contentPieceId: { in: contentPieceIds } },
-      _count: { _all: true },
-    });
-  }
-
-  listDerivations(organizationId: string, contentPieceId: string) {
+    pieceIds: string[]
+  ): Promise<AdaptationRow[]> {
+    if (!pieceIds.length) return [];
     return (this.repository.model as any).contentDerivation.findMany({
-      where: { organizationId, contentPieceId },
+      where: { organizationId, contentPieceId: { in: pieceIds } },
       orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        contentPieceId: true,
+        postId: true,
+        integrationId: true,
+        platform: true,
+        format: true,
+        kind: true,
+        title: true,
+        body: true,
+        mediaId: true,
+        brandProfileVersionId: true,
+        createdAt: true,
+        post: {
+          select: {
+            state: true,
+            releaseURL: true,
+            publishDate: true,
+            deletedAt: true,
+            integration: {
+              select: { id: true, name: true, providerIdentifier: true },
+            },
+          },
+        },
+      },
     });
-  }
-
-  /**
-   * Which platforms a piece has ever been cut for — the «сделано здесь» half
-   * of the archive's platform filter (`content-factory-next-odb8.4`). One
-   * query for the whole page rather than one per row: `platformsByPiece` in
-   * `content-material.service.ts` reads this map alongside `tags.archive.platform`
-   * for pieces brought in from outside, so one filter covers both origins of
-   * a piece's platform.
-   */
-  async platformsByPiece(
-    organizationId: string,
-    contentPieceIds: string[]
-  ): Promise<Map<string, string[]>> {
-    const map = new Map<string, string[]>();
-    if (!contentPieceIds.length) return map;
-    const rows = await (this.repository.model as any).contentDerivation.findMany({
-      where: { organizationId, contentPieceId: { in: contentPieceIds } },
-      select: { contentPieceId: true, platform: true },
-      distinct: ['contentPieceId', 'platform'],
-    });
-    for (const row of rows as { contentPieceId: string; platform: string }[]) {
-      const list = map.get(row.contentPieceId) ?? [];
-      list.push(row.platform);
-      map.set(row.contentPieceId, list);
-    }
-    return map;
   }
 
   /**

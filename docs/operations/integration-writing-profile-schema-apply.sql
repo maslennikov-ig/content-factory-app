@@ -47,7 +47,7 @@
 -- транзакционность обеспечивает флаг --single-transaction в psql.
 --
 -- Столбец добавлен в schema.prisma 06.09.2026 (content-factory-next-tu3k.2).
--- На боевой базе ПОКА НЕ ПРИМЕНЕНО. Повторно не запускать после применения:
+-- На боевой базе ПРИМЕНЕНО 06.09.2026 до переключения на `cd636483ba0a` (копия 20260906T133817Z-pre-writingprofile-product-only).
 -- ADD COLUMN без IF NOT EXISTS откажет на существующей колонке.
 
 ALTER TABLE "Integration" ADD COLUMN     "writingProfile" JSONB;

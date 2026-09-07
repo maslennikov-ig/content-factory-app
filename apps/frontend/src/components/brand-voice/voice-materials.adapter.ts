@@ -1,3 +1,4 @@
+import { COMPOSE_MODAL_OPTIONS } from '../new-launch/compose.modal.options';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import {
@@ -312,25 +313,11 @@ export const editorDate = (existing: EditorExistingData | null | undefined) =>
 /**
  * The dialog the product already has for a post.
  *
- * Copied from the calendar rather than restated in the container, because a
- * second set of flags for the same dialog is how the two drift apart. It lives
- * in this file so the interface component stays free of the legacy class the
- * modal shell still needs.
+ * Since wave «заготовка и адаптации» the flags live once, in
+ * `new-launch/compose.modal.ts`; this name stays for the doors that already
+ * spread it, so they keep pointing at the same object rather than a copy.
  */
-export const EDITOR_MODAL = Object.freeze({
-  id: 'add-edit-modal',
-  closeOnClickOutside: false,
-  removeLayout: true,
-  closeOnEscape: false,
-  withCloseButton: false,
-  askClose: true,
-  fullScreen: true,
-  classNames: Object.freeze({
-    modal: 'w-[100%] max-w-[1400px] text-textColor',
-  }),
-  size: '80%',
-  title: '',
-});
+export const EDITOR_MODAL = COMPOSE_MODAL_OPTIONS;
 
 /* -------------------------------------------------------------------------
  * The one state the screen is in

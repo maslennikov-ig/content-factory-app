@@ -2384,3 +2384,450 @@ export const INTAKE_ROUTES = {
   writingProfile: (integrationId: string) =>
     `/integrations/${integrationId}/writing-profile`,
 } as const;
+
+/* -------------------------------------------------------------------------
+ * Заготовка и адаптации (pieces)
+ *
+ * `content-factory-next-tu3k.9`, решения владельца 06.09.2026: человек сначала
+ * делает нейтральную **заготовку** — суть одним текстом плюс бриф, без
+ * площадки, — а потом сам решает, во что её превратить: пост в Telegram,
+ * подпись в Instagram, позже видео и аудио. Каждая такая версия —
+ * **адаптация**. Список заготовок — первая вкладка «Контента», таблицей: по
+ * колонке на площадку, в клетке состояние, и оно читается из поста, а не
+ * хранится (`ContentDerivation.state` три месяца лгала).
+ *
+ * Таблицы те же: заготовка — `ContentPiece` (`kind = 'CORE'`, `body` — суть,
+ * `brief` — что поняла модель), адаптация — `ContentDerivation` (`kind`,
+ * `title`, `body`, `mediaId`, связь с постом). Старые строки читаются без
+ * переноса: материал без `kind` — заготовка, у которой суть не выделена;
+ * производная без `body` берёт текст из поста.
+ *
+ * Типы — общая правда шести потоков волны. Меняются только аддитивно. Экран
+ * в `VOICE_SURFACES` не регистрируется: страж реестра требует экран в папке
+ * `brand-voice`, а он живёт в `content-intelligence/pieces`.
+ * ---------------------------------------------------------------------- */
+
+export const PIECES_API_BASE = '/content-intelligence/pieces' as const;
+export const PIECE_CORE_VERSION = 'piece-core/v1' as const;
+/** Вопросов за один шаг интервью: при создании и под канал при адаптации. */
+export const PIECE_MAX_QUESTIONS = 3 as const;
+/** Кругов уточнений на шаг; граница из `pl1.10`: продукт предлагает, а не спрашивает вместо текста. */
+export const PIECE_MAX_INTERVIEW_ROUNDS = 2 as const;
+/** Столько колонок площадок показывается без выбора человека; дальше — «Площадки ▾». */
+export const PIECE_DEFAULT_COLUMNS = 6 as const;
+/** Сколько первых строк сути несёт строка списка. */
+export const PIECE_EXCERPT_LINES = 3 as const;
+/** Ниже этой ширины таблица становится карточками. */
+export const PIECE_TABLE_MIN_WIDTH = 720 as const;
+
+/** `ContentPiece.kind`. Строка без `kind` — материал до этой волны. */
+export type PieceKindV1 = 'CORE';
+
+/**
+ * Вид адаптации (`ContentDerivation.kind`). Площадка — отдельное поле, та же
+ * строка, что и `providerIdentifier` канала (`telegram`, `instagram`,
+ * `wordpress`): видео это не площадка, а вид, и Instagram появляется сам, без
+ * таблицы перевода. Строка без `kind` — производная до этой волны, читается как
+ * `post`.
+ */
+export type AdaptationKindV1 =
+  | 'post'
+  | 'caption'
+  | 'article'
+  | 'newsletter'
+  | 'video'
+  | 'audio';
+
+/** Виды, которых в этой волне нет: страница заготовки показывает их строкой «позже». */
+export const ADAPTATION_KINDS_LATER: readonly AdaptationKindV1[] = [
+  'video',
+  'audio',
+];
+
+/**
+ * Состояние адаптации — из поста, по старшинству
+ * `published > queued > error > draft`. Пост с `deletedAt` состояния не даёт.
+ */
+export type AdaptationStateV1 = 'published' | 'queued' | 'error' | 'draft';
+
+/**
+ * Состояние клетки матрицы «площадка × заготовка».
+ *
+ * - `none` — адаптации нет; нажатие начинает её. Рисуется спокойно: пустая
+ *   клетка — возможность, а не долг;
+ * - `no_channel` — площадка не подключена; клетка выключена и объясняет себя
+ *   до нажатия, а не ошибкой после;
+ * - `unknown` — сервер не прочитал публикацию (ответ без клеток): экран пишет
+ *   «пока не знаем», а не «ещё нет» поверх существующих постов.
+ */
+export type PieceCellStateV1 =
+  | AdaptationStateV1
+  | 'none'
+  | 'no_channel'
+  | 'unknown';
+
+export type PieceCellV1 = {
+  /** `providerIdentifier` площадки. */
+  platform: string;
+  state: PieceCellStateV1;
+  /** ISO. Для `published` и `queued` — `publishDate` поста; иначе `null`. */
+  date?: string | null;
+  /** `releaseURL` опубликованного поста. */
+  url?: string | null;
+  postId?: string | null;
+  adaptationId?: string | null;
+  integrationId?: string | null;
+  /**
+   * Колонка — площадка, а не канал: три Telegram-канала дают одну клетку с
+   * лучшим состоянием и счётом «ещё N». Поимённо — в раскрытой строке.
+   */
+  more?: number;
+};
+
+export type PieceColumnV1 = {
+  platform: string;
+  /** Имя площадки для шапки таблицы, как его знает провайдер. */
+  name: string;
+  /** Подключённых каналов площадки. `0` — колонка есть лишь потому, что адаптация уже была. */
+  channels: number;
+  /** Адаптаций по площадке во всей области: порядок колонок по умолчанию. */
+  adaptations: number;
+};
+
+/** Откуда взялась заготовка. `legacy` — материал до этой волны. */
+export type PieceOriginV1 =
+  | IntakeInputKindV1
+  | 'lead'
+  | 'manual'
+  | 'legacy';
+
+export type PieceRowV1 = {
+  id: string;
+  /** `cnt-12` — код библиотеки, тот же `materialCode`. */
+  code: string;
+  title: string;
+  format: string;
+  /** Как печатает библиотека: `06.09.26`. */
+  date: string;
+  /** ISO — для сортировки и фильтра. */
+  createdAt: string;
+  /** Первые `PIECE_EXCERPT_LINES` строк сути; пусто, когда суть не выделена. */
+  excerpt: string[];
+  /** `false` — старый материал: тело — HTML одного канала, суть не выделена. */
+  coreExtracted: boolean;
+  origin: PieceOriginV1;
+  voiceVersion?: string;
+  /** Вердикт проверки на штампы по сути; `null` — не считался. */
+  slopVerdict?: SlopVerdictV1 | null;
+  /**
+   * По одной клетке на колонку ответа, в том же порядке. Отсутствует, пока
+   * чтение публикации не выпущено: экран рисует `unknown`, не `none`.
+   */
+  cells?: PieceCellV1[];
+  archivedAt?: string | null;
+};
+
+export type PiecesQueryV1 = {
+  /** Поиск по словам в заголовке, сути и брифе. */
+  q?: string;
+  /** Фильтр «Ещё нет в…»: площадка без адаптации. */
+  missingOn?: string;
+  /** Фильтр по состоянию: хотя бы одна адаптация в этом состоянии. */
+  state?: AdaptationStateV1;
+  includeArchived?: boolean;
+};
+
+export type PiecesResponseV1 = {
+  state: VoiceScreenStateV1;
+  /**
+   * Колонки таблицы: подключённые площадки плюс те, где адаптация уже была,
+   * отсортированные по числу адаптаций. Неподключённые площадки колонками не
+   * становятся. Видео и аудио — не колонки.
+   */
+  columns: PieceColumnV1[];
+  pieces: PieceRowV1[];
+  notice?: string;
+};
+
+/* ---- Интервью --------------------------------------------------------- */
+
+/**
+ * О чём модель спрашивает. Первые три — при создании заготовки (список
+ * владельца для короткого текста), остальные — под канал при адаптации, из
+ * исследования конкретной площадки. Спрашивается только то, чего нет ни в
+ * заготовке, ни в аватаре, ни в фактах, ни в карточке канала.
+ */
+export type PieceQuestionKeyV1 =
+  | 'key_idea'
+  | 'personal_detail'
+  | 'position'
+  | 'hook'
+  | 'cta'
+  | 'format'
+  | 'own_number'
+  | 'screenshot'
+  | 'log';
+
+export type PieceQuestionV1 = {
+  key: PieceQuestionKeyV1;
+  question: string;
+  /**
+   * Вариант модели, словами «я думаю, вот так». Пустого поля не бывает;
+   * `null` — модель честно не нашла ответа в тексте и просит слова человека.
+   */
+  suggested: string | null;
+  /** Поле брифа, куда ляжет ответ, если вопрос — про поле брифа. */
+  field?: BriefField;
+  /** Готовые варианты, когда их конечное число (например, вид призыва). */
+  options?: string[];
+  /** Подсказка, почему это спрашивается именно здесь: «пуш видит 80–180 знаков». */
+  why?: string;
+};
+
+export type PieceAnswerOriginV1 = 'person' | 'confirmed' | 'model';
+
+/**
+ * Ответ, как его дал человек, — дословно, без приглаживания опечаток:
+ * шероховатости и есть материал. `confirmed` — нажал «Так и есть», текст равен
+ * `suggested`; `model` — «Реши сама». Ответ ложится в бриф с происхождением
+ * «ваш ответ» и цитируется в сути и адаптациях как слова человека.
+ */
+export type PieceAnswerV1 = {
+  key: PieceQuestionKeyV1;
+  text: string;
+  origin: PieceAnswerOriginV1;
+  step: 'core' | 'adaptation';
+  /** Для шага `adaptation` — площадка, под которую спрашивали. */
+  platform?: string;
+  /** ISO. */
+  answeredAt: string;
+};
+
+/** Ответ человека в запросе; `answeredAt` и `step` ставит сервер. */
+export type PieceAnswerInputV1 = {
+  key: PieceQuestionKeyV1;
+  text: string;
+  origin: Exclude<PieceAnswerOriginV1, 'model'>;
+};
+
+/* ---- Суть и адаптация ------------------------------------------------- */
+
+/**
+ * Суть заготовки: `text` лежит в `ContentPiece.body` простым текстом, всё
+ * остальное — в `ContentPiece.brief`. Суть пишет один вызов роли `draft`
+ * (операция `intake`); аватар в неё не идёт — суть нейтральна и по площадке, и
+ * по манере. Слова, числа и примеры автора переносятся дословно.
+ */
+export type ZagotovkaCoreV1 = {
+  version: typeof PIECE_CORE_VERSION;
+  text: string;
+  brief: BriefFilledV1;
+  /** Ответы интервью при создании, дословно. */
+  answers: PieceAnswerV1[];
+  /** Проверка на штампы, снятая сразу после записи сути. */
+  slop: SlopReportV1 | null;
+  /** `fallback` — модель отказала, суть собрана из брифа детерминированно. */
+  writtenBy: 'model' | 'fallback';
+  /** Автор принёс хотя бы одно своё число; иначе страница показывает то же предложение, что окно поста. */
+  authorNumbers: boolean;
+};
+
+export type AdaptationV1 = {
+  id: string;
+  pieceId: string;
+  kind: AdaptationKindV1;
+  platform: string;
+  integrationId?: string | null;
+  integrationName?: string | null;
+  title?: string | null;
+  /** Текст адаптации простым текстом; у строк до этой волны — из поста. */
+  body?: string | null;
+  postId?: string | null;
+  mediaId?: string | null;
+  state: AdaptationStateV1;
+  /** ISO — `publishDate` поста. */
+  date?: string | null;
+  url?: string | null;
+  /** ISO. */
+  createdAt: string;
+  voiceVersion?: string;
+  /** Ответы на вопросы под канал, дословно. */
+  answers?: PieceAnswerV1[];
+  checks?: {
+    antiCopy?: AntiCopyReportV1 | null;
+    slop?: SlopReportV1 | null;
+  };
+};
+
+/**
+ * Куда можно адаптировать. Площадка без канала приходит с `available: false`
+ * — так страница показывает её выключенной с причиной, а отказ не случается
+ * после нажатия.
+ */
+export type PieceTargetV1 = {
+  platform: string;
+  name: string;
+  kinds: AdaptationKindV1[];
+  channels: Array<{ id: string; name: string; providerIdentifier: string }>;
+  available: boolean;
+};
+
+export type PieceDetailV1 = {
+  state: VoiceScreenStateV1;
+  piece: PieceRowV1;
+  /** `null` — суть не выделена (материал до волны); тогда тело — в `legacyBody`. */
+  core: ZagotovkaCoreV1 | null;
+  /** HTML одного канала у старых материалов. Старая кнопка «Черновик» вставит его как есть — экран предупреждает. */
+  legacyBody?: string | null;
+  adaptations: AdaptationV1[];
+  targets: PieceTargetV1[];
+  /** Виды адаптаций, которые появятся позже. */
+  later: readonly AdaptationKindV1[];
+  notice?: string;
+};
+
+/* ---- Запросы ------------------------------------------------------------ */
+
+/**
+ * Создание заготовки — та же дверь, что и вход одной мыслью: каналы
+ * необязательны. Без каналов — только заготовка; с каналами — заготовка
+ * один раз до цикла и адаптация в каждом (короткий путь «сразу для
+ * Telegram» создаёт её незаметно).
+ */
+export type PieceCreateRequestV1 = Omit<IntakeRequestV1, 'integrationIds'> & {
+  integrationIds?: string[];
+  /** Ответы интервью при создании. */
+  interview?: PieceAnswerInputV1[];
+  /** «Реши сама» по ключам вопросов. */
+  decideKeys?: PieceQuestionKeyV1[];
+  /** Пропустить интервью целиком одной кнопкой: модель решает всё сама. */
+  skipInterview?: boolean;
+};
+
+export type PieceAdaptRequestV1 = {
+  integrationId: string;
+  /** По умолчанию — первый из `KINDS_BY_PROVIDER` площадки. */
+  kind?: AdaptationKindV1;
+  answers?: PieceAnswerInputV1[];
+  decideKeys?: PieceQuestionKeyV1[];
+  skipInterview?: boolean;
+  options?: Pick<IntakeOptionsV1, 'slopCheck' | 'isPicture'>;
+  brandProfileSelection?: BrandProfileSelectionV1;
+};
+
+export type PieceArchiveRequestV1 = {
+  archived: boolean;
+};
+
+/* ---- События стрима ----------------------------------------------------- */
+
+/**
+ * Что вход добавляет к `IntakeEventV1` в этой волне: заготовка записана до
+ * цикла по каналам, и черновик знает свою адаптацию. Объявлено отдельным
+ * союзом, чтобы старые читатели `IntakeEventV1` не ломались.
+ */
+export type IntakePieceEventV1 =
+  | {
+      name: 'piece';
+      pieceId: string;
+      code: string;
+      core: ZagotovkaCoreV1;
+    }
+  | {
+      name: 'piece-questions';
+      questions: PieceQuestionV1[];
+      round: number;
+    };
+
+export type IntakeEventWithPieceV1 =
+  | IntakeEventV1
+  | IntakePieceEventV1
+  | (Extract<IntakeEventV1, { name: 'draft' }> & {
+      adaptationId?: string | null;
+    });
+
+/** Тот же конверт NDJSON, что у входа: строка — событие, последняя — `done` или `error`. */
+export type PieceAdaptEventV1 =
+  | {
+      name: 'adapt-started';
+      pieceId: string;
+      kind: AdaptationKindV1;
+      channel: { id: string; name: string; providerIdentifier: string };
+    }
+  /** Терминальное: адаптации нет, клиент повторяет запрос с `answers`/`decideKeys`/`skipInterview`. */
+  | { name: 'questions'; questions: PieceQuestionV1[]; round: number }
+  | { name: 'content-context'; data: { output: unknown } }
+  /** Проброс события графа генератора как есть. */
+  | { name: 'generator'; event: unknown }
+  | {
+      name: 'adaptation';
+      adaptation: AdaptationV1;
+      content: IntakeDraftContentV1[];
+      provenance: unknown;
+      draftGaps: unknown[];
+      checks: { antiCopy?: AntiCopyReportV1 | null; slop?: SlopReportV1 | null };
+    }
+  | { name: 'done'; adaptationId: string; postId: string | null }
+  | { name: 'error'; error: true; code: string; message: string };
+
+export type PieceAdaptEventNameV1 = PieceAdaptEventV1['name'];
+
+/* ---- Отказы --------------------------------------------------------------- */
+
+/**
+ * Отказы дверей заготовок. До первого байта стрима — обычный HTTP с этим
+ * кодом; после — последней строкой `{name:'error'}`.
+ */
+export const PIECE_ERROR_CODES = {
+  PIECE_NOT_FOUND: { status: 404, screenState: 'error' },
+  PIECE_ARCHIVED: { status: 409, screenState: 'error' },
+  PIECE_CHANNEL_REQUIRED: { status: 422, screenState: 'error' },
+  PIECE_CHANNEL_UNKNOWN: { status: 422, screenState: 'error' },
+  /** Площадка канала не умеет ни одного вида адаптации из `KINDS_BY_PROVIDER`. */
+  PIECE_CHANNEL_UNSUPPORTED: { status: 422, screenState: 'error' },
+  /** Видео и аудио — «позже». */
+  ADAPTATION_KIND_UNSUPPORTED: { status: 422, screenState: 'error' },
+  ADAPTATION_NOT_FOUND: { status: 404, screenState: 'error' },
+  /** Происхождение опубликованного текста не стирается. */
+  ADAPTATION_PUBLISHED: { status: 409, screenState: 'error' },
+  /** Интервью исчерпало `PIECE_MAX_INTERVIEW_ROUNDS`: дальше — «Реши сама» или ручной бриф. */
+  PIECE_INTERVIEW_EXHAUSTED: { status: 422, screenState: 'error' },
+} as const satisfies Record<
+  string,
+  { status: number; screenState: VoiceScreenStateV1 }
+>;
+
+export type PieceErrorCodeV1 = keyof typeof PIECE_ERROR_CODES;
+
+export type PieceErrorBodyV1 = {
+  code: PieceErrorCodeV1;
+  message: string;
+  subject?: string;
+};
+
+/* ---- Маршруты ------------------------------------------------------------- */
+
+export const PIECE_ROUTES = {
+  list: { method: 'GET', path: PIECES_API_BASE },
+  detail: {
+    method: 'GET',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}`,
+  },
+  /** Создание — дверь входа; каналы необязательны с этой волны. */
+  create: { method: 'POST', path: INTAKE_API_BASE },
+  /** NDJSON по `PieceAdaptEventV1`. Повторный вызов создаёт новую адаптацию, старую не трогает. */
+  adapt: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/adapt`,
+  },
+  archive: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/archive`,
+  },
+  /** Отказ `ADAPTATION_PUBLISHED`, когда пост опубликован. */
+  deleteAdaptation: {
+    method: 'DELETE',
+    path: (pieceId: string, adaptationId: string) =>
+      `${PIECES_API_BASE}/${pieceId}/adaptations/${adaptationId}`,
+  },
+} as const;

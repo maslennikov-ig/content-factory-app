@@ -1,6 +1,7 @@
 {
   "calendar": "日历",
   "content_section": "内容",
+  "content_piece": "内容单元",
   "webhooks": "Webhook（网络钩子）",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "Webhook 是一种通过 HTTP 请求在 Content Factory 中有事件发生时获得通知的方式。",
   "name": "名称",
@@ -177,7 +178,7 @@
   "selected_customer": "已选客户",
   "customer": "客户：",
   "repeat_post_every": "每隔...重复发布",
-  "create_new_post": "创建帖子",
+  "create_new_post": "空白页",
   "update_post": "更新已有帖子",
   "merge_comments_into_one_post": "将评论合并为一条帖子",
   "accounts_that_will_engage": "将参与的账号：",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "需要管理员访问权限",
   "settings_admin_role_required_reason": "您需要拥有此工作区的管理员角色才能打开此设置部分。",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "关闭帖子窗口",
+  "intake_door": "新素材"
 }

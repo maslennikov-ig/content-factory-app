@@ -1,6 +1,7 @@
 {
   "calendar": "ক্যালেন্ডার",
   "content_section": "কনটেন্ট",
+  "content_piece": "পিস",
   "webhooks": "ওয়েবহুক",
   "webhooks_are_a_way_to_get_notified_when_something_happens_via_an_http_request": "ওয়েবহুক হল একটি HTTP অনুরোধের মাধ্যমে Content Factory-এ কিছু ঘটলে বিজ্ঞপ্তি পাওয়ার একটি উপায়।",
   "name": "নাম",
@@ -177,7 +178,7 @@
   "selected_customer": "নির্বাচিত গ্রাহক",
   "customer": "গ্রাহক:",
   "repeat_post_every": "প্রতি পোস্ট পুনরাবৃত্তি করুন...",
-  "create_new_post": "নতুন পোস্ট তৈরি করুন",
+  "create_new_post": "ফাঁকা পাতা",
   "update_post": "বিদ্যমান পোস্ট আপডেট করুন",
   "merge_comments_into_one_post": "মন্তব্যগুলি একটি পোস্টে একত্রিত করুন",
   "accounts_that_will_engage": "যে অ্যাকাউন্টগুলি এনগেজ করবে:",
@@ -1696,5 +1697,7 @@
   "settings_admin_role_required_title": "প্রশাসকের অনুমতি প্রয়োজন",
   "settings_admin_role_required_reason": "এই সেটিংস বিভাগটি খুলতে এই ওয়ার্কস্পেসে আপনার প্রশাসকের ভূমিকা থাকতে হবে।",
   "settings_editor_role_required_title": "Editor access required",
-  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it."
+  "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
+  "close_post_window": "পোস্ট উইন্ডো বন্ধ করুন",
+  "intake_door": "নতুন খসড়া"
 }

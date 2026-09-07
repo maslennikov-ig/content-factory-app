@@ -1520,7 +1520,17 @@ model ContentPiece {
   id                       String                      @id @default(uuid())
   organizationId           String
   title                    String
+  /// `kind='CORE'` — заготовка: `body` несёт нейтральную суть простым текстом,
+  /// а `brief` — то, что модель поняла. Строка БЕЗ `kind` — материал до волны
+  /// «заготовка и адаптации» (`content-factory-next-tu3k.9`): суть в нём не
+  /// выделена, тело — HTML одного канала. Переноса нет и не нужно, различие
+  /// читается по этой колонке.
+  kind                     String?
   body                     String
+  /// `ZagotovkaCoreV1` без `text`: заполненный бриф с происхождением каждого
+  /// поля, ответы интервью дословно, отчёт проверки на штампы, кем написана
+  /// суть. `null` у материала до волны.
+  brief                    Json?
   language                 String                      @default("ru")
   tags                     Json?
   /// Which voice version wrote it, so a later recut can say whether the voice
@@ -1554,11 +1564,30 @@ model ContentDerivation {
   postId                String?
   integrationId         String?
   /// The platform this cut was made for, e.g. `telegram`, `vk`, `newsletter`.
+  ///
+  /// С волны «заготовка и адаптации» здесь стоит `providerIdentifier` канала
+  /// (`telegram`, `instagram`, `wordpress`). Старые строки несут имена
+  /// перекройки (`site`, `newsletter`), и `providerOfPlatform` схлопывает их
+  /// в провайдера при чтении.
   platform              String
   format                String
   brandProfileVersionId String?
-  /// DRAFT | QUEUED | PUBLISHED — mirrored from the post for the library
-  /// table, so listing a piece does not join every post it produced.
+  /// `AdaptationKindV1`: post | caption | article | newsletter | video | audio.
+  /// Вид, а не площадка: видео это не площадка. Строка без `kind` — производная
+  /// до волны «заготовка и адаптации», читается как `post`.
+  kind                  String?
+  /// Заголовок и текст адаптации простым текстом, и картинка, если она своя.
+  /// `body` пустой у строк до волны — текст такой производной живёт в посте.
+  title                 String?
+  body                  String?
+  mediaId               String?
+  /// DRAFT | QUEUED | PUBLISHED — зеркало состояния поста.
+  ///
+  /// **Больше не источник правды и не читается** (`content-factory-next-tu3k.9`):
+  /// три месяца колонка расходилась с постом, потому что зеркало никто не
+  /// обновлял. Состояние адаптации берётся из `post` по индексу
+  /// `[organizationId, postId]`. Колонка оставлена, потому что снос колонки —
+  /// отдельный план миграции, а лишний столбец никому не мешает.
   state                 String                      @default("DRAFT")
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
@@ -1570,6 +1599,9 @@ model ContentDerivation {
   @@unique([organizationId, id])
   @@index([organizationId, contentPieceId])
   @@index([organizationId, platform, state])
+  /// Состояние клетки матрицы читается из поста, поэтому чтение списка
+  /// заготовок идёт по этой паре и обязано быть одним запросом.
+  @@index([organizationId, postId])
 }
 
 /// One text a workspace brought in as an example of how it writes.

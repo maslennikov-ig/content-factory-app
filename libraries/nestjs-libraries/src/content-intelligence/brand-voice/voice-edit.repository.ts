@@ -196,11 +196,29 @@ export class VoiceEditRepository {
   /**
    * Правка по сохранённому посту: черновик находится сам.
    *
-   * Предложение продукта лежит в `ContentPiece.body` — тексте, который написал
-   * брифовый путь, — а пост связан с ним через `ContentDerivation`. Аватар
-   * берётся оттуда же, через версию голоса, которой черновик написан: спросить
-   * об этом вызывающую сторону значило бы поверить клиенту в том, чей это
-   * голос, а клиент шлёт то, что открыто в форме.
+   * Пост связан с текстом, который предложил продукт, через
+   * `ContentDerivation`. Аватар берётся оттуда же, через версию голоса, которой
+   * черновик написан: спросить об этом вызывающую сторону значило бы поверить
+   * клиенту в том, чей это голос, а клиент шлёт то, что открыто в форме.
+   *
+   * **Откуда берётся предложение — и почему с волны «заготовка и адаптации»
+   * это другое поле.** До неё продукт писал по материалу на канал, тело
+   * материала и было черновиком, и `ContentPiece.body` читалось правильно. С
+   * этой волны тело заготовки — НЕЙТРАЛЬНАЯ СУТЬ: ни площадки, ни манеры, ни
+   * длины канала. Сравнить её с отправленным постом значило бы записать в
+   * правку человека всё, что сделала сама адаптация, и аватар выучил бы
+   * «резать текст и добавлять эмодзи» — привычку машины, выданную за привычку
+   * автора. Поэтому порядок такой:
+   *
+   * - есть `ContentDerivation.body` — предложение это он, и только он. Он и
+   *   есть тот текст, который человек увидел в форме;
+   * - `body` пуст, а `ContentPiece.kind` пуст тоже — строка до этой волны, у
+   *   неё тело материала действительно было черновиком, и оно читается как
+   *   раньше;
+   * - `body` пуст, а `kind` есть (`CORE`) — наблюдения НЕТ. Возвращается
+   *   `null`. Это единственный честный ответ: чем сравнивать суть с постом,
+   *   лучше не записать ничего — пустая клетка видна, а испорченная пара
+   *   выглядит как материал и портит порог молча.
    *
    * Пост, у которого черновика продукта нет, наблюдением не является и молча
    * пропускается: человек написал его сам, и «модель предложила пустоту»
@@ -220,14 +238,25 @@ export class VoiceEditRepository {
       orderBy: [{ createdAt: 'asc' }],
       select: {
         brandProfileVersionId: true,
-        contentPiece: { select: { body: true, language: true } },
+        body: true,
+        contentPiece: { select: { kind: true, body: true, language: true } },
       },
     })) as {
       brandProfileVersionId: string | null;
-      contentPiece: { body: string; language: string } | null;
+      body: string | null;
+      contentPiece: {
+        kind: string | null;
+        body: string;
+        language: string;
+      } | null;
     } | null;
 
-    const proposed = derivation?.contentPiece?.body;
+    const piece = derivation?.contentPiece ?? null;
+    const proposed = derivation?.body?.trim()
+      ? derivation.body
+      : piece && !piece.kind
+      ? piece.body
+      : null;
     const versionId = derivation?.brandProfileVersionId;
     if (!proposed || !versionId) return null;
 
@@ -242,7 +271,7 @@ export class VoiceEditRepository {
       avatarId: version.profileId,
       profileVersionId: versionId,
       postId,
-      language: derivation?.contentPiece?.language ?? 'ru',
+      language: piece?.language ?? 'ru',
       proposedText: proposed,
       sentText,
     });

@@ -90,7 +90,7 @@ if (!packageOptions) {
 
 ## Двери
 
-Сто тридцать дверей несут политику. Ниже они сгруппированы по пути; «дверей»
+Сто тридцать семь дверей несут политику. Ниже они сгруппированы по пути; «дверей»
 — сколько маршрутов покрывает строка. Совпадение по самому длинному подходящему
 пути, поэтому `/content-intelligence/sources/search` перебивает
 `/content-intelligence/sources`.
@@ -118,6 +118,9 @@ if (!packageOptions) {
 | `/content-intelligence/materials/:id/draft` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/materials/:id/recut-preview` | EDITOR | 1 | редактор |
 | `/content-intelligence/materials/archive/import` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/sources` | EDITOR | 6 | редактор |
 | `/content-intelligence/sources/search` | AI, EDITOR | 1 | редактор |
 | `/content-intelligence/sources/search-evidence` | AI, EDITOR | 1 | редактор |
@@ -242,6 +245,19 @@ if (!packageOptions) {
 «Не надо» (`/content-intelligence/leads/:id/*`) — до 05.09.2026 были открыты
 любому участнику; теперь они тоже редакторские, потому что «взять в работу»
 заводит черновик поста, а завести его Пользователь не может.
+
+`/content-intelligence/pieces/*` — заготовка и её адаптации
+(`content-factory-next-tu3k.9`, 07.09.2026). Дверей у раздела пять, а строк в
+таблице три, и это не пропуск: `GET /content-intelligence/pieces` (список) и
+`GET /content-intelligence/pieces/:id` (страница заготовки) политики не несут и
+открыты **любому участнику области** — ровно как список материалов. Роль
+редактора начинается там, где начинается запись: адаптация под канал
+(`POST …/:id/adapt`, она же готовит черновик — отсюда предел тарифа первым),
+удаление одной адаптации (`DELETE …/:id/adaptations/:adaptationId`) и архив
+(`POST …/:id/archive`). Шестой двери — создания — здесь нет: заготовка
+рождается на `POST /content-intelligence/intake`, и вторая дверь создания
+разошлась бы с первой на первой же правке. У удаления нет тела вовсе, оба
+идентификатора идут из пути (`content-factory-next-fn33.90.3`).
 
 `/content-intelligence/text-quality/slop-check` — проверка написанного текста
 на ИИ-штампы (`content-factory-next-tu3k.3`, 06.09.2026). Раздела `AI` в её
