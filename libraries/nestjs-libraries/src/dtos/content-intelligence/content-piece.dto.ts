@@ -140,13 +140,15 @@ export class PieceAnswerDto {
   origin: 'person' | 'confirmed';
 }
 
-/** Две настройки адаптации из `IntakeOptionsV1`, которые к ней относятся. */
+/**
+ * Настройка адаптации из `IntakeOptionsV1`, которая к ней относится.
+ *
+ * Проверки на ИИ-штампы здесь нет с 07.09.2026
+ * (`content-factory-next-k879.1`): она считается сама на каждой адаптации.
+ * Старый клиент, который всё ещё шлёт `slopCheck`, отказа не получает —
+ * `whitelist: true` снимает незнакомое поле молча.
+ */
 export class PieceAdaptOptionsDto {
-  /** По умолчанию `false`: проверка на ИИ-штампы только по желанию. */
-  @IsOptional()
-  @IsBoolean()
-  slopCheck?: boolean;
-
   @IsOptional()
   @IsBoolean()
   isPicture?: boolean;

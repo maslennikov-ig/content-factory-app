@@ -124,8 +124,8 @@ export class AiAdmissionContended extends HttpException {
  *
  * An operation is a billing unit; a role is what the model is being asked to
  * do. They are one-to-one for most doors and deliberately not for
- * `text_generation`, which covers drafting a post, reading a voice off samples
- * and repairing a sentence against it. Those name their own role at the call.
+ * `text_generation`, which covers drafting a post and reading a voice off
+ * samples. Those name their own role at the call.
  */
 const roleOf = (operation: AiOperation, role?: AiRole): AiRole =>
   role ?? roleForOperation(operation);

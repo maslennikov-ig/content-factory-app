@@ -87,42 +87,46 @@ export const intakeCopy = {
 
     /* --- Квитанция -------------------------------------------------------- */
     receiptTitle: 'Что модель поняла',
-    receiptLead:
-      'Каждая строка помечена тем, откуда она взялась. Поправьте, что не так, и нажмите «Пересобрать».',
-    understoodAs: 'Понято как',
-    kindThought: 'мысль',
-    kindLinkShort: 'ссылка',
-    kindForeign: 'чужой пост',
-    notSo: 'Это не так',
-    edit: 'Изменить',
-    editDone: 'Готово',
-    revertEdits: 'Отменить правки',
-    empty: '—',
     originInput: 'из вашего текста',
     originPerson: 'ваш ответ',
     originAvatar: 'из аватара',
     originMemory: 'из памяти',
     originSearch: 'найдено поиском',
     originModel: 'предположение',
-    factsLabel: 'Факты и чем они подкреплены',
+    factsRestOn: 'На что это опирается',
     factVerified: 'подтверждено',
-    factUnverified: 'не подтверждено — в текст не вошло',
+    factUnverified: 'не подтверждено',
     ungroundedLabel: 'Не подтвердилось и в текст не вошло',
 
     /* --- Результат -------------------------------------------------------- */
     draftTitle: 'Черновик',
     openInEditor: 'Открыть в редакторе',
 
-    /* --- Проверка на штампы ----------------------------------------------- */
-    slopCheck: 'Проверить на штампы',
-    slopChecking: 'Проверяем…',
+    /*
+      «Повторить» — единственное, что осталось от кнопки «Проверить на
+      штампы». Сама кнопка и её вердикты удалены 07.09.2026 вместе с
+      `slop-findings.tsx`: готовый текст описывает строка качества, и
+      проверка приезжает вместе с ним, а не по нажатию. Слово читает карточка
+      канала — там это отказ загрузки, а не отказ проверки.
+    */
     slopRetry: 'Повторить',
-    slopCaption: 'Проверка только показывает. Текст правите вы — в редакторе.',
-    slopClean: 'Чисто',
-    slopReview: 'Стоит взглянуть',
-    slopRewrite: 'Лучше переписать',
-    slopEmpty: 'Штампов не нашли.',
-    slopFailed: 'Проверка не прошла. Попробуйте ещё раз.',
+
+    /* --- Строка качества под текстом --------------------------------------- */
+    /*
+      Одна строка вместо трёх блоков (решение владельца 07.09.2026,
+      `content-factory-next-fn33.28.4`). Слова называют только то, на что
+      стоит взглянуть: чистый текст не получает ни строки, ни галочки, ни
+      «находок нет». Проверки даром и считаются одинаково при одинаковом
+      тексте, поэтому строка ничего не обещает и ничего не запрещает.
+    */
+    qualitySlop: (count: number) => `Штампов: ${count}`,
+    qualityAntiCopy: (count: number) => `Чужих фраз: ${count}`,
+    qualityVoiceFar: 'Не похоже на вас',
+    qualityGaps: 'Своих чисел нет',
+    qualityAntiCopyDetail:
+      'Эти отрезки повторяют исходный материал слово в слово.',
+    qualityGapsDetail:
+      'Текст уходит как есть. Своё число — то, чего нет больше ни у кого; добавлять его не обязательно.',
 
     /* --- Отказы и пустота -------------------------------------------------- */
     errorTitle: 'Не написалось',
@@ -236,40 +240,30 @@ export const intakeCopy = {
     blockedUnanswered: 'Answer, or press “You decide”',
 
     receiptTitle: 'What the model understood',
-    receiptLead:
-      'Every line is marked with where it came from. Fix what is wrong and press “Rebuild”.',
-    understoodAs: 'Understood as',
-    kindThought: 'a thought',
-    kindLinkShort: 'a link',
-    kindForeign: 'somebody else’s post',
-    notSo: 'That is wrong',
-    edit: 'Edit',
-    editDone: 'Done',
-    revertEdits: 'Undo edits',
-    empty: '—',
     originInput: 'from your text',
     originPerson: 'your answer',
     originAvatar: 'from the avatar',
     originMemory: 'from memory',
     originSearch: 'found by search',
     originModel: 'an assumption',
-    factsLabel: 'Facts and what backs them',
+    factsRestOn: 'What it rests on',
     factVerified: 'confirmed',
-    factUnverified: 'unconfirmed — kept out of the text',
+    factUnverified: 'unconfirmed',
     ungroundedLabel: 'Unconfirmed and kept out of the text',
 
     draftTitle: 'Draft',
     openInEditor: 'Open in the editor',
 
-    slopCheck: 'Check for clichés',
-    slopChecking: 'Checking…',
     slopRetry: 'Try again',
-    slopCaption: 'The check only shows. You fix the text — in the editor.',
-    slopClean: 'Clean',
-    slopReview: 'Worth a look',
-    slopRewrite: 'Better rewritten',
-    slopEmpty: 'No clichés found.',
-    slopFailed: 'The check did not run. Try again.',
+
+    qualitySlop: (count: number) => `Clichés: ${count}`,
+    qualityAntiCopy: (count: number) => `Copied runs: ${count}`,
+    qualityVoiceFar: "Doesn't sound like you",
+    qualityGaps: 'None of your numbers',
+    qualityAntiCopyDetail:
+      'These runs repeat the source material word for word.',
+    qualityGapsDetail:
+      'The text goes as it is. A figure of your own is the part nobody else has; adding one is optional.',
 
     errorTitle: 'It did not get written',
     errorFallback: 'The text was not built. Try again.',

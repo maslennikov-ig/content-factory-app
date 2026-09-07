@@ -659,7 +659,23 @@ describe('чужой пост: числа входят только провер
     const [draft] = named(events, 'draft');
     expect(draft.postId).toBe('post-1');
     expect(draft.pieceId).toBe('piece-1');
-    expect(draft.checks).toEqual({ antiCopy: null, slop: null });
+    /**
+     * Проверки считаются сами (`content-factory-next-k879.1`, 07.09.2026).
+     * До этой волны штампы считались только при `options.slopCheck === true`,
+     * которого не присылал ни один клиент, — то есть не считались никогда.
+     * Голос здесь молчит честно: порта в наборе нет, и `UNKNOWN` с причиной —
+     * это не тихое «похоже».
+     */
+    expect(draft.checks.antiCopy).toBeNull();
+    expect(draft.checks.slop).toMatchObject({
+      version: 'slop-check/1.0.0',
+      platform: 'telegram',
+      locale: 'ru',
+    });
+    expect(draft.checks.voice).toEqual({
+      verdict: 'UNKNOWN',
+      reason: 'NO_PROFILE',
+    });
     expect(named(events, 'done')[0].postIds).toEqual(['post-1']);
   });
 });

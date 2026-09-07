@@ -1700,5 +1700,6 @@
   "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
   "close_post_window": "סגירת חלון הפוסט",
   "intake_door": "טיוטה חדשה",
-  "intake_door_short": "טיוטה"
+  "intake_door_short": "טיוטה",
+  "help": "עזרה"
 }

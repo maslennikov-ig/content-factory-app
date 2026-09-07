@@ -126,23 +126,6 @@ export const VOICE_ERROR_CODES = {
   VOICE_ASSIST_UNAVAILABLE: { status: 502, screenState: 'error' },
   /** It answered without a quote from the corpus, twice. */
   VOICE_ASSIST_UNGROUNDED: { status: 502, screenState: 'error' },
-  /**
-   * The sentence to repair is not in the text that was sent.
-   *
-   * Its own code because it is the one failure of this route that is neither
-   * the model's fault nor the person's: the draft moved between the check and
-   * the repair. The screen re-checks rather than showing an error nobody can
-   * act on.
-   */
-  VOICE_SENTENCE_NOT_FOUND: { status: 409, screenState: 'error' },
-  /**
-   * The rewrite dropped a number, a quote, a link or a name — twice.
-   *
-   * The boundary the owner drew is style, not sense. A sentence that came back
-   * saying something the author did not say is refused rather than shown, and
-   * the original stands untouched.
-   */
-  VOICE_REPAIR_UNGROUNDED: { status: 502, screenState: 'error' },
   VOICE_AVATAR_NOT_FOUND: { status: 404, screenState: 'error' },
   /**
    * The space already holds `MAX_AVATARS_PER_SPACE` of them.
@@ -1174,8 +1157,12 @@ export type VoiceTextCheckResponseV1 = {
    * The sentences the divergence is in, with offsets into `plainText`.
    *
    * A scale outside the corridor is a fact about the whole text and a person
-   * can do nothing with it. These are the places, and each one is what the
-   * repair route takes.
+   * can do nothing with it. These are the places the divergence is in.
+   *
+   * Правка предложения моделью убрана 07.09.2026
+   * (`content-factory-next-k879.1`): в продукте её никто не звал, а платить за
+   * ответ, которого никто не просит, не за что. Место названо — что с ним
+   * делать, решает человек.
    */
   spots: VoiceTextSpotV1[];
   /** The text as measured: markup removed, so the offsets mean something. */
@@ -1224,38 +1211,6 @@ export type VoiceTextSpotV1 = {
   note: string;
   /** The concrete words the note is about, where there are any. */
   terms: string[];
-};
-
-/**
- * One sentence rewritten, and nothing else touched.
- *
- * The route takes the sentence rather than an index into the text: an index
- * would be a promise that the client and the server split sentences the same
- * way, and the day they disagree the wrong sentence gets rewritten.
- */
-export type VoiceRepairRequestV1 = {
-  text: string;
-  sentence: string;
-  /** What the check said is wrong with it, so the model is told the same thing. */
-  note?: string;
-  versionId?: string;
-};
-
-export type VoiceRepairResponseV1 = {
-  /** The original, as measured. The client compares before showing anything. */
-  sentence: string;
-  /** The rewrite. Applied by the person and never automatically. */
-  proposal: string;
-  /** What the model says it changed, in one phrase. */
-  note: string;
-  /**
-   * The facts that had to survive and did — numbers, quotes, links, names.
-   *
-   * Returned rather than merely checked, so the person can see what was held
-   * fixed instead of taking the word of the thing that just rewrote their
-   * sentence.
-   */
-  keptFacts: string[];
 };
 
 /**
@@ -1977,12 +1932,6 @@ export const VOICE_SURFACES = {
         request: 'VoiceTextCheckRequestV1',
         response: 'VoiceTextCheckResponseV1',
       },
-      {
-        method: 'POST',
-        path: `${VOICE_API_BASE}/text-check/repair`,
-        request: 'VoiceRepairRequestV1',
-        response: 'VoiceRepairResponseV1',
-      },
     ],
   },
   materials: {
@@ -2294,11 +2243,16 @@ export type IntakeQuestionV1 = {
   why?: string;
 };
 
+/**
+ * `slopCheck` здесь больше нет (`content-factory-next-k879.1`, 07.09.2026):
+ * проверка на ИИ-штампы считается на каждом черновике и на каждой адаптации
+ * сама. Флаг, о котором надо просить и о котором не просил ни один клиент, —
+ * это проверка, которой нет. Клиент, всё ещё присылающий поле, отказа не
+ * получает: проверяющий снимает незнакомое поле молча.
+ */
 export type IntakeOptionsV1 = {
   /** По умолчанию `true`: числа из чужого поста и мысль без фактов проверяются поиском. */
   searchEnrichment?: boolean;
-  /** По умолчанию `false`: проверка на ИИ-штампы только по желанию человека. */
-  slopCheck?: boolean;
   isPicture?: boolean;
 };
 
@@ -2418,6 +2372,47 @@ export type AntiCopyReportV1 = {
   clean: boolean;
 };
 
+/**
+ * Похоже ли на этого автора — одна строка вердикта рядом со штампами.
+ *
+ * `content-factory-next-k879.1`, решение владельца 07.09.2026: проверки живут
+ * там, где текст окончателен, то есть на адаптации. Считается той же
+ * бесплатной меркой, что и кнопка проверки в ленте голоса
+ * (`VoiceService.textCheck`), и ни одного платного вызова на этом пути нет.
+ *
+ * `UNKNOWN` — это не тихое `CLOSE`. Голоса нет, разбор собран вручную,
+ * границы не сняты или текст слишком короток, чтобы мерить: во всех четырёх
+ * случаях ответа нет, и экран, рисующий это одобрением, сообщает человеку то,
+ * чего никто не проверял.
+ */
+export type VoiceCheckReportV1 = {
+  verdict: VoiceSimilarityV1['verdict'];
+  /** Почему ответа нет. Есть только у `UNKNOWN`. */
+  reason?: VoiceSimilarityV1['reason'];
+};
+
+/**
+ * Квитанция проверок одной адаптации: то, что посчитано без единого вызова
+ * модели.
+ *
+ * Все три поля присутствуют всегда, и все три считаются сами
+ * (`content-factory-next-k879.1`). До 07.09.2026 штампы считались только при
+ * `options.slopCheck === true`, которого не присылал ни один клиент, — то есть
+ * не считались никогда. Проверка, которую надо попросить, — это проверка,
+ * которой нет.
+ *
+ * `null` у штампов и антикопии значит «посчитать было нечем»: у голоса на это
+ * есть свой честный `UNKNOWN` с причиной.
+ *
+ * Находки совещательны. Ни одна из трёх не запрещает сохранить, отправить или
+ * опубликовать текст.
+ */
+export type AdaptationChecksV1 = {
+  antiCopy: AntiCopyReportV1 | null;
+  slop: SlopReportV1 | null;
+  voice: VoiceCheckReportV1;
+};
+
 /* ---- События стрима ------------------------------------------------------- */
 
 export type IntakeDraftContentV1 = {
@@ -2453,7 +2448,7 @@ export type IntakeEventV1 =
       content: IntakeDraftContentV1[];
       provenance: unknown;
       draftGaps: unknown[];
-      checks: { antiCopy?: AntiCopyReportV1 | null; slop?: SlopReportV1 | null };
+      checks: AdaptationChecksV1;
     }
   | { name: 'done'; postIds: string[] }
   | {
@@ -2808,10 +2803,8 @@ export type AdaptationV1 = {
   voiceVersion?: string;
   /** Ответы на вопросы под канал, дословно. */
   answers?: PieceAnswerV1[];
-  checks?: {
-    antiCopy?: AntiCopyReportV1 | null;
-    slop?: SlopReportV1 | null;
-  };
+  /** Есть у свежей адаптации; у строки списка проверок нет — их не хранят. */
+  checks?: AdaptationChecksV1;
 };
 
 /**
@@ -2866,7 +2859,7 @@ export type PieceAdaptRequestV1 = {
   answers?: PieceAnswerInputV1[];
   decideKeys?: PieceQuestionKeyV1[];
   skipInterview?: boolean;
-  options?: Pick<IntakeOptionsV1, 'slopCheck' | 'isPicture'>;
+  options?: Pick<IntakeOptionsV1, 'isPicture'>;
   brandProfileSelection?: BrandProfileSelectionV1;
 };
 
@@ -2993,7 +2986,7 @@ export type PieceAdaptEventV1 =
       content: IntakeDraftContentV1[];
       provenance: unknown;
       draftGaps: unknown[];
-      checks: { antiCopy?: AntiCopyReportV1 | null; slop?: SlopReportV1 | null };
+      checks: AdaptationChecksV1;
     }
   | { name: 'done'; adaptationId: string; postId: string | null }
   | { name: 'error'; error: true; code: string; message: string };

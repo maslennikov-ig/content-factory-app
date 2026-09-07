@@ -27,7 +27,13 @@ import {
   type PieceQuestionV1,
   type VoiceScreenStateV1,
 } from './pieces.adapter';
-import { readQuestions, type BriefField, type IntakeQuestionV1 } from '../intake/intake.adapter';
+import {
+  readQualityChecks,
+  readQuestions,
+  type BriefField,
+  type IntakeQuestionV1,
+  type QualityChecksV1,
+} from '../intake/intake.adapter';
 import { PIECE_ROUTES } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
@@ -103,9 +109,17 @@ export function PieceContainer({
   const [rounds, setRounds] = useState(0);
   const [channelId, setChannelId] = useState<string | null>(null);
   const [kind, setKind] = useState<AdaptationKindV1>('post');
-  const [draft, setDraft] = useState<{ text: string; platform?: string } | null>(
-    null
-  );
+  /*
+    Текст адаптации и то, что о нём известно, — одним состоянием.
+    Проверки и пробелы приезжают тем же событием стрима, что и текст, и
+    расходиться с ним не должны: строка качества под текстом описывает именно
+    этот текст, а не предыдущий.
+  */
+  const [draft, setDraft] = useState<{
+    text: string;
+    checks: QualityChecksV1;
+    draftGaps: readonly unknown[];
+  } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   /*
@@ -188,7 +202,14 @@ export function PieceContainer({
               sawAdaptation = true;
               setDraft({
                 text: event.content.map((one) => one.content).join('\n\n'),
-                platform: event.adaptation.platform,
+                /*
+                  `checks` события читается ещё раз, а не приводится типом:
+                  поле `voice` появляется в контракте волной 07.09.2026, и
+                  разбор — единственное место, которое знает, как его читать,
+                  когда сервер его уже шлёт, а тип ещё не объявил.
+                */
+                checks: readQualityChecks(event.checks),
+                draftGaps: event.draftGaps ?? [],
               });
               break;
             case 'error':
@@ -489,7 +510,8 @@ export function PieceContainer({
       step={step}
       questions={questions}
       draftText={draft?.text ?? null}
-      draftPlatform={draft?.platform}
+      draftChecks={draft?.checks ?? null}
+      draftGaps={draft?.draftGaps ?? null}
       adaptingChannel={busy ? adaptingChannel : null}
       errorMessage={
         failure ??

@@ -38,49 +38,15 @@ import type {
   ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { PIECE_CORE_VERSION } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
-import { RU_FORBIDDEN_PHRASE_GROUPS } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/slop-rules.ru';
-import { EN_FORBIDDEN_PHRASE_GROUPS } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/slop-rules.en';
+import { forbiddenPhrasesRule } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases';
 import {
   ANTI_COPY_MIN_WORDS,
   antiCopyReport,
 } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy';
 import { oneLine } from '../intake/intake.prompts';
 
-/** Сколько оборотов из каталога штампов доходит до промпта. */
-export const PIECE_FORBIDDEN_PHRASES_MAX = 40;
-
 /** По какой площадке считаются пороги штампов у нейтральной сути. */
 export const CORE_SLOP_PLATFORM = 'core';
-
-/**
- * Обороты, которые промпт запрещает, — из каталога проверки на штампы.
- *
- * Один каталог на две половины одного решения: то, что проверка ловит после,
- * промпт запрещает до. Второй список рядом разошёлся бы с первым на первой же
- * правке, и появилось бы правило, которое проверка ловит, а модель по-прежнему
- * пишет.
- *
- * Берётся по кругу — по одной фразе из каждой группы, — а не подряд. Сорок
- * строк подряд съели бы одни вводные слова, и про канцелярит или рамку
- * чат-бота модель не услышала бы вовсе; по кругу каждое правило оказывается
- * названо хотя бы раз.
- */
-export const forbiddenPhrasesFor = (locale: 'ru' | 'en'): string[] => {
-  const groups = (
-    locale === 'ru' ? RU_FORBIDDEN_PHRASE_GROUPS : EN_FORBIDDEN_PHRASE_GROUPS
-  ).map((group) => [...group]);
-  const taken: string[] = [];
-  for (let round = 0; taken.length < PIECE_FORBIDDEN_PHRASES_MAX; round += 1) {
-    const before = taken.length;
-    for (const group of groups) {
-      if (taken.length >= PIECE_FORBIDDEN_PHRASES_MAX) break;
-      const phrase = group[round];
-      if (phrase && !taken.includes(phrase)) taken.push(phrase);
-    }
-    if (taken.length === before) break;
-  }
-  return taken;
-};
 
 /** Шов проверки на штампы — тот же, что у входа одной мыслью. */
 export type CoreSlopCheck = (
@@ -157,7 +123,7 @@ export const authorNumbersIn = (
  * Промпт
  * ---------------------------------------------------------------------- */
 
-const RU_SYSTEM = (phrases: string[]): string =>
+const RU_SYSTEM = (rule: string): string =>
   [
     'Ты пишешь СУТЬ: нейтральный текст о том, что человек хочет рассказать, без площадки и без манеры. Это не пост и не пересказ брифа — это опора, из которой потом сделают тексты под разные площадки.',
     'Правила, все обязательные:',
@@ -167,10 +133,10 @@ const RU_SYSTEM = (phrases: string[]): string =>
     '4) если слов человека мало — суть короткая; короткая правда лучше длинного пересказа; три предложения — нормальная суть;',
     '5) начинай с той фразы человека, которая ближе всего к тезису, — дословно;',
     '6) без разметки, эмодзи, заголовков и списков; абзацы через пустую строку; язык — язык ввода;',
-    `7) не используй обороты из списка: ${phrases.join('; ')}.`,
+    `7) ${rule}`,
   ].join('\n');
 
-const EN_SYSTEM = (phrases: string[]): string =>
+const EN_SYSTEM = (rule: string): string =>
   [
     'You are writing the CORE: a neutral text about what this person wants to tell, with no platform and no manner. It is not a post and not a retelling of the brief — it is the ground that texts for different platforms will later be made from.',
     'Rules, all of them binding:',
@@ -180,7 +146,7 @@ const EN_SYSTEM = (phrases: string[]): string =>
     '4) if the person gave few words, the core is short; a short truth beats a long retelling; three sentences is a normal core;',
     "5) begin with the person's own phrase that stands closest to the claim — verbatim;",
     '6) no markup, no emoji, no headings, no lists; paragraphs separated by a blank line; the language is the language of the input;',
-    `7) do not use any turn of phrase from this list: ${phrases.join('; ')}.`,
+    `7) ${rule}`,
   ].join('\n');
 
 const BLOCK_TITLES = {
@@ -265,8 +231,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
 
   return [
     input.language === 'ru'
-      ? RU_SYSTEM(forbiddenPhrasesFor('ru'))
-      : EN_SYSTEM(forbiddenPhrasesFor('en')),
+      ? RU_SYSTEM(forbiddenPhrasesRule('ru'))
+      : EN_SYSTEM(forbiddenPhrasesRule('en')),
     '',
     fenced(words.person, input.personText ? [input.personText] : []),
     fenced(

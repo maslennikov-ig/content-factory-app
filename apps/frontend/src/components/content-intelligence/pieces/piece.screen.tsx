@@ -12,11 +12,15 @@ import {
   Status,
 } from '../../ui/surface';
 import { voiceCopy } from '../../brand-voice/voice-copy';
-import { SlopFindings } from '../intake/slop-findings';
 import { SuggestedQuestionsCard } from '../intake/questions.card';
 import { intakeCopy } from '../intake/intake.copy';
-import { RECEIPT_FIELDS, type BriefFieldOriginV1 } from '../intake/intake.adapter';
+import {
+  RECEIPT_FIELDS,
+  type BriefFieldOriginV1,
+  type QualityChecksV1,
+} from '../intake/intake.adapter';
 import { DraftResult } from '../shared/draft-result';
+import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { stateWord } from './adaptation.cell';
 import type {
@@ -68,7 +72,8 @@ export function PieceScreen({
   step,
   questions,
   draftText,
-  draftPlatform,
+  draftChecks,
+  draftGaps,
   adaptingChannel,
   errorMessage,
   notice,
@@ -93,7 +98,10 @@ export function PieceScreen({
   step: string | null;
   questions: readonly PieceQuestionV1[];
   draftText: string | null;
-  draftPlatform?: string;
+  /** Проверки адаптации: приезжают событием стрима вместе с текстом. */
+  draftChecks?: QualityChecksV1 | null;
+  /** Чего в адаптации нет из привычек автора — тем же событием. */
+  draftGaps?: readonly unknown[] | null;
   /** Канал, под который идёт адаптация прямо сейчас. */
   adaptingChannel: string | null;
   errorMessage?: string;
@@ -232,6 +240,19 @@ export function PieceScreen({
       ? i.originSearch
       : i.originModel;
 
+  /*
+    Хост вместо полного адреса: в колонке 360px длинная ссылка переносится
+    посреди пути и перестаёт читаться как источник. Адрес, который не разбирается
+    в `URL`, показывается как есть — это чужая строка, и молча прятать её нельзя.
+  */
+  const hostOf = (url: string) => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return url;
+    }
+  };
+
   const briefLabel: Record<(typeof RECEIPT_FIELDS)[number], string> = {
     thesis: v.briefThesis,
     position: v.briefPosition,
@@ -241,19 +262,8 @@ export function PieceScreen({
     format: v.briefFormat,
   };
 
-  const findings = core?.slop?.findings?.length ?? 0;
-
-  /*
-    Одна строка вместо двух блоков: проверка на штампы и своё число — это два
-    факта о том же тексте, и оба помещаются в подпись под ним. Развёрнутые
-    находки появляются ниже только если они есть; пустой блок «находок нет» с
-    заголовком и пояснением занимал четверть колонки и ничего не сообщал.
-  */
-  const verdictLine = core
-    ? `${t.slopTitle}: ${findings > 0 ? t.slopFound(findings) : t.slopNoFindings} · ${
-        core.authorNumbers ? t.ownNumberHas : t.ownNumberNone
-      }`
-    : null;
+  const facts = core?.brief.facts ?? [];
+  const ungrounded = core?.brief.ungrounded ?? [];
 
   const available = detail.targets.filter(
     (target) => target.available && target.channels.length > 0
@@ -386,27 +396,25 @@ export function PieceScreen({
               {core ? core.text : detail.legacyBody ?? ''}
             </article>
 
-            {verdictLine ? (
-              <p
-                data-piece-verdict="true"
-                className="cf-caption text-cf-ink-muted"
-              >
-                {verdictLine}
-              </p>
-            ) : null}
-
             {/*
-              Находки проверки на штампы: считаны при создании сути, а не по
-              кнопке, и разворачиваются только когда они есть. Вердикт
+              Одна строка вместо вердикта и блока находок.
+              Решение владельца 07.09.2026 (`content-factory-next-fn33.28.4`).
+              До него строка печаталась всегда — и над чистой сутью говорила
+              «находок нет · своё число есть», то есть занимала место, чтобы
+              сообщить, что сообщать нечего. Теперь чистая суть не получает
+              ничего, а находки и своё число называются словом каждая и
+              раскрываются по нажатию.
+
+              Проверки считаны при создании сути, а не по кнопке. Вердикт
               `rewrite` — совет, а не запрет: «Адаптировать» ниже остаётся
               нажимаемым, и об этом сказано словами.
             */}
-            {core && findings > 0 ? (
+            {core ? (
               <div className="flex min-w-0 flex-col gap-[4px]">
-                <SlopFindings
+                <QualityLine
                   locale={locale}
-                  text={core.text}
-                  report={core.slop}
+                  slop={core.slop}
+                  draftGaps={core.authorNumbers ? null : OWN_NUMBERS_GAP}
                 />
                 {core.slop?.verdict === 'rewrite' ? (
                   <p
@@ -681,7 +689,8 @@ export function PieceScreen({
             <DraftResult
               locale={locale}
               text={draftText}
-              platform={draftPlatform}
+              checks={draftChecks}
+              draftGaps={draftGaps}
               onOpenEditor={onOpenEditor}
             />
           ) : null}
@@ -692,10 +701,9 @@ export function PieceScreen({
         <aside className="flex min-w-0 flex-col gap-[16px]">
           {/*
             Квитанция здесь компактная и только на чтение: шесть строк «поле —
-            значение — откуда взято» в сетке. Правится она там, где её можно
-            потратить — на входе (`BriefReceipt`), — а на этой странице бриф
-            уже израсходован, и полная карточка с кнопками «Поправить» на
-            каждой строке обещала бы пересборку, которой здесь нет.
+            значение — откуда взято» в сетке. Бриф на этой странице уже
+            израсходован, и кнопки «Поправить» на каждой строке обещали бы
+            пересборку, которой здесь нет. Правки брифа живут на входе.
           */}
           {core ? (
             <Panel
@@ -731,6 +739,91 @@ export function PieceScreen({
                   );
                 })}
               </dl>
+            </Panel>
+          ) : null}
+
+          {/*
+            На что опирается текст. Решение владельца 07.09.2026: единственное,
+            чего не было в компактной квитанции, — опоры и то, что опорой не
+            стало. Ради них жила несмонтированная карточка расписки; она
+            удалена, а эти два списка переехали сюда.
+
+            Подтверждение печатается словом, а не значком и не цветом: «не
+            подтверждено» — это право строки на недоверие, и читать его должен
+            и тот, кто цвета не различает. Источник — хост, а не полный адрес.
+
+            Пусто и там и там — блока нет вовсе. Заголовок «На что это
+            опирается» над пустотой отвечал бы «ни на что», а это неправда:
+            у старого материала брифа просто нет.
+          */}
+          {core && (facts.length > 0 || ungrounded.length > 0) ? (
+            <Panel
+              contentPadding="none"
+              contentClassName="flex min-w-0 flex-col gap-[12px] p-[16px]"
+            >
+              <h2 className="cf-label-sm uppercase text-cf-ink-muted">
+                {i.factsRestOn}
+              </h2>
+
+              {facts.length > 0 ? (
+                <dl
+                  data-piece-facts="true"
+                  className="flex min-w-0 flex-col gap-[12px]"
+                >
+                  {facts.map((fact, index) => (
+                    <div
+                      key={`${fact.statement}-${index}`}
+                      className="flex min-w-0 flex-col gap-[4px]"
+                    >
+                      <dt className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
+                        {fact.statement}
+                      </dt>
+                      <dd
+                        data-piece-fact-verified={String(fact.verified)}
+                        className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] cf-caption text-cf-ink-muted"
+                      >
+                        <span>
+                          {fact.verified ? i.factVerified : i.factUnverified}
+                        </span>
+                        {fact.sourceUrl ? (
+                          <a
+                            href={fact.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="min-w-0 break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                          >
+                            {hostOf(fact.sourceUrl)}
+                          </a>
+                        ) : null}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+
+              {/*
+                Утверждения, которые нечем подтвердить, стоят отдельно от фактов
+                нарочно: в текст они не пошли, и строка про них — объяснение
+                отсутствия, а не ещё одна опора.
+              */}
+              {ungrounded.length > 0 ? (
+                <div className="flex min-w-0 flex-col gap-[4px] border-t border-cf-border pt-[12px]">
+                  <h3 className="cf-caption text-cf-ink-muted">
+                    {i.ungroundedLabel}
+                  </h3>
+                  <ul className="flex min-w-0 flex-col gap-[4px]">
+                    {ungrounded.map((statement, index) => (
+                      <li
+                        key={`${statement}-${index}`}
+                        data-piece-ungrounded="true"
+                        className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                      >
+                        {statement}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </Panel>
           ) : null}
 

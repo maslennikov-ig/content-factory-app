@@ -30,6 +30,8 @@ import {
   useRelatedOwnPosts,
 } from '@contentfactory/frontend/components/new-launch/related-own-posts.note';
 import { DraftGapNote } from '@contentfactory/frontend/components/brand-voice/draft-gap-note';
+import { DraftQualityLine } from '@contentfactory/frontend/components/new-launch/draft-quality.line';
+import { editorPlainText } from '@contentfactory/frontend/components/new-launch/editor-text';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useExistingData } from '@contentfactory/frontend/components/launches/helpers/use.existing.data';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
@@ -306,17 +308,27 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
    * чём он пишет. Площадка берётся у выбранного канала: ссылка из Telegram
    * ведёт в Telegram, а не в чужую ленту.
    */
-  const relatedQuery = useLaunchStore(
+  /**
+   * Текст коробок поста без разметки — один на два вопроса о нём.
+   *
+   * «Свои тексты по теме» берут первые триста знаков, строка качества —
+   * весь текст. Два селектора над одними и теми же коробками разошлись бы
+   * ровно тогда, когда кто-то поправит один из них.
+   */
+  const editorText = useLaunchStore(
     useShallow((state) => {
       const boxes =
         state.internal.find((one) => one.integration.id === state.current)
           ?.integrationValue ?? state.global;
-      return relatedQueryOf(boxes.map((box) => box.content).join(' '));
+      return editorPlainText(boxes.map((box) => box.content).join(' '));
     })
   );
   const relatedPlatform =
     integrations.find((one) => one.id === current)?.identifier ?? null;
-  const relatedOwnPosts = useRelatedOwnPosts(relatedQuery, relatedPlatform);
+  const relatedOwnPosts = useRelatedOwnPosts(
+    relatedQueryOf(editorText),
+    relatedPlatform
+  );
 
   /**
    * Отправка: одно выражение запрета, одна подпись действия
@@ -876,6 +888,23 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                         />
                       )}
                     </div>
+                    {/**
+                      * Строка качества — под текстом, а не сбоку от него
+                      * (`content-factory-next-fn33.28.4`, решение владельца
+                      * 07.09.2026). Она называет только то, на что стоит
+                      * взглянуть: штампы и «не похоже на вас». Чистый текст
+                      * не получает ни строки — подтверждение того, что всё в
+                      * порядке, приучает пролистывать ту единственную
+                      * строку, которая сообщает.
+                      *
+                      * Ничего не запрещает и ничего не ждёт: сохранение,
+                      * расписание и отправка о ней не знают.
+                      */}
+                    <DraftQualityLine
+                      locale={voiceLocale}
+                      text={editorText}
+                      platform={relatedPlatform}
+                    />
                     <div
                       id="social-empty"
                       className={clsx(

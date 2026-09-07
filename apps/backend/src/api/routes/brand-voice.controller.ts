@@ -43,7 +43,6 @@ import {
   VoiceSampleIntakeDto,
   VoiceExamplesDto,
   VoiceScaleCorridorDto,
-  VoiceRepairDto,
   VoiceTextCheckDto,
   VoiceVersionRestoreDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/brand-voice.dto';
@@ -876,23 +875,6 @@ export class BrandVoiceController {
   ) {
     try {
       return await this._voice.textCheck(this.actor(organization, undefined, avatar), body);
-    } catch (error) {
-      safeHttpError(error);
-    }
-  }
-
-  /**
-   * One sentence rewritten under this voice. Nothing is saved and nothing is
-   * applied: the answer is a proposal beside the original.
-   */
-  @Post('/text-check/repair')
-  async repairSentence(
-    @GetOrgFromRequest() organization: RequestOrganization,
-    @Body() body: VoiceRepairDto,
-    @Query('avatar') avatar?: string
-  ) {
-    try {
-      return await this._voice.repairSentence(this.actor(organization, undefined, avatar), body);
     } catch (error) {
       safeHttpError(error);
     }

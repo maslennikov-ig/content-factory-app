@@ -755,6 +755,7 @@ const buildPieces = (options = {}) => {
     updateCore: [],
     related: [],
     invalidate: [],
+    voice: [],
   };
   modelCalls.length = 0;
   modelAnswers = [...(options.models || [])];
@@ -830,7 +831,20 @@ const buildPieces = (options = {}) => {
         if (options.updateFails) throw new Error('the library refused');
       },
     },
-    search
+    search,
+    /**
+     * Вердикт голоса (`content-factory-next-k879.1`). Тоже только когда набор
+     * о нём просит: без порта квитанция честно молчит, и это отдельный случай,
+     * который проверяется рядом.
+     */
+    options.voice
+      ? {
+          voiceCheckFor: async (...args) => {
+            calls.voice.push(args);
+            return options.voice;
+          },
+        }
+      : null
   );
 
   return { service, calls };
@@ -892,6 +906,72 @@ describe('адаптация под канал', () => {
     expect(calls.start).toHaveLength(1);
     expect(calls.createDraft).toHaveLength(1);
     expect(calls.createAdaptation).toHaveLength(1);
+  });
+
+
+  /**
+   * Квитанция проверок считается сама (`content-factory-next-k879.1`, решение
+   * владельца 07.09.2026).
+   *
+   * До этой волны штампы считались только при `options.slopCheck === true`, и
+   * этого флага не присылал ни один клиент: проверка, о которой надо
+   * попросить, — это проверка, которой нет. Ни один запрос ниже ни о чём не
+   * просит.
+   */
+  test('штампы и голос считаются сами, без единой просьбы в запросе', async () => {
+    const { service, calls } = buildPieces({
+      voice: { verdict: 'FAR' },
+    });
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    const events = await drain(service.adapt('org-a', plan));
+    const [written] = named(events, 'adaptation');
+
+    // По порогам площадки канала, а не нейтральной сути.
+    expect(written.checks.slop).toMatchObject({
+      version: 'slop-check/1.0.0',
+      platform: 'telegram',
+      locale: 'ru',
+    });
+    expect(written.checks.voice).toEqual({ verdict: 'FAR' });
+    // Квитанция события и квитанция самой адаптации — одна и та же.
+    expect(written.adaptation.checks).toEqual(written.checks);
+
+    // Мерке дали текст адаптации, а не суть, и назвали область.
+    expect(calls.voice).toHaveLength(1);
+    expect(calls.voice[0][0]).toBe('org-a');
+    expect(calls.voice[0][1]).toBe('Пять из шести сроков я сорвал сам себе.');
+    expect(calls.voice[0][2]).toBe('ru');
+  });
+
+  /**
+   * Молчание остаётся молчанием.
+   *
+   * Без мерки вердикта нет, и `UNKNOWN` с причиной — единственный честный
+   * ответ. Экран, рисующий его одобрением, сообщил бы человеку то, чего никто
+   * не проверял.
+   */
+  test('без мерки голос отвечает UNKNOWN, а не «похоже»', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    const events = await drain(service.adapt('org-a', plan));
+    const [written] = named(events, 'adaptation');
+
+    expect(written.checks.voice).toEqual({
+      verdict: 'UNKNOWN',
+      reason: 'NO_PROFILE',
+    });
+    expect(written.checks.slop).not.toBeNull();
+    expect(calls.voice).toEqual([]);
   });
 
   /**

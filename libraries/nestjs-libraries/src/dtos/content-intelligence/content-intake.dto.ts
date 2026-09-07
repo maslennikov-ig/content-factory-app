@@ -134,16 +134,16 @@ export class IntakeBriefOverridesDto {
   format?: (typeof INTAKE_FORMATS)[number];
 }
 
+/**
+ * Проверки на ИИ-штампы здесь нет с 07.09.2026 (`content-factory-next-k879.1`):
+ * она считается сама. Старый клиент, который всё ещё шлёт `slopCheck`, отказа
+ * не получает — `whitelist: true` снимает незнакомое поле молча.
+ */
 export class IntakeOptionsDto {
   /** По умолчанию `true`: числа и мысль без фактов проверяются поиском. */
   @IsOptional()
   @IsBoolean()
   searchEnrichment?: boolean;
-
-  /** По умолчанию `false`: проверка на ИИ-штампы только по желанию. */
-  @IsOptional()
-  @IsBoolean()
-  slopCheck?: boolean;
 
   @IsOptional()
   @IsBoolean()

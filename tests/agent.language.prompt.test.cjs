@@ -1,4 +1,5 @@
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 let promptTemplate = '';
 let promptInput;
@@ -115,6 +116,35 @@ describe('agent content language prompts', () => {
       'Write every human-readable part of the post in Russian.'
     );
     expect(promptTemplate).not.toContain('Use simple english');
+  });
+
+  /**
+   * Один каталог штампов на обе половины решения
+   * (`content-factory-next-k879.1`, 07.09.2026).
+   *
+   * До этой волны список запрещённых оборотов доходил только до промпта сути,
+   * то есть до текста, который никуда не публикуется. Адаптация под канал —
+   * это как раз тот текст, который человек увидит, и промпт обязан запрещать
+   * ровно то, что проверка ловит после.
+   *
+   * Список едет переменной шаблона, а не строкой в него: оборот с фигурной
+   * скобкой стал бы для `ChatPromptTemplate` именем переменной.
+   */
+  test('the adaptation prompt forbids the turns of phrase the check catches', async () => {
+    const { forbiddenPhrasesFor, forbiddenPhrasesRule } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/content-intelligence/text-quality/forbidden-phrases.ts'
+    );
+    modelResult = { content: { content: 'Пост' } };
+    const service = new AgentGraphService({}, {});
+
+    await service.generateContent(russianState);
+
+    expect(promptTemplate).toContain('{forbidden}');
+    expect(promptInput.forbidden).toBe(forbiddenPhrasesRule('ru'));
+    expect(promptInput.forbidden).toContain('не используй обороты из списка:');
+    for (const phrase of forbiddenPhrasesFor('ru').slice(0, 5)) {
+      expect(promptInput.forbidden).toContain(phrase);
+    }
   });
 
   test('Russian category classification uses a Russian vocabulary', async () => {

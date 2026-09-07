@@ -211,6 +211,15 @@ const { AgentGraphService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy': loadReal(
       'libraries/nestjs-libraries/src/content-intelligence/text-quality/anti-copy.ts'
     ),
+    /**
+     * Каталог запрещённых оборотов — тоже настоящий
+     * (`content-factory-next-k879.1`). Заглушка со своим списком означала бы,
+     * что промпт адаптации запрещает не то, что ловит проверка, а набор этого
+     * не заметит.
+     */
+    '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases': loadReal(
+      'libraries/nestjs-libraries/src/content-intelligence/text-quality/forbidden-phrases.ts'
+    ),
     '@contentfactory/nestjs-libraries/dtos/content.language': contentLanguage,
     '@contentfactory/nestjs-libraries/agent/agent.categories': agentCategories,
     '@contentfactory/nestjs-libraries/agent/agent.topics': agentTopics,

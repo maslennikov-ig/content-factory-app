@@ -7,6 +7,7 @@ import type {
   PieceQuestionV1,
   PieceRowV1,
   PiecesResponseV1,
+  AdaptationChecksV1,
   SlopReportV1,
   ZagotovkaCoreV1,
 } from './voice-wiring.contract';
@@ -222,6 +223,18 @@ const slopClean: SlopReportV1 = {
   verdict: 'clean',
 };
 
+/**
+ * Квитанция проверок адаптации: с 07.09.2026 её считают всегда
+ * (`content-factory-next-k879.1`), поэтому и в образце она заполнена, а не
+ * пуста. Пороги здесь телеграмные — адаптация посчитана по площадке канала, а
+ * не по нейтральной сути.
+ */
+const adaptationChecks: AdaptationChecksV1 = {
+  antiCopy: null,
+  slop: { ...slopClean, platform: 'telegram' },
+  voice: { verdict: 'CLOSE' },
+};
+
 export const PIECE_FIXTURE_CORE: ZagotovkaCoreV1 = {
   version: PIECE_CORE_VERSION,
   text: [
@@ -316,7 +329,7 @@ export const PIECE_FIXTURE_ADAPTATIONS: AdaptationV1[] = [
         answeredAt: '2026-09-06T09:40:45.000Z',
       },
     ],
-    checks: { antiCopy: null, slop: null },
+    checks: adaptationChecks,
   },
   {
     id: 'adaptation-12-vk',
@@ -488,7 +501,7 @@ export const PIECE_FIXTURE_ADAPT_STREAM: PieceAdaptEventV1[] = [
     ],
     provenance: null,
     draftGaps: [],
-    checks: { antiCopy: null, slop: null },
+    checks: adaptationChecks,
   },
   { name: 'done', adaptationId: 'adaptation-12-tg', postId: 'post-412' },
 ];

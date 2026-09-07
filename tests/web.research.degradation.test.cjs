@@ -114,6 +114,11 @@ const { AgentGraphService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy': loadReal(
       'libraries/nestjs-libraries/src/content-intelligence/text-quality/anti-copy.ts'
     ),
+    // Каталог запрещённых оборотов промпта адаптации
+    // (`content-factory-next-k879.1`): настоящий, как и антикопия рядом.
+    '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases': loadReal(
+      'libraries/nestjs-libraries/src/content-intelligence/text-quality/forbidden-phrases.ts'
+    ),
     '@nestjs/common': {
       Injectable: () => (target) => target,
       Inject: () => () => {},

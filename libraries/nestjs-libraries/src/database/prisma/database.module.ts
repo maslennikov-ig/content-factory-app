@@ -77,6 +77,7 @@ import {
   VOICE_ASSIST_PORT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice.service';
 import { DRAFT_VOICE_JUDGE } from '@contentfactory/nestjs-libraries/agent/draft-pick';
+import { VOICE_CHECK_PORT } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-check.port';
 // Внутренний поиск области (`content-factory-next-m2eg.19`). Стоит в
 // глобальном `DatabaseModule`, потому что спрашивают его четверо из разных
 // модулей — архив, заготовки, факты и адаптация, — а читает он те же строки,
@@ -176,6 +177,11 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     // голосовой модуль в генерацию значило бы завести вторую сборку мерки, а
     // мерка в этом эпике одна.
     { provide: DRAFT_VOICE_JUDGE, useExisting: VoiceService },
+    // Вердикт голоса в квитанции адаптации (`content-factory-next-k879.1`).
+    // Тем же приёмом и по той же причине: заготовки и вход одной мыслью знают
+    // имя порта, а не голосовой сервис — иначе рядом с меркой отбора завелась
+    // бы вторая мерка, считающая то же число по другим границам.
+    { provide: VOICE_CHECK_PORT, useExisting: VoiceService },
     TextSearchRepository,
     TextSearchService,
     ContentMaterialRepository,

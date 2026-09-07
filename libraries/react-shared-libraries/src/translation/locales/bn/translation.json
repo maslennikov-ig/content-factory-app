@@ -1700,5 +1700,6 @@
   "settings_editor_role_required_reason": "You need an editor role in this workspace to open this settings section. Ask an administrator to grant it.",
   "close_post_window": "পোস্ট উইন্ডো বন্ধ করুন",
   "intake_door": "নতুন খসড়া",
-  "intake_door_short": "খসড়া"
+  "intake_door_short": "খসড়া",
+  "help": "সহায়তা"
 }

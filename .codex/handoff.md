@@ -6,8 +6,9 @@ Selected Beads goal: `content-factory-next-fn33`
 
 **Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
 `orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
-`553a74c9`, RELEASED as `9b538b9a2e25` 07.09 (rollback `7e2b10bf1100`, no
-schema change, `migrate diff` from the new image empty).** Source: the owner's
+`553a74c9`, RELEASED as `9b538b9a2e25` 07.09, then the audit tail `47cd8475c442`
+(private `d16a4630`, six small fixes, rollback `9b538b9a2e25`; no schema
+change either time).** Source: the owner's
 live walk of `7e2b10bf1100` (artifact `fe5e030b`, 24 notes, 5 screenshots in
 `stages/content-factory-next-fn33/evidence/walk-2026-09-07/`). Seven Opus 5
 streams in worktrees, no reviewer, no stand (owner: speed over checks); mockups
@@ -125,15 +126,27 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks `9b538b9a2e25` by the second live-test page** (new artifact `0d4916c9`; `fe5e030b` keeps the first walk with its answers,
+walks `47cd8475c442` by the second live-test page** (new artifact `0d4916c9`; `fe5e030b` keeps the first walk with its answers,
 23 steps: menu and usage, channel card, avatar from `result.json`, three
 intakes that must always create and open a piece, questions on the piece
 page, the real table, adaptation without search, the liveliness comparison
 G1–G3, «Свои тексты по теме»). Every gap to Beads first, fixes as one wave.
 The owner's standing word of 07.09 («даю все разрешения, не останавливайся»)
 covered this release; a later release still records its own permission in the
-runbook. Still his: GPG key before 16.09.2026, `fn33.159`, `or3.9`, `fn33.132`,
-`m2eg.25`.
+runbook. Still his: GPG key before 16.09.2026, `or3.9`, `fn33.132`.
+
+**Owner decisions of 07.09 (afternoon), on main as `3f713676`, not yet
+released:** `m2eg.25` closed — posts go out as the channel via the bot (Bot API
+up to 10.3 gives no human-identity channel posting; signatures off, neutral bot
+display name; `docs/product/telegram-pipeline-mvp.md`); `fn33.159` closed —
+no draft without a channel; `m2eg.26` — piece page right column shows facts
+(«На что это опирается») and ungrounded, `BriefReceipt` removed; Workspace
+rename dropped (display substitutes). Open for the owner: `fn33.28.4` carries
+the root's proposal on where checks belong (slop auto on adaptations + one
+quality line in three places, voice check as one word on FAR, delete paid
+repair); `zooh` help section — text in `docs/product/help-faq.md`, mockup
+before code; `or3.9` gained the paid-action catalogue in `tariff-levers.md`
+(question 16). Release `3f713676` after the owner's second walk, not during.
 
 ## Starter prompt for next orchestrator
 

@@ -57,6 +57,7 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   readBrief,
+  readQualityChecks,
   readQuestions as readIntakeQuestions,
   readSlopReport,
   type AntiCopyReportV1,
@@ -303,7 +304,6 @@ export function readPiecesResponse(value: unknown): PiecesResponseV1 {
 export const readAdaptation = (value: unknown): AdaptationV1 | null => {
   const record = asRecord(value);
   if (!record || typeof record.id !== 'string') return null;
-  const checks = asRecord(record.checks) ?? {};
   return {
     id: record.id,
     pieceId: asText(record.pieceId),
@@ -322,10 +322,7 @@ export const readAdaptation = (value: unknown): AdaptationV1 | null => {
     ...(typeof record.voiceVersion === 'string'
       ? { voiceVersion: record.voiceVersion }
       : {}),
-    checks: {
-      antiCopy: (asRecord(checks.antiCopy) ?? null) as AntiCopyReportV1 | null,
-      slop: readSlopReport(checks.slop),
-    },
+    checks: readQualityChecks(record.checks),
   };
 };
 
@@ -572,7 +569,6 @@ export function readAdaptEvent(line: string): PieceAdaptReading | null {
           'The adaptation arrived without an identifier.'
         );
       }
-      const checks = asRecord(record.checks) ?? {};
       return {
         kind: 'event',
         event: {
@@ -592,10 +588,7 @@ export function readAdaptEvent(line: string): PieceAdaptReading | null {
           }),
           provenance: record.provenance,
           draftGaps: asArray(record.draftGaps),
-          checks: {
-            antiCopy: (asRecord(checks.antiCopy) ?? null) as AntiCopyReportV1 | null,
-            slop: readSlopReport(checks.slop),
-          },
+          checks: readQualityChecks(record.checks),
         },
       };
     }

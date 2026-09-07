@@ -8,6 +8,7 @@ import {
   composeCopy,
   type ComposeLocale,
 } from '@contentfactory/frontend/components/new-launch/compose.copy';
+import { editorPlainText } from '@contentfactory/frontend/components/new-launch/editor-text';
 
 /**
  * «Свои тексты по теме» — справка в окне поста (`content-factory-next-m2eg.19`).
@@ -68,14 +69,9 @@ const RELATED_QUERY_CHARACTERS = 300;
 /** Короче этого искать нечего: два слова находят половину архива. */
 const RELATED_MIN_QUERY_CHARACTERS = 20;
 
-/** Разметка редактора → слова, которыми можно спрашивать. */
+/** Разметка редактора → первые триста знаков темы. */
 export const relatedQueryOf = (html: string | null | undefined): string =>
-  String(html || '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, RELATED_QUERY_CHARACTERS);
+  editorPlainText(html).slice(0, RELATED_QUERY_CHARACTERS);
 
 /**
  * Спросить дверь «свои тексты по теме» по тексту, который человек уже написал.

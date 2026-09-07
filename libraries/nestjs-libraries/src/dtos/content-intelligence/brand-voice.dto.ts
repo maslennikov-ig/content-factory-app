@@ -416,36 +416,6 @@ export class VoiceTextCheckDto {
   versionId?: string;
 }
 
-/**
- * One sentence to rewrite, and the text it stands in.
- *
- * The whole text travels because the server locates the sentence in it rather
- * than trusting an index: an index would be a promise that both sides split
- * sentences identically, and the day they disagree the wrong sentence is
- * rewritten. Only the sentence and its two neighbours reach the model.
- */
-export class VoiceRepairDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100_000)
-  text: string;
-
-  @IsString()
-  @MinLength(2)
-  @MaxLength(2_000)
-  sentence: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(400)
-  note?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  versionId?: string;
-}
-
 /** Kept so a future paging request does not invent its own spelling. */
 export class VoiceListQueryDto {
   @IsOptional()

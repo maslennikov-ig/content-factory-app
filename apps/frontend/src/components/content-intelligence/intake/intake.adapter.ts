@@ -35,6 +35,8 @@ import {
   type SlopFindingV1,
   type SlopReportV1,
   type SlopVerdictV1,
+  type AdaptationChecksV1,
+  type VoiceCheckReportV1,
   type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
@@ -357,7 +359,6 @@ export function readIntakeEvent(line: string): IntakeReading | null {
           'The draft arrived without an identifier.'
         );
       }
-      const checks = asRecord(record.checks) ?? {};
       return {
         kind: 'event',
         event: {
@@ -379,11 +380,7 @@ export function readIntakeEvent(line: string): IntakeReading | null {
           }),
           provenance: record.provenance,
           draftGaps: asArray(record.draftGaps),
-          checks: {
-            antiCopy: (asRecord(checks.antiCopy) ??
-              null) as AntiCopyReportV1 | null,
-            slop: readSlopReport(checks.slop),
-          },
+          checks: readQualityChecks(record.checks),
         },
       };
     }
@@ -523,6 +520,84 @@ export function readSlopReport(value: unknown): SlopReportV1 | null {
 }
 
 /* -------------------------------------------------------------------------
+ * Проверки текста, свёрнутые в одну строку
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Похоже ли это на вас — один ответ выше восьми шкал.
+ *
+ * Тип объявлен здесь, а не взят из контракта, нарочно. Дверь голоса отвечает
+ * `VoiceTextCheckResponseV1`, где вердикт лежит внутри `similarity`, а в
+ * `checks` черновика он приезжает отдельным полем: два места, одна мысль.
+ * Строка качества читает обе формы через `readVoiceCheck`, поэтому ей нужен
+ * ровно этот минимум, а не весь ответ мерки.
+ */
+export type VoiceCheckV1 = VoiceCheckReportV1;
+
+/** Проверки, приехавшие вместе с текстом: даром, при его сборке. */
+export type QualityChecksV1 = AdaptationChecksV1;
+
+const SILENCE_CODES = new Set([
+  'TOO_SHORT',
+  'NO_PROFILE',
+  'CANNOT_TELL',
+  'UNCALIBRATED',
+]);
+
+/** Коды молчания — не слова для человека, и наружу они не выходят. */
+export const isSilenceCode = (reason: string | undefined): boolean =>
+  !!reason && SILENCE_CODES.has(reason);
+
+const asSilenceCode = (
+  value: unknown
+): VoiceCheckReportV1['reason'] | undefined =>
+  typeof value === 'string' && SILENCE_CODES.has(value)
+    ? (value as VoiceCheckReportV1['reason'])
+    : undefined;
+
+/**
+ * Вердикт похожести из любой из двух форм ответа.
+ *
+ * `{ similarity: { verdict } }` — дверь `voice/text-check`; `{ verdict }` —
+ * поле `checks.voice` черновика. Всё остальное отбрасывается: строке качества
+ * нужны вердикт и причина, а восемь шкал и две доли ошибок живут на экране
+ * голоса.
+ */
+export function readVoiceCheck(value: unknown): VoiceCheckV1 | null {
+  const outer = asRecord(value);
+  if (!outer) return null;
+  const record = asRecord(outer.similarity) ?? outer;
+  const verdict = record.verdict;
+  if (verdict !== 'CLOSE' && verdict !== 'FAR' && verdict !== 'UNKNOWN') {
+    return null;
+  }
+  const reason = asSilenceCode(record.reason);
+  return { verdict, ...(reason ? { reason } : {}) };
+}
+
+/**
+ * `checks` события стрима — одним разбором на оба стрима.
+ *
+ * Вход и заготовка читали три поля дважды слово в слово, и `voice` пришлось
+ * бы добавлять в оба. Второй экземпляр того же разбора — это ровно тот
+ * способ, каким два стрима расходятся на третьем поле.
+ */
+export function readQualityChecks(value: unknown): QualityChecksV1 {
+  const record = asRecord(value) ?? {};
+  /*
+    Ответ без `voice` (строка списка, старый ответ) читается как «не знаем»,
+    а не как пробел в типе: контракт держит поле обязательным, и строка
+    качества на `UNKNOWN` молчит ровно так же, как на отсутствие.
+  */
+  const voice = readVoiceCheck(record.voice) ?? { verdict: 'UNKNOWN' as const };
+  return {
+    antiCopy: (asRecord(record.antiCopy) ?? null) as AntiCopyReportV1 | null,
+    slop: readSlopReport(record.slop),
+    voice,
+  };
+}
+
+/* -------------------------------------------------------------------------
  * Поля квитанции
  * ---------------------------------------------------------------------- */
 
@@ -546,18 +621,6 @@ export const FORMATS: readonly IntakeFormatV1[] = [
   'case',
   'story',
 ];
-
-/** Порядок переключения «Это не так» по кругу, без выпадающего списка. */
-export const INPUT_KIND_CYCLE: readonly IntakeInputKindV1[] = [
-  'thought',
-  'link',
-  'foreign_post',
-];
-
-export const nextInputKind = (kind: IntakeInputKindV1): IntakeInputKindV1 =>
-  INPUT_KIND_CYCLE[
-    (INPUT_KIND_CYCLE.indexOf(kind) + 1) % INPUT_KIND_CYCLE.length
-  ];
 
 /* -------------------------------------------------------------------------
  * Запрос

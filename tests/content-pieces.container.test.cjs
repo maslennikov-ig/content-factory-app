@@ -311,6 +311,120 @@ describe('the short road: started, written, done', () => {
   });
 });
 
+/* -------------------------------------------------------------------------
+ * Строка качества: одна строка под текстом вместо четырёх поверхностей
+ *
+ * Решение владельца 07.09.2026 (`content-factory-next-fn33.28.4`). До неё
+ * страница печатала вердикт всегда — и над чистой сутью говорила «находок
+ * нет · своё число есть», то есть занимала место, чтобы сообщить, что
+ * сообщать нечего. Проверяется здесь именно молчание и именно то, что
+ * найденное называется словом.
+ * ---------------------------------------------------------------------- */
+
+/** Отчёт о штампах с заданными находками. */
+const slopFound = (...excerpts) => ({
+  version: 'slop-check/1.0.0',
+  platform: 'core',
+  locale: 'ru',
+  truncated: false,
+  verdict: 'review',
+  findings: excerpts.map((excerpt, index) => ({
+    ruleId: `rule-${index}`,
+    severity: 'warn',
+    start: index * 10,
+    end: index * 10 + excerpt.length,
+    excerpt,
+    hint: { ru: 'Так пишет модель.', en: 'Model phrasing.' },
+  })),
+});
+
+const qualitySegment = (name) =>
+  document.querySelector(`[data-quality-segment="${name}"]`);
+
+describe('строка качества под сутью и под адаптацией', () => {
+  test('чистая суть не получает ни строки', async () => {
+    serve(table({}));
+    await open();
+
+    // Суть фикстуры чиста и несёт своё число: сообщать нечего.
+    expect(document.querySelector('[data-quality-line]')).toBeNull();
+    expect(document.body.textContent).not.toContain('находок нет');
+    expect(document.body.textContent).not.toContain('своё число есть');
+  });
+
+  test('находки и недостающее своё число названы словом каждое', async () => {
+    serve(
+      table({
+        detail: detailDoor(
+          ok({
+            ...fixture.PIECE_FIXTURE_DETAIL,
+            core: {
+              ...fixture.PIECE_FIXTURE_DETAIL.core,
+              slop: slopFound('в современном мире', 'не секрет, что'),
+              authorNumbers: false,
+            },
+          })
+        ),
+      })
+    );
+    await open();
+
+    expect(qualitySegment('slop').textContent).toBe('Штампов: 2');
+    expect(qualitySegment('gaps').textContent).toBe('Своих чисел нет');
+
+    // Находки лежат за нажатием, а не разворачиваются сами.
+    expect(document.querySelector('[data-slop-finding]')).toBeNull();
+    await click(qualitySegment('slop'));
+    expect(document.querySelectorAll('[data-slop-finding]').length).toBe(2);
+  });
+
+  test('проверки адаптации приезжают её событием и стоят под её текстом', async () => {
+    const stream = fixture.PIECE_FIXTURE_ADAPT_STREAM.map((event) =>
+      event.name === 'adaptation'
+        ? {
+            ...event,
+            draftGaps: [{ metric: 'carriesOwnMeasurement', authorShare: 54, authorOf: 153, example: null }],
+            checks: {
+              antiCopy: {
+                minWords: 8,
+                retried: false,
+                clean: false,
+                runs: [{ text: 'слово в слово из источника', start: 0, end: 26 }],
+              },
+              slop: slopFound('в современном мире'),
+              /*
+                `voice` приезжает в `checks` волной 07.09.2026 и на день
+                раньше типа в контракте. Разбор обязан его читать уже сейчас,
+                и обязан молчать, когда его нет.
+              */
+              voice: { verdict: 'FAR' },
+            },
+          }
+        : event
+    );
+    serve(table({ adapt: adaptDoor(streamed(stream)) }));
+    await open();
+    await adaptTo('Telegram');
+
+    expect(qualitySegment('slop').textContent).toBe('Штампов: 1');
+    expect(qualitySegment('anti-copy').textContent).toBe('Чужих фраз: 1');
+    expect(qualitySegment('voice').textContent).toBe('Не похоже на вас');
+    expect(qualitySegment('gaps').textContent).toBe('Своих чисел нет');
+
+    // И ни одной кнопки «Проверить на штампы»: проверки уже сняты даром.
+    expect(screen.queryByRole('button', { name: 'Проверить на штампы' })).toBeNull();
+  });
+
+  test('адаптация без `voice` в ответе не выдумывает вердикта', async () => {
+    serve(table({}));
+    await open();
+    await adaptTo('Telegram');
+
+    expect(document.querySelector('[data-intake-draft]')).not.toBeNull();
+    expect(qualitySegment('voice')).toBeNull();
+  });
+});
+
 describe('questions are the whole answer of that run', () => {
   test('the card is shown, no draft, and the answers go out in a second request', async () => {
     serve(
@@ -652,5 +766,105 @@ describe('the kind of an adaptation is a person’s choice', () => {
       integrationId: 'int-site',
       kind: 'newsletter',
     });
+  });
+});
+
+
+/* ---------------------------------------------------------------------- */
+
+/**
+ * На что опирается заготовка.
+ *
+ * Решением владельца 07.09.2026 несмонтированная карточка расписки удалена, а
+ * единственное, чего не было в компактной квитанции, — опоры и то, что опорой
+ * не стало, — переехало в правую колонку страницы заготовки.
+ *
+ * Проверяется ровно то, ради чего блок переносили: подтверждение стоит словом,
+ * а не одним цветом; источник ведёт наружу и назван хостом; и заголовок «На что
+ * это опирается» не встаёт над пустотой, когда опираться не на что.
+ */
+describe('what the piece rests on', () => {
+  const withBrief = (brief) => ({
+    ...fixture.PIECE_FIXTURE_DETAIL,
+    core: {
+      ...fixture.PIECE_FIXTURE_DETAIL.core,
+      brief: { ...fixture.PIECE_FIXTURE_DETAIL.core.brief, ...brief },
+    },
+  });
+
+  test('facts carry the word, the source and the line that did not make it', async () => {
+    serve(
+      table({
+        detail: detailDoor(
+          ok(
+            withBrief({
+              facts: [
+                {
+                  statement: 'Пять из шести сроков сдвинулись',
+                  origin: 'input',
+                  verified: true,
+                  sourceUrl: 'https://www.industry.synthetic.invalid/deadlines/2026',
+                },
+                {
+                  statement: 'Средний срыв по отрасли 40%',
+                  origin: 'model',
+                  verified: false,
+                },
+              ],
+              ungrounded: ['Средний срыв по отрасли 40%'],
+            })
+          )
+        ),
+      })
+    );
+    await open();
+
+    const facts = document.querySelector('[data-piece-facts]');
+    expect(facts).not.toBeNull();
+    expect(facts.textContent).toContain('Пять из шести сроков сдвинулись');
+
+    // Подтверждение — слово, и оно своё у каждой опоры, а не одно на список.
+    const words = [...facts.querySelectorAll('[data-piece-fact-verified]')];
+    expect(words.map((one) => one.getAttribute('data-piece-fact-verified'))).toEqual([
+      'true',
+      'false',
+    ]);
+    expect(words[0].textContent).toContain('подтверждено');
+    expect(words[1].textContent).toContain('не подтверждено');
+    // «не подтверждено» не должно случайно проходить проверкой на «подтверждено».
+    expect(words[1].textContent).not.toContain('в текст не вошло');
+
+    // Источник ведёт наружу и назван хостом, а не полным адресом.
+    const link = words[0].querySelector('a');
+    expect(link.getAttribute('href')).toBe(
+      'https://www.industry.synthetic.invalid/deadlines/2026'
+    );
+    expect(link.textContent).toBe('industry.synthetic.invalid');
+    expect(link.getAttribute('target')).toBe('_blank');
+    // У опоры без адреса ссылки нет вовсе — пустой «—» здесь ничего не сообщал бы.
+    expect(words[1].querySelector('a')).toBeNull();
+
+    // То, что подтвердить нечем, стоит отдельно от опор и названо своими словами.
+    const ungrounded = [...document.querySelectorAll('[data-piece-ungrounded]')];
+    expect(ungrounded.map((one) => one.textContent)).toEqual([
+      'Средний срыв по отрасли 40%',
+    ]);
+    expect(document.body.textContent).toContain('На что это опирается');
+    expect(document.body.textContent).toContain('Не подтвердилось и в текст не вошло');
+  });
+
+  test('nothing to rest on: no heading over an empty block', async () => {
+    serve(
+      table({
+        detail: detailDoor(ok(withBrief({ facts: [], ungrounded: [] }))),
+      })
+    );
+    await open();
+
+    // Квитанция на месте — исчезает только блок опор.
+    expect(document.querySelector('[data-piece-receipt]')).not.toBeNull();
+    expect(document.querySelector('[data-piece-facts]')).toBeNull();
+    expect(document.querySelector('[data-piece-ungrounded]')).toBeNull();
+    expect(document.body.textContent).not.toContain('На что это опирается');
   });
 });

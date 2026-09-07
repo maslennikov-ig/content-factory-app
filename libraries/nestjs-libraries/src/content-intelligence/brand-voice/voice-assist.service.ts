@@ -7,11 +7,6 @@ import {
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { mapResultSchema, reduceResultSchema } from './assist.contract';
 import {
-  REPAIR_SCHEMA_NAME,
-  repairResultSchema,
-  type RepairResult,
-} from './sentence-repair';
-import {
   runAssist,
   type AssistProgressEvent,
   type AssistResult,
@@ -190,47 +185,6 @@ export class VoiceAssistService {
   }
 
   /**
-   * One sentence, rewritten.
-   *
-   * A separate call rather than a stage of the assist pipeline, because it is
-   * a different economy: the pipeline maps over a whole corpus once, this
-   * carries a sentence and its two neighbours and runs while somebody waits.
-   * The system line says what the boundary is, and the fact guard in
-   * `sentence-repair.ts` enforces it afterwards — a rule stated to a model is a
-   * request, not a guarantee.
-   */
-  async repair(input: VoiceRepairInput): Promise<RepairResult> {
-    return this._aiUsage.executeAiOperation(
-      input.organizationId,
-      'text_generation',
-      async () => {
-        const client = await getOpenAiClient(input.organizationId);
-        const completion = await client.chat.completions.parse({
-          model: await getModelForRole(input.organizationId),
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Ты правишь одно предложение под манеру автора. Смысл, числа, имена и ссылки сохраняются дословно. Соседние предложения даны только для контекста и не переписываются.',
-            },
-            { role: 'user', content: input.prompt },
-          ],
-          response_format: zodResponseFormat(
-            repairResultSchema,
-            REPAIR_SCHEMA_NAME
-          ),
-        });
-        const parsed = completion.choices[0]?.message?.parsed;
-        if (!parsed) throw new Error('model returned no structured answer');
-        return parsed;
-      },
-      // Weighing and rewriting one sentence against the author's manner: the
-      // expensive half of the voice work, and the one worth a capable model.
-      'judge'
-    );
-  }
-
-  /**
    * Один вызов на пачку правок, и роль у него самая дешёвая из текстовых.
    *
    * `extract`, а не `judge`: здесь ничего не пишут и ничего не взвешивают —
@@ -271,11 +225,6 @@ export class VoiceAssistService {
   }
 }
 
-export type VoiceRepairInput = {
-  organizationId: string;
-  prompt: string;
-};
-
 export type VoiceLearnInput = {
   organizationId: string;
   prompt: string;
@@ -284,8 +233,6 @@ export type VoiceLearnInput = {
 /** What `voice.service.ts` depends on, so it never imports a model client. */
 export type VoiceAssistPort = {
   propose(input: VoiceAssistInput): Promise<VoiceAssistOutcome>;
-  /** Optional: an older wiring without it simply cannot offer the repair. */
-  repair?(input: VoiceRepairInput): Promise<RepairResult>;
   /**
    * Необязательный по той же причине: сборка без него просто не предлагает
    * учиться на правках, вместо того чтобы падать при старте.

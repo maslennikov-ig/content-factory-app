@@ -34,7 +34,7 @@
  *    page text, splitting a body into posts, reading a voice off samples.
  *  - `research` — the web-research fallback that both searches and answers.
  *  - `draft` — writing something a person will read: posts, slides, prompts.
- *  - `judge` — weighing or repairing a draft against the workspace's voice.
+ *  - `judge` — weighing a draft against the workspace's voice.
  *  - `image` — generating a picture.
  */
 export const AI_ROLES = [

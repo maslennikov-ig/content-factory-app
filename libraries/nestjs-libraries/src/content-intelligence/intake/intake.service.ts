@@ -52,6 +52,15 @@ import type {
   IntakeGenerationHintsV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import { slopCheck as runSlopCheck } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/slop-check';
+/*
+  Вердикт голоса — портом, а не голосовым сервисом: имя, а не класс. То же
+  устройство, что у мерки отбора черновика в графе.
+*/
+import {
+  VOICE_CHECK_PORT,
+  VOICE_CHECK_SILENT,
+  type VoiceCheckPort,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-check.port';
 import { INTAKE_HINTS_VERSION } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import {
   WebResearchService,
@@ -213,7 +222,6 @@ export type IntakePlanV1 = {
   briefOverrides: Record<string, string>;
   options: {
     searchEnrichment: boolean;
-    slopCheck: boolean;
     isPicture: boolean;
   };
   brandProfileSelection?: { mode: 'active' | 'version' | 'none'; versionId?: string };
@@ -279,7 +287,21 @@ export class IntakeService {
      * волны, а до его слияния вход обязан работать без неё —
      * `checks.slop` тогда просто `null`.
      */
-    @Optional() slopCheck: SlopCheckPort | null = null
+    @Optional() slopCheck: SlopCheckPort | null = null,
+    /**
+     * Вердикт голоса для квитанции черновика (`content-factory-next-k879.1`).
+     *
+     * Последним и необязательным: порядок параметров — часть договора с
+     * наборами, которые собирают сервис руками. Без него квитанция говорит
+     * `UNKNOWN` с причиной, а не выдаёт молчание за одобрение.
+     *
+     * `@Inject` рядом с `@Optional()`: тип параметра — объединение с `null`,
+     * метаданные для объединения пишут `Object`, и Nest молча подставил бы
+     * `undefined` при зелёных наборах.
+     */
+    @Optional()
+    @Inject(VOICE_CHECK_PORT)
+    private readonly voiceCheck: VoiceCheckPort | null = null
   ) {
     this.now = now || (() => new Date());
     this.parse = parse || parseSourcePayload;
@@ -405,9 +427,14 @@ export class IntakeService {
       ),
       skipInterview: body?.skipInterview === true,
       briefOverrides: overrides,
+      /*
+        `slopCheck` здесь больше не читается (`content-factory-next-k879.1`):
+        штампы считаются на каждом черновике сами. Клиент, который всё ещё
+        присылает флаг, получает то же самое — проверяющий с `whitelist: true`
+        снимает незнакомое поле молча, и отказа не случается.
+      */
       options: {
         searchEnrichment: body?.options?.searchEnrichment !== false,
-        slopCheck: body?.options?.slopCheck === true,
         isPicture: body?.options?.isPicture === true,
       },
       brandProfileSelection: body?.brandProfileSelection,
@@ -1717,14 +1744,28 @@ export class IntakeService {
         selectionHash: output.selectionHash ?? null,
       },
       draftGaps: Array.isArray(output.draftGaps) ? output.draftGaps : [],
+      /**
+       * Квитанция проверок: считается сама, на каждом черновике.
+       *
+       * До 07.09.2026 штампы считались только при `options.slopCheck === true`,
+       * которого не присылал ни один клиент, — то есть не считались никогда.
+       * Обе проверки бесплатны: каталог штампов — арифметика, вердикт голоса —
+       * та же мерка разбора, что и кнопка в ленте голоса.
+       */
       checks: {
         // Антикопию считает граф (поток S2 волны); пока не считает — `null`,
         // и это честнее выдуманной единицы.
         antiCopy: output.antiCopy ?? null,
-        slop:
-          plan.options.slopCheck && this.slopCheck
-            ? this.slopCheck(plain, channel.providerIdentifier, plan.language)
-            : null,
+        slop: this.slopCheck
+          ? this.slopCheck(plain, channel.providerIdentifier, plan.language)
+          : null,
+        voice: this.voiceCheck
+          ? await this.voiceCheck.voiceCheckFor(
+              organizationId,
+              plain,
+              plan.language
+            )
+          : VOICE_CHECK_SILENT,
       },
     };
     return { postId, event };

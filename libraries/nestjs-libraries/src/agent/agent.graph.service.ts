@@ -80,6 +80,11 @@ import {
   sharedRuns,
 } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy';
 import type { AntiCopyReportV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+/**
+ * Каталог запрещённых оборотов — тот же, что у промпта сути. Один список на
+ * обе половины решения: проверка ловит после, промпт запрещает до.
+ */
+import { forbiddenPhrasesRule } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases';
 
 interface WorkflowChannelsState {
   messages: BaseMessage[];
@@ -882,6 +887,22 @@ export class AgentGraphService {
         - Use the hook as inspiration
         - Make sure it's engaging
         - Don't be cringy
+        ${
+          /**
+           * Тот же каталог штампов, что запрещён промпту сути
+           * (`content-intelligence/text-quality/forbidden-phrases.ts`,
+           * `content-factory-next-k879.1`). Решение владельца 07.09.2026:
+           * проверка ловит оборот после, промпт запрещает его до, и адаптация
+           * под канал — тот самый текст, который человек увидит. До этой
+           * волны список доходил только до сути, то есть до текста, который
+           * никуда не публикуется.
+           *
+           * Едет переменной шаблона, а не строкой в него: фраза каталога с
+           * фигурной скобкой стала бы для `ChatPromptTemplate` именем
+           * переменной, и промпт упал бы на подстановке.
+           */
+          ''
+        }- {forbidden}
         - ${contentLanguageInstruction(state.language)}
         - The Content should not contain the hook
         ${
@@ -946,6 +967,9 @@ export class AgentGraphService {
         hook: state.hook,
         request: state.messages[0].content,
         information: this.researchText(state),
+        forbidden: forbiddenPhrasesRule(
+          (state.language as 'ru' | 'en') || 'ru'
+        ),
         repairHint,
       });
       return Array.isArray(outputContent)

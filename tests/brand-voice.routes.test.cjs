@@ -1273,9 +1273,9 @@ describe('the scales, the strip and the check on generated text', () => {
   /**
    * A workspace with a measured, activated voice.
    *
-   * `extra` adds ports the analysis itself does not need — the sentence repair
-   * is one — without replacing the grounded `propose` every test here relies
-   * on to get a voice activated in the first place.
+   * `extra` adds ports the analysis itself does not need, without replacing
+   * the grounded `propose` every test here relies on to get a voice activated
+   * in the first place.
    */
   const measured = async (extra = {}) => {
     const calls = [];
@@ -1517,127 +1517,79 @@ describe('the scales, the strip and the check on generated text', () => {
   });
 
   /**
-   * One sentence at a time, with the meaning proved to have survived.
+   * Тот же ответ одним словом — для квитанции адаптации
+   * (`content-factory-next-k879.1`, решение владельца 07.09.2026).
    *
-   * The owner decided on 2026-08-24 that a low similarity warns and offers a
-   * pointwise repair rather than a regeneration: regenerating loses the facts
-   * and the order of thought the text was written for, costs a full call
-   * instead of a short one, and can carry the style further away on the second
-   * pass than the first did.
+   * Проверки живут там, где текст окончателен. Мерка та же и такая же
+   * бесплатная; наружу уходит вердикт и причина молчания, а не отпечаток с
+   * шеренгой — вторая сборка мерки однажды разъехалась бы с первой бесшумно.
    */
-  describe('repairing one sentence', () => {
+  describe('the same verdict in one word, for the adaptation receipt', () => {
+    test('a space with no voice answers UNKNOWN and says why', async () => {
+      const { service } = harness();
+
+      expect(
+        await service.voiceCheckFor('org-a', 'Короткий текст.', 'ru')
+      ).toEqual({ verdict: 'UNKNOWN', reason: 'NO_PROFILE' });
+    });
+
+    test('an empty text is not measured at all', async () => {
+      const { service } = harness();
+
+      expect(await service.voiceCheckFor('org-a', '   ', 'ru')).toEqual({
+        verdict: 'UNKNOWN',
+        reason: 'TOO_SHORT',
+      });
+    });
+
+    /**
+     * Не роняет генерацию. Адаптация без вердикта лучше адаптации, не дошедшей
+     * до человека, поэтому упавшая мерка отвечает молчанием, а не исключением.
+     */
+    test('a measurement that throws becomes silence, never a failure', async () => {
+      const { service } = harness();
+      service.textCheck = async () => {
+        throw new Error('the library refused');
+      };
+
+      expect(
+        await service.voiceCheckFor('org-a', 'Какой-то текст.', 'ru')
+      ).toEqual({ verdict: 'UNKNOWN', reason: 'NO_PROFILE' });
+    });
+
+    test('a measured voice answers with the same verdict the check gives', async () => {
+      const { service } = await measured();
+      const text = `${PARAGRAPH}`;
+
+      const check = await service.textCheck(admin, { text });
+      const short = await service.voiceCheckFor('org-a', text, 'ru');
+
+      expect(short.verdict).toBe(check.similarity.verdict);
+      expect(short.reason).toBe(check.similarity.reason);
+    });
+  });
+
+  /**
+   * Места, а не приговор целому тексту.
+   *
+   * Правка предложения моделью убрана 07.09.2026
+   * (`content-factory-next-k879.1`): в продукте её никто не звал. Проверка
+   * осталась и осталась бесплатной, и то, ради чего она нужна, — вот это:
+   * каждая находка указывает на своё предложение, а не на текст целиком.
+   */
+  test('the check hands back places, and none of them is a whole text', async () => {
     const CLERICAL =
       'Осуществление отгрузки продукции производится согласно утверждённому графику на 12 дней.';
-
-    const repairing = (answers) => {
-      const calls = [];
-      const queue = [...answers];
-      return {
-        calls,
-        assist: {
-          repair: async (input) => {
-            calls.push(input.prompt);
-            return queue.shift();
-          },
-        },
-      };
-    };
-
-    test('rewrites the named sentence and carries its numbers through', async () => {
-      const { calls, assist } = repairing([
-        {
-          sentence: 'Отгружаем по графику — 12 дней.',
-          note: 'Убрал канцелярит, оставил срок.',
-        },
-      ]);
-      const { service } = await measured({ assist });
-
-      const answer = await service.repairSentence(admin, {
-        text: `${PARAGRAPH} ${CLERICAL}`,
-        sentence: CLERICAL,
-        note: 'Канцелярские слова: осуществление.',
-      });
-
-      expect(answer.sentence).toBe(CLERICAL);
-      expect(answer.proposal).toBe('Отгружаем по графику — 12 дней.');
-      expect(answer.keptFacts).toContain('12');
-      // One sentence and its two neighbours reach the model, not the post.
-      expect(calls).toHaveLength(1);
-      expect(calls[0]).toContain(CLERICAL);
-      expect(calls[0]).not.toContain(PARAGRAPH);
+    const { service } = await measured();
+    const check = await service.textCheck(admin, {
+      text: `${PARAGRAPH} ${CLERICAL}`,
     });
 
-    test('refuses a rewrite that dropped a number, twice', async () => {
-      const { calls, assist } = repairing([
-        { sentence: 'Отгружаем по графику.', note: 'Короче.' },
-        { sentence: 'Отгрузка идёт по графику.', note: 'Ещё короче.' },
-      ]);
-      const { service } = await measured({ assist });
-
-      await expect(
-        service.repairSentence(admin, {
-          text: `${PARAGRAPH} ${CLERICAL}`,
-          sentence: CLERICAL,
-        })
-      ).rejects.toMatchObject({ code: 'VOICE_REPAIR_UNGROUNDED', status: 502 });
-      // Asked twice and no more: a third attempt is the same bill for the same
-      // answer.
-      expect(calls).toHaveLength(2);
-    });
-
-    test('asks once when the model returns the sentence unchanged', async () => {
-      const { calls, assist } = repairing([
-        { sentence: CLERICAL, note: 'Здесь всё в порядке.' },
-      ]);
-      const { service } = await measured({ assist });
-
-      await expect(
-        service.repairSentence(admin, {
-          text: `${PARAGRAPH} ${CLERICAL}`,
-          sentence: CLERICAL,
-        })
-      ).rejects.toMatchObject({ code: 'VOICE_REPAIR_UNGROUNDED' });
-      expect(calls).toHaveLength(1);
-    });
-
-    test('says the text moved rather than repairing the wrong sentence', async () => {
-      const { assist } = repairing([]);
-      const { service } = await measured({ assist });
-
-      await expect(
-        service.repairSentence(admin, {
-          text: PARAGRAPH,
-          sentence: 'Этого предложения в тексте нет.',
-        })
-      ).rejects.toMatchObject({
-        code: 'VOICE_SENTENCE_NOT_FOUND',
-        status: 409,
-      });
-    });
-
-    test('offers nothing at all when no model is wired', async () => {
-      const { service } = await measured();
-
-      await expect(
-        service.repairSentence(admin, {
-          text: `${PARAGRAPH} ${CLERICAL}`,
-          sentence: CLERICAL,
-        })
-      ).rejects.toMatchObject({ code: 'VOICE_ASSIST_UNAVAILABLE' });
-    });
-
-    test('the check hands back places, and none of them is a whole text', async () => {
-      const { service } = await measured();
-      const check = await service.textCheck(admin, {
-        text: `${PARAGRAPH} ${CLERICAL}`,
-      });
-
-      expect(Array.isArray(check.spots)).toBe(true);
-      for (const spot of check.spots) {
-        expect(check.plainText.slice(spot.start, spot.end)).toBe(spot.sentence);
-        expect(spot.note.length).toBeGreaterThan(0);
-      }
-    });
+    expect(Array.isArray(check.spots)).toBe(true);
+    for (const spot of check.spots) {
+      expect(check.plainText.slice(spot.start, spot.end)).toBe(spot.sentence);
+      expect(spot.note.length).toBeGreaterThan(0);
+    }
   });
 
   test('the strip says no-profile before a voice exists', async () => {

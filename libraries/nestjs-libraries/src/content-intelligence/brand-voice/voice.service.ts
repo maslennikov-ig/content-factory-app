@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
   BrandAvatarRowV1,
   BrandProfileContentV1,
@@ -29,9 +29,7 @@ import { prepareSamples, type SampleOrigin, type SampleRightsState } from './sam
 import { parseUploadedFiles, type FileUpload } from './file-intake';
 import { checkText, planInjections, renderVoiceInjection } from './voice-retention';
 import { htmlToPlainText } from './html-text';
-import { RU_LOCALE_PACK } from './locale-pack.ru';
 import type { PostHabitMetricKey } from './post-habits';
-import { locateSentences } from './text-spots';
 import { emptyLocalePack, packFor } from './locale-pack';
 import { measureSimilarity } from './voiceprint';
 import { impostorsFor } from './impostor-sets';
@@ -93,12 +91,8 @@ import { deviationsForCorpus, type NormMetricKey } from './voice-norm';
 import { phraseDeviation } from './voice-norm.phrasing';
 
 import { normFor } from './voice-norm.sets';
-import {
-  buildRepairPrompt,
-  extractFacts,
-  judgeRepair,
-} from './sentence-repair';
 import { VoiceError } from './voice-errors';
+import { VOICE_CHECK_SILENT } from './voice-check.port';
 import {
   buildMeasurementMetrics,
   VoiceSampleRepository,
@@ -164,8 +158,7 @@ import {
   type VoiceScaleEntryV1,
   type VoiceScalesResponseV1,
   type VoiceScreenStateV1,
-  type VoiceRepairRequestV1,
-  type VoiceRepairResponseV1,
+  type VoiceCheckReportV1,
   type VoiceTextCheckRequestV1,
   type VoiceTextCheckResponseV1,
   type VoiceVersionSummaryV1,
@@ -376,6 +369,9 @@ const metricsOf = (
 
 @Injectable()
 export class VoiceService {
+  /** Только для проверок, которые обязаны молчать вместо падения. */
+  private readonly logger = new Logger(VoiceService.name);
+
   constructor(
     private readonly _samples: VoiceSampleRepository,
     private readonly _profiles: VoiceProfileRepository,
@@ -3585,6 +3581,51 @@ export class VoiceService {
   }
 
   /**
+   * Тот же ответ одним словом — для квитанции адаптации.
+   *
+   * `content-factory-next-k879.1`, решение владельца 07.09.2026: проверки
+   * живут там, где текст окончателен. Считает та же бесплатная мерка, что и
+   * кнопка в ленте голоса; платного вызова на этом пути нет ни одного.
+   *
+   * Не бросает никогда. Голос — это предупреждение, а не ворота: адаптация,
+   * не дошедшая до человека из-за упавшей проверки, хуже адаптации без
+   * вердикта. Упавшая мерка отвечает `UNKNOWN`, и это правда — сказать
+   * нечего.
+   *
+   * Аватар не называется: берётся действующий у области, тот самый, которым
+   * текст и написан.
+   */
+  async voiceCheckFor(
+    organizationId: string,
+    text: string,
+    locale: 'ru' | 'en' = 'ru'
+  ): Promise<VoiceCheckReportV1> {
+    if (!text.trim()) return { verdict: 'UNKNOWN', reason: 'TOO_SHORT' };
+    try {
+      /*
+        Проверка не спрашивает о правах: она читает разбор собственной области
+        и ничего не меняет. Поля прав здесь стоят закрытыми, чтобы синтетический
+        actor не оказался пропуском, если у мерки однажды появится ветка по
+        роли.
+      */
+      const { similarity } = await this.textCheck(
+        { organizationId, userId: '', canManage: false, locale },
+        { text }
+      );
+      return similarity.reason
+        ? { verdict: similarity.verdict, reason: similarity.reason }
+        : { verdict: similarity.verdict };
+    } catch (error) {
+      this.logger.warn(
+        `Проверка голоса не ответила: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return VOICE_CHECK_SILENT;
+    }
+  }
+
+  /**
    * Чем судить черновик, написанный этой версией голоса.
    *
    * Порт для графа генерации (`agent/draft-pick.ts`): наружу уходит функция и
@@ -3625,113 +3666,6 @@ export class VoiceService {
         measureSimilarity(text.slice(0, CALIBRATION_CUT), print, pack, lineup)
           .votes,
     };
-  }
-
-  /**
-   * One sentence rewritten, with the rest of the text untouched by
-   * construction.
-   *
-   * The model is handed the sentence, its two neighbours and the author's own
-   * corridor, and nothing else of the draft. That is the owner's decision of
-   * 2026-08-24 in code: a regeneration loses the facts and the order of thought
-   * the text was written for, costs a full call instead of a short one, and can
-   * carry the style further away on the second pass than the first did.
-   *
-   * Nothing is applied here. The answer goes back as a proposal beside the
-   * original, and the person decides.
-   */
-  async repairSentence(
-    actor: VoiceActor,
-    body: VoiceRepairRequestV1
-  ): Promise<VoiceRepairResponseV1> {
-    if (!this._assist?.repair) {
-      throw new VoiceError(
-        'VOICE_ASSIST_UNAVAILABLE',
-        'Правка предложения требует модели, а она не подключена. Текст не изменён.'
-      );
-    }
-
-    const { activeVersion } = await this._profiles.overview(
-      actor.organizationId,
-      actor.avatarId
-    );
-    const measurement = await this.measurementForActiveVersion(
-      actor.organizationId,
-      activeVersion
-    );
-    if (!measurement) {
-      throw new VoiceError(
-        'VOICE_PROFILE_NOT_FOUND',
-        'Разбора под действующий голос нет: править предложение не под что.'
-      );
-    }
-
-    const plain = htmlToPlainText(body.text);
-    const pack = RU_LOCALE_PACK;
-    const located = locateSentences(plain, pack);
-    const target = located.find((one) => one.text === body.sentence.trim());
-    if (!target) {
-      throw new VoiceError(
-        'VOICE_SENTENCE_NOT_FOUND',
-        'Это предложение больше не найдено в тексте — похоже, текст изменился. Проверьте заново.'
-      );
-    }
-    const index = located.indexOf(target);
-    const facts = extractFacts(target.text);
-
-    const scales = metricsOf(measurement).scales;
-    const sentenceLength = scales.sentenceLength;
-    const corridor = isScaleValue(sentenceLength)
-      ? { low: sentenceLength.low, high: sentenceLength.high }
-      : null;
-
-    const prompt = buildRepairPrompt({
-      sentence: target.text,
-      before: index > 0 ? located[index - 1].text : null,
-      after: index + 1 < located.length ? located[index + 1].text : null,
-      note: body.note?.trim() || 'Фраза расходится с обычной манерой автора.',
-      corridor,
-      // The author's own sentences, from the scales that kept an example. A
-      // rule list does not teach a manner; a line of the person's own writing
-      // does, and these are already stored beside the numbers.
-      examples: Object.values(scales)
-        .filter(isScaleValue)
-        .map((scale) => scale.exampleText)
-        .filter((one): one is string => !!one)
-        .slice(0, 3),
-      facts,
-      locale: actor.locale ?? 'ru',
-    });
-
-    let last: { proposal: string; reason?: string } | null = null;
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const answer = await this._assist.repair({
-        organizationId: actor.organizationId,
-        prompt,
-      });
-      const proposal = answer.sentence.trim();
-      const judged = judgeRepair(target.text, proposal, facts);
-      if (judged.ok) {
-        return {
-          sentence: target.text,
-          proposal,
-          note: answer.note,
-          keptFacts: judged.verdict.kept,
-        };
-      }
-      last = { proposal, reason: judged.reason };
-      // `UNCHANGED` is the model agreeing there is nothing to fix. Asking twice
-      // for the same sentence would only spend the quota again.
-      if (judged.reason === 'UNCHANGED') break;
-    }
-
-    throw new VoiceError(
-      'VOICE_REPAIR_UNGROUNDED',
-      last?.reason === 'UNCHANGED'
-        ? 'Модель вернула то же предложение: править нечего. Текст не изменён.'
-        : 'Правка теряла числа или имена из вашего предложения. Показывать её не будем — исходное предложение осталось как было.',
-      target.text
-    );
   }
 }
 

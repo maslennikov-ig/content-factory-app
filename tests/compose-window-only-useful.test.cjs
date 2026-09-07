@@ -36,6 +36,7 @@ const FILES = {
   tags: 'apps/frontend/src/components/launches/tags.component.tsx',
   repeat: 'apps/frontend/src/components/launches/repeat.component.tsx',
   stage: 'apps/frontend/src/components/launches/editorial-stage.select.tsx',
+  quality: 'apps/frontend/src/components/new-launch/draft-quality.line.tsx',
 };
 
 const read = (relative) =>
@@ -65,6 +66,73 @@ describe('the post window gives only what is useful', () => {
     expect(manage).not.toContain('VoiceRibbonContainer');
     expect(manage).not.toContain('AppliedVoiceLine');
     expect(manage).not.toContain('compatibility_sources');
+  });
+
+  /**
+   * Контейнер ленты голоса удалён, а не оставлен «на всякий случай».
+   *
+   * 04.09.2026 окно перестало его звать, и с тех пор он не жил нигде: файл на
+   * пятьсот строк, свой маршрут и своя платная правка предложения — и ни
+   * одного места, откуда всё это поднималось бы. 07.09.2026 владелец решил
+   * судьбу вопроса «похоже ли это на вас»: он стал отрезком строки качества
+   * под редактором, а платная правка снята совсем.
+   *
+   * Ленточка сама (`voice-ribbon.tsx`) осталась: её берёт `AppliedVoiceLine` в
+   * генераторе, и там она отвечает на настоящий вопрос.
+   */
+  test('the dead strip container is gone, and its paid repair with it', () => {
+    for (const dead of [
+      'apps/frontend/src/components/brand-voice/voice-ribbon.container.tsx',
+      'apps/frontend/src/components/brand-voice/voice-spots.tsx',
+    ]) {
+      expect(fs.existsSync(path.join(repositoryRoot, dead))).toBe(false);
+    }
+
+    // Ни один файл продукта не зовёт платную правку предложения.
+    const line = code(FILES.quality);
+    expect(line).not.toContain('text-check/repair');
+    expect(code(FILES.manage)).not.toContain('text-check/repair');
+
+    // А презентационная ленточка на месте: её берёт генератор.
+    expect(
+      fs.existsSync(
+        path.join(
+          repositoryRoot,
+          'apps/frontend/src/components/brand-voice/voice-ribbon.tsx'
+        )
+      )
+    ).toBe(true);
+  });
+
+  /**
+   * Строка качества стоит под редактором, а не сбоку от него.
+   *
+   * Решение владельца 07.09.2026 (`content-factory-next-fn33.28.4`): одна
+   * строка под текстом в трёх местах. Здесь судится место и то, что окно её
+   * не ждёт: ни одна кнопка низа не смотрит на её ответ.
+   */
+  test('the quality line stands under the editor and gates nothing', () => {
+    const manage = code(FILES.manage);
+
+    expect(manage).toContain('<DraftQualityLine');
+    const editorMount = manage.indexOf('<EditorWrapper');
+    const lineMount = manage.indexOf('<DraftQualityLine');
+    expect(editorMount).toBeGreaterThan(-1);
+    expect(lineMount).toBeGreaterThan(editorMount);
+
+    // Ни `publishDisabled`, ни `blockReason` о ней не знают.
+    const gate = manage.slice(
+      manage.indexOf('const publishDisabled'),
+      manage.indexOf('const schedule')
+    );
+    expect(gate).not.toContain('DraftQualityLine');
+    expect(gate).not.toContain('quality');
+
+    // Двери бесплатные и считают без модели: платного отсюда не зовётся.
+    const line = code(FILES.quality);
+    expect(line).toContain('slopCheck');
+    expect(line).toContain('/text-check');
+    expect(line).not.toContain('repair');
   });
 
   test('the line counts the confirmations behind this post', () => {

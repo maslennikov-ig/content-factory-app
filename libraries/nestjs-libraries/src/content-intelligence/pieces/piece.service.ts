@@ -60,6 +60,7 @@ import type {
   PieceTargetV1,
   PiecesQueryV1,
   PiecesResponseV1,
+  AdaptationChecksV1,
   RelatedOwnPostV1,
   SlopReportV1,
   ZagotovkaCoreV1,
@@ -97,6 +98,15 @@ import {
   type ChannelWritingProfileV1,
 } from '../channels/channel-writing-profile';
 import { questionsForChannel } from '../channels/channel-questions';
+/*
+  Вердикт голоса — портом, а не голосовым сервисом: имя, а не класс. То же
+  устройство, что у мерки отбора черновика в графе.
+*/
+import {
+  VOICE_CHECK_PORT,
+  VOICE_CHECK_SILENT,
+  type VoiceCheckPort,
+} from '../brand-voice/voice-check.port';
 import { editorHtml } from '../brief/editor-html';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { singleLinkOf } from '../intake/intake-kind';
@@ -212,7 +222,21 @@ export class PieceService {
      */
     @Optional()
     @Inject(TextSearchService)
-    private readonly search: TextSearchService | null = null
+    private readonly search: TextSearchService | null = null,
+    /**
+     * Вердикт голоса для квитанции адаптации (`content-factory-next-k879.1`).
+     *
+     * Тоже последним и необязательным — порядок параметров здесь часть
+     * договора с наборами. Без него квитанция говорит `UNKNOWN` с причиной, а
+     * не молчит и не выдумывает `CLOSE`.
+     *
+     * `@Inject` рядом с `@Optional()` по той же причине, что и у поиска выше:
+     * тип параметра — объединение с `null`, метаданные для объединения пишут
+     * `Object`, и Nest молча подставил бы `undefined` при зелёных наборах.
+     */
+    @Optional()
+    @Inject(VOICE_CHECK_PORT)
+    private readonly voiceCheck: VoiceCheckPort | null = null
   ) {
     this.now = now || (() => new Date());
     this.slopCheck = slopCheck || defaultSlopCheck;
@@ -653,16 +677,27 @@ export class PieceService {
     // заготовки уже вправе на неё сослаться (`content-factory-next-m2eg.19`).
     this.search?.invalidate(organizationId);
 
-    const checks = {
+    /**
+     * Квитанция проверок: считается сама, на каждой адаптации.
+     *
+     * До 07.09.2026 штампы считались только при `options.slopCheck === true`,
+     * которого не присылал ни один клиент, — то есть не считались никогда.
+     * Решение владельца (`fn33.28.4`): проверки живут там, где текст
+     * окончателен, и просить о них не надо. Обе бесплатны: каталог штампов —
+     * арифметика, вердикт голоса — та же мерка разбора, что и кнопка в ленте.
+     */
+    const checks: AdaptationChecksV1 = {
       antiCopy: output.antiCopy ?? null,
-      slop:
-        plan.request?.options?.slopCheck === true && this.slopCheck
-          ? this.slopCheck(
-              plain,
-              plan.channel.providerIdentifier,
-              plan.language
-            )
-          : null,
+      slop: this.slopCheck
+        ? this.slopCheck(plain, plan.channel.providerIdentifier, plan.language)
+        : null,
+      voice: this.voiceCheck
+        ? await this.voiceCheck.voiceCheckFor(
+            organizationId,
+            plain,
+            plan.language
+          )
+        : VOICE_CHECK_SILENT,
     };
     const adaptation: AdaptationV1 = {
       id: row.id,

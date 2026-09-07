@@ -2,21 +2,24 @@
 
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
+import type { QualityChecksV1 } from '../intake/intake.adapter';
 import { intakeCopy, type IntakeLocale } from '../intake/intake.copy';
-import { SlopFindings } from '../intake/slop-findings';
+import { QualityLine } from './quality-line';
 
 /**
  * Готовый текст и то, что рядом с ним: общий блок входа и страницы заготовки.
  *
  * `content-factory-next-tu3k.9.9`, поток Z5. До этой волны блок жил внутри
  * `intake.screen.tsx`, и странице заготовки он понадобился слово в слово —
- * текст, «Открыть в редакторе», «Проверить на штампы» и находки. Второй такой
- * же блок рядом с первым — это два разных ответа на вопрос «что показать
- * после генерации» через месяц, поэтому он вынесен, а не скопирован.
+ * текст, «Открыть в редакторе» и то, что о тексте известно. Второй такой же
+ * блок рядом с первым — это два разных ответа на вопрос «что показать после
+ * генерации» через месяц, поэтому он вынесен, а не скопирован.
  *
- * Блок ничего не просит у сервера сам, кроме проверки на штампы, которая и
- * раньше была запросом по нажатию внутри `SlopFindings`: решение владельца
- * 06.09.2026 (пункт 6) — проверка не запускается сама и ничего не правит.
+ * Блок ничего не просит у сервера — вообще ничего. До 07.09.2026 здесь стояла
+ * кнопка «Проверить на штампы»: человек, только что получивший текст, должен
+ * был сам догадаться нажать её, чтобы узнать о нём хоть что-то. Проверки
+ * приезжают вместе с текстом даром (`checks`), и строка качества называет
+ * только то, на что стоит взглянуть. Чистому тексту она не говорит ничего.
  *
  * Заголовок и правая колонка отданы вызывающему (`aside`): у входа справа
  * стоит квитанция брифа, у страницы заготовки — то, что решает она сама.
@@ -26,9 +29,8 @@ export function DraftResult({
   locale,
   title,
   text,
-  platform,
-  /** Меняется на каждую пересборку: находки прошлого текста стираются с ним. */
-  slopKey,
+  checks,
+  draftGaps,
   onOpenEditor,
   openEditorLabel,
   actions,
@@ -37,8 +39,10 @@ export function DraftResult({
   locale: IntakeLocale;
   title?: string;
   text: string;
-  platform?: string;
-  slopKey?: string;
+  /** Проверки, снятые сервером при сборке этого текста. */
+  checks?: QualityChecksV1 | null;
+  /** Чего в тексте нет из привычек автора — приезжает тем же событием. */
+  draftGaps?: readonly unknown[] | null;
   onOpenEditor?: () => void;
   openEditorLabel?: string;
   /** Кнопки рядом с «Открыть в редакторе» — например «Пересобрать». */
@@ -59,6 +63,13 @@ export function DraftResult({
         >
           {text}
         </article>
+        <QualityLine
+          locale={locale}
+          slop={checks?.slop}
+          antiCopy={checks?.antiCopy}
+          voice={checks?.voice}
+          draftGaps={draftGaps}
+        />
         <div className="flex flex-wrap gap-[8px]">
           {onOpenEditor && (
             <Button type="button" variant="primary" onClick={onOpenEditor}>
@@ -69,15 +80,7 @@ export function DraftResult({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-[16px]">
-        {aside}
-        <SlopFindings
-          key={slopKey ?? 'draft-result'}
-          locale={locale}
-          text={text}
-          platform={platform}
-        />
-      </div>
+      <div className="flex min-w-0 flex-col gap-[16px]">{aside}</div>
     </div>
   );
 }
