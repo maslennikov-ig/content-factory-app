@@ -9,21 +9,22 @@ import {
 import { ReviewLocaleProvider } from '../../interface-review/review-i18n';
 import { IntakeScreen, type IntakeChannel } from './intake.screen';
 import { intakeCopy } from './intake.copy';
-import type { BriefFilledV1, IntakeScreenState } from './intake.adapter';
+import type { IntakeScreenState } from './intake.adapter';
 
 /**
  * Экран входа во всех девяти состояниях, без единого запроса.
  *
- * Смотреть здесь надо не на «нарисовалось», а на четыре места, где этот
- * экран легче всего сделать неправильно: причина, по которой «Написать» не
+ * Смотреть здесь надо не на «нарисовалось», а на три места, где этот экран
+ * легче всего сделать неправильно: причина, по которой «Написать» не
  * нажимается, — читается ли она рядом с кнопкой; строка хода — стоит ли она
- * там же, у кнопки, а не отдельной надписью ниже; квитанция — не теряется ли
- * слово «предположение» рядом с «из вашего текста»; и две колонки результата
- * на 768 и 390 — кто из них остаётся первым.
+ * там же, у кнопки, а не отдельной надписью ниже; и последний кадр — строка
+ * «Заготовка сохранена» с кодом, единственное, что этот экран показывает
+ * после хода.
  *
- * Состояния вопросов здесь больше нет: с волны `content-factory-next-m2eg`
- * уточнения живут на странице заготовки, и `selected` показывает вставленную
- * ссылку с выбранным каналом — то, что человек видит перед нажатием.
+ * Ни вопросов, ни готового текста с квитанцией здесь больше нет: волна
+ * `content-factory-next-m2eg` увела уточнения на страницу заготовки, а хвост
+ * `m2eg.21` — и сам текст. `selected` показывает вставленную ссылку с
+ * выбранным каналом, то есть кадр перед нажатием.
  */
 
 export const INTAKE_REVIEW_STATES = [
@@ -57,65 +58,23 @@ const CHANNELS: readonly IntakeChannel[] = [
   },
 ];
 
-const BRIEF: BriefFilledV1 = {
-  inputKind: 'foreign_post',
-  goal: 'показать, что рост даётся дисциплиной, а не рынком',
-  thesis:
-    'Рост на 37% случился не из-за рынка, а из-за отказа от половины продуктов',
-  position: 'Я бы на их месте резал ещё жёстче',
-  disagreement: 'Те, кто считает, что широкая линейка защищает от просадок',
-  audience: 'владельцы небольших студий, которые ведут канал сами',
-  format: 'expert',
-  facts: [
-    {
-      statement: 'выручка достигла 4,2 млрд',
-      sourceUrl: 'https://example.test/report',
-      factId: null,
-      evidenceId: 'ev-1',
-      origin: 'search',
-      verified: true,
-    },
-    {
-      statement: 'присутствие в 12 странах',
-      sourceUrl: null,
-      factId: null,
-      evidenceId: null,
-      origin: 'input',
-      verified: false,
-    },
-  ],
-  origins: {
-    thesis: 'input',
-    position: 'model',
-    disagreement: 'model',
-    audience: 'avatar',
-    goal: 'model',
-    format: 'model',
-  },
-  ungrounded: ['присутствие в 12 странах'],
-};
+/** Заготовка, записанная ходом: код и адрес — всё, что экран о ней говорит. */
+const PIECE = { pieceId: 'piece-12', code: 'cnt-07' };
 
-const DRAFT =
-  'Рост на 37% — не подарок рынка.\n\nКомпания выручила 4,2 млрд [E1] после того, как закрыла половину линейки [E2]. Я бы резал ещё жёстче.\n\nЧто вы оставили бы последним?';
-
-const LONG_DRAFT = `${DRAFT}\n\n${Array.from({ length: 6 })
+/** Длинная мысль в поле: проверяет перенос и ширину колонки ввода. */
+const LONG_INPUT = `Рост на 37% случился не из-за рынка.\n\n${Array.from({
+  length: 6,
+})
   .map(
     () =>
-      'Дальше идёт длинный абзац, который проверяет перенос, ширину колонки и то, что квитанция рядом не сжимается до нечитаемого столбика из двух букв на строку.'
+      'Дальше идёт длинный абзац, который проверяет перенос, ширину поля и то, что кнопка с причиной рядом не уезжает за край.'
   )
   .join('\n\n')}`;
-
-const LONG_BRIEF: BriefFilledV1 = {
-  ...BRIEF,
-  thesis:
-    'Рост на тридцать семь процентов случился не потому, что рынок вырос сам, а потому что компания за один квартал отказалась от половины линейки продуктов и переставила всех освободившихся людей на два оставшихся направления, и это решение принималось не советом директоров, а одним человеком на одной встрече.',
-};
 
 export const scene = defineInterfaceReviewScene({
   id: 'content-intelligence/intake',
   fixture: {
     channels: CHANNELS.map((one) => one.id),
-    facts: BRIEF.facts.length,
   },
   states: INTAKE_REVIEW_STATES,
 });
@@ -138,8 +97,8 @@ const NOTES: Partial<Record<InterfaceReviewState, { ru: string; en: string }>> =
     en: 'A link is recognised, a channel is picked, and Telegram shows its writing card door.',
   },
   success: {
-    ru: 'Черновик и квитанция. Смотрите на «предположение» рядом с позицией и на «не подтверждено» у факта.',
-    en: 'The draft and the receipt. Look at «an assumption» beside the position and at the unconfirmed fact.',
+    ru: 'Заготовка записана: код назван, «Открыть заготовку» рядом. Дальше экран уходит на её страницу сам.',
+    en: 'The piece is recorded: its code is named and «Open the piece» is beside it. The screen then leaves for its page.',
   },
   error: {
     ru: 'Не написалось. Ответ неполный — сказано прямо, что ничего не сохранено.',
@@ -154,8 +113,8 @@ const NOTES: Partial<Record<InterfaceReviewState, { ru: string; en: string }>> =
     en: 'A run is in flight: the field and buttons are off, the step is named, «Cancel» is beside it.',
   },
   'long-content': {
-    ru: 'Длинный тезис и длинный текст: колонки не ломаются, квитанция не сжимается.',
-    en: 'A long thesis and a long text: the columns hold and the receipt does not shrink.',
+    ru: 'Длинная мысль в поле: перенос держится, кнопка с причиной рядом не уезжает за край.',
+    en: 'A long thought in the field: the wrapping holds and the button with its reason stays on screen.',
   },
 };
 
@@ -177,7 +136,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
   const t = intakeCopy[locale];
   const note = NOTES[context.state];
   const long = context.state === 'long-content';
-  const showsDraft = state === 'draft';
+  const showsPiece = state === 'draft';
 
   return (
     <ReviewLocaleProvider locale={locale}>
@@ -194,6 +153,8 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
                 ? 'https://example.test/post'
                 : state === 'idle'
                 ? ''
+                : long
+                ? LONG_INPUT
                 : 'Рост на 37% случился не из-за рынка.'
             }
             inputKind={context.state === 'selected' ? 'link' : 'foreign_post'}
@@ -206,10 +167,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             }
             language={locale}
             step={state === 'streaming' ? 'writing' : null}
-            brief={showsDraft ? (long ? LONG_BRIEF : BRIEF) : null}
-            overrides={{}}
-            draftText={showsDraft ? (long ? LONG_DRAFT : DRAFT) : null}
-            draftPlatform="telegram"
+            piece={showsPiece ? PIECE : null}
             blocked={
               state === 'checking'
                 ? 'checking'
@@ -219,17 +177,12 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             }
             errorMessage={t.errorIncomplete}
             restrictedReason={t.restrictedTitle}
-            slopKey="review"
             onInputChange={() => undefined}
             onToggleChannel={() => undefined}
             onLanguageChange={() => undefined}
             onWrite={() => undefined}
             onCancel={() => undefined}
-            onOverride={() => undefined}
-            onKindChange={() => undefined}
-            onRevertOverrides={() => undefined}
-            onRebuild={() => undefined}
-            onOpenEditor={() => undefined}
+            onOpenPiece={() => undefined}
             onOpenWritingProfile={() => undefined}
             onManual={() => undefined}
             onRetry={() => undefined}

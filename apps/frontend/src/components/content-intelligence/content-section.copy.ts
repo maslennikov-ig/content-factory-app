@@ -51,7 +51,7 @@ export const contentSectionCopy = {
     archive: 'Что уже написали',
     materialsTitle: 'Материалов пока нет',
     materialsBody:
-      'Материал — готовый текст, который живёт отдельно от публикации и перекраивается под площадку. Материалы приходят сюда с вкладки «Бриф»: собранный черновик остаётся здесь материалом, и его можно перекроить под другую площадку, не переписывая заново.',
+      'Материал — готовый текст, который живёт отдельно от публикации и перекраивается под площадку. Материалы приходят сюда с вкладки «Новая заготовка»: собранный черновик остаётся здесь материалом, и его можно перекроить под другую площадку, не переписывая заново.',
     // Not «Раздел готовится», which promised a tab under construction over a
     // library that already read and recut. It is simply empty until the brief
     // has been used once, and the body says where the first row comes from.
@@ -86,7 +86,7 @@ export const contentSectionCopy = {
     archive: 'Archive',
     materialsTitle: 'No material yet',
     materialsBody:
-      'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the Brief tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
+      'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the New piece tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
     materialsPending: 'Nothing here yet',
     briefViewLabel: 'How to start',
     briefViewIntake: 'From a thought',

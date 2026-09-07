@@ -112,8 +112,6 @@ export const intakeCopy = {
     /* --- Результат -------------------------------------------------------- */
     draftTitle: 'Черновик',
     openInEditor: 'Открыть в редакторе',
-    rebuild: 'Пересобрать',
-    draftOpened: 'Черновик открыт в редакторе. Он уже сохранён как черновик поста.',
 
     /* --- Проверка на штампы ----------------------------------------------- */
     slopCheck: 'Проверить на штампы',
@@ -262,8 +260,6 @@ export const intakeCopy = {
 
     draftTitle: 'Draft',
     openInEditor: 'Open in the editor',
-    rebuild: 'Rebuild',
-    draftOpened: 'The draft is open in the editor. It is already saved as a draft post.',
 
     slopCheck: 'Check for clichés',
     slopChecking: 'Checking…',

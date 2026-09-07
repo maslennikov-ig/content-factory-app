@@ -83,7 +83,7 @@ const userContext = loadTypeScriptModule(
 
 const QUESTIONS = [
   { field: 'thesis', question: 'Что именно вы утверждаете?' },
-  { field: 'facts', question: 'На чём это стоит?' },
+  { field: 'facts', question: 'На что это опирается?' },
   { field: 'position', question: 'Что вы об этом думаете?' },
   { field: 'disagreement', question: 'С чем здесь можно не согласиться?' },
   { field: 'audience', question: 'Для кого это?' },

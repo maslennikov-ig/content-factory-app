@@ -87,7 +87,7 @@ export const factsShowcaseCopy = {
     // (`content-section.tabs.ts`). Форма добавления факта живёт на вкладке
     // «Бриф», в блоке «Или запомните новый факт»; английская строка ниже
     // называла её правильно всё это время.
-    body: 'Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Добавляют факты там, где пишут: во вкладке «Бриф».',
+    body: 'Что продукт считает правдой о вашем деле и откуда он это взял. Чего здесь нет — он в текст не поставит. Добавляют факты там, где пишут: во вкладке «Новая заготовка».',
     searchLabel: 'Искать по словам',
     searchHint:
       'Ищет по утверждению, теме и значению. Найдётся то, где встречаются все слова.',
@@ -102,7 +102,7 @@ export const factsShowcaseCopy = {
     retractedHidden: 'Скрыты',
     retractedShown: 'Показаны',
     shown: (visible: number, total: number) => `Показано ${visible} из ${total}`,
-    empty: 'Фактов пока нет. Их добавляют во вкладке «Бриф», в момент письма.',
+    empty: 'Фактов пока нет. Их добавляют во вкладке «Новая заготовка», в момент письма.',
     emptyFiltered: 'Ничего не найдено. Измените фильтры или поиск.',
     loading: 'Загружаем список фактов',
     listFallback: 'Список фактов не загрузился. Попробуйте ещё раз.',
@@ -154,7 +154,7 @@ export const factsShowcaseCopy = {
   },
   en: {
     title: 'Where facts come from',
-    body: 'What the product treats as true about your business and where it took that from. Whatever is not here does not go into a text. Facts are added where writing happens: the Brief tab.',
+    body: 'What the product treats as true about your business and where it took that from. Whatever is not here does not go into a text. Facts are added where writing happens: the New piece tab.',
     searchLabel: 'Search by words',
     searchHint:
       'Searches the claim, the topic and the value. A row matches when every word is in it.',
@@ -169,7 +169,7 @@ export const factsShowcaseCopy = {
     retractedHidden: 'Hidden',
     retractedShown: 'Shown',
     shown: (visible: number, total: number) => `Showing ${visible} of ${total}`,
-    empty: 'No facts yet. They are added on the Brief tab, while writing.',
+    empty: 'No facts yet. They are added on the New piece tab, while writing.',
     emptyFiltered: 'Nothing matches. Try different filters or search.',
     loading: 'Loading the facts',
     listFallback: 'The fact list did not load. Try again.',

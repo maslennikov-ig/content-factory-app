@@ -137,6 +137,8 @@ export const MenuGroupComponent: FC<
       isOver: !!monitor.isOver(),
     }),
   }));
+  /** Свёрнуто группу нечем раскрыть, поэтому она раскрыта. */
+  const showChannels = collapsed || isOpen;
   return (
     <div
       className="gap-[16px] flex flex-col relative"
@@ -150,31 +152,44 @@ export const MenuGroupComponent: FC<
           </div>
         </div>
       )}
-      {!!group.name && (
-        <div
-          className="flex items-center gap-[5px] cursor-pointer"
-          onClick={changeOpenClose}
-        >
-          <div>
-            <OpenClose isOpen={isOpen} />
-          </div>
+      {/*
+        `content-factory-next-m2eg.21`, хвост живого прогона 07.09.2026.
+        Свёрнутая рейка — колонка в 100px под один знак: имя группы там
+        обрезалось до пары букв, а стрелка раскрытия отнимала у него ещё
+        одиннадцать. Заголовок из двух обрезков — это не заголовок.
+
+        Поэтому свёрнуто группа остаётся тем, чем она и была для глаза, —
+        тонкой чертой между колонками знаков (`RAIL_DIVIDER`, тот же
+        разделитель, что стоит над списком). Имя не пропадает: оно уходит в
+        подсказку по наведению и в подпись для чтения с экрана. Стрелки нет,
+        и сворачивать нечего — свёрнутая группа считается раскрытой, иначе
+        каналы прятались бы за элементом управления, которого не видно.
+      */}
+      {!!group.name &&
+        (collapsed ? (
           <div
-            className="line-clamp-1"
-            {...(collapsed
-              ? {
-                  'data-tooltip-id': 'tooltip',
-                  'data-tooltip-content': group.name,
-                }
-              : {})}
+            className={RAIL_DIVIDER}
+            data-tooltip-id="tooltip"
+            data-tooltip-content={group.name}
+            title={group.name}
           >
-            {group.name}
+            <span className="sr-only">{group.name}</span>
           </div>
-        </div>
-      )}
+        ) : (
+          <div
+            className="flex items-center gap-[5px] cursor-pointer"
+            onClick={changeOpenClose}
+          >
+            <div>
+              <OpenClose isOpen={isOpen} />
+            </div>
+            <div className="line-clamp-1">{group.name}</div>
+          </div>
+        ))}
       <div
         className={clsx(
           'gap-[12px] flex flex-col relative',
-          !isOpen && 'hidden'
+          !showChannels && 'hidden'
         )}
       >
         {group.values.map((integration) => (

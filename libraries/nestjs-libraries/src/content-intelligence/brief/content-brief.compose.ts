@@ -24,7 +24,7 @@ import { escape, paragraph } from './editor-html';
 export type ComposeLanguage = 'ru' | 'en';
 
 const LABELS = {
-  ru: { facts: 'На чём это стоит', source: 'источник', against: 'С чем можно не согласиться' },
+  ru: { facts: 'На что это опирается', source: 'источник', against: 'С чем можно не согласиться' },
   en: { facts: 'What it rests on', source: 'source', against: 'What somebody could disagree with' },
 } as const;
 

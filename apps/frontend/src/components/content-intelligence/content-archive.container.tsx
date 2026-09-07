@@ -110,8 +110,11 @@ const copy = {
     retry: 'Повторить',
     purpose:
       'Отсюда модель берёт ссылки на ваши старые тексты: когда новый пост о том же, она может сказать «я уже писал об этом» и дать адрес.',
-    showText: 'Показать текст',
-    hideText: 'Скрыть текст',
+    // «Показать текст» ничего не обещало сверх того, что уже видно: в строке
+    // и так стоит начало текста. Кнопка разворачивает его целиком
+    // (`content-factory-next-m2eg.20`, хвост живого прогона 07.09.2026).
+    showText: 'Текст целиком',
+    hideText: 'Свернуть текст',
     // «Разбор» ничего не обещало человеку: разбор чего и кем. Кнопка
     // открывает список фактов и источников, на которых стоит текст
     // (`content-factory-next-m2eg.20`).
@@ -200,8 +203,8 @@ const copy = {
     retry: 'Retry',
     purpose:
       'This is where the model finds your earlier texts: when a new post is about the same thing, it can say “I have written about this” and give the link.',
-    showText: 'Show text',
-    hideText: 'Hide text',
+    showText: 'Full text',
+    hideText: 'Collapse',
     grounding: 'Where it came from',
     importAction: 'Bring in a text',
     postsWord: (n: number) => `published: ${n}`,

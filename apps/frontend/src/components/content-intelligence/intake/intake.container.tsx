@@ -4,17 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { useModals } from '../../layout/new-modal';
 import { useIntegrationList } from '../../launches/helpers/use.integration.list';
 import { useUser } from '../../layout/user.context';
 import type { Integrations } from '../../launches/calendar.context';
 import { createNdjsonSplitter } from '../../new-launch/ndjson';
-import {
-  EDITOR_MODAL,
-  editorChannels,
-  editorDate,
-  postEndpoint,
-} from '../../brand-voice/voice-materials.adapter';
 import {
   ContentReadOnlyNote,
   writeRightFromRole,
@@ -34,11 +27,8 @@ import {
   readIntakeEvent,
   screenState,
   type BriefFilledV1,
-  type IntakeInputKindV1,
-  type ReceiptField,
 } from './intake.adapter';
 import { piecePath } from '../pieces/pieces.adapter';
-import type { BriefOverrides } from './brief.receipt';
 import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 
 /**
@@ -79,17 +69,14 @@ export function IntakeContainer({
   integrations: given,
   prefill,
   onSwitchToManual,
-  onDraftOpened,
 }: {
   surface: 'calendar' | 'brief';
   /** Список каналов, когда он уже есть у вызывающего (стенд, календарь). */
   integrations?: readonly Integrations[];
   prefill?: { input: string; sourceLeadId?: string } | null;
   onSwitchToManual?: () => void;
-  onDraftOpened?: () => void;
 }) {
   const request = useFetch();
-  const modal = useModals();
   const t = useT();
   const { language } = useVariables();
   const locale = resolveContentLocale(language);
@@ -134,19 +121,17 @@ export function IntakeContainer({
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
-  const [draft, setDraft] = useState<{
-    postId: string;
-    integrationId: string;
-    text: string;
-  } | null>(null);
-  const [overrides, setOverrides] = useState<BriefOverrides>({});
-  const [kindOverride, setKindOverride] = useState<IntakeInputKindV1 | undefined>();
+  /*
+    Черновик остаётся фактом хода, а не текстом на экране
+    (`content-factory-next-m2eg.21`). Экран уходит на страницу заготовки, и
+    читают текст там; здесь важно только, написалось ли что-нибудь, — по этому
+    `screenState` отличает `draft` от `idle`.
+  */
+  const [wrote, setWrote] = useState(false);
   const [failure, setFailure] = useState<{ title: string; message: string } | null>(
     null
   );
-  const [notice, setNotice] = useState<string | null>(null);
   const [profileFor, setProfileFor] = useState<string | null>(null);
-  const [runId, setRunId] = useState(0);
   /*
     Заготовка волны `tu3k.9`: она записывается до цикла по каналам и до единого
     вопроса, поэтому её код приходит раньше черновика и живёт отдельно от него
@@ -192,7 +177,7 @@ export function IntakeContainer({
     // остаётся в вызове, потому что его читают другие ветки состояния.
     hasChannel: true,
     busy,
-    draft: draft !== null,
+    draft: wrote,
     failed: failure !== null,
   });
 
@@ -225,20 +210,14 @@ export function IntakeContainer({
    * Один ход
    * ------------------------------------------------------------------ */
 
-  const run = useCallback(
-    async (extra: {
-      briefOverrides?: BriefOverrides;
-      inputKind?: IntakeInputKindV1;
-    }) => {
+  const run = useCallback(async () => {
       abort.current?.abort();
       const controller = new AbortController();
       abort.current = controller;
 
       setBusy(true);
       setFailure(null);
-      setNotice(null);
       setStep('started');
-      setRunId((current) => current + 1);
 
       try {
         const response = await request(INTAKE_API.intake, {
@@ -249,8 +228,6 @@ export function IntakeContainer({
               input,
               integrationIds: selectedIds,
               language: language0,
-              briefOverrides: extra.briefOverrides,
-              inputKind: extra.inputKind ?? kindOverride,
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
                 : {}),
@@ -319,21 +296,14 @@ export function IntakeContainer({
             case 'channel-started':
               setStep('writing');
               break;
-            case 'draft': {
+            case 'draft':
+              // Черновики сохранены сервером как DRAFT и открываются из
+              // календаря и со страницы заготовки. Здесь остаётся только
+              // отметка «написалось» — показывать текст экрану, который сейчас
+              // уйдёт, незачем.
               sawDraft = true;
-              const text = event.content.map((one) => one.content).join('\n\n');
-              // Первый черновик — тот, что показан. Остальные каналы всё
-              // равно сохранены в DRAFT и открываются из календаря; показывать
-              // три текста подряд на одном экране было бы третьим списком.
-              setDraft((current) =>
-                current ?? {
-                  postId: event.postId,
-                  integrationId: event.integrationId,
-                  text,
-                }
-              );
+              setWrote(true);
               break;
-            }
             case 'error':
               setFailure({ title: w.errorTitle, message: event.message });
               break;
@@ -376,82 +346,25 @@ export function IntakeContainer({
         setStep(null);
       }
     },
-    [goToPiece, input, kindOverride, language0, prefill?.sourceLeadId, request, selectedIds, w]
+    [goToPiece, input, language0, prefill?.sourceLeadId, request, selectedIds, w]
   );
 
   const write = useCallback(() => {
-    setDraft(null);
+    setWrote(false);
     setBrief(null);
-    setOverrides({});
     setPiece(null);
-    void run({});
+    void run();
   }, [run]);
-
-  const rebuild = useCallback(() => {
-    setDraft(null);
-    void run({ briefOverrides: overrides, inputKind: kindOverride });
-  }, [kindOverride, overrides, run]);
 
   const retry = useCallback(() => {
     setFailure(null);
-    void run({});
+    void run();
   }, [run]);
-
-  /* ---------------------------------------------------------------------
-   * Редактор
-   * ------------------------------------------------------------------ */
-
-  /**
-   * Открытие черновика — тот же след, что у вкладки «Бриф».
-   *
-   * Пост уже сохранён сервером как DRAFT, поэтому здесь только чтение
-   * `GET /posts/:id` и то же самое окно поста, что открывается из календаря.
-   * Окно не меняется вовсе (решение владельца 04.09 «только полезное»);
-   * строка происхождения появится в нём сама из сохранённого контекста.
-   *
-   * Редактор — самое тяжёлое дерево в приложении, поэтому он приезжает по
-   * нажатию, а не вместе с экраном.
-   */
-  const openEditor = useCallback(async () => {
-    if (!draft) return;
-    try {
-      const response = await request(postEndpoint(draft.postId));
-      if (!response.ok) throw new Error('post unavailable');
-      const existing = await response.json();
-      const [{ AddEditModal }, { ExistingDataContextProvider }] =
-        await Promise.all([
-          import('../../new-launch/add.edit.modal'),
-          import('../../launches/helpers/use.existing.data'),
-        ]);
-      const editorChannelList = editorChannels(existing, channels);
-      modal.openModal({
-        ...EDITOR_MODAL,
-        children: (
-          <ExistingDataContextProvider value={existing}>
-            <AddEditModal
-              allIntegrations={editorChannelList.allIntegrations}
-              integrations={editorChannelList.integrations}
-              date={editorDate(existing)}
-              reopenModal={() => void openEditor()}
-              mutate={() => undefined}
-            />
-          </ExistingDataContextProvider>
-        ),
-      });
-      setNotice(w.draftOpened);
-      onDraftOpened?.();
-    } catch {
-      setFailure({ title: w.errorTitle, message: w.errorFallback });
-    }
-  }, [channels, draft, modal, onDraftOpened, request, w]);
 
   /* ------------------------------------------------------------------ */
 
   const readOnlyNoteId = 'intake-read-only';
   const pickerChannels: readonly IntakeChannel[] = available;
-  const draftPlatform = available.find(
-    (one) => one.id === draft?.integrationId
-  )?.identifier;
 
   return (
     <>
@@ -466,15 +379,9 @@ export function IntakeContainer({
         language={language0}
         step={step}
         piece={piece}
-        brief={brief}
-        overrides={overrides}
-        kindOverride={kindOverride}
-        draftText={draft?.text ?? null}
-        draftPlatform={draftPlatform}
         blocked={blocked}
         errorTitle={failure?.title}
         errorMessage={failure?.message}
-        notice={notice}
         // Та же фраза, которой отвечают остальные двери модели: одна беда —
         // одно объяснение, и оно уже переведено на шестнадцать языков.
         restrictedReason={t(
@@ -492,7 +399,6 @@ export function IntakeContainer({
             </ContentReadOnlyNote>
           ) : undefined
         }
-        slopKey={`${draft?.postId ?? 'none'}-${runId}`}
         onInputChange={setInput}
         onToggleChannel={toggleChannel}
         onLanguageChange={setTextLanguage}
@@ -504,16 +410,6 @@ export function IntakeContainer({
           setStep(null);
         }}
         onOpenPiece={goToPiece}
-        onOverride={(field: ReceiptField, value: string) =>
-          setOverrides((current) => ({ ...current, [field]: value }))
-        }
-        onKindChange={setKindOverride}
-        onRevertOverrides={() => {
-          setOverrides({});
-          setKindOverride(undefined);
-        }}
-        onRebuild={rebuild}
-        onOpenEditor={() => void openEditor()}
         onOpenWritingProfile={setProfileFor}
         onManual={onSwitchToManual}
         onRetry={retry}

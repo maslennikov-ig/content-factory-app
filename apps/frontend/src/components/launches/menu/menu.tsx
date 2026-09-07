@@ -404,7 +404,13 @@ export const Menu: FC<{
       <MenuButton
         aria-label={t('channel_menu', 'Channel menu')}
         density="dense"
-        className="cursor-pointer flex items-center justify-center w-[24px] px-0"
+        /*
+          32×32, ровно гнездо `RAIL_QUIET_SLOT`, в котором кнопка стоит
+          (`content-factory-next-m2eg.21`). Раньше нажималось 24 в ширину при
+          32 в высоту: у пальца оставалась узкая полоса, а вокруг неё — восемь
+          пустых точек, которые выглядят частью кнопки и ничего не делают.
+        */
+        className="cursor-pointer flex items-center justify-center w-[32px] px-0"
         onClick={(event) => event.stopPropagation()}
       >
       <svg

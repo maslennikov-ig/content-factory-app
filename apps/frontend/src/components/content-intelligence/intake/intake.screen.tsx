@@ -15,15 +15,11 @@ import {
   Status,
 } from '../../ui/surface';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
-import { BriefReceipt, type BriefOverrides } from './brief.receipt';
-import { DraftResult } from '../shared/draft-result';
 import { intakeActionLabel } from './intake.adapter';
 import type {
-  BriefFilledV1,
   IntakeBlockReason,
   IntakeInputKindV1,
   IntakeScreenState,
-  ReceiptField,
 } from './intake.adapter';
 
 /**
@@ -46,9 +42,11 @@ import type {
  * текстом, а не всплывающей подсказкой: правило системы — выключенный
  * элемент объясняет себя, и объяснение это текст.
  *
- * Результат — две колонки: слева текст, справа квитанция и находки. Текст
- * шире (3:2), потому что читают его, а не расписку; на узком экране колонки
- * встают друг под друга, и первым остаётся текст.
+ * Готового текста здесь нет вовсе — `content-factory-next-m2eg.21`, хвост
+ * живого прогона 07.09.2026. Черновик с квитанцией рисовались и здесь, и на
+ * странице заготовки: экран уходит на неё сам, поэтому вторая копия успевала
+ * только мигнуть между первым каналом и концом стрима. Читают текст там, где
+ * его правят, — на странице заготовки.
  *
  * Вопросов на этом экране больше нет — волна `content-factory-next-m2eg`.
  * Заготовка теперь записывается до них, экран уходит на её страницу, и
@@ -72,29 +70,17 @@ export function IntakeScreen({
   language,
   step,
   piece,
-  brief,
-  overrides,
-  kindOverride,
-  draftText,
-  draftPlatform,
   blocked,
   errorTitle,
   errorMessage,
-  notice,
   restrictedReason,
   readOnlyNote,
-  slopKey,
   onInputChange,
   onToggleChannel,
   onLanguageChange,
   onWrite,
   onCancel,
   onOpenPiece,
-  onOverride,
-  onKindChange,
-  onRevertOverrides,
-  onRebuild,
-  onOpenEditor,
   onOpenWritingProfile,
   onManual,
   onRetry,
@@ -111,30 +97,17 @@ export function IntakeScreen({
   step: string | null;
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
   piece?: { pieceId: string; code: string } | null;
-  brief: BriefFilledV1 | null;
-  overrides: BriefOverrides;
-  kindOverride?: IntakeInputKindV1;
-  draftText: string | null;
-  draftPlatform?: string;
   blocked: IntakeBlockReason;
   errorTitle?: string;
   errorMessage?: string;
-  notice?: string | null;
   restrictedReason: ReactNode;
   readOnlyNote?: ReactNode;
-  /** Меняется на каждую пересборку: находки прошлого текста стираются вместе с ним. */
-  slopKey: string;
   onInputChange: (value: string) => void;
   onToggleChannel: (integration: ChannelPickerIntegration) => void;
   onLanguageChange: (language: 'ru' | 'en') => void;
   onWrite: () => void;
   onCancel: () => void;
   onOpenPiece?: (pieceId: string) => void;
-  onOverride: (field: ReceiptField, value: string) => void;
-  onKindChange: (kind: IntakeInputKindV1) => void;
-  onRevertOverrides: () => void;
-  onRebuild: () => void;
-  onOpenEditor: () => void;
   onOpenWritingProfile: (integrationId: string) => void;
   onManual?: () => void;
   onRetry: () => void;
@@ -147,10 +120,6 @@ export function IntakeScreen({
     (id) => channels.find((channel) => channel.id === id)?.name,
     t
   );
-  const receiptDirty =
-    Object.keys(overrides).length > 0 ||
-    (kindOverride !== undefined && brief !== null && kindOverride !== brief.inputKind);
-
   const blockedWord =
     blocked === 'input'
       ? t.blockedNoInput
@@ -169,7 +138,7 @@ export function IntakeScreen({
     <section
       data-content-panel="intake"
       data-intake-state={state}
-      data-intake-kind={kindOverride ?? inputKind ?? 'unknown'}
+      data-intake-kind={inputKind ?? 'unknown'}
       aria-busy={busy}
       className="flex min-w-0 flex-col gap-[16px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
@@ -417,47 +386,6 @@ export function IntakeScreen({
                     </Button>
                   )}
                 </span>
-              }
-            />
-          )}
-
-          {notice && (
-            <p role="status" className="cf-body-sm text-cf-accent">
-              {notice}
-            </p>
-          )}
-
-          {draftText !== null && brief && (
-            /*
-              Блок результата общий с страницей заготовки
-              (`shared/draft-result.tsx`): текст, «Открыть в редакторе»,
-              проверка на штампы и находки. Квитанция — то, что этот экран
-              ставит рядом со своим текстом, и она остаётся его решением.
-            */
-            <DraftResult
-              locale={locale}
-              text={draftText}
-              platform={draftPlatform}
-              slopKey={slopKey}
-              onOpenEditor={onOpenEditor}
-              actions={
-                receiptDirty ? (
-                  <Button type="button" variant="secondary" onClick={onRebuild}>
-                    {t.rebuild}
-                  </Button>
-                ) : null
-              }
-              aside={
-                <BriefReceipt
-                  locale={locale}
-                  brief={brief}
-                  overrides={overrides}
-                  kindOverride={kindOverride}
-                  readOnly={state === 'read-only'}
-                  onOverride={onOverride}
-                  onKindChange={onKindChange}
-                  onRevert={onRevertOverrides}
-                />
               }
             />
           )}

@@ -13,10 +13,8 @@
  *  - тонкий ввод даёт заготовку с первого же хода и уходит на её страницу:
  *    второго запроса нет вовсе, а вопросы уехали туда, где стоит суть
  *    (`content-factory-next-m2eg`, живой прогон 07.09.2026);
- *  - чужой пост показывает подтверждённое и неподтверждённое разными
- *    строками: число, которого нет в тексте, обязано быть названо;
- *  - правка квитанции уходит на сервер только по «Пересобрать» и только как
- *    `briefOverrides`;
+ *  - готового текста и квитанции на этом экране нет вовсе: с `m2eg.21` их
+ *    рисует страница заготовки, на которую экран уходит сам;
  *  - третьего круга расспросов нет, и это решается на экране, до запроса;
  *  - уход с экрана обрывает ход.
  */
@@ -336,76 +334,42 @@ describe('a thin thought is answered with a piece, not with a dead end', () => {
   });
 });
 
-describe('somebody else’s post: what was checked, and what stayed out', () => {
-  test('a confirmed fact and an unconfirmed one read as two different things', async () => {
+describe('somebody else’s post: the screen leaves, it does not display', () => {
+  /*
+    `content-factory-next-m2eg.21`, хвост живого прогона 07.09.2026. Текст,
+    квитанция и находки рисовались и здесь, и на странице заготовки, а экран
+    уходит на неё сам — здешняя копия успевала только мигнуть между первым
+    каналом и концом стрима. Судится то, что осталось: ход прошёл, заготовка
+    названа кодом, переход случился, а второго места для того же брифа больше
+    нет.
+  */
+  test('the run finishes and nothing of the draft is drawn here', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('foreign-post')))));
     await open();
     await start('Чужой пост про выручку 4,2 млрд и рост на 37% в 12 странах');
 
     expect(panel().getAttribute('data-intake-state')).toBe('draft');
-    const facts = document.querySelectorAll('[data-brief-fact-verified]');
-    expect(facts.length).toBeGreaterThanOrEqual(2);
-    const verified = [...facts].map((one) =>
-      one.getAttribute('data-brief-fact-verified')
-    );
-    expect(verified).toContain('true');
-    expect(verified).toContain('false');
-    const unconfirmed = [...facts].find(
-      (one) => one.getAttribute('data-brief-fact-verified') === 'false'
-    );
-    expect(unconfirmed.textContent).toContain('не подтверждено — в текст не вошло');
+    expect(document.querySelector('[data-intake-draft]')).toBeNull();
+    expect(document.querySelector('[data-brief-receipt]')).toBeNull();
+    expect(document.querySelectorAll('[data-brief-fact-verified]')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Открыть в редакторе' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Пересобрать' })).toBeNull();
   });
 
-  test('the draft is shown as text, and the receipt says where each line came from', async () => {
+  test('what stays is the piece code and the move to its page', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('foreign-post')))));
     await open();
     await start('Чужой пост про выручку');
 
-    expect(document.querySelector('[data-intake-draft]').textContent).toContain(
-      'Рост на 37%'
-    );
-    const receipt = document.querySelector('[data-brief-receipt]');
-    expect(receipt.getAttribute('data-brief-receipt-dirty')).toBe('false');
-    expect(
-      receipt
-        .querySelector('[data-brief-receipt-row="thesis"] [data-brief-origin]')
-        .getAttribute('data-brief-origin')
-    ).toBe('input');
-  });
-
-  test('an edited receipt reaches the server only as briefOverrides, and only on «Пересобрать»', async () => {
-    serve(baseTable(intakeDoor(streamed(scenario('foreign-post')))));
-    await open();
-    await start('Чужой пост про выручку');
-
-    const receipt = document.querySelector('[data-brief-receipt]');
-    const row = receipt.querySelector('[data-brief-receipt-row="position"]');
-    await click(within(row).getByRole('button', { name: 'Изменить' }));
-    await type('[name="intake-receipt-position"]', 'Я бы не резал вовсе');
-
-    // Правка сама никуда не уходит: генерация на каждое нажатие клавиши.
+    expect(document.querySelector('[data-intake-piece]')).not.toBeNull();
+    expect(navigations).toHaveLength(1);
+    // Один ход и один запрос: пересобирать отсюда больше нечего.
     expect(intakeAnswers).toHaveLength(1);
-    expect(
-      document
-        .querySelector('[data-brief-receipt]')
-        .getAttribute('data-brief-receipt-dirty')
-    ).toBe('true');
-    // И строка теперь принадлежит человеку, а не модели.
-    expect(
-      document
-        .querySelector('[data-brief-receipt-row="position"] [data-brief-origin]')
-        .getAttribute('data-brief-origin')
-    ).toBe('person');
-
-    await click(screen.getByRole('button', { name: 'Пересобрать' }));
-    expect(intakeAnswers).toHaveLength(2);
-    expect(intakeAnswers[1].briefOverrides).toEqual({
-      position: 'Я бы не резал вовсе',
-    });
+    expect(intakeAnswers[0].briefOverrides).toBeUndefined();
   });
 });
 
-describe('a link, and the editor at the end of it', () => {
+describe('a link, declared to the door as a link', () => {
   test('the link is recognised on the screen and declared to the door', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('link')))));
     await open();
@@ -422,55 +386,34 @@ describe('a link, and the editor at the end of it', () => {
     expect(intakeAnswers[0].language).toBe('ru');
   });
 
-  test('«Открыть в редакторе» asks for the post the server already saved', async () => {
-    serve({
-      ...baseTable(intakeDoor(streamed(scenario('link')))),
-      'GET /posts/post-2': ok({
-        integration: 'int-tg',
-        posts: [{ publishDate: '2026-09-06T10:00:00.000Z' }],
-      }),
-    });
-    await open();
-    await start('https://example.test/post');
-
-    await click(
-      screen.getByRole('button', { name: 'Открыть в редакторе' }),
-      () => calls.some((call) => call.url === '/posts/post-2')
-    );
-
-    // Пост уже сохранён как черновик — экран его читает, а не создаёт заново.
-    const post = calls.filter((call) => call.url === '/posts/post-2');
-    expect(post).toHaveLength(1);
-    expect(post[0].method).toBe('GET');
-    /*
-      Само окно поста здесь не поднимается: это самое тяжёлое дерево
-      приложения, и проверять им открытие двери значило бы проверять
-      редактор. Что открывается именно оно и с теми же флагами, что из
-      календаря, держит след в исходнике — `EDITOR_MODAL` из
-      `voice-materials.adapter.ts`, а не второй набор флагов.
-    */
+  /*
+    Редактор с этого экрана больше не открывается: пост сохранён сервером как
+    DRAFT и открывается из календаря и со страницы заготовки. Тяжёлое дерево
+    редактора не должно приезжать на экран, который сейчас уйдёт.
+  */
+  test('the editor is not opened from here at all', () => {
     const source = fs.readFileSync(
       path.join(root, 'apps/frontend/src/components/content-intelligence/intake/intake.container.tsx'),
       'utf8'
     );
-    expect(source).toContain('EDITOR_MODAL');
-    expect(source).toContain('AddEditModal');
-    expect(source).toContain('ExistingDataContextProvider');
+    expect(source).not.toContain('EDITOR_MODAL');
+    expect(source).not.toContain('AddEditModal');
+    expect(source).not.toContain('ExistingDataContextProvider');
   });
 });
 
-describe('two channels, and one text on the screen', () => {
-  test('both drafts are asked for, and the first is the one shown', async () => {
+describe('two channels, and no text on the screen', () => {
+  test('both drafts are asked for, and neither is drawn here', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('two-channels')))));
     await open();
     await start('Дедлайн, назначенный себе, работает хуже');
 
+    // Ход дошёл до черновиков — состояние это помнит…
     expect(panel().getAttribute('data-intake-state')).toBe('draft');
-    const article = document.querySelector('[data-intake-draft]');
-    expect(article.textContent).toContain('Из шести дедлайнов');
-    // Второй канал сохранён сервером и открывается из календаря; трёх текстов
-    // подряд на одном экране быть не должно.
-    expect(document.querySelectorAll('[data-intake-draft]')).toHaveLength(1);
+    // …а текстов на экране нет ни одного: они сохранены и открываются со
+    // страницы заготовки и из календаря.
+    expect(document.querySelectorAll('[data-intake-draft]')).toHaveLength(0);
+    expect(document.body.textContent).not.toContain('Из шести дедлайнов');
   });
 });
 

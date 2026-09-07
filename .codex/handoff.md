@@ -4,110 +4,78 @@ Current stage id: `content-factory-next-fn33`
 Last accepted stage id: `content-factory-next-fn33`
 Selected Beads goal: `content-factory-next-fn33`
 
-**Wave «заготовка и адаптации» (06.09–07.09, epic `tu3k.9` under `tu3k`, plan
-`lexical-sauteeing-bubble`) — merged to `main` as `4895c8fa`, RELEASED as
-`a6be7f3fbb92` 07.09 (schema `piece-adaptation-schema-apply.sql` applied
-BEFORE the switch from the new image's own `migrate diff`, rollback
-`cd636483ba0a`, public CI green; owner: «Разрешение на деплой даю»).** Six streams (Z4 root, Z1/Z2
-complex, Z3/Z6 worker, Z5 frontend), no reviewer, no paid stand pass (owner:
-«скорость важнее тестов и UX-проверок»). Full `pnpm test` three halves green
-(jest 396/4973, node 128/0, python OK), `tsc` zero on three apps, process
-verification OK. What it does: `ContentPiece.kind='CORE'` + `brief` hold the
-neutral core and the brief; `ContentDerivation.kind/title/body/mediaId` make an
-adaptation with its own text; publication state is READ from the post
-(`published > queued > error > draft`), never stored; intake writes the piece
-ONCE before the channel loop (channels optional; `piece`, `piece-questions`,
-`search-started` events; `adaptationId` on `draft`); core = one `draft` call
-under operation `intake` (`pieces/core-write.ts`, verbatim words, no avatar,
-forbidden phrases from the slop catalogue, deterministic fallback, slop report
-stored with the piece); interview ≤3 questions per step with the model's
-`suggested` first, answers kept verbatim; channel questions in
-`channels/channel-questions.ts` (Telegram: hook, cta, format); doors
-`GET/GET :id/POST :id/adapt (NDJSON)/DELETE :id/adaptations/:aid/POST
-:id/archive` under `/content-intelligence/pieces` (EDITOR writes, `adapt`
-under `AI_THROTTLE`); screens `content-intelligence/pieces/*` — table with a
-column per platform, state cell (`adaptation.cell.tsx`, in the raw-control
-ledger with a follow-up), row expands in place, piece page
-`/content/pieces/[id]`, tab «Заготовки» first (key `materials` unchanged),
-intake is «Новая заготовка»; compose window on product tokens, one flag object
-`new-launch/compose.modal.options.ts` + `useOpenPostEditor` (editor loaded
-lazily). **The avatar-learning trap is closed in the same commit as the
-schema**: `recordFromPost` compares `ContentDerivation.body`, a CORE piece
-without it yields no observation. Schema applied 07.09 (columns 0 → 6, index, `mastra_*` 0 → 0, repeat diff
-empty; backup `20260907T041851Z-pre-pieces-product-only`). Popular findings closed on the way: `tu3k.7`, `tu3k.8`.
-**Small wave 07.09 (`tu3k.6`, `tu3k.10`, `tu3k.11`, `tu3k.12`) — RELEASED
-as `7e2b10bf1100` 07.09 (rollback `a6be7f3fbb92`, no schema; owner: «даю все
-разрешения, не останавливайся»)**: channel badge «настроено» reads `writingProfileStored` from
-`GET /integrations/list` (one flag in the list already read, no extra doors);
-the person picks the adaptation `kind` when a target has several (new
-`ui/segmented.tsx`, both hand-rolled strips in `content-section.screen.tsx`
-moved onto it), «В архив» button on the piece page, 8 container tests on the
-adapt stream (found and fixed: server `error` text was overwritten by the
-generic phrase); `search-started` typed in the contract
-(`IntakeSearchStartedEventV1`, `pieces/intake-events.ts` removed),
-`core-write.ts` in the AI-consumer guard, word search honours
-`includeArchived`; `GET /integrations/list` reads a 15-field `select` without
-tokens (`getIntegrationsForChannelList`; the shared `getIntegrationsList` stays
-wide — `intake.service` reads `deletedAt`). Owner walk to measure liveliness:
-same topic via a piece and directly into the channel (§11 п. 10) — not done.
+**Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
+`orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
+`553a74c9`, RELEASED as `9b538b9a2e25` 07.09 (rollback `7e2b10bf1100`, no
+schema change, `migrate diff` from the new image empty).** Source: the owner's
+live walk of `7e2b10bf1100` (artifact `fe5e030b`, 24 notes, 5 screenshots in
+`stages/content-factory-next-fn33/evidence/walk-2026-09-07/`). Seven Opus 5
+streams in worktrees, no reviewer, no stand (owner: speed over checks); mockups
+approved before UI code (`docs/design/desert-lab/pieces/`, canvas
+`c569cf13`). Full `pnpm test` three halves green (jest 403/5155, node 128/0,
+python 46), `tsc` zero on three apps, process verification OK. Owner decisions
+07.09: **adaptation never searches the web, no citation checkboxes, no
+«Проверил» gate** (reverses the 04.09 gate of `fn33.28`); «Что уже написали»
+stays and feeds «Свои тексты по теме»; «С чего начать» is a menu item until
+all six steps are done; the facts question reads «На что это опирается?».
+What changed: (S1) the CORE piece is written right after the brief fill —
+`piece` is the first stream event, the intake screen navigates to
+`/content/pieces/[id]` itself, open questions live in `ContentPiece.brief`
+and are answered on the piece page through `POST
+/content-intelligence/pieces/:id/answer` (NDJSON, EDITOR+POSTS_PER_MONTH,
+server-side two-round limit, `BriefFact.own` makes a person's word grounded,
+`recordCore` throws `PIECE_NOT_SAVED`); (S2) **the pieces table had never
+rendered on production**: Tailwind 3.4 silently drops `min-[…]`/`max-[…]`
+variants when `screens` contains `raw` objects — now a named screen
+`table: '720px'` and a guard in `design.guard`; piece page and table follow the
+mockups, `promoteNoChannel` makes «нет канала» real, search keeps focus
+(debounce + `keepPreviousData`) and highlights; (S3) the channel card PUT sent
+the response shape (`lengthPolicy` object) into a DTO expecting
+`'range' + length` — 400 on every save, fixed in the adapter with DTO-backed
+tests; (S4) voice analysis streams (`POST …/voice/analysis/stream`, one event
+per model call, map concurrency 3), the Telegram export card takes `.json`,
+nginx `/api/` waits 300 s; (S5) `materialPolicy: 'PIECE_ONLY'` on adapt,
+`TextSearchService` on `@orama/orama` 3.1.18 + Russian stemmer (in-memory per
+org, TTL + invalidation, fallback `search-terms.ts`), `GET
+/content-intelligence/materials/related`, «Свои тексты по теме» in the prompt
+and the compose window, publish menu is a real `Menu` (`MenuCommand` added to
+the primitive); (S6) «С чего начать» first in the sidebar, the brief step
+counts `ContentPiece kind='CORE'`, usage tables always visible; (S7)
+`launches/channel-rail.tsx` — one rail geometry for both states (`tu3k.13`).
+Bounded gaps: the `related` event is not drawn on the piece page (only in the
+compose window); index invalidation on intake/publish relies on the 5-minute
+TTL; `menu.tsx` «⋮» is still 24 px wide inside its 32 px seat; group header in
+the collapsed rail still overflows. Open for the owner: `m2eg.25` (posting to
+Telegram as a person needs MTProto — not planned).
 
-**Wave «вход одной мыслью» (06.09, epic `tu3k`; owner on the live walk: the
-eight-field brief is «слишком сложно» — one field, the model fills the brief)
-— RELEASED as `cd636483ba0a` 06.09 (`Integration.writingProfile` applied before
-the switch, rollback `443bd0a450c8`).** `POST /content-intelligence/intake`
-(NDJSON, EDITOR+POSTS_PER_MONTH, ≤3 channels): thought / link / foreign post →
-one `extract` for claims, ≤3 number checks by search, one `extract` fill,
-`evaluateBrief` unchanged, ≤2 questions only for thesis/facts, then
-`AgentGraphService.start` per channel with `body.intake` hints (brief block,
-channel lines, `provider` into context and voice, 8-word anti-copy with one
-retry) and a DRAFT per channel. Doors `GET/PUT/DELETE
-/integrations/:id/writing-profile` (EDITOR). Slop check
-`text-quality/slop-check.ts` (30 RU + 15 EN rules, no model; JS `\b` is ASCII
-— boundaries are `\p{L}` lookarounds) behind `POST
-/content-intelligence/text-quality/slop-check`. Screens: one
-`IntakeContainer`, two doors (calendar «Из мысли»; `/content?tab=brief`
-intake-first), questions card, receipt «Что модель поняла», channel card «Как
-пишем в «X»», findings by click. Found: LangGraph drops undeclared state keys
-(`draftGaps` never reached the screen since 05.09, fixed).
-`SOURCE_DIRECT_FETCH=true` on production since 06.09 (owner's word). All P3s of
-this wave are closed by 07.09.
+**Small wave 07.09 (`tu3k.6`, `.10`, `.11`, `.12`) — RELEASED as `7e2b10bf1100`**
+(rollback `a6be7f3fbb92`, no schema): channel badge «настроено» from
+`GET /integrations/list`, adaptation `kind` picked by the person
+(`ui/segmented.tsx`), «В архив», 8 container tests on adapt, `search-started`
+typed, `core-write.ts` under the AI-consumer guard, list door without tokens.
 
-**Wave «search into drafts» (05.09, epic `ec48`) — merged `da056915`,
-RELEASED `443bd0a450c8` (no schema change, rollback `da34f1a9e832`).** Builder
-admits fresh search evidence as `provenance: SEARCH`; generator searches once
-per generation when no explicit material; labels «Взято из поиска» in the
-composer, showcase and search panel. Paid second pass: 5 of 7 texts grounded
-vs 0 of 5. `cxd` restore rehearsal DONE (**GPG key expires 16.09.2026**).
-Open: `fn33.132`, `ec48.6`, `.7`, `fn33.159` (owner).
+**Wave «заготовка и адаптации» (06–07.09, epic `tu3k.9`) — RELEASED
+`a6be7f3fbb92`** (schema `piece-adaptation-schema-apply.sql` applied BEFORE the
+switch, rollback `cd636483ba0a`). `ContentPiece.kind='CORE'` + `brief`;
+`ContentDerivation.kind/title/body/mediaId`; publication state READ from the
+post; core = one `draft` call from the person's words (`pieces/core-write.ts`);
+doors under `/content-intelligence/pieces`; screens
+`content-intelligence/pieces/*`; the avatar-learning trap closed
+(`recordFromPost` compares `ContentDerivation.body`).
 
-**Wave «owner decisions» (05.09) — merged `9e4d7474`, RELEASED `da34f1a9e832`
-(column `learnedRules` applied before the switch, rollback `035029af3c18`).**
-(A) the avatar learns from edits: substantive pairs ≤200 per avatar, `POST
-/voice/learning/run` = one `extract` call per 30 OLDEST pairs, ≤10 rules in
-`ProjectBrandProfile.learnedRules`, fenced into the prompt after the habits.
-(B) roles `fn33.90`: USER view-first, EDITOR writes, ADMIN owns channels and
-webhooks; `roles-matrix.guard` still blind to doors with no policy
-(`fn33.90.2`). (C) word search `q` on materials and facts. (D)
-`tariff-levers.md` — no plan limit is live without `STRIPE_PUBLISHABLE_KEY`.
-(E, F) from the paid check `2ua`: prompt honesty on empty context, composer
-names unverified evidence, search panel in the reader's language. Roles
-walker: **`DELETE /integrations` with an empty body soft-deleted every post**
-(`fn33.90.3`, fixed: DTO + lookup + repository guard). Open: `.132`, `.138`,
-`.141`–`.144`.
+**Wave «вход одной мыслью» (06.09, epic `tu3k`) — RELEASED `cd636483ba0a`**
+(`Integration.writingProfile` before the switch). `POST
+/content-intelligence/intake` (NDJSON): thought / link / foreign post → claims
+→ ≤3 number checks by search → brief fill → per-channel draft. Doors
+`GET/PUT/DELETE /integrations/:id/writing-profile`. Slop check
+`text-quality/slop-check.ts`. `SOURCE_DIRECT_FETCH=true` on production.
 
-**Wave «cleanup» (05.09) — `41447f87`, RELEASED `dcb6eae72608` (two SQL files
-as one transaction), then ten walker P3s as `035029af3c18`.** Cascade deletion
-of a workspace (44 FKs), model per role (`roleModels`, `AiUsageRecord.role`),
-admin count inside the Serializable write, tenant ledger by method, 60/min AI
-ceiling, copilot on click, Russian everywhere, 402 localized once, release
-scripts validate the tag before ssh, 34 platform marks. New: `11qv`, `ebyq`.
-
-**Wave «compose window» (04.09, `fn33.28.1`–`.17`) — RELEASED `fc9fa77148f6`.**
-Composer = Postiz core + stage; context review door; **posts with a context had
-failed to save since August** (`await import` never rewritten). Open: `.28.5`, `.28.18`.
-
-**Wave of 04.09, second half (`fn33.15`–`fn33.118`) — RELEASED `d782858045fa`;
-wave twelve (02.09) audited waves ten and eleven: `lh5s` reopened and built.
+**Earlier waves (05.09, all RELEASED):** «search into drafts» `443bd0a450c8`
+(`ec48`, `provenance: SEARCH`); «owner decisions» `da34f1a9e832` (avatar learns
+from edits, roles USER/EDITOR/ADMIN, word search, `tariff-levers.md`);
+«cleanup» `dcb6eae72608` + `035029af3c18`; «compose window» `fc9fa77148f6`
+(04.09, `fn33.28`); `d782858045fa` (04.09). Open there: `fn33.132`, `ec48.6`,
+`.7`, `fn33.159`, `.138`, `.141`–`.144`, `.28.5`, `.28.18`.
 
 ## Current state
 
@@ -157,15 +125,15 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 ## Next recommended
 
 Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks the released `a6be7f3fbb92`** — «Контент → Заготовки» (table, cells,
-expand), «Новая заготовка» with and without a channel, interview card,
-«Адаптировать» from a piece page, the compose window from a cell — then the
-liveliness comparison (same topic via a piece and directly into the channel).
-Every gap to Beads first, fixes as one small wave. The owner's standing word
-on 07.09 («даю все разрешения, не останавливайся, больше не спрашивай») covered
-the release of `7e2b10bf1100`; a later release still records its own
-permission in the runbook. Still his: GPG key before 16.09.2026, «Подключить
-Telegram», `fn33.159`, `or3.9`, `fn33.132`.
+walks `9b538b9a2e25` by the second live-test page** (new artifact `0d4916c9`; `fe5e030b` keeps the first walk with its answers,
+23 steps: menu and usage, channel card, avatar from `result.json`, three
+intakes that must always create and open a piece, questions on the piece
+page, the real table, adaptation without search, the liveliness comparison
+G1–G3, «Свои тексты по теме»). Every gap to Beads first, fixes as one wave.
+The owner's standing word of 07.09 («даю все разрешения, не останавливайся»)
+covered this release; a later release still records its own permission in the
+runbook. Still his: GPG key before 16.09.2026, `fn33.159`, `or3.9`, `fn33.132`,
+`m2eg.25`.
 
 ## Starter prompt for next orchestrator
 
@@ -175,22 +143,29 @@ is closed; do not re-open its decisions. Before any voice check run
 `rebuild-voice.cjs --dry-run`: an analysis older than the ruler carries no
 print and every verdict reads «сравнить не с чем» — that is not a defect.
 
-Traps: open the dev stand at `localhost:4200`, not `127.0.0.1` (Next 16 dev
-never hydrates for a foreign host). `git add -A` after subagent worktrees
-swallows `.claude/worktrees/*` — now ignored. A Nest provider with a
-constructor parameter passes unit tests and stops the app (`@Optional()`,
-`tests/upload-module.wiring.test.cjs`). Fakes of `Response` need `clone()`.
-`/home/me/.local/bin/node` shadows nvm — prefix
-`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`. `libraries/` changes
-need `apps/backend/dist` rebuilt; `tsc --noEmit` is separate from Jest and is
-**zero on all three apps — keep it so**. `pnpm test` is three runs joined by
-`&&`. Never `await import('@contentfactory/…')` in backend code — `nest build`
-does not rewrite it (guard `backend-no-dynamic-alias-import`). This handoff is
-capped at 200 lines. Beads rolls back closures while agents run: close in one
-batch, then verify by name. Artifact `evidence` entries are labels, not paths.
+Traps: open the dev stand at `localhost:4200`, not `127.0.0.1`. Agent
+worktrees start one commit behind and without `node_modules` (`pnpm install
+--frozen-lockfile --prefer-offline`, 10 s). **Never write `min-[…]`/`max-[…]`
+Tailwind variants** — our `screens` has `raw` entries and Tailwind drops them
+silently (guard in `design.guard`). The generated Prisma client in
+`node_modules` lags the schema (`ContentPiece.kind` unknown to it) — reach new
+columns through narrow local types as `piece.repository.ts` does, or
+`prisma generate`. A Nest provider with a union-typed parameter needs
+`@Inject(Token)` next to `@Optional()`, else it is silently `undefined`.
+`orch-prompts docs-resolve` for `@orama/orama` answered `fallback-needed`
+(L1 404): facts came from the installed 3.1.18 and a probe. A Nest provider
+with a constructor parameter passes unit tests and stops the app
+(`@Optional()`, `tests/upload-module.wiring.test.cjs`). Fakes of `Response`
+need `clone()`. `/home/me/.local/bin/node` shadows nvm — prefix
+`PATH=/home/me/.nvm/versions/node/v22.23.2/bin:$PATH`. `tsc --noEmit` is
+separate from Jest and is **zero on all three apps — keep it so**. `pnpm test`
+is three runs joined by `&&`. Never `await import('@contentfactory/…')` in
+backend code. This handoff is capped at 200 lines. Beads rolls back closures
+while agents run: close in one batch, then verify by name. Artifact `evidence`
+entries are labels, not paths.
 
-**A red check must actually go red, and check it yourself.** The audit found
-a guard that had skipped on every run and a closure whose «producer» no screen
-could reach. A green suite proves the unit, never the wiring: open the page.
-Deleting on the shared host, paid calls, DNS, deploys, pushes and secrets each
-need fresh owner authority, recorded where the next reader will look.
+**A red check must actually go red, and check it yourself.** A green suite
+proves the unit, never the wiring: open the page — the pieces table was green
+for a week and never rendered. Deleting on the shared host, paid calls, DNS,
+deploys, pushes and secrets each need fresh owner authority, recorded where
+the next reader will look.

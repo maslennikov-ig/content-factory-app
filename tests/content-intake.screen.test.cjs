@@ -13,8 +13,8 @@
  *  - строка «похоже на ссылку» появляется только для ссылки и объявляется
  *    вслух — она меняет то, что продукт сейчас сделает;
  *  - дверь в карточку канала есть у Telegram и нет у остальных;
- *  - квитанция называет происхождение каждого поля словом, а факт —
- *    подтверждён он или в текст не вошёл.
+ *  - готового текста и квитанции здесь нет вовсе: с `m2eg.21` их рисует
+ *    только страница заготовки, на которую экран уходит сам.
  */
 
 const React = require('react');
@@ -64,41 +64,6 @@ const CHANNELS = [
   },
 ];
 
-const BRIEF = {
-  inputKind: 'foreign_post',
-  goal: null,
-  thesis: 'Рост случился не из-за рынка',
-  position: 'Я бы резал жёстче',
-  disagreement: 'Те, кто верит в широкую линейку',
-  audience: 'владельцы небольших студий',
-  format: 'expert',
-  facts: [
-    {
-      statement: 'выручка достигла 4,2 млрд',
-      sourceUrl: 'https://example.test/report',
-      factId: null,
-      evidenceId: 'ev-1',
-      origin: 'search',
-      verified: true,
-    },
-    {
-      statement: 'присутствие в 12 странах',
-      sourceUrl: null,
-      factId: null,
-      evidenceId: null,
-      origin: 'input',
-      verified: false,
-    },
-  ],
-  origins: {
-    thesis: 'input',
-    position: 'model',
-    disagreement: 'model',
-    audience: 'avatar',
-  },
-  ungrounded: ['присутствие в 12 странах'],
-};
-
 const noop = () => undefined;
 
 const draw = (props = {}) =>
@@ -113,22 +78,13 @@ const draw = (props = {}) =>
       selectedIds: [],
       language: 'ru',
       step: null,
-      brief: null,
-      overrides: {},
-      draftText: null,
       blocked: 'input',
       restrictedReason: 'ИИ пока недоступен',
-      slopKey: 'k',
       onInputChange: noop,
       onToggleChannel: noop,
       onLanguageChange: noop,
       onWrite: noop,
       onCancel: noop,
-      onOverride: noop,
-      onKindChange: noop,
-      onRevertOverrides: noop,
-      onRebuild: noop,
-      onOpenEditor: noop,
       onOpenWritingProfile: noop,
       onRetry: noop,
       writingProfileStored: {},
@@ -239,7 +195,7 @@ describe('channels, and the writing card behind one of them', () => {
   });
 });
 
-describe('the run, and the result beside its receipt', () => {
+describe('the run, and what it leaves on this screen', () => {
   test('a step in flight is announced and named', () => {
     draw({ state: 'streaming', step: 'writing', blocked: null });
     const step = document.querySelector('[data-intake-step="writing"]');
@@ -252,92 +208,35 @@ describe('the run, and the result beside its receipt', () => {
     expect(screen.getByRole('button', { name: 'Отменить' })).toBeTruthy();
   });
 
-  test('the draft keeps its own line breaks and offers the editor', () => {
-    draw({
-      state: 'draft',
-      blocked: null,
-      brief: BRIEF,
-      draftText: 'Первый абзац.\n\nВторой абзац.',
-    });
-    const article = document.querySelector('[data-intake-draft="true"]');
-    expect(article.textContent).toContain('Второй абзац.');
-    expect(article.className).toContain('whitespace-pre-wrap');
-    expect(screen.getByRole('button', { name: 'Открыть в редакторе' })).toBeTruthy();
-    // «Пересобрать» появляется только когда квитанцию правили: кнопка,
-    // которая всегда есть, ничего не сообщает о состоянии.
+  /*
+    `content-factory-next-m2eg.21`, хвост живого прогона 07.09.2026. Готовый
+    текст, квитанция и проверка на штампы рисовались и здесь, и на странице
+    заготовки. Экран уходит на неё сам, поэтому здешняя копия успевала только
+    мигнуть между первым каналом и концом стрима — и вторая правка того же
+    брифа в двух местах расходилась бы молча. Судится отсутствие: даже в
+    состоянии `draft` на этом экране нет ни текста, ни расписки.
+  */
+  test('the finished text and its receipt are not drawn here at all', () => {
+    draw({ state: 'draft', blocked: null });
+
+    expect(document.querySelector('[data-intake-draft]')).toBeNull();
+    expect(document.querySelector('[data-brief-receipt]')).toBeNull();
+    expect(document.querySelector('[data-slop-check]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Открыть в редакторе' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Пересобрать' })).toBeNull();
   });
 
-  test('an edited receipt turns dirty and only then offers «Пересобрать»', () => {
+  test('the last frame here is the saved piece, and the field stays', () => {
     draw({
       state: 'draft',
       blocked: null,
-      brief: BRIEF,
-      draftText: 'Текст.',
-      overrides: { thesis: 'Своя формулировка' },
+      piece: { pieceId: 'piece-12', code: 'cnt-07' },
     });
+
     expect(
-      document
-        .querySelector('[data-brief-receipt]')
-        .getAttribute('data-brief-receipt-dirty')
-    ).toBe('true');
-    expect(screen.getByRole('button', { name: 'Пересобрать' })).toBeTruthy();
-  });
-
-  test('every receipt row names where it came from, in words', () => {
-    draw({ state: 'draft', blocked: null, brief: BRIEF, draftText: 'Текст.' });
-    const receipt = document.querySelector('[data-brief-receipt]');
-
-    const thesis = receipt.querySelector('[data-brief-receipt-row="thesis"]');
-    expect(
-      thesis.querySelector('[data-brief-origin]').getAttribute('data-brief-origin')
-    ).toBe('input');
-    expect(thesis.textContent).toContain('из вашего текста');
-
-    // Позицию модель предложила сама, и квитанция говорит это словом, а не
-    // оттенком рамки.
-    const position = receipt.querySelector('[data-brief-receipt-row="position"]');
-    expect(position.textContent).toContain('предположение');
-
-    // Поле, о котором сервер ничего не сказал, — тоже предположение, а не
-    // молчание: строка без происхождения читалась бы как факт.
-    const goal = receipt.querySelector('[data-brief-receipt-row="goal"]');
-    expect(
-      goal.querySelector('[data-brief-origin]').getAttribute('data-brief-origin')
-    ).toBe('model');
-  });
-
-  test('a fact says whether it is confirmed, and an unconfirmed one says it stayed out', () => {
-    draw({ state: 'draft', blocked: null, brief: BRIEF, draftText: 'Текст.' });
-    const facts = document.querySelectorAll('[data-brief-fact-verified]');
-    expect(facts).toHaveLength(2);
-    expect(facts[0].getAttribute('data-brief-fact-verified')).toBe('true');
-    expect(facts[0].textContent).toContain('подтверждено');
-    expect(facts[1].getAttribute('data-brief-fact-verified')).toBe('false');
-    expect(facts[1].textContent).toContain('не подтверждено — в текст не вошло');
-  });
-
-  test('«Это не так» walks the kind through its three values', async () => {
-    const changes = [];
-    draw({
-      state: 'draft',
-      blocked: null,
-      brief: BRIEF,
-      draftText: 'Текст.',
-      onKindChange: (kind) => changes.push(kind),
-    });
-    await click(screen.getByRole('button', { name: 'Это не так' }));
-    // Из «чужого поста» следующим по кругу идёт «мысль».
-    expect(changes).toEqual(['thought']);
-  });
-
-  test('the slop check never runs before it is asked for', () => {
-    draw({ state: 'draft', blocked: null, brief: BRIEF, draftText: 'Текст.' });
-    const check = document.querySelector('[data-slop-check="true"]');
-    expect(check.getAttribute('data-slop-verdict')).toBe('none');
-    expect(check.textContent).toContain(
-      'Проверка только показывает. Текст правите вы — в редакторе.'
-    );
+      document.querySelector('[data-intake-piece="cnt-07"]')
+    ).not.toBeNull();
+    expect(document.getElementById('intake-input')).not.toBeNull();
   });
 });
 

@@ -103,7 +103,7 @@ const copy = {
     takeToWork: 'Взять в работу',
     declineAction: 'Не надо',
     acceptedNotice: (title: string) =>
-      `«${title}» взято в работу. Открываем вкладку «Бриф» — тему и причину впишите туда сами.`,
+      `«${title}» взято в работу. Открываем «Новую заготовку» — тему и причину впишите туда сами.`,
     declineFailed: 'Повод не отклонился. Попробуйте ещё раз.',
     acceptFailed: 'Повод не взялся в работу. Попробуйте ещё раз.',
     subscriptionsLabel: (count: number) => `ПОДПИСКИ · ${count}`,
@@ -188,7 +188,7 @@ const copy = {
     takeToWork: 'Take to work',
     declineAction: 'Not now',
     acceptedNotice: (title: string) =>
-      `"${title}" was taken to work. Opening the Brief tab — fill in the thesis and reason there yourself.`,
+      `"${title}" was taken to work. Opening New piece — fill in the thesis and reason there yourself.`,
     declineFailed: 'The lead was not declined. Try again.',
     acceptFailed: 'The lead was not taken to work. Try again.',
     subscriptionsLabel: (count: number) => `SUBSCRIPTIONS · ${count}`,

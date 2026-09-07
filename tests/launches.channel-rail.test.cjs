@@ -26,7 +26,9 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   pretendToBeVisual: true,
   url: 'http://localhost/launches',
 });
-for (const key of ['window', 'document', 'navigator']) {
+// `MenuGroupComponent` помнит раскрытость группы в `localStorage`, и читает он
+// её на первом же кадре — до того, как что-нибудь успеет её туда положить.
+for (const key of ['window', 'document', 'navigator', 'localStorage']) {
   Object.defineProperty(global, key, {
     configurable: true,
     value: key === 'window' ? dom.window : dom.window[key],
@@ -266,7 +268,7 @@ describe('свёрнутая рейка: каждая кнопка — квад�
 
 /* ---------------------------------------------------------- строка канала */
 
-const loadMenuComponent = () =>
+const loadLaunches = () =>
   loadWithMocks(LAUNCHES, {
     react: React,
     clsx: require('clsx'),
@@ -319,7 +321,10 @@ const loadMenuComponent = () =>
       useVariables: () => ({ billingEnabled: false }),
     },
     '@contentfactory/react/toaster/toaster': { useToaster: () => () => {} },
-  }).MenuComponent;
+  });
+
+const loadMenuComponent = () => loadLaunches().MenuComponent;
+const loadGroupComponent = () => loadLaunches().MenuGroupComponent;
 
 const channel = {
   id: 'one',
@@ -423,5 +428,88 @@ describe('строка канала: аватар 40, бейдж 16, «⋮» т�
     const row = document.querySelector('[data-tooltip-id="tooltip"]');
 
     expect(row.getAttribute('data-tooltip-content')).toBe(channel.name);
+  });
+});
+
+/* ------------------------------------------------------- заголовок группы */
+
+const group = {
+  id: 'g-1',
+  name: 'Основные каналы',
+  values: [channel],
+};
+
+const drawGroup = (collapsed) => {
+  const MenuGroupComponent = loadGroupComponent();
+  render(
+    h(MenuGroupComponent, {
+      collapsed,
+      group,
+      changeItemGroup: () => {},
+      mutate: () => {},
+      update: () => {},
+      continueIntegration: () => () => {},
+      refreshChannel: () => () => {},
+      totalNonDisabledChannels: 1,
+    })
+  );
+};
+
+/*
+  `content-factory-next-m2eg.21`, хвост живого прогона 07.09.2026. Свёрнутая
+  рейка — колонка в 100px: имя группы в ней обрезалось до пары букв, а стрелка
+  раскрытия отнимала у него ещё одиннадцать. Заголовок из двух обрезков — это
+  не заголовок, поэтому свёрнуто группа остаётся тем, чем она и была для
+  глаза: тонкой чертой между колонками знаков.
+*/
+describe('заголовок группы: свёрнуто — черта, развёрнуто — имя', () => {
+  test('свёрнуто имя не рисуется, а слышно и подсказывается наведением', () => {
+    drawGroup(true);
+
+    const header = document.querySelector('[data-tooltip-content]');
+    expect(header).not.toBeNull();
+    expect(header.getAttribute('title')).toBe(group.name);
+    expect(classesOf(header)).toEqual(
+      expect.arrayContaining(['border-t', 'border-cf-border'])
+    );
+
+    const heard = header.querySelector('.sr-only');
+    expect(heard.textContent).toBe(group.name);
+    // Обрезанного имени в колонке 100px больше нет.
+    expect(document.querySelector('.line-clamp-1')).toBeNull();
+  });
+
+  test('свёрнуто стрелки раскрытия нет, и группа считается раскрытой', () => {
+    drawGroup(true);
+
+    expect(document.querySelector('svg[viewBox="0 0 22 12"]')).toBeNull();
+    // Каналы видны: прятать их за элементом управления, которого не видно,
+    // значило бы спрятать их насовсем.
+    expect(document.querySelector('[data-channel-menu]')).not.toBeNull();
+    expect(
+      document.querySelector('.hidden [data-channel-menu]')
+    ).toBeNull();
+  });
+
+  test('развёрнуто остаются имя и стрелка, а черты нет', () => {
+    drawGroup(false);
+
+    const name = document.querySelector('.line-clamp-1');
+    expect(name.textContent).toBe(group.name);
+    expect(document.querySelector('svg[viewBox="0 0 22 12"]')).not.toBeNull();
+    expect(document.querySelector('[data-tooltip-content]')).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------ область «⋮» */
+
+describe('«⋮» нажимается всем гнездом, а не полосой в нём', () => {
+  test('кнопка меню канала — квадрат 32, как гнездо вокруг неё', () => {
+    const source = read('apps/frontend/src/components/launches/menu/menu.tsx');
+
+    // 24 в ширину при 32 в высоту оставляли восемь пустых точек, которые
+    // выглядят частью кнопки и ничего не делают.
+    expect(source).not.toContain('w-[24px] px-0');
+    expect(source).toContain('w-[32px] px-0');
   });
 });
