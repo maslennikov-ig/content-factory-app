@@ -41,10 +41,11 @@ const isEditorialStageValue = (
   typeof value === 'string' &&
   (EDITORIAL_STAGE_VALUES as readonly string[]).includes(value);
 
-export const CalendarContext = createContext({
+export const calendarDefaults = {
   startDate: newDayjs().startOf('isoWeek').format('YYYY-MM-DD'),
   endDate: newDayjs().endOf('isoWeek').format('YYYY-MM-DD'),
   customer: null as string | null,
+  integrationId: null as string | null,
   // Editorial process stage, NOT the post's delivery `state` — the filter
   // carried the same way `customer` already is: through the calendar's own
   // query params, not a client-side filter over an already-fetched page.
@@ -63,6 +64,7 @@ export const CalendarContext = createContext({
   posts: [] as Array<
     Post & {
       integration: Integration;
+      piece?: { id: string; code: string; title: string } | null;
       tags: {
         tag: Tags;
       }[];
@@ -77,6 +79,7 @@ export const CalendarContext = createContext({
     endDate: string;
     display: 'week' | 'month' | 'day' | 'list';
     customer: string | null;
+    integrationId?: string | null;
     editorialStage?: EditorialStageValue | null;
   }) => {
     /** empty **/
@@ -88,6 +91,7 @@ export const CalendarContext = createContext({
   listPosts: [] as Array<
     Post & {
       integration: Integration;
+      piece?: { id: string; code: string; title: string } | null;
       tags: {
         tag: Tags;
       }[];
@@ -102,9 +106,18 @@ export const CalendarContext = createContext({
   setListState: (state: ListStateFilter) => {
     /** empty **/
   },
-});
+};
+export const CalendarContext = createContext(calendarDefaults);
+
+import type { ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 
 export interface Integrations {
+  refreshNeeded?: boolean;
+  internalId?: string;
+  createdAt?: string;
+  writingProfile?: ChannelWritingProfileV1;
+  postsSummary?: { total: number; lastPostAt: string | null };
+  publicUrl?: string;
   name: string;
   id: string;
   disabled?: boolean;
@@ -193,6 +206,7 @@ export const CalendarWeekProvider: FC<{
     startDate: initialRange.startDate,
     endDate: initialRange.endDate,
     customer: initCustomer || null,
+    integrationId: searchParams.get('integrationId') || null,
     editorialStage: isEditorialStageValue(initEditorialStage)
       ? initEditorialStage
       : null,
@@ -205,6 +219,7 @@ export const CalendarWeekProvider: FC<{
       startDate: filters.startDate,
       endDate: filters.endDate,
       customer: filters?.customer?.toString() || '',
+      ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
       ...(filters.editorialStage
         ? { editorialStage: filters.editorialStage }
         : {}),
@@ -216,6 +231,7 @@ export const CalendarWeekProvider: FC<{
     const modifiedParams = new URLSearchParams({
       display: filters.display,
       customer: filters?.customer?.toString() || '',
+      ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
       startDate: newDayjs(filters.startDate).startOf('day').utc().format(),
       endDate: newDayjs(filters.endDate).endOf('day').utc().format(),
       // Omitted (not sent as an empty string) when unset: the server DTO
@@ -236,12 +252,13 @@ export const CalendarWeekProvider: FC<{
       page: listPage.toString(),
       limit: '100',
       customer: filters?.customer?.toString() || '',
+      ...(filters.integrationId ? { integrationId: filters.integrationId } : {}),
       state: listState,
       ...(filters.editorialStage
         ? { editorialStage: filters.editorialStage }
         : {}),
     }).toString();
-  }, [listPage, filters.customer, filters.editorialStage, listState]);
+  }, [listPage, filters.customer, filters.integrationId, filters.editorialStage, listState]);
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);
@@ -307,11 +324,14 @@ export const CalendarWeekProvider: FC<{
       endDate: string;
       display: 'week' | 'month' | 'day' | 'list';
       customer: string | null;
+      integrationId?: string | null;
       editorialStage?: EditorialStageValue | null;
     }) => {
       setDisplaySaved(newFilters.display);
+      const integrationId = newFilters.integrationId === undefined ? filters.integrationId : newFilters.integrationId;
       setFilters({
         ...newFilters,
+        integrationId,
         editorialStage: newFilters.editorialStage ?? null,
       });
       setInternalData([]);
@@ -322,6 +342,7 @@ export const CalendarWeekProvider: FC<{
       }
 
       const path = [
+        integrationId ? `integrationId=${encodeURIComponent(integrationId)}` : '',
         `startDate=${newFilters.startDate}`,
         `endDate=${newFilters.endDate}`,
         `display=${newFilters.display}`,
@@ -332,7 +353,7 @@ export const CalendarWeekProvider: FC<{
       ].filter((f) => f);
       window.history.replaceState(null, '', `/launches?${path.join('&')}`);
     },
-    []
+    [filters.integrationId]
   );
 
   const posts = useMemo(() => calendarData?.posts || [], [calendarData?.posts]);

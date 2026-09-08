@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -27,6 +28,8 @@ import { VOICE_API_BASE } from '@contentfactory/nestjs-libraries/content-intelli
 export function VoiceTab() {
   const request = useFetch();
   const router = useRouter();
+  const [wizardSession, setWizardSession] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
 
   /**
    * The fetcher throws on a refusal rather than answering `null`.
@@ -48,7 +51,7 @@ export function VoiceTab() {
       });
     }
     return response.json();
-  });
+  }, { revalidateOnFocus: false, isPaused: () => analysing });
 
   const hasVoice = Boolean(overview.data?.hasVoice);
 
@@ -58,10 +61,14 @@ export function VoiceTab() {
   // loading state, so the wait belongs to whichever of them is right.
   if (overview.isLoading) return null;
 
-  if (!hasVoice) {
+  if (wizardSession || !hasVoice) {
     return (
       <div className="flex min-w-0 flex-col gap-[16px]">
-        <VoiceWizardContainer />
+        <VoiceWizardContainer
+          onAnalysingChange={setAnalysing}
+          onAnalysisStart={() => setWizardSession(true)}
+          onActivated={() => { setWizardSession(false); void overview.mutate(); }}
+        />
       </div>
     );
   }

@@ -15,11 +15,12 @@
  */
 export const contentSectionCopy = {
   ru: {
-    title: 'Контент',
+    title: 'Заготовки',
+    avatarDescription: 'Ваш голос: образцы текстов и настройки того, как вы пишете.',
     description:
-      'Аватары, подписки, приносящие поводы написать, тексты, из которых они собраны, бриф на следующий текст, готовые материалы и откуда взят каждый факт.',
+      'От мысли к заготовке: новые тексты, поводы написать и факты, на которые они опираются.',
     tabs: 'Разделы контента',
-    avatars: 'Аватары',
+    avatars: 'Аватар',
     // `content-factory-next-odb8.3`: «Откуда идеи» — подписки на чужие ленты
     // и каналы и поводы, которые они приносят. Не третья вкладка рядом с
     // «Откуда факты» на ту же работу: там — витрина уже подтверждённого,
@@ -44,11 +45,6 @@ export const contentSectionCopy = {
     // тестов и `ContentIntelligenceSection`), поменялась только подпись:
     // экран за ней теперь витрина фактов, а не проверка происхождения.
     provenance: 'Откуда факты',
-    // `content-factory-next-odb8.4`: архив «Что уже написали» — три слоя
-    // (сделано здесь, до продукта, публикуется мимо) в одной ленте. Название
-    // повторяет заголовок самого экрана внутри, а не сокращается до одного
-    // слова, потому что «Архив» само по себе не говорит, архив чего это.
-    archive: 'Что уже написали',
     materialsTitle: 'Материалов пока нет',
     materialsBody:
       'Материал — готовый текст, который живёт отдельно от публикации и перекраивается под площадку. Материалы приходят сюда с вкладки «Новая заготовка»: собранный черновик остаётся здесь материалом, и его можно перекроить под другую площадку, не переписывая заново.',
@@ -64,26 +60,22 @@ export const contentSectionCopy = {
     briefViewLabel: 'Как начать',
     briefViewIntake: 'По мысли',
     briefViewManual: 'Вручную',
-    materialsViewLabel: 'Вид списка',
     // Витрина «На что опираются» убрана решением владельца 06.09.2026 (§11.5):
     // внутри вкладки две витрины — заготовки и «Что уже написали».
-    materialsViewMaterials: 'Заготовки',
-    materialsViewArchive: 'Что уже написали',
     /* Зачем второй вид вообще нужен — одной строкой рядом с самой полосой. */
-    materialsViewHint: 'отсюда модель берёт ссылки на ваши старые тексты',
   },
   en: {
-    title: 'Content',
+    title: 'Pieces',
+    avatarDescription: 'Your voice: writing samples and how you write.',
     description:
-      'Avatars, subscriptions that bring reasons to write, the texts they were built from, the brief for the next one, finished material and where each fact came from.',
+      'From a thought to a piece: new texts, reasons to write and facts they rely on.',
     tabs: 'Content sections',
-    avatars: 'Avatars',
+    avatars: 'Avatar',
     leads: 'Ideas',
     sources: 'Sources',
     brief: 'New piece',
     materials: 'Pieces',
     provenance: 'Facts',
-    archive: 'Archive',
     materialsTitle: 'No material yet',
     materialsBody:
       'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the New piece tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
@@ -91,10 +83,6 @@ export const contentSectionCopy = {
     briefViewLabel: 'How to start',
     briefViewIntake: 'From a thought',
     briefViewManual: 'By hand',
-    materialsViewLabel: 'List view',
-    materialsViewMaterials: 'Pieces',
-    materialsViewArchive: 'What we already wrote',
-    materialsViewHint: 'this is where the model takes links to your older texts from',
   },
 } as const;
 

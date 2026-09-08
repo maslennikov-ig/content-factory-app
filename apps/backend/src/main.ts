@@ -1,3 +1,4 @@
+import { streamCompressionFilter } from './api/routes/ndjson-stream';
 import {
   initializeSentry,
   setupSentryErrorHandler,
@@ -57,7 +58,7 @@ async function start() {
   );
 
   app.use(cookieParser());
-  app.use(compression());
+  app.use(compression({ filter: streamCompressionFilter }));
   app.useGlobalFilters(new SubscriptionExceptionFilter());
   app.useGlobalFilters(new PostValidationExceptionFilter());
   app.useGlobalFilters(new HttpExceptionFilter());

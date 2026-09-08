@@ -60,6 +60,39 @@ export class PostsRepository {
     private _transaction?: PrismaTransaction
   ) {}
 
+  /** Stable Content codes for provenance shown by authenticated calendar reads. */
+  private async pieceOrigins(organizationId: string) {
+    const rows = await (this._post.model as any).contentPiece.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true },
+    });
+    return new Map<string, { id: string; code: string; title: string }>(
+      rows.map((row: { id: string; title: string }, index: number) => [
+        row.id,
+        {
+          id: row.id,
+          code: `cnt-${String(index + 1).padStart(2, '0')}`,
+          title: row.title,
+        },
+      ])
+    );
+  }
+
+  private withPieceOrigin(
+    post: any,
+    origins: Map<string, { id: string; code: string; title: string }>,
+    preserveId = false
+  ) {
+    const { contentDerivations, ...rest } = post;
+    const contentPieceId = contentDerivations?.[0]?.contentPieceId ?? null;
+    return {
+      ...(preserveId ? { contentPieceId } : {}),
+      ...rest,
+      piece: (contentPieceId && origins.get(contentPieceId)) || null,
+    };
+  }
+
   searchForMissingThreeHoursPosts() {
     return this._post.model.post.findMany({
       where: {
@@ -158,7 +191,8 @@ export class PostsRepository {
     const startDate = dayjs.utc(query.startDate).toDate();
     const endDate = dayjs.utc(query.endDate).toDate();
 
-    const list = await this._post.model.post.findMany({
+    const [list, origins] = await Promise.all([
+      this._post.model.post.findMany({
       where: {
         AND: [
           {
@@ -184,19 +218,14 @@ export class PostsRepository {
             ],
           },
         ],
+        deletedAt: null,
+        parentPostId: null,
         integration: {
           deletedAt: null,
           organizationId: orgId,
+          ...(query.customer ? { customerId: query.customer } : {}),
+          ...(query.integrationId ? { id: query.integrationId } : {}),
         },
-        deletedAt: null,
-        parentPostId: null,
-        ...(query.customer
-          ? {
-              integration: {
-                customerId: query.customer,
-              },
-            }
-          : {}),
         ...(query.editorialStage
           ? { editorialStage: query.editorialStage }
           : {}),
@@ -212,6 +241,12 @@ export class PostsRepository {
         intervalInDays: true,
         group: true,
         creationMethod: true,
+        contentDerivations: {
+          where: { organizationId: orgId },
+          select: { contentPieceId: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
         tags: {
           select: {
             tag: true,
@@ -226,9 +261,15 @@ export class PostsRepository {
           },
         },
       },
-    });
+      }),
+      this.pieceOrigins(orgId),
+    ]);
 
-    return list.reduce((all, post) => {
+    const withOrigins = list.map((post) =>
+      this.withPieceOrigin(post, origins)
+    );
+
+    return withOrigins.reduce((all, post) => {
       if (!post.intervalInDays) {
         return [...all, post];
       }
@@ -306,10 +347,11 @@ export class PostsRepository {
               customerId: query.customer,
             }
           : {}),
+        ...(query.integrationId ? { id: query.integrationId } : {}),
       },
     };
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, origins] = await Promise.all([
       this._post.model.post.findMany({
         where,
         skip,
@@ -328,6 +370,12 @@ export class PostsRepository {
           intervalInDays: true,
           group: true,
           creationMethod: true,
+          contentDerivations: {
+            where: { organizationId: orgId },
+            select: { contentPieceId: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
           tags: {
             select: {
               tag: true,
@@ -344,10 +392,11 @@ export class PostsRepository {
         },
       }),
       this._post.model.post.count({ where }),
+      this.pieceOrigins(orgId),
     ]);
 
     return {
-      posts,
+      posts: posts.map((post) => this.withPieceOrigin(post, origins)),
       total,
       page,
       limit,
@@ -379,13 +428,20 @@ export class PostsRepository {
   }
 
   async getPostsByGroup(orgId: string, group: string) {
-    const posts = await this._post.model.post.findMany({
+    const [posts, origins] = await Promise.all([
+      this._post.model.post.findMany({
       where: {
         group,
         organizationId: orgId,
         deletedAt: null,
       },
       include: {
+        contentDerivations: {
+          where: { organizationId: orgId },
+          select: { contentPieceId: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
         integration: true,
         tags: {
           select: {
@@ -420,9 +476,11 @@ export class PostsRepository {
           },
         },
       },
-    });
+      }),
+      this.pieceOrigins(orgId),
+    ]);
     return posts.map(({ contentOutputContexts, ...post }: any) => ({
-      ...post,
+      ...this.withPieceOrigin(post, origins, true),
       contentOutputContext: contentOutputContexts[0]
         ? {
             contentContextSnapshotId:
@@ -619,33 +677,6 @@ export class PostsRepository {
       );
     }
     if (body.contentContextSnapshotId) {
-      /**
-       * Планирование и публикация поста с проверенным контекстом решаются не
-       * здесь, а в `createOrUpdatePostWithClient`: ответ зависит от того, что
-       * стоит в строке поста (`contentContextReviewedAt`), а её видно только
-       * внутри транзакции. Единственное, что известно уже тут, — у нового
-       * поста нет ни строки, ни связки, значит и подтверждать было нечего.
-       *
-       * Связка (`group`) отсюда уезжает вниз нетронутой намеренно
-       * (`content-factory-next-fn33.28.6`). Человек, который подтвердил
-       * подтверждения, а потом удалил все сохранённые коробки и написал текст
-       * заново, присылает пост без единого `item.id` — и раньше слышал
-       * «сначала сохраните черновиком» при открытой кнопке на экране. Строки
-       * его связки при этом стоят в базе с отметкой о проверке. Ответ на этот
-       * вопрос есть только в данных, поэтому его даёт проверка внутри
-       * транзакции, а не эта.
-       */
-      if (
-        !['draft', 'update'].includes(state) &&
-        !body.value.some((item) => item.id) &&
-        !body.group
-      ) {
-        repositoryError(
-          'CONTENT_CONTEXT_DRAFT_ONLY',
-          409,
-          'A post built from checked context is saved as a draft first, and can be scheduled after someone confirms the checks'
-        );
-      }
       if (body.value.length > 1 && body.usedCitationIds !== undefined) {
         repositoryError(
           'CONTENT_CONTEXT_INPUT_INVALID',
@@ -923,13 +954,6 @@ export class PostsRepository {
     const requestedPostIds = [
       ...new Set(body.value.map((item) => item.id).filter(Boolean)),
     ] as string[];
-    /**
-     * Подтверждён ли контекст этого поста и правится ли уже опубликованный —
-     * два ответа, которые собираются по присланным id, а решаются ниже: у
-     * поста без единого id ответ всё равно может быть у его связки.
-     */
-    let reviewed = false;
-    let editsPublished = false;
     if (requestedPostIds.length) {
       // The composer mints its own id for a post that does not exist yet and
       // sends it here, so an id nobody holds is a create, not an attack: the
@@ -953,9 +977,7 @@ export class PostsRepository {
           id: true,
           organizationId: true,
           deletedAt: true,
-          state: true,
           contentContextSnapshotId: true,
-          contentContextReviewedAt: true,
         },
       });
       if (
@@ -968,77 +990,6 @@ export class PostsRepository {
       for (const post of existingPosts) {
         existingPostIds.add(post.id);
         storedSnapshotIds.set(post.id, post.contentContextSnapshotId);
-      }
-      /**
-       * Явное решение человека, а не вечный запрет
-       * (`content-factory-next-fn33.28.1`). Пост, собранный из проверенного
-       * контекста, живёт черновиком, пока кто-нибудь не подтвердит проверку
-       * подтверждений дверью `POST /posts/:id/context-review`; после этого его
-       * можно ставить в план и публиковать.
-       *
-       * Достаточно одной проверенной строки среди запрошенных, а не всех.
-       * Проверку принимает пост, и дверь ставит её на всю его связку; но у
-       * ветки можно дописать новое звено, у которого строки ещё нет, — и
-       * требование «все проверены» отменяло бы решение человека при каждом
-       * дописанном сообщении.
-       *
-       * Правка текста проверку не снимает: `upsert` ниже полей проверки не
-       * трогает. Решение владельца 04.09.2026 — подтверждают контекст и
-       * подтверждения, а не конкретную редакцию текста.
-       *
-       * Но подтверждают именно ТОТ контекст. Отметка считается только вместе
-       * со снимком, под которым её поставили: пост, проверенный под одним
-       * снимком и присланный с другим, — не проверен, и ниже отметка с него
-       * снимается (рецензия волны 04.09, P1). Иначе запись «проверено
-       * тогда-то тем-то» утверждала бы про новый снимок то, чего не было.
-       */
-      reviewed = existingPosts.some(
-        (post: any) =>
-          post.contentContextReviewedAt &&
-          post.contentContextSnapshotId === body.contentContextSnapshotId
-      );
-      editsPublished = existingPosts.some(
-        (post: any) => post.state && post.state !== 'DRAFT'
-      );
-    }
-    /**
-     * Тот же вопрос, заданный связке, а не коробкам.
-     *
-     * Подтверждение ставится дверью `context-review` на всю связку, поэтому
-     * оно переживает удаление любой отдельной коробки — и всех сразу. Спросить
-     * связку нужно только тогда, когда по присланным id ответа не нашлось: у
-     * нового поста связка пуста, и он честно получает «сначала черновиком».
-     *
-     * Снимок сверяется здесь так же, как выше: подтверждали именно тот
-     * контекст, и подмена снимка отметку не наследует.
-     */
-    if (contextBindings && !reviewed && body.group) {
-      const reviewedInGroup = await client.post.findFirst({
-        where: {
-          organizationId: orgId,
-          group: body.group,
-          deletedAt: null,
-          contentContextReviewedAt: { not: null },
-          contentContextSnapshotId: body.contentContextSnapshotId,
-        },
-        select: { id: true },
-      });
-      reviewed = Boolean(reviewedInGroup);
-    }
-    if (contextBindings && !reviewed) {
-      if (!['draft', 'update'].includes(state)) {
-        repositoryError(
-          'CONTENT_CONTEXT_DRAFT_ONLY',
-          409,
-          'A post built from checked context is saved as a draft first, and can be scheduled after someone confirms the checks'
-        );
-      }
-      if (editsPublished) {
-        repositoryError(
-          'CONTENT_CONTEXT_DRAFT_ONLY',
-          409,
-          'A post built from checked context can only be edited as a draft until someone confirms the checks'
-        );
       }
     }
     const previousPost = body.group

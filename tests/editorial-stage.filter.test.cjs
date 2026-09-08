@@ -52,7 +52,12 @@ function repositoryWithSpy(findManyResult = []) {
     },
   };
   const repository = new PostsRepository(
-    { model: { post } },
+    {
+      model: {
+        post,
+        contentPiece: { findMany: async () => [] },
+      },
+    },
     {},
     {},
     { model: {} },
@@ -64,6 +69,24 @@ function repositoryWithSpy(findManyResult = []) {
 }
 
 describe('editorial stage filter reaches Prisma', () => {
+  it('calendar channel/customer filters keep tenant and deleted integration guards', async () => {
+    const { repository, calls } = repositoryWithSpy();
+
+    await repository.getPosts('org-1', {
+      startDate: '2026-09-01',
+      endDate: '2026-09-08',
+      customer: 'customer-1',
+      integrationId: 'channel-1',
+    });
+
+    expect(calls.findMany[0].where.integration).toEqual({
+      organizationId: 'org-1',
+      deletedAt: null,
+      customerId: 'customer-1',
+      id: 'channel-1',
+    });
+  });
+
   it('getPosts (calendar) adds editorialStage to the where clause when given one', async () => {
     const { repository, calls } = repositoryWithSpy();
 
@@ -120,6 +143,27 @@ describe('editorial stage filter reaches Prisma', () => {
 
     expect(calls.findMany).toHaveLength(1);
     expect('editorialStage' in calls.findMany[0].where).toBe(false);
+  });
+
+  it('list channel/customer filters are applied before rows and count pagination', async () => {
+    const { repository, calls } = repositoryWithSpy();
+
+    await repository.getPostsList('org-1', {
+      page: 0,
+      limit: 20,
+      state: 'all',
+      customer: 'customer-1',
+      integrationId: 'channel-1',
+    });
+
+    const expected = {
+      organizationId: 'org-1',
+      deletedAt: null,
+      customerId: 'customer-1',
+      id: 'channel-1',
+    };
+    expect(calls.findMany[0].where.integration).toEqual(expected);
+    expect(calls.count[0].where.integration).toEqual(expected);
   });
 });
 

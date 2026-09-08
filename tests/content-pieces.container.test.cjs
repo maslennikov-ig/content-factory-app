@@ -184,7 +184,7 @@ const serve = (table) => {
       signal: init.signal,
     };
     calls.push(call);
-    const answer = table[`${method} ${url}`];
+    const answer = table[`${method} ${url}`] ?? (String(url).endsWith('/writing-profile') ? ok({ profile: {} }) : undefined);
     if (!answer) throw new Error(`no stub for ${method} ${url}`);
     return typeof answer === 'function' ? answer(call) : answer;
   };
@@ -243,7 +243,7 @@ const click = async (element, until) => {
   await settle(until ?? (() => true));
 };
 
-const open = async () => {
+const open = async (props = {}) => {
   const view = render(
     React.createElement(
       SWRConfig,
@@ -254,7 +254,7 @@ const open = async () => {
         React.createElement(
           variables.VariableContextComponent,
           { language: 'ru' },
-          React.createElement(container.PieceContainer, { pieceId: PIECE_ID })
+          React.createElement(container.PieceContainer, { pieceId: PIECE_ID, ...props })
         )
       )
     )
@@ -444,7 +444,7 @@ describe('questions are the whole answer of that run', () => {
       fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS.length
     );
     // Вопрос терминален: черновика в этот ход не будет.
-    expect(document.querySelector('[data-intake-draft]')).toBeNull();
+    expect(document.querySelector('[data-piece-draft-id]')).toBeNull();
 
     // Первый вопрос — согласием с моделью, второй отдан ей же.
     await click(
@@ -456,7 +456,7 @@ describe('questions are the whole answer of that run', () => {
     await click(
       within(card.querySelector('[data-piece-question="cta"]')).getByRole(
         'radio',
-        { name: 'Реши сама' }
+        { name: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[1].options[1] }
       )
     );
     await click(within(card).getByRole('button', { name: 'Дальше' }), () =>
@@ -471,8 +471,9 @@ describe('questions are the whole answer of that run', () => {
         text: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[0].suggested,
         origin: 'confirmed',
       },
+      { key: 'cta', text: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[1].options[1], origin: 'confirmed' },
     ]);
-    expect(adaptBodies[1].decideKeys).toEqual(['cta']);
+    expect(adaptBodies[1].decideKeys).toBeUndefined();
     // Тот же канал и тот же вид: ход второй, а работа одна.
     expect(adaptBodies[1].integrationId).toBe('int-tg-main');
     expect(adaptBodies[1].kind).toBe('post');
@@ -516,7 +517,7 @@ describe('a refusal is printed in the words the server sent', () => {
       (event) => event.name === 'error'
     );
     expect(document.body.textContent).toContain(refusal.message);
-    expect(document.querySelector('[data-intake-draft]')).toBeNull();
+    expect(document.querySelector('[data-piece-draft-id]')).toBeNull();
   });
 });
 
@@ -526,12 +527,14 @@ describe('уточнение стоит там, где стоит суть', () 
     приехал в её брифе; человек отвечает — суть переписывается, и повторного
     «на что это опирается» не бывает.
   */
-  test('the open question is drawn on the page, above the substance', async () => {
+  test('the open question is drawn after the substance', async () => {
     serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
     await open();
 
     const card = document.querySelector('[data-piece-clarify="true"]');
     expect(card).not.toBeNull();
+    const core = document.querySelector('[data-piece-core]');
+    expect(core.compareDocumentPosition(card) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.textContent).toContain('На что это опирается?');
     // Заготовка уже сохранена, и карточка говорит это словами.
     expect(card.textContent).toContain('Заготовка уже сохранена');
@@ -555,6 +558,7 @@ describe('уточнение стоит там, где стоит суть', () 
               pieceId: PIECE_ID,
               code: 'cnt-12',
               core: fixture.PIECE_FIXTURE_DETAIL.core,
+              previousBody: 'Предыдущая суть.',
             },
             { name: 'done', pieceId: PIECE_ID },
           ])();
@@ -598,6 +602,8 @@ describe('уточнение стоит там, где стоит суть', () 
     );
     expect(document.querySelector('[data-piece-clarify="true"]')).toBeNull();
     expect(detailReads).toBe(2);
+    expect(document.querySelector('[data-core-answer="changed"]')).not.toBeNull();
+    expect(document.querySelector('[data-piece-core] mark')).not.toBeNull();
   });
 
   test('«Реши сама» hands the field over and asks nothing again', async () => {
@@ -614,6 +620,7 @@ describe('уточнение стоит там, где стоит суть', () 
               pieceId: PIECE_ID,
               code: 'cnt-12',
               core: fixture.PIECE_FIXTURE_DETAIL.core,
+              previousBody: fixture.PIECE_FIXTURE_DETAIL.core.text,
             },
             { name: 'done', pieceId: PIECE_ID },
           ])();
@@ -634,6 +641,8 @@ describe('уточнение стоит там, где стоит суть', () 
     );
 
     expect(answered).toEqual([{ decide: ['facts'] }]);
+    await settle(() => document.querySelector('[data-core-answer="unchanged"]') !== null);
+    expect(document.body.textContent).toContain('Суть не менялась, ответ сохранён');
   });
 
   test('«Оставить как есть» sends nothing at all', async () => {
@@ -821,6 +830,9 @@ describe('what the piece rests on', () => {
 
     const facts = document.querySelector('[data-piece-facts]');
     expect(facts).not.toBeNull();
+    const sources = document.querySelector('[data-piece-sources]');
+    expect(sources).not.toBeNull();
+    expect(sources.open).toBe(false);
     expect(facts.textContent).toContain('Пять из шести сроков сдвинулись');
 
     // Подтверждение — слово, и оно своё у каждой опоры, а не одно на список.
@@ -849,7 +861,7 @@ describe('what the piece rests on', () => {
     expect(ungrounded.map((one) => one.textContent)).toEqual([
       'Средний срыв по отрасли 40%',
     ]);
-    expect(document.body.textContent).toContain('На что это опирается');
+    expect(document.body.textContent).toContain('Опоры текста');
     expect(document.body.textContent).toContain('Не подтвердилось и в текст не вошло');
   });
 
@@ -865,6 +877,76 @@ describe('what the piece rests on', () => {
     expect(document.querySelector('[data-piece-receipt]')).not.toBeNull();
     expect(document.querySelector('[data-piece-facts]')).toBeNull();
     expect(document.querySelector('[data-piece-ungrounded]')).toBeNull();
-    expect(document.body.textContent).not.toContain('На что это опирается');
+    expect(document.body.textContent).not.toContain('Опоры текста');
+  });
+});
+
+
+describe('S4: safe navigation and one adaptation object', () => {
+  test('overview keeps each selected channel separate and opens its exact adaptation', async () => {
+    serve(table({}));
+    await open();
+
+    expect(panel().classList.contains('w-full')).toBe(true);
+    expect(panel().classList.contains('flex-1')).toBe(true);
+
+    const telegram = document.querySelector('[data-piece-target="telegram"]');
+    const instagram = document.querySelector('[data-piece-target="instagram"]');
+    expect(telegram).not.toBeNull();
+    expect(telegram.querySelector('img')).not.toBeNull();
+    expect(telegram.textContent).toContain('опубликовано');
+    expect(telegram.textContent).toContain('1');
+    expect(instagram.getAttribute('data-piece-target-available')).toBe('false');
+    expect(instagram.textContent).toContain('нет канала');
+
+    const adaptationId = fixture.PIECE_FIXTURE_ADAPTATIONS[0].id;
+    const item = document.querySelector(
+      `[data-piece-adaptation="${adaptationId}"]`
+    );
+    const toggle = item.querySelector('[aria-expanded]');
+    expect(
+      document.getElementById(toggle.getAttribute('aria-controls')).hidden
+    ).toBe(true);
+    await click(
+      document.querySelector(`[data-piece-overview-view="${adaptationId}"]`)
+    );
+    expect(
+      document.getElementById(toggle.getAttribute('aria-controls')).hidden
+    ).toBe(false);
+
+    const channel = within(telegram).getByRole('combobox', {
+      name: 'Куда адаптировать · Telegram',
+    });
+    await act(async () => {
+      fireEvent.change(channel, { target: { value: 'int-tg-2' } });
+    });
+    expect(telegram.textContent).toContain('ещё нет');
+    expect(telegram.textContent).toContain('0');
+  });
+
+  test('an empty table cell selects the platform without a paid call', async () => {
+    serve(table({}));
+    await open({ adaptPlatform: 'telegram' });
+    await settle();
+    expect(calls.filter((call) => call.url === ADAPT_URL)).toHaveLength(0);
+    expect(document.querySelector('[data-piece-adapt-focus]').getAttribute('data-piece-adapt-focus')).toBe('telegram');
+    await adaptTo('Telegram');
+    expect(calls.filter((call) => call.url === ADAPT_URL)).toHaveLength(1);
+  });
+
+  test('the generated text stays inside its own expanded adaptation', async () => {
+    serve(table({}));
+    await open();
+    await adaptTo('Telegram');
+    const draft = document.querySelector('[data-piece-draft-id]');
+    expect(draft).not.toBeNull();
+    expect(draft.closest('[data-piece-adaptation]').getAttribute('data-piece-adaptation')).toBe(draft.getAttribute('data-piece-draft-id'));
+    const item = draft.closest('[data-piece-adaptation]');
+    const toggle = item.querySelector('[aria-expanded]');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    await click(toggle);
+    expect(document.getElementById(toggle.getAttribute('aria-controls')).hidden).toBe(true);
+    await click(toggle);
+    expect(document.getElementById(toggle.getAttribute('aria-controls')).hidden).toBe(false);
   });
 });

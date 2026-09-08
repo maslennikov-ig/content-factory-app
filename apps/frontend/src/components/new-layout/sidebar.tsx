@@ -87,7 +87,7 @@ export const Sidebar: FC<{
 }> = ({ mobileOpen, onCloseMobile }) => {
   const t = useT();
   const user = useUser();
-  const { billingEnabled } = useVariables();
+  const { billingEnabled, language } = useVariables();
   const { workMenu, adminMenu, secondaryMenu } = useMenuItem();
   const [collapsedCookie, setCollapsedCookie] = useCookie(
     COLLAPSE_COOKIE,
@@ -140,16 +140,16 @@ export const Sidebar: FC<{
 
   const groups = [
     {
-      label: t('nav_group_work', 'Work'),
+      label: language.startsWith('ru') ? 'Путь' : 'Workflow',
       items: filterMenu(workMenu, user as any, billingEnabled),
-    },
-    {
-      label: t('nav_group_admin', 'Administration'),
-      items: filterMenu(adminMenu, user as any, billingEnabled),
     },
     {
       label: t('nav_group_more', 'More'),
       items: filterMenu(secondaryMenu, user as any, billingEnabled),
+    },
+    {
+      label: t('nav_group_admin', 'Administration'),
+      items: filterMenu(adminMenu, user as any, billingEnabled),
     },
   ].filter((group) => group.items.length > 0);
 
@@ -196,6 +196,7 @@ export const Sidebar: FC<{
                   path={item.path}
                   label={item.name}
                   icon={item.icon}
+                  step={item.step}
                   onClick={item.onClick}
                   collapsed={isCollapsed}
                   onNavigate={isDrawer ? onCloseMobile : undefined}

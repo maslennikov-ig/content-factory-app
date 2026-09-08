@@ -56,6 +56,10 @@ export const AddProviderButton: FC<{
   update?: () => void;
   /** Свёрнутая рейка каналов: у кнопки остаётся только знак. */
   collapsed?: boolean;
+  /** Standalone section presentation; the rail keeps its defaults. */
+  label?: string;
+  primary?: boolean;
+  renderTrigger?: (add: () => void) => React.ReactNode;
 }> = (props) => {
   const { update, collapsed = false } = props;
   const add = useAddProvider(update);
@@ -71,13 +75,15 @@ export const AddProviderButton: FC<{
     return null;
   }
 
+  if (props.renderTrigger) return props.renderTrigger(add);
+
   return (
     <div className={clsx('flex', RAIL_CONTROL_GAP)}>
       <Button
-        variant="secondary"
+        variant={props.primary ? "primary" : "secondary"}
         iconOnly={collapsed}
         density="standard"
-        aria-label={t('add_channel', 'Add Channel')}
+        aria-label={props.label ?? t('add_channel', 'Add Channel')}
         className={railActionClass(collapsed, 'items-center flex')}
         onClick={add}
       >
@@ -100,11 +106,11 @@ export const AddProviderButton: FC<{
         </div>
         {!collapsed && (
           <div className="text-start text-[14px] truncate">
-            {t('add_channel', 'Add Channel')}
+            {props.label ?? t('add_channel', 'Add Channel')}
           </div>
         )}
       </Button>
-      {!collapsed && (
+      {!collapsed && !props.primary && (
         <Button
           iconOnly
           density="dense"

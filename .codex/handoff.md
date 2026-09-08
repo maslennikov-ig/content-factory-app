@@ -1,8 +1,28 @@
 # Content Factory Handoff
 
-Current stage id: `content-factory-next-fn33`
+Current stage id: `content-factory-next-tu3k.14`
 Last accepted stage id: `content-factory-next-fn33`
-Selected Beads goal: `content-factory-next-fn33`
+Selected Beads goal: `content-factory-next-tu3k.14`
+
+**Wave «второй заход 08.09» (epic `tu3k.14`, 30 tasks, spec
+`docs/product/second-walk-wave-2026-09-08-spec.md`) — IN PROGRESS by Astra 08.09 on `wave/walk-2026-09-08`;
+All S1–S8 integrated in the required order, worker checkouts cleaned. Owner saw the stand; all requested UI and search corrections are integrated, updated stand checked at1440/390. Added `.26`: dedicated Channels list/detail from approved `docs/design/desert-lab/channels/`, merged `a111b5f0` as `f748abb5`. API b7c9c282, shared profile a039610e and UI af7d3063 integrated; all three worktrees cleaned. Root real-data HTTP/browser checks passed; tile correction1347afad and final test corrections3864012d integrated. Added .27-.30 calendar-only design00dc2063 merged as72374ff1: remove rail, select draft adaptations, piece links, menu Content. All calendar changes integrated: copy55e25660, UI3770097a, APIf728f92f; worker checkouts cleaned. Root real local API passes ready200/draft-only/limit400 and piece in calendar/list/group. Owner explicitly approved Channels/calendar on localhost:4200 (yes08.09); final full acceptance/release pending. Previous full runs were interrupted for added scope; no green full receipt yet. Order in
+`docs/prompts/astra-second-walk-wave-2026-09-08.md`.** Source: the owner's second
+walk of `5f657ccf294e` (artifact `0d4916c9`, 25 notes, 8 screenshots in
+`stages/content-factory-next-fn33/evidence/walk-2026-09-08/`). Owner decisions
+08.09: intake loses «Куда» and the short path; «Что уже написали» view removed
+(only a post counter moves into the table cell); paid draft check with a
+**choice** of mode («Проверить ▾»: slop / facts / both, cost shown); navigation
+conveyor — three mockups drawn, **the owner picked A («Конвейер в меню»)**, it
+ships in this wave; piece page reviewed on the dev stand before release. Latest owner correction: no automatic intake claim checks; enrichment search stays. Separate paid «Проверить поиском» with cost warning and explicit acceptance of edits. Root causes proven
+by code and production logs: voice analysis stream cut by the wizard screen
+unmounting itself once the arithmetic is saved (nginx 499, `compression()`
+buffers NDJSON); publish 409 from server-side context gates
+(`posts.repository.ts:1029`, 15-min snapshot TTL); `emojiLevel: free` becomes
+silence in the prompt; adaptation question `options` never reach the screen;
+«ещё нет» chip starts a paid adaptation; three search rules disagree. Mockups
+`docs/design/desert-lab/pipeline/` (canvas `c4a5109a`). Undeployed on main:
+`8fa803b2` (filter row) — ships with this wave. Rollback target `5f657ccf294e`.
 
 **Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
 `orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
@@ -19,31 +39,7 @@ python 46), `tsc` zero on three apps, process verification OK. Owner decisions
 «Проверил» gate** (reverses the 04.09 gate of `fn33.28`); «Что уже написали»
 stays and feeds «Свои тексты по теме»; «С чего начать» is a menu item until
 all six steps are done; the facts question reads «На что это опирается?».
-What changed: (S1) the CORE piece is written right after the brief fill —
-`piece` is the first stream event, the intake screen navigates to
-`/content/pieces/[id]` itself, open questions live in `ContentPiece.brief`
-and are answered on the piece page through `POST
-/content-intelligence/pieces/:id/answer` (NDJSON, EDITOR+POSTS_PER_MONTH,
-server-side two-round limit, `BriefFact.own` makes a person's word grounded,
-`recordCore` throws `PIECE_NOT_SAVED`); (S2) **the pieces table had never
-rendered on production**: Tailwind 3.4 silently drops `min-[…]`/`max-[…]`
-variants when `screens` contains `raw` objects — now a named screen
-`table: '720px'` and a guard in `design.guard`; piece page and table follow the
-mockups, `promoteNoChannel` makes «нет канала» real, search keeps focus
-(debounce + `keepPreviousData`) and highlights; (S3) the channel card PUT sent
-the response shape (`lengthPolicy` object) into a DTO expecting
-`'range' + length` — 400 on every save, fixed in the adapter with DTO-backed
-tests; (S4) voice analysis streams (`POST …/voice/analysis/stream`, one event
-per model call, map concurrency 3), the Telegram export card takes `.json`,
-nginx `/api/` waits 300 s; (S5) `materialPolicy: 'PIECE_ONLY'` on adapt,
-`TextSearchService` on `@orama/orama` 3.1.18 + Russian stemmer (in-memory per
-org, TTL + invalidation, fallback `search-terms.ts`), `GET
-/content-intelligence/materials/related`, «Свои тексты по теме» in the prompt
-and the compose window, publish menu is a real `Menu` (`MenuCommand` added to
-the primitive); (S6) «С чего начать» first in the sidebar, the brief step
-counts `ContentPiece kind='CORE'`, usage tables always visible; (S7)
-`launches/channel-rail.tsx` — one rail geometry for both states (`tu3k.13`).
-Bounded gaps: the `related` event is not drawn on the piece page (only in the
+What changed: piece written before questions, questions on the piece page, real table (Tailwind `min-[…]` trap), channel card save, streamed voice analysis, `PIECE_ONLY` adaptation, `TextSearchService` (orama), «С чего начать» in the sidebar, one channel-rail geometry. Bounded gaps: the `related` event is not drawn on the piece page (only in the
 compose window); index invalidation on intake/publish relies on the 5-minute
 TTL; `menu.tsx` «⋮» is still 24 px wide inside its 32 px seat; group header in
 the collapsed rail still overflows. Open for the owner: `m2eg.25` (posting to
@@ -125,28 +121,21 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-vme`. Recommended action: **the owner
-walks `47cd8475c442` by the second live-test page** (new artifact `0d4916c9`; `fe5e030b` keeps the first walk with its answers,
-23 steps: menu and usage, channel card, avatar from `result.json`, three
-intakes that must always create and open a piece, questions on the piece
-page, the real table, adaptation without search, the liveliness comparison
-G1–G3, «Свои тексты по теме»). Every gap to Beads first, fixes as one wave.
-The owner's standing word of 07.09 («даю все разрешения, не останавливайся»)
-covered this release; a later release still records its own permission in the
-runbook. Still his: GPG key before 16.09.2026, `or3.9`, `fn33.132`.
+Next stage id: `content-factory-next-tu3k.14`. Recommended action: **Astra (Codex) runs the wave**:
+S1/S2/S5/S6/S8 at once (navigation = variant A), then S3/S4/S7 after the
+mockups; dev stand for the owner before release;
+release by the runbook with the owner's standing word of 07.09; record in
+runbook, this handoff, `bd remember`. When Astra says «выпущено», the owner
+returns to Claude for the third live-test page (new artifact; name screens by
+their interface words — «Контент → Заготовки», not «таблица заготовок»). Still
+the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel
+signatures off and a neutral bot name in BotFather.
 
-**Owner decisions of 07.09 (afternoon), on main as `3f713676`, not yet
-released:** `m2eg.25` closed — posts go out as the channel via the bot (Bot API
-up to 10.3 gives no human-identity channel posting; signatures off, neutral bot
-display name; `docs/product/telegram-pipeline-mvp.md`); `fn33.159` closed —
-no draft without a channel; `m2eg.26` — piece page right column shows facts
-(«На что это опирается») and ungrounded, `BriefReceipt` removed; Workspace
-rename dropped (display substitutes). Open for the owner: `fn33.28.4` carries
-the root's proposal on where checks belong (slop auto on adaptations + one
-quality line in three places, voice check as one word on FAR, delete paid
-repair); `zooh` help section — text in `docs/product/help-faq.md`, mockup
-before code; `or3.9` gained the paid-action catalogue in `tariff-levers.md`
-(question 16). Release `3f713676` after the owner's second walk, not during.
+Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`):
+checks where the text is final, one quality line, forbidden phrases in the
+prompt, `/help` (11 questions). Owner decisions 07.09 (`3f713676`): `m2eg.25`
+closed (posts go out as the channel), `fn33.159` closed (no draft without a
+channel), Workspace rename dropped.
 
 ## Starter prompt for next orchestrator
 

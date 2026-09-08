@@ -1,16 +1,14 @@
 /**
  * Что дверь входа одной мыслью принимает снаружи.
  *
- * `content-factory-next-tu3k.1`, форма — `IntakeRequestV1` из
- * `voice-wiring.contract.ts`. Два поля контракта здесь намеренно отсутствуют, и
+ * Neutral intake uses `IntakeRequestV2` from `intake-v2.contract.ts`. Два поля контракта здесь намеренно отсутствуют, и
  * оба — те, которые сервер ставит сам: организация приходит из запроса
  * (`@GetOrgFromRequest`), а подсказки генератору (`intake`) собирает
  * `IntakeService`. Принимать их от клиента значило бы разрешить чужому телу
  * запроса решать, чьей памятью писать.
  *
  * Пределы длин повторяют контракт, а не изобретают свои: `input` ≤ 20 000
- * знаков, ответ на вопрос ≤ 2 000, каналов не больше трёх — и ни одного тоже
- * можно, с волны «заготовка и адаптации».
+ * знаков, ответ на вопрос ≤ 2 000. Канал выбирается только при адаптации.
  */
 
 import { Type } from 'class-transformer';
@@ -28,7 +26,6 @@ import {
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import {
   INTAKE_INPUT_MAX_CHARS,
-  INTAKE_MAX_CHANNELS,
   PIECE_MAX_QUESTIONS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { PieceQuestionKeyV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -37,9 +34,7 @@ import type { BriefField } from '@contentfactory/nestjs-libraries/content-intell
 /**
  * Ключи вопросов интервью — все девять из контракта.
  *
- * Дверь входа принимает и вопросы под канал: короткий путь «сразу для
- * Telegram» задаёт их в том же ходе, и разрешать здесь только три ключа
- * создания значило бы отвергать ответ, который сам же и попросил.
+ * Общие ключи входа и двери адаптации. Канал выбирается на странице заготовки.
  */
 export const PIECE_QUESTION_KEYS: PieceQuestionKeyV1[] = [
   'key_idea',
@@ -166,22 +161,6 @@ export class IntakeDto {
   @IsOptional()
   @IsIn(['thought', 'link', 'foreign_post'])
   inputKind?: 'thought' | 'link' | 'foreign_post';
-
-  /**
-   * Каналы, в которые пишутся адаптации, — необязательны с волны «заготовка и
-   * адаптации» (`content-factory-next-tu3k.9`).
-   *
-   * `ArrayMinSize(1)` снят намеренно, а не забыт: результат этой двери теперь
-   * заготовка, а канал человек выбирает потом. Пустой список — законный ход
-   * «только заготовка»; отсутствие канала там, где адаптация действительно
-   * нужна, отвергает дверь адаптации кодом `PIECE_CHANNEL_REQUIRED`.
-   */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(INTAKE_MAX_CHANNELS)
-  @IsString({ each: true })
-  @MaxLength(128, { each: true })
-  integrationIds?: string[];
 
   @IsIn(['ru', 'en'])
   language: 'ru' | 'en';

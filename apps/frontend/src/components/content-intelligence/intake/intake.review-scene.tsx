@@ -159,12 +159,6 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             }
             inputKind={context.state === 'selected' ? 'link' : 'foreign_post'}
             detectedLink={context.state === 'selected'}
-            channels={state === 'no-channel' ? [] : CHANNELS}
-            selectedIds={
-              context.state === 'default' || state === 'no-channel'
-                ? []
-                : ['int-tg']
-            }
             language={locale}
             step={state === 'streaming' ? 'writing' : null}
             piece={showsPiece ? PIECE : null}
@@ -178,15 +172,12 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             errorMessage={t.errorIncomplete}
             restrictedReason={t.restrictedTitle}
             onInputChange={() => undefined}
-            onToggleChannel={() => undefined}
             onLanguageChange={() => undefined}
             onWrite={() => undefined}
             onCancel={() => undefined}
             onOpenPiece={() => undefined}
-            onOpenWritingProfile={() => undefined}
             onManual={() => undefined}
             onRetry={() => undefined}
-            writingProfileStored={{ 'int-tg': false }}
           />
           {note ? (
             <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">

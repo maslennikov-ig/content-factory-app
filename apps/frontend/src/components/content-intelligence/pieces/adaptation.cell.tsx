@@ -79,7 +79,8 @@ export function cellDate(
   const two = (value: number) => String(value).padStart(2, '0');
   const day = `${two(at.getDate())}.${two(at.getMonth() + 1)}`;
   if (state === 'published') return `${day}.${two(at.getFullYear() % 100)}`;
-  if (state === 'queued') return `${day} ${two(at.getHours())}:${two(at.getMinutes())}`;
+  if (state === 'queued')
+    return `${day} ${two(at.getHours())}:${two(at.getMinutes())}`;
   return null;
 }
 
@@ -183,7 +184,15 @@ export function AdaptationCell({
           data-piece-cell-more={cell.platform}
           className="cf-caption text-cf-ink-muted"
         >
-          {t.more(cell.more)}
+          {locale === 'ru'
+            ? `${cell.more + 1} ${
+                new Intl.PluralRules('ru').select(cell.more + 1) === 'one'
+                  ? 'пост'
+                  : new Intl.PluralRules('ru').select(cell.more + 1) === 'few'
+                  ? 'поста'
+                  : 'постов'
+              }`
+            : `${cell.more + 1} posts`}
         </span>
       ) : null}
     </span>

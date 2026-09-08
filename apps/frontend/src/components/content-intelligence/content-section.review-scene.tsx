@@ -11,9 +11,7 @@ import {
   ContentMaterialsPlaceholder,
   ContentSectionShell,
   contentSectionCopy,
-  MaterialsViewSwitch,
   type ContentTab,
-  type MaterialsView,
 } from './content-section.screen';
 
 /**
@@ -179,13 +177,6 @@ const CASES: Readonly<Record<InterfaceReviewState, PanelCase>> = {
 export function Scene({ context }: { context: InterfaceReviewContext }) {
   const active = CASES[context.state];
   const [tab, setTab] = useState<ContentTab>(active.tab);
-  // Chrome only, the same way the rest of this scene stubs a live panel: the
-  // real toggle lives in `ContentSectionScreen`, out of reach without a
-  // network, so this local state exists only to show both pill states are
-  // reachable and legible at 390px.
-  const [materialsView, setMaterialsView] = useState<MaterialsView>(
-    'materials'
-  );
   const locale = context.locale;
   const t = contentSectionCopy[locale];
 
@@ -195,11 +186,6 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
         <ContentSectionShell locale={locale} tab={tab} onTabChange={setTab}>
           {tab === 'materials' || active.panel === 'materials' ? (
             <div className="flex min-w-0 flex-col gap-[16px]">
-              <MaterialsViewSwitch
-                locale={locale}
-                view={materialsView}
-                onChange={setMaterialsView}
-              />
               <ContentMaterialsPlaceholder locale={locale} />
             </div>
           ) : (
@@ -211,7 +197,8 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
                 active.stub?.muted ? 'text-cf-ink-muted' : 'text-cf-ink'
               }`}
             >
-              {active.stub?.[locale] ?? t[tab as 'avatars' | 'brief' | 'provenance']}
+              {active.stub?.[locale] ??
+                t[tab as 'avatars' | 'brief' | 'provenance']}
             </div>
           )}
         </ContentSectionShell>

@@ -1,3 +1,4 @@
+import type { PieceAnswerEventV2 } from '../brand-voice/intake-v2.contract';
 /**
  * Заготовки и адаптации: список, страница, адаптация под канал.
  *
@@ -92,8 +93,10 @@ import {
 } from '../materials/material-presentation';
 import type { AdaptationRow } from '../materials/content-material.repository';
 import { relatedOwnPostsOf } from '../search/text-search.index';
+import { matchedFormsOf, matchedSnippetOf } from '../search/text-search.index';
 import { TextSearchService } from '../search/text-search.service';
 import {
+  channelFormatHint,
   parseWritingProfile,
   type ChannelWritingProfileV1,
 } from '../channels/channel-writing-profile';
@@ -118,6 +121,17 @@ import {
 import { writeCore } from './core-write';
 import { PieceRepository, type PieceIntegrationRow, type PieceRow } from './piece.repository';
 import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
+
+import { htmlToPlainText } from '../brand-voice/html-text';
+import { reviewAdaptationOnce } from './adaptation-review';
+import { reviewAdaptationWithSearch } from './adaptation-web-review';
+import { WebResearchService } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { ADAPTATION_REVIEW_ACTIONS, ADAPTATION_REVIEW_VERSION, AdaptationReviewError, reviewConflict,
+  type AdaptationReviewAction, type AdaptationReviewResult, type AdaptationReviewSnapshot } from './adaptation-review.contract';
+import {
+  READY_ADAPTATIONS_VERSION,
+  type ReadyAdaptationsResponseV1,
+} from './ready-adaptations.contract';
 
 /** Шов проверки на ИИ-штампы: в наборах подменяется, в продукте настоящий. */
 export type PieceSlopCheckPort = (
@@ -166,6 +180,8 @@ export type PieceAdaptPlanV1 = {
   };
   /** `null` — материал до волны: сути нет, есть только тело канала. */
   core: ZagotovkaCoreV1 | null;
+  /** Отпечатки чужого исходника, сохранённые рядом с брифом заготовки. */
+  foreignShingles: string[];
   legacyBody: string | null;
   title: string;
 };
@@ -182,6 +198,7 @@ export type PieceAnswerPlanV1 = {
   language: 'ru' | 'en';
   request: PieceAnswerRequestV1;
   core: ZagotovkaCoreV1;
+  foreignShingles: string[];
   title: string;
 };
 
@@ -236,7 +253,10 @@ export class PieceService {
      */
     @Optional()
     @Inject(VOICE_CHECK_PORT)
-    private readonly voiceCheck: VoiceCheckPort | null = null
+    private readonly voiceCheck: VoiceCheckPort | null = null,
+    @Optional()
+    @Inject(WebResearchService)
+    private readonly webReview: WebResearchService | null = null
   ) {
     this.now = now || (() => new Date());
     this.slopCheck = slopCheck || defaultSlopCheck;
@@ -245,6 +265,45 @@ export class PieceService {
   /* -----------------------------------------------------------------------
    * Чтение
    * -------------------------------------------------------------------- */
+
+  async readyAdaptations(
+    organizationId: string,
+    limit: number
+  ): Promise<ReadyAdaptationsResponseV1> {
+    const [pieceOrder, rows] = await Promise.all([
+      this.pieces.listPieceIds(organizationId),
+      this.pieces.listReadyAdaptations(organizationId, limit),
+    ]);
+    const pieceIndexes = new Map(
+      pieceOrder.map((piece, index) => [piece.id, index])
+    );
+
+    return {
+      version: READY_ADAPTATIONS_VERSION,
+      items: rows.flatMap((row) => {
+        const pieceIndex = pieceIndexes.get(row.piece.id);
+        if (pieceIndex === undefined) return [];
+        const text = htmlToPlainText(row.body || row.post.content || '');
+        const firstLine =
+          text
+            .split(/\r?\n/u)
+            .map((line) => line.trim())
+            .find(Boolean) ?? '';
+        return [
+          {
+            adaptationId: row.id,
+            pieceId: row.piece.id,
+            pieceCode: materialCode(pieceIndex),
+            title: trimmed(row.piece.title) || trimmed(row.title),
+            firstLine,
+            integrationId: row.post.integrationId,
+            postId: row.post.id,
+            readyAt: row.updatedAt.toISOString(),
+          },
+        ];
+      }),
+    };
+  }
 
   /**
    * Список заготовок таблицей: колонка на площадку, в клетке состояние.
@@ -308,7 +367,21 @@ export class PieceService {
       if (query.state && !cells.some((cell) => cell.state === query.state)) {
         continue;
       }
-      rows.push(this.row(piece, index, language, cells));
+      const row = this.row(piece, index, language, cells);
+      const matchedForms = query.q?.trim()
+        ? matchedFormsOf(query.q, `${piece.title} ${piece.body}`)
+        : undefined;
+      rows.push(
+        Object.assign(
+          row,
+          matchedForms
+            ? {
+                matchedForms,
+                searchSnippet: matchedSnippetOf(piece.body, matchedForms),
+              }
+            : {}
+        )
+      );
     }
 
     return {
@@ -431,6 +504,7 @@ export class PieceService {
         editor: provider.editor,
       },
       core,
+      foreignShingles: this.foreignShinglesOf(piece),
       legacyBody: core ? null : piece.body,
       title: piece.title,
     };
@@ -758,7 +832,14 @@ export class PieceService {
     if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', language, pieceId);
     const core = this.coreOf(piece);
     if (!core) throw pieceError('PIECE_CORE_MISSING', language, pieceId);
-    return { pieceId, language, request: request || {}, core, title: piece.title };
+    return {
+      pieceId,
+      language,
+      request: request || {},
+      core,
+      foreignShingles: this.foreignShinglesOf(piece),
+      title: piece.title,
+    };
   }
 
   /**
@@ -789,7 +870,7 @@ export class PieceService {
     plan: PieceAnswerPlanV1,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     actorUserId?: string
-  ): AsyncGenerator<PieceAnswerEventV1> {
+  ): AsyncGenerator<PieceAnswerEventV2> {
     const language = plan.language;
     const before: PieceQuestionsV1 = plan.core.questions ?? {
       round: 0,
@@ -857,7 +938,7 @@ export class PieceService {
           // нет ни одним полем и быть не может: он не сохраняется вовсе.
           personText: plan.core.personText ?? '',
           borrowed: null,
-          foreignShingles: [],
+          foreignShingles: plan.foreignShingles,
         },
         {
           aiUsage: this.aiUsage,
@@ -874,7 +955,12 @@ export class PieceService {
       }
       await this.briefs.updateCore(organizationId, plan.pieceId, {
         body: core.text,
-        brief: this.storedCore(core),
+        brief: {
+          ...this.storedCore(core),
+          ...(plan.foreignShingles.length
+            ? { foreignShingles: plan.foreignShingles }
+            : {}),
+        },
       });
     } catch (error) {
       this.logger.error(
@@ -900,6 +986,7 @@ export class PieceService {
       pieceId: plan.pieceId,
       code: fresher.piece.code,
       core: fresher.core ?? core,
+      previousBody: plan.core.text,
     };
     if (items.length) yield { name: 'questions', questions: items, round };
     yield { name: 'done', pieceId: plan.pieceId };
@@ -1035,6 +1122,46 @@ export class PieceService {
     await this.pieces.deleteAdaptation(organizationId, pieceId, adaptationId);
   }
 
+  async reviewAdaptation(organizationId: string, pieceId: string, adaptationId: string,
+    mode: AdaptationReviewAction, language: 'ru' | 'en' = 'ru', confirmWebSpend = false): Promise<AdaptationReviewResult> {
+    if (!ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
+      throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Выберите режим проверки.');
+    }
+    if (mode === 'web' && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
+    if (mode === 'web' && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt) throw reviewConflict();
+    if (!this.aiUsage) throw new AdaptationReviewError('AI_UNAVAILABLE', 503, 'Проверка сейчас недоступна.');
+    const core = this.coreOf(piece);
+    const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
+    const originalText = provider.editor === 'html' || provider.editor === 'normal'
+      ? htmlToPlainText(draft.post.content) : draft.post.content;
+    const result = mode === 'web'
+      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!)
+      : await reviewAdaptationOnce(organizationId, {
+      mode, text: originalText, core: core?.text ?? piece.body,
+      personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,
+    }, this.aiUsage);
+    return { version: ADAPTATION_REVIEW_VERSION, mode, originalText, ...result,
+      snapshot: { postId: draft.post.id, postContent: draft.post.content,
+        postUpdatedAt: draft.post.updatedAt.toISOString(), adaptationBody: draft.body,
+        adaptationUpdatedAt: draft.updatedAt.toISOString() } };
+  }
+
+  async acceptAdaptationReview(organizationId: string, pieceId: string, adaptationId: string,
+    input: { text: string; snapshot: AdaptationReviewSnapshot }) {
+    const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', 'ru', adaptationId);
+    if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt) throw reviewConflict();
+    if (!input.text.trim()) throw new AdaptationReviewError('ADAPTATION_REVIEW_EMPTY', 400, 'Исправленный текст пуст.');
+    const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
+    return this.pieces.acceptReview(organizationId, pieceId, adaptationId, input.snapshot,
+      input.text, editorHtml(input.text, provider.editor));
+  }
+
   async archive(
     organizationId: string,
     pieceId: string,
@@ -1097,6 +1224,19 @@ export class PieceService {
         ? { personText: stored.personText }
         : {}),
     };
+  }
+
+  /** Сохранённые отпечатки читаются защитно: `brief` — JSON старых сборок. */
+  private foreignShinglesOf(piece: PieceRow): string[] {
+    const stored = (piece.brief || {}) as Record<string, unknown>;
+    if (!Array.isArray(stored.foreignShingles)) return [];
+    return [
+      ...new Set(
+        stored.foreignShingles
+          .map((value) => trimmed(value))
+          .filter(Boolean)
+      ),
+    ];
   }
 
   /** Открытые вопросы из строки: чужой формы здесь быть не должно, но бывает. */
@@ -1361,6 +1501,10 @@ export class PieceService {
     answers: PieceAnswerV1[]
   ): IntakeGenerationHintsV1 {
     const brief = plan.core?.brief;
+    const formatHint =
+      channelFormatHint(
+        answers.find((answer) => answer.key === 'format')?.text
+      ) ?? channelFormatHint(brief?.format);
     return {
       version: INTAKE_HINTS_VERSION,
       brief: {
@@ -1373,6 +1517,10 @@ export class PieceService {
       ...(plan.core ? { core: plan.core.text } : {}),
       ...(answers.length
         ? { answers: answers.map((answer) => `${answer.key}: ${answer.text}`) }
+        : {}),
+      ...(formatHint ? { formatHint } : {}),
+      ...(plan.foreignShingles.length
+        ? { foreignShingles: plan.foreignShingles }
         : {}),
       channel: {
         integrationId: plan.channel.id,

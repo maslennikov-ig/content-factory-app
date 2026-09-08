@@ -45,7 +45,6 @@ const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const FOLDER = 'apps/frontend/src/components/content-intelligence';
 const SHOWCASE = `${FOLDER}/content-facts.showcase.tsx`;
-const ARCHIVE = `${FOLDER}/content-archive.container.tsx`;
 const RIGHT = `${FOLDER}/content-write-right.tsx`;
 const SCENE = `${FOLDER}/content-facts.review-scene.tsx`;
 const REVIEW_ROUTE =
@@ -56,7 +55,6 @@ const source = (relative) =>
   fs.readFileSync(path.join(root, relative), 'utf8');
 
 const showcase = loadTypeScriptModule(SHOWCASE);
-const archive = loadTypeScriptModule(ARCHIVE);
 const right = loadTypeScriptModule(RIGHT);
 const variables = loadTypeScriptModule(
   'libraries/react-shared-libraries/src/helpers/variable.context.tsx'
@@ -240,46 +238,6 @@ describe('a refusal by right is a state of the screen, not a failed click', () =
   });
 });
 
-describe('the archive says the same thing about «Занести текст»', () => {
-  test('a plan refusal on import leaves the button dead with a reason', async () => {
-    serve({
-      'GET /content-intelligence/materials/archive?limit=20&offset=0': ok({
-        state: 'default',
-        materials: [],
-        page: 0,
-        limit: 20,
-        total: 0,
-        counts: {
-          MADE_HERE: 0,
-          IMPORTED_PRE_PRODUCT: 0,
-          PUBLISHED_ELSEWHERE: 0,
-        },
-      }),
-      'POST /content-intelligence/materials/archive/import': refused(
-        402,
-        'posts_per_month'
-      ),
-    });
-    await renderScreen(archive.ContentArchiveContainer);
-    await click('Занести текст');
-
-    const title = document.querySelector('input[name="archive-import-title"]');
-    const body = document.querySelector('textarea[name="archive-import-body"]');
-    await act(async () => {
-      fireEvent.change(title, { target: { value: 'Старый текст' } });
-      fireEvent.change(body, { target: { value: 'Тело старого текста.' } });
-    });
-    await click('Занести');
-
-    const note = document.querySelector('[data-content-read-only="archive"]');
-    expect(note).not.toBeNull();
-    expect(note.getAttribute('data-content-read-only-refusal')).toBe('plan');
-    const button = screen.getByRole('button', { name: 'Занести текст' });
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute('aria-describedby')).toBe(note.id);
-  });
-});
-
 describe('the reading of a refusal lives in one place', () => {
   test('a status is what says whether the right refused', () => {
     expect(right.readWriteRight({ status: 403 })).toEqual({
@@ -299,7 +257,7 @@ describe('the reading of a refusal lives in one place', () => {
   });
 
   test('neither screen keeps a second opinion about what a refusal is', () => {
-    for (const file of [SHOWCASE, ARCHIVE]) {
+    for (const file of [SHOWCASE]) {
       expect(source(file)).toContain('readWriteRight');
       expect(source(file)).not.toMatch(/status\s*===\s*40[23]/u);
     }

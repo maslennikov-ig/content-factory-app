@@ -120,6 +120,7 @@ if (!packageOptions) {
 | `/content-intelligence/materials/archive/import` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/sources` | EDITOR | 6 | редактор |
@@ -248,14 +249,17 @@ if (!packageOptions) {
 заводит черновик поста, а завести его Пользователь не может.
 
 `/content-intelligence/pieces/*` — заготовка и её адаптации
-(`content-factory-next-tu3k.9`, 07.09.2026). Дверей у раздела пять, а строк в
-таблице три, и это не пропуск: `GET /content-intelligence/pieces` (список) и
+(`content-factory-next-tu3k.9`, 07.09.2026). `GET /content-intelligence/pieces` (список) и
 `GET /content-intelligence/pieces/:id` (страница заготовки) политики не несут и
 открыты **любому участнику области** — ровно как список материалов. Роль
 редактора начинается там, где начинается запись: адаптация под канал
 (`POST …/:id/adapt`, она же готовит черновик — отсюда предел тарифа первым),
 удаление одной адаптации (`DELETE …/:id/adaptations/:adaptationId`) и архив
-(`POST …/:id/archive`). Шестой двери — создания — здесь нет: заготовка
+(`POST …/:id/archive`), ответы на вопросы (`POST …/:id/answer`), явная проверка
+черновика (`POST …/:id/adaptations/:adaptationId/review`) и принятие её правок
+(`POST …/review/accept`). Проверка дополнительно проходит допуск ИИ в сервисе;
+режим поиска требует явного подтверждения расходов. Принятие не вызывает
+модель и изменяет только всё ещё актуальный черновик. Двери создания здесь нет: заготовка
 рождается на `POST /content-intelligence/intake`, и вторая дверь создания
 разошлась бы с первой на первой же правке. У удаления нет тела вовсе, оба
 идентификатора идут из пути (`content-factory-next-fn33.90.3`).

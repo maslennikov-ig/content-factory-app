@@ -1,3 +1,4 @@
+import { startNdjsonStream } from './ndjson-stream';
 import {
   Body,
   Controller,
@@ -95,7 +96,7 @@ export class ContentIntakeController {
     @Body() body: IntakeDto,
     @Res({ passthrough: false }) response: Response
   ) {
-    // До первого байта — обычный HTTP: длина, число каналов, их существование.
+    // До первого байта — обычный HTTP: проверка длины входа.
     // После него код ответа уже не изменить, и это единственная причина, по
     // которой проверка стоит здесь, а не внутри стрима.
     let plan;
@@ -105,7 +106,7 @@ export class ContentIntakeController {
       safeHttpError(error);
     }
 
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const stopHeartbeat = startNdjsonStream(response);
     try {
       for await (const event of this.intake.run(
         organization.id,
@@ -130,6 +131,7 @@ export class ContentIntakeController {
         }) + '\n'
       );
     } finally {
+      stopHeartbeat();
       response.end();
     }
   }

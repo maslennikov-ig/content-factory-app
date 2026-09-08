@@ -254,18 +254,12 @@ const type = async (selector, value) => {
 };
 
 /** Каналы необязательны и приезжают позже поля ввода: канал ждём отдельно. */
-const pickChannel = async () => {
-  await settle(
-    () => screen.queryByRole('button', { name: 'Мой канал' }) !== null
-  );
-  await click(screen.getByRole('button', { name: 'Мой канал' }));
-};
+
 
 const start = async (text = 'Надо больше писать про ИИ, чем сейчас') => {
   await type('[name="intake-input"]', text);
-  await pickChannel();
   await click(
-    screen.getByRole('button', { name: /^Сделать и написать/ }),
+    screen.getByRole('button', { name: /Сделать заготовку/ }),
     () =>
       panel().getAttribute('data-intake-state') !== 'streaming' &&
       panel().getAttribute('data-intake-state') !== 'idle'
@@ -305,6 +299,7 @@ describe('a thin thought is answered with a piece, not with a dead end', () => {
     // Один ход и один запрос: второго круга не бывает вовсе.
     expect(intakeAnswers).toHaveLength(1);
     expect(intakeAnswers[0].answers).toBeUndefined();
+    expect(intakeAnswers[0].integrationIds).toBeUndefined();
 
     // Заготовка названа кодом — это первое, что человек получает.
     const line = document.querySelector('[data-intake-piece="cnt-07"]');
@@ -377,8 +372,7 @@ describe('a link, declared to the door as a link', () => {
 
     expect(document.querySelector('[data-intake-kind-line="link"]')).not.toBeNull();
 
-    await pickChannel();
-    await click(screen.getByRole('button', { name: /^Сделать и написать/ }));
+      await click(screen.getByRole('button', { name: /Сделать заготовку/ }));
 
     expect(intakeAnswers[0].inputKind).toBe('link');
     expect(intakeAnswers[0].input).toBe('https://example.test/post');
@@ -441,10 +435,9 @@ describe('what a broken answer and a closed screen do', () => {
     intakeAnswers = [];
     const view = await open();
     await type('[name="intake-input"]', 'Мысль про дедлайны, которых себе не ставят');
-    await pickChannel();
-    // Ход запускается и не дочитывается: экран закрывают на середине.
+      // Ход запускается и не дочитывается: экран закрывают на середине.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Сделать и написать/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Сделать заготовку/ }));
     });
 
     expect(carried).not.toBeNull();

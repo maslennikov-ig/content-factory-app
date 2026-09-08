@@ -251,6 +251,9 @@ const fakeResponse = () => {
   const chunks = [];
   return {
     headers: {},
+    flushHeaders() {},
+    once() {},
+    off() {},
     ended: false,
     statusCode: 200,
     setHeader(name, value) {
@@ -293,7 +296,7 @@ describe('дверь отдаёт разбор строками', () => {
     const response = await run(controller);
 
     expect(response.headers['content-type']).toBe(
-      'application/json; charset=utf-8'
+      'application/x-ndjson; charset=utf-8'
     );
     expect(response.ended).toBe(true);
     // Ни одной склеенной строки: каждая разбирается сама по себе.
@@ -310,13 +313,25 @@ describe('дверь отдаёт разбор строками', () => {
     expect(names.indexOf('measured')).toBeLessThan(names.indexOf('call'));
   });
 
-  test('первая строка говорит, сколько текстов и сколько из них увидит модель', async () => {
+  test('started precedes even the first asynchronous corpus read', async () => {
+    const { service } = harness({ assist: assistOver(groundedTransport()) });
+    let read = false;
+    service.corpusFor = async () => { read = true; throw new Error('delayed storage'); };
+    const events = service.analysisStream(admin, { withAssist: true });
+    expect((await events.next()).value.name).toBe('started');
+    expect(read).toBe(false);
+    await expect(events.next()).rejects.toThrow('delayed storage');
+    expect(read).toBe(true);
+  });
+
+  test('первая строка подтверждает старт, затем приходит число образцов до вызовов', async () => {
     const { service, controller } = harness({
       assist: assistOver(groundedTransport()),
     });
     await fill(service, 12);
 
-    const [started] = (await run(controller)).events;
+    const [acknowledged, started] = (await run(controller)).events;
+    expect(acknowledged).toEqual({ name: 'started', samples: 0, planned: 0 });
 
     expect(started).toMatchObject({ name: 'started' });
     expect(started.samples).toBeGreaterThan(0);
@@ -373,10 +388,10 @@ describe('дверь отдаёт разбор строками', () => {
     const response = await run(controller);
     const events = response.events;
 
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ name: 'done' });
-    expect(events[0].analysis.outcome).toBe('insufficient');
-    expect(events[0].analysis.readiness.missingChars).toBeGreaterThan(0);
+    expect(events).toHaveLength(2);
+    expect(events[1]).toMatchObject({ name: 'done' });
+    expect(events[1].analysis.outcome).toBe('insufficient');
+    expect(events[1].analysis.readiness.missingChars).toBeGreaterThan(0);
     void service;
   });
 });

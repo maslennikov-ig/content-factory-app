@@ -1,3 +1,4 @@
+import { startNdjsonStream } from './ndjson-stream';
 import {
   Body,
   Controller,
@@ -24,8 +25,11 @@ import {
   PieceAnswerDoorDto,
   PieceArchiveDto,
   PiecesQueryDto,
+  ReadyAdaptationsQueryDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
+
+import { AdaptationReviewDto, AdaptationReviewAcceptDto } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/adaptation-review.dto';
 
 /**
  * Отказ сохраняет своё имя и свой предмет.
@@ -130,6 +134,33 @@ const deleteFallback = (error: unknown, language: 'ru' | 'en'): string => {
 export class ContentPieceController {
   constructor(private readonly pieces: PieceService) {}
 
+  @Post('/:id/adaptations/:adaptationId/review')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async review(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Body() body: AdaptationReviewDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.reviewAdaptation(organization.id, id, adaptationId, body.mode, languageOf(requested), body.confirmWebSpend);
+    } catch (error) { safeHttpError(error, 'Review failed'); }
+  }
+
+  @Post('/:id/adaptations/:adaptationId/review/accept')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async acceptReview(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Body() body: AdaptationReviewAcceptDto
+  ) {
+    try {
+      return await this.pieces.acceptAdaptationReview(organization.id, id, adaptationId, body);
+    } catch (error) { safeHttpError(error, 'Accept review failed'); }
+  }
+
   /**
    * Первая вкладка «Контента»: таблица заготовок с колонкой на площадку.
    *
@@ -151,6 +182,19 @@ export class ContentPieceController {
       );
     } catch (error) {
       safeHttpError(error, 'Piece request failed');
+    }
+  }
+
+  /** Draft adaptations available for the calendar chooser. */
+  @Get('/ready-adaptations')
+  async readyAdaptations(
+    @GetOrgFromRequest() organization: Organization,
+    @Query() query: ReadyAdaptationsQueryDto = new ReadyAdaptationsQueryDto()
+  ) {
+    try {
+      return await this.pieces.readyAdaptations(organization.id, query.limit);
+    } catch (error) {
+      safeHttpError(error, 'Ready adaptations request failed');
     }
   }
 
@@ -207,7 +251,7 @@ export class ContentPieceController {
       safeHttpError(error, 'Adaptation request failed');
     }
 
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const stopHeartbeat = startNdjsonStream(response);
     try {
       for await (const event of this.pieces.adapt(
         organization.id,
@@ -232,6 +276,7 @@ export class ContentPieceController {
         }) + '\n'
       );
     } finally {
+      stopHeartbeat();
       response.end();
     }
   }
@@ -273,7 +318,7 @@ export class ContentPieceController {
       safeHttpError(error, 'Answer request failed');
     }
 
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const stopHeartbeat = startNdjsonStream(response);
     try {
       for await (const event of this.pieces.answer(
         organization.id,
@@ -295,6 +340,7 @@ export class ContentPieceController {
         }) + '\n'
       );
     } finally {
+      stopHeartbeat();
       response.end();
     }
   }

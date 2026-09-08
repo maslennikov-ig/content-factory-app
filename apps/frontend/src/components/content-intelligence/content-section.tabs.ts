@@ -27,18 +27,17 @@ export const CONTENT_TABS: readonly ContentTab[] = [
   // `content-factory-next-tu3k.9` (06.09.2026): «Заготовки» — первая вкладка
   // раздела. Ключ остался `materials`, потому что по нему живут адреса
   // (`?tab=materials`, `?tab=archive`), тесты и `initialTab`; поменялись
-  // подпись и место, а не имя.
+  // подпись и место, а не имя. Legacy ?tab=archive теперь тоже открывает таблицу.
   'materials',
-  'avatars',
-  'leads',
   'brief',
+  'leads',
   'provenance',
 ];
 
 /**
- * What the address bar is allowed to name. `archive` is not a tab any more —
- * it is a view inside «Материалы» — but the address survives it, and an
- * unknown value opens the section rather than failing.
+ * What the address bar is allowed to name. The removed archive view keeps
+ * its old address as an alias for the pieces table. An unknown value opens
+ * the section rather than failing.
  */
 export const resolveContentTab = (
   value: unknown
@@ -46,6 +45,7 @@ export const resolveContentTab = (
   const tab = Array.isArray(value) ? value[0] : value;
   if (typeof tab !== 'string') return undefined;
   if (tab === 'archive') return 'archive';
+  if (tab === 'avatars') return 'avatars';
   return (CONTENT_TABS as readonly string[]).includes(tab)
     ? (tab as ContentTab)
     : undefined;

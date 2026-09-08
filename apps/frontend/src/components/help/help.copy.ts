@@ -1,7 +1,7 @@
 import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
 
 /**
- * Раздел помощи: одиннадцать вопросов и ответы к ним, двумя языками рядом с
+ * Раздел помощи: двенадцать вопросов и ответы к ним, двумя языками рядом с
  * кодом.
  *
  * Решение владельца 07.09.2026 (`m2eg.25`): «завести в продукте раздел помощи
@@ -44,7 +44,7 @@ type Words = {
   questions: HelpQuestion[];
 };
 
-/** Одиннадцать `id` в том порядке, в каком они стоят на экране. */
+/** Двенадцать `id` в том порядке, в каком они стоят на экране. */
 export const HELP_QUESTION_IDS = [
   'telegram-authorship',
   'post-needs-channel',
@@ -53,16 +53,18 @@ export const HELP_QUESTION_IDS = [
   'when-web-search',
   'avatar-corpus',
   'slop-check',
+  'adaptation-review',
   'account-pending',
   'roles',
   'ai-keys',
+  'ai-usage',
   'where-to-start',
 ] as const;
 
 export type HelpQuestionId = (typeof HELP_QUESTION_IDS)[number];
 
 /** Куда ведут ссылки строки «Где найти». Адреса уже существующих экранов. */
-export const HELP_ONBOARDING_HREF = '/settings?tab=onboarding';
+export const HELP_ONBOARDING_HREF = '/onboarding';
 export const HELP_CONTENT_HREF = '/content';
 
 export const helpCopy: { ru: Words; en: Words } = {
@@ -82,7 +84,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'post-needs-channel',
         question: 'Почему нельзя написать пост без канала?',
         answer:
-          'Пост всегда адресован каналу: от канала зависят длина, тон и правила площадки. Пока канала нет, напишите заготовку в разделе «Контент» — она живёт без канала, а адаптировать её под канал можно позже.',
+          'Пост всегда адресован каналу: от канала зависят длина, тон и правила площадки. Пока канала нет, напишите заготовку в разделе «Контент → Заготовки» — она живёт без канала, а адаптировать её под канал можно позже.',
       },
       {
         id: 'piece-vs-post',
@@ -92,15 +94,15 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'already-written',
-        question: 'Что такое «Что уже написали»?',
+        question: 'Как найти свои прошлые тексты?',
         answer:
-          'Это ваши опубликованные тексты. Модель ищет по ним, когда пишет новый пост, и может сослаться на старый: «я уже писал об этом». Раздел не нужно заполнять вручную — он собирается из ваших постов.',
+          'В таблице заготовок клетки площадок показывают состояние и число постов. Индекс своих текстов собирается автоматически: при адаптации модель ищет в нём и может сослаться на прошлую публикацию. Находки видны в блоке «Свои тексты по теме». Отдельного вида «Что уже написали» больше нет.',
       },
       {
         id: 'when-web-search',
         question: 'Когда модель ходит в интернет?',
         answer:
-          'Только на входе, когда проверяет числа из чужого поста или когда вы дали мысль без фактов. При адаптации под канал в интернет не ходит: берёт материал из заготовки и из ваших старых постов.',
+          'Когда дополняет заготовку фактами или когда вы отдельно выбираете «Проверить поиском» и подтверждаете расход. Утверждения черновика автоматически по сети не проверяются. При обычной адаптации под канал модель берёт материал из заготовки и из ваших старых постов.',
       },
       {
         id: 'avatar-corpus',
@@ -113,6 +115,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'Что проверяет «проверка на штампы»?',
         answer:
           'Ищет обороты, по которым текст узнают как машинный: «в современном мире», «давайте разберёмся», лишние вводные, ровные списки из трёх пунктов. Не проверяет факты и не судит о смысле. Работает без вызова модели и денег не стоит.',
+      },
+      {
+        id: 'adaptation-review',
+        question: 'Как исправить штампы или сверить адаптацию с заготовкой?',
+        answer:
+          'Откройте адаптацию и нажмите «Проверить ▾». Выберите «Убрать штампы», «Сверить с сутью заготовки» или «И то и другое». Каждый режим делает один платный вызов модели; расход токенов зависит от текста и режима. Сверка использует только суть, опоры и слова автора, без поиска в интернете. Результат показывает разницу: «Принять» сохранит текст адаптации и черновик поста, «Оставить как было» ничего не запишет. Если черновик изменили после проверки, принять старый ответ нельзя. Последний режим запоминается отдельно для рабочего пространства. Отдельный пункт «Проверить поиском» ищет источники в интернете: перед запуском покажет предупреждение о расходе на поиск и модели и попросит подтверждение. Поиск берёт первые 5000 знаков черновика. Результат показывает ссылки и отрывки источников; если источников нет или поиск недоступен, правки не предлагаются. Это не подтверждение всех фактов.',
       },
       {
         id: 'account-pending',
@@ -131,6 +139,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'Где ключи ИИ и что такое «модель на роль»?',
         answer:
           'В настройках, вкладка «ИИ». Ключ один на область. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
+      },
+      {
+        id: 'ai-usage',
+        question: 'Где смотреть расход?',
+        answer:
+          'В настройках откройте вкладку «Глобальные настройки». Под режимом использования ИИ находятся таблицы «Расход ИИ по участникам за период» и «Расход ИИ по ролям за период» — они стоят выше блока «Расход и роли вызова». Если вызовов ещё не было, таблицы всё равно остаются на странице и показывают, что данных за период пока нет. Раздел доступен администратору рабочей области.',
       },
       {
         id: 'where-to-start',
@@ -156,7 +170,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'post-needs-channel',
         question: 'Why can’t I write a post without a channel?',
         answer:
-          'A post is always addressed to a channel: length, tone and the platform’s rules all follow from it. While there is no channel, write a piece in the «Content» section — a piece lives without a channel, and it can be adapted to one later.',
+          'A post is always addressed to a channel: length, tone and the platform’s rules all follow from it. While there is no channel, write a piece in the «Content → Pieces» section — a piece lives without a channel, and it can be adapted to one later.',
       },
       {
         id: 'piece-vs-post',
@@ -166,15 +180,15 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'already-written',
-        question: 'What is «What you have already written»?',
+        question: 'How do I find my earlier texts?',
         answer:
-          'These are your published texts. The model searches them when it writes a new post and can refer back to an old one: «I have written about this before». You do not fill the section in by hand — it is collected from your posts.',
+          'Platform cells in the pieces table show post status and counts. Your text index is collected automatically: during adaptation the model searches it and can refer to an earlier publication. Matches appear in “Your texts on this topic”. There is no separate archive view.',
       },
       {
         id: 'when-web-search',
         question: 'When does the model go to the internet?',
         answer:
-          'Only at intake, when it checks numbers taken from someone else’s post, or when you gave a thought with no facts. Adapting to a channel does not go to the internet: it takes its material from the piece and from your earlier posts.',
+          'When enriching a piece with facts, or when you explicitly choose Check with web search and confirm spending. Draft claims are not automatically checked against the web. Normal channel adaptation uses the piece and your earlier posts.',
       },
       {
         id: 'avatar-corpus',
@@ -187,6 +201,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'What does the cliché check look for?',
         answer:
           'Turns of phrase that give a text away as machine-written: «in today’s world», «let us break it down», padding introductions, tidy lists of three. It does not check facts and does not judge meaning. It runs without calling a model and costs nothing.',
+      },
+      {
+        id: 'adaptation-review',
+        question: 'How do I remove cliches or compare an adaptation with its piece?',
+        answer:
+          'Open the adaptation and choose Check: Remove cliches, Compare with the piece, or Both. Every mode makes one paid model call; token usage depends on the draft and mode. The comparison uses only the piece, its evidence and the author’s words, without web search. Review the text changes, then Accept to update the adaptation and draft post, or Leave unchanged to save nothing. Acceptance is refused if the draft changed after the review. The last mode is remembered separately for each workspace. The separate Check with web search action asks you to confirm spending on search and models before it starts. Search uses the first 5000 draft characters. The result shows source links and excerpts. If search is unavailable or yields no sources, no corrections are offered. This does not verify every fact.',
       },
       {
         id: 'account-pending',
@@ -205,6 +225,12 @@ export const helpCopy: { ru: Words; en: Words } = {
         question: 'Where are the AI keys, and what is «a model per role»?',
         answer:
           'In settings, the «AI» tab. One key per workspace. «A model per role» is which model answers for which kind of work: a draft, reading someone else’s text, questions. Left empty, the default model works.',
+      },
+      {
+        id: 'ai-usage',
+        question: 'Where can I see AI usage?',
+        answer:
+          'In settings, open the «Global settings» tab. Under the AI usage mode, find the «AI usage by member, this period» and «AI usage by role, this period» tables — they sit above the «Usage and call roles» block. If there have been no calls yet, the tables stay on the page and say that there is no usage for the period yet. This section is available to workspace administrators.',
       },
       {
         id: 'where-to-start',

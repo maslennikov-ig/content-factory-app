@@ -2,13 +2,11 @@
 
 ## Current Programme
 
-- Эпик Beads `content-factory-next-vme` держит всю оставшуюся работу: семь
-  стадий по порядку — `vme.1` учёт AI и публичные гарантии, `vme.2`
+- Эпик Beads `content-factory-next-vme` держит всю оставшуюся работу: семь стадий по порядку — `vme.1` учёт AI и публичные гарантии, `vme.2`
   интерфейсный долг, `vme.3` эксплуатационная готовность, `9e9` контентный
   интеллект, `0c8` редактор изображений, `or3` публичная воронка, `cft`
   переезд в публичный репозиторий (последняя по решению владельца 17.08.2026).
-  Его описание перечисляет девять решений владельца, которые ни одна стадия не
-  поглощает; тот же список повторён в разделе отложенного в `.codex/handoff.md`.
+  Его описание перечисляет девять решений владельца, которые ни одна стадия не поглощает; тот же список повторён в разделе отложенного в `.codex/handoff.md`.
 - Стадии `content-factory-next-vme.1`, `.2` и `.3` приняты локально на
   release-уровне; receipts и артефакты лежат в соответствующих каталогах
   `.codex/stages/`. Стадия `content-factory-next-9e9` также принята: после
@@ -23,8 +21,7 @@
 ## Documentation
 
 - `docs/README.md` — главный индекс документации и рекомендуемый вход в проект.
-- `docs/{product,architecture,development,operations,adr,maintenance}/` — продукт,
-  система, разработка, эксплуатация, решения и правила актуальности.
+- `docs/{product,architecture,development,operations,adr,maintenance}/` — продукт, система, разработка, эксплуатация, решения и правила актуальности.
 - `PRODUCT.md` — аудитория, назначение, позиционирование и стратегические design principles.
 - `docs/product/cloud-saas-growth-spec.md` и ADR-0010 — Cloud-first managed
   SaaS-модель, гибридный AI, публичная воронка и явные коммерческие,
@@ -33,12 +30,11 @@
   `content-source-registry-spec.md` и `content-memory-spec.md` — принятые
   контракты профиля, разрешённых источников, фактов, доказательств и единого
   контекста.
+- `docs/product/second-walk-wave-2026-09-08-spec.md` — волна второго прогона 08.09.2026 (эпик `tu3k.14`), макеты `docs/design/desert-lab/pipeline/`, заказ `docs/prompts/astra-second-walk-wave-2026-09-08.md`.
 - `DESIGN.md` — канонические визуальные tokens, компоненты и guardrails.
 - `docs/design/content-factory-interface-specification.md` — полная область пользовательского ребрендинга и UI-приёмка.
-- `docs/prompts/opus-5-content-factory-brand-redesign.md` — исторический handoff,
-  по которому UI-эпик уже выполнен; повторно не запускать.
-- `docs/research/README.md` — соглашение об именовании отчётов и указатель: что
-  в каждом и к какому выводу он пришёл. Два отчёта о поисковом бэкенде
+- `docs/prompts/opus-5-content-factory-brand-redesign.md` — исторический handoff, по которому UI-эпик уже выполнен; повторно не запускать.
+- `docs/research/README.md` — соглашение об именовании отчётов и указатель: что в каждом и к какому выводу он пришёл. Два отчёта о поисковом бэкенде
   противоречат друг другу намеренно (второе мнение); владелец выбрал Tavily
   основным, контракт — `docs/prompts/search-provider-port-spec.md` и
   `content-factory-next-yqh`. `writer-voice-style-transfer-2026-08-22.md` —
@@ -47,7 +43,7 @@
 ## Runtime Shape
 
 - pnpm monorepo on Postiz `v2.22.1`; Node `22.23.2`, pnpm `10.6.1`, Next.js/React, NestJS, Prisma/PostgreSQL, Redis and Temporal.
-- Stable branch: `main`; review branches use isolated worktrees. Upstream: `upstream`.
+- Stable branch: `main`; review branches use isolated worktrees. Единственный remote: `origin`.
 - Donor `/home/me/code/content-factory` is read-only unless separately assigned.
 
 ## Primary Entrypoints
@@ -64,6 +60,11 @@
   и `libraries/nestjs-libraries/src/content-intelligence/` — tenant-safe API и
   доменные границы профиля, источников, фактов и снимков контекста.
 - `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
+- `pieces/adaptation-review.ts`, `adaptation-review.contract.ts` и `openai/ai.roles.ts` внутри `libraries/nestjs-libraries/src/` — явная платная проверка адаптации (`review`), один вызов и атомарное принятие в DRAFT; UI `apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx`.
+- `apps/backend/src/api/routes/ndjson-stream.ts` — общий транспорт входа, адаптации и разбора аватара: без сжатия, первая строка и heartbeat. Контракты расширены отдельными `intake-v2.contract.ts` и `voice-intake-v2.contract.ts`.
+- `apps/frontend/src/components/layout/top.menu.tsx` — навигация A; четыре вкладки заготовок в `content-section.screen.tsx`.
+- `apps/frontend/src/components/channels/` — список карточками/таблицей и страница канала с четырьмя панелями; общие поля письма в `content-intelligence/intake/writing-profile.fields.tsx`; чтение последних постов — `GET /integrations/:id/posts`.
+- `scripts/evidence/liveness-report.cjs` — локальный read-only замер дословного переноса слов автора, без модели; явно различает отсутствие адаптаций и нулевой перенос.
 - `apps/frontend/src/components/content-intelligence/` — Settings-поверхности
   профиля, источников и provenance; local-only review routes покрывают полные
   состояния без API, модели и внешней сети.
@@ -120,7 +121,7 @@
 - Runtime product state will live in Postgres through Prisma once a migration slice is accepted.
 - Git owns code, schemas, migrations, configuration examples, durable decisions, and public-safe export fixtures.
 - Beads owns task and status history; `.codex/handoff.md` owns only current operational state.
-- Postiz upstream history remains reachable through the `upstream` remote.
+- История Postiz сохранена в Git; remote `upstream` удалён по решению владельца.
 - AGPL-3.0 governs the fork and the chosen Content Factory product model. Preserve notices and provide the exact corresponding source before external network use or distribution; see `docs/adr/0005-release-content-factory-next-under-agpl.md`.
 - Existing Content Factory Git artifacts remain donor evidence until an explicit migration maps them into product records and exports.
 

@@ -5,7 +5,8 @@ const repositoryRoot = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(repositoryRoot, file), 'utf8');
 
 const channelSurfaces = [
-  'apps/frontend/src/components/launches/launches.component.tsx',
+  'apps/frontend/src/components/channels/channel-parts.tsx',
+  'apps/frontend/src/components/launches/adaptation-picker.tsx',
   'apps/frontend/src/components/launches/add.provider.component.tsx',
   'apps/frontend/src/components/launches/calendar.tsx',
   'apps/frontend/src/components/launches/helpers/pick.platform.component.tsx',
@@ -111,7 +112,8 @@ describe('desert-lab screen review regressions', () => {
   );
 
   test.each([
-    'apps/frontend/src/components/launches/launches.component.tsx',
+    'apps/frontend/src/components/channels/channel-parts.tsx',
+    'apps/frontend/src/components/launches/adaptation-picker.tsx',
     'apps/frontend/src/components/agents/agent.tsx',
     'apps/frontend/src/components/new-launch/picks.socials.component.tsx',
     'apps/frontend/src/components/new-launch/select.current.tsx',
@@ -207,9 +209,20 @@ describe('desert-lab screen review regressions', () => {
     expect(orchestrator).toContain(
       'root = "/home/me/code/content-factory-next"'
     );
-    // The durable delivery target is independent of the checkout used for a
-    // review. A feature branch or detached HEAD must not rewrite this pin.
-    expect(orchestrator).toContain('current_branch = "main"');
+    // The durable checkout root is stable, while the active delivery branch
+    // belongs to the stage currently recorded by the orchestrator. A review
+    // branch must not be frozen to the historical default branch.
+    const stagePath = orchestrator.match(
+      /^current_stage = "([^"]+)"$/m
+    )?.[1];
+    const currentBranch = orchestrator.match(
+      /^current_branch = "([^"]+)"$/m
+    )?.[1];
+
+    expect(stagePath).toBeDefined();
+    expect(currentBranch).toBeDefined();
+    const stageManifest = JSON.parse(read(stagePath));
+    expect(stageManifest.branch).toBe(currentBranch);
     expect(projectIndex).not.toContain('Current source branch under review');
   });
 });

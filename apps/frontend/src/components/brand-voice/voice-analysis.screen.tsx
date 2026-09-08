@@ -74,9 +74,11 @@ const PUNCTUATION_ROWS = [
 function ProgressBar({
   percent,
   label,
+  busy,
 }: {
   percent: number;
   label: string;
+  busy: boolean;
 }) {
   return (
     <div
@@ -85,12 +87,21 @@ function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent}
-      className="h-[8px] w-full overflow-hidden rounded-[4px] border border-cf-border bg-cf-surface-subtle"
+      aria-busy={busy}
+      className="relative h-[8px] w-full overflow-hidden rounded-[4px] border border-cf-border bg-cf-surface-subtle"
     >
       <div
         className="h-full rounded-[4px] bg-cf-accent"
         style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
       />
+      {busy ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 animate-[cf-skeleton-sweep_1.4s_ease-in-out_infinite] motion-reduce:hidden"
+        >
+          <div className="h-full w-1/3 bg-cf-accent opacity-50" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -172,7 +183,7 @@ export function VoiceAnalysisScreen({
    */
   const showPercent = state !== 'error';
   const stageLabel =
-    stage === 'ASSISTING'
+    (stage === 'ASSISTING' || (stage === 'MEASURED' && assisted))
       ? assisted && assisted.total > 0
         ? t.analysisStageProposing(assisted.done, assisted.total)
         : t.analysisStageAssisting
@@ -289,7 +300,7 @@ export function VoiceAnalysisScreen({
               ) : null}
             </div>
             {showPercent ? (
-              <ProgressBar percent={shownPercent} label={stageLabel} />
+              <ProgressBar percent={shownPercent} label={stageLabel} busy={busy} />
             ) : null}
           </div>
           <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">

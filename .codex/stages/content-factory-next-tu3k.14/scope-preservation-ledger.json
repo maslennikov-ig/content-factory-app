@@ -1,0 +1,212 @@
+{
+  "schema_version": "scope-preservation-ledger/v1",
+  "goal_id": "content-factory-next-tu3k.14",
+  "source_snapshot_digest": "2abb077d446c47cc25451694aa830b408a1b92b93a2dd680faa9eb3243e7a8b4",
+  "migration": "future_work_only",
+  "reason": "Owner adds channels task 26 to the same release; original scope and accepted history remain unchanged.",
+  "criteria": [
+    {
+      "criterion_id": "content-factory-next-tu3k.14.1",
+      "criterion_text_digest": "ae4440aa9c0347c64cb87cebbc5afcab08547757c84331da7aafbb66b9734a5d",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.2",
+      "criterion_text_digest": "72f4852c28b597f6f1b6443a4e3f1d85ec30756c96998d5dfbefdfbf2919a152",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.3",
+      "criterion_text_digest": "02ff5e8cb7b1097b75f070dec4a63a02f29d1180213b7bece20ab44da0abaa35",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.4",
+      "criterion_text_digest": "5a4b6a1a07bb4ae244529c79b30d30ad783ba377c809bd895698b4902f211de3",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.5",
+      "criterion_text_digest": "07b9b415c4bab9293f81c5560145c7297ee8054854b158042dafea030667ed36",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.6",
+      "criterion_text_digest": "8d6f06c58c01065a6a2c30b8052d741a0c66ccc14e253c51f1b12c954a2b3779",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.7",
+      "criterion_text_digest": "5e6a5fda5fe673e647d8d15753c33d48c863d7dfb0bd350bade2bbe18c68e50d",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.8",
+      "criterion_text_digest": "40256b38efa1068eb0ef176ee35a7675931918c26b9c309b38fb24b013a2e9ff",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.9",
+      "criterion_text_digest": "f8b22f95f3430c37ad7f44df58d43771e2b4da94c80f14e8b4db50d0b9fa5ff1",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.10",
+      "criterion_text_digest": "f29e813a759be31f8890aac14778c478486ca8b8004af0057b658a9980d1c006",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.11",
+      "criterion_text_digest": "2787f703904a1308580f2b9b763ec41108e9bac12d9f59e2dd484d1735807305",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.12",
+      "criterion_text_digest": "02c25051eea1cf802ea850d481273d7c38da1370c189e0ca029001e6960d009f",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.13",
+      "criterion_text_digest": "c4966491f4aa20785a9b9fa8196437ec063c8a23d8dcede7943934ed223940dc",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.14",
+      "criterion_text_digest": "c25b36380d4cd4905ac0762ff336834312685887fe8c3109ca0ede9bfec8f039",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.15",
+      "criterion_text_digest": "ce918fbbcd6cb6621eea3c301e0e8ac074b2a632d07b8fc44bd7ada7136bcde5",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.16",
+      "criterion_text_digest": "9c803a5b1653658097f1a7bd0eb3a444260d368b7d6fa333506beaedacbcfaac",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.17",
+      "criterion_text_digest": "a99d3c055b528368e1678345b39b579acf0914d26d5e9a7d4d6569d83fa56cb3",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.18",
+      "criterion_text_digest": "a15c7654bcef2082160c8d611917d36348defd433069e1dbde2325706d8de8c6",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.19",
+      "criterion_text_digest": "6326b2295aebaffb5ee8a0791cb7626676ea8b5d24b5d5b0c7eade12b248e79a",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.20",
+      "criterion_text_digest": "a4a207a8d9daa1985e030c821a4f2256153cc36cb29c34dd19ee088ba1a9eaf3",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.21",
+      "criterion_text_digest": "ea6f1d4c75592fa8a387dbed58548480a8841233c1819780fcd570f91d204b59",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.22",
+      "criterion_text_digest": "221614a83dcb402e3a5ac6886731e29574a4340cdc0236c64872407bb20d3824",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.23",
+      "criterion_text_digest": "9a61795a68c3956663138af54655b29d49524e8292110e47896517fd4084ae6f",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.24",
+      "criterion_text_digest": "277915be0a798ac50aa1780c492237f895926028e89ff28b195f01af6600283b",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.25",
+      "criterion_text_digest": "9ccc4959e042d01fbc51271d8e7d7a8220edc93368669a3baebd99e82c6e92ab",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    },
+    {
+      "criterion_id": "release",
+      "criterion_text_digest": "f98e715892e84bcb47ff34a7d955fb4bc764b4ea8f5242bf595292eed1e45463",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14"
+    }
+  ],
+  "added_criteria": [
+    {
+      "criterion_id": "content-factory-next-tu3k.14.26",
+      "text": "/channels отдаёт карточки, переключатель даёт таблицу и переживает перезагрузку; фильтр и поиск в обоих видах; /channels/<id> с четырьмя панелями; правка карточки на месте через существующую дверь writing-profile; пустое состояние с плитками площадок; мобильный список → страница; все действия меню ··· на месте; стражи дизайна и tsc зелёные; владелец сказал «да» на стенде.",
+      "text_digest": "97477d264ce1ff0fb0687130f68ec49aee30015931e88a3bc4c607d3a5febbbf",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14",
+      "source": "docs/prompts/astra-channels-section-2026-09-08.md",
+      "owner_gate": "Explicit owner yes on localhost:4200 before release."
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.27",
+      "text": "/launches без рейки, сетка на всю ширину как остальные разделы; фильтр «Все каналы» в панели сужает посты; «Подключить канал» больше не в календаре; тесты launches.channel-rail переписаны под новую панель; стражи дизайна зелёные.",
+      "text_digest": "07d61df6bd178dfc076ceececca80bf8c838ca3e1ba9cb33a7810976e6b1ab51",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14",
+      "source": "docs/prompts/astra-calendar-only-2026-09-08.md",
+      "owner_gate": "Explicit owner yes on localhost:4200 before release."
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.28",
+      "text": "Плюс и пустая клетка открывают выбор; список показывает только адаптации с постом в draft; выбор открывает окно поста с датой клетки и каналом; «Чистый лист» открывает прежнее пустое окно; пустое состояние ведёт в /content; ни одного платного вызова; тест на дверь и на окно.",
+      "text_digest": "df49a32e5def479ee951532977445dad7e228484c3a303e83a31f07f2025e051",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14",
+      "source": "docs/prompts/astra-calendar-only-2026-09-08.md",
+      "owner_gate": "Explicit owner yes on localhost:4200 before release."
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.29",
+      "text": "У поста из адаптации в предпросмотре есть строка с кодом заготовки и переход на /content/pieces/<id>; у поста без заготовки строки нет; тест на оба случая.",
+      "text_digest": "77d5edc7daf82ca04199aa9cf891b40615533483f01378ea62684b3b6e7c8b21",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14",
+      "source": "docs/prompts/astra-calendar-only-2026-09-08.md",
+      "owner_gate": "Explicit owner yes on localhost:4200 before release."
+    },
+    {
+      "criterion_id": "content-factory-next-tu3k.14.30",
+      "text": "В меню шаг 3 «Контент»/«Content»; таблица внутри по-прежнему «Заготовки»; онбординг и помощь ведут словами «Контент»; тесты help.screen и conveyor-navigation.guard обновлены.",
+      "text_digest": "21f63ad81f5c51a4d7332414ef8855e6fe38dca7c5d34199742f41ac36ab2bfe",
+      "disposition": "stage",
+      "target": "content-factory-next-tu3k.14",
+      "source": "docs/prompts/astra-calendar-only-2026-09-08.md",
+      "owner_gate": "Explicit owner yes on localhost:4200 before release."
+    }
+  ]
+}

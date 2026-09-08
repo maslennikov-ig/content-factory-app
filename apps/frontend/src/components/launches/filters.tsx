@@ -11,6 +11,15 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import i18next from 'i18next';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 
+import { Select } from '@contentfactory/react/form/select';
+import { Button } from '@contentfactory/react/form/button';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
+import { useUser } from '../layout/user.context';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { useAdaptationPicker } from './adaptation-picker';
+import { calendarPlanningCopy } from './calendar-planning.copy';
+
 // Helper function to get start and end dates based on display type
 function getDateRange(
   display: 'day' | 'week' | 'month' | 'list',
@@ -45,6 +54,10 @@ function getDateRange(
 export const Filters = () => {
   const calendar = useCalendar();
   const t = useT();
+  const language = useInterfaceLanguage();
+  const copy = calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
+  const openPicker = useAdaptationPicker();
+  const canWrite = isOrganizationEditor(useUser()?.role);
 
   // Set dayjs locale based on current language
   const currentLanguage = i18next.resolvedLanguage || 'en';
@@ -458,6 +471,15 @@ export const Filters = () => {
         onChange={(customer: string) => setCustomer(customer)}
         integrations={calendar.integrations}
       />
+      <Select standalone aria-label={copy.allChannels} value={calendar.integrationId || ''}
+        onChange={event => calendar.setFilters({ startDate: calendar.startDate, endDate: calendar.endDate,
+          display: calendar.display as 'day' | 'week' | 'month' | 'list', customer: calendar.customer,
+          editorialStage: calendar.editorialStage, integrationId: event.target.value || null })}>
+        <option value="">{copy.allChannels}</option>
+        {calendar.integrations.map(one => <option key={one.id} value={one.id}>{one.name}</option>)}
+      </Select>
+      <ButtonLink href="/channels" variant="quiet">{copy.channelsLink}</ButtonLink>
+      {canWrite && <Button onClick={() => openPicker()}>{copy.schedule}</Button>}
       <EditorialStageFilter
         value={calendar.editorialStage}
         onChange={setStage}

@@ -57,9 +57,16 @@ void (function run() {
     }
 
     if (typeof process.send === 'function') {
-      process.send(outcome);
+      // IPC delivery is asynchronous; a forced exit here can discard the
+      // outcome and make a successful worker look like PARSE_CRASHED.
+      await new Promise<void>((resolve, reject) => {
+        process.send(outcome, (error: Error | null) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
     }
   }
 
   return main();
-})().then(() => process.exit(0));
+})();

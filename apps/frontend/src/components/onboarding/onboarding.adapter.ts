@@ -94,7 +94,7 @@ export const ONBOARDING_STEP_KEYS: readonly OnboardingStepKey[] = [
  * on «Аватары», and a claim is added where the brief asks for it.
  */
 export const ONBOARDING_STEP_HREF: Record<OnboardingStepKey, string> = {
-  channel: '/launches',
+  channel: '/channels',
   voice: '/content?tab=avatars',
   fact: '/content?tab=brief',
   // «Заготовки», ключ которых остался `materials`
@@ -102,7 +102,7 @@ export const ONBOARDING_STEP_HREF: Record<OnboardingStepKey, string> = {
   // tab, which was the only way to a draft before the «заготовка и адаптации»
   // wave; «Новая заготовка» is where that work starts now.
   brief: '/content?tab=materials',
-  preview: '/launches',
+  preview: '/content?tab=materials',
   schedule: '/launches',
 };
 

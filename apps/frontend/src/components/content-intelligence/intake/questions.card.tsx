@@ -277,6 +277,7 @@ export type SuggestedQuestion = {
   key: string;
   question: string;
   suggested: string | null;
+  options?: readonly string[];
   why?: string;
 };
 
@@ -327,7 +328,7 @@ export function SuggestedQuestionsCard({
 
   const optionClass = (active: boolean) =>
     clsx(
-      'w-full justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none',
+      'max-w-full justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none',
       active
         ? 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed'
         : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle cf-pressed'
@@ -343,7 +344,7 @@ export function SuggestedQuestionsCard({
         continue;
       }
       const text =
-        answer.mode === 'option' ? question.suggested ?? '' : answer.text.trim();
+        answer.text.trim();
       if (!text) {
         decided.push(question.key);
         continue;
@@ -380,7 +381,7 @@ export function SuggestedQuestionsCard({
         const answer = answers[question.key];
         const value =
           answer?.mode === 'option'
-            ? question.suggested ?? ''
+            ? answer.text
             : answer?.mode === 'own'
             ? answer.text === SKIP
               ? SKIP
@@ -436,18 +437,25 @@ export function SuggestedQuestionsCard({
                       : { mode: 'option', text: next },
                 }))
               }
-              className="flex flex-col gap-[4px]"
+              className="flex flex-wrap gap-[4px]"
             >
-              {question.suggested ? (
+              {(question.options ?? []).map((option) => (
+                <RadioOption key={option} value={option} disabled={busy} layout="content" className={optionClass(answer?.mode === 'option' && answer.text === option)}>
+                  {option}
+                </RadioOption>
+              ))}
+              {question.suggested && !question.options?.includes(question.suggested) ? (
                 <RadioOption
+                  disabled={busy}
                   value={question.suggested}
                   layout="content"
-                  className={optionClass(answer?.mode === 'option')}
+                  className={optionClass(answer?.mode === 'option' && answer.text === question.suggested)}
                 >
                   {words.yes}
                 </RadioOption>
               ) : null}
               <RadioOption
+                disabled={busy}
                 value={FIX}
                 layout="content"
                 className={optionClass(
@@ -457,6 +465,7 @@ export function SuggestedQuestionsCard({
                 {words.fix}
               </RadioOption>
               <RadioOption
+                disabled={busy}
                 value={DECIDE}
                 layout="content"
                 className={optionClass(answer?.mode === 'decide')}
@@ -464,6 +473,7 @@ export function SuggestedQuestionsCard({
                 {words.decide}
               </RadioOption>
               <RadioOption
+                disabled={busy}
                 value={SKIP}
                 layout="content"
                 className={optionClass(
@@ -479,9 +489,10 @@ export function SuggestedQuestionsCard({
               которого надо ещё дожать кнопку, читается как необязательный.
             */}
             {(answer?.mode === 'own' && answer.text !== SKIP) ||
-            !question.suggested ? (
+            (!question.suggested && !question.options?.length) ? (
               <div className="flex min-w-0 flex-col gap-[4px]">
                 <Input
+                  disabled={busy}
                   standalone
                   removeError
                   name={`piece-answer-${question.key}`}

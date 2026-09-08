@@ -76,11 +76,13 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
   const words = voiceCopy[locale];
 
   const [rebuilding, setRebuilding] = useState(false);
+  const [wizardSession, setWizardSession] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
 
   const list = useSWR(
     AVATAR_ROUTES.list,
     () => readVoice(request, AVATAR_ROUTES.list),
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, isPaused: () => analysing }
   );
   const view = useMemo(() => mapAvatars(list.data), [list.data]);
   const avatar = view.avatars.find((one) => one.id === avatarId);
@@ -96,7 +98,7 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
   const overview = useSWR(
     `${VOICE_API_BASE}/overview`,
     (path: string) => readVoice(request, path),
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, isPaused: () => analysing }
   );
   const canCreate = Boolean(
     (overview.data as { permissions?: { canCreate?: boolean } } | undefined)
@@ -118,7 +120,8 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
    * an empty one, while «Вернуться к аватару» stays absent where there is
    * genuinely nothing to return to.
    */
-  const collecting = rebuilding || Boolean(avatar && !avatar.analysed);
+  // A saved measurement does not end the wizard: its proposal still needs a decision.
+  const collecting = wizardSession || rebuilding || Boolean(avatar && !avatar.analysed);
 
   return (
     <div
@@ -195,13 +198,26 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setRebuilding(false)}
+                  disabled={analysing}
+                  onClick={() => {
+                    setRebuilding(false);
+                    setWizardSession(false);
+                  }}
                 >
                   {t.back}
                 </Button>
               </div>
             ) : null}
-            <VoiceWizardContainer avatarId={avatarId} />
+            <VoiceWizardContainer
+              avatarId={avatarId}
+              onAnalysingChange={setAnalysing}
+              onAnalysisStart={() => setWizardSession(true)}
+              onActivated={() => {
+                setWizardSession(false);
+                setRebuilding(false);
+                void list.mutate();
+              }}
+            />
           </>
         ) : (
           <VoiceProfileContainer avatarId={avatarId} />

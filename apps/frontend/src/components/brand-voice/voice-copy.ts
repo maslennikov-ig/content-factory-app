@@ -250,7 +250,7 @@ export const voiceCopy = {
      * без знаменателя проверить нечем.
      */
     analysisStageProposing: (done: number, total: number) =>
-      `Собираем предложение: ${done} из ${total}`,
+      `Собираем предложение: вызов ${Math.max(1, done)} из ${total}`,
 
     // Screen 05 — the proposal.
     proposalTitle: 'Вот что получилось из ваших текстов',
@@ -956,7 +956,7 @@ export const voiceCopy = {
     analysisCountedOnly: 'Counted, but no proposal',
     analysisStageCounted: 'The numbers are counted',
     analysisStageProposing: (done: number, total: number) =>
-      `Drafting the proposal: ${done} of ${total}`,
+      `Drafting the proposal: call ${Math.max(1, done)} of ${total}`,
 
     proposalTitle: 'Here is what came out of your texts',
     proposalSubtitle: (accepted: number, total: number) =>

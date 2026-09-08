@@ -92,6 +92,9 @@ const httpsTokens = (text: string): Array<{ raw: string; url: string }> => {
   return found;
 };
 
+/** Every usable URL, deduplicated; fetching still goes through the safe gateway. */
+export const linksOf = (input: string): string[] => [...new Set(httpsTokens(input).map(({ url }) => url))];
+
 /**
  * Ссылка, если ссылка здесь — единственное содержимое.
  *

@@ -1,17 +1,22 @@
 'use client';
 
+import { CoreAnswerDiff, type CoreAnswerFeedback } from './core-answer-diff';
+import type { BriefFilledV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/intake-v2.contract';
+
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
-import { Button } from '@contentfactory/react/form/button';
+import { Button, buttonClassName } from '@contentfactory/react/form/button';
+import { Select } from '@contentfactory/react/form/select';
 import { Panel } from '@contentfactory/react/layout';
+import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { Segmented } from '../../ui/segmented';
+import { Table, Td, Th, Tr } from '../../ui/table';
 import {
   ErrorState,
   RestrictedState,
   SkeletonRows,
   Status,
 } from '../../ui/surface';
-import { voiceCopy } from '../../brand-voice/voice-copy';
 import { SuggestedQuestionsCard } from '../intake/questions.card';
 import { intakeCopy } from '../intake/intake.copy';
 import {
@@ -19,8 +24,8 @@ import {
   type BriefFieldOriginV1,
   type QualityChecksV1,
 } from '../intake/intake.adapter';
-import { DraftResult } from '../shared/draft-result';
 import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
+import { voiceCopy } from '../../brand-voice/voice-copy';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { stateWord } from './adaptation.cell';
 import type {
@@ -72,6 +77,10 @@ export function PieceScreen({
   step,
   questions,
   draftText,
+  draftAdaptationId,
+  initialPlatform,
+  renderReview,
+  renderChannelProfile,
   draftChecks,
   draftGaps,
   adaptingChannel,
@@ -80,6 +89,7 @@ export function PieceScreen({
   restrictedReason,
   readOnlyNote,
   questionsSlot,
+  coreAnswer,
   onAdapt,
   onArchive,
   onAnswer,
@@ -98,6 +108,10 @@ export function PieceScreen({
   step: string | null;
   questions: readonly PieceQuestionV1[];
   draftText: string | null;
+  draftAdaptationId?: string | null;
+  initialPlatform?: string;
+  renderReview?: (adaptation: AdaptationV1 & { body: string }) => ReactNode;
+  renderChannelProfile?: (channel: { id: string; name: string }) => ReactNode;
   /** Проверки адаптации: приезжают событием стрима вместе с текстом. */
   draftChecks?: QualityChecksV1 | null;
   /** Чего в адаптации нет из привычек автора — тем же событием. */
@@ -114,10 +128,15 @@ export function PieceScreen({
    * дверь, а этот файл рисует и ничего не просит.
    */
   questionsSlot?: ReactNode;
+  coreAnswer?: CoreAnswerFeedback | null;
   onAdapt: (channelId: string, kind: AdaptationKindV1) => void;
   onArchive: () => void;
   onAnswer: (
-    answers: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
+    answers: readonly {
+      key: string;
+      text: string;
+      origin: 'person' | 'confirmed';
+    }[],
     decideKeys: readonly string[]
   ) => void;
   onSkipInterview: () => void;
@@ -129,6 +148,27 @@ export function PieceScreen({
 }) {
   const t = piecesCopy[locale];
   const v = voiceCopy[locale];
+  const targetRef = useRef<HTMLDivElement>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState(initialPlatform);
+  const [chosenChannels, setChosenChannels] = useState<Record<string, string>>(
+    {}
+  );
+  const [expandedAdaptations, setExpandedAdaptations] = useState<
+    Record<string, boolean>
+  >({});
+  useEffect(() => {
+    if (draftAdaptationId)
+      setExpandedAdaptations((current) => ({
+        ...current,
+        [draftAdaptationId]: true,
+      }));
+  }, [draftAdaptationId]);
+  useEffect(() => {
+    if (initialPlatform && detail) {
+      targetRef.current?.scrollIntoView?.({ block: 'nearest' });
+      targetRef.current?.focus({ preventScroll: true });
+    }
+  }, [initialPlatform, detail?.piece.id]);
 
   /*
     Выбранный вид — по площадке, а не один на страницу: Instagram и сайт
@@ -154,7 +194,8 @@ export function PieceScreen({
     // jsdom не реализует прокрутку вовсе, и проверка здесь не про тесты: это
     // тот же случай, что старый браузер без `scrollIntoView` — вопросы всё
     // равно на экране, просто до них надо долистать самому.
-    if (asked === 0 || !card || typeof card.scrollIntoView !== 'function') return;
+    if (asked === 0 || !card || typeof card.scrollIntoView !== 'function')
+      return;
     const still =
       typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
@@ -272,13 +313,44 @@ export function PieceScreen({
     (target) => !target.available || target.channels.length === 0
   );
 
+  const overviewState = (adaptation: AdaptationV1 | undefined) => {
+    if (!adaptation)
+      return {
+        label: t.stateNone,
+        tone: 'neutral' as const,
+      };
+    if (adaptation.state === 'published')
+      return { label: t.statePublished, tone: 'accent' as const };
+    if (adaptation.state === 'queued')
+      return { label: t.stateQueued, tone: 'info' as const };
+    if (adaptation.state === 'error')
+      return { label: t.stateError, tone: 'danger' as const };
+    return {
+      label: locale === 'ru' ? 'готово' : 'ready',
+      tone: 'neutral' as const,
+    };
+  };
+
+  const showAdaptation = (adaptationId: string) => {
+    setExpandedAdaptations((current) => ({
+      ...current,
+      [adaptationId]: true,
+    }));
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById(`adaptation-${adaptationId}`)
+        ?.closest('[data-piece-adaptation]')
+        ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    });
+  };
+
   return (
     <section
       data-content-panel="piece"
       data-piece-state={state}
       data-piece-id={piece.id}
       aria-busy={busy}
-      className="flex min-w-0 flex-col gap-[24px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
+      className="flex w-full min-w-0 flex-1 flex-col gap-[24px] p-[16px] md:p-[24px] lg:px-[32px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
       {/*
         Хлебная крошка вместо строки метаданных: код, дата и происхождение
@@ -322,24 +394,33 @@ export function PieceScreen({
           опубликованного, — спрашивать «вы уверены?» о том, что ничего не
           ломает, значит обесценить вопрос там, где он нужен.
         */}
-        {!piece.archivedAt ? (
-          <Button
-            type="button"
-            variant="quiet"
-            density="dense"
-            className="shrink-0"
-            data-piece-archive="true"
-            disabled={!canWrite || busy}
-            onClick={onArchive}
+        <div className="flex shrink-0 flex-wrap items-center gap-[8px]">
+          <a
+            href="/content?tab=materials"
+            className={buttonClassName({
+              variant: 'secondary',
+              density: 'dense',
+            })}
           >
-            {t.archive}
-          </Button>
-        ) : null}
+            {t.backToList}
+          </a>
+          {!piece.archivedAt ? (
+            <Button
+              type="button"
+              variant="quiet"
+              density="dense"
+              className="shrink-0"
+              data-piece-archive="true"
+              disabled={!canWrite || busy}
+              onClick={onArchive}
+            >
+              {t.archive}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {readOnlyNote}
-
-      {questionsSlot}
 
       {detail.notice ? (
         <p role="status" className="cf-body-sm text-cf-accent">
@@ -347,9 +428,291 @@ export function PieceScreen({
         </p>
       ) : null}
 
-      <div className="grid min-w-0 items-start gap-[32px] lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-[24px]">
+      {/*
+        Короткая карта работы стоит до текста заготовки: в ней одна строка на
+        площадку и выбранный канал. Состояние и счётчик не склеивают каналы
+        одной площадки: переключатель меняет ровно ту строку, с которой
+        человек затем запускает ещё один вариант.
+      */}
+      <div
+        ref={targetRef}
+        tabIndex={-1}
+        data-piece-adapt-focus={initialPlatform}
+        className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-focus"
+      >
+        <Panel
+          contentPadding="none"
+          contentClassName="flex min-w-0 flex-col gap-[16px] p-[20px]"
+        >
+          <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-[8px]">
+            <h2 className="cf-label-sm uppercase text-cf-ink-muted">
+              {t.targetsTitle}
+            </h2>
+            {detail.later.length > 0 ? (
+              <span
+                data-piece-later="true"
+                className="cf-caption text-cf-ink-muted"
+              >
+                {t.laterShort}
+              </span>
+            ) : null}
+          </div>
 
+          <Table
+            caption={
+              locale === 'ru'
+                ? 'Адаптации по площадкам и каналам'
+                : 'Adaptations by platform and channel'
+            }
+            className="min-w-[760px]"
+          >
+            <thead>
+              <Tr>
+                <Th banded>{locale === 'ru' ? 'Площадка' : 'Platform'}</Th>
+                <Th banded>{locale === 'ru' ? 'Канал' : 'Channel'}</Th>
+                <Th banded>{t.kindLabel}</Th>
+                <Th banded>{locale === 'ru' ? 'Состояние' : 'State'}</Th>
+                <Th banded numeric>
+                  {locale === 'ru' ? 'Адаптаций' : 'Adaptations'}
+                </Th>
+                <Th banded>{locale === 'ru' ? 'Действия' : 'Actions'}</Th>
+              </Tr>
+            </thead>
+            <tbody>
+              {available.map((target) => {
+                const kind =
+                  chosenKinds[target.platform] ?? target.kinds[0] ?? 'post';
+                const channel =
+                  target.channels.find(
+                    (one) => one.id === chosenChannels[target.platform]
+                  ) ?? target.channels[0];
+                const channelAdaptations = detail.adaptations
+                  .filter(
+                    (adaptation) =>
+                      adaptation.platform === target.platform &&
+                      adaptation.integrationId === channel.id
+                  )
+                  .sort((left, right) =>
+                    right.createdAt.localeCompare(left.createdAt)
+                  );
+                const latest = channelAdaptations[0];
+                const status = overviewState(latest);
+                return (
+                  <Tr
+                    key={target.platform}
+                    data-piece-target={target.platform}
+                    data-piece-target-available="true"
+                    data-piece-target-kind={kind}
+                    data-piece-target-selected={
+                      selectedPlatform === target.platform ? 'true' : undefined
+                    }
+                    selected={selectedPlatform === target.platform}
+                  >
+                    <Td>
+                      <span className="flex min-w-0 items-center gap-[8px]">
+                        <PlatformBadge
+                          identifier={channel.providerIdentifier}
+                          size={24}
+                        />
+                        <span className="min-w-0 truncate">{target.name}</span>
+                      </span>
+                    </Td>
+                    <Td>
+                      <div className="flex min-w-[180px] flex-col gap-[4px]">
+                        {target.channels.length > 1 ? (
+                          <Select
+                            standalone
+                            aria-label={`${t.targetsTitle} · ${target.name}`}
+                            value={channel.id}
+                            onChange={(event) =>
+                              setChosenChannels((current) => ({
+                                ...current,
+                                [target.platform]: event.target.value,
+                              }))
+                            }
+                            className="max-w-full"
+                          >
+                            {target.channels.map((one) => (
+                              <option key={one.id} value={one.id}>
+                                {one.name}
+                              </option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <span className="cf-body-sm text-cf-ink">
+                            {channel.name}
+                          </span>
+                        )}
+                        {renderChannelProfile?.(channel) ?? null}
+                      </div>
+                    </Td>
+                    <Td>
+                      {target.kinds.length > 1 ? (
+                        <Segmented<AdaptationKindV1>
+                          label={`${t.kindLabel} · ${target.name}`}
+                          value={kind}
+                          options={target.kinds.map((one) => ({
+                            value: one,
+                            label: kindWord(one),
+                          }))}
+                          onChange={(next) =>
+                            setChosenKinds((current) => ({
+                              ...current,
+                              [target.platform]: next,
+                            }))
+                          }
+                          data-piece-kind-choice={target.platform}
+                        />
+                      ) : (
+                        <span className="cf-body-sm text-cf-ink">
+                          {kindWord(kind)}
+                        </span>
+                      )}
+                    </Td>
+                    <Td>
+                      <Status tone={status.tone}>{status.label}</Status>
+                    </Td>
+                    <Td numeric>{channelAdaptations.length}</Td>
+                    <Td>
+                      <div className="flex min-w-[220px] flex-wrap items-center gap-[8px]">
+                        {latest ? (
+                          <Button
+                            type="button"
+                            variant="quiet"
+                            density="dense"
+                            data-piece-overview-view={latest.id}
+                            onClick={() => showAdaptation(latest.id)}
+                          >
+                            {locale === 'ru' ? 'Посмотреть' : 'View'}
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant={latest ? 'secondary' : 'primary'}
+                          disabled={!canWrite || busy}
+                          aria-label={`${t.adapt} · ${target.name}`}
+                          onClick={() => {
+                            setSelectedPlatform(target.platform);
+                            onAdapt(channel.id, kind);
+                          }}
+                        >
+                          {latest
+                            ? locale === 'ru'
+                              ? 'Ещё вариант'
+                              : 'Another version'
+                            : t.adapt}
+                        </Button>
+                      </div>
+                    </Td>
+                  </Tr>
+                );
+              })}
+
+              {unavailable.map((target) => (
+                <Tr
+                  key={target.platform}
+                  data-piece-target={target.platform}
+                  data-piece-target-available="false"
+                >
+                  <Td>
+                    <span className="flex min-w-0 items-center gap-[8px]">
+                      <PlatformBadge identifier={target.platform} size={24} />
+                      <span className="min-w-0 truncate">{target.name}</span>
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="cf-body-sm text-cf-ink-muted">
+                      {t.stateNoChannel}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="cf-body-sm text-cf-ink-muted">—</span>
+                  </Td>
+                  <Td>
+                    <Status tone="neutral">{t.stateNoChannel}</Status>
+                  </Td>
+                  <Td numeric>0</Td>
+                  <Td>
+                    <a
+                      href="/channels"
+                      aria-label={`${t.toChannels} — ${t.noChannelReason}`}
+                      className="cf-label-md text-cf-ink underline underline-offset-2 hover:text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                    >
+                      {t.toChannels}
+                    </a>
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+
+          {/* Всё, что вызвано строкой, остаётся сразу под этой таблицей. */}
+          <div ref={askRef} className="flex min-w-0 flex-col gap-[12px]">
+            {busy ? (
+              <div className="flex flex-wrap items-center gap-[8px]">
+                <p
+                  aria-live="polite"
+                  data-piece-step={step ?? 'started'}
+                  className="cf-body-sm text-cf-ink-muted"
+                >
+                  {adaptingChannel
+                    ? `${t.adapting} ${adaptingChannel}`
+                    : t.adapting}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  density="dense"
+                  onClick={onCancel}
+                >
+                  {t.cancel}
+                </Button>
+              </div>
+            ) : null}
+
+            {questions.length > 0 ? (
+              <SuggestedQuestionsCard
+                words={{
+                  badge: t.interviewBadge,
+                  title: t.interviewTitle,
+                  lead: t.interviewLead,
+                  suggestedLead: t.suggestedLead,
+                  yes: t.answerYes,
+                  fix: t.answerFix,
+                  decide: t.answerDecide,
+                  skip: t.answerSkip,
+                  ownAnswerLabel: t.ownAnswerLabel,
+                  ownAnswerHint: t.ownAnswerHint,
+                  send: t.interviewSend,
+                  skipAll: t.skipInterview,
+                }}
+                questions={questions.map((question) => ({
+                  key: question.key,
+                  question: question.question,
+                  options: question.options,
+                  suggested: question.suggested,
+                  ...(question.why ? { why: question.why } : {}),
+                }))}
+                busy={busy}
+                onSubmit={(answers, decideKeys) =>
+                  onAnswer(
+                    answers.map((answer) => ({
+                      key: answer.key,
+                      text: answer.text,
+                      origin: answer.origin,
+                    })),
+                    decideKeys
+                  )
+                }
+                onSkipAll={onSkipInterview}
+              />
+            ) : null}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-[24px]">
+        <div className="flex min-w-0 flex-col gap-[24px]">
           <section className="flex min-w-0 flex-col gap-[12px]">
             <h2 className="cf-label-sm uppercase text-cf-ink-muted">
               {core ? t.coreTitle : t.legacyTitle}
@@ -393,7 +756,15 @@ export function PieceScreen({
                 core && 'whitespace-pre-wrap'
               )}
             >
-              {core ? core.text : detail.legacyBody ?? ''}
+              {core ? (
+                coreAnswer && coreAnswer.body === core.text ? (
+                  <CoreAnswerDiff {...coreAnswer} locale={locale} />
+                ) : (
+                  core.text
+                )
+              ) : (
+                detail.legacyBody ?? ''
+              )}
             </article>
 
             {/*
@@ -428,182 +799,7 @@ export function PieceScreen({
             ) : null}
           </section>
 
-          {/* --- Куда адаптировать ---------------------------------------- */}
-
-          <Panel
-            contentPadding="none"
-            contentClassName="flex min-w-0 flex-col gap-[16px] p-[20px]"
-          >
-            <div className="flex min-w-0 flex-wrap items-center gap-[16px]">
-              <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-                {t.targetsTitle}
-              </h2>
-              {/*
-                Выбор вида — только там, где видов больше одного. Полоса из
-                одного варианта ничего не спрашивает, а место и внимание
-                занимает.
-              */}
-              {available.map((target) =>
-                target.kinds.length > 1 ? (
-                  <Segmented<AdaptationKindV1>
-                    key={`kind-${target.platform}`}
-                    label={`${t.kindLabel} · ${target.name}`}
-                    value={chosenKinds[target.platform] ?? target.kinds[0]}
-                    options={target.kinds.map((one) => ({
-                      value: one,
-                      label: kindWord(one),
-                    }))}
-                    onChange={(next) =>
-                      setChosenKinds((current) => ({
-                        ...current,
-                        [target.platform]: next,
-                      }))
-                    }
-                    data-piece-kind-choice={target.platform}
-                  />
-                ) : null
-              )}
-            </div>
-
-            <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
-              {available.map((target) => {
-                const kind =
-                  chosenKinds[target.platform] ?? target.kinds[0] ?? 'post';
-                const channel = target.channels[0];
-                return (
-                  <span
-                    key={target.platform}
-                    data-piece-target={target.platform}
-                    data-piece-target-available="true"
-                    data-piece-target-kind={kind}
-                    className="inline-flex items-center gap-[8px]"
-                  >
-                    <Button
-                      type="button"
-                      variant="primary"
-                      disabled={!canWrite || busy}
-                      onClick={() => channel && onAdapt(channel.id, kind)}
-                    >
-                      {`${t.adapt} · ${target.name}`}
-                    </Button>
-                    {target.channels.length > 1 ? (
-                      <span className="cf-caption text-cf-ink-muted">
-                        {t.more(target.channels.length - 1)}
-                      </span>
-                    ) : null}
-                  </span>
-                );
-              })}
-
-              {/*
-                Площадка без канала — чип, а не выключенная кнопка: выключенная
-                кнопка обещает, что когда-нибудь включится сама. Причина и
-                дорога к каналам стоят в доступном имени и в ссылке рядом, то
-                есть до нажатия, а не отказом после.
-              */}
-              {unavailable.map((target) => (
-                <span
-                  key={target.platform}
-                  data-piece-target={target.platform}
-                  data-piece-target-available="false"
-                  className="inline-flex items-center gap-[4px]"
-                >
-                  <Status tone="neutral" className="border-dashed opacity-70">
-                    {`${target.name} · ${t.stateNoChannel}`}
-                  </Status>
-                  {/*
-                    Причина живёт в имени ссылки, а не в `title` чипа: чип
-                    ничего не делает и фокуса не принимает, так что подсказка на
-                    нём доступна одной только мыши.
-                  */}
-                  <a
-                    href="/launches"
-                    aria-label={`${t.toChannels} — ${t.noChannelReason}`}
-                    className="cf-caption text-cf-ink-muted underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                  >
-                    {t.toChannels}
-                  </a>
-                </span>
-              ))}
-
-              {/*
-                Видео и аудио — подпись, а не выключенные кнопки: выключенная
-                кнопка обещает скорое включение, подпись честно говорит, что
-                этого нет.
-              */}
-              {detail.later.length > 0 ? (
-                <span
-                  data-piece-later="true"
-                  className="ms-auto cf-caption text-cf-ink-muted"
-                >
-                  {t.laterShort}
-                </span>
-              ) : null}
-            </div>
-
-            {/*
-              Всё, что кнопка вызвала, происходит под ней и внутри той же
-              панели: шаг стрима, отмена и вопросы адаптации.
-            */}
-            <div ref={askRef} className="flex min-w-0 flex-col gap-[12px]">
-              {busy ? (
-                <div className="flex flex-wrap items-center gap-[8px]">
-                  <p
-                    aria-live="polite"
-                    data-piece-step={step ?? 'started'}
-                    className="cf-body-sm text-cf-ink-muted"
-                  >
-                    {adaptingChannel ? `${t.adapting} ${adaptingChannel}` : t.adapting}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    density="dense"
-                    onClick={onCancel}
-                  >
-                    {t.cancel}
-                  </Button>
-                </div>
-              ) : null}
-
-              {questions.length > 0 ? (
-                <SuggestedQuestionsCard
-                  words={{
-                    badge: t.interviewBadge,
-                    title: t.interviewTitle,
-                    lead: t.interviewLead,
-                    suggestedLead: t.suggestedLead,
-                    yes: t.answerYes,
-                    fix: t.answerFix,
-                    decide: t.answerDecide,
-                    skip: t.answerSkip,
-                    ownAnswerLabel: t.ownAnswerLabel,
-                    ownAnswerHint: t.ownAnswerHint,
-                    send: t.interviewSend,
-                    skipAll: t.skipInterview,
-                  }}
-                  questions={questions.map((question) => ({
-                    key: question.key,
-                    question: question.question,
-                    suggested: question.suggested,
-                    ...(question.why ? { why: question.why } : {}),
-                  }))}
-                  busy={busy}
-                  onSubmit={(answers, decideKeys) =>
-                    onAnswer(
-                      answers.map((answer) => ({
-                        key: answer.key,
-                        text: answer.text,
-                        origin: answer.origin,
-                      })),
-                      decideKeys
-                    )
-                  }
-                  onSkipAll={onSkipInterview}
-                />
-              ) : null}
-            </div>
-          </Panel>
+          {questionsSlot}
 
           {/* --- Адаптации ------------------------------------------------ */}
 
@@ -612,57 +808,114 @@ export function PieceScreen({
               {t.adaptationsLabel}
             </h2>
             {detail.adaptations.length === 0 ? (
-              <p className="cf-body-sm text-cf-ink-muted">{t.adaptationsEmpty}</p>
+              <p className="cf-body-sm text-cf-ink-muted">
+                {t.adaptationsEmpty}
+              </p>
             ) : (
               <ul className="flex flex-col gap-[8px]">
-                {detail.adaptations.map((adaptation) => (
-                  <li
-                    key={adaptation.id}
-                    data-piece-adaptation={adaptation.id}
-                    className="flex flex-wrap items-center gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[12px] ps-[16px]"
-                  >
-                    <Status tone="neutral">{adaptation.platform}</Status>
-                    <span className="min-w-0 cf-body-sm text-cf-ink">
-                      {`${kindWord(adaptation.kind)} · ${
-                        adaptation.integrationName ?? adaptation.platform
-                      }`}
-                    </span>
-                    <Status
-                      tone={
-                        adaptation.state === 'published'
-                          ? 'accent'
-                          : adaptation.state === 'queued'
-                          ? 'info'
-                          : adaptation.state === 'error'
-                          ? 'danger'
-                          : 'neutral'
-                      }
+                {detail.adaptations.map((adaptation) => {
+                  const currentDraft = draftAdaptationId === adaptation.id;
+                  const text = currentDraft ? draftText : adaptation.body;
+                  const checks = currentDraft ? draftChecks : adaptation.checks;
+                  const open = expandedAdaptations[adaptation.id] ?? false;
+                  return (
+                    <li
+                      key={adaptation.id}
+                      data-piece-adaptation={adaptation.id}
+                      className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface"
                     >
-                      {stateWord(adaptation.state, t)}
-                    </Status>
-                    <span className="flex-1" />
-                    {adaptation.postId ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        density="dense"
-                        onClick={() => onOpenPost(adaptation)}
+                      <div className="flex flex-wrap items-center gap-[12px] p-[12px]">
+                        <Button
+                          type="button"
+                          variant="quiet"
+                          density="dense"
+                          aria-expanded={open}
+                          aria-controls={`adaptation-${adaptation.id}`}
+                          onClick={() =>
+                            setExpandedAdaptations((current) => ({
+                              ...current,
+                              [adaptation.id]: !open,
+                            }))
+                          }
+                        >
+                          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+                          {`${adaptation.platform} · ${kindWord(
+                            adaptation.kind
+                          )} · ${
+                            adaptation.integrationName ?? adaptation.platform
+                          }`}
+                        </Button>
+                        <Status
+                          tone={
+                            adaptation.state === 'published'
+                              ? 'accent'
+                              : adaptation.state === 'error'
+                              ? 'danger'
+                              : adaptation.state === 'queued'
+                              ? 'info'
+                              : 'neutral'
+                          }
+                        >
+                          {stateWord(adaptation.state, t)}
+                        </Status>
+                        <span className="flex-1" />
+                        {adaptation.postId ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            density="dense"
+                            onClick={() => onOpenPost(adaptation)}
+                          >
+                            {t.openPost}
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="quiet"
+                          density="dense"
+                          data-piece-delete-adaptation={adaptation.id}
+                          disabled={!canWrite || busy}
+                          onClick={() => onDeleteAdaptation(adaptation)}
+                        >
+                          {t.deleteAdaptation}
+                        </Button>
+                      </div>
+                      <div
+                        id={`adaptation-${adaptation.id}`}
+                        hidden={!open}
+                        className="border-t border-cf-border p-[16px]"
                       >
-                        {t.openPost}
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="quiet"
-                      density="dense"
-                      data-piece-delete-adaptation={adaptation.id}
-                      disabled={!canWrite}
-                      onClick={() => onDeleteAdaptation(adaptation)}
-                    >
-                      {t.deleteAdaptation}
-                    </Button>
-                  </li>
-                ))}
+                        {text ? (
+                          <article
+                            data-intake-draft="true"
+                            data-piece-draft-id={
+                              currentDraft ? adaptation.id : undefined
+                            }
+                            className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
+                          >
+                            {text}
+                          </article>
+                        ) : (
+                          <p className="cf-body-sm text-cf-ink-muted">
+                            {locale === 'ru'
+                              ? 'Текст доступен в посте.'
+                              : 'The text is available in the post.'}
+                          </p>
+                        )}
+                        <QualityLine
+                          locale={locale}
+                          slop={checks?.slop}
+                          antiCopy={checks?.antiCopy}
+                          voice={checks?.voice}
+                          draftGaps={currentDraft ? draftGaps : null}
+                        />
+                        {text
+                          ? renderReview?.({ ...adaptation, body: text })
+                          : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -684,24 +937,14 @@ export function PieceScreen({
               {notice}
             </p>
           ) : null}
-
-          {draftText !== null ? (
-            <DraftResult
-              locale={locale}
-              text={draftText}
-              checks={draftChecks}
-              draftGaps={draftGaps}
-              onOpenEditor={onOpenEditor}
-            />
-          ) : null}
         </div>
 
-        {/* --- Правая колонка ---------------------------------------------- */}
-
-        <aside className="flex min-w-0 flex-col gap-[16px]">
+        <aside className="flex min-w-0 flex-col gap-[24px]">
           {/*
-            Квитанция здесь компактная и только на чтение: шесть строк «поле —
-            значение — откуда взято» в сетке. Бриф на этой странице уже
+            Квитанция здесь только на чтение: шесть строк «поле — значение —
+            откуда взято» в сетке. Она занимает всю рабочую ширину, а не
+            узкую правую колонку; мера ограничена только у читаемого текста.
+            Бриф на этой странице уже
             израсходован, и кнопки «Поправить» на каждой строке обещали бы
             пересборку, которой здесь нет. Правки брифа живут на входе.
           */}
@@ -717,9 +960,28 @@ export function PieceScreen({
                 data-piece-receipt="true"
                 className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-x-[12px] gap-y-[8px]"
               >
+                {(core.brief as BriefFilledV2).inputSources?.some(
+                  (source) => source?.kind === 'link'
+                ) && core.brief.inputKind === 'foreign_post' ? (
+                  <>
+                    <dt className="cf-caption text-cf-ink-muted">
+                      {locale === 'ru' ? 'Понято как' : 'Understood as'}
+                    </dt>
+                    <dd className="cf-body-sm text-cf-ink">
+                      {locale === 'ru'
+                        ? 'чужой пост + ссылка'
+                        : 'foreign post + link'}
+                    </dd>
+                  </>
+                ) : null}
                 {RECEIPT_FIELDS.map((field) => {
                   const value = core.brief[field];
-                  if (typeof value !== 'string' || !value) return null;
+                  if (
+                    typeof value !== 'string' ||
+                    !value.trim() ||
+                    value.trim().toLowerCase() === 'null'
+                  )
+                    return null;
                   const origin = core.brief.origins?.[field] ?? 'model';
                   return (
                     <Fragment key={field}>
@@ -730,7 +992,19 @@ export function PieceScreen({
                         data-brief-origin={origin}
                         className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]"
                       >
-                        {value}{' '}
+                        {field === 'format'
+                          ? (
+                              {
+                                auto: t.formatAutomatic,
+                                opinion: i.formatOpinion,
+                                announcement: i.formatAnnouncement,
+                                list: i.formatList,
+                                expert: i.formatExpert,
+                                case: i.formatCase,
+                                story: i.formatStory,
+                              } as Record<string, string>
+                            )[value] ?? value
+                          : value}{' '}
                         <span className="cf-caption text-cf-ink-muted">
                           {`· ${originOfField(origin)}`}
                         </span>
@@ -757,99 +1031,76 @@ export function PieceScreen({
             у старого материала брифа просто нет.
           */}
           {core && (facts.length > 0 || ungrounded.length > 0) ? (
-            <Panel
-              contentPadding="none"
-              contentClassName="flex min-w-0 flex-col gap-[12px] p-[16px]"
+            <details
+              data-piece-sources="true"
+              className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
             >
-              <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-                {i.factsRestOn}
-              </h2>
+              <summary className="cursor-pointer cf-label-sm uppercase text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
+                {locale === 'ru' ? 'Опоры текста' : 'Text sources'}
+              </summary>
 
-              {facts.length > 0 ? (
-                <dl
-                  data-piece-facts="true"
-                  className="flex min-w-0 flex-col gap-[12px]"
-                >
-                  {facts.map((fact, index) => (
-                    <div
-                      key={`${fact.statement}-${index}`}
-                      className="flex min-w-0 flex-col gap-[4px]"
-                    >
-                      <dt className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
-                        {fact.statement}
-                      </dt>
-                      <dd
-                        data-piece-fact-verified={String(fact.verified)}
-                        className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] cf-caption text-cf-ink-muted"
+              <div className="mt-[12px] flex min-w-0 flex-col gap-[12px]">
+                {facts.length > 0 ? (
+                  <dl
+                    data-piece-facts="true"
+                    className="flex min-w-0 flex-col gap-[12px]"
+                  >
+                    {facts.map((fact, index) => (
+                      <div
+                        key={`${fact.statement}-${index}`}
+                        className="flex min-w-0 flex-col gap-[4px]"
                       >
-                        <span>
-                          {fact.verified ? i.factVerified : i.factUnverified}
-                        </span>
-                        {fact.sourceUrl ? (
-                          <a
-                            href={fact.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="min-w-0 break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                          >
-                            {hostOf(fact.sourceUrl)}
-                          </a>
-                        ) : null}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
+                        <dt className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
+                          {fact.statement}
+                        </dt>
+                        <dd
+                          data-piece-fact-verified={String(fact.verified)}
+                          className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] cf-caption text-cf-ink-muted"
+                        >
+                          <span>
+                            {fact.verified ? i.factVerified : i.factUnverified}
+                          </span>
+                          {fact.sourceUrl ? (
+                            <a
+                              href={fact.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="min-w-0 break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                            >
+                              {hostOf(fact.sourceUrl)}
+                            </a>
+                          ) : null}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
 
-              {/*
+                {/*
                 Утверждения, которые нечем подтвердить, стоят отдельно от фактов
                 нарочно: в текст они не пошли, и строка про них — объяснение
                 отсутствия, а не ещё одна опора.
               */}
-              {ungrounded.length > 0 ? (
-                <div className="flex min-w-0 flex-col gap-[4px] border-t border-cf-border pt-[12px]">
-                  <h3 className="cf-caption text-cf-ink-muted">
-                    {i.ungroundedLabel}
-                  </h3>
-                  <ul className="flex min-w-0 flex-col gap-[4px]">
-                    {ungrounded.map((statement, index) => (
-                      <li
-                        key={`${statement}-${index}`}
-                        data-piece-ungrounded="true"
-                        className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-                      >
-                        {statement}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </Panel>
-          ) : null}
-
-          {/*
-            Своё число — то же ненавязчивое предложение, что показывает окно
-            поста, теми же словами (`voice-copy.ts`, `draft-gap-note.tsx`).
-            Ничего не блокирует и не окрашено тревогой: заготовка готова.
-          */}
-          {core && !core.authorNumbers ? (
-            <Panel
-              contentPadding="none"
-              contentClassName="flex min-w-0 flex-col gap-[8px] p-[16px]"
-            >
-              <h2
-                data-piece-own-number="true"
-                className="cf-label-sm uppercase text-cf-ink-muted"
-              >
-                {t.ownNumberLabel}
-              </h2>
-              <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
-                {v.draftGapOwnMeasurement}
-              </p>
-              <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                {t.ownNumberOptional}
-              </p>
-            </Panel>
+                {ungrounded.length > 0 ? (
+                  <div className="flex min-w-0 flex-col gap-[4px] border-t border-cf-border pt-[12px]">
+                    <h3 className="cf-caption text-cf-ink-muted">
+                      {i.ungroundedLabel}
+                    </h3>
+                    <ul className="flex min-w-0 flex-col gap-[4px]">
+                      {ungrounded.map((statement, index) => (
+                        <li
+                          key={`${statement}-${index}`}
+                          data-piece-ungrounded="true"
+                          className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                        >
+                          {statement}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </details>
           ) : null}
         </aside>
       </div>

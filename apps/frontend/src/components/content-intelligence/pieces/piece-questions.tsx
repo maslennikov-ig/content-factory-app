@@ -69,6 +69,7 @@ export function PieceQuestions({
         questions={questions.map((question) => ({
           key: question.field,
           question: question.question,
+                    options: question.options,
           suggested: question.suggested ?? null,
           ...(question.why ? { why: question.why } : {}),
         }))}

@@ -35,7 +35,7 @@ for (const key of ['window', 'document', 'navigator']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { cleanup, render, screen } = require('@testing-library/react');
+const { cleanup, render, screen, fireEvent } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const base = 'apps/frontend/src/components/content-intelligence';
@@ -162,7 +162,7 @@ describe('the cell says which of seven states it is in', () => {
     // остальных, а не четыре колонки Telegram.
     expect(
       document.querySelector('[data-piece-cell-more="telegram"]').textContent
-    ).toBe('ещё 2');
+    ).toBe('3 поста');
   });
 
   test('a row with no cells says «пока не знаем», never «ещё нет»', () => {
@@ -277,6 +277,20 @@ describe('the table renders as a table, and the row says how to open it', () => 
     expect(cell.textContent.trim()).toBe('ещё нет');
   });
 
+  test('the three filter controls stand on one baseline: no field keeps a message row', () => {
+    drawTable();
+    // Ряд выровнен по низу. `Input` без `removeError` и `Select` без `hideErrors`
+    // резервируют под полем строку сообщения в 16 px, и поле без неё
+    // проваливается на эти 16 px — так на боевом поиск стоял ниже списков.
+    for (const name of ['pieces-search', 'pieces-missing-on', 'pieces-state']) {
+      const control = document.querySelector(`[name="${name}"]`);
+      expect(control).not.toBeNull();
+      const field = control.closest('.flex-col');
+      expect(field).not.toBeNull();
+      expect(field.querySelector('[id$="-error"]')).toBeNull();
+    }
+  });
+
   test('the words a person searched for are marked in the title', () => {
     drawTable({ query: 'дедлайн' });
     const marks = [...document.querySelectorAll('mark')].map(
@@ -348,12 +362,12 @@ describe('the intake button names what will happen', () => {
     expect(button.disabled).toBe(false);
   });
 
-  test('with one channel it names the channel it will write for', () => {
+  test('legacy channels cannot change the neutral action', () => {
     drawIntake({ selectedIds: ['int-tg'] });
     const button = screen.getByRole('button', {
-      name: 'Сделать и написать для «Мой канал»',
+      name: 'Сделать заготовку',
     });
-    expect(button.getAttribute('data-intake-action')).toBe('piece-and-write');
+    expect(button.getAttribute('data-intake-action')).toBe('piece');
   });
 
   test('the saved piece is announced with its code and a way in', () => {
@@ -362,5 +376,41 @@ describe('the intake button names what will happen', () => {
     expect(line.getAttribute('role')).toBe('status');
     expect(line.textContent).toContain('Заготовка сохранена — cnt-12');
     expect(screen.getByRole('button', { name: 'Открыть заготовку' })).toBeTruthy();
+  });
+});
+
+
+describe('S4: table actions and a single search result', () => {
+  test('row opens the piece; chevron and platform cell keep their own actions', () => {
+    const onOpenPiece = jest.fn(); const onExpand = jest.fn(); const onAdapt = jest.fn();
+    drawTable({ onOpenPiece, onExpand, onAdapt });
+    const row = document.querySelector('[data-piece-row="cnt-12"]');
+    fireEvent.click(row);
+    expect(onOpenPiece).toHaveBeenCalledTimes(1);
+    fireEvent.click(row.querySelector('[aria-expanded]'));
+    expect(onExpand).toHaveBeenCalledTimes(1);
+    expect(onOpenPiece).toHaveBeenCalledTimes(1);
+    const cell = document.querySelector('[data-piece-row] [data-piece-cell-state="none"]');
+    fireEvent.click(cell);
+    expect(onAdapt).toHaveBeenCalledTimes(1);
+    expect(onOpenPiece).toHaveBeenCalledTimes(1);
+  });
+
+  test('archive state includes archived rows and shows only them', () => {
+    const archived = { ...ROWS[0], archivedAt: '2026-09-08T00:00:00.000Z' };
+    const filters = { ...adapter.emptyPiecesFilters, state: 'archived' };
+    expect(adapter.piecesQuery(filters)).toEqual({ includeArchived: true });
+    expect(adapter.filterPieces([ROWS[1], archived], filters)).toEqual([archived]);
+    drawTable({ rows: [archived], filters });
+    expect(document.querySelector('[data-piece-row]').textContent).toContain('в архиве');
+  });
+
+  test('server-matched forms survive the client and appear in the collapsed snippet', () => {
+    const row = { ...ROWS[0], title: 'Работа с клиентами', excerpt: ['Срок соблюдён клиентом.'], matchedForms: ['срок', 'клиентом'], searchSnippet: 'Срок соблюдён клиентом.' };
+    const filters = { ...adapter.emptyPiecesFilters, q: 'сроки клиента' };
+    expect(adapter.filterPieces([row], filters)).toEqual([row]);
+    drawTable({ rows: [row], filters, query: filters.q });
+    const marks = [...document.querySelectorAll('[data-piece-row] [data-piece-snippet] mark')].map((node) => node.textContent);
+    expect(marks).toEqual(['Срок', 'клиентом']);
   });
 });

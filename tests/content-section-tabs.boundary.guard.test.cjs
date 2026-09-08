@@ -39,7 +39,7 @@ describe('resolveContentTab', () => {
   const { resolveContentTab, CONTENT_TABS } = loadTypeScriptModule(TABS);
 
   test.each(CONTENT_TABS.map((tab) => [tab]))('%s opens itself', (tab) => {
-    expect(resolveContentTab(tab)).toBe(tab);
+    expect(loadTypeScriptModule(TABS).resolveContentTab(tab)).toBe(tab);
   });
 
   test('archive is still an address, not a tab', () => {
@@ -72,7 +72,6 @@ describe('the section never sends a person to a tab that is not on the strip', (
     'apps/frontend/src/components/content-intelligence/content-facts.showcase.tsx',
     'apps/frontend/src/components/content-intelligence/content-facts.container.tsx',
     'apps/frontend/src/components/content-intelligence/content-leads.tab.tsx',
-    'apps/frontend/src/components/content-intelligence/content-archive.container.tsx',
     'apps/frontend/src/components/brand-voice/voice-copy.ts',
   ];
 
@@ -111,11 +110,14 @@ describe('the section never sends a person to a tab that is not on the strip', (
     const labels =
       sectionCopy.contentSectionCopy ?? Object.values(sectionCopy)[0];
 
-    test('every tab it names in quotes is a tab on the strip', () => {
+    test('every destination it names is a tab or the Content section itself', () => {
       const text = read(ONBOARDING_COPY)
         .replace(/\/\*[\s\S]*?\*\//g, ' ')
         .replace(/(^|[^:])\/\/.*$/gm, '$1 ');
-      const onStrip = new Set([
+      const sectionNames = ['ru', 'en'].map(locale => JSON.parse(read(
+        `libraries/react-shared-libraries/src/translation/locales/${locale}/translation.json`
+      )).content_section);
+      const destinations = new Set([...sectionNames, labels.ru.avatars, labels.en.avatars,
         ...CONTENT_TABS.map((tab) => labels.ru[tab]),
         ...CONTENT_TABS.map((tab) => labels.en[tab]),
       ]);
@@ -128,7 +130,7 @@ describe('the section never sends a person to a tab that is not on the strip', (
       ];
       expect(named.length).toBeGreaterThan(0);
       for (const name of named) {
-        expect([...onStrip]).toContain(name);
+        expect([...destinations]).toContain(name);
       }
     });
 
@@ -138,7 +140,7 @@ describe('the section never sends a person to a tab that is not on the strip', (
       ].map((match) => match[1]);
       expect(addresses.length).toBeGreaterThan(0);
       for (const tab of addresses) {
-        expect(CONTENT_TABS).toContain(tab);
+        expect(loadTypeScriptModule(TABS).resolveContentTab(tab)).toBe(tab);
       }
     });
   });

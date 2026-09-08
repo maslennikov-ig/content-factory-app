@@ -1,3 +1,4 @@
+import type { IntakeRequestV2, IntakeEventV2, BriefFilledV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/intake-v2.contract';
 /**
  * Провод между экраном входа и дверью `/content-intelligence/intake`.
  *
@@ -161,7 +162,7 @@ export type IntakePieceReadEventV1 =
   | { name: 'piece-questions'; questions: PieceQuestionV1[]; round: number };
 
 export type IntakeReading =
-  | { kind: 'event'; event: IntakeEventV1 }
+  | { kind: 'event'; event: Exclude<IntakeEventV2, {name: 'piece'}> }
   | { kind: 'piece'; event: IntakePieceReadEventV1 }
   | { kind: 'step'; name: string };
 
@@ -214,6 +215,8 @@ export function readIntakeEvent(line: string): IntakeReading | null {
     );
   }
 
+  if (record.name === 'heartbeat') return null;
+
   // Ошибка узнаётся по флагу, а не по имени: граф генератора пробрасывается
   // как есть и метит отказ именно так (`store.ts`).
   if (record.error === true || record.name === 'error') {
@@ -231,6 +234,9 @@ export function readIntakeEvent(line: string): IntakeReading | null {
     };
   }
 
+  // Transport keep-alives do not change the current product stage.
+  if (record.name === 'heartbeat') return null;
+
   const name = asText(record.name);
   if (!name) {
     throw new IntakeContractError(
@@ -246,17 +252,7 @@ export function readIntakeEvent(line: string): IntakeReading | null {
         event: {
           name: 'intake-started',
           inputKind: readInputKind(record.inputKind),
-          channels: asArray(record.channels).flatMap((entry) => {
-            const channel = asRecord(entry);
-            if (!channel || typeof channel.id !== 'string') return [];
-            return [
-              {
-                id: channel.id,
-                name: asText(channel.name, channel.id),
-                providerIdentifier: asText(channel.providerIdentifier),
-              },
-            ];
-          }),
+          sources: asArray(record.sources).filter((source): source is 'foreign_post' | 'link' | 'thought' => source === 'foreign_post' || source === 'link' || source === 'thought'),
         },
       };
 
@@ -322,77 +318,12 @@ export function readIntakeEvent(line: string): IntakeReading | null {
         },
       };
 
-    case 'channel-started':
-      return {
-        kind: 'event',
-        event: {
-          name: 'channel-started',
-          integrationId: asText(record.integrationId),
-        },
-      };
-
-    case 'content-context':
-      return {
-        kind: 'event',
-        event: {
-          name: 'content-context',
-          integrationId: asText(record.integrationId),
-          data: { output: asRecord(record.data)?.output },
-        },
-      };
-
-    case 'generator':
-      return {
-        kind: 'event',
-        event: {
-          name: 'generator',
-          integrationId: asText(record.integrationId),
-          event: record.event,
-        },
-      };
-
-    case 'draft': {
-      const postId = asText(record.postId);
-      if (!postId) {
-        throw new IntakeContractError(
-          'INTAKE_STREAM_INVALID',
-          'The draft arrived without an identifier.'
-        );
-      }
-      return {
-        kind: 'event',
-        event: {
-          name: 'draft',
-          integrationId: asText(record.integrationId),
-          postId,
-          pieceId: typeof record.pieceId === 'string' ? record.pieceId : null,
-          content: asArray(record.content).flatMap((entry) => {
-            const piece = asRecord(entry);
-            if (!piece || typeof piece.content !== 'string') return [];
-            return [
-              {
-                content: piece.content,
-                usedCitationIds: asArray(piece.usedCitationIds).filter(
-                  (id): id is string => typeof id === 'string'
-                ),
-              },
-            ];
-          }),
-          provenance: record.provenance,
-          draftGaps: asArray(record.draftGaps),
-          checks: readQualityChecks(record.checks),
-        },
-      };
-    }
-
     case 'done':
       return {
         kind: 'event',
         event: {
           name: 'done',
-          postIds: asArray(record.postIds).filter(
-            (id): id is string => typeof id === 'string'
-          ),
+          pieceId: typeof record.pieceId === 'string' ? record.pieceId : null,
         },
       };
 
@@ -447,15 +378,20 @@ export const readQuestions = (value: unknown): IntakeQuestionV1[] =>
   });
 
 const nullableText = (value: unknown): string | null =>
-  typeof value === 'string' && value.trim() ? value : null;
+  typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'null' ? value : null;
 
-export function readBrief(value: unknown): BriefFilledV1 | null {
+export function readBrief(value: unknown): BriefFilledV2 | null {
   const record = asRecord(value);
   if (!record) return null;
   const origins = asRecord(record.origins) ?? {};
   const format = record.format;
   return {
     inputKind: readInputKind(record.inputKind),
+    inputSources: asArray(record.inputSources).flatMap((source) => {
+      const item = asRecord(source);
+      if (!item || !['thought', 'foreign_post', 'link'].includes(asText(item.kind))) return [];
+      return [{ kind: item.kind as 'thought' | 'foreign_post' | 'link', ...(typeof item.url === 'string' ? { url: item.url } : {}), ...(typeof item.evidenceId === 'string' ? { evidenceId: item.evidenceId } : {}) }];
+    }),
     goal: nullableText(record.goal),
     thesis: nullableText(record.thesis),
     position: nullableText(record.position),
@@ -651,7 +587,7 @@ export type IntakeAnswer = { field: BriefField; text: string };
 
 export function buildIntakePayload(input: {
   input: string;
-  integrationIds: readonly string[];
+  integrationIds?: readonly string[];
   language: 'ru' | 'en';
   answers?: readonly IntakeAnswer[];
   decide?: readonly BriefField[];
@@ -665,7 +601,7 @@ export function buildIntakePayload(input: {
   decideKeys?: readonly PieceQuestionKeyV1[];
   /** Интервью пропущено целиком одной кнопкой. */
   skipInterview?: boolean;
-}): PieceCreateRequestV1 {
+}): IntakeRequestV2 {
   const kind = input.inputKind ?? detectInputKind(input.input);
   const overrides = Object.fromEntries(
     Object.entries(input.briefOverrides ?? {}).filter(
@@ -676,9 +612,6 @@ export function buildIntakePayload(input: {
   return {
     input: input.input.trim(),
     ...(kind ? { inputKind: kind } : {}),
-    // Больше трёх каналов дверь отказывает до первого байта; экран не шлёт
-    // заведомый отказ, он просто не даёт выбрать четвёртый.
-    integrationIds: input.integrationIds.slice(0, INTAKE_MAX_CHANNELS),
     language: input.language,
     ...(input.answers?.length ? { answers: [...input.answers] } : {}),
     ...(input.decide?.length ? { decide: [...input.decide] } : {}),
@@ -786,27 +719,13 @@ export function blockReason(input: {
   return null;
 }
 
-/**
- * Что написано на кнопке входа — от того, что человек выбрал.
- *
- * Три надписи, а не одна с подписью рядом: кнопка должна называть то, что
- * сейчас произойдёт. Без каналов будет только заготовка; с одним — заготовка
- * и текст для него поимённо; с несколькими — заготовка и текст в каждый, и
- * счёт называется числом, потому что перечислять три имени на кнопке нельзя.
- */
+/** Legacy callers still receive the neutral action label. */
 export function intakeActionLabel(
   selected: readonly string[],
   nameOf: (id: string) => string | undefined,
   words: {
     makePiece: string;
-    makeAndWrite: (name: string) => string;
-    makeAndWriteMany: (count: number) => string;
   }
 ): string {
-  if (selected.length === 0) return words.makePiece;
-  if (selected.length === 1) {
-    const name = nameOf(selected[0]);
-    return name ? words.makeAndWrite(name) : words.makePiece;
-  }
-  return words.makeAndWriteMany(selected.length);
+  return words.makePiece;
 }

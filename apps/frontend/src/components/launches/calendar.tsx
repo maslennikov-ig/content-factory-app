@@ -35,12 +35,9 @@ import clsx from 'clsx';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useDrag, useDrop } from 'react-dnd';
 import { Integration, Post, State, Tags } from '@prisma/client';
-import { useAddProvider } from '@contentfactory/frontend/components/launches/add.provider.component';
-import { NoChannelNotice } from '@contentfactory/frontend/components/launches/no-channel.notice';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import {
-  isOrganizationAdmin,
   isOrganizationEditor,
 } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
@@ -64,6 +61,9 @@ import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezon
 import { Button } from '@contentfactory/react/form/button';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
+import { calendarPlanningCopy } from './calendar-planning.copy';
+import { useAdaptationPicker } from './adaptation-picker';
 import { PostPreviewDialog } from '@contentfactory/frontend/components/preview/post.preview.dialog';
 import { EDITORIAL_STAGE_TONES } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
 import {
@@ -566,7 +566,6 @@ export const MonthView = () => {
             >
               <CalendarColumn
                 getDate={newDayjs(date.day).endOf('day')}
-                randomHour={true}
               />
             </div>
           ))}
@@ -689,11 +688,10 @@ export const Calendar = () => {
 };
 export const CalendarColumn: FC<{
   getDate: dayjs.Dayjs;
-  randomHour?: boolean;
 }> = memo((props) => {
   const t = useT();
 
-  const { getDate, randomHour } = props;
+  const { getDate } = props;
   const [num, setNum] = useState(0);
   const user = useUser();
   const {
@@ -702,13 +700,10 @@ export const CalendarColumn: FC<{
     changeDate,
     display,
     reloadCalendarView,
-    sets,
-    signature,
     loading,
   } = useCalendar();
   const modal = useModals();
   const fetch = useFetch();
-  const openPostEditor = useOpenPostEditor();
 
   // Use shared post actions hook
   const {
@@ -878,115 +873,13 @@ export const CalendarColumn: FC<{
     [posts]
   );
 
-  const addModal = useCallback(async () => {
-    const set: any = !sets.length
-      ? undefined
-      : await new Promise((resolve) => {
-          modal.openModal({
-            title: t('select_set', 'Select a Set'),
-            closeOnClickOutside: true,
-            askClose: false,
-            closeOnEscape: true,
-            withCloseButton: true,
-            onClose: () => resolve('exit'),
-            children: (
-              <SetSelectionModal
-                sets={sets}
-                onSelect={(selectedSet) => {
-                  resolve(selectedSet);
-                  modal.closeAll();
-                }}
-                onContinueWithoutSet={() => {
-                  resolve(undefined);
-                  modal.closeAll();
-                }}
-              />
-            ),
-          });
-        });
+  const openPicker = useAdaptationPicker();
+  const addModal = useCallback(() => openPicker(getDate), [openPicker, getDate]);
 
-    if (set === 'exit') return;
-
-    await openPostEditor({
-      integrations: integrations.slice(0).map((p) => ({ ...p })),
-      mutate: reloadCalendarView,
-      ...(signature?.id && !set
-        ? { onlyValues: [{ content: '\n' + signature.content }] }
-        : {}),
-      date: randomHour
-        ? getDate.hour(Math.floor(Math.random() * 24))
-        : getDate.format('YYYY-MM-DDTHH:mm:ss') ===
-          newDayjs().startOf('hour').format('YYYY-MM-DDTHH:mm:ss')
-        ? newDayjs().add(10, 'minute')
-        : getDate,
-      ...(set?.content ? { set: JSON.parse(set.content) } : {}),
-    });
-  }, [integrations, getDate, sets, signature, openPostEditor]);
-
-  const addProvider = useAddProvider();
   const toaster = useToaster();
-
-  /**
-   * The empty cell, for somebody who may not add a channel
-   * (content-factory-next-fn33.67).
-   *
-   * With no channel in the workspace this cell opened the whole provider
-   * catalogue, and every icon in it ends at
-   * `GET /integrations/social/:integration` — an administrator door
-   * (`docs/product/roles-matrix.md`). `AddProviderButton` already hides
-   * itself from a member for exactly that reason; the calendar reached the
-   * same modal around it.
-   */
-  const canAddChannel = isOrganizationAdmin(user?.role);
-
-  /**
-   * The same cell for somebody who may not write a post
-   * (`content-factory-next-fn33.90`, owner decision of 05.09.2026).
-   *
-   * `POST /posts` carries `Sections.EDITOR` now, so opening the compose
-   * window for a `USER` would hand them a form with a dead «Добавить в
-   * календарь» at the end of it. That is the shape of the defect
-   * `content-factory-next-fn33.63` was opened for, one screen over. The cell
-   * answers in one line instead.
-   */
   const canWritePosts = isOrganizationEditor(user?.role);
-
-  /**
-   * The same cell in a workspace with no channel at all
-   * (`content-factory-next-fn33.148`).
-   *
-   * `fn33.67` above answered the member with a toast and still handed the
-   * administrator the catalogue, so one cell gave two roles two different
-   * answers and neither of them opened the compose window — which the
-   * calendar's own «План / Пишется / Проверка» band promises. A draft with no
-   * channel cannot exist today: `Post.integrationId` is required in
-   * `schema.prisma` and `Post.integration` is `@IsDefined()` in
-   * `create.post.dto.ts`, so opening the window would hand somebody a form
-   * that dies on save.
-   *
-   * One answer for everybody, in a card rather than a toast: a toast has no
-   * second reading, and the design rules keep the only copy of a state off
-   * one. The administrator gets the catalogue from a button
-   * inside the card instead of in place of it.
-   */
-  const explainNoChannel = useCallback(() => {
-    modal.openModal({
-      title: t('compose_needs_channel_title', 'Connect a channel to write posts'),
-      closeOnClickOutside: true,
-      closeOnEscape: true,
-      withCloseButton: true,
-      children: (close: () => void) => (
-        <NoChannelNotice
-          canAddChannel={canAddChannel}
-          canWritePosts={canWritePosts}
-          onAddChannel={() => {
-            close();
-            addProvider();
-          }}
-        />
-      ),
-    });
-  }, [modal, t, canAddChannel, canWritePosts, addProvider]);
+  const language = useInterfaceLanguage();
+  const planningCopy = calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
 
   const refuseWritePost = useCallback(() => {
     toaster.show(
@@ -1083,12 +976,12 @@ export const CalendarColumn: FC<{
           )}
         </div>
         {!isBeforeNow && (
-          <div
+          <ControlButton
+            layout="content"
+            aria-label={`${planningCopy.schedule} · ${getDate.format('DD.MM.YYYY HH:mm')}`}
             className="pb-[2.5px] px-[5px] flex-1 flex"
             onClick={
-              !integrations.length
-                ? explainNoChannel
-                : !canWritePosts
+              !canWritePosts
                 ? refuseWritePost
                 : addModal
             }
@@ -1164,7 +1057,7 @@ export const CalendarColumn: FC<{
                 </div>
               )}
             </div>
-          </div>
+          </ControlButton>
         )}
       </div>
     </div>
@@ -1201,6 +1094,7 @@ const CalendarItem: FC<{
   showTime?: boolean;
   post: Post & {
     integration: Integration;
+    piece?: { id: string; code: string; title: string } | null;
     tags: {
       tag: Tags;
     }[];
@@ -1502,6 +1396,7 @@ const CalendarItem: FC<{
         open={Boolean(previewId)}
         onClose={closePreview}
         postId={previewId || post.id}
+        piece={members.find(member => member.id === (previewId || post.id))?.piece ?? null}
       />
     </div>
   );

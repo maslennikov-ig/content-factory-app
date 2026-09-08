@@ -60,15 +60,22 @@ const escapeForRegExp = (word: string) =>
 export function HighlightedWords({
   text,
   query,
+  matchedForms,
 }: {
   text: string;
   query: string;
+  matchedForms?: readonly string[];
 }): ReactNode {
-  const words = searchWords(query);
+  const words = matchedForms
+    ? [...new Set(matchedForms.filter(Boolean))]
+    : searchWords(query);
   if (words.length === 0 || !text) return text;
 
   const pattern = new RegExp(
-    `(${words.map(escapeForRegExp).sort((a, b) => b.length - a.length).join('|')})`,
+    `(${words
+      .map(escapeForRegExp)
+      .sort((a, b) => b.length - a.length)
+      .join('|')})`,
     'giu'
   );
   const parts = text.split(pattern);

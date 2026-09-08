@@ -1651,15 +1651,18 @@ export class AgentGraphService {
       ? channelInstructionLines(
           hints.channel.writingProfile,
           {
+            identifier: hints.channel.providerIdentifier,
             name: hints.channel.providerIdentifier.replace(/^./, (first) =>
               first.toUpperCase()
             ),
+            contentLanguage: body.language,
             maxLength: hints.channel.maxLength,
             maxCaptionLength: hints.channel.maxCaptionLength,
             editor: hints.channel.editor,
           },
           {
             withPicture: body.isPicture,
+            formatHint: hints.formatHint,
             foreignShingles: hints.foreignShingles,
           }
         )

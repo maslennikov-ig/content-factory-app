@@ -159,39 +159,12 @@ describe('the door is one field, and its refusals are readable', () => {
   });
 });
 
-describe('channels, and the writing card behind one of them', () => {
-  test('a picked Telegram channel offers «Настроить: …»; VK does not', () => {
+describe('neutral intake', () => {
+  test('even legacy selected channels never show a picker or a paid shortcut', () => {
     draw({ selectedIds: ['int-tg', 'int-vk'], blocked: null });
-    expect(
-      screen.getByRole('button', {
-        name: 'Настроить: как пишем в «Мой канал»',
-      })
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole('button', {
-        name: 'Настроить: как пишем в «Сообщество»',
-      })
-    ).toBeNull();
-  });
-
-  test('the card door says whether the channel was ever set up', () => {
-    const first = draw({ selectedIds: ['int-tg'], blocked: null });
-    expect(document.body.textContent).toContain('по умолчанию');
-    first.unmount();
-
-    draw({
-      selectedIds: ['int-tg'],
-      blocked: null,
-      writingProfileStored: { 'int-tg': true },
-    });
-    expect(document.body.textContent).toContain('настроено');
-  });
-
-  test('a workspace with no channel is offered the step it is missing', () => {
-    draw({ state: 'no-channel', channels: [] });
-    expect(document.body.textContent).toContain('Сначала подключите канал');
-    const link = screen.getByRole('link', { name: 'К каналам' });
-    expect(link.getAttribute('href')).toBe('/launches');
+    expect(screen.queryByText('Куда')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Настроить: как пишем/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Сделать заготовку' })).toBeTruthy();
   });
 });
 

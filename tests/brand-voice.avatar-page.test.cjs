@@ -330,3 +330,61 @@ describe('the hint the page carries', () => {
     ).toMatch(/Действующая версия работает/);
   });
 });
+
+test('measurement revalidation keeps the running wizard mounted through proposal', async () => {
+  const { act } = require('@testing-library/react');
+  const { useSWRConfig } = require('swr');
+  const prefix = '/content-intelligence/voice';
+  const scope = '?avatar=avt-01';
+  setBackend([avatarRow({ analysed: false })]);
+  routes[`${prefix}/overview${scope}`] = answer(OVERVIEW);
+  routes[`${prefix}/samples${scope}`] = answer({
+    state: 'default', sources: [], readiness: OVERVIEW.readiness,
+    samples: Array.from({ length: 8 }, (_, index) => ({
+      id: `sample-${index}`, code: `smp-${index}`, title: `Текст ${index}`,
+      origin: 'PASTE', usagePurpose: 'OWN_VOICE', charCount: 2000,
+    })),
+  });
+  routes[`${prefix}/proposal${scope}`] = answer({
+    outcome: 'ready', state: 'default', mode: 'assist', fields: [], observations: [],
+  });
+  let streamController;
+  let streamSignal;
+  const stream = new ReadableStream({ start(controller) { streamController = controller; } });
+  const originalFetch = global.fetch;
+  global.fetch = async (url, init) => {
+    if (String(url) === `${prefix}/analysis/stream${scope}`) {
+      streamSignal = init.signal;
+      return { ok: true, status: 200, body: stream, clone() { return this; } };
+    }
+    return originalFetch(url, init);
+  };
+  let mutate;
+  function Capture() { mutate = useSWRConfig().mutate; return null; }
+  render(React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } },
+    React.createElement(Capture),
+    React.createElement(variables.VariableContextComponent, { language: 'ru' },
+      React.createElement(page.VoiceAvatarScreen, { avatarId: 'avt-01' }))));
+  await fireEvent.click(await screen.findByRole('button', { name: 'Продолжить сбор' }));
+  await fireEvent.click(await screen.findByRole('button', { name: 'Дальше — разбор' }));
+  await waitFor(() => expect(streamSignal).toBeDefined());
+  const send = (event) => streamController.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
+  await act(async () => {
+    send({ name: 'started', samples: 8, planned: 3 });
+    send({ name: 'measured', sampleCount: 8, charCount: 16000 });
+    // Cache mutation reproduces a different subscriber learning that arithmetic was saved.
+    await mutate(`${prefix}/avatars`, { ...routes[`${prefix}/avatars`].body,
+      avatars: [avatarRow({ analysed: true })] }, { revalidate: false });
+  });
+  expect(streamSignal.aborted).toBe(false);
+  expect(document.querySelector('[data-voice-wizard="analysis"]')).not.toBeNull();
+  expect(surfaces()).not.toContain('passport');
+  await act(async () => {
+    send({ name: 'done', analysis: { outcome: 'ready', sampleCount: 8, charCount: 16000,
+      wordCount: 2000, sentenceCount: 200, lexicon: [], punctuation: {}, rejected: [] } });
+    streamController.close();
+  });
+  await fireEvent.click(await screen.findByRole('button', { name: 'Дальше — предложение' }));
+  await waitFor(() => expect(document.querySelector('[data-voice-wizard="proposal"]')).not.toBeNull());
+  expect(streamSignal.aborted).toBe(false);
+});

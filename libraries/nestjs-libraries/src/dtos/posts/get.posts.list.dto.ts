@@ -30,6 +30,10 @@ export class GetPostsListDto {
   customer?: string;
 
   @IsOptional()
+  @IsString()
+  integrationId?: string;
+
+  @IsOptional()
   @IsIn(['all', 'scheduled', 'draft', 'published'])
   state?: PostListStateFilter = 'all';
 

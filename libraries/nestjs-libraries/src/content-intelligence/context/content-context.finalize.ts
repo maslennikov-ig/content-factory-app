@@ -124,11 +124,14 @@ export async function validateContentContextForDraft(
   if (
     snapshot.invalidatedAt ||
     !['READY', 'PARTIAL', 'UNAVAILABLE'].includes(snapshot.status) ||
-    snapshot.generationPolicy === 'EVIDENCE_REQUIRED' ||
-    new Date(snapshot.expiresAt).getTime() < now.getTime()
+    snapshot.generationPolicy === 'EVIDENCE_REQUIRED'
   ) {
     invalidated('Content context is no longer available for a draft');
   }
+  // `expiresAt` limits how long a snapshot may drive generation. Once the
+  // builder admitted an ALLOW_* draft, the snapshot is advisory provenance:
+  // saving or publishing that draft later must not revive the fifteen-minute
+  // generation gate. EVIDENCE_REQUIRED was refused above and stays strict.
   if (
     input.requestedBrandProfileVersionId !== undefined &&
     input.requestedBrandProfileVersionId !== snapshot.brandProfileVersionId

@@ -26,9 +26,16 @@ import {
   type AdaptationRow,
 } from '../materials/content-material.repository';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
+import { reviewConflict, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import { searchWords } from '../search-terms';
 
 type PrismaClientLike = Record<string, any>;
+
+type ReviewDraftRow = {
+  id: string; body: string | null; updatedAt: Date; postId: string | null;
+  post: { id: string; content: string; updatedAt: Date; state: string; deletedAt: Date | null;
+    integration: { providerIdentifier: string } } | null;
+};
 
 /** Канал области в том виде, в каком его читают колонки, цели и адаптация. */
 export type PieceIntegrationRow = {
@@ -55,6 +62,15 @@ export type PieceRow = {
     versionNumber: number | null;
     label: string | null;
   } | null;
+};
+
+export type ReadyAdaptationRow = {
+  id: string;
+  title: string | null;
+  body: string | null;
+  updatedAt: Date;
+  piece: { id: string; title: string };
+  post: { id: string; integrationId: string; content: string };
 };
 
 @Injectable()
@@ -109,6 +125,46 @@ export class PieceRepository {
       where: { organizationId },
       orderBy: { createdAt: 'asc' },
       select: { id: true },
+    });
+  }
+
+  /**
+   * Draft adaptations that can still enter the calendar.
+   *
+   * State and channel identity come from the linked post. The derivation's
+   * mirrored state and integrationId are intentionally not read.
+   */
+  listReadyAdaptations(
+    organizationId: string,
+    limit: number
+  ): Promise<ReadyAdaptationRow[]> {
+    return this.client().contentDerivation.findMany({
+      where: {
+        organizationId,
+        post: {
+          is: {
+            organizationId,
+            state: 'DRAFT',
+            deletedAt: null,
+            integration: {
+              is: { organizationId, deletedAt: null },
+            },
+          },
+        },
+        piece: { is: { organizationId } },
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        updatedAt: true,
+        piece: { select: { id: true, title: true } },
+        post: {
+          select: { id: true, integrationId: true, content: true },
+        },
+      },
     });
   }
 
@@ -235,6 +291,39 @@ export class PieceRepository {
         postId: true,
         post: { select: { state: true, deletedAt: true } },
       },
+    });
+  }
+
+  /** Read the exact draft that is about to be reviewed, scoped through both relations. */
+  reviewDraft(organizationId: string, pieceId: string, adaptationId: string): Promise<ReviewDraftRow | null> {
+    return this.client().contentDerivation.findFirst({
+      where: { organizationId, contentPieceId: pieceId, id: adaptationId },
+      select: {
+        id: true, body: true, updatedAt: true, postId: true,
+        post: { select: { id: true, content: true, updatedAt: true, state: true, deletedAt: true,
+          integration: { select: { providerIdentifier: true } } } },
+      },
+    });
+  }
+
+  /** Both compare-and-swap updates must succeed; throwing rolls back the first one. */
+  acceptReview(organizationId: string, pieceId: string, adaptationId: string,
+    snapshot: AdaptationReviewSnapshot, text: string, content: string) {
+    return this.client().$transaction(async (tx: PrismaClientLike) => {
+      const adaptation = await tx.contentDerivation.updateMany({
+        where: { organizationId, contentPieceId: pieceId, id: adaptationId,
+          postId: snapshot.postId, body: snapshot.adaptationBody,
+          updatedAt: new Date(snapshot.adaptationUpdatedAt) },
+        data: { body: text },
+      });
+      if (adaptation.count !== 1) throw reviewConflict();
+      const post = await tx.post.updateMany({
+        where: { organizationId, id: snapshot.postId, state: 'DRAFT', deletedAt: null,
+          content: snapshot.postContent, updatedAt: new Date(snapshot.postUpdatedAt) },
+        data: { content },
+      });
+      if (post.count !== 1) throw reviewConflict();
+      return { accepted: true as const };
     });
   }
 

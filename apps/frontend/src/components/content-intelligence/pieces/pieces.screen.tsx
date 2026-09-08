@@ -184,7 +184,9 @@ export function PiecesScreen({
 
   /** Подстрока происхождения под заголовком, и «суть не выделена» рядом. */
   const subtitle = (row: PieceRowV1) =>
-    row.coreExtracted ? originWord(row) : `${originWord(row)} · ${t.coreMissing}`;
+    row.coreExtracted
+      ? originWord(row)
+      : `${originWord(row)} · ${t.coreMissing}`;
 
   /*
     Счёт стоит подписью рядом с названием, а не отдельной строкой под ним: это
@@ -221,6 +223,11 @@ export function PiecesScreen({
     Отбор — одна строка: поле поиска шире остальных, два списка узкие, выбор
     колонок прижат вправо. Ниже 720 px строка переносится сама, потому что там
     и таблицы нет.
+
+    Ни у одного поля здесь нет строки сообщения: отбор не проверяется, а
+    примитивы резервируют под неё 16 px, и при выравнивании по низу поле без
+    строки (`removeError`) оказывалось на 16 px ниже списков со строкой. На
+    боевом это читалось как «кнопки не встали в один ряд».
   */
   const controls = (
     <div className="flex min-w-0 flex-wrap items-end gap-[12px]">
@@ -236,6 +243,7 @@ export function PiecesScreen({
       />
       <Select
         disableForm
+        hideErrors
         name="pieces-missing-on"
         label={t.missingOnLabel}
         fieldClassName="w-[160px] max-w-full"
@@ -251,6 +259,7 @@ export function PiecesScreen({
       </Select>
       <Select
         disableForm
+        hideErrors
         name="pieces-state"
         label={t.stateFilterLabel}
         fieldClassName="w-[140px] max-w-full"
@@ -264,6 +273,7 @@ export function PiecesScreen({
         <option value="queued">{t.stateQueued}</option>
         <option value="draft">{t.stateDraft}</option>
         <option value="error">{t.stateError}</option>
+        <option value="archived">{t.archived}</option>
       </Select>
 
       {/*
@@ -288,7 +298,9 @@ export function PiecesScreen({
                   key={column.platform}
                   name={`pieces-column-${column.platform}`}
                   label={column.name}
-                  checked={columns.some((one) => one.platform === column.platform)}
+                  checked={columns.some(
+                    (one) => one.platform === column.platform
+                  )}
                   onChange={() => onToggleColumn(column.platform)}
                 />
               ))}
@@ -321,9 +333,7 @@ export function PiecesScreen({
   /** Что видно под раскрытой строкой: суть слева, адаптации и действия справа. */
   const expanded = (row: PieceRowV1) => (
     <div className="flex min-w-0 flex-col gap-[12px]">
-      {expansion?.loading ? (
-        <SkeletonRows rows={2} label={t.loading} />
-      ) : null}
+      {expansion?.loading ? <SkeletonRows rows={2} label={t.loading} /> : null}
 
       <div className="grid min-w-0 gap-[24px] lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-[8px]">
@@ -337,7 +347,11 @@ export function PiecesScreen({
                   key={`${row.id}-line-${index}`}
                   className="max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]"
                 >
-                  <HighlightedWords text={line} query={found} />
+                  <HighlightedWords
+                    text={line}
+                    query={found}
+                    matchedForms={row.matchedForms}
+                  />
                 </p>
               ))}
             </div>
@@ -358,7 +372,9 @@ export function PiecesScreen({
                   data-piece-adaptation={adaptation.id}
                   className="flex flex-wrap items-center gap-[8px] cf-body-sm text-cf-ink"
                 >
-                  <span>{adaptation.integrationName ?? adaptation.platform}</span>
+                  <span>
+                    {adaptation.integrationName ?? adaptation.platform}
+                  </span>
                   <Status
                     tone={
                       adaptation.state === 'published'
@@ -386,14 +402,6 @@ export function PiecesScreen({
           )}
 
           <div className="mt-[4px] flex flex-wrap gap-[8px]">
-            <Button
-              type="button"
-              variant="secondary"
-              density="dense"
-              onClick={() => onOpenPiece(row.id)}
-            >
-              {t.openPiece}
-            </Button>
             <Button
               type="button"
               variant="quiet"
@@ -432,10 +440,28 @@ export function PiecesScreen({
             {row.date}
           </span>
         </div>
-        <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
-          <HighlightedWords text={row.title} query={found} />
+        <a
+          href={`/content/pieces/${encodeURIComponent(row.id)}`}
+          className="cf-label-md text-cf-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-focus"
+        >
+          <HighlightedWords
+            text={row.title}
+            query={found}
+            matchedForms={row.matchedForms}
+          />
+        </a>
+        <p className="cf-body-sm text-cf-ink-muted">
+          <HighlightedWords
+            text={row.searchSnippet ?? row.excerpt.join(' ').slice(0, 160)}
+            query={found}
+            matchedForms={row.matchedForms}
+          />
         </p>
-        <p data-piece-card-origin={row.origin} className="cf-caption text-cf-ink-muted">
+        {row.archivedAt ? <Status>{t.archived}</Status> : null}
+        <p
+          data-piece-card-origin={row.origin}
+          className="cf-caption text-cf-ink-muted"
+        >
           {subtitle(row)}
         </p>
         <div className="flex flex-wrap gap-[8px]">
@@ -452,9 +478,6 @@ export function PiecesScreen({
           ))}
         </div>
         {open ? expanded(row) : null}
-        <Button type="button" variant="secondary" onClick={() => onOpenPiece(row.id)}>
-          {t.openPiece}
-        </Button>
       </li>
     );
   };
@@ -576,16 +599,22 @@ export function PiecesScreen({
                     const open = expandedId === row.id;
                     const span =
                       5 + columns.length + (restColumns.length > 0 ? 1 : 0);
-                    const pinned = open ? 'bg-cf-surface-subtle' : 'bg-cf-surface';
+                    const pinned = open
+                      ? 'bg-cf-surface-subtle'
+                      : 'bg-cf-surface';
                     return (
                       <Fragment key={row.id}>
                         <Tr
                           data-piece-row={row.code}
+                          onClick={() => onOpenPiece(row.id)}
                           data-piece-row-open={open ? 'true' : undefined}
                           className={clsx(open && 'bg-cf-surface-subtle')}
                         >
                           <Td
-                            className={clsx('sticky start-0 z-[1] py-[8px]', pinned)}
+                            className={clsx(
+                              'sticky start-0 z-[1] py-[8px]',
+                              pinned
+                            )}
                             style={{ width: ARROW_WIDTH }}
                           >
                             {expandButton(row, open)}
@@ -601,10 +630,32 @@ export function PiecesScreen({
                           </Td>
                           <Td className="py-[8px] align-top">
                             <span className="flex min-w-0 flex-col gap-[4px]">
-                              <span className="cf-label-md text-cf-ink [overflow-wrap:anywhere]">
+                              <a
+                                href={`/content/pieces/${encodeURIComponent(
+                                  row.id
+                                )}`}
+                                className="cf-label-md text-cf-ink [overflow-wrap:anywhere] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-focus"
+                              >
                                 <HighlightedWords
                                   text={row.title}
                                   query={found}
+                                  matchedForms={row.matchedForms}
+                                />
+                              </a>
+                              {row.archivedAt ? (
+                                <Status>{t.archived}</Status>
+                              ) : null}
+                              <span
+                                data-piece-snippet="true"
+                                className="cf-body-sm text-cf-ink-muted"
+                              >
+                                <HighlightedWords
+                                  text={
+                                    row.searchSnippet ??
+                                    row.excerpt.join(' ').slice(0, 160)
+                                  }
+                                  query={found}
+                                  matchedForms={row.matchedForms}
                                 />
                               </span>
                               <span
@@ -632,7 +683,9 @@ export function PiecesScreen({
                                 platformName={column.name}
                                 disabled={!canWrite}
                                 onOpenPost={onOpenPost}
-                                onAdapt={(cell) => onAdapt(row.id, cell.platform)}
+                                onAdapt={(cell) =>
+                                  onAdapt(row.id, cell.platform)
+                                }
                               />
                             </Td>
                           ))}

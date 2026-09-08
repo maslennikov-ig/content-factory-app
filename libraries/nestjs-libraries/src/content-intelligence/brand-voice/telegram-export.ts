@@ -14,9 +14,8 @@ import { truncateChars } from './text-truncate';
  * Three things about the format decide the shape of this code.
  *
  * A channel export runs to hundreds of megabytes, so callers hand over a
- * parsed object only for small files and a string otherwise; either way the
- * message cap stops before the array does. Nothing here holds the whole file
- * twice.
+ * parsed object or a string. All eligible messages are dated before selecting
+ * the latest bounded set, regardless of the order in the export.
  *
  * `text` is either a string or an array mixing strings and `{type, text}`
  * entities. A reader that expects one shape drops every message containing a
@@ -47,7 +46,7 @@ export type TelegramExport = {
 };
 
 /** A cap, not a guess: beyond this the person is importing an archive. */
-export const MAX_MESSAGES = 5_000;
+export const MAX_MESSAGES = 300;
 
 /** Shorter than this a message is a reaction, not writing. */
 export const MIN_MESSAGE_CHARS = 120;
@@ -89,9 +88,10 @@ const isAuthored = (message: TelegramMessage): boolean => {
 
 export type TelegramParseResult = {
   candidates: IntakeCandidate[];
-  /** Read so far and stopped: the screen says so rather than pretending. */
+  /** More eligible messages existed than the bounded selection can keep. */
   truncated: boolean;
   seen: number;
+  eligible: number;
 };
 
 export function parseTelegramExport(
@@ -104,7 +104,7 @@ export function parseTelegramExport(
       parsed = JSON.parse(input) as TelegramExport;
     } catch {
       // A truncated or hand-edited export is common. It is not a crash.
-      return { candidates: [], truncated: false, seen: 0 };
+      return { candidates: [], truncated: false, seen: 0, eligible: 0 };
     }
   } else {
     parsed = input;
@@ -113,28 +113,21 @@ export function parseTelegramExport(
   const messages = Array.isArray(parsed?.messages) ? parsed.messages : [];
   const limit = options.maxMessages ?? MAX_MESSAGES;
   const channel = options.channel ?? parsed?.name ?? 'telegram';
-  const candidates: IntakeCandidate[] = [];
-  let seen = 0;
-
-  for (const message of messages) {
-    if (seen >= limit) {
-      return { candidates, truncated: seen < messages.length, seen };
-    }
-    seen += 1;
-    if (!message || typeof message !== 'object') continue;
-    if (!isAuthored(message)) continue;
-
+  const eligible = messages.flatMap((message, index) => {
+    if (!message || typeof message !== 'object' || !isAuthored(message)) return [];
     const text = flattenText(message.text).trim();
-    if (text.length < MIN_MESSAGE_CHARS) continue;
-
-    const firstLine = truncateChars(text.split('\n')[0], 80);
-    candidates.push({
-      origin: 'TELEGRAM_EXPORT',
-      title: firstLine || `${channel} · ${message.id ?? seen}`,
-      text,
-      externalRef: message.id === undefined ? undefined : String(message.id),
-    });
-  }
-
-  return { candidates, truncated: false, seen };
+    if (text.length < MIN_MESSAGE_CHARS) return [];
+    const timestamp = Date.parse(message.date ?? '');
+    return [{ message, text, index, timestamp: Number.isFinite(timestamp) ? timestamp : -Infinity }];
+  });
+  // A date wins over file order. Undated entries come last; ties keep later file entries first.
+  eligible.sort((a, b) => (b.timestamp - a.timestamp) || b.index - a.index);
+  const selected = eligible.slice(0, Math.max(0, Math.min(MAX_MESSAGES, Math.floor(limit) || 0)));
+  const candidates: IntakeCandidate[] = selected.map(({ message, text, index }) => ({
+    origin: 'TELEGRAM_EXPORT',
+    title: truncateChars(text.split('\n')[0], 80) || `${channel} · ${message.id ?? index + 1}`,
+    text,
+    externalRef: message.id === undefined ? undefined : String(message.id),
+  }));
+  return { candidates, truncated: selected.length < eligible.length, seen: messages.length, eligible: eligible.length };
 }

@@ -122,6 +122,22 @@ const { PieceService } = loadWithMocks(PIECES, {
   '../brief/content-brief.repository': { ContentBriefRepository: class {} },
 });
 
+const { PieceRepository } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/piece.repository.ts',
+  {
+    '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+      PrismaRepository: class {},
+    },
+    '../materials/content-material.repository': {
+      ContentMaterialRepository: class {},
+    },
+    '../brief/content-brief.repository': { ContentBriefRepository: class {} },
+    './adaptation-review.contract': {
+      reviewConflict: () => new Error('conflict'),
+    },
+  }
+);
+
 /* -------------------------------------------------------------------------
  * Заготовки
  * ---------------------------------------------------------------------- */
@@ -348,7 +364,7 @@ const request = (overrides = {}) => ({
  * Одна заготовка на три канала
  * ---------------------------------------------------------------------- */
 
-describe('три канала дают одну заготовку и три адаптации', () => {
+describe('legacy три канала дают только нейтральную заготовку', () => {
   const threeChannels = async () => {
     const { service, calls } = buildIntake({
       models: [briefAnswer(), { text: CORE_TEXT }],
@@ -361,27 +377,10 @@ describe('три канала дают одну заготовку и три а�
     return { calls, events };
   };
 
-  test('заготовка записана один раз, адаптация — на каждый канал', async () => {
+  test('заготовка записана один раз, каналы не создают адаптаций', async () => {
     const { calls } = await threeChannels();
-
     expect(calls.recordCore).toHaveLength(1);
-    expect(calls.recordAdaptation).toHaveLength(3);
-    expect(calls.recordAdaptation.map(([, input]) => input.platform)).toEqual([
-      'telegram',
-      'vk',
-      'wordpress',
-    ]);
-    // Вид спрашивается у площадки: сайт берёт статью, а не пост.
-    expect(calls.recordAdaptation.map(([, input]) => input.kind)).toEqual([
-      'post',
-      'post',
-      'article',
-    ]);
-    // Все три ссылаются на одну и ту же заготовку.
-    expect([
-      ...new Set(calls.recordAdaptation.map(([, input]) => input.pieceId)),
-    ]).toEqual(['piece-1']);
-    // Старая запись «материал на канал» со входа больше не зовётся.
+    expect(calls.recordAdaptation).toEqual([]);
     expect(calls.recordPiece).toEqual([]);
   });
 
@@ -392,7 +391,7 @@ describe('три канала дают одну заготовку и три а�
     expect(core.body).toBe(CORE_TEXT);
     expect(core.body).not.toMatch(/<[a-z]/i);
     // А пост несёт разметку — это разные вещи и разные колонки.
-    expect(calls.createDraft[0][1].content).toContain('<p>');
+    expect(calls.createDraft).toEqual([]);
 
     const [piece] = named(events, 'piece');
     expect(piece.pieceId).toBe('piece-1');
@@ -401,19 +400,11 @@ describe('три канала дают одну заготовку и три а�
     expect(piece.core.text).toBe(CORE_TEXT);
   });
 
-  test('черновик знает свою адаптацию и свою заготовку', async () => {
+  test('события канала и черновика отсутствуют в новом потоке', async () => {
     const { events } = await threeChannels();
-    const drafts = named(events, 'draft');
-
-    expect(drafts).toHaveLength(3);
-    expect(drafts.map((draft) => draft.adaptationId)).toEqual([
-      'adaptation-1',
-      'adaptation-2',
-      'adaptation-3',
-    ]);
-    expect([...new Set(drafts.map((draft) => draft.pieceId))]).toEqual([
-      'piece-1',
-    ]);
+    expect(named(events, 'draft')).toEqual([]);
+    expect(named(events, 'channel-started')).toEqual([]);
+    expect(named(events, 'done')[0]).toEqual({ name: 'done', pieceId: 'piece-1' });
   });
 
   test('суть стоит одним вызовом роли draft, и он один на три канала', async () => {
@@ -428,13 +419,9 @@ describe('три канала дают одну заготовку и три а�
     expect(modelCalls.filter((call) => call.role === 'draft')).toHaveLength(1);
   });
 
-  test('суть доезжает до генератора подсказкой, а не запросом', async () => {
+  test('вход не запускает генератор каналов', async () => {
     const { calls } = await threeChannels();
-
-    expect(calls.start).toHaveLength(3);
-    for (const [, body] of calls.start) {
-      expect(body.intake.core).toBe(CORE_TEXT);
-    }
+    expect(calls.start).toEqual([]);
   });
 });
 
@@ -500,8 +487,8 @@ describe('дословность и граница чужого текста', (
       'Дедлайн, о котором знает другой, держится лучше'
     );
     // Черновик человек всё равно получил.
-    expect(named(events, 'draft')).toHaveLength(1);
-    expect(calls.createDraft).toHaveLength(1);
+    expect(named(events, 'piece')).toHaveLength(1);
+    expect(calls.createDraft).toHaveLength(0);
     expect(named(events, 'error')).toEqual([]);
   });
 
@@ -612,7 +599,7 @@ describe('интервью заготовки', () => {
     expect(asked.questions[1].suggested).toBeNull();
     // И вопрос больше ничего не обрывает: заготовка записана, черновик написан.
     expect(calls.recordCore).toHaveLength(1);
-    expect(calls.start).toHaveLength(1);
+    expect(calls.start).toHaveLength(0);
   });
 
   test('ответ хранится дословно, с опечаткой, и попадает в бриф как слово человека', async () => {
@@ -685,7 +672,7 @@ describe('каналы необязательны', () => {
     expect(calls.recordCore).toHaveLength(1);
     expect(calls.recordAdaptation).toEqual([]);
     expect(calls.start).toEqual([]);
-    expect(named(events, 'done')[0].postIds).toEqual([]);
+    expect(named(events, 'done')[0].pieceId).toBe('piece-1');
   });
 
   test('о поиске опоры говорится до него, а не после', async () => {
@@ -756,6 +743,7 @@ const buildPieces = (options = {}) => {
     related: [],
     invalidate: [],
     voice: [],
+    ready: [],
   };
   modelCalls.length = 0;
   modelAnswers = [...(options.models || [])];
@@ -769,6 +757,10 @@ const buildPieces = (options = {}) => {
     getPiece: async () => piece,
     listIntegrations: async () => options.integrations ?? CHANNELS,
     adaptationsByPiece: async () => options.adaptations || [],
+    listReadyAdaptations: async (...args) => {
+      calls.ready.push(args);
+      return options.ready || [];
+    },
     searchPieceIds: async (...args) => {
       calls.search.push(args);
       return options.matched ?? null;
@@ -813,7 +805,14 @@ const buildPieces = (options = {}) => {
     {
       start: async function* (organizationId, body) {
         calls.start.push([organizationId, body]);
-        yield { data: { output: generatorOutput('Пять из шести сроков я сорвал сам себе.') } };
+        yield {
+          data: {
+            output: {
+              ...generatorOutput('Пять из шести сроков я сорвал сам себе.'),
+              ...(options.antiCopy ? { antiCopy: options.antiCopy } : {}),
+            },
+          },
+        };
       },
     },
     { getSocialIntegration: (identifier) => PROVIDERS[identifier] },
@@ -871,7 +870,8 @@ describe('адаптация под канал', () => {
     expect(asked.questions[0].why).toContain('80–180');
     // Крючок предложен первой фразой сути, а не выдуман заново.
     expect(asked.questions[0].suggested).toContain('Из шести дедлайнов');
-    expect(asked.questions.map((row) => row.key)).toContain('cta');
+    expect(asked.questions.map((row) => row.key)).not.toContain('cta');
+    expect(asked.questions.find((row) => row.key === 'format').options).toEqual(['мнение', 'разбор', 'случай', 'история', 'список']);
     expect(asked.questions.length).toBeLessThanOrEqual(3);
     // Ни генерации, ни черновика на круге вопросов.
     expect(calls.start).toEqual([]);
@@ -1178,6 +1178,53 @@ describe('адаптация под канал', () => {
     ]);
   });
 
+  test('ответ на вопрос о формате доезжает до графа каноническим значением', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      {
+        integrationId: 'int-tg',
+        answers: [{ key: 'format', text: 'разбор', origin: 'person' }],
+      },
+      'ru'
+    );
+    await drain(service.adapt('org-a', plan));
+
+    expect(calls.start[0][1].intake.formatHint).toBe('expert');
+  });
+
+  test('отпечатки чужого поста из сохранённой заготовки доезжают до адаптации', async () => {
+    const foreignShingles = [
+      'мы перестали публиковать каждый день и стали писать',
+      'перестали публиковать каждый день и стали писать раз',
+    ];
+    const antiCopy = {
+      minWords: 8,
+      runs: [],
+      retried: false,
+      clean: true,
+    };
+    const { service, calls } = buildPieces({
+      piece: pieceRow({
+        brief: { ...CORE_BRIEF, foreignShingles },
+      }),
+      antiCopy,
+    });
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(calls.start[0][1].intake.foreignShingles).toEqual(foreignShingles);
+    expect(named(events, 'adaptation')[0].adaptation.checks.antiCopy).toEqual(
+      antiCopy
+    );
+  });
+
   test.each([
     ['нет заготовки', { piece: null }, { integrationId: 'int-tg' }, 'PIECE_NOT_FOUND'],
     [
@@ -1331,6 +1378,9 @@ describe('ответы на открытые вопросы заготовки',
       ['position', 'model'],
     ]);
     expect(saved.brief.questions.items).toEqual([]);
+    const event = named(events, 'piece')[0];
+    expect(event.previousBody).toBe(saved.body);
+    expect(event.core.text).toBe(event.previousBody);
   });
 
   test('после двух кругов не спрашивают, а заготовка на месте', async () => {
@@ -1442,6 +1492,87 @@ describe('снятие адаптации и архив', () => {
 });
 
 describe('список и страница', () => {
+  test('готовые адаптации получают неизменный код заготовки и безопасную первую строку', async () => {
+    const earlier = pieceRow({ id: 'piece-11' });
+    const target = pieceRow({ id: 'piece-12' });
+    const { service, calls } = buildPieces({
+      pieces: [earlier, target],
+      ready: [
+        {
+          id: 'adaptation-2',
+          title: 'Заголовок адаптации',
+          body: null,
+          updatedAt: new Date('2026-09-08T12:00:00.000Z'),
+          piece: { id: 'piece-12', title: 'Название заготовки' },
+          post: {
+            id: 'post-2',
+            integrationId: 'channel-2',
+            content: '<p>Первая строка</p><p>Вторая строка</p>',
+          },
+        },
+      ],
+    });
+
+    await expect(service.readyAdaptations('org-a', 7)).resolves.toEqual({
+      version: 'ready-adaptations/v1',
+      items: [
+        {
+          adaptationId: 'adaptation-2',
+          pieceId: 'piece-12',
+          pieceCode: 'cnt-02',
+          title: 'Название заготовки',
+          firstLine: 'Первая строка',
+          integrationId: 'channel-2',
+          postId: 'post-2',
+          readyAt: '2026-09-08T12:00:00.000Z',
+        },
+      ],
+    });
+    expect(calls.ready).toEqual([['org-a', 7]]);
+  });
+
+  test('репозиторий просит только DRAFT текущей области с живым каналом', async () => {
+    let query;
+    const repository = new PieceRepository(
+      {
+        model: {
+          contentDerivation: {
+            findMany: async (input) => {
+              query = input;
+              return [];
+            },
+          },
+        },
+      },
+      {},
+      {}
+    );
+
+    await repository.listReadyAdaptations('org-a', 23);
+
+    expect(query.where).toEqual({
+      organizationId: 'org-a',
+      post: {
+        is: {
+          organizationId: 'org-a',
+          state: 'DRAFT',
+          deletedAt: null,
+          integration: {
+            is: { organizationId: 'org-a', deletedAt: null },
+          },
+        },
+      },
+      piece: { is: { organizationId: 'org-a' } },
+    });
+    expect(query.orderBy).toEqual([
+      { updatedAt: 'desc' },
+      { id: 'asc' },
+    ]);
+    expect(query.take).toBe(23);
+    expect(query.select).not.toHaveProperty('state');
+    expect(query.select).not.toHaveProperty('integrationId');
+  });
+
   test('строка несёт код, выдержку и клетку на каждую колонку', async () => {
     const { service } = buildPieces({
       adaptations: [
@@ -1666,4 +1797,17 @@ describe('список и страница', () => {
     expect(detail.piece.excerpt).toEqual([]);
     expect(detail.piece.origin).toBe('legacy');
   });
+});
+
+
+test('S4: list returns matching forms and a body snippet without changing piece codes', async () => {
+  const first = pieceRow({ id: 'earlier', title: 'Вне поиска', body: 'Другой текст' });
+  const second = pieceRow({ id: 'found', title: 'О договоре', body: 'Срок соблюдён клиентом.' });
+  const { service, calls } = buildPieces({ pieces: [first, second], matched: new Set(['found']) });
+  const result = await service.list('org-a', { q: 'сроки клиента' }, 'ru');
+  expect(result.pieces).toHaveLength(1);
+  expect(result.pieces[0].code).toBe('cnt-02');
+  expect(result.pieces[0].matchedForms).toEqual(['срок', 'клиентом']);
+  expect(result.pieces[0].searchSnippet).toBe('Срок соблюдён клиентом.');
+  expect(calls.search).toHaveLength(1);
 });

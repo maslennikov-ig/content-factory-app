@@ -17,8 +17,8 @@
  *    вопросы едут вместе с ней и ход не обрывают;
  *  - один вопрос на поле брифа: «на что это опирается» и «есть личная
  *    история» больше не задаются подряд как два разных вопроса про `facts`;
- *  - числа чужого поста входят в бриф только подтверждёнными, непроверенное
- *    видно отдельной строкой и в текст не идёт;
+ *  - утверждения чужого поста не проверяются автоматически: каждое явно
+ *    отмечено как пропущенное, а неподтверждённое видно отдельной строкой;
  *  - **сам чужой текст не попадает в аргументы `start()` ни одним полем** —
  *    это граница «берём угол, а не слова», и она проверяется явно;
  *  - ссылка становится доказательством с провайдером `user_link` и
@@ -513,7 +513,7 @@ describe('тонкий вход отвечает заготовкой, а воп
   });
 });
 
-describe('чужой пост: числа входят только проверенными', () => {
+describe('чужой пост: утверждения не проверяются автоматически', () => {
   /*
     `skipInterview` стоит здесь с волны «заготовка и адаптации»
     (`content-factory-next-tu3k.9`): после брифа продукт задаёт до трёх
@@ -535,22 +535,10 @@ describe('чужой пост: числа входят только провер
   const foreignBuild = () =>
     build({
       models: [extractionAnswer(), fullBriefAnswer()],
-      research: [
-        searchAnswerWith('выручка достигла 4,2 млрд', 'https://example.test/report'),
-        searchAnswerWith('рост составил 37% за год', 'https://example.test/press'),
-        // Третье число не подтверждается: страница отвечает про другое.
-        {
-          summary: '',
-          provider: 'tavily',
-          facts: [
-            { text: 'Компания работает в нескольких регионах.', sourceUrl: 'https://example.test/about' },
-          ],
-          sources: [],
-        },
-      ],
+      research: [],
     });
 
-  test('два подтверждённых, одно неподтверждённое, поиск не больше трёх раз', async () => {
+  test('все утверждения явно пропущены без единого запроса на проверку', async () => {
     const { service, calls } = foreignBuild();
     const plan = await foreignPlan(service);
     const events = await drain(service, 'org-a', plan);
@@ -560,19 +548,24 @@ describe('чужой пост: числа входят только провер
     expect(
       claims.claims.map((claim) => [claim.text, claim.status])
     ).toEqual([
-      ['выручка компании достигла 4,2 млрд', 'verified'],
-      ['рост на 37% за год', 'verified'],
-      ['присутствие в 12 странах', 'unverified'],
-      // Четвёртое число за пределом тройки: его не проверяли.
+      ['выручка компании достигла 4,2 млрд', 'skipped'],
+      ['рост на 37% за год', 'skipped'],
+      ['присутствие в 12 странах', 'skipped'],
       ['выход на новую платформу за шесть недель', 'skipped'],
       ['команда переехала на новую платформу', 'skipped'],
     ]);
-    expect(calls.research).toHaveLength(3);
-    expect(claims.claims[0].evidenceId).toBe('ev-1');
-    expect(claims.claims[0].sourceUrl).toBe('https://example.test/report');
+    expect(calls.research).toEqual([]);
+    expect(
+      named(events, 'search-started').filter((event) => event.reason === 'claims')
+    ).toEqual([]);
+    expect(
+      claims.claims.every(
+        (claim) => claim.evidenceId === null && claim.sourceUrl === null
+      )
+    ).toBe(true);
   });
 
-  test('в брифе два факта с опорой и одна строка без неё', async () => {
+  test('факты чужого поста остаются видимыми как неподтверждённые', async () => {
     const { service } = foreignBuild();
     const plan = await foreignPlan(service);
     const events = await drain(service, 'org-a', plan);
@@ -581,12 +574,14 @@ describe('чужой пост: числа входят только провер
     expect(
       filled.brief.facts.map((fact) => [fact.statement, fact.verified, fact.origin])
     ).toEqual([
-      ['выручка достигла 4,2 млрд', true, 'search'],
-      ['рост на 37% за год', true, 'search'],
+      ['выручка достигла 4,2 млрд', false, 'input'],
+      ['рост на 37% за год', false, 'input'],
       ['присутствие в 12 странах', false, 'input'],
       ['у нас так было в прошлом году', false, 'input'],
     ]);
     expect(filled.brief.ungrounded).toEqual([
+      'выручка достигла 4,2 млрд',
+      'рост на 37% за год',
       'присутствие в 12 странах',
       'у нас так было в прошлом году',
     ]);
@@ -610,73 +605,22 @@ describe('чужой пост: числа входят только провер
     expect(filled.brief.ungrounded).toContain('у нас так было в прошлом году');
   });
 
-  test('чужой текст не доходит до генератора ни одним полем', async () => {
+  test('чужой текст остаётся материалом, вход не зовёт адаптацию', async () => {
     const { service, calls } = foreignBuild();
-    const plan = await foreignPlan(service);
-    await drain(service, 'org-a', plan);
-
-    expect(calls.start).toHaveLength(1);
-    const [, body] = calls.start[0];
-    const serialized = JSON.stringify(body);
-    // Ни целиком, ни первым предложением: берётся угол, а не слова.
-    expect(serialized).not.toContain(foreignPost);
-    expect(serialized).not.toContain('Мы закрыли половину линейки');
-    expect(body.research).toBe(
-      'Рост на 37% случился не из-за рынка, а из-за отказа от половины продуктов'
-    );
-    expect(body.intake.foreignShingles.length).toBeGreaterThan(0);
-    expect(body.intake.borrowed.topic).toBe(
-      'отказ от половины продуктовой линейки'
-    );
-    expect(body.userMaterialEvidenceIds).toEqual(['ev-1', 'ev-2']);
-    expect(body.factIds).toBeUndefined();
-    expect(body.intake.channel).toEqual({
-      integrationId: 'int-tg',
-      providerIdentifier: 'telegram',
-      maxLength: 4_096,
-      maxCaptionLength: 1_024,
-      editor: 'html',
-      writingProfile: null,
-    });
+    await drain(service, 'org-a', await foreignPlan(service));
+    expect(calls.start).toEqual([]);
+    expect(calls.recordCore).toHaveLength(1);
+    expect(calls.recordCore[0][1].brief.personText).toBe('');
+    expect(calls.recordCore[0][1].brief.foreignShingles.length).toBeGreaterThan(0);
   });
 
-  test('черновик сохраняется со снимком контекста и метками цитат', async () => {
+  test('нейтральная заготовка сохраняется без черновиков и адаптаций', async () => {
     const { service, calls } = foreignBuild();
-    const plan = await foreignPlan(service);
-    const events = await drain(service, 'org-a', plan);
-
-    expect(calls.createDraft).toHaveLength(1);
-    const [, saved] = calls.createDraft[0];
-    expect(saved).toEqual({
-      channelId: 'int-tg',
-      providerIdentifier: 'telegram',
-      content: '<p>Черновик для int-tg.</p>',
-      date: '2026-09-06T10:00:00',
-      contentContextSnapshotId: 'ctx-1',
-      brandProfileVersionId: 'bpv-1',
-      usedCitationIds: ['E1'],
-    });
-    const [draft] = named(events, 'draft');
-    expect(draft.postId).toBe('post-1');
-    expect(draft.pieceId).toBe('piece-1');
-    /**
-     * Проверки считаются сами (`content-factory-next-k879.1`, 07.09.2026).
-     * До этой волны штампы считались только при `options.slopCheck === true`,
-     * которого не присылал ни один клиент, — то есть не считались никогда.
-     * Голос здесь молчит честно: порта в наборе нет, и `UNKNOWN` с причиной —
-     * это не тихое «похоже».
-     */
-    expect(draft.checks.antiCopy).toBeNull();
-    expect(draft.checks.slop).toMatchObject({
-      version: 'slop-check/1.0.0',
-      platform: 'telegram',
-      locale: 'ru',
-    });
-    expect(draft.checks.voice).toEqual({
-      verdict: 'UNKNOWN',
-      reason: 'NO_PROFILE',
-    });
-    expect(named(events, 'done')[0].postIds).toEqual(['post-1']);
+    const events = await drain(service, 'org-a', await foreignPlan(service));
+    expect(calls.createDraft).toEqual([]);
+    expect(calls.recordAdaptation).toEqual([]);
+    expect(named(events, 'draft')).toEqual([]);
+    expect(named(events, 'done')[0]).toEqual({ name: 'done', pieceId: 'piece-1' });
   });
 });
 
@@ -727,8 +671,8 @@ describe('ссылка становится доказательством', () 
   });
 });
 
-describe('два канала — два черновика', () => {
-  test('по событию и по записи на каждый, с разными идентификаторами', async () => {
+describe('старый клиент с каналами получает только заготовку', () => {
+  test('каналы запроса не запускают платную адаптацию', async () => {
     // Чужой пост при выключенном поиске: разбор всё равно нужен, а проверка
     // чисел — нет, поэтому модель спрашивают ровно дважды.
     const { service, calls } = build({
@@ -764,20 +708,10 @@ describe('два канала — два черновика', () => {
     );
     const events = await drain(service, 'org-a', plan);
 
-    const drafts = named(events, 'draft');
-    expect(drafts.map((draft) => draft.integrationId)).toEqual([
-      'int-tg',
-      'int-vk',
-    ]);
-    expect(calls.createDraft.map(([, input]) => input.channelId)).toEqual([
-      'int-tg',
-      'int-vk',
-    ]);
-    expect(named(events, 'done')[0].postIds).toEqual(['post-1', 'post-2']);
-    // Каждый канал получает свою карточку и свой предел знаков.
-    expect(calls.start.map(([, body]) => body.intake.channel.maxLength)).toEqual([
-      4_096, 16_000,
-    ]);
+    expect(named(events, 'draft')).toEqual([]);
+    expect(calls.createDraft).toEqual([]);
+    expect(calls.start).toEqual([]);
+    expect(named(events, 'done')[0]).toEqual({ name: 'done', pieceId: 'piece-1' });
   });
 });
 
@@ -893,6 +827,9 @@ describe('слово человека и выключенный поиск', () 
     const [filled] = named(events, 'brief-filled');
 
     expect(calls.research).toHaveLength(1);
+    expect(named(events, 'search-started')).toEqual([
+      { name: 'search-started', reason: 'facts', count: 1 },
+    ]);
     expect(filled.brief.facts[0].origin).toBe('search');
     expect(filled.brief.facts[0].sourceUrl).toBe('https://example.test/study');
     /*
@@ -928,6 +865,7 @@ describe('заготовка появляется первой', () => {
     const names = events.map((event) => event.name);
     expect(names).toEqual([
       'intake-started',
+      'brief-started',
       'brief-filled',
       'piece',
       'questions',
@@ -936,7 +874,7 @@ describe('заготовка появляется первой', () => {
     expect(calls.recordCore).toHaveLength(1);
     expect(calls.recordCore[0][1].body).toBe('Суть без канала.');
     expect(named(events, 'piece')[0].pieceId).toBe('piece-1');
-    expect(named(events, 'done')[0].postIds).toEqual([]);
+    expect(named(events, 'done')[0].pieceId).toBe('piece-1');
   });
 
   test('незаписанная заготовка — отказ с кодом, а не тишина', async () => {
@@ -958,7 +896,7 @@ describe('заготовка появляется первой', () => {
   });
 });
 
-describe('каналы проверяются до первого байта', () => {
+describe('старые поля каналов игнорируются до первого байта', () => {
   const codeOf = async (body) => {
     const { service } = build({ models: [] });
     try {
@@ -974,12 +912,12 @@ describe('каналы проверяются до первого байта', (
     // Пустой список каналов дверь больше не отвергает: с волны «заготовка и
     // адаптации» её результат — заготовка, а канал выбирают потом.
     ['без канала', { integrationIds: [] }, null],
-    ['чужой канал', { integrationIds: ['int-nope'] }, 'INTAKE_CHANNEL_UNKNOWN'],
-    ['выключенный канал', { integrationIds: ['int-off'] }, 'INTAKE_CHANNEL_UNKNOWN'],
+    ['чужой канал', { integrationIds: ['int-nope'] }, null],
+    ['выключенный канал', { integrationIds: ['int-off'] }, null],
     [
       'четыре канала',
       { integrationIds: ['int-tg', 'int-vk', 'int-off', 'int-4'] },
-      'INTAKE_TOO_MANY_CHANNELS',
+      null,
     ],
   ])('%s — %s', async (_label, body, code) => {
     expect(await codeOf(body)).toBe(code);
@@ -997,12 +935,40 @@ describe('каналы проверяются до первого байта', (
       additionalSettings: null,
     });
     try {
-      await service.prepare('org-a', request({ integrationIds: ['int-x'] }));
-      throw new Error('the door should have refused');
-    } catch (error) {
-      expect(error.code).toBe('INTAKE_CHANNEL_UNSUPPORTED');
+      const plan = await service.prepare('org-a', request({ integrationIds: ['int-x'] }));
+      expect(plan.channels).toEqual([]);
     } finally {
       CHANNELS.pop();
     }
+  });
+});
+
+
+describe('mixed foreign post and URL', () => {
+  test('both materials enter extraction and retain their origins through the safe gateway', async () => {
+    const { service, calls } = build({ models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }] });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const plan = await service.prepare('org-a', request({ input: `${foreignPost}\nhttps://example.test/post` }));
+      const events = await drain(service, 'org-a', plan);
+      expect(plan.inputKind).toBe('foreign_post');
+      expect(calls.fetch.map(([url]) => url)).toEqual(['https://example.test/robots.txt', 'https://example.test/post']);
+      expect(policyCalls.robots).toEqual(['https://example.test/post']);
+      expect(modelCalls[0].prompt).toContain('Мы закрыли половину');
+      expect(modelCalls[0].prompt).toContain('Текст страницы про отказ');
+      const brief = named(events, 'piece')[0].core.brief;
+      expect(brief.inputSources).toEqual([{ kind: 'foreign_post' }, { kind: 'link', url: 'https://example.test/post', evidenceId: 'ev-1' }]);
+      expect(named(events, 'piece')[0].core.personText).toBe('');
+      expect(calls.start).toEqual([]);
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+  test('mixed input respects SOURCE_DIRECT_FETCH instead of silently dropping the URL', async () => {
+    const { service, calls } = build({ models: [] });
+    delete process.env.SOURCE_DIRECT_FETCH;
+    const plan = await service.prepare('org-a', request({ input: `${foreignPost}\nhttps://example.test/post` }));
+    const events = await drain(service, 'org-a', plan);
+    expect(named(events, 'error')[0].code).toBe('INTAKE_LINK_UNREACHABLE');
+    expect(calls.fetch).toEqual([]);
+    expect(calls.usage).toEqual([]);
   });
 });

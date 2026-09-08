@@ -245,13 +245,12 @@ describe('a card belongs to a channel of this workspace', () => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Значок «настроено» едет в списке каналов, а не отдельной дверью.
+ * Состояние и нормализованная карточка едут в списке каналов.
  *
- * `content-factory-next-tu3k.6`. Экран входа показывает у каждого канала
- * «настроено» или «по умолчанию»; до этой волны он узнавал правду только после
- * открытия карточки. Список каналов экран читает и так, поэтому в нём приезжает
- * один булев флаг — и ровно флаг: карточка целиком в общем списке была бы
- * шестью настройками и заметками ради подписи в два слова.
+ * `content-factory-next-tu3k.6` добавил флаг для прежнего экрана входа.
+ * `content-factory-next-tu3k.14.26` строит из одной строки и карточки, и таблицу,
+ * поэтому той же дверью приходит нормализованный профиль. Это результат
+ * безопасного разбора известного контракта, а не сырой JSON из колонки.
  *
  * Смысл флага тот же, что у `stored` двери карточки, и граница та же: пустая
  * колонка — «карточки нет».
@@ -303,12 +302,23 @@ describe('the channel list carries whether the card was set up', () => {
     expect(channel.writingProfileStored).toBe(false);
   });
 
-  test('the card itself stays behind its own door', async () => {
+  test('the card is normalized instead of exposing the raw database object', async () => {
     const [channel] = await listOf([
-      listRow({ writingProfile: { emojiLevel: 'none', notes: 'секрет' } }),
+      listRow({
+        writingProfile: {
+          emojiLevel: 'none',
+          notes: '  коротко  ',
+          unknownField: 'not part of the contract',
+        },
+      }),
     ]);
 
-    expect(channel.writingProfile).toBeUndefined();
+    expect(channel.writingProfile).toMatchObject({
+      version: 'channel-writing-profile/v1',
+      emojiLevel: 'none',
+      notes: 'коротко',
+    });
+    expect(channel.writingProfile.unknownField).toBeUndefined();
   });
 });
 

@@ -1,56 +1,13 @@
+import type { IntakeEventV2, BriefFilledV2 } from '../brand-voice/intake-v2.contract';
 /**
- * Вход одной мыслью: от вставленного текста до черновика в каждом канале.
- *
- * `content-factory-next-tu3k` (P1), решения владельца 06.09.2026. Владелец
- * остановился на вкладке «Бриф» — восемь полей и отдельная форма факта — со
- * словами «слишком сложно» для ежедневного «появилась мысль или скопировал
- * чужой пост → хочу свой пост». Здесь и живёт ответ: человек даёт одно поле и
- * выбирает каналы, бриф заполняет модель, черновик появляется сразу.
- *
- * **Порядок с волны `content-factory-next-m2eg` (живой прогон 07.09.2026):
- * сначала заготовка, потом вопросы.** До неё было наоборот — вопрос обрывал
- * ход, и человек, ответивший дважды, упирался в «больше спрашивать не будем»,
- * не получив ни заготовки, ни текста. Теперь `run` всегда доходит до
- * `writeCore` и `recordCore`, событие `piece` идёт первым, а то, что осталось
- * спросить, едет в его брифе и отвечается уже на странице заготовки дверью
- * `POST /content-intelligence/pieces/:id/answer`.
- *
- * Что этот файл решает, а что нет:
- *
- * - он **не пишет текст**. Пишет `AgentGraphService`, тот же самый, что и
- *   кнопка «Generate Posts»: вторая генерация была бы вторым местом, где
- *   живут голос, контекст и метки цитат;
- * - он **не заводит второй способ создать пост**. Черновик сохраняется через
- *   `ContentBriefRepository.createDraft`, то есть через `PostsRepository`, в
- *   состоянии `DRAFT`, и ничего никуда не публикует;
- * - он **не решает сам, о чём спрашивать**. Список вопросов считает
- *   `openQuestionsFor` в `pieces/core-questions.ts` — одно место на вход и на
- *   дверь ответов, потому что двум местам нечем помешать спросить одно и то же
- *   дважды, и однажды они это уже сделали.
- *
- * Цена одного входа названа числом и держится этим файлом: не больше двух
- * вызовов модели своей операцией `intake` (разбор чужого текста и заполнение
- * брифа), не больше трёх поисков (проверка чисел) и не больше трёх генераций
- * (по каналу). Поиск и генерация учитываются своими операциями и здесь второй
- * раз не считаются.
- *
- * Чужой текст. Он входит в промпт ровно один раз — в огороженный блок разбора,
- * одной строкой (`intake.prompts.ts`), и дальше не идёт никуда: ни в
- * `generator.start`, ни в подсказки, ни в черновик. Дальше едут тема, угол,
- * строение и отрезки по восемь слов, по которым проверяют, что дословного
- * заимствования не случилось.
- *
- * Порядок параметров конструктора — часть договора: наборы и стенд собирают
- * сервис руками и передают сотрудников по местам. Новый параметр добавляется
- * только в конец и только необязательным.
+ * Neutral intake: read the submitted material, fill the brief and save one core.
+ * Channel adaptation belongs exclusively to PieceService. Legacy integrationIds
+ * are ignored, so an older client cannot trigger the removed paid shortcut.
+ * Questions are saved with the core and answered on the piece page.
  */
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { AgentGraphService } from '@contentfactory/nestjs-libraries/agent/agent.graph.service';
-import type {
-  GeneratorRunInput,
-  IntakeGenerationHintsV1,
-} from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import { slopCheck as runSlopCheck } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/slop-check';
 /*
   Вердикт голоса — портом, а не голосовым сервисом: имя, а не класс. То же
@@ -58,10 +15,8 @@ import { slopCheck as runSlopCheck } from '@contentfactory/nestjs-libraries/cont
 */
 import {
   VOICE_CHECK_PORT,
-  VOICE_CHECK_SILENT,
   type VoiceCheckPort,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-check.port';
-import { INTAKE_HINTS_VERSION } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import {
   WebResearchService,
   WebSearchNotConfigured,
@@ -91,10 +46,8 @@ import type {
   BriefFilledFactV1,
   BriefFilledV1,
   IntakeClaimV1,
-  IntakeEventV1,
   IntakeFormatV1,
   IntakeInputKindV1,
-  IntakeEventWithPieceV1,
   PieceAnswerInputV1,
   PieceAnswerV1,
   PieceFieldAnswerV1,
@@ -105,8 +58,6 @@ import type {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   INTAKE_INPUT_MIN_CHARS,
-  INTAKE_MAX_CHANNELS,
-  INTAKE_MAX_VERIFIED_CLAIMS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   CORE_QUESTION_FIELDS,
@@ -120,19 +71,13 @@ import { IntegrationManager } from '@contentfactory/nestjs-libraries/integration
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { briefTitle } from '../brief/content-brief.compose';
-import { editorHtml } from '../brief/editor-html';
-import {
-  kindsOfProvider,
-  materialFormat,
-} from '../materials/material-presentation';
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
   IntakeError,
   PIECE_NOT_SAVED_MESSAGES,
   intakeError,
 } from './intake.errors';
-import { detectInputKind, singleLinkOf, wordShingles } from './intake-kind';
-import { claimMatchesExcerpt } from './claim-match';
+import { detectInputKind, singleLinkOf, linksOf, wordShingles } from './intake-kind';
 import {
   briefFillPrompt,
   briefFillSchema,
@@ -320,8 +265,7 @@ export class IntakeService {
    * начался» и «ответ уже идёт». После первого байта код ответа не изменить, и
    * отказ становится последней строкой стрима, которую экран обязан уметь
    * прочитать. Чем меньше таких строк, тем лучше, поэтому сюда собрано всё
-   * решаемое заранее: длина, число каналов, их существование и то, умеет ли
-   * продукт писать в такой канал вообще.
+   * решаемое заранее: достаточна ли длина входа для создания заготовки.
    */
   async prepare(
     organizationId: string,
@@ -333,60 +277,8 @@ export class IntakeService {
       throw intakeError('INTAKE_INPUT_TOO_SHORT', language);
     }
 
-    const wanted = [
-      ...new Set(
-        (Array.isArray(body?.integrationIds) ? body.integrationIds : [])
-          .map((id: unknown) => trimmed(id))
-          .filter(Boolean)
-      ),
-    ] as string[];
-    /*
-      Пустого списка каналов эта дверь больше не отвергает
-      (`content-factory-next-tu3k.9`, решение владельца 06.09.2026). Раньше
-      «вход одной мыслью» существовал только ради черновика, и просьба без
-      канала была бессмысленной; теперь его результат — заготовка, а канал
-      выбирают потом. `INTAKE_CHANNEL_REQUIRED` из контракта не исчез: он
-      остался у двери адаптации как `PIECE_CHANNEL_REQUIRED`, где отсутствие
-      канала действительно означает «нечего адаптировать во что».
-    */
-    if (wanted.length > INTAKE_MAX_CHANNELS) {
-      throw intakeError('INTAKE_TOO_MANY_CHANNELS', language);
-    }
-
-    const owned = wanted.length
-      ? await this.integrations.getIntegrationsList(organizationId)
-      : [];
+    // Intake never adapts or validates channels, including requests from older clients.
     const channels: IntakeChannelV1[] = [];
-    for (const id of wanted) {
-      const integration = (owned || []).find(
-        (candidate: any) =>
-          candidate?.id === id && !candidate?.disabled && !candidate?.deletedAt
-      );
-      if (!integration) {
-        throw intakeError('INTAKE_CHANNEL_UNKNOWN', language, id);
-      }
-      const provider = this.integrationManager.getSocialIntegration(
-        integration.providerIdentifier
-      );
-      if (!provider) {
-        throw intakeError(
-          'INTAKE_CHANNEL_UNSUPPORTED',
-          language,
-          integration.providerIdentifier
-        );
-      }
-      channels.push({
-        id: integration.id,
-        name: integration.name,
-        providerIdentifier: integration.providerIdentifier,
-        contentLanguage: integration.contentLanguage ?? null,
-        // Защитно: колонку привозит поток S2 этой же волны.
-        writingProfile: (integration as any).writingProfile ?? null,
-        maxLength: this.providerMaxLength(provider, integration),
-        maxCaptionLength: provider.maxCaptionLength?.() ?? null,
-        editor: provider.editor,
-      });
-    }
 
     const overrides: Record<string, string> = {};
     for (const [field, value] of Object.entries(body?.briefOverrides || {})) {
@@ -449,95 +341,51 @@ export class IntakeService {
   }
 
   /** Предел знаков берётся у провайдера, третьей таблицы у продукта нет. */
-  private providerMaxLength(provider: any, integration: any): number {
-    let additionalSettings: unknown[] = [];
-    try {
-      additionalSettings = JSON.parse(integration?.additionalSettings || '[]');
-    } catch {
-      additionalSettings = [];
-    }
-    try {
-      return provider.maxLength(additionalSettings);
-    } catch {
-      return provider.maxLength();
-    }
-  }
-
-  /* -----------------------------------------------------------------------
-   * Ход
-   * -------------------------------------------------------------------- */
-
   async *run(
     organizationId: string,
     plan: IntakePlanV1,
     actorUserId?: string
-  ): AsyncGenerator<IntakeEventWithPieceV1> {
+  ): AsyncGenerator<IntakeEventV2> {
     const language = plan.language;
     yield {
       name: 'intake-started',
       inputKind: plan.inputKind,
-      channels: plan.channels.map((channel) => ({
-        id: channel.id,
-        name: channel.name,
-        providerIdentifier: channel.providerIdentifier,
-      })),
+      sources: plan.inputKind === 'foreign_post' && linksOf(plan.input).length
+        ? ['foreign_post', 'link'] : [plan.inputKind],
     };
 
     const evidence = new Map<string, AcceptedEvidence>();
     let borrowedText: string | null = null;
 
-    if (plan.inputKind === 'link') {
-      const url = singleLinkOf(plan.input);
+    const urls = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
+      ? linksOf(plan.input) : [];
+    const borrowedParts: string[] = plan.inputKind === 'foreign_post'
+      ? [plan.input.slice(0, BORROWED_TEXT_LIMIT)] : [];
+    for (const url of urls) {
       let accepted: AcceptedEvidence;
       try {
-        accepted = await this.readLink(organizationId, url || plan.input);
+        accepted = await this.readLink(organizationId, url);
       } catch (error) {
-        this.logger.warn(
-          `Intake could not read the pasted link: ${describeError(error)}`
-        );
-        yield {
-          name: 'error',
-          error: true,
-          code: 'INTAKE_LINK_UNREACHABLE',
-          message: INTAKE_LINK_UNREACHABLE_MESSAGES[language],
-        };
+        this.logger.warn(`Intake could not read the pasted link: ${describeError(error)}`);
+        yield { name: 'error', error: true, code: 'INTAKE_LINK_UNREACHABLE',
+          message: INTAKE_LINK_UNREACHABLE_MESSAGES[language] };
         return;
       }
       evidence.set(accepted.evidenceId, accepted);
-      yield {
-        name: 'link-fetched',
-        url: accepted.url,
-        title: accepted.title,
-        evidenceId: accepted.evidenceId,
-      };
-      // Прочитанная страница дальше живёт как чужой пост: своих слов у
-      // человека здесь нет, есть чужой текст и желание написать свой.
-      borrowedText = accepted.excerpt;
-    } else if (plan.inputKind === 'foreign_post') {
-      borrowedText = plan.input.slice(0, BORROWED_TEXT_LIMIT);
+      yield { name: 'link-fetched', url: accepted.url, title: accepted.title, evidenceId: accepted.evidenceId };
+      borrowedParts.push(accepted.excerpt);
     }
+    borrowedText = borrowedParts.length ? borrowedParts.join('\n\n') : null;
 
     let extraction: IntakeExtractionV1 | null = null;
     let foreignShingles: string[] = [];
     if (borrowedText) {
       extraction = await this.extract(organizationId, borrowedText, language);
-      const checkable = this.claimsToCheck(extraction, plan);
-      if (checkable.length) {
-        // Экран молчал те несколько секунд, что идёт проверка чисел, и человек
-        // читал молчание как зависание (`content-factory-next-tu3k.7`).
-        yield { name: 'search-started', reason: 'claims', count: checkable.length };
-      }
-      const claims = await this.checkClaims(
-        organizationId,
-        extraction,
-        plan,
-        evidence,
-        checkable
-      );
-      yield { name: 'claims', claims };
+      yield { name: 'claims', claims: this.skippedClaims(extraction) };
       foreignShingles = wordShingles(borrowedText);
     }
 
+    yield { name: 'brief-started' };
     let filled = await this.fillBrief(
       organizationId,
       plan,
@@ -553,6 +401,10 @@ export class IntakeService {
         evidence
       );
     }
+    (filled.brief as BriefFilledV2).inputSources = [
+      ...(plan.inputKind !== 'link' ? [{ kind: plan.inputKind }] : []),
+      ...urls.map((url) => ({ kind: 'link' as const, url, evidenceId: [...evidence.values()].find((item) => item.url === url)?.evidenceId })),
+    ];
     yield { name: 'brief-filled', brief: filled.brief };
 
     /*
@@ -570,8 +422,8 @@ export class IntakeService {
       автора, ни канала: записать заготовку не под кого, генерировать нечего, и
       платный вызов ушёл бы в никуда.
     */
-    if (!actorUserId && !plan.channels.length) {
-      yield { name: 'done', postIds: [] };
+    if (!actorUserId) {
+      yield { name: 'done', pieceId: null };
       return;
     }
     const open = this.openQuestions(filled, plan);
@@ -617,7 +469,10 @@ export class IntakeService {
         piece = await this.briefRepository.recordCore(organizationId, {
           title: briefTitle(briefForGate(filled.brief), plan.language),
           body: core.text,
-          brief: this.storedCore(core),
+          brief: {
+            ...this.storedCore(core),
+            ...(foreignShingles.length ? { foreignShingles } : {}),
+          },
           language: plan.language,
           createdByUserId: actorUserId,
         });
@@ -650,23 +505,7 @@ export class IntakeService {
       yield { name: 'questions', questions: open, round: 0 };
     }
 
-    const postIds: string[] = [];
-    for (const channel of plan.channels) {
-      yield { name: 'channel-started', integrationId: channel.id };
-      const outcome = yield* this.writeChannel(
-        organizationId,
-        plan,
-        channel,
-        filled,
-        extraction,
-        foreignShingles,
-        core,
-        pieceId
-      );
-      if (outcome) postIds.push(outcome);
-    }
-
-    yield { name: 'done', postIds };
+    yield { name: 'done', pieceId };
   }
 
   /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */
@@ -763,7 +602,7 @@ export class IntakeService {
   }
 
   /* -----------------------------------------------------------------------
-   * Разбор чужого текста и проверка чисел
+   * Разбор чужого текста
    * -------------------------------------------------------------------- */
 
   private async extract(
@@ -787,153 +626,18 @@ export class IntakeService {
   }
 
   /**
-   * Числа из чужого поста проверяются поиском, и только они входят в текст.
-   *
-   * Решение владельца: «числа берутся только после проверки поиском,
-   * непроверенные в текст не идут и показаны как „не подтверждено“». Три
-   * проверки на вход — предел, названный в плане: каждая стоит поиска, а
-   * четвёртое число редко решает судьбу поста.
-   *
-   * Три статуса, и разница между двумя из них важна. `verified` — число нашлось
-   * на странице, которую теперь можно процитировать. `unverified` — искали и не
-   * нашли. `skipped` — не искали вовсе: у утверждения нет числа, поиск выключен
-   * человеком или не настроен в области. Выключенный поиск — это настройка, а
-   * не поломка, и `WebSearchNotConfigured` здесь никого не роняет.
+   * Разбор перечисляет утверждения, но не запускает их автоматическую платную
+   * проверку. `skipped` честно означает «не проверяли»; опора может появиться
+   * позже только через отдельное обогащение недостающих фактов.
    */
-  /** Утверждения разбора, как их читает и проверка, и событие о ней. */
-  private claimsOf(extraction: IntakeExtractionV1) {
+  private skippedClaims(extraction: IntakeExtractionV1): IntakeClaimV1[] {
     return (extraction.claims || []).slice(0, 12).map((claim) => ({
       text: trimmed(claim?.text),
       hasNumber: Boolean(claim?.hasNumber),
-      searchQuery: textOrNull(claim?.searchQuery),
+      status: 'skipped',
+      evidenceId: null,
+      sourceUrl: null,
     }));
-  }
-
-  /**
-   * Какие числа уйдут в поиск. Считается до самого поиска, потому что об этом
-   * говорит событие `search-started`, а обещать число проверок после того, как
-   * они прошли, поздно.
-   */
-  private claimsToCheck(extraction: IntakeExtractionV1, plan: IntakePlanV1) {
-    if (!plan.options.searchEnrichment) return [];
-    return this.claimsOf(extraction)
-      .filter((claim) => claim.hasNumber && claim.text)
-      .slice(0, INTAKE_MAX_VERIFIED_CLAIMS);
-  }
-
-  private async checkClaims(
-    organizationId: string,
-    extraction: IntakeExtractionV1,
-    plan: IntakePlanV1,
-    evidence: Map<string, AcceptedEvidence>,
-    checkable: ReturnType<IntakeService['claimsToCheck']>
-  ): Promise<IntakeClaimV1[]> {
-    const claims = this.claimsOf(extraction);
-
-    const results = await Promise.allSettled(
-      checkable.map((claim) =>
-        this.research.research(
-          organizationId,
-          claim.searchQuery || claim.text,
-          { language: plan.language }
-        )
-      )
-    );
-
-    const answered = new Map<string, IntakeClaimV1>();
-    for (let index = 0; index < checkable.length; index += 1) {
-      const claim = checkable[index];
-      const settled = results[index];
-      if (settled.status === 'rejected') {
-        if (!(settled.reason instanceof WebSearchNotConfigured)) {
-          this.logger.warn(
-            `A claim could not be checked against the web: ${describeError(
-              settled.reason
-            )}`
-          );
-        }
-        // Поиск не ответил — это «не проверяли», а не «проверили и не нашли».
-        answered.set(claim.text, {
-          text: claim.text,
-          hasNumber: true,
-          status: 'skipped',
-          evidenceId: null,
-          sourceUrl: null,
-        });
-        continue;
-      }
-      const accepted = await this.keepMatch(
-        organizationId,
-        claim.text,
-        settled.value,
-        evidence
-      );
-      answered.set(claim.text, {
-        text: claim.text,
-        hasNumber: true,
-        status: accepted ? 'verified' : 'unverified',
-        evidenceId: accepted?.evidenceId ?? null,
-        sourceUrl: accepted?.url ?? null,
-      });
-    }
-
-    return claims.map(
-      (claim) =>
-        answered.get(claim.text) || {
-          text: claim.text,
-          hasNumber: claim.hasNumber,
-          // Числа не было — проверять нечего; было, но до тройки не попало
-          // или поиск выключен — не проверяли. Оба случая «не проверяли».
-          status: 'skipped',
-          evidenceId: null,
-          sourceUrl: null,
-        }
-    );
-  }
-
-  /** Первая находка, в выдержке которой стоит то же число, — и она же память. */
-  private async keepMatch(
-    organizationId: string,
-    claim: string,
-    answer: WebResearchResult,
-    evidence: Map<string, AcceptedEvidence>
-  ): Promise<AcceptedEvidence | null> {
-    const sourceByUrl = new Map(
-      (answer.sources || []).map((source) => [source.url, source])
-    );
-    for (const fact of answer.facts || []) {
-      if (!claimMatchesExcerpt(claim, fact.text)) continue;
-      const source = sourceByUrl.get(fact.sourceUrl);
-      try {
-        const accepted = await this.sources.acceptSearchResult(
-          organizationId,
-          {
-            url: fact.sourceUrl,
-            title: source?.title ?? null,
-            excerpt: fact.text,
-            publishedAt: source?.publishedAt ?? null,
-            provider: source?.provider ?? answer.provider,
-          },
-          { reuseBy: 'url' }
-        );
-        const kept: AcceptedEvidence = {
-          evidenceId: accepted.evidenceId,
-          url: accepted.url,
-          title: accepted.title,
-          excerpt: accepted.excerpt,
-        };
-        evidence.set(kept.evidenceId, kept);
-        return kept;
-      } catch (error) {
-        this.logger.warn(
-          `A confirming page could not be kept as evidence: ${describeError(
-            error
-          )}`
-        );
-        return null;
-      }
-    }
-    return null;
   }
 
   /* -----------------------------------------------------------------------
@@ -971,7 +675,7 @@ export class IntakeService {
               text,
             })),
             avatar: avatar.lines,
-            channel: this.channelLines(plan.channels[0]),
+            channel: [],
             facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
             evidence: [...evidence.values()].map(
               (item) =>
@@ -1106,7 +810,7 @@ export class IntakeService {
       const resolved = await this.brandProfiles.resolve(
         organizationId,
         (plan.brandProfileSelection as any) || { mode: 'active' },
-        plan.channels[0]?.providerIdentifier
+        undefined
       );
       const voice = (resolved as any)?.effectiveVoice;
       if (!voice) return { lines: [], audience: null };
@@ -1203,39 +907,6 @@ export class IntakeService {
     ]
       .filter(Boolean)
       .join('\n');
-  }
-
-  /**
-   * Карточка канала «Как пишем сюда», строками.
-   *
-   * Читается защитно и с умолчаниями: настоящую карточку и её разбор привозит
-   * поток S2 волны, а до того канал описывается тем, что известно и так, —
-   * пределом провайдера и телеграм-умолчаниями из исследования владельца
-   * (обычный пост 500–1000 знаков, немного эмодзи, один призыв вопросом).
-   */
-  private channelLines(channel?: IntakeChannelV1): string[] {
-    if (!channel) return [];
-    const profile = channel.writingProfile;
-    const lines: string[] = [`- hard limit: ${channel.maxLength} characters`];
-    const policy = profile?.lengthPolicy;
-    if (policy && typeof policy === 'object' && policy.idealMin) {
-      lines.push(`- usual length: ${policy.idealMin}–${policy.idealMax} characters`);
-    } else if (channel.providerIdentifier === 'telegram') {
-      lines.push('- usual length: 500–1000 characters');
-    }
-    if (profile?.emojiLevel === 'none') lines.push('- no emoji');
-    else if (profile?.emojiLevel === 'few' || (!profile && channel.providerIdentifier === 'telegram')) {
-      lines.push('- a few emoji, at most two kinds, never as list markers');
-    }
-    if (profile?.ctaKind && profile.ctaKind !== 'none') {
-      lines.push(`- one call to action, of the kind: ${profile.ctaKind}`);
-    } else if (!profile && channel.providerIdentifier === 'telegram') {
-      lines.push('- one call to action, a question');
-    }
-    if (profile?.hashtagPolicy === 'none') lines.push('- no hashtags');
-    const notes = trimmed(profile?.notes);
-    if (notes) lines.push(`- ${oneLine(notes).slice(0, 500)}`);
-    return lines;
   }
 
   /**
@@ -1517,259 +1188,6 @@ export class IntakeService {
     return found;
   }
 
-  /* -----------------------------------------------------------------------
-   * Генерация и сохранение
-   * -------------------------------------------------------------------- */
-
-  /**
-   * Один канал: генерация, пересылка событий и черновик.
-   *
-   * Отказ одного канала не забирает с собой остальные — человек выбрал три и
-   * получает столько, сколько получилось, с названной причиной по каждому.
-   * Возвращает идентификатор поста или `undefined`.
-   */
-  private async *writeChannel(
-    organizationId: string,
-    plan: IntakePlanV1,
-    channel: IntakeChannelV1,
-    filled: FilledBrief,
-    extraction: IntakeExtractionV1 | null,
-    foreignShingles: string[],
-    core: ZagotovkaCoreV1,
-    pieceId: string | null
-  ): AsyncGenerator<IntakeEventWithPieceV1, string | undefined> {
-    const hints: IntakeGenerationHintsV1 = {
-      version: INTAKE_HINTS_VERSION,
-      // Суть едет материалом, а не запросом: она уже написана и уже
-      // нейтральна, и адаптация переносит её слова дословно.
-      core: core.text,
-      brief: {
-        thesis: filled.brief.thesis ?? null,
-        position: filled.brief.position ?? null,
-        disagreement: filled.brief.disagreement ?? null,
-        audience: filled.brief.audience ?? null,
-        goal: filled.brief.goal ?? null,
-      },
-      borrowed: extraction
-        ? {
-            topic: trimmed(extraction.topic),
-            angle: trimmed(extraction.angle),
-            structure: (extraction.structure || []).slice(0, 8).map(trimmed),
-          }
-        : null,
-      ...(foreignShingles.length ? { foreignShingles } : {}),
-      channel: {
-        integrationId: channel.id,
-        providerIdentifier: channel.providerIdentifier,
-        maxLength: channel.maxLength,
-        maxCaptionLength: channel.maxCaptionLength,
-        editor: channel.editor,
-        writingProfile: channel.writingProfile ?? null,
-      },
-    };
-
-    const request: GeneratorRunInput = {
-      // Предмет генерации — тезис, а не вставленный текст. Чужой текст сюда
-      // не попадает ни одним полем: это и есть граница «берём угол, а не
-      // слова».
-      research: filled.brief.thesis || plan.input,
-      isPicture: plan.options.isPicture,
-      format: 'one_long',
-      language: plan.language,
-      ...(plan.brandProfileSelection
-        ? { brandProfileSelection: plan.brandProfileSelection as any }
-        : {}),
-      ...(filled.factIds.length ? { factIds: filled.factIds } : {}),
-      ...(filled.evidenceIds.length
-        ? { userMaterialEvidenceIds: filled.evidenceIds }
-        : {}),
-      intake: hints,
-    };
-
-    let output: any = null;
-    let failed = false;
-    try {
-      for await (const event of this.generator.start(
-        organizationId,
-        request as any
-      )) {
-        const raw = event as any;
-        if (raw?.error) {
-          yield {
-            name: 'error',
-            error: true,
-            code: trimmed(raw.code) || 'GENERATION_FAILED',
-            message: trimmed(raw.message) || 'The draft could not be written.',
-            integrationId: channel.id,
-          };
-          failed = true;
-          break;
-        }
-        if (raw?.name === 'content-context') {
-          yield {
-            name: 'content-context',
-            integrationId: channel.id,
-            data: raw.data,
-          };
-          continue;
-        }
-        const candidate = raw?.data?.output;
-        if (candidate && Array.isArray(candidate.content)) output = candidate;
-        yield { name: 'generator', integrationId: channel.id, event: raw };
-      }
-    } catch (error) {
-      yield {
-        name: 'error',
-        error: true,
-        code: (error as any)?.code || 'GENERATION_FAILED',
-        message: describeError(error),
-        integrationId: channel.id,
-      };
-      failed = true;
-    }
-
-    if (failed) return undefined;
-    if (!output) {
-      yield {
-        name: 'error',
-        error: true,
-        code: 'GENERATION_FAILED',
-        message: 'The generator finished without a draft.',
-        integrationId: channel.id,
-      };
-      return undefined;
-    }
-
-    const draft = await this.persist(
-      organizationId,
-      plan,
-      channel,
-      output,
-      pieceId
-    );
-    if (!draft) {
-      yield {
-        name: 'error',
-        error: true,
-        code: 'INTAKE_DRAFT_FAILED',
-        message: 'The draft was written but could not be saved.',
-        integrationId: channel.id,
-      };
-      return undefined;
-    }
-    yield draft.event;
-    return draft.postId;
-  }
-
-  /**
-   * Черновик в базе, строка адаптации и событие о них.
-   *
-   * Пишется тем же путём, что и любой другой пост: `createDraft` зовёт
-   * `PostsRepository.createOrUpdatePost('draft', …)`, состояние `DRAFT`,
-   * доставки нет. Вместе с текстом едут снимок контекста, версия голоса и
-   * метки цитат — без них окно поста не сможет показать строку происхождения,
-   * ради которой всё это и собиралось.
-   *
-   * `recordPiece` отсюда ушёл (`content-factory-next-tu3k.9`). Он заводил по
-   * материалу на канал, и три канала давали три «текста» там, где текст один;
-   * теперь заготовка записана один раз до цикла, а здесь пишется только
-   * адаптация — с площадкой, видом и текстом простым текстом. Сам
-   * `recordPiece` живёт: его зовёт перекройка материала.
-   */
-  private async persist(
-    organizationId: string,
-    plan: IntakePlanV1,
-    channel: IntakeChannelV1,
-    output: any,
-    pieceId: string | null
-  ) {
-    const pieces = (output.content as any[])
-      .filter((item) => trimmed(item?.content))
-      .map((item) => ({
-        content: trimmed(item.content),
-        usedCitationIds: Array.isArray(item?.usedCitationIds)
-          ? item.usedCitationIds.filter((id: unknown) => trimmed(id))
-          : [],
-      }));
-    if (!pieces.length) return null;
-
-    const plain = pieces.map((piece) => piece.content).join('\n\n');
-    const html = editorHtml(plain, channel.editor);
-    const usedCitationIds = [
-      ...new Set(pieces.flatMap((piece) => piece.usedCitationIds)),
-    ];
-    const snapshotId = trimmed(output.contentContextSnapshotId) || null;
-    const versionId = trimmed(output.brandProfileVersionId) || null;
-
-    const postId = await this.briefRepository.createDraft(organizationId, {
-      channelId: channel.id,
-      providerIdentifier: channel.providerIdentifier,
-      content: html,
-      date: trimmed(output.date) || this.now().toISOString(),
-      contentContextSnapshotId: snapshotId,
-      brandProfileVersionId: versionId,
-      usedCitationIds,
-    });
-    if (!postId) return null;
-
-    const adaptation = pieceId
-      ? await this.briefRepository.recordAdaptation(organizationId, {
-          pieceId,
-          postId,
-          integrationId: channel.id,
-          platform: channel.providerIdentifier,
-          // Вид спрашивается у площадки, а не пишется словом: Instagram берёт
-          // подпись, сайт — статью, и вход не должен знать этого списка сам.
-          kind: kindsOfProvider(channel.providerIdentifier)[0],
-          // Текст адаптации хранится простым текстом; разметку несёт пост.
-          body: plain,
-          format: materialFormat(plain, null, plan.language),
-          brandProfileVersionId: versionId,
-        })
-      : null;
-
-    const event: IntakeEventWithPieceV1 = {
-      name: 'draft',
-      integrationId: channel.id,
-      postId,
-      pieceId,
-      adaptationId: adaptation?.id ?? null,
-      content: pieces,
-      provenance: {
-        contentContextSnapshotId: snapshotId,
-        brandProfileVersionId: versionId,
-        brandProfileSelection: output.brandProfileSelection ?? null,
-        contentContextStatus: output.contentContextStatus ?? null,
-        generationPolicy: output.generationPolicy ?? null,
-        selectionHash: output.selectionHash ?? null,
-      },
-      draftGaps: Array.isArray(output.draftGaps) ? output.draftGaps : [],
-      /**
-       * Квитанция проверок: считается сама, на каждом черновике.
-       *
-       * До 07.09.2026 штампы считались только при `options.slopCheck === true`,
-       * которого не присылал ни один клиент, — то есть не считались никогда.
-       * Обе проверки бесплатны: каталог штампов — арифметика, вердикт голоса —
-       * та же мерка разбора, что и кнопка в ленте голоса.
-       */
-      checks: {
-        // Антикопию считает граф (поток S2 волны); пока не считает — `null`,
-        // и это честнее выдуманной единицы.
-        antiCopy: output.antiCopy ?? null,
-        slop: this.slopCheck
-          ? this.slopCheck(plain, channel.providerIdentifier, plan.language)
-          : null,
-        voice: this.voiceCheck
-          ? await this.voiceCheck.voiceCheckFor(
-              organizationId,
-              plain,
-              plan.language
-            )
-          : VOICE_CHECK_SILENT,
-      },
-    };
-    return { postId, event };
-  }
 }
 
 export { IntakeError };

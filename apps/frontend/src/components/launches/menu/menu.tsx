@@ -73,12 +73,24 @@ const MenuAction: FC<{
   </ControlButton>
 );
 
+export type ChannelMenuActions = {
+  schedule?: () => void;
+  group?: () => void;
+  reconnect?: () => void;
+  changeBot?: () => void;
+  enable?: () => void;
+  disable?: () => void;
+  remove?: () => void;
+};
+
 export const Menu: FC<{
+  /** Channel detail reuses the exact guarded actions and confirmations. */
+  renderActions?: (menu: React.ReactNode, actions: ChannelMenuActions) => React.ReactNode;
   canEnable: boolean;
   canDisable: boolean;
   canChangeProfilePicture: boolean;
   canChangeNickName: boolean;
-  refreshChannel: (
+  refreshChannel?: (
     integration: Integration & {
       identifier: string;
     }
@@ -95,12 +107,22 @@ export const Menu: FC<{
     mutate,
     canChangeProfilePicture,
     canChangeNickName,
-    refreshChannel,
+    refreshChannel: providedRefreshChannel,
   } = props;
   const t = useT();
 
   const fetch = useFetch();
   const router = useRouter();
+  const refreshChannel = providedRefreshChannel ?? ((integration) => async () => {
+    try {
+      const response = await fetch(`/integrations/social/${encodeURIComponent(integration.identifier)}?refresh=${encodeURIComponent(integration.internalId)}`);
+      if (!response.ok) throw new Error('reconnect failed');
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch {
+      toast.show(language.startsWith('ru') ? 'Не удалось переподключить канал. Повторите попытку.' : 'Could not reconnect the channel. Try again.', 'warning');
+    }
+  });
   const user = useUser();
   /**
    * Кто владеет каналом, и кто пишет посты — два разных вопроса, и меню
@@ -124,7 +146,7 @@ export const Menu: FC<{
    */
   const manageChannel = isOrganizationAdmin(user?.role);
   const canWritePosts = isOrganizationEditor(user?.role);
-  const { extensionId } = useVariables();
+  const { extensionId, language } = useVariables();
   const { integrations, reloadCalendarView } = useCalendar();
   const toast = useToaster();
   const modal = useModals();
@@ -389,7 +411,7 @@ export const Menu: FC<{
     });
   }, [t]);
 
-  return (
+  const menu = (
     <MenuPrimitive
       open={!!show}
       onOpenChange={changeShow}
@@ -707,4 +729,20 @@ export const Menu: FC<{
     </div>
     </MenuPrimitive>
   );
+  if (!props.renderActions) return menu;
+  return props.renderActions(menu, {
+    ...(manageChannel && {
+      schedule: editTimeTable,
+      group: addToCustomer,
+      remove: deleteChannel,
+      ...(canEnable && { enable: enableChannel }),
+      ...(canDisable && { disable: disableChannel }),
+      ...((canChangeProfilePicture || canChangeNickName) && { changeBot: changeBotPicture }),
+      ...(findIntegration?.isCustomFields
+        ? { reconnect: updateCredentials }
+        : canDisable && findIntegration?.refreshNeeded && !findIntegration.customFields
+          ? { reconnect: refreshChannel(findIntegration) }
+          : {}),
+    }),
+  });
 };

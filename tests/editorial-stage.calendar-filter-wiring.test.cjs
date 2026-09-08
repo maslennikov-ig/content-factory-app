@@ -126,7 +126,7 @@ describe('every setFilters call in the toolbar carries the current stage forward
     }
   });
 
-  test('the toolbar renders the stage filter control next to the customer selector', () => {
-    expect(filtersSource).toMatch(/<SelectCustomer[\s\S]*?\/>\s*<EditorialStageFilter/);
+  test('the toolbar keeps the stage filter alongside customer and channel selectors', () => {
+    expect(filtersSource).toMatch(/<SelectCustomer[\s\S]*?<Select\s[\s\S]*?value=\{calendar\.integrationId[\s\S]*?<EditorialStageFilter/);
   });
 });

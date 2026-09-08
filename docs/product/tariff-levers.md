@@ -151,6 +151,8 @@ if (!packageOptions) { can(action, section); continue; }
 | Разобрать тексты для аватара | `POST /brand-voice/analysis[/stream]` | `text_generation`/`extract` поштучно | 13 / 21 / 29, до ~58 с повторами | столько же | **нет** |
 | Учиться на правках | `POST /brand-voice/learning/run` | `text_generation`/`extract` | 1 на пачку | 1 | **нет** |
 | ~~Починить предложение~~ | ~~`POST /brand-voice/text-check/repair`~~ | — | 0 | 0 | **удалено 07.09.2026** (`content-factory-next-k879.1`): вызывающих в продукте не было |
+| Проверить адаптацию: убрать штампы / сверить с сутью / оба | `POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review` | `text_generation`, роль `review` | 1 | 1, повторы отключены | платная явная операция; любой режим тратит один допуск; токены зависят от текста и режима |
+| Проверить адаптацию поиском | та же дверь review, `mode: web`, обязательное `confirmWebSpend: true` | `web_research`, затем `text_generation` / `review` | две операции допуска при успешном поиске | исследование может включать классификацию, до двух поисковых запросов и резервный поиск; затем один вызов review без повторов | отдельное подтверждение расходов до запуска; один запрос исследования на первые 5000 знаков, до 6 источников по 1600 знаков; без источников вызова review нет |
 | Проверить на штампы | `POST /text-quality/slop-check` | — | 0 | 0 | бесплатно по устройству |
 | Проверить похожесть на голос | `POST /brand-voice/text-check` | — | 0 | 0 | бесплатно по устройству |
 | Поиск в вебе, витрина «Откуда факты» | `POST /sources/search` | `web_research`/`research` | 1 | 1–2 модели + 1–2 Tavily | `Sections.AI` |

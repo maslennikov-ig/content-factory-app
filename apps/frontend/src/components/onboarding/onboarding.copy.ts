@@ -102,8 +102,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Задать голос',
         title: 'Скажите, чьей манерой писать',
         why: 'Иначе черновик выйдет ровным текстом без лица. Манера собирается из образцов — ваших прежних постов, статей, писем.',
-        todo: 'Добавьте хотя бы один образец своего текста на вкладке «Аватары».',
-        action: 'Открыть «Аватары»',
+        todo: 'Добавьте хотя бы один образец своего текста в разделе «Аватар».',
+        action: 'Открыть «Аватар»',
         closes: 'Шаг закроется, когда появится первый образец.',
       },
       fact: {
@@ -119,7 +119,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Сделайте заготовку и получите черновик',
         why: 'Заготовка — это суть материала: одна мысль, записанная простыми словами, и заполненный бриф рядом с ней. Из неё собираются черновики под каждый канал. Пока сути нет, модель пишет складно и ни о чём.',
         todo: 'Нажмите «Новая заготовка», войдите одной мыслью — что вы хотите сказать — и ответьте на вопросы брифа.',
-        action: 'Открыть «Заготовки»',
+        action: 'Открыть «Контент»',
         closes:
           'Шаг закроется, когда в области появится первая заготовка — или первый черновик, если вы шли прежним путём.',
       },
@@ -127,10 +127,10 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Посмотреть черновик в канале',
         title: 'Посмотрите, как это выйдет в канале',
         why: 'В каждом канале текст выглядит по-своему: где-то обрежется, где-то ссылка развернётся картинкой. Предпросмотр показывает то, что увидит читатель.',
-        todo: 'Откройте черновик и посмотрите предпросмотр канала.',
-        action: 'Открыть календарь',
+        todo: 'На странице заготовки создайте адаптацию, затем откройте её предпросмотр.',
+        action: 'Открыть «Контент»',
         closes:
-          'Шаг закроется, когда появится первый черновик: продукт не хранит отдельно, смотрели вы предпросмотр или нет.',
+          'Шаг закроется, когда появится первая адаптация в черновике: продукт не хранит отдельно, смотрели вы предпросмотр или нет.',
       },
       schedule: {
         short: 'Поставить в расписание',
@@ -179,8 +179,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'Set the voice',
         title: 'Say whose voice to write in',
         why: 'Otherwise the draft comes out even and faceless. The voice is built from samples — your own posts, articles, letters.',
-        todo: 'Add at least one sample of your own writing on the "Avatars" tab.',
-        action: 'Open "Avatars"',
+        todo: 'Add at least one sample of your own writing in the "Avatar" section.',
+        action: 'Open "Avatar"',
         closes: 'This closes when the first sample is in.',
       },
       fact: {
@@ -196,7 +196,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         title: 'Make a piece and get a draft',
         why: 'A piece is the substance: one thought written out in plain words, with the filled brief beside it. Drafts for each channel are cut from it. While there is no substance, the model writes something fluent about nothing.',
         todo: 'Press "New piece", start with one thought — what you want to say — and answer the brief.',
-        action: 'Open "Pieces"',
+        action: 'Open "Content"',
         closes:
           'This closes when the workspace has its first piece — or its first draft, if you came the older way.',
       },
@@ -204,8 +204,8 @@ export const onboardingCopy: { ru: Words; en: Words } = {
         short: 'See it in the channel',
         title: 'See how it comes out in the channel',
         why: 'Every channel renders text its own way: one truncates, another turns a link into a card. The preview shows what a reader will actually see.',
-        todo: 'Open the draft and look at the channel preview.',
-        action: 'Open the calendar',
+        todo: 'Create an adaptation on the piece page, then open its channel preview.',
+        action: 'Open "Content"',
         closes:
           'This closes when the first draft exists: the product does not record separately whether you looked.',
       },

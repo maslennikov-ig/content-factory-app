@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "total": 995,
+  "total": 986,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -61,7 +61,7 @@
       "priorSourceRoots": [
         "apps/frontend/src"
       ],
-      "priorTotal": 950,
+      "priorTotal": 941,
       "addedSourceRoots": {
         "libraries/react-shared-libraries/src": {
           "occurrences": 45,
@@ -73,13 +73,13 @@
         }
       },
       "addedOccurrences": 45,
-      "combinedTotal": 995,
+      "combinedTotal": 986,
       "classification": "Per-root figures are live, not historical: priorTotal is what the originally scanned root holds today and addedOccurrences what the roots added alongside it hold today. Adding those roots moved the total by 37 and was scanner coverage expansion, not design-debt growth — the library geometry existed before the root was scanned and was simply invisible. Movement since then is real: 12 dead off-rhythm gaps came out of Button call sites, where they had been overridden by the primitive and rendered nothing, and the rest came out with the platform badge: 2 when the pressed-state inset shadow moved from two hand-typed copies in ui/button.tsx into the .cf-pressed utilities in tailwind.config.cjs, and the remainder when eleven screens stopped hand-positioning an avatar and its platform logo and started rendering PlatformBadge. The 7 that came out on 29.08.2026 are a relocation that shrank on the way: the frontend's second Button and second field set were deleted and their call sites moved to the shared controls, so 15 occurrences left apps/frontend/src and 8 arrived in the library — the shared message row now states its geometry once for three controls instead of once per control. The 10 that came out on 04.09.2026 are the channel menu on the calendar: ten hand-positioned rows became menu items on the shared control, which states its own padding (`content-factory-next-fn33.91`). The 1 that came out on 05.09.2026 is the handover button: a `<button>` wrapped in an `<a>` became one anchor drawing `buttonClassName`, so the action scale it had retyped comes from the primitive (`content-factory-next-za05`). Ещё 2 вышли 05.09.2026 вместе с крестиком «убрать канал» во втором ряду кругов окна поста: смещения -1px/-3px стали ритмичными -4px, когда 8-пиксельный значок ошибки стал 16-пиксельной кнопкой действия (`content-factory-next-fn33.76`). Ещё 1 вышел 05.09.2026 со счётчиком символов окна поста: три почти одинаковых блока «число/предел» стали одной строкой, и десятипиксельный размер записан один раз вместо двух (`content-factory-next-fn33.76`). Ещё 6 вышли 06.09.2026 с окном поста: кегль 15px и вес шрифта на четырёх кнопках подвала отданы примитиву `Button`, а ручные накладки загрузки с ними (`content-factory-next-tu3k.9.11`). Ещё 1 вышел 07.09.2026 с подвалом окна поста: «Опубликовать сейчас» перестала быть кнопкой шириной 206px, открывавшейся по наведению, и стала пунктом меню на общем примитиве (`content-factory-next-m2eg.18`)."
     }
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 950,
+      "total": 941,
       "allowances": {
         "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
           "3px": 1,
@@ -312,11 +312,7 @@
           "10px": 2
         },
         "apps/frontend/src/components/launches/launches.component.tsx": {
-          "3px": 2,
-          "5px": 3,
-          "6px": 1,
-          "10px": 1,
-          "15px": 3
+          "3px": 1
         },
         "apps/frontend/src/components/launches/menu/menu.tsx": {
           "10px": 1,

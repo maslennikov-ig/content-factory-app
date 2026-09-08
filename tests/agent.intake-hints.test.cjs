@@ -186,6 +186,7 @@ const capturingModel = (answers) => {
 const channelLines = channelInstructionLines(
   TELEGRAM_CHANNEL.writingProfile,
   {
+    identifier: 'telegram',
     name: 'Telegram',
     maxLength: 4096,
     maxCaptionLength: 1024,

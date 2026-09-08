@@ -4,18 +4,13 @@ import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
-import {
-  PicksSocialsView,
-  type ChannelPickerIntegration,
-} from '../../new-launch/picks.socials.component';
+import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 import {
   EmptyState,
   ErrorState,
   RestrictedState,
-  Status,
 } from '../../ui/surface';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
-import { intakeActionLabel } from './intake.adapter';
 import type {
   IntakeBlockReason,
   IntakeInputKindV1,
@@ -65,8 +60,6 @@ export function IntakeScreen({
   input,
   inputKind,
   detectedLink,
-  channels,
-  selectedIds,
   language,
   step,
   piece,
@@ -76,23 +69,18 @@ export function IntakeScreen({
   restrictedReason,
   readOnlyNote,
   onInputChange,
-  onToggleChannel,
   onLanguageChange,
   onWrite,
   onCancel,
   onOpenPiece,
-  onOpenWritingProfile,
   onManual,
   onRetry,
-  writingProfileStored,
 }: {
   locale: IntakeLocale;
   state: IntakeScreenState;
   input: string;
   inputKind: IntakeInputKindV1 | null;
   detectedLink: boolean;
-  channels: readonly IntakeChannel[];
-  selectedIds: readonly string[];
   language: 'ru' | 'en';
   step: string | null;
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
@@ -103,23 +91,15 @@ export function IntakeScreen({
   restrictedReason: ReactNode;
   readOnlyNote?: ReactNode;
   onInputChange: (value: string) => void;
-  onToggleChannel: (integration: ChannelPickerIntegration) => void;
   onLanguageChange: (language: 'ru' | 'en') => void;
   onWrite: () => void;
   onCancel: () => void;
   onOpenPiece?: (pieceId: string) => void;
-  onOpenWritingProfile: (integrationId: string) => void;
   onManual?: () => void;
   onRetry: () => void;
-  writingProfileStored: Readonly<Record<string, boolean>>;
 }) {
   const t = intakeCopy[locale];
   const busy = state === 'streaming';
-  const actionLabel = intakeActionLabel(
-    selectedIds,
-    (id) => channels.find((channel) => channel.id === id)?.name,
-    t
-  );
   const blockedWord =
     blocked === 'input'
       ? t.blockedNoInput
@@ -128,11 +108,6 @@ export function IntakeScreen({
       : blocked === 'checking'
       ? t.blockedChecking
       : null;
-
-  const telegramChannels = channels.filter(
-    (channel) =>
-      channel.identifier === 'telegram' && selectedIds.includes(channel.id)
-  );
 
   return (
     <section
@@ -166,7 +141,7 @@ export function IntakeScreen({
             // другой раздел, и он должен открываться средним щелчком и
             // копироваться, как всякий адрес.
             <a
-              href="/launches"
+              href="/channels"
               className="inline-flex items-center rounded-[8px] border border-cf-border-control px-[16px] py-[8px] cf-label-md text-cf-ink transition-colors duration-state hover:bg-cf-surface-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus motion-reduce:transition-none"
             >
               {t.emptyAction}
@@ -189,6 +164,7 @@ export function IntakeScreen({
                 {t.inputLabel}
               </label>
               <Textarea
+                disabled={busy}
                 standalone
                 layout="content"
                 id="intake-input"
@@ -210,53 +186,6 @@ export function IntakeScreen({
               )}
             </div>
 
-            <div className="flex min-w-0 flex-col gap-[8px]">
-              <p className="cf-label-sm uppercase text-cf-ink-muted">
-                {t.channelsLabel}
-              </p>
-              <PicksSocialsView
-                label={t.channelsLabel}
-                integrations={channels}
-                selectedIds={selectedIds}
-                /*
-                  `react-tooltip` здесь не поднимается: имя канала уже стоит в
-                  `aria-label` кнопки, а подсказка ради того же имени — это
-                  библиотека, которую платит вся страница.
-                */
-                toolTip={false}
-                onToggle={onToggleChannel}
-              />
-              <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                {t.channelsHint}
-              </p>
-              {/*
-                Дверь в карточку канала стоит там, где канал выбран, а не в
-                настройках: человек как раз решает, что и куда написать.
-                Только у Telegram — в этой волне карточка есть у него одного,
-                и ссылка на пустоту хуже её отсутствия.
-              */}
-              {telegramChannels.map((channel) => (
-                <div
-                  key={channel.id}
-                  className="flex flex-wrap items-center gap-[8px]"
-                >
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    data-intake-writing-profile={channel.id}
-                    onClick={() => onOpenWritingProfile(channel.id)}
-                  >
-                    {t.writingProfileAction(channel.name)}
-                  </Button>
-                  <Status tone={writingProfileStored[channel.id] ? 'accent' : 'neutral'}>
-                    {writingProfileStored[channel.id]
-                      ? t.writingProfileStored
-                      : t.writingProfileDefault}
-                  </Status>
-                </div>
-              ))}
-            </div>
-
             <div className="flex min-w-0 flex-col gap-[4px] sm:max-w-[280px]">
               <label
                 htmlFor="intake-language"
@@ -265,6 +194,7 @@ export function IntakeScreen({
                 {t.languageLabel}
               </label>
               <Select
+                disabled={busy}
                 standalone
                 id="intake-language"
                 name="intake-language"
@@ -288,13 +218,11 @@ export function IntakeScreen({
               <Button
                 type="button"
                 variant="primary"
-                data-intake-action={
-                  selectedIds.length === 0 ? 'piece' : 'piece-and-write'
-                }
+                data-intake-action="piece"
                 disabled={busy || blocked !== null || state === 'read-only'}
                 onClick={onWrite}
               >
-                {busy ? t.writing : actionLabel}
+                {t.makePiece}
               </Button>
               {busy && (
                 <Button type="button" variant="secondary" onClick={onCancel}>
@@ -311,13 +239,16 @@ export function IntakeScreen({
                 `data-intake-step` на одном узле: человек слышит ход, а не
                 гадает по крутящемуся кружку.
               */}
-              {step && (
+              {busy && (
                 <p
                   aria-live="polite"
                   data-intake-step={step}
-                  className="cf-body-sm text-cf-ink-muted"
+                  className="flex items-center gap-[8px] cf-body-sm text-cf-ink-muted"
                 >
-                  {step === 'claims'
+                  <span aria-hidden="true" className="h-[16px] w-[16px] rounded-full border-2 border-cf-border border-t-cf-accent motion-safe:animate-spin" />
+                  {step === 'brief-started'
+                    ? t.stepBrief
+                    : step === 'claims'
                     ? t.stepClaims
                     : step === 'search'
                     ? t.stepSearch

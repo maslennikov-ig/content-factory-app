@@ -402,6 +402,11 @@ describe('browser errors cross only the bounded first-party relay', () => {
       const container = `cf-browser-relay-proof-${process.pid}-${Date.now()}`;
       let config = read('var/docker/nginx.conf')
         .replace(/^user\s+www;/m, 'user nginx;')
+        // This probe tests bucket identity, not refill speed. On a busy host
+        // the original 200ms refill could admit `missing` after the burst.
+        // Keep the bucket full for this bounded test; the guard below still
+        // checks the production rate is 5r/s.
+        .replace('rate=5r/s;', 'rate=1r/m;')
         .replace(
           'proxy_pass http://localhost:4200/api/browser-errors;',
           'proxy_pass http://127.0.0.1:5100/echo;'

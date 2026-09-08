@@ -1,3 +1,4 @@
+import { startNdjsonStream } from './ndjson-stream';
 import {
   Body,
   Controller,
@@ -373,7 +374,7 @@ export class BrandVoiceController {
       safeHttpError(error);
     }
 
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const stopHeartbeat = startNdjsonStream(response);
     try {
       for await (const event of this._voice.analysisStream(actor, body ?? {})) {
         response.write(JSON.stringify(event) + '\n');
@@ -392,6 +393,7 @@ export class BrandVoiceController {
         }) + '\n'
       );
     } finally {
+      stopHeartbeat();
       response.end();
     }
   }

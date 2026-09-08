@@ -13,6 +13,7 @@ import { useOnboardingProgress } from '@contentfactory/frontend/components/onboa
 
 export interface MenuItemInterface {
   name: string;
+  step?: number;
   icon: ReactNode;
   path: string;
   role?: string[];
@@ -31,7 +32,7 @@ export interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral, language } = useVariables();
+  const { language } = useVariables();
   const t = useT();
 
   /**
@@ -81,7 +82,7 @@ export const useMenuItem = () => {
       hide: onboardingFinished,
     },
     {
-      name: isGeneral ? t('calendar', 'Calendar') : t('launches', 'Launches'),
+      name: t('calendar', 'Calendar'),
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -102,13 +103,8 @@ export const useMenuItem = () => {
       path: '/launches',
     },
     {
-      // Second, right after the calendar, which is where `Content
-      // Responsive.dc.html` puts it. The mockup shows a separate "Публикации"
-      // row above it; this shell has one row that reads Calendar or Launches
-      // depending on the deployment, so second is as close as the order gets.
-      // The other labels the mockup renames stay as they are: renaming the
-      // menu is not this epic's work and would touch sixteen locales for
-      // cosmetics.
+      // The menu names the whole section; `content_pieces` remains the
+      // table's label inside it.
       name: t('content_section', 'Content'),
       icon: (
         <svg
@@ -273,15 +269,17 @@ export const useMenuItem = () => {
     },
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
-  /**
-   * Empty on purpose, and kept so the sidebar's third group has a home.
-   *
-   * Its only entry advertised another company's video service and opened a
-   * modal that asked the backend for a signed hand-off carrying this
-   * organisation's id and name. The sidebar drops a group with no items, so
-   * nothing renders. See content-factory-next-ry5.9.
-   */
-  const secondaryMenu = [] satisfies MenuItemInterface[] as MenuItemInterface[];
+  // NavConveyor A: stable step numbers survive onboarding completion.
+  const entry = (path: string) => firstMenu.find((item) => item.path === path)!;
+  const workMenu: MenuItemInterface[] = [
+    { ...entry('/onboarding'), step: 0 },
+    { name: language.startsWith('ru') ? 'Аватар' : 'Avatar', path: '/content?tab=avatars', icon: null, step: 1 },
+    { name: t('channels', 'Channels'), path: '/channels', icon: null, step: 2 },
+    { ...entry('/content'), step: 3 },
+    { ...entry('/launches'), step: 4 },
+    { ...entry('/analytics'), step: 5 },
+  ];
+  const secondaryMenu = ['/agents', '/media', '/plugs', '/help'].map(entry);
 
   const adminMenu = [
     {
@@ -339,9 +337,9 @@ export const useMenuItem = () => {
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
   return {
-    all: [...firstMenu, ...adminMenu, ...secondaryMenu],
-    workMenu: firstMenu,
-    adminMenu,
+    all: [...workMenu, ...secondaryMenu, ...adminMenu],
+    workMenu,
+    adminMenu: adminMenu.filter((item) => item.path === '/settings'),
     secondaryMenu,
   };
 };

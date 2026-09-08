@@ -41,18 +41,6 @@ export const LONG_FORM_PROVIDERS: readonly string[] = ['wordpress', 'listmonk'];
 /** Форматы, у которых обещание конкретики нужно чем-то закрыть. */
 const EVIDENCE_FORMATS: readonly string[] = ['case', 'expert'];
 
-const CTA_WORDS: Record<
-  ChannelWritingProfileV1['ctaKind'],
-  { ru: string; en: string }
-> = {
-  none: { ru: 'без призыва', en: 'no call to action' },
-  question: { ru: 'вопрос читателю', en: 'a question to the reader' },
-  comment: { ru: 'позвать в комментарии', en: 'ask for a comment' },
-  link: { ru: 'ссылка', en: 'a link' },
-  subscribe: { ru: 'подписка', en: 'a subscription' },
-  reply: { ru: 'ответить в личные', en: 'a reply in private' },
-};
-
 const TEXTS = {
   hook: {
     ru: 'Чем зацепить в первой строке?',
@@ -65,7 +53,7 @@ const TEXTS = {
     en: 'One call to action at the end — which one?',
   },
   format: {
-    ru: 'Каким текстом это лучше рассказать?',
+    ru: 'В какой форме рассказать?',
     en: 'Which shape should this text take?',
   },
   own_number: {
@@ -140,13 +128,13 @@ export const questionsForChannel = (
       suggested: hookSuggestionFrom(core?.text || ''),
       why: ru ? TEXTS.hook.whyRu : TEXTS.hook.whyEn,
     });
-    list.push({
+    if (!profile.ctaKind) list.push({
       key: 'cta',
       question: ru ? TEXTS.cta.ru : TEXTS.cta.en,
       // Предложение — из карточки канала: человек уже сказал, чем этот канал
       // заканчивает пост, и спрашивать об этом заново значило бы не услышать.
-      suggested: ru ? CTA_WORDS[profile.ctaKind].ru : CTA_WORDS[profile.ctaKind].en,
-      options: Object.values(CTA_WORDS).map((word) => (ru ? word.ru : word.en)),
+      suggested: null,
+      options: ru ? ['вопрос читателю', 'приглашение написать', 'ссылка на пост', 'без призыва'] : ['a question to the reader', 'an invitation to write', 'a link to the post', 'no call to action'],
     });
     // Формат спрашивается ровно тогда, когда его никто не выбрал: ни карточка
     // канала, ни бриф заготовки.

@@ -1,19 +1,13 @@
 'use strict';
 
 /**
- * `content-factory-next-fn33.28.1`: черновик с подтверждениями открывается
- * явным решением человека.
- *
- * До 04.09.2026 пост, собранный из проверенного контекста, отвечал
- * `CONTENT_CONTEXT_DRAFT_ONLY` на планирование и публикацию навсегда
- * (`content-factory-next-fn33.27`). Граница осталась, но у неё появилась
- * дверь: `POST /posts/:id/context-review` ставит на пост отметку «человек
- * проверил подтверждения», и после неё план и публикация разрешены.
- *
- * Здесь проверяется ровно это правило и сама дверь. Настоящая проверка
+ * Снимок контекста остаётся у поста как происхождение, а не как вечный замок.
+ * Политика ALLOW_* не требует отметки для публикации. Сама дверь
+ * `POST /posts/:id/context-review` остаётся для старых клиентов и явного следа
+ * решения. Настоящая проверка
  * контекста (цитаты, профиль, свежесть) живёт в `post.content-context.test.cjs`
  * и работает против настоящей базы; тут она подменена, потому что предмет
- * этого набора — решение «черновик или можно в план», а не валидация.
+ * этого набора — справочный контекст при записи, а не валидация.
  */
 
 require('reflect-metadata');
@@ -182,22 +176,19 @@ const refusal = async (promise) => {
   throw new Error('the call was expected to be refused');
 };
 
-describe('a post with checked context waits for a human decision', () => {
-  test('scheduling an unconfirmed post is refused with 409 and its code', async () => {
-    const { repository } = makeStore([draftRow()]);
+describe('an advisory context does not block saving or publishing', () => {
+  test('an unconfirmed post may be scheduled', async () => {
+    const { repository, calls } = makeStore([draftRow()]);
 
-    expect(await refusal(save(repository, 'schedule', body()))).toEqual({
-      code: 'CONTENT_CONTEXT_DRAFT_ONLY',
-      status: 409,
-      message: expect.stringContaining('draft'),
-    });
+    await save(repository, 'schedule', body());
+    expect(calls.upsert[0].update.state).toBe('QUEUE');
   });
 
-  test('the refusal text names no error code', async () => {
-    const { repository } = makeStore([draftRow()]);
-    const { message } = await refusal(save(repository, 'schedule', body()));
+  test('an unconfirmed post may be published now', async () => {
+    const { repository, calls } = makeStore([draftRow()]);
 
-    expect(message).not.toMatch(/CONTENT_CONTEXT|_ONLY|409/);
+    await save(repository, 'now', body());
+    expect(calls.upsert).toHaveLength(1);
   });
 
   test('a draft is still saved as a draft without any confirmation', async () => {
@@ -244,21 +235,22 @@ describe('a post with checked context waits for a human decision', () => {
     expect(rows[0].contentContextReviewedAt).toBe(reviewedAt);
   });
 
-  test('a confirmation is tied to its snapshot: a swapped snapshot is refused to schedule', async () => {
-    const { repository, calls } = makeStore([
-      draftRow({ contentContextReviewedAt: new Date('2026-09-04T18:00:00Z') }),
+  test('a swapped snapshot may be scheduled and clears the old confirmation', async () => {
+    const { repository, calls, rows } = makeStore([
+      draftRow({
+        contentContextReviewedAt: new Date('2026-09-04T18:00:00Z'),
+        contentContextReviewedById: 'user-1',
+      }),
     ]);
-    const refused = await refusal(
-      save(
-        repository,
-        'schedule',
-        body({ contentContextSnapshotId: 'context-other' })
-      )
+    await save(
+      repository,
+      'schedule',
+      body({ contentContextSnapshotId: 'context-other' })
     );
 
-    expect(refused.status).toBe(409);
-    expect(refused.code).toBe('CONTENT_CONTEXT_DRAFT_ONLY');
-    expect(calls.upsert).toHaveLength(0);
+    expect(calls.upsert[0].update.state).toBe('QUEUE');
+    expect(rows[0].contentContextReviewedAt).toBeNull();
+    expect(rows[0].contentContextReviewedById).toBeNull();
   });
 
   test('saving a draft with a swapped snapshot clears the old confirmation', async () => {
@@ -278,27 +270,22 @@ describe('a post with checked context waits for a human decision', () => {
     expect(rows[0].contentContextReviewedById).toBeNull();
   });
 
-  test('a brand new post with context cannot be scheduled at once', async () => {
-    const { repository } = makeStore([]);
+  test('a brand new post with context may be published at once', async () => {
+    const { repository, calls } = makeStore([]);
 
-    expect(
-      await refusal(
-        save(
-          repository,
-          'now',
-          body({ value: [{ content: 'Новый', delay: 0, image: [] }] })
-        )
-      )
-    ).toMatchObject({ code: 'CONTENT_CONTEXT_DRAFT_ONLY', status: 409 });
+    await save(
+      repository,
+      'now',
+      body({ value: [{ content: 'Новый', delay: 0, image: [] }] })
+    );
+    expect(calls.upsert).toHaveLength(1);
   });
 
-  test('an id nobody confirmed yet is refused even when the client mints it', async () => {
-    const { repository } = makeStore([]);
+  test('a client-minted id needs no confirmation', async () => {
+    const { repository, calls } = makeStore([]);
 
-    expect(await refusal(save(repository, 'schedule', body()))).toMatchObject({
-      code: 'CONTENT_CONTEXT_DRAFT_ONLY',
-      status: 409,
-    });
+    await save(repository, 'schedule', body());
+    expect(calls.upsert).toHaveLength(1);
   });
 
   test("another workspace's post answers 404, confirmed or not", async () => {
@@ -689,44 +676,36 @@ describe('the confirmation is decided by the rows, not by a read before the writ
     expect(calls.upsert[0].update.state).toBe('QUEUE');
   });
 
-  test('a brand new post with a group of its own is still refused', async () => {
-    // Окно чеканит связку и новому посту тоже, поэтому наличие `group` само по
-    // себе ничего не разрешает: подтверждения в этой связке нет.
-    const { repository } = makeStore([]);
+  test('a brand new post with a group of its own may be scheduled', async () => {
+    const { repository, calls } = makeStore([]);
 
-    expect(
-      await refusal(
-        save(
-          repository,
-          'schedule',
-          body({
-            group: 'group-new',
-            value: [{ content: 'Совсем новый', delay: 0, image: [] }],
-          })
-        )
-      )
-    ).toMatchObject({ code: 'CONTENT_CONTEXT_DRAFT_ONLY', status: 409 });
+    await save(
+      repository,
+      'schedule',
+      body({
+        group: 'group-new',
+        value: [{ content: 'Совсем новый', delay: 0, image: [] }],
+      })
+    );
+    expect(calls.upsert).toHaveLength(1);
   });
 
-  test('a confirmation given under another snapshot does not travel by group', async () => {
-    const { repository } = makeStore([
+  test('a confirmation given under another snapshot is not needed by the group', async () => {
+    const { repository, calls } = makeStore([
       draftRow({
         contentContextReviewedAt: new Date('2026-09-04T18:00:00Z'),
         contentContextSnapshotId: 'context-other',
       }),
     ]);
 
-    expect(
-      await refusal(
-        save(
-          repository,
-          'schedule',
-          body({
-            group: 'group-1',
-            value: [{ content: 'Подменённый контекст', delay: 0, image: [] }],
-          })
-        )
-      )
-    ).toMatchObject({ code: 'CONTENT_CONTEXT_DRAFT_ONLY', status: 409 });
+    await save(
+      repository,
+      'schedule',
+      body({
+        group: 'group-1',
+        value: [{ content: 'Подменённый контекст', delay: 0, image: [] }],
+      })
+    );
+    expect(calls.upsert).toHaveLength(1);
   });
 });

@@ -226,29 +226,9 @@ const ALLOWED = {
   resetsAt: '2026-10-01T00:00:00.000Z',
 };
 
-const badgeOf = async (channel) => {
-  await open({ integrations: [channel], allowance: ALLOWED });
-  // Значок стоит там, где канал выбран: сначала выбор, потом подпись.
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Мой канал' }));
-  });
-  const link = document.querySelector('[data-intake-writing-profile="int-tg"]');
-  expect(link).not.toBeNull();
-  return link.parentElement.textContent;
-};
-
-test('a channel with a saved card says «настроено» before it is opened', async () => {
-  expect(await badgeOf({ ...TELEGRAM, writingProfileStored: true })).toContain(
-    'настроено'
-  );
-  expect(
-    calls.filter((call) => call.url.includes('writing-profile'))
-  ).toHaveLength(0);
-});
-
-test('a channel without one says «по умолчанию»', async () => {
-  const badge = await badgeOf(TELEGRAM);
-
-  expect(badge).toContain('по умолчанию');
-  expect(badge).not.toContain('настроено');
+test.each([true, false])('channel profile state %s never restores the removed picker', async (writingProfileStored) => {
+  await open({ integrations: [{ ...TELEGRAM, writingProfileStored }], allowance: ALLOWED });
+  expect(screen.queryByRole('button', { name: 'Мой канал' })).toBeNull();
+  expect(document.querySelector('[data-intake-writing-profile]')).toBeNull();
+  expect(panel().getAttribute('data-intake-state')).toBe('idle');
 });

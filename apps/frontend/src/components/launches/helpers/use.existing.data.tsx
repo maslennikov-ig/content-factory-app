@@ -3,7 +3,7 @@ import { Post } from '@prisma/client';
 const ExistingDataContext = createContext({
   integration: '',
   group: undefined as undefined | string,
-  posts: [] as Post[],
+  posts: [] as (Post & { contentPieceId?: string | null })[],
   settings: {} as any,
 });
 export const ExistingDataContextProvider: FC<{

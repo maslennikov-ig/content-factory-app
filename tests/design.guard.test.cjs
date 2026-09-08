@@ -426,7 +426,6 @@ const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/components/launches/general.preview.component.tsx',
   'apps/frontend/src/components/launches/helpers/media.settings.component.tsx',
   'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
-  'apps/frontend/src/components/launches/launches.component.tsx',
   'apps/frontend/src/components/launches/merge.post.tsx',
   'apps/frontend/src/components/launches/separate.post.tsx',
   'apps/frontend/src/components/launches/tags.component.tsx',

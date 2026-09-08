@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    * { box-sizing: border-box; }
+    a { color: var(--cf-accent, #7FB03A); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: 'zero'; }
+    .cap { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; line-height: 1.35; letter-spacing: .02em; color: var(--cf-ink-muted); }
+    .lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .04em; color: var(--cf-ink-muted); text-transform: uppercase; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
+    .btn.dense { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn.icon { width: 40px; padding: 0; }
+    .btn.icon.dense { width: 32px; }
+    .primary { background: var(--cf-accent); color: var(--cf-accent-ink); border: 1px solid transparent; }
+    .secondary { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); }
+    .quiet { background: transparent; color: var(--cf-ink); border: 1px solid transparent; }
+    .disabled { opacity: .5; cursor: not-allowed; }
+    .panel { background: var(--cf-surface); border: 1px solid var(--cf-border); border-radius: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--cf-border); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--cf-ink); background: var(--cf-surface-raised); }
+    .chip.none { border-style: dashed; color: var(--cf-ink-muted); background: transparent; }
+    .chip.off { opacity: .55; border-style: dashed; }
+    .chip.done { background: var(--cf-accent-soft); border-color: var(--cf-accent); }
+    .chip.warn { background: var(--cf-warning-soft); border-color: var(--cf-warning); }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); }
+    .seg span { padding: 5px 12px; border-radius: 6px; font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); }
+    .seg span.on { background: var(--cf-surface-raised); color: var(--cf-ink); border: 1px solid var(--cf-border-strong); }
+    .input { display: flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink-muted); font: 400 14px/1.5 Geologica, system-ui, sans-serif; }
+    .h1 { font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -0.02em; }
+    .h2 { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .body { font-size: 16px; line-height: 1.55; }
+    .sm { font-size: 13px; line-height: 1.45; }
+    .muted { color: var(--cf-ink-muted); }
+    table.t { width: 100%; border-collapse: separate; border-spacing: 0; }
+    table.t th { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--cf-border-strong); background: var(--cf-surface-subtle); }
+    table.t td { padding: 12px; border-bottom: 1px solid var(--cf-border); vertical-align: top; }
+    tr.hover td { background: var(--cf-surface-subtle); cursor: pointer; }
+    .nav { width: 248px; flex: none; background: var(--cf-navigation); color: var(--cf-navigation-text); padding: 16px 12px; display: flex; flex-direction: column; gap: 18px; }
+    .nav .grp { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--cf-navigation-muted); padding: 0 10px; margin-bottom: 4px; }
+    .nav .row { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-navigation-text); }
+    .nav .row.on { background: var(--cf-navigation-active); color: var(--cf-accent); box-shadow: inset 3px 0 0 var(--cf-accent); }
+    .nav .row .n { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; width: 18px; height: 18px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--cf-border-strong); color: var(--cf-navigation-muted); }
+    .nav .row.on .n { border-color: var(--cf-accent); color: var(--cf-accent); }
+    .nav .row .ic { width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 4px; opacity: .8; flex: none; }
+    .nav .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 6px; font-weight: 650; font-size: 15px; }
+    .nav .brand .mark { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--cf-signature); color: var(--cf-signature); font: 600 10px/1 'JetBrains Mono', monospace; display: inline-flex; align-items: center; justify-content: center; }
+    .top { height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 20px; background: var(--cf-surface); border-bottom: 1px solid var(--cf-border); font-size: 18px; font-weight: 650; letter-spacing: -0.015em; }
+    .top .sp { flex: 1; }
+    .top .dot { width: 24px; height: 24px; border-radius: 12px; border: 1px solid var(--cf-border-strong); }
+    .steps { display: flex; align-items: center; gap: 0; }
+    .steps .st { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border-bottom: 2px solid transparent; }
+    .steps .st .n { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; width: 20px; height: 20px; border-radius: 10px; border: 1px solid var(--cf-border-strong); display: inline-flex; align-items: center; justify-content: center; }
+    .steps .st.done .n { background: var(--cf-accent-soft); border-color: var(--cf-accent); color: var(--cf-accent); }
+    .steps .st.on { color: var(--cf-ink); border-bottom-color: var(--cf-accent); }
+    .steps .st.on .n { background: var(--cf-accent); border-color: var(--cf-accent); color: var(--cf-accent-ink); }
+    .steps .arrow { width: 24px; text-align: center; color: var(--cf-border-strong); }
+    .q { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 8px; border: 1px solid var(--cf-border); background: var(--cf-surface-raised); }
+    .q .qq { font: 500 16px/1.4 Geologica, system-ui, sans-serif; }
+    .opt { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface); font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink); }
+    .opt.on { background: var(--cf-accent-soft); border-color: var(--cf-accent); }
+    .menu { display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 8px; border: 1px solid var(--cf-border-strong); background: var(--cf-surface-raised); box-shadow: 0 18px 44px -14px rgba(0,0,0,.5); width: 320px; }
+    .menu .it { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 10px; border-radius: 6px; }
+    .menu .it.on { background: var(--cf-surface-subtle); }
+    .menu .it b { font-weight: 650; font-size: 14px; }
+    .spin { width: 16px; height: 16px; border-radius: 8px; border: 2px solid var(--cf-border-strong); border-top-color: var(--cf-accent); flex: none; }
+    mark.add { background: var(--cf-accent-soft); color: var(--cf-ink); padding: 0 2px; border-radius: 3px; }
+    mark.del { background: var(--cf-danger-soft); color: var(--cf-ink-muted); text-decoration: line-through; padding: 0 2px; border-radius: 3px; }
+    .qline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  </style>
+</helmet>
+<div style="{{ themeVars }}">
+<div style="width:760px;min-height:900px;background:var(--cf-canvas);padding:24px 28px 40px;display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;align-items:center;gap:12px"><span class="chip done">Уточнение</span><span class="h2">2 вопроса — и пишем</span></div>
+  <span class="sm muted">Модель предлагает первой. Согласитесь, поправьте или отдайте ей решение. Вопрос о призыве не задан: он есть в карточке канала («вопрос читателю»).</span>
+
+  <div class="q">
+    <span class="qq">Чем зацепить в первой строке?</span>
+    <span class="cap">видно в уведомлении, 80–180 знаков</span>
+    <div style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:8px;background:var(--cf-surface);border:1px solid var(--cf-border)"><span class="cap">Я думаю, вот так</span><span class="sm">К таким письмам стоит относиться как к материалу для исследования границы между имитацией и сознанием.</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary dense">Так и есть</button><button type="button" class="btn secondary dense">Поправить</button><button type="button" class="btn quiet dense">Реши сама</button></div>
+  </div>
+
+  <div class="q">
+    <span class="qq">В какой форме рассказать?</span>
+    <span class="cap">форма не задана ни в карточке канала, ни в заготовке</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="opt on">мнение</span><span class="opt">разбор</span><span class="opt">случай из практики</span><span class="opt">история</span><span class="opt">список</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary dense">Дальше</button><button type="button" class="btn quiet dense">Реши сама</button></div>
+  </div>
+
+  <div class="q" style="opacity:.75">
+    <span class="qq">Один призыв в конце — какой?</span>
+    <span class="cap">этот вопрос показан для примера: когда призыв в карточке не задан</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="opt on">вопрос читателю</span><span class="opt">приглашение написать</span><span class="opt">ссылка на пост</span><span class="opt">без призыва</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary dense">Дальше</button><button type="button" class="btn secondary dense">Поправить</button><button type="button" class="btn quiet dense">Реши сама</button></div>
+  </div>
+
+  <div style="display:flex;gap:8px"><button type="button" class="btn primary">Дальше</button><button type="button" class="btn secondary">Оставить как есть</button></div>
+  <span class="cap">Варианты — кнопки, не пустое поле; «Поправить» открывает поле «Свой ответ» под вопросом.</span>
+</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":true}}'>
+const DARK = "--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A";
+const LIGHT = "--cf-canvas:#EFE9DB;--cf-surface:#FBF8F0;--cf-surface-subtle:#E4DDCB;--cf-surface-raised:#FFFDF6;--cf-ink:#22231A;--cf-ink-muted:#5C5D4C;--cf-ink-inverse:#F4F1E4;--cf-border:#D3CAB3;--cf-border-strong:#B0A68A;--cf-border-control:#847B62;--cf-navigation:#E4DDCB;--cf-navigation-text:#22231A;--cf-navigation-muted:#5C5D4C;--cf-navigation-active:#FBF8F0;--cf-accent:#3F6B2E;--cf-accent-hover:#33581F;--cf-accent-soft:#E1EAD2;--cf-accent-ink:#FFFFFF;--cf-signature:#9C6A16;--cf-info:#2F5A82;--cf-info-soft:#E3EBF3;--cf-warning:#7A4D00;--cf-warning-soft:#F6E7C2;--cf-danger:#8E2B22;--cf-danger-soft:#F6E0DB;--cf-focus:#3F6B2E";
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? true;
+    return { themeVars: (dark ? DARK : LIGHT) + ";font-family:Geologica,system-ui,sans-serif;color:var(--cf-ink);background:var(--cf-canvas)" };
+  }
+}
+</script>
+</body>
+</html>

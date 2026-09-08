@@ -167,8 +167,9 @@ describe('AI provider search settings component', () => {
 
       expect(markup).toContain('data-ai-usage="member"');
       expect(markup).toContain('data-ai-usage="role"');
-      expect(markup).toContain('AI operations by member, this period');
-      expect(markup).toContain('AI operations by role, this period');
+      expect(markup).toContain('AI usage by member, this period');
+      expect(markup).toContain('AI usage by role, this period');
+      expect(markup).toContain('Usage and call roles');
       // Ноль — это ответ. Он напечатан, а не выражен отсутствием раздела.
       expect(markup).toContain('Nothing yet');
       expect(markup).toContain('after the first model call');
@@ -177,7 +178,7 @@ describe('AI provider search settings component', () => {
         markup.indexOf('data-ai-usage="role"'),
         markup.indexOf('after the first model call', markup.indexOf('data-ai-usage="role"'))
       );
-      for (const role of ['classify', 'extract', 'research', 'draft', 'judge', 'image']) {
+      for (const role of ['classify', 'extract', 'research', 'draft', 'judge', 'review', 'image']) {
         expect(roleRows).toContain(`>${role}</span>`);
       }
       expect(translationCalls).toEqual(

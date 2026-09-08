@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Пять дверей заготовки и адаптации.
+ * Двери заготовки, адаптации и отдельной проверки черновика.
  *
  * Три вещи держатся здесь вместе, и каждая из них уже однажды ломалась в этом
  * репозитории.
@@ -32,6 +32,8 @@ const BRAND_VOICE =
   'libraries/nestjs-libraries/src/content-intelligence/brand-voice';
 const MATERIALS =
   'libraries/nestjs-libraries/src/content-intelligence/materials';
+const PIECES =
+  'libraries/nestjs-libraries/src/content-intelligence/pieces';
 
 const FILES = {
   controller: 'apps/backend/src/api/routes/content-piece.controller.ts',
@@ -43,6 +45,9 @@ const FILES = {
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 const contract = loadTypeScriptModule(`${BRAND_VOICE}/voice-wiring.contract.ts`);
+const readyContract = loadTypeScriptModule(
+  `${PIECES}/ready-adaptations.contract.ts`
+);
 const presentation = loadTypeScriptModule(
   `${MATERIALS}/material-presentation.ts`,
   {},
@@ -92,6 +97,7 @@ const controllerModule = loadTypeScriptModule(
         PieceAdaptDto: class {},
         PieceArchiveDto: class {},
         PiecesQueryDto: class {},
+        ReadyAdaptationsQueryDto: class {},
       },
   },
   {
@@ -134,6 +140,9 @@ const recorder = () => {
     headers,
     ended: () => recorder.ended,
     response: {
+      flushHeaders() {},
+      once() {},
+      off() {},
       setHeader: (name, value) => {
         headers[name] = value;
       },
@@ -171,6 +180,7 @@ describe('дверь отвечает ровно по тем адресам, ч�
 
   const expected = [
     `${contract.PIECE_ROUTES.list.method} ${contract.PIECE_ROUTES.list.path}`,
+    `GET ${readyContract.READY_ADAPTATIONS_PATH}`,
     `${contract.PIECE_ROUTES.detail.method} ${contract.PIECE_ROUTES.detail.path(
       ':id'
     )}`,
@@ -186,6 +196,9 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${
       contract.PIECE_ROUTES.deleteAdaptation.method
     } ${contract.PIECE_ROUTES.deleteAdaptation.path(':id', ':adaptationId')}`,
+    // The explicit review is a separate contract; the shipped voice contract stays immutable.
+    'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review',
+    'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review/accept',
   ];
 
   test.each(expected)('%s смонтирован', (route) => {
@@ -222,11 +235,26 @@ describe('дверь отвечает ровно по тем адресам, ч�
 describe('чтение открыто области, запись — редактору', () => {
   const source = read(FILES.controller);
 
-  test('на обоих чтениях политики нет', () => {
+  test('на трёх чтениях политики нет', () => {
     // Политика на `GET` закрыла бы список от Пользователя, которому владелец
     // оставил право смотреть (`docs/product/roles-matrix.md`).
     const reads = source.slice(source.indexOf("@Get('/')"), source.indexOf("@Post('/:id/adapt')"));
     expect(reads).not.toContain('@CheckPolicies');
+  });
+
+  test('список готовых адаптаций передаёт область и ограничение сервису', async () => {
+    const calls = [];
+    const controller = new ContentPieceController({
+      readyAdaptations: async (...args) => {
+        calls.push(args);
+        return { version: 'ready-adaptations/v1', items: [] };
+      },
+    });
+
+    await expect(
+      controller.readyAdaptations({ id: 'org-a' }, { limit: 17 })
+    ).resolves.toEqual({ version: 'ready-adaptations/v1', items: [] });
+    expect(calls).toEqual([['org-a', 17]]);
   });
 
   test.each([
@@ -317,7 +345,7 @@ describe('отказ адаптации знает, начался ли отве
     );
 
     expect(written.headers['Content-Type']).toBe(
-      'application/json; charset=utf-8'
+      'application/x-ndjson; charset=utf-8'
     );
     expect(written.events().map((event) => event.name)).toEqual([
       'adapt-started',
@@ -625,5 +653,21 @@ describe('DTO отказывает мусору и принимает то, чт
     });
     expect(await validate(query)).toEqual([]);
     expect(query.includeArchived).toBe(true);
+  });
+
+  test('список готовых адаптаций ограничен 1..50 и по умолчанию берёт 50', async () => {
+    const empty = plainToInstance(dto.ReadyAdaptationsQueryDto, {});
+    expect(empty.limit).toBe(50);
+    expect(await validate(empty)).toEqual([]);
+
+    const valid = plainToInstance(dto.ReadyAdaptationsQueryDto, { limit: '7' });
+    expect(valid.limit).toBe(7);
+    expect(await validate(valid)).toEqual([]);
+
+    for (const limit of [0, 51, 1.5]) {
+      expect(await codes(dto.ReadyAdaptationsQueryDto, { limit })).toContain(
+        'limit'
+      );
+    }
   });
 });

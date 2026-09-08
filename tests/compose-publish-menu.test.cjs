@@ -99,6 +99,14 @@ describe('the publishing menu replaces the hover flyout', () => {
     expect(copy).toMatch(/оставить в расписании на \$\{time\}/);
   });
 
+  test('each command stacks its label and explanation with real flex layout', () => {
+    const manage = code(MANAGE);
+
+    expect(
+      manage.match(/className="flex flex-col items-start gap-\[4px\]/g)
+    ).toHaveLength(2);
+  });
+
   test('the two reference blocks stand above the footer, without a single checkbox', () => {
     const manage = code(MANAGE);
     const editor = code('apps/frontend/src/components/new-launch/editor.tsx');

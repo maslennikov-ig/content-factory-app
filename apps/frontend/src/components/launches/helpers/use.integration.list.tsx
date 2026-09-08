@@ -8,7 +8,9 @@ export const useIntegrationList = () => {
   const fetch = useFetch();
 
   const load = useCallback(async (path: string) => {
-    return (await (await fetch(path)).json()).integrations;
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`Channels request failed: ${response.status}`);
+    return (await response.json()).integrations;
   }, []);
 
   return useSWR('/integrations/list', load, {

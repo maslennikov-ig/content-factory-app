@@ -218,46 +218,19 @@ describe('content-factory-next-fn33.54 — counted things are declined, not conc
     expect(document.body.textContent).toContain(`за месяц: ${expected}`);
   });
 
-  test('the archive counts posts the same way', () => {
-    const archive = loadTypeScriptModule(
-      'apps/frontend/src/components/content-intelligence/content-archive.container.tsx'
-    );
-    // The copy table is not exported; the source is what carries the rule,
-    // and the shared helper is what the rule is.
-    const source = fs.readFileSync(
-      path.join(
-        root,
-        'apps/frontend/src/components/content-intelligence/content-archive.container.tsx'
-      ),
-      'utf8'
-    );
-    expect(archive).toBeTruthy();
-    expect(source).not.toContain('`постов: ${n}`');
-    expect(source).toMatch(/plural\(n, \['пост', 'поста', 'постов'\]\)/u);
-  });
+
 });
 
 describe('content-factory-next-fn33.67 — an empty calendar cell does not reach around the hidden «Добавить канал»', () => {
   const source = fs.readFileSync(path.join(root, CALENDAR), 'utf8');
 
-  test('the empty-cell click asks about the role before it offers the provider catalogue', () => {
-    expect(source).toContain('isOrganizationAdmin');
-    expect(source).toMatch(/canAddChannel\s*=\s*isOrganizationAdmin\(user\?\.role\)/u);
-    /**
-     * `content-factory-next-fn33.148` changed the shape of the answer and not
-     * the rule behind it. The cell used to branch on the role: the
-     * administrator got the catalogue, everybody else a toast — one cell, two
-     * answers, and neither of them opened the compose window. Now every role
-     * meets the same card, and the role decides only whether it carries the
-     * button into the catalogue. The catalogue is still behind
-     * `canAddChannel`, which is the whole of what this defect was about.
-     */
-    expect(source).toMatch(
-      /!integrations\.length\s*\?\s*explainNoChannel/u
-    );
-    expect(source).toMatch(
-      /canAddChannel=\{canAddChannel\}[\s\S]{0,200}addProvider\(\)/u
-    );
+  test('the empty cell cannot connect channels around the administrator door', () => {
+    expect(source).not.toContain('useAddProvider');
+    expect(source).not.toContain('explainNoChannel');
+    expect(source).toContain('openPicker(getDate)');
+    const picker = fs.readFileSync(path.join(root, 'apps/frontend/src/components/launches/adaptation-picker.tsx'), 'utf8');
+    expect(picker).toContain('href="/channels"');
+    expect(picker).toContain('disabled={!canWrite || opening || !integrations.length}');
   });
 
   /**

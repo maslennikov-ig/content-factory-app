@@ -38,7 +38,8 @@ import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/integrations/refresh.integration.service';
 import { IntegrationContentLanguageDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.content.language.dto';
 import { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
-import { isStoredWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import { ChannelPostsQueryDto } from '@contentfactory/nestjs-libraries/dtos/integrations/channel.posts.query.dto';
+import { resolveChannelWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -121,6 +122,12 @@ export class IntegrationsController {
           const findIntegration = this._integrationManager.getSocialIntegration(
             p.providerIdentifier
           );
+          const { profile: writingProfile, stored: writingProfileStored } =
+            resolveChannelWritingProfile(
+              p.writingProfile,
+              p.providerIdentifier,
+              p.contentLanguage
+            );
           return {
             name: p.name,
             id: p.id,
@@ -144,7 +151,13 @@ export class IntegrationsController {
             customer: p.customer,
             additionalSettings: p.additionalSettings || '[]',
             contentLanguage: p.contentLanguage,
-            writingProfileStored: isStoredWritingProfile(p.writingProfile),
+            createdAt: p.createdAt,
+            writingProfile,
+            writingProfileStored,
+            postsSummary: {
+              total: p._count?.posts ?? 0,
+              lastPostAt: p.posts?.[0]?.publishDate ?? null,
+            },
           };
         })
       ),
@@ -219,6 +232,20 @@ export class IntegrationsController {
     @Param('id') id: string
   ) {
     return this._integrationService.updateWritingProfile(org.id, id, null);
+  }
+
+  /** Recent published, scheduled, or failed root posts for the channel page. */
+  @Get('/:id/posts')
+  getChannelPosts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Query() query: ChannelPostsQueryDto
+  ) {
+    return this._integrationService.getChannelPosts(
+      org.id,
+      id,
+      query.limit ?? 3
+    );
   }
 
   @Post('/:id/nickname')

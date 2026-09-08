@@ -79,13 +79,18 @@ const withLanguage = (language, element) =>
     element
   );
 
-const menuFor = (language) => {
+let i18n;
+const menuFor = async (language) => {
   let captured;
   const Probe = () => {
     captured = menu.useMenuItem();
     return null;
   };
-  render(withLanguage(language, React.createElement(Probe)));
+  // In the browser useT follows i18next, not the server variable context.
+  await React.act(async () => {
+    await i18n.changeLanguage(language);
+    render(withLanguage(language, React.createElement(Probe)));
+  });
   return captured;
 };
 
@@ -95,7 +100,7 @@ afterEach(cleanup);
 // server; nothing here has asked for them yet, so a render would fail on the
 // suspension rather than on anything about the menu.
 beforeAll(async () => {
-  const i18n = loadTypeScriptModule(
+  i18n = loadTypeScriptModule(
     'libraries/react-shared-libraries/src/translation/i18next.ts'
   ).default;
   if (!i18n.isInitialized) {
@@ -105,8 +110,8 @@ beforeAll(async () => {
 });
 
 describe('content lives in the working menu', () => {
-  test('the working menu offers Content and points at its own route', () => {
-    const { workMenu } = menuFor('en');
+  test('the working menu offers Content and points at its own route', async () => {
+    const { workMenu } = await menuFor('en');
     const paths = workMenu.map((item) => item.path);
 
     expect(paths).toContain('/content');
@@ -115,23 +120,25 @@ describe('content lives in the working menu', () => {
     // выше «С чего начать» (07.09.2026) — временная строка, она пропадает,
     // когда все шесть шагов пройдены, поэтому проверяется соседство с
     // календарём, а не место в списке.
-    expect(paths.indexOf('/content')).toBe(paths.indexOf('/launches') + 1);
+    expect(paths.indexOf('/content')).toBe(paths.indexOf('/launches') - 1);
     expect(workMenu[paths.indexOf('/content')].name).toBe('Content');
   });
 
-  test('the entry is in the working menu, not the administrative one', () => {
-    const { adminMenu, secondaryMenu } = menuFor('en');
+  test('the entry is in the working menu, not the administrative one', async () => {
+    const { adminMenu, secondaryMenu } = await menuFor('en');
 
     expect(adminMenu.map((item) => item.path)).not.toContain('/content');
     expect(secondaryMenu.map((item) => item.path)).not.toContain('/content');
   });
 
-  test('the menu label is a translated key, not an inline pair', () => {
+  test('the menu names the section with its shared translated key', async () => {
     // The menu ships in sixteen locales. An inline ru/en ternary here would
     // leave fourteen of them reading English.
+    expect((await menuFor('ru')).workMenu.find((item) => item.path === '/content').name).toBe('Контент');
     expect(source('menu')).toContain("t('content_section', 'Content')");
-    // `content` was taken: it means the body of a signature, and reusing it
-    // would put "Содержание" in the Russian menu.
+    // `content_pieces` is the inner table's label and must not be renamed
+    // globally just to change the top-level menu.
+    expect(source('menu')).not.toContain("t('content_pieces', 'Pieces')");
     expect(source('menu')).not.toContain("t('content', 'Content')");
   });
 
@@ -164,10 +171,10 @@ describe('the Content screen', () => {
   // one-thought intake, which makes a piece — the eight-field form it was
   // named after is not what opens there. The key stayed `brief`.
   test.each([
-    ['en', ['Pieces', 'Avatars', 'Ideas', 'New piece', 'Facts']],
+    ['en', ['Pieces', 'New piece', 'Ideas', 'Facts']],
     [
       'ru',
-      ['Заготовки', 'Аватары', 'Откуда идеи', 'Новая заготовка', 'Откуда факты'],
+      ['Заготовки', 'Новая заготовка', 'Откуда идеи', 'Откуда факты'],
     ],
   ])('shows five tabs in %s, in the order the design fixed', (locale, labels) => {
     render(
@@ -278,94 +285,14 @@ describe('the Content screen', () => {
     expect(source('screen')).toContain('PiecesContainer');
   });
 
-  test('the Materials tab mounts the view switch, defaulting to the library', () => {
-    render(
-      withLanguage(
-        'ru',
-        React.createElement(contentScreen.ContentSectionScreen, {
-          initialTab: 'materials',
-        })
-      )
-    );
-
+  test.each(['materials', 'archive'])('opens the single pieces table for %s', (initialTab) => {
+    render(withLanguage('ru', React.createElement(contentScreen.ContentSectionScreen, { initialTab })));
     const panel = screen.getByRole('tabpanel');
-    const switchGroup = within(panel).getByRole('radiogroup');
-    const [materialsOption, archiveOption] = within(switchGroup).getAllByRole('radio');
-
-    expect(materialsOption.textContent).toBe('Заготовки');
-    expect(archiveOption.textContent).toBe('Что уже написали');
-    expect(materialsOption.getAttribute('aria-checked')).toBe('true');
-    expect(archiveOption.getAttribute('aria-checked')).toBe('false');
-    // The archive is not mounted until its view is chosen — a lazily-drawn
-    // switch is not the same guarantee as a mounted, silent container.
-    expect(
-      panel.querySelector('[data-content-intelligence-section="archive"]')
-    ).toBeNull();
+    expect(panel.querySelector('[data-content-panel="pieces"]')).not.toBeNull();
+    expect(within(panel).queryByRole('radiogroup')).toBeNull();
+    expect(panel.textContent).not.toContain('Что уже написали');
   });
 
-  test('the switch mounts the archive container rather than staying dead code', () => {
-    // `content-factory-next-odb8.4` built the backend and `ContentArchiveContainer`
-    // but never mounted the container anywhere reachable — the archive existed
-    // only in the file that declared it. §9.4 then folded the archive into
-    // «Материалы» as a view rather than its own tab, so this guard now drives
-    // the switch instead of a deep link, and still looks for the container's
-    // own root markup, not just a label: a switch that flips but opens an
-    // empty panel would still pass a label-only check.
-    render(
-      withLanguage(
-        'ru',
-        React.createElement(contentScreen.ContentSectionScreen, {
-          initialTab: 'materials',
-        })
-      )
-    );
-
-    const panel = screen.getByRole('tabpanel');
-    const archiveOption = within(panel).getAllByRole('radio')[1];
-    fireEvent.click(archiveOption);
-
-    const archiveSection = panel.querySelector(
-      '[data-content-intelligence-section="archive"]'
-    );
-    expect(archiveSection).not.toBeNull();
-    // The container's own heading, not just the switch's label — the two
-    // read the same text (`t.title` in the container, the switch's own
-    // `archive` copy), so scoping to the section is what tells them apart.
-    expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
-    expect(source('screen')).toContain('ContentArchiveContainer');
-  });
-
-  test('a deep link to the old Archive tab lands on Materials with the archive view already chosen', () => {
-    // Before §9.4, `initialTab: 'archive'` opened a sixth tab. It is no
-    // longer in `CONTENT_TABS`, so this checks the value still lands
-    // somewhere real instead of selecting a tab the strip cannot mark
-    // current.
-    render(
-      withLanguage(
-        'ru',
-        React.createElement(contentScreen.ContentSectionScreen, {
-          initialTab: 'archive',
-        })
-      )
-    );
-
-    const materialsTab = screen.getByRole('tab', { name: 'Заготовки' });
-    expect(materialsTab.getAttribute('aria-selected')).toBe('true');
-
-    const panel = screen.getByRole('tabpanel');
-    const archiveSection = panel.querySelector(
-      '[data-content-intelligence-section="archive"]'
-    );
-    expect(archiveSection).not.toBeNull();
-    expect(within(archiveSection).getByText('Что уже написали')).toBeTruthy();
-  });
-
-  /**
-   * content-factory-next-fn33.60. The tab was local state and the address
-   * never heard about it: «Взять в работу» moved the screen to «Бриф» while
-   * the bar still read `?tab=leads`, and a reload went back to «Откуда
-   * идеи». One mechanism for every way of changing the tab.
-   */
   test('content-factory-next-fn33.60 — the address follows the tab, so a reload lands where the screen already is', () => {
     dom.window.history.replaceState(null, '', '/content?tab=materials');
     render(
@@ -475,7 +402,7 @@ describe('the Content frame is reviewable without a network', () => {
 
     expect(markup).toContain('data-production-surface="content/section"');
     expect(markup).toContain('data-interface-review-state="' + state + '"');
-    expect(markup).toContain('Контент');
+    expect(markup).toMatch(/Аватар|Заготовки/);
   });
 
   test('the scene shows the frame, never the container behind it', () => {
@@ -503,3 +430,27 @@ describe('the Content frame is reviewable without a network', () => {
     expect(source('screen')).toContain('max-w-[72ch]');
   });
 });
+
+ test('NavConveyor keeps its order, step numbers and separate destinations', async () => {
+   const { workMenu, secondaryMenu, adminMenu } = await menuFor('ru');
+   expect(workMenu.map((item) => item.path)).toEqual(['/onboarding', '/content?tab=avatars', '/channels', '/content', '/launches', '/analytics']);
+   expect(workMenu.map((item) => item.step)).toEqual([0, 1, 2, 3, 4, 5]);
+   expect(secondaryMenu.map((item) => item.path)).toEqual(['/agents', '/media', '/plugs', '/help']);
+   expect(adminMenu.map((item) => item.path)).toEqual(['/settings']);
+ });
+ test('a sidebar navigation updates the already mounted content screen', () => {
+   const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+   const { ContentSectionScreen } = loadWithMocks(FILES.screen, {
+     '@contentfactory/react/helpers/variable.context': {useVariables: () => ({language: 'ru'})},
+     '../brand-voice/voice-tab': {VoiceTab: () => React.createElement('div', null, 'voice content')},
+     './pieces/pieces.container': {PiecesContainer: () => React.createElement('div', null, 'pieces content')},
+   });
+   const draw = (initialTab) => React.createElement(ContentSectionScreen, { initialTab });
+   const view = render(draw('materials'));
+   expect(screen.getAllByRole('tab')).toHaveLength(4);
+   view.rerender(draw('avatars'));
+   expect(screen.queryAllByRole('tab')).toHaveLength(0);
+   expect(screen.getByRole('heading', {level: 1}).textContent).toBe('Аватар');
+   view.rerender(draw('materials'));
+   expect(screen.getAllByRole('tab')).toHaveLength(4);
+ });

@@ -126,13 +126,11 @@ describe('the browser tab speaks the language of the page', () => {
   });
 
   test('the tab and the menu call the Content section by one name', () => {
-    // `content-factory-next-fn33.117`: вкладка говорила «Содержание», а меню и
-    // заголовок — «Контент». Ключ `content` — это подпись поля подписи, у неё
-    // своя жизнь; имя раздела живёт в `content_section`.
+    // The menu names Content; Pieces remains the table inside the section.
     const menu = read(
       path.join(root, 'apps/frontend/src/components/layout/top.menu.tsx')
     );
-    const menuKey = /name: t\('([^']+)', '[^']*'\),\n\s+icon:[\s\S]{0,4000}?path: '\/content',/.exec(
+    const menuKey = /name: t\('([^']+)', '[^']*'\),\n\s+icon:(?:(?!\n\s+name:)[\s\S]){0,4000}?path: '\/content',/.exec(
       menu
     );
     expect(menuKey && menuKey[1]).toBe('content_section');

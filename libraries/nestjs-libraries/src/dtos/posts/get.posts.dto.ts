@@ -26,6 +26,10 @@ export class GetPostsDto {
   @IsString()
   customer: string;
 
+  @IsOptional()
+  @IsString()
+  integrationId?: string;
+
   // Editorial process stage, NOT the post's delivery `state`. Optional: most
   // callers still filter only by date/customer, and unfiltered means "every
   // stage, including posts that have none recorded yet".

@@ -106,6 +106,37 @@ const SCHEMA = {
 export const stemWord = (word: string): string =>
   /[Ѐ-ӿ]/.test(word) ? russianStemmer(word) : englishStemmer(word);
 
+/** Формы из исходного текста: тот же стеммер и префиксы, что у Orama. */
+export function matchedFormsOf(query: string, text: string): string[] {
+  const words = (value: string) =>
+    value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const wanted = words(query).map(stemWord);
+  return [
+    ...new Set(
+      words(text).filter((word) =>
+        wanted.some((stem) => stemWord(word).startsWith(stem))
+      )
+    ),
+  ];
+}
+
+/** Первые 160 знаков, либо окно вокруг найденной формы, если она дальше. */
+export function matchedSnippetOf(
+  body: string,
+  forms: readonly string[]
+): string {
+  const text = body.replace(/\s+/g, ' ').trim();
+  const lower = text.toLocaleLowerCase();
+  const offsets = forms
+    .map((form) => lower.indexOf(form.toLocaleLowerCase()))
+    .filter((at) => at >= 0);
+  const first = offsets.length ? Math.min(...offsets) : 0;
+  const start = first >= 160 ? Math.max(0, first - 40) : 0;
+  return `${start ? '…' : ''}${text.slice(start, start + 160)}${
+    text.length > start + 160 ? '…' : ''
+  }`;
+}
+
 /**
  * Находки → «свои тексты по теме»: одно превращение на экран и на модель.
  *
@@ -196,20 +227,23 @@ export class TextSearchIndex {
     if (options.platform) where.platform = options.platform;
     if (options.linkableOnly) where.linkable = true;
     if (options.kinds?.length) where.kind = [...options.kinds];
-    const found = oramaSearch(this.db as any, {
-      term,
-      // Слова ищутся в заголовке и теле. Адрес, площадка и дата лежат в тех же
-      // строках, и без этого списка запрос «telegram» находил бы каждый пост
-      // канала по его же служебному полю.
-      properties: ['title', 'body'],
-      // `0` — «встретиться должно всё», `1` — «хватит одного слова, дальше
-      // решает вес». Orama называет это порогом объединения; умолчание у неё
-      // `1`, и списки, которые до этой волны требовали все слова, получили бы
-      // от умолчания молча другое поведение.
-      threshold: options.mode === 'ranked' ? 1 : 0,
-      limit: Math.min(Math.max(options.limit ?? 20, 1), 100),
-      ...(Object.keys(where).length ? { where } : {}),
-    } as any) as any;
+    const found = oramaSearch(
+      this.db as any,
+      {
+        term,
+        // Слова ищутся в заголовке и теле. Адрес, площадка и дата лежат в тех же
+        // строках, и без этого списка запрос «telegram» находил бы каждый пост
+        // канала по его же служебному полю.
+        properties: ['title', 'body'],
+        // `0` — «встретиться должно всё», `1` — «хватит одного слова, дальше
+        // решает вес». Orama называет это порогом объединения; умолчание у неё
+        // `1`, и списки, которые до этой волны требовали все слова, получили бы
+        // от умолчания молча другое поведение.
+        threshold: options.mode === 'ranked' ? 1 : 0,
+        limit: Math.min(Math.max(options.limit ?? 20, 1), 100),
+        ...(Object.keys(where).length ? { where } : {}),
+      } as any
+    ) as any;
     return (found?.hits || []).map((hit: any) => {
       const document = hit.document as TextSearchDocumentV1;
       return {

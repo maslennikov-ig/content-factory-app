@@ -47,10 +47,10 @@ import {
   type PieceOriginV1,
   type PieceQuestionKeyV1,
   type PieceQuestionV1,
-  type PieceRowV1,
+  type PieceRowV1 as BasePieceRowV1,
   type PieceTargetV1,
   type PiecesQueryV1,
-  type PiecesResponseV1,
+  type PiecesResponseV1 as BasePiecesResponseV1,
   type PieceQuestionsV1,
   type VoiceScreenStateV1,
   type ZagotovkaCoreV1,
@@ -63,6 +63,14 @@ import {
   type AntiCopyReportV1,
   type SlopVerdictV1,
 } from '../intake/intake.adapter';
+
+export type PieceRowV1 = BasePieceRowV1 & {
+  matchedForms?: string[];
+  searchSnippet?: string;
+};
+export type PiecesResponseV1 = Omit<BasePiecesResponseV1, 'pieces'> & {
+  pieces: PieceRowV1[];
+};
 
 export type {
   AdaptationKindV1,
@@ -80,10 +88,8 @@ export type {
   PieceQuestionKeyV1,
   PieceQuestionV1,
   PieceQuestionsV1,
-  PieceRowV1,
   PieceTargetV1,
   PiecesQueryV1,
-  PiecesResponseV1,
   VoiceScreenStateV1,
   ZagotovkaCoreV1,
 };
@@ -139,7 +145,8 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
-const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const asArray = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [];
 
 const asText = (value: unknown, fallback = ''): string =>
   typeof value === 'string' ? value : fallback;
@@ -189,7 +196,9 @@ const ORIGINS: readonly PieceOriginV1[] = [
 ];
 
 const readOriginKind = (value: unknown): PieceOriginV1 =>
-  ORIGINS.includes(value as PieceOriginV1) ? (value as PieceOriginV1) : 'manual';
+  ORIGINS.includes(value as PieceOriginV1)
+    ? (value as PieceOriginV1)
+    : 'manual';
 
 const ADAPTATION_STATES: readonly AdaptationStateV1[] = [
   'published',
@@ -213,7 +222,9 @@ const KINDS: readonly AdaptationKindV1[] = [
 ];
 
 const readKind = (value: unknown): AdaptationKindV1 =>
-  KINDS.includes(value as AdaptationKindV1) ? (value as AdaptationKindV1) : 'post';
+  KINDS.includes(value as AdaptationKindV1)
+    ? (value as AdaptationKindV1)
+    : 'post';
 
 const VERDICTS: readonly SlopVerdictV1[] = ['clean', 'review', 'rewrite'];
 
@@ -254,6 +265,16 @@ export const readRow = (value: unknown): PieceRowV1 | null => {
   if (!record || typeof record.id !== 'string') return null;
   return {
     id: record.id,
+    ...(Array.isArray(record.matchedForms)
+      ? {
+          matchedForms: record.matchedForms.filter(
+            (form): form is string => typeof form === 'string'
+          ),
+        }
+      : {}),
+    ...(typeof record.searchSnippet === 'string'
+      ? { searchSnippet: record.searchSnippet }
+      : {}),
     code: asText(record.code, record.id),
     title: asText(record.title),
     format: asText(record.format),
@@ -285,7 +306,10 @@ export const readRow = (value: unknown): PieceRowV1 | null => {
 export function readPiecesResponse(value: unknown): PiecesResponseV1 {
   const record = asRecord(value);
   if (!record) {
-    throw new PieceContractError('PIECES_UNREADABLE', 'The list arrived unreadable.');
+    throw new PieceContractError(
+      'PIECES_UNREADABLE',
+      'The list arrived unreadable.'
+    );
   }
   return {
     state: readScreenState(record.state),
@@ -388,9 +412,7 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
 };
 
 /** Открытые вопросы заготовки: круг, сами вопросы и то, что уже закрыто. */
-export const readOpenQuestions = (
-  value: unknown
-): PieceQuestionsV1 | null => {
+export const readOpenQuestions = (value: unknown): PieceQuestionsV1 | null => {
   const record = asRecord(value);
   if (!record) return null;
   return {
@@ -415,7 +437,10 @@ export function readPieceDetail(value: unknown): PieceDetailV1 {
   const record = asRecord(value);
   const piece = record ? readRow(record.piece) : null;
   if (!record || !piece) {
-    throw new PieceContractError('PIECE_UNREADABLE', 'The piece arrived unreadable.');
+    throw new PieceContractError(
+      'PIECE_UNREADABLE',
+      'The piece arrived unreadable.'
+    );
   }
   return {
     state: readScreenState(record.state),
@@ -513,6 +538,9 @@ export function readAdaptEvent(line: string): PieceAdaptReading | null {
     };
   }
 
+  // Transport keep-alives do not change the current product stage.
+  if (record.name === 'heartbeat') return null;
+
   const name = asText(record.name);
   if (!name) {
     throw new PieceContractError(
@@ -559,7 +587,10 @@ export function readAdaptEvent(line: string): PieceAdaptReading | null {
       };
 
     case 'generator':
-      return { kind: 'event', event: { name: 'generator', event: record.event } };
+      return {
+        kind: 'event',
+        event: { name: 'generator', event: record.event },
+      };
 
     case 'adaptation': {
       const adaptation = readAdaptation(record.adaptation);
@@ -617,7 +648,7 @@ export type PiecesFilters = {
   /** Площадка фильтра «Ещё нет в…», либо `ALL`. */
   missingOn: string;
   /** Состояние, либо `ALL`. */
-  state: AdaptationStateV1 | 'ALL';
+  state: AdaptationStateV1 | 'ALL' | 'archived';
   includeArchived: boolean;
 };
 
@@ -631,8 +662,12 @@ export const emptyPiecesFilters: PiecesFilters = {
 export const piecesQuery = (filters: PiecesFilters): PiecesQueryV1 => ({
   ...(filters.q.trim() ? { q: filters.q.trim() } : {}),
   ...(filters.missingOn !== 'ALL' ? { missingOn: filters.missingOn } : {}),
-  ...(filters.state !== 'ALL' ? { state: filters.state } : {}),
-  ...(filters.includeArchived ? { includeArchived: true } : {}),
+  ...(filters.state !== 'ALL' && filters.state !== 'archived'
+    ? { state: filters.state }
+    : {}),
+  ...(filters.includeArchived || filters.state === 'archived'
+    ? { includeArchived: true }
+    : {}),
 });
 
 export function piecesListUrl(filters: PiecesFilters): string {
@@ -684,7 +719,10 @@ export function cellOf(row: PieceRowV1, platform: string): PieceCellV1 {
 export type CellAction = 'post' | 'adapt' | 'none';
 
 export const cellAction = (state: PieceCellStateV1): CellAction =>
-  state === 'published' || state === 'queued' || state === 'draft' || state === 'error'
+  state === 'published' ||
+  state === 'queued' ||
+  state === 'draft' ||
+  state === 'error'
     ? 'post'
     : state === 'none'
     ? 'adapt'
@@ -755,21 +793,21 @@ export function filterPieces(
   rows: readonly PieceRowV1[],
   filters: PiecesFilters
 ): PieceRowV1[] {
-  const needle = filters.q.trim().toLocaleLowerCase();
   return rows.filter((row) => {
-    if (needle) {
-      const haystack = [row.title, row.code, ...row.excerpt]
-        .join(' ')
-        .toLocaleLowerCase();
-      if (!haystack.includes(needle)) return false;
-    }
+    if (filters.state === 'archived' && !row.archivedAt) return false;
+    if (
+      filters.state !== 'archived' &&
+      !filters.includeArchived &&
+      row.archivedAt
+    )
+      return false;
     if (filters.missingOn !== 'ALL') {
       const cell = cellOf(row, filters.missingOn);
       // «Ещё нет» — это отсутствие адаптации, а не незнание о ней: строка,
       // публикацию которой не прочитали, в этот фильтр не попадает.
       if (cell.state !== 'none') return false;
     }
-    if (filters.state !== 'ALL') {
+    if (filters.state !== 'ALL' && filters.state !== 'archived') {
       const cells = row.cells ?? [];
       if (!cells.some((cell) => cell.state === filters.state)) return false;
     }

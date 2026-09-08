@@ -465,6 +465,7 @@ test('generator current-required failure makes zero AI and WebResearch calls', a
 
 test('Post group read is tenant-scoped and returns safe immutable provenance metadata', async () => {
   let query;
+  let pieceQuery;
   const { PostsRepository } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
     {
@@ -511,6 +512,7 @@ test('Post group read is tenant-scoped and returns safe immutable provenance met
               {
                 id: 'post-1',
                 organizationId: 'org-a',
+                contentDerivations: [{contentPieceId: 'piece-1'}],
                 contentOutputContexts: [
                   {
                     contentContextSnapshotId: 'context-1',
@@ -535,6 +537,12 @@ test('Post group read is tenant-scoped and returns safe immutable provenance met
             ];
           },
         },
+        contentPiece: {
+          findMany: async (value) => {
+            pieceQuery = value;
+            return [{ id: 'piece-1', title: 'Заготовка' }];
+          },
+        },
       },
     },
     {},
@@ -544,12 +552,32 @@ test('Post group read is tenant-scoped and returns safe immutable provenance met
     {},
     {}
   );
+  const [calendarPost] = await repository.getPosts('org-a', {
+    startDate: '2026-09-01',
+    endDate: '2026-09-30',
+  });
+  assert.deepEqual(calendarPost.piece, {
+    id: 'piece-1',
+    code: 'cnt-01',
+    title: 'Заготовка',
+  });
+  assert.equal('contentDerivations' in calendarPost, false);
+
   const [post] = await repository.getPostsByGroup('org-a', 'group-a');
   assert.equal(query.where.organizationId, 'org-a');
   assert.equal(
     query.include.contentOutputContexts.where.organizationId,
     'org-a'
   );
+  assert.equal(query.include.contentDerivations.where.organizationId, 'org-a');
+  assert.equal(pieceQuery.where.organizationId, 'org-a');
+  assert.equal(post.contentPieceId, 'piece-1');
+  assert.deepEqual(post.piece, {
+    id: 'piece-1',
+    code: 'cnt-01',
+    title: 'Заготовка',
+  });
+  assert.equal('contentDerivations' in post, false);
   assert.equal(post.contentOutputContext.contentContextSnapshotId, 'context-1');
   assert.deepEqual(post.contentOutputContext.usedCitationIds, ['F1']);
   assert.equal(post.contentOutputContext.context.status, 'READY');

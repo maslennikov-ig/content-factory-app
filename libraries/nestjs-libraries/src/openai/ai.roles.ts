@@ -23,7 +23,7 @@
 /**
  * The roles, by what the call is doing rather than by which screen asked.
  *
- * Six, not more: a role only earns its place when some call really wants a
+ * Each role has a concrete caller: a role only earns its place when some call really wants a
  * different model from its neighbour, and a role nobody can point at is a row
  * on the settings screen that teaches a person nothing. Assembling a brief is
  * absent for that reason — `content-brief.compose.ts` calls no model at all.
@@ -35,6 +35,7 @@
  *  - `research` — the web-research fallback that both searches and answers.
  *  - `draft` — writing something a person will read: posts, slides, prompts.
  *  - `judge` — weighing a draft against the workspace's voice.
+ *  - `review` — explicit cliche removal or alignment with a piece.
  *  - `image` — generating a picture.
  */
 export const AI_ROLES = [
@@ -43,6 +44,7 @@ export const AI_ROLES = [
   'research',
   'draft',
   'judge',
+  'review',
   'image',
 ] as const;
 

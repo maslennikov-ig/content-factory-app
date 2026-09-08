@@ -25,7 +25,7 @@ const INDEX =
 const SERVICE =
   'libraries/nestjs-libraries/src/content-intelligence/search/text-search.service.ts';
 
-const { TextSearchIndex, excerptOf, stemWord } = loadTypeScriptModule(INDEX);
+const { TextSearchIndex, excerptOf, stemWord, matchedFormsOf, matchedSnippetOf } = loadTypeScriptModule(INDEX);
 const { TextSearchService, TEXT_SEARCH_TTL_MS } = loadTypeScriptModule(SERVICE);
 
 const at = (iso) => new Date(iso);
@@ -386,4 +386,15 @@ describe('выдержка', () => {
 test('набор читает тот самый модуль, который отгружается', () => {
   expect(path.basename(SERVICE)).toBe('text-search.service.ts');
   expect(path.basename(INDEX)).toBe('text-search.index.ts');
+});
+
+
+test('matched forms and a distant snippet follow the same Russian stems as search', () => {
+  const text = 'Вступление. '.repeat(30) + 'Срок соблюдён клиентом.';
+  const forms = matchedFormsOf('сроки клиента', text);
+  expect(forms).toEqual(['срок', 'клиентом']);
+  const snippet = matchedSnippetOf(text, forms);
+  expect(snippet.length).toBeLessThanOrEqual(162);
+  expect(snippet).toContain('Срок соблюдён клиентом');
+  expect(matchedSnippetOf('Сроки важны.', forms)).toBe('Сроки важны.');
 });

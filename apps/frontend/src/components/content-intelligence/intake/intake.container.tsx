@@ -1,10 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { useIntegrationList } from '../../launches/helpers/use.integration.list';
 import { useUser } from '../../layout/user.context';
 import type { Integrations } from '../../launches/calendar.context';
 import { createNdjsonSplitter } from '../../new-launch/ndjson';
@@ -14,12 +13,10 @@ import {
 } from '../content-write-right';
 import { resolveContentLocale } from '../content-section.copy';
 import { useAssistantAvailability } from '../../copilot/assistant-availability';
-import { IntakeScreen, type IntakeChannel } from './intake.screen';
-import { WritingProfileCard } from './writing-profile.card';
+import { IntakeScreen } from './intake.screen';
 import { intakeCopy } from './intake.copy';
 import {
   INTAKE_API,
-  INTAKE_MAX_CHANNELS,
   IntakeContractError,
   blockReason,
   buildIntakePayload,
@@ -29,7 +26,6 @@ import {
   type BriefFilledV1,
 } from './intake.adapter';
 import { piecePath } from '../pieces/pieces.adapter';
-import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 
 /**
  * Вход одной мыслью: запросы, стрим и то, что из них выходит.
@@ -86,37 +82,7 @@ export function IntakeContainer({
   const canWrite = writeRightFromRole(user?.role).allowed;
   const availability = useAssistantAvailability(true);
 
-  const { data: fetched } = useIntegrationList();
-  const channels: readonly Integrations[] = given ?? fetched ?? [];
-
-  /*
-    Доступный канал — тот же фильтр, что применяет сам выбор каналов
-    (`PicksSocialsView`): не выключенный и не застрявший на середине
-    подключения. Считать по всему списку значило бы обещать форму
-    пространству, где писать некуда.
-  */
-  const available = useMemo(
-    () => channels.filter((one) => !one.disabled && !one.inBetweenSteps),
-    [channels]
-  );
-
-  /*
-    Настроена ли у канала карточка «Как пишем сюда».
-
-    Один флаг едет в списке каналов, который экран и так читает: значок честен
-    сразу, до того как карточку открыли. Опрашивать дверь карточки у каждого
-    канала — это шесть запросов ради подписи в два слова.
-  */
-  const writingProfileStored = useMemo(
-    () =>
-      Object.fromEntries(
-        channels.map((one) => [one.id, Boolean(one.writingProfileStored)])
-      ),
-    [channels]
-  );
-
   const [input, setInput] = useState(prefill?.input ?? '');
-  const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
@@ -131,7 +97,6 @@ export function IntakeContainer({
   const [failure, setFailure] = useState<{ title: string; message: string } | null>(
     null
   );
-  const [profileFor, setProfileFor] = useState<string | null>(null);
   /*
     Заготовка волны `tu3k.9`: она записывается до цикла по каналам и до единого
     вопроса, поэтому её код приходит раньше черновика и живёт отдельно от него
@@ -161,14 +126,11 @@ export function IntakeContainer({
   // уже записан (`Integration.contentLanguage`), и спрашивать заново то, что
   // продукт знает, — лишний вопрос. Нет канала или языка у него — язык
   // интерфейса.
-  const language0 =
-    textLanguage ??
-    available.find((one) => one.id === selectedIds[0])?.contentLanguage ??
-    locale;
+  const language0 = textLanguage ?? locale;
 
   const detectedLink = detectInputKind(input) === 'link';
 
-  const blocked = blockReason({ availability, input, selected: selectedIds });
+  const blocked = blockReason({ availability, input, selected: [] });
 
   const state = screenState({
     availability,
@@ -180,18 +142,6 @@ export function IntakeContainer({
     draft: wrote,
     failed: failure !== null,
   });
-
-  const toggleChannel = useCallback((integration: ChannelPickerIntegration) => {
-    setSelectedIds((current) =>
-      current.includes(integration.id)
-        ? current.filter((id) => id !== integration.id)
-        : // Четвёртый канал дверь отказывает до первого байта; экран просто
-          // не даёт его выбрать, вместо того чтобы слать заведомый отказ.
-          current.length >= INTAKE_MAX_CHANNELS
-          ? current
-          : [...current, integration.id]
-    );
-  }, []);
 
   /**
    * Уход на страницу заготовки — обычным адресом, а не подменой вида.
@@ -226,7 +176,6 @@ export function IntakeContainer({
           body: JSON.stringify(
             buildIntakePayload({
               input,
-              integrationIds: selectedIds,
               language: language0,
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
@@ -248,16 +197,14 @@ export function IntakeContainer({
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let sawDraft = false;
         let recorded: string | null = null;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readIntakeEvent(line);
           if (!reading) return;
           if (reading.kind === 'step') {
-            // `search-started` приходит перед проверкой чисел поиском
-            // (`content-factory-next-tu3k.7`): строка «Проверяем цифры
-            // поиском…» встаёт вовремя, а не после того, как поиск закончился.
+            // `search-started` приходит перед поиском недостающих фактов:
+            // строка об обогащении встаёт вовремя, а не после завершения поиска.
             setStep(reading.name === 'search-started' ? 'search' : reading.name);
             return;
           }
@@ -267,6 +214,7 @@ export function IntakeContainer({
             // бы оборвать адаптации, которые сервер как раз пишет.
             if (reading.event.name === 'piece') {
               recorded = reading.event.pieceId;
+              setWrote(true);
               setPiece({
                 pieceId: reading.event.pieceId,
                 code: reading.event.code,
@@ -283,7 +231,7 @@ export function IntakeContainer({
               setStep('claims');
               break;
             case 'link-fetched':
-              setStep('search');
+              setStep('brief-started');
               break;
             case 'brief-filled':
               setBrief(event.brief);
@@ -292,17 +240,6 @@ export function IntakeContainer({
             case 'questions':
               // Вопросы больше не показываются здесь и не обрывают ход: они
               // уехали в бриф заготовки и живут на её странице.
-              break;
-            case 'channel-started':
-              setStep('writing');
-              break;
-            case 'draft':
-              // Черновики сохранены сервером как DRAFT и открываются из
-              // календаря и со страницы заготовки. Здесь остаётся только
-              // отметка «написалось» — показывать текст экрану, который сейчас
-              // уйдёт, незачем.
-              sawDraft = true;
-              setWrote(true);
               break;
             case 'error':
               setFailure({ title: w.errorTitle, message: event.message });
@@ -321,7 +258,7 @@ export function IntakeContainer({
         splitter.finish();
         setStep(null);
 
-        if (!sawDraft && !recorded) {
+        if (!recorded) {
           setFailure({ title: w.errorTitle, message: w.errorIncomplete });
           return;
         }
@@ -346,7 +283,7 @@ export function IntakeContainer({
         setStep(null);
       }
     },
-    [goToPiece, input, language0, prefill?.sourceLeadId, request, selectedIds, w]
+    [goToPiece, input, language0, prefill?.sourceLeadId, request, w]
   );
 
   const write = useCallback(() => {
@@ -364,7 +301,6 @@ export function IntakeContainer({
   /* ------------------------------------------------------------------ */
 
   const readOnlyNoteId = 'intake-read-only';
-  const pickerChannels: readonly IntakeChannel[] = available;
 
   return (
     <>
@@ -374,8 +310,6 @@ export function IntakeContainer({
         input={input}
         inputKind={brief?.inputKind ?? detectInputKind(input) ?? null}
         detectedLink={detectedLink}
-        channels={pickerChannels}
-        selectedIds={selectedIds}
         language={language0}
         step={step}
         piece={piece}
@@ -400,7 +334,6 @@ export function IntakeContainer({
           ) : undefined
         }
         onInputChange={setInput}
-        onToggleChannel={toggleChannel}
         onLanguageChange={setTextLanguage}
         onWrite={write}
         onCancel={() => {
@@ -410,24 +343,10 @@ export function IntakeContainer({
           setStep(null);
         }}
         onOpenPiece={goToPiece}
-        onOpenWritingProfile={setProfileFor}
         onManual={onSwitchToManual}
         onRetry={retry}
-        writingProfileStored={writingProfileStored}
       />
 
-      {profileFor && (
-        <WritingProfileCard
-          locale={locale}
-          integrationId={profileFor}
-          integrationName={
-            available.find((one) => one.id === profileFor)?.name ?? ''
-          }
-          canWrite={canWrite}
-          open
-          onClose={() => setProfileFor(null)}
-        />
-      )}
     </>
   );
 }

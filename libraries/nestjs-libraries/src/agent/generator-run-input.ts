@@ -20,6 +20,7 @@
 import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import type {
   ChannelWritingProfileV1,
+  IntakeFormatV1,
   RelatedOwnPostV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
@@ -71,6 +72,8 @@ export type IntakeGenerationHintsV1 = {
    * слова — это то же правило, по которому переносится суть.
    */
   answers?: string[];
+  /** Выбранная форма текста; локализованный ответ уже разобран сервером. */
+  formatHint?: IntakeFormatV1;
   channel: IntakeChannelHintsV1;
 };
 

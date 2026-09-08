@@ -1,5 +1,8 @@
 'use client';
 
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
+import { calendarPlanningCopy } from '../launches/calendar-planning.copy';
 import { useCallback } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -22,13 +25,18 @@ export const PostPreviewDialog = ({
   open,
   onClose,
   postId,
+  piece,
 }: {
   open: boolean;
   onClose: () => void;
   postId: string;
+  /** Provenance only from the authenticated calendar; never from public preview. */
+  piece?: { id: string; code: string; title: string } | null;
 }) => {
   const fetch = useFetch();
   const t = useT();
+  const language = useInterfaceLanguage();
+  const copy = calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
   const loadPost = useCallback(async () => {
     const response = await fetch(`/public/posts/${postId}`);
     if (!response.ok) {
@@ -54,6 +62,9 @@ export const PostPreviewDialog = ({
         </Button>
       }
     >
+      {piece && <p className="cf-caption text-cf-ink-muted mb-[16px]">
+        {copy.origin} {piece.code} · <ButtonLink href={`/content/pieces/${encodeURIComponent(piece.id)}`} variant="quiet" density="dense" onClick={onClose}>{copy.originOpen} →</ButtonLink>
+      </p>}
       {isLoading ? (
         <PreviewSurface state="loading"><SkeletonRows
           rows={4}

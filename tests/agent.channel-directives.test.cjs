@@ -30,19 +30,23 @@ const {
 const { defaultWritingProfileFor } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
 );
+const { channelFormatHint } = loadTypeScriptModule(
+  'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
+);
 
 const { voiceInstructionLines, toneFallbackLines } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/voice-directives.ts'
 );
 
 const TELEGRAM = {
+  identifier: 'telegram',
   name: 'Telegram',
   maxLength: 4096,
   maxCaptionLength: 1024,
   editor: 'html',
 };
 
-const VK = { name: 'VK', maxLength: 16000, editor: 'normal' };
+const VK = { identifier: 'vk', name: 'VK', maxLength: 16000, editor: 'normal' };
 
 const linesFor = (profile, provider = TELEGRAM, options = {}) =>
   channelInstructionLines(profile, provider, options);
@@ -110,7 +114,16 @@ describe('the rules the research measured', () => {
     ).toBe(true);
   });
 
-  test('a rule for something the card leaves free is not printed at all', () => {
+  test('a missing card uses the provider and channel language defaults', () => {
+    expect(
+      linesFor(null, { ...TELEGRAM, contentLanguage: 'ru' })
+    ).toContain(
+      'At most three emoji, of no more than two kinds, and never as list bullets.'
+    );
+    expect(linesFor(null, VK)).not.toContain('The first 80–180 characters');
+  });
+
+  test('every explicit card value reaches the prompt, including free choices', () => {
     const free = {
       ...defaultWritingProfileFor('telegram', 'ru'),
       emojiLevel: 'free',
@@ -119,9 +132,22 @@ describe('the rules the research measured', () => {
     };
     const lines = linesFor(free);
 
-    expect(lines.some((line) => line.toLowerCase().includes('emoji'))).toBe(false);
-    expect(lines.some((line) => line.toLowerCase().includes('hashtag'))).toBe(false);
-    expect(lines.some((line) => line.toLowerCase().includes('link'))).toBe(false);
+    expect(lines.some((line) => line.includes('3–6 emoji'))).toBe(true);
+    expect(lines.some((line) => line.includes('Links may appear inline'))).toBe(true);
+    expect(lines.some((line) => line.includes('Hashtags may be used when'))).toBe(true);
+  });
+
+  test('Telegram research stays in Telegram while another platform keeps its own limit', () => {
+    const telegram = linesFor(defaultWritingProfileFor('telegram', 'ru'));
+    const vk = linesFor(defaultWritingProfileFor('vk', 'ru'), VK);
+
+    expect(telegram.some((line) => line.includes('80–180'))).toBe(true);
+    expect(telegram.some((line) => line.includes('2–4 lines'))).toBe(true);
+    expect(telegram.some((line) => line.includes('two short bold spans'))).toBe(true);
+    expect(vk[0]).toContain('16000');
+    expect(vk.some((line) => line.includes('80–180'))).toBe(false);
+    expect(vk.some((line) => line.includes('2–4 lines'))).toBe(false);
+    expect(vk.some((line) => line.includes('two short bold spans'))).toBe(false);
   });
 
   test('every call to action is one call to action', () => {
@@ -145,6 +171,13 @@ describe('the rules the research measured', () => {
         line.startsWith('Choose the shape')
       )
     ).toBe(true);
+  });
+
+  test('the answer shown by the Russian format question resolves to the model format', () => {
+    expect(channelFormatHint('разбор')).toBe('expert');
+    expect(channelFormatHint('случай')).toBe('case');
+    expect(channelFormatHint('story')).toBe('story');
+    expect(channelFormatHint('реши сама')).toBeNull();
   });
 
   test('a channel without markup is told so; a channel with it gets a ceiling', () => {

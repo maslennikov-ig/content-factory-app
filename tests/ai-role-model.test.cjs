@@ -194,3 +194,13 @@ describe('the active role travels with the admitted operation', () => {
     ).toBe('classify');
   });
 });
+
+ test('review is an independent configurable text role, with the ordinary text fallback', () => {
+  const { AI_ROLES, modelFor, parseRoleModels } = roles();
+  expect(AI_ROLES).toContain('review');
+  const config = { textModel: 'text-default', imageModel: 'image-default', roleModels: { judge: 'judge-model' } };
+  expect(modelFor('review', config)).toBe('text-default');
+  const roleModels = parseRoleModels({ review: 'review-model' });
+  expect(roleModels).toEqual({ review: 'review-model' });
+  expect(modelFor('review', { ...config, roleModels })).toBe('review-model');
+ });

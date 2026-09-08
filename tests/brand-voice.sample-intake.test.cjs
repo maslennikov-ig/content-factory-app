@@ -195,7 +195,7 @@ describe('Telegram export', () => {
       ],
     });
 
-    expect(candidates.map((one) => one.externalRef)).toEqual(['1', '5']);
+    expect(candidates.map((one) => one.externalRef)).toEqual(['5', '1']);
     expect(candidates[0].origin).toBe('TELEGRAM_EXPORT');
   });
 
@@ -204,6 +204,7 @@ describe('Telegram export', () => {
       candidates: [],
       truncated: false,
       seen: 0,
+      eligible: 0,
     });
     expect(telegram.parseTelegramExport('не json вовсе').candidates).toEqual([]);
     expect(telegram.parseTelegramExport({}).candidates).toEqual([]);
@@ -232,10 +233,9 @@ describe('Telegram export', () => {
     };
     const result = telegram.parseTelegramExport(huge, { maxMessages: 20 });
 
-    // A channel export runs to hundreds of megabytes. Reading all of it into
-    // memory is how the import takes the server down.
+    // Selection scans all entries so older file order cannot hide the latest posts.
     expect(result.truncated).toBe(true);
-    expect(result.seen).toBe(20);
+    expect(result.seen).toBe(60);
     expect(result.candidates.length).toBeLessThanOrEqual(20);
   });
 });

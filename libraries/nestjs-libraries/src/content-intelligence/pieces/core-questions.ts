@@ -86,7 +86,7 @@ export const coreQuestionText = (
 /** Своё у человека: факт из его слов или из его ответа, а не находка поиска. */
 export const hasOwnDetail = (brief: BriefFilledV1): boolean =>
   brief.facts.some(
-    (fact) => fact.origin === 'input' || fact.origin === 'person'
+    (fact) => fact.origin === 'person' || (brief.inputKind === 'thought' && fact.origin === 'input')
   );
 
 export type CoreQuestionsInputV1 = {

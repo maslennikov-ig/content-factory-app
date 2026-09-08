@@ -34,6 +34,7 @@ const AI_ROLES = [
   'research',
   'draft',
   'judge',
+  'review',
   'image',
 ] as const;
 
@@ -493,7 +494,7 @@ const AiProviderComponent = () => {
       */}
       <div data-ai-usage="member" className="flex flex-col gap-[8px]">
         <div className="cf-label-sm text-cf-ink-muted">
-          {t('ai_usage_by_member', 'AI operations by member, this period')}
+          {t('ai_usage_by_member', 'AI usage by member, this period')}
         </div>
         {data?.usageByMember?.length ? (
           <div className="flex flex-col gap-[4px]">
@@ -534,7 +535,7 @@ const AiProviderComponent = () => {
       */}
       <div data-ai-usage="role" className="flex flex-col gap-[8px]">
         <div className="cf-label-sm text-cf-ink-muted">
-          {t('ai_usage_by_role', 'AI operations by role, this period')}
+          {t('ai_usage_by_role', 'AI usage by role, this period')}
         </div>
         {data?.usageByRole?.length ? (
           <div className="flex flex-col gap-[4px]">
@@ -682,7 +683,7 @@ const AiProviderComponent = () => {
       */}
       <div className="mt-[8px] border-t border-cf-border pt-[16px]">
         <h4 className="cf-heading-md text-cf-ink">
-          {t('ai_role_models', 'Model per call role')}
+          {t('ai_role_models', 'Usage and call roles')}
         </h4>
         {/*
           Три предложения вместо одного, и каждое отвечает на свой вопрос

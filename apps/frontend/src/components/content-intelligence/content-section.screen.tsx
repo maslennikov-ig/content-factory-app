@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import clsx from 'clsx';
@@ -18,7 +18,6 @@ import { VoiceBriefContainer } from '../brand-voice/voice-brief.container';
 import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
 import { PiecesContainer } from './pieces/pieces.container';
-import { ContentArchiveContainer } from './content-archive.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
 
 /**
@@ -79,104 +78,13 @@ export type { ContentSectionLocale };
  * inspector; the label changed instead of the key so a stored tab or a test
  * regex naming the old key does not silently point at nothing.
  *
- * «Материалы» keeps its place, and «Что уже написали» is not a sixth tab
- * beside it: §9.4 of `docs/product/content-section-map.md`, decided
- * 02.09.2026 — «Не вижу смысла делать два места» — folds the archive into
- * the Materials tab as a view a person switches inside one list, not a
- * separate stop on the strip. `ContentSectionScreen` below owns the switch
- * and mounts `ContentArchiveContainer` under it; `content-archive.adapter.ts`
- * and the container itself are unchanged.
- *
- * `content-factory-next-tu3k.9` (06.09.2026) moves that tab to the front and
- * renames it «Заготовки»: the list of pieces is where the work starts now, and
- * the first tab and the section's default address should be the same place.
- * Its key stays `materials` — `?tab=materials`, `?tab=archive`, `initialTab`
- * and several suites all name it — and the first view behind it is the pieces
- * table instead of the library; «На что опираются» is gone from the strip by
- * the owner's decision (§11.5 of the section map).
+ * «Заготовки» показывают одну таблицу. Решение владельца 08.09.2026:
+ * отдельный вид старых публикаций удалён; старый адрес archive ведёт сюда.
  */
 export { CONTENT_TABS } from './content-section.tabs';
 import { CONTENT_TABS } from './content-section.tabs';
 
-
-/**
- * The two views one list holds instead of two tabs.
- *
- * `docs/product/content-section-map.md` §9.4 (decided 02.09.2026): «Материалы»
- * and «Что уже написали» read as one place with a switch inside it, not two
- * stops on the tab strip. `RadioGroup`/`RadioOption` is the choice primitive
- * this same file's neighbour, `content-archive.container.tsx`, already uses
- * for its import dialog's origin field, and it fits here for the reason its
- * own doc comment gives: picking a view is cheap, reversible, and does not
- * navigate anywhere — which is what separates a radio group from a tab list
- * in this design system, not just which panel happens to be underneath it.
- *
- * The strip itself is `ui/segmented`: the same fill-versus-surface split
- * `form/button.tsx` uses for its own variants — a filled, accent pill for the
- * current view and a quiet one for the other, `cf-pressed-fill`/`cf-pressed`
- * for the press each already carries. The wrapping panel forces every button
- * inside it to a 44px mobile hit area (`ContentSectionShell`'s own
- * `[&_button]:min-h-[44px]`), so the switch does not have to ask for its own.
- */
-export type MaterialsView = 'materials' | 'archive';
-
-// The labels live with the rest of the frame's words in
-// `content-section.copy.ts`; this only reshapes them by view key.
-const materialsViewCopy = (locale: ContentSectionLocale) => {
-  const words = contentSectionCopy[locale];
-  return {
-    label: words.materialsViewLabel,
-    materials: words.materialsViewMaterials,
-    archive: words.materialsViewArchive,
-  } as const;
-};
-
-const MATERIALS_VIEWS: readonly MaterialsView[] = ['materials', 'archive'];
-
-export function MaterialsViewSwitch({
-  locale,
-  view,
-  onChange,
-}: {
-  locale: ContentSectionLocale;
-  view: MaterialsView;
-  onChange: (view: MaterialsView) => void;
-}) {
-  const t = materialsViewCopy(locale);
-
-  return (
-    <Segmented<MaterialsView>
-      label={t.label}
-      value={view}
-      onChange={onChange}
-      options={MATERIALS_VIEWS.map((option) => ({
-        value: option,
-        label: t[option],
-      }))}
-    />
-  );
-}
-
-/**
- * The same switch on the Brief tab, and the intake is the view it opens on.
- *
- * `content-factory-next-tu3k.4`, decided by the owner 06.09.2026. On the live
- * walkthrough the Brief tab met a person with eight fields and a separate
- * fact form — «слишком сложно» for the everyday case of «появилась мысль».
- * The tab now opens on the intake: one field, the channels, and a model that
- * fills the brief itself. The eight-field form is not deleted and not hidden
- * behind anything — it is the second view, «Вручную», reachable in one press,
- * because the person who knows exactly what they want to say is still right.
- *
- * The words stay separate from `MaterialsViewSwitch`: the two switches answer
- * different questions («вид списка» / «как начать»), and one parameterised
- * switch over two unrelated pairs of labels is the kind of shared thing that
- * has to be untangled the moment the third view appears. What they do share is
- * the strip itself — border, 4px step, radius and the fill of the current
- * choice — and since 07.09.2026 that lives once, in `ui/segmented`. §9.4's own
- * reasoning for `RadioGroup` applies unchanged — choosing is cheap, reversible
- * and navigates nowhere.
- */
+/** Вход одной мыслью и ручная форма — два способа начать заготовку. */
 export type BriefView = 'intake' | 'manual';
 
 const BRIEF_VIEWS: readonly BriefView[] = ['intake', 'manual'];
@@ -247,6 +155,17 @@ export function ContentSectionShell({
 }) {
   const t = contentSectionCopy[locale];
 
+  // Avatar is a separate workflow destination, not a tab among pieces.
+  if (tab === 'avatars') return (
+    <div data-production-surface="content/section" data-content-tab={tab} className="flex min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink">
+      <header className="border-b border-cf-border bg-cf-surface p-[20px] md:p-[24px]">
+        <h1 className="cf-heading-lg text-cf-ink [text-wrap:balance]">{t.avatars}</h1>
+        <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">{t.avatarDescription}</p>
+      </header>
+      <div className="flex min-w-0 flex-col p-[20px] md:p-[24px]">{children}</div>
+    </div>
+  );
+  const tabs = CONTENT_TABS;
   return (
     <Tabs value={tab} onChange={(value) => onTabChange(value as ContentTab)}>
       <div
@@ -272,7 +191,7 @@ export function ContentSectionShell({
             // label like «Бриф» is narrower than a fingertip on its own.
             className="mt-[16px] flex flex-wrap gap-x-[24px] gap-y-[4px] [&_button]:min-w-[44px] sm:[&_button]:min-w-0"
           >
-            {CONTENT_TABS.map((value) => (
+            {tabs.map((value) => (
               <Tab
                 key={value}
                 value={value}
@@ -320,9 +239,9 @@ export function ContentSectionScreen({
   const [tab, setTab] = useState<ContentTab>(
     initialTab === 'archive' ? 'materials' : initialTab
   );
-  const [materialsView, setMaterialsView] = useState<MaterialsView>(
-    initialTab === 'archive' ? 'archive' : 'materials'
-  );
+  useEffect(() => {
+    setTab(initialTab === 'archive' ? 'materials' : initialTab);
+  }, [initialTab]);
   // Вкладка «Бриф» открывается входом одной мыслью; ручная форма — второй вид.
   const [briefView, setBriefView] = useState<BriefView>('intake');
   /*
@@ -365,9 +284,7 @@ export function ContentSectionScreen({
         and the gate between a brief and a draft. `materials` is the library;
         its empty state is the same one that stood here as a placeholder,
         because that is genuinely what a workspace with no pieces sees. It
-        also carries the view switch — `materialsView` picks between the
-        library (`VoiceMaterialsContainer`) and the archive
-        (`ContentArchiveContainer`), per §9.4's "one place, two views".
+        shows the pieces table as the only view.
       */}
       {tab === 'avatars' ? (
         <VoiceTab />
@@ -409,29 +326,7 @@ export function ContentSectionScreen({
             того же, а источник ссылок на прошлые тексты, и без этой строки
             вкладка выглядела двумя видами одного и того же.
           */}
-          <div className="flex min-w-0 flex-wrap items-center gap-[16px]">
-            <MaterialsViewSwitch
-              locale={locale}
-              view={materialsView}
-              onChange={setMaterialsView}
-            />
-            <span className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
-              {contentSectionCopy[locale].materialsViewHint}
-            </span>
-          </div>
-          {materialsView === 'materials' ? (
-            // «Заготовки» (`content-factory-next-tu3k.9`, 06.09.2026): таблица
-            // заготовок по колонке на площадку. Она заменила витрину «На что
-            // опираются» — решение владельца §11.5, — и ключ вида остался
-            // прежним, чтобы `?tab=archive` и `initialTab` продолжали работать.
-            <PiecesContainer />
-          ) : (
-            // «Что уже написали» (`content-factory-next-odb8.4`): three
-            // layers — made here, brought in from before the product,
-            // published beside it — in one flat, filterable list, now the
-            // second view inside Materials rather than its own tab.
-            <ContentArchiveContainer />
-          )}
+          <PiecesContainer />
         </div>
       ) : tab === 'provenance' ? (
         // «Откуда факты» (`content-factory-next-odb8.1`): a witness, not a

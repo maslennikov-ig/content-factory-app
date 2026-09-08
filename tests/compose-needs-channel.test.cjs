@@ -154,41 +154,17 @@ describe('ячейка без каналов отвечает карточкой
   });
 });
 
-describe('ячейка ведёт в карточку, а не во всплывашку и не в каталог', () => {
+describe('ячейка ведёт в выбор адаптации с безопасным пустым состоянием', () => {
   const source = read(CALENDAR);
-
-  test('пустое пространство разбирается раньше роли и ведёт в одно место', () => {
-    expect(source).toMatch(
-      /!integrations\.length\s*\?\s*explainNoChannel[\s\S]{0,120}addModal/u
-    );
-    // Прежней развилки «администратору каталог, остальным всплывашка» нет.
-    expect(source).not.toContain('refuseAddChannel');
+  const picker = read('apps/frontend/src/components/launches/adaptation-picker.tsx');
+  test('дата клетки передаётся выбору без подключения и без записи', () => {
+    expect(source).toContain('openPicker(getDate)');
+    expect(source).not.toContain('explainNoChannel');
+    expect(source).not.toContain('useAddProvider');
   });
-
-  test('карточка открывается окном, а каталог — кнопкой внутри неё', () => {
-    expect(source).toMatch(/modal\.openModal\(\{[\s\S]{0,400}<NoChannelNotice/u);
-    expect(source).toMatch(/onAddChannel=\{\(\) => \{[\s\S]{0,80}addProvider\(\)/u);
-  });
-
-  test('заголовок держит шапка окна, а не второй заголовок внутри карточки', () => {
-    expect(source).toMatch(
-      /title: t\(\s*'compose_needs_channel_title'/u
-    );
-    const notice = read(NOTICE);
-    expect(notice).not.toContain('compose_needs_channel_title');
-  });
-});
-
-describe('черновик без канала невозможен на уровне данных', () => {
-  test('Post.integrationId обязателен в схеме', () => {
-    const model = read(SCHEMA).match(/model Post \{[\s\S]*?\n\}/u)[0];
-    expect(model).toMatch(/^\s*integrationId\s+String\s*$/mu);
-    expect(model).toMatch(/integration\s+Integration\s+@relation/u);
-  });
-
-  test('дверь поста требует канал', () => {
-    expect(read(POST_DTO)).toMatch(
-      /@IsDefined\(\)\s*@Type\(\(\) => Integration\)\s*@ValidateNested\(\)\s*integration: Integration;/u
-    );
+  test('без канала чистый лист недоступен, ссылка ведёт в самостоятельный раздел', () => {
+    expect(picker).toContain('disabled={!canWrite || opening || !integrations.length}');
+    expect(picker).toContain('href="/channels"');
+    expect(picker).not.toContain('useAddProvider');
   });
 });

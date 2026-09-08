@@ -1,5 +1,7 @@
 import {
   CHANNEL_NOTES_LIMIT,
+  TELEGRAM_PROVIDER_IDENTIFIER,
+  defaultWritingProfileFor,
   type ChannelWritingProfileV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 import type { IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
@@ -30,7 +32,9 @@ import type { IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-in
 
 /** То, что о площадке знает сам провайдер, и ничего сверх этого. */
 export type ChannelProviderLimits = {
+  identifier: string;
   name: string;
+  contentLanguage?: string | null;
   maxLength: number;
   maxCaptionLength?: number | null;
   editor: 'none' | 'normal' | 'markdown' | 'html';
@@ -67,27 +71,25 @@ export const channelHardLimit = (
     ? provider.maxCaptionLength
     : provider.maxLength;
 
-const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string | null> = {
+const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
   none: 'No emoji.',
   few: 'At most three emoji, of no more than two kinds, and never as list bullets.',
-  // Правило о том, чего правила нет, — это лишний повод к нему прислушаться:
-  // та же оговорка, что у блока материала в `renderContext`.
-  free: null,
+  free: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
 };
 
-const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string | null> = {
+const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string> = {
   none: 'No links in the post.',
   end: 'At most one link, and it goes at the end, after the last sentence.',
-  inline: null,
+  inline: 'Links may appear inline, next to the claim or action they support.',
 };
 
 const HASHTAG_LINE: Record<
   ChannelWritingProfileV1['hashtagPolicy'],
-  string | null
+  string
 > = {
   none: 'No hashtags.',
   end_1_3: 'One to three hashtags, all of them at the very end.',
-  free: null,
+  free: 'Hashtags may be used when they help readers find the topic; choose them by meaning.',
 };
 
 /**
@@ -190,11 +192,15 @@ export const channelCtaLine = (
 ): string => CTA_LINE[kind];
 
 export function channelInstructionLines(
-  profile: ChannelWritingProfileV1,
+  profile: ChannelWritingProfileV1 | null | undefined,
   provider: ChannelProviderLimits,
   options: ChannelDirectiveOptions = {}
 ): string[] {
   const lines: string[] = [];
+  const resolved =
+    profile ??
+    defaultWritingProfileFor(provider.identifier, provider.contentLanguage);
+  const isTelegram = provider.identifier === TELEGRAM_PROVIDER_IDENTIFIER;
   const limit = channelHardLimit(provider, options.withPicture);
 
   lines.push(
@@ -203,7 +209,7 @@ export function channelInstructionLines(
       : `You are writing for ${provider.name}. The post must stay under ${limit} characters.`
   );
 
-  const length = profile.lengthPolicy;
+  const length = resolved.lengthPolicy;
   if (length !== 'provider_max') {
     const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
     lines.push(
@@ -212,24 +218,25 @@ export function channelInstructionLines(
     );
   }
 
-  lines.push(
-    'The first 80–180 characters are what the notification preview shows, so the fact, the number or the disagreement goes there — not a greeting and not a wind-up.'
-  );
-  lines.push(
-    'Keep paragraphs to 2–4 lines with a blank line between them; a wall of text is not read here.'
-  );
-  lines.push(EDITOR_LINE[provider.editor]);
+  if (isTelegram) {
+    lines.push(
+      'The first 80–180 characters are what the notification preview shows, so the fact, the number or the disagreement goes there — not a greeting and not a wind-up.'
+    );
+    lines.push(
+      'Keep paragraphs to 2–4 lines with a blank line between them; a wall of text is not read here.'
+    );
+    lines.push(EDITOR_LINE[provider.editor]);
+  } else if (provider.editor === 'none') {
+    lines.push(EDITOR_LINE.none);
+  }
 
-  const emoji = EMOJI_LINE[profile.emojiLevel];
-  if (emoji) lines.push(emoji);
-  const link = LINK_LINE[profile.linkPolicy];
-  if (link) lines.push(link);
-  const hashtag = HASHTAG_LINE[profile.hashtagPolicy];
-  if (hashtag) lines.push(hashtag);
-  lines.push(CTA_LINE[profile.ctaKind]);
-  lines.push(FORMAT_LINE[options.formatHint || profile.formatPreference]);
+  lines.push(EMOJI_LINE[resolved.emojiLevel]);
+  lines.push(LINK_LINE[resolved.linkPolicy]);
+  lines.push(HASHTAG_LINE[resolved.hashtagPolicy]);
+  lines.push(CTA_LINE[resolved.ctaKind]);
+  lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
-  const notes = notesLine(profile.notes);
+  const notes = notesLine(resolved.notes);
   if (notes) lines.push(notes);
 
   if (options.foreignShingles?.length) lines.push(ANTI_COPY_LINE);

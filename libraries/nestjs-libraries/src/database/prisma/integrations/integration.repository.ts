@@ -1,12 +1,19 @@
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import dayjs from 'dayjs';
-import { Integration, Prisma } from '@prisma/client';
+import { Integration, Prisma, State } from '@prisma/client';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { IntegrationTimeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@contentfactory/nestjs-libraries/dtos/plugs/plug.dto';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
+
+const channelVisiblePostsWhere = (org: string): Prisma.PostWhereInput => ({
+  organizationId: org,
+  deletedAt: null,
+  parentPostId: null,
+  state: { in: [State.PUBLISHED, State.QUEUE, State.ERROR] },
+});
 
 @Injectable()
 export class IntegrationRepository {
@@ -584,6 +591,7 @@ export class IntegrationRepository {
    * целиком — ответ двери отдаёт его как есть, и форма не меняется.
    */
   getIntegrationsForChannelList(org: string) {
+    const visiblePosts = channelVisiblePostsWhere(org);
     return this._integration.model.integration.findMany({
       where: {
         organizationId: org,
@@ -604,7 +612,50 @@ export class IntegrationRepository {
         additionalSettings: true,
         contentLanguage: true,
         writingProfile: true,
+        createdAt: true,
         customer: true,
+        _count: {
+          select: {
+            posts: { where: visiblePosts },
+          },
+        },
+        posts: {
+          where: visiblePosts,
+          orderBy: { publishDate: 'desc' },
+          take: 1,
+          select: { publishDate: true },
+        },
+      },
+    });
+  }
+
+  /** The recent root posts shown on a channel page, with no provider secrets. */
+  getChannelPosts(org: string, id: string, limit: number) {
+    const visiblePosts = channelVisiblePostsWhere(org);
+    return this._integration.model.integration.findFirst({
+      where: {
+        id,
+        organizationId: org,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            posts: { where: visiblePosts },
+          },
+        },
+        posts: {
+          where: visiblePosts,
+          orderBy: { publishDate: 'desc' },
+          take: limit,
+          select: {
+            id: true,
+            content: true,
+            publishDate: true,
+            state: true,
+          },
+        },
       },
     });
   }

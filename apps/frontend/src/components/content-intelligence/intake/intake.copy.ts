@@ -23,8 +23,8 @@ export const intakeCopy = {
     // `content-factory-next-tu3k.9` (06.09.2026): дверь делает заготовку —
     // нейтральную суть без площадки, — а канал стал необязательным.
     title: 'Новая заготовка',
-    lead: 'Дайте мысль, ссылку или чужой пост. Получится заготовка — суть без площадки; выберете канал — сразу напишем и текст для него.',
-    inputLabel: 'С чего начинаем',
+    lead: 'Дайте мысль, ссылку или чужой пост. Соберём нейтральную заготовку. Канал и форму выберете на её странице.',
+    inputLabel: 'О чём будем писать',
     inputPlaceholder: 'Вставьте мысль, ссылку или чужой пост…',
     kindLink: 'Похоже на ссылку — прочитаем страницу и возьмём её как источник.',
 
@@ -40,13 +40,6 @@ export const intakeCopy = {
     languageEn: 'English',
     write: 'Написать',
     makePiece: 'Сделать заготовку',
-    makeAndWrite: (name: string) => `Сделать и написать для «${name}»`,
-    makeAndWriteMany: (count: number) =>
-      `Сделать и написать в ${count} ${plural(count, [
-        'канал',
-        'канала',
-        'каналов',
-      ])}`,
     writing: 'Пишем…',
     cancel: 'Отменить',
     pieceSaved: (code: string) => `Заготовка сохранена — ${code}`,
@@ -58,9 +51,10 @@ export const intakeCopy = {
     blockedChecking: 'Проверяем, подключён ли ИИ…',
 
     /* --- Шаги стрима ------------------------------------------------------ */
-    stepStarted: 'Читаем и собираем бриф…',
-    stepClaims: 'Берём подтверждения…',
-    stepSearch: 'Проверяем цифры поиском…',
+    stepStarted: 'Читаем…',
+    stepBrief: 'Собираем бриф…',
+    stepClaims: 'Разбираем утверждения…',
+    stepSearch: 'Ищем недостающие факты…',
     stepWriting: 'Пишем…',
 
     /* --- Карточка вопросов ------------------------------------------------ */
@@ -194,7 +188,7 @@ export const intakeCopy = {
   },
   en: {
     title: 'New piece',
-    lead: 'Give a thought, a link or somebody else’s post. You get a piece — substance with no platform; pick a channel and we write its text too.',
+    lead: 'Give a thought, a link or somebody else’s post. We will make a neutral piece. Choose its channel and form on the piece page.',
     inputLabel: 'Where we start',
     inputPlaceholder: 'Paste a thought, a link or somebody else’s post…',
     kindLink: 'Looks like a link — we will read the page and take it as a source.',
@@ -210,8 +204,6 @@ export const intakeCopy = {
     languageEn: 'English',
     write: 'Write',
     makePiece: 'Make a piece',
-    makeAndWrite: (name: string) => `Make it and write for “${name}”`,
-    makeAndWriteMany: (count: number) => `Make it and write for ${count} channels`,
     writing: 'Writing…',
     cancel: 'Cancel',
     pieceSaved: (code: string) => `The piece is saved — ${code}`,
@@ -221,9 +213,10 @@ export const intakeCopy = {
     blockedNoChannel: 'Pick a channel',
     blockedChecking: 'Checking whether AI is connected…',
 
-    stepStarted: 'Reading and filling the brief…',
-    stepClaims: 'Taking what is confirmed…',
-    stepSearch: 'Checking the numbers by search…',
+    stepStarted: 'Reading…',
+    stepBrief: 'Filling the brief…',
+    stepClaims: 'Reading the claims…',
+    stepSearch: 'Looking for missing facts…',
     stepWriting: 'Writing…',
 
     questionsBadge: 'One thing to clear up',

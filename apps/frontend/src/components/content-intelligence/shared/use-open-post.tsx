@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useIntegrationList } from '../../launches/helpers/use.integration.list';
 import type { Integrations } from '../../launches/calendar.context';
+import type { OpenPostEditorInput } from '../../new-launch/compose.modal';
 import { useOpenPostEditor } from '../../new-launch/compose.modal';
 import { postEndpoint } from '../../brand-voice/voice-materials.adapter';
 
@@ -18,7 +19,8 @@ import { postEndpoint } from '../../brand-voice/voice-materials.adapter';
  * набор — это способ, каким два окна расходятся.
  */
 
-export type OpenPost = (postId: string) => Promise<boolean>;
+export type OpenPostOptions = Pick<OpenPostEditorInput, 'date' | 'selectedChannels' | 'focusedChannel' | 'mutate'>;
+export type OpenPost = (postId: string, options?: OpenPostOptions) => Promise<boolean>;
 
 export function useOpenPost(given?: readonly Integrations[]): OpenPost {
   const request = useFetch();
@@ -27,16 +29,17 @@ export function useOpenPost(given?: readonly Integrations[]): OpenPost {
   const channels: readonly Integrations[] = given ?? fetched ?? [];
 
   return useCallback(
-    async (postId: string) => {
+    async (postId: string, options?: OpenPostOptions) => {
       try {
         const response = await request(postEndpoint(postId));
         if (!response.ok) throw new Error('post unavailable');
         const existing = (await response.json()) as { group?: string };
         if (!existing?.group) throw new Error('post without group');
         await openPostEditor({
+          ...options,
           group: existing.group,
           integrations: channels.slice(0) as Integrations[],
-          mutate: () => undefined,
+          mutate: options?.mutate ?? (() => undefined),
         });
         return true;
       } catch {

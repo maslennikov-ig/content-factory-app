@@ -328,6 +328,24 @@ export class IntegrationService {
     return this._integrationRepository.getIntegrationsForChannelList(org);
   }
 
+  async getChannelPosts(org: string, id: string, limit: number) {
+    const integration = await this._integrationRepository.getChannelPosts(
+      org,
+      id,
+      limit
+    );
+    if (!integration) {
+      throw new HttpException(
+        { code: 'INTEGRATION_NOT_FOUND' },
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return {
+      total: integration._count.posts,
+      posts: integration.posts,
+    };
+  }
+
   getIntegrationForOrder(id: string, order: string, user: string, org: string) {
     return this._integrationRepository.getIntegrationForOrder(
       id,

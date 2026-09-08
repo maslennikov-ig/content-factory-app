@@ -722,7 +722,7 @@ describe('the voice wizard on live data', () => {
       live.push({ name: 'started', samples: 8, planned: 3 });
       live.push(MEASURED_EVENT);
     });
-    expect(said()).toMatch(/Числа посчитаны/i);
+    expect(said()).toContain('вызов 1 из 3');
 
     await act(async () => {
       live.push({ name: 'call', stage: 'map', index: 2, total: 3, ok: true });
@@ -1502,6 +1502,20 @@ describe('the wizard adapter', () => {
     expect(failure.screenState).toBe('error');
     expect(failure.code).toBeNull();
     expect(failure.message.length).toBeGreaterThan(0);
+  });
+
+  test('heartbeat preserves progress and stream failures distinguish server from network', () => {
+    const { readAnalysisEvent, advanceAnalysis, voiceFailureFrom } = adapter();
+    const current = { stage: 'ASSISTING', percent: 45, assisted: { done: 1, total: 3 } };
+    expect(advanceAnalysis(current, readAnalysisEvent('{"name":"heartbeat"}'))).toEqual(current);
+    expect(voiceFailureFrom({ streamFailure: 'network' }, 'ru').message).toContain('Соединение оборвалось');
+    expect(voiceFailureFrom(readAnalysisEvent('{"name":"error","message":"internal"}'), 'ru').message).toContain('Сервер отказал');
+  });
+
+  test('Telegram intake says how many recent messages were selected and how many the analysis reads', () => {
+    const { intakeNotice } = adapter();
+    expect(intakeNotice({ accepted: [], rejected: [], telegramSelection: [{ name: 'result.json', selected: 300, eligible: 452 }], analysisSampleCount: 28 }, 'ru'))
+      .toContain('взяли 300 последних из 452 подходящих сообщений; разбор читает 28');
   });
 
   test('the shortfall line carries both floors in the reader language', () => {

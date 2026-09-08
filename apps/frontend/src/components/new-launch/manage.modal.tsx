@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import React, {
   FC,
@@ -168,6 +170,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
   const fetch = useFetch();
   const ref = useRef(null);
   const existingData = useExistingData();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const toaster = useToaster();
   const modal = useModals();
@@ -855,6 +858,24 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                 : canWritePosts
                 ? t('edit_post_title', 'Edit Post')
                 : t('view_post_title', 'Post')}
+              {existingData.posts?.[0]?.contentPieceId && (
+                <Link
+                  href={`/content/pieces/${encodeURIComponent(existingData.posts[0].contentPieceId)}`}
+                  onClick={async (event) => {
+                    event.preventDefault();
+                    const href = event.currentTarget.href;
+                    if (canWritePosts && !(await deleteDialog(
+                      t('are_you_sure_you_want_to_close_this_modal_all_data_will_be_lost', 'Are you sure you want to close this modal? (all data will be lost)'),
+                      t('yes_close_it', 'Yes, close it!')
+                    ))) return;
+                    customClose ? customClose() : modal.closeAll();
+                    router.push(href);
+                  }}
+                  className="cf-label-md text-cf-accent underline underline-offset-4"
+                >
+                  {voiceLocale === 'ru' ? 'К заготовке' : 'Go to piece'}
+                </Link>
+              )}
             </div>
             <div className="flex-1 flex flex-col gap-[16px]">
               <div
@@ -1238,7 +1259,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       <MenuCommand
                         layout="content"
                         onClick={schedule('now')}
-                        className="flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
+                        className="flex flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
                       >
                         <span className="cf-label-md text-cf-ink">
                           {t('post_now', 'Post Now')}
@@ -1250,7 +1271,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       <MenuCommand
                         layout="content"
                         onClick={schedule('schedule')}
-                        className="flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
+                        className="flex flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
                       >
                         <span className="cf-label-md text-cf-ink">
                           {mainActionLabel}

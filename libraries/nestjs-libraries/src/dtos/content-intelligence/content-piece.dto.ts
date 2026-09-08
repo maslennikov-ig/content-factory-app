@@ -19,13 +19,30 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
+import {
+  READY_ADAPTATIONS_DEFAULT_LIMIT,
+  READY_ADAPTATIONS_MAX_LIMIT,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/ready-adaptations.contract';
+
+/** Bounded calendar chooser read; the organization always comes from session. */
+export class ReadyAdaptationsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(READY_ADAPTATIONS_MAX_LIMIT)
+  limit: number = READY_ADAPTATIONS_DEFAULT_LIMIT;
+}
 
 /**
  * Виды адаптации — те же шесть, что `AdaptationKindV1`.

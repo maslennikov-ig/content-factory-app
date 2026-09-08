@@ -59,7 +59,7 @@ const mocks = () => ({
     useUser: () => ({ email: 'owner@example.com' }),
   },
   '@contentfactory/react/helpers/variable.context': {
-    useVariables: () => ({ billingEnabled: false }),
+    useVariables: () => ({ billingEnabled: false, language: 'en' }),
   },
   '@contentfactory/react/translation/get.transation.service.client': {
     useT: () => (key, fallback) => fallback ?? key,

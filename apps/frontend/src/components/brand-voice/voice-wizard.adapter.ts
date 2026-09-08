@@ -260,9 +260,21 @@ export function voiceFailureFrom(
       : code
       ? VOICE_ERROR_CODES[code].status
       : null;
+  let message = code
+    ? asText(body.message) || wizardCopy[locale].unknownFailure
+    : wizardCopy[locale].unknownFailure;
+  if (!code && body.streamFailure === 'network') {
+    message = locale === 'ru'
+      ? 'Соединение оборвалось. Числа, которые сервер успел посчитать, сохранены. Повторите разбор.'
+      : 'The connection was interrupted. Any completed measurements are saved. Retry the analysis.';
+  } else if (!code && body.streamFailure === 'server') {
+    message = locale === 'ru'
+      ? 'Сервер отказал в разборе. Попробуйте ещё раз.'
+      : 'The server refused the analysis. Try again.';
+  }
   return {
     code,
-    message: code ? asText(body.message) || wizardCopy[locale].unknownFailure : wizardCopy[locale].unknownFailure,
+    message,
     ...(asText(body.subject) ? { subject: asText(body.subject) } : {}),
     status,
     screenState: code ? VOICE_ERROR_CODES[code].screenState : 'error',
@@ -559,8 +571,9 @@ export type AnalysisStreamEvent =
       total: number;
       ok: boolean;
     }
+  | { name: 'heartbeat' }
   | { name: 'done'; analysis: AnalysisReading }
-  | { name: 'error'; code: string | null; message: string };
+  | { name: 'error'; streamFailure: 'server'; code: string | null; message: string };
 
 export function readAnalysisEvent(line: string): AnalysisStreamEvent | null {
   let parsed: unknown;
@@ -571,6 +584,8 @@ export function readAnalysisEvent(line: string): AnalysisStreamEvent | null {
   }
   const event = asRecord(parsed);
   switch (event.name) {
+    case 'heartbeat':
+      return { name: 'heartbeat' };
     case 'started':
       return {
         name: 'started',
@@ -596,6 +611,7 @@ export function readAnalysisEvent(line: string): AnalysisStreamEvent | null {
     case 'error':
       return {
         name: 'error',
+        streamFailure: 'server',
         code: isErrorCode(event.code) ? event.code : null,
         message: asText(event.message),
       };
@@ -648,6 +664,8 @@ export function advanceAnalysis(
   event: AnalysisStreamEvent
 ): AnalysisProgress {
   switch (event.name) {
+    case 'heartbeat':
+      return current;
     case 'started':
       return {
         stage: 'READING',
@@ -815,6 +833,12 @@ export function intakeNotice(
   });
   return [
     t.accepted(accepted),
+    ...asArray(envelope.telegramSelection).map((entry) => {
+      const selection = asRecord(entry);
+      return locale === 'ru'
+        ? `«${asText(selection.name)}»: взяли ${asCount(selection.selected)} последних из ${asCount(selection.eligible)} подходящих сообщений; разбор читает ${asCount(envelope.analysisSampleCount)} образцов из корпуса.`
+        : `“${asText(selection.name)}”: selected the latest ${asCount(selection.selected)} of ${asCount(selection.eligible)} eligible messages; analysis reads ${asCount(envelope.analysisSampleCount)} corpus samples.`;
+    }),
     rejected.length ? `${t.rejected} ${rejected.join('; ')}.` : '',
   ]
     .filter(Boolean)

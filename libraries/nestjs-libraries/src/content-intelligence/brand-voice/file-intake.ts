@@ -6,7 +6,7 @@ import {
   type TextFileInput,
 } from './text-file';
 import { parseDocxFile } from './docx-file';
-import { parseTelegramExport } from './telegram-export';
+import { parseTelegramExport, type TelegramParseResult } from './telegram-export';
 import { parsePdfFile } from './pdf-file';
 import type { BinaryFileInput, BinaryFileResult } from './binary-file';
 
@@ -42,7 +42,10 @@ export type FileIntakeReason =
   | 'BINARY'
   | BinaryFileResult['rejected'][number]['reason'];
 
+export type TelegramSelection = { name: string; selected: number; eligible: number };
+
 export type FileIntakeResult = {
+  telegramSelection: TelegramSelection[];
   candidates: IntakeCandidate[];
   rejected: Array<{ name: string; reason: FileIntakeReason; detail?: string }>;
 };
@@ -137,7 +140,7 @@ export async function parseUploadedFiles(
   const pdfFiles: BinaryFileInput[] = [];
   const telegram = new Map<
     string,
-    { candidates: IntakeCandidate[]; truncated: boolean; seen: number }
+    TelegramParseResult
   >();
 
   for (const file of files) {
@@ -201,6 +204,7 @@ export async function parseUploadedFiles(
 
   const candidates: IntakeCandidate[] = [];
   const rejected: FileIntakeResult['rejected'] = [];
+  const telegramSelection: TelegramSelection[] = [];
   for (const { name, bucket } of order) {
     if (bucket === 'telegram') {
       const parsed = telegram.get(name);
@@ -214,6 +218,7 @@ export async function parseUploadedFiles(
         });
         continue;
       }
+      telegramSelection.push({ name, selected: parsed.candidates.length, eligible: parsed.eligible });
       candidates.push(...parsed.candidates);
       continue;
     }
@@ -225,5 +230,5 @@ export async function parseUploadedFiles(
     else rejected.push(outcome.entry);
   }
 
-  return { candidates, rejected };
+  return { candidates, rejected, telegramSelection };
 }

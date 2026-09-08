@@ -129,7 +129,7 @@ describe('the Telegram export the card has always promised', () => {
     ]);
 
     expect(result.candidates).toHaveLength(2);
-    expect(result.candidates.map((one) => one.externalRef)).toEqual(['11', '12']);
+    expect(result.candidates.map((one) => one.externalRef)).toEqual(['12', '11']);
     expect(result.candidates.every((one) => one.origin === 'TELEGRAM_EXPORT')).toBe(
       true
     );

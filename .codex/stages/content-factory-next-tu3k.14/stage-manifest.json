@@ -1,0 +1,513 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-tu3k.14",
+  "goal_id": "content-factory-next-tu3k.14",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "acceptance_owner": "root",
+  "acceptance_boundary_id": "second-walk-2026-09-08-production-release",
+  "boundary": {
+    "subsystems": [
+      "publication",
+      "voice-analysis",
+      "intake",
+      "pieces",
+      "navigation",
+      "review",
+      "evidence",
+      "channels",
+      "calendar-ready-adaptations"
+    ],
+    "risk_models": [
+      "tenancy",
+      "paid-call-admission",
+      "stream-lifecycle",
+      "publication-policy",
+      "release-isolation"
+    ],
+    "test_environments": [
+      "local-node22",
+      "local-postgres",
+      "owner-dev-stand",
+      "production-release"
+    ],
+    "rollback_boundary": "5f657ccf294e",
+    "acceptance_proofs": [
+      "owner-dev-stand",
+      "three-app-tsc",
+      "full-suite-receipt",
+      "build",
+      "process-verification",
+      "empty-schema-diff",
+      "mastra-unchanged",
+      "runtime-release-check",
+      "owner-channels-approval",
+      "owner-calendar-approval"
+    ]
+  },
+  "source": "docs/product/second-walk-wave-2026-09-08-spec.md",
+  "branch": "wave/walk-2026-09-08",
+  "integration_order": [
+    "S5",
+    "S1",
+    "S2",
+    "S8",
+    "S3",
+    "S4",
+    "S7",
+    "S6"
+  ],
+  "sequence": 1,
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-tu3k.14",
+    "source_digest": "2abb077d446c47cc25451694aa830b408a1b92b93a2dd680faa9eb3243e7a8b4",
+    "criteria": [
+      {
+        "criterion_id": "content-factory-next-tu3k.14.1",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (B1): «должна быть какая-то последовательность: сборка контента, заготовки, каналы, выбор публикаций в календаре… Предложи варианты… Нарисуй мне несколько вариантов, а я выберу лучший». (D2): «Давай мы с тобой сделаем редизайн, и ты меня локально запустишь, я посмотрю… прежде чем тратить столько времени на деплой». Сделано Claude 08.09: холст docs/design/desert-lab/pipeline/ (README с адресом артефакта). Осталось: владелец называет вариант навигации (NavConveyor / NavStepper / NavHub); до его слова S6 не стартует. Страница заготовки и таблица реализуются по PiecePageV2 и PiecesTableV2 и показываются владельцу на локальном стенде (localhost:4200, не 127.0.0.1) до выпуска.\nХолст опубликован 08.09: https://claude.ai/code/artifact/c4a5109a-6956-47c7-acfe-6a78f3721a0a (docs/design/desert-lab/pipeline/). Владелец выбрал вариант навигации A («Конвейер в меню», NavConveyor.dc.html). S6 не ждёт.",
+        "text_digest": "ae4440aa9c0347c64cb87cebbc5afcab08547757c84331da7aafbb66b9734a5d"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.2",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F4): «Я попытался опубликовать сейчас, но мне напишется, что подтверждения, на которых собран пост, устарели. Это очередная какая-то ненужная никому проверка… Это точно нужно убрать… Опубликовать не смог». Скриншот .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/F4_1-publish-menu-glued.jpg. Лог боевого: POST /api/posts → 409 в 08:37:26Z. Код: posts.repository.ts:1029-1041 CONTENT_CONTEXT_DRAFT_ONLY требует contentContextReviewedAt, которую после 07.09 никто не ставит (также :643-649, :1036-1041); content-context.finalize.ts:67-69,124-131 бросает CONTENT_CONTEXT_INVALIDATED при expiresAt < now, TTL снимка 15 мин (content-context.builder.ts:27); :1185-1196 подмена снимка снимает отметку. Строка: ru/translation.json:1520 content_context_invalidated, post-save-error.ts:53-57. Исправление: при политике, отличной от EVIDENCE_REQUIRED, снимок контекста только справочный — ни DRAFT_ONLY, ни INVALIDATED по TTL не блокируют сохранение и публикацию; дверь POST /posts/:id/context-review остаётся, не вызывается; тесты на публикацию поста старше 15 минут и без отметки. Записать как продолжение решения владельца 07.09 (fn33.28 отменён). Поток S1.",
+        "text_digest": "72f4852c28b597f6f1b6443a4e3f1d85ec30756c96998d5dfbefdfbf2919a152"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.3",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F4): «Текст слипся в расписании или опубликовать сейчас? Видишь, дальше нежирный текст прилип к этому напрямую». Скриншот .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/F4_1-publish-menu-glued.jpg. Код: manage.modal.tsx:1241 и :1253 className=\"flex-col items-start gap-[4px]\" без flex; MenuCommand (choice.menu.tsx:208-228) → ControlButton (control.button.tsx:55-79) рендерит голый <button> без display:flex. Исправление: класс flex у пункта (лучше — в самом MenuCommand как вариант с описанием, чтобы не повторять по файлам); тест на разметку пункта с подписью и описанием. Поток S1.",
+        "text_digest": "02ff5e8cb7b1097b75f070dec4a63a02f29d1180213b7bece20ab44da0abaa35"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.4",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F2): «я выбрал, предположим, использовать много эмодзи, но я не вижу ни одного. Меня вообще смущает, насколько она учитывает мой выбор и мои пожелания к генерации. И мои ответы на её же вопросы». (F3): «удалось ли тебе их найти и импортировать? Именно правила по тому, как лучше писать под Telegram. И опять же подчеркну, что нет эмодзи». Код: channel-directives.ts:70-76 EMOJI_LINE.free = null → :223-224 строки нет; то же linkPolicy 'inline' (:81) и hashtagPolicy 'free' (:90); formatHint не передаётся из адаптации (agent.graph.service.ts:1651-1662, читается в channel-directives.ts:230); вторая реализация тех же строк в intake.service.ts:1217-1238 (теряет linkPolicy и formatPreference). Исправление: каждому значению профиля — явная строка («эмодзи уместны, ставьте свободно, 3–6 на пост»; «ссылки в тексте»; «хэштеги по смыслу»); formatHint из ответа на вопрос формы или из карточки; одна реализация строк для входа и адаптации (после снятия короткого пути в S3 копия во входе уходит); тест: профиль с emojiLevel free даёт строку в промпте. Поток S1.",
+        "text_digest": "5a4b6a1a07bb4ae244529c79b30d30ad783ba377c809bd895698b4902f211de3"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.5",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F3): «важно, чтобы здесь учитывались особенности платформы. Мы же сделали эти особенности под Telegram». Код: channel-directives.ts:200-235 — лимит 4096 (:202-204), зацепка 80–180 для превью уведомления (:216), абзацы 2–4 строки (:219), ≤2 bold (:221), один вопрос-призыв (:229) — без проверки providerIdentifier. Умолчания Telegram в channel-writing-profile.ts:79-90. Исправление: телеграм-специфичные строки только при providerIdentifier telegram; для остальных — лимит площадки и общие строки; тест на две площадки. Поток S1.",
+        "text_digest": "07b9b415c4bab9293f81c5560145c7297ee8054854b158042dafea030667ed36"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.6",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Код: agent.graph.service.ts:1024-1032,1725 считает antiCopy из state.foreignShingles; piece.service.ts:1359-1386 hintsOf для заготовки отпечатки не кладёт; клал только короткий путь (intake.service.ts:1560), который снимается в S3. Исправление: для заготовок из чужого поста хранить отпечатки (brief.foreignShingles или пересчёт из сохранённого чужого текста) и передавать в adapt; тест: адаптация заготовки из чужого поста даёт antiCopy с числом. Поток S1.",
+        "text_digest": "8d6f06c58c01065a6a2c30b8052d741a0c66ccc14e253c51f1b12c954a2b3779"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.7",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (C1): «Он просто как будто бы висит на 4%. Нужна какая-то анимация тут. Ну и итог опять закончился ошибкой. Второй скриншот смотри». (C2): «я не могу этого сделать, потому что предыдущая часть провалилась». Скриншоты .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/C1_1-voice-analysis-stuck-4pct.jpg, .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/C1_2-voice-analysis-cut-off.jpg. Лог боевого: POST /api/content-intelligence/voice/analysis/stream → 499 (клиент закрыл) в 07:44:46Z, старт ~07:43:45; сервер без ошибок. Код: voice-avatar.screen.tsx:120 collecting = rebuilding || !avatar.analysed — как только saveMeasurement (voice.service.ts:1186) записал арифметику, SWR-ревалидация переключает collecting=false, VoiceWizardContainer размонтируется и useEffect (voice-wizard.container.tsx:144-149) вызывает abort(); voice-tab.tsx:41-50 useSWR без revalidateOnFocus:false; клиентская тишина 120 с (voice-wizard.adapter.ts:93) досчитаться не успевает. Исправление: пока идёт разбор, экран мастера не переключается (состояние analysing в контейнере/store, ревалидация списка откладывается до done); revalidateOnFocus:false на overview/list; тест: событие measured не размонтирует мастер. Поток S2.",
+        "text_digest": "5e6a5fda5fe673e647d8d15753c33d48c863d7dfb0bd350bade2bbe18c68e50d"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.8",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (C1): «вроде как прогресс-бар есть, но нет никакого лоудера… Он просто как будто бы висит на 4%». Код: apps/backend/src/main.ts:60 app.use(compression()) — сжатие держит короткие строки (started ~40 байт) в буфере; brand-voice.controller.ts:360-397 пишет response.write без flushHeaders/X-Accel-Buffering; voice.service.ts:1124-1275 — между call-событиями пауз до минуты, heartbeat нет. Исправление: compression с filter по content-type application/x-ndjson (и text/event-stream), заголовок X-Accel-Buffering: no на потоковых дверях (вход, ответ, адаптация, разбор); событие heartbeat каждые 10 с во время вызовов модели; проверка на стенде: первая строка потока < 1 с. Поток S2.",
+        "text_digest": "40256b38efa1068eb0ef176ee35a7675931918c26b9c309b38fb24b013a2e9ff"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.9",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (C1): «нет никакого лоудера или чего-то еще. Я просил это сделать, чтобы было понятно, что ничего не поломалось и идет обработка… Нужна какая-то анимация тут». Код: voice-wizard.adapter.ts:623-626 ANALYSIS_PROGRESS_START 4% до fetch; advanceAnalysis :646-679; арифметика между started и measured синхронная (voice.service.ts:1155-1195). Исправление: started уходит до арифметики; полоса индетерминированная (анимация) между событиями, детерминированная по call; подпись стадии и «вызов N из M»; ошибка потока различает «оборвано сетью» и «сервер отказал». Поток S2.",
+        "text_digest": "f8b22f95f3430c37ad7f44df58d43771e2b4da94c80f14e8b4db50d0b9fa5ff1"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.10",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (C1): «Когда загружается какой-то объем из канала… мы берем его весь всегда или берем только самые новые записи? Тут, наверное, стоит как-то ограничить объем… а то человек может сгрузить огромное количество текста и просто все токены сгорят». Факт: telegram-export.ts:50-53 берёт до 5000 сообщений ≥120 знаков в порядке файла; модель читает 28 равномерно (assist.pipeline.ts:127-150), арифметика на всём — расход ограничен, но выбор «новые/старые» не сделан. Исправление: последние 300 подходящих сообщений (по дате), на экране «взяли N последних из M, разбор читает K»; тест парсера на порядок. Поток S2.",
+        "text_digest": "f29e813a759be31f8890aac14778c478486ca8b8004af0057b658a9980d1c006"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.11",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (A1): «мы, когда пишем заготовку, мы пишем куда? А зачем? Ведь заготовка-то у нас нейтральная. Зачем нам выбирать, куда мы ее пишем? Это потом уже во время адаптации». (G2): «Мне кажется, что это ошибочный путь». Решение в чате 08.09: снять. Код: intake.screen.tsx:213-258 (блок), :288-298 (подпись кнопки, intake.adapter.ts:797-812), intake.container.tsx:186-236 (integrationIds), intake.copy.ts:32-33,43-49,57; DTO content-intake.dto.ts:184; контракт voice-wiring.contract.ts:2152,2263,2439-2452,2465-2470; сервер intake.service.ts:326-389,573-576,653-667, writeChannel :1531-1772. Зависимости: онбординг-шаг preview (onboarding.adapter.ts:139-140) закрывать адаптацией со страницы заготовки; антикопия — см. задачу S1 про foreignShingles; тесты content-intake.flow/service/screen/gates, content-pieces.service, agent.intake-hints. Контракт: события channel-started/draft уходят версией, не мутацией. Поток S3.",
+        "text_digest": "2787f703904a1308580f2b9b763ec41108e9bac12d9f59e2dd484d1735807305"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.12",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (D4): «здесь у нас тоже опять нет никакого лоудера… Вариантов два: либо сделать какой-то лоудер, либо… чтобы эти фразы начали меняться: читаем, собираем бриф, пишем». (D1): «Может быть, с чего начинаем, лучше переименовать? О чем будем писать?». Код: intake.screen.tsx:314-328 текст без движения; кнопка одновременно «Пишем…» (:297, intake.copy.ts:52); фразы intake.copy.ts:61-64. Исправление: один индикатор — спиннер/полоса + фраза по событию (читаем → собираем бриф → проверяем цифры → пишем), кнопка неактивна с постоянной подписью; поле «С чего начинаем» → «О чём будем писать» (intake.copy.ts:27). Поток S3.",
+        "text_digest": "02c25051eea1cf802ea850d481273d7c38da1370c189e0ca029001e6960d009f"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.13",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (D5): «Вставил чужой пост и ссылку. Но не знаю, возьмет ли он одновременно и пост, и ссылку. Будет ли он это учитывать? Вопросов в этот раз опять никаких не задал. cnt-04». Код: intake-kind.ts:130-139, singleLinkOf :102-108 признаёт ссылку только при остатке ≤40 знаков → ветка foreign_post, intake.service.ts:516-518 весь ввод как borrowedText, ветка link (:489-518) не выполняется. Исправление: URL внутри текста извлекается и читается (если SOURCE_DIRECT_FETCH), текст — как чужой пост; оба в бриф с origin; «Что модель поняла» показывает «понято как: чужой пост + ссылка»; тест на смешанный ввод. Поток S3.",
+        "text_digest": "c4966491f4aa20785a9b9fa8196437ec063c8a23d8dcede7943934ed223940dc"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.14",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Код: core-questions.ts:87-90 hasOwnDetail засчитывает input как «своё», что противоречит brief-gate.ts:41-44 (input чужого поста — не своё). Из-за этого у заготовки из чужого поста (cnt-04) вопросов нет вовсе. Исправление: для inputKind foreign_post/link «своё» = только origin person; тест. Поток S3.",
+        "text_digest": "c25b36380d4cd4905ac0762ff336834312685887fe8c3109ca0ede9bfec8f039"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.15",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (D4): «я ответил на эти вопросы, но не проверил, изменилось ли содержание, потому что суть уже была до этого написана. Просто хотелось бы понимать, что действительно изменилось». Код: piece.service.ts:842-878 переписывает ContentPiece.body целиком, старого нет; событие piece несёт только новый core (contract:3006-3011); при одном «Реши сама» модель не зовётся (:842) и текст не меняется; уведомление печатается под адаптациями (piece.screen.tsx:682-686). Исправление: событие piece несёт previousBody; экран подсвечивает новые/изменённые предложения (diff по предложениям, без библиотеки) с подписью «изменилось после вашего ответа» у сути; если модель не звалась — «суть не менялась, ответ сохранён»; тест контейнера. Поток S3.",
+        "text_digest": "ce918fbbcd6cb6621eea3c301e0e8ac074b2a632d07b8fc44bd7ada7136bcde5"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.16",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F1): «„каким текстом это лучше рассказать?“ — я не понимаю этот вопрос. Странные варианты ответа: один призыв в конце, вопрос читателю… как будто бы тут должен быть выбор вариантов призыва в конце. Или в настройках это я указываю». Скриншот .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/F1_1-adaptation-questions.jpg. Код: channel-questions.ts:125-163 (три вопроса без модели), options :87-90,149 не доезжают: piece.screen.tsx:585-590, piece-questions.tsx:69-74, questions.card.tsx:411-501 рисуют только suggested + четыре кнопки; вопрос о призыве задаётся даже при ctaKind в карточке (:143-150, обещание в шапке :16-19); ответ про формат в FORMAT_LINE не влияет (agent.graph.service.ts:1650-1665 не передаёт formatHint). Исправление: карточка вопроса рисует options как кнопки-варианты (призыв: вопрос читателю / приглашение написать / ссылка на пост / без призыва; форма: мнение · разбор · случай · история · список); вопрос о призыве не задаётся, если он есть в карточке канала; формулировка «В какой форме рассказать?»; ответ о форме → formatHint; тесты card + service. Поток S3.",
+        "text_digest": "9c803a5b1653658097f1a7bd0eb3a444260d368b7d6fa333506beaedacbcfaac"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.17",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (D2): «та часть, где сама заготовка, у нее как будто бы ни сверху воздуха нет, ни слева, оно как-то прилеплено вверх и выглядит ужасно. Кнопка «В архив» висит как-то в воздухе… что модель поняла, находится тоже почему-то ниже другого текста… Справа куча пространства пустого… на что опирается, а что это вообще такое, зачем оно нужно?… формат авто — ну это же непонятно, что это значит… Давай мы с тобой сделаем редизайн, и ты меня локально запустишь». (D3): «надпись «свое число» какая-то не очень понятная… возможно, здесь-то как раз и должны быть настройки адаптации под Telegram». (F2): «черновик… занимает какой-то очень маленький кусок. Он как будто отвязан от раздела Telegram… Его нельзя ни раскрыть, ни свернуть. Внизу написано «штампов два». А что это значит?». Скриншоты .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/D2_1-piece-page-cnt-02.jpg, .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/F2_1-adaptation-draft-block.jpg. Код: piece.screen.tsx:276-282 без паддинга (у /content есть: content-section.screen.tsx:261); :733 сырое значение брифа (словарь intake.copy.ts:187-193 подключён только к карточке канала; nullableText intake.adapter.ts:449 пропускает литерал \"null\"); «На что это опирается» :759-828; «своё число» дважды (:412-418 и :835-853); строка адаптации :617-666 и DraftResult :688-696 — один объект дважды без связи (piece.container.tsx:118-122 не хранит id адаптации); карточка «Уточнение» выше сути (:342). Макет: docs/design/desert-lab/pipeline/PiecePageV2.dc.html. Исправление по макету: обёртка с паддингом как у раздела; тулбар с тихой «В архив»; суть → «Уточнить суть» (карточка под сутью) → «Куда адаптировать» с карточкой канала внутри панели → адаптации: строка + раскрываемый черновик + строка качества + «Проверить ▾»; справа «Что модель поняла» через словарь значений (auto → «выберет модель», null отфильтрован) и «Опоры текста»; «своё число» в одном месте; «Штампов: 2» раскрывает список. Показать владельцу на локальном стенде до выпуска. Поток S4.",
+        "text_digest": "a99d3c055b528368e1678345b39b579acf0914d26d5e9a7d4d6569d83fa56cb3"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.18",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (E2): «почему при клике на нее я не могу перейти сразу в заготовку?… когда я кликаю «Еще нет», я попадаю в раздел «Заготовки», и там почему-то есть вопросы». (E4): «нету кнопки «Открыть заготовку». Но я думаю, что она должна открываться просто кликом на строку». (F1): «достаточно, чтобы можно было кликнуть на саму строку «Заготовка», и она открывалась. А когда кликаем на эту стрелочку… прямо в таблице». (I1): «не понимаю, как мне зайти в заготовку… если я кликаю на черновик, я сразу попадаю в правку поста». Код: ui/table.tsx:81-97 Tr без onClick; pieces.screen.tsx:589-651; «Открыть заготовку» только в раскрытой строке (:396-403); чип «ещё нет» → pieces.container.tsx:229-235 window.location.assign('/content/pieces/<id>?adapt=<platform>') → piece.container.tsx:467-474 сразу adapt() — в логе три платных вызова за 8 с (08:11:19–27Z). Исправление: клик по строке (кроме клеток с действиями) → страница заготовки, шеврон раскрывает на месте, «Открыть заготовку» убрать; чип «ещё нет» → страница заготовки с панелью «Куда адаптировать» в фокусе и площадкой выбранной, без вызова модели; тесты экрана. Поток S4.",
+        "text_digest": "a15c7654bcef2082160c8d611917d36348defd433069e1dbde2325706d8de8c6"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.19",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (E4): «А как посмотреть архив? Я думаю, что там, где состояние, там должен быть вариант выбрать архив». Код: pieces.screen.tsx:258-274 варианты ALL/published/queued/draft/error; includeArchived есть в адаптере (pieces.adapter.ts:621,628,635,644) и на сервере (content-material.repository.ts:122), но не переключается ничем. Исправление: вариант «архив» в фильтре состояния → includeArchived:true и показ только архивных с чипом «в архиве»; тест. Поток S4.",
+        "text_digest": "6326b2295aebaffb5ee8a0791cb7626676ea8b5d24b5d5b0c7eade12b248e79a"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.20",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (E3): «Слово не подсвечено, все остальное работает нормально». Код: сервер contains по title/body (content-material.repository.ts:18,117); клиент повторно фильтрует всей фразой (pieces.adapter.ts:754-765); подсветка по точной форме без стемминга (content-search-words.tsx:60-93) и в свёрнутой строке только в заголовке (pieces.screen.tsx:612-615), в сути — только раскрытой (:347). Orama со стеммером подключена только к relatedOwnPostsOf (text-search.index.ts:41-43). Исправление: список заготовок ищет через тот же TextSearchService (стеммы), клиентский повторный фильтр снят, подсветка по стеммам (сервер отдаёт найденные формы) и в первых 160 знаках сути свёрнутой строки; тест. Поток S4.",
+        "text_digest": "a4a207a8d9daa1985e030c821a4f2256153cc36cb29c34dd19ee088ba1a9eaf3"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.21",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (E1): «раздел, что уже написали, какой его смысл? Я забыл, почему мы его решили оставить. Есть ли в нем какая-то ценность или мы просто отвлекаем внимание?». Решение в чате 08.09: «Да, сними. Если оттуда что-то можно полезного перенести в основной вид, перенеси». Проверено: вид дублирует клетки площадок (состояние, ссылка на пост) и поиск по постам (индекс «Свои тексты по теме»); переносится только счётчик. Код: content-section.screen.tsx:128-155 (полоса), content-section.copy.ts:53,63-64, content-archive.container.tsx (удалить вместе с копи и тестами), help-faq.md § «Что такое «Что уже написали»?» (переписать: индекс остаётся, вида нет), FAQ-тест. Исправление: полоса снята, одна таблица; клетка площадки «2 поста» при нескольких; индекс и блок «Свои тексты по теме» не трогаются. Поток S4.",
+        "text_digest": "ea6f1d4c75592fa8a387dbed58548480a8841233c1819780fcd570f91d204b59"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.22",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (A2): «Я даже вбил поле «расход» в поиск по глобальным настройкам. Ничего не нашлось. Или это поле не в глобальных настройках, или это называется как-то по-другому?». Скриншот .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/A2_1-global-settings-no-rashod.jpg. Код: global.settings.tsx:35 (вкладка global_settings, только isAdmin), ai-provider.component.tsx:494-525, :534; ключи ru/translation.json:1653 ai_usage_by_member «Операции ИИ по участникам за период», :812 ai_usage_by_role, :804 ai_role_models. Исправление: «Расход ИИ по участникам за период», «Расход ИИ по ролям за период», подзаголовок блока «Расход и роли вызова»; en синхронно; FAQ-запись «Где смотреть расход». Поток S5.",
+        "text_digest": "221614a83dcb402e3a5ac6886731e29574a4340cdc0236c64872407bb20d3824"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.23",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (B1): «меня беспокоит, как у нас все странно разбросано получается. Ведь должна быть какая-то последовательность: сборка контента, заготовки, каналы, выбор публикаций в календаре… Чтобы можно было идти по какому-то пайплайну условному». Решение 08.09: нарисовать три варианта и внедрить выбранный в эту волну. Факты: пункты меню top.menu.tsx:60-272 (Календарь, Контент, Агент, Аналитика, Медиа, Плагины, Интеграции, Помощь; группы sidebar.tsx:141-153); вкладки Контента content-section.tabs.ts:26-36 (materials, avatars, leads, brief, provenance); пункта «Каналы» нет, «К каналам» ведёт в /launches (piece.screen.tsx:520, intake.screen.tsx:168); из календаря обратно в заготовку дороги нет. Ждёт слова владельца по макету docs/design/desert-lab/pipeline/ (NavConveyor / NavStepper / NavHub). Исправление: по выбранному варианту; в любом случае пункт «Каналы» → список каналов, а не календарь; пост в календаре ведёт на заготовку; онбординг и «Помощь» под новые имена; тесты меню и вкладок. Поток S6.\nВыбор владельца 08.09: вариант A — NavConveyor.dc.html. Меню «Путь» с номерами шагов: С чего начать → Аватар → Каналы → Заготовки → Календарь → Аналитика; группа «Ещё»: Агент, Медиа, Плагины, Помощь; «Администрирование»: Настройки. «Контент» распадается на пункты «Аватар» (/content?tab=avatars), «Каналы» (список каналов), «Заготовки» (таблица + вход + откуда идеи/факты). Из поста в календаре — ссылка «к заготовке».",
+        "text_digest": "9a61795a68c3956663138af54655b29d49524e8292110e47896517fd4084ae6f"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.24",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (F2): «Внизу написано «штампов два». А что это значит? Зачем? Почему они не исправлены, если их можно исправить? Еще у нас была же возможность проверять на ai слоп. А где эта возможность проверять?… здесь как раз мы должны иметь возможность проверить по смыслу». Решение в чате 08.09: «А точно ли стоит делать одну кнопку?… если меня все устраивает, я не хочу проверять факты. А хочу только проверить на то, что здесь нету ии слопа… я бы все-таки давал бы выбор, чтобы можно было либо одно, либо другое, либо все сразу. Потому что это ведь больше токенов будет тратиться у человека». Факт: платной проверки готового текста в продукте нет (content-text-quality.controller.ts:18-21 без модели; DRAFT_PICK_SHIPPED=false в draft-pick.ts:143 — не трогать). Реализация: кнопка «Проверить ▾» в объекте адаптации (тот же MenuCommand, что меню публикации) с пунктами «Убрать штампы» · «Сверить с сутью заготовки» · «И то и другое», у каждого подпись «один вызов модели»; дверь POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review {mode: 'slop'|'facts'|'both'} (EDITOR, стража ИИ, расход в роль review), один вызов на любой режим, промпт с каталогом штампов и brief.facts/personText; ответ — исправленный текст + пометки («убрано: …», «не подтверждается сутью: …»); экран показывает разницу, «Принять» переписывает ContentDerivation.body и черновик поста, «Оставить» ничего не пишет; последний режим запоминается в области; тесты двери и экрана; tariff-levers.md — новая платная операция. Макет: docs/design/desert-lab/pipeline/CheckMenu.dc.html. Поток S7.",
+        "text_digest": "277915be0a798ac50aa1780c492237f895926028e89ff28b195f01af6600283b"
+      },
+      {
+        "criterion_id": "content-factory-next-tu3k.14.25",
+        "text": "Находка второго живого прогона 08.09.2026 на боевом 5f657ccf294e (страница теста 0d4916c9, заметки целиком: .codex/stages/content-factory-next-fn33/evidence/walk-2026-09-08/notes.md; спецификация docs/product/second-walk-wave-2026-09-08-spec.md). Слова владельца (G3): «Я думаю, что ты это можешь потом проверить сам. У тебя же есть логи». (G2): «Мне кажется, что это ошибочный путь, поэтому не стал его проверять». Факты: в базе есть ContentPiece.brief.personText (только для мысли, intake.service.ts:579), ContentPiece.body, ContentDerivation.body; проверки не хранятся (contract:2806). Функция anti-copy.ts:111-145 sharedRuns(candidate, shingles, 8) применима симметрично. Реализация: скрипт scripts/evidence/liveness-report.cjs (read-only, DATABASE_URL стенда или дампа боевой копии; без модели): для каждой заготовки из мысли — доля предложений personText, дошедших до каждой адаптации дословно (окно 8 слов и 5 слов), сводка по площадкам; отчёт в .codex/stages/<эпик>/evidence/liveness-2026-09.md. Поток S8.",
+        "text_digest": "9ccc4959e042d01fbc51271d8e7d7a8220edc93368669a3baebd99e82c6e92ab"
+      },
+      {
+        "criterion_id": "release",
+        "text": "Выпуск по docs/prompts/astra-second-walk-wave-2026-09-08.md: стенд показан владельцу и правки учтены до выпуска; Node 22.23.2, tsc ноль для трёх приложений, pnpm test три части зелёные через record-suite-receipt.sh, build, diff check и process verification; private push, public tree/image, пустой migrate diff, mastra_* неизменны, switch и retention; Beads закрыты и сверены после завершения агентов, runbook/handoff/FAQ обновлены; откат 5f657ccf294e. Схема и voice-wiring.contract.ts не меняются, платные тесты запрещены.",
+        "text_digest": "f98e715892e84bcb47ff34a7d955fb4bc764b4ea8f5242bf595292eed1e45463"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-tu3k.14/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "2abb077d446c47cc25451694aa830b408a1b92b93a2dd680faa9eb3243e7a8b4",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "consumer_adoption",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-tu3k.14/summary.md",
+    ".codex/stages/content-factory-next-tu3k.14/scope-preservation-ledger.json"
+  ],
+  "planned_streams": [
+    {
+      "task_id": "content-factory-next-tu3k.14.2",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.3",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.4",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.5",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.6",
+      "stream_owner": "S1",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.7",
+      "stream_owner": "S2",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.8",
+      "stream_owner": "S2",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.9",
+      "stream_owner": "S2",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.10",
+      "stream_owner": "S2",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.11",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.12",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.13",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.14",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.15",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.16",
+      "stream_owner": "S3",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.17",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.18",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.19",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.20",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.21",
+      "stream_owner": "S4",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.22",
+      "stream_owner": "S5",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S5.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.23",
+      "stream_owner": "S6",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S6.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.24",
+      "stream_owner": "S7",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S7.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.25",
+      "stream_owner": "S8",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/S8.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.26",
+      "stream_owner": "root_channels",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.26.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.27",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.27.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.28",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.28.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.29",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.29.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.30",
+      "stream_owner": "calendar_copy",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.30.md"
+    }
+  ],
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-tu3k.14.22",
+      "stream_owner": "s5_copy",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.22.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.7",
+      "stream_owner": "s2_voice",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.7.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.8",
+      "stream_owner": "s2_voice",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.8.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.9",
+      "stream_owner": "s2_voice",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.9.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.10",
+      "stream_owner": "s2_voice",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.10.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.23",
+      "stream_owner": "s6_navigation",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.23.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.25",
+      "stream_owner": "root_s8",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.25.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.11",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.11.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.12",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.12.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.13",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.13.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.14",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.14.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.15",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.15.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.16",
+      "stream_owner": "s3_intake_questions",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.16.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.2",
+      "stream_owner": "s1_publication",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.2.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.3",
+      "stream_owner": "s1_publication",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.3.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.4",
+      "stream_owner": "s1_publication",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.4.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.5",
+      "stream_owner": "s1_publication",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.5.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.6",
+      "stream_owner": "s1_publication",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.6.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.24",
+      "stream_owner": "s7_review",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.24.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.17",
+      "stream_owner": "s4_piece_table",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.17.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.18",
+      "stream_owner": "s4_piece_table",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.18.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.19",
+      "stream_owner": "s4_piece_table",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.19.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.20",
+      "stream_owner": "s4_piece_table",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.20.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.21",
+      "stream_owner": "s4_piece_table",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.21.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.1",
+      "stream_owner": "root_owner_stand",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.1.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.26",
+      "stream_owner": "root_channels",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.26.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.30",
+      "stream_owner": "calendar_copy",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.30.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.27",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.27.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.28",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.28.md"
+    },
+    {
+      "task_id": "content-factory-next-tu3k.14.29",
+      "stream_owner": "root_calendar",
+      "artifact_path": ".codex/stages/content-factory-next-tu3k.14/artifacts/content-factory-next-tu3k.14.29.md"
+    }
+  ],
+  "scope_addition_ledger": ".codex/stages/content-factory-next-tu3k.14/scope-preservation-ledger.json"
+}

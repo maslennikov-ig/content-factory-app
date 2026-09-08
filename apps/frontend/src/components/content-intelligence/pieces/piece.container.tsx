@@ -1,5 +1,7 @@
 'use client';
 
+import { PieceChannelProfile } from './piece-channel-profile';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -7,9 +9,14 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useUser } from '../../layout/user.context';
 import { createNdjsonSplitter } from '../../new-launch/ndjson';
-import { ContentReadOnlyNote, writeRightFromRole } from '../content-write-right';
+import {
+  ContentReadOnlyNote,
+  writeRightFromRole,
+} from '../content-write-right';
 import { resolveContentLocale } from '../content-section.copy';
 import { useOpenPost } from '../shared/use-open-post';
+import type { CoreAnswerFeedback } from './core-answer-diff';
+import { AdaptationReview } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceQuestions } from './piece-questions';
 import { piecesCopy } from './pieces.copy';
@@ -116,6 +123,9 @@ export function PieceContainer({
     этот текст, а не предыдущий.
   */
   const [draft, setDraft] = useState<{
+    adaptationId: string;
+    adaptation: AdaptationV1;
+    postId: string | null;
     text: string;
     checks: QualityChecksV1;
     draftGaps: readonly unknown[];
@@ -129,6 +139,7 @@ export function PieceContainer({
     тогда спрашивать больше нечего.
   */
   const [answering, setAnswering] = useState(false);
+  const [coreAnswer, setCoreAnswer] = useState<CoreAnswerFeedback | null>(null);
   const [asked, setAsked] = useState<readonly IntakeQuestionV1[] | null>(null);
 
   const abort = useRef<AbortController | null>(null);
@@ -179,6 +190,7 @@ export function PieceContainer({
         let sawQuestions = false;
         let sawAdaptation = false;
         let sawError = false;
+        let receivedCore: CoreAnswerFeedback | null = null;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readAdaptEvent(line);
@@ -201,6 +213,9 @@ export function PieceContainer({
             case 'adaptation':
               sawAdaptation = true;
               setDraft({
+                adaptationId: event.adaptation.id,
+                adaptation: event.adaptation,
+                postId: event.adaptation.postId ?? null,
                 text: event.content.map((one) => one.content).join('\n\n'),
                 /*
                   `checks` события читается ещё раз, а не приводится типом:
@@ -264,7 +279,11 @@ export function PieceContainer({
 
   const answer = useCallback(
     (
-      answers: readonly { key: string; text: string; origin: 'person' | 'confirmed' }[],
+      answers: readonly {
+        key: string;
+        text: string;
+        origin: 'person' | 'confirmed';
+      }[],
       decideKeys: readonly string[]
     ) => {
       if (!channelId) return;
@@ -346,6 +365,7 @@ export function PieceContainer({
         const decoder = new TextDecoder();
         let next: readonly IntakeQuestionV1[] = [];
         let sawError = false;
+        let receivedCore: CoreAnswerFeedback | null = null;
 
         const splitter = createNdjsonSplitter((line) => {
           if (!line.trim()) return;
@@ -364,6 +384,9 @@ export function PieceContainer({
             );
             return;
           }
+          if (parsed?.name === 'piece' && typeof parsed.previousBody === 'string' && typeof parsed.core?.text === 'string') {
+            receivedCore = { previousBody: parsed.previousBody, body: parsed.core.text };
+          }
           if (parsed?.name === 'questions') {
             next = readQuestions(parsed.questions);
           }
@@ -381,7 +404,7 @@ export function PieceContainer({
         // Пустой список — это «спрашивать больше нечего», и он тоже ответ:
         // карточка исчезает, а `null` вернул бы вопросы из брифа обратно.
         setAsked(next);
-        setNotice(w.clarifyDone);
+        setCoreAnswer(receivedCore);
         void detail.mutate();
       } catch (error) {
         if ((error as { name?: string } | null)?.name === 'AbortError') return;
@@ -447,10 +470,14 @@ export function PieceContainer({
           setFailure(
             body?.code === 'ADAPTATION_PUBLISHED'
               ? w.deleteRefusedPublished
-              : (typeof body?.message === 'string' && body.message) || w.errorBody
+              : (typeof body?.message === 'string' && body.message) ||
+                  w.errorBody
           );
           return;
         }
+        setDraft((current) =>
+          current?.adaptationId === adaptation.id ? null : current
+        );
         void detail.mutate();
       } catch {
         setFailure(w.errorBody);
@@ -458,20 +485,6 @@ export function PieceContainer({
     },
     [detail, pieceId, request, w]
   );
-
-  /*
-    Площадка из адреса. Нажатие на пустую клетку в таблице ведёт сюда с
-    именем площадки, и страница сама выбирает её первый канал: человек уже
-    сказал, куда хочет, и спрашивать это второй раз — лишний шаг.
-  */
-  useEffect(() => {
-    if (!adaptPlatform || !detail.data || busy || draft) return;
-    const target = detail.data.targets.find(
-      (one) => one.platform === adaptPlatform && one.available
-    );
-    const channel = target?.channels[0];
-    if (channel && !channelId) adapt(channel.id, target?.kinds[0] ?? 'post');
-  }, [adapt, adaptPlatform, busy, channelId, detail.data, draft]);
 
   const state: VoiceScreenStateV1 = detail.error
     ? 'error'
@@ -502,20 +515,41 @@ export function PieceContainer({
 
   return (
     <PieceScreen
+      renderChannelProfile={(channel) => (
+        <PieceChannelProfile
+          locale={locale}
+          id={channel.id}
+          name={channel.name}
+          canWrite={canWrite}
+        />
+      )}
       locale={locale}
       state={state}
-      detail={detail.data ?? null}
+      detail={
+        detail.data &&
+        draft &&
+        !detail.data.adaptations.some((one) => one.id === draft.adaptationId)
+          ? {
+              ...detail.data,
+              adaptations: [...detail.data.adaptations, draft.adaptation],
+            }
+          : detail.data ?? null
+      }
       canWrite={canWrite}
       busy={busy}
       step={step}
       questions={questions}
+      draftAdaptationId={draft?.adaptationId ?? null}
+      initialPlatform={adaptPlatform}
       draftText={draft?.text ?? null}
       draftChecks={draft?.checks ?? null}
       draftGaps={draft?.draftGaps ?? null}
       adaptingChannel={busy ? adaptingChannel : null}
       errorMessage={
         failure ??
-        (detail.error ? (detail.error as Error).message || w.pieceNotFound : undefined)
+        (detail.error
+          ? (detail.error as Error).message || w.pieceNotFound
+          : undefined)
       }
       notice={answering ? w.clarifyBusy : notice}
       restrictedReason={t(
@@ -533,6 +567,7 @@ export function PieceContainer({
           </ContentReadOnlyNote>
         )
       }
+      coreAnswer={coreAnswer}
       questionsSlot={
         canWrite && openQuestions.length > 0 ? (
           <PieceQuestions
@@ -544,6 +579,14 @@ export function PieceContainer({
           />
         ) : undefined
       }
+      renderReview={(adaptation) => adaptation.postId && adaptation.state === 'draft' ? (
+        <AdaptationReview key={`${user?.orgId}:${pieceId}:${adaptation.id}`} pieceId={pieceId}
+          adaptationId={adaptation.id} workspaceId={user?.orgId ?? ''} locale={locale}
+          disabled={!canWrite || busy} onAccepted={() => {
+            setDraft((current) => current?.adaptationId === adaptation.id ? null : current);
+            void detail.mutate();
+          }} />
+      ) : null}
       onAdapt={adapt}
       onArchive={() => void archive()}
       onAnswer={answer}
@@ -559,9 +602,10 @@ export function PieceContainer({
       }}
       onDeleteAdaptation={(adaptation) => void removeAdaptation(adaptation)}
       onOpenEditor={() => {
-        const postId = detail.data?.adaptations.find(
-          (one) => one.integrationId === channelId
-        )?.postId;
+        const postId =
+          draft?.postId ??
+          detail.data?.adaptations.find((one) => one.id === draft?.adaptationId)
+            ?.postId;
         if (postId) void openPost(postId);
       }}
       onRetry={() => {

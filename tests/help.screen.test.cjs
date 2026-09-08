@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Раздел «Помощь»: одиннадцать вопросов и то, что легко сделать неправильно.
+ * Раздел «Помощь»: двенадцать вопросов и то, что легко сделать неправильно.
  *
  * `content-factory-next-zooh`, решение владельца 07.09.2026 (`m2eg.25`).
  * Вопросы не придуманы экраном — каждый прозвучал на живом прогоне, и ответ на
@@ -118,7 +118,7 @@ const docQuestions = () =>
 const normalize = (text) => text.replace(/`/g, '').replace(/\s+/g, ' ').trim();
 
 describe('текст раздела и документ говорят одно и то же', () => {
-  test('в документе ровно одиннадцать вопросов, и они в том же порядке', () => {
+  test('в документе ровно двенадцать вопросов, и они в том же порядке', () => {
     expect(docQuestions().map((section) => section.question)).toEqual(
       helpCopy.ru.questions.map((item) => item.question)
     );
@@ -145,7 +145,7 @@ describe('текст раздела и документ говорят одно 
     }).toEqual({ divergent: [], hint: 'в согласии' });
   });
 
-  test('английский набор — те же одиннадцать и ничего не пустует', () => {
+  test('английский набор — те же двенадцать и ничего не пустует', () => {
     expect(helpCopy.en.questions.map((item) => item.id)).toEqual([
       ...HELP_QUESTION_IDS,
     ]);
@@ -165,7 +165,7 @@ describe('текст раздела и документ говорят одно 
 
 /* --------------------------------------------------------------- экран */
 
-describe('экран показывает все одиннадцать вопросов', () => {
+describe('экран показывает все двенадцать вопросов', () => {
   test('каждый вопрос нарисован, в порядке списка', () => {
     draw();
     expect(rows().map((row) => row.dataset.helpQuestion)).toEqual([
@@ -248,6 +248,9 @@ describe('экран показывает все одиннадцать вопр
 
   test('строка «Где найти» ведёт на существующие адреса', () => {
     draw();
+    expect(document.querySelector('[data-help-link="content"]').textContent).toBe(
+      helpCopy.ru.whereContent
+    );
     expect(
       document
         .querySelector('[data-help-link="onboarding"]')
@@ -267,6 +270,13 @@ describe('экран показывает все одиннадцать вопр
         path.join(root, 'apps/frontend/src/app/(app)/(site)/content/page.tsx')
       )
     ).toBe(true);
+
+    cleanup();
+    language = 'en';
+    draw();
+    expect(document.querySelector('[data-help-link="content"]').textContent).toBe(
+      helpCopy.en.whereContent
+    );
   });
 });
 

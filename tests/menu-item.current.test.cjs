@@ -127,3 +127,23 @@ describe('строка без параметра', () => {
     expect(current()).toBe(false);
   });
 });
+
+describe('the Avatar and Pieces have separate current rows', () => {
+  test.each([
+    ['/content', 'tab=avatars', '/content?tab=avatars', true],
+    ['/content', 'tab=avatars', '/content', false],
+    ['/content', 'tab=leads', '/content', true],
+    ['/content', 'tab=brief', '/content', true],
+    ['/content/pieces/piece-1', '', '/content', true],
+    ['/content/pieces/piece-1', '', '/content?tab=avatars', false],
+    ['/content/avatars/a-1', '', '/content?tab=avatars', true],
+    ['/content/avatars/a-1', '', '/content', false],
+    ['/channels', '', '/channels', true],
+    ['/launches', '', '/channels', false],
+    ['/content-other', '', '/content', false],
+  ])('%s?%s highlights %s = %s', (path, query, row, expected) => {
+    here = { path, query };
+    draw(row);
+    expect(current()).toBe(expected);
+  });
+});

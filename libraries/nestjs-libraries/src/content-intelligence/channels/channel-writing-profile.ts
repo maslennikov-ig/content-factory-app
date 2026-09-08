@@ -150,6 +150,34 @@ const FORMATS = [
   'story',
 ] as const;
 
+/**
+ * Ответ на вопрос о форме текста превращается в значение генератора.
+ *
+ * В интерфейсе человек видит локализованное слово, а в карточке канала уже
+ * хранится каноническое. Одно место разбора не даёт этим двум путям разойтись.
+ */
+const FORMAT_HINTS: Record<string, IntakeFormatV1> = {
+  opinion: 'opinion',
+  'мнение': 'opinion',
+  announcement: 'announcement',
+  'анонс': 'announcement',
+  'объявление': 'announcement',
+  list: 'list',
+  'список': 'list',
+  expert: 'expert',
+  'разбор': 'expert',
+  case: 'case',
+  'случай': 'case',
+  'кейс': 'case',
+  story: 'story',
+  'история': 'story',
+};
+
+export const channelFormatHint = (value: unknown): IntakeFormatV1 | null => {
+  if (typeof value !== 'string') return null;
+  return FORMAT_HINTS[value.trim().toLocaleLowerCase()] ?? null;
+};
+
 const oneOf = <T extends string>(
   allowed: readonly T[],
   value: unknown,

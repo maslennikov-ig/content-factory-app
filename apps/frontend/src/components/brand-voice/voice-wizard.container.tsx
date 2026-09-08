@@ -81,7 +81,13 @@ const ALERT_CLASS =
 
 export function VoiceWizardContainer({
   avatarId,
+  onAnalysisStart,
+  onAnalysingChange,
+  onActivated,
 }: {
+  onAnalysisStart?: () => void;
+  onAnalysingChange?: (analysing: boolean) => void;
+  onActivated?: () => void;
   /**
    * Which avatar this run of the wizard is building.
    *
@@ -282,16 +288,20 @@ export function VoiceWizardContainer({
     setShortfall(null);
     setProgress(ANALYSIS_PROGRESS_START);
     setAnalysisResult(null);
+    onAnalysisStart?.();
     setAnalysing(true);
+    onAnalysingChange?.(true);
     setStep('analysis');
     try {
-      const response = await request(VOICE_ROUTES.analysisStream, {
+      const response = await request(scoped(VOICE_ROUTES.analysisStream), {
         method: 'POST',
         body: JSON.stringify({ language: locale, withAssist: true }),
         signal: controller.signal,
       });
-      if (!response.ok) throw await voiceHttpError(response);
-      if (!response.body) throw new Error('voice analysis stream had no body');
+      if (!response.ok) {
+        throw Object.assign(await voiceHttpError(response), { streamFailure: 'server' });
+      }
+      if (!response.body) throw { streamFailure: 'network' };
 
       let result: ReturnType<typeof readAnalysis> | null = null;
       let refusal: { code: string | null; message: string } | null = null;
@@ -328,12 +338,12 @@ export function VoiceWizardContainer({
       if (!result) {
         // Поток кончился, не сказав ни `done`, ни `error`: причина здешняя,
         // и она идёт тем же путём отказа, что и любая другая.
-        throw new Error('voice analysis was cut off');
+        throw { streamFailure: 'network' };
       }
       if (result.outcome === 'pending') {
         // `done` со словом «ещё считается» — это ход, который кончился, не
         // кончив: строка терминальная, а результата в ней нет.
-        throw new Error('voice analysis was cut off');
+        throw { streamFailure: 'server' };
       }
       if (result.outcome === 'insufficient') {
         // A shortfall is a result. The step goes back to the corpus with the
@@ -349,7 +359,9 @@ export function VoiceWizardContainer({
       if (run !== analysisRun.current) return;
       // The refusal is shown on the screen the run was on, with a way to
       // retry it in place, rather than bounced back to the corpus.
-      fail('analysis', error);
+      const interrupted = error instanceof TypeError ||
+        (error instanceof Error && error.name === 'AbortError');
+      fail('analysis', interrupted ? { streamFailure: 'network' } : error);
       // A model that did not answer takes the proposal with it and nothing
       // else. The server keeps the arithmetic — its own refusal says so — and
       // reading it back is what makes that sentence true on screen: without
@@ -359,7 +371,7 @@ export function VoiceWizardContainer({
       try {
         // Deliberately without the run's own signal: the abort that ended the
         // run must not also cut the read that recovers what it saved.
-        const saved = readAnalysis(await read(VOICE_ROUTES.analysis));
+        const saved = readAnalysis(await read(scoped(VOICE_ROUTES.analysis)));
         if (run === analysisRun.current && saved.outcome === 'ready') {
           setAnalysisResult(saved);
         }
@@ -371,10 +383,11 @@ export function VoiceWizardContainer({
       if (run === analysisRun.current) {
         analysisAbort.current = null;
         setAnalysing(false);
+        onAnalysingChange?.(false);
         setProgress(null);
       }
     }
-  }, [fail, locale, read, request]);
+  }, [fail, locale, read, request, scoped, onAnalysisStart, onAnalysingChange]);
 
   /** Stopping mid-run: the request is cut, and the corpus step is where it left off. */
   const stopAnalysis = useCallback(() => {
@@ -382,9 +395,10 @@ export function VoiceWizardContainer({
     analysisAbort.current?.abort();
     analysisAbort.current = null;
     setAnalysing(false);
+    onAnalysingChange?.(false);
     setProgress(null);
     goTo('samples');
-  }, [goTo]);
+  }, [goTo, onAnalysingChange]);
 
   const submitIntake = useCallback(async () => {
     if (!intake) return;
@@ -574,6 +588,7 @@ export function VoiceWizardContainer({
       setNotice({ surface: 'proposal', tone: 'success', text: w.activated });
       await proposalQuery.mutate();
       await overviewQuery.mutate();
+      onActivated?.();
     } catch (error) {
       fail('proposal', error);
     }
@@ -583,6 +598,7 @@ export function VoiceWizardContainer({
     consentGiven,
     fail,
     overviewQuery,
+    onActivated,
     proposalQuery,
     read,
     scoped,

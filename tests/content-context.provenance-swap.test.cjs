@@ -212,7 +212,7 @@ describe('a draft grounded on a web find can be saved', () => {
     },
   });
 
-  const validate = (item) =>
+  const validate = (item, snapshot = {}) =>
     validateContentContextForDraft(
       {
         contentContextSnapshot: {
@@ -225,6 +225,7 @@ describe('a draft grounded on a web find can be saved', () => {
             brandProfileVersionId: null,
             profileContentDigest: null,
             items: [item],
+            ...snapshot,
           }),
         },
       },
@@ -243,6 +244,20 @@ describe('a draft grounded on a web find can be saved', () => {
     expect(binding.evidence).toEqual([
       { evidenceId: 'evidence-found', citationId: 'E1' },
     ]);
+  });
+
+  test('an advisory snapshot may be saved after its fifteen-minute lifetime', async () => {
+    const result = await validate(searchItem(), {
+      expiresAt: new Date('2026-09-05T09:59:59.000Z'),
+    });
+
+    expect(result.contentContextSnapshotId).toBe('ccs-search-1');
+  });
+
+  test('EVIDENCE_REQUIRED remains a hard refusal', async () => {
+    await expect(
+      validate(searchItem(), { generationPolicy: 'EVIDENCE_REQUIRED' })
+    ).rejects.toMatchObject({ code: 'CONTENT_CONTEXT_INVALIDATED' });
   });
 
   test('a find the person refused is refused here too', async () => {

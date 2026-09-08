@@ -1,3 +1,4 @@
+import type { VoiceSampleFileIntakeResponseV2 } from './voice-intake-v2.contract';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
   BrandAvatarRowV1,
@@ -741,7 +742,7 @@ export class VoiceService {
     actor: VoiceActor,
     files: readonly FileUpload[],
     body: VoiceSampleFileIntakeRequestV1
-  ): Promise<VoiceSampleIntakeResponseV1> {
+  ): Promise<VoiceSampleFileIntakeResponseV2> {
     const rightsState = this.assertIntakeAllowed(
       actor,
       body.usagePurpose,
@@ -800,7 +801,14 @@ export class VoiceService {
       if (entry) rejected.push(entry);
     }
 
-    return { ...stored, rejected };
+    const corpusCount = read.telegramSelection.length
+      ? (await this.corpusFor(actor)).length
+      : 0;
+    return {
+      ...stored, rejected,
+      telegramSelection: read.telegramSelection,
+      analysisSampleCount: Math.min(corpusCount, sampleLimitFor(corpusCount)),
+    };
   }
 
   async deleteSamples(actor: VoiceActor, body: VoiceSampleDeleteRequestV1) {
@@ -1126,6 +1134,10 @@ export class VoiceService {
     body: VoiceAnalysisRequestV1 = {}
   ): AsyncGenerator<VoiceAnalysisEventV1> {
     this.assertCanManage(actor);
+
+    // Acknowledge before database work or synchronous arithmetic can delay the first byte.
+    // The next started record fills in the corpus size and planned calls once read.
+    yield { name: 'started', samples: 0, planned: 0 };
 
     const corpus = await this.corpusFor(actor);
     const inputs = corpus.map(toInput);

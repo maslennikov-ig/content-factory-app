@@ -83,15 +83,25 @@ export const Tr: FC<
     children: ReactNode;
     selected?: boolean;
   } & HTMLAttributes<HTMLTableRowElement>
-> = ({ children, selected, className, ...rest }) => (
+> = ({ children, selected, className, onClick, ...rest }) => (
   <tr
     aria-selected={selected || undefined}
     className={clsx(
       'transition-colors duration-state hover:bg-cf-surface-subtle',
-      selected && 'bg-cf-accent-soft',
+      selected && 'bg-cf-surface-subtle',
+      onClick && 'cursor-pointer',
       className
     )}
     {...rest}
+    onClick={(event) => {
+      if (
+        (event.target as Element).closest(
+          'button, a, input, select, textarea, [data-row-action]'
+        )
+      )
+        return;
+      onClick?.(event);
+    }}
   >
     {children}
   </tr>

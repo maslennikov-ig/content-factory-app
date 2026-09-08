@@ -47,6 +47,7 @@ type Words = {
     research: RoleWords;
     draft: RoleWords;
     judge: RoleWords;
+    review: RoleWords;
     image: RoleWords;
   };
 };
@@ -57,7 +58,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     usageNoneHint:
       'Расход появляется после первого вызова модели: пока за этот период ни одного не было.',
     rolesWhat:
-      'Роль вызова — это работа, ради которой продукт обращается к модели. Их шесть, и они очень разные по цене.',
+      'Роль вызова — это работа, ради которой продукт обращается к модели. Стоимость зависит от вида работы и выбранной модели.',
     rolesEmpty:
       'Пустое поле означает «брать модель для текста, указанную выше» — то есть модель провайдера по умолчанию. Ничего заполнять не обязательно.',
     rolesWhy:
@@ -78,6 +79,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       judge: {
         what: 'Проверка голоса — сверить готовый текст с вашей манерой и сказать, где он на неё не похож.',
       },
+      review: { what: 'Проверка адаптации — убрать штампы, сверить утверждения с сутью заготовки или сделать оба действия за один вызов.' },
       image: {
         what: 'Картинки — единственная роль, которой нужна модель, умеющая рисовать.',
       },
@@ -88,7 +90,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     usageNoneHint:
       'Usage appears after the first model call: there has not been one this period.',
     rolesWhat:
-      'A call role is the job the product goes to a model for. There are six of them, and they differ wildly in price.',
+      'A call role is the job the product goes to a model for. Cost depends on the job and the chosen model.',
     rolesEmpty:
       'An empty field means "use the text model above" — the provider default. Filling these in is optional.',
     rolesWhy:
@@ -109,6 +111,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       judge: {
         what: 'Voice check — comparing the finished text against your own way of writing and saying where it drifts.',
       },
+      review: { what: 'Adaptation review — remove cliches, compare claims with the piece, or do both in one call.' },
       image: {
         what: 'Images — the one role that needs a model which can draw.',
       },

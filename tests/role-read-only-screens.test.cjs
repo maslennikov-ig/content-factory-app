@@ -427,3 +427,30 @@ describe('fn33.90.8 — право записи известно из сеанс
     });
   });
 });
+
+// The standalone channel panels receive exactly the existing guarded handlers.
+describe('channel menu presentation actions', () => {
+  test.each(['USER', 'EDITOR'])('%s receives no channel management actions', (role) => {
+    const { Menu } = loadChannelMenu(role);
+    let actions;
+    render(h(Menu, {
+      id: INTEGRATION.id, canEnable: true, canDisable: true,
+      canChangeProfilePicture: true, canChangeNickName: true,
+      mutate: () => {}, onChange: () => {},
+      renderActions: (menu, exposed) => { actions = exposed; return menu; },
+    }));
+    expect(actions).toEqual({});
+  });
+  test('administrator gets supported actions and keeps the full menu', () => {
+    const { Menu } = loadChannelMenu('ADMIN');
+    let actions;
+    render(h(Menu, {
+      id: INTEGRATION.id, canEnable: false, canDisable: true,
+      canChangeProfilePicture: true, canChangeNickName: true,
+      mutate: () => {}, onChange: () => {},
+      renderActions: (menu, exposed) => { actions = exposed; return menu; },
+    }));
+    expect(Object.keys(actions).sort()).toEqual(['changeBot', 'disable', 'group', 'remove', 'schedule']);
+    expect(document.querySelector('[aria-label="Channel menu"]')).not.toBeNull();
+  });
+});

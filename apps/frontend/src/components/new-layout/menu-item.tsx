@@ -15,7 +15,7 @@ import {
  * native tooltip, so the item keeps its meaning.
  *
  * The row is painted by the shared button's `navigation` variant, in both
- * branches. What the row still owns is its geometry — a 40px line with a left
+ * branches. What the row still owns is its geometry — a 32px desktop line with a left
  * edge and a 10px gap — because that is the rail's rhythm rather than the
  * action scale's.
  */
@@ -40,30 +40,34 @@ const splitPath = (path: string) => {
 
 export const MenuItem: FC<{
   label: string;
+  step?: number;
   icon: ReactNode;
   path: string;
   onClick?: () => void;
   collapsed?: boolean;
   onNavigate?: () => void;
-}> = ({ label, icon, path, onClick, collapsed = false, onNavigate }) => {
+}> = ({ label, icon, step, path, onClick, collapsed = false, onNavigate }) => {
   const currentPath = usePathname();
   const searchParams = useSearchParams();
   const isExternal = path.indexOf('http') === 0;
   const { route, tab } = splitPath(path);
   const currentTab = searchParams?.get('tab') ?? null;
+  const avatarDetail = currentPath.startsWith('/content/avatars/');
   const isActive =
     !isExternal &&
     path !== '#' &&
-    currentPath.indexOf(route) === 0 &&
+    (currentPath === route || currentPath.startsWith(`${route}/`)) &&
     // Строка, назвавшая `tab`, горит ровно на нём. Строка без `tab` горит на
     // своём пути, но уступает разделу, у которого есть отдельная строка.
     (tab
-      ? currentTab === tab
-      : !currentTab ||
-        !(TABS_WITH_THEIR_OWN_ROW as readonly string[]).includes(currentTab));
+      ? (route === '/content' && tab === 'avatars' && avatarDetail) || currentTab === tab
+      : route === '/content'
+        ? currentTab !== 'avatars' && !avatarDetail
+        : !currentTab ||
+          !(TABS_WITH_THEIR_OWN_ROW as readonly string[]).includes(currentTab));
 
   const rowClassName = clsx(
-    'cf-nav-row group relative w-full h-[40px] flex items-center rounded-[8px] cf-body-md transition-colors duration-state',
+    'cf-nav-row group relative w-full h-[44px] md:h-[32px] flex items-center rounded-[8px] cf-body-md transition-colors duration-state',
     collapsed ? 'px-0' : 'px-[10px]',
     isActive ? 'font-[650]' : 'font-[600]'
   );
@@ -88,7 +92,9 @@ export const MenuItem: FC<{
         />
       )}
       <span aria-hidden className="shrink-0 flex items-center justify-center w-[20px]">
-        {icon}
+        {step !== undefined ? (
+          <span className="cf-caption flex h-[20px] w-[20px] items-center justify-center rounded-full border border-current">{step}</span>
+        ) : icon}
       </span>
       <span className={clsx('cf-nav-label truncate', collapsed && 'sr-only')}>
         {label}
