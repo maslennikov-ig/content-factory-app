@@ -2,33 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
-function loadTypeScriptModule(relativePath, mocks = {}) {
-  const filename = path.resolve(__dirname, '..', relativePath);
-  const source = fs.readFileSync(filename, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      experimentalDecorators: true,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-  new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  )(loaded.exports, localRequire, loaded, filename, path.dirname(filename));
-  return loaded.exports;
-}
+const { loadWithMocks: loadTypeScriptModule } = require('./helpers/load-ts-with-mocks.cjs');
 
 class WebSearchNotConfigured extends Error {}
 
@@ -144,6 +118,9 @@ const { AgentGraphService } = loadTypeScriptModule(
     '@langchain/tavily': { TavilySearch: class {} },
     '@langchain/langgraph/prebuilt': { ToolNode: class {} },
     '@langchain/core/prompts': { ChatPromptTemplate: { fromTemplate: () => ({}) } },
+    '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service': {
+      IntegrationService: class {},
+    },
     '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service': {
       PostsService: class {},
     },

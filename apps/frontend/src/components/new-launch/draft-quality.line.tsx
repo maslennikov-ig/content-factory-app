@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
+import { Progress } from '@contentfactory/frontend/components/ui/progress';
 import { QualityLine } from '@contentfactory/frontend/components/content-intelligence/shared/quality-line';
 import {
   INTAKE_API,
@@ -39,10 +40,11 @@ import { VOICE_API_BASE } from '@contentfactory/nestjs-libraries/content-intelli
  * прошлую версию черновика не может дорисоваться поверх новой: он приходит
  * под чужим ключом и отбрасывается.
  *
- * **Строка ничего не держит.** Ни отказа двери, ни ожидания она не
- * показывает, и ни одна кнопка окна её не ждёт: сохранение, расписание и
- * отправка не знают о ней вовсе. Проверка, которая не ответила, — это
- * отсутствие проверки, а не ошибка окна.
+ * **Строка ничего не держит.** Ни одна кнопка окна её не ждёт: сохранение,
+ * расписание и отправка не знают о ней вовсе. Пока две двери действительно
+ * отвечают, общий `Progress` показывает ход без выдуманного процента. Отказ
+ * двери по-прежнему молчит: проверка, которая не ответила, — это отсутствие
+ * проверки, а не ошибка окна.
  */
 
 /** Ниже этого мерка описывает случайность одной фразы, а не манеру. */
@@ -122,11 +124,20 @@ export function DraftQualityLine({
   if (!measurable) return null;
 
   return (
-    <QualityLine
-      locale={locale}
-      slop={slopQuery.data ?? null}
-      voice={voiceQuery.data ?? null}
-    />
+    <Fragment>
+      {slopQuery.isLoading || voiceQuery.isLoading ? (
+        <Progress
+          mode="indeterminate"
+          label={locale === 'ru' ? 'Проверяем текст' : 'Checking the text'}
+          className="mb-[8px]"
+        />
+      ) : null}
+      <QualityLine
+        locale={locale}
+        slop={slopQuery.data ?? null}
+        voice={voiceQuery.data ?? null}
+      />
+    </Fragment>
   );
 }
 

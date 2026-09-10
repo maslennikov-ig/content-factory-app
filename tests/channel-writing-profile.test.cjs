@@ -32,7 +32,7 @@ const {
 describe('what the product knows about a channel before anybody says anything', () => {
   test('Telegram in Russian: the measured corridor, emoji allowed sparingly', () => {
     expect(defaultWritingProfileFor('telegram', 'ru')).toEqual({
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
       lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
       emojiLevel: 'few',
       linkPolicy: 'end',
@@ -40,7 +40,6 @@ describe('what the product knows about a channel before anybody says anything', 
       ctaKind: 'question',
       formatPreference: 'auto',
       notes: null,
-      output: 'text',
     });
   });
 
@@ -96,7 +95,7 @@ describe('a JSON column is read defensively, never repaired', () => {
     );
 
     expect(parsed.videoPrompt).toBeUndefined();
-    expect(parsed.output).toBe('text');
+    expect(parsed.output).toBeUndefined();
     expect(parsed.emojiLevel).toBe('none');
   });
 
@@ -326,7 +325,7 @@ describe('the card cannot promise more than the platform accepts', () => {
     );
 
     expect(saved[0].profile).toEqual({
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
       lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
       emojiLevel: 'none',
       linkPolicy: 'end',
@@ -334,7 +333,6 @@ describe('the card cannot promise more than the platform accepts', () => {
       ctaKind: 'question',
       formatPreference: 'auto',
       notes: 'Пиши без воды.',
-      output: 'text',
     });
     expect(answer.stored).toBe(true);
   });

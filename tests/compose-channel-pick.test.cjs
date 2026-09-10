@@ -299,3 +299,16 @@ describe('the post window under an ordinary member', () => {
     expect(reason).not.toMatch(/contextReviewedAt/);
   });
 });
+
+
+test('composer initialization adds a channel idempotently without losing its settings', () => {
+  const { useLaunchStore } = loadTypeScriptModule(FILES.store, {
+    '@contentfactory/frontend/components/layout/set.timezone': { newDayjs: () => require('dayjs')() },
+  });
+  useLaunchStore.setState({ selectedIntegrations: [] });
+  const settings = { signature: true };
+  useLaunchStore.getState().addSelectedIntegration(channel, settings);
+  useLaunchStore.getState().addSelectedIntegration(channel, {});
+  expect(useLaunchStore.getState().selectedIntegrations).toHaveLength(1);
+  expect(useLaunchStore.getState().selectedIntegrations[0].settings).toBe(settings);
+});

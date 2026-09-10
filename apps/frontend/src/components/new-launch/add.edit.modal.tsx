@@ -33,6 +33,7 @@ export interface AddEditModalProps {
   mutate: () => void;
   padding?: string;
   customClose?: () => void;
+  duplicateOfPostId?: string;
   onlyValues?: Array<{
     content: string;
     id?: string;
@@ -83,12 +84,12 @@ export const AddEditModal: FC<AddEditModalProps> = (props) => {
 
 export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
   const existingData = useExistingData();
-  const { addOrRemoveSelectedIntegration, selectedIntegrations, integrations } =
+  const { addSelectedIntegration, selectedIntegrations, integrations } =
     useLaunchStore(
       useShallow((state) => ({
         integrations: state.integrations,
         selectedIntegrations: state.selectedIntegrations,
-        addOrRemoveSelectedIntegration: state.addOrRemoveSelectedIntegration,
+        addSelectedIntegration: state.addSelectedIntegration,
       }))
     );
 
@@ -99,7 +100,7 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
           const integration = integrations.find(
             (i) => i.id === post.integration.id
           );
-          addOrRemoveSelectedIntegration(integration, post.settings);
+          addSelectedIntegration(integration, post.settings);
         }
       }
     }
@@ -108,14 +109,14 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
       const integration = integrations.find(
         (i) => i.id === existingData.integration
       );
-      addOrRemoveSelectedIntegration(integration, existingData.settings);
+      addSelectedIntegration(integration, existingData.settings);
     }
 
     if (props?.selectedChannels?.length) {
       for (const channel of props.selectedChannels) {
         const integration = integrations.find((i) => i.id === channel);
         if (integration) {
-          addOrRemoveSelectedIntegration(integration, {});
+          addSelectedIntegration(integration, {});
         }
       }
     }

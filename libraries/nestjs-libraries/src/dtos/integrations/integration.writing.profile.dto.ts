@@ -48,25 +48,25 @@ export class ChannelLengthRangeDto {
 }
 
 export class IntegrationWritingProfileDto {
-  @IsIn(['provider_max', 'range'])
-  lengthPolicy: 'provider_max' | 'range';
+  @IsIn(['provider_max', 'range', 'auto'])
+  lengthPolicy: 'provider_max' | 'range' | 'auto';
 
   @ValidateIf((dto: IntegrationWritingProfileDto) => dto.lengthPolicy === 'range')
   @ValidateNested()
   @Type(() => ChannelLengthRangeDto)
   length?: ChannelLengthRangeDto;
 
-  @IsIn(['none', 'few', 'free'])
-  emojiLevel: 'none' | 'few' | 'free';
+  @IsIn(['none', 'few', 'free', 'many', 'auto'])
+  emojiLevel: 'none' | 'few' | 'free' | 'many' | 'auto';
 
-  @IsIn(['none', 'end', 'inline'])
-  linkPolicy: 'none' | 'end' | 'inline';
+  @IsIn(['none', 'end', 'inline', 'auto'])
+  linkPolicy: 'none' | 'end' | 'inline' | 'auto';
 
-  @IsIn(['none', 'end_1_3', 'free'])
-  hashtagPolicy: 'none' | 'end_1_3' | 'free';
+  @IsIn(['none', 'end_1_3', 'free', 'auto'])
+  hashtagPolicy: 'none' | 'end_1_3' | 'free' | 'auto';
 
-  @IsIn(['none', 'question', 'comment', 'link', 'subscribe', 'reply'])
-  ctaKind: 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';
+  @IsIn(['auto', 'none', 'question', 'comment', 'link', 'subscribe', 'reply'])
+  ctaKind: 'auto' | 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';
 
   @IsIn(['auto', 'opinion', 'announcement', 'list', 'expert', 'case', 'story'])
   formatPreference:

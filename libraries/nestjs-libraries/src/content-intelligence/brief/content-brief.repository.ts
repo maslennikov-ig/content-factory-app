@@ -311,19 +311,30 @@ export class ContentBriefRepository {
    * `update` условие обязано быть уникальным ключом, и запись в чужую область
    * отличалась бы от этой одной строкой.
    */
+  async updateCoreMetadata(organizationId: string, pieceId: string, input: {
+    title?: string; brief: unknown; expectedBody: string; expectedBrief: unknown;
+  }): Promise<void> {
+    const written = await this.client().contentPiece.updateMany({
+      where: { organizationId, id: pieceId, body: input.expectedBody, brief: { equals: input.expectedBrief as any } },
+      data: { ...(input.title ? { title: input.title } : {}), brief: input.brief as any },
+    });
+    if (!written?.count) throw new Error('The piece changed; reload before editing its metadata');
+  }
+
   async updateCore(
     organizationId: string,
     pieceId: string,
     input: {
       /** Нейтральная суть простым текстом. */
       body: string;
+      title?: string;
       /** `ZagotovkaCoreV1` без `text`. */
       brief: unknown;
     }
   ): Promise<void> {
     const written = await this.client().contentPiece.updateMany({
       where: { organizationId, id: pieceId },
-      data: { body: input.body, brief: input.brief as any },
+      data: { body: input.body, brief: input.brief as any, ...(input.title ? { title: input.title } : {}) },
     });
     if (!written?.count) {
       throw new Error('The rewritten core matched no piece of this workspace');

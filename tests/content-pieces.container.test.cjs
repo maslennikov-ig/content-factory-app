@@ -527,17 +527,17 @@ describe('уточнение стоит там, где стоит суть', () 
     приехал в её брифе; человек отвечает — суть переписывается, и повторного
     «на что это опирается» не бывает.
   */
-  test('the open question is drawn after the substance', async () => {
+  test('the model question is drawn before the substance', async () => {
     serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
     await open();
 
     const card = document.querySelector('[data-piece-clarify="true"]');
     expect(card).not.toBeNull();
     const core = document.querySelector('[data-piece-core]');
-    expect(core.compareDocumentPosition(card) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.compareDocumentPosition(core) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.textContent).toContain('На что это опирается?');
     // Заготовка уже сохранена, и карточка говорит это словами.
-    expect(card.textContent).toContain('Заготовка уже сохранена');
+    expect(card.textContent).toContain('Модель спросила по вашему тексту');
   });
 
   test('an answer travels by field, and the piece is read again', async () => {
@@ -645,18 +645,15 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(document.body.textContent).toContain('Суть не менялась, ответ сохранён');
   });
 
-  test('«Оставить как есть» sends nothing at all', async () => {
-    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
+  test('delegating all questions uses the answer door instead of hiding them', async () => {
+    const requests = [];
+    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)), answer: (call) => { requests.push(call.body); return streamed([{ name: 'done', pieceId: 'piece-12' }])(); } }));
     await open();
-
     const card = document.querySelector('[data-piece-clarify="true"]');
-    await click(
-      within(card).getByRole('button', { name: 'Оставить как есть' })
-    );
-
-    // Ни одного запроса: заготовка уже годится, и это законный исход.
-    expect(calls.filter((call) => call.url === ANSWER_URL)).toEqual([]);
-    expect(document.querySelector('[data-piece-clarify="true"]')).toBeNull();
+    const buttons = within(card).getAllByRole('button', { name: 'Реши сама' });
+    await click(buttons[buttons.length - 1]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].decide).toEqual(ASKED_DETAIL.core.questions.items.map((question) => question.field));
   });
 });
 
@@ -842,12 +839,12 @@ describe('what the piece rests on', () => {
       'false',
     ]);
     expect(words[0].textContent).toContain('подтверждено');
-    expect(words[1].textContent).toContain('не подтверждено');
+    expect(words[1].textContent).toContain('не проверено');
     // «не подтверждено» не должно случайно проходить проверкой на «подтверждено».
     expect(words[1].textContent).not.toContain('в текст не вошло');
 
     // Источник ведёт наружу и назван хостом, а не полным адресом.
-    const link = words[0].querySelector('a');
+    const link = words[0].closest('tr').querySelector('a');
     expect(link.getAttribute('href')).toBe(
       'https://www.industry.synthetic.invalid/deadlines/2026'
     );

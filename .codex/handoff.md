@@ -1,28 +1,39 @@
 # Content Factory Handoff
+Current stage id: `content-factory-next-tu3k.15`
+Last accepted stage id: `content-factory-next-tu3k.14`
+Selected Beads goal: `content-factory-next-tu3k.15`
+**Wave «третий заход 10.09» is in progress on `wave/walk-2026-09-10`.**
+Owner authorized the wave and research `.2`–`.5` through release, with the stand
+shown first and no repeated approval request. Schema unchanged; rollback
+`2fe4032ea3db`. S4/S6/S1/S2/generator/S5/S3 integrated in manifest order. S3 follow-up stores
+review answers in existing brief answer flow; S5 legacy activation fixed. Stand opened
+in Windows at localhost4200; owner inspection is not claimed. No release or Beads closure yet.
+One full root acceptance follows integration; child checks are focused only.
 
-Current stage id: `content-factory-next-tu3k.14`
-Last accepted stage id: `content-factory-next-fn33`
-Selected Beads goal: `content-factory-next-tu3k.14`
-
-**Wave «второй заход 08.09» (epic `tu3k.14`, 30 tasks, spec
-`docs/product/second-walk-wave-2026-09-08-spec.md`) — IN PROGRESS by Astra 08.09 on `wave/walk-2026-09-08`;
-All S1–S8 integrated in the required order, worker checkouts cleaned. Owner saw the stand; all requested UI and search corrections are integrated, updated stand checked at1440/390. Added `.26`: dedicated Channels list/detail from approved `docs/design/desert-lab/channels/`, merged `a111b5f0` as `f748abb5`. API b7c9c282, shared profile a039610e and UI af7d3063 integrated; all three worktrees cleaned. Root real-data HTTP/browser checks passed; tile correction1347afad and final test corrections3864012d integrated. Added .27-.30 calendar-only design00dc2063 merged as72374ff1: remove rail, select draft adaptations, piece links, menu Content. All calendar changes integrated: copy55e25660, UI3770097a, APIf728f92f; worker checkouts cleaned. Root real local API passes ready200/draft-only/limit400 and piece in calendar/list/group. Owner explicitly approved Channels/calendar on localhost:4200 (yes08.09); final full acceptance/release pending. Previous full runs were interrupted for added scope; no green full receipt yet. Order in
-`docs/prompts/astra-second-walk-wave-2026-09-08.md`.** Source: the owner's second
-walk of `5f657ccf294e` (artifact `0d4916c9`, 25 notes, 8 screenshots in
-`stages/content-factory-next-fn33/evidence/walk-2026-09-08/`). Owner decisions
-08.09: intake loses «Куда» and the short path; «Что уже написали» view removed
-(only a post counter moves into the table cell); paid draft check with a
-**choice** of mode («Проверить ▾»: slop / facts / both, cost shown); navigation
-conveyor — three mockups drawn, **the owner picked A («Конвейер в меню»)**, it
-ships in this wave; piece page reviewed on the dev stand before release. Latest owner correction: no automatic intake claim checks; enrichment search stays. Separate paid «Проверить поиском» with cost warning and explicit acceptance of edits. Root causes proven
-by code and production logs: voice analysis stream cut by the wizard screen
-unmounting itself once the arithmetic is saved (nginx 499, `compression()`
-buffers NDJSON); publish 409 from server-side context gates
-(`posts.repository.ts:1029`, 15-min snapshot TTL); `emojiLevel: free` becomes
-silence in the prompt; adaptation question `options` never reach the screen;
-«ещё нет» chip starts a paid adaptation; three search rules disagree. Mockups
-`docs/design/desert-lab/pipeline/` (canvas `c4a5109a`). Undeployed on main:
-`8fa803b2` (filter row) — ships with this wave. Rollback target `5f657ccf294e`.
+**Wave «второй заход 08.09» (`tu3k.14`, 30 tasks) — RELEASED `2fe4032ea3db` 08.09.2026.**
+Private verified source `7b07bec6a989` and release records are integrated into `main` and `origin/main`;
+public `content-factory-app/main` and running image agree. Rollback `5f657ccf294e`.
+All S1–S8 integrated in the required order; Channels `.26` and calendar `.27–.30`
+added by the owner and completed in the same release. All worker worktrees cleaned.
+Owner inspected the local stand and explicitly approved the final Channels/calendar.
+Root acceptance: three tsc, build, Jest411/5270, Node124 pass/0 fail/4 existing
+ environment skips, Python46, brand/docs/process/diff passed. Receipt remains bound
+ to `7b07bec6a989`; the later documentation commit is a release record.
+`migrate diff` from the new image returned0; no schema apply. Mastra product0→0,
+ dedicated29→29 and schema fingerprint unchanged. App healthy, restarts0,
+ release marker matches, startup errors0; API/login/source200, archive hash matches.
+Retention script kept `2fe4032ea3db` + `5f657ccf294e`; 23GB free on host.
+All30 children closed in one batch and reread;30 GitHub sync triggers queued.
+Proof: `stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`;
+runbook: `docs/operations/production-deploy.md`, release08.09.
+Implemented: navigation A and Content menu; piece page/table v2; streaming intake
+ and voice analysis; explicit optional paid checks; dedicated Channels; calendar
+ without rail, draft-adaptation picker and source-piece links. No automatic intake
+ claim checks; enrichment remains; explicit paid search review requires acceptance.
+Scope: `docs/product/second-walk-wave-2026-09-08-spec.md` and three `docs/prompts/astra-*2026-09-08.md` orders.
+S8 data limit: two thoughts measured; no eligible adaptation pairs in copied data,
+ so adaptation word retention remains unmeasured. No synthetic result substituted.
+Third live walkthrough is prepared by Claude after the release report.
 
 **Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
 `orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
@@ -121,15 +132,31 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-tu3k.14`. Recommended action: **Astra (Codex) runs the wave**:
-S1/S2/S5/S6/S8 at once (navigation = variant A), then S3/S4/S7 after the
-mockups; dev stand for the owner before release;
-release by the runbook with the owner's standing word of 07.09; record in
-runbook, this handoff, `bd remember`. When Astra says «выпущено», the owner
-returns to Claude for the third live-test page (new artifact; name screens by
-their interface words — «Контент → Заготовки», not «таблица заготовок»). Still
-the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel
-signatures off and a neutral bot name in BotFather.
+Next stage id: `content-factory-next-tu3k.15`. Recommended action: **Astra runs wave
+«третий заход 10.09»** (29 tasks, `.24`/`.25` closed as merged) by
+`docs/prompts/astra-third-walk-wave-2026-09-10.md`; spec
+`docs/product/third-walk-wave-2026-09-10-spec.md`; research epic `m0iy` phase .2–.5 after the wave. Current owner instruction 10.09 authorizes autonomous execution and both releases; show stand before each release, do not ask for another yes. Owner walked
+production `2fe4032ea3db` on 10.09 (artifact 1e543e55, 21 notes, 3 shots): «Уже гораздо
+лучше». Evidence `.codex/stages/content-factory-next-tu3k.15/evidence/walk-2026-09-10/`
+(notes, shots, production log/db facts, three code-cause reports). Confirmed working:
+avatar analysis to the end, no 409 gate, three review calls, «ещё нет» chip free.
+Broken: picker → post window dark screen (100 %), zero emoji at level «few», title
+«:null», unreadable search review, review menu without `flex`, six progress widgets.
+Owner decisions: auto-accept avatar fields; «выбирает модель» everywhere in the channel
+card; publish as the accent action after adaptation; one `Progress`; component reuse.
+Decided 10.09: `.23` model questions by the material before the core (one round);
+review as three baskets with hover explanations (`.10`), findings → prompt (`.11`),
+«Переписать ▾» by parts (`.27`). Research is one entity, epic `m0iy`; decisions in `m0iy.1` are accepted: one organization-configured provider, Exa adapter with Tavily retained, no SearXNG, standard default, organization quotas 20/10/3. Only Exa key is external; use recorded Exa responses and live Tavily until then. Phase .6/.7 waits for benefit measurement. Rollback stays `2fe4032ea3db`. Still the owner's: GPG key before
+16.09.2026, `or3.9`, `fn33.132`, channel signatures off and a neutral bot name.
+
+Cleanup08.09: one worktree on main;31 merged local and13 remote branches removed.
+The two unmerged August orchestration tips were archived, then removed with the
+owner's explicit approval; they were not merged into the current harness.
+Archive: `.git/cleanup-2026-09-08-legacy-orchestration.bundle` (verified).
+Dev process group8410 and6 cf-dev containers removed; data volumes preserved.
+The dev stand is stopped. Canonical public clone `/home/me/code/content-factory-app`
+is clean at the released commit; its source archive and suite receipt are retained.
+Temporary release/design worktrees and the temporary public clone are removed.
 
 Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`):
 checks where the text is final, one quality line, forbidden phrases in the

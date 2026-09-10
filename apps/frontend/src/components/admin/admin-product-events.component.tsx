@@ -10,6 +10,7 @@ import {
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { Skeleton } from '@contentfactory/frontend/components/ui/surface';
 
 type ProductEventName =
   | 'register'
@@ -88,12 +89,6 @@ const formatCompactDate = (value: string) =>
     timeZone: REPORT_TIME_ZONE,
   }).format(new Date(value));
 
-const SkeletonBlock: FC<{ className: string }> = ({ className }) => (
-  <div
-    className={`animate-pulse rounded-[4px] bg-cf-surface-subtle motion-reduce:animate-none ${className}`}
-  />
-);
-
 const LoadingState: FC<{ label: string }> = ({ label }) => (
   <div
     role="status"
@@ -105,18 +100,18 @@ const LoadingState: FC<{ label: string }> = ({ label }) => (
     <div aria-hidden="true">
       <section className="flex flex-col gap-[12px] p-[20px] sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-1 flex-col gap-[8px]">
-          <SkeletonBlock className="h-[20px] w-[40%]" />
-          <SkeletonBlock className="h-[12px] w-[70%]" />
+          <Skeleton className="h-[20px] w-[40%]" />
+          <Skeleton className="h-[12px] w-[70%]" />
         </div>
         <div className="flex items-baseline gap-[12px]">
-          <SkeletonBlock className="h-[28px] w-[72px]" />
-          <SkeletonBlock className="h-[12px] w-[48px]" />
+          <Skeleton className="h-[28px] w-[72px]" />
+          <Skeleton className="h-[12px] w-[48px]" />
         </div>
       </section>
 
       <section className="border-t border-cf-border">
         <div className="px-[20px] py-[16px]">
-          <SkeletonBlock className="h-[20px] w-[32%]" />
+          <Skeleton className="h-[20px] w-[32%]" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -124,7 +119,7 @@ const LoadingState: FC<{ label: string }> = ({ label }) => (
               <tr className="border-y border-cf-border bg-cf-surface-subtle">
                 {[0, 1, 2].map((cell) => (
                   <th key={cell} className="px-[20px] py-[8px]">
-                    <SkeletonBlock className="h-[12px] w-full" />
+                    <Skeleton className="h-[12px] w-full" />
                   </th>
                 ))}
               </tr>
@@ -137,7 +132,7 @@ const LoadingState: FC<{ label: string }> = ({ label }) => (
                 >
                   {[0, 1, 2].map((cell) => (
                     <td key={cell} className="px-[20px] py-[8px]">
-                      <SkeletonBlock className="h-[12px] w-full" />
+                      <Skeleton className="h-[12px] w-full" />
                     </td>
                   ))}
                 </tr>
@@ -148,14 +143,14 @@ const LoadingState: FC<{ label: string }> = ({ label }) => (
       </section>
 
       <section className="flex flex-col gap-[12px] border-t border-cf-border p-[20px]">
-        <SkeletonBlock className="h-[20px] w-[32%]" />
+        <Skeleton className="h-[20px] w-[32%]" />
         {[0, 1, 2].map((row) => (
           <div
             key={row}
             className="grid grid-cols-1 gap-[8px] border-t border-cf-border py-[12px] first:border-t-0 md:grid-cols-4 md:gap-[16px]"
           >
             {[0, 1, 2, 3].map((cell) => (
-              <SkeletonBlock key={cell} className="h-[12px] w-full" />
+              <Skeleton key={cell} className="h-[12px] w-full" />
             ))}
           </div>
         ))}

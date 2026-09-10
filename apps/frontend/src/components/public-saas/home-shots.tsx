@@ -15,6 +15,7 @@ import {
   RecordId,
   StatusPill,
 } from './home-parts';
+import { Status } from '../ui/surface';
 
 /**
  * The six product shots the landing page is built around.
@@ -33,12 +34,6 @@ import {
 
 /** The sample record. Not data: a stage set, and the same one every scene. */
 const RECORD = 'CF-1042';
-
-const Chip: FC<{ children: ReactNode }> = ({ children }) => (
-  <span className="inline-flex items-center rounded-full border border-cf-border px-[8px] py-[4px] cf-body-sm text-cf-ink">
-    {children}
-  </span>
-);
 
 /** A control drawn, not offered: these panels illustrate, they do not act. */
 const DemoControl: FC<{ tone?: 'primary' | 'secondary'; children: ReactNode }> =
@@ -186,7 +181,6 @@ export const HeroShot: FC = () => {
     </DemoPanel>
   );
 };
-
 /* ------------------------------------------------------------------ idea -- */
 
 /**
@@ -288,7 +282,7 @@ export const IdeaShot: FC = () => {
             {copy('ideaSearchLanguages')}
           </span>
           {sources.map((source) => (
-            <Chip key={source.language}>{getLanguageLabel(source.language)}</Chip>
+            <Status key={source.language}>{getLanguageLabel(source.language)}</Status>
           ))}
         </div>
         <div className="mt-[12px] flex flex-wrap items-center gap-[8px]">

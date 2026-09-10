@@ -5,11 +5,13 @@ import {
   getOpenAiClient,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
-import { mapResultSchema, reduceResultSchema } from './assist.contract';
+import { mapResultSchemaV2, reduceResultSchemaV2 } from './assist.contract';
 import {
   runAssist,
+  runAssistV2,
   type AssistProgressEvent,
   type AssistResult,
+  type AssistResultV2,
   type AssistTransport,
 } from './assist.pipeline';
 import {
@@ -51,6 +53,12 @@ export type VoiceAssistOutcome = {
   calls: AssistResult['calls'];
 };
 
+export type VoiceAssistOutcomeV2 = {
+  observations: AssistResultV2['observations'];
+  proposal: NonNullable<AssistResultV2['proposal']>;
+  calls: AssistResultV2['calls'];
+};
+
 export type VoiceAssistInput = {
   organizationId: string;
   samples: readonly BrandVoiceSampleInput[];
@@ -74,7 +82,7 @@ export type VoiceAssistInput = {
  * instead of against a live model.
  */
 export function classifyAssistResult(
-  result: AssistResult
+  result: AssistResult | AssistResultV2
 ): 'ready' | 'ungrounded' | 'unavailable' {
   if (result.proposal && result.proposal.fields.length) return 'ready';
   const ungrounded = result.rejected.some(
@@ -133,6 +141,45 @@ export async function runVoiceAssist(
   );
 }
 
+/** V2 keeps the retry policy and changes only the versioned schema and prompt. */
+export async function runVoiceAssistV2(
+  transport: AssistTransport,
+  input: Omit<VoiceAssistInput, 'organizationId'>
+): Promise<VoiceAssistOutcomeV2> {
+  let last: AssistResultV2 | null = null;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const result = await runAssistV2({
+      samples: input.samples,
+      measurement: input.measurement,
+      transport,
+      locale: input.locale ?? 'ru',
+      ...(input.onProgress ? { onProgress: input.onProgress } : {}),
+    });
+    last = result;
+    const verdict = classifyAssistResult(result);
+    if (verdict === 'ready') {
+      return {
+        observations: result.observations,
+        proposal: result.proposal!,
+        calls: result.calls,
+      };
+    }
+    if (verdict === 'unavailable') {
+      throw new VoiceError(
+        'VOICE_ASSIST_UNAVAILABLE',
+        'Модель не ответила. Числа разбора сохранены, предложение голоса не составлено.'
+      );
+    }
+  }
+
+  throw new VoiceError(
+    'VOICE_ASSIST_UNGROUNDED',
+    'Модель дважды ответила без цитаты из ваших текстов. Предложение отброшено.',
+    last?.rejected[0]?.sampleCode
+  );
+}
+
 @Injectable()
 export class VoiceAssistService {
   constructor(private readonly _aiUsage: AiUsageService) {}
@@ -160,7 +207,7 @@ export class VoiceAssistService {
                 { role: 'user', content: prompt },
               ],
               response_format: zodResponseFormat(
-                stage === 'map' ? mapResultSchema : reduceResultSchema,
+                stage === 'map' ? mapResultSchemaV2 : reduceResultSchemaV2,
                 schemaName
               ),
             });
@@ -175,8 +222,8 @@ export class VoiceAssistService {
     };
   }
 
-  propose(input: VoiceAssistInput): Promise<VoiceAssistOutcome> {
-    return runVoiceAssist(this.transport(input.organizationId), {
+  propose(input: VoiceAssistInput): Promise<VoiceAssistOutcomeV2> {
+    return runVoiceAssistV2(this.transport(input.organizationId), {
       samples: input.samples,
       measurement: input.measurement,
       locale: input.locale,
@@ -232,7 +279,7 @@ export type VoiceLearnInput = {
 
 /** What `voice.service.ts` depends on, so it never imports a model client. */
 export type VoiceAssistPort = {
-  propose(input: VoiceAssistInput): Promise<VoiceAssistOutcome>;
+  propose(input: VoiceAssistInput): Promise<VoiceAssistOutcomeV2>;
   /**
    * Необязательный по той же причине: сборка без него просто не предлагает
    * учиться на правках, вместо того чтобы падать при старте.

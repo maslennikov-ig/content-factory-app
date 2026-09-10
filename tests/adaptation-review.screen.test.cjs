@@ -35,7 +35,7 @@ fetchModule.useFetch =
     calls.push(call);
     return handler(call);
   };
-const { AdaptationReview, reviewDiff, reviewModeKey } = loadTypeScriptModule(
+const { AdaptationReview, ReviewText, reviewModeKey } = loadTypeScriptModule(
   'apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx'
 );
 const base = {
@@ -46,13 +46,12 @@ const base = {
   onAccepted: jest.fn(),
 };
 const result = (mode) => ({
-  version: 'adaptation-review/v1',
+  version: 'adaptation-review/v2',
   mode,
   originalText: 'В современном мире автор пишет.',
   text: 'Автор пишет.',
-  notes: [
-    { kind: mode === 'facts' ? 'facts' : 'slop', text: 'проверенная пометка' },
-  ],
+  title: 'Заголовок', token: 'server-signed', slopBefore: 1, slopAfter: 0, summary: '', verdict: 'review',
+  changes: [{ id: 'one', excerpt: 'В современном мире автор пишет.', replacement: 'Автор пишет.', why: 'проверенная пометка', basket: 'show' }],
   snapshot: {
     postId: 'post',
     postContent: 'old',
@@ -72,7 +71,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const open = () =>
-  fireEvent.click(screen.getByRole('button', { name: 'Проверить ▾' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё ▾' }));
 const choose = async (text) => {
   open();
   await act(async () =>
@@ -82,15 +81,15 @@ const choose = async (text) => {
 test('menu is explicit, keyboard accessible, shows cost on every option and opens without spending', () => {
   draw();
   fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
-  expect(screen.getAllByRole('menuitem')).toHaveLength(4);
-  expect(screen.getAllByText(/Один вызов модели/)).toHaveLength(3);
+  expect(screen.getAllByRole('menuitem')).toHaveLength(5);
+  expect(screen.getAllByText(/Один вызов модели/)).toHaveLength(4);
   expect(calls).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
   expect(screen.queryByRole('menu')).toBeNull();
 });
 test.each([
   ['Убрать штампы', 'slop'],
-  ['Сверить с сутью заготовки', 'facts'],
+  ['Сверить с сутью', 'facts'],
   ['И то и другое', 'both'],
 ])(
   '%s sends exact mode, displays diff; leave never writes',
@@ -106,7 +105,7 @@ test.each([
       'В современном мире'
     );
     expect(document.querySelector('ins').textContent).toContain('Автор');
-    expect(screen.getByText(/проверенная пометка/)).toBeTruthy();
+    expect(screen.getAllByText(/проверенная пометка/)[0]).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Оставить как было' }));
     expect(calls).toHaveLength(1);
     expect(document.querySelector('del')).toBeNull();
@@ -123,13 +122,13 @@ test('accept passes the returned snapshot to the draft door and refreshes owner 
   draw();
   await choose('Убрать штампы');
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Принять' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Принять выбранные' }))
   );
   expect(calls).toHaveLength(2);
   expect(calls[1].url).toMatch(/\/review\/accept$/);
   expect(calls[1].payload).toEqual({
-    text: result('slop').text,
-    snapshot: result('slop').snapshot,
+    token: result('slop').token,
+    selectedIds: ['one'],
   });
   expect(base.onAccepted).toHaveBeenCalledTimes(1);
 });
@@ -145,10 +144,10 @@ test('stale draft refuses acceptance visibly and cannot be overwritten by a seco
   draw();
   await choose('Убрать штампы');
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Принять' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Принять выбранные' }))
   );
   expect(screen.getByRole('alert').textContent).toBe('Черновик изменён');
-  expect(screen.getByRole('button', { name: 'Принять' }).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: 'Принять выбранные' }).disabled).toBe(true);
   expect(base.onAccepted).not.toHaveBeenCalled();
 });
 test('last choice is isolated by workspace and never automatically invokes a model', async () => {
@@ -156,7 +155,7 @@ test('last choice is isolated by workspace and never automatically invokes a mod
   const view = draw({ workspaceId: 'one' });
   open();
   expect(
-    screen.getByRole('menuitem', { name: /Сверить с сутью заготовки/ })
+    screen.getByRole('menuitem', { name: /Сверить с сутью/ })
       .textContent
   ).toContain('Последний выбор');
   view.rerender(
@@ -178,7 +177,7 @@ test('duplicate click spends one call and unmount aborts the in-flight review', 
   fireEvent.click(choice);
   fireEvent.click(choice);
   expect(calls).toHaveLength(1);
-  expect(screen.getByRole('status').textContent).toContain('Проверяем');
+  expect(screen.getByRole('progressbar').getAttribute('aria-label')).toContain('Проверяем');
   view.unmount();
   expect(calls[0].signal.aborted).toBe(true);
   await act(async () => finish(ok(result('slop'))));
@@ -186,12 +185,8 @@ test('duplicate click spends one call and unmount aborts the in-flight review', 
 test('read-only role cannot start review; identical texts retain the exact string', () => {
   draw({ disabled: true });
   expect(screen.getByRole('button').disabled).toBe(true);
-  expect(reviewDiff('один\nдва', 'один\nдва')).toEqual({
-    prefix: 'один\nдва',
-    removed: '',
-    added: '',
-    suffix: '',
-  });
+  const view = render(React.createElement(ReviewText,{text:'один\nдва',changes:[],locale:'ru'}));
+  expect(view.container.textContent).toBe('один\nдва');
 });
 
 const withSources = () => ({
@@ -214,10 +209,10 @@ const withSources = () => ({
 });
 test('web choice requires visible spending confirmation and cancel does not spend', async () => {
   draw();
-  await choose('Проверить поиском');
+  await choose('Проверить факты поиском');
   expect(calls).toHaveLength(0);
   expect(
-    screen.getByText(/Поиск источников и работа моделей расходуют/)
+    screen.getByText(/Поиск и модели расходуют/)
   ).toBeTruthy();
   expect(screen.getByText(/первые 5000 знаков/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
@@ -230,7 +225,7 @@ test('confirmed web action sends spending flag, shows only returned sources and 
   handler = (call) =>
     ok(call.url.endsWith('/accept') ? { accepted: true } : withSources());
   draw();
-  await choose('Проверить поиском');
+  await choose('Проверить факты поиском');
   await act(async () =>
     fireEvent.click(
       screen.getByRole('button', { name: 'Запустить поиск и проверку' })
@@ -238,6 +233,7 @@ test('confirmed web action sends spending flag, shows only returned sources and 
   );
   expect(calls).toHaveLength(1);
   expect(calls[0].payload).toEqual({ mode: 'web', confirmWebSpend: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Источники поиска' }));
   const links = screen.getAllByRole('link', { name: 'Источник числа' });
   expect(
     links.every(
@@ -247,12 +243,12 @@ test('confirmed web action sends spending flag, shows only returned sources and 
   expect(screen.getByText('Текст источника')).toBeTruthy();
   expect(screen.queryByText(/Сверка только с сутью/)).toBeNull();
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Принять' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Принять выбранные' }))
   );
   expect(calls[1].url).toMatch(/\/review\/accept$/);
   expect(calls[1].payload).toEqual({
-    text: withSources().text,
-    snapshot: withSources().snapshot,
+    token: withSources().token,
+    selectedIds: ['one'],
   });
 });
 test('remembered web action still requires a fresh confirmation and makes no automatic request', async () => {
@@ -261,10 +257,10 @@ test('remembered web action still requires a fresh confirmation and makes no aut
   expect(calls).toHaveLength(0);
   open();
   expect(
-    screen.getByRole('menuitem', { name: /Проверить поиском/ }).textContent
+    screen.getByRole('menuitem', { name: /Проверить факты поиском/ }).textContent
   ).toContain('Последний выбор');
   await act(async () =>
-    fireEvent.click(screen.getByRole('menuitem', { name: /Проверить поиском/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Проверить факты поиском/ }))
   );
   expect(calls).toHaveLength(0);
 });
@@ -275,13 +271,54 @@ test('failed or empty web result exposes no acceptance or claim of verification'
     json: async () => ({ message: 'Подтверждений нет, черновик не изменён.' }),
   });
   draw();
-  await choose('Проверить поиском');
+  await choose('Проверить факты поиском');
   await act(async () =>
     fireEvent.click(
       screen.getByRole('button', { name: 'Запустить поиск и проверку' })
     )
   );
   expect(screen.getByRole('alert').textContent).toContain('Подтверждений нет');
-  expect(screen.queryByRole('button', { name: 'Принять' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Принять выбранные' })).toBeNull();
   expect(base.onAccepted).not.toHaveBeenCalled();
+});
+
+test('regeneration chips only fill instruction, one request, no-change hides all acceptance', async () => {
+ handler = () => ok({...result('rewrite'), changes: [], summary: 'Всё хорошо'});
+ draw(); await choose('Перегенерировать');
+ expect(calls).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'Только заголовок'}));
+ expect(screen.getByRole('textbox').value).toBe('Только заголовок');
+ expect(calls).toHaveLength(0);
+ await act(async()=>fireEvent.click(screen.getByRole('button',{name:'Перегенерировать'})));
+ expect(calls).toHaveLength(1);
+ expect(calls[0].url).toContain('/rewrite?');
+ expect(calls[0].payload).toEqual({instruction:'Только заголовок'});
+ expect(screen.queryByRole('button',{name:'Принять выбранные'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Оставить как было'})).toBeNull();
+});
+test('partial selection sends IDs only; author questions cannot be selected', async()=>{
+ handler=()=>ok({...result('both'),changes:[...result('both').changes,{id:'question',excerpt:'автор',replacement:'автор',why:'Откуда число?',basket:'ask'}]});
+ draw(); await choose('И то и другое');
+ expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+ fireEvent.click(screen.getByRole('checkbox'));
+ expect(screen.getByRole('button',{name:'Принять выбранные'}).disabled).toBe(true);
+ expect(screen.getByRole('textbox')).toBeTruthy();
+});
+
+test('two distant corrections keep the middle text once and expose explanations',()=>{
+ const text='Первое. Середина без правки. Последнее.';
+ const changes=[{id:'a',excerpt:'Первое.',replacement:'Начало.',why:'Уточнение начала',basket:'show'},{id:'b',excerpt:'Последнее.',replacement:'Конец.',why:'Уточнение конца',basket:'show'}];
+ const view=render(React.createElement(ReviewText,{text,changes,locale:'ru'}));
+ expect(view.container.textContent.split('Середина без правки.')).toHaveLength(2);
+ expect(view.container.querySelectorAll('del')).toHaveLength(2);
+ expect(view.container.querySelector('[title="Уточнение начала"]')).toBeTruthy();
+});
+test('author answer is sent to the existing answer door with signed question ID',async()=>{
+ handler=call=>ok(call.url.endsWith('/answer')?{version:'review-answer/v2'}:{...result('facts'),changes:[{id:'q1',excerpt:'автор',replacement:'автор',why:'Ваш результат?',basket:'ask'}]});
+ draw();await choose('Сверить с сутью');
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Наш результат'}});
+ await act(async()=>fireEvent.click(screen.getByRole('button',{name:'Сохранить ответы'})));
+ expect(calls[1].url).toBe('/content-intelligence/pieces/piece/answer');
+ expect(calls[1].payload).toEqual({reviewAnswer:{token:'server-signed',adaptationId:'a',answers:[{questionId:'q1',text:'Наш результат'}]}});
+ expect(base.onAccepted).toHaveBeenCalledTimes(1);
 });

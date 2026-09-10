@@ -1,4 +1,5 @@
 'use client';
+import { DescribedMenuItem } from '../ui/layers';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -70,7 +71,6 @@ import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import {
   Menu,
   MenuButton,
-  MenuCommand,
   MenuList,
 } from '@contentfactory/react/choice/choice.menu';
 import { composeCopy } from '@contentfactory/frontend/components/new-launch/compose.copy';
@@ -568,6 +568,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
           id: post.id,
         },
         group,
+        ...(props.duplicateOfPostId ? { duplicateOfPostId: props.duplicateOfPostId } : {}),
         settings: { ...(post.settings || {}) },
         researchSources,
         // Editorial process stage, NOT delivery `state`: see
@@ -1256,30 +1257,8 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                         написано на кнопке рядом, — он здесь для полноты
                         списка, а не для нового действия.
                       */}
-                      <MenuCommand
-                        layout="content"
-                        onClick={schedule('now')}
-                        className="flex flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
-                      >
-                        <span className="cf-label-md text-cf-ink">
-                          {t('post_now', 'Post Now')}
-                        </span>
-                        <span className="cf-caption text-cf-ink-muted">
-                          {composeCopy[voiceLocale].postNowHint}
-                        </span>
-                      </MenuCommand>
-                      <MenuCommand
-                        layout="content"
-                        onClick={schedule('schedule')}
-                        className="flex flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle"
-                      >
-                        <span className="cf-label-md text-cf-ink">
-                          {mainActionLabel}
-                        </span>
-                        <span className="cf-caption text-cf-ink-muted">
-                          {mainActionHint}
-                        </span>
-                      </MenuCommand>
+                      <DescribedMenuItem onClick={schedule('now')} title={t('post_now', 'Post Now')} description={composeCopy[voiceLocale].postNowHint} />
+                      <DescribedMenuItem onClick={schedule('schedule')} title={mainActionLabel} description={mainActionHint} />
                     </MenuList>
                   )}
                 </Menu>

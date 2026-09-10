@@ -1703,5 +1703,7 @@
   "close_post_window": "Fechar a janela da publicação",
   "intake_door": "Nova peça",
   "intake_door_short": "Peça",
-  "help": "Ajuda"
+  "help": "Ajuda",
+  "uploading": "Enviando",
+  "importing": "Importando"
 }

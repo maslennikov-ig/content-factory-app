@@ -221,7 +221,7 @@ describe('a card belongs to a channel of this workspace', () => {
 
   test('writing is scoped to the organization too', async () => {
     await repository.updateWritingProfile('org-1', 'channel-1', {
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
     });
 
     expect(update.mock.calls[0][0].where).toEqual({
@@ -229,7 +229,7 @@ describe('a card belongs to a channel of this workspace', () => {
       organizationId: 'org-1',
     });
     expect(update.mock.calls[0][0].data.writingProfile).toEqual({
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
     });
   });
 
@@ -290,7 +290,7 @@ describe('the channel list carries whether the card was set up', () => {
 
   test('a saved card reads as set up', async () => {
     const [channel] = await listOf([
-      listRow({ writingProfile: { version: 'channel-writing-profile/v1' } }),
+      listRow({ writingProfile: { version: 'channel-writing-profile/v2' } }),
     ]);
 
     expect(channel.writingProfileStored).toBe(true);
@@ -314,7 +314,7 @@ describe('the channel list carries whether the card was set up', () => {
     ]);
 
     expect(channel.writingProfile).toMatchObject({
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
       emojiLevel: 'none',
       notes: 'коротко',
     });
@@ -513,7 +513,7 @@ describe('the body the card sends is a body the door accepts', () => {
 
     expect(
       readWritingProfile({
-        version: 'channel-writing-profile/v1',
+        version: 'channel-writing-profile/v2',
         lengthPolicy: LENGTH_PRESETS.long,
         emojiLevel: saved.emojiLevel,
         linkPolicy: saved.linkPolicy,

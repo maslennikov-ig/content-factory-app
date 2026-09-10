@@ -1703,5 +1703,7 @@
   "close_post_window": "关闭帖子窗口",
   "intake_door": "新素材",
   "intake_door_short": "素材",
-  "help": "帮助"
+  "help": "帮助",
+  "uploading": "正在上传",
+  "importing": "正在导入"
 }

@@ -96,7 +96,8 @@ export function checkPostLength(
  * mid-sentence — the four kinds of thing a shortening quietly drops first.
  */
 export function protectedFragments(text: string): string[] {
-  const found = new Set<string>();
+  const emoji = text.match(/(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu) ?? [];
+  const found = new Set<string>(emoji);
   const patterns = [
     /https?:\/\/\S+/gu,
     /\d+[\d\s.,]*\s?(?:%|₽|\$|€|[a-zA-Zа-яА-Я]{1,12})?/gu,

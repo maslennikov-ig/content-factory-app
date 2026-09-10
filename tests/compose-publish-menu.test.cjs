@@ -25,6 +25,7 @@ const root = path.resolve(__dirname, '..');
 const MANAGE = 'apps/frontend/src/components/new-launch/manage.modal.tsx';
 const COPY = 'apps/frontend/src/components/new-launch/compose.copy.ts';
 const SCSS = 'apps/frontend/src/app/global.scss';
+const LAYERS = 'apps/frontend/src/components/ui/layers.tsx';
 
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
@@ -53,7 +54,11 @@ describe('the publishing menu replaces the hover flyout', () => {
 
     expect(manage).toMatch(/<MenuButton/);
     expect(manage).toMatch(/<MenuList/);
-    expect(manage).toMatch(/<MenuCommand/);
+    expect(manage.match(/<DescribedMenuItem\b/g)).toHaveLength(2);
+    const describedItem = code(LAYERS).split('export function DescribedMenuItem')[1].split('export const Dialog')[0];
+    expect(describedItem).toMatch(/<MenuCommand\b/);
+    expect(describedItem).toMatch(/\{\.\.\.props\}/);
+    expect(describedItem).toMatch(/layout="content"/);
     // `aria-haspopup`/`aria-expanded` пишет сам примитив; здесь важно, что
     // стрелка названа словами — иначе это кнопка без имени.
     expect(manage).toMatch(/morePublishingActions/);
@@ -102,9 +107,13 @@ describe('the publishing menu replaces the hover flyout', () => {
   test('each command stacks its label and explanation with real flex layout', () => {
     const manage = code(MANAGE);
 
-    expect(
-      manage.match(/className="flex flex-col items-start gap-\[4px\]/g)
-    ).toHaveLength(2);
+    expect(manage.match(/<DescribedMenuItem\b/g)).toHaveLength(2);
+    expect(manage).toMatch(/<DescribedMenuItem[^>]*onClick=\{schedule\('now'\)\}[^>]*description=\{composeCopy\[voiceLocale\]\.postNowHint\}/);
+    expect(manage).toMatch(/<DescribedMenuItem[^>]*onClick=\{schedule\('schedule'\)\}[^>]*description=\{mainActionHint\}/);
+    const describedItem = code(LAYERS).split('export function DescribedMenuItem')[1].split('export const Dialog')[0];
+    expect(describedItem).toMatch(/flex flex-col items-start gap-\[4px\]/);
+    expect(describedItem).toMatch(/<span[^>]*>\{title\}<\/span>/);
+    expect(describedItem).toMatch(/<span[^>]*>\{description\}<\/span>/);
   });
 
   test('the two reference blocks stand above the footer, without a single checkbox', () => {

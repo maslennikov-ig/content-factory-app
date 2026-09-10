@@ -6,6 +6,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
@@ -39,7 +40,8 @@ export type ProposalFieldKey =
   | 'TONE'
   | 'AUDIENCE'
   | 'SENTENCE_LENGTH'
-  | 'NEVER_SAY';
+  | 'NEVER_SAY'
+  | 'TOPICS';
 
 export type FieldStatus = 'ACCEPTED' | 'EDITING' | 'UNDECIDED';
 
@@ -93,6 +95,7 @@ const FIELD_ORDER: readonly ProposalFieldKey[] = [
   'AUDIENCE',
   'SENTENCE_LENGTH',
   'NEVER_SAY',
+  'TOPICS',
 ];
 
 const fieldLabel = (
@@ -105,6 +108,7 @@ const fieldLabel = (
     AUDIENCE: t.fieldAudience,
     SENTENCE_LENGTH: t.fieldSentenceLength,
     NEVER_SAY: t.fieldNeverSay,
+    TOPICS: t.fieldTopics,
   }[key]);
 
 export function VoiceProposalScreen({
@@ -118,15 +122,14 @@ export function VoiceProposalScreen({
   avatarName = '',
   consentGiven = false,
   activatedAt,
-  onAccept,
   onEdit,
   onSaveField,
-  onAcceptPortrait,
   onEditPortrait,
   onSavePortrait,
   onConsentChange,
   onAvatarNameChange,
   onActivate,
+  onFinish,
   onSaveDraft,
   notice,
 }: {
@@ -154,15 +157,14 @@ export function VoiceProposalScreen({
   avatarName?: string;
   consentGiven?: boolean;
   activatedAt?: string;
-  onAccept?: (key: ProposalFieldKey) => void;
   onEdit?: (key: ProposalFieldKey) => void;
   onSaveField?: (key: ProposalFieldKey, text: string) => void;
-  onAcceptPortrait?: () => void;
   onEditPortrait?: () => void;
   onSavePortrait?: (text: string) => void;
   onConsentChange?: (checked: boolean) => void;
   onAvatarNameChange?: (value: string) => void;
   onActivate?: () => void;
+  onFinish?: () => void;
   onSaveDraft?: () => void;
   notice?: string;
 }) {
@@ -172,7 +174,10 @@ export function VoiceProposalScreen({
   const manual = mode === 'manual';
   const named = avatarName.trim().length > 0;
   const accepted = fields.filter((one) => one.status === 'ACCEPTED').length;
-  const allAccepted = fields.length > 0 && accepted === fields.length;
+  const portraitAccepted = Boolean(portrait && portrait.status === 'ACCEPTED');
+  const activationReady = manual
+    ? fields.length === FIELD_ORDER.length && accepted === fields.length
+    : portraitAccepted;
 
   /**
    * What is in the box right now, before it has been saved.
@@ -196,6 +201,26 @@ export function VoiceProposalScreen({
       : status === 'EDITING'
       ? t.stateEditing
       : t.stateUndecided;
+
+  if (state === 'success' && activatedAt) {
+    return (
+      <section
+        data-voice-surface="proposal"
+        data-voice-state="success"
+        className="flex min-w-0 flex-col items-start gap-[12px] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[20px]"
+      >
+        <h2 className="cf-heading-lg text-cf-ink [text-wrap:balance]">
+          {t.avatarReadyTitle}
+        </h2>
+        <p role="status" className="cf-body-md text-cf-ink [text-wrap:pretty]">
+          {t.avatarReadyBody(activatedAt)}
+        </p>
+        <Button type="button" variant="primary" onClick={onFinish}>
+          {t.avatarReadyAction}
+        </Button>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -238,21 +263,7 @@ export function VoiceProposalScreen({
         </p>
       ) : null}
 
-      {state === 'success' && activatedAt ? (
-        <p
-          role="status"
-          className="rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink"
-        >
-          {t.activatedAt(activatedAt)}
-        </p>
-      ) : null}
-
-      <div
-        className={clsx(
-          'grid min-w-0 gap-[20px]',
-          manual ? 'lg:grid-cols-1' : 'lg:grid-cols-2'
-        )}
-      >
+      <div className="flex min-w-0 flex-col gap-[20px]">
         <div className="flex min-w-0 flex-col gap-[12px]">
           {/*
             The portrait sits above the five lines because that is the order it
@@ -334,15 +345,6 @@ export function VoiceProposalScreen({
                     </Button>
                   ) : (
                     <>
-                      {portrait.status !== 'ACCEPTED' ? (
-                        <Button
-                          type="button"
-                          variant="primary"
-                          onClick={onAcceptPortrait}
-                        >
-                          {t.accept}
-                        </Button>
-                      ) : null}
                       <Button
                         type="button"
                         variant="secondary"
@@ -474,15 +476,6 @@ export function VoiceProposalScreen({
                       </Button>
                     ) : (
                       <>
-                        {field.status !== 'ACCEPTED' ? (
-                          <Button
-                            type="button"
-                            variant="primary"
-                            onClick={() => onAccept?.(key)}
-                          >
-                            {t.accept}
-                          </Button>
-                        ) : null}
                         <Button
                           type="button"
                           variant="secondary"
@@ -494,6 +487,38 @@ export function VoiceProposalScreen({
                     )}
                   </div>
                 )}
+
+                {!manual && grounded ? (
+                  <Disclosure
+                    summary={t.proposalWhy}
+                    className="mt-[12px] border-t border-cf-border pt-[4px]"
+                    triggerClassName="px-0 py-[8px] cf-label-md text-cf-ink"
+                    contentClassName="flex flex-col gap-[8px] pb-[4px]"
+                  >
+                    {observations
+                      .filter((observation) =>
+                        field.observationRefs.includes(observation.ref)
+                      )
+                      .map((observation) => (
+                        <div
+                          key={observation.ref}
+                          data-voice-observation={observation.ref}
+                          className="rounded-[8px] bg-cf-surface-subtle p-[12px]"
+                        >
+                          <p className="cf-label-sm uppercase text-cf-ink-muted">
+                            {t.proposalObservation} {observation.index}
+                          </p>
+                          <p className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]">
+                            {observation.claim}
+                          </p>
+                          <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                            «{observation.quote}»{' '}
+                            <span className="cf-caption">{observation.sampleCode}</span>
+                          </p>
+                        </div>
+                      ))}
+                  </Disclosure>
+                ) : null}
               </article>
             );
           })}
@@ -503,49 +528,13 @@ export function VoiceProposalScreen({
           </p>
         </div>
 
-        {manual ? null : (
-        <div className="flex min-w-0 flex-col gap-[12px]">
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
-            {t.proposalWhy}
-          </h3>
-
-          {observations.length === 0 ? (
-            <p className="rounded-[8px] border border-cf-border bg-cf-surface p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {t.proposalNoGroundBody}
-            </p>
-          ) : (
-            observations.map((observation) => (
-              <article
-                key={observation.ref}
-                data-voice-observation={observation.ref}
-                className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[12px]"
-              >
-                <p className="cf-label-sm uppercase text-cf-ink-muted">
-                  {t.proposalObservation} {observation.index} ·{' '}
-                  {fieldLabel(observation.field, t)}
-                </p>
-                <p className="mt-[8px] cf-body-sm text-cf-ink [text-wrap:pretty]">
-                  {observation.claim}
-                </p>
-                {/* The quote is the point. Without it the claim is an opinion,
-                    and the design's standard is a number and a sentence, not an
-                    adjective. */}
-                <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                  «{observation.quote}»
-                  <span className="ms-[8px] cf-caption">
-                    {observation.sampleCode}
-                  </span>
-                </p>
-              </article>
-            ))
-          )}
-
-          <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
-            {t.proposalObservationOpens}
-          </p>
-        </div>
-        )}
       </div>
+
+      {!manual && portrait ? (
+        <p className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+          {t.portraitFieldRole}
+        </p>
+      ) : null}
 
       {readOnly ? null : (
         <div className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
@@ -576,10 +565,10 @@ export function VoiceProposalScreen({
             <Button
               type="button"
               variant="primary"
-              // Activation waits on two things: every field decided, and the
-              // sentence above read. Neither is implied by saving a field.
+              // The proposal is accepted when it appears. Only the portrait,
+              // the name and the explicit consent gate activation.
               disabled={
-                !consentGiven || !allAccepted || !named || state === 'disabled'
+                !consentGiven || !activationReady || !named || state === 'disabled'
               }
               onClick={onActivate}
             >

@@ -502,10 +502,10 @@ loading, empty, ready/fresh, selected, disabled, stale, recoverable error,
 policy blocked, access restricted, deleting. Реальный fetch никогда не
 изображается успешным по fixture.
 
-[Lazyweb product evidence](https://www.lazyweb.com/agentic-search/41b95e71-68b0-4bbb-8df0-259a853dafac)
-подтвердил полезность четырёх паттернов: явный `Add URL`, registry со status,
-отдельное расписание sync и ownership/diagnostic state для RSS. Эта ссылка —
-product evidence, не доказательство безопасности и не визуальный стиль.
+Исследование интерфейсов
+подтвердило полезность четырёх паттернов: явный `Add URL`, registry со status,
+отдельное расписание sync и ownership/diagnostic state для RSS. Это продуктовые наблюдения,
+а не доказательство безопасности или предписание визуального стиля.
 
 ### Stable error taxonomy
 

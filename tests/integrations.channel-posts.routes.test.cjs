@@ -352,7 +352,7 @@ describe('the shared channel list exposes only normalized additions', () => {
 
     expect(channel.createdAt).toEqual(new Date('2026-09-01T10:00:00.000Z'));
     expect(channel.writingProfile).toMatchObject({
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
       emojiLevel: 'few',
     });
     expect(channel.writingProfileStored).toBe(false);

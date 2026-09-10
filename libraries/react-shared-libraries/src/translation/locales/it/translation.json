@@ -1703,5 +1703,7 @@
   "close_post_window": "Chiudi la finestra del post",
   "intake_door": "Nuova bozza",
   "intake_door_short": "Bozza",
-  "help": "Aiuto"
+  "help": "Aiuto",
+  "uploading": "Caricamento in corso",
+  "importing": "Importazione in corso"
 }

@@ -45,14 +45,14 @@ afterEach(cleanup);
 const mount=(extra={})=>render(h(AdaptationPicker,{integrations:channels,date:selectedDate,onClose:()=>{closed++},onSaved:()=>{},...extra}));
 test('two ready adaptations open the same editor by post group with exact cell date/channel; opening is read-only',async()=>{
  mount();
- await screen.findByText('Готово и не в плане · 2');
+ await screen.findByText('Черновики адаптаций · 2');
  expect(screen.getAllByRole('radio').filter(el=>el.textContent.includes('cnt-'))).toHaveLength(2);
  fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
  fireEvent.click(screen.getByRole('button',{name:'Открыть в окне поста'}));
  await waitFor(()=>expect(editorCalls).toHaveLength(1));
  expect(editorCalls[0].group).toBe('group-p0');
  expect(editorCalls[0].date).toBe(selectedDate);
- expect(editorCalls[0].selectedChannels).toEqual(['tg']);
+ expect(editorCalls[0].selectedChannels).toBeUndefined();
  expect(editorCalls[0].focusedChannel).toBe('tg');
  expect(requests.every(item=>!item.options || !item.options.method || item.options.method==='GET')).toBe(true);
  expect(closed).toBe(1);
@@ -88,7 +88,7 @@ test('loading and recoverable error states',async()=>{
  mode='error';mount();await screen.findByText('Не удалось загрузить адаптации');mode='ready';fireEvent.click(screen.getByRole('button',{name:'Повторить'}));await screen.findByText('Title 0');
 });
 test('English labels are complete and mobile footer wraps',async()=>{
- language='en';const {container}=mount();await screen.findByText('Ready and not scheduled · 2');expect(screen.getByRole('button',{name:'Blank page'})).toBeTruthy();
+ language='en';const {container}=mount();await screen.findByText('Adaptation drafts · 2');expect(screen.getByRole('button',{name:'Blank page'})).toBeTruthy();
  expect(container.querySelector('.flex-wrap')).toBeTruthy();expect(container.querySelector('.overflow-x-auto')).toBeTruthy();
 });
 

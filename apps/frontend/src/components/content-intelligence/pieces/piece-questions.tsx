@@ -55,7 +55,7 @@ export function PieceQuestions({
         words={{
           badge: t.interviewBadge,
           title: t.interviewTitle,
-          lead: t.clarifyLead,
+          lead: locale === 'ru' ? 'Модель спросила по вашему тексту. Ответьте, затем напишем суть.' : 'The model asked about your material. Answer before drafting the core.',
           suggestedLead: t.suggestedLead,
           yes: t.answerYes,
           fix: t.answerFix,
@@ -64,7 +64,7 @@ export function PieceQuestions({
           ownAnswerLabel: t.ownAnswerLabel,
           ownAnswerHint: t.ownAnswerHint,
           send: t.interviewSend,
-          skipAll: t.clarifySkip,
+          skipAll: t.answerDecide,
         }}
         questions={questions.map((question) => ({
           key: question.field,

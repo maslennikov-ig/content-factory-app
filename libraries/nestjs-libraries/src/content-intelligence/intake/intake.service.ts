@@ -1,3 +1,6 @@
+import { selectedFactsBrief, type PieceFactV2 } from '../pieces/piece-facts.v2';
+export { textOrNull } from './intake-content';
+import { contentFromIntent, intakeDiscardDiagnostic, textOrNull } from './intake-content';
 import type { IntakeEventV2, BriefFilledV2 } from '../brand-voice/intake-v2.contract';
 /**
  * Neutral intake: read the submitted material, fill the brief and save one core.
@@ -63,7 +66,6 @@ import {
   CORE_QUESTION_FIELDS,
   briefForGate,
   coreQuestionText,
-  openQuestionsFor,
 } from '../pieces/core-questions';
 import { writeCore, type CoreBorrowedV1 } from '../pieces/core-write';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -79,13 +81,13 @@ import {
 } from './intake.errors';
 import { detectInputKind, singleLinkOf, linksOf, wordShingles } from './intake-kind';
 import {
-  briefFillPrompt,
-  briefFillSchema,
-  extractionPrompt,
-  extractionSchema,
-  oneLine,
-} from './intake.prompts';
-import type { IntakeExtractionV1 } from './intake.prompts';
+  briefFillPromptV2 as briefFillPrompt,
+  briefFillSchemaV2 as briefFillSchema,
+  extractionPromptV2 as extractionPrompt,
+  extractionSchemaV2 as extractionSchema,
+  type IntakeExtractionV2 as IntakeExtractionV1,
+} from './intake.prompts.v2';
+import { oneLine } from './intake.prompts';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
 const UNUSABLE_FACT_STATUSES = ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'];
@@ -124,7 +126,7 @@ const BORROWED_TEXT_LIMIT = WEB_SEARCH_MAX_SOURCE_CHARS;
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
-const textOrNull = (value: unknown): string | null => trimmed(value) || null;
+
 
 const describeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -192,6 +194,7 @@ const defaultSlopCheck: SlopCheckPort = (text, platform, locale) =>
   runSlopCheck(text, { platform, locale, html: false });
 
 type FilledBrief = {
+  questions?: PieceOpenQuestionV1[];
   brief: BriefFilledV1;
   /** Поля, которые модель честно оставила пустыми, и её варианты для них. */
   options: Partial<Record<BriefField, string[]>>;
@@ -407,33 +410,22 @@ export class IntakeService {
     ];
     yield { name: 'brief-filled', brief: filled.brief };
 
-    /*
-      Суть — один раз, до цикла по каналам и ДО единого вопроса. Это второе
-      изменение волны `content-factory-next-m2eg` и главное из них.
-
-      До неё вопрос был терминальным: ворота брифа или интервью обрывали ход,
-      заготовки не существовало, и на живом прогоне 07.09.2026 владелец дважды
-      ответил, упёрся в «больше спрашивать не будем» — и остался ни с чем.
-      Теперь заготовка пишется всегда, а вопросы едут вместе с ней и живут на
-      её странице: ответ на них переписывает суть дверью `answer`, а не
-      повторяет весь вход заново.
-
-      Единственный случай, когда суть не пишут, — ход, у которого нет ни
-      автора, ни канала: записать заготовку не под кого, генерировать нечего, и
-      платный вызов ушёл бы в никуда.
-    */
+    // The draft is deferred until the author resolves material-specific questions.
     if (!actorUserId) {
       yield { name: 'done', pieceId: null };
       return;
     }
     const open = this.openQuestions(filled, plan);
     const answers = this.interviewAnswers(plan);
-    const personText = extraction ? '' : plan.input;
-    const written = await writeCore(
+    const personText = extraction ? '' : contentFromIntent(plan.input);
+    const written: ZagotovkaCoreV1 = open.length ? {
+      version: 'piece-core/v1', text: '', brief: filled.brief, answers,
+      slop: null, writtenBy: 'fallback', authorNumbers: false,
+    } : await writeCore(
       {
         organizationId,
         language,
-        brief: filled.brief,
+        brief: selectedFactsBrief(filled.brief),
         answers,
         questionTextByKey: Object.fromEntries(
           answers.map((answer) => [
@@ -455,19 +447,21 @@ export class IntakeService {
     );
     const core: ZagotovkaCoreV1 = {
       ...written,
+      brief: filled.brief,
       questions: {
         round: 0,
         items: open,
         answered: this.settledAnswers(plan),
       },
       personText,
+      ...(extraction ? { borrowed: this.borrowedForCore(extraction) } : {}),
     };
 
     let piece: { id: string; code: string } | null = null;
     if (actorUserId) {
       try {
         piece = await this.briefRepository.recordCore(organizationId, {
-          title: briefTitle(briefForGate(filled.brief), plan.language),
+          title: briefTitle({ thesis: textOrNull(filled.brief.thesis) || core.text }, plan.language),
           body: core.text,
           brief: {
             ...this.storedCore(core),
@@ -617,9 +611,14 @@ export class IntakeService {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
         ).withStructuredOutput(extractionSchema);
-        return (await model.invoke(
-          extractionPrompt(text, language)
-        )) as IntakeExtractionV1;
+        const extracted = await model.invoke(extractionPrompt(text, language)) as IntakeExtractionV1;
+        for (const field of ['topic', 'angle'] as const) {
+          const raw = extracted[field];
+          extracted[field] = textOrNull(raw);
+          if (!extracted[field] && trimmed(raw)) this.logger.warn(intakeDiscardDiagnostic('intake-extract', field, raw));
+        }
+        extracted.claims = (extracted.claims ?? []).filter((claim) => textOrNull(claim.text));
+        return extracted;
       },
       'extract'
     );
@@ -753,12 +752,8 @@ export class IntakeService {
     plan: IntakePlanV1
   ): PieceOpenQuestionV1[] {
     if (plan.skipInterview) return [];
-    return openQuestionsFor({
-      brief: filled.brief,
-      options: filled.options,
-      language: plan.language,
-      settled: this.settledFields(plan),
-    });
+    const settled = this.settledFields(plan);
+    return (filled.questions ?? []).filter((question) => !settled.includes(question.field)).slice(0, 3);
   }
 
   /**
@@ -953,6 +948,7 @@ export class IntakeService {
         return person[field];
       }
       const proposed = textOrNull(answer?.[field]);
+      if (!proposed && trimmed(answer?.[field])) this.logger.warn(intakeDiscardDiagnostic('intake', field, answer[field]));
       if (proposed) {
         origins[field as keyof BriefFilledV1['origins']] =
           originOf(field) || 'model';
@@ -981,9 +977,10 @@ export class IntakeService {
       origins.audience = 'avatar';
     }
 
-    const facts: BriefFilledFactV1[] = [];
+    const facts: PieceFactV2[] = [];
     for (const fact of (answer?.facts || []).slice(0, MEMORY_FACTS_LIMIT)) {
-      const statement = trimmed(fact?.statement);
+      const statement = textOrNull(fact?.statement);
+      if (!statement && trimmed(fact?.statement)) this.logger.warn(intakeDiscardDiagnostic('intake', 'facts.statement', fact.statement));
       if (!statement) continue;
       const factId =
         trimmed(fact?.factId) && knownFacts.has(trimmed(fact.factId))
@@ -999,6 +996,8 @@ export class IntakeService {
         factId,
         evidenceId,
         origin: evidenceId ? 'search' : factId ? 'memory' : 'input',
+        kind: evidenceId || plan.inputKind !== 'thought' ? 'external' : 'own',
+        status: evidenceId || factId ? 'confirmed' : 'unverified',
         verified: Boolean(evidenceId || factId),
       });
     }
@@ -1053,6 +1052,20 @@ export class IntakeService {
     return {
       ...this.settled(brief),
       options,
+      questions: (Array.isArray(answer?.questions) ? answer.questions : [])
+        .filter((question: any, index: number, all: any[]) =>
+          ['thesis', 'position', 'facts'].includes(question?.field) &&
+          textOrNull(question?.question) &&
+          all.findIndex((other: any) => other?.field === question.field) === index
+        )
+        .slice(0, 3)
+        .map((question: any) => ({
+          field: question.field,
+          question: textOrNull(question.question)!,
+          options: (Array.isArray(question.options) ? question.options : [])
+            .map(textOrNull).filter(Boolean).slice(0, 3),
+          suggested: null as string | null,
+        })),
       pendingSearch,
     };
   }
@@ -1101,7 +1114,7 @@ export class IntakeService {
     if (!found.length) return { ...filled, pendingSearch: null };
     const brief: BriefFilledV1 = {
       ...filled.brief,
-      facts: [...filled.brief.facts, ...found],
+      facts: [...filled.brief.facts, ...found.map((fact): PieceFactV2 => ({ ...fact, kind: 'found', selected: false, status: fact.verified ? 'confirmed' : 'unverified' }))],
     };
     return {
       ...filled,
@@ -1175,7 +1188,7 @@ export class IntakeService {
           factId: null,
           evidenceId: accepted.evidenceId,
           origin: 'search',
-          verified: true,
+          verified: false,
         });
       } catch (error) {
         this.logger.warn(

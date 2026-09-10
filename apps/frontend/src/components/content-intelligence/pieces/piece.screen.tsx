@@ -1,15 +1,19 @@
 'use client';
 
+import { factKind, factStatus, type PieceFactV2 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-facts.v2';
 import { CoreAnswerDiff, type CoreAnswerFeedback } from './core-answer-diff';
 import type { BriefFilledV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/intake-v2.contract';
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
+import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Panel } from '@contentfactory/react/layout';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { Segmented } from '../../ui/segmented';
+import { Progress } from '../../ui/progress';
 import { Table, Td, Th, Tr } from '../../ui/table';
 import {
   ErrorState,
@@ -90,6 +94,8 @@ export function PieceScreen({
   readOnlyNote,
   questionsSlot,
   coreAnswer,
+  coreRewriteSlot,
+  reviewQuestionsSlot,
   onAdapt,
   onArchive,
   onAnswer,
@@ -99,6 +105,8 @@ export function PieceScreen({
   onDeleteAdaptation,
   onOpenEditor,
   onRetry,
+  onTitleSave,
+  onFactSelect,
 }: {
   locale: PiecesLocale;
   state: VoiceScreenStateV1;
@@ -129,6 +137,8 @@ export function PieceScreen({
    */
   questionsSlot?: ReactNode;
   coreAnswer?: CoreAnswerFeedback | null;
+  coreRewriteSlot?: ReactNode;
+  reviewQuestionsSlot?: ReactNode;
   onAdapt: (channelId: string, kind: AdaptationKindV1) => void;
   onArchive: () => void;
   onAnswer: (
@@ -145,7 +155,29 @@ export function PieceScreen({
   onDeleteAdaptation: (adaptation: AdaptationV1) => void;
   onOpenEditor: () => void;
   onRetry: () => void;
+  onTitleSave?: (title: string) => Promise<void>;
+  onFactSelect?: (statement: string, selected: boolean) => Promise<void>;
 }) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
+  const [titleSaving, setTitleSaving] = useState(false);
+  const [factSaving, setFactSaving] = useState<string | null>(null);
+  const [factError, setFactError] = useState('');
+  const [titleError, setTitleError] = useState('');
+  const saveTitle = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!titleValue.trim() || !onTitleSave) return;
+    setTitleSaving(true);
+    setTitleError('');
+    try {
+      await onTitleSave(titleValue.trim());
+      setEditingTitle(false);
+    } catch {
+      setTitleError(locale === 'ru' ? 'Заголовок не сохранён. Попробуйте ещё раз.' : 'Title was not saved. Try again.');
+    } finally {
+      setTitleSaving(false);
+    }
+  };
   const t = piecesCopy[locale];
   const v = voiceCopy[locale];
   const targetRef = useRef<HTMLDivElement>(null);
@@ -385,8 +417,20 @@ export function PieceScreen({
 
       <div className="flex min-w-0 flex-wrap items-start gap-[24px]">
         <h1 className="min-w-0 max-w-[60ch] flex-1 cf-heading-lg text-cf-ink [text-wrap:balance]">
-          {piece.title}
+          {canWrite && onTitleSave ? (
+            <Button variant="quiet" layout="content" className="min-w-0 justify-start px-0 text-left" disabled={busy || titleSaving}
+              onClick={() => { setTitleValue(piece.title); setEditingTitle(true); setTitleError(''); }}
+              aria-label={`${piece.title}. ${locale === 'ru' ? 'Изменить заголовок' : 'Edit title'}`}>
+              <span className="cf-heading-lg [text-wrap:balance]">{piece.title}</span>
+            </Button>
+          ) : piece.title}
         </h1>
+        {editingTitle ? <form className="flex w-full flex-wrap items-start gap-[8px]" onSubmit={saveTitle}>
+          <Input autoFocus name="piece-title" label={locale === 'ru' ? 'Заголовок' : 'Title'} value={titleValue} maxLength={120} onChange={(event) => setTitleValue(event.target.value)} disabled={titleSaving} />
+          <Button type="submit" loading={titleSaving} disabled={!titleValue.trim()}>{locale === 'ru' ? 'Сохранить' : 'Save'}</Button>
+          <Button type="button" variant="secondary" disabled={titleSaving} onClick={() => setEditingTitle(false)}>{locale === 'ru' ? 'Отмена' : 'Cancel'}</Button>
+          {titleError ? <p role="alert" className="w-full cf-body-sm text-cf-ink">{titleError}</p> : null}
+        </form> : null}
         {/*
           «В архив» — второстепенное действие в одной строке с заголовком, а не
           главная кнопка страницы. Подтверждения нет намеренно: архив прячет
@@ -589,7 +633,9 @@ export function PieceScreen({
                         <Button
                           type="button"
                           variant={latest ? 'secondary' : 'primary'}
-                          disabled={!canWrite || busy}
+                          loading={busy}
+                          loadingLabel={locale === 'ru' ? 'Адаптируем…' : 'Adapting…'}
+                          disabled={!canWrite || busy || Boolean(core && !core.text.trim())}
                           aria-label={`${t.adapt} · ${target.name}`}
                           onClick={() => {
                             setSelectedPlatform(target.platform);
@@ -650,6 +696,15 @@ export function PieceScreen({
           <div ref={askRef} className="flex min-w-0 flex-col gap-[12px]">
             {busy ? (
               <div className="flex flex-wrap items-center gap-[8px]">
+                <Progress
+                  mode="indeterminate"
+                  label={
+                    adaptingChannel
+                      ? `${t.adapting} ${adaptingChannel}`
+                      : t.adapting
+                  }
+                  className="w-[128px] shrink-0"
+                />
                 <p
                   aria-live="polite"
                   data-piece-step={step ?? 'started'}
@@ -675,7 +730,7 @@ export function PieceScreen({
                 words={{
                   badge: t.interviewBadge,
                   title: t.interviewTitle,
-                  lead: t.interviewLead,
+                  lead: locale === 'ru' ? `Не хватает для канала «${adaptingChannel || ''}»` : `Missing for channel ${adaptingChannel || ''}`,
                   suggestedLead: t.suggestedLead,
                   yes: t.answerYes,
                   fix: t.answerFix,
@@ -733,7 +788,9 @@ export function PieceScreen({
               </p>
             ) : null}
 
-            {core?.writtenBy === 'fallback' ? (
+            {questionsSlot}
+            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно выбрать «Реши сама».' : 'The core will appear after your answers. You can let the model decide.'}</p> : null}
+            {core?.text && core.writtenBy === 'fallback' ? (
               <p
                 role="status"
                 data-piece-core-fallback="true"
@@ -780,7 +837,8 @@ export function PieceScreen({
               `rewrite` — совет, а не запрет: «Адаптировать» ниже остаётся
               нажимаемым, и об этом сказано словами.
             */}
-            {core ? (
+            {coreRewriteSlot}
+            {core?.text ? (
               <div className="flex min-w-0 flex-col gap-[4px]">
                 <QualityLine
                   locale={locale}
@@ -799,7 +857,6 @@ export function PieceScreen({
             ) : null}
           </section>
 
-          {questionsSlot}
 
           {/* --- Адаптации ------------------------------------------------ */}
 
@@ -859,7 +916,7 @@ export function PieceScreen({
                           {stateWord(adaptation.state, t)}
                         </Status>
                         <span className="flex-1" />
-                        {adaptation.postId ? (
+                        {adaptation.postId && adaptation.state !== 'draft' ? (
                           <Button
                             type="button"
                             variant="secondary"
@@ -1030,8 +1087,10 @@ export function PieceScreen({
             опирается» над пустотой отвечал бы «ни на что», а это неправда:
             у старого материала брифа просто нет.
           */}
-          {core && (facts.length > 0 || ungrounded.length > 0) ? (
+          {core && (facts.length > 0 || ungrounded.length > 0 || reviewQuestionsSlot) ? (
             <details
+              id="piece-text-sources"
+              open={reviewQuestionsSlot ? true : undefined}
               data-piece-sources="true"
               className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
             >
@@ -1040,40 +1099,42 @@ export function PieceScreen({
               </summary>
 
               <div className="mt-[12px] flex min-w-0 flex-col gap-[12px]">
+                {reviewQuestionsSlot}
+                {facts.some((fact) => factKind(fact, core.brief.inputKind) === 'found') ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? '«Берём» — использовать при следующем написании. Выбор не подтверждает факт.' : 'Include uses the source on the next draft. Selecting it does not verify the claim.'}</p> : null}
+                {factError ? <p role="alert" className="cf-body-sm text-cf-ink">{factError}</p> : null}
                 {facts.length > 0 ? (
-                  <dl
-                    data-piece-facts="true"
-                    className="flex min-w-0 flex-col gap-[12px]"
-                  >
-                    {facts.map((fact, index) => (
-                      <div
-                        key={`${fact.statement}-${index}`}
-                        className="flex min-w-0 flex-col gap-[4px]"
-                      >
-                        <dt className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
-                          {fact.statement}
-                        </dt>
-                        <dd
-                          data-piece-fact-verified={String(fact.verified)}
-                          className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] cf-caption text-cf-ink-muted"
-                        >
-                          <span>
-                            {fact.verified ? i.factVerified : i.factUnverified}
-                          </span>
-                          {fact.sourceUrl ? (
-                            <a
-                              href={fact.sourceUrl}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="min-w-0 break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                            >
-                              {hostOf(fact.sourceUrl)}
-                            </a>
-                          ) : null}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <div data-piece-facts="true"><Table caption={locale === 'ru' ? 'Опоры текста' : 'Text sources'}>
+                    <thead>
+                      <Tr>
+                        <Th>{locale === 'ru' ? 'Опора' : 'Source material'}</Th>
+                        <Th>{locale === 'ru' ? 'Тип' : 'Type'}</Th>
+                        <Th>{locale === 'ru' ? 'Статус' : 'Status'}</Th>
+                        <Th>{locale === 'ru' ? 'Источник' : 'Source'}</Th>
+                        <Th>{locale === 'ru' ? 'Берём' : 'Include'}</Th>
+                      </Tr>
+                    </thead>
+                    <tbody>
+                      {facts.map((fact: PieceFactV2, index) => (
+                        <Tr key={`${fact.statement}-${index}`}>
+                          <Td><span className="cf-body-sm text-cf-ink [text-wrap:pretty]">{fact.statement}</span></Td>
+                          <Td><span data-fact-kind={factKind(fact, core.brief.inputKind)}>{locale === 'ru' ? { own: 'своё', external: 'внешнее', found: 'найдено' }[factKind(fact, core.brief.inputKind)] : factKind(fact, core.brief.inputKind)}</span></Td>
+                          <Td><span data-piece-fact-verified={String(fact.verified)}>{locale === 'ru' ? { confirmed: 'подтверждено', conflicting: 'расходится', not_found: 'не нашлось', unverified: 'не проверено' }[factStatus(fact)] : factStatus(fact)}</span></Td>
+                          <Td>{fact.sourceUrl ? <a href={fact.sourceUrl} target="_blank" rel="noreferrer noopener" className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">{hostOf(fact.sourceUrl)}</a> : '—'}</Td>
+                          <Td>{factKind(fact, core.brief.inputKind) === 'found' && onFactSelect ? (
+                            <CheckboxField label={locale === 'ru' ? 'Берём' : 'Include'} checked={fact.selected === true} disabled={!canWrite || factSaving !== null}
+                              onChange={async (event) => {
+                                const selected = event.target.checked;
+                                setFactSaving(fact.statement);
+                                setFactError('');
+                                try { await onFactSelect(fact.statement, selected); }
+                                catch { setFactError(locale === 'ru' ? 'Выбор не сохранён. Попробуйте ещё раз.' : 'Selection was not saved. Try again.'); }
+                                finally { setFactSaving(null); }
+                              }} />
+                          ) : null}</Td>
+                        </Tr>
+                      ))}
+                    </tbody>
+                  </Table></div>
                 ) : null}
 
                 {/*

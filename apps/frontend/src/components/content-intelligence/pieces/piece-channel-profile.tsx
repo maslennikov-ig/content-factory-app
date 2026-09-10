@@ -43,9 +43,10 @@ export function PieceChannelProfile({
       ? t.profileEmojiNone
       : profile?.emojiLevel === 'few'
       ? t.profileEmojiFew
-      : t.profileEmojiFree;
+      : profile?.emojiLevel === 'auto' ? t.profileAuto : t.profileEmojiFree;
   const cta = profile
     ? {
+        auto: t.profileAuto,
         none: t.profileCtaNone,
         question: t.profileCtaQuestion,
         comment: t.profileCtaComment,
@@ -56,7 +57,6 @@ export function PieceChannelProfile({
     : '';
   return (
     <div className="flex min-w-0 flex-col gap-[4px]">
-      <span className="cf-body-sm text-cf-ink">{name}</span>
       <div className="flex flex-wrap items-center gap-[8px] cf-caption text-cf-ink-muted">
         <span>
           {profile
@@ -67,8 +67,8 @@ export function PieceChannelProfile({
                   ? 'по умолчанию · '
                   : 'defaults · '
               }${
-                profile.lengthPolicy === 'provider_max'
-                  ? locale === 'ru'
+                typeof profile.lengthPolicy === 'string'
+                  ? profile.lengthPolicy === 'auto' ? t.profileAuto : locale === 'ru'
                     ? 'лимит площадки'
                     : 'platform limit'
                   : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax}`

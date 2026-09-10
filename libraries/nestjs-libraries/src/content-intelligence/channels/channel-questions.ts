@@ -19,12 +19,8 @@
  * вопрос не появляется вовсе.
  */
 
-import type {
-  AdaptationKindV1,
-  ChannelWritingProfileV1,
-  PieceQuestionV1,
-  ZagotovkaCoreV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { AdaptationKindV1, PieceQuestionV1, ZagotovkaCoreV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import { PIECE_MAX_QUESTIONS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { TELEGRAM_PROVIDER_IDENTIFIER } from './channel-writing-profile';
 

@@ -715,7 +715,48 @@ const countNamedOversizedRadii = (
   )
 ) => countMatches(sources, /rounded-(?:2xl|3xl)\b/g);
 
+/**
+ * Hand-written loading motion predates the shared Progress and Skeleton.
+ *
+ * The exact per-file count makes this debt shrink-only. A file already on the
+ * list cannot quietly add a second spinner or pulse, while components under
+ * `components/ui` remain the one place where loading motion is implemented.
+ */
+const LOADING_ANIMATION_ALLOWED = {
+  'apps/frontend/src/app/(app)/oauth/authorize/page.tsx': 1,
+  'apps/frontend/src/components/admin/admin-stats.component.tsx': 1,
+  'apps/frontend/src/components/admin/admin-users.component.tsx': 1,
+  'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx': 1,
+  'apps/frontend/src/components/developer/developer.surface.tsx': 1,
+  'apps/frontend/src/components/launches/calendar.tsx': 2,
+  'apps/frontend/src/components/media/media.component.tsx': 1,
+  'apps/frontend/src/components/public-api/public-api.surface.tsx': 1,
+  'apps/frontend/src/components/settings/sign-in-methods.component.tsx': 3,
+  'apps/frontend/src/components/third-parties/third-party.media-library.tsx': 1,
+};
+
+const loadingAnimationDebt = () =>
+  Object.fromEntries(
+    sourceFiles(path.join(repositoryRoot, 'apps/frontend/src'))
+      .map((filePath) => [
+        path.relative(repositoryRoot, filePath),
+        fs.readFileSync(filePath, 'utf8'),
+      ])
+      .filter(([file]) => !file.startsWith('apps/frontend/src/components/ui/'))
+      .map(([file, source]) => [
+        file,
+        (source.match(/\b(?:motion-safe:)?animate-(?:spin|pulse)\b/g) ?? [])
+          .length,
+      ])
+      .filter(([, count]) => count > 0)
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+
 describe('Content Factory style guard', () => {
+  test('keeps ad-hoc loading animation outside ui shrink-only', () => {
+    expect(loadingAnimationDebt()).toEqual(LOADING_ANIMATION_ALLOWED);
+  });
+
   test('keeps shared-library colour and legacy-alias debt shrink-only', () => {
     const fixture = {
       'new.tsx': [

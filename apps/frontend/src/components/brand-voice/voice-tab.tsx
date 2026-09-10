@@ -67,7 +67,11 @@ export function VoiceTab() {
         <VoiceWizardContainer
           onAnalysingChange={setAnalysing}
           onAnalysisStart={() => setWizardSession(true)}
-          onActivated={() => { setWizardSession(false); void overview.mutate(); }}
+          onActivated={() => {
+            setWizardSession(false);
+            void overview.mutate();
+            router.push('/content?tab=materials');
+          }}
         />
       </div>
     );

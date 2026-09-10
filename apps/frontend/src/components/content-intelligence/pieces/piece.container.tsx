@@ -16,6 +16,7 @@ import {
 import { resolveContentLocale } from '../content-section.copy';
 import { useOpenPost } from '../shared/use-open-post';
 import type { CoreAnswerFeedback } from './core-answer-diff';
+import { ReviewQuestions, type PendingReviewQuestions } from './review-questions';
 import { AdaptationReview } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceQuestions } from './piece-questions';
@@ -139,6 +140,9 @@ export function PieceContainer({
     тогда спрашивать больше нечего.
   */
   const [answering, setAnswering] = useState(false);
+  const [reviewQuestions,setReviewQuestions] = useState<PendingReviewQuestions|null>(null);
+  const [reviewEpoch,setReviewEpoch] = useState(0);
+  useEffect(()=>{setReviewQuestions(null);},[pieceId]);
   const [coreAnswer, setCoreAnswer] = useState<CoreAnswerFeedback | null>(null);
   const [asked, setAsked] = useState<readonly IntakeQuestionV1[] | null>(null);
 
@@ -416,8 +420,6 @@ export function PieceContainer({
     [detail, pieceId, request, w]
   );
 
-  /** «Оставить как есть»: вопросы уходят с экрана и ничего не спрашивают. */
-  const skipQuestions = useCallback(() => setAsked([]), []);
 
   /*
     «В архив»: одна дверь, одно перечитывание и никакого подтверждения.
@@ -515,6 +517,8 @@ export function PieceContainer({
 
   return (
     <PieceScreen
+      onFactSelect={async (statement, selected) => { const response = await request(`${url}/facts`, { method: 'PATCH', body: JSON.stringify({ statement, selected }) }); if (!response.ok) throw new Error('Fact selection failed'); await detail.mutate(); }}
+      onTitleSave={async (title) => { const response = await request(url, { method: 'PATCH', body: JSON.stringify({ title }) }); if (!response.ok) throw new Error('Title update failed'); await detail.mutate(); }}
       renderChannelProfile={(channel) => (
         <PieceChannelProfile
           locale={locale}
@@ -544,7 +548,7 @@ export function PieceContainer({
       draftText={draft?.text ?? null}
       draftChecks={draft?.checks ?? null}
       draftGaps={draft?.draftGaps ?? null}
-      adaptingChannel={busy ? adaptingChannel : null}
+      adaptingChannel={busy || questions.length ? adaptingChannel : null}
       errorMessage={
         failure ??
         (detail.error
@@ -568,6 +572,8 @@ export function PieceContainer({
         )
       }
       coreAnswer={coreAnswer}
+      reviewQuestionsSlot={reviewQuestions ? <ReviewQuestions key={reviewQuestions.token} pieceId={pieceId} pending={reviewQuestions} locale={locale} disabled={!canWrite || busy} onSaved={(remaining)=>{setReviewQuestions(remaining??null);setReviewEpoch(value=>value+1);void detail.mutate();}} /> : null}
+      coreRewriteSlot={detail.data?.core?.text ? <AdaptationReview key={`core:${reviewEpoch}`} onQuestions={setReviewQuestions} pieceId={pieceId} workspaceId={user?.orgId ?? ''} locale={locale} disabled={!canWrite || busy} onAccepted={() => { setCoreAnswer(null); void detail.mutate(); }} /> : null}
       questionsSlot={
         canWrite && openQuestions.length > 0 ? (
           <PieceQuestions
@@ -575,13 +581,13 @@ export function PieceContainer({
             questions={openQuestions}
             busy={answering}
             onAnswer={(given, decide) => void answerQuestions(given, decide)}
-            onSkip={skipQuestions}
+            onSkip={() => void answerQuestions([], openQuestions.map((question) => question.field))}
           />
         ) : undefined
       }
       renderReview={(adaptation) => adaptation.postId && adaptation.state === 'draft' ? (
-        <AdaptationReview key={`${user?.orgId}:${pieceId}:${adaptation.id}`} pieceId={pieceId}
-          adaptationId={adaptation.id} workspaceId={user?.orgId ?? ''} locale={locale}
+        <AdaptationReview key={`${user?.orgId}:${pieceId}:${adaptation.id}:${reviewEpoch}`} onQuestions={setReviewQuestions} pieceId={pieceId}
+          adaptationId={adaptation.id} workspaceId={user?.orgId ?? ''} locale={locale} onPublish={() => { if (adaptation.postId) void openPost(adaptation.postId); }}
           disabled={!canWrite || busy} onAccepted={() => {
             setDraft((current) => current?.adaptationId === adaptation.id ? null : current);
             void detail.mutate();

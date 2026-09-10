@@ -4,6 +4,7 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { buttonClassName } from '@contentfactory/react/form/button';
+import { Progress } from '../ui/progress';
 import {
   ONBOARDING_STEP_HREF,
   ONBOARDING_STEP_KEYS,
@@ -138,29 +139,23 @@ export function OnboardingWalkthrough({
                 {answered ? t.progressValue(done, total) : t.progressPending}
               </span>
             </div>
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={total}
-              // An indeterminate bar leaves `aria-valuenow` out; a zero here
-              // would announce «nothing done» to a screen reader for the same
-              // reason the sighted bar printed «0 из 6».
-              aria-valuenow={answered ? done : undefined}
-              aria-valuetext={
-                answered ? t.progressValue(done, total) : t.progressPending
-              }
-              aria-busy={answered ? undefined : true}
-              className="mt-[8px] h-[4px] overflow-hidden rounded-[4px] bg-cf-surface-raised"
-            >
-              <div
-                className="h-[4px] bg-cf-accent transition-[width] duration-state motion-reduce:transition-none"
-                style={{
-                  width: answered
-                    ? `${Math.round((done / total) * 100)}%`
-                    : '0%',
-                }}
+            {answered ? (
+              <Progress
+                mode="steps"
+                value={done}
+                total={total}
+                label={t.progressLabel}
+                valueText={t.progressValue(done, total)}
+                className="mt-[8px]"
               />
-            </div>
+            ) : (
+              <Progress
+                mode="indeterminate"
+                label={t.progressLabel}
+                valueText={t.progressPending}
+                className="mt-[8px]"
+              />
+            )}
           </div>
 
           <ol className="flex flex-col">

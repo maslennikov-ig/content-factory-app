@@ -37,6 +37,11 @@ import {
 /** Bounded calendar chooser read; the organization always comes from session. */
 export class ReadyAdaptationsQueryDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  integrationIds?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -267,4 +272,22 @@ export class PieceArchiveDto {
    */
   @IsBoolean()
   archived: boolean;
+}
+
+export class PieceTitleDto {
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  title: string;
+}
+
+export class PieceFactSelectionDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(8000)
+  statement: string;
+
+  @IsBoolean()
+  selected: boolean;
 }

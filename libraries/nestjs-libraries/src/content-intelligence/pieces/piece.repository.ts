@@ -26,12 +26,14 @@ import {
   type AdaptationRow,
 } from '../materials/content-material.repository';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
+import type { ReviewSnapshotV2 } from './review.v2.contract';
 import { reviewConflict, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import { searchWords } from '../search-terms';
 
 type PrismaClientLike = Record<string, any>;
 
 type ReviewDraftRow = {
+  title: string | null;
   id: string; body: string | null; updatedAt: Date; postId: string | null;
   post: { id: string; content: string; updatedAt: Date; state: string; deletedAt: Date | null;
     integration: { providerIdentifier: string } } | null;
@@ -136,7 +138,8 @@ export class PieceRepository {
    */
   listReadyAdaptations(
     organizationId: string,
-    limit: number
+    limit: number,
+    integrationIds?: string[]
   ): Promise<ReadyAdaptationRow[]> {
     return this.client().contentDerivation.findMany({
       where: {
@@ -145,6 +148,7 @@ export class PieceRepository {
           is: {
             organizationId,
             state: 'DRAFT',
+            ...(integrationIds ? { integrationId: { in: integrationIds } } : {}),
             deletedAt: null,
             integration: {
               is: { organizationId, deletedAt: null },
@@ -299,7 +303,7 @@ export class PieceRepository {
     return this.client().contentDerivation.findFirst({
       where: { organizationId, contentPieceId: pieceId, id: adaptationId },
       select: {
-        id: true, body: true, updatedAt: true, postId: true,
+        id: true, title: true, body: true, updatedAt: true, postId: true,
         post: { select: { id: true, content: true, updatedAt: true, state: true, deletedAt: true,
           integration: { select: { providerIdentifier: true } } } },
       },
@@ -315,6 +319,27 @@ export class PieceRepository {
           postId: snapshot.postId, body: snapshot.adaptationBody,
           updatedAt: new Date(snapshot.adaptationUpdatedAt) },
         data: { body: text },
+      });
+      if (adaptation.count !== 1) throw reviewConflict();
+      const post = await tx.post.updateMany({
+        where: { organizationId, id: snapshot.postId, state: 'DRAFT', deletedAt: null,
+          content: snapshot.postContent, updatedAt: new Date(snapshot.postUpdatedAt) },
+        data: { content },
+      });
+      if (post.count !== 1) throw reviewConflict();
+      return { accepted: true as const };
+    });
+  }
+
+  /** V2 also protects and atomically writes the independent adaptation title. */
+  acceptReviewV2(organizationId: string, pieceId: string, adaptationId: string,
+    snapshot: ReviewSnapshotV2, text: string, content: string, title: string | null) {
+    return this.client().$transaction(async (tx: PrismaClientLike) => {
+      const adaptation = await tx.contentDerivation.updateMany({
+        where: { organizationId, contentPieceId: pieceId, id: adaptationId,
+          postId: snapshot.postId, body: snapshot.adaptationBody, title: snapshot.adaptationTitle,
+          updatedAt: new Date(snapshot.adaptationUpdatedAt) },
+        data: { body: text, title },
       });
       if (adaptation.count !== 1) throw reviewConflict();
       const post = await tx.post.updateMany({
@@ -344,6 +369,15 @@ export class PieceRepository {
     return this.client().contentDerivation.deleteMany({
       where: { organizationId, id: adaptationId, contentPieceId: pieceId },
     });
+  }
+
+  async acceptCoreReview(organizationId: string, pieceId: string, snapshot: { body: string; brief: unknown; title: string }, body: string, title: string, brief: unknown) {
+    const saved = await this.client().contentPiece.updateMany({
+      where: { organizationId, id: pieceId, body: snapshot.body, title: snapshot.title, brief: { equals: snapshot.brief as any } },
+      data: { body, title, brief: brief as any },
+    });
+    if (!saved.count) throw reviewConflict();
+    return { body, title };
   }
 
   archive(organizationId: string, pieceId: string, archivedAt: Date | null) {

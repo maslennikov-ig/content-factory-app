@@ -28,7 +28,7 @@ import type {
   PunctuationHabits,
   StyleScaleKey,
 } from './brand-voice.types';
-import type { ProfileField } from './assist.contract';
+import type { ProfileField, ProfileFieldV2 } from './assist.contract';
 import type { PostHabitMetricKey } from './post-habits';
 import type { PostLayoutMetricKey } from './post-layout';
 import type { RecutPlatform } from './recut';
@@ -36,6 +36,10 @@ import type { SampleOrigin, SampleUsagePurpose } from './sample-intake';
 import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
 import type { BrandProfileSelectionV1 } from '../contracts';
+import type { VoiceSampleFileIntakeResponseV2 as FileIntakeResponseV2 } from './voice-intake-v2.contract';
+
+/** Kept in this registry's exported type set while its implementation stays separate. */
+export type VoiceSampleFileIntakeResponseV2 = FileIntakeResponseV2;
 
 /**
  * The versions a measurement is read back with a year later.
@@ -556,6 +560,11 @@ export type VoiceSampleFileIntakeRequestV1 = {
   rightsConfirmed?: boolean;
 };
 
+/** Additive multipart contract; the parser still defaults to 300 for V1. */
+export type VoiceSampleFileIntakeRequestV2 = VoiceSampleFileIntakeRequestV1 & {
+  maxMessages?: number;
+};
+
 /* -------------------------------------------------------------------------
  * Screen 04 — the analysis step
  * ---------------------------------------------------------------------- */
@@ -726,12 +735,40 @@ export type VoiceProposalResponseV1 =
       notice?: string;
     };
 
+export type VoiceProposalFieldV2 = Omit<VoiceProposalFieldV1, 'key'> & {
+  key: ProfileFieldV2;
+};
+
+export type VoiceObservationV2 = Omit<VoiceObservationV1, 'field'> & {
+  field: ProfileFieldV2;
+};
+
+/** Additive proposal wire contract; V1 remains available to older readers. */
+export type VoiceProposalResponseV2 =
+  | VoiceInsufficientV1
+  | {
+      outcome: 'ready';
+      state: VoiceScreenStateV1;
+      mode: VoiceProposalModeV1;
+      portrait?: VoiceProposalPortraitV1;
+      fields: VoiceProposalFieldV2[];
+      observations: VoiceObservationV2[];
+      profileLabel?: string;
+      activatedAt?: string;
+      notice?: string;
+    };
+
 /** Fields are accepted one at a time, and editing one restarts nothing. */
 export type VoiceProposalFieldRequestV1 = {
   key: ProfileField;
   text?: string;
   action: 'ACCEPT' | 'EDIT' | 'SAVE';
 };
+
+export type VoiceProposalFieldRequestV2 = Omit<
+  VoiceProposalFieldRequestV1,
+  'key'
+> & { key: ProfileFieldV2 };
 
 /**
  * The portrait, decided on its own — same three actions, no `key`.
@@ -757,6 +794,11 @@ export type VoiceProposalManualFieldRequestV1 = {
   text: string;
 };
 
+export type VoiceProposalManualFieldRequestV2 = Omit<
+  VoiceProposalManualFieldRequestV1,
+  'key'
+> & { key: ProfileFieldV2 };
+
 export type VoiceProposalActivateRequestV1 = {
   /** The stated consent beside the checkbox, not implied by the last save. */
   consentGiven: boolean;
@@ -778,6 +820,11 @@ export type VoiceProposalActivateRequestV1 = {
    * is what every caller before the manual path meant.
    */
   mode?: VoiceProposalModeV1;
+};
+
+/** The six-field client opts into the portrait and name activation gates. */
+export type VoiceProposalActivateRequestV2 = VoiceProposalActivateRequestV1 & {
+  version: 2;
 };
 
 /* -------------------------------------------------------------------------
@@ -1611,7 +1658,7 @@ export const VOICE_SURFACES = {
     dataFields: ['state', 'samples', 'sources', 'notice'],
     // What the browser is holding before it sends: the files that were picked,
     // and whether the request is out. The server knows neither.
-    clientOnlyProps: ['selectedCodes', 'upload', 'allowanceHint'],
+    clientOnlyProps: ['selectedCodes', 'upload', 'allowanceHint', 'maxMessages'],
     routes: [
       {
         method: 'GET',
@@ -1631,8 +1678,8 @@ export const VOICE_SURFACES = {
       {
         method: 'POST',
         path: `${VOICE_API_BASE}/samples/files`,
-        request: 'VoiceSampleFileIntakeRequestV1',
-        response: 'VoiceSampleIntakeResponseV1',
+        request: 'VoiceSampleFileIntakeRequestV2',
+        response: 'VoiceSampleFileIntakeResponseV2',
       },
       {
         method: 'DELETE',
@@ -1673,7 +1720,7 @@ export const VOICE_SURFACES = {
       'rejected',
       'notice',
     ],
-    clientOnlyProps: [] as string[],
+    clientOnlyProps: ['selectionSummary'],
     routes: [
       {
         method: 'POST',
@@ -1736,19 +1783,19 @@ export const VOICE_SURFACES = {
       {
         method: 'GET',
         path: `${VOICE_API_BASE}/proposal`,
-        response: 'VoiceProposalResponseV1',
+        response: 'VoiceProposalResponseV2',
       },
       {
         method: 'POST',
         path: `${VOICE_API_BASE}/proposal/portrait`,
         request: 'VoiceProposalPortraitRequestV1',
-        response: 'VoiceProposalResponseV1',
+        response: 'VoiceProposalResponseV2',
       },
       {
         method: 'POST',
         path: `${VOICE_API_BASE}/proposal/field`,
-        request: 'VoiceProposalFieldRequestV1',
-        response: 'VoiceProposalResponseV1',
+        request: 'VoiceProposalFieldRequestV2',
+        response: 'VoiceProposalResponseV2',
       },
       // The hand-filled path reads and writes its own draft, and activates
       // through the same route as the model's proposal: consent is checked in
@@ -1756,18 +1803,18 @@ export const VOICE_SURFACES = {
       {
         method: 'GET',
         path: `${VOICE_API_BASE}/proposal/manual`,
-        response: 'VoiceProposalResponseV1',
+        response: 'VoiceProposalResponseV2',
       },
       {
         method: 'POST',
         path: `${VOICE_API_BASE}/proposal/manual/field`,
-        request: 'VoiceProposalManualFieldRequestV1',
-        response: 'VoiceProposalResponseV1',
+        request: 'VoiceProposalManualFieldRequestV2',
+        response: 'VoiceProposalResponseV2',
       },
       {
         method: 'POST',
         path: `${VOICE_API_BASE}/proposal/activate`,
-        request: 'VoiceProposalActivateRequestV1',
+        request: 'VoiceProposalActivateRequestV2',
         response: 'VoicePassportResponseV1',
       },
     ],

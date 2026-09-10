@@ -370,7 +370,7 @@ const samplesEnvelope = (over = {}) => ({
   ...over,
 });
 
-const proposalField = (key, status = 'UNDECIDED') => ({
+const proposalField = (key, status = 'ACCEPTED') => ({
   key,
   text: `Предложение для ${key}`,
   status,
@@ -381,6 +381,11 @@ const proposalEnvelope = (fields) => ({
   outcome: 'ready',
   state: 'default',
   mode: 'assist',
+  portrait: {
+    text: 'Руководитель мастерской пишет о ежедневной работе команды, поставках и сроках. Он объясняет решения через конкретные случаи и разговаривает с читателем как с коллегой, которому важен практический результат.',
+    status: 'ACCEPTED',
+    observationRefs: ['smp-01#1'],
+  },
   fields,
   observations: [
     {
@@ -401,6 +406,7 @@ const MANUAL_KEYS = [
   'AUDIENCE',
   'SENTENCE_LENGTH',
   'NEVER_SAY',
+  'TOPICS',
 ];
 
 /** The hand-filled draft the way `manualProposal` answers with it. */
@@ -802,16 +808,11 @@ describe('the voice wizard on live data', () => {
     await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
     await click(screen.getByRole('button', { name: 'Дальше — предложение' }));
 
-    const tone = document.querySelector('[data-voice-field="TONE"]');
-    await click(tone.querySelector('button'));
     expect(
       server.calls.some(
-        (call) =>
-          call.route === `${VOICE_API}/proposal/field` &&
-          call.body.key === 'TONE' &&
-          call.body.action === 'ACCEPT'
+        (call) => call.route === `${VOICE_API}/proposal/field`
       )
-    ).toBe(true);
+    ).toBe(false);
     expect(
       document
         .querySelector('[data-voice-field="TONE"]')
@@ -992,6 +993,7 @@ describe('the voice wizard on live data', () => {
     expect(call).toBeDefined();
     expect(call.body.consentGiven).toBe(true);
     expect(call.body.avatarName).toBe('Мастер цеха');
+    expect(call.body.version).toBe(2);
   });
 
   test('the card that promised a file takes one, and names what it will not send', async () => {
@@ -1195,7 +1197,7 @@ describe('the voice wizard on live data', () => {
     const proposal = surface('proposal');
     expect(proposal).not.toBeNull();
     expect(proposal.getAttribute('data-voice-mode')).toBe('manual');
-    expect(proposal.querySelectorAll('textarea')).toHaveLength(5);
+    expect(proposal.querySelectorAll('textarea')).toHaveLength(6);
     // Nothing on this path is measured, so nothing on this path asks to be.
     expect(
       server.calls.some((call) => call.route.includes('/analysis'))
@@ -1256,6 +1258,7 @@ describe('the voice wizard on live data', () => {
       AUDIENCE: 'Заказчики, читающие на бегу.',
       SENTENCE_LENGTH: 'Короткие фразы.',
       NEVER_SAY: 'гарантия результата',
+      TOPICS: 'практика команды; сроки поставок',
     };
     const server = createServer({
       [`GET ${VOICE_API}/overview`]: overview(),
@@ -1286,6 +1289,7 @@ describe('the voice wizard on live data', () => {
       (one) => one.route === `${VOICE_API}/proposal/activate`
     );
     expect(call.body).toEqual({
+      version: 2,
       consentGiven: true,
       avatarName: 'Голос редакции',
       mode: 'manual',
@@ -1426,7 +1430,12 @@ describe('the voice wizard on live data', () => {
     await click(screen.getByRole('button', { name: 'Дальше — разбор' }));
     await click(screen.getByRole('button', { name: 'Дальше — предложение' }));
 
-    await click(screen.getByRole('button', { name: 'Поправить' }));
+    await click(
+      within(document.querySelector('[data-voice-field="TONE"]')).getByRole(
+        'button',
+        { name: 'Поправить' }
+      )
+    );
     const box = document
       .querySelector('[data-voice-field="TONE"]')
       .querySelector('textarea');

@@ -17,40 +17,7 @@ const ts = require('typescript');
  * the moment both sources influence the prompt again.
  */
 
-function loadTypeScriptModule(relativePath, mocks) {
-  const filename = path.resolve(__dirname, '..', relativePath);
-  const source = fs.readFileSync(filename, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    fileName: filename,
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2021,
-      esModuleInterop: true,
-      experimentalDecorators: true,
-    },
-  }).outputText;
-  const loaded = { exports: {} };
-  const localRequire = (request) =>
-    Object.prototype.hasOwnProperty.call(mocks, request)
-      ? mocks[request]
-      : require(request);
-  const evaluate = new Function(
-    'exports',
-    'require',
-    'module',
-    '__filename',
-    '__dirname',
-    compiled
-  );
-  evaluate(
-    loaded.exports,
-    localRequire,
-    loaded,
-    filename,
-    path.dirname(filename)
-  );
-  return loaded.exports;
-}
+const { loadWithMocks: loadTypeScriptModule } = require('./helpers/load-ts-with-mocks.cjs');
 
 let promptTemplate = '';
 let modelResult;

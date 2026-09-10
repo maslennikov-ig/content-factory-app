@@ -1,0 +1,4 @@
+/** Preserve the original prompt contract and append the third-walk clarification. */
+export const coreContentPromptV2 = (base: string, language: 'ru' | 'en'): string => `${base}\n\n${language === 'ru'
+  ? 'Уточнение правил, версия 2: «хочу написать о…», «я бы хотел в этот раз написать об…», «давай про…» — служебное намерение автора. Извлеки из него тему и мысль, но не переноси эту рамку в суть. Правило ДОСЛОВНО относится к содержательным фразам, фактам, примерам и позиции, а не к просьбе написать пост. Это относится и к ответам на вопросы. Не приписывай автору новых фактов.'
+  : 'Rule clarification, version 2: “I want to write about…” and “I would like to write about…” are writing instructions. Extract the subject and thought but never include the instruction framing in the core. VERBATIM applies to substantive phrases, facts, examples and position, not to a request to write a post. This also applies to interview answers. Do not invent facts.'}`;

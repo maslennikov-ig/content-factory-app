@@ -145,6 +145,16 @@ export const voiceCopy = {
     collectedSamples: 'Набранные образцы',
     deleteSelected: 'Удалить выбранные',
     nextAnalysis: 'Дальше — разбор',
+    maxMessagesLabel: 'Сколько сообщений взять из экспорта',
+    maxMessagesHint:
+      'Берём самые свежие подходящие сообщения. Максимум — 300, значение можно уменьшить перед загрузкой.',
+    telegramSelection: (
+      name: string,
+      selected: number,
+      eligible: number,
+      analysisSamples: number
+    ) =>
+      `«${name}»: взяли ${selected} последних из ${eligible} подходящих сообщений; разбор читает ${analysisSamples} образцов из корпуса.`,
     opensAt: 'откроется на 15 000 знаках',
     saveAndLeave: 'Сохранить и выйти',
     columnCode: 'Код',
@@ -264,6 +274,8 @@ export const voiceCopy = {
     portraitTitle: 'Аватар',
     portraitHint:
       'Кто это, а не какой у него стиль. Модель пишет от его лица, и при расхождении с остальными полями побеждает он. Правьте свободно — это ваш человек.',
+    portraitFieldRole:
+      'Портрет задаёт голос целиком. Строки ниже помогают, когда портрета нет, а запреты и темы применяются всегда.',
     proposalWhy: 'Почему предложено именно это',
     proposalObservation: 'Наблюдение',
     stateAccepted: 'Принято',
@@ -294,22 +306,28 @@ export const voiceCopy = {
     fieldAudience: 'К кому обращаемся',
     fieldSentenceLength: 'Длина фраз',
     fieldNeverSay: 'Что никогда не говорим',
+    fieldTopics: 'О чём говорим',
+    avatarReadyTitle: 'Аватар готов',
+    avatarReadyBody: (when: string) =>
+      `Новые тексты пишутся этим аватаром с ${when}.`,
+    avatarReadyAction: 'К заготовкам',
 
     // Screen 05 again, for the path where the five lines are written by hand.
     manualProposalTitle: 'Опишите аватар своими словами',
     manualProposalSubtitle: (filled: number, total: number) =>
       `черновик · заполнено ${filled} из ${total}`,
     manualProposalLead:
-      'Пять строк — это весь аватар. Тексты не читаем и не разбираем: чем заполните, тем и собираются новые тексты.',
+      'Шесть строк — это весь аватар. Тексты не читаем и не разбираем: чем заполните, тем и собираются новые тексты.',
     manualProposalFields: 'Аватар своими словами',
     manualProposalNote:
-      'Каждая строка сохраняется отдельно и переживает перезагрузку. Аватар включается, когда написаны все пять.',
+      'Каждая строка сохраняется отдельно и переживает перезагрузку. Аватар включается, когда написаны все шесть.',
     manualPlaceholders: {
       WHO_SPEAKS: 'Например: мастерская, от лица бригады',
       TONE: 'Например: спокойно и по делу, без обещаний',
       AUDIENCE: 'Например: заказчики, которые читают на бегу',
       SENTENCE_LENGTH: 'Например: короткие фразы, десять-двенадцать слов',
       NEVER_SAY: 'Через точку с запятой: гарантия результата; лидер рынка',
+      TOPICS: 'Например: практика команды; ошибки внедрения; разбор результатов',
     },
 
 
@@ -664,6 +682,9 @@ export const voiceCopy = {
     avatarsDefaultOverride: 'выбор аватара в черновике переопределяет это',
     avatarsKindPerson: 'Человек · «я»',
     avatarsKindBrand: 'Бренд · «мы»',
+    avatarsKindHint:
+      'Человек пишет от «я», бренд — от «мы». Уже написанные тексты после смены не перепишутся.',
+    avatarsReady: 'Готов',
     avatarsNotAnalysed: 'Без разбора',
     avatarsNoName: 'Без имени',
     avatarsAnalysed: (samples: number) =>
@@ -866,6 +887,16 @@ export const voiceCopy = {
     collectedSamples: 'Collected samples',
     deleteSelected: 'Delete selected',
     nextAnalysis: 'Next — analysis',
+    maxMessagesLabel: 'Messages to take from the export',
+    maxMessagesHint:
+      'The latest eligible messages are used. The maximum is 300; you may lower it before upload.',
+    telegramSelection: (
+      name: string,
+      selected: number,
+      eligible: number,
+      analysisSamples: number
+    ) =>
+      `“${name}”: selected the latest ${selected} of ${eligible} eligible messages; analysis reads ${analysisSamples} corpus samples.`,
     opensAt: 'opens at 15,000 characters',
     saveAndLeave: 'Save and leave',
     columnCode: 'Code',
@@ -965,6 +996,8 @@ export const voiceCopy = {
     portraitTitle: 'Avatar',
     portraitHint:
       'Who this is, not what their style is like. The model writes as them, and where this and the other fields disagree, the person wins. Edit freely — this is your person.',
+    portraitFieldRole:
+      'The portrait sets the whole voice. The lines below help when no portrait exists; restrictions and topics always apply.',
     proposalWhy: 'Why this was proposed',
     proposalObservation: 'Observation',
     stateAccepted: 'Accepted',
@@ -995,21 +1028,27 @@ export const voiceCopy = {
     fieldAudience: 'Who is addressed',
     fieldSentenceLength: 'Phrase length',
     fieldNeverSay: 'What is never said',
+    fieldTopics: 'What they write about',
+    avatarReadyTitle: 'Avatar ready',
+    avatarReadyBody: (when: string) =>
+      `New text has been written as this avatar since ${when}.`,
+    avatarReadyAction: 'Go to drafts',
 
     manualProposalTitle: 'Describe the avatar in your own words',
     manualProposalSubtitle: (filled: number, total: number) =>
       `draft · ${filled} of ${total} written`,
     manualProposalLead:
-      'Five lines are the whole avatar. Nothing is read and nothing is measured: new text is written the way you fill these in.',
+      'Six lines are the whole avatar. Nothing is read and nothing is measured: new text is written the way you fill these in.',
     manualProposalFields: 'The avatar in your own words',
     manualProposalNote:
-      'Each line is saved on its own and survives a reload. The avatar switches on once all five are written.',
+      'Each line is saved on its own and survives a reload. The avatar switches on once all six are written.',
     manualPlaceholders: {
       WHO_SPEAKS: 'For example: a workshop, speaking as the crew',
       TONE: 'For example: calm and matter-of-fact, no promises',
       AUDIENCE: 'For example: clients who read on the move',
       SENTENCE_LENGTH: 'For example: short phrases, ten to twelve words',
       NEVER_SAY: 'Separated by semicolons: guaranteed result; market leader',
+      TOPICS: 'For example: team practice; adoption mistakes; result reviews',
     },
 
     redactionsTitle: 'What stayed outside',
@@ -1320,6 +1359,9 @@ export const voiceCopy = {
     avatarsDefaultOverride: 'picking an avatar in a draft overrides this',
     avatarsKindPerson: 'Person · “I”',
     avatarsKindBrand: 'Brand · “we”',
+    avatarsKindHint:
+      'A person writes as “I”, a brand as “we”. Text already written is not rewritten after the change.',
+    avatarsReady: 'Ready',
     avatarsNotAnalysed: 'Not analysed',
     avatarsNoName: 'Untitled',
     avatarsAnalysed: (samples: number) => `Analysed: ${samples} samples`,

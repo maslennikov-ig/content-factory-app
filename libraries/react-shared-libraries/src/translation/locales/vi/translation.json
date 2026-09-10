@@ -1703,5 +1703,7 @@
   "close_post_window": "Đóng cửa sổ bài viết",
   "intake_door": "Bản phác mới",
   "intake_door_short": "Bản phác",
-  "help": "Trợ giúp"
+  "help": "Trợ giúp",
+  "uploading": "Đang tải lên",
+  "importing": "Đang nhập"
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
@@ -7,6 +8,10 @@ import {
   RadioGroup,
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
+import { Hint } from '@contentfactory/react/layout/hint';
+import { Toast } from '../ui/layers';
+import { Status } from '../ui/surface';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
@@ -91,28 +96,6 @@ const KIND_LABEL = (locale: VoiceLocale, kind: AvatarKind) =>
   kind === 'BRAND'
     ? voiceCopy[locale].avatarsKindBrand
     : voiceCopy[locale].avatarsKindPerson;
-
-/** A pill: the kind, and the «без разбора» mark beside it. */
-function Marker({
-  children,
-  muted,
-}: {
-  children: React.ReactNode;
-  muted?: boolean;
-}) {
-  return (
-    <span
-      className={clsx(
-        'inline-flex items-center gap-[4px] rounded-full border px-[8px] py-[4px] cf-label-sm uppercase',
-        muted
-          ? 'border-cf-border-control text-cf-ink-muted'
-          : 'border-cf-border-strong text-cf-ink'
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 function DotsIcon() {
   return (
@@ -274,6 +257,7 @@ export function VoiceAvatarsScreen({
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading';
+  const [showSuccess, setShowSuccess] = useState(false);
   const atLimit = avatars.length >= limit;
   const writing = avatars.find((one) => one.id === defaultAvatarId) ?? null;
   const deleting = confirmDelete
@@ -287,6 +271,19 @@ export function VoiceAvatarsScreen({
     : [];
   const nameOf = (avatar: AvatarRow) => avatar.name ?? t.avatarsNoName;
 
+  // The write result is useful once, not as a permanent strip above the list.
+  // A later success restarts the timer even when the container remains in its
+  // success state between the two writes.
+  useEffect(() => {
+    if (state !== 'success' || !writing) {
+      setShowSuccess(false);
+      return undefined;
+    }
+    setShowSuccess(true);
+    const timer = window.setTimeout(() => setShowSuccess(false), 3500);
+    return () => window.clearTimeout(timer);
+  }, [state, writing?.id]);
+
   return (
     <section
       data-voice-surface="avatars"
@@ -299,6 +296,11 @@ export function VoiceAvatarsScreen({
           <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.avatarsTitle}
           </h2>
+          <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {writing
+              ? t.avatarsDefaultLine(nameOf(writing))
+              : t.avatarsDefaultNeutral}
+          </p>
           <p className="mt-[4px] cf-caption text-cf-ink-muted">
             {t.avatarsCount(avatars.length, limit)}
           </p>
@@ -314,33 +316,6 @@ export function VoiceAvatarsScreen({
           </Button>
         ) : null}
       </header>
-
-      {/*
-        Who writes when nobody is picked. Stated at the top rather than only
-        as a marker on one card: the answer to "whose voice is my next post in"
-        should not depend on finding the right card first.
-      */}
-      <p
-        className={clsx(
-          'flex flex-wrap items-center gap-[8px] rounded-[8px] border p-[12px] cf-body-sm [text-wrap:pretty]',
-          writing
-            ? 'border-cf-accent bg-cf-accent-soft text-cf-ink'
-            : 'border-cf-border bg-cf-surface text-cf-ink-muted'
-        )}
-        data-voice-avatars-default={writing ? writing.id : 'none'}
-      >
-        <span className={writing ? 'text-cf-accent' : 'text-cf-ink-muted'}>
-          <PersonIcon />
-        </span>
-        <span className="min-w-0">
-          {writing
-            ? t.avatarsDefaultLine(nameOf(writing))
-            : t.avatarsDefaultNeutral}
-        </span>
-        <span className="ms-auto cf-caption text-cf-ink-muted">
-          {t.avatarsDefaultOverride}
-        </span>
-      </p>
 
       {state === 'error' ? (
         <div
@@ -366,16 +341,13 @@ export function VoiceAvatarsScreen({
         </div>
       ) : null}
 
-      {state === 'success' && writing ? (
-        <p
-          role="status"
-          className="flex items-center gap-[8px] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink"
+      {showSuccess && writing ? (
+        <Toast
+          tone="accent"
+          className="fixed bottom-[20px] end-[20px] z-[70]"
         >
-          <span className="text-cf-accent">
-            <TickIcon />
-          </span>
           {t.avatarsSuccess(nameOf(writing))}
-        </p>
+        </Toast>
       ) : null}
 
       {state === 'restricted' || !canManage ? (
@@ -404,19 +376,38 @@ export function VoiceAvatarsScreen({
           {avatars.map((avatar) => {
             const isRenaming = renamingId === avatar.id;
             const menuOpen = openMenuId === avatar.id;
+            const canSelect =
+              canManage &&
+              !busy &&
+              !avatar.isDefault &&
+              avatar.analysed &&
+              Boolean(onMakeDefault) &&
+              !isRenaming &&
+              !menuOpen;
             return (
               <li
                 key={avatar.id}
                 data-voice-avatar={avatar.id}
                 data-voice-avatar-default={avatar.isDefault ? 'true' : undefined}
                 className={clsx(
-                  'flex min-w-0 flex-col overflow-hidden rounded-[8px] border bg-cf-surface',
+                  'relative flex min-w-0 flex-col overflow-hidden rounded-[8px] border bg-cf-surface transition-colors duration-state motion-reduce:transition-none',
+                  canSelect ? 'hover:border-cf-border-strong' : null,
                   avatar.isDefault ? 'border-cf-accent' : 'border-cf-border'
                 )}
               >
+                {canSelect ? (
+                  <ControlButton
+                    layout="content"
+                    aria-pressed={false}
+                    aria-label={`${t.avatarsMakeDefault}: ${nameOf(avatar)}`}
+                    onClick={() => onMakeDefault?.(avatar.id)}
+                    className="absolute inset-0 z-0 w-full cursor-pointer rounded-[8px] focus-visible:ring-inset"
+                  />
+                ) : null}
                 <div
                   className={clsx(
-                    'flex flex-wrap items-center gap-[8px] border-b px-[16px] py-[8px]',
+                    'relative z-10 flex flex-wrap items-center gap-[8px] border-b px-[16px] py-[8px]',
+                    canSelect ? 'pointer-events-none' : null,
                     avatar.isDefault
                       ? 'border-cf-accent bg-cf-accent-soft'
                       : 'border-cf-border bg-cf-surface-subtle'
@@ -437,7 +428,12 @@ export function VoiceAvatarsScreen({
                   </span>
                 </div>
 
-                <div className="flex min-w-0 gap-[12px] p-[16px]">
+                <div
+                  className={clsx(
+                    'relative z-10 flex min-w-0 gap-[12px] p-[16px]',
+                    canSelect ? 'pointer-events-none' : null
+                  )}
+                >
                   <Monogram name={avatar.name} />
                   <div className="flex min-w-0 flex-col gap-[8px]">
                     {isRenaming ? (
@@ -474,18 +470,29 @@ export function VoiceAvatarsScreen({
                     )}
 
                     <span className="flex flex-wrap items-center gap-[8px]">
-                      <Marker>{KIND_LABEL(locale, avatar.kind)}</Marker>
+                      <Status className="uppercase border-cf-border-strong">
+                        {KIND_LABEL(locale, avatar.kind)}
+                      </Status>
                       {avatar.analysed ? (
-                        <span className="cf-caption text-cf-ink-muted">
-                          {[avatar.versionLabel, avatar.activeSince]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
+                        <>
+                          <Status
+                            tone="accent"
+                            icon={<TickIcon />}
+                            className="uppercase"
+                          >
+                            {t.avatarsReady}
+                          </Status>
+                          <span className="cf-caption text-cf-ink-muted">
+                            {[avatar.versionLabel, avatar.activeSince]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        </>
                       ) : (
-                        <Marker muted>
+                        <Status className="uppercase text-cf-ink-muted">
                           <InfoIcon />
                           {t.avatarsNotAnalysed}
-                        </Marker>
+                        </Status>
                       )}
                     </span>
 
@@ -497,7 +504,7 @@ export function VoiceAvatarsScreen({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-[8px] border-t border-cf-border px-[16px] py-[8px]">
+                <div className="relative z-10 flex flex-wrap items-center gap-[8px] border-t border-cf-border px-[16px] py-[8px]">
                   {isRenaming ? (
                     <>
                       <Button
@@ -593,21 +600,26 @@ export function VoiceAvatarsScreen({
                 {menuOpen && canManage ? (
                   <div
                     data-voice-avatar-more={avatar.id}
-                    className="flex flex-wrap items-center gap-[8px] border-t border-cf-border bg-cf-surface-subtle px-[16px] py-[8px]"
+                    className="relative z-10 flex flex-wrap items-center gap-[8px] border-t border-cf-border bg-cf-surface-subtle px-[16px] py-[8px]"
                   >
-                    <Button
-                      type="button"
-                      variant="quiet"
-                      density="dense"
-                      onClick={() =>
-                        onKindChange?.(
-                          avatar.id,
-                          avatar.kind === 'PERSON' ? 'BRAND' : 'PERSON'
-                        )
-                      }
-                    >
-                      {t.avatarsSwitchKind(avatar.kind)}
-                    </Button>
+                    <span className="inline-flex items-center gap-[4px]">
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        density="dense"
+                        onClick={() =>
+                          onKindChange?.(
+                            avatar.id,
+                            avatar.kind === 'PERSON' ? 'BRAND' : 'PERSON'
+                          )
+                        }
+                      >
+                        {t.avatarsSwitchKind(avatar.kind)}
+                      </Button>
+                      <Hint label={t.hintFor(t.avatarsSwitchKind(avatar.kind))}>
+                        {t.avatarsKindHint}
+                      </Hint>
+                    </span>
                     <Button
                       type="button"
                       variant="quiet"

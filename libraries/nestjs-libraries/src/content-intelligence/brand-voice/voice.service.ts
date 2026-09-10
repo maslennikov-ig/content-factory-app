@@ -7,7 +7,12 @@ import type {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.types';
 import { MAX_AVATARS_PER_SPACE } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.types';
 import { analyzeBrandVoice, corpusReadiness } from './analyzer';
-import { PROFILE_FIELDS, type ProfileField } from './assist.contract';
+import {
+  PROFILE_FIELDS,
+  PROFILE_FIELDS_V2,
+  type ProfileField,
+  type ProfileFieldV2,
+} from './assist.contract';
 import {
   isScaleValue,
   toReportLocale,
@@ -100,6 +105,7 @@ import {
   type CodedVoiceSample,
   type StoredVoiceMeasurement,
   type StoredVoiceProposalV1,
+  type StoredVoiceProposalV2,
   type VoiceMeasurementMetricsV1,
 } from './voice-sample.repository';
 import { VoiceProfileRepository } from './voice-profile.repository';
@@ -142,15 +148,15 @@ import {
   type VoicePathsResponseV1,
   type VoicePermissionsV1,
   type VoiceProposalActivateRequestV1,
-  type VoiceProposalFieldRequestV1,
+  type VoiceProposalFieldRequestV2,
   type VoiceProposalPortraitRequestV1,
-  type VoiceProposalManualFieldRequestV1,
+  type VoiceProposalManualFieldRequestV2,
   type VoiceProposalModeV1,
-  type VoiceProposalResponseV1,
+  type VoiceProposalResponseV2,
   type VoiceRedactionsResponseV1,
   type VoiceRibbonResponseV1,
   type VoiceSampleDeleteRequestV1,
-  type VoiceSampleFileIntakeRequestV1,
+  type VoiceSampleFileIntakeRequestV2,
   type VoiceSampleIntakeRequestV1,
   type VoiceSampleIntakeResponseV1,
   type VoiceSampleRowV1,
@@ -741,7 +747,7 @@ export class VoiceService {
   async intakeFiles(
     actor: VoiceActor,
     files: readonly FileUpload[],
-    body: VoiceSampleFileIntakeRequestV1
+    body: VoiceSampleFileIntakeRequestV2
   ): Promise<VoiceSampleFileIntakeResponseV2> {
     const rightsState = this.assertIntakeAllowed(
       actor,
@@ -750,7 +756,9 @@ export class VoiceService {
     );
     const reference = body.usagePurpose === 'STYLE_REFERENCE';
 
-    const read = await parseUploadedFiles(files);
+    const read = await parseUploadedFiles(files, {
+      maxMessages: body.maxMessages,
+    });
     const prepared = prepareSamples(
       read.candidates.map((candidate) => ({
         ...candidate,
@@ -1233,17 +1241,18 @@ export class VoiceService {
         locale: toReportLocale(result.language),
       });
       proposal = {
+        contractVersion: 2,
         portrait: outcome.proposal.portrait
           ? {
               text: outcome.proposal.portrait.text,
               observationRefs: outcome.proposal.portrait.observationRefs,
-              status: 'UNDECIDED',
+              status: 'ACCEPTED',
             }
           : undefined,
         fields: outcome.proposal.fields.map((field) => ({
           key: field.field,
           text: field.text,
-          status: 'UNDECIDED',
+          status: 'ACCEPTED',
           observationRefs: field.observationRefs,
         })),
         observations: outcome.observations.map((observation, index) => ({
@@ -1594,7 +1603,7 @@ export class VoiceService {
     return { measurement, proposal: metricsOf(measurement).proposal ?? null };
   }
 
-  async proposal(actor: VoiceActor): Promise<VoiceProposalResponseV1> {
+  async proposal(actor: VoiceActor): Promise<VoiceProposalResponseV2> {
     const { measurement, proposal } = await this.latestWithProposal(actor);
     if (!measurement) {
       const corpus = await this.corpusFor(actor);
@@ -1609,7 +1618,7 @@ export class VoiceService {
     );
 
     const fields = (proposal?.fields ?? []).filter((field) =>
-      (PROFILE_FIELDS as readonly string[]).includes(field.key)
+      (PROFILE_FIELDS_V2 as readonly string[]).includes(field.key)
     );
 
     return {
@@ -1620,21 +1629,24 @@ export class VoiceService {
         ? {
             portrait: {
               text: proposal.portrait.text,
-              status: proposal.portrait.status,
+              status:
+                proposal.portrait.status === 'EDITING'
+                  ? 'EDITING'
+                  : 'ACCEPTED',
               observationRefs: proposal.portrait.observationRefs,
             },
           }
         : {}),
       fields: fields.map((field) => ({
-        key: field.key as ProfileField,
+        key: field.key as ProfileFieldV2,
         text: field.text,
-        status: field.status,
+        status: field.status === 'EDITING' ? 'EDITING' : 'ACCEPTED',
         observationRefs: field.observationRefs,
       })),
       observations: (proposal?.observations ?? []).map((observation) => ({
         ref: observation.ref,
         index: observation.index,
-        field: observation.field as ProfileField,
+        field: observation.field as ProfileFieldV2,
         claim: observation.claim,
         quote: observation.quote,
         sampleCode: observation.sampleCode,
@@ -1664,8 +1676,8 @@ export class VoiceService {
 
   async proposalField(
     actor: VoiceActor,
-    body: VoiceProposalFieldRequestV1
-  ): Promise<VoiceProposalResponseV1> {
+    body: VoiceProposalFieldRequestV2
+  ): Promise<VoiceProposalResponseV2> {
     this.assertCanManage(actor);
     const { measurement, proposal } = await this.latestWithProposal(actor);
     if (!measurement || !proposal) {
@@ -1735,7 +1747,7 @@ export class VoiceService {
   async proposalPortrait(
     actor: VoiceActor,
     body: VoiceProposalPortraitRequestV1
-  ): Promise<VoiceProposalResponseV1> {
+  ): Promise<VoiceProposalResponseV2> {
     this.assertCanManage(actor);
     const { measurement, proposal } = await this.latestWithProposal(actor);
     if (!measurement || !proposal) {
@@ -1786,7 +1798,7 @@ export class VoiceService {
    * erase a project description nobody was editing.
    */
   private contentFrom(
-    proposal: StoredVoiceProposalV1,
+    proposal: StoredVoiceProposalV2,
     base: BrandProfileContentV1 | null,
     examples: readonly { kind: 'on_brand'; text: string }[] = [],
     postLength?: { median: number; low: number; high: number },
@@ -1850,7 +1862,7 @@ export class VoiceService {
      * defaults to a person. A space that set itself to `BRAND` and then
      * re-analysed should not silently become a human being again.
      */
-    if (proposal.portrait?.status === 'ACCEPTED') {
+    if (proposal.portrait && proposal.portrait.status !== 'EDITING') {
       content.persona = {
         kind: content.persona?.kind ?? 'PERSON',
         portrait: truncateChars(proposal.portrait.text.trim(), 1_200),
@@ -1859,9 +1871,9 @@ export class VoiceService {
     }
 
     const accepted = proposal.fields.filter(
-      (field) => field.status === 'ACCEPTED'
+      (field) => field.status !== 'EDITING'
     );
-    const text = (key: ProfileField) =>
+    const text = (key: ProfileFieldV2) =>
       accepted.find((field) => field.key === key)?.text?.trim();
 
     const traits = [...(content.voice.traits ?? [])];
@@ -1888,6 +1900,15 @@ export class VoiceService {
           need: truncateChars(audience, 1_000),
         },
       ];
+    }
+
+    const topics = text('TOPICS');
+    if (topics) {
+      content.project.contentGoals = topics
+        .split(/\s*[;\n]\s*/u)
+        .map((one) => truncateChars(one.trim(), 240))
+        .filter(Boolean)
+        .slice(0, 20);
     }
 
     const neverSay = text('NEVER_SAY');
@@ -1966,7 +1987,7 @@ export class VoiceService {
    */
   private fieldsFromContent(
     content: BrandProfileContentV1
-  ): Record<ProfileField, string> {
+  ): Record<ProfileFieldV2, string> {
     const trait = (name: string) =>
       content.voice.traits?.find((one) => one.name === name)?.guidance ?? '';
     return {
@@ -1975,6 +1996,7 @@ export class VoiceService {
       AUDIENCE: VoiceService.audienceLine(content),
       SENTENCE_LENGTH: content.voice.sentenceStyle ?? '',
       NEVER_SAY: (content.guardrails.prohibitedClaims ?? []).join('; '),
+      TOPICS: (content.project.contentGoals ?? []).join('; '),
     };
   }
 
@@ -1998,16 +2020,20 @@ export class VoiceService {
     );
     delete content.voice.sentenceStyle;
     content.project.audiences = [];
+    content.project.contentGoals = [];
     content.guardrails.prohibitedClaims = [];
     return content;
   }
 
   /** The five lines as a proposal, so one mapping writes both paths. */
   private manualAsProposal(
-    fields: Record<ProfileField, string>
+    fields: Record<ProfileFieldV2, string>,
+    version: 1 | 2 = 2
   ): StoredVoiceProposalV1 {
+    const keys = version === 2 ? PROFILE_FIELDS_V2 : PROFILE_FIELDS;
     return {
-      fields: PROFILE_FIELDS.map((key) => ({
+      ...(version === 2 ? { contractVersion: 2 as const } : {}),
+      fields: keys.map((key) => ({
         key,
         text: fields[key],
         // Everything written by hand is accepted by the act of writing it:
@@ -2020,15 +2046,15 @@ export class VoiceService {
   }
 
   private manualResponse(
-    fields: Record<ProfileField, string>,
+    fields: Record<ProfileFieldV2, string>,
     profileLabel?: string
-  ): VoiceProposalResponseV1 {
-    const written = PROFILE_FIELDS.filter((key) => fields[key].trim());
+  ): VoiceProposalResponseV2 {
+    const written = PROFILE_FIELDS_V2.filter((key) => fields[key].trim());
     return {
       outcome: 'ready',
       state: written.length ? 'default' : 'empty',
       mode: 'manual',
-      fields: PROFILE_FIELDS.map((key) => ({
+      fields: PROFILE_FIELDS_V2.map((key) => ({
         key,
         text: fields[key],
         // A line that has text is decided; an empty one is the work left.
@@ -2041,10 +2067,10 @@ export class VoiceService {
       })),
       observations: [],
       ...(profileLabel ? { profileLabel } : {}),
-      ...(written.length === PROFILE_FIELDS.length
+      ...(written.length === PROFILE_FIELDS_V2.length
         ? {}
         : {
-            notice: `Заполнено ${written.length} из ${PROFILE_FIELDS.length}. Активация откроется, когда все пять строк будут написаны.`,
+            notice: `Заполнено ${written.length} из ${PROFILE_FIELDS_V2.length}. Активация откроется, когда все шесть строк будут написаны.`,
           }),
     };
   }
@@ -2057,7 +2083,7 @@ export class VoiceService {
    * changed their mind. The draft appears at the first saved line, and until
    * then the five empty strings are exactly the truth about what is stored.
    */
-  async manualProposal(actor: VoiceActor): Promise<VoiceProposalResponseV1> {
+  async manualProposal(actor: VoiceActor): Promise<VoiceProposalResponseV2> {
     const draft = await this._profiles.manualDraft(actor.organizationId);
     const { activeVersion } = await this._profiles.overview(
       actor.organizationId,
@@ -2079,8 +2105,8 @@ export class VoiceService {
    */
   async manualField(
     actor: VoiceActor,
-    body: VoiceProposalManualFieldRequestV1
-  ): Promise<VoiceProposalResponseV1> {
+    body: VoiceProposalManualFieldRequestV2
+  ): Promise<VoiceProposalResponseV2> {
     this.assertCanManage(actor);
     const text = (body.text ?? '').trim();
     if (!text) {
@@ -2129,7 +2155,7 @@ export class VoiceService {
    */
   private async activateManual(
     actor: VoiceActor,
-    body: VoiceProposalActivateRequestV1
+    body: VoiceProposalActivateRequestV1 & { version?: 2 }
   ): Promise<VoicePassportResponseV1> {
     const draft = await this._profiles.manualDraft(actor.organizationId);
     if (!draft) {
@@ -2140,7 +2166,8 @@ export class VoiceService {
     }
 
     const fields = this.fieldsFromContent(draft.content);
-    const missing = PROFILE_FIELDS.filter((key) => !fields[key].trim());
+    const required = body.version === 2 ? PROFILE_FIELDS_V2 : PROFILE_FIELDS;
+    const missing = required.filter((key) => !fields[key].trim());
     if (missing.length) {
       throw new VoiceError(
         'VOICE_FIELDS_INCOMPLETE',
@@ -2158,7 +2185,7 @@ export class VoiceService {
       actor.userId,
       draft.id,
       this.contentFrom(
-        this.manualAsProposal(fields),
+        this.manualAsProposal(fields, body.version === 2 ? 2 : 1),
         activeVersion?.content ?? null
       ),
       draft.revision,
@@ -2208,7 +2235,7 @@ export class VoiceService {
 
   async activateProposal(
     actor: VoiceActor,
-    body: VoiceProposalActivateRequestV1
+    body: VoiceProposalActivateRequestV1 & { version?: 2 }
   ): Promise<VoicePassportResponseV1> {
     this.assertCanManage(actor);
     if (!body.consentGiven) {
@@ -2222,6 +2249,12 @@ export class VoiceService {
     // fields came from.
     const mode: VoiceProposalModeV1 = body.mode ?? 'assist';
     if (mode === 'manual') {
+      if (body.version === 2 && !body.avatarName?.trim()) {
+        throw new VoiceError(
+          'VOICE_FIELDS_INCOMPLETE',
+          'Аватар нельзя включить без имени. Напишите имя и повторите.'
+        );
+      }
       const passport = await this.activateManual(actor, body);
       await this.nameAvatar(actor, body.avatarName);
       return passport;
@@ -2232,6 +2265,29 @@ export class VoiceService {
       throw new VoiceError(
         'VOICE_PROFILE_NOT_FOUND',
         'Предложения голоса нет: сначала запустите разбор.'
+      );
+    }
+    // The request opts into the new gates. The marker tells reads which stored
+    // shape they have, but an older client must still be able to finish the
+    // V1 flow it started against a freshly upgraded server.
+    const usesV2 = body.version === 2;
+    if (usesV2 && !body.avatarName?.trim()) {
+      throw new VoiceError(
+        'VOICE_FIELDS_INCOMPLETE',
+        'Аватар нельзя включить без имени. Напишите имя и повторите.'
+      );
+    }
+    // Read and activation must agree on a legacy portrait. Older rows used
+    // `PROPOSED`; `proposal()` already presents every non-editing portrait as
+    // accepted. Treat the same non-empty value as ready here, while an absent,
+    // blank or actively edited portrait remains unfinished.
+    if (
+      usesV2 &&
+      (!proposal.portrait?.text.trim() || proposal.portrait.status === 'EDITING')
+    ) {
+      throw new VoiceError(
+        'VOICE_FIELDS_INCOMPLETE',
+        'Аватар нельзя включить, пока портрет не готов. Завершите правку портрета и повторите.'
       );
     }
 
@@ -2311,9 +2367,6 @@ export class VoiceService {
         : { profileVersionId: activated.version.id }),
     });
 
-    // Both paths end here for the same reason: the avatar becomes something a
-    // person refers to at the moment it starts writing, and until now neither
-    // path asked what to call it (`content-factory-next-fn33.46`).
     await this.nameAvatar(actor, body.avatarName);
 
     return this.passport(actor);

@@ -17,7 +17,9 @@ Postiz становится технической основой, но не п�
 
 1. Принципы прежнего Content Factory в `/home/me/code/content-factory`: `apps/console/app/globals.css`, `apps/console/components/console-shell.jsx`, `docs/product/work-admin-mode-boundary.md` и макет `.codex/stages/content-factory-b5b/mockups/brand-voice-setup-layout-options.html`.
 2. Текущая реализация Postiz: `apps/frontend/src/app/colors.scss`, `apps/frontend/src/components/new-layout/layout.component.tsx`, auth, calendar, composer, media, analytics, integrations и settings.
-3. Снимок локального `/auth` на 1440×1000 и [Lazyweb preview-разбор от 2026-08-11](https://www.lazyweb.com/report/lazyweb/358425f7-2cff-48c2-b278-496856be5404/?source=create). Снимок является локальным исследовательским артефактом и не коммитится; полный Lazyweb toolkit не является зависимостью реализации.
+3. Снимок локального `/auth` на 1440×1000. Снимок является локальным
+   исследовательским артефактом и не коммитится; внешние инструменты не являются
+   зависимостью реализации.
 
 Из старого продукта переносится не CSS и не разметка, а система: спокойная редакционная среда, тёмная подписанная навигация, ясные статусы, компактные формы и разделение Work/Admin.
 

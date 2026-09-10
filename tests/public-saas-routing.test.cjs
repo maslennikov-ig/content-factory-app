@@ -705,6 +705,10 @@ const componentMocks = {
     'libraries/react-shared-libraries/src/platform/platform.families.ts',
     {}
   ),
+  '@contentfactory/react/layout': loadComponent(
+    'libraries/react-shared-libraries/src/layout/index.ts',
+    {}
+  ),
   '@contentfactory/react/choice/tabs': loadComponent(
     'libraries/react-shared-libraries/src/choice/tabs.tsx',
     {}

@@ -102,14 +102,14 @@ describe('the rules the research measured', () => {
 
   test('English Telegram gets «No emoji.», Russian gets the sparing rule', () => {
     expect(linesFor(defaultWritingProfileFor('telegram', 'en'))).toContain(
-      'No emoji.'
+      'For emoji, this channel setting overrides the voice and neutral core: No emoji.'
     );
     expect(linesFor(defaultWritingProfileFor('telegram', 'ru'))).not.toContain(
-      'No emoji.'
+      'For emoji, this channel setting overrides the voice and neutral core: No emoji.'
     );
     expect(
       linesFor(defaultWritingProfileFor('telegram', 'ru')).some((line) =>
-        line.includes('At most three emoji')
+        line.includes('Use one to three emoji')
       )
     ).toBe(true);
   });
@@ -118,7 +118,7 @@ describe('the rules the research measured', () => {
     expect(
       linesFor(null, { ...TELEGRAM, contentLanguage: 'ru' })
     ).toContain(
-      'At most three emoji, of no more than two kinds, and never as list bullets.'
+      'For emoji, this channel setting overrides the voice and neutral core: Use one to three emoji, of no more than two kinds, and never as list bullets.'
     );
     expect(linesFor(null, VK)).not.toContain('The first 80–180 characters');
   });
@@ -126,7 +126,7 @@ describe('the rules the research measured', () => {
   test('every explicit card value reaches the prompt, including free choices', () => {
     const free = {
       ...defaultWritingProfileFor('telegram', 'ru'),
-      emojiLevel: 'free',
+      emojiLevel: 'many',
       linkPolicy: 'inline',
       hashtagPolicy: 'free',
     };
@@ -254,7 +254,7 @@ describe("the channel owner's own words are quoted, never obeyed as a line", () 
 });
 
 describe('where the channel stands inside the voice block', () => {
-  const CHANNEL = ['No emoji.', 'No hashtags.'];
+  const CHANNEL = ['For emoji, this channel setting overrides the voice and neutral core: No emoji.', 'No hashtags.'];
 
   const avatarVoice = {
     persona: { kind: 'PERSON', portrait: 'Он чинит участок и пишет об этом.' },
@@ -270,7 +270,7 @@ describe('where the channel stands inside the voice block', () => {
 
   const positions = (lines) => ({
     example: lines.findIndex((line) => line.includes('Вот как он пишет')),
-    channel: lines.indexOf('No emoji.'),
+    channel: lines.indexOf('For emoji, this channel setting overrides the voice and neutral core: No emoji.'),
     guardrail: lines.findIndex((line) => line.includes('outrank everything')),
   });
 
@@ -293,7 +293,7 @@ describe('where the channel stands inside the voice block', () => {
     expect(toneFallbackLines('personal', CHANNEL)).toEqual([
       'Make sure it sounds personal',
       'Use 1st person mode',
-      'No emoji.',
+      'For emoji, this channel setting overrides the voice and neutral core: No emoji.',
       'No hashtags.',
     ]);
   });

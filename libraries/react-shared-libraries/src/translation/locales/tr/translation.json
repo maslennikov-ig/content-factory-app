@@ -1703,5 +1703,7 @@
   "close_post_window": "Gönderi penceresini kapat",
   "intake_door": "Yeni taslak",
   "intake_door_short": "Taslak",
-  "help": "Yardım"
+  "help": "Yardım",
+  "uploading": "Yükleniyor",
+  "importing": "İçe aktarılıyor"
 }

@@ -194,6 +194,8 @@ export function VoiceSamplesScreen({
   onRetentionChange,
   onToggle,
   onDeleteSelected,
+  maxMessages = 300,
+  onMaxMessagesChange,
   onNext,
   allowanceHint,
   notice,
@@ -213,6 +215,8 @@ export function VoiceSamplesScreen({
   onRetentionChange?: (date: string) => void;
   onToggle?: (code: string, checked: boolean) => void;
   onDeleteSelected?: () => void;
+  maxMessages?: number;
+  onMaxMessagesChange?: (value: number) => void;
   onNext?: () => void;
   /**
    * What is left of the AI allowance, beside the button that spends it
@@ -628,6 +632,27 @@ export function VoiceSamplesScreen({
                 </table>
               </div>
             )}
+          </div>
+
+          <div className="max-w-[360px]">
+            <Input
+              standalone
+              removeError
+              type="number"
+              name="voice-telegram-max-messages"
+              label={t.maxMessagesLabel}
+              min={1}
+              max={300}
+              value={maxMessages}
+              onChange={(event) =>
+                onMaxMessagesChange?.(
+                  Math.max(1, Math.min(300, Number(event.target.value) || 1))
+                )
+              }
+            />
+            <p className="mt-[4px] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              {t.maxMessagesHint}
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-[8px]">

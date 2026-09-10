@@ -30,6 +30,7 @@ import {
   chooseFiles,
   emptyIntake,
   intakeNotice,
+  telegramSelectionLines,
   pickedRefusalNote,
   proposalRoutesFor,
   readAnalysis,
@@ -129,6 +130,9 @@ export function VoiceWizardContainer({
     confirmed: false,
     retentionUntil: '',
   });
+  const [maxMessages, setMaxMessages] = useState(300);
+  const [selectionSummary, setSelectionSummary] = useState<string>();
+  const [completionAt, setCompletionAt] = useState<string>();
   const [failure, setFailure] = useState<
     { surface: Surface; failure: VoiceFailure } | null
   >(null);
@@ -461,7 +465,8 @@ export function VoiceWizardContainer({
             retentionUntil: fileRights.retentionUntil,
           },
           chosenPath,
-          locale
+          locale,
+          maxMessages
         ),
       });
       setFailure(null);
@@ -473,6 +478,7 @@ export function VoiceWizardContainer({
         tone: 'success',
         text: intakeNotice(response, locale),
       });
+      setSelectionSummary(telegramSelectionLines(response, locale).join(' '));
       await samplesQuery.mutate();
     } catch (error) {
       setUpload((current) => ({ ...current, phase: 'chosen' }));
@@ -484,6 +490,7 @@ export function VoiceWizardContainer({
     fileRights.confirmed,
     fileRights.retentionUntil,
     locale,
+    maxMessages,
     read,
     samplesQuery,
     upload.files,
@@ -576,19 +583,25 @@ export function VoiceWizardContainer({
 
   const activate = useCallback(async () => {
     try {
-      await read(scoped(VOICE_ROUTES.proposalActivate), {
+      const activated = (await read(scoped(VOICE_ROUTES.proposalActivate), {
         method: 'POST',
         body: JSON.stringify({
+          version: 2,
           consentGiven,
           ...(avatarName.trim() ? { avatarName: avatarName.trim() } : {}),
           ...(chosenPath === 'manual' ? { mode: 'manual' } : {}),
         }),
-      });
+      })) as { voice?: { activeSince?: string } } | null;
       setFailure(null);
       setNotice({ surface: 'proposal', tone: 'success', text: w.activated });
-      await proposalQuery.mutate();
+      const refreshed = await proposalQuery.mutate();
       await overviewQuery.mutate();
-      onActivated?.();
+      setCompletionAt(
+        activated?.voice?.activeSince ??
+          (refreshed && 'activatedAt' in refreshed
+            ? String(refreshed.activatedAt ?? '')
+            : '')
+      );
     } catch (error) {
       fail('proposal', error);
     }
@@ -598,7 +611,6 @@ export function VoiceWizardContainer({
     consentGiven,
     fail,
     overviewQuery,
-    onActivated,
     proposalQuery,
     read,
     scoped,
@@ -665,7 +677,7 @@ export function VoiceWizardContainer({
     ? 'loading'
     : !canManage
     ? 'restricted'
-    : noticeOn('proposal') && proposalReady?.activatedAt
+    : completionAt
     ? 'success'
     : proposalReady?.state ?? 'empty';
 
@@ -789,6 +801,8 @@ export function VoiceWizardContainer({
               )
             }
             onDeleteSelected={deleteSelected}
+            maxMessages={maxMessages}
+            onMaxMessagesChange={setMaxMessages}
             onNext={runAnalysis}
             /*
               The analysis is the most expensive button in the product: it maps
@@ -903,6 +917,7 @@ export function VoiceWizardContainer({
           lexicon={analysisResult?.lexicon}
           punctuation={analysisResult?.punctuation}
           rejected={analysisResult?.rejected}
+          selectionSummary={selectionSummary}
           notice={analysisFailure?.message}
           onContinue={() => goTo('proposal')}
           onRetry={() => void runAnalysis()}
@@ -919,23 +934,22 @@ export function VoiceWizardContainer({
           fields={proposalReady?.fields ?? []}
           observations={proposalReady?.observations ?? []}
           profileLabel={proposalReady?.profileLabel}
-          activatedAt={proposalReady?.activatedAt}
+          activatedAt={completionAt ?? proposalReady?.activatedAt}
           consentGiven={consentGiven}
           notice={proposalFailure?.message ?? proposalReady?.notice}
-          onAccept={(key) => void decideField(key, 'ACCEPT')}
           onEdit={(key) => void decideField(key, 'EDIT')}
           onSaveField={(key, text) =>
             void (proposalReady?.mode === 'manual'
               ? saveManualField(key, text)
               : decideField(key, 'SAVE', text))
           }
-          onAcceptPortrait={() => void decidePortrait('ACCEPT')}
           onEditPortrait={() => void decidePortrait('EDIT')}
           onSavePortrait={(text) => void decidePortrait('SAVE', text)}
           onConsentChange={setConsentGiven}
           avatarName={avatarName}
           onAvatarNameChange={setAvatarName}
           onActivate={() => void activate()}
+          onFinish={onActivated}
           onSaveDraft={() => void proposalQuery.mutate()}
         />
       ) : null}

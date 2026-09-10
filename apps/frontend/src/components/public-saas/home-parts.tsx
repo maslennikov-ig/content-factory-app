@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { clsx } from 'clsx';
 import { FC, ReactNode } from 'react';
 import { PLATFORM_SYMBOLS } from '@contentfactory/react/platform/platform.families';
+import { Status, type StatusTone as SurfaceStatusTone } from '../ui/surface';
 
 /**
  * The parts the public landing page repeats.
@@ -107,20 +108,12 @@ const CheckIcon = () => (
  * border together, and it is the only place `warning` is spent on the page.
  */
 export const SoonBadge: FC<{ label: string }> = ({ label }) => (
-  <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-warning bg-cf-warning-soft px-[8px] py-[4px] cf-label-md text-cf-warning">
-    <ClockIcon />
+  <Status tone="warning" icon={<ClockIcon />}>
     {label}
-  </span>
+  </Status>
 );
 
-export type StatusTone = 'accent' | 'info' | 'neutral' | 'danger';
-
-const STATUS_TONE: Record<StatusTone, string> = {
-  accent: 'border-cf-accent bg-cf-accent-soft text-cf-accent',
-  info: 'border-cf-info bg-cf-info-soft text-cf-info',
-  neutral: 'border-cf-border-control text-cf-ink-muted',
-  danger: 'border-cf-danger bg-cf-danger-soft text-cf-danger',
-};
+export type StatusTone = Exclude<SurfaceStatusTone, 'warning'>;
 
 /** A status is a colour, a word and a glyph at once, never a colour alone. */
 const AlertIcon = () => (
@@ -146,17 +139,20 @@ export const StatusPill: FC<{
   icon?: 'check' | 'clock' | 'alert' | 'none';
   children: ReactNode;
 }> = ({ tone = 'neutral', icon = 'none', children }) => (
-  <span
-    className={clsx(
-      'inline-flex items-center gap-[4px] rounded-full border px-[8px] py-[4px] cf-label-md',
-      STATUS_TONE[tone]
-    )}
+  <Status
+    tone={tone}
+    icon={
+      icon === 'check' ? (
+        <CheckIcon />
+      ) : icon === 'clock' ? (
+        <ClockIcon />
+      ) : icon === 'alert' ? (
+        <AlertIcon />
+      ) : undefined
+    }
   >
-    {icon === 'check' && <CheckIcon />}
-    {icon === 'clock' && <ClockIcon />}
-    {icon === 'alert' && <AlertIcon />}
     {children}
-  </span>
+  </Status>
 );
 
 /**
@@ -296,7 +292,10 @@ export const SceneHeading: FC<{
       <span className="cf-label-sm text-cf-ink-muted">
         {step} · {stage}
       </span>
-      <span aria-hidden className="h-px min-w-[16px] flex-1 bg-cf-border-strong" />
+      <span
+        aria-hidden
+        className="h-px min-w-[16px] flex-1 bg-cf-border-strong"
+      />
     </div>
     {badge && <div className="mt-[16px]">{badge}</div>}
     <h2

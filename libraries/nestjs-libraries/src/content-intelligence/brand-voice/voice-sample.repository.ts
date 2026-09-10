@@ -199,6 +199,8 @@ export type VoiceMeasurementMetricsV1 = {
 };
 
 export type StoredVoiceProposalV1 = {
+  /** Present only on proposals written by the six-field contract. */
+  contractVersion?: 2;
   /**
    * The portrait, kept beside the fields rather than inside them.
    *
@@ -239,6 +241,9 @@ export type StoredVoiceProposalV1 = {
   activatedVersionId?: string;
   activatedAt?: string;
 };
+
+/** V2 adds `TOPICS`; storage stays JSON and needs no database migration. */
+export type StoredVoiceProposalV2 = StoredVoiceProposalV1;
 
 /** `smp-02`, the short code the screen prints beside an example. */
 export const voiceSampleCode = (index: number): string =>

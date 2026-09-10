@@ -12,6 +12,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Hint } from '@contentfactory/react/layout/hint';
+import { Status as SurfaceStatus } from '../ui/surface';
 
 export type ContentIntelligenceSection = 'sources' | 'provenance';
 export type ContentIntelligenceSurfaceState =
@@ -363,10 +364,8 @@ const copy = {
  * `MANUAL` under a Russian heading. The enum is the server's contract and stays
  * as it is; this is the one place that turns it back into language.
  */
-const kindLabel = (
-  kind: ContentSourceView['kind'],
-  t: (typeof copy)[Locale]
-) => (kind === 'URL' ? t.kindUrl : kind === 'RSS' ? t.kindRss : t.kindManual);
+const kindLabel = (kind: ContentSourceView['kind'], t: (typeof copy)[Locale]) =>
+  kind === 'URL' ? t.kindUrl : kind === 'RSS' ? t.kindRss : t.kindManual;
 
 const formatDate = (value: string | null | undefined, locale: Locale) =>
   value
@@ -384,19 +383,13 @@ function Status({
   tone: 'positive' | 'info' | 'warning' | 'danger';
   children: ReactNode;
 }) {
-  const tones = {
-    positive: 'border-cf-accent text-cf-accent bg-cf-accent-soft',
-    info: 'border-cf-info text-cf-info bg-cf-info-soft',
-    warning: 'border-cf-warning text-cf-warning bg-cf-warning-soft',
-    danger: 'border-cf-danger text-cf-danger bg-cf-danger-soft',
-  } as const;
   return (
-    <span
-      className={`inline-flex items-center gap-[8px] rounded-full border px-[8px] py-[4px] cf-caption ${tones[tone]}`}
+    <SurfaceStatus
+      tone={tone === 'positive' ? 'accent' : tone}
+      icon={<StatusGlyph />}
     >
-      <StatusGlyph />
       {children}
-    </span>
+    </SurfaceStatus>
   );
 }
 

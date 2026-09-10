@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -65,6 +66,7 @@ const copy = {
 } as const;
 
 export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
+  const router = useRouter();
   const request = useFetch();
   const { language } = useVariables();
   const locale: VoiceLocale = String(language ?? 'ru')
@@ -216,6 +218,7 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
                 setWizardSession(false);
                 setRebuilding(false);
                 void list.mutate();
+                router.push('/content?tab=materials');
               }}
             />
           </>

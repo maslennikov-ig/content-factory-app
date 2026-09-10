@@ -248,6 +248,10 @@ function loadAgent({ build, admit }) {
       },
       '@langchain/langgraph': { END: 'END', START: 'START', StateGraph },
       '@langchain/core/prompts': { ChatPromptTemplate: {} },
+      // Constructor dependency stays isolated: loading the real service opens Redis.
+      '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service': {
+        IntegrationService: class {},
+      },
       '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service': {
         PostsService: class {},
       },

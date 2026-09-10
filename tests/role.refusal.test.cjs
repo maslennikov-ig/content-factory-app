@@ -317,6 +317,7 @@ function renderShortlinkPreference(role) {
       '@contentfactory/frontend/components/layout/user.context': {
         useUser: () => (role ? { role } : undefined),
       },
+      '../ui/progress': { Progress: () => null },
     },
     true
   ).default;

@@ -1,3 +1,11 @@
+import { isDeepStrictEqual } from 'node:util';
+import { reviewOnceV2, signReview, readReview } from './review.v2';
+import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposal, type ReviewSnapshotV2 } from './review.v2.contract';
+import { webReviewSources } from './adaptation-web-review';
+import { selectedFactsBrief, type PieceFactV2 } from './piece-facts.v2';
+import { briefForGate } from './core-questions';
+import { briefTitle } from '../brief/content-brief.compose';
+import { textOrNull } from '../intake/intake-content';
 import type { PieceAnswerEventV2 } from '../brand-voice/intake-v2.contract';
 /**
  * Заготовки и адаптации: список, страница, адаптация под канал.
@@ -100,7 +108,6 @@ import {
   parseWritingProfile,
   type ChannelWritingProfileV1,
 } from '../channels/channel-writing-profile';
-import { questionsForChannel } from '../channels/channel-questions';
 /*
   Вердикт голоса — портом, а не голосовым сервисом: имя, а не класс. То же
   устройство, что у мерки отбора черновика в графе.
@@ -116,7 +123,6 @@ import { singleLinkOf } from '../intake/intake-kind';
 import {
   CORE_QUESTION_FIELDS,
   coreQuestionText,
-  openQuestionsFor,
 } from './core-questions';
 import { writeCore } from './core-write';
 import { PieceRepository, type PieceIntegrationRow, type PieceRow } from './piece.repository';
@@ -194,6 +200,8 @@ export type PieceAdaptPlanV1 = {
  * вопросы о несуществующей сути нельзя.
  */
 export type PieceAnswerPlanV1 = {
+  borrowed?: import('./core-write').CoreBorrowedV1 | null;
+  titleEdited?: boolean;
   pieceId: string;
   language: 'ru' | 'en';
   request: PieceAnswerRequestV1;
@@ -268,11 +276,12 @@ export class PieceService {
 
   async readyAdaptations(
     organizationId: string,
-    limit: number
+    limit: number,
+    integrationIds?: string[]
   ): Promise<ReadyAdaptationsResponseV1> {
     const [pieceOrder, rows] = await Promise.all([
       this.pieces.listPieceIds(organizationId),
-      this.pieces.listReadyAdaptations(organizationId, limit),
+      this.pieces.listReadyAdaptations(organizationId, limit, integrationIds),
     ]);
     const pieceIndexes = new Map(
       pieceOrder.map((piece, index) => [piece.id, index])
@@ -483,6 +492,7 @@ export class PieceService {
     }
 
     const core = this.coreOf(piece);
+    if (core && !core.text.trim()) throw pieceError('PIECE_CORE_MISSING', language, pieceId);
     return {
       pieceId,
       integrationId,
@@ -562,25 +572,8 @@ export class PieceService {
     };
 
     const answers = this.channelAnswers(plan);
-    const round = this.roundOf(plan.request);
-    if (
-      !answers.length &&
-      plan.request?.skipInterview !== true &&
-      round <= PIECE_MAX_INTERVIEW_ROUNDS
-    ) {
-      const questions = questionsForChannel(
-        plan.channel.profile,
-        plan.channel.providerIdentifier,
-        plan.core,
-        language
-      ).filter((question) => !this.decided(plan.request, question));
-      if (questions.length) {
-        yield { name: 'questions', questions, round };
-        return;
-      }
-    }
-
     const hints = this.hintsOf(plan, answers);
+    hints.allowQuestion = !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
     const brief = this.briefMaterial(plan);
     /*
       Свои прежние тексты по теме — до генерации и одним списком для экрана и
@@ -629,6 +622,7 @@ export class PieceService {
     } as GeneratorRunInput;
 
     let output: any = null;
+    let adaptationQuestion: PieceQuestionV1 | null = null;
     let failed = false;
     try {
       for await (const event of this.generator.start(
@@ -651,6 +645,7 @@ export class PieceService {
           continue;
         }
         const candidate = raw?.data?.output;
+        if (hints.allowQuestion && candidate?.adaptationQuestion) adaptationQuestion = candidate.adaptationQuestion;
         if (candidate && Array.isArray(candidate.content)) output = candidate;
         yield { name: 'generator', event: raw };
       }
@@ -664,6 +659,7 @@ export class PieceService {
       failed = true;
     }
     if (failed) return;
+    if (adaptationQuestion) { yield { name: 'questions', questions: [adaptationQuestion], round: 1 }; return; }
     if (!output) {
       yield {
         name: 'error',
@@ -821,6 +817,28 @@ export class PieceService {
    * волны заготовок: сути у него нет, есть тело одного канала, и переписывать
    * его по ответам значило бы выдать чужую разметку за нейтральную суть.
    */
+  async selectFact(organizationId: string, pieceId: string, statement: string, selected: boolean) {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
+    const core = this.coreOf(piece);
+    if (!core || !this.briefs) throw pieceError('PIECE_CORE_MISSING', 'ru', pieceId);
+    if (!core.brief.facts.some((fact) => fact.statement === statement)) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
+    const facts = core.brief.facts.map((fact: PieceFactV2) => fact.statement === statement ? { ...fact, selected } : fact);
+    await this.briefs.updateCoreMetadata(organizationId, pieceId, { expectedBody: piece.body, expectedBrief: piece.brief, brief: { ...(piece.brief as object), brief: { ...core.brief, facts } } });
+    return { statement, selected };
+  }
+
+  async updateTitle(organizationId: string, pieceId: string, title: string) {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
+    if (!this.briefs) throw new Error('Piece repository unavailable');
+    await this.briefs.updateCoreMetadata(organizationId, pieceId, {
+      title: title.trim(), expectedBody: piece.body || '', expectedBrief: piece.brief,
+      brief: { ...((piece.brief && typeof piece.brief === 'object') ? piece.brief as object : {}), titleEdited: true },
+    });
+    return { title: title.trim() };
+  }
+
   async prepareAnswer(
     organizationId: string,
     pieceId: string,
@@ -838,7 +856,9 @@ export class PieceService {
       request: request || {},
       core,
       foreignShingles: this.foreignShinglesOf(piece),
+      borrowed: (piece.brief as any)?.borrowed ?? null,
       title: piece.title,
+      titleEdited: (piece.brief as any)?.titleEdited === true,
     };
   }
 
@@ -882,7 +902,7 @@ export class PieceService {
 
     const answeredAt = this.now().toISOString();
     const given = this.fieldAnswers(plan.request);
-    const decided = (plan.request.decide || []).filter(
+    const decided = [...new Set([...(plan.request.decide || []), ...before.items.map((question) => question.field)])].filter(
       (field) => !given.some((answer) => answer.field === field)
     );
     const fresh: PieceFieldAnswerV1[] = [
@@ -900,44 +920,32 @@ export class PieceService {
       : plan.core.brief;
     const answered = [...before.answered, ...fresh];
     const settled = [...new Set(answered.map((answer) => answer.field))];
-    const items =
-      round >= PIECE_MAX_INTERVIEW_ROUNDS
-        ? []
-        : openQuestionsFor({
-            brief,
-            // Вариантов модели у записанной заготовки нет: они жили в ответе
-            // заполнения брифа и в строку не сохраняются. Предложение теперь
-            // берётся из самого брифа — из того, что модель уже сказала.
-            options: {},
-            language,
-            settled,
-          });
+    const items: PieceOpenQuestionV1[] = [];
     const questions: PieceQuestionsV1 = { round, items, answered };
 
     /*
-      Модель зовётся только когда есть что переписывать. «Реши сама» без единого
-      ответа ничего в брифе не меняет — она снимает вопрос, а не добавляет
-      слово, — и платить за пересборку той же сути было бы платой за нажатие.
+      После уточнений пишем первую суть. Для уже написанной сути делегирование
+      снимает вопрос без повторного платного вызова.
     */
     let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
-    if (given.length && this.aiUsage) {
+    if ((given.length || !plan.core.text.trim()) && this.aiUsage) {
       const said = this.promptAnswers(given, answeredAt);
       const rewritten = await writeCore(
         {
           organizationId,
           language,
-          brief,
+          brief: selectedFactsBrief(brief),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
               answer.key,
-              coreQuestionText(answer.key, language),
+              before.items.find((question) => question.field === CORE_QUESTION_FIELDS[answer.key])?.question || coreQuestionText(answer.key, language),
             ])
           ),
           // Слова человека, с которых началась заготовка. Чужого текста здесь
           // нет ни одним полем и быть не может: он не сохраняется вовсе.
           personText: plan.core.personText ?? '',
-          borrowed: null,
+          borrowed: plan.borrowed ?? null,
           foreignShingles: plan.foreignShingles,
         },
         {
@@ -946,7 +954,12 @@ export class PieceService {
           warn: (message) => this.logger.warn(message),
         }
       );
-      core = { ...rewritten, questions, personText: plan.core.personText ?? '' };
+      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '' };
+    }
+
+    if (!core.text.trim()) {
+      yield { name: 'error', error: true, code: 'PIECE_NOT_SAVED', message: PIECE_ERROR_MESSAGES.PIECE_NOT_SAVED[language] };
+      return;
     }
 
     try {
@@ -955,8 +968,10 @@ export class PieceService {
       }
       await this.briefs.updateCore(organizationId, plan.pieceId, {
         body: core.text,
+        ...(!plan.titleEdited && (!plan.core.text || !textOrNull(plan.title) || plan.title === briefTitle(briefForGate(plan.core.brief), language) || ['Материал без названия', 'Untitled piece'].includes(plan.title)) ? { title: briefTitle({ thesis: textOrNull(brief.thesis) || core.text }, language) } : {}),
         brief: {
           ...this.storedCore(core),
+          ...(plan.titleEdited ? { titleEdited: true } : {}),
           ...(plan.foreignShingles.length
             ? { foreignShingles: plan.foreignShingles }
             : {}),
@@ -1122,6 +1137,353 @@ export class PieceService {
     await this.pieces.deleteAdaptation(organizationId, pieceId, adaptationId);
   }
 
+  /** Signed review questions share /answer, but save author evidence without a model call. */
+  async answerReviewQuestions(
+    organizationId: string,
+    pieceId: string,
+    input: {
+      token: string;
+      adaptationId?: string;
+      answers: Array<{ questionId: string; text: string }>;
+    }
+  ) {
+    const proposal = readReview(
+      input.token,
+      organizationId,
+      pieceId,
+      input.adaptationId
+    );
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
+    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', 'ru', pieceId);
+    if (
+      piece.body !== proposal.pieceSnapshot.body ||
+      piece.title !== proposal.pieceSnapshot.title ||
+      !isDeepStrictEqual(piece.brief, proposal.pieceSnapshot.brief)
+    )
+      throw reviewConflict();
+    const core = this.coreOf(piece);
+    if (!core || !this.briefs)
+      throw pieceError('PIECE_CORE_MISSING', 'ru', pieceId);
+    if (input.adaptationId) {
+      const draft = await this.pieces.reviewDraft(
+        organizationId,
+        pieceId,
+        input.adaptationId
+      );
+      const snapshot = proposal.snapshot!;
+      if (
+        !draft?.post ||
+        draft.post.state !== 'DRAFT' ||
+        draft.post.deletedAt ||
+        draft.post.id !== snapshot.postId ||
+        draft.post.content !== snapshot.postContent ||
+        draft.post.updatedAt.toISOString() !== snapshot.postUpdatedAt ||
+        draft.body !== snapshot.adaptationBody ||
+        (draft.title ?? null) !== snapshot.adaptationTitle ||
+        draft.updatedAt.toISOString() !== snapshot.adaptationUpdatedAt
+      )
+        throw reviewConflict();
+    }
+    if (
+      !input.answers.length ||
+      new Set(input.answers.map((a) => a.questionId)).size !==
+        input.answers.length
+    )
+      throw new AdaptationReviewError(
+        'REVIEW_ANSWER',
+        400,
+        'Ответьте на вопрос из проверки.'
+      );
+    const answers = input.answers.map((answer) => {
+      const question = proposal.changes.find(
+        (change) => change.id === answer.questionId && change.basket === 'ask'
+      );
+      if (!question || !answer.text.trim() || answer.text.length > 2000)
+        throw new AdaptationReviewError(
+          'REVIEW_ANSWER',
+          400,
+          'Ответьте на вопрос из проверки.'
+        );
+      return {
+        questionId: question.id,
+        question: question.why,
+        excerpt: question.excerpt,
+        text: answer.text,
+        answeredAt: this.now().toISOString(),
+        origin: 'person' as const,
+      };
+    });
+    const facts: PieceFactV2[] = answers.map((answer) => ({
+      statement: answer.text,
+      sourceUrl: null,
+      factId: null,
+      evidenceId: null,
+      origin: 'person',
+      kind: 'own',
+      status: 'unverified',
+      verified: false,
+    }));
+    const stored = piece.brief as Record<string, unknown>;
+    const priorAnswers = (
+      core.brief as unknown as { reviewAnswers?: unknown[] }
+    ).reviewAnswers;
+    const nextBrief = {
+      ...stored,
+      brief: {
+        ...core.brief,
+        facts: [...core.brief.facts, ...facts],
+        reviewAnswers: [
+          ...(Array.isArray(priorAnswers) ? priorAnswers : []),
+          ...answers,
+        ],
+      },
+    };
+    await this.briefs.updateCoreMetadata(organizationId, pieceId, {
+      expectedBody: piece.body,
+      expectedBrief: piece.brief,
+      brief: nextBrief,
+    });
+    const remainingQuestions = proposal.changes.filter(
+      (change) =>
+        change.basket === 'ask' &&
+        !answers.some((answer) => answer.questionId === change.id)
+    );
+    const remaining = remainingQuestions.length
+      ? {
+          adaptationId: input.adaptationId,
+          questions: remainingQuestions,
+          token: signReview({
+            ...proposal,
+            changes: remainingQuestions,
+            pieceSnapshot: { ...proposal.pieceSnapshot, brief: nextBrief },
+          }),
+        }
+      : null;
+    return {
+      version: 'review-answer/v2' as const,
+      pieceId,
+      savedQuestionIds: answers.map((a) => a.questionId),
+      remaining,
+    };
+  }
+  async reviewV2(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string | undefined,
+    input: {
+      mode?: AdaptationReviewAction;
+      instruction?: string;
+      confirmWebSpend?: boolean;
+    },
+    language: 'ru' | 'en' = 'ru'
+  ) {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const core = this.coreOf(piece);
+    if (core && !core.text.trim())
+      throw new AdaptationReviewError(
+        'PIECE_CORE_MISSING',
+        409,
+        'Сначала ответьте на вопросы к заготовке.'
+      );
+    if (input.instruction !== undefined && !input.instruction.trim())
+      throw new AdaptationReviewError(
+        'REWRITE_INSTRUCTION',
+        400,
+        'Напишите, что перегенерировать.'
+      );
+    if (!this.aiUsage)
+      throw new AdaptationReviewError(
+        'AI_UNAVAILABLE',
+        503,
+        'Проверка сейчас недоступна.'
+      );
+    let text = core?.text ?? piece.body;
+    let snapshot: ReviewSnapshotV2 | undefined;
+    if (adaptationId) {
+      const draft = await this.pieces.reviewDraft(
+        organizationId,
+        pieceId,
+        adaptationId
+      );
+      if (!draft)
+        throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+      if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt)
+        throw reviewConflict();
+      const provider = this.integrationManager.getSocialIntegration(
+        draft.post.integration.providerIdentifier
+      );
+      text =
+        provider.editor === 'html' || provider.editor === 'normal'
+          ? htmlToPlainText(draft.post.content)
+          : draft.post.content;
+      snapshot = {
+        adaptationTitle: draft.title ?? null,
+        postId: draft.post.id,
+        postContent: draft.post.content,
+        postUpdatedAt: draft.post.updatedAt.toISOString(),
+        adaptationBody: draft.body,
+        adaptationUpdatedAt: draft.updatedAt.toISOString(),
+      };
+    }
+    if (!text.trim())
+      throw new AdaptationReviewError(
+        'REVIEW_EMPTY',
+        400,
+        'Сначала добавьте текст.'
+      );
+    let sources: ReturnType<typeof webReviewSources> | undefined;
+    if (input.mode === 'web') {
+      if (input.confirmWebSpend !== true || !this.webReview)
+        throw new AdaptationReviewError(
+          'REVIEW_WEB_CONFIRM',
+          400,
+          'Подтвердите расход на поиск и модели.'
+        );
+      sources = webReviewSources(
+        await this.webReview.research(organizationId, text.slice(0, 5000))
+      );
+      if (!sources.length)
+        throw new AdaptationReviewError(
+          'REVIEW_WEB_EMPTY',
+          422,
+          'Поиск не дал источников с текстом. Черновик не изменён.'
+        );
+    }
+    // Only legacy null titles fall back to the first nonempty line.
+    const title = adaptationId
+      ? snapshot!.adaptationTitle ??
+        text.split('\n').find((line) => line.trim()) ??
+        ''
+      : piece.title;
+    const reviewed = await reviewOnceV2(
+      organizationId,
+      {
+        text,
+        title,
+        instruction: input.instruction,
+        mode: input.mode,
+        core: core?.text ?? piece.body,
+        personText: core?.personText ?? '',
+        facts: core ? selectedFactsBrief(core.brief).facts : [],
+        language,
+        sources,
+      },
+      this.aiUsage
+    );
+    const proposal: ReviewProposal = {
+      version: REVIEW_VERSION,
+      language,
+      organizationId,
+      pieceId,
+      ...(adaptationId ? { adaptationId } : {}),
+      expires: Date.now() + 30 * 60 * 1000,
+      originalText: text,
+      title,
+      ...reviewed,
+      sources,
+      snapshot,
+      pieceSnapshot: {
+        body: piece.body,
+        brief: piece.brief,
+        title: piece.title,
+      },
+    };
+    const {
+      organizationId: _org,
+      pieceId: _piece,
+      adaptationId: _adaptation,
+      expires: _expires,
+      snapshot: _snapshot,
+      pieceSnapshot: _pieceSnapshot,
+      ...publicResult
+    } = proposal;
+    return { ...publicResult, token: signReview(proposal) };
+  }
+
+  async acceptReviewV2(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string | undefined,
+    input: { token: string; selectedIds: string[]; variant?: string }
+  ) {
+    const proposal = readReview(
+      input.token,
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    let text: string, title: string;
+    try {
+      text = applyReviewChanges(
+        proposal.originalText,
+        proposal.changes,
+        input.selectedIds
+      );
+      title = proposal.title;
+      if (proposal.changes.some((c) => c.target === 'title'))
+        title = applyReviewChanges(
+          proposal.title,
+          proposal.changes,
+          input.selectedIds,
+          'title',
+          input.variant
+        );
+    } catch {
+      throw new AdaptationReviewError(
+        'REVIEW_SELECTION',
+        400,
+        'Выберите правки из результата проверки.'
+      );
+    }
+    if (adaptationId) {
+      const draft = await this.pieces.reviewDraft(
+        organizationId,
+        pieceId,
+        adaptationId
+      );
+      if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', 'ru', adaptationId);
+      if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt)
+        throw reviewConflict();
+      const provider = this.integrationManager.getSocialIntegration(
+        draft.post.integration.providerIdentifier
+      );
+      const titleSelected = proposal.changes.some(
+        (c) => c.target === 'title' && input.selectedIds.includes(c.id)
+      );
+      if (
+        titleSelected &&
+        proposal.originalText.split('\n').find((line) => line.trim()) ===
+          proposal.title
+      )
+        text = syncEmbeddedTitle(text, proposal.title, title);
+      return this.pieces.acceptReviewV2(
+        organizationId,
+        pieceId,
+        adaptationId,
+        proposal.snapshot!,
+        text,
+        editorHtml(text, provider.editor),
+        titleSelected ? title : proposal.snapshot!.adaptationTitle
+      );
+    }
+    const brief = proposal.pieceSnapshot.brief as Record<string, unknown>;
+    const stored = {
+      ...brief,
+      slop: runSlopCheck(text, { platform: 'core', locale: proposal.language }),
+      ...(text !== proposal.originalText ? { writtenBy: 'model' } : {}),
+      ...(title !== proposal.title ? { titleEdited: true } : {}),
+    };
+    return this.pieces.acceptCoreReview(
+      organizationId,
+      pieceId,
+      proposal.pieceSnapshot,
+      text,
+      title,
+      stored
+    );
+  }
   async reviewAdaptation(organizationId: string, pieceId: string, adaptationId: string,
     mode: AdaptationReviewAction, language: 'ru' | 'en' = 'ru', confirmWebSpend = false): Promise<AdaptationReviewResult> {
     if (!ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
@@ -1353,7 +1715,7 @@ export class PieceService {
       if (existing) return existing;
       const fresh: PieceTargetV1 = {
         platform: provider,
-        name: provider,
+        name: this.integrationManager.getSocialIntegration(provider)?.name || provider,
         kinds: kindsOfProvider(provider),
         channels: [],
         available: false,
@@ -1413,12 +1775,7 @@ export class PieceService {
    * сама: отказать человеку `PIECE_INTERVIEW_EXHAUSTED` после того, как он
    * дважды ответил, значило бы взять ответы и не дать текста.
    */
-  private roundOf(request: PieceAdaptRequestV1): number {
-    const answered =
-      (request?.answers || []).length > 0 ||
-      (request?.decideKeys || []).length > 0;
-    return answered ? 2 : 1;
-  }
+
 
   /**
    * Свои прежние тексты по теме этой заготовки.
@@ -1482,7 +1839,7 @@ export class PieceService {
     factIds: string[];
     evidenceIds: string[];
   } {
-    const facts = plan.core?.brief?.facts || [];
+    const facts = plan.core?.brief ? selectedFactsBrief(plan.core.brief).facts : [];
     return {
       factIds: [
         ...new Set(facts.map((fact) => trimmed(fact?.factId)).filter(Boolean)),

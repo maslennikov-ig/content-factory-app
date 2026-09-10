@@ -14,6 +14,7 @@ import {
   PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 import { IDENTITY_LINK_INTENT_KEY } from '@contentfactory/frontend/components/auth/identity-link-return';
+import { Status } from '../ui/surface';
 
 // The provider enum and its human names live beside the other shared display
 // helpers: the administrator's account list needs exactly the same reading,
@@ -749,10 +750,9 @@ export function SignInMethodsView({
                     <h3 className="cf-label-md text-cf-ink">
                       {providerLabel(identity.provider, genericName, t)}
                     </h3>
-                    <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-accent bg-cf-accent-soft px-[8px] py-[4px] cf-caption text-cf-accent">
-                      <StatusMark />{' '}
+                    <Status tone="accent" icon={<StatusMark />}>
                       {t('sign_in_method_connected', 'Connected')}
-                    </span>
+                    </Status>
                   </div>
                   <p className="mt-[4px] cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
                     {identity.provider === 'LOCAL'
@@ -818,10 +818,9 @@ export function SignInMethodsView({
                   <h3 className="cf-label-md text-cf-ink">
                     {providerLabel(provider, genericName, t)}
                   </h3>
-                  <span className="inline-flex items-center gap-[4px] rounded-full border border-cf-border-control bg-cf-surface-subtle px-[8px] py-[4px] cf-caption text-cf-ink-muted">
-                    <StatusMark connected={false} />{' '}
+                  <Status icon={<StatusMark connected={false} />}>
                     {t('available', 'Available')}
-                  </span>
+                  </Status>
                 </div>
                 <p className="mt-[4px] cf-body-sm text-cf-ink-muted">
                   {provider === 'LOCAL'

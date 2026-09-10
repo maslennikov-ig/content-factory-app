@@ -15,14 +15,16 @@ import {
   Status,
 } from '../../ui/surface';
 import { Table, Td, Th, Tr } from '../../ui/table';
+import { FiltersRow } from '../../ui/filters-row';
 import { HighlightedWords } from '../content-search-words';
-import { AdaptationCell } from './adaptation.cell';
+import { AdaptationCell, stateWord } from './adaptation.cell';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import {
   PIECE_TABLE_MIN_WIDTH,
   cellOf,
   type AdaptationV1,
   type PieceCellV1,
+  type PieceCellStateV1,
   type PieceColumnV1,
   type PieceRowV1,
   type PiecesFilters,
@@ -83,6 +85,33 @@ export type PieceExpansion = {
  * разъезжаются при первой правке одной из трёх копий.
  */
 const ARROW_WIDTH = 44;
+
+type RowState = Extract<
+  PieceCellStateV1,
+  'error' | 'queued' | 'published' | 'draft'
+>;
+
+const ROW_STATE_PRIORITY: readonly RowState[] = [
+  'error',
+  'queued',
+  'published',
+  'draft',
+];
+
+const ROW_STATE_TONE = {
+  error: 'danger',
+  queued: 'info',
+  published: 'accent',
+  draft: 'neutral',
+} as const;
+
+/** The row calls out the state that needs attention before quieter states. */
+export const strongestRowState = (
+  row: Pick<PieceRowV1, 'cells'>
+): RowState | null =>
+  ROW_STATE_PRIORITY.find((state) =>
+    row.cells?.some((cell) => cell.state === state)
+  ) ?? null;
 
 const Chevron = ({ open }: { open: boolean }) => (
   <svg
@@ -219,34 +248,59 @@ export function PiecesScreen({
     </header>
   );
 
-  /*
-    Отбор — одна строка: поле поиска шире остальных, два списка узкие, выбор
-    колонок прижат вправо. Ниже 720 px строка переносится сама, потому что там
-    и таблицы нет.
-
-    Ни у одного поля здесь нет строки сообщения: отбор не проверяется, а
-    примитивы резервируют под неё 16 px, и при выравнивании по низу поле без
-    строки (`removeError`) оказывалось на 16 px ниже списков со строкой. На
-    боевом это читалось как «кнопки не встали в один ряд».
-  */
+  /* Accessible names remain on the controls; visible labels are omitted so
+     every list screen has one toolbar row with one vertical alignment. */
   const controls = (
-    <div className="flex min-w-0 flex-wrap items-end gap-[12px]">
+    <FiltersRow
+      aria-label={t.title}
+      trailing={
+        allColumns.length > columns.length || chosenColumns.length > 0 ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              aria-expanded={columnsMenuOpen}
+              data-piece-columns-menu={columnsMenuOpen ? 'open' : 'closed'}
+              onClick={onToggleColumnsMenu}
+            >
+              {t.columnsLabel}
+            </Button>
+            {columnsMenuOpen ? (
+              <div className="absolute end-0 top-[100%] z-[300] mt-[8px] flex min-w-[240px] flex-col gap-[4px] rounded-[8px] border border-cf-border bg-cf-surface-raised p-[8px]">
+                {allColumns.map((column) => (
+                  <CheckboxField
+                    key={column.platform}
+                    name={`pieces-column-${column.platform}`}
+                    label={column.name}
+                    checked={columns.some(
+                      (one) => one.platform === column.platform
+                    )}
+                    onChange={() => onToggleColumn(column.platform)}
+                  />
+                ))}
+                <p className="max-w-[48ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                  {t.columnsHint}
+                </p>
+              </div>
+            ) : null}
+          </>
+        ) : null
+      }
+    >
       <Input
-        disableForm
-        removeError
+        standalone
         name="pieces-search"
-        label={t.searchLabel}
+        aria-label={t.searchLabel}
         placeholder={t.searchPlaceholder}
         fieldClassName="w-[320px] max-w-full"
         value={filters.q}
         onChange={(event) => onFilterChange('q', event.target.value)}
       />
       <Select
-        disableForm
-        hideErrors
+        standalone
         name="pieces-missing-on"
-        label={t.missingOnLabel}
-        fieldClassName="w-[160px] max-w-full"
+        aria-label={t.missingOnLabel}
+        className="w-[160px] max-w-full"
         value={filters.missingOn}
         onChange={(event) => onFilterChange('missingOn', event.target.value)}
       >
@@ -258,11 +312,10 @@ export function PiecesScreen({
         ))}
       </Select>
       <Select
-        disableForm
-        hideErrors
+        standalone
         name="pieces-state"
-        label={t.stateFilterLabel}
-        fieldClassName="w-[140px] max-w-full"
+        aria-label={t.stateFilterLabel}
+        className="w-[140px] max-w-full"
         value={filters.state}
         onChange={(event) =>
           onFilterChange('state', event.target.value as PiecesFilters['state'])
@@ -275,44 +328,25 @@ export function PiecesScreen({
         <option value="error">{t.stateError}</option>
         <option value="archived">{t.archived}</option>
       </Select>
-
-      {/*
-        «Площадки ▾» появляется только когда колонок больше, чем показано:
-        меню, которое всегда одинаково полное, ничего не сообщает о выборе.
-      */}
-      {allColumns.length > columns.length || chosenColumns.length > 0 ? (
-        <div className="relative ms-auto flex flex-col gap-[4px]">
-          <Button
-            type="button"
-            variant="secondary"
-            aria-expanded={columnsMenuOpen}
-            data-piece-columns-menu={columnsMenuOpen ? 'open' : 'closed'}
-            onClick={onToggleColumnsMenu}
-          >
-            {t.columnsLabel}
-          </Button>
-          {columnsMenuOpen ? (
-            <div className="flex min-w-0 flex-col gap-[4px] rounded-[8px] border border-cf-border bg-cf-surface p-[8px]">
-              {allColumns.map((column) => (
-                <CheckboxField
-                  key={column.platform}
-                  name={`pieces-column-${column.platform}`}
-                  label={column.name}
-                  checked={columns.some(
-                    (one) => one.platform === column.platform
-                  )}
-                  onChange={() => onToggleColumn(column.platform)}
-                />
-              ))}
-              <p className="max-w-[48ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                {t.columnsHint}
-              </p>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    </FiltersRow>
   );
+
+  const rowStatuses = (row: PieceRowV1) => {
+    const strongest = strongestRowState(row);
+    return (
+      <span
+        data-piece-row-status={strongest ?? 'none'}
+        className="flex flex-wrap gap-[4px]"
+      >
+        {row.archivedAt ? <Status tone="warning">{t.archived}</Status> : null}
+        {strongest ? (
+          <Status tone={ROW_STATE_TONE[strongest]}>
+            {stateWord(strongest, t)}
+          </Status>
+        ) : null}
+      </span>
+    );
+  };
 
   /** Кнопка раскрытия: своё имя, стрелка вместо подписи, одна на оба вида. */
   const expandButton = (row: PieceRowV1, open: boolean) => (
@@ -436,6 +470,7 @@ export function PiecesScreen({
           */}
           {expandButton(row, open)}
           <span className="cf-label-sm text-cf-signature">{row.code}</span>
+          {rowStatuses(row)}
           <span className="cf-caption tabular-nums text-cf-ink-muted">
             {row.date}
           </span>
@@ -457,7 +492,6 @@ export function PiecesScreen({
             matchedForms={row.matchedForms}
           />
         </p>
-        {row.archivedAt ? <Status>{t.archived}</Status> : null}
         <p
           data-piece-card-origin={row.origin}
           className="cf-caption text-cf-ink-muted"
@@ -612,7 +646,7 @@ export function PiecesScreen({
                         >
                           <Td
                             className={clsx(
-                              'sticky start-0 z-[1] py-[8px]',
+                              'sticky start-0 z-[1] py-[8px] align-top',
                               pinned
                             )}
                             style={{ width: ARROW_WIDTH }}
@@ -626,7 +660,10 @@ export function PiecesScreen({
                             )}
                             style={{ insetInlineStart: ARROW_WIDTH }}
                           >
-                            {row.code}
+                            <span className="flex flex-col items-start gap-[4px]">
+                              <span>{row.code}</span>
+                              {rowStatuses(row)}
+                            </span>
                           </Td>
                           <Td className="py-[8px] align-top">
                             <span className="flex min-w-0 flex-col gap-[4px]">
@@ -642,9 +679,6 @@ export function PiecesScreen({
                                   matchedForms={row.matchedForms}
                                 />
                               </a>
-                              {row.archivedAt ? (
-                                <Status>{t.archived}</Status>
-                              ) : null}
                               <span
                                 data-piece-snippet="true"
                                 className="cf-body-sm text-cf-ink-muted"

@@ -31,10 +31,7 @@ import {
   CHANNEL_NOTES_LIMIT,
   resolveChannelWritingProfile,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
-import type {
-  ChannelWritingProfileResponseV1,
-  ChannelWritingProfileV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
 import { AnalyticsSnapshotService } from '@contentfactory/nestjs-libraries/integrations/analytics.snapshot.service';
 
@@ -216,7 +213,7 @@ export class IntegrationService {
       );
     };
 
-    let lengthPolicy: ChannelWritingProfileV1['lengthPolicy'] = 'provider_max';
+    let lengthPolicy: ChannelWritingProfileV1['lengthPolicy'] = body.lengthPolicy === 'auto' ? 'auto' : 'provider_max';
     if (body.lengthPolicy === 'range') {
       const range = body.length;
       if (!range) refuse('LENGTH_RANGE_REQUIRED');
@@ -241,15 +238,14 @@ export class IntegrationService {
     if (notes.length > CHANNEL_NOTES_LIMIT) refuse('NOTES_TOO_LONG');
 
     return {
-      version: 'channel-writing-profile/v1',
+      version: 'channel-writing-profile/v2',
       lengthPolicy,
-      emojiLevel: body.emojiLevel,
+      emojiLevel: body.emojiLevel === 'free' ? 'many' : body.emojiLevel,
       linkPolicy: body.linkPolicy,
       hashtagPolicy: body.hashtagPolicy,
       ctaKind: body.ctaKind,
       formatPreference: body.formatPreference,
       notes: notes || null,
-      output: 'text',
     };
   }
 

@@ -43,7 +43,6 @@ node_modules
 /connect.lock
 /coverage
 /graphify-out/
-/.lazyweb/
 /.playwright-cli/
 /.playwright-mcp/
 /libpeerconnection.log

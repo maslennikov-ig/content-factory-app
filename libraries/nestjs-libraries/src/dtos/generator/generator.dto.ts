@@ -25,6 +25,18 @@ export class GeneratorBrandProfileSelectionDto {
 }
 
 export class GeneratorDto {
+  /**
+   * Канал, для которого нужно собрать черновик.
+   *
+   * Поле необязательно для старых API-клиентов, но если оно передано,
+   * `AgentGraphService` проверяет его в текущей области до запуска графа.
+   */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  integrationId?: string;
+
   @IsString()
   @MinLength(10)
   research: string;

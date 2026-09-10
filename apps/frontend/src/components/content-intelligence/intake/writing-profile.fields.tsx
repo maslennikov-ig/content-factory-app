@@ -1,5 +1,6 @@
 'use client';
 
+import { Hint } from '@contentfactory/react/layout/hint';
 import { useId } from 'react';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Segmented, type SegmentedOption } from '../../ui/segmented';
@@ -44,6 +45,7 @@ export function writingProfileViewRows(
 ): readonly WritingProfileViewRow[] {
   const t = intakeCopy[locale];
   const lengthLabels: Record<LengthPreset, string> = {
+    auto: t.profileAuto,
     short: t.profileLengthShort,
     ideal: t.profileLengthIdeal,
     long: t.profileLengthLong,
@@ -52,17 +54,20 @@ export function writingProfileViewRows(
   const emojiLabels = {
     none: t.profileEmojiNone,
     few: t.profileEmojiFew,
-    free: t.profileEmojiFree,
+    many: t.profileEmojiFree,
+    auto: t.profileAuto,
   } as const;
   const linkLabels = {
     none: t.profileLinkNone,
     end: t.profileLinkEnd,
     inline: t.profileLinkInline,
+    auto: t.profileAuto,
   } as const;
   const hashtagLabels = {
     none: t.profileHashtagNone,
     end_1_3: t.profileHashtagEnd,
     free: t.profileHashtagFree,
+    auto: t.profileAuto,
   } as const;
   const ctaLabels = {
     none: t.profileCtaNone,
@@ -71,9 +76,10 @@ export function writingProfileViewRows(
     link: t.profileCtaLink,
     subscribe: t.profileCtaSubscribe,
     reply: t.profileCtaReply,
+    auto: t.profileAuto,
   } as const;
   const formatLabels = {
-    auto: t.formatAuto,
+    auto: t.profileAuto,
     opinion: t.formatOpinion,
     announcement: t.formatAnnouncement,
     list: t.formatList,
@@ -113,6 +119,7 @@ export function WritingProfileFields({
   const notesId = useId();
 
   const lengthOptions = options(LENGTH_PRESET_ORDER, {
+    auto: t.profileAuto,
     short: t.profileLengthShort,
     ideal: t.profileLengthIdeal,
     long: t.profileLengthLong,
@@ -121,17 +128,20 @@ export function WritingProfileFields({
   const emojiOptions = options(EMOJI_LEVELS, {
     none: t.profileEmojiNone,
     few: t.profileEmojiFew,
-    free: t.profileEmojiFree,
+    many: t.profileEmojiFree,
+    auto: t.profileAuto,
   });
   const linkOptions = options(LINK_POLICIES, {
     none: t.profileLinkNone,
     end: t.profileLinkEnd,
     inline: t.profileLinkInline,
+    auto: t.profileAuto,
   });
   const hashtagOptions = options(HASHTAG_POLICIES, {
     none: t.profileHashtagNone,
     end_1_3: t.profileHashtagEnd,
     free: t.profileHashtagFree,
+    auto: t.profileAuto,
   });
   const ctaOptions = options(CTA_KINDS, {
     none: t.profileCtaNone,
@@ -140,9 +150,10 @@ export function WritingProfileFields({
     link: t.profileCtaLink,
     subscribe: t.profileCtaSubscribe,
     reply: t.profileCtaReply,
+    auto: t.profileAuto,
   });
   const formatOptions = options(FORMAT_PREFERENCES, {
-    auto: t.formatAuto,
+    auto: t.profileAuto,
     opinion: t.formatOpinion,
     announcement: t.formatAnnouncement,
     list: t.formatList,
@@ -151,6 +162,14 @@ export function WritingProfileFields({
     story: t.formatStory,
   });
 
+  const hints: Record<string, string> = {
+    [t.profileLength]: locale === 'ru' ? 'Сколько знаков будет в посте. Модель может выбрать длину по материалу в пределах площадки.' : 'Post length. The model can choose within the platform limit.',
+    [t.profileEmoji]: locale === 'ru' ? 'Без эмодзи, 1–3 или много. Можно отдать выбор модели.' : 'No emoji, one to three, or many. Or let the model choose.',
+    [t.profileLink]: locale === 'ru' ? 'Где размещать ссылки: рядом с фактом или в конце. Новые адреса модель не выдумывает.' : 'Where links appear: inline or at the end. URLs are never invented.',
+    [t.profileHashtag]: locale === 'ru' ? 'Нужны ли метки темы и где они стоят.' : 'Whether topic tags are useful and where they go.',
+    [t.profileCta]: locale === 'ru' ? 'Какого действия ждём от читателя после поста. Призыв может быть не нужен.' : 'What readers should do after reading. A call to action may be unnecessary.',
+    [t.profileFormat]: locale === 'ru' ? 'Как построить текст: мнение, история, список или другой формат.' : 'How to structure the text: opinion, story, list, or another format.',
+  };
   const row = <Value extends string>(
     label: string,
     value: Value,
@@ -158,7 +177,7 @@ export function WritingProfileFields({
     change: (value: Value) => void
   ) => (
     <>
-      <span className="cf-label-sm uppercase text-cf-ink-muted">{label}</span>
+      <span className="flex items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted">{label}<Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${label}`}>{hints[label]}</Hint></span>
       <Segmented
         label={label}
         value={value}
@@ -179,7 +198,7 @@ export function WritingProfileFields({
         t.profileLength,
         lengthPresetOf(profile.lengthPolicy),
         lengthOptions,
-        (value) => onChange({ lengthPolicy: LENGTH_PRESETS[value] })
+        (value) => onChange({ lengthPolicy: value === 'auto' ? 'auto' : LENGTH_PRESETS[value] })
       )}
       {row(t.profileEmoji, profile.emojiLevel, emojiOptions, (emojiLevel) =>
         onChange({ emojiLevel })
@@ -207,7 +226,7 @@ export function WritingProfileFields({
         htmlFor={notesId}
         className="cf-label-sm uppercase text-cf-ink-muted"
       >
-        {t.profileNotes}
+        {t.profileNotes}<Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${t.profileNotes}`}>{t.profileNotesHint}</Hint>
       </label>
       <div className="flex min-w-0 flex-col gap-[4px]">
         <Textarea

@@ -1703,5 +1703,7 @@
   "close_post_window": "Close the post window",
   "intake_door": "New piece",
   "intake_door_short": "Piece",
-  "help": "Help"
+  "help": "Help",
+  "uploading": "Uploading",
+  "importing": "Importing"
 }

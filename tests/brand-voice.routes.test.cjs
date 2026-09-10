@@ -602,7 +602,7 @@ describe('a model that refused is not an empty profile', () => {
     expect(proposal.fields.map((field) => field.key)).toContain('WHO_SPEAKS');
     expect(proposal.observations[0].quote).toBe(QUOTE);
     expect(proposal.observations[0].sampleCode).toBe('smp-01');
-    expect(proposal.fields.every((field) => field.status === 'UNDECIDED')).toBe(
+    expect(proposal.fields.every((field) => field.status === 'ACCEPTED')).toBe(
       true
     );
   });
@@ -649,7 +649,7 @@ describe('accepting fields one at a time, and activating what was accepted', () 
     const tone = after.fields.find((field) => field.key === 'TONE');
     expect(who.status).toBe('ACCEPTED');
     expect(who.text).toBe('Бригадир участка. Пишем от себя.');
-    expect(tone.status).toBe('UNDECIDED');
+    expect(tone.status).toBe('ACCEPTED');
   });
 
   test('activation without stated consent is refused', async () => {
@@ -658,6 +658,70 @@ describe('accepting fields one at a time, and activating what was accepted', () 
     await expect(
       service.activateProposal(admin, { consentGiven: false })
     ).rejects.toMatchObject({ code: 'VOICE_RIGHTS_REQUIRED', status: 409 });
+  });
+
+  test('the V2 activation requires both a name and an accepted portrait', async () => {
+    const { service } = await build();
+
+    await expect(
+      service.activateProposal(admin, { version: 2, consentGiven: true })
+    ).rejects.toMatchObject({
+      code: 'VOICE_FIELDS_INCOMPLETE',
+      message: expect.stringContaining('без имени'),
+    });
+    await expect(
+      service.activateProposal(admin, {
+        version: 2,
+        consentGiven: true,
+        avatarName: 'Бригадир участка',
+      })
+    ).rejects.toMatchObject({
+      code: 'VOICE_FIELDS_INCOMPLETE',
+      message: expect.stringContaining('портрет'),
+    });
+  });
+
+  test('a legacy PROPOSED portrait reads accepted and activates through V2', async () => {
+    const { prisma, service } = await build();
+    const [measurement] = prisma.state.brandVoiceMeasurement.slice(-1);
+    measurement.metrics.proposal.portrait = {
+      text: 'Руководитель мастерской пишет о ежедневной работе команды, поставках и сроках. Он объясняет решения через конкретные случаи и разговаривает с читателем как с коллегой, которому важен практический результат.',
+      status: 'PROPOSED',
+      observationRefs: ['smp-01#1'],
+    };
+
+    const shown = await service.proposal(admin);
+    expect(shown.portrait.status).toBe('ACCEPTED');
+
+    const passport = await service.activateProposal(admin, {
+      version: 2,
+      consentGiven: true,
+      avatarName: 'Бригадир участка',
+    });
+    expect(passport.state).toBe('default');
+  });
+
+  test('an EDITING portrait still blocks V2 activation', async () => {
+    const { prisma, service } = await build();
+    const [measurement] = prisma.state.brandVoiceMeasurement.slice(-1);
+    measurement.metrics.proposal.portrait = {
+      text: 'Руководитель мастерской пишет о ежедневной работе команды, поставках и сроках. Он объясняет решения через конкретные случаи и разговаривает с читателем как с коллегой, которому важен практический результат.',
+      status: 'EDITING',
+      observationRefs: ['smp-01#1'],
+    };
+
+    const shown = await service.proposal(admin);
+    expect(shown.portrait.status).toBe('EDITING');
+    await expect(
+      service.activateProposal(admin, {
+        version: 2,
+        consentGiven: true,
+        avatarName: 'Бригадир участка',
+      })
+    ).rejects.toMatchObject({
+      code: 'VOICE_FIELDS_INCOMPLETE',
+      message: expect.stringContaining('портрет'),
+    });
   });
 
   test('an accepted proposal becomes a version the passport reads back', async () => {
@@ -730,7 +794,11 @@ describe('accepting fields one at a time, and activating what was accepted', () 
     const first = await service.versions(admin);
     const firstId = first.versions[0].id;
 
-    await service.proposalField(admin, { key: 'TONE', action: 'ACCEPT' });
+    await service.proposalField(admin, {
+      key: 'TONE',
+      action: 'SAVE',
+      text: 'Новый спокойный тон.',
+    });
     await service.activateProposal(admin, {
       consentGiven: true,
       label: 'Голос 2',
@@ -782,7 +850,7 @@ describe('the path that fills the five lines by hand', () => {
     platformOverrides: [],
   };
 
-  test('the five lines start empty and nothing is written to open them', async () => {
+  test('the six lines start empty and nothing is written to open them', async () => {
     const { service, prisma } = harness();
 
     const screen = await service.manualProposal(admin);
@@ -795,6 +863,7 @@ describe('the path that fills the five lines by hand', () => {
       'AUDIENCE',
       'SENTENCE_LENGTH',
       'NEVER_SAY',
+      'TOPICS',
     ]);
     expect(screen.fields.every((field) => field.text === '')).toBe(true);
     expect(screen.state).toBe('empty');
@@ -1908,7 +1977,7 @@ describe('the passport explains the active version, not merely the last run (vme
 });
 
 describe('activation shares the validation the brand-profile form applies (vme.12)', () => {
-  test('an assist activation with nothing accepted is refused the same way the form would refuse it', async () => {
+  test('an automatically accepted proposal activates through the V1 compatibility path', async () => {
     const calls = [];
     const assist = {
       propose: (input) =>
@@ -1918,22 +1987,11 @@ describe('activation shares the validation the brand-profile form applies (vme.1
     await fill(service);
     await service.runAnalysis(admin, { withAssist: true });
 
-    // Nothing accepted: the resulting version would carry no voice traits at
-    // all, which `validateBrandProfileContent(..., { forActivation: true })`
-    // refuses for the form and now refuses here too. The message names what
-    // is missing and where to fix it, not just that something failed.
-    await expect(
-      service.activateProposal(admin, { consentGiven: true })
-    ).rejects.toMatchObject({
-      code: 'VOICE_FIELDS_INCOMPLETE',
-      status: 409,
-      message: expect.stringContaining('черты голоса'),
+    const passport = await service.activateProposal(admin, {
+      consentGiven: true,
     });
-    await expect(
-      service.activateProposal(admin, { consentGiven: true })
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('«Профиль бренда»'),
-    });
+    expect(passport.state).toBe('default');
+    expect(passport.voice.whoSpeaks).toBeTruthy();
   });
 
   test('a version already active from before this fix keeps working; only the next activation is blocked, by name', async () => {

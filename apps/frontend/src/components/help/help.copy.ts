@@ -1,15 +1,15 @@
 import { resolveContentLocale } from '@contentfactory/frontend/components/content-intelligence/content-section.copy';
 
 /**
- * Раздел помощи: двенадцать вопросов и ответы к ним, двумя языками рядом с
+ * Раздел помощи: вопросы живых прогонов и ответы к ним, двумя языками рядом с
  * кодом.
  *
  * Решение владельца 07.09.2026 (`m2eg.25`): «завести в продукте раздел помощи
  * и рассказать в нём, от чьего имени выходят посты». Вопросы — не выдумка
- * этого экрана: каждый из одиннадцати кто-то задал на живом прогоне, и до
+ * этого экрана: их задавали на живых прогонах, и до
  * сегодняшнего дня ответ на него жил в переписке, а не в продукте.
  *
- * Слова живут здесь, а не двенадцатью ключами i18next, — та же договорённость,
+ * Слова живут здесь, а не отдельными ключами i18next, — та же договорённость,
  * что у `onboarding.copy.ts` и `content-section.copy.ts`: два языка,
  * выписанные рядом с кодом, вместо шестнадцати файлов локалей с обещанием
  * перевода, которого никто не писал. Русский текст — источник; английский
@@ -44,7 +44,7 @@ type Words = {
   questions: HelpQuestion[];
 };
 
-/** Двенадцать `id` в том порядке, в каком они стоят на экране. */
+/** Устойчивые `id` в том порядке, в каком они стоят на экране. */
 export const HELP_QUESTION_IDS = [
   'telegram-authorship',
   'post-needs-channel',
@@ -54,6 +54,8 @@ export const HELP_QUESTION_IDS = [
   'avatar-corpus',
   'slop-check',
   'adaptation-review',
+  'channel-model-choice',
+  'regenerate',
   'account-pending',
   'roles',
   'ai-keys',
@@ -114,13 +116,23 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'Что проверяет «проверка на штампы»?',
         answer:
-          'Ищет обороты, по которым текст узнают как машинный: «в современном мире», «давайте разберёмся», лишние вводные, ровные списки из трёх пунктов. Не проверяет факты и не судит о смысле. Работает без вызова модели и денег не стоит.',
+          "Ищет обороты, по которым текст узнают как машинный, и бесплатно пересчитывает находки при изменении текста. «N штампов» — число находок каталога, а не оценка смысла или фактов. «Убрать штампы» — платный вызов модели: она получает найденные цитаты и правила. После правки видно «было N → стало M». Не гонитесь за нулём: личные примеры и ваша позиция важнее балла.",
       },
       {
         id: 'adaptation-review',
         question: 'Как исправить штампы или сверить адаптацию с заготовкой?',
         answer:
-          'Откройте адаптацию и нажмите «Проверить ▾». Выберите «Убрать штампы», «Сверить с сутью заготовки» или «И то и другое». Каждый режим делает один платный вызов модели; расход токенов зависит от текста и режима. Сверка использует только суть, опоры и слова автора, без поиска в интернете. Результат показывает разницу: «Принять» сохранит текст адаптации и черновик поста, «Оставить как было» ничего не запишет. Если черновик изменили после проверки, принять старый ответ нельзя. Последний режим запоминается отдельно для рабочего пространства. Отдельный пункт «Проверить поиском» ищет источники в интернете: перед запуском покажет предупреждение о расходе на поиск и модели и попросит подтверждение. Поиск берёт первые 5000 знаков черновика. Результат показывает ссылки и отрывки источников; если источников нет или поиск недоступен, правки не предлагаются. Это не подтверждение всех фактов.',
+          "Откройте «Ещё ▾» рядом с «Опубликовать» и выберите проверку. У платного действия указана стоимость. Результат — один текст с подсветкой изменений; наведите на изменение, чтобы прочитать объяснение. Исправления опечаток выбраны заранее; стилистические правки можно выбрать по одной или все сразу. Вопросы о смысле и недостающих фактах показаны в «Опорах текста». Ответы сохраняются как ваши собственные опоры без вызова модели. Текст сохраняется только после «Принять выбранные». «Оставить как было» сохраняет прежний текст. Если правки не нужны, кнопки принятия нет. «Проверить факты поиском» ищет источники в интернете; ссылки свёрнуты под текстом. Найденные источники не подтверждают автоматически все факты.",
+      },
+      {
+        id: "channel-model-choice",
+        question: "Что значит «выбирает модель» в карточке канала?",
+        answer: "Модель выбирает это свойство по материалу и правилам канала: длину, эмодзи, ссылки, хэштеги или призыв. Остальные заданные вами поля сохраняют силу. «Мало» — от одного до трёх эмодзи, «Много» — от трёх до шести. Подсказка рядом с полем объясняет его действие.",
+      },
+      {
+        id: "regenerate",
+        question: "Как перегенерировать только заголовок или часть текста?",
+        answer: "Нажмите «Перегенерировать» у сути или адаптации и заполните поле «Что перегенерировать?». Подсказки «Только заголовок» и «Весь текст» лишь подставляют инструкцию. Модель получает текущий текст, вашу просьбу и находки каталога штампов. Изменения показаны с объяснениями; их можно принять или оставить прежний текст. Для заголовка предлагаются три варианта на выбор. Это платный вызов модели.",
       },
       {
         id: 'account-pending',
@@ -200,13 +212,23 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'What does the cliché check look for?',
         answer:
-          'Turns of phrase that give a text away as machine-written: «in today’s world», «let us break it down», padding introductions, tidy lists of three. It does not check facts and does not judge meaning. It runs without calling a model and costs nothing.',
+          "It finds stock phrases and recalculates findings for free when the text changes. The count describes catalog findings, not meaning or factual accuracy. Remove clichés is a paid model call using those exact excerpts and rules. Afterwards you can compare the counts before and after. Keep your examples and point of view; a zero score is not the goal.",
       },
       {
         id: 'adaptation-review',
         question: 'How do I remove cliches or compare an adaptation with its piece?',
         answer:
-          'Open the adaptation and choose Check: Remove cliches, Compare with the piece, or Both. Every mode makes one paid model call; token usage depends on the draft and mode. The comparison uses only the piece, its evidence and the author’s words, without web search. Review the text changes, then Accept to update the adaptation and draft post, or Leave unchanged to save nothing. Acceptance is refused if the draft changed after the review. The last mode is remembered separately for each workspace. The separate Check with web search action asks you to confirm spending on search and models before it starts. Search uses the first 5000 draft characters. The result shows source links and excerpts. If search is unavailable or yields no sources, no corrections are offered. This does not verify every fact.',
+          "Open More beside Publish and choose a review. Paid actions show their cost. The result is one text with highlighted changes; hover over a change to read its explanation. Typo corrections are selected by default; style changes can be selected individually or together. Questions about meaning or missing facts appear in Text sources. Answers are saved as your own source material without a model call. Nothing is saved until you accept the selected changes. Keep original preserves the previous text. If no changes are needed, there is no accept button. Check facts with search finds web sources; links are collapsed below the text. Finding sources does not automatically verify every fact.",
+      },
+      {
+        id: "channel-model-choice",
+        question: "What does Let the model choose mean in a channel profile?",
+        answer: "The model chooses that property from the material and channel rules: length, emoji, links, hashtags, or a call to action. Your other explicit settings still apply. Few means one to three emoji; Many means three to six. Each field has a hint explaining its effect.",
+      },
+      {
+        id: "regenerate",
+        question: "How can I regenerate just the title or part of the text?",
+        answer: "Choose Regenerate on the core text or adaptation and describe what to change. The Title only and Whole text hints just fill in the instruction. The model receives your current text, request, and catalog findings. Changes come with explanations and can be accepted or discarded. For a title, choose from three alternatives. This is a paid model call.",
       },
       {
         id: 'account-pending',

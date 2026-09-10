@@ -72,12 +72,14 @@ export const channelHardLimit = (
     : provider.maxLength;
 
 const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
+  auto: '',
   none: 'No emoji.',
-  few: 'At most three emoji, of no more than two kinds, and never as list bullets.',
-  free: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
+  few: 'Use one to three emoji, of no more than two kinds, and never as list bullets.',
+  many: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
 };
 
 const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string> = {
+  auto: 'Choose whether and where links help; never invent a URL.',
   none: 'No links in the post.',
   end: 'At most one link, and it goes at the end, after the last sentence.',
   inline: 'Links may appear inline, next to the claim or action they support.',
@@ -87,6 +89,7 @@ const HASHTAG_LINE: Record<
   ChannelWritingProfileV1['hashtagPolicy'],
   string
 > = {
+  auto: 'Choose whether hashtags help this post and channel.',
   none: 'No hashtags.',
   end_1_3: 'One to three hashtags, all of them at the very end.',
   free: 'Hashtags may be used when they help readers find the topic; choose them by meaning.',
@@ -102,6 +105,7 @@ const HASHTAG_LINE: Record<
  * как машинный.
  */
 const CTA_LINE: Record<ChannelWritingProfileV1['ctaKind'], string> = {
+  auto: '',
   none: 'Do not bolt a call to action onto the end; stop when the thought is finished.',
   question: 'End with exactly one open question to the reader.',
   comment: 'End by asking for one thing in the comments, and nothing else.',
@@ -210,7 +214,8 @@ export function channelInstructionLines(
   );
 
   const length = resolved.lengthPolicy;
-  if (length !== 'provider_max') {
+  if (length === 'auto') lines.push('Choose the length that serves this material; the platform character limit still applies.');
+  if (typeof length === 'object') {
     const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
     lines.push(
       `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
@@ -230,10 +235,10 @@ export function channelInstructionLines(
     lines.push(EDITOR_LINE.none);
   }
 
-  lines.push(EMOJI_LINE[resolved.emojiLevel]);
+  if (resolved.emojiLevel !== 'auto') lines.push('For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]);
   lines.push(LINK_LINE[resolved.linkPolicy]);
   lines.push(HASHTAG_LINE[resolved.hashtagPolicy]);
-  lines.push(CTA_LINE[resolved.ctaKind]);
+  if (resolved.ctaKind !== 'auto') lines.push(CTA_LINE[resolved.ctaKind]);
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
   const notes = notesLine(resolved.notes);

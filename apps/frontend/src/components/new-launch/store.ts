@@ -652,6 +652,7 @@ interface StoreState {
   ) => void;
   setAllIntegrations: (integrations: Integrations[]) => void;
   setCurrent: (current: string) => void;
+  addSelectedIntegration: (integration: Integrations, settings: any) => void;
   addOrRemoveSelectedIntegration: (
     integration: Integrations,
     settings: any
@@ -759,6 +760,15 @@ export const useLaunchStore = create<StoreState>()((set) => ({
     set((state) => ({
       current: current,
     })),
+  addSelectedIntegration: (integration: Integrations, settings: any) => {
+    if (!integration) return;
+    set((state) => state.selectedIntegrations.some(
+      (item) => item.integration.id === integration.id
+    ) ? state : {
+      selectedIntegrations: [...state.selectedIntegrations,
+        { integration, settings, ref: createRef() }],
+    });
+  },
   addOrRemoveSelectedIntegration: (
     integration: Integrations,
     settings: any

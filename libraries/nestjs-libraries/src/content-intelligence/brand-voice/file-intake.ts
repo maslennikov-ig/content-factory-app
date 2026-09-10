@@ -129,7 +129,8 @@ function reorderBucket(
 }
 
 export async function parseUploadedFiles(
-  files: readonly FileUpload[]
+  files: readonly FileUpload[],
+  options: { maxMessages?: number } = {}
 ): Promise<FileIntakeResult> {
   const order: Array<{
     name: string;
@@ -147,7 +148,12 @@ export async function parseUploadedFiles(
     const extension = extensionOf(file.name);
     if (extension === TELEGRAM_EXTENSION) {
       order.push({ name: file.name, bucket: 'telegram' });
-      telegram.set(file.name, parseTelegramExport(file.buffer.toString('utf8')));
+      telegram.set(
+        file.name,
+        parseTelegramExport(file.buffer.toString('utf8'), {
+          maxMessages: options.maxMessages,
+        })
+      );
     } else if ((ALLOWED_EXTENSIONS as readonly string[]).includes(extension)) {
       order.push({ name: file.name, bucket: 'text' });
       textFiles.push({

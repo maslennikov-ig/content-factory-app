@@ -1,8 +1,11 @@
+import { unavoidableQuestionSchemaV2, unavoidableQuestionV2, hasAutomaticChannelField, channelQuestionPromptV2, channelQuestionTemplateV2 } from '../content-intelligence/channels/channel-question.v2';
+import type { PieceQuestionV1 } from '../content-intelligence/brand-voice/voice-wiring.contract';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { END, START, StateGraph } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { z } from 'zod';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
@@ -64,6 +67,7 @@ import {
 import {
   channelCtaLine,
   channelInstructionLines,
+  type ChannelProviderLimits,
 } from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import type {
   GeneratorRunInput,
@@ -87,6 +91,7 @@ import type { AntiCopyReportV1 } from '@contentfactory/nestjs-libraries/content-
 import { forbiddenPhrasesRule } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/forbidden-phrases';
 
 interface WorkflowChannelsState {
+  adaptationQuestion?: PieceQuestionV1;
   messages: BaseMessage[];
   orgId: string;
   question: string;
@@ -512,6 +517,11 @@ const voiceReinjection = (state: WorkflowChannelsState): string => {
 const describeError = (error: unknown) =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
+type ResolvedChannelProfile = {
+  profile: Parameters<typeof channelInstructionLines>[0];
+  provider: ChannelProviderLimits;
+};
+
 @Injectable()
 export class AgentGraphService {
   private readonly logger = new Logger(AgentGraphService.name);
@@ -557,7 +567,18 @@ export class AgentGraphService {
      * упёрся бы в первый же союз типов.
      */
     @Inject(ContentSourceRegistryService)
-    private readonly sources: ContentSourceRegistryService
+    private readonly sources: ContentSourceRegistryService,
+    /**
+     * Канал для обычной двери генератора.
+     *
+     * Параметр последний и необязательный: стенд и старые наборы собирают
+     * граф вручную и не знают о карточке канала. В приложении токен приходит
+     * из глобального `DatabaseModule`, а сам сервис читает строку с
+     * `organizationId`, поэтому чужой канал не может попасть в промпт.
+     */
+    @Optional()
+    @Inject(IntegrationService)
+    private readonly integrations: IntegrationService | null = null
   ) {}
   static state = () =>
     new StateGraph<WorkflowChannelsState>({
@@ -612,6 +633,7 @@ export class AgentGraphService {
          * Строка ниже — то же исправление, что и объявление новых каналов.
          */
         draftGaps: null,
+        adaptationQuestion: null,
         intake: null,
         channelLines: null,
         /**
@@ -859,6 +881,7 @@ export class AgentGraphService {
   }
 
   async generateContent(state: WorkflowChannelsState) {
+    const allowQuestion = state.intake?.allowQuestion === true && hasAutomaticChannelField(state.intake.channel.writingProfile);
     const hasMaterial = Boolean(
       state.contentContext &&
         (state.contentContext.facts.length ||
@@ -867,9 +890,9 @@ export class AgentGraphService {
     const structuredOutput = (
       await getChatModel(state.orgId, 0.7, tokenCeiling(state))
     ).withStructuredOutput(
-      contentZod(!!state.isPicture, state.format, hasMaterial)
+      allowQuestion ? contentZod(!!state.isPicture, state.format, hasMaterial).extend({ content: contentZod(!!state.isPicture, state.format, hasMaterial).shape.content.nullable().optional(), unavoidableQuestion: unavoidableQuestionSchemaV2 }) : contentZod(!!state.isPicture, state.format, hasMaterial)
     );
-    const promptTemplate = ChatPromptTemplate.fromTemplate(
+    const promptTemplate = ChatPromptTemplate.fromTemplate(channelQuestionTemplateV2(
       `
         You are an assistant that gets existing hook of a social media, content and generate only the content.
         ${hashtagInstruction(state)}
@@ -935,7 +958,7 @@ export class AgentGraphService {
         {information}
         {repairHint}
       `
-    ).pipe(structuredOutput);
+    )).pipe(structuredOutput);
 
     const allowedCitationIds = new Set([
       ...(state.contentContext?.facts || []).map((item) => item.citationId),
@@ -960,7 +983,7 @@ export class AgentGraphService {
     };
 
     const attempt = async (repairHint: string) => {
-      const { content: outputContent } = await promptTemplate.invoke({
+      const response = await promptTemplate.invoke({
         voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
         brief: briefBlock(state),
         related: relatedBlock(state),
@@ -971,7 +994,12 @@ export class AgentGraphService {
           (state.language as 'ru' | 'en') || 'ru'
         ),
         repairHint,
+        channelQuestionRule: allowQuestion ? channelQuestionPromptV2 : '',
       });
+      const question = allowQuestion ? unavoidableQuestionV2((response as any).unavoidableQuestion, state.intake?.channel.writingProfile) : null;
+      if (question) return { adaptationQuestion: question };
+      const outputContent = response.content;
+      if (!outputContent) throw new Error('The model returned neither content nor an unavoidable question');
       return Array.isArray(outputContent)
         ? outputContent.map(normalize)
         : normalize(outputContent);
@@ -996,6 +1024,7 @@ export class AgentGraphService {
       );
     }
 
+    if (normalized?.adaptationQuestion) return normalized;
     const checked = await this.repairForeignCopy(state, normalized, attempt);
     const content = await this.trimToAuthorLength(state, checked.content);
     return {
@@ -1534,13 +1563,83 @@ export class AgentGraphService {
   /**
    * Генерация одного поста — и то немногое, что о ней может знать вход.
    *
-   * `body.intake` необязателен и приходит только изнутри продукта: снаружи, на
-   * `POST /posts/generator`, живёт всё тот же `GeneratorDto`, и подсказок в нём
-   * нет. Без них ни одна строка промпта не меняется
-   * (`content-factory-next-tu3k.2`).
+   * `body.intake` необязателен и приходит только изнутри продукта. Обычная
+   * дверь `POST /posts/generator` передаёт вместо него `integrationId`, а
+   * карточка канала читается здесь в текущей области. Без обоих входов ни одна
+   * строка промпта не меняется (`content-factory-next-tu3k.2`).
    */
   async *start(orgId: string, body: GeneratorRunInput) {
     const hints = body.intake;
+    let resolvedChannelProfile: ResolvedChannelProfile | undefined;
+
+    if (hints) {
+      resolvedChannelProfile = {
+        profile: hints.channel.writingProfile,
+        provider: {
+          identifier: hints.channel.providerIdentifier,
+          name: hints.channel.providerIdentifier.replace(/^./, (first) =>
+            first.toUpperCase()
+          ),
+          contentLanguage: body.language,
+          maxLength: hints.channel.maxLength,
+          maxCaptionLength: hints.channel.maxCaptionLength,
+          editor: hints.channel.editor,
+        },
+      };
+    } else if (body.integrationId) {
+      let channel:
+        | Awaited<ReturnType<IntegrationService['getWritingProfile']>>
+        | null = null;
+      try {
+        if (this.integrations) {
+          channel = await this.integrations.getWritingProfile(
+            orgId,
+            body.integrationId
+          );
+        }
+      } catch (error: any) {
+        const response =
+          typeof error?.getResponse === 'function'
+            ? error.getResponse()
+            : error?.response;
+        const code =
+          (response && typeof response === 'object' && 'code' in response
+            ? response.code
+            : undefined) || error?.code;
+        if (code !== 'INTEGRATION_NOT_FOUND') throw error;
+        yield {
+          name: 'error',
+          error: true,
+          code: 'INTEGRATION_NOT_FOUND',
+          message: 'The selected channel is unavailable.',
+        } as any;
+        return;
+      }
+
+      // A missing optional provider is only possible in hand-built test or
+      // evidence stands. Treat it like a missing row rather than reaching a
+      // model with an unscoped channel.
+      if (!channel || channel.integrationId !== body.integrationId) {
+        yield {
+          name: 'error',
+          error: true,
+          code: 'INTEGRATION_NOT_FOUND',
+          message: 'The selected channel is unavailable.',
+        } as any;
+        return;
+      }
+
+      resolvedChannelProfile = {
+        profile: channel.profile,
+        provider: {
+          identifier: channel.providerIdentifier,
+          name: channel.provider.name,
+          maxLength: channel.provider.maxLength,
+          maxCaptionLength: channel.provider.maxCaptionLength,
+          editor: channel.provider.editor,
+        },
+      };
+    }
     const explicitMaterial = [
       body.sourceIds,
       body.factIds,
@@ -1564,7 +1663,9 @@ export class AgentGraphService {
         // Площадка называется строителю и разрешителю голоса только когда она
         // известна: `PlatformVoiceOverrideV1` применяется по имени провайдера,
         // и без него профиль области отвечает как отвечал.
-        ...(hints ? { provider: hints.channel.providerIdentifier } : {}),
+        ...(resolvedChannelProfile
+          ? { provider: resolvedChannelProfile.provider.identifier }
+          : {}),
         freshnessMode: body.freshnessMode || 'PREFER_FRESH',
         brandProfileSelection:
           body.brandProfileSelection?.mode === 'version' &&
@@ -1621,7 +1722,7 @@ export class AgentGraphService {
             mode: 'version',
             versionId: contentContext.profile.versionId,
           },
-          hints?.channel.providerIdentifier
+          resolvedChannelProfile?.provider.identifier
         );
       } catch {
         yield {
@@ -1643,27 +1744,18 @@ export class AgentGraphService {
      * узла; считать их в узле значило бы собирать один и тот же список на
      * каждой попытке черновика.
      *
-     * Имя площадки берётся из её идентификатора с заглавной буквы: подсказки
-     * несут `providerIdentifier`, а показывать модели «You are writing for
+     * Имя площадки приходит из карточки обычной двери или берётся из её
+     * идентификатора в подсказках: показывать модели «You are writing for
      * telegram» — значит учить её писать имя площадки со строчной.
      */
-    const channelLines = hints
+    const channelLines = resolvedChannelProfile
       ? channelInstructionLines(
-          hints.channel.writingProfile,
-          {
-            identifier: hints.channel.providerIdentifier,
-            name: hints.channel.providerIdentifier.replace(/^./, (first) =>
-              first.toUpperCase()
-            ),
-            contentLanguage: body.language,
-            maxLength: hints.channel.maxLength,
-            maxCaptionLength: hints.channel.maxCaptionLength,
-            editor: hints.channel.editor,
-          },
+          resolvedChannelProfile.profile,
+          resolvedChannelProfile.provider,
           {
             withPicture: body.isPicture,
-            formatHint: hints.formatHint,
-            foreignShingles: hints.foreignShingles,
+            formatHint: hints?.formatHint,
+            foreignShingles: hints?.foreignShingles,
           }
         )
       : undefined;
@@ -1695,7 +1787,7 @@ export class AgentGraphService {
        * даже не отличает. Потолок попыток держит `afterPick`, поэтому цикл
        * ограничен числом, а не пределом рекурсии графа.
        */
-      .addEdge('generate-content', 'pick-draft')
+      .addConditionalEdges('generate-content', (state) => state.adaptationQuestion ? END : 'pick-draft')
       .addConditionalEdges('pick-draft', this.afterPick.bind(this))
       .addConditionalEdges(
         'generate-content-fix',

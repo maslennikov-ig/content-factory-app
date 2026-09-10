@@ -68,16 +68,21 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
       // no JSX in it is a plain `.ts`, and looking only for `.tsx` made the
       // whole suite fail to load the day one appeared (`provider-label`).
       for (const extension of ['.tsx', '.ts']) {
-        const candidate = path.join(
+        const sharedPath = path.join(
           repositoryRoot,
           'libraries/react-shared-libraries/src',
-          `${request.slice('@contentfactory/react/'.length)}${extension}`
+          request.slice('@contentfactory/react/'.length)
         );
-        if (fs.existsSync(candidate))
-          return loadTypeScriptModule(
-            path.relative(repositoryRoot, candidate),
-            mocks
-          );
+        for (const candidate of [
+          `${sharedPath}${extension}`,
+          path.join(sharedPath, `index${extension}`),
+        ]) {
+          if (fs.existsSync(candidate))
+            return loadTypeScriptModule(
+              path.relative(repositoryRoot, candidate),
+              mocks
+            );
+        }
       }
     }
     return require(request);

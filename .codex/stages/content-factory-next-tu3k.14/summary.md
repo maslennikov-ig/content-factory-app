@@ -24,7 +24,7 @@ S5 → S1 → S2 → S8 → S3 → S4 → S7 → S6 приняты по поря
 
 Общий release_commands сохраняет build, brand, docs, process и diff; добавляет tsc трёх приложений, а pnpm test вызывается один раз внутри record-suite-receipt.sh. Это тот же полный набор с квитанцией на точный HEAD.
 
-docs-reviewed: updated - FAQ, tariff, component inventory, project index and current handoff reflect the integrated paths. Runbook records current release authority; actual release entry pending.
+docs-reviewed: updated - FAQ, tariff, component inventory, project index and current handoff reflect the integrated paths. Runbook records current release authority and verified release 2fe4032ea3db.
 graph-reviewed: no-change-needed - owner graph used read-only for orientation; stale entries were not treated as current, exact changed paths confirmed in the accepted tree. Optional graph refresh is not a release requirement.
 
 Стенд: dev watch после массовой интеграции исчерпал стандартный Node heap; перезапущен с 8 GiB. Повреждённый временный Next dev cache перемещён в /tmp для безопасного пересоздания. Production build/cache и данные не менялись.
@@ -58,3 +58,22 @@ Root реальный API после полной пересборки лока�
 Полный прогон9f024f6d: три tsc и build прошли, Jest404/411 наборов и5254/5266 тестов. Семь наборов остановили квитанцию; Node/Python не запускались. Root поправил живой источник языка новых подписей календаря/выбора/предпросмотра и заголовок вкладки Content, сохранив имя внутренней таблицы. Тестовые ожидания перенесены на фактические новые поверхности: Channels CalendarContext, реальные значки/аватары, соседство фильтров, имя раздела в онбординге. Пять наборов прошли в первом узком запуске, два исправленных повторно66/66; итого114 уникальных проверок. Отдельный PDF IPC сбой разбирается изолированным Sol High; полный повтор после его доставки. Согласие владельца сохраняется.
 
 PDF release-tail91402069 → c0959e75 принят: PDF/DOCX process.send ждал только постановку в очередь, process.exit терял ответ. Теперь callback доставки ожидается перед естественным выходом. Границы timeout/SIGKILL/памяти и классификации прежние. 3 набора21/21, targeted tsc0,120 реальных PDF разборов без неверной классификации. Root просмотрел diff; внешнее поведение подтверждено Node22 docs после docs-resolve. Все семь упавших наборов исправлены; полный повтор обязателен на новом HEAD.
+
+## Выпуск принят 08.09.2026
+
+Полная приёмка `7b07bec6a989` прошла:9 настроенных команд и точная process-проверка; Jest411/5270, Node124/0 с4 прежними пропусками по окружению, Python46. Предыдущая попытка211fb696 остановилась только на154 строках project-index; индекс сокращён до149, ссылки сохранены, stale upstream исправлен. Полный повтор выполнен штатно, квитанция не редактировалась.
+
+Выпущен публичный `2fe4032ea3db`, source `7b07bec6a98924b9975493fee7fb9bb31091b032`, digest `sha256:e257a445e02d7f9a5dc75ca8f1ea36b55e2f2e1346089e473e2f3aa64127d686`. Стенд явно одобрен владельцем. Миграций нет: diff0; Mastra0→0 в продуктовой базе,29→29 в отдельной, структура совпадает. Healthy,0 перезапусков, маркер версии совпал,0 ошибок запуска; API/login/source200, архив совпал по SHA-256. Штатное удержание оставило новый образ и откат `5f657ccf294e`,23ГБ свободно.
+
+30 задач закрыты одной партией после завершения всех исполнителей;30 поимённых reread подтвердили closed,30 штатных GitHub sync triggers отправлены. Эпик закрыт и перечитан; отдельный штатный триггер синхронизации отправлен. Запись выпуска сохранена через bd remember. Доказательство: evidence/release-2026-09-08.json. Документальный коммит после выпуска не выдаётся за новый проверенный image source. Claude готовит третий живой проход.
+
+## Cleanup / closeout 08.09 после выпуска
+
+Владелец запросил полное завершение и подтвердил включение шести незакоммиченных правок Lazyweb-документации в main. История волны fast-forward объединена в main, правки включены как9eb05aa1; origin/main обновлён. Код apps/libraries/scripts/deploy, Dockerfile, package.json, lockfile и var/docker совпадает с проверенным7b07bec6: повторный выпуск образа не нужен. Исходная квитанция неизменна.
+
+31 локальная ветка удалена после проверки ancestry;11 слитых удалённых веток удалены. Две старые несмерженные ветки orchestration (8c6ca480,a1d6b1ea) сохранены в проверенный bundle внутри.git и удалены только после явного ответа владельца. Технический ref Beads сохранён. Открытых PR нет. Оба временных worktree и временный публичный клон удалены; основной public clone чист на2fe4032ea3db, архив исходников и suite receipt перенесены и проверены. Дубликат шести изменений public clone сохранён в private main и.patch перед восстановлением публичного дерева.
+
+Локальный стенд: подтверждённая группа процессов8410 остановлена;6 cf-dev контейнеров удалены поимённо, тома не удалялись. Production проверен:2fe4032ea3db healthy,0 перезапусков; только новый и rollback5f657ccf294e,23ГБ свободно. Эпик и30 задач повторно перечитаны:closed. Handoff больше не предлагает повторный запуск закрытой волны.
+
+docs-reviewed: updated - main integration, archive decision, stopped local stand and next Claude walkthrough recorded.
+graph-reviewed: no-change-needed - cleanup changed refs/docs/runtime leftovers only; application source is identical to the accepted release.

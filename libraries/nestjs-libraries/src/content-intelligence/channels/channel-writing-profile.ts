@@ -1,9 +1,5 @@
-import {
-  CHANNEL_WRITING_PROFILE_VERSION,
-  type ChannelLengthPolicyV1,
-  type ChannelWritingProfileV1,
-  type IntakeFormatV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
 export {
   CHANNEL_WRITING_PROFILE_VERSION,
@@ -82,7 +78,6 @@ export const TELEGRAM_WRITING_DEFAULTS: ChannelWritingProfileV1 = {
   ctaKind: 'question',
   formatPreference: 'auto',
   notes: null,
-  output: 'text',
 };
 
 /**
@@ -99,13 +94,12 @@ export const TELEGRAM_WRITING_DEFAULTS: ChannelWritingProfileV1 = {
 export const GENERIC_WRITING_DEFAULTS: ChannelWritingProfileV1 = {
   version: CHANNEL_WRITING_PROFILE_VERSION,
   lengthPolicy: 'provider_max',
-  emojiLevel: 'free',
+  emojiLevel: 'auto',
   linkPolicy: 'inline',
   hashtagPolicy: 'none',
   ctaKind: 'none',
   formatPreference: 'auto',
   notes: null,
-  output: 'text',
 };
 
 /**
@@ -129,10 +123,11 @@ export const defaultWritingProfileFor = (
   };
 };
 
-const EMOJI_LEVELS = ['none', 'few', 'free'] as const;
-const LINK_POLICIES = ['none', 'end', 'inline'] as const;
-const HASHTAG_POLICIES = ['none', 'end_1_3', 'free'] as const;
+const EMOJI_LEVELS = ['none', 'few', 'many', 'auto'] as const;
+const LINK_POLICIES = ['none', 'end', 'inline', 'auto'] as const;
+const HASHTAG_POLICIES = ['none', 'end_1_3', 'free', 'auto'] as const;
 const CTA_KINDS = [
+  'auto',
   'none',
   'question',
   'comment',
@@ -215,7 +210,7 @@ export const parseWritingProfile = (
   return {
     version: CHANNEL_WRITING_PROFILE_VERSION,
     lengthPolicy: parseLengthPolicy(stored.lengthPolicy, defaults.lengthPolicy),
-    emojiLevel: oneOf(EMOJI_LEVELS, stored.emojiLevel, defaults.emojiLevel),
+    emojiLevel: oneOf(EMOJI_LEVELS, stored.emojiLevel === 'free' ? 'many' : stored.emojiLevel, defaults.emojiLevel),
     linkPolicy: oneOf(LINK_POLICIES, stored.linkPolicy, defaults.linkPolicy),
     hashtagPolicy: oneOf(
       HASHTAG_POLICIES,
@@ -229,15 +224,14 @@ export const parseWritingProfile = (
       defaults.formatPreference
     ),
     notes: parseNotes(stored.notes),
-    output: 'text',
-  };
+    };
 };
 
 const parseLengthPolicy = (
   value: unknown,
   fallback: ChannelLengthPolicyV1
 ): ChannelLengthPolicyV1 => {
-  if (value === 'provider_max') return 'provider_max';
+  if (value === 'provider_max' || value === 'auto') return value;
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return fallback;
   }

@@ -217,6 +217,11 @@ const fullBriefAnswer = (overrides = {}) => ({
 });
 
 const thinBriefAnswer = (overrides = {}) => ({
+  questions: [
+    { field: 'thesis', question: 'Что именно стоит писать про ИИ?', options: ['Про свои проверки', 'Про изменения инструментов'] },
+    { field: 'facts', question: 'Что вы сами проверили про ИИ?', options: ['Сравнил результат', 'Проверил сроки'] },
+    { field: 'position', question: 'Как вы относитесь к частоте публикаций про ИИ?', options: ['Писать чаще', 'Писать только после проверки'] },
+  ],
   goal: null,
   thesis: null,
   position: null,
@@ -465,7 +470,7 @@ describe('тонкий вход отвечает заготовкой, а воп
     expect(filled.brief.origins.audience).toBe('avatar');
   });
 
-  test('расход — разбор брифа и одна суть, и ни одной генерации сверх канала', async () => {
+  test('до ответов оплачен только разбор материала, без черновика', async () => {
     const { service, calls } = build({
       models: [thinBriefAnswer(), { text: 'Суть из тонкого ввода.' }],
     });
@@ -474,7 +479,6 @@ describe('тонкий вход отвечает заготовкой, а воп
 
     expect(calls.usage).toEqual([
       ['org-a', 'intake', 'extract'],
-      ['org-a', 'intake', 'draft'],
     ]);
   });
 
@@ -507,9 +511,7 @@ describe('тонкий вход отвечает заготовкой, а воп
     */
     const [asked] = named(events, 'questions');
     expect(asked.questions.map((row) => row.field)).toEqual(['thesis', 'facts']);
-    expect(asked.questions[0].suggested).toBe(
-      'Про ИИ надо писать реже, но проверять каждое число'
-    );
+    expect(asked.questions[0].suggested).toBeNull();
   });
 });
 
@@ -773,10 +775,8 @@ describe('слово человека и выключенный поиск', () 
       первой. Вопрос про `facts` в списке ровно ноль раз: повтор, который
       владелец увидел на прогоне, невозможен по устройству.
     */
-    const fields = named(events, 'questions')[0].questions.map(
-      (row) => row.field
-    );
-    expect(fields).toEqual(['position']);
+    const fields = named(events, 'questions').flatMap((event) => event.questions.map((row) => row.field));
+    expect(fields).toEqual([]);
     expect(fields.filter((field) => field === 'facts')).toEqual([]);
   });
 
@@ -804,9 +804,7 @@ describe('слово человека и выключенный поиск', () 
       записывает. Это и есть правка живого прогона: вопрос перестал быть
       условием существования заготовки.
     */
-    expect(named(events, 'questions')[0].questions.map((row) => row.field)).toEqual(
-      ['facts', 'position']
-    );
+    expect(named(events, 'questions')).toEqual([]);
     expect(calls.recordCore).toHaveLength(1);
   });
 
@@ -837,14 +835,8 @@ describe('слово человека и выключенный поиск', () 
       другой вопрос про то же поле, и звучит он иначе: своего у человека
       по-прежнему нет, и продукт просит личную историю, а не источник.
     */
-    const [asked] = named(events, 'questions');
-    expect(asked.questions.map((row) => row.field)).toEqual([
-      'facts',
-      'position',
-    ]);
-    expect(asked.questions[0].question).toBe(
-      'Есть личная история или неожиданный факт?'
-    );
+    expect(named(events, 'questions')).toEqual([]);
+    expect(filled.brief.facts[0]).toMatchObject({ kind: 'found', selected: false });
   });
 });
 
@@ -872,7 +864,7 @@ describe('заготовка появляется первой', () => {
       'done',
     ]);
     expect(calls.recordCore).toHaveLength(1);
-    expect(calls.recordCore[0][1].body).toBe('Суть без канала.');
+    expect(calls.recordCore[0][1].body).toBe('');
     expect(named(events, 'piece')[0].pieceId).toBe('piece-1');
     expect(named(events, 'done')[0].pieceId).toBe('piece-1');
   });
@@ -971,4 +963,29 @@ describe('mixed foreign post and URL', () => {
     expect(calls.fetch).toEqual([]);
     expect(calls.usage).toEqual([]);
   });
+});
+
+describe('third walk: material questions precede the paid draft', () => {
+  test('a material-specific question saves an empty core without calling draft', async () => {
+    const { service, calls } = build({ models: [thinBriefAnswer({ questions: [
+      { field: 'facts', question: 'Что именно вы проверили про ИИ в своей студии?', options: ['Сравнил сроки', 'Проверил ошибки'] },
+    ] })] });
+    const plan = await service.prepare('org-1', { input: 'Хочу написать про ошибки ИИ в нашей студии', language: 'ru' });
+    const events = await drain(service, 'org-1', plan, 'user-1');
+    expect(modelCalls.map((call) => call.role)).toEqual(['extract']);
+    expect(calls.recordCore[0][1].body).toBe('');
+    expect(named(events, 'piece')[0].core.questions.items[0].question).toBe('Что именно вы проверили про ИИ в своей студии?');
+  });
+});
+
+
+test('third walk: placeholder fields never become titles, and discarded values are observable', async () => {
+  const { service, calls } = build({ models: [thinBriefAnswer({ goal: ':null,', thesis: null, facts: [{ statement: '"none"' }], questions: [] }), { text: 'Своё наблюдение про сроки.' }] });
+  const warn = jest.spyOn(service.logger, 'warn').mockImplementation(() => {});
+  const plan = await service.prepare('org-1', { input: 'Хочу написать про сроки', language: 'ru' });
+  await drain(service, 'org-1', plan);
+  expect(calls.recordCore[0][1].title).toBe('Своё наблюдение про сроки.');
+  expect(calls.recordCore[0][1].brief.brief.facts).toEqual([]);
+  expect(warn.mock.calls.some(([line]) => String(line).includes('"field":"goal"') && String(line).includes('"operation":"intake"'))).toBe(true);
+  warn.mockRestore();
 });

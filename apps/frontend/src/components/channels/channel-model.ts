@@ -70,17 +70,19 @@ export function channelProfileSummary(row: ChannelRow, locale: ChannelsLocale) {
   const c = channelsCopy[locale];
   const length =
     typeof profile.lengthPolicy === 'string'
-      ? c.providerLimit
+      ? profile.lengthPolicy === 'auto' ? t.profileAuto : c.providerLimit
       : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax} ${c.chars}`;
   const emoji = {
     none: t.profileEmojiNone,
     few: t.profileEmojiFew,
-    free: t.profileEmojiFree,
+    many: t.profileEmojiFree,
+    auto: t.profileAuto,
   }[profile.emojiLevel];
   const link = {
     none: t.profileLinkNone,
     end: t.profileLinkEnd,
     inline: t.profileLinkInline,
+    auto: t.profileAuto,
   }[profile.linkPolicy];
   const cta = {
     none: t.profileCtaNone,
@@ -89,6 +91,7 @@ export function channelProfileSummary(row: ChannelRow, locale: ChannelsLocale) {
     link: t.profileCtaLink,
     subscribe: t.profileCtaSubscribe,
     reply: t.profileCtaReply,
+    auto: t.profileAuto,
   }[profile.ctaKind];
   return [
     length,

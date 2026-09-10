@@ -70,6 +70,7 @@ import type {
   MediaLibraryItem,
   UploadedMedia,
 } from '@contentfactory/frontend/components/media/image-editor/types';
+import { Progress } from '@contentfactory/frontend/components/ui/progress';
 // Keep image editing inside Content Factory: the previous vendor editor
 // announced this instance's host name and forwarded stock-photo searches.
 // This replacement loads the selected source locally and saves only through
@@ -521,7 +522,11 @@ export const MediaBox: FC<{
       >
         {loading ? (
           <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
-            <div className="animate-spin h-[20px] w-[20px] border-4 border-white border-t-transparent rounded-full" />
+            <Progress
+              mode="indeterminate"
+              label={t('uploading', 'Uploading')}
+              className="w-[32px]"
+            />
           </div>
         ) : (
           <PlusIcon size={14} />

@@ -11,35 +11,8 @@ import type { IntakeRequestV2, IntakeEventV2, BriefFilledV2 } from '@contentfact
  * событие сервера и его чтение расходятся на третьем поле.
  */
 
-import {
-  INTAKE_INPUT_MIN_CHARS,
-  INTAKE_MAX_CHANNELS,
-  INTAKE_ROUTES,
-  type AntiCopyReportV1,
-  type BriefFieldOriginV1,
-  type BriefFilledFactV1,
-  type BriefFilledV1,
-  type ChannelWritingProfileResponseV1,
-  type ChannelWritingProfileV1,
-  type IntakeClaimV1,
-  type IntakeEventNameV1,
-  type IntakeEventV1,
-  type IntakeFormatV1,
-  type IntakeInputKindV1,
-  type IntakeOptionsV1,
-  type IntakeQuestionV1,
-  type IntakeRequestV1,
-  type PieceAnswerInputV1,
-  type PieceCreateRequestV1,
-  type PieceQuestionKeyV1,
-  type PieceQuestionV1,
-  type SlopFindingV1,
-  type SlopReportV1,
-  type SlopVerdictV1,
-  type AdaptationChecksV1,
-  type VoiceCheckReportV1,
-  type ZagotovkaCoreV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { INTAKE_INPUT_MIN_CHARS, INTAKE_MAX_CHANNELS, INTAKE_ROUTES, type AntiCopyReportV1, type BriefFieldOriginV1, type BriefFilledFactV1, type BriefFilledV1, type IntakeClaimV1, type IntakeEventNameV1, type IntakeEventV1, type IntakeFormatV1, type IntakeInputKindV1, type IntakeOptionsV1, type IntakeQuestionV1, type IntakeRequestV1, type PieceAnswerInputV1, type PieceCreateRequestV1, type PieceQuestionKeyV1, type PieceQuestionV1, type SlopFindingV1, type SlopReportV1, type SlopVerdictV1, type AdaptationChecksV1, type VoiceCheckReportV1, type ZagotovkaCoreV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { type ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
 
 export type {
@@ -411,6 +384,9 @@ export function readBrief(value: unknown): BriefFilledV2 | null {
           evidenceId: typeof fact.evidenceId === 'string' ? fact.evidenceId : null,
           origin: readOrigin(fact.origin),
           verified: fact.verified === true,
+          ...(['own', 'external', 'found'].includes(asText(fact.kind)) ? { kind: fact.kind as 'own' | 'external' | 'found' } : {}),
+          ...(['confirmed', 'conflicting', 'not_found', 'unverified'].includes(asText(fact.status)) ? { status: fact.status as 'confirmed' | 'conflicting' | 'not_found' | 'unverified' } : {}),
+          ...(typeof fact.selected === 'boolean' ? { selected: fact.selected } : {}),
         },
       ];
     }),

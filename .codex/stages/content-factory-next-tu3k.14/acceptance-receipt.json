@@ -1,0 +1,110 @@
+{
+  "command_results": [
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+      "duration_seconds": 15.81,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+      "duration_seconds": 15.448,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+      "duration_seconds": 12.907,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run build",
+      "duration_seconds": 96.759,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/release/record-suite-receipt.sh",
+      "duration_seconds": 330.001,
+      "environment_gates": [
+        {
+          "environment_variable": "SOURCE_REGISTRY_POSTGRES_URL",
+          "reason": "SOURCE_REGISTRY_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL serializable lease crossing rolls back snapshot and forbids late completion"
+        },
+        {
+          "environment_variable": "EDITORIAL_STAGE_POSTGRES_URL",
+          "reason": "EDITORIAL_STAGE_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "existing process tags carry over to Post.editorialStage one-to-one"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL rejects foreign post id and group before mutation"
+        },
+        {
+          "environment_variable": "POST_CONTENT_CONTEXT_POSTGRES_URL",
+          "reason": "POST_CONTENT_CONTEXT_POSTGRES_URL is not configured",
+          "status": "skipped",
+          "test_name": "PostgreSQL atomically commits or rolls back an AutoPost V2 draft and provenance set"
+        }
+      ],
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 411 passed, 411 total",
+        "Tests:       5270 passed, 5270 total",
+        "# tests 128",
+        "# pass 124",
+        "# fail 0",
+        "# skipped 4",
+        "# todo 0",
+        "Ran 46 tests in 1.284s",
+        "OK",
+        "Test Suites: 411 passed, 411 total / Tests:       5270 passed, 5270 total"
+      ]
+    },
+    {
+      "command": "node scripts/branding/brand-scan.cjs",
+      "duration_seconds": 0.093,
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run docs:check",
+      "duration_seconds": 0.769,
+      "result": "passed"
+    },
+    {
+      "command": "bash scripts/orchestration/run_process_verification.sh",
+      "duration_seconds": 0.234,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.006,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "pnpm exec tsc --noEmit --incremental false -p apps/backend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/frontend/tsconfig.json",
+    "pnpm exec tsc --noEmit --incremental false -p apps/orchestrator/tsconfig.json",
+    "pnpm run build",
+    "bash scripts/release/record-suite-receipt.sh",
+    "node scripts/branding/brand-scan.cjs",
+    "pnpm run docs:check",
+    "bash scripts/orchestration/run_process_verification.sh",
+    "git diff --check"
+  ],
+  "completed_at": "2026-09-08T13:45:06.690797+00:00",
+  "diff_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v22.23.2,pnpm=10.6.1",
+  "git_head": "7b07bec6a98924b9975493fee7fb9bb31091b032",
+  "idempotency_key": "72b35350a3f2bc6b644f14f4ac7c40fc95f164674b7a926f6d51bf7ff3d876e4",
+  "orchestration_level": "release",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-tu3k.14",
+  "started_at": "2026-09-08T13:37:14.426829+00:00",
+  "verification_fingerprint": "72b35350a3f2bc6b644f14f4ac7c40fc95f164674b7a926f6d51bf7ff3d876e4"
+}

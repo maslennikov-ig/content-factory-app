@@ -1703,5 +1703,7 @@
   "close_post_window": "Закрыть окно поста",
   "intake_door": "Новая заготовка",
   "intake_door_short": "Заготовка",
-  "help": "Помощь"
+  "help": "Помощь",
+  "uploading": "Загрузка",
+  "importing": "Импорт"
 }

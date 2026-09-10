@@ -9,6 +9,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import clsx from 'clsx';
 import { VideoFrame } from '@contentfactory/react/helpers/video.frame';
 import { Pagination } from '@contentfactory/frontend/components/media/media.component';
+import { Progress } from '@contentfactory/frontend/components/ui/progress';
 
 const ThirdPartyMediaLibraryBrowser: FC<{
   integration: any;
@@ -170,7 +171,11 @@ const ThirdPartyMediaLibraryBrowser: FC<{
           className="cursor-pointer text-cf-accent-ink disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-cf-accent flex rounded-[10px] gap-[8px]"
         >
           {importing && (
-            <div className="animate-spin h-[16px] w-[16px] border-2 border-white border-t-transparent rounded-full" />
+            <Progress
+              mode="indeterminate"
+              label={t('importing', 'Importing')}
+              className="w-[32px]"
+            />
           )}
           {t('import_selected', 'Import Selected')} ({selected.length})
         </button>

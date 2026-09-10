@@ -101,6 +101,14 @@ function loadDemo() {
           )
         );
       }
+      if (request === '@contentfactory/react/layout') {
+        return compile(
+          path.join(
+            repositoryRoot,
+            'libraries/react-shared-libraries/src/layout/index.ts'
+          )
+        );
+      }
       if (request === 'next/link') {
         return ({ href, children, ...rest }) =>
           React.createElement('a', { href, ...rest }, children);

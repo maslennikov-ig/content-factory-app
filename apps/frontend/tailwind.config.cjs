@@ -26,6 +26,8 @@ module.exports = {
           'accent-soft': 'var(--cf-accent-soft)',
           'accent-ink': 'var(--cf-accent-ink)',
           signature: 'var(--cf-signature)',
+          mark: 'var(--cf-mark)',
+          'mark-ink': 'var(--cf-mark-ink)',
           info: 'var(--cf-info)',
           'info-soft': 'var(--cf-info-soft)',
           warning: 'var(--cf-warning)',
@@ -451,7 +453,6 @@ module.exports = {
           lineHeight: '1.1',
           ...numerals,
         },
-
       });
 
       // The pressed state is the single colour value the system allows outside

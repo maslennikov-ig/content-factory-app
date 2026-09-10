@@ -258,6 +258,28 @@ const ANNOUNCEMENT = [
   'если по-честному',
 ];
 
+const TEMPLATE_POSITIVE_ENDING = [
+  `будущ${W}* выгляд${W}* (?:многообещающ${W}*|ярк${W}*)`,
+  'впереди захватывающие времена',
+  'важный шаг в правильном направлении',
+];
+
+const EMPTY_IMAGE = [
+  'модель думает молча',
+  'цель просвечивает',
+  'рынок чует разворот',
+  `алгоритм${W}* шепч${W}*`,
+  `систем${W}* дыш${W}*`,
+];
+
+const FACT_RUN_UP = [
+  `цифр${W}*, на котор${W}* я смотрю`,
+  `показател${W}*, котор${W}* меня интересует`,
+  `метрик${W}*, за котор${W}* я слежу`,
+  'я сам с собой не договорюсь',
+  'тут я надолго завис',
+];
+
 /**
  * Канцелярит, из которого промпту годятся только целые слова.
  *
@@ -299,6 +321,10 @@ export const RU_FORBIDDEN_PHRASE_GROUPS: readonly (readonly string[])[] = [
   ANNOUNCEMENT,
   PARTICIPLE_CLICHE,
   CHATBOT_FRAME,
+  ['будущее выглядит многообещающим', 'впереди захватывающие времена'],
+  ['в мире …', 'в сфере …', 'в области …'],
+  ['цифра, на которую я смотрю', 'метрика, за которой я слежу'],
+  ['модель думает молча', 'рынок чует разворот'],
 ];
 
 /** Те же обороты одним списком, для читателя, которому предел не нужен. */
@@ -371,6 +397,101 @@ export const RU_RULES: SlopRule[] = [
     hint: {
       ru: 'Рубленый драматизм: «Без кода. Без настроек.» Соберите обратно в одну фразу.',
       en: 'Chopped drama: “No code. No setup.” Put it back into one sentence.',
+    },
+  },
+  {
+    id: 'chopped-meditation',
+    severity: 'warn',
+    kind: 'metric',
+    metric: 'chopped-meditation',
+    threshold: 3,
+    hint: {
+      ru: 'Три коротких предложения подряд изображают глубокомысленную паузу. Соберите их в одну мысль.',
+      en: 'Three tiny sentences in a row imitate a reflective pause. Join them into one thought.',
+    },
+  },
+  {
+    id: 'question-answer-rhythm',
+    severity: 'warn',
+    kind: 'metric',
+    metric: 'question-answer-rhythm',
+    threshold: 3,
+    hint: {
+      ru: 'Три вопроса с короткими ответами создают искусственный диалог. Ответьте развёрнуто или скажите утверждением.',
+      en: 'Three questions with tiny answers make an artificial dialogue. Answer fully or use statements.',
+    },
+  },
+  {
+    id: 'forced-triad',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: new RegExp(
+      `${LEFT}(?:скорост${W}*|точност${W}*|качеств${W}*|гибкост${W}*|масштабируемост${W}*|над[её]жност${W}*|эффективност${W}*|прозрачност${W}*|простот${W}*|удобств${W}*|безопасност${W}*|стабильност${W}*|контрол${W}*),\\s+` +
+        `(?:скорост${W}*|точност${W}*|качеств${W}*|гибкост${W}*|масштабируемост${W}*|над[её]жност${W}*|эффективност${W}*|прозрачност${W}*|простот${W}*|удобств${W}*|безопасност${W}*|стабильност${W}*|контрол${W}*)\\s+(?:и|или)\\s+` +
+        `(?:скорост${W}*|точност${W}*|качеств${W}*|гибкост${W}*|масштабируемост${W}*|над[её]жност${W}*|эффективност${W}*|прозрачност${W}*|простот${W}*|удобств${W}*|безопасност${W}*|стабильност${W}*|контрол${W}*)${RIGHT}`,
+      'giu'
+    ),
+    hint: {
+      ru: 'Шаблонная тройка. Проверьте третий пункт: если он добавлен ради ритма, оставьте два.',
+      en: 'A stock trio. Check the third item: if it only serves the rhythm, keep two.',
+    },
+  },
+  {
+    id: 'false-range',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: new RegExp(
+      `${LEFT}от (?:иде${W}*|эмоци${W}*|стратеги${W}*|теори${W}*|данн${W}*|мечт${W}*) до ` +
+        `(?:код${W}*|продукт${W}*|результат${W}*|внедрени${W}*|практик${W}*|действи${W}*|воплощени${W}*)${RIGHT}`,
+      'giu'
+    ),
+    hint: {
+      ru: '«От X до Y» соединяет несравнимые вещи. Перечислите их без ложной шкалы.',
+      en: '“From X to Y” joins incomparable things. List them without a false scale.',
+    },
+  },
+  {
+    id: 'template-positive-ending',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: phrases(TEMPLATE_POSITIVE_ENDING),
+    hint: {
+      ru: 'Шаблонный оптимистичный финал. Закончите конкретным планом, сроком или последним фактом.',
+      en: 'A stock optimistic ending. Finish with a concrete plan, date or final fact.',
+    },
+  },
+  {
+    id: 'abstract-wrapper',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: new RegExp(
+      `${LEFT}(?:в (?:мире|сфере|области)|пространство|поле|арена)\\s+` +
+        `(?:ИИ|AI|технологи${W}*|бизнес${W}*|маркетинг${W}*|разработк${W}*|образовани${W}*|финанс${W}*)${RIGHT}`,
+      'giu'
+    ),
+    hint: {
+      ru: 'Абстрактная обёртка «в мире X». Говорите сразу про X.',
+      en: 'An abstract “world of X” wrapper. Talk about X directly.',
+    },
+  },
+  {
+    id: 'empty-image',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: phrases(EMPTY_IMAGE),
+    hint: {
+      ru: 'Яркий образ не объясняет механизм. Назовите, что именно происходит, или уберите образ.',
+      en: 'A vivid image does not explain the mechanism. Name what happens or remove the image.',
+    },
+  },
+  {
+    id: 'fact-run-up',
+    severity: 'warn',
+    kind: 'regex',
+    pattern: phrases(FACT_RUN_UP),
+    hint: {
+      ru: 'Авторская подводка задерживает факт. Начните с самой цифры, метрики или вывода.',
+      en: 'An authorial run-up delays the fact. Start with the number, metric or conclusion.',
     },
   },
   {
@@ -572,8 +693,9 @@ export const RU_RULES: SlopRule[] = [
     // Существительные на «-ость» выведены намеренно: «надёжность» и
     // «связность» у автора — названия измеряемых свойств, а не оценки.
     pattern: new RegExp(
-      `${LEFT}(?:${OTSENKI.map((stem) => stem.replace(/ё/g, '[её]')).join('|')})` +
-        `(?!ост[ьияюей])${W}*${RIGHT}`,
+      `${LEFT}(?:${OTSENKI.map((stem) => stem.replace(/ё/g, '[её]')).join(
+        '|'
+      )})` + `(?!ост[ьияюей])${W}*${RIGHT}`,
       'giu'
     ),
     hint: {

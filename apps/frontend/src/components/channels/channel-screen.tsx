@@ -1,4 +1,5 @@
 'use client';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMediaQuery } from '@mantine/hooks';
@@ -189,6 +190,7 @@ function ChannelDetail({
               <ButtonLink href="/content?tab=materials" variant="secondary">
                 {t.pieces}
               </ButtonLink>
+              <Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${t.pieces}`}>{locale === 'ru' ? 'Заготовки — общие мысли и материалы. Выберите одну, чтобы адаптировать её для этого канала.' : 'Pieces hold source ideas and material. Choose one to adapt for this channel.'}</Hint>
               {publicUrl && (
                 <ButtonLink
                   href={publicUrl}
@@ -272,7 +274,7 @@ function ChannelDetail({
               {section(
                 'schedule',
                 <Panel
-                  title={t.schedule}
+                  title={<span className="flex items-center gap-[4px]">{t.schedule}<Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${t.schedule}`}>{locale === 'ru' ? 'Время, в которое канал обычно публикует посты. При планировании можно выбрать другую дату.' : 'Usual publication times. Scheduling can use a different date.'}</Hint></span>}
                   actions={
                     actions.schedule && (
                       <Button

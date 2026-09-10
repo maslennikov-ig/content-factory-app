@@ -1,5 +1,7 @@
 'use client';
 
+import { MAX_SEARCH_QUERY_LENGTH } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
+
 import { FC, useCallback } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -64,7 +66,7 @@ export const RelatedOwnPostsNote: FC<{
 };
 
 /** Сколько знаков текста уходит в запрос. Дальше запрос перестаёт быть темой. */
-const RELATED_QUERY_CHARACTERS = 300;
+const RELATED_QUERY_CHARACTERS = MAX_SEARCH_QUERY_LENGTH;
 
 /** Короче этого искать нечего: два слова находят половину архива. */
 const RELATED_MIN_QUERY_CHARACTERS = 20;

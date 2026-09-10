@@ -37,7 +37,11 @@ import type {
   SlopVerdictV1,
 } from '../brand-voice/voice-wiring.contract';
 import { maskCode, maskSkipZones } from './slop-skip-zones';
-import { slopPlatformKey, slopThresholds } from './slop-platforms';
+import {
+  maskSlopMetricStructures,
+  slopPlatformKey,
+  slopThresholds,
+} from './slop-platforms';
 import { RU_RULES } from './slop-rules.ru';
 import { EN_RULES } from './slop-rules.en';
 import type { SlopRule } from './slop-rules.types';
@@ -214,19 +218,24 @@ export function slopCheck(
   const platform = slopPlatformKey(options.platform);
 
   const plain = readableText(text, options.html);
+  const metricPlain = maskSlopMetricStructures(plain, options.platform);
+  const metricRaw = maskSlopMetricStructures(text, options.platform);
   const prose = maskSkipZones(text);
   const raw = maskCode(text);
 
   const pack = packFor(locale) ?? emptyLocalePack(locale);
   const sentences = splitSentences(plain, pack);
+  const metricSentences = splitSentences(metricPlain, pack);
   const paragraphs = splitParagraphs(plain);
   const lengths = sentences.map((sentence) => sentence.words);
 
   const listParagraphs = paragraphs.filter((paragraph) => paragraph.isList);
   const dashes = (plain.match(DASH) ?? []).length;
-  const emojiFound = plain.match(EMOJI) ?? [];
-  const emojiKinds = new Set(emojiFound);
+  const metricEmojiFound = metricPlain.match(EMOJI) ?? [];
   const lineOpeners = plain
+    .split('\n')
+    .filter((line) => OPENS_WITH_EMOJI.test(line.trim())).length;
+  const metricLineOpeners = metricPlain
     .split('\n')
     .filter((line) => OPENS_WITH_EMOJI.test(line.trim())).length;
   const questionSentences = sentences.filter(isQuestion);
@@ -247,14 +256,14 @@ export function slopCheck(
       : null,
     shortSentences: lengths.filter((length) => length <= 8).length,
     questions: questionSentences.length,
-    boldSpans: (text.match(BOLD_SPAN) ?? []).length,
-    emojiKinds: emojiKinds.size,
+    boldSpans: (metricRaw.match(BOLD_SPAN) ?? []).length,
+    emojiKinds: new Set(metricEmojiFound).size,
     dashPer1k: plain.length ? round1((1000 * dashes) / plain.length) : 0,
-    lists: listParagraphs.length,
-    listItemsMax: listParagraphs.reduce(
-      (most, paragraph) => Math.max(most, listItems(paragraph)),
-      0
-    ),
+    lists: splitParagraphs(metricPlain).filter((paragraph) => paragraph.isList)
+      .length,
+    listItemsMax: splitParagraphs(metricPlain)
+      .filter((paragraph) => paragraph.isList)
+      .reduce((most, paragraph) => Math.max(most, listItems(paragraph)), 0),
   };
 
   const thresholds = slopThresholds(platform, words);
@@ -327,11 +336,12 @@ export function slopCheck(
       case 'emoji': {
         const tooManyKinds = metrics.emojiKinds > thresholds.emojiKinds;
         // Три строки, открытые эмодзи, — это маркеры списка, а не интонация.
-        const asBullets = lineOpeners >= 3;
+        const asBullets =
+          platform === 'pikabu' ? lineOpeners > 6 : metricLineOpeners >= 3;
         if (!tooManyKinds && !asBullets) break;
         const seen = new Set<string>();
         let anchor = '';
-        for (const emoji of emojiFound) {
+        for (const emoji of metricEmojiFound) {
           seen.add(emoji);
           if (seen.size > thresholds.emojiKinds) {
             anchor = emoji;
@@ -340,10 +350,42 @@ export function slopCheck(
         }
         add(
           rule,
-          locate(text, anchor || emojiFound[0] || ''),
-          anchor || emojiFound[0] || '',
+          locate(text, anchor || metricEmojiFound[0] || ''),
+          anchor || metricEmojiFound[0] || '',
           metrics.emojiKinds
         );
+        break;
+      }
+      case 'chopped-meditation': {
+        const limit = rule.threshold ?? 3;
+        let run = 0;
+        for (const sentence of metricSentences) {
+          const line = metricPlain
+            .slice(0, metricPlain.indexOf(sentence.text))
+            .split('\n')
+            .pop();
+          const inList = /^\s*(?:[-+*]|\d+[.)])\s+/u.test(line ?? '');
+          run =
+            sentence.words >= 1 && sentence.words <= 3 && !inList ? run + 1 : 0;
+          if (run < limit) continue;
+          add(rule, locate(text, sentence.text), sentence.text, run);
+          break;
+        }
+        break;
+      }
+      case 'question-answer-rhythm': {
+        const limit = rule.threshold ?? 3;
+        let pairs = 0;
+        for (let index = 0; index < metricSentences.length - 1; index += 1) {
+          const question = metricSentences[index];
+          const answer = metricSentences[index + 1];
+          if (!isQuestion(question) || answer.words < 2 || answer.words > 3)
+            continue;
+          pairs += 1;
+          if (pairs < limit) continue;
+          add(rule, locate(text, answer.text), answer.text, pairs);
+          break;
+        }
         break;
       }
       case 'bold': {
@@ -404,12 +446,15 @@ export function slopCheck(
   // Сначала ошибки, затем по месту в тексте: человек читает сверху вниз, и
   // первое, что он видит, должно быть тем, что чинят первым.
   findings.sort((left, right) => {
-    if (left.severity !== right.severity) return left.severity === 'error' ? -1 : 1;
+    if (left.severity !== right.severity)
+      return left.severity === 'error' ? -1 : 1;
     if (left.start !== right.start) return left.start - right.start;
     return left.ruleId.localeCompare(right.ruleId);
   });
 
-  const errors = findings.filter((finding) => finding.severity === 'error').length;
+  const errors = findings.filter(
+    (finding) => finding.severity === 'error'
+  ).length;
   const warnings = findings.length - errors;
   // Счёт берётся по всем находкам, а не по показанным пятнадцати: вердикт
   // должен говорить правду о тексте, даже когда список обрезан.

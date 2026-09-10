@@ -63,7 +63,6 @@ beforeAll(async () => {
   }
   await i18n.loadLanguages(['en', 'ru']);
 });
-
 afterEach(cleanup);
 
 const noop = () => undefined;
@@ -266,6 +265,15 @@ describe('the table renders as a table, and the row says how to open it', () => 
     expect(open[0].getAttribute('aria-expanded')).toBe('true');
   });
 
+  test('the table arrow is pinned to the top of its row', () => {
+    drawTable();
+    const arrow = document.querySelector(
+      '[data-piece-table] [data-piece-expand="cnt-12"]'
+    );
+
+    expect(arrow.closest('td').className).toContain('align-top');
+  });
+
   test('the cell carries no empty platform badge any more', () => {
     drawTable();
     const cell = document
@@ -291,6 +299,17 @@ describe('the table renders as a table, and the row says how to open it', () => 
     }
   });
 
+  test('filters use the shared labelled group without visible field labels', () => {
+    drawTable();
+    const row = screen.getByRole('group', { name: 'Заготовки' });
+
+    expect(row.getAttribute('data-filters-row')).toBe('true');
+    expect(screen.getByRole('textbox', { name: 'Поиск по словам' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Ещё нет в…' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Состояние' })).toBeTruthy();
+    expect(row.querySelector('label')).toBeNull();
+  });
+
   test('the words a person searched for are marked in the title', () => {
     drawTable({ query: 'дедлайн' });
     const marks = [...document.querySelectorAll('mark')].map(
@@ -298,6 +317,25 @@ describe('the table renders as a table, and the row says how to open it', () => 
     );
     expect(marks.length).toBeGreaterThan(0);
     for (const mark of marks) expect(mark).toContain('дедлайн');
+    for (const mark of document.querySelectorAll('mark')) {
+      expect(mark.className).toContain('bg-cf-mark');
+      expect(mark.className).toContain('text-cf-mark-ink');
+    }
+  });
+
+  test('the strongest cell state is visible beside the code', () => {
+    drawTable();
+
+    expect(
+      document.querySelector(
+        '[data-piece-row="cnt-11"] [data-piece-row-status="error"]'
+      ).textContent
+    ).toContain('не ушло');
+    expect(
+      document.querySelector(
+        '[data-piece-row="cnt-12"] [data-piece-row-status="queued"]'
+      ).textContent
+    ).toContain('запланировано');
   });
 });
 
@@ -403,6 +441,11 @@ describe('S4: table actions and a single search result', () => {
     expect(adapter.filterPieces([ROWS[1], archived], filters)).toEqual([archived]);
     drawTable({ rows: [archived], filters });
     expect(document.querySelector('[data-piece-row]').textContent).toContain('в архиве');
+    const archivedStatus = [...document.querySelectorAll(
+      '[data-piece-row] [data-piece-row-status] span'
+    )].find((node) => node.textContent === 'в архиве');
+    expect(archivedStatus.className).toContain('bg-cf-warning-soft');
+    expect(archivedStatus.className).toContain('border-cf-warning');
   });
 
   test('server-matched forms survive the client and appear in the collapsed snippet', () => {

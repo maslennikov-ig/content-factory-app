@@ -13,13 +13,13 @@ multi_repo = false
 launch_mode = "direct_execution"
 repo = "content-factory-next"
 root = "/home/me/code/content-factory-next"
-current_stage = ".codex/stages/content-factory-next-tu3k.14/stage-manifest.json"
-current_stage_id = "content-factory-next-tu3k.14"
-base_commit = "38f061c2"
+current_stage = ".codex/stages/content-factory-next-tu3k.15/stage-manifest.json"
+current_stage_id = "content-factory-next-tu3k.15"
+base_commit = "a3726fa3"
 
 [delivery]
 mode = "mixed"
-current_branch = "wave/walk-2026-09-08"
+current_branch = "wave/walk-2026-09-10"
 protected_branches = ["main", "master"]
 push_after_closeout = "ask"
 
@@ -65,12 +65,12 @@ legacy_delta = "slice_acceptance"
 stages_dir = ".codex/stages"
 artifact_pattern = ".codex/stages/{stage_id}/artifacts/{task_id}.md"
 summary_pattern = ".codex/stages/{stage_id}/summary.md"
-current_stage_summary = ".codex/stages/content-factory-next-tu3k.14/summary.md"
+current_stage_summary = ".codex/stages/content-factory-next-tu3k.15/summary.md"
 
 [completion_inbox]
 scope = "git_common_dir"
-events_file = ".codex/stages/content-factory-next-tu3k.14/completions.ndjson"
-review_state_file = ".codex/stages/content-factory-next-tu3k.14/review-state.json"
+events_file = ".codex/stages/content-factory-next-tu3k.15/completions.ndjson"
+review_state_file = ".codex/stages/content-factory-next-tu3k.15/review-state.json"
 report_entrypoint = "scripts/orchestration/report_child_completion.py"
 review_entrypoint = "scripts/orchestration/review_completion_inbox.py"
 

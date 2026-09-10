@@ -3,6 +3,32 @@
 import { FC, ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
+import { MenuCommand } from '@contentfactory/react/choice/choice.menu';
+import type { ComponentProps } from 'react';
+
+export function DescribedMenuItem({
+  title,
+  description,
+  className,
+  ...props
+}: Omit<ComponentProps<typeof MenuCommand>, 'children' | 'title'> & {
+  title: ReactNode;
+  description: ReactNode;
+}) {
+  return (
+    <MenuCommand
+      {...props}
+      layout="content"
+      className={clsx(
+        'flex flex-col items-start gap-[4px] rounded-[8px] px-[12px] py-[8px] text-start hover:bg-cf-surface-subtle',
+        className
+      )}
+    >
+      <span className="cf-label-md text-cf-ink">{title}</span>
+      <span className="cf-caption text-cf-ink-muted">{description}</span>
+    </MenuCommand>
+  );
+}
 
 /**
  * Everything that floats above the content: dialog, popover/menu, toast.
@@ -182,8 +208,13 @@ export const Toast: FC<{
       className
     )}
   >
-    <span aria-hidden className={clsx('absolute left-0 inset-y-0 w-[3px]', TOAST_BAR[tone])} />
+    <span
+      aria-hidden
+      className={clsx('absolute left-0 inset-y-0 w-[3px]', TOAST_BAR[tone])}
+    />
     {title && <p className="cf-label-md text-cf-ink">{title}</p>}
-    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{children}</p>
+    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      {children}
+    </p>
   </div>
 );

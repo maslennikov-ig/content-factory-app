@@ -449,6 +449,13 @@ describe('AdminProductEventsComponent', () => {
       '@contentfactory/frontend/components/layout/user.context': {
         useUser: () => currentUser,
       },
+      '@contentfactory/frontend/components/ui/surface': {
+        Skeleton: ({ className }) =>
+          React.createElement('div', {
+            'aria-hidden': 'true',
+            className: `cf-skeleton ${className ?? ''}`,
+          }),
+      },
       '@contentfactory/react/form/button': { Button },
       '@contentfactory/react/choice/radio.group': createLoader()(
         path.join(
@@ -644,6 +651,13 @@ describe('AdminProductEventsComponent localization and clock', () => {
       },
       '@contentfactory/frontend/components/layout/user.context': {
         useUser: () => ({ isSuperAdmin: true }),
+      },
+      '@contentfactory/frontend/components/ui/surface': {
+        Skeleton: ({ className }) =>
+          React.createElement('div', {
+            'aria-hidden': 'true',
+            className: `cf-skeleton ${className ?? ''}`,
+          }),
       },
       '@contentfactory/react/form/button': { Button },
       '@contentfactory/react/choice/radio.group': createLoader()(

@@ -552,6 +552,11 @@ describe('интервью заготовки', () => {
   */
   const guessedBrief = () =>
     briefAnswer({
+      questions: [
+        { field: 'thesis', question: 'Почему внешний дедлайн надёжнее?', options: ['Ответственность перед клиентом', 'Совместный план'] },
+        { field: 'facts', question: 'Какой ваш срок сдвинулся?', options: ['Внутренний', 'Клиентский'] },
+        { field: 'position', question: 'Какие сроки вы выбираете теперь?', options: ['Вместе с клиентом', 'Внутри команды'] },
+      ],
       origins: {
         goal: 'model',
         thesis: 'model',
@@ -592,9 +597,8 @@ describe('интервью заготовки', () => {
       expect(question.question.length).toBeGreaterThan(0);
     }
     // Модель предлагает первой там, где ей есть что предложить.
-    expect(asked.questions[0].suggested).toBe(
-      'Дедлайн, о котором знает другой, держится лучше назначенного себе'
-    );
+    expect(asked.questions[0].suggested).toBeNull();
+    expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
     // А личную деталь она честно не выдумывает.
     expect(asked.questions[1].suggested).toBeNull();
     // И вопрос больше ничего не обрывает: заготовка записана, черновик написан.
@@ -740,6 +744,7 @@ const buildPieces = (options = {}) => {
     search: [],
     usage: [],
     updateCore: [],
+    metadata: [],
     related: [],
     invalidate: [],
     voice: [],
@@ -825,9 +830,11 @@ const buildPieces = (options = {}) => {
       },
     },
     {
+      updateCoreMetadata: async (organizationId, pieceId, input) => { calls.metadata.push([organizationId, pieceId, input]); Object.assign(piece, { brief: input.brief, ...(input.title ? { title: input.title } : {}) }); },
       updateCore: async (organizationId, pieceId, input) => {
         calls.updateCore.push([organizationId, pieceId, input]);
         if (options.updateFails) throw new Error('the library refused');
+        Object.assign(piece, { body: input.body, brief: input.brief, ...(input.title ? { title: input.title } : {}) });
       },
     },
     search,
@@ -850,32 +857,13 @@ const buildPieces = (options = {}) => {
 };
 
 describe('адаптация под канал', () => {
-  test('Telegram сначала спрашивает про крючок', async () => {
+  test('Telegram adapts without a prepared hook or format questionnaire', async () => {
     const { service, calls } = buildPieces();
-    const plan = await service.prepareAdapt(
-      'org-a',
-      'piece-12',
-      { integrationId: 'int-tg' },
-      'ru'
-    );
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
-
-    expect(plan.kind).toBe('post');
-    expect(events.map((event) => event.name)).toEqual([
-      'adapt-started',
-      'questions',
-    ]);
-    const [asked] = named(events, 'questions');
-    expect(asked.questions[0].key).toBe('hook');
-    expect(asked.questions[0].why).toContain('80–180');
-    // Крючок предложен первой фразой сути, а не выдуман заново.
-    expect(asked.questions[0].suggested).toContain('Из шести дедлайнов');
-    expect(asked.questions.map((row) => row.key)).not.toContain('cta');
-    expect(asked.questions.find((row) => row.key === 'format').options).toEqual(['мнение', 'разбор', 'случай', 'история', 'список']);
-    expect(asked.questions.length).toBeLessThanOrEqual(3);
-    // Ни генерации, ни черновика на круге вопросов.
-    expect(calls.start).toEqual([]);
-    expect(calls.createDraft).toEqual([]);
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'adaptation')).toHaveLength(1);
+    expect(calls.start).toHaveLength(1);
   });
 
   test('с «пропустить» приходит адаптация и done', async () => {
@@ -1317,7 +1305,6 @@ describe('ответы на открытые вопросы заготовки',
     expect(events.map((event) => event.name)).toEqual([
       'answer-started',
       'piece',
-      'questions',
       'done',
     ]);
 
@@ -1345,11 +1332,8 @@ describe('ответы на открытые вопросы заготовки',
       человека раньше приезжало `verified: false`, ворота считали факт
       несуществующим — и спрашивали снова.
     */
-    const [asked] = events.filter((event) => event.name === 'questions');
-    expect(asked.questions.map((row) => row.field)).toEqual(['position']);
-    expect(saved.brief.questions.items.map((row) => row.field)).toEqual([
-      'position',
-    ]);
+    expect(events.filter((event) => event.name === 'questions')).toEqual([]);
+    expect(saved.brief.questions.items).toEqual([]);
 
     // Ответ приехал в промпт сути парой «вопрос → ответ», тоже дословно.
     const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
@@ -1528,7 +1512,7 @@ describe('список и страница', () => {
         },
       ],
     });
-    expect(calls.ready).toEqual([['org-a', 7]]);
+    expect(calls.ready).toEqual([['org-a', 7, undefined]]);
   });
 
   test('репозиторий просит только DRAFT текущей области с живым каналом', async () => {
@@ -1569,6 +1553,11 @@ describe('список и страница', () => {
       { id: 'asc' },
     ]);
     expect(query.take).toBe(23);
+    await repository.listReadyAdaptations('org-a', 23, ['channel-visible']);
+    expect(query.where.post.is.integrationId).toEqual({ in: ['channel-visible'] });
+    expect(query.take).toBe(23);
+    await repository.listReadyAdaptations('org-a', 23, []);
+    expect(query.where.post.is.integrationId).toEqual({ in: [] });
     expect(query.select).not.toHaveProperty('state');
     expect(query.select).not.toHaveProperty('integrationId');
   });
@@ -1810,4 +1799,37 @@ test('S4: list returns matching forms and a body snippet without changing piece 
   expect(result.pieces[0].matchedForms).toEqual(['срок', 'клиентом']);
   expect(result.pieces[0].searchSnippet).toBe('Срок соблюдён клиентом.');
   expect(calls.search).toHaveLength(1);
+});
+
+
+describe('third walk first draft and editable title', () => {
+  test('a pending core drafts once after delegation and recalculates the fallback title', async () => {
+    const pending = { ...askedPiece(), body: '', title: ':null,' };
+    const { service, calls } = buildPieces({ piece: pending, models: [{ text: 'Первый написанный текст.' }] });
+    await answerDrain(service, { decide: ['facts', 'position'] });
+    expect(modelCalls.filter((call) => call.role === 'draft')).toHaveLength(1);
+    expect(calls.updateCore[0][2].body).toBe('Первый написанный текст.');
+    expect(calls.updateCore[0][2].title).not.toContain('null');
+    expect(calls.updateCore[0][2].brief.questions.items).toEqual([]);
+    await answerDrain(service, { decide: ['facts', 'position'] });
+    expect(modelCalls.filter((call) => call.role === 'draft')).toHaveLength(1);
+  });
+  test('a title manually edited before answering is preserved', async () => {
+    const pending = { ...askedPiece(), body: '', title: 'Моё название', brief: { ...askedPiece().brief, titleEdited: true } };
+    const { service, calls } = buildPieces({ piece: pending, models: [{ text: 'Первый написанный текст.' }] });
+    await answerDrain(service, { decide: ['facts', 'position'] });
+    expect(calls.updateCore[0][2].title).toBeUndefined();
+    expect(calls.updateCore[0][2].brief.titleEdited).toBe(true);
+  });
+  test('renaming stores a manual marker without copying a stale body into the update', async () => {
+    const { service, calls } = buildPieces();
+    await service.updateTitle('org-a', 'piece-12', ' Новое название ');
+    expect(calls.metadata[0].slice(0, 2)).toEqual(['org-a', 'piece-12']);
+    expect(calls.metadata[0][2]).toMatchObject({ title: 'Новое название', brief: { titleEdited: true } });
+    expect(calls.metadata[0][2]).not.toHaveProperty('body');
+  });
+  test('a pending core cannot be adapted before answers', async () => {
+    const { service } = buildPieces({ piece: { ...askedPiece(), body: '' } });
+    await expect(service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru')).rejects.toMatchObject({ code: 'PIECE_CORE_MISSING' });
+  });
 });

@@ -336,7 +336,9 @@ describe('дверь в раздел', () => {
 describe('раскрывашка написана на общих примитивах', () => {
   test('строку рисует общая кнопка, а не своя разметка', () => {
     const source = read(FILES.disclosure);
-    expect(source).toContain("from '@contentfactory/react/form/button'");
+    expect(source).toContain(
+      "from '@contentfactory/frontend/components/ui/disclosure'"
+    );
     expect(source).not.toMatch(/<button[\s>]/);
     // Своей краски у неё нет: цвета приходят токенами `cf`.
     expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

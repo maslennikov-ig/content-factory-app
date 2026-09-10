@@ -25,7 +25,7 @@ import {
   type VoicePathAvailabilityV1,
   type VoicePathKeyV1,
   type VoiceProposalModeV1,
-  type VoiceProposalResponseV1,
+  type VoiceProposalResponseV2,
   type VoiceSampleIntakeRequestV1,
   type VoiceSampleIntakeResponseV1,
   type VoiceSamplesResponseV1,
@@ -49,6 +49,7 @@ import {
   MIN_CORPUS_SAMPLES,
   formatChars,
   plural,
+  voiceCopy,
   type VoiceLocale,
 } from './voice-copy';
 
@@ -715,7 +716,7 @@ export type ProposalReading =
     };
 
 export function readProposal(value: unknown): ProposalReading {
-  const proposal = asRecord(value) as Partial<VoiceProposalResponseV1> &
+  const proposal = asRecord(value) as Partial<VoiceProposalResponseV2> &
     JsonRecord;
   if (proposal.outcome === 'insufficient') {
     return {
@@ -833,16 +834,29 @@ export function intakeNotice(
   });
   return [
     t.accepted(accepted),
-    ...asArray(envelope.telegramSelection).map((entry) => {
-      const selection = asRecord(entry);
-      return locale === 'ru'
-        ? `«${asText(selection.name)}»: взяли ${asCount(selection.selected)} последних из ${asCount(selection.eligible)} подходящих сообщений; разбор читает ${asCount(envelope.analysisSampleCount)} образцов из корпуса.`
-        : `“${asText(selection.name)}”: selected the latest ${asCount(selection.selected)} of ${asCount(selection.eligible)} eligible messages; analysis reads ${asCount(envelope.analysisSampleCount)} corpus samples.`;
-    }),
+    ...telegramSelectionLines(response, locale),
     rejected.length ? `${t.rejected} ${rejected.join('; ')}.` : '',
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+export function telegramSelectionLines(
+  response: unknown,
+  locale: VoiceLocale
+): string[] {
+  const t = voiceCopy[locale];
+  const envelope = asRecord(response) as Partial<VoiceSampleIntakeResponseV1> &
+    JsonRecord;
+  return asArray(envelope.telegramSelection).map((entry) => {
+    const selection = asRecord(entry);
+    return t.telegramSelection(
+      asText(selection.name),
+      asCount(selection.selected),
+      asCount(selection.eligible),
+      asCount(envelope.analysisSampleCount)
+    );
+  });
 }
 
 /* -------------------------------------------------------------------------
@@ -969,13 +983,15 @@ export function buildFilePayload(
   files: readonly File[],
   draft: Pick<IntakeDraft, 'rightsConfirmed' | 'retentionUntil'>,
   path: VoicePathKeyV1 | undefined,
-  locale: VoiceLocale
+  locale: VoiceLocale,
+  maxMessages = 300
 ): FormData {
   const reference = path === 'reference';
   const form = new FormData();
   for (const file of files) form.append(VOICE_SAMPLE_FILES_FIELD, file);
   form.append('usagePurpose', reference ? 'STYLE_REFERENCE' : 'OWN_VOICE');
   form.append('language', locale);
+  form.append('maxMessages', String(maxMessages));
   if (reference) {
     form.append('rightsConfirmed', draft.rightsConfirmed ? 'true' : 'false');
     if (draft.retentionUntil) {

@@ -641,8 +641,7 @@ synthesis не остаётся.
 
 ## 14. Evidence intake
 
-- Product evidence:
-  [Lazyweb Agentic Search](https://www.lazyweb.com/agentic-search/41b95e71-68b0-4bbb-8df0-259a853dafac).
+- Product evidence: accepted design references.
 - Выбранные паттерны: Writer — sample → tone analysis; Jasper — workspace
   voice/audience/rules/language и видимость voice + knowledge в generator;
   source registry — add URL, sync/status/ownership diagnostics.
@@ -666,7 +665,7 @@ production действия не выполнялись.
   recovery;
 - multiple platform AI cost остаётся product-operation metering, а не строгим
   per-provider-call budget;
-- browser usability/доступность требует root-owned Lazyweb-informed fixture и
+- browser usability/доступность требует root-owned design-informed fixture и
   локальную browser acceptance;
 - production migration SQL и rollback подтверждаются только на реализации.
 

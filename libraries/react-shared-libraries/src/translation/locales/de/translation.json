@@ -1703,5 +1703,7 @@
   "close_post_window": "Beitragsfenster schließen",
   "intake_door": "Neuer Rohentwurf",
   "intake_door_short": "Rohentwurf",
-  "help": "Hilfe"
+  "help": "Hilfe",
+  "uploading": "Wird hochgeladen",
+  "importing": "Wird importiert"
 }

@@ -1703,5 +1703,7 @@
   "close_post_window": "סגירת חלון הפוסט",
   "intake_door": "טיוטה חדשה",
   "intake_door_short": "טיוטה",
-  "help": "עזרה"
+  "help": "עזרה",
+  "uploading": "מעלה",
+  "importing": "מייבא"
 }

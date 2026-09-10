@@ -163,6 +163,36 @@ const RU_PAIRS = [
     'Честно говоря, я честно скажу: честнее не бывает.',
     'Честно говоря, цифр у меня нет.',
   ],
+  [
+    'forced-triad',
+    'Нам нужны скорость, точность и надёжность.',
+    'К обеду купил хлеб, молоко и сыр.',
+  ],
+  [
+    'false-range',
+    'Проект ведёт нас от эмоций до внедрения.',
+    'Поезд идёт от Москвы до Казани.',
+  ],
+  [
+    'template-positive-ending',
+    'Будущее выглядит многообещающим.',
+    'Следующий релиз назначен на 14 сентября.',
+  ],
+  [
+    'abstract-wrapper',
+    'В мире технологий всё меняется быстро.',
+    'В мире романа герой остаётся один.',
+  ],
+  [
+    'empty-image',
+    'Рынок чует разворот.',
+    'За три дня до отчёта объём торгов удвоился.',
+  ],
+  [
+    'fact-run-up',
+    'Метрика, за которой я слежу, выросла до 95.',
+    'Важная метрика выросла до 95.',
+  ],
 ];
 
 describe('каждое русское правило и срабатывает, и молчит', () => {
@@ -183,12 +213,32 @@ describe('каждое русское правило и срабатывает, 
     expect(new Set(list).size).toBe(list.length);
   });
 });
-
 /* --------------------------------------------------------------------------
  * Правила-счётчики
  * ----------------------------------------------------------------------- */
 
 describe('счётчики считают текст, а не слова', () => {
+  test('три рубленых предложения подряд — медитативный шаблон', () => {
+    expect(
+      fires('chopped-meditation', 'Коротко. Точно. Отдельно. Дальше факт.')
+    ).toBe(true);
+    expect(
+      fires(
+        'chopped-meditation',
+        'Коротко. Затем подробно объясняем, что именно измерили.'
+      )
+    ).toBe(false);
+  });
+
+  test('три вопроса с короткими ответами образуют искусственный диалог', () => {
+    const staged = 'Зачем? Ради роста. Кому? Нашей команде. Когда? Уже завтра.';
+    const answered =
+      'Зачем? Чтобы сократить приёмку с сорока минут до восемнадцати. Кому? Кладовщику второй смены.';
+
+    expect(fires('question-answer-rhythm', staged)).toBe(true);
+    expect(fires('question-answer-rhythm', answered)).toBe(false);
+  });
+
   test('вопросов больше, чем держит Telegram', () => {
     const many = 'Зачем это? Кому это нужно? И что дальше?';
     const few = 'Зачем это? Кому это нужно?';
@@ -471,6 +521,48 @@ describe('Telegram строже умолчаний', () => {
     // остаётся два, иначе одно выделение в коротком посте было бы перебором.
     expect(slopThresholds('vk', 10).boldSpans).toBe(2);
     expect(slopThresholds('vk', 600).boldSpans).toBe(4);
+  });
+});
+
+describe('структура, которую требует площадка, не считается штампом', () => {
+  const TLDR = `## TL;DR
+
+- **Срок:** 14 сентября
+- **Цена:** 350 ₽
+- **Скорость:** 18 минут
+- **Результат:** 4 срыва`;
+
+  test.each(['habr', 'vc', 'pikabu', 'tenchat'])(
+    '%s принимает TL;DR из 4–6 пунктов',
+    (platform) => {
+      const answer = report(TLDR, { platform });
+
+      expect(answer.metrics.boldSpans).toBe(0);
+      expect(answer.metrics.lists).toBe(0);
+      expect(fires('bold-overuse', TLDR, { platform })).toBe(false);
+      expect(fires('list-overuse', TLDR, { platform })).toBe(false);
+    }
+  );
+
+  test('восьмипунктовый TL;DR снова считается обычным списком', () => {
+    const tooLong = `${TLDR}\n- **Пятое:** факт\n- **Шестое:** факт\n- **Седьмое:** факт\n- **Восьмое:** факт`;
+
+    expect(fires('list-overuse', tooLong, { platform: 'habr' })).toBe(true);
+    expect(fires('bold-overuse', tooLong, { platform: 'habr' })).toBe(true);
+  });
+
+  test('Pikabu принимает шесть эмодзи-якорей, седьмой показывает находку', () => {
+    const anchors = Array.from(
+      { length: 6 },
+      (_, index) => `🔥 Раздел ${index + 1}`
+    ).join('\n');
+
+    expect(fires('emoji-decoration', anchors, { platform: 'pikabu' })).toBe(false);
+    expect(
+      fires('emoji-decoration', `${anchors}\n🔥 Раздел 7`, {
+        platform: 'pikabu',
+      })
+    ).toBe(true);
   });
 });
 

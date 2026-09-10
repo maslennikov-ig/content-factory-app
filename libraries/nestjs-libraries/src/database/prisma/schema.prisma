@@ -1581,7 +1581,8 @@ model ContentDerivation {
   title                 String?
   body                  String?
   mediaId               String?
-  /// DRAFT | QUEUED | PUBLISHED — зеркало состояния поста.
+  /// Историческое поле: записывается DRAFT при создании, дальше не обновляется.
+  /// DRAFT | QUEUED | PUBLISHED — прежнее зеркало состояния поста.
   ///
   /// **Больше не источник правды и не читается** (`content-factory-next-tu3k.9`):
   /// три месяца колонка расходилась с постом, потому что зеркало никто не

@@ -62,16 +62,21 @@ export function AdaptationPicker({
   const [opening, setOpening] = useState(false);
   const busy = useRef(false);
   const [openError, setOpenError] = useState(false);
+  const scopedUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('integrationIds', integrations.map((item) => item.id).sort().join(','));
+    return `${READY_ADAPTATIONS_URL}&${params.toString()}`;
+  }, [integrations]);
   const load = useCallback(async () => {
-    const response = await request(READY_ADAPTATIONS_URL);
+    const response = await request(scopedUrl);
     if (!response.ok) throw new Error('adaptations unavailable');
     const body = await response.json();
     if (body.version !== 'ready-adaptations/v1' || !Array.isArray(body.items))
       throw new Error('unsupported adaptations');
     return body.items as ReadyAdaptation[];
-  }, [request]);
+  }, [request, scopedUrl]);
   const { data, error, isLoading, mutate } = useSWR(
-    canWrite ? READY_ADAPTATIONS_URL : null,
+    canWrite ? scopedUrl : null,
     load
   );
   const channels = useMemo(
@@ -117,7 +122,6 @@ export function AdaptationPicker({
           true)
         : await openPost(chosen!.postId, {
             date,
-            selectedChannels: [chosen!.integrationId],
             focusedChannel: chosen!.integrationId,
             mutate: onSaved,
           });

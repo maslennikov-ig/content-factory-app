@@ -106,6 +106,7 @@ beforeEach(() => {
     getPiece: jest.fn(async () => piece),
     reviewDraft: jest.fn(async () => draft()),
     acceptReview: jest.fn(async () => ({ accepted: true })),
+    acceptReviewV2: jest.fn(async () => ({ accepted: true })),
   };
   usage = {
     executeAiOperation: jest.fn(async (org, operation, action, role) => {
@@ -588,7 +589,7 @@ test('web DTO requires true confirmation; controller forwards it together with r
         { PieceService: class {} },
     }
   );
-  const pieces = { reviewAdaptation: jest.fn(async () => ({})) };
+  const pieces = { reviewV2: jest.fn(async () => ({})) };
   await new ContentPieceController(pieces).review(
     { id: 'current-org' },
     'piece',
@@ -596,13 +597,12 @@ test('web DTO requires true confirmation; controller forwards it together with r
     { mode: 'web', confirmWebSpend: true },
     'en'
   );
-  expect(pieces.reviewAdaptation).toHaveBeenCalledWith(
+  expect(pieces.reviewV2).toHaveBeenCalledWith(
     'current-org',
     'piece',
     'adaptation',
-    'web',
-    'en',
-    true
+    { mode: 'web', confirmWebSpend: true },
+    'en'
   );
 });
 
@@ -615,4 +615,87 @@ test('real research admission and review admission remain separate, exactly once
   expect(usage.executeAiOperation.mock.calls.map(call => call[1])).toEqual(['web_research', 'text_generation']);
   expect(web.researchWithinOperation).toHaveBeenCalledTimes(1);
   expect(calls).toHaveLength(1);
+});
+
+test('v2 review signs server changes; partial acceptance uses snapshot and ignores client text',async()=>{
+ process.env.JWT_SECRET='test-review-key';
+ output={changes:[{id:'a',excerpt:'Новый',replacement:'Свежий',why:'Стиль',basket:'show'}],verdict:'review',summary:''};
+ const result=await service.reviewV2('org','piece','adaptation',{mode:'slop'});
+ expect(result.version).toBe('adaptation-review/v2');
+ await service.acceptReviewV2('org','piece','adaptation',{token:result.token,selectedIds:['a'],text:'CLIENT INVENTED'});
+ expect(repository.acceptReviewV2.mock.calls[0][4]).toBe('Свежий ручной текст');
+ await expect(service.acceptReviewV2('other','piece','adaptation',{token:result.token,selectedIds:['a']})).rejects.toMatchObject({status:409});
+ expect(repository.acceptReviewV2).toHaveBeenCalledTimes(1);
+});
+test('v2 empty core cannot spend a rewrite call',async()=>{
+ repository.getPiece.mockResolvedValue({...piece,body:''});
+ await expect(service.reviewV2('org','piece',undefined,{instruction:'Весь текст'})).rejects.toMatchObject({status:409});
+ expect(calls).toHaveLength(0);
+});
+test('core acceptance CAS includes original body, title and brief; preserves metadata',async()=>{
+ const updateMany=jest.fn(async()=>({count:1}));
+ const repo=new PieceRepository({contentPiece:{updateMany}},{});
+ repo.client=()=>({contentPiece:{updateMany}});
+ const snapshot={body:'old',title:'title',brief:{titleEdited:true,facts:['evidence']}};
+ await repo.acceptCoreReview('org','p',snapshot,'new','title',snapshot.brief);
+ expect(updateMany.mock.calls[0][0].where).toEqual({organizationId:'org',id:'p',body:'old',title:'title',brief:{equals:snapshot.brief}});
+ updateMany.mockResolvedValue({count:0});
+ await expect(repo.acceptCoreReview('org','p',snapshot,'new','title',{})).rejects.toMatchObject({status:409});
+});
+
+test.each([['Отдельный заголовок','Первый абзац.','Первый абзац.'],['Старый заголовок','Старый заголовок\nПервый абзац.','Новый заголовок\nПервый абзац.'],[null,'Старый заголовок\nПервый абзац.','Новый заголовок\nПервый абзац.']])('v2 title %s preserves separate body and synchronizes only embedded heading',async(title,content,expected)=>{
+ process.env.JWT_SECRET='test-review-key';
+ repository.reviewDraft.mockResolvedValue({...draft(),title,post:{...draft().post,content}});
+ output={changes:[{id:'title',target:'title',excerpt:title??'Старый заголовок',replacement:'Новый заголовок',variants:['Новый заголовок','Другой заголовок','Третий заголовок'],why:'Яснее',basket:'show'}],verdict:'review',summary:''};
+ const result=await service.reviewV2('org','piece','adaptation',{instruction:'Только заголовок'});
+ await service.acceptReviewV2('org','piece','adaptation',{token:result.token,selectedIds:['title'],variant:'Новый заголовок'});
+ const saved=repository.acceptReviewV2.mock.calls[0];
+ expect(saved[3].adaptationTitle).toBe(title);expect(saved[4]).toBe(expected);expect(saved[6]).toBe('Новый заголовок');
+});
+test('adaptation v2 CAS requires old independent title and writes title/body/post atomically',async()=>{
+ const updateAdaptation=jest.fn(async()=>({count:1})),updatePost=jest.fn(async()=>({count:1}));
+ const repo=new PieceRepository({},{});repo.client=()=>({$transaction:async run=>run({contentDerivation:{updateMany:updateAdaptation},post:{updateMany:updatePost}})});
+ const snapshot={postId:'post',postContent:'old',postUpdatedAt:stamp.toISOString(),adaptationUpdatedAt:stamp.toISOString(),adaptationBody:'old',adaptationTitle:'old-title'};
+ await repo.acceptReviewV2('org','piece','a',snapshot,'body','html','title');
+ expect(updateAdaptation.mock.calls[0][0]).toMatchObject({where:{organizationId:'org',title:'old-title'},data:{body:'body',title:'title'}});
+ updateAdaptation.mockResolvedValue({count:0});await expect(repo.acceptReviewV2('org','piece','a',snapshot,'body','html','title')).rejects.toMatchObject({status:409});
+ expect(updatePost).toHaveBeenCalledTimes(1);
+});
+
+test('signed ask answers use stored own evidence and metadata CAS without confirming found facts',async()=>{
+ process.env.JWT_SECRET='test-review-key';
+ const found={statement:'Найдено',kind:'found',selected:false,verified:false,origin:'search'};
+ repository.getPiece.mockResolvedValue({...piece,title:'Заголовок',brief:{...piece.brief,brief:{...piece.brief.brief,facts:[found]}}});
+ const metadata={updateCoreMetadata:jest.fn(async()=>{})};service.briefs=metadata;
+ output={changes:[{id:'ask-1',excerpt:'Новый',replacement:'Новый',why:'Какой ваш результат?',basket:'ask'}],verdict:'review',summary:''};
+ const result=await service.reviewV2('org','piece','adaptation',{mode:'facts'});
+ const before=calls.length;
+ await service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'ask-1',text:'У нас 10 заказов, источник https://example.com'}]});
+ expect(calls).toHaveLength(before);
+ const write=metadata.updateCoreMetadata.mock.calls[0];
+ expect(write.slice(0,2)).toEqual(['org','piece']);expect(write[2].expectedBody).toBe(piece.body);
+ expect(write[2].brief.brief.facts[0]).toEqual(found);
+ expect(write[2].brief.brief.facts[1]).toMatchObject({statement:'У нас 10 заказов, источник https://example.com',kind:'own',origin:'person',verified:false,status:'unverified'});
+ expect(write[2].brief.brief.reviewAnswers[0]).toMatchObject({questionId:'ask-1',question:'Какой ваш результат?'});
+ await expect(service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'invented',text:'invented'}]})).rejects.toMatchObject({status:400});
+ expect(metadata.updateCoreMetadata).toHaveBeenCalledTimes(1);
+ repository.getPiece.mockResolvedValue({...piece,body:'Concurrent edit'});
+ await expect(service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'ask-1',text:'answer'}]})).rejects.toMatchObject({status:409});
+});
+test('two partial author answers receive fresh signed snapshots and persist without another model call',async()=>{
+ process.env.JWT_SECRET='test-review-key';
+ let current={...piece,title:'Заголовок'};
+ repository.getPiece.mockImplementation(async()=>current);
+ service.briefs={updateCoreMetadata:jest.fn(async(_org,_id,input)=>{expect(input.expectedBrief).toEqual(current.brief);current={...current,brief:input.brief};})};
+ output={changes:[{id:'q1',excerpt:'Новый',replacement:'Новый',why:'Первый вопрос?',basket:'ask'},{id:'q2',excerpt:'текст',replacement:'текст',why:'Второй вопрос?',basket:'ask'}],verdict:'review',summary:''};
+ const review=await service.reviewV2('org','piece','adaptation',{mode:'facts'});
+ const before=calls.length;
+ const first=await service.answerReviewQuestions('org','piece',{token:review.token,adaptationId:'adaptation',answers:[{questionId:'q1',text:'Первый ответ'}]});
+ expect(first.remaining.questions.map(q=>q.id)).toEqual(['q2']);
+ await expect(service.answerReviewQuestions('org','piece',{token:review.token,adaptationId:'adaptation',answers:[{questionId:'q2',text:'Второй ответ'}]})).rejects.toMatchObject({status:409});
+ const second=await service.answerReviewQuestions('org','piece',{token:first.remaining.token,adaptationId:'adaptation',answers:[{questionId:'q2',text:'Второй ответ'}]});
+ expect(second.remaining).toBeNull();
+ expect(current.brief.brief.facts.slice(-2).map(f=>f.statement)).toEqual(['Первый ответ','Второй ответ']);
+ expect(current.brief.brief.reviewAnswers.map(a=>a.questionId)).toEqual(['q1','q2']);
+ expect(calls).toHaveLength(before);
 });

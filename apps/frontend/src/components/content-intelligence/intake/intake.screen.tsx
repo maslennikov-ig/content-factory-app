@@ -10,6 +10,7 @@ import {
   ErrorState,
   RestrictedState,
 } from '../../ui/surface';
+import { Progress } from '../../ui/progress';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import type {
   IntakeBlockReason,
@@ -108,6 +109,16 @@ export function IntakeScreen({
       : blocked === 'checking'
       ? t.blockedChecking
       : null;
+  const stepWord =
+    step === 'brief-started'
+      ? t.stepBrief
+      : step === 'claims'
+      ? t.stepClaims
+      : step === 'search'
+      ? t.stepSearch
+      : step === 'writing'
+      ? t.stepWriting
+      : t.stepStarted;
 
   return (
     <section
@@ -237,25 +248,23 @@ export function IntakeScreen({
                 под другими блоками читалась как надпись у страницы, а не как
                 состояние нажатой кнопки. `aria-live="polite"` и
                 `data-intake-step` на одном узле: человек слышит ход, а не
-                гадает по крутящемуся кружку.
+                гадает по индикатору без подписи.
               */}
               {busy && (
-                <p
+                <div
                   aria-live="polite"
                   data-intake-step={step}
-                  className="flex items-center gap-[8px] cf-body-sm text-cf-ink-muted"
+                  className="flex min-w-0 flex-1 items-center gap-[8px]"
                 >
-                  <span aria-hidden="true" className="h-[16px] w-[16px] rounded-full border-2 border-cf-border border-t-cf-accent motion-safe:animate-spin" />
-                  {step === 'brief-started'
-                    ? t.stepBrief
-                    : step === 'claims'
-                    ? t.stepClaims
-                    : step === 'search'
-                    ? t.stepSearch
-                    : step === 'writing'
-                    ? t.stepWriting
-                    : t.stepStarted}
-                </p>
+                  <Progress
+                    mode="indeterminate"
+                    label={stepWord}
+                    className="w-[80px] shrink-0"
+                  />
+                  <p className="cf-body-sm text-cf-ink-muted">
+                    {stepWord}
+                  </p>
+                </div>
               )}
               {blockedWord && !busy && (
                 <p

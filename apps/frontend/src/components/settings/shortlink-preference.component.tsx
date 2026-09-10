@@ -8,6 +8,7 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { Progress } from '../ui/progress';
 
 type ShortLinkPreference = 'ASK' | 'YES' | 'NO';
 
@@ -76,7 +77,7 @@ const ShortlinkPreferenceComponent = () => {
   if (isLoading) {
     return (
       <div className="my-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
-        <div className="animate-pulse">{t('loading', 'Loading...')}</div>
+        <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
       </div>
     );
   }

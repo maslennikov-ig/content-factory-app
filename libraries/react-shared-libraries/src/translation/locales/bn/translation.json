@@ -1703,5 +1703,7 @@
   "close_post_window": "পোস্ট উইন্ডো বন্ধ করুন",
   "intake_door": "নতুন খসড়া",
   "intake_door_short": "খসড়া",
-  "help": "সহায়তা"
+  "help": "সহায়তা",
+  "uploading": "আপলোড হচ্ছে",
+  "importing": "আমদানি হচ্ছে"
 }

@@ -6,6 +6,7 @@ import {
   Get,
   HttpException,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -22,14 +23,20 @@ import {
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import {
   PieceAdaptDto,
-  PieceAnswerDoorDto,
+  PieceTitleDto,
+  PieceFactSelectionDto,
   PieceArchiveDto,
   PiecesQueryDto,
   ReadyAdaptationsQueryDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 
-import { AdaptationReviewDto, AdaptationReviewAcceptDto } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/adaptation-review.dto';
+import {
+  AdaptationReviewDto,
+  RewriteDto,
+  ReviewAcceptV2Dto,
+  PieceAnswerDoorV2Dto,
+} from '@contentfactory/nestjs-libraries/dtos/content-intelligence/adaptation-review.dto';
 
 /**
  * Отказ сохраняет своё имя и свой предмет.
@@ -134,6 +141,80 @@ const deleteFallback = (error: unknown, language: 'ru' | 'en'): string => {
 export class ContentPieceController {
   constructor(private readonly pieces: PieceService) {}
 
+  @Patch('/:id/facts')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async selectFact(@GetOrgFromRequest() organization: Organization, @Param('id') id: string, @Body() body: PieceFactSelectionDto) {
+    try { return await this.pieces.selectFact(organization.id, id, body.statement, body.selected); }
+    catch (error) { safeHttpError(error, 'Fact selection failed'); }
+  }
+
+  @Patch('/:id')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async updateTitle(@GetOrgFromRequest() organization: Organization, @Param('id') id: string, @Body() body: PieceTitleDto) {
+    try { return await this.pieces.updateTitle(organization.id, id, body.title); }
+    catch (error) { safeHttpError(error, 'Title update failed'); }
+  }
+
+  @Post('/:id/rewrite')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async rewriteCore(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: RewriteDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.reviewV2(
+        organization.id,
+        id,
+        undefined,
+        body,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Core rewrite failed');
+    }
+  }
+  @Post('/:id/adaptations/:adaptationId/rewrite')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async rewriteAdaptation(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') aid: string,
+    @Body() body: RewriteDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.reviewV2(
+        organization.id,
+        id,
+        aid,
+        body,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Adaptation rewrite failed');
+    }
+  }
+  @Post('/:id/rewrite/accept')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async acceptCoreRewrite(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: ReviewAcceptV2Dto
+  ) {
+    try {
+      return await this.pieces.acceptReviewV2(
+        organization.id,
+        id,
+        undefined,
+        body
+      );
+    } catch (error) {
+      safeHttpError(error, 'Core rewrite acceptance failed');
+    }
+  }
+
   @Post('/:id/adaptations/:adaptationId/review')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async review(
@@ -144,8 +225,16 @@ export class ContentPieceController {
     @Query('language') requested?: string
   ) {
     try {
-      return await this.pieces.reviewAdaptation(organization.id, id, adaptationId, body.mode, languageOf(requested), body.confirmWebSpend);
-    } catch (error) { safeHttpError(error, 'Review failed'); }
+      return await this.pieces.reviewV2(
+        organization.id,
+        id,
+        adaptationId,
+        body,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Review failed');
+    }
   }
 
   @Post('/:id/adaptations/:adaptationId/review/accept')
@@ -154,11 +243,18 @@ export class ContentPieceController {
     @GetOrgFromRequest() organization: Organization,
     @Param('id') id: string,
     @Param('adaptationId') adaptationId: string,
-    @Body() body: AdaptationReviewAcceptDto
+    @Body() body: ReviewAcceptV2Dto
   ) {
     try {
-      return await this.pieces.acceptAdaptationReview(organization.id, id, adaptationId, body);
-    } catch (error) { safeHttpError(error, 'Accept review failed'); }
+      return await this.pieces.acceptReviewV2(
+        organization.id,
+        id,
+        adaptationId,
+        body
+      );
+    } catch (error) {
+      safeHttpError(error, 'Accept review failed');
+    }
   }
 
   /**
@@ -192,7 +288,7 @@ export class ContentPieceController {
     @Query() query: ReadyAdaptationsQueryDto = new ReadyAdaptationsQueryDto()
   ) {
     try {
-      return await this.pieces.readyAdaptations(organization.id, query.limit);
+      return await this.pieces.readyAdaptations(organization.id, query.limit, query.integrationIds?.split(',').filter(Boolean));
     } catch (error) {
       safeHttpError(error, 'Ready adaptations request failed');
     }
@@ -301,10 +397,17 @@ export class ContentPieceController {
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
     @Param('id') id: string,
-    @Body() body: PieceAnswerDoorDto,
+    @Body() body: PieceAnswerDoorV2Dto,
     @Res({ passthrough: false }) response: Response,
     @Query('language') requested?: string
   ) {
+    if (body.reviewAnswer) {
+      try {
+        const result = await this.pieces.answerReviewQuestions(organization.id, id, body.reviewAnswer);
+        response.status(200).json(result);
+        return;
+      } catch (error) { safeHttpError(error, 'Review answer failed'); }
+    }
     // До первого байта — обычный HTTP: заготовка, архив, наличие сути.
     let plan;
     try {

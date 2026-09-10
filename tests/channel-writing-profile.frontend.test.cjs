@@ -198,7 +198,7 @@ test('Cancel restores the view without PUT or DELETE', async () => {
 
   expect(panel().dataset.channelWritingProfileState).toBe('view');
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
-  expect(screen.getByText('1–3, не больше двух видов')).not.toBeNull();
+  expect(screen.getByText('мало · 1–3')).not.toBeNull();
 });
 
 test('Reset uses DELETE, returns to defaults, and notifies the parent', async () => {

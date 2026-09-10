@@ -83,6 +83,9 @@ const loadMediaComponent = (openModal) =>
     },
     '@contentfactory/frontend/components/layout/drop.files': stub,
     '@contentfactory/frontend/components/layout/loading': stub,
+    '@contentfactory/frontend/components/ui/progress': {
+      Progress: () => null,
+    },
     '@contentfactory/frontend/components/layout/new-modal': {
       useModals: () => ({
         openModal,

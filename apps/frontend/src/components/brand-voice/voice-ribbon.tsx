@@ -9,6 +9,7 @@ import {
   MenuList,
   MenuOption,
 } from '@contentfactory/react/choice/choice.menu';
+import { Status } from '../ui/surface';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 import type { AvatarKind, AvatarRow } from './voice-avatars.screen';
 
@@ -172,11 +173,11 @@ export function VoiceRibbon({
             {summary}
           </span>
           {details.avatarKind ? (
-            <span className="inline-flex items-center rounded-full border border-cf-border-strong px-[8px] py-[4px] cf-label-sm uppercase text-cf-ink">
+            <Status className="uppercase border-cf-border-strong">
               {details.avatarKind === 'BRAND'
                 ? t.avatarsKindBrand
                 : t.avatarsKindPerson}
-            </span>
+            </Status>
           ) : null}
         </div>
         <div className="relative flex flex-wrap gap-[8px]">
@@ -204,7 +205,6 @@ export function VoiceRibbon({
             >
               <MenuButton
                 density="dense"
-                className="rounded-[8px] border border-cf-border-control bg-cf-surface px-[12px] cf-label-md text-cf-ink hover:bg-cf-surface-subtle"
               >
                 {t.ribbonSwitchAvatar}
               </MenuButton>

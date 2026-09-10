@@ -43,6 +43,10 @@
   /* Recognition */
   --cf-signature: #9C6A16;
 
+  /* Search hit: visibly separate from a row surface, with its own readable ink. */
+  --cf-mark: #A17D1B;
+  --cf-mark-ink: #171810;
+
   /* Status */
   --cf-info: #2F5A82;
   --cf-info-soft: #E3EBF3;
@@ -97,6 +101,9 @@
   --cf-accent-ink: #0F1409;
 
   --cf-signature: #C8922A;
+
+  --cf-mark: #A1842A;
+  --cf-mark-ink: #14150F;
 
   --cf-info: #7FA6C8;
   --cf-info-soft: #161F28;

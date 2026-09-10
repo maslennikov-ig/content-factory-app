@@ -2,6 +2,7 @@
 
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
+import { Progress } from '../ui/progress';
 import { formatChars, voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
@@ -71,41 +72,6 @@ const PUNCTUATION_ROWS = [
   ['exclamation', 'analysisPunctuationExclaim'],
 ] as const;
 
-function ProgressBar({
-  percent,
-  label,
-  busy,
-}: {
-  percent: number;
-  label: string;
-  busy: boolean;
-}) {
-  return (
-    <div
-      role="progressbar"
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      aria-busy={busy}
-      className="relative h-[8px] w-full overflow-hidden rounded-[4px] border border-cf-border bg-cf-surface-subtle"
-    >
-      <div
-        className="h-full rounded-[4px] bg-cf-accent"
-        style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-      />
-      {busy ? (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 animate-[cf-skeleton-sweep_1.4s_ease-in-out_infinite] motion-reduce:hidden"
-        >
-          <div className="h-full w-1/3 bg-cf-accent opacity-50" />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function VoiceAnalysisScreen({
   locale,
   state = 'default',
@@ -120,6 +86,7 @@ export function VoiceAnalysisScreen({
   lexicon = [],
   punctuation,
   rejected = [],
+  selectionSummary,
   notice,
   onContinue,
   onRetry,
@@ -147,6 +114,8 @@ export function VoiceAnalysisScreen({
   lexicon?: readonly AnalysisLexiconRow[];
   punctuation?: AnalysisPunctuationRow;
   rejected?: readonly AnalysisRejectedRow[];
+  /** Telegram selection made before this run, kept visible with its result. */
+  selectionSummary?: string;
   notice?: string;
   onContinue?: () => void;
   onRetry?: () => void;
@@ -231,6 +200,14 @@ export function VoiceAnalysisScreen({
             {t.analysisSubtitle(sampleCount, formatChars(charCount, locale))}
           </p>
         ) : null}
+        {selectionSummary ? (
+          <p
+            className="mt-[4px] max-w-[80ch] cf-body-sm text-cf-ink [text-wrap:pretty]"
+            data-voice-analysis-selection="true"
+          >
+            {selectionSummary}
+          </p>
+        ) : null}
         {/*
           Where the rest of the corpus went. A person who pasted eight texts
           reads «6 образцов» here, and nothing was rejected — the two are held
@@ -300,7 +277,12 @@ export function VoiceAnalysisScreen({
               ) : null}
             </div>
             {showPercent ? (
-              <ProgressBar percent={shownPercent} label={stageLabel} busy={busy} />
+              <Progress
+                mode="percent"
+                value={shownPercent}
+                label={stageLabel}
+                active={busy}
+              />
             ) : null}
           </div>
           <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">

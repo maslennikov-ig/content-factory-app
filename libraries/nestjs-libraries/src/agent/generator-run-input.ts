@@ -18,11 +18,8 @@
  */
 
 import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
-import type {
-  ChannelWritingProfileV1,
-  IntakeFormatV1,
-  RelatedOwnPostV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
 export const INTAKE_HINTS_VERSION = 'intake-hints/v1' as const;
 
@@ -39,6 +36,7 @@ export type IntakeChannelHintsV1 = {
 };
 
 export type IntakeGenerationHintsV1 = {
+  allowQuestion?: boolean;
   version: typeof INTAKE_HINTS_VERSION;
   brief: {
     thesis: string | null;

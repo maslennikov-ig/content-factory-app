@@ -140,6 +140,7 @@ export const useOpenPostEditor = (): OpenPostEditor => {
         ...rest,
         ...(duplicate && existing
           ? {
+              duplicateOfPostId: existing.posts[0]?.id,
               onlyValues: existing.posts.map(
                 ({ image, settings, content }: any) => ({
                   image,

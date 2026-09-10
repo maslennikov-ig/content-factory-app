@@ -1703,5 +1703,7 @@
   "close_post_window": "Fermer la fenêtre du post",
   "intake_door": "Nouvelle ébauche",
   "intake_door_short": "Ébauche",
-  "help": "Aide"
+  "help": "Aide",
+  "uploading": "Téléversement en cours",
+  "importing": "Importation en cours"
 }

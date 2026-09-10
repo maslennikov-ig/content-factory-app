@@ -81,7 +81,7 @@ const activeVoiceFromOverview = (overview: unknown): AppliedVoice | null => {
 };
 
 const FirstStep: FC = (props) => {
-  const { integrations, reloadCalendarView } = useCalendar();
+  const { integrations, reloadCalendarView, integrationId } = useCalendar();
   const openPostEditor = useOpenPostEditor();
   const fetch = useFetch();
   const toaster = useToaster();
@@ -227,9 +227,15 @@ const FirstStep: FC = (props) => {
     async (value) => {
       setLoading(true);
       try {
+        const selectedIntegrationId = integrationId || integrations[0]?.id;
         const response = await fetch('/posts/generator', {
           method: 'POST',
-          body: JSON.stringify(value),
+          body: JSON.stringify({
+            ...value,
+            ...(selectedIntegrationId
+              ? { integrationId: selectedIntegrationId }
+              : {}),
+          }),
         });
         if (!response.body) {
           throw new Error(
@@ -373,7 +379,16 @@ const FirstStep: FC = (props) => {
         setLoading(false);
       }
     },
-    [integrations, reloadCalendarView, fetch, generateStep, openPostEditor, toaster, t]
+    [
+      integrations,
+      integrationId,
+      reloadCalendarView,
+      fetch,
+      generateStep,
+      openPostEditor,
+      toaster,
+      t,
+    ]
   );
   return (
     <form

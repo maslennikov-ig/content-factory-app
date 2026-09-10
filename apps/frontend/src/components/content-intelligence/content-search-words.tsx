@@ -88,7 +88,7 @@ export function HighlightedWords({
         lowered.includes(part.toLocaleLowerCase()) ? (
           <mark
             key={`${index}-${part}`}
-            className="bg-cf-accent-soft text-cf-ink"
+            className="bg-cf-mark text-cf-mark-ink"
           >
             {part}
           </mark>

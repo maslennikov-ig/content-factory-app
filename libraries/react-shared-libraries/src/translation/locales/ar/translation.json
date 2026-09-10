@@ -1703,5 +1703,7 @@
   "close_post_window": "إغلاق نافذة المنشور",
   "intake_door": "مسودة جديدة",
   "intake_door_short": "مسودة",
-  "help": "مساعدة"
+  "help": "مساعدة",
+  "uploading": "جارٍ الرفع",
+  "importing": "جارٍ الاستيراد"
 }

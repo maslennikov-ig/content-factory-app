@@ -2,11 +2,7 @@
 
 ## Current Programme
 
-- Эпик Beads `content-factory-next-vme` держит всю оставшуюся работу: семь стадий по порядку — `vme.1` учёт AI и публичные гарантии, `vme.2`
-  интерфейсный долг, `vme.3` эксплуатационная готовность, `9e9` контентный
-  интеллект, `0c8` редактор изображений, `or3` публичная воронка, `cft`
-  переезд в публичный репозиторий (последняя по решению владельца 17.08.2026).
-  Его описание перечисляет девять решений владельца, которые ни одна стадия не поглощает; тот же список повторён в разделе отложенного в `.codex/handoff.md`.
+- Эпик Beads `content-factory-next-vme` держит всю оставшуюся работу: семь стадий по порядку — `vme.1` учёт AI и публичные гарантии, `vme.2` интерфейсный долг, `vme.3` эксплуатационная готовность, `9e9` контентный интеллект, `0c8` редактор изображений, `or3` публичная воронка, `cft` переезд в публичный репозиторий (последняя по решению владельца 17.08.2026). Его описание перечисляет девять решений владельца, которые ни одна стадия не поглощает; тот же список повторён в разделе отложенного в `.codex/handoff.md`.
 - Стадии `content-factory-next-vme.1`, `.2` и `.3` приняты локально на
   release-уровне; receipts и артефакты лежат в соответствующих каталогах
   `.codex/stages/`. Стадия `content-factory-next-9e9` также принята: после
@@ -31,6 +27,7 @@
   контракты профиля, разрешённых источников, фактов, доказательств и единого
   контекста.
 - `docs/product/second-walk-wave-2026-09-08-spec.md` — волна второго прогона 08.09.2026 (эпик `tu3k.14`), макеты `docs/design/desert-lab/pipeline/`, заказ `docs/prompts/astra-second-walk-wave-2026-09-08.md`.
+- `docs/product/third-walk-wave-2026-09-10-spec.md` — волна третьего прогона 10.09.2026 (эпик `tu3k.15`, эпик ресерча `m0iy`), заказ `docs/prompts/astra-third-walk-wave-2026-09-10.md`, материалы `.codex/stages/content-factory-next-tu3k.15/evidence/walk-2026-09-10/`.
 - `DESIGN.md` — канонические визуальные tokens, компоненты и guardrails.
 - `docs/design/content-factory-interface-specification.md` — полная область пользовательского ребрендинга и UI-приёмка.
 - `docs/prompts/opus-5-content-factory-brand-redesign.md` — исторический handoff, по которому UI-эпик уже выполнен; повторно не запускать.
@@ -61,6 +58,8 @@
   доменные границы профиля, источников, фактов и снимков контекста.
 - `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
 - `pieces/adaptation-review.ts`, `adaptation-review.contract.ts` и `openai/ai.roles.ts` внутри `libraries/nestjs-libraries/src/` — явная платная проверка адаптации (`review`), один вызов и атомарное принятие в DRAFT; UI `apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx`.
+- Волна третьего захода: `docs/product/third-walk-wave-2026-09-10-spec.md`; вопросы до сути — `libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v2.ts`, `intake-content.ts`; опоры с выбором — `pieces/piece-facts.v2.ts`; карточка канала — `channels/channel-writing-profile.v2.contract.ts`. Обычный генератор читает её по `integrationId` в `agent/agent.graph.service.ts`.
+- Общие индикатор и строка фильтров — `apps/frontend/src/components/ui/progress.tsx` и `filters-row.tsx`; каталог компонентов — `docs/design/component-inventory.md`; защита от повторной геометрии — `tests/component-geometry.guard.test.cjs`.
 - `apps/backend/src/api/routes/ndjson-stream.ts` — общий транспорт входа, адаптации и разбора аватара: без сжатия, первая строка и heartbeat. Контракты расширены отдельными `intake-v2.contract.ts` и `voice-intake-v2.contract.ts`.
 - `apps/frontend/src/components/layout/top.menu.tsx` — навигация A; четыре вкладки заготовок в `content-section.screen.tsx`.
 - `apps/frontend/src/components/channels/` — список карточками/таблицей и страница канала с четырьмя панелями; общие поля письма в `content-intelligence/intake/writing-profile.fields.tsx`; чтение последних постов — `GET /integrations/:id/posts`.
@@ -147,3 +146,5 @@
 - No credentials, private materials, real provider calls, live publishing, paid model calls, deployment, or user messaging without explicit authority.
 - Keep current-state and target-state separate according to `docs/adr/0002-separate-current-and-target-state.md`.
 - Update documentation and the local Graphify index when architecture or durable workflow changes.
+
+- Проверка/перегенерация V2 — `docs/product/review-v2.md`, `pieces/review.v2.ts`, `review.v2.contract.ts` и `review-semantic.v2.ts` в content-intelligence; прежний V1 сохранён. Общий Disclosure — `apps/frontend/src/components/ui/disclosure.tsx`.

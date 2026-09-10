@@ -78,6 +78,12 @@ export class PostContent {
 }
 
 export class Post {
+  /** Carry an adaptation forward when scheduling a copy of its draft. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  duplicateOfPostId?: string;
+
   type?: string;
 
   @IsDefined()

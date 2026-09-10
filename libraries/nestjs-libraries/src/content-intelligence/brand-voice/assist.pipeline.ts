@@ -1,14 +1,20 @@
 import {
   mapResultSchema,
+  mapResultSchemaV2,
   portraitCliches,
   quoteIsGrounded,
   reduceResultSchema,
+  reduceResultSchemaV2,
   PORTRAIT_CLICHE_LIMIT,
   type AssistFailure,
   type MapResult,
+  type MapResultV2,
   type Observation,
+  type ObservationV2,
   type ProfileField,
+  type ProfileFieldV2,
   type ReduceResult,
+  type ReduceResultV2,
 } from './assist.contract';
 import type {
   BrandVoiceMeasurementResult,
@@ -56,6 +62,14 @@ export type AssistRejection = {
 export type AssistResult = {
   observations: (Observation & { sampleCode: string; ref: string })[];
   proposal: ReduceResult | null;
+  rejected: AssistRejection[];
+  /** One entry per model call, for the usage record. Never the prompt itself. */
+  calls: { stage: 'map' | 'reduce'; attempt: number; ok: boolean }[];
+};
+
+export type AssistResultV2 = {
+  observations: (ObservationV2 & { sampleCode: string; ref: string })[];
+  proposal: ReduceResultV2 | null;
   rejected: AssistRejection[];
   /** One entry per model call, for the usage record. Never the prompt itself. */
   calls: { stage: 'map' | 'reduce'; attempt: number; ok: boolean }[];
@@ -180,6 +194,22 @@ export const mapPrompt = (
     .filter((line) => line !== '')
     .join('\n');
 
+/** V2 asks for one grounded subject observation without changing the V1 text. */
+export const mapPromptV2 = (
+  sample: BrandVoiceSampleInput,
+  measurement: BrandVoiceMeasurementResult,
+  locale: 'ru' | 'en'
+): string => {
+  const topicInstruction =
+    locale === 'ru'
+      ? 'Добавьте не больше одного наблюдения TOPICS: о чём именно этот текст. Для него metric = null; цитата всё равно обязательна.'
+      : 'Add at most one TOPICS observation naming the subject of this text. Its metric is null; a verbatim quote is still required.';
+  return mapPrompt(sample, measurement, locale).replace(
+    '\nSAMPLE ',
+    `\n${topicInstruction}\nSAMPLE `
+  );
+};
+
 /**
  * The reduce prompt, and the one rule it must not break: an observation is
  * named here by the same `ref` it is stored under.
@@ -252,13 +282,40 @@ export const reducePrompt = (
     ),
   ].join('\n');
 
+/** V2 adds the grounded topics field while the exported V1 prompt stays stable. */
+export const reducePromptV2 = (
+  observations: readonly (ObservationV2 & { sampleCode: string; ref: string })[],
+  locale: 'ru' | 'en',
+  habits?: BrandVoiceMeasurementResult['postHabits'],
+  layout?: BrandVoiceMeasurementResult['postLayout']
+): string => {
+  const topicInstruction =
+    locale === 'ru'
+      ? 'Верните поле TOPICS: о каких темах автор пишет и что считает важным говорить. Берите только темы, подтверждённые цитатами.'
+      : 'Return the TOPICS field: what the author writes about and considers important to say. Include only topics grounded in quotes.';
+  const portraitHeading =
+    locale === 'ru' ? '\n\nПОРТРЕТ.' : '\n\nPORTRAIT.';
+  return reducePrompt(
+    observations as readonly (Observation & {
+      sampleCode: string;
+      ref: string;
+    })[],
+    locale,
+    habits,
+    layout
+  ).replace(
+    portraitHeading,
+    `\n${topicInstruction}${portraitHeading}`
+  );
+};
+
 /**
  * Deduplication across chunks, which map-reduce needs by construction: the
  * same habit shows up in most samples, and a proposal listing it eight times
  * has told the reader nothing eight times.
  */
-const dedupe = (
-  observations: (Observation & { sampleCode: string; ref: string })[]
+const dedupe = <T extends Observation | ObservationV2>(
+  observations: (T & { sampleCode: string; ref: string })[]
 ) => {
   const seen = new Set<string>();
   return observations.filter((one) => {
@@ -507,15 +564,197 @@ export async function runAssist({
   };
 }
 
-/**
- * The portrait survives on the same terms as a field, and on one more.
- *
- * Grounding first: a portrait citing nothing the corpus contains is a portrait
- * of nobody, and it is dropped rather than shown. Then the clichés — the
- * failure prose has and quotes do not. Both rejections leave the profile
- * portrait-less, which the screens already handle, instead of failing an
- * analysis that produced four good fields.
- */
+export async function runAssistV2({
+  samples,
+  measurement,
+  transport,
+  locale = 'ru',
+  sampleLimit,
+  onProgress,
+}: {
+  samples: readonly BrandVoiceSampleInput[];
+  measurement: BrandVoiceMeasurementResult;
+  transport: AssistTransport;
+  locale?: 'ru' | 'en';
+  /** Overridden only by a test that wants a shorter run. */
+  sampleLimit?: number;
+  /**
+   * Told about each call as it happens, for a caller streaming to a person.
+   *
+   * Optional and never awaited: this pipeline decides nothing by it, and a
+   * listener that throws must not be able to lose a run that is being paid
+   * for.
+   */
+  onProgress?: (event: AssistProgressEvent) => void;
+}): Promise<AssistResultV2> {
+  const chosen = selectSamples(
+    samples,
+    sampleLimit ?? sampleLimitFor(samples.length)
+  );
+  const byCode = new Map(chosen.map((sample) => [sample.code, sample]));
+  const calls: AssistResultV2['calls'] = [];
+  const rejected: AssistRejection[] = [];
+  const collected: (ObservationV2 & { sampleCode: string; ref: string })[] = [];
+
+  // Three at a time, and every sample keeps its own call log, so the record
+  // and the observations read in the corpus's order however the calls raced.
+  const mapped = await mapWithLimit(chosen, MAP_CONCURRENCY, (sample, at) => {
+    const own: AssistResultV2['calls'] = [];
+    return attempt<MapResultV2>(
+      transport,
+      'map',
+      mapPromptV2(sample, measurement, locale),
+      'brand-voice-observations-v2',
+      (raw) => mapResultSchemaV2.parse(raw),
+      own,
+      { index: at + 1, total: chosen.length },
+      onProgress
+    ).then((outcome) => ({ sample, outcome, own }));
+  });
+
+  for (const { sample, outcome, own } of mapped) {
+    calls.push(...own);
+
+    if ('error' in outcome) {
+      // One sample failing does not end the run: the others still describe
+      // the same writer.
+      rejected.push({
+        sampleCode: sample.code,
+        reason: 'SCHEMA_INVALID',
+        detail: outcome.error,
+      });
+      continue;
+    }
+
+    const result = outcome.value;
+    if (!byCode.has(result.sampleCode)) {
+      rejected.push({
+        sampleCode: result.sampleCode,
+        reason: 'UNKNOWN_SAMPLE',
+      });
+      continue;
+    }
+
+    const source = byCode.get(result.sampleCode)!;
+    const grounded = result.observations.filter((observation) =>
+      quoteIsGrounded(observation.quote, source.text)
+    );
+    if (grounded.length === 0) {
+      rejected.push({
+        sampleCode: result.sampleCode,
+        reason: 'QUOTE_NOT_GROUNDED',
+      });
+      continue;
+    }
+    if (grounded.length < result.observations.length) {
+      rejected.push({
+        sampleCode: result.sampleCode,
+        reason: 'QUOTE_NOT_GROUNDED',
+        detail: `${result.observations.length - grounded.length}`,
+      });
+    }
+
+    grounded.forEach((observation, index) => {
+      collected.push({
+        ...observation,
+        sampleCode: result.sampleCode,
+        ref: `${result.sampleCode}#${index + 1}`,
+      });
+    });
+  }
+
+  const observations = dedupe(collected);
+  if (observations.length === 0) {
+    return { observations, proposal: null, rejected, calls };
+  }
+
+  const reduced = await attempt<ReduceResultV2>(
+    transport,
+    'reduce',
+    reducePromptV2(
+      observations,
+      locale,
+      measurement.postHabits,
+      measurement.postLayout
+    ),
+    'brand-voice-proposal-v2',
+    (raw) => reduceResultSchemaV2.parse(raw),
+    calls,
+    // One reduce for the whole corpus: the last step, and its own step.
+    { index: 1, total: 1 },
+    onProgress
+  );
+
+  if ('error' in reduced) {
+    return { observations, proposal: null, rejected, calls };
+  }
+
+  // A field whose grounds did not survive the critic pass is dropped rather
+  // than kept unfounded. The screen shows it as "нет основания", which is a
+  // true statement about the corpus.
+  const known = new Set(observations.map((one) => one.ref));
+  const grounded = reduced.value.fields.filter((field) =>
+    field.observationRefs.some(
+      (ref) =>
+        known.has(ref) &&
+        (field.field !== 'TOPICS' ||
+          observations.some(
+            (observation) =>
+              observation.ref === ref && observation.field === 'TOPICS'
+          ))
+    )
+  );
+
+  /**
+   * One line per field, because the wizard shows one line per field.
+   *
+   * The schema bounds how many fields come back but not that they are
+   * distinct, and a real corpus does produce two — the model finds two habits
+   * worth stating about the same tone and states both. Downstream everything
+   * is keyed by field name: `proposalField` takes the *first* match, so the
+   * second copy could never be accepted and sat `UNDECIDED` forever, blocking
+   * an activation that asks for every line to be decided; the screen keyed its
+   * rows by field name too, so React saw two rows claiming to be one.
+   *
+   * The one kept is the line resting on the most grounded observations — it is
+   * the one the corpus says most about — and the others' references are folded
+   * into it rather than dropped, so the "why" panel still shows every quote
+   * behind the claim.
+   */
+  const byField = new Map<string, (typeof grounded)[number]>();
+  for (const field of grounded) {
+    const existing = byField.get(field.field);
+    const groundedRefs = (candidate: (typeof grounded)[number]) =>
+      candidate.observationRefs.filter((ref) => known.has(ref)).length;
+    if (!existing) {
+      byField.set(field.field, field);
+      continue;
+    }
+    const winner =
+      groundedRefs(field) > groundedRefs(existing) ? field : existing;
+    const loser = winner === field ? existing : field;
+    byField.set(field.field, {
+      ...winner,
+      observationRefs: [
+        ...new Set([...winner.observationRefs, ...loser.observationRefs]),
+      ],
+    });
+  }
+  const fields = [...byField.values()];
+
+  return {
+    observations,
+    proposal: {
+      ...reduced.value,
+      fields,
+      portrait: keptPortraitV2(reduced.value, known),
+    },
+    rejected,
+    calls,
+  };
+}
+
+/** V1 portrait validation remains available to V1 callers. */
 export function keptPortrait(
   reduced: ReduceResult,
   known: Set<string>
@@ -527,4 +766,24 @@ export function keptPortrait(
   return portrait;
 }
 
-export type { ProfileField };
+/**
+ * The portrait survives on the same terms as a field, and on one more.
+ *
+ * Grounding first: a portrait citing nothing the corpus contains is a portrait
+ * of nobody, and it is dropped rather than shown. Then the clichés — the
+ * failure prose has and quotes do not. Both rejections leave the profile
+ * portrait-less, which the screens already handle, instead of failing an
+ * analysis that produced four good fields.
+ */
+export function keptPortraitV2(
+  reduced: ReduceResultV2,
+  known: Set<string>
+): ReduceResultV2['portrait'] {
+  const portrait = reduced.portrait;
+  if (!portrait) return null;
+  if (!portrait.observationRefs.some((ref) => known.has(ref))) return null;
+  if (portraitCliches(portrait.text).length >= PORTRAIT_CLICHE_LIMIT) return null;
+  return portrait;
+}
+
+export type { ProfileField, ProfileFieldV2 };

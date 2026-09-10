@@ -12,7 +12,10 @@ import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { Input } from '@contentfactory/react/form/input';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { useIntegrationList } from '../launches/helpers/use.integration.list';
-import { CalendarContext, calendarDefaults } from '../launches/calendar.context';
+import {
+  CalendarContext,
+  calendarDefaults,
+} from '../launches/calendar.context';
 import {
   AddProviderButton,
   AddProviderComponent,
@@ -30,6 +33,7 @@ import {
   Status,
 } from '../ui/surface';
 import { Segmented } from '../ui/segmented';
+import { FiltersRow } from '../ui/filters-row';
 import { Table, Th, Td, Tr } from '../ui/table';
 import { channelsCopy, type ChannelsLocale } from './channels.copy';
 import {
@@ -229,12 +233,14 @@ export function ChannelsScreen() {
       ) : isLoading ? (
         <SkeletonRows rows={6} label={t.loading} />
       ) : (
-        <CalendarContext.Provider value={{ ...calendarDefaults, integrations: rows, loading: false }}>
+        <CalendarContext.Provider
+          value={{ ...calendarDefaults, integrations: rows, loading: false }}
+        >
           {!rows.length ? (
             <EmptyChannels locale={locale} reload={reload} />
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-3">
+              <FiltersRow aria-label={t.title}>
                 <div className="hidden table:block">
                   <Segmented
                     label={t.view}
@@ -263,7 +269,7 @@ export function ChannelsScreen() {
                   placeholder={t.search}
                   fieldClassName="min-w-0 flex-1"
                 />
-              </div>
+              </FiltersRow>
               {!filtered.length ? (
                 <EmptyState
                   title={t.noMatches}

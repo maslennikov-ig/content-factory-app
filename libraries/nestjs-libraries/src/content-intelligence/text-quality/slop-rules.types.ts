@@ -47,6 +47,8 @@ export type SlopMetricId =
   | 'emoji'
   | 'bold'
   | 'lists'
+  | 'chopped-meditation'
+  | 'question-answer-rhythm'
   | 'monotone'
   | 'no-short'
   | 'dash-density';

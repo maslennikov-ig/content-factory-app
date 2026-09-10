@@ -27,6 +27,10 @@ export const PROFILE_FIELDS = [
 
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 
+/** Additive proposal contract. V1 remains the five-field public shape. */
+export const PROFILE_FIELDS_V2 = [...PROFILE_FIELDS, 'TOPICS'] as const;
+export type ProfileFieldV2 = (typeof PROFILE_FIELDS_V2)[number];
+
 export const observationSchema = z.object({
   field: z.enum(PROFILE_FIELDS),
   /**
@@ -95,9 +99,31 @@ export const reduceResultSchema = z.object({
   neverSay: z.array(z.string().min(2).max(120)).max(12),
 });
 
+export const observationSchemaV2 = observationSchema.extend({
+  field: z.enum(PROFILE_FIELDS_V2),
+});
+
+export const mapResultSchemaV2 = mapResultSchema.extend({
+  observations: z.array(observationSchemaV2).min(1).max(6),
+});
+
+export const proposedFieldSchemaV2 = proposedFieldSchema.extend({
+  field: z.enum(PROFILE_FIELDS_V2),
+});
+
+export const reduceResultSchemaV2 = reduceResultSchema.extend({
+  fields: z
+    .array(proposedFieldSchemaV2)
+    .min(1)
+    .max(PROFILE_FIELDS_V2.length),
+});
+
 export type MapResult = z.infer<typeof mapResultSchema>;
 export type ReduceResult = z.infer<typeof reduceResultSchema>;
 export type Observation = z.infer<typeof observationSchema>;
+export type MapResultV2 = z.infer<typeof mapResultSchemaV2>;
+export type ReduceResultV2 = z.infer<typeof reduceResultSchemaV2>;
+export type ObservationV2 = z.infer<typeof observationSchemaV2>;
 
 /**
  * An observation is kept only if its quote is really in the sample it names.

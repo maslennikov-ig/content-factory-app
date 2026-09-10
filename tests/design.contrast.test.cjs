@@ -14,7 +14,7 @@ const PAIRS_TABLE = 'docs/design/desert-lab/contrast-pairs.md';
  * silently renamed role or a dropped row would otherwise turn this suite green
  * while checking nothing.
  */
-const EXPECTED_PAIR_COUNT = 47;
+const EXPECTED_PAIR_COUNT = 49;
 const INFORMATIVE = 'инф.';
 
 const read = (relative) =>

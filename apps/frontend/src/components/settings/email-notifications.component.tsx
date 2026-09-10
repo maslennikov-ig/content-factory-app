@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { Slider } from '@contentfactory/react/form/slider';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { Progress } from '../ui/progress';
 
 interface EmailNotifications {
   sendSuccessEmails: boolean;
@@ -99,7 +100,7 @@ const EmailNotificationsComponent = () => {
   if (isLoading) {
     return (
       <div className="my-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
-        <div className="animate-pulse">{t('loading', 'Loading...')}</div>
+        <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
       </div>
     );
   }

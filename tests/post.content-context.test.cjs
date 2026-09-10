@@ -95,6 +95,7 @@ function makeDatabase({
           ]
         : []),
     ],
+    derivations: [],
     outputs: groundedExisting
       ? [
           {
@@ -253,6 +254,13 @@ function makeDatabase({
   };
 
   const makeClient = (state) => ({
+    contentDerivation: {
+      updateMany: async ({ where, data }) => {
+        const matches = state.derivations.filter(row => row.organizationId === where.organizationId && row.postId === where.postId);
+        for (const row of matches) Object.assign(row, data);
+        return { count: matches.length };
+      },
+    },
     contentContextSnapshot: {
       findFirst: async ({ where }) =>
         where.organizationId === context.organizationId &&
@@ -316,13 +324,14 @@ function makeDatabase({
           (item) =>
             (!where.organizationId ||
               item.organizationId === where.organizationId) &&
+            (!where.id || item.id === where.id) &&
             (!where.group || item.group === where.group) &&
             (where.deletedAt === undefined ||
               item.deletedAt === where.deletedAt) &&
             (where.parentPostId === undefined ||
               item.parentPostId === where.parentPostId)
         );
-        return post ? { id: post.id } : null;
+        return post ? { ...post } : null;
       },
     },
     autoPost: {
@@ -406,6 +415,7 @@ function makeDatabase({
         const draft = structuredClone(initial);
         const result = await work(makeClient(draft));
         initial.posts = draft.posts;
+        initial.derivations = draft.derivations;
         initial.outputs = draft.outputs;
         initial.draftEvidence = draft.draftEvidence;
         initial.autoPosts = draft.autoPosts;
@@ -1363,3 +1373,30 @@ test(
     }
   }
 );
+
+
+test('copy carries only a same-channel draft adaptation and refuses foreign sources', async () => {
+  for (const [sourceOrg, integrationId, state] of [
+    ['org-a', 'channel-a', 'DRAFT'],
+    ['org-b', 'channel-a', 'DRAFT'],
+    ['org-a', 'channel-b', 'DRAFT'],
+    ['org-a', 'channel-a', 'PUBLISHED'],
+  ]) {
+    const database = makeDatabase({ existingPostOrganizationId: sourceOrg });
+    Object.assign(database.initial.posts[0], { state, integrationId });
+    database.initial.derivations.push({ id: 'adaptation', organizationId: sourceOrg, postId: 'existing-post' });
+    const action = repositoryFor(database).createOrUpdatePost('draft', 'org-a', '2030-09-10T12:00:00Z', body({
+      contentContextSnapshotId: undefined, brandProfileVersionId: undefined, usedCitationIds: undefined,
+      duplicateOfPostId: 'existing-post', group: undefined,
+      value: [{ content: 'Copy', delay: 0, image: [] }],
+    }), [], 'WEB');
+    if (sourceOrg === 'org-b') {
+      await assert.rejects(action, error => error.code === 'POST_NOT_FOUND');
+      assert.equal(database.initial.derivations[0].postId, 'existing-post');
+    } else {
+      const result = await action;
+      assert.equal(database.initial.derivations[0].postId,
+        state === 'DRAFT' && integrationId === 'channel-a' ? result.posts[0].id : 'existing-post');
+    }
+  }
+});

@@ -15,13 +15,8 @@
  * пока человек сам не выберет другой.
  */
 
-import {
-  CHANNEL_WRITING_PROFILE_VERSION,
-  type ChannelLengthPolicyV1,
-  type ChannelWritingProfileResponseV1,
-  type ChannelWritingProfileV1,
-  type IntakeFormatV1,
-} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import { INTAKE_API } from './intake.adapter';
 
 export type {
@@ -35,10 +30,10 @@ export const writingProfileUrl = (integrationId: string) =>
 
 export const PROFILE_NOTES_MAX = 500;
 
-export type LengthPreset = 'short' | 'ideal' | 'long' | 'max';
+export type LengthPreset = 'auto' | 'short' | 'ideal' | 'long' | 'max';
 
 export const LENGTH_PRESETS: Record<
-  LengthPreset,
+  Exclude<LengthPreset, 'auto'>,
   { idealMin: number; idealMax: number; hardMax: number }
 > = {
   short: { idealMin: 200, idealMax: 500, hardMax: 500 },
@@ -49,6 +44,7 @@ export const LENGTH_PRESETS: Record<
 };
 
 export const LENGTH_PRESET_ORDER: readonly LengthPreset[] = [
+  'auto',
   'short',
   'ideal',
   'long',
@@ -57,10 +53,12 @@ export const LENGTH_PRESET_ORDER: readonly LengthPreset[] = [
 
 /** Тройку чисел — в одно понятное слово, ближайшее по идеальному максимуму. */
 export function lengthPresetOf(policy: ChannelLengthPolicyV1): LengthPreset {
-  if (policy === 'provider_max') return 'max';
+  if (policy === 'auto') return 'auto';
+  if (policy === 'provider_max') return 'auto';
   let best: LengthPreset = 'ideal';
   let distance = Number.POSITIVE_INFINITY;
   for (const preset of LENGTH_PRESET_ORDER) {
+    if (preset === 'auto') continue;
     const candidate = Math.abs(LENGTH_PRESETS[preset].idealMax - policy.idealMax);
     if (candidate < distance) {
       distance = candidate;
@@ -70,10 +68,11 @@ export function lengthPresetOf(policy: ChannelLengthPolicyV1): LengthPreset {
   return best;
 }
 
-export const EMOJI_LEVELS = ['none', 'few', 'free'] as const;
-export const LINK_POLICIES = ['none', 'end', 'inline'] as const;
-export const HASHTAG_POLICIES = ['none', 'end_1_3', 'free'] as const;
+export const EMOJI_LEVELS = ['none', 'few', 'many', 'auto'] as const;
+export const LINK_POLICIES = ['none', 'end', 'inline', 'auto'] as const;
+export const HASHTAG_POLICIES = ['none', 'end_1_3', 'free', 'auto'] as const;
 export const CTA_KINDS = [
+  'auto',
   'none',
   'question',
   'comment',
@@ -132,8 +131,8 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
   return {
     version: CHANNEL_WRITING_PROFILE_VERSION,
     lengthPolicy:
-      length === 'provider_max'
-        ? 'provider_max'
+      (length === 'provider_max' || length === 'auto')
+        ? length
         : lengthRecord && typeof lengthRecord.idealMax === 'number'
         ? {
             idealMin: Number(lengthRecord.idealMin) || 0,
@@ -144,7 +143,7 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
                 : null,
           }
         : DEFAULT_WRITING_PROFILE.lengthPolicy,
-    emojiLevel: oneOf(record.emojiLevel, EMOJI_LEVELS, 'few'),
+    emojiLevel: oneOf(record.emojiLevel === 'free' ? 'many' : record.emojiLevel, EMOJI_LEVELS, 'few'),
     linkPolicy: oneOf(record.linkPolicy, LINK_POLICIES, 'end'),
     hashtagPolicy: oneOf(record.hashtagPolicy, HASHTAG_POLICIES, 'none'),
     ctaKind: oneOf(record.ctaKind, CTA_KINDS, 'question'),
@@ -215,7 +214,7 @@ export type WritingProfileLengthRangePayload = {
 };
 
 export type WritingProfilePayload = {
-  lengthPolicy: 'provider_max' | 'range';
+  lengthPolicy: 'provider_max' | 'range' | 'auto';
   length?: WritingProfileLengthRangePayload;
   emojiLevel: ChannelWritingProfileV1['emojiLevel'];
   linkPolicy: ChannelWritingProfileV1['linkPolicy'];
@@ -241,8 +240,8 @@ export function buildWritingProfilePayload(
     ...(notes ? { notes } : {}),
   };
 
-  if (profile.lengthPolicy === 'provider_max') {
-    return { lengthPolicy: 'provider_max', ...common };
+  if (typeof profile.lengthPolicy === 'string') {
+    return { lengthPolicy: profile.lengthPolicy, ...common };
   }
 
   const { idealMin, idealMax, hardMax } = profile.lengthPolicy;

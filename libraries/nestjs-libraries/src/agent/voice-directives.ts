@@ -49,6 +49,7 @@ export type EffectiveVoice = {
   project?: {
     name?: string;
     oneLineDescription?: string;
+    contentGoals?: string[];
     audiences?: Array<{ name?: string; need?: string }>;
   };
   traits?: Array<{ name?: string; guidance?: string }>;
@@ -391,10 +392,14 @@ const guardrailLines = (voice: EffectiveVoice): string[] => {
  */
 const avatarLines = (voice: EffectiveVoice, extra: string[]): string[] => {
   const portrait = voice.persona?.portrait as string;
+  const topics = (voice.project?.contentGoals ?? []).filter(nonEmpty);
   return [
     voice.persona?.kind === 'BRAND'
       ? `You are writing as this brand speaks, not as an assistant. This is the voice: ${portrait}`
       : `You are writing as this person, not as an assistant. This is who they are: ${portrait}`,
+    ...(topics.length
+      ? [`What they write about: ${topics.join('; ')}`]
+      : []),
     ...learnedRuleLines(voice),
     ...exampleLines(voice),
     ...extra,
@@ -475,6 +480,9 @@ export function voiceInstructionLines(
   if (audiences.length) {
     lines.push(`Who they are writing for: ${audiences.join(' ')}`);
   }
+
+  const topics = (voice.project?.contentGoals ?? []).filter(nonEmpty);
+  if (topics.length) lines.push(`What they write about: ${topics.join('; ')}`);
 
   if (nonEmpty(voice.ctaStyle)) {
     lines.push(`How they ask for the next step: ${voice.ctaStyle}`);

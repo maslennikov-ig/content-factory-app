@@ -687,6 +687,7 @@ export class PostsRepository {
     }
     const requiresTenantTransaction = Boolean(
       body.contentContextSnapshotId ||
+        body.duplicateOfPostId ||
         body.group ||
         body.value.some((item) => item.id)
     );
@@ -1017,6 +1018,16 @@ export class PostsRepository {
       }
     }
 
+    const duplicateSource = body.duplicateOfPostId
+      ? await client.post.findFirst({
+          where: { id: body.duplicateOfPostId, organizationId: orgId, deletedAt: null },
+          select: { id: true, integrationId: true, state: true },
+        })
+      : null;
+    if (body.duplicateOfPostId && !duplicateSource) {
+      repositoryError('POST_NOT_FOUND', 404, 'Post was not found');
+    }
+
     for (const [index, value] of body.value.entries()) {
       const contextBinding = contextBindings?.[index];
       const postId = value.id || uuidv4();
@@ -1171,6 +1182,17 @@ export class PostsRepository {
             where: { organizationId: orgId, postId: value.id },
           }),
         ]);
+      }
+
+      // Carry a draft's same-channel adaptation to its replacement copy.
+      // A cross-channel copy is a separate adaptation.
+      if (index === 0 && duplicateSource?.state === 'DRAFT' &&
+          !existingPostIds.has(posts[0].id) &&
+          duplicateSource.integrationId === body.integration.id) {
+        await client.contentDerivation.updateMany({
+          where: { organizationId: orgId, postId: duplicateSource.id },
+          data: { postId: posts[0].id },
+        });
       }
 
       if (posts.length === 1) {

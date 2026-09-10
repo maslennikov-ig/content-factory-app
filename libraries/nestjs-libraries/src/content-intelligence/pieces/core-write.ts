@@ -1,3 +1,5 @@
+import { coreContentPromptV2 } from './core-content.v2';
+import { contentFromIntent } from '../intake/intake-content';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -102,7 +104,8 @@ const HAS_DIGIT = /\p{Nd}/u;
 export const isOwnOrConfirmed = (fact: {
   verified: boolean;
   origin: BriefFilledV1['facts'][number]['origin'];
-}): boolean => fact.verified || fact.origin === 'input' || fact.origin === 'person';
+  selected?: boolean;
+}): boolean => fact.selected === true || fact.verified || fact.origin === 'input' || fact.origin === 'person';
 
 /**
  * Принёс ли автор хотя бы одно своё число.
@@ -320,7 +323,7 @@ export async function writeCore(
         const model = (
           await getChatModel(input.organizationId, 0, 2_048, 'draft')
         ).withStructuredOutput(coreSchema);
-        const prompt = corePrompt(input);
+        const prompt = coreContentPromptV2(corePrompt(input), input.language);
         const first = trimmed(((await model.invoke(prompt)) as any)?.text);
         if (!input.foreignShingles.length || !first) return first;
         // Антикопия ровно та же, что у графа: восемь слов подряд и один
@@ -351,7 +354,7 @@ export async function writeCore(
 
   if (text) return shaped(text, 'model');
   return shaped(
-    fallbackCore(input.brief, input.answers, input.personText),
+    contentFromIntent(fallbackCore(input.brief, input.answers, input.personText)),
     'fallback'
   );
 }

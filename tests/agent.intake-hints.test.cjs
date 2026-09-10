@@ -504,3 +504,23 @@ describe('eight words of somebody else cost one retry, not the post', () => {
 test('the suite reads the shipped generation node, not a copy of it', () => {
   expect(SERVICE).toBe('libraries/nestjs-libraries/src/agent/agent.graph.service.ts');
 });
+
+
+describe('third walk unavoidable adaptation question', () => {
+  test('one draft call may return a specific question only for an automatic field', async () => {
+    const chatModel = capturingModel([{ content: null, unavoidableQuestion: { unavoidable: true, field: 'ctaKind', question: 'Набор открыт или уже закрыт?', why: 'В суте не указан статус набора.', options: ['Открыт', 'Закрыт'] } }]);
+    const { service } = loadAgentGraph({ chatModel });
+    const output = await service.generateContent(withHints({ intake: { allowQuestion: true, channel: { writingProfile: { ...defaultWritingProfileFor('telegram', 'ru'), ctaKind: 'auto' } } } }));
+    expect(output.adaptationQuestion).toMatchObject({ key: 'cta', question: 'Набор открыт или уже закрыт?' });
+    expect(output.content).toBeUndefined();
+    expect(chatModel.prompts).toHaveLength(1);
+    expect(chatModel.prompts[0]).toContain('Only if an automatic channel setting');
+  });
+  test('delegation writes without the question prompt', async () => {
+    const chatModel = capturingModel([draft('Готовая адаптация')]);
+    const { service } = loadAgentGraph({ chatModel });
+    const output = await service.generateContent(withHints({ intake: { allowQuestion: false } }));
+    expect(output.adaptationQuestion).toBeUndefined();
+    expect(chatModel.prompts[0]).not.toContain('Only if an automatic channel setting');
+  });
+});

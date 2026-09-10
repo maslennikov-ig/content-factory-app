@@ -118,6 +118,11 @@ if (!packageOptions) {
 | `/content-intelligence/materials/:id/draft` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/materials/:id/recut-preview` | EDITOR | 1 | редактор |
 | `/content-intelligence/materials/archive/import` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id` | EDITOR | 1 | редактор; изменение заголовка |
+| `/content-intelligence/pieces/:id/facts` | EDITOR | 1 | редактор; выбор найденной опоры без подтверждения её истинности |
+| `/content-intelligence/pieces/:id/rewrite` | EDITOR | 1 | редактор; перегенерация сути |
+| `/content-intelligence/pieces/:id/rewrite/accept` | EDITOR | 1 | редактор; принятие подписанных правок сути |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId/rewrite` | EDITOR | 1 | редактор; перегенерация адаптации |
 | `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
@@ -257,9 +262,16 @@ if (!packageOptions) {
 удаление одной адаптации (`DELETE …/:id/adaptations/:adaptationId`) и архив
 (`POST …/:id/archive`), ответы на вопросы (`POST …/:id/answer`), явная проверка
 черновика (`POST …/:id/adaptations/:adaptationId/review`) и принятие её правок
-(`POST …/review/accept`). Проверка дополнительно проходит допуск ИИ в сервисе;
+(`POST …/review/accept`), изменение заголовка (`PATCH …/:id`) и выбора опор
+(`PATCH …/:id/facts`), перегенерация сути (`POST …/:id/rewrite`) и адаптации
+(`POST …/:id/adaptations/:adaptationId/rewrite`), принятие правок сути
+(`POST …/:id/rewrite/accept`). Выбор найденной опоры не подтверждает её
+истинность. Перегенерация и проверка дополнительно проходит допуск ИИ в сервисе;
 режим поиска требует явного подтверждения расходов. Принятие не вызывает
-модель и изменяет только всё ещё актуальный черновик. Двери создания здесь нет: заготовка
+модель и применяет только выбранные подписанные правки к актуальному снимку
+сути или черновика. Ответы на вопросы проверки используют ту же дверь /answer:
+сохраняются как собственные опоры без вызова модели, с проверкой подписи и
+актуальности, не меняя статус найденных фактов. Двери создания здесь нет: заготовка
 рождается на `POST /content-intelligence/intake`, и вторая дверь создания
 разошлась бы с первой на первой же правке. У удаления нет тела вовсе, оба
 идентификатора идут из пути (`content-factory-next-fn33.90.3`).

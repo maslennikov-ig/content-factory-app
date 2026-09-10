@@ -1,8 +1,7 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
-import clsx from 'clsx';
-import { Button } from '@contentfactory/react/form/button';
+import type { ReactNode } from 'react';
+import { Disclosure } from '@contentfactory/frontend/components/ui/disclosure';
 
 /**
  * Вопрос, который раскрывается ответом.
@@ -36,26 +35,6 @@ export type HelpDisclosureProps = {
   className?: string;
 };
 
-const ChevronIcon = ({ open }: { open: boolean }) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-    className={clsx(
-      'shrink-0 text-cf-ink-muted transition-transform duration-state motion-reduce:transition-none',
-      open && 'rotate-180'
-    )}
-  >
-    <path d="M6 9l6 6 6-6" />
-  </svg>
-);
-
 export function HelpDisclosure({
   id,
   question,
@@ -63,53 +42,21 @@ export function HelpDisclosure({
   defaultOpen = false,
   className,
 }: HelpDisclosureProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  // `useId` даёт разные значения на сервере и в браузере только если разойдётся
-  // порядок рендера; связка «кнопка ↔ область» должна быть уникальной на
-  // странице, а не читаемой, поэтому имени руками здесь не придумывают.
-  const generated = useId();
-  const questionId = `${generated}-question`;
-  const answerId = `${generated}-answer`;
-
   return (
-    <div
-      className={clsx(
-        'rounded-[8px] border border-cf-border bg-cf-surface',
-        className
-      )}
+    <Disclosure
+      summary={question}
+      defaultOpen={defaultOpen}
+      className={`rounded-[8px] border border-cf-border bg-cf-surface ${className ?? ''}`}
+      triggerClassName="rounded-[8px] p-[16px] text-cf-ink"
+      contentClassName="max-w-[70ch] select-text px-[16px] pb-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+      triggerProps={{
+        'data-help-question': id,
+        'data-help-open': undefined,
+      } as React.ButtonHTMLAttributes<HTMLButtonElement>}
+      regionProps={{ 'data-help-answer': id } as React.HTMLAttributes<HTMLDivElement>}
     >
-      <Button
-        variant="quiet"
-        layout="content"
-        id={questionId}
-        aria-expanded={open}
-        aria-controls={answerId}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-        data-help-question={id}
-        data-help-open={open ? 'true' : 'false'}
-        // `layout="content"` — строка растёт по тексту вопроса, а не режет его
-        // по высоте контрола: 40px здесь минимум, а не размер.
-        className="w-full justify-start gap-[12px] rounded-[8px] p-[16px] text-start"
-      >
-        <span className="min-w-0 flex-1 text-cf-ink [text-wrap:pretty]">
-          {question}
-        </span>
-        <ChevronIcon open={open} />
-      </Button>
-      <div
-        id={answerId}
-        role="region"
-        aria-labelledby={questionId}
-        hidden={!open}
-      >
-        <p
-          data-help-answer={id}
-          className="max-w-[70ch] select-text px-[16px] pb-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-        >
-          {answer}
-        </p>
-      </div>
-    </div>
+      {answer}
+    </Disclosure>
   );
 }
 

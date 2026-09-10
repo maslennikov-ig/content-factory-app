@@ -16,7 +16,8 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { PROFILE_FIELDS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import { PROFILE_FIELDS, PROFILE_FIELDS_V2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import { MAX_MESSAGES } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/telegram-export';
 import { STYLE_SCALE_KEYS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brand-voice.types';
 import {
   MEASURABLE_LOCALES,
@@ -159,6 +160,13 @@ export class VoiceSampleFileIntakeDto {
   )
   @IsBoolean()
   rightsConfirmed?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MAX_MESSAGES)
+  maxMessages?: number;
 }
 
 export class VoiceSampleDeleteDto {
@@ -190,8 +198,8 @@ export class VoiceAnalysisDto {
 }
 
 export class VoiceProposalFieldDto {
-  @IsIn(PROFILE_FIELDS as unknown as string[])
-  key: (typeof PROFILE_FIELDS)[number];
+  @IsIn(PROFILE_FIELDS_V2 as unknown as string[])
+  key: (typeof PROFILE_FIELDS_V2)[number];
 
   @IsOptional()
   @IsString()
@@ -228,8 +236,8 @@ export class VoiceProposalPortraitDto {
  * not a decision about a field, it is a field still to fill.
  */
 export class VoiceProposalManualFieldDto {
-  @IsIn(PROFILE_FIELDS as unknown as string[])
-  key: (typeof PROFILE_FIELDS)[number];
+  @IsIn(PROFILE_FIELDS_V2 as unknown as string[])
+  key: (typeof PROFILE_FIELDS_V2)[number];
 
   @IsString()
   @MinLength(1)
@@ -256,6 +264,12 @@ export class VoicePassportFieldDto {
 }
 
 export class VoiceProposalActivateDto {
+  /** Absent for the five-field client; `2` enables the new activation gates. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([2])
+  version?: 2;
+
   @IsBoolean()
   consentGiven: boolean;
 

@@ -10,6 +10,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { Panel } from '@contentfactory/react/layout';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import copy from 'copy-to-clipboard';
+import { Status } from '../ui/surface';
 
 type Locale = 'en' | 'ru';
 
@@ -67,9 +68,7 @@ interface TelegramConnectIssue {
 
 export function AdminTelegramConnectComponent() {
   const { language, telegramBotName } = useVariables();
-  const locale: Locale = language.toLowerCase().startsWith('ru')
-    ? 'ru'
-    : 'en';
+  const locale: Locale = language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
   const t = copyText[locale];
   const fetch = useFetch();
   const toaster = useToaster();
@@ -130,10 +129,9 @@ export function AdminTelegramConnectComponent() {
         </div>
 
         {status?.connected && (
-          <span className="inline-flex w-fit items-center gap-[8px] rounded-full border border-cf-accent bg-cf-accent-soft px-[8px] py-[4px] cf-label-sm text-cf-accent">
-            <span aria-hidden="true">●</span>
+          <Status tone="accent" icon={<span aria-hidden="true">●</span>}>
             {t.connected}
-          </span>
+          </Status>
         )}
 
         {requestError && (

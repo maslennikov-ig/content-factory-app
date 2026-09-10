@@ -196,6 +196,12 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${
       contract.PIECE_ROUTES.deleteAdaptation.method
     } ${contract.PIECE_ROUTES.deleteAdaptation.path(':id', ':adaptationId')}`,
+    // Additive editing/rewrite doors do not mutate the shipped voice contract.
+    'PATCH /content-intelligence/pieces/:id',
+    'PATCH /content-intelligence/pieces/:id/facts',
+    'POST /content-intelligence/pieces/:id/rewrite',
+    'POST /content-intelligence/pieces/:id/rewrite/accept',
+    'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/rewrite',
     // The explicit review is a separate contract; the shipped voice contract stays immutable.
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review',
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review/accept',
