@@ -175,6 +175,29 @@ export class ContentPieceController {
       safeHttpError(error, 'Core rewrite failed');
     }
   }
+
+  /** Core review uses the same transient proposal contract as adaptation review. */
+  @Post('/:id/review')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async reviewCore(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: AdaptationReviewDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.reviewV2(
+        organization.id,
+        id,
+        undefined,
+        body,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Core review failed');
+    }
+  }
+
   @Post('/:id/adaptations/:adaptationId/rewrite')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async rewriteAdaptation(

@@ -81,7 +81,7 @@ const choose = async (text) => {
 test('menu is explicit, keyboard accessible, shows cost on every option and opens without spending', () => {
   draw();
   fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
-  expect(screen.getAllByRole('menuitem')).toHaveLength(5);
+  expect(screen.getAllByRole('menuitem')).toHaveLength(6);
   expect(screen.getAllByText(/Один вызов модели/)).toHaveLength(4);
   expect(calls).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
@@ -187,6 +187,17 @@ test('read-only role cannot start review; identical texts retain the exact strin
   expect(screen.getByRole('button').disabled).toBe(true);
   const view = render(React.createElement(ReviewText,{text:'один\nдва',changes:[],locale:'ru'}));
   expect(view.container.textContent).toBe('один\nдва');
+});
+
+test('core exposes the paid research strengthening action and uses its review door', async () => {
+  draw({ adaptationId: undefined });
+  fireEvent.click(screen.getByRole('button', { name: 'Усилить ресерчем' }));
+  await act(async () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Запустить поиск и проверку' }))
+  );
+  expect(calls).toHaveLength(1);
+  expect(calls[0].url).toBe('/content-intelligence/pieces/piece/review?language=ru');
+  expect(calls[0].payload).toEqual({ mode: 'research', confirmWebSpend: true });
 });
 
 const withSources = () => ({

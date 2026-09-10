@@ -22,7 +22,7 @@ import {
 export class AdaptationReviewDto {
   @IsIn(ADAPTATION_REVIEW_ACTIONS)
   mode: AdaptationReviewAction;
-  @ValidateIf((object) => object.mode === 'web')
+  @ValidateIf((object) => object.mode === 'web' || object.mode === 'research')
   @Equals(true)
   confirmWebSpend?: boolean;
 }

@@ -27,9 +27,15 @@ import {
 
 export type AiProvider = 'openai' | 'openrouter';
 export type AiUsageMode = 'included' | 'workspace_key';
-export type SearchProvider = 'tavily' | 'openrouter';
+/** Search engines share one tenant key and one stable client port. */
+export type SearchProvider = 'tavily' | 'openrouter' | 'exa';
 export type SearchTopic = 'general' | 'news';
 export type SearchDepth = 'basic' | 'advanced';
+
+const readSearchProvider = (value: unknown): SearchProvider =>
+  value === 'exa' || value === 'openrouter' || value === 'tavily'
+    ? value
+    : 'tavily';
 
 export interface WebSearchConfig {
   enabled: boolean;
@@ -195,7 +201,9 @@ export const loadAiConfig = async (
           roleModels: defaults.roleModels,
           search: {
             enabled: stored.searchEnabled,
-            provider: (stored.searchProvider as SearchProvider) || 'tavily',
+            provider: readSearchProvider(
+              process.env.AI_INCLUDED_SEARCH_PROVIDER || stored.searchProvider
+            ),
             apiKey: process.env.AI_INCLUDED_SEARCH_API_KEY || '',
             topic: (stored.searchTopic as SearchTopic) || 'general',
             depth: (stored.searchDepth as SearchDepth) || 'advanced',
@@ -224,7 +232,7 @@ export const loadAiConfig = async (
           includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
           search: {
             enabled: stored.searchEnabled,
-            provider: (stored.searchProvider as SearchProvider) || 'tavily',
+            provider: readSearchProvider(stored.searchProvider),
             apiKey: stored.searchApiKey
               ? AuthService.fixedDecryption(stored.searchApiKey)
               : '',

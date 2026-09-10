@@ -829,6 +829,7 @@
   "autopost_web_research": "Enrich with web research (adds search cost)",
   "web_search_description_org": "Tavily is the primary search backend. OpenRouter is used automatically only when Tavily is temporarily unavailable.",
   "web_search_status": "Web research status",
+  "search_provider": "Search backend",
   "search_api_key": "Tavily API key",
   "search_key_set_placeholder": "A search key is saved — type to replace it",
   "search_key_empty_placeholder": "Paste a Tavily key",

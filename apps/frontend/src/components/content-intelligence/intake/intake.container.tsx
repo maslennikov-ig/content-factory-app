@@ -84,9 +84,13 @@ export function IntakeContainer({
 
   const [input, setInput] = useState(prefill?.input ?? '');
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
+  const [researchEnabled, setResearchEnabled] = useState(false);
+  const [researchLevel, setResearchLevel] = useState<'quick' | 'standard' | 'deep'>('standard');
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
+  const [researchFacts, setResearchFacts] = useState<BriefFilledV1['facts']>([]);
+  const [researchPending, setResearchPending] = useState(false);
   /*
     Черновик остаётся фактом хода, а не текстом на экране
     (`content-factory-next-m2eg.21`). Экран уходит на страницу заготовки, и
@@ -160,7 +164,7 @@ export function IntakeContainer({
    * Один ход
    * ------------------------------------------------------------------ */
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (researchSelections?: readonly string[]) => {
       abort.current?.abort();
       const controller = new AbortController();
       abort.current = controller;
@@ -168,15 +172,18 @@ export function IntakeContainer({
       setBusy(true);
       setFailure(null);
       setStep('started');
+      if (researchSelections !== undefined) setResearchPending(false);
 
       try {
         const response = await request(INTAKE_API.intake, {
           method: 'POST',
           signal: controller.signal,
           body: JSON.stringify(
-            buildIntakePayload({
-              input,
-              language: language0,
+              buildIntakePayload({
+                input,
+                language: language0,
+                options: { researchEnabled, researchLevel },
+                ...(researchSelections !== undefined ? { researchSelections } : {}),
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
                 : {}),
@@ -198,6 +205,7 @@ export function IntakeContainer({
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let recorded: string | null = null;
+        let selectionRequired = false;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readIntakeEvent(line);
@@ -237,6 +245,16 @@ export function IntakeContainer({
               setBrief(event.brief);
               setStep('writing');
               break;
+            case 'research-ready':
+              setResearchFacts(event.facts);
+              setStep('research');
+              break;
+            case 'research-selection-required':
+              selectionRequired = true;
+              setResearchPending(true);
+              setResearchFacts(event.facts);
+              setStep('research');
+              break;
             case 'questions':
               // Вопросы больше не показываются здесь и не обрывают ход: они
               // уехали в бриф заготовки и живут на её странице.
@@ -259,6 +277,7 @@ export function IntakeContainer({
         setStep(null);
 
         if (!recorded) {
+          if (selectionRequired) return;
           setFailure({ title: w.errorTitle, message: w.errorIncomplete });
           return;
         }
@@ -283,15 +302,24 @@ export function IntakeContainer({
         setStep(null);
       }
     },
-    [goToPiece, input, language0, prefill?.sourceLeadId, request, w]
+    [goToPiece, input, language0, prefill?.sourceLeadId, request, w, researchEnabled, researchLevel]
   );
 
   const write = useCallback(() => {
     setWrote(false);
     setBrief(null);
+    setResearchFacts([]);
+    setResearchPending(false);
     setPiece(null);
     void run();
   }, [run]);
+
+  const continueResearch = useCallback(() => {
+    const selected = researchFacts
+      .filter((fact) => fact.selected === true)
+      .map((fact) => fact.statement);
+    void run(selected);
+  }, [researchFacts, run]);
 
   const retry = useCallback(() => {
     setFailure(null);
@@ -312,6 +340,8 @@ export function IntakeContainer({
         detectedLink={detectedLink}
         language={language0}
         step={step}
+        researchFacts={researchFacts}
+        researchPending={researchPending}
         piece={piece}
         blocked={blocked}
         errorTitle={failure?.title}
@@ -335,6 +365,16 @@ export function IntakeContainer({
         }
         onInputChange={setInput}
         onLanguageChange={setTextLanguage}
+        researchEnabled={researchEnabled}
+        researchLevel={researchLevel}
+        onResearchEnabledChange={setResearchEnabled}
+        onResearchLevelChange={setResearchLevel}
+        onResearchFactSelect={(statement, selected) => {
+          setResearchFacts((facts) => facts.map((fact) =>
+            fact.statement === statement ? { ...fact, selected } : fact
+          ));
+        }}
+        onResearchContinue={continueResearch}
         onWrite={write}
         onCancel={() => {
           abort.current?.abort();

@@ -309,7 +309,7 @@ describe('saving the AI provider settings', () => {
   });
 });
 
-test('the settings DTO rejects OpenRouter as a primary search provider', async () => {
+test('the settings DTO accepts the configured search providers and rejects unknown values', async () => {
   const { AiProviderDto } = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/dtos/settings/ai.provider.dto.ts',
     { '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles }
@@ -317,7 +317,7 @@ test('the settings DTO rejects OpenRouter as a primary search provider', async (
   const { validate } = require('class-validator');
   const dto = Object.assign(new AiProviderDto(), {
     provider: 'openrouter',
-    searchProvider: 'openrouter',
+    searchProvider: 'unknown',
   });
 
   const errors = await validate(dto);
@@ -327,6 +327,15 @@ test('the settings DTO rejects OpenRouter as a primary search provider', async (
       expect.objectContaining({ property: 'searchProvider' }),
     ])
   );
+  for (const searchProvider of ['tavily', 'openrouter', 'exa']) {
+    const valid = Object.assign(new AiProviderDto(), {
+      provider: 'openrouter',
+      searchProvider,
+    });
+    expect(
+      (await validate(valid)).some((error) => error.property === 'searchProvider')
+    ).toBe(false);
+  }
 });
 
 test('the settings DTO accepts only the two explicit usage modes', async () => {

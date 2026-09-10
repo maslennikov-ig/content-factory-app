@@ -131,7 +131,7 @@ const RU_SYSTEM = (rule: string): string =>
     'Ты пишешь СУТЬ: нейтральный текст о том, что человек хочет рассказать, без площадки и без манеры. Это не пост и не пересказ брифа — это опора, из которой потом сделают тексты под разные площадки.',
     'Правила, все обязательные:',
     '1) фразы, числа, имена и примеры из слов человека переносятся ДОСЛОВНО, как написаны, с их опечатками и шероховатостями; не переформулируй и не улучшай их; достраивай только связки между ними;',
-    '2) ничего не добавляй сверх брифа и фактов с пометкой «подтверждено»: число, которого нет во входе, не пиши; пример, которого не было, не выдумывай;',
+    '2) ничего не добавляй сверх брифа и фактов с пометкой «подтверждено»; строки «взято из ресерча» — это внешние опоры, а не подтверждение: сохраняй их осторожный статус и не выдавай их за проверенные факты; число, которого нет во входе, не пиши; пример, которого не было, не выдумывай;',
     '3) запрещены сглаживание, вводные обороты, обобщения вместо частностей, выводы «в итоге» и «таким образом», призывы и вопросы читателю;',
     '4) если слов человека мало — суть короткая; короткая правда лучше длинного пересказа; три предложения — нормальная суть;',
     '5) начинай с той фразы человека, которая ближе всего к тезису, — дословно;',
@@ -144,7 +144,7 @@ const EN_SYSTEM = (rule: string): string =>
     'You are writing the CORE: a neutral text about what this person wants to tell, with no platform and no manner. It is not a post and not a retelling of the brief — it is the ground that texts for different platforms will later be made from.',
     'Rules, all of them binding:',
     "1) phrases, numbers, names and examples from the person's words are carried over VERBATIM, as written, with their typos and rough edges; do not rephrase them and do not improve them; build only the joins between them;",
-    '2) add nothing beyond the brief and the facts marked «confirmed»: a number that is not in the input is not written; an example that was not there is not invented;',
+    '2) add nothing beyond the brief and facts marked «confirmed»; lines marked «taken from research» are outside support, not verification: keep their uncertainty and never present them as confirmed facts; a number that is not in the input is not written; an example that was not there is not invented;',
     '3) smoothing over, introductory turns of phrase, generalities in place of particulars, «in the end» and «thus» conclusions, calls to action and questions to the reader are forbidden;',
     '4) if the person gave few words, the core is short; a short truth beats a long retelling; three sentences is a normal core;',
     "5) begin with the person's own phrase that stands closest to the claim — verbatim;",
@@ -162,6 +162,7 @@ const BLOCK_TITLES = {
     disagreement: 'возражение',
     audience: 'адресат',
     confirmed: 'факты подтверждённые',
+    research: 'взято из ресерча (не подтверждено)',
     topic: 'тема чужого поста',
     angle: 'угол чужого поста',
     structure: 'строение чужого поста',
@@ -176,6 +177,7 @@ const BLOCK_TITLES = {
     disagreement: 'objection',
     audience: 'written for',
     confirmed: 'confirmed facts',
+    research: 'taken from research (not verified)',
     topic: 'topic of the pasted post',
     angle: 'angle of the pasted post',
     structure: 'structure of the pasted post',
@@ -202,6 +204,19 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const brief = input.brief;
   const said = input.answers.filter((answer) => answer.origin !== 'model');
 
+  const confirmedFacts = brief.facts.filter(
+    (fact) =>
+      isOwnOrConfirmed(fact) &&
+      !(fact.selected === true && fact.kind === 'found' && !fact.verified)
+  );
+  const selectedResearchFacts = brief.facts.filter(
+    (fact) =>
+      fact.selected === true &&
+      (fact.kind === 'found' || fact.origin === 'search') &&
+      !fact.verified &&
+      fact.origin !== 'input' &&
+      fact.origin !== 'person'
+  );
   const briefLines = [
     brief.thesis ? `${words.thesis}: ${brief.thesis}` : '',
     brief.position ? `${words.position}: ${brief.position}` : '',
@@ -214,9 +229,10 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
      * промпт не кладётся вовсе, а не помечается: модели нечего унести из того,
      * чего она не видела. Квитанция показывает их строкой `ungrounded`.
      */
-    ...brief.facts
-      .filter((fact) => isOwnOrConfirmed(fact))
-      .map((fact) => `${words.confirmed}: ${fact.statement}`),
+    ...confirmedFacts.map((fact) => `${words.confirmed}: ${fact.statement}`),
+    ...selectedResearchFacts.map(
+      (fact) => `${words.research}: ${fact.statement}`
+    ),
   ].filter(Boolean);
 
   const borrowedLines = input.borrowed

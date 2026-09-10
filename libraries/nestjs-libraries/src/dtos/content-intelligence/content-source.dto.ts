@@ -104,6 +104,6 @@ export class AcceptSearchResultEvidenceDto {
   @MaxLength(64)
   publishedAt?: string;
 
-  @IsIn(['tavily', 'openrouter', 'mixed'])
-  provider: 'tavily' | 'openrouter' | 'mixed';
+  @IsIn(['tavily', 'openrouter', 'exa', 'mixed'])
+  provider: 'tavily' | 'openrouter' | 'exa' | 'mixed';
 }

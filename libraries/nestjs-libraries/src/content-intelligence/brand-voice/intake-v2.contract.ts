@@ -24,6 +24,7 @@ export type IntakeEventV2 =
       sources: Array<'foreign_post' | 'link' | 'thought'>;
     }
   | { name: 'brief-started' }
+  | Extract<import('./voice-wiring.contract').IntakeEventV1, { name: 'research-started' | 'research-ready' | 'research-selection-required' }>
   | { name: 'done'; pieceId: string | null };
 export type PieceAnswerEventV2 =
   | Exclude<PieceAnswerEventV1, { name: 'piece' }>

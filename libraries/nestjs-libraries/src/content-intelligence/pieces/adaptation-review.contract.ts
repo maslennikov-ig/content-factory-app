@@ -4,6 +4,7 @@ export const ADAPTATION_REVIEW_MODES = ['slop', 'facts', 'both'] as const;
 export const ADAPTATION_REVIEW_ACTIONS = [
   ...ADAPTATION_REVIEW_MODES,
   'web',
+  'research',
 ] as const;
 export type AdaptationReviewAction = (typeof ADAPTATION_REVIEW_ACTIONS)[number];
 export type AdaptationReviewSource = {

@@ -17,6 +17,7 @@ import {
 } from '@contentfactory/frontend/components/settings/ai-provider.copy';
 
 type Provider = 'openai' | 'openrouter';
+type SearchProvider = 'tavily' | 'openrouter' | 'exa';
 type UsageMode = 'included' | 'workspace_key';
 
 /**
@@ -50,7 +51,7 @@ interface AiSettings {
   roleModels: RoleModels;
   hasKey: boolean;
   searchEnabled: boolean;
-  searchProvider: 'tavily';
+  searchProvider: SearchProvider;
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
   hasSearchKey: boolean;
@@ -93,6 +94,7 @@ interface AiSettingsPayloadInput {
   imageModel: string;
   roleModels: RoleModels;
   searchEnabled: boolean;
+  searchProvider?: SearchProvider;
   searchApiKey: string;
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
@@ -123,6 +125,7 @@ export const buildAiSettingsPayload = ({
   searchApiKey,
   searchTopic,
   searchDepth,
+  searchProvider = 'tavily',
 }: AiSettingsPayloadInput) => ({
   usageMode,
   provider,
@@ -131,7 +134,7 @@ export const buildAiSettingsPayload = ({
     ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
     : {}),
   searchEnabled,
-  searchProvider: 'tavily' as const,
+  searchProvider,
   ...(usageMode === 'workspace_key' && searchApiKey ? { searchApiKey } : {}),
   searchTopic,
   searchDepth,
@@ -272,6 +275,7 @@ const AiProviderComponent = () => {
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
+  const [searchProvider, setSearchProvider] = useState<SearchProvider>('tavily');
   const [searchApiKey, setSearchApiKey] = useState('');
   const [searchTopic, setSearchTopic] = useState<'general' | 'news'>('general');
   const [searchDepth, setSearchDepth] = useState<'basic' | 'advanced'>(
@@ -287,6 +291,7 @@ const AiProviderComponent = () => {
     setImageModel(data.imageModel);
     setRoleModels(data.roleModels || {});
     setSearchEnabled(data.searchEnabled);
+    setSearchProvider(data.searchProvider || 'tavily');
     setSearchTopic(data.searchTopic);
     setSearchDepth(data.searchDepth);
   }, [data]);
@@ -342,6 +347,7 @@ const AiProviderComponent = () => {
             imageModel,
             roleModels,
             searchEnabled,
+            searchProvider,
             searchApiKey,
             searchTopic,
             searchDepth,
@@ -372,6 +378,7 @@ const AiProviderComponent = () => {
     imageModel,
     roleModels,
     searchEnabled,
+    searchProvider,
     searchApiKey,
     searchTopic,
     searchDepth,
@@ -747,10 +754,30 @@ const AiProviderComponent = () => {
         <div className="cf-body-sm text-cf-ink-muted">
           {t(
             'web_search_description_org',
-            'Tavily is the primary search backend. OpenRouter is used automatically only when Tavily is temporarily unavailable.'
+            'Choose one search backend for this workspace. Exa is recommended for research; Tavily remains available, and OpenRouter is a fallback when configured.'
           )}
         </div>
       </div>
+
+      <Select
+        label={t('search_provider', 'Search backend')}
+        name="searchProvider"
+        value={searchProvider}
+        disableForm={true}
+        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+          setSearchProvider(
+            event.target.value === 'exa'
+              ? 'exa'
+              : event.target.value === 'openrouter'
+              ? 'openrouter'
+              : 'tavily'
+          )
+        }
+      >
+        <option value="exa">Exa</option>
+        <option value="tavily">Tavily</option>
+        <option value="openrouter">OpenRouter web</option>
+      </Select>
 
       <Select
         label={t('web_search_status', 'Web research status')}
@@ -767,7 +794,7 @@ const AiProviderComponent = () => {
 
       <div className="flex flex-col gap-[4px]">
         <Input
-          label={t('search_api_key', 'Tavily API key')}
+          label={t('search_api_key', 'Search API key')}
           name="searchApiKey"
           secret={true}
           value={searchApiKey}
@@ -791,7 +818,7 @@ const AiProviderComponent = () => {
                   'search_key_set_placeholder',
                   'A search key is saved — type to replace it'
                 )
-              : t('search_key_empty_placeholder', 'Paste a Tavily key')
+              : t('search_key_empty_placeholder', 'Paste a search key')
           }
           onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
             setSearchApiKey(event.target.value)
@@ -801,11 +828,11 @@ const AiProviderComponent = () => {
           {data?.hasSearchKey
             ? t(
                 'search_key_from_settings',
-                'A Tavily key is stored for this workspace. It is never shown again.'
+                'A search key is stored for this workspace. It is never shown again.'
               )
             : t(
                 'search_key_missing_org',
-                'No Tavily key is stored, so web research and fallback both stay unavailable.'
+                'No search key is stored, so keyed web research stays unavailable.'
               )}
         </div>
       </div>

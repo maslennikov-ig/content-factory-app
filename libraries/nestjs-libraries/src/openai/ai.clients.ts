@@ -226,6 +226,8 @@ export interface WebSearchResponse {
     rawContent?: string;
     published_date?: string;
     publishedAt?: string;
+    /** Provider discovery text. It is never promoted to citable evidence. */
+    nonCitableSnippet?: string;
   }>;
 }
 
@@ -239,6 +241,7 @@ export interface WebSearchClient {
 export interface WebSearchClientOptions {
   country?: string;
   freshnessRequired?: boolean;
+  maxResults?: number;
 }
 
 interface TavilySearchResponse extends WebSearchResponse {
@@ -252,6 +255,102 @@ interface TavilySearchResponse extends WebSearchResponse {
     raw_content?: string | null;
     published_date?: string;
   }>;
+}
+
+/** The small wire adapter for Exa's HTTP API. No SDK dependency is needed. */
+export class ExaWebSearch implements WebSearchClient {
+  constructor(
+    private readonly apiKey: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly maxResults = 5
+  ) {}
+
+  async invoke({ query }: { query: string }): Promise<WebSearchResponse> {
+    const response = await this.fetchImpl('https://api.exa.ai/search', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        // Exa's search endpoint authenticates with its own header. A bearer
+        // token is accepted by some HTTP proxies but is rejected by Exa and
+        // would make the configured provider look unavailable.
+        'x-api-key': this.apiKey,
+      },
+      body: JSON.stringify({
+        query,
+        type: 'auto',
+        numResults: Math.min(Math.max(this.maxResults, 1), 100),
+        // Exa's public Search contract takes a boolean here. The shared
+        // research service applies its own byte/character ceiling after the
+        // response, so this stays compatible with the documented endpoint.
+        contents: { text: true, highlights: true },
+      }),
+    });
+    if (!response.ok) {
+      const error = new Error(`Exa search failed with status ${response.status}`) as Error & {
+        status?: number;
+      };
+      error.status = response.status;
+      throw error;
+    }
+    const body = (await response.json()) as {
+      results?: Array<{
+        url?: unknown;
+        title?: unknown;
+        text?: unknown;
+        highlights?: unknown;
+        contents?: { text?: unknown; highlights?: unknown } | null;
+        publishedDate?: unknown;
+        published_date?: unknown;
+      }>;
+    };
+    return {
+      results: (Array.isArray(body?.results) ? body.results : [])
+        .map((item) => {
+          // The documented Search response uses top-level `text` and
+          // `highlights`; newer responses may nest them under `contents`.
+          // Highlights are discovery hints. Text is the page content and is
+          // the only Exa field that may be used as citable source material by
+          // WebResearchService.
+          const snippet =
+            Array.isArray(item.contents?.highlights)
+              ? item.contents.highlights
+                    .filter((highlight): highlight is string => typeof highlight === 'string' && highlight.trim().length > 0)
+                    .join('\n')
+                    .trim() || undefined
+              : Array.isArray(item.highlights)
+                ? item.highlights
+                    .filter((highlight): highlight is string => typeof highlight === 'string' && highlight.trim().length > 0)
+                    .join('\n')
+                    .trim() || undefined
+                : undefined;
+          const rawContent =
+            typeof item.contents?.text === 'string' && item.contents.text.trim()
+              ? item.contents.text.trim()
+              : typeof item.text === 'string' && item.text.trim()
+                ? item.text.trim()
+              : undefined;
+          const publishedDate =
+            typeof item.publishedDate === 'string'
+              ? item.publishedDate
+              : typeof item.published_date === 'string'
+                ? item.published_date
+                : undefined;
+          return {
+            ...(typeof item.title === 'string' && item.title.trim()
+              ? { title: item.title.trim() }
+              : {}),
+            ...(typeof item.url === 'string' && item.url.trim()
+              ? { url: item.url.trim() }
+              : {}),
+            ...(snippet ? { nonCitableSnippet: snippet } : {}),
+            ...(rawContent ? { rawContent } : {}),
+            ...(publishedDate ? { published_date: publishedDate } : {}),
+          };
+        })
+        .filter((item) => !!item.url),
+    };
+  }
 }
 
 /**
@@ -342,7 +441,8 @@ interface OpenRouterUrlCitation {
 export class OpenRouterWebSearch implements WebSearchClient {
   constructor(
     private readonly client: OpenAI,
-    private readonly model: string
+    private readonly model: string,
+    private readonly maxResults = 5
   ) {}
 
   async invoke({ query }: { query: string }): Promise<WebSearchResponse> {
@@ -354,7 +454,7 @@ export class OpenRouterWebSearch implements WebSearchClient {
           id: 'web',
           engine: 'parallel',
           mode: 'advanced',
-          max_results: 5,
+          max_results: Math.min(Math.max(this.maxResults, 1), 20),
         },
       ],
     } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
@@ -384,13 +484,13 @@ export class OpenRouterWebSearch implements WebSearchClient {
 const webSearchMemo = memo<WebSearchClient>();
 export const getWebSearchClient = async (
   organizationId: string,
-  provider: 'tavily' | 'openrouter' = 'tavily',
+  provider: 'tavily' | 'openrouter' | 'exa' = 'tavily',
   options: WebSearchClientOptions = {}
 ) => {
   const config = await requireActiveAiConfig(organizationId);
   if (
     !config.search.enabled ||
-    (provider === 'tavily' && !config.search.apiKey)
+    ((provider === 'tavily' || provider === 'exa') && !config.search.apiKey)
   ) {
     throw new Error('Web search is not configured for this organization.');
   }
@@ -406,7 +506,7 @@ export const getWebSearchClient = async (
     identity(
       organizationId,
       config,
-      `${provider}|${options.country || ''}|${freshnessRequired}`
+      `${provider}|${options.country || ''}|${freshnessRequired}|${options.maxResults ?? ''}`
     ),
     () => {
       if (provider === 'tavily') {
@@ -415,7 +515,7 @@ export const getWebSearchClient = async (
             tavilyApiKey: config.search.apiKey,
             topic: freshnessRequired ? 'news' : 'general',
             searchDepth: config.search.depth,
-            maxResults: 5,
+            maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), 20),
             includeAnswer: true,
             includeRawContent: true,
             ...(freshnessRequired ? { timeRange: 'week' } : {}),
@@ -427,6 +527,10 @@ export const getWebSearchClient = async (
         );
       }
 
+      if (provider === 'exa') {
+        return new ExaWebSearch(config.search.apiKey, fetch, options.maxResults ?? 5);
+      }
+
       // The fallback both searches and answers, so it is the `research` role
       // rather than whatever the surrounding operation is drafting with.
       return new OpenRouterWebSearch(
@@ -434,7 +538,8 @@ export const getWebSearchClient = async (
           apiKey: config.apiKey,
           baseURL: config.baseUrl,
         }),
-        modelFor('research', config)
+        modelFor('research', config),
+        options.maxResults ?? 5
       );
     }
   );

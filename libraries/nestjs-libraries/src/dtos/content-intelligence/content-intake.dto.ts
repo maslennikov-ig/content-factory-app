@@ -140,6 +140,15 @@ export class IntakeOptionsDto {
   @IsBoolean()
   searchEnrichment?: boolean;
 
+  /** Paid research is opt-in and disabled when omitted. */
+  @IsOptional()
+  @IsBoolean()
+  researchEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['quick', 'standard', 'deep'])
+  researchLevel?: 'quick' | 'standard' | 'deep';
+
   @IsOptional()
   @IsBoolean()
   isPicture?: boolean;
@@ -188,6 +197,14 @@ export class IntakeDto {
   @ValidateNested()
   @Type(() => IntakeOptionsDto)
   options?: IntakeOptionsDto;
+
+  /** Selected statements when continuing a paused paid research intake. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(400, { each: true })
+  researchSelections?: string[];
 
   /**
    * Тем же вложенным классом, что и у генератора: выбор аватара — одно

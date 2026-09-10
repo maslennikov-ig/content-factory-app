@@ -184,6 +184,9 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${contract.PIECE_ROUTES.detail.method} ${contract.PIECE_ROUTES.detail.path(
       ':id'
     )}`,
+    `${contract.PIECE_ROUTES.review.method} ${contract.PIECE_ROUTES.review.path(
+      ':id'
+    )}`,
     `${contract.PIECE_ROUTES.adapt.method} ${contract.PIECE_ROUTES.adapt.path(
       ':id'
     )}`,

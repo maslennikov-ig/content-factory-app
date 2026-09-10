@@ -184,7 +184,7 @@ export class AiProviderService {
       imageModel?: string;
       roleModels?: Record<string, string>;
       searchEnabled?: boolean;
-      searchProvider?: Extract<SearchProvider, 'tavily'>;
+      searchProvider?: SearchProvider;
       searchApiKey?: string;
       searchTopic?: 'general' | 'news';
       searchDepth?: 'basic' | 'advanced';

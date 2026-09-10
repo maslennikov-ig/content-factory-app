@@ -22,9 +22,12 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-check.port';
 import {
   WebResearchService,
+  ResearchQuotaExceeded,
   WebSearchNotConfigured,
+  WebSearchFallbackError,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import type { WebResearchResult } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { RESEARCH_LEVEL_PRESETS } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import {
   WEB_SEARCH_MAX_SOURCE_CHARS,
   getChatModel,
@@ -169,8 +172,12 @@ export type IntakePlanV1 = {
   briefOverrides: Record<string, string>;
   options: {
     searchEnrichment: boolean;
+    researchEnabled: boolean;
+    researchLevel: 'quick' | 'standard' | 'deep';
     isPicture: boolean;
   };
+  /** `null` means the paid research result still awaits the author's choice. */
+  researchSelections: string[] | null;
   brandProfileSelection?: { mode: 'active' | 'version' | 'none'; versionId?: string };
   sourceLeadId?: string;
 };
@@ -330,8 +337,19 @@ export class IntakeService {
       */
       options: {
         searchEnrichment: body?.options?.searchEnrichment !== false,
+        researchEnabled: body?.options?.researchEnabled === true,
+        researchLevel:
+          body?.options?.researchLevel === 'quick' || body?.options?.researchLevel === 'deep'
+            ? body.options.researchLevel
+            : 'standard',
         isPicture: body?.options?.isPicture === true,
       },
+      researchSelections: Array.isArray(body?.researchSelections)
+        ? body.researchSelections
+            .filter((statement: unknown): statement is string => typeof statement === 'string')
+            .map((statement: string) => statement.trim().slice(0, 400))
+            .filter(Boolean)
+        : null,
       brandProfileSelection: body?.brandProfileSelection,
       sourceLeadId: trimmed(body?.sourceLeadId) || undefined,
     };
@@ -395,6 +413,75 @@ export class IntakeService {
       extraction,
       evidence
     );
+    if (plan.options.researchEnabled) {
+      const level = plan.options.researchLevel;
+      yield {
+        name: 'research-started',
+        level,
+        count: RESEARCH_LEVEL_PRESETS[level].maxSearchQueries,
+      };
+      // The explicit paid lane is fail-closed: a missing key, exhausted quota
+      // or provider outage must be visible to the person and must not silently
+      // turn an opted-in research run into an ordinary draft.
+      const researched = await this.searchForFacts(
+        organizationId,
+        plan.input,
+        plan,
+        evidence,
+        level,
+        true
+      );
+      if (researched.length) {
+        const selectedResearch =
+          plan.researchSelections === null
+            ? null
+            : new Set(plan.researchSelections);
+        const brief: BriefFilledV1 = {
+          ...filled.brief,
+          facts: [
+            ...filled.brief.facts,
+            ...researched.map((fact): PieceFactV2 => ({
+              ...fact,
+              kind: 'found',
+              status: fact.verified ? 'confirmed' : 'unverified',
+              selected: selectedResearch?.has(fact.statement) ?? false,
+            })),
+          ],
+        };
+        filled = { ...filled, ...this.settled(brief), pendingSearch: null };
+      } else {
+        // Do not fall through to the legacy optional search lane. That would
+        // spend a second research call after a deliberate paid attempt.
+        filled = { ...filled, pendingSearch: null };
+      }
+      yield {
+        name: 'research-ready',
+        level,
+        facts: filled.brief.facts,
+        sources: filled.brief.facts
+          .filter((fact) => fact.kind === 'found' && fact.sourceUrl)
+          .map((fact) => ({
+            url: fact.sourceUrl!,
+            title: evidence.get(fact.evidenceId ?? '')?.title || fact.sourceUrl!,
+            status:
+              fact.status === 'conflicting'
+                ? 'conflicting' as const
+                : fact.status === 'confirmed'
+                ? 'confirmed' as const
+                : 'not_found' as const,
+          })),
+      };
+      if (actorUserId && plan.researchSelections === null && researched.length) {
+        yield {
+          name: 'research-selection-required',
+          level,
+          facts: filled.brief.facts,
+        };
+        yield { name: 'brief-filled', brief: filled.brief };
+        yield { name: 'done', pieceId: null };
+        return;
+      }
+    }
     if (filled.pendingSearch) {
       yield { name: 'search-started', reason: 'facts', count: 1 };
       filled = await this.addSearchedFacts(
@@ -1140,14 +1227,25 @@ export class IntakeService {
     organizationId: string,
     subject: string,
     plan: IntakePlanV1,
-    evidence: Map<string, AcceptedEvidence>
+    evidence: Map<string, AcceptedEvidence>,
+    level?: 'quick' | 'standard' | 'deep',
+    required = false
   ): Promise<BriefFilledFactV1[]> {
     let answer: WebResearchResult;
     try {
       answer = await this.research.research(organizationId, subject, {
         language: plan.language,
+        ...(level ? { level } : {}),
       });
     } catch (error) {
+      if (
+        required &&
+        (error instanceof ResearchQuotaExceeded ||
+          error instanceof WebSearchNotConfigured ||
+          error instanceof WebSearchFallbackError)
+      ) {
+        throw error;
+      }
       if (!(error instanceof WebSearchNotConfigured)) {
         this.logger.warn(
           `Intake looked for material and found none: ${describeError(error)}`

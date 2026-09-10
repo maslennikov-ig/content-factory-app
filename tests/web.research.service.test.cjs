@@ -87,6 +87,7 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
     {
       '@nestjs/common': {
         Injectable: () => (target) => target,
+        Optional: () => () => {},
         Logger,
       },
       '@contentfactory/nestjs-libraries/openai/ai.provider.config': {

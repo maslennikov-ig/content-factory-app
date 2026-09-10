@@ -829,6 +829,7 @@
   "autopost_web_research": "Дополнять веб-поиском (увеличивает стоимость)",
   "web_search_description_org": "Tavily — основной поисковый бэкенд. OpenRouter используется автоматически, только когда Tavily временно недоступен.",
   "web_search_status": "Статус веб-исследования",
+  "search_provider": "Поисковый сервер",
   "search_api_key": "Ключ API Tavily",
   "search_key_set_placeholder": "Ключ поиска сохранён — введите новый, чтобы заменить",
   "search_key_empty_placeholder": "Вставьте ключ Tavily",

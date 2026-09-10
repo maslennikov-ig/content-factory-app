@@ -53,6 +53,7 @@ import { AnalyticsSnapshotService } from '@contentfactory/nestjs-libraries/integ
 import { ProductEventsRepository } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.repository';
 import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.service';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import { ResearchQuotaService } from '@contentfactory/nestjs-libraries/content-intelligence/research/research-quota.service';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import { BrandProfileService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.service';
@@ -101,6 +102,7 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     PrismaRepository,
     PrismaTransaction,
     AiUsageService,
+    ResearchQuotaService,
     UsersService,
     UsersRepository,
     OrganizationService,

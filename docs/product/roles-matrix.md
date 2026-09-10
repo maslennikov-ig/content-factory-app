@@ -119,6 +119,7 @@ if (!packageOptions) {
 | `/content-intelligence/materials/:id/recut-preview` | EDITOR | 1 | редактор |
 | `/content-intelligence/materials/archive/import` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id` | EDITOR | 1 | редактор; изменение заголовка |
+| `/content-intelligence/pieces/:id/review` | EDITOR | 1 | редактор; проверка сути |
 | `/content-intelligence/pieces/:id/facts` | EDITOR | 1 | редактор; выбор найденной опоры без подтверждения её истинности |
 | `/content-intelligence/pieces/:id/rewrite` | EDITOR | 1 | редактор; перегенерация сути |
 | `/content-intelligence/pieces/:id/rewrite/accept` | EDITOR | 1 | редактор; принятие подписанных правок сути |

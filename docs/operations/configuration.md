@@ -345,6 +345,9 @@ Cookie сессии выдаётся на точный хост из `FRONTEND_U
 - Режим `included` читает только `AI_INCLUDED_API_KEY` и
   `AI_INCLUDED_SEARCH_API_KEY`. Он не использует сохранённый ключ организации
   как запасной и закрыт, если управляемого ключа или месячной квоты нет.
+- Для included можно выбрать поисковый порт через
+  `AI_INCLUDED_SEARCH_PROVIDER` (`tavily`, `openrouter` или `exa`); без этой
+  переменной остаётся обратимо совместимое значение `tavily`.
 - `AI_PROVIDER`, `AI_BASE_URL`, `AI_TEXT_MODEL` и `AI_IMAGE_MODEL` задают
   provider и модели для `included`; это не секреты. Смена режима применяется к
   следующей операции без process-local TTL.

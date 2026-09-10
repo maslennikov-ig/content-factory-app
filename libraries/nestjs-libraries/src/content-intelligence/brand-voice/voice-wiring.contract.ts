@@ -2235,6 +2235,10 @@ export type BriefFilledFactV1 = {
   origin: BriefFieldOriginV1;
   /** `true`, когда число или утверждение сверено поиском или взято из памяти. */
   verified: boolean;
+  /** Research presentation metadata; absent on pre-research records. */
+  kind?: 'own' | 'external' | 'found';
+  status?: 'confirmed' | 'conflicting' | 'not_found' | 'unverified';
+  selected?: boolean;
 };
 
 export type BriefFilledV1 = {
@@ -2300,6 +2304,9 @@ export type IntakeQuestionV1 = {
 export type IntakeOptionsV1 = {
   /** По умолчанию `true`: числа из чужого поста и мысль без фактов проверяются поиском. */
   searchEnrichment?: boolean;
+  /** Paid research is an explicit, opt-in action. */
+  researchEnabled?: boolean;
+  researchLevel?: 'quick' | 'standard' | 'deep';
   isPicture?: boolean;
 };
 
@@ -2318,6 +2325,8 @@ export type IntakeRequestV1 = {
     Pick<BriefFilledV1, 'goal' | 'thesis' | 'position' | 'disagreement' | 'audience' | 'format'>
   >;
   options?: IntakeOptionsV1;
+  /** Exact statements the author chose from a pending paid research run. */
+  researchSelections?: string[];
   brandProfileSelection?: BrandProfileSelectionV1;
   /** Повод из «Откуда идеи», из которого пришёл текст; сервер вправе не знать его. */
   sourceLeadId?: string;
@@ -2476,6 +2485,22 @@ export type IntakeEventV1 =
   | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string }
   | { name: 'claims'; claims: IntakeClaimV1[] }
   | { name: 'brief-filled'; brief: BriefFilledV1 }
+  | {
+      name: 'research-started';
+      level: 'quick' | 'standard' | 'deep';
+      count: number;
+    }
+  | {
+      name: 'research-ready';
+      level: 'quick' | 'standard' | 'deep';
+      facts: BriefFilledFactV1[];
+      sources: Array<{ url: string; title: string; status: 'confirmed' | 'conflicting' | 'not_found' }>;
+    }
+  | {
+      name: 'research-selection-required';
+      level: 'quick' | 'standard' | 'deep';
+      facts: BriefFilledFactV1[];
+    }
   /**
    * Что осталось спросить — и **не терминальное** с волны
    * `content-factory-next-m2eg`: заготовка уже записана событием `piece`, а
@@ -3111,6 +3136,11 @@ export const PIECE_ROUTES = {
   detail: {
     method: 'GET',
     path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}`,
+  },
+  /** Проверка самой заготовки возвращает тот же подписанный V2-снимок, что и адаптация. */
+  review: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/review`,
   },
   /** Создание — дверь входа; каналы необязательны с этой волны. */
   create: { method: 'POST', path: INTAKE_API_BASE },

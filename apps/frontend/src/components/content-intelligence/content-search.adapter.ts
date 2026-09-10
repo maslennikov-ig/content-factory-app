@@ -39,7 +39,7 @@ export const SEARCH_EVIDENCE_API =
   '/content-intelligence/sources/search-evidence';
 
 /** Matches `AcceptSearchResultEvidenceDto`'s `provider`. */
-export type SearchProviderName = 'tavily' | 'openrouter' | 'mixed';
+export type SearchProviderName = 'tavily' | 'openrouter' | 'exa' | 'mixed';
 
 export type SearchResultRow = {
   url: string;
@@ -75,7 +75,7 @@ const asOptionalString = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value : null;
 
 const asProvider = (value: unknown): SearchProviderName =>
-  value === 'tavily' || value === 'openrouter' || value === 'mixed'
+  value === 'tavily' || value === 'openrouter' || value === 'exa' || value === 'mixed'
     ? value
     : 'mixed';
 

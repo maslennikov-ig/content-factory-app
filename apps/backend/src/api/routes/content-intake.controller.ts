@@ -61,6 +61,20 @@ function streamErrorCode(error: unknown): string {
   return typeof code === 'string' && code ? code : 'INTAKE_FAILED';
 }
 
+function streamErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    typeof (error as { code?: unknown }).code === 'string' &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+  return error instanceof HttpException
+    ? error.message
+    : 'Something went wrong while writing the draft, please try again.';
+}
+
 /**
  * Вход одной мыслью: одно поле, до трёх каналов, черновик в каждом.
  *
@@ -124,10 +138,7 @@ export class ContentIntakeController {
           name: 'error',
           error: true,
           code: streamErrorCode(error),
-          message:
-            error instanceof HttpException
-              ? error.message
-              : 'Something went wrong while writing the draft, please try again.',
+          message: streamErrorMessage(error),
         }) + '\n'
       );
     } finally {

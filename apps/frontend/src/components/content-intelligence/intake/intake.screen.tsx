@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
+import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 import {
   EmptyState,
@@ -63,6 +64,8 @@ export function IntakeScreen({
   detectedLink,
   language,
   step,
+  researchFacts = [],
+  researchPending = false,
   piece,
   blocked,
   errorTitle,
@@ -71,6 +74,12 @@ export function IntakeScreen({
   readOnlyNote,
   onInputChange,
   onLanguageChange,
+  researchEnabled = false,
+  researchLevel = 'standard',
+  onResearchEnabledChange = () => undefined,
+  onResearchLevelChange = () => undefined,
+  onResearchFactSelect = () => undefined,
+  onResearchContinue = () => undefined,
   onWrite,
   onCancel,
   onOpenPiece,
@@ -84,6 +93,8 @@ export function IntakeScreen({
   detectedLink: boolean;
   language: 'ru' | 'en';
   step: string | null;
+  researchFacts?: Array<{ statement: string; sourceUrl?: string | null; kind?: string; status?: string; selected?: boolean }>;
+  researchPending?: boolean;
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
   piece?: { pieceId: string; code: string } | null;
   blocked: IntakeBlockReason;
@@ -93,6 +104,12 @@ export function IntakeScreen({
   readOnlyNote?: ReactNode;
   onInputChange: (value: string) => void;
   onLanguageChange: (language: 'ru' | 'en') => void;
+  researchEnabled?: boolean;
+  researchLevel?: 'quick' | 'standard' | 'deep';
+  onResearchEnabledChange?: (enabled: boolean) => void;
+  onResearchLevelChange?: (level: 'quick' | 'standard' | 'deep') => void;
+  onResearchFactSelect?: (statement: string, selected: boolean) => void;
+  onResearchContinue?: () => void;
   onWrite: () => void;
   onCancel: () => void;
   onOpenPiece?: (pieceId: string) => void;
@@ -116,6 +133,8 @@ export function IntakeScreen({
       ? t.stepClaims
       : step === 'search'
       ? t.stepSearch
+      : step === 'research'
+      ? t.researchLabel
       : step === 'writing'
       ? t.stepWriting
       : t.stepStarted;
@@ -162,6 +181,36 @@ export function IntakeScreen({
       ) : (
         <>
           {readOnlyNote}
+
+          {researchFacts.length ? (
+            <section aria-label={t.researchLabel} data-intake-research-table="true" className="flex flex-col gap-[8px]">
+              <h3 className="cf-heading-md text-cf-ink">{t.researchLabel}</h3>
+              <p className="cf-caption text-cf-ink-muted">{t.researchSelectionHint}</p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse cf-body-sm text-cf-ink">
+                  <thead><tr><th className="p-[8px] text-start">{t.factsRestOn}</th><th className="p-[8px] text-start">{t.researchType}</th><th className="p-[8px] text-start">{t.factUnverified}</th><th className="p-[8px] text-start">{t.originSearch}</th><th className="p-[8px] text-start">{t.researchInclude}</th></tr></thead>
+                  <tbody>{researchFacts.map((fact, index) => <tr key={`${fact.statement}-${index}`}>
+                    <td className="border-t border-cf-border p-[8px]">{fact.statement}</td>
+                    <td className="border-t border-cf-border p-[8px]">{fact.kind === 'own' ? t.researchOwn : fact.kind === 'external' ? t.researchExternal : fact.kind === 'found' ? t.researchFound : '—'}</td>
+                    <td className="border-t border-cf-border p-[8px]">{fact.status === 'confirmed' ? t.factVerified : fact.status === 'conflicting' ? t.factConflicting : fact.status === 'not_found' ? t.factNotFound : t.factUnverified}</td>
+                    <td className="border-t border-cf-border p-[8px]">{fact.sourceUrl ? <a className="break-all underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus" href={fact.sourceUrl} target="_blank" rel="noreferrer noopener">{fact.sourceUrl}</a> : '—'}</td>
+                    <td className="border-t border-cf-border p-[8px]">{fact.kind === 'found' && researchPending ? (
+                      <CheckboxField
+                        label={t.researchInclude}
+                        checked={fact.selected === true}
+                        onChange={(event) => onResearchFactSelect(fact.statement, event.target.checked)}
+                      />
+                    ) : fact.kind === 'found' ? (fact.selected ? t.researchInclude : '—') : '—'}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+              {researchPending ? (
+                <Button type="button" variant="primary" onClick={onResearchContinue}>
+                  {t.researchContinue}
+                </Button>
+              ) : null}
+            </section>
+          ) : null}
 
           <fieldset
             disabled={state === 'read-only'}
@@ -220,6 +269,27 @@ export function IntakeScreen({
               </Select>
             </div>
 
+            <div className="flex min-w-0 flex-col gap-[8px] sm:max-w-[420px]">
+              <CheckboxField
+                checked={researchEnabled}
+                onChange={(event) => onResearchEnabledChange(event.target.checked)}
+                label={<span>{t.researchLabel}</span>}
+              />
+              <p className="cf-caption text-cf-ink-muted">{t.researchHint}</p>
+              {researchEnabled ? (
+                <Select
+                  standalone
+                  aria-label={t.researchLevelLabel}
+                  value={researchLevel}
+                  onChange={(event) => onResearchLevelChange(event.target.value as 'quick' | 'standard' | 'deep')}
+                >
+                  <option value="quick">{t.researchQuick}</option>
+                  <option value="standard">{t.researchStandard}</option>
+                  <option value="deep">{t.researchDeep}</option>
+                </Select>
+              ) : null}
+            </div>
+
             <div className="flex flex-wrap items-center gap-[8px]">
               {/*
                 Надпись меняется от выбора: кнопка называет то, что сейчас
@@ -230,7 +300,7 @@ export function IntakeScreen({
                 type="button"
                 variant="primary"
                 data-intake-action="piece"
-                disabled={busy || blocked !== null || state === 'read-only'}
+                disabled={busy || blocked !== null || state === 'read-only' || researchPending}
                 onClick={onWrite}
               >
                 {t.makePiece}

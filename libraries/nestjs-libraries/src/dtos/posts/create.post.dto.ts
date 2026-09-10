@@ -46,8 +46,8 @@ export class ResearchSource {
   publishedAt: string | null;
 
   @IsOptional()
-  @IsIn(['tavily', 'openrouter'])
-  provider?: 'tavily' | 'openrouter';
+  @IsIn(['tavily', 'openrouter', 'exa'])
+  provider?: 'tavily' | 'openrouter' | 'exa';
 }
 
 export class PostContent {

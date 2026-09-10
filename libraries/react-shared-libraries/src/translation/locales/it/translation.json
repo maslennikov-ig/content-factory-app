@@ -827,6 +827,7 @@
   "web_search": "Web research",
   "web_search_description_org": "Tavily is the primary search backend. OpenRouter is used automatically only when Tavily is temporarily unavailable.",
   "web_search_status": "Web research status",
+  "search_provider": "Backend di ricerca",
   "disabled": "Disabled",
   "enabled": "Enabled",
   "search_api_key": "Tavily API key",

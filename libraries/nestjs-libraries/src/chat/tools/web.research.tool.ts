@@ -36,7 +36,7 @@ If the result says search is unavailable, tell the user that web research is dis
       }),
       outputSchema: z.object({
         available: z.boolean(),
-        provider: z.enum(['tavily', 'openrouter', 'mixed']).optional(),
+        provider: z.enum(['tavily', 'openrouter', 'exa', 'mixed']).optional(),
         summary: z.string().optional(),
         facts: z
           .array(
@@ -52,7 +52,7 @@ If the result says search is unavailable, tell the user that web research is dis
               title: z.string(),
               url: z.string().url(),
               publishedAt: z.string().nullable(),
-              provider: z.enum(['tavily', 'openrouter']),
+              provider: z.enum(['tavily', 'openrouter', 'exa']),
             })
           )
           .optional(),

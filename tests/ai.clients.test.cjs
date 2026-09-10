@@ -377,6 +377,56 @@ describe('per-organization AI clients', () => {
     });
   });
 
+  test('maps the recorded Exa response onto the shared search port', async () => {
+    const requests = [];
+    const fetchImpl = async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            results: [
+              {
+                title: 'Exa source',
+                url: 'https://example.com/exa',
+                text: 'Discovery hint',
+                contents: {
+                  text: 'Citable page text',
+                  highlights: ['Discovery highlight'],
+                },
+                publishedDate: '2026-08-14T00:00:00Z',
+              },
+            ],
+          };
+        },
+      };
+    };
+    const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 7);
+    await expect(exa.invoke({ query: 'public topic' })).resolves.toEqual({
+      results: [
+        {
+          title: 'Exa source',
+          url: 'https://example.com/exa',
+          nonCitableSnippet: 'Discovery highlight',
+          rawContent: 'Citable page text',
+          published_date: '2026-08-14T00:00:00Z',
+        },
+      ],
+    });
+    expect(requests[0].url).toBe('https://api.exa.ai/search');
+    expect(requests[0].init).toMatchObject({
+      method: 'POST',
+      headers: { 'x-api-key': 'exa-key' },
+    });
+    expect(JSON.parse(requests[0].init.body)).toMatchObject({
+      query: 'public topic',
+      type: 'auto',
+      numResults: 7,
+      contents: { text: true, highlights: true },
+    });
+  });
+
   test('pins news freshness without sending an unsupported country filter', async () => {
     const organization = register({
       ...openrouter,
@@ -522,7 +572,7 @@ describe('per-organization AI clients', () => {
     expect(built.openai).toHaveLength(0);
   });
 
-  test.each(['tavily', 'openrouter'])(
+  test.each(['tavily', 'openrouter', 'exa'])(
     'refuses to construct a %s client while search is disabled',
     async (provider) => {
       const organization = register({
@@ -531,7 +581,7 @@ describe('per-organization AI clients', () => {
           ...openrouterFallback.search,
           provider,
           enabled: false,
-          apiKey: provider === 'tavily' ? 'disabled-key' : '',
+          apiKey: provider === 'tavily' || provider === 'exa' ? 'disabled-key' : '',
         },
       });
 

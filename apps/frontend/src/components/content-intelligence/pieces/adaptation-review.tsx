@@ -158,7 +158,7 @@ export function AdaptationReview({
           method: 'POST',
           body: JSON.stringify(
             mode
-              ? { mode, ...(mode === 'web' ? { confirmWebSpend: true } : {}) }
+              ? { mode, ...(mode === 'web' || mode === 'research' ? { confirmWebSpend: true } : {}) }
               : { instruction: human.trim() }
           ),
           signal: abort.signal,
@@ -264,14 +264,27 @@ export function AdaptationReview({
           </Button>
         ) : null}
         {!adaptationId ? (
-          <Button
-            variant="secondary"
-            density="dense"
-            disabled={disabled || !!busy}
-            onClick={() => setRewrite((v) => !v)}
-          >
-            {ru ? 'Перегенерировать' : 'Regenerate'}
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              density="dense"
+              disabled={disabled || !!busy}
+              onClick={() => setRewrite((v) => !v)}
+            >
+              {ru ? 'Перегенерировать' : 'Regenerate'}
+            </Button>
+            <Button
+              variant="quiet"
+              density="dense"
+              disabled={disabled || !!busy}
+              onClick={() => {
+                setLast('research');
+                setWeb(true);
+              }}
+            >
+              {ru ? 'Усилить ресерчем' : 'Strengthen with research'}
+            </Button>
+          </>
         ) : (
           <Menu open={open} onOpenChange={setOpen}>
             <div className="relative" ref={menuElement}>
@@ -322,6 +335,15 @@ export function AdaptationReview({
                     />
                   ))}
                   <DescribedMenuItem
+                    title={ru ? 'Усилить ресерчем' : 'Strengthen with research'}
+                    description={ru ? 'Глубокий поиск + один вызов модели' : 'Deep search + one model call'}
+                    onClick={() => {
+                      setOpen(false);
+                      setWeb(true);
+                      setLast('research');
+                    }}
+                  />
+                  <DescribedMenuItem
                     title={
                       ru ? 'Проверить факты поиском' : 'Check facts with search'
                     }
@@ -338,6 +360,7 @@ export function AdaptationReview({
                     onClick={() => {
                       setOpen(false);
                       setWeb(true);
+                      setLast('web');
                     }}
                   />
                 </MenuList>
@@ -397,7 +420,7 @@ export function AdaptationReview({
           <Button
             variant="primary"
             loading={busy === 'run'}
-            onClick={() => void run('web')}
+            onClick={() => void run(last === 'research' ? 'research' : 'web')}
           >
             {ru ? 'Запустить поиск и проверку' : 'Run search and review'}
           </Button>

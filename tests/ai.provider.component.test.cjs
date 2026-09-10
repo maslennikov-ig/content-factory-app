@@ -394,7 +394,7 @@ describe('removeStoredKey', () => {
   });
 });
 
-test('only the provider locale key remains removed; depth keys stay live', () => {
+test('provider and depth locale keys stay live', () => {
   const localeRoot = path.resolve(
     __dirname,
     '..',
@@ -408,7 +408,7 @@ test('only the provider locale key remains removed; depth keys stay live', () =>
   expect(localeFiles).toHaveLength(16);
   for (const localeFile of localeFiles) {
     const locale = JSON.parse(fs.readFileSync(localeFile, 'utf8'));
-    expect(locale).not.toHaveProperty('search_provider');
+    expect(locale).toHaveProperty('search_provider');
     expect(locale).toHaveProperty('search_depth');
     expect(locale).toHaveProperty('search_depth_basic');
     expect(locale).toHaveProperty('search_depth_advanced');

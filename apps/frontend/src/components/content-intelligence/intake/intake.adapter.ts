@@ -257,6 +257,53 @@ export function readIntakeEvent(line: string): IntakeReading | null {
       return { kind: 'event', event: { name: 'brief-filled', brief } };
     }
 
+    case 'research-started':
+      return {
+        kind: 'event',
+        event: {
+          name: 'research-started',
+          level:
+            record.level === 'quick' || record.level === 'deep'
+              ? record.level
+              : 'standard',
+          count: Number(record.count) || 0,
+        },
+      };
+
+    case 'research-ready':
+      return {
+        kind: 'event',
+        event: {
+          name: 'research-ready',
+          level:
+            record.level === 'quick' || record.level === 'deep'
+              ? record.level
+              : 'standard',
+          facts: readBrief({ inputKind: 'thought', facts: record.facts, origins: {} })?.facts ?? [],
+          sources: asArray(record.sources).flatMap((source) => {
+            const item = asRecord(source);
+            if (!item || typeof item.url !== 'string') return [];
+            const status = ['confirmed', 'conflicting', 'not_found'].includes(asText(item.status))
+              ? (asText(item.status) as 'confirmed' | 'conflicting' | 'not_found')
+              : 'not_found';
+            return [{ url: item.url, title: asText(item.title, item.url), status }];
+          }),
+        },
+      };
+
+    case 'research-selection-required':
+      return {
+        kind: 'event',
+        event: {
+          name: 'research-selection-required',
+          level:
+            record.level === 'quick' || record.level === 'deep'
+              ? record.level
+              : 'standard',
+          facts: readBrief({ inputKind: 'thought', facts: record.facts, origins: {} })?.facts ?? [],
+        },
+      };
+
     case 'questions':
       return {
         kind: 'event',
@@ -570,6 +617,7 @@ export function buildIntakePayload(input: {
   briefOverrides?: Partial<Record<ReceiptField, string>>;
   inputKind?: IntakeInputKindV1;
   options?: IntakeOptionsV1;
+  researchSelections?: readonly string[];
   sourceLeadId?: string;
   /** Ответы интервью заготовки; сервер ставит им время и происхождение шага. */
   interview?: readonly PieceAnswerInputV1[];
@@ -595,6 +643,9 @@ export function buildIntakePayload(input: {
       ? { briefOverrides: overrides as IntakeRequestV1['briefOverrides'] }
       : {}),
     ...(input.options ? { options: input.options } : {}),
+    ...(input.researchSelections
+      ? { researchSelections: [...input.researchSelections] }
+      : {}),
     ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
     ...(input.interview?.length ? { interview: [...input.interview] } : {}),
     ...(input.decideKeys?.length ? { decideKeys: [...input.decideKeys] } : {}),

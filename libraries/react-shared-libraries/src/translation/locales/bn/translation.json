@@ -827,6 +827,7 @@
   "web_search": "ওয়েব গবেষণা",
   "web_search_description_org": "Tavily হল প্রাথমিক অনুসন্ধান ব্যাকএন্ড। Tavily সাময়িকভাবে অনুপলভ্য থাকলেই কেবল OpenRouter স্বয়ংক্রিয়ভাবে ব্যবহার করা হয়।",
   "web_search_status": "ওয়েব গবেষণার অবস্থা",
+  "search_provider": "সার্চ ব্যাকএন্ড",
   "disabled": "নিষ্ক্রিয়",
   "enabled": "সক্রিয়",
   "search_api_key": "Tavily API কী",

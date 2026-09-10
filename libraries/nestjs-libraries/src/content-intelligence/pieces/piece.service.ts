@@ -1334,7 +1334,7 @@ export class PieceService {
         'Сначала добавьте текст.'
       );
     let sources: ReturnType<typeof webReviewSources> | undefined;
-    if (input.mode === 'web') {
+    if (input.mode === 'web' || input.mode === 'research') {
       if (input.confirmWebSpend !== true || !this.webReview)
         throw new AdaptationReviewError(
           'REVIEW_WEB_CONFIRM',
@@ -1342,7 +1342,9 @@ export class PieceService {
           'Подтвердите расход на поиск и модели.'
         );
       sources = webReviewSources(
-        await this.webReview.research(organizationId, text.slice(0, 5000))
+        await this.webReview.research(organizationId, text.slice(0, 5000), {
+          ...(input.mode === 'research' ? { level: 'deep' as const } : {}),
+        })
       );
       if (!sources.length)
         throw new AdaptationReviewError(
@@ -1489,8 +1491,8 @@ export class PieceService {
     if (!ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
       throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Выберите режим проверки.');
     }
-    if (mode === 'web' && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
-    if (mode === 'web' && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
+    if ((mode === 'web' || mode === 'research') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
+    if ((mode === 'web' || mode === 'research') && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
     const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
@@ -1501,8 +1503,8 @@ export class PieceService {
     const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
     const originalText = provider.editor === 'html' || provider.editor === 'normal'
       ? htmlToPlainText(draft.post.content) : draft.post.content;
-    const result = mode === 'web'
-      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!)
+    const result = mode === 'web' || mode === 'research'
+      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!, mode === 'research' ? 'deep' : 'standard')
       : await reviewAdaptationOnce(organizationId, {
       mode, text: originalText, core: core?.text ?? piece.body,
       personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,

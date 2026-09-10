@@ -102,8 +102,8 @@ export class AiProviderDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['tavily'])
-  searchProvider?: Extract<SearchProvider, 'tavily'>;
+  @IsIn(['tavily', 'openrouter', 'exa'])
+  searchProvider?: SearchProvider;
 
   @IsString()
   @IsOptional()

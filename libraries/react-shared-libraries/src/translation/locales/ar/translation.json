@@ -827,6 +827,7 @@
   "web_search": "بحث على الويب",
   "web_search_description_org": "Tavily هو محرك البحث الأساسي. يُستخدم OpenRouter تلقائيًا فقط عند عدم توفّر Tavily مؤقتًا.",
   "web_search_status": "حالة البحث على الويب",
+  "search_provider": "محرك البحث",
   "disabled": "معطّل",
   "enabled": "مفعّل",
   "search_api_key": "مفتاح Tavily API",

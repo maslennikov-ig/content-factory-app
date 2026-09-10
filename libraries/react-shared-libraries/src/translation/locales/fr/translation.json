@@ -827,6 +827,7 @@
   "web_search": "Recherche sur le Web",
   "web_search_description_org": "Tavily est le moteur de recherche principal. OpenRouter est utilisé automatiquement uniquement lorsque Tavily est temporairement indisponible.",
   "web_search_status": "État de la recherche sur le Web",
+  "search_provider": "Moteur de recherche",
   "disabled": "Désactivé",
   "enabled": "Activé",
   "search_api_key": "Clé API Tavily",

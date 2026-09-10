@@ -57,7 +57,8 @@ export async function reviewAdaptationWithSearch(
   organizationId: string,
   input: { text: string; language: 'ru' | 'en' },
   aiUsage: Pick<AiUsageService, 'executeAiOperation'>,
-  web: Pick<WebResearchService, 'research'>
+  web: Pick<WebResearchService, 'research'>,
+  level: 'standard' | 'deep' = 'standard'
 ) {
   const ru = input.language === 'ru';
   if (!input.text.trim())
@@ -73,7 +74,10 @@ export async function reviewAdaptationWithSearch(
   const subject = input.text.slice(0, WEB_REVIEW_SUBJECT_CHARS);
   let research: WebResearchResult;
   try {
-    research = await web.research(organizationId, subject);
+    research =
+      level === 'deep'
+        ? await web.research(organizationId, subject, { level })
+        : await web.research(organizationId, subject);
   } catch (error) {
     // Keep product admission refusals (quota, role/config restrictions) intact.
     if (

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { z } from 'zod';
 import {
@@ -46,7 +46,98 @@ export interface WebResearchOptions {
    * language to write in, and pay nothing extra for it.
    */
   language?: ContentLanguage;
+  /** Server-owned depth preset. The caller cannot set raw provider budgets. */
+  level?: ResearchLevel;
 }
+
+export type ResearchLevel = 'quick' | 'standard' | 'deep';
+
+/** Monthly admission limits until durable tariff counters are introduced. */
+export const RESEARCH_MONTHLY_QUOTAS: Readonly<Record<ResearchLevel, number>> = Object.freeze({
+  quick: 20,
+  standard: 10,
+  deep: 3,
+});
+
+export class ResearchQuotaExceeded extends Error {
+  readonly status = 429;
+  readonly code = 'RESEARCH_QUOTA_EXHAUSTED';
+  constructor(readonly level: ResearchLevel) {
+    super(
+      'Лимит ресерчей на этом тарифе исчерпан. Выберите другой уровень или дождитесь нового месяца.'
+    );
+    this.name = 'ResearchQuotaExceeded';
+  }
+}
+
+type ResearchQuotaCounter = { period: string; count: number };
+
+/** Admission-side quota. Failed calls are reserved and therefore counted. */
+@Injectable()
+export class ResearchQuotaService {
+  private readonly counters = new Map<string, ResearchQuotaCounter>();
+  private period(now: Date): string {
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  reserve(organizationId: string, level: ResearchLevel, now = new Date()) {
+    const key = `${organizationId}|${level}`;
+    const period = this.period(now);
+    const current = this.counters.get(key);
+    const counter = current?.period === period ? current : { period, count: 0 };
+    const limit = RESEARCH_MONTHLY_QUOTAS[level];
+    if (counter.count >= limit) throw new ResearchQuotaExceeded(level);
+    counter.count += 1;
+    this.counters.set(key, counter);
+    return { used: counter.count, limit };
+  }
+  read(organizationId: string, level: ResearchLevel, now = new Date()) {
+    const current = this.counters.get(`${organizationId}|${level}`);
+    const used = current?.period === this.period(now) ? current.count : 0;
+    const limit = RESEARCH_MONTHLY_QUOTAS[level];
+    return { used, limit, remaining: Math.max(0, limit - used) };
+  }
+  clearForTests() { this.counters.clear(); }
+}
+
+export interface ResearchCacheJournalEntry {
+  key: string;
+  hit: boolean;
+  at: string;
+}
+
+/** In-memory insertion-ordered cache with a bounded hit/miss journal. */
+export class ResearchQueryCache<T = unknown> {
+  private readonly values = new Map<string, T>();
+  private readonly entries: ResearchCacheJournalEntry[] = [];
+  constructor(private readonly maximum = 10_000) {}
+  get(key: string, now = new Date()): T | undefined {
+    const value = this.values.get(key);
+    this.entries.push({ key, hit: value !== undefined, at: now.toISOString() });
+    if (this.entries.length > this.maximum) this.entries.shift();
+    return value;
+  }
+  set(key: string, value: T): void {
+    this.values.delete(key);
+    this.values.set(key, value);
+    while (this.values.size > this.maximum) {
+      this.values.delete(this.values.keys().next().value as string);
+    }
+  }
+  journal(): readonly ResearchCacheJournalEntry[] { return this.entries.slice(); }
+  size(): number { return this.values.size; }
+  clear(): void { this.values.clear(); this.entries.length = 0; }
+}
+
+export const RESEARCH_LEVEL_PRESETS: Readonly<Record<ResearchLevel, {
+  maxSearchQueries: number;
+  maxSources: number;
+  maxProviderCostMicros: number;
+  maxWallClockMs: number;
+}>> = Object.freeze({
+  quick: { maxSearchQueries: 4, maxSources: 8, maxProviderCostMicros: 500_000, maxWallClockMs: 180_000 },
+  standard: { maxSearchQueries: 10, maxSources: 20, maxProviderCostMicros: 2_000_000, maxWallClockMs: 600_000 },
+  deep: { maxSearchQueries: 25, maxSources: 50, maxProviderCostMicros: 6_000_000, maxWallClockMs: 1_800_000 },
+});
 
 const researchSummary = z.object({
   summary: z.string(),
@@ -77,6 +168,7 @@ interface SearchResult {
     rawContent?: string;
     published_date?: string;
     publishedAt?: string;
+    nonCitableSnippet?: string;
   }>;
 }
 
@@ -111,12 +203,18 @@ class EmptyWebSearchResults extends Error {
  * Every consumer of this service logs the error and swallows it, and a logger
  * shows the message rather than walking a custom array. Both causes therefore
  * belong in the message itself; `errors` stays for a caller that wants the
- * original objects.
+ * original objects. The provider names are supplied by the routing seam so an
+ * Exa failure is not misreported as a Tavily failure.
  */
 export class WebSearchFallbackError extends Error {
-  constructor(public readonly errors: readonly unknown[]) {
+  readonly status = 503;
+  readonly code = 'CONTENT_SEARCH_UNAVAILABLE';
+  constructor(
+    public readonly errors: readonly unknown[],
+    providers: readonly string[] = ['tavily', 'openrouter']
+  ) {
     super(
-      `Tavily and OpenRouter web research both failed: ${errors
+      `${providers.join(' and ')} web research both failed: ${errors
         .map((error) =>
           error instanceof Error ? error.message : String(error)
         )
@@ -447,9 +545,11 @@ const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
   language === 'ru' ? !containsCyrillic(summary) : containsCyrillic(summary);
 
 export class WebSearchNotConfigured extends Error {
+  readonly status = 409;
+  readonly code = 'CONTENT_SEARCH_NOT_CONFIGURED';
   constructor() {
     super(
-      'Web search is not configured for this organization. Enable it and add a Tavily key under Settings → AI provider.'
+      'Web search is not configured for this organization. Enable it and add a search key under Settings → AI provider.'
     );
     this.name = 'WebSearchNotConfigured';
   }
@@ -458,31 +558,46 @@ export class WebSearchNotConfigured extends Error {
 @Injectable()
 export class WebResearchService {
   private readonly logger = new Logger(WebResearchService.name);
+  private readonly fallbackQuota = new ResearchQuotaService();
+  private readonly cache = new ResearchQueryCache<WebResearchResult>();
 
-  constructor(private readonly aiUsage: AiUsageService) {}
+  constructor(
+    private readonly aiUsage: AiUsageService,
+    @Optional() private readonly quota?: ResearchQuotaService
+  ) {}
+
+  /** Read-only cache telemetry for diagnostics and the later durable journal. */
+  researchCacheJournal(): readonly ResearchCacheJournalEntry[] {
+    return this.cache.journal();
+  }
 
   private async searchOne(
     organizationId: string,
     query: string,
     config: Awaited<ReturnType<typeof requireActiveAiConfig>>,
-    options: { country?: string; freshnessRequired: boolean }
+    options: { country?: string; freshnessRequired: boolean; maxResults?: number }
   ): Promise<ProviderSearchResult> {
+    const primary = config.search.provider;
     try {
       const response = await invokeWithDeadline(
-        () => getWebSearchClient(organizationId, 'tavily', options),
+        () => getWebSearchClient(organizationId, primary, options),
         query,
         WEB_SEARCH_PRIMARY_TIMEOUT_MS
       );
       if (!response.results?.length) throw new EmptyWebSearchResults();
-      this.logger.log('Web research answered via tavily.');
-      return { provider: 'tavily', response };
+      this.logger.log(`Web research answered via ${primary}.`);
+      return { provider: primary, response };
     } catch (error) {
-      if (!isFallbackFailure(error) || config.provider !== 'openrouter') {
+      if (
+        !isFallbackFailure(error) ||
+        config.provider !== 'openrouter' ||
+        primary === 'openrouter'
+      ) {
         throw error;
       }
 
       this.logger.warn(
-        `Tavily web research failed (${failureLabel(
+        `${primary} web research failed (${failureLabel(
           error
         )}); retrying via OpenRouter.`
       );
@@ -496,7 +611,10 @@ export class WebResearchService {
         this.logger.log('Web research answered via openrouter.');
         return { provider: 'openrouter', response };
       } catch (fallbackError) {
-        throw new WebSearchFallbackError([error, fallbackError]);
+        throw new WebSearchFallbackError([error, fallbackError], [
+          primary,
+          'openrouter',
+        ]);
       }
     }
   }
@@ -547,20 +665,39 @@ Summary: {summary}`
     subject: string,
     options: WebResearchOptions = {}
   ): Promise<WebResearchResult> {
-    return this.aiUsage.executeAiOperation(organizationId, 'web_research', () =>
-      this.researchWithinOperation(organizationId, subject, options)
+    const level = options.level ?? 'standard';
+    const levelWasExplicit = options.level !== undefined;
+    const key = `${organizationId}|${level}|${options.language ?? ''}|${subject.trim().slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
+    const cached = this.cache.get(key);
+    if (cached) {
+      this.logger.debug(`Research cache hit for ${level}.`);
+      return cached;
+    }
+    (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
+    const result = await this.aiUsage.executeAiOperation(
+      organizationId,
+      'web_research',
+      () => this.researchWithinOperation(organizationId, subject, { ...options, level, levelWasExplicit }),
+      'research'
     );
+    this.cache.set(key, result);
+    return result;
   }
 
   private async researchWithinOperation(
     organizationId: string,
     subject: string,
-    options: WebResearchOptions
+    options: WebResearchOptions & { levelWasExplicit?: boolean }
   ): Promise<WebResearchResult> {
     const config = await requireActiveAiConfig(organizationId);
-    // Tavily is always primary. A missing Tavily key is configuration, not an
-    // outage, and must never cause the model key to be spent on fallback.
-    if (!config.search.enabled || !config.search.apiKey) {
+    // A missing selected search key is configuration, not an outage, and must
+    // never cause the model key to be spent on fallback.
+    if (
+      !config.search.enabled ||
+      ((config.search.provider === 'tavily' ||
+        config.search.provider === 'exa') &&
+        !config.search.apiKey)
+    ) {
       throw new WebSearchNotConfigured();
     }
 
@@ -593,16 +730,26 @@ Subject: {subject}`
      */
     const subjectLanguageQuery = classification.subjectLanguageQuery?.trim();
     const englishQuery = classification.englishQuery.trim();
-    const queries =
+    const baseQueries =
       subjectLanguageQuery &&
       !isEnglish(classification.subjectLanguage) &&
       subjectLanguageQuery !== englishQuery
         ? [subjectLanguageQuery, englishQuery]
         : [englishQuery];
 
+    const level = options.level ?? 'standard';
+    const preset = RESEARCH_LEVEL_PRESETS[level];
+    // Keep query generation deterministic and bounded. Additional slots are
+    // only useful for a distinct locale query; repeating the same words would
+    // spend money without adding recall.
+    const queries = baseQueries.slice(0, preset.maxSearchQueries);
+
     const searchOptions = {
       country: countryForSubjectLanguage(classification.subjectLanguage),
       freshnessRequired: classification.freshnessRequired,
+      ...(options.levelWasExplicit
+        ? { maxResults: Math.min(20, preset.maxSources) }
+        : {}),
     };
     /**
      * Половина поиска не отменяет вторую (`content-factory-next-ec48.3`).
@@ -639,19 +786,32 @@ Subject: {subject}`
     const facts = new Map<string, WebResearchFact>();
     const sources = new Map<string, WebResearchSource>();
     let remainingContent = WEB_SEARCH_MAX_RESULT_CHARS;
+    let sourceCount = 0;
     for (const { provider, response } of responses) {
       for (const item of response.results || []) {
         const url = usableHttpsUrl(item.url);
         if (!url) continue;
-        sources.set(url, {
-          url,
-          title: item.title || url,
-          publishedAt: item.published_date || item.publishedAt || null,
-          provider,
-        });
         const excerpt =
           providerSnippetExcerpt(item.content) ??
           wholePageExcerpt(item.rawContent);
+        // Canonical URLs can occur more than once (for example an AMP result
+        // followed by the ordinary page). Keep the first useful evidence, but
+        // let a later duplicate replace a discovery-only row that had no
+        // citable excerpt.
+        const alreadyHasFact = [...facts.values()].some(
+          (fact) => fact.sourceUrl === url
+        );
+        if (sources.has(url) && alreadyHasFact) continue;
+        if (!sources.has(url)) {
+          if (sourceCount >= preset.maxSources) break;
+          sourceCount += 1;
+        }
+        sources.set(url, {
+          url,
+          title: (item.title || url).trim().slice(0, 500),
+          publishedAt: item.published_date || item.publishedAt || null,
+          provider,
+        });
         if (!excerpt || remainingContent <= 0) continue;
         const sourceContent = truncateAtParagraph(
           excerpt,

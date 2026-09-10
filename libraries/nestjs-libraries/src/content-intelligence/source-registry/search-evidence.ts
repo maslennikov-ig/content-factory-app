@@ -24,7 +24,7 @@ export const SEARCH_PROVIDER_RESULT_FRESHNESS_MS = 365 * 24 * 60 * 60 * 1_000;
 /** Matches the spec's per-capture bound (`content-source-registry-spec.md`). */
 export const SEARCH_PROVIDER_RESULT_MAX_EXCERPT_CHARACTERS = 8_000;
 
-export type WebResearchProvider = 'tavily' | 'openrouter' | 'mixed';
+export type WebResearchProvider = 'tavily' | 'openrouter' | 'exa' | 'mixed';
 
 /**
  * Кто принёс находку.
