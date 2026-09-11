@@ -18,58 +18,10 @@ import {
   ContentLanguage,
   contentLanguageNames,
 } from '@contentfactory/nestjs-libraries/dtos/content.language';
-type ResearchEgressBudget = {
-  maxSearchQueries: number;
-  maxAcceptedSources: number;
-  maxResponseBytes: number;
-  maxWallClockMs: number;
-  maxProviderCostMicros: number;
-  maxConcurrency: number;
-};
-type ResearchEgressInput = {
-  organizationId: string;
-  providerId: string;
-  approvedProviderIds: readonly string[];
-  globalKillSwitch?: boolean;
-  tenantKillSwitches?: readonly string[];
-  providerKillSwitches?: readonly string[];
-  budget: ResearchEgressBudget;
-  spend: {
-    searchQueries: number;
-    acceptedSources: number;
-    responseBytes: number;
-    wallClockMs: number;
-    providerCostMicros: number;
-    inFlight: number;
-  };
-  kind: 'search' | 'fetch';
-};
-type ResearchEgressDecision = { allowed: boolean; code?: string };
-
-/* Keep the service loadable by the recorded-response harness, where path
- * aliases are intentionally absent. The production module supplies the same
- * pure policy function; this small fallback has identical denial order. */
-const localResearchEgress = (input: ResearchEgressInput): ResearchEgressDecision => {
-  if (input.globalKillSwitch) return { allowed: false, code: 'global_kill_switch' };
-  if (input.tenantKillSwitches?.includes(input.organizationId)) return { allowed: false, code: 'tenant_kill_switch' };
-  if (input.providerKillSwitches?.includes(input.providerId)) return { allowed: false, code: 'provider_kill_switch' };
-  if (!input.approvedProviderIds.includes(input.providerId)) return { allowed: false, code: 'provider_not_approved' };
-  if (input.spend.inFlight >= input.budget.maxConcurrency) return { allowed: false, code: 'budget_concurrency' };
-  if (input.spend.wallClockMs >= input.budget.maxWallClockMs) return { allowed: false, code: 'budget_wall_clock' };
-  if (input.spend.providerCostMicros >= input.budget.maxProviderCostMicros) return { allowed: false, code: 'budget_provider_cost' };
-  if (input.spend.responseBytes >= input.budget.maxResponseBytes) return { allowed: false, code: 'budget_response_bytes' };
-  if (input.kind === 'search' && input.spend.searchQueries >= input.budget.maxSearchQueries) return { allowed: false, code: 'budget_search_queries' };
-  if (input.kind === 'fetch' && input.spend.acceptedSources >= input.budget.maxAcceptedSources) return { allowed: false, code: 'budget_accepted_sources' };
-  return { allowed: true };
-};
-
-let decideResearchEgress: (input: ResearchEgressInput) => ResearchEgressDecision = localResearchEgress;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  decideResearchEgress = require('@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress').decideResearchEgress;
-} catch {
-  // The local fallback above is used by isolated tests and evidence stands.
-}
+import {
+  decideResearchEgress,
+  type ResearchEgressBudget,
+} from '@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress';
 
 export interface WebResearchSource {
   url: string;
@@ -828,6 +780,15 @@ Subject: {subject}`
       .map((organization) => organization.trim())
       .filter(Boolean);
     const globalKillSwitch = process.env.RESEARCH_GLOBAL_KILL_SWITCH === 'true';
+    /*
+     * What the policy sees before each query: kill switches, the approved
+     * provider list, the query index and the time already spent. Response
+     * bytes, accepted sources and provider cost are not metered here; bytes
+     * are bounded by WEB_SEARCH_MAX_RESULT_CHARS at the client and money by
+     * the per-level presets through the provider's own result cap. Durable
+     * spend accounting belongs to `content-factory-next-m0iy.9`.
+     */
+    const researchStartedAt = Date.now();
     const egressCheck = (queryIndex: number) => (provider: SearchProvider) => {
       const decision = decideResearchEgress({
         organizationId,
@@ -841,19 +802,20 @@ Subject: {subject}`
           searchQueries: queryIndex,
           acceptedSources: 0,
           responseBytes: 0,
-          wallClockMs: 0,
+          wallClockMs: Date.now() - researchStartedAt,
           providerCostMicros: 0,
           inFlight: 0,
         },
         kind: 'search',
       });
-      if (!decision.allowed) {
-        const error = new Error(`Research egress denied: ${decision.code}`) as Error & {
-          code?: string;
-        };
-        error.code = `RESEARCH_EGRESS_${decision.code.toUpperCase()}`;
-        throw error;
-      }
+      // Equality, not truthiness: the backend compiles without strictNullChecks,
+      // where truthiness does not narrow a discriminated union.
+      if (decision.allowed === true) return;
+      const error = new Error(`Research egress denied: ${decision.code}`) as Error & {
+        code?: string;
+      };
+      error.code = `RESEARCH_EGRESS_${decision.code.toUpperCase()}`;
+      throw error;
     };
     /**
      * Половина поиска не отменяет вторую (`content-factory-next-ec48.3`).

@@ -377,6 +377,30 @@ describe('per-organization AI clients', () => {
     });
   });
 
+  test('caps one Tavily or OpenRouter query at 20 results whatever the level asks', async () => {
+    // Tavily documents `max_results` as 0–20 and the client does not clamp:
+    // 50 is a validation error, not a bigger page. Deep research collects its
+    // 50 sources across 25 queries instead (`content-factory-next-6xi0.1`).
+    const tavilyOrganization = register(openrouter);
+    await clients.getWebSearchClient(tavilyOrganization, 'tavily', {
+      country: 'russia',
+      freshnessRequired: false,
+      maxResults: 50,
+    });
+    expect(built.tavily[0]).toMatchObject({ maxResults: 20 });
+
+    const openrouterOrganization = register(openrouter);
+    const openrouterClient = await clients.getWebSearchClient(
+      openrouterOrganization,
+      'openrouter',
+      { country: 'russia', freshnessRequired: false, maxResults: 50 }
+    );
+    await openrouterClient.invoke({ query: 'deep subject' });
+    expect(built.chatCompletions[0].request.plugins[0]).toMatchObject({
+      max_results: 20,
+    });
+  });
+
   test('maps the recorded Exa response onto the shared search port', async () => {
     const requests = [];
     const fetchImpl = async (url, init) => {

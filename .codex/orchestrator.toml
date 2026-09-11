@@ -14,8 +14,8 @@ launch_mode = "direct_execution"
 repo = "content-factory-next"
 root = "/home/me/code/content-factory-next"
 current_stage = ".codex/stages/content-factory-next-xbfj/stage-manifest.json"
-current_stage_id = "content-factory-next-xbfj"
-base_commit = "f20b0f32"
+current_stage_id = "content-factory-next-6xi0"
+base_commit = "330ad2f3"
 
 [delivery]
 mode = "mixed"

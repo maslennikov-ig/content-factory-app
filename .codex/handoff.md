@@ -1,7 +1,26 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-xbfj`
+Current stage id: `content-factory-next-6xi0`
 Last accepted stage id: `content-factory-next-xbfj`
-Selected Beads goal: `content-factory-next-xbfj`
+Selected Beads goal: `content-factory-next-6xi0`
+**Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.**
+Приватный исходник `e4ea8a3cf2724257dd15622593551a0eb996094d` и публичное дерево
+`aaaf00afe664863244800dd2f37ee0682b2cb718` согласованы; image digest
+`sha256:a90c089d6a6c01deceb292c6447d1d16a969910732fc4e7d934f857cef20b9cc`;
+откат — `cc513632d93d`. На `helixa-prod` маркер совпадает, app healthy,
+перезапусков 0, `/api/`, `/auth/login` и `/api/public/source` дают 200; архив
+исходников совпал, SHA `a6009fbea15ba9d64d7eca63fa5848438116dda9bf0eacadb8fd2e6be409c5fb`.
+Миграция Prisma пустая, схему не применяли; в отдельной базе Mastra 29 таблиц,
+канонический SHA `310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7`
+совпадает с предыдущим выпуском. Retention оставил новый образ и откат,
+свободно 21 ГБ. Квитанция выпуска: Jest417/5392, Node125/0, Python OK.
+
+R1–R5 выпущены в этом образе. Tavily остаётся по умолчанию, OpenRouter —
+единственный резерв; Exa требует ключ владельца. Живое подключение keyless
+Wikipedia/Wikidata к `WebResearchService` отложено в `content-factory-next-m0iy.8`,
+долговечная квота — в `.9` под решением `or3.9`. Для отпечатка схемы в runbook
+используется стабильная каноническая выборка; сырой PostgreSQL 17 `pg_dump` не
+хэшируем из-за случайного `\restrict`-токена.
+
 **Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.**
 Private source `1066e49243e6` and public `content-factory-app/main` commit
 `cc513632d93df2bc946828698fa950d8e9173ef3` agree; image digest
@@ -12,59 +31,28 @@ Retention kept the release and rollback, removed `2fe4032ea3db`, 23 GB free.
 The intermediate 10.09 release record also names `4fdac6f1435a` as the saved rollback.
 Root receipt: Jest417/5383, Node125/0 with 4 existing environment skips, Python46,
 three tsc and build/process/brand/docs/diff passed. Evidence: `stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
-Review-tail `content-factory-next-xbfj` passed local acceptance and stage closeout
-on branch `codex/review-tail-2026-09-11`; production release waits for an explicit
-owner choice in this stage. No real keys or paid calls were used. Tavily remains
-the default search provider; OpenRouter is the only reserve path. Exa still needs
-the owner's key. Keyless Wikipedia/Wikidata and constrained fetch are covered by
-offline contracts, while live `WebResearchService` wiring is deferred to
-`content-factory-next-m0iy.8`; durable quota accounting remains tied to `or3.9`.
 Связь черновика при same-channel переносе сохранена именно как перенос, согласно
-закрытому `.2`; перед production владелец может выбрать вариант `[перенос | копия]`.
+закрытому `.2`; владелец 11.09 оставил перенос, вариант «копия» не выбран.
 **Wave «второй заход 08.09» (`tu3k.14`, 30 tasks) — RELEASED `2fe4032ea3db` 08.09.2026.**
-Private verified source `7b07bec6a989` and release records are integrated into `main` and `origin/main`;
-public `content-factory-app/main` and running image agree. Rollback `5f657ccf294e`.
-All S1–S8 integrated in the required order; Channels `.26` and calendar `.27–.30`
-added by the owner and completed in the same release. All worker worktrees cleaned.
-Owner inspected the local stand and explicitly approved the final Channels/calendar.
-Root acceptance: three tsc, build, Jest411/5270, Node124 pass/0 fail/4 existing
- environment skips, Python46, brand/docs/process/diff passed. Receipt remains bound
- to `7b07bec6a989`; the later documentation commit is a release record.
-`migrate diff` from the new image returned0; no schema apply. Mastra product0→0,
- dedicated29→29 and schema fingerprint unchanged. App healthy, restarts0,
- release marker matches, startup errors0; API/login/source200, archive hash matches.
-Retention script kept `2fe4032ea3db` + `5f657ccf294e`; 23GB free on host.
-All30 children closed in one batch and reread;30 GitHub sync triggers queued.
-Proof: `stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`;
-runbook: `docs/operations/production-deploy.md`, release08.09.
-Implemented: navigation A and Content menu; piece page/table v2; streaming intake
- and voice analysis; explicit optional paid checks; dedicated Channels; calendar
- without rail, draft-adaptation picker and source-piece links. No automatic intake
- claim checks; enrichment remains; explicit paid search review requires acceptance.
-Scope: `docs/product/second-walk-wave-2026-09-08-spec.md` and three `docs/prompts/astra-*2026-09-08.md` orders.
-S8 data limit: two thoughts measured; no eligible adaptation pairs in copied data,
- so adaptation word retention remains unmeasured. No synthetic result substituted.
-Third live walkthrough is prepared by Claude after the release report.
-**Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
-`orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
-`553a74c9`, RELEASED as `9b538b9a2e25` 07.09, then the audit tail `47cd8475c442`
-(private `d16a4630`, six small fixes, rollback `9b538b9a2e25`; no schema
-change either time).** Source: the owner's
-live walk of `7e2b10bf1100` (artifact `fe5e030b`, 24 notes, 5 screenshots in
-`stages/content-factory-next-fn33/evidence/walk-2026-09-07/`). Seven Opus 5
-streams in worktrees, no reviewer, no stand (owner: speed over checks); mockups
-approved before UI code (`docs/design/desert-lab/pieces/`, canvas
-`c569cf13`). Full `pnpm test` three halves green (jest 403/5155, node 128/0,
-python 46), `tsc` zero on three apps, process verification OK. Owner decisions
-07.09: **adaptation never searches the web, no citation checkboxes, no
-«Проверил» gate** (reverses the 04.09 gate of `fn33.28`); «Что уже написали»
-stays and feeds «Свои тексты по теме»; «С чего начать» is a menu item until
-all six steps are done; the facts question reads «На что это опирается?».
-What changed: piece written before questions, questions on the piece page, real table (Tailwind `min-[…]` trap), channel card save, streamed voice analysis, `PIECE_ONLY` adaptation, `TextSearchService` (orama), «С чего начать» in the sidebar, one channel-rail geometry. Bounded gaps: the `related` event is not drawn on the piece page (only in the
-compose window); index invalidation on intake/publish relies on the 5-minute
-TTL; `menu.tsx` «⋮» is still 24 px wide inside its 32 px seat; group header in
-the collapsed rail still overflows. Open for the owner: `m2eg.25` (posting to
-Telegram as a person needs MTProto — not planned).
+Private source `7b07bec6a989`, rollback `5f657ccf294e`; S1–S8 plus owner-added Channels `.26`
+and calendar `.27–.30` in one release; owner approved the stand. Root acceptance: three tsc,
+build, Jest 411/5270, Node 124/0 (4 env skips), Python 46; `migrate diff` 0, Mastra 0→0 and
+29→29. Retention kept `2fe4032ea3db` + `5f657ccf294e`. Proof:
+`stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`; runbook release 08.09.
+Implemented: navigation A and Content menu, piece page/table v2, streaming intake and voice
+analysis, explicit paid checks, dedicated Channels, calendar without rail. S8: adaptation word
+retention unmeasured (no eligible pairs); no synthetic result substituted. Scope:
+`docs/product/second-walk-wave-2026-09-08-spec.md` and `docs/prompts/astra-*2026-09-08.md`.
+**Wave «прогон 07.09» (epic `m2eg`, 25 tasks) — RELEASED `9b538b9a2e25` 07.09, audit tail
+`47cd8475c442` (private `d16a4630`, rollback `9b538b9a2e25`; no schema change).** Source: the
+owner's live walk of `7e2b10bf1100` (artifact `fe5e030b`, 24 notes). Seven Opus 5 streams,
+no reviewer, no stand (owner: speed over checks); mockups approved before UI code. Owner
+decisions 07.09: adaptation never searches the web, no citation checkboxes, no «Проверил»
+gate; «С чего начать» is a menu item; the facts question reads «На что это опирается?».
+Changed: piece before questions, real table (Tailwind `min-[…]` trap), channel card save,
+streamed voice analysis, `PIECE_ONLY` adaptation, orama `TextSearchService`. Bounded gaps:
+`related` not drawn on the piece page; index invalidation relies on the 5-minute TTL;
+«⋮» 24 px in a 32 px seat. Owner: `m2eg.25` (Telegram as a person needs MTProto — not planned).
 **Small wave 07.09 (`tu3k.6`, `.10`, `.11`, `.12`) — RELEASED as `7e2b10bf1100`**
 (rollback `a6be7f3fbb92`, no schema): channel badge «настроено» from
 `GET /integrations/list`, adaptation `kind` picked by the person
@@ -148,20 +136,12 @@ Wikipedia/Wikidata wiring is tracked in `content-factory-next-m0iy.8`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures
 off and a neutral bot name.
 
-Cleanup08.09: one worktree on main;31 merged local and13 remote branches removed.
-The two unmerged August orchestration tips were archived, then removed with the
-owner's explicit approval; they were not merged into the current harness.
-Archive: `.git/cleanup-2026-09-08-legacy-orchestration.bundle` (verified).
-Dev process group8410 and6 cf-dev containers removed; data volumes preserved.
-The dev stand is stopped. Canonical public clone `/home/me/code/content-factory-app`
-is clean at the released commit; its source archive and suite receipt are retained.
-Temporary release/design worktrees and the temporary public clone are removed.
+Cleanup 08.09: merged branches and worktrees removed, two unmerged August tips archived in
+`.git/cleanup-2026-09-08-legacy-orchestration.bundle` with owner approval; dev stand stopped;
+public clone `/home/me/code/content-factory-app` is clean at the released commit.
 
-Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`):
-checks where the text is final, one quality line, forbidden phrases in the
-prompt, `/help` (11 questions). Owner decisions 07.09 (`3f713676`): `m2eg.25`
-closed (posts go out as the channel), `fn33.159` closed (no draft without a
-channel), Workspace rename dropped.
+Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks
+where the text is final, quality line, `/help`; owner closed `m2eg.25`, `fn33.159`, Workspace rename.
 
 ## Starter prompt for next orchestrator
 

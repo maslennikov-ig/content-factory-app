@@ -454,7 +454,10 @@ export class OpenRouterWebSearch implements WebSearchClient {
           id: 'web',
           engine: 'parallel',
           mode: 'advanced',
-          max_results: Math.min(Math.max(this.maxResults, 1), 50),
+          // OpenRouter documents no upper bound for its web plugin; 20 is the
+          // value that has answered in production, and deep research reaches its
+          // 50 sources by query count, not by one oversized page.
+          max_results: Math.min(Math.max(this.maxResults, 1), 20),
         },
       ],
     } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
@@ -482,6 +485,9 @@ export class OpenRouterWebSearch implements WebSearchClient {
 }
 
 const webSearchMemo = memo<WebSearchClient>();
+/** Documented Tavily `max_results` range is 0–20 (docs.tavily.com, search endpoint). */
+export const TAVILY_MAX_RESULTS = 20;
+
 export const getWebSearchClient = async (
   organizationId: string,
   provider: 'tavily' | 'openrouter' | 'exa' = 'tavily',
@@ -515,7 +521,10 @@ export const getWebSearchClient = async (
             tavilyApiKey: config.search.apiKey,
             topic: freshnessRequired ? 'news' : 'general',
             searchDepth: config.search.depth,
-            maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), 50),
+            // Tavily accepts max_results 0–20 and the client does not clamp:
+            // a larger value is a validation error, not more sources. Deep
+            // research collects its 50 sources across its 25 queries instead.
+            maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), TAVILY_MAX_RESULTS),
             includeAnswer: true,
             includeRawContent: true,
             ...(freshnessRequired ? { timeRange: 'week' } : {}),

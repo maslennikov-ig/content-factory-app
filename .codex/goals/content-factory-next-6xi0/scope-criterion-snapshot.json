@@ -1,0 +1,29 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-6xi0",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-6xi0",
+  "source_digest": "03ef93093a546e202d31ad6fa72a47d3e1c4e30e67b728b8bda27dbe354743c0",
+  "criteria": [
+    {
+      "criterion_id": "AC-1-provider-cap",
+      "text": "getWebSearchClient caps Tavily and OpenRouter at 20 results per query and Exa at 100; deep research keeps its 50-source preset as the sum over 25 queries, and the specification section 6 records this.",
+      "text_digest": "2b7b44260eecbeddc6cb1f9fbe928fcd153f89b7f0862c50152ff31e33f33eb7"
+    },
+    {
+      "criterion_id": "AC-2-egress-single-module",
+      "text": "web.research.service.ts imports decideResearchEgress from the research egress module with no local copy; jest maps the alias to the real compiled module; the policy receives the elapsed wall clock and the documents name only what is metered.",
+      "text_digest": "62ee174cab3b549507a36b8d838059d1f02f81ca619d070cc234df5289df4e37"
+    },
+    {
+      "criterion_id": "AC-3-docs-and-tracking",
+      "text": "Handoff carries the transfer decision instead of the prompt literal; the stage summary wording matches the metered budget; open Beads tasks exist for benefit measurement and the owner Exa key.",
+      "text_digest": "a6f2f284062b370f8439e3bda62668e4fdbbecdda060bd15efc121d7da408ce0"
+    },
+    {
+      "criterion_id": "AC-4-release",
+      "text": "Local acceptance passes: three-app tsc, build, full pnpm test through the release receipt, process verification, empty migrate diff; the wave is released by the runbook with rollback aaaf00afe664 and a release record.",
+      "text_digest": "4a4acbc449d2ad1da873b0ec077055578e1e8a8148342113f796368decbfb832"
+    }
+  ]
+}

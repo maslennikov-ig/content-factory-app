@@ -18,6 +18,11 @@ module.exports = {
     // so a suite does not have to name it to keep working.
     '^@contentfactory/nestjs-libraries/user/organization\\.roles$':
       '<rootDir>/tests/helpers/organization-roles.cjs',
+    // The research egress policy is imported by the web research service,
+    // which twenty suites load through their own loaders. Same reason as
+    // above: the real module, so no suite tests a private copy of the policy.
+    '^@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress$':
+      '<rootDir>/tests/helpers/research-egress.cjs',
   },
   testMatch: ['**/*.test.cjs'],
   // These suites deliberately use Node's native test runner. Jest cannot

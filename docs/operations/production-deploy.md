@@ -1202,34 +1202,67 @@ SHA-256 `5c7efef55f9fe562fa86bfcb6368081b0970469ff364a53261cf769e513cf954`,
 контейнеры и данные не затронуты. Полная квитанция и хостовые логи:
 `.codex/stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
 
-**Хвост ревью 11.09 (локальная интеграция, production ещё не переключён).**
-Рабочая точка остаётся `cc513632d93d`, а сохранённая цель отката —
-`4fdac6f1435a`; промежуточная запись `release-in-progress.json` от 10.09
-подтверждает, что этот тег был оставлен на хосте до финального retention.
-В исследовании Tavily остаётся провайдером по умолчанию, единственный резервный
-маршрут — OpenRouter при его доступности; Exa подключается только с отдельным
-ключом владельца. Keyless-модули Wikipedia/Wikidata и constrained fetch
-проверены офлайн, но живой путь `WebResearchService` к ним ещё не подключён —
-это отдельная задача `content-factory-next-m0iy.8`. Здесь не заявляется новый
-образ или production-приёмка.
+**Хвост ревью 11.09: выпущен как `aaaf00afe664` 11.09.2026.**
+Приватный исходник `e4ea8a3cf2724257dd15622593551a0eb996094d` опубликован в
+публичном дереве коммитом `aaaf00afe664863244800dd2f37ee0682b2cb718`.
+Образ собран из этого дерева и отправлен в
+`ghcr.io/maslennikov-ig/content-factory-next` с digest
+`sha256:a90c089d6a6c01deceb292c6447d1d16a969910732fc4e7d934f857cef20b9cc`.
+Откат — `cc513632d93d`. На `helixa-prod` маркер совпадает, приложение healthy,
+перезапусков 0; `/api/`, `/auth/login` и `/api/public/source` отвечают 200.
+Архив исходников совпал с локальным: SHA-256
+`a6009fbea15ba9d64d7eca63fa5848438116dda9bf0eacadb8fd2e6be409c5fb`.
 
-Для повторяемой проверки отдельной схемы Mastra на хосте используется только
-чтение (ожидаемый отпечаток выпуска 10.09 —
-`310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7`):
+В исследовании Tavily остаётся провайдером по умолчанию, единственный резервный
+маршрут — OpenRouter; Exa подключается только с отдельным ключом владельца.
+Keyless-модули Wikipedia/Wikidata и constrained fetch покрыты офлайн-тестами,
+а живое подключение к ним отложено в `content-factory-next-m0iy.8`. Долговечная
+квота остаётся в `content-factory-next-m0iy.9` и зависит от решения `or3.9`.
+Миграция Prisma вернула пустой diff, схема не применялась. В отдельной базе
+Mastra после переключения — 29 таблиц; канонический read-only отпечаток
+`310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7` совпадает с
+предыдущим выпуском.
+
+Для повторяемой проверки отдельной схемы Mastra используйте каноническую
+выборку определений (только чтение):
 
 ```bash
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf -- "$tmp_dir"' EXIT
-docker exec cf-next-postgres sh -ceu '
-  exec pg_dump --schema-only --no-owner --no-privileges --strict-names \
-    --table="public.mastra_*" --username "$POSTGRES_USER" --no-password \
-    "$MASTRA_DATABASE_NAME"
-' >"$tmp_dir/mastra.schema"
+fingerprint_sql="$(cat <<'SQL'
+SELECT definition
+FROM (
+  SELECT 'column:'||table_name||':'||column_name||':'||ordinal_position||':'||data_type||':'||udt_name||':'||is_nullable||':'||coalesce(column_default,'') AS definition
+  FROM information_schema.columns
+  WHERE table_schema='public' AND table_name LIKE 'mastra_%'
+  UNION ALL
+  SELECT 'index:'||tablename||':'||indexname||':'||indexdef
+  FROM pg_indexes
+  WHERE schemaname='public' AND tablename LIKE 'mastra_%'
+  UNION ALL
+  SELECT 'constraint:'||c.relname||':'||con.conname||':'||pg_get_constraintdef(con.oid)
+  FROM pg_constraint con
+  JOIN pg_class c ON c.oid=con.conrelid
+  JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE n.nspname='public' AND c.relname LIKE 'mastra_%'
+) AS definitions
+ORDER BY definition;
+SQL
+)"
+docker exec cf-next-postgres psql -X -v ON_ERROR_STOP=1 \
+  -U "$POSTGRES_USER" -d "$MASTRA_DATABASE_NAME" -tAc "$fingerprint_sql" \
+  >"$tmp_dir/mastra.schema"
+printf 'mastra tables: '
+docker exec cf-next-postgres psql -X -v ON_ERROR_STOP=1 \
+  -U "$POSTGRES_USER" -d "$MASTRA_DATABASE_NAME" -tAc \
+  "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'mastra_%';"
 sha256sum "$tmp_dir/mastra.schema"
 ```
 
-Команда не меняет базу и не использует `prisma db push`; число и список таблиц
-сверяются с 29-табличным контрактом `migrate-mastra-storage.sh`.
+Ожидаются 29 таблиц и отпечаток выше. Сырой `pg_dump` для этого сравнения не
+подходит: PostgreSQL 17 добавляет в него случайный `\restrict`-токен, поэтому
+его SHA меняется между одинаковыми запусками. Ни одна из команд не использует
+`prisma db push` и не меняет базу.
 
 **08.09.2026, волна второго захода `content-factory-next-tu3k.14`: выпущена как `2fe4032ea3db`.**
 Проверенный приватный коммит `7b07bec6a98924b9975493fee7fb9bb31091b032` отправлен в
