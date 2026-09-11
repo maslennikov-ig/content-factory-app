@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import { validateResearchFetchUrl } from './constrained-static-fetch';
+import {
+  constrainedResearchFetch,
+  resolveResearchHostname,
+  type ResearchDnsResolver,
+} from './constrained-static-fetch';
 
 export const ENCYCLOPEDIC_REFERENCE_POLICY_VERSION = 'ci_encyclopedic_v1' as const;
 export type EncyclopedicProvider = 'wikipedia' | 'wikidata';
@@ -26,6 +30,7 @@ export async function lookupEncyclopedicReferences(input: {
   entityName: string;
   locales?: readonly string[];
   fetchImpl?: typeof fetch;
+  resolver?: ResearchDnsResolver;
   signal?: AbortSignal;
 }): Promise<EncyclopedicLookupResult> {
   const entityName = input.entityName.trim().slice(0, 300);
@@ -38,12 +43,16 @@ export async function lookupEncyclopedicReferences(input: {
   for (const locale of locales) {
     const host = `${locale.toLowerCase()}.wikipedia.org`;
     const endpoint = `https://${host}/w/rest.php/v1/search/page?q=${encodeURIComponent(entityName)}&limit=1`;
-    const checked = validateResearchFetchUrl(endpoint);
-    if (!checked.allowed) continue;
     try {
-      const response = await fetchImpl(checked.url, {
-        headers: { Accept: 'application/json', 'User-Agent': 'content-factory-research/1.0' },
-        signal: input.signal,
+      const response = await constrainedResearchFetch({
+        url: endpoint,
+        resolver: input.resolver || (input.fetchImpl ? undefined : resolveResearchHostname),
+        fetcher: (url, init) =>
+          fetchImpl(url, {
+            ...(init as RequestInit),
+            headers: { Accept: 'application/json', 'User-Agent': 'content-factory-research/1.0' },
+            signal: input.signal,
+          }),
       });
       if (!response.ok) continue;
       const body = (await response.json()) as { pages?: Array<{ key?: unknown; title?: unknown; description?: unknown }> };
@@ -76,20 +85,23 @@ export async function lookupWikidataReferences(input: {
   entityName: string;
   locale?: string;
   fetchImpl?: typeof fetch;
+  resolver?: ResearchDnsResolver;
   signal?: AbortSignal;
 }): Promise<EncyclopedicLookupResult> {
   const entityName = input.entityName.trim().slice(0, 300);
   if (!entityName) throw new Error('ENCYCLOPEDIC_ENTITY_REQUIRED');
   const language = validLocale(input.locale || 'en') ? (input.locale || 'en').toLowerCase() : 'en';
   const endpoint = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(entityName)}&language=${encodeURIComponent(language)}&format=json&limit=1`;
-  const checked = validateResearchFetchUrl(endpoint);
-  if (!checked.allowed) {
-    const { code } = checked as Extract<typeof checked, { allowed: false }>;
-    throw new Error(`ENCYCLOPEDIC_FETCH_${code}`);
-  }
-  const response = await (input.fetchImpl ?? fetch)(checked.url, {
-    headers: { Accept: 'application/json', 'User-Agent': 'content-factory-research/1.0' },
-    signal: input.signal,
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const response = await constrainedResearchFetch({
+    url: endpoint,
+    resolver: input.resolver || (input.fetchImpl ? undefined : resolveResearchHostname),
+    fetcher: (url, init) =>
+      fetchImpl(url, {
+        ...(init as RequestInit),
+        headers: { Accept: 'application/json', 'User-Agent': 'content-factory-research/1.0' },
+        signal: input.signal,
+      }),
   });
   const results: EncyclopedicResult[] = [];
   if (response.ok) {

@@ -166,6 +166,60 @@ describe('research phase one policy', () => {
     expect(calls).toEqual([{ url: 'https://example.com/article', init: { method: 'GET' } }]);
   });
 
+  test('resolves every network hop and rejects private answers before fetch', async () => {
+    const calls = [];
+    await expect(
+      fetchPolicy.constrainedResearchFetch({
+        url: 'https://example.com/article',
+        resolver: async () => [{ address: '10.0.0.8', family: 4 }],
+        fetcher: async (...args) => {
+          calls.push(args);
+          return { status: 200 };
+        },
+      })
+    ).rejects.toThrow('RESEARCH_FETCH_DNS_UNSAFE');
+    expect(calls).toEqual([]);
+  });
+
+  test('revalidates redirects and rejects unsafe targets and loops', async () => {
+    const addresses = {
+      'example.com': [{ address: '93.184.216.34', family: 4 }],
+      'other.example.com': [{ address: '93.184.216.35', family: 4 }],
+    };
+    const resolver = async (hostname) => addresses[hostname] || [];
+    let calls = [];
+    await expect(
+      fetchPolicy.constrainedResearchFetch({
+        url: 'https://example.com/article',
+        resolver,
+        fetcher: async (url) => {
+          calls.push(url);
+          return {
+            status: 302,
+            headers: { get: () => 'http://other.example.com/private' },
+          };
+        },
+      })
+    ).rejects.toThrow('RESEARCH_FETCH_SCHEME_NOT_HTTPS');
+    expect(calls).toEqual(['https://example.com/article']);
+
+    calls = [];
+    await expect(
+      fetchPolicy.constrainedResearchFetch({
+        url: 'https://example.com/article',
+        resolver,
+        fetcher: async (url) => {
+          calls.push(url);
+          return {
+            status: 302,
+            headers: { get: () => 'https://example.com/article' },
+          };
+        },
+      })
+    ).rejects.toThrow('RESEARCH_FETCH_REDIRECT_UNSAFE');
+    expect(calls).toEqual(['https://example.com/article']);
+  });
+
   test('keeps Wikipedia and Wikidata as keyless recorded-response lanes', async () => {
     const calls = [];
     const fetchImpl = async (url) => {

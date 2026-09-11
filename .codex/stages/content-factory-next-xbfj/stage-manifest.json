@@ -1,0 +1,210 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-xbfj",
+  "goal_id": "content-factory-next-xbfj",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 1,
+  "acceptance_boundary_id": "review-tail-2026-09-11-local-and-production-release",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "research-quota",
+      "search-providers",
+      "research-fetch",
+      "generation-prompts",
+      "release-evidence",
+      "documentation"
+    ],
+    "risk_models": [
+      "tenant-isolation",
+      "paid-call-admission",
+      "ssrf-egress",
+      "schema-fingerprint",
+      "release-isolation"
+    ],
+    "test_environments": [
+      "local-node22",
+      "local-postgres",
+      "production-read-only",
+      "production-release-gated"
+    ],
+    "rollback_boundary": "cc513632d93d",
+    "acceptance_proofs": [
+      "focused-research-contracts",
+      "provider-key-isolation",
+      "generation-profile-contract",
+      "deep-source-cap",
+      "schema-fingerprint-command",
+      "three-app-tsc",
+      "full-suite-receipt",
+      "build",
+      "process-and-design-guards",
+      "empty-schema-diff",
+      "release-runtime-check"
+    ]
+  },
+  "source": "owner-pasted-review-tail-2026-09-11",
+  "branch": "codex/review-tail-2026-09-11",
+  "scope_anchor": ".codex/goals/content-factory-next-xbfj/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "4ea4d559191769363d06f29251f381c6568e036411197beafa7eadfa0320bfb0",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "consumer_adoption",
+    "security_review",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-xbfj/summary.md"
+  ],
+  "planned_streams": [
+    {
+      "task_id": "content-factory-next-xbfj.1",
+      "stream_owner": "root-r2-research",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/R2-research.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.2",
+      "stream_owner": "root-generation-contracts",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/generation-contracts.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.3",
+      "stream_owner": "root-release-docs",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/release-docs.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.4",
+      "stream_owner": "root-owner-followup",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/owner-followup.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.5",
+      "stream_owner": "root-durable-quota",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/durable-quota-defer.md"
+    }
+  ],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-xbfj",
+    "source_digest": "4ea4d559191769363d06f29251f381c6568e036411197beafa7eadfa0320bfb0",
+    "criteria": [
+      {
+        "criterion_id": "P1-opt-in-quota",
+        "text": "Reserve research quota in web.research.service.ts only when an explicit level is supplied; facts search, autopost and copilot remain available after quota exhaustion, while Need research and Enhance research reserve the explicit level.",
+        "text_digest": "f12480d04a701e394af64cac36de6fb876bba7700db67adca997af21ebd45800"
+      },
+      {
+        "criterion_id": "P1-provider-key",
+        "text": "Included mode selects provider only from AI_INCLUDED_SEARCH_PROVIDER; changing workspace searchProvider clears searchApiKey and searchEnabled; a Tavily key never reaches api.exa.ai.",
+        "text_digest": "01094608c0a84e0de461dd4bae3bed54ad369f380a19bd85295be36af2bef03b"
+      },
+      {
+        "criterion_id": "P1-r2-wiring",
+        "text": "All research page loads use constrained static fetch after DNS resolution with private ranges and unsafe redirects rejected; egress policy applies to Exa/Tavily; Wikipedia/Wikidata participate at an explicit level, or an honest defer is recorded.",
+        "text_digest": "5e0aa2feb33e64678177205976cbd101bbb4a16053305b371f7870489ffcfded"
+      },
+      {
+        "criterion_id": "P2-deep-cap",
+        "text": "Deep research can return up to the declared 50 sources, or the specification records an intentionally lower preset.",
+        "text_digest": "e12d0e109a4ee16bd258e29a57126c680a84a1a07d43af0e8721dfbb58cd7be9"
+      },
+      {
+        "criterion_id": "P2-generation-profile",
+        "text": "Ordinary generation reads hashtagInstruction and ctaInstruction from resolvedChannelProfile without contradictory default instructions.",
+        "text_digest": "b52ef4cc00e33ba01629c339e02604bac819c66643bda0f8f12a6fd28b95d87f"
+      },
+      {
+        "criterion_id": "P2-mastra-fingerprint",
+        "text": "The reproducible read-only Mastra schema fingerprint command is documented and reproduces the dedicated schema digest on the host.",
+        "text_digest": "f57918001e3014ba34b4a715e35064a16d2c6d54dea83a92b5211fcb46e4ef35"
+      },
+      {
+        "criterion_id": "P2-quota-defer",
+        "text": "In-memory quota accounting remains explicitly deferred; a Beads task ties durable accounting to or3.9.",
+        "text_digest": "2f99304914e169da8d44b45e8f2cec811e30b132c64f213281627b1c586275d5"
+      },
+      {
+        "criterion_id": "beads-followups",
+        "text": "Beads tasks record benefit measurement metrics and the owner Exa-key request; m0iy.2 and m0iy.5 close reasons include actual scope.",
+        "text_digest": "610c738b604fcf4e1c501c3ecc0b0c9f204aaf4211d86749098dd7ecf3be32f3"
+      },
+      {
+        "criterion_id": "docs-consistency",
+        "text": "Handoff and runbook record rollback cc513632d93d, provider wording, transfer terminology, github_sync status, and the related-own-posts 200-character limit.",
+        "text_digest": "5e4fe91d1b9eeb30a2bc773d2fbde345546d17ac48a0cd87be55f03e46d04fbc"
+      },
+      {
+        "criterion_id": "local-acceptance",
+        "text": "Three app tsc checks, build, one full pnpm test through record-suite-receipt.sh, process/design guards and empty schema diff pass before any release.",
+        "text_digest": "38f3bf0d30433742eeb4c2fe900aa28d66b098e03c3ef039dd084238f70cd272"
+      }
+    ]
+  },
+  "worker_ownership": [
+    {
+      "stream": "r2-research",
+      "owner": "root",
+      "write_zone": [
+        "libraries/nestjs-libraries/src/openai/web.research.service.ts",
+        "libraries/nestjs-libraries/src/openai/ai.provider.config.ts",
+        "libraries/nestjs-libraries/src/openai/ai.provider.service.ts",
+        "libraries/nestjs-libraries/src/content-intelligence/research/**",
+        "tests/*research*",
+        "tests/*provider*",
+        ".codex/stages/content-factory-next-xbfj/artifacts/R2-research.md"
+      ],
+      "issues": [
+        "content-factory-next-xbfj.1"
+      ]
+    }
+  ],
+  "parallel_decision": {
+    "eligible_streams": [
+      "r2-research"
+    ],
+    "benefit": [
+      "parallel-latency",
+      "context-isolation",
+      "specialist-capability",
+      "write-isolation"
+    ],
+    "sequential_streams": [
+      "generation-contracts-after-current-code-map",
+      "release-docs-after-implementation-and-acceptance",
+      "root-integration-and-release-authorization"
+    ],
+    "limit": "one implementation writer plus root-owned integration; no paid calls, real keys, db push, live mutation or unrelated 409 investigation"
+  },
+  "stream_artifacts": [
+    {
+      "task_id": "content-factory-next-xbfj.1",
+      "stream_owner": "root-r2-research",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/R2-research.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.2",
+      "stream_owner": "root-generation-contracts",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/generation-contracts.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.3",
+      "stream_owner": "root-release-docs",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/release-docs.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.4",
+      "stream_owner": "root-owner-followup",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/owner-followup.md"
+    },
+    {
+      "task_id": "content-factory-next-xbfj.5",
+      "stream_owner": "root-durable-quota",
+      "artifact_path": ".codex/stages/content-factory-next-xbfj/artifacts/durable-quota-defer.md"
+    }
+  ]
+}

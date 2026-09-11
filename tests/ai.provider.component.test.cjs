@@ -414,3 +414,18 @@ test('provider and depth locale keys stay live', () => {
     expect(locale).toHaveProperty('search_depth_advanced');
   }
 });
+
+test('changing search provider clears the old key and disables the new lane', () => {
+  const source = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '..',
+      'apps/frontend/src/components/settings/ai-provider.component.tsx'
+    ),
+    'utf8'
+  );
+  expect(source).toMatch(
+    /const changeSearchProvider = useCallback\(\(next: SearchProvider\) => \{[\s\S]*setSearchProvider\(next\);[\s\S]*setSearchApiKey\(''\);[\s\S]*setSearchEnabled\(false\);/
+  );
+  expect(source).toContain('changeSearchProvider(');
+});

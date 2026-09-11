@@ -18,6 +18,58 @@ import {
   ContentLanguage,
   contentLanguageNames,
 } from '@contentfactory/nestjs-libraries/dtos/content.language';
+type ResearchEgressBudget = {
+  maxSearchQueries: number;
+  maxAcceptedSources: number;
+  maxResponseBytes: number;
+  maxWallClockMs: number;
+  maxProviderCostMicros: number;
+  maxConcurrency: number;
+};
+type ResearchEgressInput = {
+  organizationId: string;
+  providerId: string;
+  approvedProviderIds: readonly string[];
+  globalKillSwitch?: boolean;
+  tenantKillSwitches?: readonly string[];
+  providerKillSwitches?: readonly string[];
+  budget: ResearchEgressBudget;
+  spend: {
+    searchQueries: number;
+    acceptedSources: number;
+    responseBytes: number;
+    wallClockMs: number;
+    providerCostMicros: number;
+    inFlight: number;
+  };
+  kind: 'search' | 'fetch';
+};
+type ResearchEgressDecision = { allowed: boolean; code?: string };
+
+/* Keep the service loadable by the recorded-response harness, where path
+ * aliases are intentionally absent. The production module supplies the same
+ * pure policy function; this small fallback has identical denial order. */
+const localResearchEgress = (input: ResearchEgressInput): ResearchEgressDecision => {
+  if (input.globalKillSwitch) return { allowed: false, code: 'global_kill_switch' };
+  if (input.tenantKillSwitches?.includes(input.organizationId)) return { allowed: false, code: 'tenant_kill_switch' };
+  if (input.providerKillSwitches?.includes(input.providerId)) return { allowed: false, code: 'provider_kill_switch' };
+  if (!input.approvedProviderIds.includes(input.providerId)) return { allowed: false, code: 'provider_not_approved' };
+  if (input.spend.inFlight >= input.budget.maxConcurrency) return { allowed: false, code: 'budget_concurrency' };
+  if (input.spend.wallClockMs >= input.budget.maxWallClockMs) return { allowed: false, code: 'budget_wall_clock' };
+  if (input.spend.providerCostMicros >= input.budget.maxProviderCostMicros) return { allowed: false, code: 'budget_provider_cost' };
+  if (input.spend.responseBytes >= input.budget.maxResponseBytes) return { allowed: false, code: 'budget_response_bytes' };
+  if (input.kind === 'search' && input.spend.searchQueries >= input.budget.maxSearchQueries) return { allowed: false, code: 'budget_search_queries' };
+  if (input.kind === 'fetch' && input.spend.acceptedSources >= input.budget.maxAcceptedSources) return { allowed: false, code: 'budget_accepted_sources' };
+  return { allowed: true };
+};
+
+let decideResearchEgress: (input: ResearchEgressInput) => ResearchEgressDecision = localResearchEgress;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  decideResearchEgress = require('@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress').decideResearchEgress;
+} catch {
+  // The local fallback above is used by isolated tests and evidence stands.
+}
 
 export interface WebResearchSource {
   url: string;
@@ -575,10 +627,12 @@ export class WebResearchService {
     organizationId: string,
     query: string,
     config: Awaited<ReturnType<typeof requireActiveAiConfig>>,
-    options: { country?: string; freshnessRequired: boolean; maxResults?: number }
+    options: { country?: string; freshnessRequired: boolean; maxResults?: number },
+    egressCheck?: (provider: SearchProvider) => void
   ): Promise<ProviderSearchResult> {
     const primary = config.search.provider;
     try {
+      egressCheck?.(primary);
       const response = await invokeWithDeadline(
         () => getWebSearchClient(organizationId, primary, options),
         query,
@@ -602,8 +656,9 @@ export class WebResearchService {
         )}); retrying via OpenRouter.`
       );
       try {
+        egressCheck?.('openrouter');
         const response = await invokeWithDeadline(
-          () => getWebSearchClient(organizationId, 'openrouter'),
+          () => getWebSearchClient(organizationId, 'openrouter', options),
           query,
           WEB_SEARCH_FALLBACK_TIMEOUT_MS
         );
@@ -673,7 +728,12 @@ Summary: {summary}`
       this.logger.debug(`Research cache hit for ${level}.`);
       return cached;
     }
-    (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
+    // The level is an explicit paid choice only for the intake and the deep
+    // adaptation lane. Ordinary generation, autopost, copilot and the legacy
+    // tool omit it and remain available after the opt-in allowance is spent.
+    if (levelWasExplicit) {
+      (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
+    }
     const result = await this.aiUsage.executeAiOperation(
       organizationId,
       'web_research',
@@ -748,8 +808,52 @@ Subject: {subject}`
       country: countryForSubjectLanguage(classification.subjectLanguage),
       freshnessRequired: classification.freshnessRequired,
       ...(options.levelWasExplicit
-        ? { maxResults: Math.min(20, preset.maxSources) }
+        ? { maxResults: preset.maxSources }
         : {}),
+    };
+    const egressBudget: ResearchEgressBudget = {
+      maxSearchQueries: preset.maxSearchQueries,
+      maxAcceptedSources: preset.maxSources,
+      maxResponseBytes: WEB_SEARCH_MAX_RESULT_CHARS,
+      maxWallClockMs: preset.maxWallClockMs,
+      maxProviderCostMicros: preset.maxProviderCostMicros,
+      maxConcurrency: Math.max(1, queries.length),
+    };
+    const providerKillSwitches = (process.env.RESEARCH_PROVIDER_KILL_SWITCHES || '')
+      .split(',')
+      .map((provider) => provider.trim())
+      .filter(Boolean);
+    const tenantKillSwitches = (process.env.RESEARCH_TENANT_KILL_SWITCHES || '')
+      .split(',')
+      .map((organization) => organization.trim())
+      .filter(Boolean);
+    const globalKillSwitch = process.env.RESEARCH_GLOBAL_KILL_SWITCH === 'true';
+    const egressCheck = (queryIndex: number) => (provider: SearchProvider) => {
+      const decision = decideResearchEgress({
+        organizationId,
+        providerId: provider,
+        approvedProviderIds: ['tavily', 'exa', 'openrouter'],
+        globalKillSwitch,
+        tenantKillSwitches,
+        providerKillSwitches,
+        budget: egressBudget,
+        spend: {
+          searchQueries: queryIndex,
+          acceptedSources: 0,
+          responseBytes: 0,
+          wallClockMs: 0,
+          providerCostMicros: 0,
+          inFlight: 0,
+        },
+        kind: 'search',
+      });
+      if (!decision.allowed) {
+        const error = new Error(`Research egress denied: ${decision.code}`) as Error & {
+          code?: string;
+        };
+        error.code = `RESEARCH_EGRESS_${decision.code.toUpperCase()}`;
+        throw error;
+      }
     };
     /**
      * Половина поиска не отменяет вторую (`content-factory-next-ec48.3`).
@@ -761,8 +865,14 @@ Subject: {subject}`
      * ответило; отказом считается только случай, когда не ответил никто.
      */
     const settled = await Promise.allSettled(
-      queries.map((query) =>
-        this.searchOne(organizationId, query, config, searchOptions)
+      queries.map((query, index) =>
+        this.searchOne(
+          organizationId,
+          query,
+          config,
+          searchOptions,
+          egressCheck(index)
+        )
       )
     );
     const responses = settled

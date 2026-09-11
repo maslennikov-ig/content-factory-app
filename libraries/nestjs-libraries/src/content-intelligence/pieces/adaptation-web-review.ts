@@ -74,10 +74,11 @@ export async function reviewAdaptationWithSearch(
   const subject = input.text.slice(0, WEB_REVIEW_SUBJECT_CHARS);
   let research: WebResearchResult;
   try {
-    research =
-      level === 'deep'
-        ? await web.research(organizationId, subject, { level })
-        : await web.research(organizationId, subject);
+    // Both visible paid modes are explicit admissions. The standard mode used
+    // to omit its level and therefore bypass the research quota even though
+    // the person had confirmed a web review; keep the free legacy callers
+    // level-less while this path always records the chosen mode.
+    research = await web.research(organizationId, subject, { level });
   } catch (error) {
     // Keep product admission refusals (quota, role/config restrictions) intact.
     if (

@@ -319,6 +319,17 @@ const AiProviderComponent = () => {
     [data]
   );
 
+  /**
+   * Search credentials belong to the selected backend. Keep the form from
+   * carrying a Tavily key into a subsequent Exa save, and make the operator
+   * explicitly enable the new lane after entering its key.
+   */
+  const changeSearchProvider = useCallback((next: SearchProvider) => {
+    setSearchProvider(next);
+    setSearchApiKey('');
+    setSearchEnabled(false);
+  }, []);
+
   // Only OpenRouter publishes a catalogue; for OpenAI the fields stay free text.
   const loadModels = useCallback(
     async () => (await fetch('/settings/ai/models')).json(),
@@ -765,7 +776,7 @@ const AiProviderComponent = () => {
         value={searchProvider}
         disableForm={true}
         onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          setSearchProvider(
+          changeSearchProvider(
             event.target.value === 'exa'
               ? 'exa'
               : event.target.value === 'openrouter'

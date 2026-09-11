@@ -90,6 +90,7 @@ describe('hybrid AI credential resolver', () => {
 
   afterEach(() => {
     for (const key of Object.keys(managedEnv)) delete process.env[key];
+    delete process.env.AI_INCLUDED_SEARCH_PROVIDER;
   });
 
   test('workspace_key uses only this organization encrypted credentials', async () => {
@@ -136,6 +137,20 @@ describe('hybrid AI credential resolver', () => {
       search: { apiKey: 'managed-search' },
     });
     expect(JSON.stringify(config)).not.toContain('decrypted:workspace');
+  });
+
+  test('included search routing comes from the operator environment only', async () => {
+    process.env.AI_INCLUDED_SEARCH_PROVIDER = 'exa';
+    const { loadAiConfig } = loadConfig(async () => ({
+      ...workspaceRow,
+      usageMode: 'included',
+      searchProvider: 'tavily',
+    }));
+
+    await expect(loadAiConfig('organization-a')).resolves.toMatchObject({
+      usageMode: 'included',
+      search: { provider: 'exa', apiKey: 'managed-search' },
+    });
   });
 
   test.each([

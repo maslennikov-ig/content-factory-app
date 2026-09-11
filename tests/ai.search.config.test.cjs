@@ -300,6 +300,36 @@ describe('saving the AI provider settings', () => {
     expect(JSON.stringify(query)).not.toContain('must-not-be-stored');
   });
 
+  test('switching workspace search provider clears the old key and enablement', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const findUnique = jest.fn().mockResolvedValue({ searchProvider: 'tavily' });
+    const service = new AiProviderService({
+      aiProviderSetting: { findUnique, upsert },
+      aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
+    });
+
+    await service.updateSettings('organization-a', {
+      provider: 'openrouter',
+      usageMode: 'workspace_key',
+      searchProvider: 'exa',
+      searchApiKey: 'new-exa-key',
+      searchEnabled: true,
+    });
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { organizationId: 'organization-a' },
+      select: { searchProvider: true },
+    });
+    expect(upsert.mock.calls[0][0].update).toMatchObject({
+      searchProvider: 'exa',
+      searchEnabled: false,
+      searchApiKey: null,
+    });
+    expect(JSON.stringify(upsert.mock.calls[0][0].update)).not.toContain(
+      'new-exa-key'
+    );
+  });
+
   test('the process that saved the setting drops its cached copy at once', async () => {
     const { service } = createService();
 

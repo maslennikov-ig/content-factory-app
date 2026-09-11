@@ -454,7 +454,7 @@ export class OpenRouterWebSearch implements WebSearchClient {
           id: 'web',
           engine: 'parallel',
           mode: 'advanced',
-          max_results: Math.min(Math.max(this.maxResults, 1), 20),
+          max_results: Math.min(Math.max(this.maxResults, 1), 50),
         },
       ],
     } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
@@ -515,7 +515,7 @@ export const getWebSearchClient = async (
             tavilyApiKey: config.search.apiKey,
             topic: freshnessRequired ? 'news' : 'general',
             searchDepth: config.search.depth,
-            maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), 20),
+            maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), 50),
             includeAnswer: true,
             includeRawContent: true,
             ...(freshnessRequired ? { timeRange: 'week' } : {}),

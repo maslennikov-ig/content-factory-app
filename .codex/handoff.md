@@ -1,15 +1,26 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-tu3k.15`
-Last accepted stage id: `content-factory-next-tu3k.14`
-Selected Beads goal: `content-factory-next-tu3k.15`
-**Wave «третий заход 10.09» is in progress on `wave/walk-2026-09-10`.**
-Owner authorized the wave and research `.2`–`.5` through release, with the stand
-shown first and no repeated approval request. Schema unchanged; rollback
-`2fe4032ea3db`. S4/S6/S1/S2/generator/S5/S3 integrated in manifest order. S3 follow-up stores
-review answers in existing brief answer flow; S5 legacy activation fixed. Stand opened
-in Windows at localhost4200; owner inspection is not claimed. No release or Beads closure yet.
-One full root acceptance follows integration; child checks are focused only.
-
+Current stage id: `content-factory-next-xbfj`
+Last accepted stage id: `content-factory-next-xbfj`
+Selected Beads goal: `content-factory-next-xbfj`
+**Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.**
+Private source `1066e49243e6` and public `content-factory-app/main` commit
+`cc513632d93df2bc946828698fa950d8e9173ef3` agree; image digest
+`sha256:214b952753e13e2a0c84baeaba4ff7a687a529046241613ee4c329b0553cf26a`; rollback
+`4fdac6f1435a`. Schema unchanged: diff exit 0, product Mastra 0→0, dedicated 29→29.
+App healthy, marker matches, restarts 0; API/login/source 200, archive hash matches.
+Retention kept the release and rollback, removed `2fe4032ea3db`, 23 GB free.
+The intermediate 10.09 release record also names `4fdac6f1435a` as the saved rollback.
+Root receipt: Jest417/5383, Node125/0 with 4 existing environment skips, Python46,
+three tsc and build/process/brand/docs/diff passed. Evidence: `stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
+Review-tail `content-factory-next-xbfj` passed local acceptance and stage closeout
+on branch `codex/review-tail-2026-09-11`; production release waits for an explicit
+owner choice in this stage. No real keys or paid calls were used. Tavily remains
+the default search provider; OpenRouter is the only reserve path. Exa still needs
+the owner's key. Keyless Wikipedia/Wikidata and constrained fetch are covered by
+offline contracts, while live `WebResearchService` wiring is deferred to
+`content-factory-next-m0iy.8`; durable quota accounting remains tied to `or3.9`.
+Связь черновика при same-channel переносе сохранена именно как перенос, согласно
+закрытому `.2`; перед production владелец может выбрать вариант `[перенос | копия]`.
 **Wave «второй заход 08.09» (`tu3k.14`, 30 tasks) — RELEASED `2fe4032ea3db` 08.09.2026.**
 Private verified source `7b07bec6a989` and release records are integrated into `main` and `origin/main`;
 public `content-factory-app/main` and running image agree. Rollback `5f657ccf294e`.
@@ -34,7 +45,6 @@ Scope: `docs/product/second-walk-wave-2026-09-08-spec.md` and three `docs/prompt
 S8 data limit: two thoughts measured; no eligible adaptation pairs in copied data,
  so adaptation word retention remains unmeasured. No synthetic result substituted.
 Third live walkthrough is prepared by Claude after the release report.
-
 **Wave «прогон 07.09» (07.09, epic `m2eg`, 25 tasks, plan
 `orchestrator-stage-codex-handoff-md-modular-hearth`) — merged to `main` as
 `553a74c9`, RELEASED as `9b538b9a2e25` 07.09, then the audit tail `47cd8475c442`
@@ -55,13 +65,11 @@ compose window); index invalidation on intake/publish relies on the 5-minute
 TTL; `menu.tsx` «⋮» is still 24 px wide inside its 32 px seat; group header in
 the collapsed rail still overflows. Open for the owner: `m2eg.25` (posting to
 Telegram as a person needs MTProto — not planned).
-
 **Small wave 07.09 (`tu3k.6`, `.10`, `.11`, `.12`) — RELEASED as `7e2b10bf1100`**
 (rollback `a6be7f3fbb92`, no schema): channel badge «настроено» from
 `GET /integrations/list`, adaptation `kind` picked by the person
 (`ui/segmented.tsx`), «В архив», 8 container tests on adapt, `search-started`
 typed, `core-write.ts` under the AI-consumer guard, list door without tokens.
-
 **Wave «заготовка и адаптации» (06–07.09, epic `tu3k.9`) — RELEASED
 `a6be7f3fbb92`** (schema `piece-adaptation-schema-apply.sql` applied BEFORE the
 switch, rollback `cd636483ba0a`). `ContentPiece.kind='CORE'` + `brief`;
@@ -70,7 +78,6 @@ post; core = one `draft` call from the person's words (`pieces/core-write.ts`);
 doors under `/content-intelligence/pieces`; screens
 `content-intelligence/pieces/*`; the avatar-learning trap closed
 (`recordFromPost` compares `ContentDerivation.body`).
-
 **Wave «вход одной мыслью» (06.09, epic `tu3k`) — RELEASED `cd636483ba0a`**
 (`Integration.writingProfile` before the switch). `POST
 /content-intelligence/intake` (NDJSON): thought / link / foreign post → claims
@@ -132,22 +139,14 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-tu3k.15`. Recommended action: **Astra runs wave
-«третий заход 10.09»** (29 tasks, `.24`/`.25` closed as merged) by
-`docs/prompts/astra-third-walk-wave-2026-09-10.md`; spec
-`docs/product/third-walk-wave-2026-09-10-spec.md`; research epic `m0iy` phase .2–.5 after the wave. Current owner instruction 10.09 authorizes autonomous execution and both releases; show stand before each release, do not ask for another yes. Owner walked
-production `2fe4032ea3db` on 10.09 (artifact 1e543e55, 21 notes, 3 shots): «Уже гораздо
-лучше». Evidence `.codex/stages/content-factory-next-tu3k.15/evidence/walk-2026-09-10/`
-(notes, shots, production log/db facts, three code-cause reports). Confirmed working:
-avatar analysis to the end, no 409 gate, three review calls, «ещё нет» chip free.
-Broken: picker → post window dark screen (100 %), zero emoji at level «few», title
-«:null», unreadable search review, review menu without `flex`, six progress widgets.
-Owner decisions: auto-accept avatar fields; «выбирает модель» everywhere in the channel
-card; publish as the accent action after adaptation; one `Progress`; component reuse.
-Decided 10.09: `.23` model questions by the material before the core (one round);
-review as three baskets with hover explanations (`.10`), findings → prompt (`.11`),
-«Переписать ▾» by parts (`.27`). Research is one entity, epic `m0iy`; decisions in `m0iy.1` are accepted: one organization-configured provider, Exa adapter with Tavily retained, no SearXNG, standard default, organization quotas 20/10/3. Only Exa key is external; use recorded Exa responses and live Tavily until then. Phase .6/.7 waits for benefit measurement. Rollback stays `2fe4032ea3db`. Still the owner's: GPG key before
-16.09.2026, `or3.9`, `fn33.132`, channel signatures off and a neutral bot name.
+Next stage id: `content-factory-next-m0iy.6`. Recommended action: measure the benefit of R1–R5 before phase 2. R1–R5 are released with the wave;
+R6/R7 stay deferred until benefit measurement. The next owner-facing action is the
+fourth live walkthrough and a measurement of research usefulness. Tavily remains
+the default provider; OpenRouter is the only reserve path. Recorded Exa responses
+cover offline checks until the owner supplies an Exa key. Live keyless
+Wikipedia/Wikidata wiring is tracked in `content-factory-next-m0iy.8`.
+Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures
+off and a neutral bot name.
 
 Cleanup08.09: one worktree on main;31 merged local and13 remote branches removed.
 The two unmerged August orchestration tips were archived, then removed with the

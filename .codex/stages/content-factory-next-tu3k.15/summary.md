@@ -28,3 +28,12 @@ S5 ControlButton overlay patch accepted from isolated worktree; main card is key
 Final design replay found the shrink ledger live metadata also needed its matching total; corrected941→940 and986→985 without new allowance. Avatar regressions7/7 passed; complete design guard26/26 passed after exact metadata repair.
 
 Second full attempt: Jest416/416 suites5368/5368 tests passed. Node assertions125 passed with4 existing environment skips, but consumer-backend worker did not exit: newly imported real IntegrationService opened two localhost6380 Redis sockets (PID21329). Root terminated only that owned worker; suite correctly failed and wrote no receipt. Added missing constructor-service mock in that test loader, retaining assertions. Focused Node file now exits normally. No runtime source changed after7b699cbb; next receipt run reuses the successful three-app tsc/build from this attempt and reruns mandatory full pnpm test through the release recorder. The two blank lines removed in7ce6491f only restore the handoff200-line cap; no image input changed.
+
+
+Final release 10.09.2026: public `cc513632d93d`, image digest
+`sha256:214b952753e13e2a0c84baeaba4ff7a687a529046241613ee4c329b0553cf26a`, rollback
+`4fdac6f1435a`. New image passed empty `migrate diff`; product Mastra 0→0 and
+dedicated Mastra 29→29 with unchanged fingerprints. Host `helixa-prod` healthy,
+marker matched, source archive SHA-256 matched, and retention kept two images plus
+three configuration copies (23 GB free). Research R1–R5 shipped in the same image;
+R6/R7 remain deferred for benefit measurement.

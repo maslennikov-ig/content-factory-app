@@ -202,6 +202,48 @@ describe('shared web research service', () => {
     });
   });
 
+  test('reserves quota only for an explicitly selected research level', async () => {
+    const quota = { reserve: jest.fn() };
+    await new WebResearchService(aiUsage, quota).research(
+      'organization-a',
+      'implicit topic'
+    );
+    expect(quota.reserve).not.toHaveBeenCalled();
+
+    await new WebResearchService(aiUsage, quota).research(
+      'organization-a',
+      'explicit topic',
+      { level: 'quick' }
+    );
+    expect(quota.reserve).toHaveBeenCalledWith('organization-a', 'quick');
+  });
+
+  test('passes the declared deep source cap to the provider', async () => {
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'deep topic',
+      { level: 'deep' }
+    );
+    expect(clientFactoryCalls[0]).toMatchObject({
+      options: { maxResults: 50 },
+    });
+  });
+
+  test('applies the provider kill switch before constructing a client', async () => {
+    process.env.RESEARCH_PROVIDER_KILL_SWITCHES = 'tavily';
+    try {
+      await expect(
+        new WebResearchService(aiUsage).research('organization-a', 'blocked')
+      ).rejects.toMatchObject({
+        code: 'RESEARCH_EGRESS_PROVIDER_KILL_SWITCH',
+      });
+      expect(clientFactoryCalls).toEqual([]);
+      expect(invocations).toEqual([]);
+    } finally {
+      delete process.env.RESEARCH_PROVIDER_KILL_SWITCHES;
+    }
+  });
+
   /**
    * `content-factory-next-fn33.132`: Tavily has no language parameter — the
    * language of a query is the language of its words — so a Russian subject

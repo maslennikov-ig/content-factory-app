@@ -455,7 +455,9 @@ test('web makes one research request then one no-retry review using excerpts, ne
     true
   );
   expect(web.research).toHaveBeenCalledTimes(1);
-  expect(web.research).toHaveBeenCalledWith('org', 'Новый ручной текст');
+  expect(web.research).toHaveBeenCalledWith('org', 'Новый ручной текст', {
+    level: 'standard',
+  });
   expect(calls).toHaveLength(1);
   expect(calls[0].options.maxRetries).toBe(0);
   expect(calls[0].body.messages[0].content).toContain('untrusted data');
@@ -501,6 +503,22 @@ test('search input and returned evidence have fixed bounds, without per-claim fa
   ).toBe(true);
   expect(reviewed.searchedChars).toBe(5_000);
 });
+
+test('standard adaptation review records its explicit paid research level', async () => {
+  const web = { research: jest.fn(async () => evidence) };
+  output = webAnswer();
+  await webModule.reviewAdaptationWithSearch(
+    'org',
+    { text: 'draft', language: 'en' },
+    usage,
+    web,
+    'standard'
+  );
+  expect(web.research).toHaveBeenCalledWith('org', 'draft', {
+    level: 'standard',
+  });
+});
+
 test.each(['unavailable', 'empty', 'no-excerpt', 'unsafe-url', 'empty-draft'])(
   '%s stops before the review model and never mutates a draft',
   async (condition) => {

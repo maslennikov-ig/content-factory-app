@@ -171,6 +171,8 @@ interface WorkflowChannelsState {
    * пост и канал вместе с его карточкой письма.
    */
   intake?: IntakeGenerationHintsV1;
+  /** Resolved from the tenant-scoped integration for the ordinary generator. */
+  resolvedChannelProfile?: ResolvedChannelProfile;
   /**
    * Обычай канала, сказанный строками промпта.
    *
@@ -392,7 +394,9 @@ const relatedBlock = (state: WorkflowChannelsState): string => {
  * Без подсказок строка остаётся на месте слово в слово.
  */
 const hashtagInstruction = (state: WorkflowChannelsState): string => {
-  const policy = state.intake?.channel.writingProfile.hashtagPolicy;
+  const policy =
+    state.resolvedChannelProfile?.profile.hashtagPolicy ??
+    state.intake?.channel.writingProfile.hashtagPolicy;
   return policy && policy !== 'none' ? '' : "- Don't add any hashtags";
 };
 
@@ -400,7 +404,8 @@ const hashtagInstruction = (state: WorkflowChannelsState): string => {
  * Призыв к действию: обычай канала вместо унаследованного «попробуй что-нибудь».
  */
 const ctaInstruction = (state: WorkflowChannelsState): string => {
-  const profile = state.intake?.channel.writingProfile;
+  const profile =
+    state.resolvedChannelProfile?.profile ?? state.intake?.channel.writingProfile;
   return profile
     ? channelCtaLine(profile.ctaKind)
     : 'Try to put some call to action at the end of the post';
@@ -635,6 +640,7 @@ export class AgentGraphService {
         draftGaps: null,
         adaptationQuestion: null,
         intake: null,
+        resolvedChannelProfile: null,
         channelLines: null,
         /**
          * Объявлен здесь по той же причине, что и `draftGaps` выше: ключ,
@@ -1815,6 +1821,7 @@ export class AgentGraphService {
           draftPickEnabled: this.draftPick,
           contextText: this.renderContext(contentContext),
           intake: hints,
+          resolvedChannelProfile,
           channelLines,
           relatedOwnPosts: body.relatedOwnPosts ?? undefined,
           foreignShingles: hints?.foreignShingles ?? undefined,

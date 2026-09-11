@@ -190,10 +190,20 @@ export class AiProviderService {
       searchDepth?: 'basic' | 'advanced';
     }
   ) {
+    const workspaceSettings = body.usageMode !== 'included';
+    const current = await this._prisma.aiProviderSetting?.findUnique?.({
+      where: { organizationId },
+      select: { searchProvider: true },
+    });
+    const currentSearchProvider = current?.searchProvider || 'tavily';
+    const searchProviderChanged =
+      workspaceSettings &&
+      body.searchProvider !== undefined &&
+      current &&
+      currentSearchProvider !== body.searchProvider;
     // Every field below the provider is optional in the request, and the screen
     // saves sections independently. An absent field means "leave it"; an
     // explicitly emptied one means "clear it".
-    const workspaceSettings = body.usageMode !== 'included';
     const data = {
       ...(body.usageMode ? { usageMode: body.usageMode } : {}),
       ...(workspaceSettings ? { provider: body.provider } : {}),
@@ -215,11 +225,13 @@ export class AiProviderService {
       ...(workspaceSettings && body.apiKey
         ? { apiKey: AuthService.fixedEncryption(body.apiKey) }
         : {}),
-      ...(typeof body.searchEnabled === 'boolean'
+      ...(searchProviderChanged
+        ? { searchEnabled: false, searchApiKey: null }
+        : typeof body.searchEnabled === 'boolean'
         ? { searchEnabled: body.searchEnabled }
         : {}),
       ...(body.searchProvider ? { searchProvider: body.searchProvider } : {}),
-      ...(workspaceSettings && body.searchApiKey
+      ...(workspaceSettings && body.searchApiKey && !searchProviderChanged
         ? { searchApiKey: AuthService.fixedEncryption(body.searchApiKey) }
         : {}),
       ...(body.searchTopic ? { searchTopic: body.searchTopic } : {}),

@@ -59,6 +59,7 @@
 - `libraries/nestjs-libraries/src/content-intelligence/pieces/` (сервис, репозиторий, `core-write.ts`), `apps/backend/src/api/routes/content-piece.controller.ts`, `apps/frontend/src/components/content-intelligence/pieces/` — заготовка и адаптации (волна `tu3k.9`): контракт в разделе «Заготовка и адаптации» `voice-wiring.contract.ts`, фикстура `pieces.fixture.ts`, решения — `docs/product/content-section-map.md` §11, схема — `docs/operations/piece-adaptation-schema-apply.sql`.
 - `pieces/adaptation-review.ts`, `adaptation-review.contract.ts` и `openai/ai.roles.ts` внутри `libraries/nestjs-libraries/src/` — явная платная проверка адаптации (`review`), один вызов и атомарное принятие в DRAFT; UI `apps/frontend/src/components/content-intelligence/pieces/adaptation-review.tsx`.
 - Волна третьего захода: `docs/product/third-walk-wave-2026-09-10-spec.md`; вопросы до сути — `libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v2.ts`, `intake-content.ts`; опоры с выбором — `pieces/piece-facts.v2.ts`; карточка канала — `channels/channel-writing-profile.v2.contract.ts`. Обычный генератор читает её по `integrationId` в `agent/agent.graph.service.ts`.
+- Ресерч R1–R5: `libraries/nestjs-libraries/src/content-intelligence/research/` содержит policy/fetch/Wikipedia/Wikidata и квоту, `libraries/nestjs-libraries/src/openai/web.research.service.ts` — общий порт Tavily/Exa; вход и усиление заготовки используют явный выбор опор. R6/R7 ждут замера пользы.
 - Общие индикатор и строка фильтров — `apps/frontend/src/components/ui/progress.tsx` и `filters-row.tsx`; каталог компонентов — `docs/design/component-inventory.md`; защита от повторной геометрии — `tests/component-geometry.guard.test.cjs`.
 - `apps/backend/src/api/routes/ndjson-stream.ts` — общий транспорт входа, адаптации и разбора аватара: без сжатия, первая строка и heartbeat. Контракты расширены отдельными `intake-v2.contract.ts` и `voice-intake-v2.contract.ts`.
 - `apps/frontend/src/components/layout/top.menu.tsx` — навигация A; четыре вкладки заготовок в `content-section.screen.tsx`.
@@ -146,5 +147,4 @@
 - No credentials, private materials, real provider calls, live publishing, paid model calls, deployment, or user messaging without explicit authority.
 - Keep current-state and target-state separate according to `docs/adr/0002-separate-current-and-target-state.md`.
 - Update documentation and the local Graphify index when architecture or durable workflow changes.
-
 - Проверка/перегенерация V2 — `docs/product/review-v2.md`, `pieces/review.v2.ts`, `review.v2.contract.ts` и `review-semantic.v2.ts` в content-intelligence; прежний V1 сохранён. Общий Disclosure — `apps/frontend/src/components/ui/disclosure.tsx`.

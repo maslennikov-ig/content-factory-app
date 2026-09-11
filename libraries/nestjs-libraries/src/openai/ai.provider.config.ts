@@ -201,9 +201,9 @@ export const loadAiConfig = async (
           roleModels: defaults.roleModels,
           search: {
             enabled: stored.searchEnabled,
-            provider: readSearchProvider(
-              process.env.AI_INCLUDED_SEARCH_PROVIDER || stored.searchProvider
-            ),
+            // Included search is the operator's lane. A workspace's stored
+            // provider must never redirect the managed key to another API.
+            provider: readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER),
             apiKey: process.env.AI_INCLUDED_SEARCH_API_KEY || '',
             topic: (stored.searchTopic as SearchTopic) || 'general',
             depth: (stored.searchDepth as SearchDepth) || 'advanced',
