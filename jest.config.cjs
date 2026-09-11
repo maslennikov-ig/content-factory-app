@@ -23,6 +23,10 @@ module.exports = {
     // above: the real module, so no suite tests a private copy of the policy.
     '^@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress$':
       '<rootDir>/tests/helpers/research-egress.cjs',
+    // The keyless encyclopedic lane, imported by the same service for the same
+    // reason. Also the real module — see the helper.
+    '^@contentfactory/nestjs-libraries/content-intelligence/research/encyclopedic-reference$':
+      '<rootDir>/tests/helpers/encyclopedic-reference.cjs',
   },
   testMatch: ['**/*.test.cjs'],
   // These suites deliberately use Node's native test runner. Jest cannot

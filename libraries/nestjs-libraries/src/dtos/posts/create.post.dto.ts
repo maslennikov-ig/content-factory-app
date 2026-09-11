@@ -45,9 +45,11 @@ export class ResearchSource {
   @IsDateString()
   publishedAt: string | null;
 
+  // `wikipedia` и `wikidata` — бесключевая полоса ресерча
+  // (`content-factory-next-m0iy.8`); остальные значения — поисковики.
   @IsOptional()
-  @IsIn(['tavily', 'openrouter', 'exa'])
-  provider?: 'tavily' | 'openrouter' | 'exa';
+  @IsIn(['tavily', 'openrouter', 'exa', 'wikipedia', 'wikidata'])
+  provider?: 'tavily' | 'openrouter' | 'exa' | 'wikipedia' | 'wikidata';
 }
 
 export class PostContent {

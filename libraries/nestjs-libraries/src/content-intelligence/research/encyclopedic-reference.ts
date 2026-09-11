@@ -124,3 +124,81 @@ export async function lookupWikidataReferences(input: {
     policyVersion: ENCYCLOPEDIC_REFERENCE_POLICY_VERSION,
   };
 }
+
+export const ENCYCLOPEDIC_EXTRACT_MAX_CHARS = 2_000;
+
+export type EncyclopedicExtract = {
+  url: string;
+  title: string;
+  /** Page bytes that may be cited, unlike `nonCitableSnippet` above. */
+  extract: string;
+  provider: 'wikipedia';
+  requestedAt: string;
+};
+
+/**
+ * Turns one discovery row into page bytes a caller may quote.
+ *
+ * Endpoint choice: the REST summary door `/api/rest_v1/page/summary/{key}`.
+ * It answers with the lead section as plain text in a single request — which
+ * is what a citation needs — and is served from the edge cache.
+ * `/w/rest.php/v1/page/{key}` was the other candidate and was refused: it
+ * returns raw wikitext, so every citation would carry templates and markup
+ * this product would have to strip afterwards, and it sends the whole article
+ * when two paragraphs are wanted.
+ */
+export async function fetchEncyclopedicExtract(input: {
+  articleUrl: string;
+  fetchImpl?: typeof fetch;
+  resolver?: ResearchDnsResolver;
+  signal?: AbortSignal;
+}): Promise<EncyclopedicExtract | null> {
+  let article: URL;
+  try {
+    article = new URL(input.articleUrl);
+  } catch {
+    return null;
+  }
+  const host = article.hostname.toLowerCase();
+  if (!host.endsWith('.wikipedia.org')) return null;
+  const key = decodeURIComponent(article.pathname.replace(/^\/wiki\//u, ''));
+  if (!key || key.includes('/')) return null;
+  const endpoint = `https://${host}/api/rest_v1/page/summary/${encodeURIComponent(key)}`;
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const response = await constrainedResearchFetch({
+    url: endpoint,
+    resolver: input.resolver || (input.fetchImpl ? undefined : resolveResearchHostname),
+    fetcher: (url, init) =>
+      fetchImpl(url, {
+        ...(init as RequestInit),
+        headers: { Accept: 'application/json', 'User-Agent': 'content-factory-research/1.0' },
+        signal: input.signal,
+      }),
+  });
+  if (!response.ok) return null;
+  const body = (await response.json()) as {
+    type?: unknown;
+    title?: unknown;
+    extract?: unknown;
+    content_urls?: { desktop?: { page?: unknown } };
+  };
+  // A disambiguation page lists names instead of stating anything: discovery
+  // at best, never a fact.
+  if (body.type === 'disambiguation') return null;
+  const extract = typeof body.extract === 'string' ? body.extract.trim() : '';
+  if (!extract) return null;
+  const canonical = body.content_urls?.desktop?.page;
+  return {
+    url:
+      typeof canonical === 'string' && canonical.startsWith('https://')
+        ? canonical
+        : article.toString(),
+    title:
+      typeof body.title === 'string' && body.title.trim()
+        ? body.title.trim().slice(0, 500)
+        : key,
+    extract: extract.slice(0, ENCYCLOPEDIC_EXTRACT_MAX_CHARS),
+    provider: 'wikipedia',
+    requestedAt: new Date().toISOString(),
+  };
+}

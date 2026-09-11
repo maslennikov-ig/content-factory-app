@@ -1,6 +1,14 @@
 'use strict';
 
 const { loadWithMocks, REPO } = require('./helpers/load-ts-with-mocks.cjs');
+const { createFakeRedis } = require('./helpers/fake-redis.cjs');
+
+/** Every Logger.warn the loaded modules emit, so a fallback can be proven. */
+const warnings = [];
+
+const redisService = loadWithMocks(
+  'libraries/nestjs-libraries/src/redis/redis.service.ts'
+);
 
 const egress = loadWithMocks(
   'libraries/nestjs-libraries/src/content-intelligence/research/competitive-intelligence-egress.ts'
@@ -18,9 +26,12 @@ const webResearch = loadWithMocks(
     '@nestjs/common': {
       Injectable: () => (target) => target,
       Optional: () => () => {},
+      Inject: () => () => {},
       Logger: class {
         log() {}
-        warn() {}
+        warn(message) {
+          warnings.push(message);
+        }
         debug() {}
       },
     },
@@ -264,14 +275,83 @@ describe('research phase one policy', () => {
     expect(calls[1]).toContain('action=wbsearchentities');
   });
 
-  test('counts failed reservations and records cache hits and misses', () => {
-    const quota = new webResearch.ResearchQuotaService();
-    const first = quota.reserve('org-a', 'quick', new Date('2026-09-01T00:00:00Z'));
+  test('reads a citable extract through the REST summary door', async () => {
+    const calls = [];
+    const extract = await encyclopedic.fetchEncyclopedicExtract({
+      articleUrl: 'https://en.wikipedia.org/wiki/Ada_Lovelace',
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), headers: init.headers });
+        return {
+          ok: true,
+          async json() {
+            return {
+              type: 'standard',
+              title: 'Ada Lovelace',
+              extract: `${'Ada Lovelace was an English mathematician. '.repeat(100)}`,
+              content_urls: {
+                desktop: { page: 'https://en.wikipedia.org/wiki/Ada_Lovelace' },
+              },
+            };
+          },
+        };
+      },
+    });
+
+    expect(calls[0].url).toBe(
+      'https://en.wikipedia.org/api/rest_v1/page/summary/Ada_Lovelace'
+    );
+    expect(calls[0].headers['User-Agent']).toBe('content-factory-research/1.0');
+    expect(extract).toMatchObject({
+      provider: 'wikipedia',
+      url: 'https://en.wikipedia.org/wiki/Ada_Lovelace',
+      title: 'Ada Lovelace',
+    });
+    expect(extract.extract).toHaveLength(
+      encyclopedic.ENCYCLOPEDIC_EXTRACT_MAX_CHARS
+    );
+  });
+
+  test('an extract that cannot be cited is no extract at all', async () => {
+    const answer = (body) => async () => ({ ok: true, async json() { return body; } });
+    await expect(
+      encyclopedic.fetchEncyclopedicExtract({
+        articleUrl: 'https://en.wikipedia.org/wiki/Mercury',
+        fetchImpl: answer({ type: 'disambiguation', extract: 'Mercury may refer to' }),
+      })
+    ).resolves.toBeNull();
+    await expect(
+      encyclopedic.fetchEncyclopedicExtract({
+        articleUrl: 'https://en.wikipedia.org/wiki/Empty',
+        fetchImpl: answer({ type: 'standard', extract: '   ' }),
+      })
+    ).resolves.toBeNull();
+    await expect(
+      encyclopedic.fetchEncyclopedicExtract({
+        articleUrl: 'https://example.com/wiki/Ada_Lovelace',
+        fetchImpl: async () => {
+          throw new Error('must not run');
+        },
+      })
+    ).resolves.toBeNull();
+    await expect(
+      encyclopedic.fetchEncyclopedicExtract({
+        articleUrl: 'https://en.wikipedia.org/wiki/Ada_Lovelace',
+        fetchImpl: async () => ({ ok: false, status: 404 }),
+      })
+    ).resolves.toBeNull();
+  });
+
+  test('counts failed reservations and records cache hits and misses', async () => {
+    const redis = createFakeRedis();
+    const quota = new webResearch.ResearchQuotaService(redis);
+    const first = await quota.reserve('org-a', 'quick', new Date('2026-09-01T00:00:00Z'));
     expect(first).toMatchObject({ used: 1, limit: 20 });
-    expect(quota.read('org-a', 'quick', new Date('2026-09-01T00:00:00Z'))).toMatchObject({
+    expect(await quota.read('org-a', 'quick', new Date('2026-09-01T00:00:00Z'))).toMatchObject({
       used: 1,
       remaining: 19,
     });
+    expect([...redis.values.keys()]).toEqual(['research:quota:org-a:quick:2026-09']);
+    expect(redis.ttls.get('research:quota:org-a:quick:2026-09')).toBe(40 * 24 * 60 * 60);
     const cache = new webResearch.ResearchQueryCache(2);
     expect(cache.get('missing', new Date('2026-09-01T00:00:00Z'))).toBeUndefined();
     cache.set('present', { ok: true });
@@ -280,5 +360,73 @@ describe('research phase one policy', () => {
       { key: 'missing', hit: false, at: '2026-09-01T00:00:00.000Z' },
       { key: 'present', hit: true, at: '2026-09-01T00:01:00.000Z' },
     ]);
+  });
+
+  test('two quota instances sharing one Redis share the monthly counter', async () => {
+    const redis = createFakeRedis();
+    const first = new webResearch.ResearchQuotaService(redis);
+    const second = new webResearch.ResearchQuotaService(redis);
+    const march = new Date('2026-03-10T12:00:00Z');
+
+    expect(await first.reserve('org-b', 'deep', march)).toMatchObject({ used: 1, limit: 3 });
+    expect(await second.reserve('org-b', 'deep', march)).toMatchObject({ used: 2, limit: 3 });
+    // A restart is the same thing as a second instance here: the count is read
+    // back from Redis rather than from whatever the process remembers.
+    expect(await second.read('org-b', 'deep', march)).toMatchObject({
+      used: 2,
+      limit: 3,
+      remaining: 1,
+    });
+    expect(redis.values.get('research:quota:org-b:deep:2026-03')).toBe('2');
+  });
+
+  test('holds the limit at exactly the configured number and releases the refused slot', async () => {
+    const redis = createFakeRedis();
+    const quota = new webResearch.ResearchQuotaService(redis);
+    const key = 'research:quota:org-c:deep:2026-03';
+    const march = new Date('2026-03-10T12:00:00Z');
+
+    for (let index = 1; index <= webResearch.RESEARCH_MONTHLY_QUOTAS.deep; index += 1) {
+      expect(await quota.reserve('org-c', 'deep', march)).toMatchObject({ used: index });
+    }
+    await expect(quota.reserve('org-c', 'deep', march)).rejects.toMatchObject({
+      status: 429,
+      code: 'RESEARCH_QUOTA_EXHAUSTED',
+    });
+    // The refused call must not leave the counter above the limit, or the
+    // month would keep refusing after a single overshoot.
+    expect(redis.values.get(key)).toBe(String(webResearch.RESEARCH_MONTHLY_QUOTAS.deep));
+    // The next month is a different key, so the allowance returns on its own.
+    expect(
+      await quota.reserve('org-c', 'deep', new Date('2026-04-01T00:00:00Z'))
+    ).toMatchObject({ used: 1 });
+  });
+
+  test('falls back to in-process counting with a warning when Redis is down', async () => {
+    warnings.length = 0;
+    const redis = createFakeRedis({ failWith: new Error('ECONNREFUSED') });
+    const quota = new webResearch.ResearchQuotaService(redis);
+    const march = new Date('2026-03-10T12:00:00Z');
+
+    expect(await quota.reserve('org-d', 'deep', march)).toMatchObject({ used: 1, limit: 3 });
+    expect(await quota.reserve('org-d', 'deep', march)).toMatchObject({ used: 2, limit: 3 });
+    expect(await quota.reserve('org-d', 'deep', march)).toMatchObject({ used: 3, limit: 3 });
+    await expect(quota.reserve('org-d', 'deep', march)).rejects.toMatchObject({ status: 429 });
+    expect(await quota.read('org-d', 'deep', march)).toMatchObject({ used: 3, remaining: 0 });
+    expect(warnings).toHaveLength(5);
+    expect(warnings[0]).toContain('ECONNREFUSED');
+  });
+
+  test('the Redis stand-in counts, so a process without REDIS_URL still works', async () => {
+    const mock = new redisService.MockRedis();
+    expect(await mock.incr('counter')).toBe(1);
+    expect(await mock.incr('counter')).toBe(2);
+    expect(await mock.decr('counter')).toBe(1);
+    expect(await mock.get('counter')).toBe('1');
+    expect(await mock.ttl('counter')).toBe(-1);
+    expect(await mock.expire('counter', 60)).toBe(1);
+    expect(await mock.ttl('counter')).toBeLessThanOrEqual(60);
+    expect(await mock.expire('absent', 60)).toBe(0);
+    expect(await mock.ttl('absent')).toBe(-2);
   });
 });

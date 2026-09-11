@@ -1,0 +1,29 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-zhv8",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-zhv8",
+  "source_digest": "6454fc76b97e6573bae0d6d97161adaa67d8a9626dd2adf2022fbee2eeabec57",
+  "criteria": [
+    {
+      "criterion_id": "AC-1-keyless-lane",
+      "text": "At an explicit research level WebResearchService adds Wikipedia/Wikidata sources through constrained fetch with a citable extract; a level-less call does not touch the lane; a failing lane leaves the provider answer intact.",
+      "text_digest": "bcd70055e060bc536f635f907768faa86ceac2fc7217ac331378e6f1aa9f6a1a"
+    },
+    {
+      "criterion_id": "AC-2-durable-quota",
+      "text": "ResearchQuotaService counts in Redis per organization, level and UTC month with the unchanged limits 20/10/3; a Redis failure falls back to memory with a warning; no Prisma schema change.",
+      "text_digest": "a333b0c4e75605d5b2c0cffd2adfecda9e9aded4bea8982dcdad8b0c88a0552a"
+    },
+    {
+      "criterion_id": "AC-3-cleanup-docs",
+      "text": "The review-tail worktree and merged branch are removed; specification, handoff and runbook describe the live lane and durable quota; open owner items are listed, not absorbed.",
+      "text_digest": "148416d677ceaa1c84dea3b09d75380148948a7040ae8fd1dd3df53c954419e8"
+    },
+    {
+      "criterion_id": "AC-4-release",
+      "text": "Local acceptance passes (three-app tsc, build, full suite receipt, process verification, empty migrate diff) and the wave is released by the runbook with rollback 92f0b95dfe3f and a release record.",
+      "text_digest": "d8ce45360aa5515bcd2a4160aa254b1be96d6e47d842c90f6246c6e3525de57c"
+    }
+  ]
+}

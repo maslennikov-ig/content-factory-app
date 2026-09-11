@@ -81,6 +81,7 @@ const { WebResearchService } = loadTypeScriptModule(
     '@nestjs/common': {
       Injectable: () => (target) => target,
       Optional: () => () => {},
+      Inject: () => () => {},
       Logger: class {
         log() {}
         warn() {}

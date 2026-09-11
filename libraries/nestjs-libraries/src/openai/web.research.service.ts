@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { z } from 'zod';
 import {
@@ -22,12 +22,56 @@ import {
   decideResearchEgress,
   type ResearchEgressBudget,
 } from '@contentfactory/nestjs-libraries/content-intelligence/research/competitive-intelligence-egress';
+import {
+  fetchEncyclopedicExtract,
+  lookupEncyclopedicReferences,
+  lookupWikidataReferences,
+  type EncyclopedicProvider,
+} from '@contentfactory/nestjs-libraries/content-intelligence/research/encyclopedic-reference';
+import type { ResearchDnsResolver } from '@contentfactory/nestjs-libraries/content-intelligence/research/constrained-static-fetch';
+
+/**
+ * Who brought the row. A search engine is chosen and paid for in settings;
+ * `wikipedia` and `wikidata` are the keyless lane and are never selectable as
+ * the workspace's search provider, which is why `SearchProvider` itself is
+ * left alone.
+ */
+export type ResearchSourceProvider = SearchProvider | EncyclopedicProvider;
+
+/** Search engines plus the keyless lane, in one list the egress guard reads. */
+export const APPROVED_RESEARCH_PROVIDERS: readonly string[] = [
+  'tavily',
+  'exa',
+  'openrouter',
+  'wikipedia',
+  'wikidata',
+];
+
+/**
+ * The keyless lane is an addition to an answer the person already has, so it
+ * gets a short budget of its own and is abandoned rather than waited on.
+ */
+export const ENCYCLOPEDIC_LANE_TIMEOUT_MS = 8_000;
+
+/**
+ * Recorded-response seam for the keyless lane.
+ *
+ * The application module does not register it, so `@Optional()` hands the
+ * service `undefined` and the lane takes the network path with its own DNS
+ * resolution. A test constructs one and the same code runs against recorded
+ * bytes without touching the network.
+ */
+@Injectable()
+export class EncyclopedicLaneClient {
+  fetchImpl?: typeof fetch;
+  resolver?: ResearchDnsResolver;
+}
 
 export interface WebResearchSource {
   url: string;
   title: string;
   publishedAt: string | null;
-  provider: SearchProvider;
+  provider: ResearchSourceProvider;
 }
 
 export interface WebResearchFact {
@@ -76,14 +120,87 @@ export class ResearchQuotaExceeded extends Error {
 
 type ResearchQuotaCounter = { period: string; count: number };
 
-/** Admission-side quota. Failed calls are reserved and therefore counted. */
+/**
+ * The slice of Redis the quota needs. Narrow on purpose: a test hands in a
+ * fake, and the production default is the shared `ioRedis` singleton.
+ */
+/** Injection token for the quota's Redis slice; provided by `database.module.ts`. */
+export const RESEARCH_QUOTA_STORE = 'RESEARCH_QUOTA_STORE';
+
+export interface ResearchQuotaStore {
+  get(key: string): Promise<string | null | undefined>;
+  incr(key: string): Promise<number>;
+  decr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<unknown>;
+  del(key: string): Promise<unknown>;
+}
+
+/**
+ * Slightly over a month, so a counter outlives the period it belongs to even
+ * when the month is long and the clock drifts, and disappears on its own
+ * afterwards. Nothing reads a previous period, so an exact boundary buys
+ * nothing and an early expiry would hand back spent allowance.
+ */
+export const RESEARCH_QUOTA_TTL_SECONDS = 40 * 24 * 60 * 60;
+
+export const researchQuotaKey = (
+  organizationId: string,
+  level: ResearchLevel,
+  now: Date
+): string =>
+  `research:quota:${organizationId}:${level}:${now.getUTCFullYear()}-${String(
+    now.getUTCMonth() + 1
+  ).padStart(2, '0')}`;
+
+/**
+ * Admission-side quota. Failed calls are reserved and therefore counted.
+ *
+ * The counter lives in Redis so that a restart, a second backend instance and
+ * a worker all see the same month. The in-memory map is kept only as a
+ * fallback for a Redis outage: an unreachable counter must not stop people
+ * from working, so the soft quota degrades to per-process counting and says so
+ * in the log rather than refusing the call. Over-admitting during an outage is
+ * the cheaper mistake here.
+ */
 @Injectable()
 export class ResearchQuotaService {
+  private readonly logger = new Logger(ResearchQuotaService.name);
   private readonly counters = new Map<string, ResearchQuotaCounter>();
+  private readonly touched = new Set<string>();
+  private readonly store: ResearchQuotaStore | null;
+
+  /**
+   * The store arrives through the application module under
+   * `RESEARCH_QUOTA_STORE` (the shared `ioRedis` singleton). It is not imported
+   * here on purpose: `redis.service` opens its socket the moment it is loaded,
+   * and this file is loaded by every suite that touches research, which turned
+   * one import into a process that never exited. Without a store the quota
+   * counts in memory and says so once.
+   */
+  constructor(
+    @Optional() @Inject(RESEARCH_QUOTA_STORE) store?: ResearchQuotaStore
+  ) {
+    this.store = store ?? null;
+    if (!this.store) {
+      this.logger.log(
+        'No research quota store was provided; counting in process memory.'
+      );
+    }
+  }
+
   private period(now: Date): string {
     return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   }
-  reserve(organizationId: string, level: ResearchLevel, now = new Date()) {
+
+  private warn(action: string, error: unknown) {
+    this.logger.warn(
+      `Research quota ${action} fell back to in-process counting: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  private reserveInMemory(organizationId: string, level: ResearchLevel, now: Date) {
     const key = `${organizationId}|${level}`;
     const period = this.period(now);
     const current = this.counters.get(key);
@@ -94,13 +211,62 @@ export class ResearchQuotaService {
     this.counters.set(key, counter);
     return { used: counter.count, limit };
   }
-  read(organizationId: string, level: ResearchLevel, now = new Date()) {
-    const current = this.counters.get(`${organizationId}|${level}`);
-    const used = current?.period === this.period(now) ? current.count : 0;
+
+  async reserve(organizationId: string, level: ResearchLevel, now = new Date()) {
     const limit = RESEARCH_MONTHLY_QUOTAS[level];
+    const key = researchQuotaKey(organizationId, level, now);
+    let used: number;
+    if (!this.store) return this.reserveInMemory(organizationId, level, now);
+    this.touched.add(key);
+    try {
+      used = await this.store.incr(key);
+      // Only the first increment of a period needs the lifetime; re-arming it
+      // on every call would keep an abandoned counter alive forever.
+      if (used === 1) await this.store.expire(key, RESEARCH_QUOTA_TTL_SECONDS);
+    } catch (error) {
+      this.warn('reservation', error);
+      return this.reserveInMemory(organizationId, level, now);
+    }
+    if (used > limit) {
+      try {
+        await this.store.decr(key);
+      } catch (error) {
+        this.warn('release', error);
+      }
+      throw new ResearchQuotaExceeded(level);
+    }
+    return { used, limit };
+  }
+
+  async read(organizationId: string, level: ResearchLevel, now = new Date()) {
+    const limit = RESEARCH_MONTHLY_QUOTAS[level];
+    let used: number;
+    try {
+      if (!this.store) throw new Error('no store');
+      const stored = await this.store.get(researchQuotaKey(organizationId, level, now));
+      const parsed = Number(stored ?? 0);
+      used = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    } catch (error) {
+      if (this.store) this.warn('read', error);
+      const current = this.counters.get(`${organizationId}|${level}`);
+      used = current?.period === this.period(now) ? current.count : 0;
+    }
     return { used, limit, remaining: Math.max(0, limit - used) };
   }
-  clearForTests() { this.counters.clear(); }
+
+  /** Clears both sides so a suite starts from zero whichever one answered. */
+  async clearForTests() {
+    this.counters.clear();
+    const keys = [...this.touched];
+    this.touched.clear();
+    for (const key of keys) {
+      try {
+        await this.store?.del(key);
+      } catch (error) {
+        this.warn('cleanup', error);
+      }
+    }
+  }
 }
 
 export interface ResearchCacheJournalEntry {
@@ -311,6 +477,14 @@ const failureLabel = (error: unknown) => {
   if (code) return `code ${code}`;
   return 'provider failure';
 };
+
+/**
+ * The keyless lane carries no credentials and its failures are our own codes
+ * or a public URL, so the message may be logged as it is — bounded, because a
+ * provider may answer with a page instead of an error.
+ */
+const describeLaneError = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).slice(0, 200);
 
 const isEnglish = (language: string) => {
   const normalized = language.trim().toLowerCase();
@@ -562,13 +736,127 @@ export class WebSearchNotConfigured extends Error {
 @Injectable()
 export class WebResearchService {
   private readonly logger = new Logger(WebResearchService.name);
-  private readonly fallbackQuota = new ResearchQuotaService();
+  /**
+   * Built only when nothing was injected, so the application, which always
+   * injects the registered quota, never constructs a second, memory-only one.
+   */
+  private memoryQuota?: ResearchQuotaService;
+  private get fallbackQuota(): ResearchQuotaService {
+    return (this.memoryQuota ??= new ResearchQuotaService());
+  }
   private readonly cache = new ResearchQueryCache<WebResearchResult>();
 
   constructor(
     private readonly aiUsage: AiUsageService,
-    @Optional() private readonly quota?: ResearchQuotaService
+    @Optional() private readonly quota?: ResearchQuotaService,
+    @Optional() private readonly encyclopedic?: EncyclopedicLaneClient
   ) {}
+
+  /**
+   * The keyless Wikipedia/Wikidata lane.
+   *
+   * Discovery answers with a row and a snippet that may not be quoted, so a
+   * Wikipedia row is read once more through the summary door to get bytes a
+   * person may cite. Wikidata has no article text and therefore becomes a
+   * source without a fact. One edition, one entity or one extract failing
+   * never hides the others.
+   */
+  private async encyclopedicRows(input: {
+    entityNames: readonly string[];
+    locales: readonly string[];
+    allow: (provider: EncyclopedicProvider) => boolean;
+  }): Promise<
+    Array<{
+      url: string;
+      title: string;
+      provider: EncyclopedicProvider;
+      extract?: string;
+    }>
+  > {
+    const seam = this.encyclopedic;
+    const signal = AbortSignal.timeout(ENCYCLOPEDIC_LANE_TIMEOUT_MS);
+    const rows: Array<{
+      url: string;
+      title: string;
+      provider: EncyclopedicProvider;
+      extract?: string;
+    }> = [];
+    const seen = new Set<string>();
+    for (const entityName of input.entityNames) {
+      if (input.allow('wikipedia')) {
+        try {
+          const found = await lookupEncyclopedicReferences({
+            entityName,
+            locales: input.locales,
+            fetchImpl: seam?.fetchImpl,
+            resolver: seam?.resolver,
+            signal,
+          });
+          for (const row of found.results) {
+            if (seen.has(row.url)) continue;
+            let extract: Awaited<ReturnType<typeof fetchEncyclopedicExtract>> =
+              null;
+            try {
+              extract = await fetchEncyclopedicExtract({
+                articleUrl: row.url,
+                fetchImpl: seam?.fetchImpl,
+                resolver: seam?.resolver,
+                signal,
+              });
+            } catch (error) {
+              this.logger.warn(
+                `An encyclopedic extract could not be read: ${describeLaneError(
+                  error
+                )}`
+              );
+            }
+            // The summary door answers with the canonical address, which is
+            // usually the one discovery already returned. Both are remembered
+            // so a later edition cannot bring the same page back twice.
+            const canonical = extract ? extract.url : row.url;
+            if (seen.has(canonical)) continue;
+            seen.add(row.url);
+            seen.add(canonical);
+            rows.push(
+              extract
+                ? {
+                    url: canonical,
+                    title: extract.title,
+                    provider: 'wikipedia',
+                    extract: extract.extract,
+                  }
+                : { url: row.url, title: row.title, provider: 'wikipedia' }
+            );
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Wikipedia discovery failed: ${describeLaneError(error)}`
+          );
+        }
+      }
+      if (input.allow('wikidata')) {
+        try {
+          const found = await lookupWikidataReferences({
+            entityName,
+            locale: input.locales[0],
+            fetchImpl: seam?.fetchImpl,
+            resolver: seam?.resolver,
+            signal,
+          });
+          for (const row of found.results) {
+            if (seen.has(row.url)) continue;
+            seen.add(row.url);
+            rows.push({ url: row.url, title: row.title, provider: 'wikidata' });
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Wikidata lookup failed: ${describeLaneError(error)}`
+          );
+        }
+      }
+    }
+    return rows;
+  }
 
   /** Read-only cache telemetry for diagnostics and the later durable journal. */
   researchCacheJournal(): readonly ResearchCacheJournalEntry[] {
@@ -684,7 +972,7 @@ Summary: {summary}`
     // adaptation lane. Ordinary generation, autopost, copilot and the legacy
     // tool omit it and remain available after the opt-in allowance is spent.
     if (levelWasExplicit) {
-      (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
+      await (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
     }
     const result = await this.aiUsage.executeAiOperation(
       organizationId,
@@ -793,7 +1081,7 @@ Subject: {subject}`
       const decision = decideResearchEgress({
         organizationId,
         providerId: provider,
-        approvedProviderIds: ['tavily', 'exa', 'openrouter'],
+        approvedProviderIds: APPROVED_RESEARCH_PROVIDERS,
         globalKillSwitch,
         tenantKillSwitches,
         providerKillSwitches,
@@ -896,6 +1184,100 @@ Subject: {subject}`
           facts.set(key, { text: content, sourceUrl: url });
           remainingContent -= content.length;
         }
+      }
+    }
+
+    /**
+     * Дальше — бесключевая полоса Wikipedia/Wikidata
+     * (`content-factory-next-m0iy.8`).
+     *
+     * Она включается только при явно выбранном уровне: это платный заход, где
+     * человек ждёт опору, а обычная генерация, автопостинг и копайлот не
+     * должны получать лишние сетевые запросы. Строки идут после ответов
+     * провайдера — в тот же потолок источников и тот же бюджет символов, — и
+     * отказ полосы никогда не отменяет уже полученный ответ.
+     */
+    if (options.levelWasExplicit) {
+      const encyclopedicAllowed = (provider: EncyclopedicProvider) => {
+        const decision = decideResearchEgress({
+          organizationId,
+          providerId: provider,
+          approvedProviderIds: APPROVED_RESEARCH_PROVIDERS,
+          globalKillSwitch,
+          tenantKillSwitches,
+          providerKillSwitches,
+          budget: egressBudget,
+          spend: {
+            searchQueries: queries.length,
+            acceptedSources: sourceCount,
+            responseBytes: 0,
+            wallClockMs: Date.now() - researchStartedAt,
+            providerCostMicros: 0,
+            inFlight: 0,
+          },
+          // The lane reads pages rather than buying a search, so the source
+          // cap is what bounds it.
+          kind: 'fetch',
+        });
+        if (decision.allowed === true) return true;
+        this.logger.warn(
+          `Encyclopedic lane skipped for ${provider}: ${decision.code}.`
+        );
+        return false;
+      };
+      const entityNames = [
+        ...new Set(
+          [subjectLanguageQuery, englishQuery].filter(
+            (name): name is string => !!name
+          )
+        ),
+      ];
+      const locales = [
+        ...new Set(
+          [classification.subjectLanguage, 'en']
+            .map((locale) => String(locale || '').trim().toLowerCase())
+            .filter(Boolean)
+        ),
+      ];
+      try {
+        const rows = await withDeadline(
+          this.encyclopedicRows({
+            entityNames,
+            locales,
+            allow: encyclopedicAllowed,
+          }),
+          ENCYCLOPEDIC_LANE_TIMEOUT_MS
+        );
+        for (const row of rows) {
+          const url = usableHttpsUrl(row.url);
+          if (!url || sources.has(url)) continue;
+          if (sourceCount >= preset.maxSources) break;
+          sourceCount += 1;
+          sources.set(url, {
+            url,
+            title: (row.title || url).trim().slice(0, 500),
+            // An encyclopedia article has no publication date of the kind a
+            // news result carries, and a revision date is not one.
+            publishedAt: null,
+            provider: row.provider,
+          });
+          if (!row.extract || remainingContent <= 0) continue;
+          const content = truncateAtParagraph(
+            truncateAtParagraph(row.extract, WEB_SEARCH_MAX_SOURCE_CHARS),
+            remainingContent
+          );
+          if (!content) continue;
+          const key = `${url}|${content}`;
+          if (facts.has(key)) continue;
+          facts.set(key, { text: content, sourceUrl: url });
+          remainingContent -= content.length;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `The keyless encyclopedic lane added nothing: ${describeLaneError(
+            error
+          )}`
+        );
       }
     }
 

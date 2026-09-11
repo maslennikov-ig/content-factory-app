@@ -69,7 +69,9 @@ export async function constrainedResearchFetch<T>(input: {
   maxRedirects?: number;
 }): Promise<T> {
   const checked = validateResearchFetchUrl(input.url);
-  if (!checked.allowed) {
+  // Equality, not truthiness: the backend compiles without strictNullChecks,
+  // where truthiness does not narrow a discriminated union.
+  if (checked.allowed === false) {
     throw new Error(`RESEARCH_FETCH_${checked.code.toUpperCase()}`);
   }
 
@@ -80,7 +82,8 @@ export async function constrainedResearchFetch<T>(input: {
    * making tests depend on the network.
    */
   const networkPath =
-    input.resolver !== undefined || input.fetcher === globalThis.fetch;
+    input.resolver !== undefined ||
+    (input.fetcher as unknown) === (globalThis.fetch as unknown);
   if (!networkPath) return input.fetcher(checked.url.toString(), { method: 'GET' });
 
   const resolver = input.resolver || resolveResearchHostname;
@@ -89,7 +92,7 @@ export async function constrainedResearchFetch<T>(input: {
   const visited = new Set<string>();
   for (let hop = 0; hop <= maxRedirects; hop += 1) {
     const currentCheck = validateResearchFetchUrl(current.toString());
-    if (!currentCheck.allowed) {
+    if (currentCheck.allowed === false) {
       throw new Error(`RESEARCH_FETCH_${currentCheck.code.toUpperCase()}`);
     }
     const host = currentCheck.url.hostname.replace(/^\[|\]$/gu, '');

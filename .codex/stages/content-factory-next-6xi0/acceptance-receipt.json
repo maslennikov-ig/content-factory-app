@@ -1,0 +1,33 @@
+{
+  "command_results": [
+    {
+      "command": "bash scripts/release/check-suite-receipt.sh",
+      "duration_seconds": 0.038,
+      "result": "passed",
+      "result_counts": [
+        "Test Suites: 417 passed, 417 total / Tests:       5393 passed, 5393 total"
+      ]
+    },
+    {
+      "command": "pnpm exec prisma migrate diff --from-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma --script",
+      "duration_seconds": 0.618,
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "bash scripts/release/check-suite-receipt.sh",
+    "pnpm exec prisma migrate diff --from-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma --to-schema-datamodel libraries/nestjs-libraries/src/database/prisma/schema.prisma --script"
+  ],
+  "completed_at": "2026-09-11T12:32:38.804113+00:00",
+  "diff_digest": "cc0c4c7a6c0b9f08aaa6bfe681056c20ab2fe63a9d7ed911eb849f57523a090c",
+  "environment_marker": "Linux-x86_64-python-3.14|node=v24.19.0,pnpm=10.6.1",
+  "git_head": "3f84df3d0dbe77fb83d54580c0e71cf3e60b8efb",
+  "idempotency_key": "1b50cf6af6c0f785195421d19a9683b760c9857adf78639aaa59860032582a8c",
+  "orchestration_level": "integration",
+  "process_check": "passed",
+  "result": "passed",
+  "schema_version": "acceptance-receipt/v1",
+  "stage_id": "content-factory-next-6xi0",
+  "started_at": "2026-09-11T12:32:38.034044+00:00",
+  "verification_fingerprint": "1b50cf6af6c0f785195421d19a9683b760c9857adf78639aaa59860032582a8c"
+}

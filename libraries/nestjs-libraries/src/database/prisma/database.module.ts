@@ -54,6 +54,8 @@ import { ProductEventsRepository } from '@contentfactory/nestjs-libraries/databa
 import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.service';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { ResearchQuotaService } from '@contentfactory/nestjs-libraries/content-intelligence/research/research-quota.service';
+import { RESEARCH_QUOTA_STORE } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
 import { BrandProfileService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.service';
@@ -102,6 +104,9 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     PrismaRepository,
     PrismaTransaction,
     AiUsageService,
+    // The research quota counts in Redis; the socket is opened by the module,
+    // not by the service file (see ResearchQuotaService).
+    { provide: RESEARCH_QUOTA_STORE, useValue: ioRedis },
     ResearchQuotaService,
     UsersService,
     UsersRepository,

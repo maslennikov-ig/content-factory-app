@@ -1,7 +1,22 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-6xi0`
-Last accepted stage id: `content-factory-next-xbfj`
-Selected Beads goal: `content-factory-next-6xi0`
+Current stage id: `content-factory-next-zhv8`
+Last accepted stage id: `content-factory-next-6xi0`
+Selected Beads goal: `content-factory-next-zhv8`
+**Малая волна 11.09 (`6xi0`, потолок провайдера) — RELEASED `92f0b95dfe3f` 11.09.2026.**
+Приватный `3f84df3d`, публичный `92f0b95dfe3f8eaf07129e077276cb997a42d6b8`, digest
+`sha256:145c989f3c591663df297d98cd8b8fb82043370b6c16e890dfd48cc7bdcb9ffa`, откат
+`aaaf00afe664`. Что чинилось: хвост ревью снял `Math.min(20, …)`, и deep-ресерч слал
+Tavily `max_results: 50` при документированном пределе 20 (клиент не обрезает) — на
+провайдере по умолчанию deep получал отказ, а слот квоты сгорал. Теперь Tavily и
+OpenRouter — 20 на запрос, Exa — 100; 50 источников deep — сумма по 25 запросам
+(§6 спецификации). `web.research.service.ts` импортирует настоящую политику egress,
+рукописная копия убрана; jest маппит алиас на реальный модуль
+(`tests/helpers/research-egress.cjs`). Проверка egress получает прошедшее время;
+байты, источники и стоимость не считаются, и комментарий это говорит. Квитанция
+Jest 417/5393, Node 125/0, Python OK; diff из образа пуст, Mastra 29→29, отпечаток
+прежний; хост healthy, три двери 200, retention оставил `92f0b95dfe3f` + `aaaf00afe664`.
+Evidence: `stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
+Открыто: `m0iy.10` замер пользы (порог входа в `.6`, до 25.09), `m0iy.11` ключ Exa.
 **Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.**
 Приватный исходник `e4ea8a3cf2724257dd15622593551a0eb996094d` и публичное дерево
 `aaaf00afe664863244800dd2f37ee0682b2cb718` согласованы; image digest
@@ -127,8 +142,8 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-m0iy.6`. Recommended action: measure the benefit of R1–R5 before phase 2. R1–R5 are released with the wave;
-R6/R7 stay deferred until benefit measurement. The next owner-facing action is the
+Next stage id: `content-factory-next-m0iy.10`. Recommended action: measure the
+benefit of R1–R5 (threshold for `.6` is written in `m0iy.10`); R6/R7 stay deferred. The next owner-facing action is the
 fourth live walkthrough and a measurement of research usefulness. Tavily remains
 the default provider; OpenRouter is the only reserve path. Recorded Exa responses
 cover offline checks until the owner supplies an Exa key. Live keyless

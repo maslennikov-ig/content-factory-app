@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const { createFakeRedis } = require('./helpers/fake-redis.cjs');
 
 function loadTypeScriptModule(relativePath, mocks = {}) {
   const filename = path.resolve(__dirname, '..', relativePath);
@@ -88,6 +89,7 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
       '@nestjs/common': {
         Injectable: () => (target) => target,
         Optional: () => () => {},
+        Inject: () => () => {},
         Logger,
       },
       '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
@@ -95,6 +97,9 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
       },
       '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
         AiUsageService: class {},
+      },
+      '@contentfactory/nestjs-libraries/redis/redis.service': {
+        ioRedis: createFakeRedis(),
       },
       // Сводка приходит на языке читателя с 05.09.2026
       // (`content-factory-next-fn33.133`): сервис знает список языков контента.
@@ -203,7 +208,7 @@ describe('shared web research service', () => {
   });
 
   test('reserves quota only for an explicitly selected research level', async () => {
-    const quota = { reserve: jest.fn() };
+    const quota = { reserve: jest.fn(async () => ({ used: 1, limit: 20 })) };
     await new WebResearchService(aiUsage, quota).research(
       'organization-a',
       'implicit topic'
@@ -216,6 +221,19 @@ describe('shared web research service', () => {
       { level: 'quick' }
     );
     expect(quota.reserve).toHaveBeenCalledWith('organization-a', 'quick');
+  });
+
+  test('waits for the reservation before paying for the search', async () => {
+    const exhausted = Object.assign(new Error('quota spent'), { status: 429 });
+    const quota = { reserve: jest.fn(async () => { throw exhausted; }) };
+    await expect(
+      new WebResearchService(aiUsage, quota).research(
+        'organization-a',
+        'explicit topic',
+        { level: 'deep' }
+      )
+    ).rejects.toBe(exhausted);
+    expect(clientFactoryCalls).toHaveLength(0);
   });
 
   test('passes the declared deep source cap to the provider', async () => {
@@ -989,5 +1007,134 @@ describe('shared web research service', () => {
         sourceUrl: 'https://example.com/ofsi',
       },
     ]);
+  });
+
+  /**
+   * Бесключевая полоса Wikipedia/Wikidata (`content-factory-next-m0iy.8`).
+   *
+   * Ответы записаны: `fetchImpl` передаётся через тот же шов, который в
+   * приложении не зарегистрирован, поэтому сеть здесь не трогается и DNS не
+   * выполняется.
+   */
+  const encyclopedicRecording = (calls) => async (url) => {
+    const address = String(url);
+    calls.push(address);
+    if (address.includes('/w/rest.php/v1/search/page')) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            pages: [
+              { key: 'Ada_Lovelace', title: 'Ada Lovelace', description: 'mathematician' },
+            ],
+          };
+        },
+      };
+    }
+    if (address.includes('/api/rest_v1/page/summary/')) {
+      return {
+        ok: true,
+        async json() {
+          return {
+            type: 'standard',
+            title: 'Ada Lovelace',
+            extract: 'Ada Lovelace was an English mathematician.',
+            content_urls: { desktop: { page: 'https://en.wikipedia.org/wiki/Ada_Lovelace' } },
+          };
+        },
+      };
+    }
+    return {
+      ok: true,
+      async json() {
+        return { search: [{ id: 'Q7259', label: 'Ada Lovelace', description: 'mathematician' }] };
+      },
+    };
+  };
+
+  test('an explicit level adds keyless encyclopedic sources and a citable fact', async () => {
+    const calls = [];
+    const result = await new WebResearchService(aiUsage, undefined, {
+      fetchImpl: encyclopedicRecording(calls),
+    }).research('organization-a', 'Ada Lovelace', { level: 'quick' });
+
+    expect(calls).toEqual([
+      'https://en.wikipedia.org/w/rest.php/v1/search/page?q=current%20topic&limit=1',
+      'https://en.wikipedia.org/api/rest_v1/page/summary/Ada_Lovelace',
+      'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=current%20topic&language=en&format=json&limit=1',
+    ]);
+    // Провайдер отвечает первым, полоса идёт следом и в тот же потолок.
+    expect(result.sources).toEqual([
+      {
+        url: 'https://example.com/tavily/current%20topic',
+        title: 'Source for current topic',
+        publishedAt: '2026-08-12',
+        provider: 'tavily',
+      },
+      {
+        url: 'https://en.wikipedia.org/wiki/Ada_Lovelace',
+        title: 'Ada Lovelace',
+        publishedAt: null,
+        provider: 'wikipedia',
+      },
+      {
+        url: 'https://www.wikidata.org/wiki/Q7259',
+        title: 'Ada Lovelace',
+        publishedAt: null,
+        provider: 'wikidata',
+      },
+    ]);
+    expect(result.facts).toEqual([
+      {
+        text: 'Fact for current topic',
+        sourceUrl: 'https://example.com/tavily/current%20topic',
+      },
+      {
+        text: 'Ada Lovelace was an English mathematician.',
+        sourceUrl: 'https://en.wikipedia.org/wiki/Ada_Lovelace',
+      },
+    ]);
+  });
+
+  test('a call without a level never opens the encyclopedic lane', async () => {
+    const calls = [];
+    const result = await new WebResearchService(aiUsage, undefined, {
+      fetchImpl: encyclopedicRecording(calls),
+    }).research('organization-a', 'Ada Lovelace without a level');
+
+    expect(calls).toEqual([]);
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0].provider).toBe('tavily');
+  });
+
+  test('a failing encyclopedic lane leaves the provider answer untouched', async () => {
+    const result = await new WebResearchService(aiUsage, undefined, {
+      fetchImpl: async () => {
+        throw new Error('wikipedia is unreachable');
+      },
+    }).research('organization-a', 'Ada Lovelace with a broken lane', {
+      level: 'quick',
+    });
+
+    expect(result.sources).toEqual([
+      {
+        url: 'https://example.com/tavily/current%20topic',
+        title: 'Source for current topic',
+        publishedAt: '2026-08-12',
+        provider: 'tavily',
+      },
+    ]);
+    expect(result.facts).toEqual([
+      {
+        text: 'Fact for current topic',
+        sourceUrl: 'https://example.com/tavily/current%20topic',
+      },
+    ]);
+    expect(
+      logEntries.some(
+        ({ level, message }) =>
+          level === 'warn' && /Wikidata lookup failed/.test(message)
+      )
+    ).toBe(true);
   });
 });

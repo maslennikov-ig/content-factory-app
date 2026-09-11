@@ -34,7 +34,15 @@ export type WebResearchProvider = 'tavily' | 'openrouter' | 'exa' | 'mixed';
  * прочитана один раз, выдержка заморожена, адрес сохранён. Колонка
  * `retrievalProvider` — обычная строка, миграции здесь нет.
  */
-export type AcceptedResultProvider = WebResearchProvider | 'user_link';
+export type AcceptedResultProvider =
+  | WebResearchProvider
+  | 'user_link'
+  // Бесключевая полоса (`content-factory-next-m0iy.8`): страницу принесли
+  // Wikipedia или Wikidata, а не поисковик. Путь тот же, `retrievalProvider`
+  // — обычная строка, миграции здесь тоже нет. Публичная дверь приёма находки
+  // этих значений не принимает: они появляются только внутри ресерча.
+  | 'wikipedia'
+  | 'wikidata';
 
 export type AcceptSearchResultInput = {
   organizationId: string;
