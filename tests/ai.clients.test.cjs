@@ -451,6 +451,144 @@ describe('per-organization AI clients', () => {
     });
   });
 
+  /**
+   * `content-factory-next-75xn.3`. Свежесть до этой волны выражалась ровно
+   * одним способом — недельным окном Tavily на новостной теме, — а Exa не
+   * получал никакого окна вовсе. «Что нового за 30 дней» было непроизносимо.
+   */
+  /**
+   * `content-factory-next-75xn.1`. Прежняя защита стирала ключ при смене
+   * сервера, потому что ключ был один и стоял рядом с именем движка. Теперь
+   * он адресован движком — и проверяется не удаление, а недостижимость.
+   */
+  test('each engine is built with its own key and cannot reach the other', async () => {
+    const organization = register({
+      ...openrouter,
+      search: {
+        ...openrouter.search,
+        provider: 'tavily',
+        apiKey: 'tavily-key',
+        apiKeys: { tavily: 'tavily-key', exa: 'exa-key' },
+      },
+    });
+
+    await clients.getWebSearchClient(organization, 'tavily', {});
+    expect(built.tavily[0]).toMatchObject({ tavilyApiKey: 'tavily-key' });
+
+    const requests = [];
+    global.fetch = async (url, init) => {
+      requests.push({ url, init });
+      return { ok: true, status: 200, async json() { return { results: [] }; } };
+    };
+    const exa = await clients.getWebSearchClient(organization, 'exa', {});
+    await exa.invoke({ query: 'anything' });
+    expect(requests[0].init.headers['x-api-key']).toBe('exa-key');
+    expect(JSON.stringify(built.tavily[0])).not.toContain('exa-key');
+  });
+
+  test('an engine with no key of its own is refused rather than given another', async () => {
+    const organization = register({
+      ...openrouter,
+      search: {
+        ...openrouter.search,
+        provider: 'tavily',
+        apiKey: 'tavily-key',
+        apiKeys: { tavily: 'tavily-key' },
+      },
+    });
+
+    await expect(
+      clients.getWebSearchClient(organization, 'exa', {})
+    ).rejects.toThrow('Web search is not configured for this organization.');
+  });
+
+  test('a thirty-day window reaches Tavily as a named range', async () => {
+    const organization = register(openrouter);
+
+    await clients.getWebSearchClient(organization, 'tavily', {
+      windowDays: 30,
+    });
+
+    expect(built.tavily[0]).toMatchObject({ timeRange: 'month' });
+  });
+
+  test('an asked-for window wins over the news default', async () => {
+    const organization = register(openrouter);
+
+    await clients.getWebSearchClient(organization, 'tavily', {
+      freshnessRequired: true,
+      windowDays: 30,
+    });
+
+    // «За последние 30 дней» — более узкое утверждение, чем «тема свежая»,
+    // и тот, кто назвал дни, имел в виду именно их.
+    expect(built.tavily[0]).toMatchObject({ topic: 'news', timeRange: 'month' });
+  });
+
+  test('the window is a superset of what was asked for, never a subset', async () => {
+    const organization = register(openrouter);
+
+    await clients.getWebSearchClient(organization, 'tavily', { windowDays: 10 });
+    // Десять дней не выражаются точно; неделя молча потеряла бы три дня и
+    // ответила «нового нет» про тему, которая сдвинулась.
+    expect(built.tavily[0]).toMatchObject({ timeRange: 'month' });
+  });
+
+  test('Exa is given the window, the news category and the region it used to lose', async () => {
+    const requests = [];
+    const fetchImpl = async (url, init) => {
+      requests.push({ url, init });
+      return { ok: true, status: 200, async json() { return { results: [] }; } };
+    };
+    const before = Date.now();
+    const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 5, {
+      country: 'russia',
+      freshnessRequired: true,
+      windowDays: 30,
+    });
+    await exa.invoke({ query: 'public topic' });
+
+    const body = JSON.parse(requests[0].init.body);
+    expect(body).toMatchObject({ category: 'news', userLocation: 'RU' });
+    const published = Date.parse(body.startPublishedDate);
+    expect(Number.isFinite(published)).toBe(true);
+    const days = (before - published) / (24 * 60 * 60 * 1000);
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThan(30.1);
+  });
+
+  test('Exa is sent no window, category or region when none was asked for', async () => {
+    const requests = [];
+    const fetchImpl = async (url, init) => {
+      requests.push({ url, init });
+      return { ok: true, status: 200, async json() { return { results: [] }; } };
+    };
+    const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 5);
+    await exa.invoke({ query: 'public topic' });
+
+    // Exa проверяет тело запроса: null там, где документирована строка, — это
+    // 4xx на поиске, который иначе бы ответил.
+    const body = JSON.parse(requests[0].init.body);
+    expect(body).not.toHaveProperty('startPublishedDate');
+    expect(body).not.toHaveProperty('category');
+    expect(body).not.toHaveProperty('userLocation');
+  });
+
+  test('a country the classifier cannot name is sent to neither engine', async () => {
+    const requests = [];
+    const fetchImpl = async (url, init) => {
+      requests.push({ url, init });
+      return { ok: true, status: 200, async json() { return { results: [] }; } };
+    };
+    const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 5, {
+      country: 'atlantis',
+    });
+    await exa.invoke({ query: 'public topic' });
+
+    // Неверный регион хуже отсутствующего, поэтому он не угадывается.
+    expect(JSON.parse(requests[0].init.body)).not.toHaveProperty('userLocation');
+  });
+
   test('pins news freshness without sending an unsupported country filter', async () => {
     const organization = register({
       ...openrouter,

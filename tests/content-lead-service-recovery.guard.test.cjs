@@ -99,6 +99,10 @@ const { ContentLeadService } = loadTypeScriptModule(
     'nestjs-temporal-core': { TemporalService: class {} },
     './content-lead.repository': { ContentLeadRepository: class {} },
     './lead-feed.gateway': { LeadFeedGateway: class {} },
+    // Same reason as the feed gateway above: only a constructor parameter's
+    // type here, and loading the real file would drag the whole search stack
+    // in for a test that hands the service a stub anyway.
+    './lead-topic.gateway': { LeadTopicGateway: class {} },
     '@contentfactory/nestjs-libraries/content-intelligence/source-registry/network-policy':
       { canonicalizeSourceUrl: (url) => url },
     '@contentfactory/nestjs-libraries/content-intelligence/source-registry/errors':

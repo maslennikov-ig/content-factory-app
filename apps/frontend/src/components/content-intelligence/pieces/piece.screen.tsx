@@ -412,6 +412,31 @@ export function PieceScreen({
         <span className="tabular-nums">{piece.date}</span>
         <span aria-hidden="true">·</span>
         <span data-piece-origin={piece.origin}>{originWord}</span>
+        {/*
+          content-factory-next-75xn.8. Повод приводил в заготовку и терялся:
+          подпись «из повода» стояла, а материала за ней не было. Адрес —
+          хостом, как и у находок ниже: в строке заголовка полная ссылка
+          переносится посреди пути и перестаёт читаться как источник, а
+          заголовок повода остаётся во всплывающей подписи.
+        */}
+        {core?.leadSource?.url ? (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>
+              {t.leadSourceLabel}:{' '}
+              <a
+                data-piece-lead-source={core.leadSource.leadId || 'lead'}
+                href={core.leadSource.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={core.leadSource.title || core.leadSource.url}
+                className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+              >
+                {hostOf(core.leadSource.url)}
+              </a>
+            </span>
+          </>
+        ) : null}
         {piece.archivedAt ? <Status>{t.archived}</Status> : null}
       </nav>
 

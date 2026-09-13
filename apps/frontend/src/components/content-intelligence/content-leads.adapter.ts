@@ -43,12 +43,25 @@ export type LinkedAutoPost = Readonly<{
   active: boolean;
 }>;
 
+/** The two kinds a subscription may have (`content-factory-next-75xn.7`). */
+export const SUBSCRIPTION_KINDS = ['RSS', 'TOPIC'] as const;
+export type SubscriptionKind = (typeof SUBSCRIPTION_KINDS)[number];
+
+export const isTopicKind = (kind: string): boolean => kind === 'TOPIC';
+
 /** `ContentLeadService.listSubscriptions`'s row shape, read back defensively. */
 export type SubscriptionRow = Readonly<{
   id: string;
   kind: string;
   displayName: string;
+  /**
+   * The address for a feed row; the synthetic `topic://<slug>` key for a
+   * topic row, which is why the screen prints `query` instead when there is
+   * one — the key is derived, and nobody typed it.
+   */
   canonicalUrl: string;
+  /** The watched topic as it was typed. `null` for every kind but `TOPIC`. */
+  query: string | null;
   state: string;
   checkIntervalMinutes: number;
   lastCheckedAt: string | null;
@@ -105,11 +118,16 @@ function readLinkedAutoPost(value: unknown): LinkedAutoPost | null {
 export function readSubscriptionsEnvelope(value: unknown): {
   subscriptions: readonly SubscriptionRow[];
   feedCheckEnabled: boolean;
+  topicCheckEnabled: boolean;
 } {
   const body = asRecord(value);
   const capabilities = asRecord(body.capabilities);
   return {
     feedCheckEnabled: asBool(capabilities.feedCheck),
+    // Two switches, not one: `LEAD_FEED_CHECK_ENABLED` and
+    // `LEAD_TOPIC_CHECK_ENABLED` are separate on the server, so a screen that
+    // read one of them would promise a check the other refuses.
+    topicCheckEnabled: asBool(capabilities.topicCheck),
     subscriptions: asArray(body.subscriptions).map((entry) => {
       const row = asRecord(entry);
       return {
@@ -117,6 +135,7 @@ export function readSubscriptionsEnvelope(value: unknown): {
         kind: asText(row.kind, 'RSS'),
         displayName: asText(row.displayName),
         canonicalUrl: asText(row.canonicalUrl),
+        query: asNullableText(row.query),
         state: asText(row.state, 'ACTIVE'),
         checkIntervalMinutes: asNumber(row.checkIntervalMinutes, 1440),
         lastCheckedAt: asNullableText(row.lastCheckedAt),
@@ -166,28 +185,57 @@ export function readLinkableAutoPosts(value: unknown): readonly LinkedAutoPost[]
 
 /** What the "Add subscription" dialog is holding, as typed. */
 export type SubscriptionDraft = {
+  kind: SubscriptionKind;
   displayName: string;
   canonicalUrl: string;
+  /** The topic, kept while the dialog is on the address kind and vice versa. */
+  query: string;
   checkIntervalMinutes: CheckIntervalMinutes;
   linkedAutoPostId: string;
 };
 
-export const emptySubscriptionDraft = (): SubscriptionDraft => ({
+export const emptySubscriptionDraft = (
+  kind: SubscriptionKind = 'RSS'
+): SubscriptionDraft => ({
+  kind,
   displayName: '',
   canonicalUrl: '',
+  query: '',
   checkIntervalMinutes: 1440,
   linkedAutoPostId: '',
 });
 
-/** `CreateContentLeadSubscriptionDto`, built from the dialog. */
+/**
+ * Whether the dialog holds enough to save. One answer for both kinds, so the
+ * Save button and the door agree on what "filled in" means: a name, plus the
+ * one field the chosen kind needs.
+ */
+export const subscriptionDraftReady = (draft: SubscriptionDraft): boolean =>
+  Boolean(
+    draft.displayName.trim() &&
+      (draft.kind === 'TOPIC' ? draft.query.trim() : draft.canonicalUrl.trim())
+  );
+
+/**
+ * `CreateContentLeadSubscriptionDto`, built from the dialog.
+ *
+ * A topic payload carries no `canonicalUrl` at all: the server derives the
+ * `topic://` key from the topic itself, and sending a half-typed address
+ * alongside would invite it to be stored as one.
+ */
 export function buildSubscriptionCreatePayload(draft: SubscriptionDraft) {
-  return {
-    kind: 'RSS' as const,
+  const common = {
     displayName: draft.displayName.trim(),
-    canonicalUrl: draft.canonicalUrl.trim(),
     checkIntervalMinutes: draft.checkIntervalMinutes,
     ...(draft.linkedAutoPostId ? { linkedAutoPostId: draft.linkedAutoPostId } : {}),
   };
+  return draft.kind === 'TOPIC'
+    ? { ...common, kind: 'TOPIC' as const, query: draft.query.trim() }
+    : {
+        ...common,
+        kind: 'RSS' as const,
+        canonicalUrl: draft.canonicalUrl.trim(),
+      };
 }
 
 /**

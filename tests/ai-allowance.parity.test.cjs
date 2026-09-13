@@ -119,6 +119,9 @@ const providerModule = loadTypeScriptModule(
       providerConfigMock,
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
       aiBillingPeriodStart: usageModule.aiBillingPeriodStart,
+      // Тот же предел, что читает допуск: одна квота — одна функция, как и
+      // один предикат ниже (`content-factory-next-75xn.5`).
+      includedMonthlyOperations: usageModule.includedMonthlyOperations,
       includedUsageFilter: usageModule.includedUsageFilter,
     },
   }

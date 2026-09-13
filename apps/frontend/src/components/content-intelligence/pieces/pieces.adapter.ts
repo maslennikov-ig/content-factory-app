@@ -408,6 +408,19 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
     // волны вопросов не несут вовсе, и это читается как «спрашивать нечего», а
     // не как пробел: `null` здесь — обычное состояние готовой заготовки.
     questions: readOpenQuestions(record.questions),
+    // Источник повода (`content-factory-next-75xn.8`). Без адреса записи нет:
+    // строка на странице существует, чтобы человек мог открыть исходное.
+    ...(asText(asRecord(record.leadSource)?.url)
+      ? {
+          leadSource: {
+            leadId: asText(asRecord(record.leadSource)?.leadId),
+            url: asText(asRecord(record.leadSource)?.url),
+            ...(asText(asRecord(record.leadSource)?.title)
+              ? { title: asText(asRecord(record.leadSource)?.title) }
+              : {}),
+          },
+        }
+      : {}),
   };
 };
 

@@ -6,7 +6,9 @@ import { canonicalizeSourceUrl } from '@contentfactory/nestjs-libraries/content-
 import { SourceRegistryError } from '@contentfactory/nestjs-libraries/content-intelligence/source-registry/errors';
 import { ContentLeadRepository } from './content-lead.repository';
 import { LeadFeedGateway } from './lead-feed.gateway';
+import { LeadTopicGateway } from './lead-topic.gateway';
 import { leadReason } from './lead-reason';
+import { MAX_TOPIC_QUERY_LENGTH, topicSubscriptionKey } from './lead-topic-key';
 import { ContentLeadError } from './errors';
 import {
   MANUAL_CHECK_MIN_INTERVAL_MS,
@@ -17,6 +19,29 @@ import {
   translateBackendText,
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
+/**
+ * The two refusals a topic check can meet that are not failures.
+ *
+ * A quota answer is a decision the product made on purpose, and printing it as
+ * «проверка не удалась» sends a person looking for a broken feed. Only these
+ * two are let through by name: every other error keeps the generic code, so an
+ * internal message can never reach the list by accident.
+ */
+const PASSTHROUGH_REFUSALS = new Set([
+  'RESEARCH_QUOTA_EXHAUSTED',
+  'AI_INCLUDED_QUOTA_EXHAUSTED',
+]);
+
+const refusalCode = (error: unknown): string | null => {
+  const code =
+    error && typeof error === 'object' && 'code' in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+  return typeof code === 'string' && PASSTHROUGH_REFUSALS.has(code)
+    ? code
+    : null;
+};
+
 const workflowIdFor = (subscriptionId: string) =>
   `content-lead-check-${subscriptionId}`;
 
@@ -26,6 +51,10 @@ function presentSubscription(row: any) {
     kind: row.kind,
     displayName: row.displayName,
     canonicalUrl: row.canonicalUrl,
+    // The topic as the person wrote it, for the rows that have one. The
+    // screen prints this instead of the address, because `canonicalUrl`
+    // holds the derived `topic://` key there and a person never typed it.
+    query: row.query ?? null,
     state: row.state,
     checkIntervalMinutes: row.checkIntervalMinutes,
     lastCheckedAt: row.lastCheckedAt,
@@ -99,11 +128,33 @@ export class ContentLeadService {
     private readonly repository: ContentLeadRepository,
     private readonly gateway: LeadFeedGateway,
     @Optional() private readonly temporal?: TemporalService,
-    @Optional() private readonly now: () => Date = () => new Date()
+    @Optional() private readonly now: () => Date = () => new Date(),
+    /**
+     * The topic kind's gateway (`content-factory-next-75xn.7`). Last in the
+     * list and optional on purpose: the parameter order is part of the
+     * contract with the suites that construct this service by hand, and a
+     * deployment without it simply has no topic subscriptions — every topic
+     * path below reads `topicCheckEnabled`, which is false without one.
+     */
+    @Optional() private readonly topics?: LeadTopicGateway
   ) {}
 
   get feedCheckEnabled(): boolean {
     return this.gateway.capabilityEnabled;
+  }
+
+  get topicCheckEnabled(): boolean {
+    return this.topics?.capabilityEnabled ?? false;
+  }
+
+  /**
+   * Which switch governs a row. Two flags rather than one
+   * (`lead-topic.gateway.ts`): reading an address a person typed and sending
+   * their topics to a search engine are different outbound acts, and an
+   * operator may allow one without the other.
+   */
+  private checkEnabledFor(kind: string): boolean {
+    return kind === 'TOPIC' ? this.topicCheckEnabled : this.feedCheckEnabled;
   }
 
   private async startPeriodicCheck(
@@ -156,7 +207,10 @@ export class ContentLeadService {
     );
     return {
       subscriptions: rows.map(presentSubscription),
-      capabilities: { feedCheck: this.feedCheckEnabled },
+      capabilities: {
+        feedCheck: this.feedCheckEnabled,
+        topicCheck: this.topicCheckEnabled,
+      },
     };
   }
 
@@ -168,9 +222,12 @@ export class ContentLeadService {
     organizationId: string,
     actorUserId: string,
     input: {
-      kind: 'RSS';
+      kind: 'RSS' | 'TOPIC';
       displayName: string;
-      canonicalUrl: string;
+      /** Required for `RSS`; a `TOPIC` row has no address to read. */
+      canonicalUrl?: string;
+      /** Required for `TOPIC`: the thing to watch, as the person wrote it. */
+      query?: string;
       checkIntervalMinutes?: number;
       linkedAutoPostId?: string;
     },
@@ -191,14 +248,44 @@ export class ContentLeadService {
         422
       );
     }
+    /**
+     * Two kinds, one column (`content-factory-next-75xn.7`).
+     *
+     * A feed row stores the address a person typed, canonicalised. A topic row
+     * has no address, and stores the `topic://<normalised topic>` key derived
+     * from what they typed — so the unique index
+     * `(organizationId, kind, canonicalUrl)` keeps meaning «one subscription
+     * per thing watched» for both kinds, without a second index only one of
+     * them would use. The wording itself stays in `query`, untouched: the key
+     * is derived from the topic and never rewrites it back.
+     */
+    const query = (input.query || '').trim();
     let canonicalUrl: string;
-    try {
-      canonicalUrl = canonicalizeSourceUrl(input.canonicalUrl);
-    } catch (error) {
-      if (error instanceof SourceRegistryError) {
-        throw new ContentLeadError('INVALID_URL', error.message, error.status);
+    if (input.kind === 'TOPIC') {
+      if (!query) {
+        throw new ContentLeadError(
+          'INVALID_TOPIC',
+          'A topic subscription needs a topic to watch',
+          422
+        );
       }
-      throw error;
+      if (query.length > MAX_TOPIC_QUERY_LENGTH) {
+        throw new ContentLeadError(
+          'INVALID_TOPIC',
+          `A topic may be at most ${MAX_TOPIC_QUERY_LENGTH} characters long`,
+          422
+        );
+      }
+      canonicalUrl = topicSubscriptionKey(query);
+    } else {
+      try {
+        canonicalUrl = canonicalizeSourceUrl(input.canonicalUrl || '');
+      } catch (error) {
+        if (error instanceof SourceRegistryError) {
+          throw new ContentLeadError('INVALID_URL', error.message, error.status);
+        }
+        throw error;
+      }
     }
     // content-factory-next-ni7x. Counted here, not in the repository's
     // `create`: the unique index is `(organizationId, kind, canonicalUrl)`
@@ -229,6 +316,11 @@ export class ContentLeadService {
         kind: input.kind,
         displayName,
         canonicalUrl,
+        // The wording as it was typed, only trimmed. The schema keeps this
+        // column apart from `canonicalUrl` precisely so the derived key can be
+        // normalised without the product rewording what a person asked for —
+        // and it is this text, not the key, that the search is made with.
+        query: input.kind === 'TOPIC' ? query : null,
         checkIntervalMinutes,
         linkedAutoPostId: input.linkedAutoPostId || null,
       }
@@ -336,7 +428,11 @@ export class ContentLeadService {
     // date is left as it was. The failure branch at the end of this method
     // is the other side of the rule: there the feed *was* opened, the
     // attempt is real, and the date is stamped.
-    if (!this.feedCheckEnabled) {
+    //
+    // Read per kind since `content-factory-next-75xn.7`: a server with feed
+    // checking on and topic checking off refuses only the topic rows, and the
+    // refusal costs no outbound request either way.
+    if (!this.checkEnabledFor(subscription.kind)) {
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
         state: subscription.state,
         lastErrorCode: 'CHECK_DISABLED',
@@ -345,10 +441,23 @@ export class ContentLeadService {
     }
 
     try {
-      const result = await this.gateway.check(
-        subscription.canonicalUrl,
-        subscription.kind as 'RSS'
-      );
+      /**
+       * The one place the two kinds part company.
+       *
+       * Deliberately here and not in the workflow: `contentLeadCheckWorkflow`
+       * asks for a subscription to be checked and must not learn what kinds
+       * exist — a third kind would otherwise mean editing a perpetual
+       * workflow that is already running for every live subscription. Both
+       * gateways answer the same `LeadFeedCheckResultV1`, so everything below
+       * this line is the code the feed kind already ran.
+       */
+      const isTopic = subscription.kind === 'TOPIC';
+      const result = isTopic
+        ? await this.topics!.check(organizationId, subscription.query || '')
+        : await this.gateway.check(
+            subscription.canonicalUrl,
+            subscription.kind as 'RSS'
+          );
       if (result.disabled) {
         await this.repository.recordCheckResult(organizationId, subscriptionId, {
           state: subscription.state,
@@ -375,6 +484,11 @@ export class ContentLeadService {
           subscriptionDisplayName: subscription.displayName,
           ownPostsText: recentOwnPosts,
           siblingTitles,
+          // Only a topic lead may be described by the window it was found
+          // inside, and only by the window this check actually used — the
+          // gateway owns that number, so it is read from there rather than
+          // retyped (`lead-reason.ts`, rule four).
+          ...(isTopic ? { freshWithinDays: this.topics!.checkWindowDays } : {}),
         });
         return {
           externalId: item.externalId,
@@ -404,7 +518,9 @@ export class ContentLeadService {
       return { checked: true, created };
     } catch (error) {
       const code =
-        error instanceof SourceRegistryError ? error.code : 'CHECK_FAILED';
+        error instanceof SourceRegistryError
+          ? error.code
+          : refusalCode(error) ?? 'CHECK_FAILED';
       await this.repository.recordCheckResult(organizationId, subscriptionId, {
         state: 'ERRORED',
         lastErrorCode: code,

@@ -1955,8 +1955,32 @@ model AiProviderSetting {
   /// `textModel`, which is exactly what the product did before this column.
   roleModels     Json?
   searchEnabled  Boolean      @default(false)
+  /// The workspace's own engine: what a search task with no route of its own
+  /// gets. `searchTaskProviders` routes the exceptions.
   searchProvider String       @default("tavily")
+  /// Superseded by `searchApiKeys`, kept as the fallback for rows written
+  /// before it. Read only for the engine named in `searchProvider`, so a key
+  /// saved for one engine can never reach another — see `ai.search-tasks.ts`.
   searchApiKey   String?
+  /// One encrypted key per engine, as `{ "tavily": "…", "exa": "…" }`.
+  ///
+  /// `content-factory-next-75xn.1`. One JSON column rather than a column per
+  /// engine: the engines are ours and few, and a workspace keeps a key for
+  /// each one it uses at once. Before this column the product held a single
+  /// key and wiped it whenever the engine changed, because a key kept beside
+  /// a changed engine name would have been spent by whichever API the name
+  /// then pointed at. Addressing the key by engine removes that danger rather
+  /// than paying for it.
+  ///
+  /// NULL, and `{}`, both mean «no keys saved»; unknown engines and unusable
+  /// values are dropped on read (`ai.search-tasks.ts`), so a row written by an
+  /// older or newer build is never a request with a broken key.
+  searchApiKeys  Json?
+  /// Which engine each search task gets, as `{ "research": "exa" }`.
+  ///
+  /// Empty routes nothing and every task lands on `searchProvider`, which is
+  /// exactly what the product did before the column existed.
+  searchTaskProviders Json?
   searchTopic    String       @default("general")
   searchDepth    String       @default("advanced")
   createdAt      DateTime     @default(now())
@@ -2031,13 +2055,23 @@ model AiUsageRecord {
 model ContentLeadSubscription {
   id                   String        @id @default(uuid())
   organizationId       String
-  /// 'RSS' | 'URL'. A Telegram channel is named as a third kind in the
-  /// product's own contract, but stays out of this column: it is switched off
-  /// on every server today, and nothing here should invent a value an
+  /// 'RSS' | 'URL' | 'TOPIC'. A Telegram channel is named as a fourth kind in
+  /// the product's own contract, but stays out of this column: it is switched
+  /// off on every server today, and nothing here should invent a value an
   /// operator has not turned on anywhere (`SOURCE_TELEGRAM_INGEST`).
   kind                 String
   displayName          String
+  /// The address a check reads. A `TOPIC` row has no address — it holds the
+  /// synthetic `topic://<slug>` built from `query`, so that the unique index
+  /// below still means «one subscription per thing watched» for every kind
+  /// without a second index that only one of them would use.
   canonicalUrl         String
+  /// What the person asked to watch, for `TOPIC` rows and nothing else.
+  ///
+  /// `content-factory-next-75xn.7`. Kept apart from `canonicalUrl` because it
+  /// is the text a person wrote and will edit, while the column above is a key
+  /// the product derives from it and must not reword.
+  query                String?
   /// ACTIVE | PAUSED | ERRORED. A row stays ACTIVE through an ordinary failed
   /// check — the check retries on its own schedule — so ERRORED means the
   /// last attempt itself failed, not that the subscription stopped trying.

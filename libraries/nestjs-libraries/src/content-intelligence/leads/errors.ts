@@ -18,6 +18,11 @@ export type ContentLeadErrorCode =
   | 'LEAD_NOT_FOUND'
   | 'LEAD_NOT_NEW'
   | 'INVALID_URL'
+  // `content-factory-next-75xn.7`. A topic subscription has no address to be
+  // wrong about: an empty or over-long topic is its own refusal, so the
+  // screen does not tell a person their address is invalid when they never
+  // typed one.
+  | 'INVALID_TOPIC'
   | 'TERMS_DENIED'
   | 'ROBOTS_DISALLOWED'
   | 'CHECK_FAILED'

@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { GetUserFromRequest } from '@contentfactory/nestjs-libraries/user/user.from.request';
@@ -25,6 +26,7 @@ import {
 import { AiProviderService } from '@contentfactory/nestjs-libraries/openai/ai.provider.service';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { AiProviderDto } from '@contentfactory/nestjs-libraries/dtos/settings/ai.provider.dto';
+import { isSearchProvider } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 @ApiTags('Settings')
@@ -148,10 +150,22 @@ export class SettingsController {
     return this._aiProviderService.clearKey(organization.id);
   }
 
+  /**
+   * `?provider=exa` removes one engine's key; no query removes every one.
+   *
+   * The parameter is read through the same whitelist the settings body uses,
+   * so an unknown name clears nothing rather than being guessed at.
+   */
   @Delete('/ai/search-key')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async clearSearchKey(@GetOrgFromRequest() organization: Organization) {
-    return this._aiProviderService.clearSearchKey(organization.id);
+  async clearSearchKey(
+    @GetOrgFromRequest() organization: Organization,
+    @Query('provider') provider?: string
+  ) {
+    return this._aiProviderService.clearSearchKey(
+      organization.id,
+      isSearchProvider(provider) ? provider : undefined
+    );
   }
 
   /**

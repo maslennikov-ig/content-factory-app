@@ -57,6 +57,9 @@ export const piecesCopy = {
     originLink: 'из ссылки',
     originForeign: 'из чужого поста',
     originLead: 'из повода',
+    // content-factory-next-75xn.8: подпись «из повода» была на месте, а
+    // вернуться к материалу, из которого повод вырос, было некуда.
+    leadSourceLabel: 'источник',
     originManual: 'вручную',
     originLegacy: 'материал до заготовок',
     excerptLabel: 'Суть',
@@ -195,6 +198,7 @@ export const piecesCopy = {
     originLink: 'from a link',
     originForeign: 'from somebody else’s post',
     originLead: 'from a lead',
+    leadSourceLabel: 'source',
     originManual: 'by hand',
     originLegacy: 'material from before pieces',
     excerptLabel: 'Substance',

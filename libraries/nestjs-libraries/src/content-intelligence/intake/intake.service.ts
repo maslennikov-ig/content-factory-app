@@ -58,6 +58,7 @@ import type {
   PieceAnswerV1,
   PieceFieldAnswerV1,
   PieceOpenQuestionV1,
+  PieceLeadSourceV1,
   PieceQuestionKeyV1,
   SlopReportV1,
   ZagotovkaCoreV1,
@@ -75,6 +76,7 @@ import { IntegrationService } from '@contentfactory/nestjs-libraries/database/pr
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
+import { ContentLeadRepository } from '../leads/content-lead.repository';
 import { briefTitle } from '../brief/content-brief.compose';
 import {
   INTAKE_LINK_UNREACHABLE_MESSAGES,
@@ -256,7 +258,18 @@ export class IntakeService {
      */
     @Optional()
     @Inject(VOICE_CHECK_PORT)
-    private readonly voiceCheck: VoiceCheckPort | null = null
+    private readonly voiceCheck: VoiceCheckPort | null = null,
+    /**
+     * Очередь поводов, только на чтение (`content-factory-next-75xn.8`).
+     *
+     * Нужна одному вопросу: по какому адресу лежит материал, из которого вырос
+     * принятый повод. Адрес берётся с сервера по `sourceLeadId`, а не со слов
+     * клиента, и читается в границах той же области — повод чужой области
+     * просто не найдётся. Последней и необязательной: порядок параметров —
+     * часть договора с наборами, которые собирают сервис руками, а без неё
+     * заготовка выходит такой же, только без строки об источнике.
+     */
+    @Optional() private readonly leads?: ContentLeadRepository
   ) {
     this.now = now || (() => new Date());
     this.parse = parse || parseSourcePayload;
@@ -532,8 +545,10 @@ export class IntakeService {
         warn: (message) => this.logger.warn(message),
       }
     );
+    const leadSource = await this.leadSourceOf(organizationId, plan.sourceLeadId);
     const core: ZagotovkaCoreV1 = {
       ...written,
+      ...(leadSource ? { leadSource } : {}),
       brief: filled.brief,
       questions: {
         round: 0,
@@ -587,6 +602,37 @@ export class IntakeService {
     }
 
     yield { name: 'done', pieceId };
+  }
+
+  /**
+   * Повод, из которого началась заготовка, — адресом и заголовком
+   * (`content-factory-next-75xn.8`).
+   *
+   * Ничего не пишет в очередь поводов: повод уже помечен `ACCEPTED` нажатием
+   * «Взять в работу», и второй хозяин у этого состояния не заводится.
+   *
+   * Отказ здесь не отменяет заготовку. Повод могли удалить, он мог быть из
+   * чужой области, база могла не ответить — ни одна из этих причин не стоит
+   * того, чтобы человек потерял текст, ради которого пришёл. Тогда строки об
+   * источнике просто не будет.
+   */
+  private async leadSourceOf(
+    organizationId: string,
+    leadId?: string
+  ): Promise<PieceLeadSourceV1 | null> {
+    if (!leadId || !this.leads) return null;
+    try {
+      const lead = await this.leads.getLead(organizationId, leadId);
+      const url = trimmed(lead?.sourceUrl);
+      if (!url) return null;
+      const title = trimmed(lead?.title);
+      return { leadId, url, ...(title ? { title } : {}) };
+    } catch (error) {
+      this.logger.warn(
+        `Intake could not read the lead a piece came from: ${describeError(error)}`
+      );
+      return null;
+    }
   }
 
   /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */

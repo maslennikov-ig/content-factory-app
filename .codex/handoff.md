@@ -1,41 +1,36 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-zhv8`
-Last accepted stage id: `content-factory-next-6xi0`
-Selected Beads goal: `content-factory-next-zhv8`
-**Малая волна 11.09 (`6xi0`, потолок провайдера) — RELEASED `92f0b95dfe3f` 11.09.2026.**
-Приватный `3f84df3d`, публичный `92f0b95dfe3f8eaf07129e077276cb997a42d6b8`, digest
-`sha256:145c989f3c591663df297d98cd8b8fb82043370b6c16e890dfd48cc7bdcb9ffa`, откат
-`aaaf00afe664`. Что чинилось: хвост ревью снял `Math.min(20, …)`, и deep-ресерч слал
-Tavily `max_results: 50` при документированном пределе 20 (клиент не обрезает) — на
-провайдере по умолчанию deep получал отказ, а слот квоты сгорал. Теперь Tavily и
-OpenRouter — 20 на запрос, Exa — 100; 50 источников deep — сумма по 25 запросам
-(§6 спецификации). `web.research.service.ts` импортирует настоящую политику egress,
-рукописная копия убрана; jest маппит алиас на реальный модуль
-(`tests/helpers/research-egress.cjs`). Проверка egress получает прошедшее время;
-байты, источники и стоимость не считаются, и комментарий это говорит. Квитанция
-Jest 417/5393, Node 125/0, Python OK; diff из образа пуст, Mastra 29→29, отпечаток
-прежний; хост healthy, три двери 200, retention оставил `92f0b95dfe3f` + `aaaf00afe664`.
+Current stage id: `content-factory-next-75xn`
+Last accepted stage id: `content-factory-next-zhv8`
+Selected Beads goal: `content-factory-next-75xn`
+**Волна «разбор открытого» (`zhv8`) — RELEASED `17088939db40` 11.09.2026.**
+Приватный `eb5eb2fd`, публичный `17088939db4029298bf0cf05e56cdcaeb355a92f`, digest
+`sha256:4f639160cf120a8c839658b67de0f6eea466f522ad271d68f2e50e9c675febef`, откат
+`92f0b95dfe3f`. Закрыты `m0iy.8` и `m0iy.9`: при явном уровне ресерч после ответов
+провайдера идёт в Wikipedia/Wikidata без ключа через constrained fetch (DNS на каждом
+хопе, приватные адреса отсекаются, редиректы вручную), выдержка страницы через
+`/api/rest_v1/page/summary/{key}` становится фактом, Wikidata — источником без факта;
+лан ограничен 8 с и никогда не роняет ответ. Квота ресерча считается в Redis
+(`research:quota:{org}:{level}:{YYYY-MM}`, 40 дней, INCR/DECR, при отказе Redis —
+счётчик процесса с предупреждением), числа 20/10/3 прежние; клиент приходит через
+токен `RESEARCH_QUOTA_STORE` из `database.module.ts` — импорт `redis.service` в файле
+службы открывал сокет в каждом наборе и вешал node:test. Квитанция Jest 417/5403,
+Node 125/0, Python OK; diff из образа пуст, Mastra 29→29; хост healthy, три двери 200.
+Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
+За владельцем: `m0iy.10` замер пользы (порог входа в `.6`, до 25.09), `m0iy.11` ключ
+Exa, платная проверка предела Tavily (локального ключа нет), `or3.9` тариф.
+**Малая волна 11.09 (`6xi0`) — RELEASED `92f0b95dfe3f` 11.09.2026.** Приватный `3f84df3d`,
+откат `aaaf00afe664`. Хвост ревью снял `Math.min(20, …)`, deep слал Tavily `max_results: 50`
+при документированном пределе 20: возвращён потолок Tavily/OpenRouter 20, Exa 100, 50
+источников deep — сумма по 25 запросам (§6). Поправка того же дня: живой Tavily принял 21 и
+50 (отдал 24), сбоя на боевом не было; потолок оставлен по документации. Политика egress
+импортируется из модуля, копия убрана; jest маппит алиас (`research-egress.cjs`).
 Evidence: `stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
-Открыто: `m0iy.10` замер пользы (порог входа в `.6`, до 25.09), `m0iy.11` ключ Exa.
-**Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.**
-Приватный исходник `e4ea8a3cf2724257dd15622593551a0eb996094d` и публичное дерево
-`aaaf00afe664863244800dd2f37ee0682b2cb718` согласованы; image digest
-`sha256:a90c089d6a6c01deceb292c6447d1d16a969910732fc4e7d934f857cef20b9cc`;
-откат — `cc513632d93d`. На `helixa-prod` маркер совпадает, app healthy,
-перезапусков 0, `/api/`, `/auth/login` и `/api/public/source` дают 200; архив
-исходников совпал, SHA `a6009fbea15ba9d64d7eca63fa5848438116dda9bf0eacadb8fd2e6be409c5fb`.
-Миграция Prisma пустая, схему не применяли; в отдельной базе Mastra 29 таблиц,
-канонический SHA `310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7`
-совпадает с предыдущим выпуском. Retention оставил новый образ и откат,
-свободно 21 ГБ. Квитанция выпуска: Jest417/5392, Node125/0, Python OK.
-
-R1–R5 выпущены в этом образе. Tavily остаётся по умолчанию, OpenRouter —
-единственный резерв; Exa требует ключ владельца. Живое подключение keyless
-Wikipedia/Wikidata к `WebResearchService` отложено в `content-factory-next-m0iy.8`,
-долговечная квота — в `.9` под решением `or3.9`. Для отпечатка схемы в runbook
-используется стабильная каноническая выборка; сырой PostgreSQL 17 `pg_dump` не
-хэшируем из-за случайного `\restrict`-токена.
-
+**Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.** Приватный `e4ea8a3c`, откат
+`cc513632d93d`; схема не менялась, Mastra 29→29, отпечаток `310d75fc…acac8f7` по
+канонической выборке из runbook (сырой `pg_dump` PostgreSQL 17 несёт случайный
+`\restrict`-токен). Квота только при явном уровне; `included` берёт провайдера только из
+`AI_INCLUDED_SEARCH_PROVIDER`, смена провайдера обнуляет ключ; хэштеги/CTA из
+`resolvedChannelProfile`. Evidence: `stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
 **Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.**
 Private source `1066e49243e6` and public `content-factory-app/main` commit
 `cc513632d93df2bc946828698fa950d8e9173ef3` agree; image digest

@@ -130,6 +130,32 @@ export class AiAdmissionContended extends HttpException {
 const roleOf = (operation: AiOperation, role?: AiRole): AiRole =>
   role ?? roleForOperation(operation);
 
+/**
+ * How many included operations a workspace gets when it has no subscription
+ * row at all.
+ *
+ * `content-factory-next-75xn.5`. `Subscription.includedAiMonthlyOperations`
+ * is written by nothing in this repository, and the row itself is created only
+ * from a Stripe webhook, so on an instance without billing every workspace
+ * read a quota of zero and every included operation was refused — including
+ * the four workspaces on the production instance, which were created in
+ * `included` mode and had therefore never worked. The operator sets the number
+ * here until tariffs decide it (`or3.9`); zero keeps the old behaviour, so an
+ * instance that says nothing is unchanged by this.
+ *
+ * A subscription, when one exists, still wins: billing is the authority the
+ * moment there is any.
+ */
+export const includedQuotaFallback = (): number => {
+  const raw = Number(process.env.AI_INCLUDED_MONTHLY_OPERATIONS);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
+};
+
+/** The allowance for one workspace, from billing when there is billing. */
+export const includedMonthlyOperations = (
+  subscription: { includedAiMonthlyOperations?: number | null } | null
+): number => subscription?.includedAiMonthlyOperations ?? includedQuotaFallback();
+
 export const aiBillingPeriodStart = (createdAt: Date, now = new Date()) => {
   if (now < createdAt) return new Date(createdAt);
 
@@ -346,13 +372,26 @@ export class AiUsageService {
               where: { organizationId },
               select: { includedAiMonthlyOperations: true, createdAt: true },
             });
-            const quota = subscription?.includedAiMonthlyOperations ?? 0;
+            const quota = includedMonthlyOperations(subscription);
             if (quota <= 0) throw new AiIncludedQuotaExceeded();
 
+            // Без подписки период якорится днём рождения области — так же, как
+            // его читают экран настроек и `readAllowance`. До появления
+            // операторского предела сюда нельзя было дойти без подписки, и
+            // строка ниже брала `createdAt` у заведомо существующей строки.
+            const anchor =
+              subscription?.createdAt ??
+              (
+                await tx.organization.findUnique({
+                  where: { id: organizationId },
+                  select: { createdAt: true },
+                })
+              )?.createdAt ??
+              new Date();
             const used = await tx.aiUsageRecord.count({
               where: includedUsageFilter(
                 organizationId,
-                aiBillingPeriodStart(subscription.createdAt)
+                aiBillingPeriodStart(anchor)
               ),
             });
             if (used >= quota) throw new AiIncludedQuotaExceeded();
@@ -428,7 +467,7 @@ export class AiUsageService {
     // workspace's own birthday does, exactly as the settings screen reads it.
     const anchor =
       subscription?.createdAt ?? organization?.createdAt ?? new Date();
-    const limit = subscription?.includedAiMonthlyOperations ?? 0;
+    const limit = includedMonthlyOperations(subscription);
     const periodStart = aiBillingPeriodStart(anchor);
     const used =
       limit > 0

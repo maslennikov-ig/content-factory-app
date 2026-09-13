@@ -10,12 +10,21 @@ import {
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
   aiBillingPeriodStart,
+  includedMonthlyOperations,
   includedUsageFilter,
 } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
   AiRoleModels,
   parseRoleModels,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
+import {
+  SEARCH_PROVIDERS,
+  SearchProviderKeys,
+  SearchTaskProviders,
+  parseSearchKeys,
+  parseSearchTaskProviders,
+  readSearchProvider,
+} from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 
 interface OpenRouterModel {
   id: string;
@@ -118,8 +127,7 @@ export class AiProviderService {
     const periodStart = aiBillingPeriodStart(
       subscription?.createdAt ?? organization?.createdAt ?? new Date()
     );
-    const includedMonthlyOperations =
-      subscription?.includedAiMonthlyOperations ?? 0;
+    const monthlyOperations = includedMonthlyOperations(subscription);
     /**
      * The same predicate admission uses, not a second one that looks like it.
      *
@@ -131,18 +139,18 @@ export class AiProviderService {
      * which of the two to believe. One allowance, one count.
      */
     const includedUsedOperations =
-      subscription && includedMonthlyOperations > 0
+      monthlyOperations > 0
         ? ((await this._prisma.aiUsageRecord?.count({
             where: includedUsageFilter(organizationId, periodStart),
           })) ?? 0)
         : 0;
     const includedRemainingOperations = Math.max(
       0,
-      includedMonthlyOperations - includedUsedOperations
+      monthlyOperations - includedUsedOperations
     );
     const includedRestrictionReason = !config.includedAvailable
       ? 'managed_unavailable'
-      : includedMonthlyOperations <= 0
+      : monthlyOperations <= 0
       ? 'quota_unavailable'
       : includedRemainingOperations <= 0
       ? 'quota_exhausted'
@@ -157,7 +165,7 @@ export class AiProviderService {
       hasKey: config.workspaceKeyConfigured ?? !!config.apiKey,
       workspaceKeyConfigured: config.workspaceKeyConfigured,
       includedAvailable: config.includedAvailable,
-      includedMonthlyOperations,
+      includedMonthlyOperations: monthlyOperations,
       includedUsedOperations,
       includedRemainingOperations,
       includedRestrictionReason,
@@ -165,10 +173,39 @@ export class AiProviderService {
       usageByRole: await this.usageByRole(organizationId, periodStart),
       searchEnabled: config.search.enabled,
       searchProvider: config.search.provider,
+      searchTaskProviders: config.search.taskProviders,
       searchTopic: config.search.topic,
       searchDepth: config.search.depth,
       hasSearchKey:
         config.workspaceSearchKeyConfigured ?? !!config.search.apiKey,
+      /**
+       * Which engines have a key, and nothing about what the keys are.
+       *
+       * A map rather than the old single flag because the screen now draws a
+       * field per engine and each of them has to say «saved» or «empty» on its
+       * own; `hasSearchKey` stays beside it for the callers that only ask
+       * whether search is configured at all.
+       */
+      searchKeys: Object.fromEntries(
+        SEARCH_PROVIDERS.map((engine) => [
+          engine,
+          !!config.search.apiKeys?.[engine],
+        ])
+      ),
+      /**
+       * Which engines this workspace has saved a key for, in either mode.
+       *
+       * In `workspace_key` it repeats `searchKeys`; in `included` it is the
+       * only thing that can say «у этой области сохранён свой ключ Exa» about
+       * a key that is dormant rather than spent — and a screen that cannot
+       * name it cannot offer to remove that one engine's key.
+       */
+      workspaceSearchKeys: Object.fromEntries(
+        SEARCH_PROVIDERS.map((engine) => [
+          engine,
+          config.workspaceSearchKeys?.[engine] === true,
+        ])
+      ),
       searchFallbackAvailable:
         config.provider === 'openrouter' && !!config.apiKey,
     };
@@ -186,6 +223,8 @@ export class AiProviderService {
       searchEnabled?: boolean;
       searchProvider?: SearchProvider;
       searchApiKey?: string;
+      searchApiKeys?: Record<string, string>;
+      searchTaskProviders?: Record<string, string>;
       searchTopic?: 'general' | 'news';
       searchDepth?: 'basic' | 'advanced';
     }
@@ -193,14 +232,41 @@ export class AiProviderService {
     const workspaceSettings = body.usageMode !== 'included';
     const current = await this._prisma.aiProviderSetting?.findUnique?.({
       where: { organizationId },
-      select: { searchProvider: true },
+      select: { searchProvider: true, searchApiKeys: true, searchApiKey: true },
     });
-    const currentSearchProvider = current?.searchProvider || 'tavily';
-    const searchProviderChanged =
-      workspaceSettings &&
-      body.searchProvider !== undefined &&
-      current &&
-      currentSearchProvider !== body.searchProvider;
+    /**
+     * Which engine a key sent in this request belongs to.
+     *
+     * The request names it when the same save changes the engine, and the
+     * stored row names it otherwise. A key is never filed under a guess: this
+     * is the whole of what replaced «changing the engine wipes the key»
+     * (`content-factory-next-75xn.1`), and it is a stronger promise, because a
+     * key saved under `tavily` is not reachable from `exa` at all rather than
+     * merely being deleted before it could be.
+     */
+    const keyBelongsTo = readSearchProvider(
+      body.searchProvider ?? current?.searchProvider
+    );
+
+    /**
+     * Every stored key, plus the ones typed in this request.
+     *
+     * Merged rather than replaced: the screen sends only the fields a person
+     * filled in, and a save that touched the depth selector must not delete
+     * the key of an engine it never showed as typed.
+     */
+    const encryptedKeys: SearchProviderKeys = parseSearchKeys(
+      current?.searchApiKeys
+    );
+    for (const engine of SEARCH_PROVIDERS) {
+      const typed = body.searchApiKeys?.[engine];
+      if (typed) encryptedKeys[engine] = AuthService.fixedEncryption(typed);
+    }
+    if (body.searchApiKey) {
+      encryptedKeys[keyBelongsTo] = AuthService.fixedEncryption(
+        body.searchApiKey
+      );
+    }
     // Every field below the provider is optional in the request, and the screen
     // saves sections independently. An absent field means "leave it"; an
     // explicitly emptied one means "clear it".
@@ -225,17 +291,38 @@ export class AiProviderService {
       ...(workspaceSettings && body.apiKey
         ? { apiKey: AuthService.fixedEncryption(body.apiKey) }
         : {}),
-      ...(searchProviderChanged
-        ? { searchEnabled: false, searchApiKey: null }
-        : typeof body.searchEnabled === 'boolean'
+      ...(typeof body.searchEnabled === 'boolean'
         ? { searchEnabled: body.searchEnabled }
         : {}),
-      ...(body.searchProvider ? { searchProvider: body.searchProvider } : {}),
-      ...(workspaceSettings && body.searchApiKey && !searchProviderChanged
-        ? { searchApiKey: AuthService.fixedEncryption(body.searchApiKey) }
+      /**
+       * Каждая поисковая колонка — только из своего режима.
+       *
+       * До `content-factory-next-75xn.4` три строки ниже стояли снаружи этого
+       * условия, а экран возвращал серверу то, что сервер же ему и показал: в
+       * режиме `included` это значение операторской переменной. Область,
+       * сохранившая настройки на системных ключах, возвращалась к своему ключу
+       * уже с чужим провайдером — та самая утечка, от которой 11.09 ставилась
+       * защита, обойдённая с другой стороны.
+       */
+      ...(workspaceSettings && body.searchProvider
+        ? { searchProvider: body.searchProvider }
         : {}),
-      ...(body.searchTopic ? { searchTopic: body.searchTopic } : {}),
-      ...(body.searchDepth ? { searchDepth: body.searchDepth } : {}),
+      ...(workspaceSettings && (body.searchApiKey || body.searchApiKeys)
+        ? { searchApiKeys: encryptedKeys }
+        : {}),
+      ...(workspaceSettings && body.searchTaskProviders !== undefined
+        ? {
+            searchTaskProviders: parseSearchTaskProviders(
+              body.searchTaskProviders
+            ) as SearchTaskProviders,
+          }
+        : {}),
+      ...(workspaceSettings && body.searchTopic
+        ? { searchTopic: body.searchTopic }
+        : {}),
+      ...(workspaceSettings && body.searchDepth
+        ? { searchDepth: body.searchDepth }
+        : {}),
     };
 
     await this._prisma.aiProviderSetting.upsert({
@@ -260,10 +347,39 @@ export class AiProviderService {
     return this.getSettings(organizationId);
   }
 
-  async clearSearchKey(organizationId: string) {
+  /**
+   * Remove one engine's key, or every one of them.
+   *
+   * Search is only switched off when nothing is left to search with: a person
+   * removing the Exa key from a workspace that still holds a Tavily one asked
+   * to stop using Exa, not to stop searching, and turning the lane off there
+   * would silently break the fact checking they never mentioned.
+   */
+  async clearSearchKey(organizationId: string, provider?: SearchProvider) {
+    const current = await this._prisma.aiProviderSetting?.findUnique?.({
+      where: { organizationId },
+      select: { searchProvider: true, searchApiKeys: true },
+    });
+    const remaining: SearchProviderKeys = parseSearchKeys(
+      current?.searchApiKeys
+    );
+    if (provider) delete remaining[provider];
+    else for (const engine of SEARCH_PROVIDERS) delete remaining[engine];
+
+    // The single-key column is read only for the engine it was saved under, so
+    // clearing that engine has to clear it too; clearing another must not.
+    const legacyBelongsTo = readSearchProvider(current?.searchProvider);
+    const clearsLegacy = !provider || provider === legacyBelongsTo;
+
     await this._prisma.aiProviderSetting.updateMany({
       where: { organizationId },
-      data: { searchApiKey: null, searchEnabled: false },
+      data: {
+        searchApiKeys: remaining as SearchProviderKeys,
+        ...(clearsLegacy ? { searchApiKey: null } : {}),
+        ...(Object.keys(remaining).length === 0 && clearsLegacy
+          ? { searchEnabled: false }
+          : {}),
+      },
     });
     resetAiConfigCache(organizationId);
     return this.getSettings(organizationId);

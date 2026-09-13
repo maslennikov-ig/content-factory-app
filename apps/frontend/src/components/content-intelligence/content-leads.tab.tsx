@@ -16,6 +16,7 @@ import { Dialog } from '../ui/layers';
 import { EmptyState, ErrorState, SkeletonRows, Status } from '../ui/surface';
 import {
   CHECK_INTERVAL_OPTIONS,
+  isTopicKind,
   LINKABLE_AUTOPOSTS_API,
   SUBSCRIPTIONS_API,
   acceptLeadUrl,
@@ -31,10 +32,12 @@ import {
   readLeadsEnvelope,
   readLinkableAutoPosts,
   readSubscriptionsEnvelope,
+  subscriptionDraftReady,
   type CheckIntervalMinutes,
   type LeadFailure,
   type LeadRow,
   type SubscriptionDraft,
+  type SubscriptionKind,
   type SubscriptionRow,
 } from './content-leads.adapter';
 import { resolveContentLocale } from './content-section.copy';
@@ -93,6 +96,13 @@ const copy = {
     retry: 'Повторить',
     checkDisabledBanner:
       'Проверка лент выключена оператором на этом сервере. Подписку можно завести заранее — как только проверку включат, она заработает сама; до тех пор список поводов остаётся пустым.',
+    // content-factory-next-75xn.7: у тем свой выключатель на сервере, потому
+    // что это другая исходящая связь — не чтение адреса, который назвал
+    // человек, а поисковый запрос по его теме. Поэтому и предложение своё, а
+    // не та же строка про ленты.
+    topicCheckDisabledBanner:
+      'Проверка тем выключена оператором на этом сервере. Тему можно завести заранее — она заработает сама, как только проверку включат.',
+    topicBadge: 'тема',
     newSince: (count: number) => `НОВОЕ С ПРОШЛОГО РАЗА · ${count}`,
     lastLookedAt: (date: string) => `заглядывали ${date}`,
     neverLookedYet: 'ещё не заглядывали',
@@ -149,6 +159,9 @@ const copy = {
     startFeedRecommended: 'рекомендуем',
     startFeedBody: 'Адрес ленты блога или новостей. Один адрес приносит много материалов.',
     startFeedCta: 'Указать ленту',
+    startTopicTitle: 'Тема',
+    startTopicBody: 'Не адрес, а предмет: продукт ищет по нему в вебе и приносит то, что вышло за последние 30 дней.',
+    startTopicCta: 'Указать тему',
     startTelegramTitle: 'Телеграм-канал',
     startTelegramOff: 'выключено на этом сервере',
     startTelegramBody: 'Публичный канал целиком. Включает оператор — от вас здесь ничего не зависит.',
@@ -157,7 +170,13 @@ const copy = {
     notFactsBody: 'Там — материалы, которыми подтверждают сказанное. Здесь — ленты, которые подсказывают, о чём написать. Один и тот же сайт может быть и там, и здесь.',
     dialogTitle: 'Новая подписка',
     fieldName: 'Название',
+    fieldKind: 'За чем следить',
+    kindFeed: 'За лентой сайта',
+    kindTopic: 'За темой',
     fieldAddress: 'Адрес ленты (RSS)',
+    fieldTopic: 'Тема',
+    topicPlaceholder: 'например, регулирование ИИ в Европе',
+    topicHint: 'Продукт ищет по теме в вебе и берёт только вышедшее за последние 30 дней. Одна тема на пространство: вторую такую же завести нельзя.',
     fieldFrequency: 'Как часто проверять',
     fieldLinkAutopost: 'Этот адрес уже пишет черновики через AutoPost',
     fieldLinkAutopostNone: 'нет активного AutoPost на этот адрес',
@@ -178,6 +197,9 @@ const copy = {
     retry: 'Retry',
     checkDisabledBanner:
       'Feed checking is switched off by the operator on this server. You can still add a subscription now — it starts working on its own once checking is turned on; until then the lead queue stays empty.',
+    topicCheckDisabledBanner:
+      'Topic checking is switched off by the operator on this server. You can still add a topic now — it starts working on its own once checking is turned on.',
+    topicBadge: 'topic',
     newSince: (count: number) => `NEW SINCE LAST TIME · ${count}`,
     lastLookedAt: (date: string) => `last looked ${date}`,
     neverLookedYet: 'not checked yet',
@@ -229,6 +251,9 @@ const copy = {
     startFeedRecommended: 'recommended',
     startFeedBody: 'A blog or news feed address. One address brings many items.',
     startFeedCta: 'Add a feed',
+    startTopicTitle: 'Topic',
+    startTopicBody: 'Not an address but a subject: the product searches the web for it and brings back what appeared in the last 30 days.',
+    startTopicCta: 'Add a topic',
     startTelegramTitle: 'Telegram channel',
     startTelegramOff: 'off on this server',
     startTelegramBody: 'A whole public channel. An operator turns this on — nothing here depends on you.',
@@ -237,7 +262,13 @@ const copy = {
     notFactsBody: 'That tab holds material that backs up a claim. This one holds feeds that suggest what to write about. The same site can be in both.',
     dialogTitle: 'New subscription',
     fieldName: 'Name',
+    fieldKind: 'What to follow',
+    kindFeed: 'A site feed',
+    kindTopic: 'A topic',
     fieldAddress: 'Feed address (RSS)',
+    fieldTopic: 'Topic',
+    topicPlaceholder: 'for example, AI regulation in Europe',
+    topicHint: 'The product searches the web for this topic and takes only what appeared in the last 30 days. One topic per workspace: a second identical one cannot be added.',
     fieldFrequency: 'How often to check',
     fieldLinkAutopost: 'This address already drafts through AutoPost',
     fieldLinkAutopostNone: 'no active AutoPost on this address',
@@ -281,19 +312,26 @@ function SubscriptionRowView({
    */
   canManage: boolean;
   /**
-   * `LEAD_FEED_CHECK_ENABLED` on this server (content-factory-next-fn33.128).
-   * With it off, `…/:id/check` answers `CHECK_DISABLED` to everyone, and the
-   * button was live anyway: a person pressed it, waited, and learned from the
-   * answer what the banner above the list had already said. The Telegram card
-   * on this same screen had the honest shape all along — disabled, with the
-   * reason beside it — and this row now wears it too. Disabled rather than
-   * hidden, because the row and its schedule still make sense to read.
+   * Whether a check is switched on *for this row's kind* on this server
+   * (content-factory-next-fn33.128). With it off, `…/:id/check` answers
+   * `CHECK_DISABLED` to everyone, and the button was live anyway: a person
+   * pressed it, waited, and learned from the answer what the banner above the
+   * list had already said. The Telegram card on this same screen had the
+   * honest shape all along — disabled, with the reason beside it — and this
+   * row now wears it too. Disabled rather than hidden, because the row and
+   * its schedule still make sense to read.
+   *
+   * Since `content-factory-next-75xn.7` the flag is chosen by the caller from
+   * the row's kind: `LEAD_FEED_CHECK_ENABLED` governs feeds and
+   * `LEAD_TOPIC_CHECK_ENABLED` topics, and a screen reading only one of them
+   * would disable a live button or offer a dead one.
    */
   checkEnabled: boolean;
   onCheckNow: () => void;
   onArchive: () => void;
 }) {
   const lastChecked = formatDateTime(subscription.lastCheckedAt, locale);
+  const isTopic = isTopicKind(subscription.kind);
   const isRobotsDenied = subscription.lastErrorCode === 'ROBOTS_DISALLOWED';
   const isErrored = subscription.state === 'ERRORED';
 
@@ -315,14 +353,20 @@ function SubscriptionRowView({
               <Hint label={t.robotsDenied}>{t.robotsHint}</Hint>
             </span>
           )}
+          {isTopic && <Status>{t.topicBadge}</Status>}
           {subscription.linkedAutoPost && (
             <Status tone="accent">
               {t.autopostLinked(subscription.linkedAutoPost.title || subscription.linkedAutoPost.id)}
             </Status>
           )}
         </div>
+        {/*
+          A topic row prints the topic, never `canonicalUrl`: that column
+          holds the derived `topic://<slug>` key, which nobody typed and
+          which reads as machinery rather than as what is being watched.
+        */}
         <span className="break-all cf-caption text-cf-ink-muted">
-          {subscription.canonicalUrl}
+          {isTopic ? subscription.query || subscription.displayName : subscription.canonicalUrl}
         </span>
       </div>
       <span className="cf-body-sm text-cf-ink-muted">
@@ -422,22 +466,52 @@ function LeadCardView({
   );
 }
 
+/**
+ * One dialog, two kinds (`content-factory-next-75xn.7`).
+ *
+ * Not two dialogs: the name, the schedule and the AutoPost pointer are the
+ * same question for a feed and for a topic, and only one field differs — an
+ * address or a subject. A second dialog would be that shared half written
+ * twice, drifting apart the first time either is touched. Which kind the
+ * dialog opens on comes from the card a person pressed; inside, the chooser
+ * lets them change their mind without closing it.
+ */
 function AddSubscriptionDialog({
   open,
+  openedAs,
   onClose,
   locale,
   t,
   read,
+  topicCheckEnabled,
   onCreated,
 }: {
   open: boolean;
+  /** The kind the press implied. The person may still change it here. */
+  openedAs: SubscriptionKind;
   onClose: () => void;
   locale: Locale;
   t: (typeof copy)[Locale];
   read: ReturnType<typeof jsonReader>;
+  /** Only to say a saved topic will wait, never to refuse saving one. */
+  topicCheckEnabled: boolean;
   onCreated: () => void;
 }) {
-  const [draft, setDraft] = useState<SubscriptionDraft>(() => emptySubscriptionDraft());
+  const [draft, setDraft] = useState<SubscriptionDraft>(() =>
+    emptySubscriptionDraft(openedAs)
+  );
+  /**
+   * The dialog is mounted while closed, so a fresh draft cannot be made at
+   * mount time. Re-opening it on a different card must not leave a person on
+   * the kind they chose last time — that is the one piece of state where the
+   * press, not the previous session, is the answer.
+   */
+  const [openedFor, setOpenedFor] = useState<SubscriptionKind | null>(null);
+  if (open && openedFor !== openedAs) {
+    setOpenedFor(openedAs);
+    setDraft(emptySubscriptionDraft(openedAs));
+  }
+  if (!open && openedFor !== null) setOpenedFor(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<LeadFailure | null>(null);
 
@@ -454,7 +528,7 @@ function AddSubscriptionDialog({
         method: 'POST',
         body: JSON.stringify(buildSubscriptionCreatePayload(draft)),
       });
-      setDraft(emptySubscriptionDraft());
+      setDraft(emptySubscriptionDraft(draft.kind));
       onCreated();
       onClose();
     } catch (error) {
@@ -478,7 +552,7 @@ function AddSubscriptionDialog({
           </Button>
           <Button
             variant="primary"
-            disabled={busy || !draft.displayName.trim() || !draft.canonicalUrl.trim()}
+            disabled={busy || !subscriptionDraftReady(draft)}
             onClick={() => void submit()}
           >
             {busy ? t.saving : t.save}
@@ -506,19 +580,66 @@ function AddSubscriptionDialog({
           disabled={busy}
           required
         />
-        <Input
+        <Select
           disableForm
-          label={t.fieldAddress}
-          name="canonicalUrl"
-          type="url"
-          placeholder="https://example.com/feed"
-          value={draft.canonicalUrl}
+          label={t.fieldKind}
+          name="kind"
+          value={draft.kind}
           onChange={(event) =>
-            setDraft((current) => ({ ...current, canonicalUrl: event.target.value }))
+            setDraft((current) => ({
+              ...current,
+              kind: event.target.value === 'TOPIC' ? 'TOPIC' : 'RSS',
+            }))
           }
           disabled={busy}
-          required
-        />
+        >
+          <option value="RSS">{t.kindFeed}</option>
+          <option value="TOPIC">{t.kindTopic}</option>
+        </Select>
+        {draft.kind === 'TOPIC' ? (
+          <div className="flex flex-col gap-[8px]">
+            <Input
+              disableForm
+              label={t.fieldTopic}
+              name="query"
+              placeholder={t.topicPlaceholder}
+              value={draft.query}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, query: event.target.value }))
+              }
+              disabled={busy}
+              required
+            />
+            <span className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
+              {t.topicHint}
+            </span>
+            {/*
+              Said here as well as above the list: a person adding a topic on
+              a server with topic checking off is making a promise about the
+              future, and the sentence that explains it must be where the
+              decision is taken, not only where the list is read.
+            */}
+            {!topicCheckEnabled && (
+              <span className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                {t.topicCheckDisabledBanner}
+              </span>
+            )}
+          </div>
+        ) : (
+          <Input
+            disableForm
+            label={t.fieldAddress}
+            name="canonicalUrl"
+            type="url"
+            placeholder="https://example.com/feed"
+            value={draft.canonicalUrl}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, canonicalUrl: event.target.value }))
+            }
+            disabled={busy}
+            required
+          />
+        )}
         <Select
           disableForm
           label={t.fieldFrequency}
@@ -616,12 +737,18 @@ export function ContentLeadsTab({
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  /** Which card opened the dialog, so it starts on the kind that was pressed. */
+  const [dialogKind, setDialogKind] = useState<SubscriptionKind>('RSS');
+  const openDialog = useCallback((kind: SubscriptionKind) => {
+    setDialogKind(kind);
+    setDialogOpen(true);
+  }, []);
   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null);
   const [leadFailure, setLeadFailure] = useState<LeadFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const { subscriptions: subscriptionRows, feedCheckEnabled } =
+  const { subscriptions: subscriptionRows, feedCheckEnabled, topicCheckEnabled } =
     readSubscriptionsEnvelope(subscriptions.data);
   const newLeads = readLeadsEnvelope(queue.data);
   const dismissedLeads = readLeadsEnvelope(dismissed.data);
@@ -734,7 +861,7 @@ export function ContentLeadsTab({
         </div>
         {loaded && !listFailure && subscriptionRows.length > 0 && canManageFeeds && (
           <span className="flex min-h-[44px] items-center sm:min-h-0">
-            <Button variant="primary" onClick={() => setDialogOpen(true)}>
+            <Button variant="primary" onClick={() => openDialog('RSS')}>
               {t.addSubscription}
             </Button>
           </span>
@@ -759,6 +886,25 @@ export function ContentLeadsTab({
           {t.checkDisabledBanner}
         </p>
       )}
+
+      {/*
+        Shown only when the workspace actually holds a topic row. The two
+        switches are independent, and a workspace watching nothing but feeds
+        does not need to be told about a capability it is not using — the
+        empty state's own card already says it there.
+      */}
+      {!topicCheckEnabled &&
+        loaded &&
+        !listFailure &&
+        subscriptionRows.some((row) => isTopicKind(row.kind)) && (
+          <p
+            role="status"
+            data-content-leads-topic-check-off="true"
+            className="max-w-[80ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+          >
+            {t.topicCheckDisabledBanner}
+          </p>
+        )}
 
       {notice && (
         <p role="status" className="max-w-[80ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]">
@@ -800,7 +946,7 @@ export function ContentLeadsTab({
           </div>
           <div className="flex flex-col gap-[12px]">
             <span className="cf-label-sm uppercase text-cf-ink-muted">{t.startHere}</span>
-            <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-accent bg-cf-surface p-[16px]">
                 <div className="flex flex-wrap items-center gap-[8px]">
                   <span className="cf-label-md text-cf-ink">{t.startFeedTitle}</span>
@@ -817,9 +963,36 @@ export function ContentLeadsTab({
                   <Button
                     variant="primary"
                     disabled={!canManageFeeds}
-                    onClick={() => setDialogOpen(true)}
+                    onClick={() => openDialog('RSS')}
                   >
                     {t.startFeedCta}
+                  </Button>
+                </span>
+              </div>
+              <div
+                data-content-leads-start-card="topic"
+                className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+              >
+                <div className="flex flex-wrap items-center gap-[8px]">
+                  <span className="cf-label-md text-cf-ink">{t.startTopicTitle}</span>
+                  {/*
+                    The Telegram card's own shape, for the same kind of fact:
+                    a capability an operator has switched off says so where a
+                    person would otherwise press. Unlike Telegram, the button
+                    stays live — a topic saved now starts working by itself
+                    once checking is turned on, exactly as the feed banner
+                    promises for feeds.
+                  */}
+                  {!topicCheckEnabled && <Status>{t.startTelegramOff}</Status>}
+                </div>
+                <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.startTopicBody}</span>
+                <span className="mt-auto flex min-h-[44px] items-center sm:min-h-0">
+                  <Button
+                    variant="secondary"
+                    disabled={!canManageFeeds}
+                    onClick={() => openDialog('TOPIC')}
+                  >
+                    {t.startTopicCta}
                   </Button>
                 </span>
               </div>
@@ -912,7 +1085,9 @@ export function ContentLeadsTab({
                   t={t}
                   busy={busySubscriptionId === subscription.id}
                   canManage={canManageFeeds}
-                  checkEnabled={feedCheckEnabled}
+                  checkEnabled={
+                    isTopicKind(subscription.kind) ? topicCheckEnabled : feedCheckEnabled
+                  }
                   onCheckNow={() => void checkNow(subscription.id)}
                   onArchive={() => void archiveSubscription(subscription.id)}
                 />
@@ -924,10 +1099,12 @@ export function ContentLeadsTab({
 
       <AddSubscriptionDialog
         open={dialogOpen}
+        openedAs={dialogKind}
         onClose={() => setDialogOpen(false)}
         locale={locale}
         t={t}
         read={read}
+        topicCheckEnabled={topicCheckEnabled}
         onCreated={() => void subscriptions.mutate()}
       />
     </section>

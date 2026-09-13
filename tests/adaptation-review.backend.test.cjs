@@ -457,6 +457,7 @@ test('web makes one research request then one no-retry review using excerpts, ne
   expect(web.research).toHaveBeenCalledTimes(1);
   expect(web.research).toHaveBeenCalledWith('org', 'Новый ручной текст', {
     level: 'standard',
+    task: 'facts',
   });
   expect(calls).toHaveLength(1);
   expect(calls[0].options.maxRetries).toBe(0);
@@ -516,6 +517,31 @@ test('standard adaptation review records its explicit paid research level', asyn
   );
   expect(web.research).toHaveBeenCalledWith('org', 'draft', {
     level: 'standard',
+    task: 'facts',
+  });
+});
+
+/**
+ * `content-factory-next-75xn.2`. Уровень здесь не различает два режима — его
+ * передают оба, — поэтому задачу называют прямо. «Проверить факты поиском»
+ * просит короткую цитируемую выдержку, «Усилить ресерчем» — широту.
+ */
+test('the two paid modes name different search tasks', async () => {
+  const web = { research: jest.fn(async () => evidence) };
+  const instance = serviceWithWeb(web);
+
+  output = webAnswer();
+  await instance.reviewAdaptation('org', 'piece', 'adaptation', 'web', 'ru', true);
+  expect(web.research.mock.calls[0][2]).toMatchObject({
+    level: 'standard',
+    task: 'facts',
+  });
+
+  output = webAnswer();
+  await instance.reviewAdaptation('org', 'piece', 'adaptation', 'research', 'ru', true);
+  expect(web.research.mock.calls[1][2]).toMatchObject({
+    level: 'deep',
+    task: 'research',
   });
 });
 

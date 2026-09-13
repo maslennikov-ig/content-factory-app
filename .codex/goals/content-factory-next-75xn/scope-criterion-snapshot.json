@@ -1,0 +1,39 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-75xn",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-75xn",
+  "source_digest": "e1ffd1e0212b202ca114d7641203d15322d5ab0acc4a2128f6012eea7a1c3392",
+  "criteria": [
+    {
+      "criterion_id": "AC-1-keys-per-engine",
+      "text": "A workspace holds one search key per engine; switching engines loses neither, and a key saved for one engine is unreachable from another. Rows written before the column keep working through the single-key fallback.",
+      "text_digest": "0f0c5dbfbe0026a5380251be7089d51db1b06bed3d710d440cc7bfa9ce0c0876"
+    },
+    {
+      "criterion_id": "AC-2-provider-per-task",
+      "text": "A search task (research, facts, discovery) chooses an engine through searchTaskProviders; an empty map routes nothing and every task keeps the workspace engine. The task is read off the explicit level, except the adaptation review, which names it.",
+      "text_digest": "f2387eed878610bd89bea7e7863adf17b6f06091ced621076858d2bb3ffb7db8"
+    },
+    {
+      "criterion_id": "AC-3-window-and-exa",
+      "text": "WebSearchClientOptions carries windowDays; Tavily receives time_range and Exa startPublishedDate, category and userLocation. The window rounds up, never down.",
+      "text_digest": "e7d745509cc19e5735082370554109c09fcb41375f27a35f1eb58869b2b1c1a8"
+    },
+    {
+      "criterion_id": "AC-4-included-mode",
+      "text": "Saving settings in included mode changes no search column of the workspace; the included allowance falls back to AI_INCLUDED_MONTHLY_OPERATIONS when no subscription row exists; the screen explains system keys, an own key and its fate, and names a dormant key's engine.",
+      "text_digest": "abc0d7484ded9c1963ad58bfacf8416eb32f9ba34a19f886500c07ac61cd8e56"
+    },
+    {
+      "criterion_id": "AC-5-topic-subscription",
+      "text": "\u00ab\u041e\u0442\u043a\u0443\u0434\u0430 \u0438\u0434\u0435\u0438\u00bb takes a TOPIC subscription checked by one discovery search over a thirty-day window, behind its own LEAD_TOPIC_CHECK_ENABLED switch; repeats create no duplicates, a dismissal is remembered, and an accepted lead carries its source into the piece.",
+      "text_digest": "20eea846f26b763356899b69fbd825ee737ee20071c1ee5451c318374263f71a"
+    },
+    {
+      "criterion_id": "AC-6-release",
+      "text": "Local acceptance passes (three-app tsc, build, full suite receipt, process verification, design guards); three nullable columns are applied by pointed psql with the validator; the wave is released by the runbook with a release record.",
+      "text_digest": "5e63e35f94ecefd731d08212126f04c3953047a4f6d17d279cccd3c3165366a1"
+    }
+  ]
+}

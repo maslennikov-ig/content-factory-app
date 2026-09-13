@@ -1202,6 +1202,34 @@ SHA-256 `5c7efef55f9fe562fa86bfcb6368081b0970469ff364a53261cf769e513cf954`,
 контейнеры и данные не затронуты. Полная квитанция и хостовые логи:
 `.codex/stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
 
+**Волна «разбор открытого» (`content-factory-next-zhv8`): выпущена как `17088939db40` 11.09.2026.**
+Приватный исходник `eb5eb2fdbebf14a2ca3490b44431d421f7691c11` опубликован в
+публичном дереве коммитом `17088939db4029298bf0cf05e56cdcaeb355a92f`; образ
+собран из него и отправлен в `ghcr.io/maslennikov-ig/content-factory-next` с
+digest `sha256:4f639160cf120a8c839658b67de0f6eea466f522ad271d68f2e50e9c675febef`.
+Откат — `92f0b95dfe3f`. Основание: владелец 11.09 — «давай это разберём всё и
+исправим, что возможно» — поверх постоянного разрешения от 07.09.
+
+Что вошло: бесключевой лан Wikipedia/Wikidata подключён к живому ресерчу при
+явном уровне (`m0iy.8`); квота ресерча считается в Redis, а не в памяти
+процесса (`m0iy.9`, ключ `research:quota:{org}:{level}:{YYYY-MM}`, 40 дней,
+числа 20/10/3 прежние). Клиент Redis приходит в квоту через токен
+`RESEARCH_QUOTA_STORE` из модуля базы: импорт `redis.service` прямо в файле
+службы открывал сокет при загрузке в каждом наборе тестов. Схема не менялась.
+
+Локальная приёмка: три `tsc`, build, Jest 417 наборов / 5403 теста, Node 125/0
+(4 прежних пропуска по окружению), Python OK; docs, process зелёные. Из нового
+образа `prisma migrate diff --exit-code` на хосте вернул `0` и `-- This is an
+empty migration.`; в отдельной базе Mastra 29 → 29 таблиц, отпечаток
+`310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7` прежний.
+На `helixa-prod` `cf-next-app` healthy, `CONTENT_FACTORY_RELEASE=17088939db40`,
+перезапусков 0; `/api/`, `/auth/login` и `/api/public/source` отвечают 200;
+архив исходников 7 943 757 байт, SHA-256
+`98e786688d88fb60d0ca7ebdbb568d52e5ba3c9f6f117e87817b2f324fd8645e` совпадает с
+локальной сборкой. `retain-host-artifacts.sh`: оставлены `17088939db40` и
+`92f0b95dfe3f`, удалён наш `aaaf00afe664`; чужое не тронуто. Квитанция и логи:
+`.codex/stages/content-factory-next-zhv8/evidence/`.
+
 **Малая волна 11.09 (`content-factory-next-6xi0`): выпущена как `92f0b95dfe3f` 11.09.2026.**
 Приватный исходник `3f84df3d0dbe77fb83d54580c0e71cf3e60b8efb` опубликован в
 публичном дереве коммитом `92f0b95dfe3f8eaf07129e077276cb997a42d6b8`; образ

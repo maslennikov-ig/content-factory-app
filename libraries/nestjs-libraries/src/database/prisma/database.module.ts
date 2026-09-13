@@ -93,6 +93,7 @@ import { ContentBriefRepository } from '@contentfactory/nestjs-libraries/content
 import { ContentBriefService } from '@contentfactory/nestjs-libraries/content-intelligence/brief/content-brief.service';
 import { ContentLeadRepository } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.repository';
 import { LeadFeedGateway } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-feed.gateway';
+import { LeadTopicGateway } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-topic.gateway';
 import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-intelligence/leads/content-lead.service';
 
 @Global()
@@ -197,6 +198,7 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     ContentBriefService,
     ContentLeadRepository,
     LeadFeedGateway,
+    LeadTopicGateway,
     ContentLeadService,
   ],
   get exports() {

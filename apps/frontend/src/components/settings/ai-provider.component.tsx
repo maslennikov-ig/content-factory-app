@@ -43,6 +43,39 @@ type AiRole = (typeof AI_ROLES)[number];
 
 type RoleModels = Partial<Record<AiRole, string>>;
 
+/**
+ * The search engines, and what a search is for.
+ *
+ * Declared again here for the same reason `AI_ROLES` is: this bundle cannot
+ * import a backend module. Both lists live once in
+ * `libraries/nestjs-libraries/src/openai/ai.search-tasks.ts` (`SEARCH_TASKS`,
+ * `SEARCH_PROVIDERS`), and `tests/ai.search-routing.guard.test.cjs` holds the
+ * copies together, so a task or an engine added on the server without a name
+ * here fails rather than becoming a setting nobody can reach.
+ */
+const SEARCH_PROVIDERS = ['tavily', 'openrouter', 'exa'] as const;
+
+const SEARCH_TASKS = ['research', 'facts', 'discovery'] as const;
+
+type SearchTask = (typeof SEARCH_TASKS)[number];
+
+type SearchTaskProviders = Partial<Record<SearchTask, SearchProvider>>;
+
+type SearchKeyDrafts = Partial<Record<SearchProvider, string>>;
+
+/**
+ * Mirrors `searchProviderNeedsKey`: OpenRouter answers a search question with
+ * the workspace's generation provider, so it spends the key above and has no
+ * field of its own here.
+ */
+type KeyedSearchProvider = Exclude<SearchProvider, 'openrouter'>;
+
+const searchProviderNeedsKey = (
+  provider: SearchProvider
+): provider is KeyedSearchProvider => provider !== 'openrouter';
+
+const KEYED_SEARCH_PROVIDERS = SEARCH_PROVIDERS.filter(searchProviderNeedsKey);
+
 interface AiSettings {
   usageMode: UsageMode;
   provider: Provider;
@@ -55,6 +88,21 @@ interface AiSettings {
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
   hasSearchKey: boolean;
+  /**
+   * Which engines have a key of their own, and nothing about what the keys
+   * are. Optional because a response cached by a build older than
+   * `content-factory-next-75xn` carries only `hasSearchKey`.
+   */
+  searchKeys?: Partial<Record<SearchProvider, boolean>>;
+  /**
+   * Which engines this workspace has a key of its own for, in either mode.
+   *
+   * In `workspace_key` it repeats `searchKeys`; in `included` it is the only
+   * thing that can name a key that is stored but dormant, and a key nobody can
+   * name is a key nobody can decide to remove.
+   */
+  workspaceSearchKeys?: Partial<Record<SearchProvider, boolean>>;
+  searchTaskProviders?: SearchTaskProviders;
   searchFallbackAvailable: boolean;
   workspaceKeyConfigured: boolean;
   includedAvailable: boolean;
@@ -95,7 +143,9 @@ interface AiSettingsPayloadInput {
   roleModels: RoleModels;
   searchEnabled: boolean;
   searchProvider?: SearchProvider;
-  searchApiKey: string;
+  /** Only the engines a person actually typed into during this visit. */
+  searchApiKeys?: SearchKeyDrafts;
+  searchTaskProviders?: SearchTaskProviders;
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
 }
@@ -114,6 +164,34 @@ const submittedRoleModels = (roleModels: RoleModels) =>
     )
   );
 
+/**
+ * The same rule for the key fields: an untouched field is not a cleared key.
+ *
+ * Only engines a person typed into are sent, so a save made from the depth
+ * selector cannot reach the stored keys of engines this visit never touched —
+ * and a stray space around a pasted key is refused by the door, so it is
+ * trimmed away here rather than turned into a refused save.
+ */
+const submittedSearchKeys = (drafts: SearchKeyDrafts) =>
+  Object.fromEntries(
+    SEARCH_PROVIDERS.map((engine) => [
+      engine,
+      (drafts[engine] || '').trim(),
+    ]).filter(([, key]) => key)
+  );
+
+/**
+ * The routed tasks, with «as for the workspace» left out rather than sent as
+ * an empty string: an absent task means exactly that, and the door refuses a
+ * value that is not an engine name.
+ */
+const submittedTaskProviders = (taskProviders: SearchTaskProviders) =>
+  Object.fromEntries(
+    SEARCH_TASKS.map((task) => [task, taskProviders[task] || '']).filter(
+      ([, engine]) => engine
+    )
+  );
+
 export const buildAiSettingsPayload = ({
   usageMode,
   provider,
@@ -122,23 +200,46 @@ export const buildAiSettingsPayload = ({
   imageModel,
   roleModels,
   searchEnabled,
-  searchApiKey,
+  searchApiKeys = {},
+  searchTaskProviders = {},
   searchTopic,
   searchDepth,
   searchProvider = 'tavily',
-}: AiSettingsPayloadInput) => ({
-  usageMode,
-  provider,
-  ...(usageMode === 'workspace_key' && apiKey ? { apiKey } : {}),
-  ...(usageMode === 'workspace_key'
-    ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
-    : {}),
-  searchEnabled,
-  searchProvider,
-  ...(usageMode === 'workspace_key' && searchApiKey ? { searchApiKey } : {}),
-  searchTopic,
-  searchDepth,
-});
+}: AiSettingsPayloadInput) => {
+  const typedSearchKeys = submittedSearchKeys(searchApiKeys);
+  return {
+    usageMode,
+    provider,
+    ...(usageMode === 'workspace_key' && apiKey ? { apiKey } : {}),
+    ...(usageMode === 'workspace_key'
+      ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
+      : {}),
+    /**
+     * Whether search runs at all belongs to both modes — the included keys are
+     * spent by the same searches — so this is the one search field that is
+     * sent either way, and the server writes it either way.
+     */
+    searchEnabled,
+    /**
+     * Everything else about search is a workspace-key setting, and in
+     * `included` mode the screen is showing the operator's values rather than
+     * the workspace's own. Sending them back would save somebody else's engine
+     * as this workspace's (`content-factory-next-75xn.4`); the server already
+     * refuses them in this mode, and the screen no longer offers them.
+     */
+    ...(usageMode === 'workspace_key'
+      ? {
+          searchProvider,
+          searchTopic,
+          searchDepth,
+          searchTaskProviders: submittedTaskProviders(searchTaskProviders),
+          ...(Object.keys(typedSearchKeys).length
+            ? { searchApiKeys: typedSearchKeys }
+            : {}),
+        }
+      : {}),
+  };
+};
 
 /**
  * Asking first is the whole point of this control, so the order lives in one
@@ -276,12 +377,18 @@ const AiProviderComponent = () => {
   const [clearing, setClearing] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [searchProvider, setSearchProvider] = useState<SearchProvider>('tavily');
-  const [searchApiKey, setSearchApiKey] = useState('');
+  const [searchApiKeys, setSearchApiKeys] = useState<SearchKeyDrafts>({});
+  const [searchTaskProviders, setSearchTaskProviders] =
+    useState<SearchTaskProviders>(data?.searchTaskProviders || {});
   const [searchTopic, setSearchTopic] = useState<'general' | 'news'>('general');
   const [searchDepth, setSearchDepth] = useState<'basic' | 'advanced'>(
     data?.searchDepth || 'advanced'
   );
-  const [clearingSearch, setClearingSearch] = useState(false);
+  // Which engine's key is being removed, so only that field's button waits.
+  // `all` is the one control that removes every stored search key at once.
+  const [clearingSearch, setClearingSearch] = useState<
+    KeyedSearchProvider | 'all' | null
+  >(null);
 
   useEffect(() => {
     if (!data) return;
@@ -292,6 +399,7 @@ const AiProviderComponent = () => {
     setRoleModels(data.roleModels || {});
     setSearchEnabled(data.searchEnabled);
     setSearchProvider(data.searchProvider || 'tavily');
+    setSearchTaskProviders(data.searchTaskProviders || {});
     setSearchTopic(data.searchTopic);
     setSearchDepth(data.searchDepth);
   }, [data]);
@@ -320,15 +428,57 @@ const AiProviderComponent = () => {
   );
 
   /**
-   * Search credentials belong to the selected backend. Keep the form from
-   * carrying a Tavily key into a subsequent Exa save, and make the operator
-   * explicitly enable the new lane after entering its key.
+   * Whether an engine has a key of its own to spend.
+   *
+   * Read from the map, and from the old single flag when the response predates
+   * it: that one could only ever mean «the workspace's engine has a key», so
+   * that is the only thing it is allowed to answer here.
    */
-  const changeSearchProvider = useCallback((next: SearchProvider) => {
-    setSearchProvider(next);
-    setSearchApiKey('');
-    setSearchEnabled(false);
-  }, []);
+  const hasStoredSearchKey = useCallback(
+    (engine: SearchProvider) =>
+      data?.searchKeys?.[engine] ??
+      (engine === data?.searchProvider && !!data?.hasSearchKey),
+    [data]
+  );
+
+  /**
+   * The workspace's own key, which in `included` mode is not the same question:
+   * there `searchKeys` describes the operator's set, and a workspace's own key
+   * is stored, unspent and otherwise invisible.
+   */
+  const hasOwnSearchKey = useCallback(
+    (engine: SearchProvider) =>
+      data?.workspaceSearchKeys?.[engine] ??
+      (engine === data?.searchProvider && !!data?.hasSearchKey),
+    [data]
+  );
+
+  /**
+   * Changing the engine no longer touches the keys.
+   *
+   * It used to clear the field, because one stored key was handed to whichever
+   * engine the name pointed at and a Tavily key could have been spent at Exa.
+   * Since `content-factory-next-75xn.1` a key is addressed by its engine — a
+   * Tavily key lives under `tavily` and `exa` cannot read it — so clearing the
+   * field would only lose typing nobody asked to lose.
+   *
+   * The lane is still switched off when the new engine has nothing to spend,
+   * which is the one part of the old defence that was about search working
+   * rather than about the key.
+   */
+  const changeSearchProvider = useCallback(
+    (next: SearchProvider) => {
+      setSearchProvider(next);
+      if (
+        searchProviderNeedsKey(next) &&
+        !hasStoredSearchKey(next) &&
+        !(searchApiKeys[next] || '').trim()
+      ) {
+        setSearchEnabled(false);
+      }
+    },
+    [hasStoredSearchKey, searchApiKeys]
+  );
 
   // Only OpenRouter publishes a catalogue; for OpenAI the fields stay free text.
   const loadModels = useCallback(
@@ -359,7 +509,8 @@ const AiProviderComponent = () => {
             roleModels,
             searchEnabled,
             searchProvider,
-            searchApiKey,
+            searchApiKeys,
+            searchTaskProviders,
             searchTopic,
             searchDepth,
           })
@@ -367,7 +518,7 @@ const AiProviderComponent = () => {
       });
       if (!response.ok) throw new Error();
       setApiKey('');
-      setSearchApiKey('');
+      setSearchApiKeys({});
       await mutate();
       toaster.show(
         t('ai_provider_saved', 'Provider settings saved'),
@@ -390,7 +541,8 @@ const AiProviderComponent = () => {
     roleModels,
     searchEnabled,
     searchProvider,
-    searchApiKey,
+    searchApiKeys,
+    searchTaskProviders,
     searchTopic,
     searchDepth,
   ]);
@@ -422,38 +574,53 @@ const AiProviderComponent = () => {
     }
   }, []);
 
-  const clearSearchKey = useCallback(async () => {
-    setClearingSearch(true);
-    const outcome = await removeStoredKey({
-      endpoint: '/settings/ai/search-key',
-      confirm: () =>
-        deleteDialog(
-          t(
-            'search_key_remove_confirm',
-            'The stored Tavily key is removed and cannot be recovered. Web research stops for this workspace until a new key is saved.'
+  /**
+   * Remove one engine's stored key, or — with no engine — every one of them.
+   *
+   * The engine travels in the query string because that is what the door
+   * reads, and the confirmation names the same engine: «the stored key» was an
+   * honest sentence while a workspace had one, and is a guess now that it has
+   * two. The all-engines form exists for the included mode, where the response
+   * cannot say which engine the workspace's own key belongs to.
+   */
+  const clearSearchKey = useCallback(
+    async (engine: KeyedSearchProvider | null) => {
+      setClearingSearch(engine ?? 'all');
+      const outcome = await removeStoredKey({
+        endpoint: engine
+          ? `/settings/ai/search-key?provider=${engine}`
+          : '/settings/ai/search-key',
+        confirm: () =>
+          deleteDialog(
+            engine
+              ? words.search.engines[engine].removeKeyConfirm
+              : words.search.includedRemoveKeysConfirm,
+            t('search_key_remove_approve', 'Yes, remove the key'),
+            t('search_key_remove_title', 'Remove the stored search key?')
           ),
-          t('search_key_remove_approve', 'Yes, remove the key'),
-          t('search_key_remove_title', 'Remove the stored search key?')
-        ),
-      request: fetch,
-      onRemoved: async () => {
-        setSearchApiKey('');
-        await mutate();
-      },
-    });
-    setClearingSearch(false);
-    if (outcome === 'removed') {
-      toaster.show(
-        t('search_key_removed', 'Stored search key removed'),
-        'success'
-      );
-    } else if (outcome === 'failed') {
-      toaster.show(
-        t('search_key_remove_failed', 'Could not remove the search key'),
-        'warning'
-      );
-    }
-  }, []);
+        request: fetch,
+        onRemoved: async () => {
+          setSearchApiKeys((current) =>
+            engine ? { ...current, [engine]: '' } : {}
+          );
+          await mutate();
+        },
+      });
+      setClearingSearch(null);
+      if (outcome === 'removed') {
+        toaster.show(
+          t('search_key_removed', 'Stored search key removed'),
+          'success'
+        );
+      } else if (outcome === 'failed') {
+        toaster.show(
+          t('search_key_remove_failed', 'Could not remove the search key'),
+          'warning'
+        );
+      }
+    },
+    [words]
+  );
 
   return (
     <div className="flex flex-col gap-[16px] py-[16px] border-t border-cf-border">
@@ -758,22 +925,86 @@ const AiProviderComponent = () => {
         </div>
       )}
 
+      {/*
+        Раздел объясняется словами, а не одной строкой под заголовком
+        (`content-factory-next-75xn.6`). Рычагов стало два — ключ на каждый
+        движок и сервер на каждую задачу, — и главного нигде не было сказано:
+        по умолчанию всё уже работает на ключах системы, и заполнять здесь
+        ничего не надо.
+      */}
       <div className="mt-[8px] border-t border-cf-border pt-[16px]">
         <h4 className="cf-heading-md text-cf-ink">
           {t('web_search', 'Web research')}
         </h4>
-        <div className="cf-body-sm text-cf-ink-muted">
-          {t(
-            'web_search_description_org',
-            'Choose one search backend for this workspace. Exa is recommended for research; Tavily remains available, and OpenRouter is a fallback when configured.'
-          )}
+        <div
+          data-search-intro="true"
+          className="mt-[4px] flex flex-col gap-[4px]"
+        >
+          {[
+            words.search.what,
+            words.search.systemKeys,
+            words.search.ownKey,
+            words.search.ownKeyKept,
+          ].map((sentence) => (
+            <p
+              key={sentence}
+              className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {sentence}
+            </p>
+          ))}
         </div>
       </div>
+
+      {/*
+        Режим включённых ключей молчал про свой ключ области: поля выключены,
+        кнопки «убрать» нет, и сохранённый ключ не виден ниоткуда. Он никуда не
+        делся и восстановится при возврате к своим ключам — значит, про него
+        надо сказать и дать его убрать, не выходя из режима. Без названия
+        движка: `searchKeys` в этом режиме описывает ключи системы, а про свои
+        ответ сервера знает только «есть или нет».
+      */}
+      {usageMode === 'included' && data?.hasSearchKey && (
+        <div data-search-included-key="true" className="flex flex-col gap-[8px]">
+          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {words.search.includedOwnKey}
+          </p>
+          {/*
+            Поимённо, движок за движком: убрать чужой ключ вместе со своим —
+            не то, о чём просили, а «убрать всё» ниже остаётся для случая,
+            когда сервер ещё не умеет называть движки (старый ответ в кэше).
+          */}
+          {KEYED_SEARCH_PROVIDERS.filter(hasOwnSearchKey).map((engine) => (
+            <div
+              key={engine}
+              data-search-included-engine={engine}
+              className="flex flex-wrap items-center justify-between gap-[8px]"
+            >
+              <span className="cf-body-sm text-cf-ink-muted">
+                {words.search.engines[engine].keyDormant}
+              </span>
+              <ClearStoredKeyButton
+                label={words.search.engines[engine].removeKey}
+                busy={clearingSearch === engine}
+                onClear={() => clearSearchKey(engine)}
+              />
+            </div>
+          ))}
+          {!KEYED_SEARCH_PROVIDERS.some(hasOwnSearchKey) && (
+            <ClearStoredKeyButton
+              label={words.search.includedRemoveKeys}
+              busy={clearingSearch === 'all'}
+              onClear={() => clearSearchKey(null)}
+            />
+          )}
+        </div>
+      )}
 
       <Select
         label={t('search_provider', 'Search backend')}
         name="searchProvider"
         value={searchProvider}
+        disabled={usageMode === 'included'}
         disableForm={true}
         onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
           changeSearchProvider(
@@ -803,55 +1034,122 @@ const AiProviderComponent = () => {
         <option value="enabled">{t('enabled', 'Enabled')}</option>
       </Select>
 
-      <div className="flex flex-col gap-[4px]">
+      {/*
+        Поле на движок, а не одно на область: ключ адресуется движком, и Exa не
+        может прочитать ключ Tavily. Подписи и строки состояния живут в
+        `ai-provider.copy.ts`, потому что название движка в подписи — это не
+        перевод, а часть смысла: ключи локалей писались, когда движок был один,
+        и до сих пор называют Tavily в поле, которое теперь принадлежит Exa.
+      */}
+      {KEYED_SEARCH_PROVIDERS.map((engine) => (
         <Input
-          label={t('search_api_key', 'Search API key')}
-          name="searchApiKey"
+          key={engine}
+          label={words.search.engines[engine].keyLabel}
+          name={`searchApiKey-${engine}`}
           secret={true}
-          value={searchApiKey}
+          value={searchApiKeys[engine] || ''}
           disabled={usageMode === 'included'}
           disableForm={true}
           action={
-            usageMode === 'workspace_key' && data?.hasSearchKey ? (
+            usageMode === 'workspace_key' && hasStoredSearchKey(engine) ? (
               <ClearStoredKeyButton
-                label={t(
-                  'remove_stored_search_key',
-                  'Remove stored search key'
-                )}
-                busy={clearingSearch}
-                onClear={clearSearchKey}
+                label={words.search.engines[engine].removeKey}
+                busy={clearingSearch === engine}
+                onClear={() => clearSearchKey(engine)}
               />
             ) : undefined
           }
           placeholder={
-            data?.hasSearchKey
-              ? t(
-                  'search_key_set_placeholder',
-                  'A search key is saved — type to replace it'
-                )
-              : t('search_key_empty_placeholder', 'Paste a search key')
+            usageMode === 'workspace_key' && hasStoredSearchKey(engine)
+              ? words.search.keySavedPlaceholder
+              : words.search.keyEmptyPlaceholder
+          }
+          /*
+            В режиме включённых ключей строка состояния молчит про сохранённое:
+            `searchKeys` здесь описывает ключи системы, и «ключ Tavily сохранён
+            для этой области» было бы неправдой. Про свой ключ области в этом
+            режиме говорит строка выше.
+          */
+          helper={
+            usageMode === 'included'
+              ? words.search.engines[engine].what
+              : hasStoredSearchKey(engine)
+              ? words.search.engines[engine].keyStored
+              : words.search.engines[engine].keyMissing
           }
           onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            setSearchApiKey(event.target.value)
+            setSearchApiKeys((current) => ({
+              ...current,
+              [engine]: event.target.value,
+            }))
           }
         />
-        <div className="cf-body-sm text-cf-ink-muted">
-          {data?.hasSearchKey
-            ? t(
-                'search_key_from_settings',
-                'A search key is stored for this workspace. It is never shown again.'
-              )
-            : t(
-                'search_key_missing_org',
-                'No search key is stored, so keyed web research stays unavailable.'
-              )}
-        </div>
+      ))}
+
+      <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        {words.search.openrouterNoKey}
+      </p>
+
+      {/*
+        Сервер на задачу, той же вёрсткой, что и модель на роль вызова: задачи
+        не взаимозаменяемы, и один сервер на всю область означал выбор, чем
+        именно пожертвовать. Пустая строка — «как в области», то есть поведение
+        до появления задач.
+      */}
+      <div
+        data-search-tasks-hint="true"
+        className="mt-[8px] flex flex-col gap-[4px]"
+      >
+        <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          {words.search.tasksWhat}
+        </p>
+        <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          {words.search.tasksWhy}
+        </p>
       </div>
+
+      {SEARCH_TASKS.map((task) => (
+        <div key={task} className="flex flex-col gap-[4px]">
+          <Select
+            label={words.search.tasks[task].label}
+            name={`search-task-${task}`}
+            value={searchTaskProviders[task] || ''}
+            disabled={usageMode === 'included'}
+            disableForm={true}
+            // Подсказка стоит отдельной строкой, потому что `Select` своей не
+            // умеет; связь с полем держится руками, чтобы скринридер прочитал
+            // её вместе с подписью, а не как текст после.
+            aria-describedby={`search-task-${task}-hint`}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+              setSearchTaskProviders((current) => ({
+                ...current,
+                [task]: SEARCH_PROVIDERS.find(
+                  (engine) => engine === event.target.value
+                ),
+              }))
+            }
+          >
+            <option value="">{words.search.taskDefaultOption}</option>
+            {SEARCH_PROVIDERS.map((engine) => (
+              <option key={engine} value={engine}>
+                {words.search.engines[engine].name}
+              </option>
+            ))}
+          </Select>
+          <p
+            id={`search-task-${task}-hint`}
+            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {words.search.tasks[task].what}
+          </p>
+        </div>
+      ))}
 
       <Select
         label={t('search_topic', 'Search topic')}
         name="searchTopic"
         value={searchTopic}
+        disabled={usageMode === 'included'}
         disableForm={true}
         onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
           setSearchTopic(event.target.value === 'news' ? 'news' : 'general')
@@ -865,6 +1163,7 @@ const AiProviderComponent = () => {
         label={t('search_depth', 'Search depth')}
         name="searchDepth"
         value={searchDepth}
+        disabled={usageMode === 'included'}
         disableForm={true}
         onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
           setSearchDepth(

@@ -101,6 +101,13 @@ export const intakeCopy = {
     originSearch: 'найдено поиском',
     originModel: 'предположение',
     factsRestOn: 'На что это опирается',
+    /* Заголовки колонок таблицы опор. Названия, а не значения ячеек:
+       `content-factory-next-hh50` — в колонках «Состояние» и «Источник»
+       стояли «не подтверждено» и «найдено поиском», то есть одно из значений
+       вместо имени колонки, и таблица читалась как список из одной строки. */
+    researchTableTitle: 'Опоры текста',
+    researchColumnStatus: 'Состояние',
+    researchColumnSource: 'Источник',
     factVerified: 'подтверждено',
     factUnverified: 'не подтверждено',
     factConflicting: 'расходится',
@@ -269,6 +276,9 @@ export const intakeCopy = {
     originSearch: 'found by search',
     originModel: 'an assumption',
     factsRestOn: 'What it rests on',
+    researchTableTitle: 'What the text rests on',
+    researchColumnStatus: 'State',
+    researchColumnSource: 'Source',
     factVerified: 'confirmed',
     factUnverified: 'unconfirmed',
     factConflicting: 'conflicting',

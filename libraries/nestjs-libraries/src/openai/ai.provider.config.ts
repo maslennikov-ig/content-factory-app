@@ -7,6 +7,15 @@ import {
   DEFAULT_AI_ROLE,
   parseRoleModels,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
+import {
+  SEARCH_PROVIDERS,
+  SearchProvider,
+  SearchProviderKeys,
+  SearchTaskProviders,
+  parseSearchKeys,
+  parseSearchTaskProviders,
+  readSearchProvider,
+} from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 
 /**
  * One place that decides which language-model provider an organization talks
@@ -27,21 +36,32 @@ import {
 
 export type AiProvider = 'openai' | 'openrouter';
 export type AiUsageMode = 'included' | 'workspace_key';
-/** Search engines share one tenant key and one stable client port. */
-export type SearchProvider = 'tavily' | 'openrouter' | 'exa';
 export type SearchTopic = 'general' | 'news';
 export type SearchDepth = 'basic' | 'advanced';
 
-const readSearchProvider = (value: unknown): SearchProvider =>
-  value === 'exa' || value === 'openrouter' || value === 'tavily'
-    ? value
-    : 'tavily';
+/**
+ * The engine names, the task names and the routing live in
+ * `ai.search-tasks.ts`, which imports nothing. They are re-exported here
+ * because every caller that already asks this module what an organization is
+ * configured with should keep asking one module.
+ */
+export type { SearchProvider, SearchTask } from './ai.search-tasks';
 
 export interface WebSearchConfig {
   enabled: boolean;
+  /** The workspace's engine: what a task with no route of its own gets. */
   provider: SearchProvider;
-  /** Empty when the selected mode has no search key. */
+  /**
+   * The key for `provider`, empty when the selected mode has none.
+   *
+   * Kept beside the map below because every reader that predates per-engine
+   * keys asks this question and no other: «can the configured engine search».
+   */
   apiKey: string;
+  /** One key per engine; an engine with none is simply absent. */
+  apiKeys: SearchProviderKeys;
+  /** Which engine each task gets; empty routes nothing. */
+  taskProviders: SearchTaskProviders;
   topic: SearchTopic;
   depth: SearchDepth;
 }
@@ -66,18 +86,79 @@ export interface AiConfig {
   roleModels: AiRoleModels;
   workspaceKeyConfigured: boolean;
   workspaceSearchKeyConfigured: boolean;
+  /**
+   * Which engines the *workspace* has saved a key for, whatever mode it is in.
+   *
+   * `search.apiKeys` answers «what will be spent», which in `included` mode is
+   * the operator's set. This answers «what is still yours», which is the only
+   * way the settings screen can say «у этой области сохранён свой ключ Exa»
+   * while that key is dormant — and a workspace that cannot see its own saved
+   * key cannot decide to remove it (`content-factory-next-75xn.6`).
+   *
+   * Presence, never the value. `included` mode must not carry the tenant's
+   * credential anywhere, and here it does not have to: the only question the
+   * screen asks of a dormant key is whether there is one.
+   */
+  workspaceSearchKeys: Partial<Record<SearchProvider, boolean>>;
   includedAvailable: boolean;
   search: WebSearchConfig;
 }
 
-const readJson = (raw?: string): unknown => {
+const readJson = (raw: string | undefined, name: string): unknown => {
   if (!raw) return undefined;
   try {
     return JSON.parse(raw);
   } catch {
-    console.error('AI_ROLE_MODELS is not valid JSON; ignoring it.');
+    console.error(`${name} is not valid JSON; ignoring it.`);
     return undefined;
   }
+};
+
+/**
+ * The operator's search keys, one variable per engine.
+ *
+ * `AI_INCLUDED_SEARCH_API_KEY` predates the split and still works: it is the
+ * key for whichever engine `AI_INCLUDED_SEARCH_PROVIDER` names, so an operator
+ * who configured included search before this change keeps exactly what they
+ * had and only needs a second variable when they want a second engine.
+ */
+const includedSearchKeys = (provider: SearchProvider): SearchProviderKeys => {
+  const perEngine: SearchProviderKeys = {};
+  for (const engine of SEARCH_PROVIDERS) {
+    const named = process.env[`AI_INCLUDED_SEARCH_API_KEY_${engine.toUpperCase()}`];
+    if (named) perEngine[engine] = named;
+  }
+  const legacy = process.env.AI_INCLUDED_SEARCH_API_KEY;
+  if (legacy && !perEngine[provider]) perEngine[provider] = legacy;
+  return perEngine;
+};
+
+/**
+ * Included search is the operator's lane end to end.
+ *
+ * Neither the workspace's engine nor its routing is read here: in this mode
+ * the key is ours, and an engine chosen by whoever opened the settings screen
+ * would decide which API our key is spent at. Only `searchEnabled`, the topic
+ * and the depth come from the row — a workspace may turn its own search off
+ * and say what kind of search it wants, but not where the key goes.
+ */
+const includedSearch = (stored: StoredAiProviderSetting): WebSearchConfig => {
+  const provider = readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER);
+  const apiKeys = includedSearchKeys(provider);
+  return {
+    enabled: stored.searchEnabled,
+    provider,
+    apiKey: apiKeys[provider] || '',
+    apiKeys,
+    taskProviders: parseSearchTaskProviders(
+      readJson(
+        process.env.AI_INCLUDED_SEARCH_TASK_PROVIDERS,
+        'AI_INCLUDED_SEARCH_TASK_PROVIDERS'
+      )
+    ),
+    topic: (stored.searchTopic as SearchTopic) || 'general',
+    depth: (stored.searchDepth as SearchDepth) || 'advanced',
+  };
 };
 
 const DEFAULT_MODELS: Record<AiProvider, { text: string; image: string }> = {
@@ -104,11 +185,15 @@ const envDefaults = () => {
      * ours, so nothing here may hold a table of them. Unparseable reads as
      * «none configured», which is the behaviour the product had before.
      */
-    roleModels: parseRoleModels(readJson(process.env.AI_ROLE_MODELS)),
+    roleModels: parseRoleModels(
+      readJson(process.env.AI_ROLE_MODELS, 'AI_ROLE_MODELS')
+    ),
     search: {
       enabled: false,
       provider: 'tavily' as const,
       apiKey: '',
+      apiKeys: {} as SearchProviderKeys,
+      taskProviders: {} as SearchTaskProviders,
       topic: 'general' as const,
       depth: 'advanced' as const,
     },
@@ -130,6 +215,9 @@ export interface StoredAiProviderSetting {
   searchEnabled: boolean;
   searchProvider?: string | null;
   searchApiKey?: string | null;
+  /** JSON columns, on the same terms as `roleModels`. */
+  searchApiKeys?: unknown;
+  searchTaskProviders?: unknown;
   searchTopic?: string | null;
   searchDepth?: string | null;
 }
@@ -159,6 +247,59 @@ export const resetAiConfigCache = (organizationId?: string) => {
   void organizationId;
 };
 
+/**
+ * The workspace's search keys, decrypted, addressed by engine.
+ *
+ * A value that will not decrypt is dropped rather than thrown: one unreadable
+ * key — a row written under a rotated secret, say — must not take the whole
+ * configuration down to «nothing configured», which is what the surrounding
+ * catch would otherwise do to the generation key as well.
+ */
+const workspaceSearchKeys = (
+  stored: StoredAiProviderSetting
+): SearchProviderKeys => {
+  const decrypted: SearchProviderKeys = {};
+  const decrypt = (value: string): string => {
+    try {
+      return AuthService.fixedDecryption(value);
+    } catch (err) {
+      console.error('Could not decrypt a stored search key:', err);
+      return '';
+    }
+  };
+
+  const stored_keys = parseSearchKeys(stored.searchApiKeys);
+  for (const engine of SEARCH_PROVIDERS) {
+    const value = stored_keys[engine];
+    if (!value) continue;
+    const plain = decrypt(value);
+    if (plain) decrypted[engine] = plain;
+  }
+
+  // The single-key column, read only for the engine it was saved under. This
+  // is what makes the map optional for every row written before it existed,
+  // and it is also the whole of the old defence: a key stored for one engine
+  // is unreachable from any other.
+  const provider = readSearchProvider(stored.searchProvider);
+  if (!decrypted[provider] && stored.searchApiKey) {
+    const plain = decrypt(stored.searchApiKey);
+    if (plain) decrypted[provider] = plain;
+  }
+
+  return decrypted;
+};
+
+/** Which engines have a key, with nothing of the keys themselves. */
+const keyPresence = (
+  keys: SearchProviderKeys
+): Partial<Record<SearchProvider, boolean>> => {
+  const presence: Partial<Record<SearchProvider, boolean>> = {};
+  for (const engine of SEARCH_PROVIDERS) {
+    if (keys[engine]) presence[engine] = true;
+  }
+  return presence;
+};
+
 export const loadAiConfig = async (
   organizationId: string,
   reader: AiProviderSettingReader | undefined = lentReader
@@ -170,6 +311,7 @@ export const loadAiConfig = async (
     apiKey: '',
     workspaceKeyConfigured: false,
     workspaceSearchKeyConfigured: false,
+    workspaceSearchKeys: {},
     includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
   };
 
@@ -182,7 +324,9 @@ export const loadAiConfig = async (
     if (stored) {
       const usageMode = (stored.usageMode as AiUsageMode) || 'workspace_key';
       const workspaceKeyConfigured = !!stored.apiKey;
-      const workspaceSearchKeyConfigured = !!stored.searchApiKey;
+      const storedSearchKeys = workspaceSearchKeys(stored);
+      const workspaceSearchKeyConfigured =
+        Object.keys(storedSearchKeys).length > 0;
       if (usageMode === 'included') {
         config = {
           ...defaults,
@@ -190,6 +334,7 @@ export const loadAiConfig = async (
           apiKey: process.env.AI_INCLUDED_API_KEY || '',
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
+          workspaceSearchKeys: keyPresence(storedSearchKeys),
           includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
           /**
            * The tenant's routing is deliberately not read here, for the same
@@ -199,15 +344,7 @@ export const loadAiConfig = async (
            * applies, which is where the included bill can actually be cut.
            */
           roleModels: defaults.roleModels,
-          search: {
-            enabled: stored.searchEnabled,
-            // Included search is the operator's lane. A workspace's stored
-            // provider must never redirect the managed key to another API.
-            provider: readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER),
-            apiKey: process.env.AI_INCLUDED_SEARCH_API_KEY || '',
-            topic: (stored.searchTopic as SearchTopic) || 'general',
-            depth: (stored.searchDepth as SearchDepth) || 'advanced',
-          },
+          search: includedSearch(stored),
         };
       } else {
         const provider = (stored.provider as AiProvider) || defaults.provider;
@@ -229,13 +366,15 @@ export const loadAiConfig = async (
           roleModels: parseRoleModels(stored.roleModels),
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
+          workspaceSearchKeys: keyPresence(storedSearchKeys),
           includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
           search: {
             enabled: stored.searchEnabled,
             provider: readSearchProvider(stored.searchProvider),
-            apiKey: stored.searchApiKey
-              ? AuthService.fixedDecryption(stored.searchApiKey)
-              : '',
+            apiKey:
+              storedSearchKeys[readSearchProvider(stored.searchProvider)] || '',
+            apiKeys: storedSearchKeys,
+            taskProviders: parseSearchTaskProviders(stored.searchTaskProviders),
             topic: (stored.searchTopic as SearchTopic) || 'general',
             depth: (stored.searchDepth as SearchDepth) || 'advanced',
           },

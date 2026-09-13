@@ -14,6 +14,12 @@ import {
   MAX_ROLE_MODEL_LENGTH,
   isAiRole,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
+import {
+  SEARCH_PROVIDERS,
+  SEARCH_TASKS,
+  isSearchProvider,
+  isSearchTask,
+} from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 
 /**
  * The role map, checked as a whole rather than key by key.
@@ -54,6 +60,75 @@ export const IsAiRoleModels = (options?: ValidationOptions) =>
           return `${args.property} must map one of ${AI_ROLES.join(
             ', '
           )} to a model id of at most ${MAX_ROLE_MODEL_LENGTH} characters with no surrounding spaces`;
+        },
+      },
+    });
+  };
+
+/**
+ * Plain keys by engine, on the way in only.
+ *
+ * A single `searchApiKey` field could not express «save this key for Exa while
+ * Tavily stays the workspace's engine»: the only thing naming the engine was
+ * `searchProvider`, and sending that changes which engine every unrouted task
+ * uses. The map says which engine each typed key belongs to and nothing else.
+ *
+ * Length is checked here because these are the keys a person pastes; the
+ * stored form is encrypted and longer, and `ai.search-tasks.ts` bounds that.
+ */
+export const IsSearchApiKeys = (options?: ValidationOptions) =>
+  function decorate(object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isSearchApiKeys',
+      target: object.constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown) {
+          if (value === undefined || value === null) return true;
+          if (typeof value !== 'object' || Array.isArray(value)) return false;
+          return Object.entries(value as Record<string, unknown>).every(
+            ([provider, key]) =>
+              isSearchProvider(provider) &&
+              typeof key === 'string' &&
+              key.length > 0 &&
+              key.length <= 500 &&
+              key.trim() === key
+          );
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must map one of ${SEARCH_PROVIDERS.join(
+            ', '
+          )} to a key of at most 500 characters with no surrounding spaces`;
+        },
+      },
+    });
+  };
+
+/**
+ * The task map, on the same terms as the role map above and for the same
+ * reasons: the list of tasks and the list of engines each live in exactly one
+ * file, and a nested DTO would be both of them written a second time.
+ */
+export const IsSearchTaskProviders = (options?: ValidationOptions) =>
+  function decorate(object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isSearchTaskProviders',
+      target: object.constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown) {
+          if (value === undefined || value === null) return true;
+          if (typeof value !== 'object' || Array.isArray(value)) return false;
+          return Object.entries(value as Record<string, unknown>).every(
+            ([task, provider]) => isSearchTask(task) && isSearchProvider(provider)
+          );
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must map one of ${SEARCH_TASKS.join(
+            ', '
+          )} to one of ${SEARCH_PROVIDERS.join(', ')}`;
         },
       },
     });
@@ -105,10 +180,28 @@ export class AiProviderDto {
   @IsIn(['tavily', 'openrouter', 'exa'])
   searchProvider?: SearchProvider;
 
+  /**
+   * The key for the engine named by `searchProvider`, or by the stored one.
+   * Kept for callers written before `searchApiKeys`; the screen sends the map.
+   */
   @IsString()
   @IsOptional()
   @MaxLength(500)
   searchApiKey?: string;
+
+  /** One typed key per engine. Engines left out keep whatever is stored. */
+  @IsOptional()
+  @IsSearchApiKeys()
+  searchApiKeys?: Record<string, string>;
+
+  /**
+   * Which engine each search task gets. An absent key, and an empty map, both
+   * mean «every task uses the workspace's engine» — the behaviour before the
+   * tasks existed.
+   */
+  @IsOptional()
+  @IsSearchTaskProviders()
+  searchTaskProviders?: Record<string, string>;
 
   @IsString()
   @IsOptional()

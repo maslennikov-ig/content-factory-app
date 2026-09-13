@@ -138,6 +138,10 @@ describe('AI provider search settings component', () => {
       searchTopic: 'general',
       searchDepth: 'basic',
       hasSearchKey: true,
+      // `content-factory-next-75xn`: ключи адресуются движком, а сервер на
+      // задачу выбирается отдельно от сервера области.
+      searchKeys: { tavily: true, openrouter: false, exa: false },
+      searchTaskProviders: { research: 'exa' },
       searchFallbackAvailable: true,
       workspaceKeyConfigured: false,
       includedAvailable: true,
@@ -237,7 +241,6 @@ describe('AI provider search settings component', () => {
         imageModel: settings.imageModel,
         roleModels: settings.roleModels,
         searchEnabled: settings.searchEnabled,
-        searchApiKey: '',
         searchTopic: settings.searchTopic,
         searchDepth: settings.searchDepth,
       })
@@ -246,6 +249,52 @@ describe('AI provider search settings component', () => {
       searchDepth: 'basic',
       usageMode: 'workspace_key',
     });
+  });
+
+  /**
+   * Ключи уходят только те, что человек набрал: сохранение, сделанное из
+   * селектора глубины, не должно доставать до ключей движков, которых этот
+   * заход не касался.
+   */
+  test('payload carries only the keys typed in this visit, trimmed', () => {
+    const payload = component.buildAiSettingsPayload({
+      usageMode: 'workspace_key',
+      provider: 'openrouter',
+      apiKey: '',
+      textModel: '',
+      imageModel: '',
+      roleModels: {},
+      searchEnabled: true,
+      searchProvider: 'tavily',
+      searchApiKeys: { tavily: '', exa: '  exa-key  ' },
+      searchTaskProviders: { research: 'exa', facts: undefined },
+      searchTopic: 'general',
+      searchDepth: 'advanced',
+    });
+
+    expect(payload.searchApiKeys).toEqual({ exa: 'exa-key' });
+    expect(payload.searchTaskProviders).toEqual({ research: 'exa' });
+    expect(payload).not.toHaveProperty('searchApiKey');
+  });
+
+  test('a save that typed no key sends no key map at all', () => {
+    const payload = component.buildAiSettingsPayload({
+      usageMode: 'workspace_key',
+      provider: 'openrouter',
+      apiKey: '',
+      textModel: '',
+      imageModel: '',
+      roleModels: {},
+      searchEnabled: true,
+      searchProvider: 'exa',
+      searchApiKeys: {},
+      searchTaskProviders: {},
+      searchTopic: 'general',
+      searchDepth: 'advanced',
+    });
+
+    expect(payload).not.toHaveProperty('searchApiKeys');
+    expect(payload.searchTaskProviders).toEqual({});
   });
 
   test('offers explicit included and workspace-key modes and explains zero quota', () => {
@@ -275,16 +324,52 @@ describe('AI provider search settings component', () => {
       textModel: 'workspace-text',
       imageModel: 'workspace-image',
       searchEnabled: true,
-      searchApiKey: 'workspace-search-secret',
+      searchApiKeys: { tavily: 'workspace-search-secret' },
       searchTopic: 'news',
       searchDepth: 'advanced',
     });
 
     expect(payload).not.toHaveProperty('apiKey');
     expect(payload).not.toHaveProperty('searchApiKey');
+    expect(payload).not.toHaveProperty('searchApiKeys');
     expect(payload).not.toHaveProperty('textModel');
     expect(payload).not.toHaveProperty('imageModel');
     expect(JSON.stringify(payload)).not.toContain('workspace-secret');
+  });
+
+  /**
+   * `content-factory-next-75xn.4`: в режиме включённых ключей экран показывает
+   * значения оператора, и вернуть их серверу — значит записать чужой движок
+   * как свой. Сервер их в этом режиме игнорирует; экран их и не отправляет.
+   * Исключение одно — включён ли поиск вообще: это настройка обоих режимов, и
+   * сервер пишет её в обоих.
+   */
+  test('included payload sends no search routing at all, only the switch', () => {
+    const payload = component.buildAiSettingsPayload({
+      usageMode: 'included',
+      provider: 'openrouter',
+      apiKey: '',
+      textModel: '',
+      imageModel: '',
+      roleModels: {},
+      searchEnabled: false,
+      searchProvider: 'exa',
+      searchApiKeys: {},
+      searchTaskProviders: { research: 'exa' },
+      searchTopic: 'news',
+      searchDepth: 'basic',
+    });
+
+    expect(payload).toMatchObject({ usageMode: 'included', searchEnabled: false });
+    for (const field of [
+      'searchProvider',
+      'searchTopic',
+      'searchDepth',
+      'searchTaskProviders',
+      'searchApiKeys',
+    ]) {
+      expect(payload).not.toHaveProperty(field);
+    }
   });
 
   test('shows exhausted allowance separately from zero/unavailable allowance', () => {
@@ -321,8 +406,180 @@ describe('AI provider search settings component', () => {
   test('offers the clear control only for a key that is actually stored', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain('aria-label="Remove stored search key"');
+    // Ключ сохранён только у Tavily — и кнопка есть только у него. Имя кнопки
+    // называет движок: двух кнопок «убрать сохранённый ключ» на экране быть не
+    // может, их нечем различить ни глазом, ни скринридером.
+    expect(markup).toContain('aria-label="Remove the stored Tavily key"');
+    expect(markup).not.toContain('aria-label="Remove the stored Exa key"');
     expect(markup).not.toContain('aria-label="Remove stored key"');
+  });
+
+  /**
+   * `content-factory-next-75xn.6`. Ключ адресуется движком, значит и поле у
+   * каждого движка своё: одно поле на область не могло сказать, чей ключ в нём
+   * лежит, а подпись из локалей до сих пор называет Tavily.
+   */
+  describe('ключ на каждый движок', () => {
+    test('поле, состояние и плейсхолдер у каждого движка свои', () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('Tavily key');
+      expect(markup).toContain('Exa key');
+      expect(markup).toContain('name="searchApiKey-tavily"');
+      expect(markup).toContain('name="searchApiKey-exa"');
+      // Сохранённый — «введите новый, чтобы заменить»; пустой — «вставьте ключ».
+      expect(markup).toContain('A key is saved — type a new one to replace it');
+      expect(markup).toContain('Paste a key');
+      expect(markup).toContain('A Tavily key is stored for this workspace');
+      expect(markup).toContain('No Exa key of your own');
+      // У OpenRouter поля ключа нет, и сказано почему.
+      expect(markup).not.toContain('name="searchApiKey-openrouter"');
+      expect(markup).toContain('OpenRouter has no search key of its own');
+    });
+
+    test('кнопка зовёт дверь с названием движка', async () => {
+      deleteDialogMock.mockResolvedValue(true);
+      fetchMock.mockResolvedValue({ ok: true });
+
+      await component.removeStoredKey({
+        endpoint: '/settings/ai/search-key?provider=exa',
+        confirm: async () => true,
+        request: fetchMock,
+        onRemoved: async () => undefined,
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/settings/ai/search-key?provider=exa',
+        { method: 'DELETE' }
+      );
+    });
+
+    test('экран зовёт дверь с провайдером, а не общую', () => {
+      const source = fs.readFileSync(
+        path.resolve(
+          __dirname,
+          '..',
+          'apps/frontend/src/components/settings/ai-provider.component.tsx'
+        ),
+        'utf8'
+      );
+
+      expect(source).toContain(
+        '`/settings/ai/search-key?provider=${engine}`'
+      );
+    });
+  });
+
+  /**
+   * Три задачи той же вёрсткой, что и модель на роль вызова: подпись, значение
+   * или «как в области», одна строка объяснения рядом.
+   */
+  describe('сервер на задачу', () => {
+    test('три селектора, значение по умолчанию и подсказка у каждого', () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      for (const task of ['research', 'facts', 'discovery']) {
+        expect(markup).toContain(`name="search-task-${task}"`);
+        expect(markup).toContain(`id="search-task-${task}-hint"`);
+        expect(markup).toContain(`aria-describedby="search-task-${task}-hint"`);
+      }
+      expect(markup).toContain('Collect supports');
+      expect(markup).toContain('Check facts');
+      expect(markup).toContain('Fresh subjects');
+      // «Как в области» — это значение, а не пустая строка без объяснения.
+      expect(markup).toContain('>As for the workspace</option>');
+      // Сохранённая маршрутизация выбрана, а не потеряна при загрузке.
+      const researchRow = markup.slice(
+        markup.indexOf('name="search-task-research"'),
+        markup.indexOf('name="search-task-facts"')
+      );
+      expect(researchRow).toContain('<option value="exa" selected="">Exa</option>');
+      // Незаданная задача остаётся на сервере области.
+      const factsRow = markup.slice(
+        markup.indexOf('name="search-task-facts"'),
+        markup.indexOf('name="search-task-discovery"')
+      );
+      expect(factsRow).toContain('<option value="" selected="">');
+      expect(markup).toContain('a backend is chosen per task');
+      expect(markup).toContain('Exa is recommended for research');
+    });
+  });
+
+  /**
+   * Режим включённых ключей молчал про свой ключ области: поля выключены,
+   * кнопки «убрать» нет, и сохранённый ключ не виден ниоткуда.
+   */
+  describe('включённые ключи', () => {
+    test('называет движок спящего ключа и даёт убрать именно его', () => {
+      settings = {
+        ...settings,
+        usageMode: 'included',
+        // В этом режиме `searchKeys` описывает ключи оператора, а свои ключи
+        // области приходят отдельным полем — иначе их нельзя ни назвать, ни
+        // убрать поимённо (`content-factory-next-75xn.6`).
+        searchKeys: { tavily: true, exa: true, openrouter: false },
+        workspaceSearchKeys: { tavily: true, exa: false, openrouter: false },
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('data-search-included-key="true"');
+      expect(markup).toContain('This workspace has a search key of its own');
+      expect(markup).toContain('data-search-included-engine="tavily"');
+      expect(markup).toContain(
+        'A Tavily key is stored for this workspace and is not being spent'
+      );
+      expect(markup).toContain('aria-label="Remove the stored Tavily key"');
+      // Ключ системы движком Exa своим не считается и убрать его не предлагают.
+      expect(markup).not.toContain('data-search-included-engine="exa"');
+      expect(markup).not.toContain('aria-label="Remove the stored Exa key"');
+    });
+
+    test('ответ без имён движков оставляет одну кнопку «убрать все»', () => {
+      // Старый ответ в кэше браузера: `hasSearchKey` есть, поимённого списка
+      // нет. Экран не должен ни молчать, ни выдумывать движок.
+      settings = {
+        ...settings,
+        usageMode: 'included',
+        searchProvider: 'openrouter',
+        hasSearchKey: true,
+        searchKeys: undefined,
+        workspaceSearchKeys: undefined,
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('data-search-included-key="true"');
+      expect(markup).not.toContain('data-search-included-engine=');
+      expect(markup).toContain(
+        'aria-label="Remove the stored search keys of this workspace"'
+      );
+    });
+
+    test('без своего ключа строки нет', () => {
+      settings = { ...settings, usageMode: 'included', hasSearchKey: false };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).not.toContain('data-search-included-key="true"');
+    });
+  });
+
+  test('раздел объяснён словами: системные ключи, свой ключ, его судьба', () => {
+    const markup = renderToStaticMarkup(React.createElement(component.default));
+
+    expect(markup).toContain('data-search-intro="true"');
+    expect(markup).toContain('The system keys work by default');
+    expect(markup).toContain('nothing has to be typed here');
+    expect(markup).toContain('A key of your own is optional');
+    expect(markup).toContain('keeps your key stored');
   });
 
   test('the page action row carries saving alone', () => {
@@ -415,7 +672,14 @@ test('provider and depth locale keys stay live', () => {
   }
 });
 
-test('changing search provider clears the old key and disables the new lane', () => {
+/**
+ * `content-factory-next-75xn.6`: смена сервера больше не трогает ключи.
+ *
+ * Поле очищалось, пока ключ был один и мог быть отдан движку, чьё имя оказалось
+ * в настройке. С адресацией по движку ключ Tavily лежит под `tavily`, и `exa`
+ * его не прочитает — очистка поля теперь теряет только набранное.
+ */
+test('changing the search backend no longer clears any key', () => {
   const source = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -424,8 +688,17 @@ test('changing search provider clears the old key and disables the new lane', ()
     ),
     'utf8'
   );
-  expect(source).toMatch(
-    /const changeSearchProvider = useCallback\(\(next: SearchProvider\) => \{[\s\S]*setSearchProvider\(next\);[\s\S]*setSearchApiKey\(''\);[\s\S]*setSearchEnabled\(false\);/
+
+  const handler = source.slice(
+    source.indexOf('const changeSearchProvider'),
+    source.indexOf('// Only OpenRouter publishes a catalogue')
   );
+  expect(handler).toContain('setSearchProvider(next);');
+  expect(handler).not.toContain('setSearchApiKey');
+  expect(handler).not.toMatch(/setSearchApiKeys\(\{\}\)/);
+  // Одно, что осталось от прежней защиты, и оно про работу поиска, а не про
+  // ключ: движку без ключа нечего тратить, поэтому полоса выключается.
+  expect(handler).toContain('setSearchEnabled(false);');
+  expect(handler).toContain('hasStoredSearchKey(next)');
   expect(source).toContain('changeSearchProvider(');
 });

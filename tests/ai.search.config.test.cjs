@@ -96,6 +96,10 @@ describe('organization web-search configuration', () => {
       enabled: true,
       provider: 'tavily',
       apiKey: 'decrypted:search-a',
+      // Строка, написанная до колонки ключей по движкам, читается как карта с
+      // единственной записью — под тем движком, который в ней и назван.
+      apiKeys: { tavily: 'decrypted:search-a' },
+      taskProviders: {},
       topic: 'news',
       depth: 'advanced',
     });
@@ -103,10 +107,15 @@ describe('organization web-search configuration', () => {
       enabled: false,
       provider: 'tavily',
       apiKey: 'decrypted:search-b',
+      apiKeys: { tavily: 'decrypted:search-b' },
+      taskProviders: {},
       topic: 'general',
       depth: 'basic',
     });
     expect(firstAgain.search.apiKey).toBe('decrypted:search-a');
+    // Ключ одной области не виден из другой ни под каким движком.
+    expect(second.search.apiKeys).not.toHaveProperty('exa');
+    expect(JSON.stringify(second.search.apiKeys)).not.toContain('search-a');
   });
 
   test('a database outage is not remembered as "no key"', async () => {
@@ -187,6 +196,8 @@ const { AiProviderService } = loadTypeScriptModule(
     '@contentfactory/nestjs-libraries/openai/ai.roles': aiRoles,
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
       aiBillingPeriodStart: () => new Date('2026-08-01T00:00:00.000Z'),
+      includedMonthlyOperations: (subscription) =>
+        subscription?.includedAiMonthlyOperations ?? 0,
       includedUsageFilter: () => ({}),
     },
   }
@@ -300,9 +311,21 @@ describe('saving the AI provider settings', () => {
     expect(JSON.stringify(query)).not.toContain('must-not-be-stored');
   });
 
-  test('switching workspace search provider clears the old key and enablement', async () => {
+  /**
+   * Заменяет прежнюю проверку «смена сервера стирает ключ» (`75xn.1`).
+   *
+   * Та защита стоила владельцу второго ключа: вставил Exa — потерял Tavily.
+   * Ключ, адресованный движком, чужому движку недоступен вовсе, и это здесь
+   * проверяется прямо: после сохранения обоих ключей и переключения сервера
+   * оба остаются на своих местах, а строка одного не попадает в ячейку другого.
+   */
+  test('two engine keys live side by side and neither reaches the other', async () => {
     const upsert = jest.fn().mockResolvedValue({});
-    const findUnique = jest.fn().mockResolvedValue({ searchProvider: 'tavily' });
+    const findUnique = jest.fn().mockResolvedValue({
+      searchProvider: 'tavily',
+      searchApiKeys: { tavily: 'encrypted:stored-tavily-key' },
+      searchApiKey: null,
+    });
     const service = new AiProviderService({
       aiProviderSetting: { findUnique, upsert },
       aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
@@ -312,22 +335,77 @@ describe('saving the AI provider settings', () => {
       provider: 'openrouter',
       usageMode: 'workspace_key',
       searchProvider: 'exa',
-      searchApiKey: 'new-exa-key',
+      searchApiKeys: { exa: 'new-exa-key' },
       searchEnabled: true,
     });
 
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { organizationId: 'organization-a' },
-      select: { searchProvider: true },
-    });
-    expect(upsert.mock.calls[0][0].update).toMatchObject({
+    const { update } = upsert.mock.calls[0][0];
+    expect(update).toMatchObject({
       searchProvider: 'exa',
-      searchEnabled: false,
-      searchApiKey: null,
+      searchEnabled: true,
     });
-    expect(JSON.stringify(upsert.mock.calls[0][0].update)).not.toContain(
-      'new-exa-key'
-    );
+    expect(update.searchApiKeys).toEqual({
+      tavily: 'encrypted:stored-tavily-key',
+      exa: 'encrypted:new-exa-key',
+    });
+    // Никакой ключ не записан ни под каким другим движком.
+    expect(update.searchApiKeys.tavily).not.toContain('new-exa-key');
+    expect(update.searchApiKeys.exa).not.toContain('stored-tavily-key');
+    expect(update).not.toHaveProperty('searchApiKey');
+  });
+
+  test('a key typed for one engine is filed under that engine, not the default one', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const findUnique = jest
+      .fn()
+      .mockResolvedValue({ searchProvider: 'tavily', searchApiKeys: null });
+    const service = new AiProviderService({
+      aiProviderSetting: { findUnique, upsert },
+      aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
+    });
+
+    // Ключ Exa сохраняется, а рабочий сервер области остаётся прежним.
+    await service.updateSettings('organization-a', {
+      provider: 'openrouter',
+      usageMode: 'workspace_key',
+      searchApiKeys: { exa: 'exa-only' },
+    });
+
+    const { update } = upsert.mock.calls[0][0];
+    expect(update.searchApiKeys).toEqual({ exa: 'encrypted:exa-only' });
+    expect(update).not.toHaveProperty('searchProvider');
+  });
+
+  /**
+   * `content-factory-next-75xn.4`. Экран возвращал серверу то, что сервер ему и
+   * показал, а в режиме `included` он показывает операторскую переменную —
+   * поэтому сохранение настроек переписывало поисковый сервер области. Область
+   * возвращалась к своему ключу уже с чужим провайдером.
+   */
+  test('saving in included mode changes no search column of the workspace', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const findUnique = jest
+      .fn()
+      .mockResolvedValue({ searchProvider: 'tavily', searchApiKeys: null });
+    const service = new AiProviderService({
+      aiProviderSetting: { findUnique, upsert },
+      aiUsageRecord: { count: async () => 0, groupBy: async () => [] },
+    });
+
+    await service.updateSettings('organization-a', {
+      usageMode: 'included',
+      provider: 'openai',
+      searchProvider: 'exa',
+      searchTopic: 'news',
+      searchDepth: 'basic',
+      searchTaskProviders: { research: 'exa' },
+      searchEnabled: true,
+    });
+
+    expect(upsert.mock.calls[0][0].update).toEqual({
+      usageMode: 'included',
+      searchEnabled: true,
+    });
   });
 
   test('the process that saved the setting drops its cached copy at once', async () => {

@@ -66,6 +66,12 @@ export class ContentLeadController {
     }
   }
 
+  /**
+   * Both kinds come through this one door (`content-factory-next-75xn.7`): a
+   * feed address, or a topic to watch. The DTO accepts either shape and the
+   * service decides which field the named kind requires, so a third kind
+   * later is a change in one place rather than a second route.
+   */
   @Post('/subscriptions')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async createSubscription(

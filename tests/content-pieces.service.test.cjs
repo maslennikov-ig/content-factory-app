@@ -337,7 +337,19 @@ const buildIntake = (options = {}) => {
         return callback();
       },
     },
-    () => new Date('2026-09-06T09:00:00.000Z')
+    () => new Date('2026-09-06T09:00:00.000Z'),
+    // Разбор страницы и проверка на штампы — свои, настоящие; вердикт голоса
+    // этому набору не нужен. Названы позиционно, чтобы дотянуться до
+    // последнего параметра — очереди поводов.
+    undefined,
+    undefined,
+    null,
+    /**
+     * Очередь поводов, только на чтение (`content-factory-next-75xn.8`).
+     * Без неё — как и на сборке без модуля поводов — заготовка выходит такой
+     * же, просто без строки об источнике.
+     */
+    options.leads ?? undefined
   );
 
   return { service, calls };
@@ -358,6 +370,87 @@ const request = (overrides = {}) => ({
   options: { searchEnrichment: false },
   skipInterview: true,
   ...overrides,
+});
+
+/* -------------------------------------------------------------------------
+ * Повод, из которого выросла заготовка (`content-factory-next-75xn.8`)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * `sourceLeadId` доходил до `IntakePlanV1` и умирал там: ни одна строка не
+ * читала его дальше. Человек брал повод в работу, получал заготовку — и
+ * терял ссылку на материал, ради которого повод и взял. Подпись «из повода»
+ * при этом уже была в союзе `PieceOriginV1` и на обоих экранах, но ни один
+ * вызов её не возвращал: она была недостижимой.
+ *
+ * Адрес берётся на сервере по `sourceLeadId` и в границах той же области —
+ * не со слов клиента. Повод чужой области просто не найдётся, и заготовка
+ * выйдет без строки об источнике, а не с чужим адресом.
+ */
+describe('повод доезжает до заготовки адресом, а не только номером', () => {
+  const LEAD = {
+    id: 'lead-1',
+    title: 'Регулятор назвал срок',
+    sourceUrl: 'https://news.example/a',
+  };
+
+  const leadsStub = (impl) => {
+    const asked = [];
+    return {
+      asked,
+      getLead: async (organizationId, leadId) => {
+        asked.push([organizationId, leadId]);
+        return impl(organizationId, leadId);
+      },
+    };
+  };
+
+  const runFromLead = async (leads, overrides = {}) => {
+    const { service, calls } = buildIntake({
+      models: [briefAnswer(), { text: CORE_TEXT }],
+      leads,
+    });
+    const plan = await service.prepare('org-a', request(overrides));
+    await drain(service.run('org-a', plan, 'user-1'));
+    return calls;
+  };
+
+  test('адрес и заголовок повода сохранены рядом с сутью', async () => {
+    const leads = leadsStub(() => LEAD);
+
+    const calls = await runFromLead(leads, { sourceLeadId: 'lead-1' });
+
+    // Спрошено ровно о своей области: чужой повод так не прочитать.
+    expect(leads.asked).toEqual([['org-a', 'lead-1']]);
+    const [, stored] = calls.recordCore[0];
+    expect(stored.brief.leadSource).toEqual({
+      leadId: 'lead-1',
+      url: 'https://news.example/a',
+      title: 'Регулятор назвал срок',
+    });
+  });
+
+  test('без повода ничего не спрашивается и ничего не приписывается', async () => {
+    const leads = leadsStub(() => LEAD);
+
+    const calls = await runFromLead(leads);
+
+    expect(leads.asked).toEqual([]);
+    expect(calls.recordCore[0][1].brief.leadSource).toBeUndefined();
+  });
+
+  test('пропавший повод не отменяет заготовку', async () => {
+    const leads = leadsStub(() => {
+      const error = new Error('Lead was not found');
+      error.code = 'LEAD_NOT_FOUND';
+      throw error;
+    });
+
+    const calls = await runFromLead(leads, { sourceLeadId: 'lead-1' });
+
+    expect(calls.recordCore).toHaveLength(1);
+    expect(calls.recordCore[0][1].brief.leadSource).toBeUndefined();
+  });
 });
 
 /* -------------------------------------------------------------------------

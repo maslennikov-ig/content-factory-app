@@ -170,6 +170,81 @@ describe('shared web research service', () => {
     jest.useRealTimers();
   });
 
+  /**
+   * `content-factory-next-75xn.2`. Задачу почти никто не называет: уровень уже
+   * различает два обычных случая, и на том же различии стоит квота. Поэтому
+   * маршрут выводится из него, а не переписывается по семи точкам входа.
+   */
+  test('an explicit level routes the search as research, and its absence as facts', async () => {
+    aiConfig.search = {
+      ...aiConfig.search,
+      apiKeys: { tavily: 'tenant-search-key', exa: 'tenant-exa-key' },
+      taskProviders: { research: 'exa' },
+    };
+
+    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
+      level: 'deep',
+    });
+    expect(clientFactoryCalls[0].provider).toBe('exa');
+
+    clientFactoryCalls.length = 0;
+    // Поиск, который продукт начал сам по ходу письма: уровня нет, квота не
+    // тратится, и движок остаётся тем, что выбран областью.
+    await new WebResearchService(aiUsage).research('organization-a', 'Other subject');
+    expect(clientFactoryCalls[0].provider).toBe('tavily');
+  });
+
+  test('a named task overrides what the level would have implied', async () => {
+    aiConfig.search = {
+      ...aiConfig.search,
+      apiKeys: { tavily: 'tenant-search-key', exa: 'tenant-exa-key' },
+      taskProviders: { research: 'exa', facts: 'tavily' },
+    };
+
+    // «Проверить факты поиском» передаёт уровень тоже, поэтому называет задачу.
+    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
+      level: 'standard',
+      task: 'facts',
+    });
+
+    expect(clientFactoryCalls[0].provider).toBe('tavily');
+  });
+
+  test('a route to an engine with no key searches instead of failing', async () => {
+    aiConfig.search = {
+      ...aiConfig.search,
+      apiKeys: { tavily: 'tenant-search-key' },
+      taskProviders: { research: 'exa' },
+    };
+
+    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
+      level: 'quick',
+    });
+
+    expect(clientFactoryCalls[0].provider).toBe('tavily');
+  });
+
+  test('a discovery window is handed to the engine', async () => {
+    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
+      task: 'discovery',
+      windowDays: 30,
+    });
+
+    expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
+  });
+
+  test('two tasks on one subject are two searches, not one cached answer', async () => {
+    const service = new WebResearchService(aiUsage);
+
+    await service.research('organization-a', 'Subject', { task: 'facts' });
+    await service.research('organization-a', 'Subject', {
+      task: 'discovery',
+      windowDays: 30,
+    });
+
+    expect(clientFactoryCalls).toHaveLength(2);
+  });
+
   test('uses Tavily as primary and records the answering provider', async () => {
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',

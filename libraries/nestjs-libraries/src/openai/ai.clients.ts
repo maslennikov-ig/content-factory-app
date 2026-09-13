@@ -13,6 +13,12 @@ import {
   modelFor,
   roleModelFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
+import {
+  SearchProvider,
+  searchKeyFor,
+  searchProviderNeedsKey,
+  searchRouteFingerprint,
+} from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -67,7 +73,9 @@ const identity = (
     config.baseUrl ?? ''
   }|${roleModelFingerprint(config)}|${config.search.enabled}|${
     config.search.provider
-  }|${config.search.apiKey}|${config.search.topic}|${config.search.depth}|${extra}`;
+  }|${config.search.apiKey}|${searchRouteFingerprint(config.search)}|${
+    config.search.topic
+  }|${config.search.depth}|${extra}`;
 
 /**
  * One entry per distinct configuration rather than a single slot. With one
@@ -242,7 +250,53 @@ export interface WebSearchClientOptions {
   country?: string;
   freshnessRequired?: boolean;
   maxResults?: number;
+  /**
+   * Only pages published inside this many days back.
+   *
+   * Both engines document a published-date filter and neither applies one
+   * unasked, so «what is new about this» was previously unaskable: the only
+   * recency the product could express was Tavily's one-week news window, and
+   * Exa was given no window at all. A window is a claim about the subject, not
+   * about the engine, so it is named in days here and translated once per
+   * adapter (`content-factory-next-75xn.3`).
+   */
+  windowDays?: number;
 }
+
+/** The window a topic subscription watches, and the only caller of one today. */
+export const DISCOVERY_WINDOW_DAYS = 30;
+
+/**
+ * Tavily takes a named range rather than a number of days. Rounding up keeps
+ * the window a superset of what was asked for — a caller that wanted 30 days
+ * and silently received 7 would report «nothing new» about a subject that had
+ * moved, which is the one failure this parameter exists to prevent.
+ */
+const tavilyTimeRange = (
+  windowDays?: number
+): 'day' | 'week' | 'month' | 'year' | undefined => {
+  if (!windowDays || windowDays <= 0) return undefined;
+  if (windowDays <= 1) return 'day';
+  if (windowDays <= 7) return 'week';
+  if (windowDays <= 31) return 'month';
+  return 'year';
+};
+
+/** Exa takes an ISO 8601 instant, exclusive of anything published before it. */
+const publishedAfter = (windowDays?: number): string | undefined =>
+  !windowDays || windowDays <= 0
+    ? undefined
+    : new Date(Date.now() - windowDays * 24 * 60 * 60 * 1_000).toISOString();
+
+/**
+ * Tavily boosts by country name, Exa by two-letter code, and the research
+ * service speaks Tavily's dialect because Tavily was the only engine when the
+ * parameter was added. Only the countries the subject classifier can actually
+ * produce are listed; anything else is sent to neither engine rather than
+ * guessed, since a wrong region is worse than no region.
+ */
+const EXA_USER_LOCATION: Record<string, string> = { russia: 'RU' };
+
 
 interface TavilySearchResponse extends WebSearchResponse {
   error?: string;
@@ -262,10 +316,18 @@ export class ExaWebSearch implements WebSearchClient {
   constructor(
     private readonly apiKey: string,
     private readonly fetchImpl: typeof fetch = fetch,
-    private readonly maxResults = 5
+    private readonly maxResults = 5,
+    private readonly options: Pick<
+      WebSearchClientOptions,
+      'country' | 'freshnessRequired' | 'windowDays'
+    > = {}
   ) {}
 
   async invoke({ query }: { query: string }): Promise<WebSearchResponse> {
+    const startPublishedDate = publishedAfter(this.options.windowDays);
+    const userLocation = this.options.country
+      ? EXA_USER_LOCATION[this.options.country]
+      : undefined;
     const response = await this.fetchImpl('https://api.exa.ai/search', {
       method: 'POST',
       headers: {
@@ -284,6 +346,17 @@ export class ExaWebSearch implements WebSearchClient {
         // research service applies its own byte/character ceiling after the
         // response, so this stays compatible with the documented endpoint.
         contents: { text: true, highlights: true },
+        // Each of the three is omitted rather than sent empty: Exa validates
+        // the body, and a null where it documents a string is a 4xx on a
+        // search that would otherwise have worked.
+        ...(startPublishedDate ? { startPublishedDate } : {}),
+        // `category` narrows the index rather than ranking within it, so it is
+        // set only where the subject really is time-sensitive — the classifier
+        // already answers that question for both engines.
+        ...(this.options.freshnessRequired === true
+          ? { category: 'news' }
+          : {}),
+        ...(userLocation ? { userLocation } : {}),
       }),
     });
     if (!response.ok) {
@@ -490,13 +563,18 @@ export const TAVILY_MAX_RESULTS = 20;
 
 export const getWebSearchClient = async (
   organizationId: string,
-  provider: 'tavily' | 'openrouter' | 'exa' = 'tavily',
+  provider: SearchProvider = 'tavily',
   options: WebSearchClientOptions = {}
 ) => {
   const config = await requireActiveAiConfig(organizationId);
+  // The key belongs to the engine being built, not to the workspace's default
+  // one: since `content-factory-next-75xn.1` a workspace may hold a key for
+  // each engine, and routing a task to one of them must reach that engine's
+  // key or none at all.
+  const searchApiKey = searchKeyFor(provider, config.search);
   if (
     !config.search.enabled ||
-    ((provider === 'tavily' || provider === 'exa') && !config.search.apiKey)
+    (searchProviderNeedsKey(provider) && !searchApiKey)
   ) {
     throw new Error('Web search is not configured for this organization.');
   }
@@ -508,17 +586,20 @@ export const getWebSearchClient = async (
 
   const freshnessRequired =
     options.freshnessRequired || config.search.topic === 'news';
+  const timeRange = tavilyTimeRange(options.windowDays);
   return webSearchMemo(
     identity(
       organizationId,
       config,
-      `${provider}|${options.country || ''}|${freshnessRequired}|${options.maxResults ?? ''}`
+      `${provider}|${searchApiKey}|${options.country || ''}|${freshnessRequired}|${
+        options.maxResults ?? ''
+      }|${options.windowDays ?? ''}`
     ),
     () => {
       if (provider === 'tavily') {
         return new TavilyWebSearch(
           new TavilySearch({
-            tavilyApiKey: config.search.apiKey,
+            tavilyApiKey: searchApiKey,
             topic: freshnessRequired ? 'news' : 'general',
             searchDepth: config.search.depth,
             // Tavily accepts max_results 0–20 and the client does not clamp:
@@ -527,7 +608,14 @@ export const getWebSearchClient = async (
             maxResults: Math.min(Math.max(options.maxResults ?? 5, 1), TAVILY_MAX_RESULTS),
             includeAnswer: true,
             includeRawContent: true,
-            ...(freshnessRequired ? { timeRange: 'week' } : {}),
+            // An asked-for window wins over the news default: «за последние 30
+            // дней» is a narrower claim than «this subject is time-sensitive»,
+            // and the caller that named days meant them.
+            ...(timeRange
+              ? { timeRange }
+              : freshnessRequired
+              ? { timeRange: 'week' }
+              : {}),
             // Tavily documents country boosting only for the general topic.
             ...(!freshnessRequired && options.country
               ? { country: options.country }
@@ -537,7 +625,11 @@ export const getWebSearchClient = async (
       }
 
       if (provider === 'exa') {
-        return new ExaWebSearch(config.search.apiKey, fetch, options.maxResults ?? 5);
+        return new ExaWebSearch(searchApiKey, fetch, options.maxResults ?? 5, {
+          country: options.country,
+          freshnessRequired,
+          windowDays: options.windowDays,
+        });
       }
 
       // The fallback both searches and answers, so it is the `research` role

@@ -13,6 +13,13 @@ import {
   SearchProvider,
   requireActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import {
+  DEFAULT_SEARCH_TASK,
+  SearchTask,
+  providerForSearchTask,
+  searchKeyFor,
+  searchProviderNeedsKey,
+} from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
   ContentLanguage,
@@ -96,6 +103,22 @@ export interface WebResearchOptions {
   language?: ContentLanguage;
   /** Server-owned depth preset. The caller cannot set raw provider budgets. */
   level?: ResearchLevel;
+  /**
+   * What this search is for, which decides the engine (`ai.search-tasks.ts`).
+   *
+   * Almost no caller names it. The level already separates the two ordinary
+   * cases — a person who asked for research names a level, and the searches
+   * the product starts by itself while writing do not — so the default below
+   * reads the task off that same distinction rather than asking seven call
+   * sites to repeat themselves. Only the adaptation review has to say it out
+   * loud, because its fact-checking lane passes a level too.
+   */
+  task?: SearchTask;
+  /**
+   * Only pages published inside this many days back, for «what is new about
+   * this» rather than «what is true about this».
+   */
+  windowDays?: number;
 }
 
 export type ResearchLevel = 'quick' | 'standard' | 'deep';
@@ -867,10 +890,16 @@ export class WebResearchService {
     organizationId: string,
     query: string,
     config: Awaited<ReturnType<typeof requireActiveAiConfig>>,
-    options: { country?: string; freshnessRequired: boolean; maxResults?: number },
+    options: {
+      country?: string;
+      freshnessRequired: boolean;
+      maxResults?: number;
+      windowDays?: number;
+    },
+    task: SearchTask,
     egressCheck?: (provider: SearchProvider) => void
   ): Promise<ProviderSearchResult> {
-    const primary = config.search.provider;
+    const primary = providerForSearchTask(task, config.search);
     try {
       egressCheck?.(primary);
       const response = await invokeWithDeadline(
@@ -962,7 +991,14 @@ Summary: {summary}`
   ): Promise<WebResearchResult> {
     const level = options.level ?? 'standard';
     const levelWasExplicit = options.level !== undefined;
-    const key = `${organizationId}|${level}|${options.language ?? ''}|${subject.trim().slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
+    // The task and the window are part of the question, not of the answer: a
+    // thirty-day discovery sweep and a fact check on the same subject are two
+    // different searches and must not share one cached result.
+    const key = `${organizationId}|${level}|${options.task ?? ''}|${
+      options.windowDays ?? ''
+    }|${options.language ?? ''}|${subject
+      .trim()
+      .slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);
@@ -990,13 +1026,26 @@ Summary: {summary}`
     options: WebResearchOptions & { levelWasExplicit?: boolean }
   ): Promise<WebResearchResult> {
     const config = await requireActiveAiConfig(organizationId);
-    // A missing selected search key is configuration, not an outage, and must
-    // never cause the model key to be spent on fallback.
+    /**
+     * What this search is for, and through it which engine it reaches.
+     *
+     * The rule is the same one the research quota already uses: a level names
+     * a paid choice a person made, and nothing else in the product passes one.
+     * So an explicit level means «собрать опоры», and its absence means the
+     * product started this search by itself while writing.
+     */
+    const task: SearchTask =
+      options.task ??
+      (options.levelWasExplicit === true ? 'research' : DEFAULT_SEARCH_TASK);
+    const routed = providerForSearchTask(task, config.search);
+    // A missing search key for the engine this task routes to is configuration,
+    // not an outage, and must never cause the model key to be spent on
+    // fallback. `providerForSearchTask` has already stepped back to the
+    // workspace's own engine if the routed one had no key, so reaching here
+    // without one means the workspace has no search configured at all.
     if (
       !config.search.enabled ||
-      ((config.search.provider === 'tavily' ||
-        config.search.provider === 'exa') &&
-        !config.search.apiKey)
+      (searchProviderNeedsKey(routed) && !searchKeyFor(routed, config.search))
     ) {
       throw new WebSearchNotConfigured();
     }
@@ -1050,6 +1099,7 @@ Subject: {subject}`
       ...(options.levelWasExplicit
         ? { maxResults: preset.maxSources }
         : {}),
+      ...(options.windowDays ? { windowDays: options.windowDays } : {}),
     };
     const egressBudget: ResearchEgressBudget = {
       maxSearchQueries: preset.maxSearchQueries,
@@ -1121,6 +1171,7 @@ Subject: {subject}`
           query,
           config,
           searchOptions,
+          task,
           egressCheck(index)
         )
       )

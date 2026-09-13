@@ -183,12 +183,12 @@ export function IntakeScreen({
           {readOnlyNote}
 
           {researchFacts.length ? (
-            <section aria-label={t.researchLabel} data-intake-research-table="true" className="flex flex-col gap-[8px]">
-              <h3 className="cf-heading-md text-cf-ink">{t.researchLabel}</h3>
+            <section aria-label={t.researchTableTitle} data-intake-research-table="true" className="flex flex-col gap-[8px]">
+              <h3 className="cf-heading-md text-cf-ink">{t.researchTableTitle}</h3>
               <p className="cf-caption text-cf-ink-muted">{t.researchSelectionHint}</p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse cf-body-sm text-cf-ink">
-                  <thead><tr><th className="p-[8px] text-start">{t.factsRestOn}</th><th className="p-[8px] text-start">{t.researchType}</th><th className="p-[8px] text-start">{t.factUnverified}</th><th className="p-[8px] text-start">{t.originSearch}</th><th className="p-[8px] text-start">{t.researchInclude}</th></tr></thead>
+                  <thead><tr><th className="p-[8px] text-start">{t.factsRestOn}</th><th className="p-[8px] text-start">{t.researchType}</th><th className="p-[8px] text-start">{t.researchColumnStatus}</th><th className="p-[8px] text-start">{t.researchColumnSource}</th><th className="p-[8px] text-start">{t.researchInclude}</th></tr></thead>
                   <tbody>{researchFacts.map((fact, index) => <tr key={`${fact.statement}-${index}`}>
                     <td className="border-t border-cf-border p-[8px]">{fact.statement}</td>
                     <td className="border-t border-cf-border p-[8px]">{fact.kind === 'own' ? t.researchOwn : fact.kind === 'external' ? t.researchExternal : fact.kind === 'found' ? t.researchFound : '—'}</td>

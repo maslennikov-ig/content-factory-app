@@ -5,6 +5,7 @@ import {
   getOpenAiClient,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import type { AiUsageService } from '../../openai/ai.usage.service';
+import type { SearchTask } from '../../openai/ai.search-tasks';
 import {
   usableHttpsUrl,
   type WebResearchService,
@@ -58,7 +59,15 @@ export async function reviewAdaptationWithSearch(
   input: { text: string; language: 'ru' | 'en' },
   aiUsage: Pick<AiUsageService, 'executeAiOperation'>,
   web: Pick<WebResearchService, 'research'>,
-  level: 'standard' | 'deep' = 'standard'
+  level: 'standard' | 'deep' = 'standard',
+  /**
+   * Named rather than inferred, because this is the one lane where the level
+   * does not tell the two apart: «Проверить факты поиском» passes a level too,
+   * so `WebResearchService`'s default would read it as research and send it to
+   * the engine chosen for collecting supports rather than the one that returns
+   * a short citable snippet (`content-factory-next-75xn.2`).
+   */
+  task: SearchTask = 'facts'
 ) {
   const ru = input.language === 'ru';
   if (!input.text.trim())
@@ -78,7 +87,7 @@ export async function reviewAdaptationWithSearch(
     // to omit its level and therefore bypass the research quota even though
     // the person had confirmed a web review; keep the free legacy callers
     // level-less while this path always records the chosen mode.
-    research = await web.research(organizationId, subject, { level });
+    research = await web.research(organizationId, subject, { level, task });
   } catch (error) {
     // Keep product admission refusals (quota, role/config restrictions) intact.
     if (

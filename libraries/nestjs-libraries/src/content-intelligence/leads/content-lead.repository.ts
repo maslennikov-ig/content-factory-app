@@ -39,7 +39,14 @@ export class ContentLeadRepository {
     input: {
       kind: string;
       displayName: string;
+      /**
+       * What the row is unique on. An address for a feed; the synthetic
+       * `topic://<slug>` key for a topic (`lead-topic-key.ts`) — the service
+       * derives it, this call only stores it.
+       */
       canonicalUrl: string;
+      /** The topic as typed, for `TOPIC` rows; `null` for every other kind. */
+      query?: string | null;
       checkIntervalMinutes: number;
       linkedAutoPostId?: string | null;
     }
@@ -51,6 +58,7 @@ export class ContentLeadRepository {
           kind: input.kind,
           displayName: input.displayName,
           canonicalUrl: input.canonicalUrl,
+          query: input.query ?? null,
           checkIntervalMinutes: input.checkIntervalMinutes,
           linkedAutoPostId: input.linkedAutoPostId || null,
           createdByUserId: actorUserId,
@@ -58,9 +66,15 @@ export class ContentLeadRepository {
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
+        // The index behind both sentences is the same
+        // `(organizationId, kind, canonicalUrl)`; only the word for what was
+        // already taken differs, and a person who typed a topic never saw an
+        // address to be told about.
         throw new ContentLeadError(
           'SUBSCRIPTION_CONFLICT',
-          'This address is already subscribed',
+          input.kind === 'TOPIC'
+            ? 'This topic is already watched'
+            : 'This address is already subscribed',
           409
         );
       }

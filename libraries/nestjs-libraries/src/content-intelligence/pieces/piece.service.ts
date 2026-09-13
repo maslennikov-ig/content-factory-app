@@ -60,6 +60,7 @@ import type {
   PieceCellV1,
   PieceDetailV1,
   PieceFieldAnswerV1,
+  PieceLeadSourceV1,
   PieceOpenQuestionV1,
   PieceOriginV1,
   PieceQuestionKeyV1,
@@ -154,6 +155,25 @@ const trimmed = (value: unknown): string =>
 
 const describeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+/**
+ * Источник повода из сохранённого JSON (`content-factory-next-75xn.8`).
+ *
+ * Без адреса строки нет: она существует, чтобы человек мог открыть исходное, и
+ * запись без `url` открыть нечем.
+ */
+const leadSourceOf = (value: unknown): PieceLeadSourceV1 | null => {
+  const stored = (value || null) as Record<string, unknown> | null;
+  if (!stored || typeof stored !== 'object') return null;
+  const url = trimmed(stored.url);
+  if (!url) return null;
+  const title = trimmed(stored.title);
+  return {
+    leadId: trimmed(stored.leadId),
+    url,
+    ...(title ? { title } : {}),
+  };
+};
 
 const isoOf = (value: Date | string | null | undefined): string | null => {
   if (!value) return null;
@@ -1504,7 +1524,8 @@ export class PieceService {
     const originalText = provider.editor === 'html' || provider.editor === 'normal'
       ? htmlToPlainText(draft.post.content) : draft.post.content;
     const result = mode === 'web' || mode === 'research'
-      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!, mode === 'research' ? 'deep' : 'standard')
+      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!,
+        mode === 'research' ? 'deep' : 'standard', mode === 'research' ? 'research' : 'facts')
       : await reviewAdaptationOnce(organizationId, {
       mode, text: originalText, core: core?.text ?? piece.body,
       personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,
@@ -1587,6 +1608,12 @@ export class PieceService {
       ...(typeof stored.personText === 'string'
         ? { personText: stored.personText }
         : {}),
+      // Источник повода (`content-factory-next-75xn.8`). Читается защитно и
+      // по одному полю: у заготовок до этой волны его нет вовсе, а `brief` —
+      // это JSON, записанный прежними сборками.
+      ...(leadSourceOf(stored.leadSource)
+        ? { leadSource: leadSourceOf(stored.leadSource)! }
+        : {}),
     };
   }
 
@@ -1651,6 +1678,15 @@ export class PieceService {
   }
 
   private originOf(stored: Record<string, any>): PieceOriginV1 {
+    /*
+      `content-factory-next-75xn.8`. `'lead'` жил в союзе и был подписан на
+      обоих экранах — «из повода», — но ни одна строка его не возвращала:
+      заготовка не знала, что выросла из повода, и подпись была недостижимой.
+      Повод отвечает первым, потому что род входа у такой заготовки всегда
+      `link` (повод приходит заголовком, выдержкой и адресом), и «ссылка»
+      говорит о ней меньше, чем «повод».
+    */
+    if (leadSourceOf(stored?.leadSource)) return 'lead';
     const kind = trimmed(stored?.brief?.inputKind);
     return kind === 'thought' || kind === 'link' || kind === 'foreign_post'
       ? (kind as PieceOriginV1)

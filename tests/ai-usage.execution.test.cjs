@@ -490,6 +490,76 @@ describe('AI operation usage seam', () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(25);
   });
 
+  /**
+   * `content-factory-next-75xn.5`. `includedAiMonthlyOperations` не пишется в
+   * этом репозитории ничем, а строка `Subscription` заводится только вебхуком
+   * Stripe. На боевом Stripe нет — значит квота читалась нулём, и четыре
+   * области, созданные в режиме `included`, не работали ни дня.
+   */
+  describe('the included allowance without a subscription row', () => {
+    const withoutSubscription = (create) =>
+      jest.fn(async (run) =>
+        run({
+          subscription: { findUnique: async () => null },
+          organization: {
+            findUnique: async () => ({
+              createdAt: new Date('2026-08-01T00:00:00.000Z'),
+            }),
+          },
+          aiUsageRecord: { count: async () => 0, create },
+        })
+      );
+
+    afterEach(() => {
+      delete process.env.AI_INCLUDED_MONTHLY_OPERATIONS;
+    });
+
+    test('an operator limit admits the call when billing says nothing', async () => {
+      process.env.AI_INCLUDED_MONTHLY_OPERATIONS = '50';
+      const create = jest.fn(async ({ data }) => ({ id: 'row', ...data }));
+      const usage = loadUsage({
+        transaction: withoutSubscription(create),
+        create: jest.fn(),
+        update: jest.fn(),
+        config: included,
+      });
+
+      await expect(
+        usage.executeAiOperation('organization-a', 'text_generation', async () => 'done')
+      ).resolves.toBe('done');
+      expect(create).toHaveBeenCalledTimes(1);
+    });
+
+    test('an unset limit keeps the old refusal, so a silent instance is unchanged', async () => {
+      const usage = loadUsage({
+        transaction: withoutSubscription(jest.fn()),
+        create: jest.fn(),
+        update: jest.fn(),
+        config: included,
+      });
+
+      const error = await usage
+        .executeAiOperation('organization-a', 'text_generation', jest.fn())
+        .catch((caught) => caught);
+      expect(error).toMatchObject({ name: 'AiIncludedQuotaExceeded' });
+    });
+
+    test('a nonsense limit reads as none rather than as unlimited', async () => {
+      process.env.AI_INCLUDED_MONTHLY_OPERATIONS = 'plenty';
+      const usage = loadUsage({
+        transaction: withoutSubscription(jest.fn()),
+        create: jest.fn(),
+        update: jest.fn(),
+        config: included,
+      });
+
+      const error = await usage
+        .executeAiOperation('organization-a', 'text_generation', jest.fn())
+        .catch((caught) => caught);
+      expect(error).toMatchObject({ name: 'AiIncludedQuotaExceeded' });
+    });
+  });
+
   test('zero included quota fails closed before the provider callback', async () => {
     const callback = jest.fn();
     const transaction = jest.fn(async (run) =>

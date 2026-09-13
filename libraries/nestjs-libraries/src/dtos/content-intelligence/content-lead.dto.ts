@@ -7,24 +7,45 @@ import {
 } from 'class-validator';
 
 /**
- * A feed address, nothing more. `URL` (a single page with no "new items" of
- * its own) is deliberately not offered here the way it is for `ContentSource`
- * — a subscription exists to notice change over time, and a static page has
- * no items to diff between checks. `Ideas.dc.html`'s empty state offers
- * exactly one address kind today: «Лента сайта».
+ * Two kinds of subscription, and what each one needs.
+ *
+ * `RSS` is an address; `TOPIC` (`content-factory-next-75xn.7`) is a subject,
+ * checked by a thirty-day web search instead of by reading a feed. `URL` (a
+ * single page with no "new items" of its own) is still not offered — a
+ * subscription exists to notice change over time, and a static page has no
+ * items to diff between checks.
+ *
+ * Both payload fields are optional here because neither is required by *both*
+ * kinds, and a validator cannot say «this one if that one» without a custom
+ * rule. Which field a kind requires is decided once, in
+ * `ContentLeadService.createSubscription`, and refused there with a code the
+ * screen can read (`INVALID_URL`, `INVALID_TOPIC`) — not silently accepted.
  */
 export class CreateContentLeadSubscriptionDto {
-  @IsIn(['RSS'])
-  kind: 'RSS';
+  @IsIn(['RSS', 'TOPIC'])
+  kind: 'RSS' | 'TOPIC';
 
   @IsString()
   @MinLength(1)
   @MaxLength(200)
   displayName: string;
 
+  /** The feed address. Required for `RSS`; a `TOPIC` row has none. */
+  @IsOptional()
   @IsString()
   @MaxLength(4_096)
-  canonicalUrl: string;
+  canonicalUrl?: string;
+
+  /**
+   * The subject to watch, as the person wrote it. Required for `TOPIC`.
+   * The length matches `MAX_TOPIC_QUERY_LENGTH`, which is also what the
+   * service refuses on — the number lives there, and this is its door-side
+   * restatement.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  query?: string;
 
   /** Minutes between checks. The three choices `Ideas.dc.html` shows a person. */
   @IsOptional()

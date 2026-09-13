@@ -56,3 +56,12 @@ docs-reviewed: updated - specification §6, runbook release record, handoff,
 review-tail summary wording.
 graph-reviewed: no-change-needed - two files touched on an existing seam; the
 local graph was not consulted and no extraction ran.
+
+## Correction 11.09 (later the same day)
+
+A live probe with the production workspace Tavily key (`content-factory-next-zhv8/evidence/tavily-limit-probe.log`)
+returned HTTP 200 for `max_results` 21 and 50 (24 results for 50). The API does
+not reject values above the documented 0–20 range, so deep research on the
+default provider was not failing in production; this wave restored the
+documented cap, it did not repair an outage. The P1 severity stated in the
+review was too high.
