@@ -80,6 +80,8 @@ const providerConfigMock = {
   withActiveAiConfig: (organizationId, config, callback) =>
     active.run({ organizationId, config }, callback),
   setAiProviderSettingReader: () => undefined,
+  setInstanceAiDefaultsReader: () => undefined,
+  INSTANCE_AI_DEFAULTS_ID: 'instance',
   OPENROUTER_BASE_URL: 'https://openrouter.ai/api/v1',
 };
 

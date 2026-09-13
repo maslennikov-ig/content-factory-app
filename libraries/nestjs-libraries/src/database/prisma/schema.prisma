@@ -667,6 +667,47 @@ model TelegramDiscussionMessage {
   @@index([channelChatId, channelMessageId])
 }
 
+/// Ключи и модели, которыми работают области, не заводившие своих.
+///
+/// `content-factory-next-75xn.16`. До этой таблицы они жили только в
+/// переменных окружения: сменить ключ, которым платит весь инстанс, можно было
+/// лишь с доступом к серверу. Решение владельца 13.09.2026 — «настройка ключей
+/// по умолчанию доступна только суперадминам, а для других можно выбрать
+/// использовать ключ по умолчанию или использовать свой ключ»: первая половина
+/// живёт здесь, вторая уже стоит на экране области (`AiProviderSetting.usageMode`).
+///
+/// Одна строка на инстанс, и единственность даёт сам первичный ключ по
+/// константе — тем же приёмом, что `TelegramUpdateConsumerLease` выше.
+///
+/// Переменные окружения остаются запасным ходом поля за полем: пустая колонка
+/// читается как «спроси у оператора». Это то, чем инстанс поднимается с нуля,
+/// и то, куда он возвращается, если строку удалить.
+model InstanceAiDefaults {
+  /// Всегда `instance`. См. `INSTANCE_AI_DEFAULTS_ID`.
+  id                  String   @id
+  /// 'openai' | 'openrouter'. NULL — брать из `AI_PROVIDER`.
+  provider            String?
+  /// Зашифрован тем же расписанием, что и ключ области. Наружу не отдаётся
+  /// никогда: экран суперадмина видит только «задан» или «не задан».
+  apiKey              String?
+  textModel           String?
+  imageModel          String?
+  /// Модель на роль вызова, как `AiProviderSetting.roleModels`.
+  roleModels          Json?
+  /// Зашифрованный ключ на каждый поисковый движок.
+  searchApiKeys       Json?
+  /// Движок на задачу поиска. Пусто — продукт решает сам
+  /// (`DEFAULT_SEARCH_TASK_PROVIDERS`).
+  searchTaskProviders Json?
+  /// Сколько операций в месяц получает область без строки подписки. NULL —
+  /// брать из `AI_INCLUDED_MONTHLY_OPERATIONS`; ноль означает отказ.
+  monthlyOperations   Int?
+  /// Кто менял последним — для чтения таблицы человеком во время разбора.
+  updatedByUserId     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
 model TelegramUpdateConsumerLease {
   name       String   @id
   ownerId    String

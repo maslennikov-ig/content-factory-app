@@ -67,6 +67,10 @@ function loadUsage({ transaction, create, update, config }) {
         withActiveAiConfig: (organizationId, nextConfig, callback) =>
           active.run({ organizationId, config: nextConfig }, callback),
         setAiProviderSettingReader: () => undefined,
+  setInstanceAiDefaultsReader: () => undefined,
+  INSTANCE_AI_DEFAULTS_ID: 'instance',
+        setInstanceAiDefaultsReader: () => undefined,
+        INSTANCE_AI_DEFAULTS_ID: 'instance',
       },
       // Importless and shared with the settings screen, so the real one is
       // loaded: a doubled role list would let the ledger record a role the
@@ -156,6 +160,7 @@ const includedLedger = ({ rows = [], quota = 1, failedUpdates = 0 } = {}) => {
           createdAt: new Date('2026-08-01T00:00:00.000Z'),
         }),
       },
+      instanceAiDefaults: { findUnique: async () => null },
       aiUsageRecord: { count, create },
     })
   );
@@ -226,6 +231,7 @@ describe('AI operation usage seam', () => {
             createdAt: new Date('2026-08-01T00:00:00.000Z'),
           }),
         },
+        instanceAiDefaults: { findUnique: async () => null },
         aiUsageRecord: {
           count: async () => 0,
           create: ledgerCreate,
@@ -501,6 +507,7 @@ describe('AI operation usage seam', () => {
       jest.fn(async (run) =>
         run({
           subscription: { findUnique: async () => null },
+          instanceAiDefaults: { findUnique: async () => null },
           organization: {
             findUnique: async () => ({
               createdAt: new Date('2026-08-01T00:00:00.000Z'),
@@ -570,6 +577,7 @@ describe('AI operation usage seam', () => {
             createdAt: new Date(),
           }),
         },
+        instanceAiDefaults: { findUnique: async () => null },
         aiUsageRecord: { count: async () => 0, create: jest.fn() },
       })
     );

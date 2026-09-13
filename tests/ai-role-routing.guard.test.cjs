@@ -49,6 +49,10 @@ const MAY_NAME_A_MODEL = new Map([
     'libraries/nestjs-libraries/src/openai/ai.provider.service.ts',
     'The settings screen reads its own saved values back.',
   ],
+  [
+    'libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts',
+    'The superadmin screen reads the instance defaults back, for the same reason the workspace one does: these are the values a person just typed.',
+  ],
 ]);
 
 const typeScriptFiles = (directory) => {

@@ -117,7 +117,8 @@ if (!packageOptions) { can(action, section); continue; }
 | Минута между ручными проверками | там же, `MANUAL_CHECK_MIN_INTERVAL_MS` | 60 000 мс | плоский | ничего | владелец |
 | Проверка лент включена | `lead-feed.gateway.ts`, `LEAD_FEED_CHECK_ENABLED` | выключено по умолчанию | выключено | ничего | владелец |
 | Месячная квота ИИ | `libraries/nestjs-libraries/src/openai/ai.usage.service.ts`, `Subscription.includedAiMonthlyOperations` | `0` (безопасный отказ `429 AI_INCLUDED_QUOTA_EXHAUSTED`) | по подписке, но не по тарифу упстрима | квота не восполняется | владелец (вопрос 4) |
-| Квота ИИ для области без подписки | там же, `AI_INCLUDED_MONTHLY_OPERATIONS` | **50 на бою с 13.09.2026, временно** (в коде по умолчанию `0`) | по переменной оператора; подписка, когда появится, сильнее | ничего | владелец (вопрос 4) |
+| Квота ИИ для области без подписки | `ai.usage.service.ts`, `InstanceAiDefaults.monthlyOperations`, запасной ход `AI_INCLUDED_MONTHLY_OPERATIONS` | **50 на бою с 13.09.2026, временно** (в коде по умолчанию `0`) | суперадмин задаёт на `/admin/ai`; подписка, когда появится, сильнее | ничего | владелец (вопрос 4) |
+| Ключи по умолчанию, которыми платит инстанс | `InstanceAiDefaults`, двери `/admin/ai-defaults` | ключи владельца, перенесены 13.09.2026 | задаёт только суперадмин; область выбирает между ними и своим ключом | ничего | владелец |
 | Ключ поиска по движкам | `AiProviderSetting.searchApiKeys`, `ai.search-tasks.ts` | у области столько ключей, сколько движков она настроила | плоский | ничего | код |
 | Провайдер на задачу поиска | `AiProviderSetting.searchTaskProviders`, `providerForSearchTask` | пусто — все задачи идут в движок области | плоский, **кандидат в тариф** | ничего | владелец |
 | Окно свежести у подписки на тему | `ai.clients.ts`, `DISCOVERY_WINDOW_DAYS` | 30 дней | плоский, **кандидат в тариф** | ничего | владелец |

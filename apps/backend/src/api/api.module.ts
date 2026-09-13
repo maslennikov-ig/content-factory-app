@@ -17,6 +17,7 @@ import { UploadModule } from '@contentfactory/nestjs-libraries/upload/upload.mod
 import { BillingController } from '@contentfactory/backend/api/routes/billing.controller';
 import { NotificationsController } from '@contentfactory/backend/api/routes/notifications.controller';
 import { AiProviderService } from '@contentfactory/nestjs-libraries/openai/ai.provider.service';
+import { InstanceAiDefaultsService } from '@contentfactory/nestjs-libraries/openai/instance-ai-defaults.service';
 import { OpenaiService } from '@contentfactory/nestjs-libraries/openai/openai.service';
 import { ExtractContentService } from '@contentfactory/nestjs-libraries/openai/extract.content.service';
 import { CodesService } from '@contentfactory/nestjs-libraries/services/codes.service';
@@ -127,6 +128,7 @@ const authenticatedController = [
     StripeService,
     OpenaiService,
     AiProviderService,
+    InstanceAiDefaultsService,
     ExtractContentService,
     AuthMiddleware,
     PoliciesGuard,

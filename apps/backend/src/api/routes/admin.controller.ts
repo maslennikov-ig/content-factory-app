@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   Inject,
@@ -22,6 +23,9 @@ import dayjs from 'dayjs';
 import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/prisma/product-events/product-events.service';
 import { PUBLIC_GROWTH_SERVICE } from '@contentfactory/backend/api/routes/public-growth.token';
 import { assertSameOriginJsonMutation } from '@contentfactory/nestjs-libraries/auth/same-origin-mutation';
+import { InstanceAiDefaultsService } from '@contentfactory/nestjs-libraries/openai/instance-ai-defaults.service';
+import { InstanceAiDefaultsDto } from '@contentfactory/nestjs-libraries/dtos/settings/instance-ai-defaults.dto';
+import { isSearchProvider } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import { Request } from 'express';
 
 interface PublicGrowthReportService {
@@ -43,7 +47,8 @@ export class AdminController {
     private _usersService: UsersService,
     private _productEventsService: ProductEventsService,
     @Inject(PUBLIC_GROWTH_SERVICE)
-    private _publicGrowthService: PublicGrowthReportService
+    private _publicGrowthService: PublicGrowthReportService,
+    private _instanceAiDefaults: InstanceAiDefaultsService
   ) {}
 
   private readonly _logger = new Logger(AdminController.name);
@@ -245,6 +250,77 @@ export class AdminController {
       body?.deleteWorkspaces === true
     );
     return { success: true };
+  }
+
+  /**
+   * The keys every workspace that has not brought its own spends.
+   *
+   * `content-factory-next-75xn.16`, owner's rule of 13.09.2026: setting them is
+   * the superadmin's, choosing between them and your own is the workspace's.
+   * Until this door they lived only in environment variables, so changing the
+   * key the whole instance pays with needed a shell on the server.
+   *
+   * Its own codes for the origin check rather than the account ones: a refused
+   * credential change is not a refused account change, and a log line that says
+   * otherwise sends the reader to the wrong route.
+   */
+  private assertInstanceCredentialRequest(userId: string, req: Request) {
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'an instance credential change',
+        unavailableMessage:
+          'Instance credential changes are unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'instance_credential_change_unavailable',
+        forbiddenMessage: 'Forbidden instance credential change request',
+        forbiddenCode: 'instance_credential_change_forbidden',
+      },
+      this._logger
+    );
+  }
+
+  /** Presence and non-secret values. No key is ever returned. */
+  @Get('/ai-defaults')
+  async getAiDefaults(@GetUserFromRequest() user: User) {
+    this.assertSuperAdmin(user);
+    return this._instanceAiDefaults.read();
+  }
+
+  @Post('/ai-defaults')
+  async updateAiDefaults(
+    @GetUserFromRequest() user: User,
+    @Body() body: InstanceAiDefaultsDto,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertInstanceCredentialRequest(user.id, req);
+    return this._instanceAiDefaults.update(user.id, body);
+  }
+
+  @Delete('/ai-defaults/key')
+  async clearAiDefaultsKey(
+    @GetUserFromRequest() user: User,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertInstanceCredentialRequest(user.id, req);
+    return this._instanceAiDefaults.clearKey(user.id);
+  }
+
+  /** `?provider=exa` removes one engine's key; no query removes every one. */
+  @Delete('/ai-defaults/search-key')
+  async clearAiDefaultsSearchKey(
+    @GetUserFromRequest() user: User,
+    @Query('provider') provider: string | undefined,
+    @Req() req: Request
+  ) {
+    this.assertSuperAdmin(user);
+    this.assertInstanceCredentialRequest(user.id, req);
+    return this._instanceAiDefaults.clearSearchKey(
+      user.id,
+      isSearchProvider(provider) ? provider : undefined
+    );
   }
 
   @Post('/users/:id/block')

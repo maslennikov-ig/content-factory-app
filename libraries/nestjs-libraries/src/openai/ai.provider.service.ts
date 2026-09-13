@@ -3,6 +3,7 @@ import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 import {
   AiProvider,
+  INSTANCE_AI_DEFAULTS_ID,
   OPENROUTER_BASE_URL,
   SearchProvider,
   loadAiConfig,
@@ -127,7 +128,14 @@ export class AiProviderService {
     const periodStart = aiBillingPeriodStart(
       subscription?.createdAt ?? organization?.createdAt ?? new Date()
     );
-    const monthlyOperations = includedMonthlyOperations(subscription);
+    const instanceDefaults = await this._prisma.instanceAiDefaults?.findUnique({
+      where: { id: INSTANCE_AI_DEFAULTS_ID },
+      select: { monthlyOperations: true },
+    });
+    const monthlyOperations = includedMonthlyOperations(
+      subscription,
+      instanceDefaults
+    );
     /**
      * The same predicate admission uses, not a second one that looks like it.
      *

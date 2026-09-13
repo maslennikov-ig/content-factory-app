@@ -7,7 +7,9 @@ import {
   getActiveAiConfig,
   getActiveAiOrganizationId,
   loadAiConfig,
+  INSTANCE_AI_DEFAULTS_ID,
   setAiProviderSettingReader,
+  setInstanceAiDefaultsReader,
   withActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import {
@@ -151,10 +153,21 @@ export const includedQuotaFallback = (): number => {
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
 };
 
-/** The allowance for one workspace, from billing when there is billing. */
+/**
+ * The allowance for one workspace, from the nearest authority there is.
+ *
+ * Billing first, because the moment there is a subscription it is the truth.
+ * Then the superadmin's own row, where zero means «refuse» rather than «ask
+ * somebody else» — a number typed on purpose has to be obeyable. Then the
+ * environment, which is what an instance that has never opened that screen has.
+ */
 export const includedMonthlyOperations = (
-  subscription: { includedAiMonthlyOperations?: number | null } | null
-): number => subscription?.includedAiMonthlyOperations ?? includedQuotaFallback();
+  subscription: { includedAiMonthlyOperations?: number | null } | null,
+  instance?: { monthlyOperations?: number | null } | null
+): number =>
+  subscription?.includedAiMonthlyOperations ??
+  instance?.monthlyOperations ??
+  includedQuotaFallback();
 
 export const aiBillingPeriodStart = (createdAt: Date, now = new Date()) => {
   if (now < createdAt) return new Date(createdAt);
@@ -294,6 +307,12 @@ export class AiUsageService {
     setAiProviderSettingReader((organizationId) =>
       prisma.aiProviderSetting.findUnique({ where: { organizationId } })
     );
+    // The operator's own row, on the same terms and for the same reason.
+    setInstanceAiDefaultsReader(() =>
+      prisma.instanceAiDefaults.findUnique({
+        where: { id: INSTANCE_AI_DEFAULTS_ID },
+      })
+    );
   }
 
   /**
@@ -368,11 +387,17 @@ export class AiUsageService {
       try {
         return await this.prisma.$transaction(
           async (tx) => {
-            const subscription = await tx.subscription.findUnique({
-              where: { organizationId },
-              select: { includedAiMonthlyOperations: true, createdAt: true },
-            });
-            const quota = includedMonthlyOperations(subscription);
+            const [subscription, instanceDefaults] = await Promise.all([
+              tx.subscription.findUnique({
+                where: { organizationId },
+                select: { includedAiMonthlyOperations: true, createdAt: true },
+              }),
+              tx.instanceAiDefaults.findUnique({
+                where: { id: INSTANCE_AI_DEFAULTS_ID },
+                select: { monthlyOperations: true },
+              }),
+            ]);
+            const quota = includedMonthlyOperations(subscription, instanceDefaults);
             if (quota <= 0) throw new AiIncludedQuotaExceeded();
 
             // Без подписки период якорится днём рождения области — так же, как
@@ -467,7 +492,11 @@ export class AiUsageService {
     // workspace's own birthday does, exactly as the settings screen reads it.
     const anchor =
       subscription?.createdAt ?? organization?.createdAt ?? new Date();
-    const limit = includedMonthlyOperations(subscription);
+    const instanceDefaults = await this.prisma.instanceAiDefaults?.findUnique({
+      where: { id: INSTANCE_AI_DEFAULTS_ID },
+      select: { monthlyOperations: true },
+    });
+    const limit = includedMonthlyOperations(subscription, instanceDefaults);
     const periodStart = aiBillingPeriodStart(anchor);
     const used =
       limit > 0

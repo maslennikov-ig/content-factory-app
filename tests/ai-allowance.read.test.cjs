@@ -40,6 +40,10 @@ const loadUsage = ({ config, subscription, organization, count }) => {
         withActiveAiConfig: (organizationId, nextConfig, callback) =>
           active.run({ organizationId, config: nextConfig }, callback),
         setAiProviderSettingReader: () => undefined,
+  setInstanceAiDefaultsReader: () => undefined,
+  INSTANCE_AI_DEFAULTS_ID: 'instance',
+        setInstanceAiDefaultsReader: () => undefined,
+        INSTANCE_AI_DEFAULTS_ID: 'instance',
       },
       '@contentfactory/nestjs-libraries/user/acting.user': {
         getActingUserId: () => undefined,

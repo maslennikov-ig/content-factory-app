@@ -697,6 +697,9 @@ async function main() {
     AdminController,
   } = require('../../apps/backend/src/api/routes/admin.controller.ts');
   const {
+    InstanceAiDefaultsService,
+  } = require('../../libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts');
+  const {
     ErrorsService,
   } = require('../../libraries/nestjs-libraries/src/database/prisma/errors/errors.service.ts');
   const {
@@ -830,6 +833,7 @@ async function main() {
       { provide: AdminStatsService, useValue: {} },
       { provide: UsersService, useValue: {} },
       { provide: ProductEventsService, useValue: {} },
+      { provide: InstanceAiDefaultsService, useValue: {} },
     ],
   })(ProofModule);
 

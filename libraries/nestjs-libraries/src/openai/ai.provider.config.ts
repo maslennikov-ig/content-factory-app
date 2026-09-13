@@ -122,9 +122,28 @@ const readJson = (raw: string | undefined, name: string): unknown => {
  * who configured included search before this change keeps exactly what they
  * had and only needs a second variable when they want a second engine.
  */
-const includedSearchKeys = (provider: SearchProvider): SearchProviderKeys => {
+const includedSearchKeys = (
+  provider: SearchProvider,
+  instance: StoredInstanceAiDefaults | null
+): SearchProviderKeys => {
   const perEngine: SearchProviderKeys = {};
+
+  // The stored row first, engine by engine, on the same per-field terms as
+  // `operatorDefaults`: a superadmin who pasted an Exa key must not thereby
+  // erase a Tavily key that only the server knows.
+  for (const [engine, value] of Object.entries(
+    parseSearchKeys(instance?.searchApiKeys)
+  )) {
+    try {
+      const plain = AuthService.fixedDecryption(value as string);
+      if (plain) perEngine[engine as SearchProvider] = plain;
+    } catch (err) {
+      console.error(`Could not decrypt the instance ${engine} key:`, err);
+    }
+  }
+
   for (const engine of SEARCH_PROVIDERS) {
+    if (perEngine[engine]) continue;
     const named = process.env[`AI_INCLUDED_SEARCH_API_KEY_${engine.toUpperCase()}`];
     if (named) perEngine[engine] = named;
   }
@@ -142,20 +161,26 @@ const includedSearchKeys = (provider: SearchProvider): SearchProviderKeys => {
  * and the depth come from the row — a workspace may turn its own search off
  * and say what kind of search it wants, but not where the key goes.
  */
-const includedSearch = (stored: StoredAiProviderSetting): WebSearchConfig => {
+const includedSearch = (
+  stored: StoredAiProviderSetting,
+  instance: StoredInstanceAiDefaults | null
+): WebSearchConfig => {
   const provider = readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER);
-  const apiKeys = includedSearchKeys(provider);
+  const apiKeys = includedSearchKeys(provider, instance);
+  const storedRoutes = parseSearchTaskProviders(instance?.searchTaskProviders);
   return {
     enabled: stored.searchEnabled,
     provider,
     apiKey: apiKeys[provider] || '',
     apiKeys,
-    taskProviders: parseSearchTaskProviders(
-      readJson(
-        process.env.AI_INCLUDED_SEARCH_TASK_PROVIDERS,
-        'AI_INCLUDED_SEARCH_TASK_PROVIDERS'
-      )
-    ),
+    taskProviders: Object.keys(storedRoutes).length
+      ? storedRoutes
+      : parseSearchTaskProviders(
+          readJson(
+            process.env.AI_INCLUDED_SEARCH_TASK_PROVIDERS,
+            'AI_INCLUDED_SEARCH_TASK_PROVIDERS'
+          )
+        ),
     topic: (stored.searchTopic as SearchTopic) || 'general',
     depth: (stored.searchDepth as SearchDepth) || 'advanced',
   };
@@ -221,6 +246,48 @@ export interface StoredAiProviderSetting {
   searchTopic?: string | null;
   searchDepth?: string | null;
 }
+
+/**
+ * The one row of operator settings, as this module reads it.
+ *
+ * `content-factory-next-75xn.16`. Until it existed, the keys every workspace
+ * without its own spends lived only in environment variables, so changing them
+ * needed a shell on the server. The owner's rule: setting them is the
+ * superadmin's, choosing between them and your own is the workspace's.
+ */
+export interface StoredInstanceAiDefaults {
+  provider?: string | null;
+  apiKey?: string | null;
+  textModel?: string | null;
+  imageModel?: string | null;
+  roleModels?: unknown;
+  searchApiKeys?: unknown;
+  searchTaskProviders?: unknown;
+  monthlyOperations?: number | null;
+}
+
+/** The single row's primary key. A constant, so the table cannot hold two. */
+export const INSTANCE_AI_DEFAULTS_ID = 'instance';
+
+export type InstanceAiDefaultsReader =
+  () => Promise<StoredInstanceAiDefaults | null>;
+
+let lentInstanceReader: InstanceAiDefaultsReader | undefined;
+
+/**
+ * Lent by the application, exactly as the organization reader is, and for the
+ * same reason: this module owns no Prisma client of its own and must not open
+ * a second pool on a path that runs before every AI operation.
+ *
+ * Unlent, the row simply reads as empty and every field falls back to its
+ * environment variable — which is what an instance that has never opened the
+ * superadmin screen actually has.
+ */
+export const setInstanceAiDefaultsReader = (
+  reader: InstanceAiDefaultsReader
+) => {
+  lentInstanceReader = reader;
+};
 
 export type AiProviderSettingReader = (
   organizationId: string
@@ -302,11 +369,84 @@ const keyPresence = (
   return presence;
 };
 
+/**
+ * What the operator has configured, field by field: the stored row where it
+ * says something, the environment where it does not.
+ *
+ * Per field rather than «row or environment», because the two are filled at
+ * different times. An instance is brought up by its variables; later somebody
+ * opens the superadmin screen and replaces the model without ever touching the
+ * key. Reading the row as all-or-nothing would silently drop the key at that
+ * moment.
+ */
+const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
+  const env = envDefaults();
+  const provider =
+    instance?.provider === 'openai' || instance?.provider === 'openrouter'
+      ? instance.provider
+      : env.provider;
+  const storedRoles = parseRoleModels(instance?.roleModels);
+  return {
+    ...env,
+    provider,
+    baseUrl:
+      provider === env.provider
+        ? env.baseUrl
+        : provider === 'openrouter'
+        ? OPENROUTER_BASE_URL
+        : undefined,
+    textModel:
+      instance?.textModel ||
+      (provider === env.provider ? env.textModel : DEFAULT_MODELS[provider].text),
+    imageModel:
+      instance?.imageModel ||
+      (provider === env.provider
+        ? env.imageModel
+        : DEFAULT_MODELS[provider].image),
+    roleModels: Object.keys(storedRoles).length ? storedRoles : env.roleModels,
+  };
+};
+
+/**
+ * The key the operator pays with. Decryption failure reads as «not set»
+ * rather than throwing: an unreadable row must leave the instance on its
+ * variables, not take every included workspace down with it.
+ */
+const instanceGenerationKey = (
+  instance: StoredInstanceAiDefaults | null
+): string => {
+  if (instance?.apiKey) {
+    try {
+      const plain = AuthService.fixedDecryption(instance.apiKey);
+      if (plain) return plain;
+    } catch (err) {
+      console.error('Could not decrypt the instance AI key:', err);
+    }
+  }
+  return process.env.AI_INCLUDED_API_KEY || '';
+};
+
 export const loadAiConfig = async (
   organizationId: string,
-  reader: AiProviderSettingReader | undefined = lentReader
+  reader: AiProviderSettingReader | undefined = lentReader,
+  instanceReader: InstanceAiDefaultsReader | undefined = lentInstanceReader
 ): Promise<AiConfig> => {
-  const defaults = envDefaults();
+  /**
+   * Read before anything else and outside the organization's own `try`: an
+   * unreadable operator row must leave the instance on its variables, not turn
+   * a workspace on its own key into «nothing configured».
+   */
+  let instance: StoredInstanceAiDefaults | null = null;
+  if (instanceReader) {
+    try {
+      instance = await instanceReader();
+    } catch (err) {
+      console.error('Could not read the instance AI defaults:', err);
+    }
+  }
+
+  const defaults = operatorDefaults(instance);
+  const includedKey = instanceGenerationKey(instance);
   let config: AiConfig = {
     ...defaults,
     usageMode: 'workspace_key',
@@ -314,7 +454,7 @@ export const loadAiConfig = async (
     workspaceKeyConfigured: false,
     workspaceSearchKeyConfigured: false,
     workspaceSearchKeys: {},
-    includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
+    includedAvailable: !!includedKey,
   };
 
   try {
@@ -333,11 +473,11 @@ export const loadAiConfig = async (
         config = {
           ...defaults,
           usageMode,
-          apiKey: process.env.AI_INCLUDED_API_KEY || '',
+          apiKey: includedKey,
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: keyPresence(storedSearchKeys),
-          includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
+          includedAvailable: !!includedKey,
           /**
            * The tenant's routing is deliberately not read here, for the same
            * reason their `textModel` is not: in `included` mode the key is the
@@ -346,7 +486,7 @@ export const loadAiConfig = async (
            * applies, which is where the included bill can actually be cut.
            */
           roleModels: defaults.roleModels,
-          search: includedSearch(stored),
+          search: includedSearch(stored, instance),
         };
       } else {
         const provider = (stored.provider as AiProvider) || defaults.provider;
@@ -369,7 +509,7 @@ export const loadAiConfig = async (
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: keyPresence(storedSearchKeys),
-          includedAvailable: !!process.env.AI_INCLUDED_API_KEY,
+          includedAvailable: !!includedKey,
           search: {
             enabled: stored.searchEnabled,
             provider: readSearchProvider(stored.searchProvider),

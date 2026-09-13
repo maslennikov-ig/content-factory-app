@@ -769,6 +769,22 @@ const ViewStats = () => {
   );
 };
 
+/**
+ * Ключи и модели, которыми работают области, не заводившие своих.
+ *
+ * Называется тем же словом, что и режим в настройках области, — «Ключи
+ * системы»: область выбирает между ними и своим ключом, а здесь задаётся, что
+ * это за ключи. Другого названия у этой связи нет.
+ */
+const ViewAiDefaults = () => {
+  const t = useT();
+  return (
+    <AdminToolbarLink href="/admin/ai">
+      {t('ai_usage_included', 'System keys')}
+    </AdminToolbarLink>
+  );
+};
+
 const ViewProductEvents = () => {
   const t = useT();
   return (
@@ -1155,6 +1171,7 @@ export const Impersonate = () => {
             <ViewErrors />
             <ViewStats />
             <ViewProductEvents />
+            <ViewAiDefaults />
           </div>
         </div>
       )}

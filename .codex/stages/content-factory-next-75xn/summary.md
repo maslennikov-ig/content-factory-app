@@ -36,3 +36,43 @@ graph-reviewed: no-change-needed - no new subsystem boundary; the two new files
 sit beside their siblings (`ai.roles.ts`, `lead-feed.gateway.ts`) and are
 reached through the same callers.
 project-index: reviewed-no-change
+
+## Correction after the owner's walk, same day
+
+He reached stage C and stopped. Three remarks; one of them was a defect of mine
+worse than what he could see.
+
+**P1 (`75xn.10`).** The compatibility shim read the superseded `searchApiKey`
+column as belonging to whichever engine `searchProvider` currently named. That
+column is editable, so a workspace whose key had been saved for Tavily and whose
+engine was then switched to Exa would have had its Tavily key sent to
+`api.exa.ai` — the leak this epic exists to prevent, walked back in through its
+own shim. What he saw was the milder end: his Tavily key went unreachable and
+the lane switched itself off. The column is no longer read; rows are migrated
+once, while `searchProvider` still names the engine the key was saved for.
+Production had exactly one such row, already switched, so he named its engine.
+
+**The deliberate deviation was reversed by the owner (`75xn.11`).** Shipping no
+implicit routing was my call; he read the screen — a recommendation printed
+directly above the question it was asking — and said so plainly. Routing now
+decides by itself. The last resort had to change with it: with nobody setting
+the workspace engine, falling back to that column would refuse a search a
+workspace holding only an Exa key can plainly afford, so the floor became «an
+engine there is a search key for». OpenRouter stays out of that floor — it
+answers with the generation key, and `tests/web.research.service.test.cjs`
+caught the first version reaching for it.
+
+**The screen was the product's least consistent, and he listed why.** No card
+where its three neighbours have one; the card geometry hand-written five times
+while a shared `Panel` sits unused in settings; explanations in a 62ch column
+in a narrow panel; a `Hint` component used 25 times elsewhere and never here; a
+Save button where its neighbours save themselves, with a clear-key control that
+bypassed it anyway; and a select chevron at 12px beside a clear mark at 22.
+All of it is one section component, one declared inset, autosave for everything
+but a key, and hints for what is reference rather than state.
+
+Keys: on his instruction («перенеси сам, я его не помню») his own model and
+Tavily keys were decrypted inside the container and written into the host's
+included slots. Included mode answers for the first time.
+
+Released as `616fe17a2380`; schema unchanged.

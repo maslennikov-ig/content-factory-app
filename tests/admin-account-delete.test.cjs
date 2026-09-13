@@ -95,6 +95,7 @@ const controllerModule = loadTypeScriptModule(
       Controller: () => (target) => target,
       Get: () => () => undefined,
       Inject: () => () => undefined,
+      Delete: () => () => undefined,
       Param: () => () => undefined,
       Post: () => () => undefined,
       Query: () => () => undefined,
@@ -102,6 +103,16 @@ const controllerModule = loadTypeScriptModule(
     },
     '@contentfactory/nestjs-libraries/user/user.from.request': {
       GetUserFromRequest: () => () => undefined,
+    },
+    '@contentfactory/nestjs-libraries/openai/instance-ai-defaults.service': {
+      InstanceAiDefaultsService: class InstanceAiDefaultsService {},
+    },
+    '@contentfactory/nestjs-libraries/dtos/settings/instance-ai-defaults.dto': {
+      InstanceAiDefaultsDto: class InstanceAiDefaultsDto {},
+    },
+    '@contentfactory/nestjs-libraries/openai/ai.search-tasks': {
+      isSearchProvider: (value) =>
+        ['tavily', 'openrouter', 'exa'].includes(value),
     },
     '@prisma/client': {},
     '@nestjs/swagger': { ApiTags: () => (target) => target },
