@@ -187,12 +187,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
           className={clsx(
             'h-full bg-transparent outline-none flex-1 min-w-0 text-[14px] text-cf-ink placeholder:text-cf-ink-muted',
             icon ? 'ps-[8px]' : 'ps-[12px]',
-            action ? 'pe-[4px]' : 'pe-[12px]',
+            action ? 'pe-[8px]' : 'pe-[12px]',
             secret && 'cf-secret-input',
             inputClassName
           )}
         />
-        {action && <div className="pe-[6px] flex items-center">{action}</div>}
+        {/*
+          The slot holds the mark at the one declared inset and nothing else.
+          It used to carry `pe-[6px]` while the control inside carried its own
+          `px-[16px]`, so the glyph stood roughly 22px from the edge and the
+          chevron of the `Select` beside it stood at whatever the browser
+          chose. `cf-field-action-inset` is that distance, written once in
+          `tailwind.config.cjs`, and the same number places the chevron.
+        */}
+        {action && (
+          <div className="cf-field-action-inset flex items-center">
+            {action}
+          </div>
+        )}
       </div>
       {helper && (
         <div id={helperId} className="text-[12px] text-cf-ink-muted">

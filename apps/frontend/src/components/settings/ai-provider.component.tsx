@@ -1,16 +1,26 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { Select } from '@contentfactory/react/form/select';
 import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
+import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 import {
   aiProviderCopy,
   resolveAiProviderLocale,
@@ -64,6 +74,23 @@ type SearchTaskProviders = Partial<Record<SearchTask, SearchProvider>>;
 type SearchKeyDrafts = Partial<Record<SearchProvider, string>>;
 
 /**
+ * Which engine each task gets when nobody has said otherwise — the same table
+ * the server routes by, and the reason this screen no longer asks.
+ *
+ * Owner, on the walk of 13.09.2026, looking at the three task selectors:
+ * «зачем мы даём эти настройки, если мы с тобой уже знаем, как лучше сделать?»
+ * The recommendation was printed directly above the controls that asked for
+ * it, which is a question with its own answer attached. The answer now lives
+ * in `DEFAULT_SEARCH_TASK_PROVIDERS` on the server and in this copy of it, and
+ * the screen states the outcome instead of asking for it.
+ */
+const DEFAULT_SEARCH_TASK_PROVIDERS: Record<SearchTask, SearchProvider> = {
+  research: 'exa',
+  facts: 'tavily',
+  discovery: 'tavily',
+};
+
+/**
  * Mirrors `searchProviderNeedsKey`: OpenRouter answers a search question with
  * the workspace's generation provider, so it spends the key above and has no
  * field of its own here.
@@ -75,6 +102,43 @@ const searchProviderNeedsKey = (
 ): provider is KeyedSearchProvider => provider !== 'openrouter';
 
 const KEYED_SEARCH_PROVIDERS = SEARCH_PROVIDERS.filter(searchProviderNeedsKey);
+
+/**
+ * Which engine a task actually reaches — the client's copy of
+ * `providerForSearchTask`.
+ *
+ * It exists so the screen can say what is happening rather than offer to
+ * change it. A sentence that guessed would be worse than the selectors it
+ * replaced, so this is the server's algorithm step for step: an operator's
+ * stored override first, then the product's own default while its engine has
+ * a key, then any engine that has one.
+ * `tests/ai.search-routing.guard.test.cjs` runs both over every combination of
+ * stored keys and fails on the first disagreement.
+ */
+export const searchEngineForTask = (
+  task: SearchTask,
+  source: {
+    provider: SearchProvider;
+    taskProviders?: SearchTaskProviders;
+    hasKey: (engine: SearchProvider) => boolean;
+  }
+): SearchProvider => {
+  const usable = (engine: SearchProvider): boolean =>
+    !searchProviderNeedsKey(engine) || source.hasKey(engine);
+
+  const anyUsable = (): SearchProvider =>
+    usable(source.provider)
+      ? source.provider
+      : SEARCH_PROVIDERS.find(
+          (engine) => searchProviderNeedsKey(engine) && usable(engine)
+        ) ?? source.provider;
+
+  const routed = source.taskProviders?.[task];
+  if (routed) return usable(routed) ? routed : anyUsable();
+
+  const preferred = DEFAULT_SEARCH_TASK_PROVIDERS[task];
+  return preferred && usable(preferred) ? preferred : anyUsable();
+};
 
 interface AiSettings {
   usageMode: UsageMode;
@@ -142,10 +206,8 @@ interface AiSettingsPayloadInput {
   imageModel: string;
   roleModels: RoleModels;
   searchEnabled: boolean;
-  searchProvider?: SearchProvider;
   /** Only the engines a person actually typed into during this visit. */
   searchApiKeys?: SearchKeyDrafts;
-  searchTaskProviders?: SearchTaskProviders;
   searchTopic: 'general' | 'news';
   searchDepth: 'basic' | 'advanced';
 }
@@ -180,18 +242,6 @@ const submittedSearchKeys = (drafts: SearchKeyDrafts) =>
     ]).filter(([, key]) => key)
   );
 
-/**
- * The routed tasks, with «as for the workspace» left out rather than sent as
- * an empty string: an absent task means exactly that, and the door refuses a
- * value that is not an engine name.
- */
-const submittedTaskProviders = (taskProviders: SearchTaskProviders) =>
-  Object.fromEntries(
-    SEARCH_TASKS.map((task) => [task, taskProviders[task] || '']).filter(
-      ([, engine]) => engine
-    )
-  );
-
 export const buildAiSettingsPayload = ({
   usageMode,
   provider,
@@ -201,10 +251,8 @@ export const buildAiSettingsPayload = ({
   roleModels,
   searchEnabled,
   searchApiKeys = {},
-  searchTaskProviders = {},
   searchTopic,
   searchDepth,
-  searchProvider = 'tavily',
 }: AiSettingsPayloadInput) => {
   const typedSearchKeys = submittedSearchKeys(searchApiKeys);
   return {
@@ -226,13 +274,18 @@ export const buildAiSettingsPayload = ({
      * the workspace's own. Sending them back would save somebody else's engine
      * as this workspace's (`content-factory-next-75xn.4`); the server already
      * refuses them in this mode, and the screen no longer offers them.
+     *
+     * `searchProvider` and `searchTaskProviders` are not here in either mode
+     * any more. The door still accepts both, because rows written before
+     * `content-factory-next-75xn.10` hold operator overrides that must keep
+     * working; what changed is that this screen stopped asking, so it has
+     * nothing to say about them and sending a value would mean overwriting an
+     * override with a control the person never saw.
      */
     ...(usageMode === 'workspace_key'
       ? {
-          searchProvider,
           searchTopic,
           searchDepth,
-          searchTaskProviders: submittedTaskProviders(searchTaskProviders),
           ...(Object.keys(typedSearchKeys).length
             ? { searchApiKeys: typedSearchKeys }
             : {}),
@@ -276,6 +329,15 @@ export const removeStoredKey = async ({
  * and neither its target nor its consequence was visible from where the key
  * is. Inside the field it is unmistakable, and the confirmation carries the
  * consequence — the key is not recoverable and the capability stops.
+ *
+ * `ControlButton` rather than `Button`, because the mark's distance from the
+ * field's edge is the field's decision and not the button's: `Button` brings
+ * its own `px-[16px]`, which is exactly how this glyph came to stand ten
+ * pixels further in than the chevron beside it. `ControlButton` contributes
+ * the focus ring, the disabled state and `type="button"` and no geometry, so
+ * `cf-field-action-inset` on the slot is the only thing placing it. The box is
+ * the glyph's own width and the hit area is widened past it, which keeps the
+ * pointer target at 28px without moving the mark.
  */
 const ClearStoredKeyButton = ({
   label,
@@ -286,17 +348,69 @@ const ClearStoredKeyButton = ({
   busy: boolean;
   onClear: () => void;
 }) => (
-  <Button
-    variant="quiet"
-    type="button"
+  <ControlButton
     aria-label={label}
     title={label}
     disabled={busy}
     onClick={onClear}
-    className="inline-flex shrink-0 items-center justify-center rounded-[4px] transition-colors duration-state focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus disabled:cursor-not-allowed disabled:opacity-60"
+    className="relative inline-flex w-[12px] shrink-0 items-center justify-center rounded-[4px] text-cf-ink-muted transition-colors duration-state hover:text-cf-ink before:absolute before:-inset-x-[8px] before:inset-y-0 before:content-['']"
   >
     <CloseIconSmall />
-  </Button>
+  </ControlButton>
+);
+
+/**
+ * A label, the sentence it could not fit, and the control underneath.
+ *
+ * Owner, 13.09.2026: «у нас же есть подсказки, знаки вопросика… а почему мы не
+ * используем их здесь?» The section answered every question in a paragraph
+ * that was on screen permanently, so four explanations occupied more of the
+ * column than the eight controls they explained. `Hint` had twenty-five call
+ * sites elsewhere in the product and none in settings.
+ *
+ * The label is written here rather than passed to the primitive because
+ * `Input` and `Select` take a `string` label and a hint is a control, not a
+ * string. `htmlFor` keeps the association the primitive would have made, so
+ * the field still gets its name from its label.
+ */
+const LabelledField = ({
+  id,
+  label,
+  hint,
+  hintLabel,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: ReactNode;
+  hintLabel?: string;
+  children: ReactNode;
+}) => (
+  <div className="flex flex-col gap-[6px]">
+    <span className="flex flex-wrap items-center gap-[4px]">
+      <label htmlFor={id} className="cf-label-md text-cf-ink">
+        {label}
+      </label>
+      {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
+    </span>
+    {children}
+  </div>
+);
+
+/** A block inside the section: its name, and the hint that name needs. */
+const BlockHeading = ({
+  title,
+  hint,
+  hintLabel,
+}: {
+  title: string;
+  hint?: ReactNode;
+  hintLabel?: string;
+}) => (
+  <h5 className="flex flex-wrap items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted">
+    {title}
+    {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
+  </h5>
 );
 
 /**
@@ -311,8 +425,8 @@ const ModelField = ({
   value,
   options,
   listId,
-  disabled = false,
   onChange,
+  onCommit,
 }: {
   label: string;
   hint: string;
@@ -320,8 +434,8 @@ const ModelField = ({
   value: string;
   options: ModelOption[];
   listId: string;
-  disabled?: boolean;
   onChange: (value: string) => void;
+  onCommit: () => void;
 }) => (
   <>
     <Input
@@ -331,10 +445,13 @@ const ModelField = ({
       placeholder={placeholder}
       disableForm={true}
       list={listId}
-      disabled={disabled}
       // `helper` renders the hint and wires aria-describedby, so a screen
       // reader announces it with the field instead of as loose text after it.
       helper={hint}
+      // A model id is typed a character at a time and none of the intermediate
+      // ones is a model, so this field is saved when it is left rather than as
+      // it is written. A key field has no such handler at all.
+      onBlur={() => onCommit()}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
         onChange(e.target.value)
       }
@@ -376,10 +493,7 @@ const AiProviderComponent = () => {
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
-  const [searchProvider, setSearchProvider] = useState<SearchProvider>('tavily');
   const [searchApiKeys, setSearchApiKeys] = useState<SearchKeyDrafts>({});
-  const [searchTaskProviders, setSearchTaskProviders] =
-    useState<SearchTaskProviders>(data?.searchTaskProviders || {});
   const [searchTopic, setSearchTopic] = useState<'general' | 'news'>('general');
   const [searchDepth, setSearchDepth] = useState<'basic' | 'advanced'>(
     data?.searchDepth || 'advanced'
@@ -398,11 +512,85 @@ const AiProviderComponent = () => {
     setImageModel(data.imageModel);
     setRoleModels(data.roleModels || {});
     setSearchEnabled(data.searchEnabled);
-    setSearchProvider(data.searchProvider || 'tavily');
-    setSearchTaskProviders(data.searchTaskProviders || {});
     setSearchTopic(data.searchTopic);
     setSearchDepth(data.searchDepth);
   }, [data]);
+
+  /**
+   * What the form holds right now, readable from a callback that was created
+   * before the last keystroke.
+   *
+   * Autosave posts the whole settings object, not the one field that changed,
+   * so it has to read the other eight from somewhere. A dependency list would
+   * do it and would also rebuild every handler on every character typed into
+   * a model id; `email-notifications.component.tsx` solved the same problem
+   * the same way.
+   */
+  const formRef = useRef({
+    usageMode,
+    provider,
+    textModel,
+    imageModel,
+    roleModels,
+    searchEnabled,
+    searchTopic,
+    searchDepth,
+  });
+  formRef.current = {
+    usageMode,
+    provider,
+    textModel,
+    imageModel,
+    roleModels,
+    searchEnabled,
+    searchTopic,
+    searchDepth,
+  };
+
+  /**
+   * Save without being asked — everything except a key.
+   *
+   * Owner, 13.09.2026: «обязательно нажимать „Сохранить“ или есть
+   * автосохранение?… я бы использовал автосохранение, и если человек очень
+   * хочет, он может нажать и сохранить». Three of the four sections on this
+   * tab already saved themselves, and the fourth had a button whose own
+   * «remove key» control worked around it.
+   *
+   * A key is the exception and not an oversight. It is a secret, a keystroke
+   * is not a decision to publish one, and a field that posted `sk-` as it was
+   * being pasted would put a fragment of a credential into the request log of
+   * every hop between here and the database. So `apiKey` and `searchApiKeys`
+   * are empty on this path by construction rather than by being filtered
+   * later: there is no value of the form state that makes this call carry one.
+   */
+  const autosave = useCallback(
+    async (patch: Partial<typeof formRef.current> = {}) => {
+      const next = { ...formRef.current, ...patch };
+      try {
+        const response = await fetch('/settings/ai', {
+          method: 'POST',
+          body: JSON.stringify(
+            buildAiSettingsPayload({
+              ...next,
+              apiKey: '',
+              searchApiKeys: {},
+            })
+          ),
+        });
+        if (!response.ok) throw new Error();
+        await mutate();
+        // The same announcement the other three sections of this tab make, so
+        // «it saved» reads the same way wherever a person happens to be.
+        toaster.show(t('settings_updated', 'Settings updated'), 'success');
+      } catch {
+        toaster.show(
+          t('ai_provider_save_failed', 'Could not save the provider settings'),
+          'warning'
+        );
+      }
+    },
+    []
+  );
 
   /**
    * Model ids belong to their provider: `gpt-4.1` is not a valid OpenRouter id,
@@ -417,14 +605,23 @@ const AiProviderComponent = () => {
     (next: Provider) => {
       setProvider(next);
       const returning = next === data?.provider;
-      setTextModel(returning ? data?.textModel || '' : '');
-      setImageModel(returning ? data?.imageModel || '' : '');
+      const nextText = returning ? data?.textModel || '' : '';
+      const nextImage = returning ? data?.imageModel || '' : '';
       // Role ids belong to their provider for exactly the same reason, and a
       // routed role left behind after a switch would send that one call to an
       // id the new provider has never heard of.
-      setRoleModels(returning ? data?.roleModels || {} : {});
+      const nextRoles = returning ? data?.roleModels || {} : {};
+      setTextModel(nextText);
+      setImageModel(nextImage);
+      setRoleModels(nextRoles);
+      autosave({
+        provider: next,
+        textModel: nextText,
+        imageModel: nextImage,
+        roleModels: nextRoles,
+      });
     },
-    [data]
+    [data, autosave]
   );
 
   /**
@@ -454,31 +651,37 @@ const AiProviderComponent = () => {
   );
 
   /**
-   * Changing the engine no longer touches the keys.
+   * The one sentence that replaced four selectors.
    *
-   * It used to clear the field, because one stored key was handed to whichever
-   * engine the name pointed at and a Tavily key could have been spent at Exa.
-   * Since `content-factory-next-75xn.1` a key is addressed by its engine — a
-   * Tavily key lives under `tavily` and `exa` cannot read it — so clearing the
-   * field would only lose typing nobody asked to lose.
-   *
-   * The lane is still switched off when the new engine has nothing to spend,
-   * which is the one part of the old defence that was about search working
-   * rather than about the key.
+   * It is computed rather than written down because the routing is: the same
+   * keys that decide what the server does decide what this says, so there is
+   * no state in which the screen claims an engine the next search will not
+   * use. When no engine has anything to spend it says that instead of naming
+   * one, which is the case the old «Поисковый сервер» selector answered by
+   * silently switching the whole lane off.
    */
-  const changeSearchProvider = useCallback(
-    (next: SearchProvider) => {
-      setSearchProvider(next);
-      if (
-        searchProviderNeedsKey(next) &&
-        !hasStoredSearchKey(next) &&
-        !(searchApiKeys[next] || '').trim()
-      ) {
-        setSearchEnabled(false);
-      }
-    },
-    [hasStoredSearchKey, searchApiKeys]
-  );
+  const routing = useMemo(() => {
+    const engines = SEARCH_TASKS.map((task) =>
+      searchEngineForTask(task, {
+        provider: data?.searchProvider || 'tavily',
+        taskProviders: data?.searchTaskProviders,
+        hasKey: hasStoredSearchKey,
+      })
+    );
+    const payable = engines.some(
+      (engine) => !searchProviderNeedsKey(engine) || hasStoredSearchKey(engine)
+    );
+    if (!payable) return { line: words.search.routingNone, payable };
+    return {
+      payable,
+      line: words.search.routing(
+        SEARCH_TASKS.map((task, index) => ({
+          task: words.search.tasks[task].label,
+          engine: words.search.engines[engines[index]].name,
+        }))
+      ),
+    };
+  }, [data, hasStoredSearchKey, words]);
 
   // Only OpenRouter publishes a catalogue; for OpenAI the fields stay free text.
   const loadModels = useCallback(
@@ -494,6 +697,12 @@ const AiProviderComponent = () => {
   const textOptions = useMemo(() => models?.text || [], [models]);
   const imageOptions = useMemo(() => models?.image || [], [models]);
 
+  /**
+   * The explicit save, which exists for exactly one reason: it is the only
+   * path a key travels. Everything else on this screen has already saved
+   * itself by the time the button is reached, which is why the button no
+   * longer says anything different when it is pressed with nothing typed.
+   */
   const save = useCallback(async () => {
     setSaving(true);
     try {
@@ -508,9 +717,7 @@ const AiProviderComponent = () => {
             imageModel,
             roleModels,
             searchEnabled,
-            searchProvider,
             searchApiKeys,
-            searchTaskProviders,
             searchTopic,
             searchDepth,
           })
@@ -540,9 +747,7 @@ const AiProviderComponent = () => {
     imageModel,
     roleModels,
     searchEnabled,
-    searchProvider,
     searchApiKeys,
-    searchTaskProviders,
     searchTopic,
     searchDepth,
   ]);
@@ -622,33 +827,45 @@ const AiProviderComponent = () => {
     [words]
   );
 
+  /**
+   * Which of the two scenarios the person picked.
+   *
+   * Owner, 13.09.2026: «мы смешали два сценария». On the system keys there is
+   * nothing to fill in, and the screen was still showing nine disabled fields
+   * holding the operator's values — a form that looks like a form and refuses
+   * to be one. On their own key, everything is theirs to set. So the fields
+   * are absent rather than disabled, and the one line above says so.
+   */
+  const ownKeys = usageMode === 'workspace_key';
+
   return (
-    <div className="flex flex-col gap-[16px] py-[16px] border-t border-cf-border">
-      <div>
-        <h4 className="cf-heading-md text-cf-ink">
-          {t('ai_provider', 'AI provider')}
-        </h4>
-        <div className="cf-body-sm text-cf-ink-muted">
-          {t('ai_provider_description_org')}
-        </div>
-      </div>
-
-      <Select
+    <SettingsSection title={t('ai_provider', 'AI provider')}>
+      <LabelledField
+        id="ai-usage-mode"
         label={t('ai_usage_mode')}
-        name="usageMode"
-        value={usageMode}
-        disableForm={true}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          setUsageMode(
-            event.target.value === 'included' ? 'included' : 'workspace_key'
-          )
-        }
+        hintLabel={words.hintFor(t('ai_usage_mode'))}
+        hint={words.search.ownKeyKept}
       >
-        <option value="included">{t('ai_usage_included')}</option>
-        <option value="workspace_key">{t('ai_usage_workspace_key')}</option>
-      </Select>
+        <Select
+          id="ai-usage-mode"
+          label=""
+          name="usageMode"
+          value={usageMode}
+          disableForm={true}
+          hideErrors={true}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+            const next =
+              event.target.value === 'included' ? 'included' : 'workspace_key';
+            setUsageMode(next);
+            autosave({ usageMode: next });
+          }}
+        >
+          <option value="included">{t('ai_usage_included')}</option>
+          <option value="workspace_key">{t('ai_usage_workspace_key')}</option>
+        </Select>
+      </LabelledField>
 
-      <div className="cf-body-sm text-cf-ink-muted">
+      <div className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {usageMode === 'included'
           ? data?.includedRestrictionReason === 'managed_unavailable'
             ? t('ai_usage_managed_unavailable')
@@ -678,9 +895,13 @@ const AiProviderComponent = () => {
         существовало на странице. Ноль — это ответ, и он печатается.
       */}
       <div data-ai-usage="member" className="flex flex-col gap-[8px]">
-        <div className="cf-label-sm text-cf-ink-muted">
-          {t('ai_usage_by_member', 'AI usage by member, this period')}
-        </div>
+        <BlockHeading
+          title={t('ai_usage_by_member', 'AI usage by member, this period')}
+          hintLabel={words.hintFor(
+            t('ai_usage_by_member', 'AI usage by member, this period')
+          )}
+          hint={words.usageNoneHint}
+        />
         {data?.usageByMember?.length ? (
           <div className="flex flex-col gap-[4px]">
             {data.usageByMember.map((member) => (
@@ -699,15 +920,10 @@ const AiProviderComponent = () => {
             ))}
           </div>
         ) : (
-          <>
-            <div className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink">
-              <span className="truncate">{words.usageNone}</span>
-              <span className="cf-caption text-cf-ink-muted">0</span>
-            </div>
-            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {words.usageNoneHint}
-            </p>
-          </>
+          <div className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink">
+            <span className="truncate">{words.usageNone}</span>
+            <span className="cf-caption text-cf-ink-muted">0</span>
+          </div>
         )}
       </div>
 
@@ -719,9 +935,13 @@ const AiProviderComponent = () => {
         their own line rather than being dropped, so the parts still add up.
       */}
       <div data-ai-usage="role" className="flex flex-col gap-[8px]">
-        <div className="cf-label-sm text-cf-ink-muted">
-          {t('ai_usage_by_role', 'AI usage by role, this period')}
-        </div>
+        <BlockHeading
+          title={t('ai_usage_by_role', 'AI usage by role, this period')}
+          hintLabel={words.hintFor(
+            t('ai_usage_by_role', 'AI usage by role, this period')
+          )}
+          hint={words.usageNoneHint}
+        />
         {data?.usageByRole?.length ? (
           <div className="flex flex-col gap-[4px]">
             {data.usageByRole.map((row) => (
@@ -741,220 +961,253 @@ const AiProviderComponent = () => {
             ))}
           </div>
         ) : (
-          <>
-            {/*
-              Шесть нулей, а не одна строка «пусто»: роли известны заранее
-              (`AI_ROLES`), и напечатанный ноль напротив каждой — это и есть
-              ответ на вопрос «а где смотреть». Заодно список ролей виден
-              раньше, чем человек доходит до полей ниже.
-            */}
-            <div className="flex flex-col gap-[4px]">
-              {AI_ROLES.map((role) => (
-                <div
-                  key={role}
-                  className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
-                >
-                  <span className="truncate">{t(`ai_role_${role}`, role)}</span>
-                  <span className="cf-caption text-cf-ink-muted">0</span>
-                </div>
-              ))}
-            </div>
-            <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {words.usageNoneHint}
-            </p>
-          </>
+          /*
+            Шесть нулей, а не одна строка «пусто»: роли известны заранее
+            (`AI_ROLES`), и напечатанный ноль напротив каждой — это и есть
+            ответ на вопрос «а где смотреть». Заодно список ролей виден
+            раньше, чем человек доходит до полей ниже.
+          */
+          <div className="flex flex-col gap-[4px]">
+            {AI_ROLES.map((role) => (
+              <div
+                key={role}
+                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+              >
+                <span className="truncate">{t(`ai_role_${role}`, role)}</span>
+                <span className="cf-caption text-cf-ink-muted">0</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      <Select
-        label={t('provider', 'Provider')}
-        name="provider"
-        value={provider}
-        disabled={usageMode === 'included'}
-        disableForm={true}
-        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-          changeProvider(e.target.value as Provider)
-        }
-      >
-        <option value="openai">OpenAI</option>
-        <option value="openrouter">OpenRouter</option>
-      </Select>
+      {ownKeys && (
+        <>
+          <LabelledField id="ai-provider-name" label={t('provider', 'Provider')}>
+            <Select
+              id="ai-provider-name"
+              label=""
+              name="provider"
+              value={provider}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                changeProvider(e.target.value as Provider)
+              }
+            >
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+            </Select>
+          </LabelledField>
 
-      <div className="flex flex-col gap-[4px]">
-        <Input
-          label={t('api_key', 'API key')}
-          name="apiKey"
-          secret={true}
-          value={apiKey}
-          disabled={usageMode === 'included'}
-          disableForm={true}
-          action={
-            usageMode === 'workspace_key' && data?.hasKey ? (
-              <ClearStoredKeyButton
-                label={t('remove_stored_key', 'Remove stored key')}
-                busy={clearing}
-                onClear={clearKey}
-              />
-            ) : undefined
-          }
-          placeholder={
-            data?.hasKey
-              ? t(
-                  'ai_key_set_placeholder',
-                  'A key is saved — type to replace it'
-                )
-              : t('ai_key_empty_placeholder', 'Paste your key')
-          }
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setApiKey(e.target.value)
-          }
-        />
-        <div className="cf-body-sm text-cf-ink-muted">
-          {!data?.hasKey
-            ? t(
-                'ai_key_missing_org',
-                'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
-              )
-            : t(
-                'ai_key_from_settings',
-                'A key is stored for this workspace. It is never shown again.'
+          <Input
+            label={t('api_key', 'API key')}
+            name="apiKey"
+            secret={true}
+            value={apiKey}
+            disableForm={true}
+            action={
+              data?.hasKey ? (
+                <ClearStoredKeyButton
+                  label={t('remove_stored_key', 'Remove stored key')}
+                  busy={clearing}
+                  onClear={clearKey}
+                />
+              ) : undefined
+            }
+            placeholder={
+              data?.hasKey
+                ? t(
+                    'ai_key_set_placeholder',
+                    'A key is saved — type to replace it'
+                  )
+                : t('ai_key_empty_placeholder', 'Paste your key')
+            }
+            /*
+              A key is a secret and has no autosave handler of any kind: this
+              field reaches the network only when «Сохранить» is pressed. The
+              line below is state — whether a key is stored — so it stays on
+              the surface rather than moving into a hint.
+            */
+            helper={
+              !data?.hasKey
+                ? t(
+                    'ai_key_missing_org',
+                    'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
+                  )
+                : t(
+                    'ai_key_from_settings',
+                    'A key is stored for this workspace. It is never shown again.'
+                  )
+            }
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setApiKey(e.target.value)
+            }
+          />
+
+          <ModelField
+            label={t('text_model', 'Text model')}
+            hint={
+              provider === 'openrouter'
+                ? t(
+                    'text_model_hint_openrouter',
+                    'Only models that support structured output and tools are listed — the generator depends on both.'
+                  )
+                : t(
+                    'text_model_hint',
+                    'Leave empty to use the provider default.'
+                  )
+            }
+            placeholder={t('provider_default_model', 'Provider default')}
+            value={textModel}
+            options={textOptions}
+            listId="ai-text-models"
+            onChange={setTextModel}
+            onCommit={autosave}
+          />
+
+          <ModelField
+            label={t('image_model', 'Image model')}
+            hint={
+              provider === 'openrouter'
+                ? t(
+                    'image_model_hint_openrouter',
+                    'Only models that can return an image are listed.'
+                  )
+                : t(
+                    'image_model_hint',
+                    'Leave empty to use the provider default.'
+                  )
+            }
+            placeholder={t('provider_default_model', 'Provider default')}
+            value={imageModel}
+            options={imageOptions}
+            listId="ai-image-models"
+            onChange={setImageModel}
+            onCommit={autosave}
+          />
+
+          {/*
+            One model for everything was the whole cost problem
+            (`content-factory-next-x63z`): classifying a research subject — one
+            sentence in, five short fields out — was billed at the price of
+            writing a draft. Six rows, each a plain model id, each empty by
+            default and empty meaning «the text model above», so the screen
+            adds a lever without adding a decision anybody has to make.
+
+            Три абзаца объяснения стояли здесь постоянно и занимали больше
+            места, чем шесть полей. Решающее — что пустое поле это нормально —
+            осталось строкой; что такое роль вызова и зачем её менять, уехало
+            в подсказку (`content-factory-next-75xn.13`).
+          */}
+          <div
+            data-ai-roles-hint="true"
+            className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]"
+          >
+            <BlockHeading
+              title={t('ai_role_models', 'Usage and call roles')}
+              hintLabel={words.hintFor(
+                t('ai_role_models', 'Usage and call roles')
               )}
-        </div>
-      </div>
+              hint={words.rolesHint}
+            />
+            <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {words.rolesEmpty}
+            </p>
+          </div>
 
-      <ModelField
-        label={t('text_model', 'Text model')}
-        hint={
-          provider === 'openrouter'
-            ? t(
-                'text_model_hint_openrouter',
-                'Only models that support structured output and tools are listed — the generator depends on both.'
-              )
-            : t('text_model_hint', 'Leave empty to use the provider default.')
-        }
-        placeholder={t('provider_default_model', 'Provider default')}
-        value={textModel}
-        options={textOptions}
-        listId="ai-text-models"
-        disabled={usageMode === 'included'}
-        onChange={setTextModel}
-      />
+          {AI_ROLES.map((role) => (
+            <Input
+              key={role}
+              label={t(`ai_role_${role}`, role)}
+              name={`ai-role-model-${role}`}
+              value={roleModels[role] || ''}
+              placeholder={t('provider_default_model', 'Provider default')}
+              disableForm={true}
+              // Одна строка про саму роль, рядом с её полем: список из шести
+              // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
+              // его впервые.
+              helper={words.roles[role].what}
+              list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
+              onBlur={() => autosave()}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                setRoleModels((current) => ({
+                  ...current,
+                  [role]: event.target.value,
+                }))
+              }
+            />
+          ))}
 
-      <ModelField
-        label={t('image_model', 'Image model')}
-        hint={
-          provider === 'openrouter'
-            ? t(
-                'image_model_hint_openrouter',
-                'Only models that can return an image are listed.'
-              )
-            : t('image_model_hint', 'Leave empty to use the provider default.')
-        }
-        placeholder={t('provider_default_model', 'Provider default')}
-        value={imageModel}
-        options={imageOptions}
-        listId="ai-image-models"
-        disabled={usageMode === 'included'}
-        onChange={setImageModel}
-      />
-
-      {/*
-        One model for everything was the whole cost problem
-        (`content-factory-next-x63z`): classifying a research subject — one
-        sentence in, five short fields out — was billed at the price of writing
-        a draft. Six rows, each a plain model id, each empty by default and
-        empty meaning «the text model above», so the screen adds a lever
-        without adding a decision anybody has to make.
-      */}
-      <div className="mt-[8px] border-t border-cf-border pt-[16px]">
-        <h4 className="cf-heading-md text-cf-ink">
-          {t('ai_role_models', 'Usage and call roles')}
-        </h4>
-        {/*
-          Три предложения вместо одного, и каждое отвечает на свой вопрос
-          (`content-factory-next-m2eg.24`). Владелец 07.09.2026: «разделы
-          «модель на роль вызова»… непонятно написаны, непонятно, а зачем они
-          нужны». Заголовок называл настройку, подсказка объясняла пустое поле,
-          и нигде не было сказано, что такое роль вызова и зачем её трогать.
-        */}
-        <div
-          data-ai-roles-hint="true"
-          className="mt-[4px] flex flex-col gap-[4px]"
-        >
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.rolesWhat}
-          </p>
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.rolesEmpty}
-          </p>
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.rolesWhy}
-          </p>
-        </div>
-      </div>
-
-      {AI_ROLES.map((role) => (
-        <Input
-          key={role}
-          label={t(`ai_role_${role}`, role)}
-          name={`ai-role-model-${role}`}
-          value={roleModels[role] || ''}
-          placeholder={t('provider_default_model', 'Provider default')}
-          disableForm={true}
-          // Одна строка про саму роль, рядом с её полем: список из шести
-          // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
-          // его впервые.
-          helper={words.roles[role].what}
-          list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
-          disabled={usageMode === 'included'}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            setRoleModels((current) => ({
-              ...current,
-              [role]: event.target.value,
-            }))
-          }
-        />
-      ))}
-
-      {provider === 'openrouter' && models?.error && (
-        <div className="cf-body-sm text-cf-danger">
-          {t(
-            'ai_models_unavailable',
-            'Could not reach the OpenRouter catalogue. You can still type a model id.'
+          {provider === 'openrouter' && models?.error && (
+            <div className="cf-body-sm text-cf-danger">
+              {t(
+                'ai_models_unavailable',
+                'Could not reach the OpenRouter catalogue. You can still type a model id.'
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
-      {/*
-        Раздел объясняется словами, а не одной строкой под заголовком
-        (`content-factory-next-75xn.6`). Рычагов стало два — ключ на каждый
-        движок и сервер на каждую задачу, — и главного нигде не было сказано:
-        по умолчанию всё уже работает на ключах системы, и заполнять здесь
-        ничего не надо.
-      */}
-      <div className="mt-[8px] border-t border-cf-border pt-[16px]">
-        <h4 className="cf-heading-md text-cf-ink">
-          {t('web_search', 'Web research')}
-        </h4>
-        <div
-          data-search-intro="true"
-          className="mt-[4px] flex flex-col gap-[4px]"
+      <div className="flex flex-col gap-[8px] border-t border-cf-border pt-[16px]">
+        <BlockHeading
+          title={t('web_search', 'Web research')}
+          hintLabel={words.hintFor(t('web_search', 'Web research'))}
+          hint={words.search.what}
+        />
+        {/*
+          Одна строка вместо четырёх селекторов и абзаца объяснения. Она
+          называет то, что происходит на самом деле: какой движок обслуживает
+          ресерч, какой — проверку фактов, и что это следует из сохранённых
+          ключей (`content-factory-next-75xn.10`).
+        */}
+        <p
+          data-search-routing="true"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
         >
-          {[
-            words.search.what,
-            words.search.systemKeys,
-            words.search.ownKey,
-            words.search.ownKeyKept,
-          ].map((sentence) => (
-            <p
-              key={sentence}
-              className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-            >
-              {sentence}
-            </p>
-          ))}
-        </div>
+          {routing.line}
+        </p>
       </div>
+
+      {/*
+        Whether search runs at all is a person's decision and nothing on this
+        screen makes it for them any more. It used to: changing the engine
+        switched the lane off by itself when the new engine had no key, and the
+        owner met that as «статус веб-исследования автоматически выключается»
+        on 13.09.2026 without having touched the switch. The engine selector is
+        gone, and with it the only writer of this value other than this control.
+      */}
+      <LabelledField
+        id="ai-search-enabled"
+        label={t('web_search_status', 'Web research status')}
+      >
+        <Select
+          id="ai-search-enabled"
+          label=""
+          name="searchEnabled"
+          value={searchEnabled ? 'enabled' : 'disabled'}
+          disableForm={true}
+          hideErrors={true}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+            const next = event.target.value === 'enabled';
+            setSearchEnabled(next);
+            autosave({ searchEnabled: next });
+          }}
+        >
+          <option value="disabled">{t('disabled', 'Disabled')}</option>
+          <option value="enabled">{t('enabled', 'Enabled')}</option>
+        </Select>
+      </LabelledField>
+
+      {!ownKeys && (
+        <p
+          data-search-system-keys="true"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
+          {words.search.systemKeysOnly}
+        </p>
+      )}
 
       {/*
         Режим включённых ключей молчал про свой ключ области: поля выключены,
@@ -964,9 +1217,9 @@ const AiProviderComponent = () => {
         движка: `searchKeys` в этом режиме описывает ключи системы, а про свои
         ответ сервера знает только «есть или нет».
       */}
-      {usageMode === 'included' && data?.hasSearchKey && (
+      {!ownKeys && data?.hasSearchKey && (
         <div data-search-included-key="true" className="flex flex-col gap-[8px]">
-          <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {words.search.includedOwnKey}
           </p>
           {/*
@@ -1000,213 +1253,152 @@ const AiProviderComponent = () => {
         </div>
       )}
 
-      <Select
-        label={t('search_provider', 'Search backend')}
-        name="searchProvider"
-        value={searchProvider}
-        disabled={usageMode === 'included'}
-        disableForm={true}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          changeSearchProvider(
-            event.target.value === 'exa'
-              ? 'exa'
-              : event.target.value === 'openrouter'
-              ? 'openrouter'
-              : 'tavily'
-          )
-        }
-      >
-        <option value="exa">Exa</option>
-        <option value="tavily">Tavily</option>
-        <option value="openrouter">OpenRouter web</option>
-      </Select>
-
-      <Select
-        label={t('web_search_status', 'Web research status')}
-        name="searchEnabled"
-        value={searchEnabled ? 'enabled' : 'disabled'}
-        disableForm={true}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          setSearchEnabled(event.target.value === 'enabled')
-        }
-      >
-        <option value="disabled">{t('disabled', 'Disabled')}</option>
-        <option value="enabled">{t('enabled', 'Enabled')}</option>
-      </Select>
-
-      {/*
-        Поле на движок, а не одно на область: ключ адресуется движком, и Exa не
-        может прочитать ключ Tavily. Подписи и строки состояния живут в
-        `ai-provider.copy.ts`, потому что название движка в подписи — это не
-        перевод, а часть смысла: ключи локалей писались, когда движок был один,
-        и до сих пор называют Tavily в поле, которое теперь принадлежит Exa.
-      */}
-      {KEYED_SEARCH_PROVIDERS.map((engine) => (
-        <Input
-          key={engine}
-          label={words.search.engines[engine].keyLabel}
-          name={`searchApiKey-${engine}`}
-          secret={true}
-          value={searchApiKeys[engine] || ''}
-          disabled={usageMode === 'included'}
-          disableForm={true}
-          action={
-            usageMode === 'workspace_key' && hasStoredSearchKey(engine) ? (
-              <ClearStoredKeyButton
-                label={words.search.engines[engine].removeKey}
-                busy={clearingSearch === engine}
-                onClear={() => clearSearchKey(engine)}
-              />
-            ) : undefined
-          }
-          placeholder={
-            usageMode === 'workspace_key' && hasStoredSearchKey(engine)
-              ? words.search.keySavedPlaceholder
-              : words.search.keyEmptyPlaceholder
-          }
-          /*
-            В режиме включённых ключей строка состояния молчит про сохранённое:
-            `searchKeys` здесь описывает ключи системы, и «ключ Tavily сохранён
-            для этой области» было бы неправдой. Про свой ключ области в этом
-            режиме говорит строка выше.
-          */
-          helper={
-            usageMode === 'included'
-              ? words.search.engines[engine].what
-              : hasStoredSearchKey(engine)
-              ? words.search.engines[engine].keyStored
-              : words.search.engines[engine].keyMissing
-          }
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            setSearchApiKeys((current) => ({
-              ...current,
-              [engine]: event.target.value,
-            }))
-          }
-        />
-      ))}
-
-      <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-        {words.search.openrouterNoKey}
-      </p>
-
-      {/*
-        Сервер на задачу, той же вёрсткой, что и модель на роль вызова: задачи
-        не взаимозаменяемы, и один сервер на всю область означал выбор, чем
-        именно пожертвовать. Пустая строка — «как в области», то есть поведение
-        до появления задач.
-      */}
-      <div
-        data-search-tasks-hint="true"
-        className="mt-[8px] flex flex-col gap-[4px]"
-      >
-        <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-          {words.search.tasksWhat}
-        </p>
-        <p className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-          {words.search.tasksWhy}
-        </p>
-      </div>
-
-      {SEARCH_TASKS.map((task) => (
-        <div key={task} className="flex flex-col gap-[4px]">
-          <Select
-            label={words.search.tasks[task].label}
-            name={`search-task-${task}`}
-            value={searchTaskProviders[task] || ''}
-            disabled={usageMode === 'included'}
-            disableForm={true}
-            // Подсказка стоит отдельной строкой, потому что `Select` своей не
-            // умеет; связь с полем держится руками, чтобы скринридер прочитал
-            // её вместе с подписью, а не как текст после.
-            aria-describedby={`search-task-${task}-hint`}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-              setSearchTaskProviders((current) => ({
-                ...current,
-                [task]: SEARCH_PROVIDERS.find(
-                  (engine) => engine === event.target.value
-                ),
-              }))
-            }
-          >
-            <option value="">{words.search.taskDefaultOption}</option>
-            {SEARCH_PROVIDERS.map((engine) => (
-              <option key={engine} value={engine}>
-                {words.search.engines[engine].name}
-              </option>
-            ))}
-          </Select>
-          <p
-            id={`search-task-${task}-hint`}
-            className="max-w-[62ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {words.search.tasks[task].what}
+      {ownKeys && (
+        <>
+          {/*
+            Поле на движок, а не одно на область: ключ адресуется движком, и Exa
+            не может прочитать ключ Tavily. Подписи и строки состояния живут в
+            `ai-provider.copy.ts`, потому что название движка в подписи — это не
+            перевод, а часть смысла: ключи локалей писались, когда движок был
+            один, и до сих пор называют Tavily в поле, которое теперь
+            принадлежит Exa.
+          */}
+          <BlockHeading
+            title={words.search.ownKeysTitle}
+            hintLabel={words.hintFor(words.search.ownKeysTitle)}
+            hint={words.search.openrouterNoKey}
+          />
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {words.search.ownKey}
           </p>
-        </div>
-      ))}
 
-      <Select
-        label={t('search_topic', 'Search topic')}
-        name="searchTopic"
-        value={searchTopic}
-        disabled={usageMode === 'included'}
-        disableForm={true}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          setSearchTopic(event.target.value === 'news' ? 'news' : 'general')
-        }
-      >
-        <option value="general">{t('search_topic_general', 'General')}</option>
-        <option value="news">{t('search_topic_news', 'News')}</option>
-      </Select>
+          {KEYED_SEARCH_PROVIDERS.map((engine) => (
+            <Input
+              key={engine}
+              label={words.search.engines[engine].keyLabel}
+              name={`searchApiKey-${engine}`}
+              secret={true}
+              value={searchApiKeys[engine] || ''}
+              disableForm={true}
+              action={
+                hasStoredSearchKey(engine) ? (
+                  <ClearStoredKeyButton
+                    label={words.search.engines[engine].removeKey}
+                    busy={clearingSearch === engine}
+                    onClear={() => clearSearchKey(engine)}
+                  />
+                ) : undefined
+              }
+              placeholder={
+                hasStoredSearchKey(engine)
+                  ? words.search.keySavedPlaceholder
+                  : words.search.keyEmptyPlaceholder
+              }
+              helper={
+                hasStoredSearchKey(engine)
+                  ? words.search.engines[engine].keyStored
+                  : words.search.engines[engine].keyMissing
+              }
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                setSearchApiKeys((current) => ({
+                  ...current,
+                  [engine]: event.target.value,
+                }))
+              }
+            />
+          ))}
 
-      <Select
-        label={t('search_depth', 'Search depth')}
-        name="searchDepth"
-        value={searchDepth}
-        disabled={usageMode === 'included'}
-        disableForm={true}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-          setSearchDepth(
-            event.target.value === 'advanced' ? 'advanced' : 'basic'
-          )
-        }
-      >
-        <option value="basic">{t('search_depth_basic', 'Basic')}</option>
-        <option value="advanced">
-          {t('search_depth_advanced', 'Advanced')}
-        </option>
-      </Select>
+          <LabelledField id="ai-search-topic" label={t('search_topic', 'Search topic')}>
+            <Select
+              id="ai-search-topic"
+              label=""
+              name="searchTopic"
+              value={searchTopic}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                const next =
+                  event.target.value === 'news' ? 'news' : 'general';
+                setSearchTopic(next);
+                autosave({ searchTopic: next });
+              }}
+            >
+              <option value="general">
+                {t('search_topic_general', 'General')}
+              </option>
+              <option value="news">{t('search_topic_news', 'News')}</option>
+            </Select>
+          </LabelledField>
 
-      <div className="cf-body-sm text-cf-ink-muted">
-        {t(
-          'tavily_search_mode',
-          'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
-        )}
-      </div>
-
-      <div className="cf-body-sm text-cf-ink-muted">
-        {data?.searchFallbackAvailable
-          ? t(
-              'openrouter_fallback_available',
-              'Automatic fallback is available through the OpenRouter AI key above. It runs only after a Tavily outage, quota error, timeout or empty result.'
-            )
-          : data?.provider === 'openrouter'
-          ? t(
-              'openrouter_fallback_missing_key',
-              'Automatic fallback needs an OpenRouter AI key above. Tavily remains primary.'
-            )
-          : t(
-              'openrouter_fallback_wrong_provider',
-              'Automatic fallback is unavailable while the AI provider is OpenAI. Tavily research still works normally.'
+          <LabelledField
+            id="ai-search-depth"
+            label={t('search_depth', 'Search depth')}
+            hintLabel={words.hintFor(t('search_depth', 'Search depth'))}
+            hint={t(
+              'tavily_search_mode',
+              'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
             )}
-      </div>
+          >
+            <Select
+              id="ai-search-depth"
+              label=""
+              name="searchDepth"
+              value={searchDepth}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                const next =
+                  event.target.value === 'advanced' ? 'advanced' : 'basic';
+                setSearchDepth(next);
+                autosave({ searchDepth: next });
+              }}
+            >
+              <option value="basic">{t('search_depth_basic', 'Basic')}</option>
+              <option value="advanced">
+                {t('search_depth_advanced', 'Advanced')}
+              </option>
+            </Select>
+          </LabelledField>
 
-      <div className="flex gap-[8px]">
+          {/*
+            Состояние, а не объяснение: доступен ли откат на OpenRouter — это
+            факт про эту область прямо сейчас, и подсказка такого держать не
+            может.
+          */}
+          <div className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {data?.searchFallbackAvailable
+              ? t(
+                  'openrouter_fallback_available',
+                  'Automatic fallback is available through the OpenRouter AI key above. It runs only after a Tavily outage, quota error, timeout or empty result.'
+                )
+              : data?.provider === 'openrouter'
+              ? t(
+                  'openrouter_fallback_missing_key',
+                  'Automatic fallback needs an OpenRouter AI key above. Tavily remains primary.'
+                )
+              : t(
+                  'openrouter_fallback_wrong_provider',
+                  'Automatic fallback is unavailable while the AI provider is OpenAI. Tavily research still works normally.'
+                )}
+          </div>
+        </>
+      )}
+
+      {/*
+        Кнопка осталась, хотя всё остальное сохраняется само. Владелец
+        13.09.2026: «я бы использовал автосохранение, и если человек очень
+        хочет, он может нажать и сохранить». И у неё есть работа, которой нет
+        ни у кого другого: ключи уходят только отсюда.
+      */}
+      <div className="flex flex-wrap items-center gap-[8px]">
         <Button onClick={save} disabled={saving || !data}>
           {t('save', 'Save')}
         </Button>
+        <span className="cf-body-sm text-cf-ink-muted">
+          {words.autosaveNote}
+        </span>
       </div>
-    </div>
+    </SettingsSection>
   );
 };
 

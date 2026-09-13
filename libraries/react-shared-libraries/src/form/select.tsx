@@ -67,7 +67,22 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>((props, ref) =>
         : {})}
       className={clsx(
         density === 'dense' ? 'h-[32px]' : 'h-[40px]',
-        'bg-cf-surface px-[12px] border rounded-[8px] text-[14px] text-cf-ink',
+        /**
+         * `cf-field-chevron` owns the mark and the room it needs, so only the
+         * leading padding is written here. A `px-*` utility would set the
+         * trailing side too and win the cascade over the component layer,
+         * which is how the chevron would end up sitting on the text.
+         *
+         * The arrow is drawn rather than left to the platform because a
+         * browser draws it wherever it likes: beside an `Input`'s clear
+         * control, which this system does place, the two marks stood at
+         * visibly different distances from the same edge. The native control
+         * is otherwise untouched — this is `appearance`, not a `div` wearing
+         * `role="listbox"` — so the keyboard, the mobile picker and the
+         * screen reader all keep behaving as the platform's own.
+         */
+        'cf-field-chevron',
+        'bg-cf-surface ps-[12px] border rounded-[8px] text-[14px] text-cf-ink',
         'outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
         err ? 'border-cf-danger' : 'border-cf-border-control',
         withoutConsumerHeight(className)

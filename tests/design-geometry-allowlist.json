@@ -79,7 +79,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 940,
+      "total": 941,
       "allowances": {
         "apps/frontend/src/app/(app)/oauth/authorize/page.tsx": {
           "3px": 1,
@@ -693,6 +693,9 @@
         "apps/frontend/src/components/sets/sets.tsx": {
           "10px": 1
         },
+        "apps/frontend/src/components/settings/ai-provider.component.tsx": {
+          "6px": 1
+        },
         "apps/frontend/src/components/settings/github.component.tsx": {
           "7px": 2,
           "90px": 2
@@ -774,7 +777,7 @@
       }
     },
     "libraries/react-shared-libraries/src": {
-      "total": 45,
+      "total": 44,
       "allowances": {
         "libraries/react-shared-libraries/src/form/button.tsx": {
           "10px": 1,
@@ -801,7 +804,7 @@
           "6px": 1
         },
         "libraries/react-shared-libraries/src/form/input.tsx": {
-          "6px": 2,
+          "6px": 1,
           "13px": 1,
           "14px": 1
         },

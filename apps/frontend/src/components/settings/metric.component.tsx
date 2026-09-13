@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { isUSCitizen } from '@contentfactory/frontend/components/launches/helpers/isuscitizen.utils';
 import timezones from 'timezones-list';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 
 // The two option labels are wording, not data: they have to travel through the
 // catalogue like every other visible string, so the pair keeps its fallback
@@ -37,10 +38,7 @@ const MetricComponent = () => {
     dayjs.tz.setDefault(value);
   };
   return (
-    <section className="my-[16px] flex flex-col gap-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
-      <h4 className="cf-label-md text-cf-ink">
-        {t('date_format', 'Date format')}
-      </h4>
+    <SettingsSection title={t('date_format', 'Date format')}>
       <Select
         name="metric"
         disableForm={true}
@@ -72,7 +70,7 @@ const MetricComponent = () => {
       {/*    </option>*/}
       {/*  ))}*/}
       {/*</Select>*/}
-    </section>
+    </SettingsSection>
   );
 };
 

@@ -7,6 +7,7 @@ import { Slider } from '@contentfactory/react/form/slider';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Progress } from '../ui/progress';
+import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 
 interface EmailNotifications {
   sendSuccessEmails: boolean;
@@ -99,17 +100,14 @@ const EmailNotificationsComponent = () => {
 
   if (isLoading) {
     return (
-      <div className="my-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+      <SettingsSection>
         <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
-      </div>
+      </SettingsSection>
     );
   }
 
   return (
-    <section className="my-[16px] flex flex-col gap-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
-      <h4 className="cf-label-md text-cf-ink">
-        {t('email_notifications', 'Email Notifications')}
-      </h4>
+    <SettingsSection title={t('email_notifications', 'Email Notifications')}>
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
           <div className="cf-label-md text-cf-ink">
@@ -164,7 +162,7 @@ const EmailNotificationsComponent = () => {
           fill={true}
         />
       </div>
-    </section>
+    </SettingsSection>
   );
 };
 

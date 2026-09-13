@@ -96,6 +96,36 @@ const component = loadTypeScriptModule(
     '@contentfactory/react/helpers/delete.dialog': {
       deleteDialog: deleteDialogMock,
     },
+    // Кнопка внутри поля больше не `Button`: та приносит свой `px-[16px]`, из-за
+    // которого крестик стоял дальше от края, чем шеврон соседнего списка.
+    '@contentfactory/react/choice/control.button': {
+      ControlButton: ({
+        children,
+        density: _density,
+        layout: _layout,
+        mobileTouchTarget: _touch,
+        ...props
+      }) => React.createElement('button', props, children),
+    },
+    // Подсказка рисуется, а не проглатывается: набор проверяет в том числе то,
+    // что длинные объяснения уехали именно в неё, а не исчезли.
+    '@contentfactory/react/layout/hint': {
+      Hint: ({ children, label }) =>
+        React.createElement(
+          'button',
+          { type: 'button', 'data-hint': label },
+          children
+        ),
+    },
+    '@contentfactory/frontend/components/settings/settings-section': {
+      SettingsSection: ({ title, children }) =>
+        React.createElement(
+          'section',
+          { 'data-settings-section': 'true' },
+          title,
+          children
+        ),
+    },
     '@contentfactory/frontend/components/ui/icons': {
       CloseIconSmall: () => React.createElement('svg'),
     },
@@ -176,11 +206,14 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('Usage and call roles');
       // Ноль — это ответ. Он напечатан, а не выражен отсутствием раздела.
       expect(markup).toContain('Nothing yet');
+      // Почему таблица пуста — теперь в подсказке рядом с её заголовком, а не
+      // абзацем под ней (`content-factory-next-75xn.13`).
       expect(markup).toContain('after the first model call');
+      expect(markup).toContain('data-hint="Hint: AI usage by role, this period"');
       // Шесть ролей с нулями: список ролей виден раньше полей ниже.
       const roleRows = markup.slice(
         markup.indexOf('data-ai-usage="role"'),
-        markup.indexOf('after the first model call', markup.indexOf('data-ai-usage="role"'))
+        markup.indexOf('name="provider"')
       );
       for (const role of ['classify', 'extract', 'research', 'draft', 'judge', 'review', 'image']) {
         expect(roleRows).toContain(`>${role}</span>`);
@@ -245,7 +278,6 @@ describe('AI provider search settings component', () => {
         searchDepth: settings.searchDepth,
       })
     ).toMatchObject({
-      searchProvider: 'tavily',
       searchDepth: 'basic',
       usageMode: 'workspace_key',
     });
@@ -265,15 +297,12 @@ describe('AI provider search settings component', () => {
       imageModel: '',
       roleModels: {},
       searchEnabled: true,
-      searchProvider: 'tavily',
       searchApiKeys: { tavily: '', exa: '  exa-key  ' },
-      searchTaskProviders: { research: 'exa', facts: undefined },
       searchTopic: 'general',
       searchDepth: 'advanced',
     });
 
     expect(payload.searchApiKeys).toEqual({ exa: 'exa-key' });
-    expect(payload.searchTaskProviders).toEqual({ research: 'exa' });
     expect(payload).not.toHaveProperty('searchApiKey');
   });
 
@@ -286,15 +315,39 @@ describe('AI provider search settings component', () => {
       imageModel: '',
       roleModels: {},
       searchEnabled: true,
-      searchProvider: 'exa',
       searchApiKeys: {},
-      searchTaskProviders: {},
       searchTopic: 'general',
       searchDepth: 'advanced',
     });
 
     expect(payload).not.toHaveProperty('searchApiKeys');
-    expect(payload.searchTaskProviders).toEqual({});
+  });
+
+  /**
+   * `content-factory-next-75xn.10`. Экран больше не спрашивает ни про сервер
+   * области, ни про сервер на задачу — значит, и отправлять их ему нечем.
+   * Дверь их по-прежнему принимает: строки, записанные до этой правки, держат
+   * переопределения оператора, и перезаписать их контролом, которого человек
+   * не видел, было бы хуже, чем не трогать.
+   */
+  test('no payload carries the routing the screen no longer asks about', () => {
+    for (const usageMode of ['workspace_key', 'included']) {
+      const payload = component.buildAiSettingsPayload({
+        usageMode,
+        provider: 'openrouter',
+        apiKey: 'k',
+        textModel: '',
+        imageModel: '',
+        roleModels: {},
+        searchEnabled: true,
+        searchApiKeys: { exa: 'exa-key' },
+        searchTopic: 'general',
+        searchDepth: 'advanced',
+      });
+
+      expect(payload).not.toHaveProperty('searchProvider');
+      expect(payload).not.toHaveProperty('searchTaskProviders');
+    }
   });
 
   test('offers explicit included and workspace-key modes and explains zero quota', () => {
@@ -307,13 +360,39 @@ describe('AI provider search settings component', () => {
     expect(markup).toContain('Translated zero quota');
     expect(translationCalls).toEqual(
       expect.arrayContaining([
-        'ai_provider_description_org',
         'ai_usage_mode',
         'ai_usage_included',
         'ai_usage_workspace_key',
         'ai_usage_zero_quota',
       ])
     );
+  });
+
+  /**
+   * `content-factory-next-75xn.12`. Владелец 13.09.2026: «мы смешали два
+   * сценария». На ключах системы заполнять нечего, а экран рисовал девять
+   * выключенных полей с чужими значениями — форму, которая выглядит формой и
+   * отказывается ею быть. Поля теперь отсутствуют, а не выключены, и одна
+   * строка говорит, почему.
+   */
+  test('the system-keys mode shows no key field at all, and says why', () => {
+    settings = { ...settings, usageMode: 'included' };
+    const markup = renderToStaticMarkup(React.createElement(component.default));
+
+    expect(markup).toContain('data-search-system-keys="true"');
+    expect(markup).toContain('Search runs on the system keys');
+    for (const field of [
+      'name="apiKey"',
+      'name="searchApiKey-tavily"',
+      'name="searchApiKey-exa"',
+      'name="searchTopic"',
+      'name="searchDepth"',
+      'name="provider"',
+    ]) {
+      expect(markup).not.toContain(field);
+    }
+    // Выключатель поиска принадлежит обоим режимам и остаётся.
+    expect(markup).toContain('name="searchEnabled"');
   });
 
   test('included payload omits workspace secrets and model ids entirely', () => {
@@ -353,9 +432,7 @@ describe('AI provider search settings component', () => {
       imageModel: '',
       roleModels: {},
       searchEnabled: false,
-      searchProvider: 'exa',
       searchApiKeys: {},
-      searchTaskProviders: { research: 'exa' },
       searchTopic: 'news',
       searchDepth: 'basic',
     });
@@ -473,39 +550,59 @@ describe('AI provider search settings component', () => {
   });
 
   /**
-   * Три задачи той же вёрсткой, что и модель на роль вызова: подпись, значение
-   * или «как в области», одна строка объяснения рядом.
+   * `content-factory-next-75xn.10`: три селектора «задача → сервер» и селектор
+   * «Поисковый сервер» заменены одной строкой.
+   *
+   * Владелец 13.09.2026: «зачем мы даём эти настройки, если мы с тобой уже
+   * знаем, как лучше сделать?» и «а зачем нам выбирать поисковой сервер?».
+   * Рекомендация была напечатана прямо над контролами, которые её спрашивали.
    */
-  describe('сервер на задачу', () => {
-    test('три селектора, значение по умолчанию и подсказка у каждого', () => {
+  describe('движок выбирается сам, а экран говорит какой', () => {
+    test('вместо селекторов — одна строка с задачей и её движком', () => {
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
 
       for (const task of ['research', 'facts', 'discovery']) {
-        expect(markup).toContain(`name="search-task-${task}"`);
-        expect(markup).toContain(`id="search-task-${task}-hint"`);
-        expect(markup).toContain(`aria-describedby="search-task-${task}-hint"`);
+        expect(markup).not.toContain(`name="search-task-${task}"`);
       }
-      expect(markup).toContain('Collect supports');
-      expect(markup).toContain('Check facts');
-      expect(markup).toContain('Fresh subjects');
-      // «Как в области» — это значение, а не пустая строка без объяснения.
-      expect(markup).toContain('>As for the workspace</option>');
-      // Сохранённая маршрутизация выбрана, а не потеряна при загрузке.
-      const researchRow = markup.slice(
-        markup.indexOf('name="search-task-research"'),
-        markup.indexOf('name="search-task-facts"')
+      expect(markup).not.toContain('name="searchProvider"');
+
+      expect(markup).toContain('data-search-routing="true"');
+      // Ключ есть только у Tavily, поэтому и ресерч уходит к нему: строка
+      // считается по сохранённым ключам, а не по табличке умолчаний.
+      expect(markup).toContain('Collect supports — Tavily');
+      expect(markup).toContain('Check facts — Tavily');
+      expect(markup).toContain('the keys that are stored');
+    });
+
+    test('с ключом Exa ресерч называет Exa, а проверка фактов — Tavily', () => {
+      settings = {
+        ...settings,
+        searchKeys: { tavily: true, exa: true, openrouter: false },
+        searchTaskProviders: {},
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
       );
-      expect(researchRow).toContain('<option value="exa" selected="">Exa</option>');
-      // Незаданная задача остаётся на сервере области.
-      const factsRow = markup.slice(
-        markup.indexOf('name="search-task-facts"'),
-        markup.indexOf('name="search-task-discovery"')
+
+      expect(markup).toContain('Collect supports — Exa');
+      expect(markup).toContain('Check facts — Tavily');
+    });
+
+    test('без единого ключа строка говорит, что искать нечем', () => {
+      settings = {
+        ...settings,
+        hasSearchKey: false,
+        searchKeys: { tavily: false, exa: false, openrouter: false },
+        searchTaskProviders: {},
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
       );
-      expect(factsRow).toContain('<option value="" selected="">');
-      expect(markup).toContain('a backend is chosen per task');
-      expect(markup).toContain('Exa is recommended for research');
+
+      expect(markup).toContain('No search engine has a key');
+      expect(markup).not.toContain('Collect supports — ');
     });
   });
 
@@ -572,14 +669,27 @@ describe('AI provider search settings component', () => {
     });
   });
 
-  test('раздел объяснён словами: системные ключи, свой ключ, его судьба', () => {
+  /**
+   * `content-factory-next-75xn.13`. Владелец 13.09.2026: «у нас же есть
+   * подсказки, знаки вопросика… а почему мы не используем их здесь?» и «этот
+   * текст не на всю ширину настроек, из-за этого занимает много места».
+   * Четыре абзаца объяснения стояли постоянно и в узкой колонке настроек
+   * ломались на десяток строк; решающее осталось строкой, справочное уехало
+   * в подсказку.
+   */
+  test('объяснения живут в подсказках, а решающее — строкой', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain('data-search-intro="true"');
-    expect(markup).toContain('The system keys work by default');
-    expect(markup).toContain('nothing has to be typed here');
+    // То, что нужно в момент чтения: что за ключ и что он меняет.
     expect(markup).toContain('A key of your own is optional');
+    // Справочное — в подсказке, с собственным именем для скринридера.
+    expect(markup).toContain('data-hint="Hint: Web research"');
+    expect(markup).toContain('Web research is the search the product runs');
     expect(markup).toContain('keeps your key stored');
+    expect(markup).toContain('OpenRouter has no search key of its own');
+    // Абзац во всю колонку с собственной мерой строки ушёл вместе с ними.
+    expect(markup).not.toContain('data-search-intro');
+    expect(markup).not.toContain('max-w-[62ch]');
   });
 
   test('the page action row carries saving alone', () => {
@@ -670,35 +780,4 @@ test('provider and depth locale keys stay live', () => {
     expect(locale).toHaveProperty('search_depth_basic');
     expect(locale).toHaveProperty('search_depth_advanced');
   }
-});
-
-/**
- * `content-factory-next-75xn.6`: смена сервера больше не трогает ключи.
- *
- * Поле очищалось, пока ключ был один и мог быть отдан движку, чьё имя оказалось
- * в настройке. С адресацией по движку ключ Tavily лежит под `tavily`, и `exa`
- * его не прочитает — очистка поля теперь теряет только набранное.
- */
-test('changing the search backend no longer clears any key', () => {
-  const source = fs.readFileSync(
-    path.resolve(
-      __dirname,
-      '..',
-      'apps/frontend/src/components/settings/ai-provider.component.tsx'
-    ),
-    'utf8'
-  );
-
-  const handler = source.slice(
-    source.indexOf('const changeSearchProvider'),
-    source.indexOf('// Only OpenRouter publishes a catalogue')
-  );
-  expect(handler).toContain('setSearchProvider(next);');
-  expect(handler).not.toContain('setSearchApiKey');
-  expect(handler).not.toMatch(/setSearchApiKeys\(\{\}\)/);
-  // Одно, что осталось от прежней защиты, и оно про работу поиска, а не про
-  // ключ: движку без ключа нечего тратить, поэтому полоса выключается.
-  expect(handler).toContain('setSearchEnabled(false);');
-  expect(handler).toContain('hasStoredSearchKey(next)');
-  expect(source).toContain('changeSearchProvider(');
 });

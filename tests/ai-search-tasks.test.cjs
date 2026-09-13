@@ -17,7 +17,10 @@
  * The second is the routing. Exa measured more accurate on research; Tavily
  * returns the short citable snippet and takes a published-date window. One
  * engine per workspace meant choosing which to lose. A task now chooses, and
- * an unconfigured task keeps exactly the behaviour the product had before.
+ * it chooses by itself: the owner read the first version — three selectors with
+ * the recommendation printed above them — as the product asking a question it
+ * already knew the answer to. A default applies only while its engine has a key,
+ * so a workspace with one key never loses the search it had.
  */
 
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
@@ -83,21 +86,18 @@ describe('a key belongs to one engine', () => {
 });
 
 describe('a task chooses an engine', () => {
-  test('an empty map routes nothing and every task keeps the workspace engine', () => {
-    const { SEARCH_TASKS, providerForSearchTask } = tasks();
-    const source = { provider: 'tavily', apiKeys: { tavily: 'k' } };
-
-    for (const task of SEARCH_TASKS) {
-      expect(providerForSearchTask(task, source)).toBe('tavily');
-    }
-  });
-
-  test('a routed task reaches its engine and its neighbours do not', () => {
+  /**
+   * Решение владельца на прогоне 13.09.2026, дословно: «если у нас уже есть
+   * решение, что лучше — давай так по умолчанию сделаем, без возможности
+   * выбора». Первая версия спрашивала об этом тремя строками на экране и тут
+   * же печатала над ними рекомендацию — то есть задавала вопрос, ответ на
+   * который уже знала.
+   */
+  test('with both keys each task goes where the product knows it should', () => {
     const { providerForSearchTask } = tasks();
     const source = {
       provider: 'tavily',
       apiKeys: { tavily: 'tavily-key', exa: 'exa-key' },
-      taskProviders: { research: 'exa' },
     };
 
     expect(providerForSearchTask('research', source)).toBe('exa');
@@ -105,16 +105,50 @@ describe('a task chooses an engine', () => {
     expect(providerForSearchTask('discovery', source)).toBe('tavily');
   });
 
+  test('a workspace with one key keeps searching with the one it has', () => {
+    const { SEARCH_TASKS, providerForSearchTask } = tasks();
+    const source = { provider: 'tavily', apiKeys: { tavily: 'k' } };
+
+    // Умолчание действует, только пока за него есть чем платить.
+    for (const task of SEARCH_TASKS) {
+      expect(providerForSearchTask(task, source)).toBe('tavily');
+    }
+  });
+
   /**
-   * A person picks Exa for research and has not pasted its key yet. The button
-   * that worked yesterday must work today: a route with no key behind it steps
-   * back to the engine the workspace already searches with rather than failing.
+   * Никто больше не выбирает движок области руками, поэтому колонка держит то,
+   * чем была по умолчанию — `tavily`, — даже у области, которая вставила один
+   * только ключ Exa. Слепой откат на неё отказал бы в поиске, за который явно
+   * есть чем платить.
    */
-  test('a route to an engine with no key falls back instead of failing', () => {
+  test('a workspace with only an Exa key searches with Exa, whatever the column says', () => {
+    const { SEARCH_TASKS, providerForSearchTask } = tasks();
+    const source = { provider: 'tavily', apiKeys: { exa: 'exa-key' } };
+
+    for (const task of SEARCH_TASKS) {
+      expect(providerForSearchTask(task, source)).toBe('exa');
+    }
+  });
+
+  test('an operator override outranks what the product knows', () => {
+    const { providerForSearchTask } = tasks();
+    const source = {
+      provider: 'tavily',
+      apiKeys: { tavily: 'tavily-key', exa: 'exa-key' },
+      taskProviders: { research: 'tavily', facts: 'exa' },
+    };
+
+    expect(providerForSearchTask('research', source)).toBe('tavily');
+    expect(providerForSearchTask('facts', source)).toBe('exa');
+  });
+
+  test('an override with no key behind it does not silently become a default', () => {
     const { providerForSearchTask } = tasks();
     const source = {
       provider: 'tavily',
       apiKeys: { tavily: 'tavily-key' },
+      // Оператор назвал Exa, ключа Exa нет. Это отказ от умолчания, а не
+      // просьба применить его: остаёмся на том, за что есть чем платить.
       taskProviders: { research: 'exa' },
     };
 
@@ -130,6 +164,20 @@ describe('a task chooses an engine', () => {
     };
 
     expect(providerForSearchTask('facts', source)).toBe('openrouter');
+  });
+
+  /**
+   * OpenRouter ищет ключом генерации, поэтому в откат он не входит: отсутствие
+   * поискового ключа — это настройка, а не повод начать тратить модель. Достать
+   * его можно только явным указанием оператора.
+   */
+  test('the fallback never reaches for the generation key on its own', () => {
+    const { SEARCH_TASKS, providerForSearchTask } = tasks();
+    const source = { provider: 'tavily', apiKeys: {} };
+
+    for (const task of SEARCH_TASKS) {
+      expect(providerForSearchTask(task, source)).toBe('tavily');
+    }
   });
 
   test('an unusable stored route is dropped rather than repaired', () => {

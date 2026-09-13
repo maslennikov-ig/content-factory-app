@@ -81,16 +81,22 @@ type TaskWords = {
 };
 
 type Words = {
+  /**
+   * Имя кнопки-подсказки: «Подсказка: глубина поиска», а не второе «Глубина
+   * поиска». Одиннадцать одинаковых «подсказок» на экране скринридер читает
+   * как одиннадцать одинаковых кнопок, и найти среди них нужную нечем.
+   */
+  hintFor: (subject: string) => string;
+  /** Строка рядом с «Сохранить»: что сохраняется само, а что — нет. */
+  autosaveNote: string;
   /** Строка таблицы, когда за период не было ни одного вызова. */
   usageNone: string;
   /** Почему таблица пуста, и что её наполнит. */
   usageNoneHint: string;
-  /** Что вообще такое роль вызова. */
-  rolesWhat: string;
-  /** Что значит пустое поле. */
+  /** Что такое роль вызова и зачем её трогать — в подсказку, не на экран. */
+  rolesHint: string;
+  /** Что значит пустое поле. Решающее, поэтому остаётся строкой. */
   rolesEmpty: string;
-  /** Зачем менять. */
-  rolesWhy: string;
   roles: {
     classify: RoleWords;
     extract: RoleWords;
@@ -105,6 +111,23 @@ type Words = {
     what: string;
     /** Главное: по умолчанию всё уже работает и вводить нечего. */
     systemKeys: string;
+    /**
+     * Та же мысль в режиме ключей системы, где она единственная: полей там
+     * нет вовсе, и строка обязана сказать, что это не потеря, а ответ.
+     */
+    systemKeysOnly: string;
+    /** Подпись блока своих поисковых ключей. */
+    ownKeysTitle: string;
+    /**
+     * Одна строка вместо трёх селекторов «задача → сервер».
+     *
+     * Считается из сохранённых ключей теми же умолчаниями, что и на сервере,
+     * поэтому она не «рекомендация», а описание того, куда уйдёт следующий
+     * поиск (`content-factory-next-75xn.10`).
+     */
+    routing: (pairs: Array<{ task: string; engine: string }>) => string;
+    /** Та же строка, когда тратить нечего ни одному движку. */
+    routingNone: string;
     /** Зачем тогда свой ключ и что он меняет. */
     ownKey: string;
     /** Что будет со своим ключом при возврате к ключам системы. */
@@ -115,12 +138,6 @@ type Words = {
     keyEmptyPlaceholder: string;
     /** Почему у OpenRouter нет своего поля ключа. */
     openrouterNoKey: string;
-    /** Что такое «сервер на задачу» и что значит незаполненная строка. */
-    tasksWhat: string;
-    /** Какой движок для какой задачи и почему. */
-    tasksWhy: string;
-    /** Значение селектора «отдельного сервера нет». */
-    taskDefaultOption: string;
     /**
      * Режим включённых ключей: у области есть свой ключ, и он сейчас лежит.
      * Без названия движка — ответ сервера в этом режиме говорит про ключи
@@ -146,15 +163,16 @@ type Words = {
 
 export const aiProviderCopy: { ru: Words; en: Words } = {
   ru: {
+    hintFor: (subject) => `Подсказка: ${subject}`,
+    autosaveNote:
+      'Всё сохраняется само. Кнопка нужна только для ключей — их отправляет она.',
     usageNone: 'Пока 0',
     usageNoneHint:
       'Расход появляется после первого вызова модели: пока за этот период ни одного не было.',
-    rolesWhat:
-      'Роль вызова — это работа, ради которой продукт обращается к модели. Стоимость зависит от вида работы и выбранной модели.',
+    rolesHint:
+      'Роль вызова — это работа, ради которой продукт обращается к модели. Менять стоит ради денег: классификация и разбор прекрасно работают на дешёвой модели, а платить за них по цене черновика незачем.',
     rolesEmpty:
-      'Пустое поле означает «брать модель для текста, указанную выше» — то есть модель провайдера по умолчанию. Ничего заполнять не обязательно.',
-    rolesWhy:
-      'Менять стоит ради денег: мелкие роли — классификация, разбор — прекрасно работают на дешёвой модели, а платить за них по цене черновика незачем.',
+      'Пустое поле означает «брать модель для текста, указанную выше». Заполнять здесь ничего не обязательно.',
     roles: {
       classify: {
         what: 'Классификация — одно предложение на входе, несколько коротких полей на выходе: к чему относится тема, годится ли источник.',
@@ -180,6 +198,15 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       what: 'Веб-исследование — это поиск в интернете, к которому продукт обращается сам: собрать опоры для текста, проверить утверждение, посмотреть свежие темы.',
       systemKeys:
         'По умолчанию работают ключи системы. Их не видно, и вводить здесь ничего не нужно — поиск уже работает.',
+      systemKeysOnly:
+        'Поиск работает на ключах системы, вводить ничего не нужно.',
+      ownKeysTitle: 'Свои ключи поиска',
+      routing: (pairs) =>
+        `Сейчас поиск идёт так: ${pairs
+          .map((pair) => `${pair.task} — ${pair.engine}`)
+          .join('; ')}. Движок выбирается сам, по тому, какие ключи сохранены.`,
+      routingNone:
+        'Ни у одного поискового движка нет ключа, поэтому искать сейчас нечем. Сохраните свой ключ или включите ключи системы.',
       ownKey:
         'Свой ключ — по желанию. Он заменяет системный только для этой области и тратится с вашего счёта у поискового сервиса.',
       ownKeyKept:
@@ -188,11 +215,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keyEmptyPlaceholder: 'Вставьте ключ',
       openrouterNoKey:
         'У OpenRouter своего поискового ключа нет: он ищет через ваш ключ генерации, указанный выше, и тратит его.',
-      tasksWhat:
-        'Поисковые серверы не взаимозаменяемы, поэтому сервер выбирается на задачу. «Как в области» означает сервер, выбранный выше для всей области.',
-      tasksWhy:
-        'Exa рекомендован для ресерча: он ищет по описанию нужной страницы и точнее находит источники, которые потом читает человек. Tavily — для проверки фактов: он возвращает короткую цитируемую выдержку и умеет ограничивать выдачу окном по дате публикации.',
-      taskDefaultOption: 'Как в области',
       includedOwnKey:
         'У этой области сохранён свой поисковый ключ. Сейчас он не тратится — работают ключи системы, — и останется сохранённым до тех пор, пока вы его не уберёте.',
       includedRemoveKeys: 'Убрать сохранённые поисковые ключи области',
@@ -248,15 +270,16 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     },
   },
   en: {
+    hintFor: (subject) => `Hint: ${subject}`,
+    autosaveNote:
+      'Everything saves itself. The button is for the keys — they travel only through it.',
     usageNone: 'Nothing yet',
     usageNoneHint:
       'Usage appears after the first model call: there has not been one this period.',
-    rolesWhat:
-      'A call role is the job the product goes to a model for. Cost depends on the job and the chosen model.',
+    rolesHint:
+      'A call role is the job the product goes to a model for. The reason to change one is money: classification and extraction do fine on a cheap model, and paying draft prices for them buys nothing.',
     rolesEmpty:
-      'An empty field means "use the text model above" — the provider default. Filling these in is optional.',
-    rolesWhy:
-      'The reason to change one is money: the small roles — classification, extraction — do fine on a cheap model, and paying draft prices for them buys nothing.',
+      'An empty field means "use the text model above". Filling these in is optional.',
     roles: {
       classify: {
         what: 'Classification — one sentence in, a few short fields out: what a subject belongs to, whether a source is usable.',
@@ -282,6 +305,15 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       what: 'Web research is the search the product runs by itself: collecting supports for a text, checking a claim, looking at what is new on a subject.',
       systemKeys:
         'The system keys work by default. They are not shown and nothing has to be typed here — search already works.',
+      systemKeysOnly:
+        'Search runs on the system keys; nothing has to be typed here.',
+      ownKeysTitle: 'Your own search keys',
+      routing: (pairs) =>
+        `Search runs like this now: ${pairs
+          .map((pair) => `${pair.task} — ${pair.engine}`)
+          .join('; ')}. The engine is chosen for you, from the keys that are stored.`,
+      routingNone:
+        'No search engine has a key, so there is nothing to search with. Save a key of your own, or switch to the system keys.',
       ownKey:
         'A key of your own is optional. It replaces the system one for this workspace only, and it is spent from your own account at that search service.',
       ownKeyKept:
@@ -290,11 +322,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keyEmptyPlaceholder: 'Paste a key',
       openrouterNoKey:
         'OpenRouter has no search key of its own: it searches through the generation key above and spends it.',
-      tasksWhat:
-        'The search backends are not interchangeable, so a backend is chosen per task. «As for the workspace» means the backend selected above for everything.',
-      tasksWhy:
-        'Exa is recommended for research: it answers a query written as a description of the wanted page, and finds the sources a person then reads. Tavily is recommended for fact checking: it returns a short citable snippet and can limit results to a published-date window.',
-      taskDefaultOption: 'As for the workspace',
       includedOwnKey:
         'This workspace has a search key of its own. It is not being spent right now — the system keys are in use — and it stays stored until you remove it.',
       includedRemoveKeys: 'Remove the stored search keys of this workspace',

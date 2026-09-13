@@ -254,6 +254,18 @@ export const resetAiConfigCache = (organizationId?: string) => {
  * key — a row written under a rotated secret, say — must not take the whole
  * configuration down to «nothing configured», which is what the surrounding
  * catch would otherwise do to the generation key as well.
+ *
+ * The superseded single-key column is NOT read here, and that is the point.
+ * The first version of this file read it as belonging to whichever engine
+ * `searchProvider` currently named — and that column is editable. A workspace
+ * whose key had been saved for Tavily and whose engine was then switched to
+ * Exa would have had its Tavily key read as Exa's and sent to `api.exa.ai`:
+ * exactly the leak this whole change exists to make impossible, reintroduced
+ * through the back door. Found on the owner's walk of 13.09.2026, where the
+ * milder half of the same bug showed first — his Tavily key became unreachable
+ * and the search lane switched itself off. Rows written before the column are
+ * moved into the map once, by the release, where `searchProvider` still names
+ * the engine the key was saved for.
  */
 const workspaceSearchKeys = (
   stored: StoredAiProviderSetting
@@ -274,16 +286,6 @@ const workspaceSearchKeys = (
     if (!value) continue;
     const plain = decrypt(value);
     if (plain) decrypted[engine] = plain;
-  }
-
-  // The single-key column, read only for the engine it was saved under. This
-  // is what makes the map optional for every row written before it existed,
-  // and it is also the whole of the old defence: a key stored for one engine
-  // is unreachable from any other.
-  const provider = readSearchProvider(stored.searchProvider);
-  if (!decrypted[provider] && stored.searchApiKey) {
-    const plain = decrypt(stored.searchApiKey);
-    if (plain) decrypted[provider] = plain;
   }
 
   return decrypted;

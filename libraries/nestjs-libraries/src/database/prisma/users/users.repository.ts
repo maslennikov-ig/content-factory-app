@@ -598,6 +598,9 @@ export class UsersRepository {
                 roleModels: { equals: Prisma.DbNull },
                 searchEnabled: false,
                 searchApiKey: null,
+                // Ключи по движкам (75xn.1) — на тех же правах: область, где
+                // сохранили хоть один, пустой регистрацией уже не является.
+                searchApiKeys: { equals: Prisma.DbNull },
               },
             },
           },

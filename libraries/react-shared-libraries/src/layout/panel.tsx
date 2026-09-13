@@ -1,11 +1,19 @@
 import { FC, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
-export type PanelContentPadding = 'default' | 'compact' | 'none';
+export type PanelContentPadding = 'default' | 'compact' | 'roomy' | 'none';
 
 const CONTENT_PADDING: Record<PanelContentPadding, string> = {
   default: 'p-[20px]',
   compact: 'p-[12px]',
+  /**
+   * The upper end of the panel range in `DESIGN.md` (16–24px), for a surface
+   * that is a page of settings rather than a card in a list. It exists so the
+   * settings tab can stop hand-typing `p-[24px]` once per component: four of
+   * them carried the same border, radius, surface and padding written out in
+   * full, and the fifth — the AI section — carried none of it at all.
+   */
+  roomy: 'p-[24px]',
   none: '',
 };
 

@@ -39,7 +39,7 @@ const rows = {
     imageModel: 'image-a',
     searchEnabled: true,
     searchProvider: 'tavily',
-    searchApiKey: 'search-a',
+    searchApiKeys: { tavily: 'search-a' },
     searchTopic: 'news',
     searchDepth: 'advanced',
   },
@@ -50,7 +50,7 @@ const rows = {
     imageModel: 'image-b',
     searchEnabled: false,
     searchProvider: 'tavily',
-    searchApiKey: 'search-b',
+    searchApiKeys: { tavily: 'search-b' },
     searchTopic: 'general',
     searchDepth: 'basic',
   },
@@ -96,8 +96,6 @@ describe('organization web-search configuration', () => {
       enabled: true,
       provider: 'tavily',
       apiKey: 'decrypted:search-a',
-      // Строка, написанная до колонки ключей по движкам, читается как карта с
-      // единственной записью — под тем движком, который в ней и назван.
       apiKeys: { tavily: 'decrypted:search-a' },
       taskProviders: {},
       topic: 'news',
@@ -116,6 +114,35 @@ describe('organization web-search configuration', () => {
     // Ключ одной области не виден из другой ни под каким движком.
     expect(second.search.apiKeys).not.toHaveProperty('exa');
     expect(JSON.stringify(second.search.apiKeys)).not.toContain('search-a');
+  });
+
+  /**
+   * `content-factory-next-75xn`, найдено на прогоне владельца 13.09.2026.
+   *
+   * Первая версия читала одиночную колонку как ключ того движка, который в ту
+   * минуту назван в `searchProvider`. Колонка изменяемая: область, сохранившая
+   * ключ для Tavily и затем переключённая на Exa, отдала бы ключ Tavily на
+   * `api.exa.ai` — ровно та утечка, ради невозможности которой всё и делалось.
+   * Строки, написанные до карты, переносит выпуск, пока `searchProvider` ещё
+   * называет тот движок, для которого ключ сохраняли.
+   */
+  test('the superseded single-key column is not read as some other engine key', async () => {
+    const { loadAiConfig } = loadConfigModule(async () => ({
+      provider: 'openrouter',
+      apiKey: 'ai-a',
+      searchEnabled: true,
+      // Ключ сохраняли при Tavily, сервер потом переключили на Exa.
+      searchProvider: 'exa',
+      searchApiKey: 'tavily-key-saved-long-ago',
+      searchTopic: 'general',
+      searchDepth: 'advanced',
+    }));
+
+    const config = await loadAiConfig('organization-a');
+
+    expect(config.search.apiKeys).toEqual({});
+    expect(config.search.apiKey).toBe('');
+    expect(JSON.stringify(config)).not.toContain('tavily-key-saved-long-ago');
   });
 
   test('a database outage is not remembered as "no key"', async () => {

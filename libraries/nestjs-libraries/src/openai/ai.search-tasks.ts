@@ -136,6 +136,35 @@ export const parseSearchTaskProviders = (
   return parsed;
 };
 
+/**
+ * Which engine each task gets when nobody has said otherwise.
+ *
+ * Owner's decision on the walk of 13.09.2026, in his words: «если у нас уже
+ * есть решение, что лучше — давай так по умолчанию сделаем, без возможности
+ * выбора». The first version of this file shipped an empty default and three
+ * selectors on the settings screen, on the reasoning that a release must not
+ * silently move anyone's research to another engine. He read that as a
+ * question the product already knows the answer to and should not be asking:
+ * the recommendation was printed right above the selectors that asked for it.
+ *
+ * So the knowledge lives here instead of in a person's head. Exa answers a
+ * query written as a description of the wanted page and measured more accurate
+ * on research. Tavily returns the short citable snippet a claim check needs and
+ * takes a published-date window, which is the whole of what a thirty-day sweep
+ * asks for.
+ *
+ * A default only applies when its engine has a key; otherwise routing falls
+ * back exactly as an unrouted task does, so a workspace with one key keeps
+ * searching with the one it has.
+ */
+export const DEFAULT_SEARCH_TASK_PROVIDERS: Readonly<
+  Record<SearchTask, SearchProvider>
+> = Object.freeze({
+  research: 'exa',
+  facts: 'tavily',
+  discovery: 'tavily',
+});
+
 /** The part of a resolved configuration this file reads, and nothing else. */
 export interface SearchRouteSource {
   /** The workspace's engine: what a task with no route of its own gets. */
@@ -176,12 +205,39 @@ export const providerForSearchTask = (
   task: SearchTask,
   source: SearchRouteSource
 ): SearchProvider => {
+  const usable = (engine: SearchProvider): boolean =>
+    !searchProviderNeedsKey(engine) || !!searchKeyFor(engine, source);
+
+  /**
+   * The last resort, and the reason it is neither `source.provider` alone nor
+   * «whatever is usable».
+   *
+   * Nothing asks a person to pick the workspace's engine any more, so that
+   * column holds whatever it defaulted to — `tavily` — for a workspace that
+   * may only ever have pasted an Exa key. Falling back to it blindly would
+   * refuse a search the workspace can plainly afford, so the floor is «an
+   * engine there is a search key for».
+   *
+   * OpenRouter is deliberately not in that floor even though it needs no
+   * search key: it answers with the generation key, and a missing search key
+   * is configuration rather than a reason to start billing the model instead.
+   * It stays reachable through an operator's explicit override, and through
+   * the existing fallback in `WebResearchService` after a real failure.
+   */
+  const anyUsable = (): SearchProvider =>
+    usable(source.provider)
+      ? source.provider
+      : SEARCH_PROVIDERS.find(
+          (engine) => searchProviderNeedsKey(engine) && usable(engine)
+        ) ?? source.provider;
+
+  // An operator override, when there is one, outranks what this file knows.
   const routed = source.taskProviders?.[task];
-  if (!routed || routed === source.provider) return source.provider;
-  if (searchProviderNeedsKey(routed) && !searchKeyFor(routed, source)) {
-    return source.provider;
-  }
-  return routed;
+  if (routed) return usable(routed) ? routed : anyUsable();
+
+  // Otherwise the product's own answer, and only while it can be paid for.
+  const preferred = DEFAULT_SEARCH_TASK_PROVIDERS[task];
+  return preferred && usable(preferred) ? preferred : anyUsable();
 };
 
 /**

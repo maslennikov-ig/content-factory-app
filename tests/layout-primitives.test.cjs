@@ -30,7 +30,7 @@ describe('shared layout primitives', () => {
     expect(shell).toContain(`p-[${pageGutter}]`);
     expect(panel).toContain(`default: 'p-[${pageGutter}]'`);
     expect(panel).toContain(
-      "export type PanelContentPadding = 'default' | 'compact' | 'none'"
+      "export type PanelContentPadding = 'default' | 'compact' | 'roomy' | 'none'"
     );
     expect(panel).toContain('contentPadding?: PanelContentPadding;');
     expect(panel).toContain("compact: 'p-[12px]'");

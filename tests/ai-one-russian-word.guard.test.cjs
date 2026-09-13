@@ -67,6 +67,9 @@ describe('the Russian interface has one word for AI', () => {
       fs.readFileSync(path.join(localesDir, 'en/translation.json'), 'utf8')
     );
     expect(english.ai).toBe('AI');
-    expect(english.ai_usage_mode).toContain('AI');
+    // `ai_provider`, а не `ai_usage_mode`: с `content-factory-next-75xn.12`
+    // тот называется «Which keys we work with» — владелец просил спросить про
+    // ключи, а не про режим, — и слова `AI` в нём больше нет.
+    expect(english.ai_provider).toContain('AI');
   });
 });

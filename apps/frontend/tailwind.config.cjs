@@ -507,5 +507,69 @@ module.exports = {
         },
       });
     },
+
+    /**
+     * The trailing inset of anything that lives inside a field.
+     *
+     * Two marks sit at the end of a field and they were two different
+     * distances from its edge. The clear control of an `Input` is a button
+     * with its own `px-[16px]` inside a slot with `pe-[6px]`, so its glyph
+     * stood about 22px in; the chevron of a `Select` was drawn by the browser
+     * at whatever offset the platform picked, and no code in this repository
+     * said anything about it at all. Put side by side — which is how the
+     * settings screen shows them — the row reads as misaligned, and it is.
+     * Owner, 13.09.2026: «у всех галочек справа как будто не хватает отступа,
+     * это во всём нашем проекте, нужно не хардкодить, а единый стиль».
+     *
+     * So the distance is one number, written here once. `INSET` is the gap
+     * from the field's trailing edge to the mark; `GLYPH` is how wide a mark
+     * is allowed to be; `GAP` is the air between the text and the mark. Every
+     * other length below is arithmetic on those three, which is the part a
+     * hand-typed copy always gets wrong.
+     *
+     * The chevron is drawn from two gradient wedges rather than an SVG
+     * because a `<select>` is a replaced element: it has no `::after` to hang
+     * an icon on, and a background image cannot be recoloured by the theme —
+     * a data URI carries its own fixed hex, which is exactly what
+     * `design.guard` refuses everywhere else. Gradients take `currentColor`,
+     * so the mark follows the field's text in both themes with no second
+     * colour declared anywhere.
+     */
+    function ({ addComponents }) {
+      const INSET = 12;
+      const GLYPH = 12;
+      const GAP = 8;
+      /** Each wedge is half the mark: two of them make one 12×6 chevron. */
+      const wedge = GLYPH / 2;
+
+      addComponents({
+        '.cf-field-action-inset': {
+          paddingInlineEnd: `${INSET}px`,
+        },
+        '.cf-field-chevron': {
+          // All three spellings, and `::-ms-expand` besides: a native arrow
+          // left showing next to the drawn one is the failure this class
+          // exists to avoid, and it is browser-specific.
+          appearance: 'none',
+          '-webkit-appearance': 'none',
+          '-moz-appearance': 'none',
+          '&::-ms-expand': { display: 'none' },
+          backgroundImage:
+            'linear-gradient(45deg, transparent 50%, currentColor 50%), ' +
+            'linear-gradient(135deg, currentColor 50%, transparent 50%)',
+          backgroundSize: `${wedge}px ${wedge}px, ${wedge}px ${wedge}px`,
+          backgroundRepeat: 'no-repeat, no-repeat',
+          backgroundPosition: `right ${INSET + wedge}px center, right ${INSET}px center`,
+          // Room for the mark plus its air. The field's own class sets the
+          // leading padding and leaves this one alone, because a `px-*`
+          // utility would win the cascade over a component-layer rule and put
+          // the text back under the chevron.
+          paddingInlineEnd: `${INSET + GLYPH + GAP}px`,
+        },
+        '[dir="rtl"] .cf-field-chevron': {
+          backgroundPosition: `left ${INSET}px center, left ${INSET + wedge}px center`,
+        },
+      });
+    },
   ],
 };

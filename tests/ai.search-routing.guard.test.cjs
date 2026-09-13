@@ -38,6 +38,40 @@ const screen = read(
   'apps/frontend/src/components/settings/ai-provider.component.tsx'
 );
 
+/**
+ * Экран целиком, скомпилированный: `searchEngineForTask` — это копия
+ * серверной маршрутизации, и проверять её чтением исходника значит проверять
+ * буквы, а не ответ. Всё, что компонент импортирует ради разметки, здесь
+ * заглушено — от этого модуля нужна одна экспортированная функция.
+ */
+const stub = () => null;
+const screenModule = loadTypeScriptModule(
+  'apps/frontend/src/components/settings/ai-provider.component.tsx',
+  {
+    react: require('react'),
+    swr: { __esModule: true, default: () => ({ data: undefined, mutate: stub }) },
+    '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => stub },
+    '@contentfactory/react/toaster/toaster': { useToaster: () => ({ show: stub }) },
+    '@contentfactory/react/form/select': { Select: stub },
+    '@contentfactory/react/form/input': { Input: stub },
+    '@contentfactory/react/form/button': { Button: stub },
+    '@contentfactory/react/choice/control.button': { ControlButton: stub },
+    '@contentfactory/react/layout/hint': { Hint: stub },
+    '@contentfactory/react/translation/get.transation.service.client': {
+      useT: () => (key, fallback) => fallback ?? key,
+    },
+    '@contentfactory/react/helpers/variable.context': {
+      useVariables: () => ({ language: 'ru' }),
+    },
+    '@contentfactory/react/helpers/delete.dialog': { deleteDialog: stub },
+    '@contentfactory/frontend/components/ui/icons': { CloseIconSmall: stub },
+    '@contentfactory/frontend/components/settings/settings-section': {
+      SettingsSection: stub,
+    },
+    '@contentfactory/frontend/components/settings/ai-provider.copy': copy,
+  }
+);
+
 /** Литерал массива с экрана, прочитанный как список строк. */
 const literalList = (name) => {
   const declaration = new RegExp(
@@ -128,23 +162,155 @@ describe('у каждого имени есть слова на обоих яз�
       for (const key of [
         'what',
         'systemKeys',
+        'systemKeysOnly',
         'ownKey',
         'ownKeyKept',
+        'ownKeysTitle',
         'openrouterNoKey',
-        'tasksWhat',
-        'tasksWhy',
-        'taskDefaultOption',
+        'routingNone',
         'includedOwnKey',
         'includedRemoveKeys',
         'includedRemoveKeysConfirm',
       ]) {
         expect(words[key]).toBeTruthy();
       }
-      // Рекомендация названа поимённо, иначе выбор задачи не на чем сделать.
-      expect(words.tasksWhy).toContain('Exa');
-      expect(words.tasksWhy).toContain('Tavily');
+    });
+
+    /**
+     * `content-factory-next-75xn.10`: строка вместо трёх селекторов.
+     *
+     * Владелец 13.09.2026: «зачем мы даём эти настройки, если мы с тобой уже
+     * знаем, как лучше сделать?». Раз выбора нет, строка обязана называть тот
+     * движок, к которому уйдёт следующий поиск, — и назвать его поимённо,
+     * иначе она сообщает не больше, чем молчание.
+     */
+    test(`${locale}: строка маршрутизации называет задачу и движок поимённо`, () => {
+      const words = copy.aiProviderCopy[locale].search;
+      const line = words.routing(
+        backend.SEARCH_TASKS.map((task) => ({
+          task: words.tasks[task].label,
+          engine: words.engines[backend.DEFAULT_SEARCH_TASK_PROVIDERS[task]].name,
+        }))
+      );
+      expect(line).toBeTruthy();
+      for (const task of backend.SEARCH_TASKS) {
+        expect(line).toContain(words.tasks[task].label);
+        expect(line).toContain(
+          words.engines[backend.DEFAULT_SEARCH_TASK_PROVIDERS[task]].name
+        );
+      }
+      expect(line).toContain('Exa');
+      expect(line).toContain('Tavily');
     });
   }
+});
+
+/**
+ * Экран больше не спрашивает, какой движок какой задаче — значит, он обязан
+ * говорить правду о том, какой движок её получит. Правда тут одна и живёт на
+ * сервере (`providerForSearchTask`); копия на клиенте существует только
+ * потому, что бандл фронтенда не может импортировать бэкендовый модуль.
+ *
+ * Поэтому обе считаются на одних и тех же входах: три задачи на всех восьми
+ * сочетаниях сохранённых ключей, с оператороским переопределением и без. Одно
+ * расхождение — и экран называет движок, к которому поиск не пойдёт.
+ */
+describe('строка на экране и маршрутизация сервера считают одно и то же', () => {
+  const KEYED = backend.SEARCH_PROVIDERS.filter(backend.searchProviderNeedsKey);
+
+  const keyCombinations = () => {
+    const combinations = [];
+    for (let mask = 0; mask < 1 << KEYED.length; mask += 1) {
+      const present = {};
+      KEYED.forEach((engine, index) => {
+        if (mask & (1 << index)) present[engine] = `${engine}-key`;
+      });
+      combinations.push(present);
+    }
+    return combinations;
+  };
+
+  test('одинаковый ответ на каждой задаче, каждом наборе ключей и каждом переопределении', () => {
+    const overrides = [
+      {},
+      ...backend.SEARCH_PROVIDERS.map((engine) => ({ research: engine })),
+    ];
+
+    for (const apiKeys of keyCombinations()) {
+      for (const provider of backend.SEARCH_PROVIDERS) {
+        for (const taskProviders of overrides) {
+          for (const task of backend.SEARCH_TASKS) {
+            const server = backend.providerForSearchTask(task, {
+              provider,
+              apiKeys,
+              taskProviders,
+            });
+            const client = screenModule.searchEngineForTask(task, {
+              provider,
+              taskProviders,
+              hasKey: (engine) => !!apiKeys[engine],
+            });
+            expect({ task, provider, taskProviders, apiKeys, client }).toEqual({
+              task,
+              provider,
+              taskProviders,
+              apiKeys,
+              client: server,
+            });
+          }
+        }
+      }
+    }
+  });
+
+  test('умолчания на клиенте — это умолчания сервера, а не второе мнение', () => {
+    const declaration = /const DEFAULT_SEARCH_TASK_PROVIDERS: Record<\s*SearchTask,\s*SearchProvider\s*> = \{([\s\S]*?)\};/.exec(
+      screen
+    );
+    expect(declaration).not.toBeNull();
+    const declared = Object.fromEntries(
+      declaration[1]
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => entry.split(':').map((part) => part.trim().replace(/'/g, '')))
+    );
+    expect(declared).toEqual({ ...backend.DEFAULT_SEARCH_TASK_PROVIDERS });
+  });
+});
+
+/**
+ * `content-factory-next-75xn.10` и `.11`: чего на экране больше нет.
+ *
+ * Селекторы «задача → сервер» и «Поисковый сервер» убраны, и вместе с ними
+ * ушло единственное действие, которое само выключало веб-исследование.
+ * Владелец 13.09.2026: «статус веб-исследования автоматически выключается» —
+ * он его не трогал, это делал обработчик смены движка.
+ */
+describe('экран не выбирает движок и не трогает выключатель сам', () => {
+  test('ни селектора сервера, ни селекторов задач', () => {
+    expect(screen).not.toContain('name="searchProvider"');
+    expect(screen).not.toContain('search-task-');
+    expect(screen).not.toContain('changeSearchProvider');
+  });
+
+  test('единственный, кто пишет searchEnabled, — обработчик самого выключателя', () => {
+    const writes = screen.match(/setSearchEnabled\(/g) ?? [];
+    // Одно место читает его из ответа сервера при загрузке, одно — из выбора
+    // человека. Третьего быть не должно: третьим и был движок.
+    expect(writes).toHaveLength(2);
+    expect(screen).toContain('setSearchEnabled(data.searchEnabled);');
+    expect(screen).not.toContain('setSearchEnabled(false)');
+  });
+
+  test('ни маршрутизация, ни движок области не уходят на сервер', () => {
+    const payload = screen.slice(
+      screen.indexOf('export const buildAiSettingsPayload'),
+      screen.indexOf('export const removeStoredKey')
+    );
+    expect(payload).not.toMatch(/^\s*searchProvider,$/m);
+    expect(payload).not.toMatch(/searchTaskProviders:/);
+  });
 });
 
 /**

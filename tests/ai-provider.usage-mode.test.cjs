@@ -70,7 +70,7 @@ const workspaceRow = {
   imageModel: 'workspace-image',
   searchEnabled: true,
   searchProvider: 'tavily',
-  searchApiKey: 'workspace-search',
+  searchApiKeys: { tavily: 'workspace-search' },
   searchTopic: 'news',
   searchDepth: 'advanced',
 };

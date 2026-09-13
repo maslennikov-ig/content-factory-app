@@ -2,6 +2,35 @@
 Current stage id: `content-factory-next-75xn`
 Last accepted stage id: `content-factory-next-zhv8`
 Selected Beads goal: `content-factory-next-75xn`
+**Эпик «Поиск» (`75xn`) — RELEASED `6fa6c34c6386` 13.09.2026.** Приватный `67914bc7`,
+digest `sha256:9abae74ea9587e2a7e0c0348496cfd5b67adec35ed8f7c7cec009d0bf98364de`, откат
+`17088939db40`. Владелец 13.09: обе волны вместе, боевые ключи на хост, временный
+включённый предел 50 операций в месяц до `or3.9`. Ключ поиска теперь на каждый движок
+(`AiProviderSetting.searchApiKeys`); правило «смена сервера стирает ключ» снято — ключ
+адресуется движком и недостижим из чужой ветки, обещание сильнее прежнего. Движок
+выбирается на задачу (`research` / `facts` / `discovery`, `ai.search-tasks.ts` близнецом
+`ai.roles.ts`); пустая карта не маршрутизирует ничего. Задача выводится из явного
+уровня — того же признака, на котором стоит квота, — кроме проверки фактов, которая
+уровень тоже передаёт и называет задачу прямо. Порт получил `windowDays`: Tavily
+`time_range`, Exa `startPublishedDate` плюс `category` и `userLocation`, которых он не
+получал вовсе. «Откуда идеи» получила род `TOPIC`: одна проверка поиском за 30 дней,
+свой выключатель `LEAD_TOPIC_CHECK_ENABLED`, остальное — код лент. Включённый режим
+впервые работает: предел берётся из `AI_INCLUDED_MONTHLY_OPERATIONS`, когда строки
+подписки нет (а без Stripe её нет ни у кого). Два дефекта найдены по дороге: сохранение
+в `included` писало операторский движок в колонку области, и первая версия строки про
+спящий ключ несла расшифрованный ключ области в included-конфигурацию (поймал
+`ai-provider.usage-mode`). ОТСТУПЛЕНИЕ от плана: умолчания «ресерч → Exa» нет —
+маршрут не заводится, пока человек не выберет; рекомендация живёт словами на экране.
+Схема: три nullable-колонки применены точечным psql одной транзакцией по валидатору
+(`--allow-table AiProviderSetting --allow-table ContentLeadSubscription`), копия
+`20260913T053556Z-pre-searchkeys-product-only` (715 записей, обе таблицы на месте);
+diff из нового образа после переключения пуст, Mastra 0→0 и 29→29, отпечаток
+`310d75fc…acac8f7` прежний. Квитанция Jest 422/5488, Node 125/0, Python 46; хост
+healthy, перезапусков 0, три двери 200, архив 7 995 395 байт `a27405a7…d43ea` совпал.
+ЗА ВЛАДЕЛЬЦЕМ: `AI_INCLUDED_API_KEY` и `AI_INCLUDED_SEARCH_API_KEY_TAVILY` на хосте не
+заданы — без ключа модели включённый режим по-прежнему отвечает 503; из боевой базы
+ключи не доставались намеренно. Evidence:
+`stages/content-factory-next-75xn/evidence/release-2026-09-13.json`.
 **Волна «разбор открытого» (`zhv8`) — RELEASED `17088939db40` 11.09.2026.**
 Приватный `eb5eb2fd`, публичный `17088939db4029298bf0cf05e56cdcaeb355a92f`, digest
 `sha256:4f639160cf120a8c839658b67de0f6eea466f522ad271d68f2e50e9c675febef`, откат
@@ -19,63 +48,45 @@ Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
 За владельцем: `m0iy.10` замер пользы (порог входа в `.6`, до 25.09), `m0iy.11` ключ
 Exa, платная проверка предела Tavily (локального ключа нет), `or3.9` тариф.
 **Малая волна 11.09 (`6xi0`) — RELEASED `92f0b95dfe3f` 11.09.2026.** Приватный `3f84df3d`,
-откат `aaaf00afe664`. Хвост ревью снял `Math.min(20, …)`, deep слал Tavily `max_results: 50`
-при документированном пределе 20: возвращён потолок Tavily/OpenRouter 20, Exa 100, 50
-источников deep — сумма по 25 запросам (§6). Поправка того же дня: живой Tavily принял 21 и
-50 (отдал 24), сбоя на боевом не было; потолок оставлен по документации. Политика egress
-импортируется из модуля, копия убрана; jest маппит алиас (`research-egress.cjs`).
+откат `aaaf00afe664`. Потолок Tavily/OpenRouter 20, Exa 100, 50 источников deep — сумма
+по 25 запросам (§6); живой Tavily принимает и 50, потолок оставлен по документации, а не
+как починка сбоя. Политика egress импортируется из модуля (`research-egress.cjs` в jest).
 Evidence: `stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
 **Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.** Приватный `e4ea8a3c`, откат
-`cc513632d93d`; схема не менялась, Mastra 29→29, отпечаток `310d75fc…acac8f7` по
-канонической выборке из runbook (сырой `pg_dump` PostgreSQL 17 несёт случайный
-`\restrict`-токен). Квота только при явном уровне; `included` берёт провайдера только из
-`AI_INCLUDED_SEARCH_PROVIDER`, смена провайдера обнуляет ключ; хэштеги/CTA из
-`resolvedChannelProfile`. Evidence: `stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
-**Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.**
-Private source `1066e49243e6` and public `content-factory-app/main` commit
-`cc513632d93df2bc946828698fa950d8e9173ef3` agree; image digest
-`sha256:214b952753e13e2a0c84baeaba4ff7a687a529046241613ee4c329b0553cf26a`; rollback
-`4fdac6f1435a`. Schema unchanged: diff exit 0, product Mastra 0→0, dedicated 29→29.
-App healthy, marker matches, restarts 0; API/login/source 200, archive hash matches.
-Retention kept the release and rollback, removed `2fe4032ea3db`, 23 GB free.
-The intermediate 10.09 release record also names `4fdac6f1435a` as the saved rollback.
-Root receipt: Jest417/5383, Node125/0 with 4 existing environment skips, Python46,
-three tsc and build/process/brand/docs/diff passed. Evidence: `stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
-Связь черновика при same-channel переносе сохранена именно как перенос, согласно
-закрытому `.2`; владелец 11.09 оставил перенос, вариант «копия» не выбран.
+`cc513632d93d`; схема не менялась. Квота только при явном уровне; хэштеги/CTA из
+`resolvedChannelProfile`. Отпечаток Mastra считать канонической выборкой из runbook:
+сырой `pg_dump` PostgreSQL 17 несёт случайный `\restrict`-токен. Правило «смена
+провайдера обнуляет ключ» отсюда отменено волной `75xn` — ключ адресуется движком.
+Evidence: `stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
+**Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.** Private source
+`1066e49243e6`, rollback `4fdac6f1435a`; schema unchanged. Черновик при same-channel
+переносе переносится, а не копируется — решение владельца 11.09. Evidence:
+`stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
 **Wave «второй заход 08.09» (`tu3k.14`, 30 tasks) — RELEASED `2fe4032ea3db` 08.09.2026.**
-Private source `7b07bec6a989`, rollback `5f657ccf294e`; S1–S8 plus owner-added Channels `.26`
-and calendar `.27–.30` in one release; owner approved the stand. Root acceptance: three tsc,
-build, Jest 411/5270, Node 124/0 (4 env skips), Python 46; `migrate diff` 0, Mastra 0→0 and
-29→29. Retention kept `2fe4032ea3db` + `5f657ccf294e`. Proof:
-`stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`; runbook release 08.09.
-Implemented: navigation A and Content menu, piece page/table v2, streaming intake and voice
-analysis, explicit paid checks, dedicated Channels, calendar without rail. S8: adaptation word
-retention unmeasured (no eligible pairs); no synthetic result substituted. Scope:
-`docs/product/second-walk-wave-2026-09-08-spec.md` and `docs/prompts/astra-*2026-09-08.md`.
-**Wave «прогон 07.09» (epic `m2eg`, 25 tasks) — RELEASED `9b538b9a2e25` 07.09, audit tail
-`47cd8475c442` (private `d16a4630`, rollback `9b538b9a2e25`; no schema change).** Source: the
-owner's live walk of `7e2b10bf1100` (artifact `fe5e030b`, 24 notes). Seven Opus 5 streams,
-no reviewer, no stand (owner: speed over checks); mockups approved before UI code. Owner
-decisions 07.09: adaptation never searches the web, no citation checkboxes, no «Проверил»
-gate; «С чего начать» is a menu item; the facts question reads «На что это опирается?».
+Private source `7b07bec6a989`, rollback `5f657ccf294e`; schema unchanged, host verified.
+Navigation A and the Content menu, piece page/table v2, streaming intake and voice analysis,
+explicit paid checks, dedicated Channels, calendar without rail. S8: adaptation word retention
+unmeasured (no eligible pairs); no synthetic result substituted. Proof:
+`stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`; scope
+`docs/product/second-walk-wave-2026-09-08-spec.md`.
+**Wave «прогон 07.09» (epic `m2eg`) — RELEASED `9b538b9a2e25` 07.09, audit tail
+`47cd8475c442`.** From the owner's live walk of `7e2b10bf1100` (24 notes). Owner decisions
+07.09: adaptation never searches the web, no citation checkboxes, no «Проверил» gate.
 Changed: piece before questions, real table (Tailwind `min-[…]` trap), channel card save,
 streamed voice analysis, `PIECE_ONLY` adaptation, orama `TextSearchService`. Bounded gaps:
-`related` not drawn on the piece page; index invalidation relies on the 5-minute TTL;
-«⋮» 24 px in a 32 px seat. Owner: `m2eg.25` (Telegram as a person needs MTProto — not planned).
+`related` not drawn on the piece page; index invalidation relies on the 5-minute TTL.
+Owner: `m2eg.25` (Telegram as a person needs MTProto — not planned).
 **Small wave 07.09 (`tu3k.6`, `.10`, `.11`, `.12`) — RELEASED as `7e2b10bf1100`**
 (rollback `a6be7f3fbb92`, no schema): channel badge «настроено» from
 `GET /integrations/list`, adaptation `kind` picked by the person
 (`ui/segmented.tsx`), «В архив», 8 container tests on adapt, `search-started`
 typed, `core-write.ts` under the AI-consumer guard, list door without tokens.
-**Wave «заготовка и адаптации» (06–07.09, epic `tu3k.9`) — RELEASED
-`a6be7f3fbb92`** (schema `piece-adaptation-schema-apply.sql` applied BEFORE the
-switch, rollback `cd636483ba0a`). `ContentPiece.kind='CORE'` + `brief`;
-`ContentDerivation.kind/title/body/mediaId`; publication state READ from the
-post; core = one `draft` call from the person's words (`pieces/core-write.ts`);
-doors under `/content-intelligence/pieces`; screens
-`content-intelligence/pieces/*`; the avatar-learning trap closed
-(`recordFromPost` compares `ContentDerivation.body`).
+**Wave «заготовка и адаптации» (06–07.09, epic `tu3k.9`) — RELEASED `a6be7f3fbb92`**
+(schema `piece-adaptation-schema-apply.sql` before the switch, rollback `cd636483ba0a`).
+`ContentPiece.kind='CORE'` + `brief`; `ContentDerivation.kind/title/body/mediaId`;
+publication state READ from the post; core = one `draft` call from the person's words
+(`pieces/core-write.ts`); the avatar-learning trap closed (`recordFromPost` compares
+`ContentDerivation.body`).
 **Wave «вход одной мыслью» (06.09, epic `tu3k`) — RELEASED `cd636483ba0a`**
 (`Integration.writingProfile` before the switch). `POST
 /content-intelligence/intake` (NDJSON): thought / link / foreign post → claims

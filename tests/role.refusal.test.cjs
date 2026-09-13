@@ -318,6 +318,12 @@ function renderShortlinkPreference(role) {
         useUser: () => (role ? { role } : undefined),
       },
       '../ui/progress': { Progress: () => null },
+      // Общая карточка вкладки настроек: рисует рамку и отступ, к правам
+      // отношения не имеет (`content-factory-next-75xn.12`).
+      '@contentfactory/frontend/components/settings/settings-section': {
+        SettingsSection: ({ title, children }) =>
+          React.createElement('section', null, title, children),
+      },
     },
     true
   ).default;

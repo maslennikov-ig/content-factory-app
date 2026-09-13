@@ -9,6 +9,7 @@ import { useT } from '@contentfactory/react/translation/get.transation.service.c
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Progress } from '../ui/progress';
+import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 
 type ShortLinkPreference = 'ASK' | 'YES' | 'NO';
 
@@ -76,17 +77,14 @@ const ShortlinkPreferenceComponent = () => {
 
   if (isLoading) {
     return (
-      <div className="my-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+      <SettingsSection>
         <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
-      </div>
+      </SettingsSection>
     );
   }
 
   return (
-    <section className="my-[16px] flex flex-col gap-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
-      <h4 className="cf-label-md text-cf-ink">
-        {t('shortlink_settings', 'Shortlink Settings')}
-      </h4>
+    <SettingsSection title={t('shortlink_settings', 'Shortlink Settings')}>
       <div className="flex items-center justify-between gap-[24px]">
         <div className="flex flex-col flex-1">
           <div className="cf-label-md text-cf-ink">
@@ -125,7 +123,7 @@ const ShortlinkPreferenceComponent = () => {
           </Select>
         </div>
       </div>
-    </section>
+    </SettingsSection>
   );
 };
 
