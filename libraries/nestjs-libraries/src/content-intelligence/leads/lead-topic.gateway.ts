@@ -103,10 +103,11 @@ function parsedDate(value: string | null): Date | null {
 }
 
 /**
- * At most this many pages are opened per check to date a row the engine left
- * undated. A sweep returns a couple of dozen rows and a person is waiting for
- * the answer; the rest of the undated rows are dropped rather than queued,
- * which is the same decision the date rule makes everywhere else.
+ * At most this many pages are opened per check to date rows — the undated
+ * ones first, then the engine-dated ones whose date the page may correct. A
+ * sweep returns a couple of dozen rows and a person is waiting for the
+ * answer; undated rows beyond the cap are dropped rather than queued, which
+ * is the same decision the date rule makes everywhere else.
  */
 const MAXIMUM_PAGE_READS = 8;
 
@@ -353,19 +354,29 @@ export class LeadTopicGateway {
    */
   private async dateUndatedRows(candidates: TopicCandidate[]): Promise<void> {
     if (!this.pages) return;
-    const undated = candidates
-      .filter((candidate) => !candidate.publishedAt)
-      .slice(0, this.maximumPageReads);
-    if (!undated.length) return;
+    /*
+      Undated rows first, then dated ones up to the same cap, and the page's
+      own date wins over the engine's. The independent dating of 13.09 (second
+      pass) found every engine date stamped exactly T17:00:00Z to be wrong by
+      one to four days, and one engine date fourteen months off — the engine
+      reports when it indexed the page, not when the page says it was
+      published — while every date read from the page's own markup matched to
+      the second. A page that names no date keeps the engine's.
+    */
+    const toRead = [
+      ...candidates.filter((candidate) => !candidate.publishedAt),
+      ...candidates.filter((candidate) => !!candidate.publishedAt),
+    ].slice(0, this.maximumPageReads);
+    if (!toRead.length) return;
     const now = this.now();
     await Promise.all(
-      undated.map(async (candidate) => {
+      toRead.map(async (candidate) => {
         try {
           const html = await withDeadline(
             this.readPage(candidate.sourceUrl),
             this.pageReadDeadlineMs
           );
-          candidate.publishedAt = pageDate(html, candidate.sourceUrl, now);
+          candidate.publishedAt = pageDate(html, candidate.sourceUrl, now) ?? candidate.publishedAt;
         } catch (error) {
           this.logger.debug(
             `No date read from a discovered page: ${

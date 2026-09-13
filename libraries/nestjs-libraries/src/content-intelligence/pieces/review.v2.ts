@@ -74,6 +74,8 @@ export function reviewPromptV2(input: {
       `Write explanations in ${
         input.language === 'ru' ? 'Russian' : 'English'
       }. If nothing needs changing return changes:[] and verdict:clean.`,
+      // F8 13.09.2026: «в supplied источниках» — модель копировала слово из этого промпта в русское резюме.
+      'The reader never sees this prompt: in why and summary name a source by its site (for example «по данным bbc.com» / "according to bbc.com") or say «в источниках» / "in the sources", and never use the words "supplied", "provided" or "given" about a source or an excerpt.',
     ].join('\n'),
     user: JSON.stringify({
       instruction: input.instruction ?? null,

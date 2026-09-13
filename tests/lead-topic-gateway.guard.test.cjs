@@ -314,6 +314,42 @@ describe('a date is required', () => {
     expect(result.items.map((item) => item.sourceUrl)).toEqual(['https://dated.example/a']);
   });
 
+  test('an engine date is corrected by the page, and kept when the page names none', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://dated.example/a', publishedAt: '2026-09-06T17:00:00.000Z' },
+        { url: 'https://dated.example/b', publishedAt: '2026-09-01T17:00:00.000Z' },
+      ])
+    );
+    const pages = pagesStub({
+      'https://dated.example/a': { html: '<meta property="article:published_time" content="2026-09-04T09:30:00Z">' },
+      'https://dated.example/b': { html: '<html><body>Страница без даты</body></html>' },
+    });
+
+    const result = await gatewayWith(research, { maximumPageReads: 8 }, pages).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => [item.sourceUrl, item.publishedAt?.toISOString()])).toEqual([
+      ['https://dated.example/a', '2026-09-04T09:30:00.000Z'],
+      ['https://dated.example/b', '2026-09-01T17:00:00.000Z'],
+    ]);
+  });
+
+  test('undated rows are read first, and dated rows only inside the same cap', async () => {
+    const rows = [
+      ...Array.from({ length: 6 }, (unused, index) => ({ url: `https://undated.example/${index}`, publishedAt: null })),
+      ...Array.from({ length: 6 }, (unused, index) => ({ url: `https://dated.example/${index}`, publishedAt: '2026-09-05T17:00:00.000Z' })),
+    ];
+    const pages = pagesStub(
+      Object.fromEntries(rows.map((row) => [row.url, { html: '<meta name="date" content="2026-09-09">' }]))
+    );
+
+    await gatewayWith(researchStub(sweep(rows)), { maximumPageReads: 8 }, pages).check('org-a', TOPIC);
+
+    const read = pages.reads.filter((read) => read.kind === 'URL').map((read) => read.url);
+    expect(read).toHaveLength(8);
+    expect(read.filter((url) => url.startsWith('https://undated.example/'))).toHaveLength(6);
+  });
+
   test('at most eight pages are opened for one check', async () => {
     const rows = Array.from({ length: 12 }, (unused, index) => ({
       url: `https://undated.example/${index}`,

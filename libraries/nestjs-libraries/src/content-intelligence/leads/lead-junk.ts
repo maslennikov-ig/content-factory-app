@@ -54,6 +54,12 @@ const SOCIAL_MIRROR_HOSTS: readonly string[] = [
 const SOCIAL_MIRROR_PATHS: readonly { host: string; path: RegExp }[] = [
   { host: 'youtube.com', path: /^\/shorts\//i },
   { host: 'linkedin.com', path: /^\/posts\//i },
+  // A package registry card always shows the latest version: it is a
+  // catalogue entry, never a record of a release (13.09, topic «Temporal»).
+  { host: 'pypi.org', path: /^\/project\//i },
+  { host: 'npmjs.com', path: /^\/package\//i },
+  { host: 'crates.io', path: /^\/crates\//i },
+  { host: 'rubygems.org', path: /^\/gems\//i },
 ];
 
 export type DiscoveryJunkReason =
