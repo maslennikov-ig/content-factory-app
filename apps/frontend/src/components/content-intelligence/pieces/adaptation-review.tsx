@@ -11,7 +11,7 @@ import {
 } from '@contentfactory/react/choice/choice.menu';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { DescribedMenuItem } from '../../ui/layers';
-import { Progress } from '../../ui/progress';
+import { WorkingLine } from '../../ui/working-line';
 import { Disclosure } from '../../ui/disclosure';
 import {
   ReviewQuestions,
@@ -430,8 +430,7 @@ export function AdaptationReview({
         </section>
       ) : null}
       {busy ? (
-        <Progress
-          mode="indeterminate"
+        <WorkingLine
           label={
             busy === 'accept'
               ? ru

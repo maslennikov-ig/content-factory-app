@@ -45,7 +45,17 @@ const nestCommon = {
 const researchMock = {
   '@contentfactory/nestjs-libraries/openai/web.research.service': {
     WebResearchService: class {},
+    // The gateway borrows the research service's page-chrome cleaning for the
+    // fragment under a title (`content-factory-next-75xn.23`). Stubbed to the
+    // same shape: this suite is about the door and the repository, and loading
+    // the search stack to prove a string is trimmed would be a second reason
+    // for this file to break.
+    cleanExcerpt: (value) => ({ text: String(value || '').trim(), hasProseLine: true }),
   },
+  '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway':
+    {
+      SourceFetchGateway: class {},
+    },
   '@contentfactory/nestjs-libraries/openai/ai.clients': {
     DISCOVERY_WINDOW_DAYS: WINDOW_DAYS,
   },
@@ -178,6 +188,17 @@ function makeClient() {
   };
 }
 
+/**
+ * Since `content-factory-next-75xn.23` a row has to survive the junk rules to
+ * become a lead: it needs a date inside the window, text a person can read,
+ * and a word in common with the topic. These fixtures are rows that do — the
+ * refusals themselves live in `lead-junk.test.cjs` and
+ * `lead-topic-gateway.guard.test.cjs`.
+ */
+const TOPIC_PROSE =
+  'Клиника внедрила модель для разбора медицинских снимков и отчиталась о ' +
+  'сокращении сроков постановки диагноза почти вдвое, сообщает издание.';
+
 const sourceRow = (url, title, daysOld = 1) => ({
   url,
   title,
@@ -194,15 +215,23 @@ function stand({ enabled = true, sources = [] } = {}) {
     { model: { $transaction: async (work) => work(client) } }
   );
   const research = {
-    research: jest.fn(async () => ({
-      summary: '',
-      facts: [],
-      sources: answers.shift() ?? sources,
-      provider: 'tavily',
-    })),
+    research: jest.fn(async () => {
+      const rows = answers.shift() ?? sources;
+      return {
+        summary: '',
+        // The fragment under a title is the row's first fact, which is where
+        // the service and the gateway both read it from.
+        facts: rows.map((row) => ({ text: TOPIC_PROSE, sourceUrl: row.url })),
+        sources: rows,
+        provider: 'tavily',
+      };
+    }),
   };
   const answers = [];
-  const topics = new LeadTopicGateway(research, { enabled, now: () => NOW });
+  const topics = new LeadTopicGateway(research, null, {
+    enabled,
+    now: () => NOW,
+  });
   const feed = {
     capabilityEnabled: true,
     check: jest.fn(async () => ({ disabled: false, items: [] })),
@@ -248,6 +277,31 @@ describe('a refusal is not a failure', () => {
 
     expect(result).toMatchObject({ checked: false, reason: 'RESEARCH_QUOTA_EXHAUSTED' });
     expect(client.subscriptions[0].lastErrorCode).toBe('RESEARCH_QUOTA_EXHAUSTED');
+  });
+
+  test('a workspace with search switched off learns that, not «проверка не удалась»', async () => {
+    // content-factory-next-75xn.20 (F1). Five topics in a fresh workspace all
+    // went to ERRORED with the generic code, and the one thing a person needed
+    // to know — that web research is a switch nobody had flipped — was the one
+    // thing the row did not say.
+    const { service, client, research } = stand();
+    const created = await createTopic(service, 'ии в медицине');
+    research.research.mockRejectedValueOnce(
+      Object.assign(new Error('Web search is not configured for this organization.'), {
+        code: 'CONTENT_SEARCH_NOT_CONFIGURED',
+        status: 409,
+      })
+    );
+
+    const result = await service.checkSubscription(ORG, created.id, {
+      manual: true,
+    });
+
+    expect(result).toMatchObject({
+      checked: false,
+      reason: 'CONTENT_SEARCH_NOT_CONFIGURED',
+    });
+    expect(client.subscriptions[0].lastErrorCode).toBe('CONTENT_SEARCH_NOT_CONFIGURED');
   });
 
   test('anything else keeps the generic code, so no internal message escapes', async () => {

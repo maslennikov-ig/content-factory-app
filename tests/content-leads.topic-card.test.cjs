@@ -228,3 +228,83 @@ describe('a topic row in the list', () => {
     expect(document.body.textContent).toContain('Проверка тем выключена');
   });
 });
+
+/**
+ * `content-factory-next-75xn.20` (F1). A check refused because web research is
+ * switched off is configuration, not a broken feed, and the row says which.
+ */
+describe('a refusal the person can act on', () => {
+  test('«поиск не настроен» is printed instead of the bare code', async () => {
+    serve({
+      subscriptions: [
+        {
+          ...TOPIC_ROW,
+          state: 'ERRORED',
+          lastErrorCode: 'CONTENT_SEARCH_NOT_CONFIGURED',
+          lastCheckedAt: new Date('2026-09-01T10:00:00.000Z').toISOString(),
+        },
+      ],
+    });
+    await renderTab();
+
+    expect(document.body.textContent).toContain('поиск не настроен');
+    expect(document.body.textContent).not.toContain('CONTENT_SEARCH_NOT_CONFIGURED');
+  });
+
+  test('a code nobody has a sentence for is still shown, rather than swallowed', async () => {
+    serve({
+      subscriptions: [
+        {
+          ...TOPIC_ROW,
+          state: 'ERRORED',
+          lastErrorCode: 'CHECK_FAILED',
+          lastCheckedAt: new Date('2026-09-01T10:00:00.000Z').toISOString(),
+        },
+      ],
+    });
+    await renderTab();
+
+    expect(document.body.textContent).toContain('CHECK_FAILED');
+  });
+});
+
+/**
+ * `content-factory-next-75xn.23` (F2). Creating a subscription runs its first
+ * check, and for the minute after any check the door answers 429
+ * `CHECK_TOO_SOON`. The walkthrough page told the owner to press «Проверить
+ * сейчас» right after saving, so the first thing the product did was refuse
+ * them. The button now holds itself back for that minute and says why: the
+ * result they are waiting for is already in the list.
+ */
+describe('the minute after a check', () => {
+  const checkedAt = (secondsAgo) =>
+    new Date(Date.now() - secondsAgo * 1000).toISOString();
+
+  test('a row checked a moment ago offers no button to be refused by', async () => {
+    serve({ subscriptions: [{ ...TOPIC_ROW, lastCheckedAt: checkedAt(5) }] });
+    await renderTab();
+
+    const [check] = screen.getAllByRole('button', { name: 'Проверить сейчас' });
+    expect(check.disabled).toBe(true);
+    expect(document.body.textContent).toContain(
+      'Первая проверка уже сделана, результат в списке'
+    );
+  });
+
+  test('once the minute is over the button is live again and says nothing', async () => {
+    serve({ subscriptions: [{ ...TOPIC_ROW, lastCheckedAt: checkedAt(120) }] });
+    await renderTab();
+
+    const [check] = screen.getAllByRole('button', { name: 'Проверить сейчас' });
+    expect(check.disabled).toBe(false);
+    expect(document.body.textContent).not.toContain('через минуту');
+  });
+
+  test('a row never checked is live, as it always was', async () => {
+    serve({ subscriptions: [TOPIC_ROW] });
+    await renderTab();
+
+    const [check] = screen.getAllByRole('button', { name: 'Проверить сейчас' });
+    expect(check.disabled).toBe(false);
+  });
+});

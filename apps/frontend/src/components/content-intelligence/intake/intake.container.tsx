@@ -24,6 +24,8 @@ import {
   readIntakeEvent,
   screenState,
   type BriefFilledV1,
+  type IntakeCorrection,
+  type IntakeResearchSummary,
 } from './intake.adapter';
 import { piecePath } from '../pieces/pieces.adapter';
 
@@ -91,6 +93,13 @@ export function IntakeContainer({
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
   const [researchFacts, setResearchFacts] = useState<BriefFilledV1['facts']>([]);
   const [researchPending, setResearchPending] = useState(false);
+  /*
+    Итог ресерча «сделали за вас» (13.09.2026): поправки и сводка приходят с
+    сервера, ключ снимка едет обратно, чтобы второй проход продолжил первый.
+  */
+  const [researchCorrections, setResearchCorrections] = useState<IntakeCorrection[]>([]);
+  const [researchSummary, setResearchSummary] = useState<IntakeResearchSummary | null>(null);
+  const [researchSnapshotKey, setResearchSnapshotKey] = useState<string | null>(null);
   /*
     Черновик остаётся фактом хода, а не текстом на экране
     (`content-factory-next-m2eg.21`). Экран уходит на страницу заготовки, и
@@ -164,7 +173,7 @@ export function IntakeContainer({
    * Один ход
    * ------------------------------------------------------------------ */
 
-  const run = useCallback(async (researchSelections?: readonly string[]) => {
+  const run = useCallback(async (researchSelections?: readonly string[], snapshotKey?: string | null) => {
       abort.current?.abort();
       const controller = new AbortController();
       abort.current = controller;
@@ -184,6 +193,7 @@ export function IntakeContainer({
                 language: language0,
                 options: { researchEnabled, researchLevel },
                 ...(researchSelections !== undefined ? { researchSelections } : {}),
+                ...(researchSelections !== undefined && snapshotKey ? { snapshotKey } : {}),
               ...(prefill?.sourceLeadId
                 ? { sourceLeadId: prefill.sourceLeadId }
                 : {}),
@@ -247,12 +257,18 @@ export function IntakeContainer({
               break;
             case 'research-ready':
               setResearchFacts(event.facts);
+              setResearchCorrections(event.corrections ?? []);
+              setResearchSummary(event.summary ?? null);
+              setResearchSnapshotKey(event.snapshotKey ?? null);
               setStep('research');
               break;
             case 'research-selection-required':
               selectionRequired = true;
               setResearchPending(true);
               setResearchFacts(event.facts);
+              setResearchCorrections(event.corrections ?? []);
+              setResearchSummary(event.summary ?? null);
+              setResearchSnapshotKey(event.snapshotKey ?? null);
               setStep('research');
               break;
             case 'questions':
@@ -310,16 +326,43 @@ export function IntakeContainer({
     setBrief(null);
     setResearchFacts([]);
     setResearchPending(false);
+    setResearchCorrections([]);
+    setResearchSummary(null);
+    setResearchSnapshotKey(null);
     setPiece(null);
     void run();
   }, [run]);
 
-  const continueResearch = useCallback(() => {
-    const selected = researchFacts
+  /*
+    Пара «своё расходящееся ↔ строка-поправка» переключается вместе: принятая
+    поправка отмечена, своё снято, и наоборот. Ключ поправки — ключ её строки.
+  */
+  const toggleCorrection = useCallback((factKey: string) => {
+    const correction = researchCorrections.find((row) => row.factKey === factKey);
+    if (!correction) return;
+    const accepted = !correction.accepted;
+    setResearchCorrections((rows) => rows.map((row) => (row.factKey === factKey ? { ...row, accepted } : row)));
+    setResearchFacts((facts) => facts.map((fact) => {
+      if (fact.factKey === factKey) return { ...fact, selected: accepted };
+      if (fact.correction && fact.correction.original === correction.original && fact.origin !== 'search') {
+        return { ...fact, selected: !accepted };
+      }
+      return fact;
+    }));
+  }, [researchCorrections]);
+
+  const continueResearch = useCallback((mode: 'with-fixes' | 'keep-mine') => {
+    const facts = mode === 'keep-mine'
+      ? researchFacts.map((fact) => {
+          if (!fact.correction) return fact;
+          return { ...fact, selected: fact.origin !== 'search' };
+        })
+      : researchFacts;
+    const selected = facts
       .filter((fact) => fact.selected === true)
-      .map((fact) => fact.statement);
-    void run(selected);
-  }, [researchFacts, run]);
+      .map((fact) => fact.factKey ?? fact.statement);
+    void run(selected, researchSnapshotKey);
+  }, [researchFacts, researchSnapshotKey, run]);
 
   const retry = useCallback(() => {
     setFailure(null);
@@ -342,6 +385,8 @@ export function IntakeContainer({
         step={step}
         researchFacts={researchFacts}
         researchPending={researchPending}
+        researchCorrections={researchCorrections}
+        researchSummary={researchSummary}
         piece={piece}
         blocked={blocked}
         errorTitle={failure?.title}
@@ -369,11 +414,12 @@ export function IntakeContainer({
         researchLevel={researchLevel}
         onResearchEnabledChange={setResearchEnabled}
         onResearchLevelChange={setResearchLevel}
-        onResearchFactSelect={(statement, selected) => {
+        onResearchFactSelect={(factKey, selected) => {
           setResearchFacts((facts) => facts.map((fact) =>
-            fact.statement === statement ? { ...fact, selected } : fact
+            (fact.factKey ?? fact.statement) === factKey ? { ...fact, selected } : fact
           ));
         }}
+        onResearchCorrectionToggle={toggleCorrection}
         onResearchContinue={continueResearch}
         onWrite={write}
         onCancel={() => {

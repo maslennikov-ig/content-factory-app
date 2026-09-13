@@ -55,6 +55,7 @@ import { ProductEventsService } from '@contentfactory/nestjs-libraries/database/
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import { ResearchQuotaService } from '@contentfactory/nestjs-libraries/content-intelligence/research/research-quota.service';
 import { RESEARCH_QUOTA_STORE } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import { INTAKE_SNAPSHOT_STORE } from '@contentfactory/nestjs-libraries/content-intelligence/intake/intake-snapshot.store';
 import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
 import { BrandProfileRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.repository';
 import { BrandProfileContextService } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.context.service';
@@ -108,6 +109,9 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     // The research quota counts in Redis; the socket is opened by the module,
     // not by the service file (see ResearchQuotaService).
     { provide: RESEARCH_QUOTA_STORE, useValue: ioRedis },
+    // The intake's first-pass snapshot lives in the same Redis for an hour
+    // (`content-factory-next-75xn.19`); same reason for the token.
+    { provide: INTAKE_SNAPSHOT_STORE, useValue: ioRedis },
     ResearchQuotaService,
     UsersService,
     UsersRepository,

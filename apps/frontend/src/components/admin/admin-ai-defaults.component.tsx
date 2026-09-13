@@ -1,6 +1,12 @@
 'use client';
 
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
@@ -73,6 +79,22 @@ export interface AdminAiDefaults {
     imageModel: boolean;
     monthlyOperations: boolean;
     searchKeys: Partial<Record<'tavily' | 'openrouter' | 'exa', boolean>>;
+  };
+  /**
+   * Что инстанс тратит прямо сейчас: строка этого экрана, а где её нет —
+   * переменная окружения. Форма ставит в поля именно это.
+   *
+   * До неё форма подставляла собственное начальное значение — `openai` — и на
+   * сервере с `AI_PROVIDER=openrouter` показывала суперадмину провайдера,
+   * которым инстанс никогда не работал (`content-factory-next-75xn.25`).
+   * Ответ старого сервера её не содержит, поэтому поле необязательное: экран
+   * из кэша браузера должен работать, а не падать.
+   */
+  effective?: {
+    provider: Provider;
+    textModel: string | null;
+    imageModel: string | null;
+    monthlyOperations: number | null;
   };
   updatedAt: string | null;
   updatedByUserId: string | null;
@@ -194,6 +216,37 @@ const KeyField = ({
       }
     />
   </div>
+);
+
+/**
+ * Строка состояния значения — тем же маркером и теми же словами, что у ключей.
+ *
+ * Значение из переменной окружения теперь стоит в самом поле, а не описывается
+ * пустотой под ним, и без маркера его нельзя отличить от набранного здесь:
+ * «в поле openrouter» и «сохранено openrouter» — разные факты, и второй
+ * переживает перезапуск сервера, а первый нет.
+ */
+const ValueState = ({
+  name,
+  origin,
+  originLabel,
+  explanation,
+}: {
+  name: string;
+  origin: KeyOrigin;
+  originLabel: string;
+  explanation: string;
+}) => (
+  <span
+    data-value-field={name}
+    data-value-origin={origin}
+    className="flex flex-wrap items-center gap-[8px]"
+  >
+    <Status tone={ORIGIN_TONE[origin]}>{originLabel}</Status>
+    <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+      {explanation}
+    </span>
+  </span>
 );
 
 /**
@@ -323,6 +376,7 @@ export function AdminAiDefaultsView({
   saving,
   clearing,
   onChange,
+  onCommit,
   onSave,
   onClearModelKey,
   onClearSearchKey,
@@ -337,6 +391,15 @@ export function AdminAiDefaultsView({
   saving?: boolean;
   clearing?: 'model' | KeyedSearchProvider | null;
   onChange: (patch: Partial<AdminAiDefaultsForm>) => void;
+  /**
+   * Применить и сохранить, не дожидаясь кнопки.
+   *
+   * Владелец 13.09.2026: «автосохранение должно работать всегда и везде,
+   * кнопка „Сохранить“ — просто для тех, кто хочет перестраховаться». Ключи
+   * этой дверью не ходят: секрет уходит только по нажатой кнопке, и `onChange`
+   * для них остаётся единственным путём в форму.
+   */
+  onCommit: (patch?: Partial<AdminAiDefaultsForm>) => void;
   onSave: () => void;
   onClearModelKey: () => void;
   onClearSearchKey: (engine: KeyedSearchProvider) => void;
@@ -404,6 +467,34 @@ export function AdminAiDefaultsView({
     !!data?.fromEnvironment?.apiKey
   );
 
+  /**
+   * Те же три состояния, что у ключей, — у значений, которые видно.
+   *
+   * Значение из переменной окружения стоит теперь в поле, поэтому пустота под
+   * ним больше ничего не объясняет: объясняет маркер.
+   */
+  const providerOrigin = keyOrigin(
+    !!data?.provider,
+    !!data?.fromEnvironment?.provider
+  );
+  const allowanceOrigin = keyOrigin(
+    data?.monthlyOperations !== null && data?.monthlyOperations !== undefined,
+    !!data?.fromEnvironment?.monthlyOperations
+  );
+
+  /** Подпись под полем модели: состояние, когда оно есть, иначе объяснение. */
+  const valueHelper = (origin: KeyOrigin, name: string) =>
+    origin === 'environment' ? (
+      <ValueState
+        name={name}
+        origin="environment"
+        originLabel={words.origins.environment}
+        explanation={words.models.fromEnvironment}
+      />
+    ) : (
+      words.models.empty
+    );
+
   return (
     <section
       data-production-surface="settings-admin/ai-defaults"
@@ -422,10 +513,10 @@ export function AdminAiDefaultsView({
           {words.neverShown}
         </p>
         <p
-          data-manual-save-note="true"
+          data-autosave-note="true"
           className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]"
         >
-          {words.manualSave}
+          {words.autosaveNote}
         </p>
         {loading && !data ? (
           <p aria-busy={true} className="cf-body-sm text-cf-ink-muted">
@@ -450,15 +541,57 @@ export function AdminAiDefaultsView({
         ) : null}
       </SettingsSection>
 
+      {/*
+        Провайдер, ключ генерации и модели — одна карточка.
+
+        Владелец 13.09.2026 про отдельный блок ключей: «непонятный блок, его
+        нужно подумать, как эти поля правильно расположить». Ключ генерации
+        оплачивает вызовы ровно той модели, которая выбрана здесь же, поэтому
+        он стоит под провайдером, а в карточке ключей остались только те, у
+        которых своя жизнь, — поисковые.
+      */}
       <SettingsSection
         title={
           <SectionTitle
-            title={words.keys.title}
-            hintLabel={words.hintFor(words.keys.title)}
-            hint={words.keys.what}
+            title={words.models.title}
+            hintLabel={words.hintFor(words.models.title)}
+            hint={words.models.what}
           />
         }
       >
+        <LabelledField
+          id="admin-ai-provider"
+          label={t('provider', 'Provider')}
+          hintLabel={words.hintFor(t('provider', 'Provider'))}
+          hint={words.models.providerHint}
+        >
+          <Select
+            id="admin-ai-provider"
+            label=""
+            name="provider"
+            value={form.provider}
+            disableForm={true}
+            hideErrors={true}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+              onCommit({
+                provider:
+                  event.target.value === 'openrouter' ? 'openrouter' : 'openai',
+              })
+            }
+          >
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+          </Select>
+          {providerOrigin === 'environment' ? (
+            <ValueState
+              name="admin-ai-provider"
+              origin="environment"
+              originLabel={words.origins.environment}
+              explanation={words.models.fromEnvironment}
+            />
+          ) : null}
+        </LabelledField>
+
         <KeyField
           name="admin-ai-api-key"
           label={words.keys.model.label}
@@ -483,6 +616,48 @@ export function AdminAiDefaultsView({
           onClear={onClearModelKey}
         />
 
+        <Input
+          label={t('text_model', 'Text model')}
+          name="admin-ai-text-model"
+          disableForm={true}
+          value={form.textModel}
+          placeholder={t('provider_default_model', 'Provider default')}
+          helper={valueHelper(
+            keyOrigin(!!data?.textModel, !!data?.fromEnvironment?.textModel),
+            'admin-ai-text-model'
+          )}
+          onBlur={() => onCommit()}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            onChange({ textModel: event.target.value })
+          }
+        />
+
+        <Input
+          label={t('image_model', 'Image model')}
+          name="admin-ai-image-model"
+          disableForm={true}
+          value={form.imageModel}
+          placeholder={t('provider_default_model', 'Provider default')}
+          helper={valueHelper(
+            keyOrigin(!!data?.imageModel, !!data?.fromEnvironment?.imageModel),
+            'admin-ai-image-model'
+          )}
+          onBlur={() => onCommit()}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            onChange({ imageModel: event.target.value })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title={
+          <SectionTitle
+            title={words.keys.searchTitle}
+            hintLabel={words.hintFor(words.keys.searchTitle)}
+            hint={words.keys.searchWhat}
+          />
+        }
+      >
         {KEYED_SEARCH_PROVIDERS.map((engine) => searchKeyField(engine))}
 
         {/*
@@ -495,70 +670,6 @@ export function AdminAiDefaultsView({
         >
           {words.keys.openrouterNoKey}
         </p>
-      </SettingsSection>
-
-      <SettingsSection title={words.models.title}>
-        <LabelledField
-          id="admin-ai-provider"
-          label={t('provider', 'Provider')}
-          hintLabel={words.hintFor(t('provider', 'Provider'))}
-          hint={words.models.providerHint}
-        >
-          <Select
-            id="admin-ai-provider"
-            label=""
-            name="provider"
-            value={form.provider}
-            disableForm={true}
-            hideErrors={true}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-              onChange({
-                provider:
-                  event.target.value === 'openrouter' ? 'openrouter' : 'openai',
-              })
-            }
-          >
-            <option value="openai">OpenAI</option>
-            <option value="openrouter">OpenRouter</option>
-          </Select>
-        </LabelledField>
-        {!data?.provider && data?.fromEnvironment?.provider ? (
-          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.models.fromEnvironment}
-          </p>
-        ) : null}
-
-        <Input
-          label={t('text_model', 'Text model')}
-          name="admin-ai-text-model"
-          disableForm={true}
-          value={form.textModel}
-          placeholder={t('provider_default_model', 'Provider default')}
-          helper={
-            !data?.textModel && data?.fromEnvironment?.textModel
-              ? words.models.fromEnvironment
-              : words.models.empty
-          }
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ textModel: event.target.value })
-          }
-        />
-
-        <Input
-          label={t('image_model', 'Image model')}
-          name="admin-ai-image-model"
-          disableForm={true}
-          value={form.imageModel}
-          placeholder={t('provider_default_model', 'Provider default')}
-          helper={
-            !data?.imageModel && data?.fromEnvironment?.imageModel
-              ? words.models.fromEnvironment
-              : words.models.empty
-          }
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ imageModel: event.target.value })
-          }
-        />
       </SettingsSection>
 
       <SettingsSection
@@ -584,22 +695,24 @@ export function AdminAiDefaultsView({
               <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                 {words.allowance.what}
               </span>
-              {data?.monthlyOperations === null ? (
-                <span
-                  data-allowance-origin={
-                    data?.fromEnvironment?.monthlyOperations
-                      ? 'environment'
-                      : 'absent'
-                  }
-                  className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-                >
-                  {data?.fromEnvironment?.monthlyOperations
-                    ? words.allowance.fromEnvironment
-                    : words.allowance.absent}
-                </span>
+              {allowanceOrigin === 'environment' ? (
+                <ValueState
+                  name="admin-ai-monthly-operations"
+                  origin="environment"
+                  originLabel={words.origins.environment}
+                  explanation={words.allowance.fromEnvironment}
+                />
+              ) : allowanceOrigin === 'absent' ? (
+                <ValueState
+                  name="admin-ai-monthly-operations"
+                  origin="absent"
+                  originLabel={words.origins.absent}
+                  explanation={words.allowance.absent}
+                />
               ) : null}
             </span>
           }
+          onBlur={() => onCommit()}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
             onChange({ monthlyOperations: event.target.value })
           }
@@ -607,8 +720,9 @@ export function AdminAiDefaultsView({
       </SettingsSection>
 
       {/*
-        Автосохранения здесь нет намеренно, и об этом сказано выше строкой:
-        каждое поле — либо секрет, либо число, которым платит инстанс.
+        Кнопка осталась, хотя всё, кроме ключей, сохраняется само: ключи уходят
+        только отсюда, и человеку, который хочет перестраховаться, есть что
+        нажать. Ровно та же пара, что в разделе ИИ настроек области.
       */}
       <div className="my-[16px] flex flex-wrap items-center gap-[8px]">
         <Button onClick={onSave} disabled={saving || !data}>
@@ -659,18 +773,26 @@ export const AdminAiDefaultsComponent = () => {
 
   /**
    * Поля ключей не заполняются из ответа никогда — их там и нет. Остальное
-   * приходит с сервера, и пустая строка тут значит «не задано здесь», что и
-   * есть правда: третье состояние рисует не поле, а строка под ним.
+   * приходит с сервера действующим значением: строка этого экрана, а где её
+   * нет — переменная окружения, которой инстанс работает прямо сейчас.
+   *
+   * Раньше здесь стояло `data.provider || 'openai'`, и на сервере с
+   * `AI_PROVIDER=openrouter` экран показывал OpenAI — провайдера, которым
+   * инстанс не работал ни разу (`content-factory-next-75xn.25`). Ответ старого
+   * сервера `effective` не содержит, поэтому запасной путь остался прежним:
+   * лучше показать сохранённое, чем не показать ничего.
    */
   useEffect(() => {
     if (!data) return;
+    const effective = data.effective;
     setForm((current) => ({
       ...current,
-      provider: data.provider || 'openai',
-      textModel: data.textModel || '',
-      imageModel: data.imageModel || '',
-      monthlyOperations:
-        data.monthlyOperations === null ? '' : String(data.monthlyOperations),
+      provider: effective?.provider || data.provider || 'openai',
+      textModel: effective?.textModel ?? data.textModel ?? '',
+      imageModel: effective?.imageModel ?? data.imageModel ?? '',
+      monthlyOperations: String(
+        effective?.monthlyOperations ?? data.monthlyOperations ?? ''
+      ),
     }));
   }, [data]);
 
@@ -678,6 +800,75 @@ export const AdminAiDefaultsComponent = () => {
     (patch: Partial<AdminAiDefaultsForm>) =>
       setForm((current) => ({ ...current, ...patch })),
     []
+  );
+
+  /**
+   * Что в форме прямо сейчас, читаемое из обработчика, созданного до
+   * последнего нажатия клавиши. Тот же приём, что на экране области
+   * (`ai-provider.component.tsx`): автосохранение отправляет всю форму, а не
+   * одно изменившееся поле, и список зависимостей пересобирал бы каждый
+   * обработчик на каждый набранный символ.
+   */
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  /**
+   * Сохранение без просьбы — всё, кроме ключей.
+   *
+   * Владелец 13.09.2026: «сохранение должно всегда и везде работать, кнопка
+   * „Сохранить“ — просто для тех, кто хочет перестраховаться». Ключ — это
+   * исключение, а не недосмотр: он секрет, нажатие клавиши не является
+   * решением его опубликовать, и поле, отправляющее `sk-` по мере вставки,
+   * положило бы обрывок ключа в лог каждого узла по дороге. Поэтому здесь они
+   * пусты по построению, а не отфильтрованы позже.
+   */
+  const autosave = useCallback(
+    async (patch: Partial<AdminAiDefaultsForm> = {}) => {
+      const next = { ...formRef.current, ...patch };
+      try {
+        const response = await fetch('/admin/ai-defaults', {
+          method: 'POST',
+          body: JSON.stringify(
+            buildAiDefaultsPayload({ ...next, apiKey: '', searchApiKeys: {} })
+          ),
+        });
+        if (!response.ok) throw new Error('save failed');
+        await mutate();
+        toaster.show(words.saved, 'success');
+      } catch {
+        toaster.show(words.saveFailed, 'warning');
+      }
+    },
+    [words]
+  );
+
+  /**
+   * Применить и сохранить. Смена провайдера заодно опустошает поля моделей:
+   * идентификатор модели принадлежит своему провайдеру, и `gpt-4.1`,
+   * сохранённый под OpenRouter, откажет во время генерации, далеко от того
+   * места, где его выбрали. Возврат к тому провайдеру, которым инстанс
+   * работает, возвращает и его модели.
+   */
+  const commit = useCallback(
+    (patch: Partial<AdminAiDefaultsForm> = {}) => {
+      const loaded = data?.effective?.provider ?? data?.provider;
+      const returning = patch.provider === loaded;
+      const full =
+        patch.provider && patch.provider !== formRef.current.provider
+          ? {
+              ...patch,
+              textModel: returning
+                ? data?.effective?.textModel ?? data?.textModel ?? ''
+                : '',
+              imageModel: returning
+                ? data?.effective?.imageModel ?? data?.imageModel ?? ''
+                : '',
+            }
+          : patch;
+      change(full);
+      void autosave(full);
+    },
+    [change, autosave, data]
   );
 
   const save = useCallback(async () => {
@@ -776,6 +967,7 @@ export const AdminAiDefaultsComponent = () => {
       saving={saving}
       clearing={clearing}
       onChange={change}
+      onCommit={commit}
       onSave={save}
       onClearModelKey={clearModelKey}
       onClearSearchKey={clearSearchKey}

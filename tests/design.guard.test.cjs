@@ -150,6 +150,126 @@ const findSharedControlHeightOffenders = (files) => {
 };
 
 /**
+ * The width of the working track, retyped at the call site.
+ *
+ * `Progress` is one bar with one job, and an indeterminate one carries no
+ * measurement at all — so how wide it is says nothing about the work and
+ * everything about the row it sits in. Three screens typed that width by hand
+ * anyway, and on 13.09.2026 the owner photographed what it costs: the intake
+ * bar ran to the right edge of the window and the word for what was happening
+ * was pushed off the screen beside it.
+ *
+ * `WorkingLine` owns that shape now — a fixed track and a caption that
+ * truncates — so the width belongs to `apps/frontend/src/components/ui`. What
+ * is scanned here is a sizing class or an inline size on a `<Progress>` at the
+ * call site; margins are untouched, because where the bar sits is still the
+ * screen's decision.
+ */
+const PROGRESS_SIZE_CLASS =
+  /(?:^|[\s"'`])(?:[\w-]+:)*!?(?:min-|max-)?(?:w-|h-|size-)|\[(?:width|height|min-width|max-width|min-height|max-height|inline-size|block-size):/;
+const PROGRESS_SIZE_STYLE =
+  /\b(?:width|minWidth|maxWidth|height|minHeight|maxHeight|inlineSize|blockSize)\s*:/;
+
+/**
+ * The three screens that still size the bar themselves.
+ *
+ * Two are a 32px stub beside an upload row; the third is the running row the
+ * owner photographed, written by hand at 128px before the shared row existed.
+ * The intake screen was the fourth and left on 13.09.2026, which is what this
+ * list is for: all three are debt to move onto `WorkingLine`, not permission to
+ * add a fourth, and the guard fails on a file that leaves the list as well as on
+ * one that joins it.
+ */
+const PROGRESS_GEOMETRY_ALLOWED = [
+  'apps/frontend/src/components/content-intelligence/pieces/piece.screen.tsx',
+  'apps/frontend/src/components/media/media.component.tsx',
+  'apps/frontend/src/components/third-parties/third-party.media-library.tsx',
+];
+
+const PROGRESS_GEOMETRY_OWNERS = new Set([
+  'apps/frontend/src/components/ui/progress.tsx',
+  'apps/frontend/src/components/ui/working-line.tsx',
+]);
+
+const findProgressGeometryOffenders = (files) => {
+  const offenders = [];
+
+  for (const { file, source } of files) {
+    if (PROGRESS_GEOMETRY_OWNERS.has(file)) continue;
+
+    const ast = ts.createSourceFile(
+      file,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX
+    );
+    const imported = new Set();
+    const bindings = new Map();
+
+    ast.forEachChild((node) => {
+      if (ts.isImportDeclaration(node)) {
+        const namedBindings = node.importClause?.namedBindings;
+        if (namedBindings && ts.isNamedImports(namedBindings)) {
+          namedBindings.elements.forEach((entry) => {
+            const exported = entry.propertyName?.text ?? entry.name.text;
+            if (exported === 'Progress') imported.add(entry.name.text);
+          });
+        }
+      }
+
+      if (ts.isVariableStatement(node)) {
+        node.declarationList.declarations.forEach((declaration) => {
+          if (
+            ts.isIdentifier(declaration.name) &&
+            declaration.initializer &&
+            ts.isStringLiteral(declaration.initializer)
+          ) {
+            bindings.set(declaration.name.text, declaration.initializer.text);
+          }
+        });
+      }
+    });
+
+    const visit = (node) => {
+      if (
+        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+        imported.has(node.tagName.getText(ast))
+      ) {
+        const attributes = node.attributes.properties.filter(ts.isJsxAttribute);
+        const rawClassName =
+          attributes
+            .find((attribute) => attribute.name.text === 'className')
+            ?.initializer?.getText(ast) ?? '';
+        const identifier = /^\{([A-Za-z_$][\w$]*)\}$/.exec(rawClassName)?.[1];
+        const className = identifier
+          ? bindings.get(identifier) ?? rawClassName
+          : rawClassName;
+        const style =
+          attributes
+            .find((attribute) => attribute.name.text === 'style')
+            ?.initializer?.getText(ast) ?? '';
+
+        if (
+          PROGRESS_SIZE_CLASS.test(className) ||
+          PROGRESS_SIZE_STYLE.test(style)
+        ) {
+          const line =
+            ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1;
+          offenders.push(`${file}:${line}`);
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+
+    visit(ast);
+  }
+
+  return offenders.sort();
+};
+
+/**
  * The third button.
  *
  * `border border-cf-accent bg-cf-accent-soft text-cf-accent hover:bg-cf-accent`
@@ -513,6 +633,34 @@ const RULES = [
     pattern: 'min-h-\\[44px\\][^"\'`]*md:min-h-\\[40px\\]',
     allowed: [],
     fix: 'use the `cf-control-h` token',
+  },
+  /**
+   * The browser's own checkbox, dropped onto a themed surface.
+   *
+   * `tests/raw-control.guard.test.cjs` counts native `<input>` per file, which
+   * is the bypass question: did a screen skip the shared control. This is the
+   * appearance question, and the owner asked it on 13.09.2026 looking at the
+   * intake form — a bare white square with the browser's own border and radius,
+   * beside fields the system draws itself. `accent-color` does not answer it:
+   * it reaches the filled state and leaves the empty one to the user agent, so
+   * on the dark theme the unchecked box is a light-theme control.
+   *
+   * `CheckboxField` draws the box and keeps the native input for semantics and
+   * the keyboard. The three files below are where a native checkbox is still
+   * legitimately written: the primitive itself, the multi-select whose option
+   * control it is, and the admin filter bar that has no shared control to use
+   * yet. The list may only shrink.
+   */
+  {
+    name: 'hand-rolled native checkbox',
+    pattern: 'type=\\{?["\']checkbox',
+    allowed: [
+      'apps/frontend/src/components/admin/admin-errors.component.tsx',
+      'libraries/react-shared-libraries/src/form/checkbox.field.tsx',
+      'libraries/react-shared-libraries/src/form/multi.select.tsx',
+    ],
+    roots: ['apps/frontend/src', 'libraries'],
+    fix: 'use `CheckboxField` from `@contentfactory/react/form/checkbox.field`',
   },
   /**
    * The arbitrary breakpoint that generates nothing.
@@ -902,6 +1050,83 @@ describe('Content Factory style guard', () => {
         .sort(),
       stale: HAND_ROLLED_ACCENT_ALLOWED.filter((file) => !offending.has(file)),
       fix: 'use Button, ButtonLink or the choice family; accent is the primitive’s to paint',
+    }).toEqual({ added: [], stale: [], fix: expect.any(String) });
+  });
+
+  test('reads every spelling of a hand-rolled native checkbox', () => {
+    // The rule is a grep over the real tree, so the shapes it has to catch are
+    // proved here rather than by planting a file in `apps/` — a suite that
+    // writes into the source tree breaks whatever dev stand is running beside
+    // it, and `tests/helpers/source-tree-guard.cjs` refuses it outright.
+    const rule = RULES.find(({ name }) => name === 'hand-rolled native checkbox');
+    const pattern = new RegExp(rule.pattern);
+
+    expect('<input type="checkbox" />').toMatch(pattern);
+    expect("<input type='checkbox' />").toMatch(pattern);
+    expect("<input type={'checkbox'} />").toMatch(pattern);
+    expect('<input type="text" />').not.toMatch(pattern);
+    // The primitive is on the list, so the list is what keeps it green — the
+    // pattern itself does not know the difference.
+    expect(rule.allowed).toContain(
+      'libraries/react-shared-libraries/src/form/checkbox.field.tsx'
+    );
+  });
+
+  test('refuses a new hand-sized Progress and keeps its ledger honest', () => {
+    // First that the detector reads sizing rather than any class at all: the
+    // arbitrary width, the const-bound width, the named size and the inline
+    // style are offences; a margin, a text token and an unimported `Progress`
+    // are not.
+    const fixture = [
+      "import { Progress } from '../ui/progress';",
+      "const track = 'w-[80px] shrink-0';",
+      '<Progress mode="indeterminate" label={word} className="w-[80px]" />',
+      '<Progress mode="indeterminate" label={word} className={track} />',
+      '<Progress mode="indeterminate" label={word} className="max-w-sm" />',
+      '<Progress mode="indeterminate" label={word} style={{ width: 80 }} />',
+      '<Progress mode="indeterminate" label={word} className="mt-[8px]" />',
+      '<Progress mode="indeterminate" label={word} />',
+      '<div className="w-[80px]" />',
+    ].join('\n');
+    expect(
+      findProgressGeometryOffenders([{ file: 'fixture.tsx', source: fixture }])
+    ).toEqual([
+      'fixture.tsx:3',
+      'fixture.tsx:4',
+      'fixture.tsx:5',
+      'fixture.tsx:6',
+    ]);
+
+    // And that the component that owns the width is exempt by path rather than
+    // by luck: the same markup inside `working-line.tsx` is the rule, not a
+    // breach of it.
+    expect(
+      findProgressGeometryOffenders([
+        {
+          file: 'apps/frontend/src/components/ui/working-line.tsx',
+          source: fixture,
+        },
+      ])
+    ).toEqual([]);
+
+    const files = sourceFiles(
+      path.join(repositoryRoot, 'apps/frontend/src')
+    ).map((absolute) => ({
+      file: path.relative(repositoryRoot, absolute),
+      source: fs.readFileSync(absolute, 'utf8'),
+    }));
+    const offending = new Set(
+      findProgressGeometryOffenders(files).map((entry) =>
+        entry.slice(0, entry.lastIndexOf(':'))
+      )
+    );
+
+    expect({
+      added: [...offending]
+        .filter((file) => !PROGRESS_GEOMETRY_ALLOWED.includes(file))
+        .sort(),
+      stale: PROGRESS_GEOMETRY_ALLOWED.filter((file) => !offending.has(file)),
+      fix: 'use `WorkingLine` for a running row; the track width is the component’s, and a file that stops sizing Progress leaves PROGRESS_GEOMETRY_ALLOWED in the same commit',
     }).toEqual({ added: [], stale: [], fix: expect.any(String) });
   });
 

@@ -54,6 +54,43 @@ const includedRow = {
   searchDepth: 'advanced',
 };
 
+/**
+ * Число включённых операций экран показывает действующим, и считает его та же
+ * функция, по которой инстанс выставляет счёт. Поэтому здесь она настоящая, а
+ * не двойник: двойник разошёлся бы с биллингом молча.
+ */
+const loadUsage = () =>
+  loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/openai/ai.usage.service.ts',
+    {
+      '@prisma/client': { Prisma: {} },
+      '@nestjs/common': {
+        HttpException: class HttpException {
+          constructor(response) {
+            this.response = response;
+          }
+        },
+        HttpStatus: { TOO_MANY_REQUESTS: 429, SERVICE_UNAVAILABLE: 503 },
+        Injectable: () => (target) => target,
+      },
+      '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
+        PrismaService: class PrismaService {},
+      },
+      '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+        setAiProviderSettingReader: () => undefined,
+        setInstanceAiDefaultsReader: () => undefined,
+        INSTANCE_AI_DEFAULTS_ID: 'instance',
+      },
+      '@contentfactory/nestjs-libraries/openai/ai.roles': {
+        modelFor: () => 'model',
+        roleForOperation: () => 'draft',
+      },
+      '@contentfactory/nestjs-libraries/user/acting.user': {
+        getActingUserId: () => null,
+      },
+    }
+  );
+
 const loadService = (rows) => {
   const state = { row: rows.row ?? null, written: [] };
   const prisma = {
@@ -89,6 +126,7 @@ const loadService = (rows) => {
     '@contentfactory/nestjs-libraries/openai/ai.roles': loadTypeScriptModule(
       'libraries/nestjs-libraries/src/openai/ai.roles.ts'
     ),
+    '@contentfactory/nestjs-libraries/openai/ai.usage.service': loadUsage(),
   });
   return { service: new InstanceAiDefaultsService(prisma), state };
 };
@@ -243,6 +281,95 @@ describe('the superadmin screen never sees a key', () => {
     );
   });
 
+  /**
+   * `content-factory-next-75xn.25`, `.27`. Записи владельца 13.09.2026: «у нас
+   * вроде должен быть OpenRouter, но почему-то по умолчанию выбран OpenAI» и
+   * «почему бы там не показывать текущее по умолчанию установленное число?».
+   * Экран не мог показать ни того, ни другого: ответ говорил только, задано ли
+   * значение переменной окружения, но не какое оно. Форма подставляла своё
+   * начальное `openai` — провайдера, которым инстанс ни разу не работал.
+   */
+  test('reading says what the instance actually runs on, field by field', async () => {
+    await withEnvironment(
+      {
+        AI_PROVIDER: 'openrouter',
+        AI_TEXT_MODEL: 'openai/gpt-5.6-luna',
+        AI_IMAGE_MODEL: undefined,
+        AI_INCLUDED_MONTHLY_OPERATIONS: '50',
+      },
+      async () => {
+        const { service } = loadService({ row: null });
+
+        const view = await service.read();
+
+        // Строка пуста, и это та самая ловушка: «не задано здесь» — не «не
+        // задано». Действующее значение приходит рядом, отдельным полем.
+        expect(view.provider).toBeNull();
+        expect(view.monthlyOperations).toBeNull();
+        expect(view.effective).toEqual({
+          provider: 'openrouter',
+          textModel: 'openai/gpt-5.6-luna',
+          imageModel: null,
+          monthlyOperations: 50,
+        });
+      }
+    );
+  });
+
+  test('what is set on this screen is what the screen shows', async () => {
+    await withEnvironment(
+      {
+        AI_PROVIDER: 'openrouter',
+        AI_TEXT_MODEL: 'openai/gpt-5.6-luna',
+        AI_INCLUDED_MONTHLY_OPERATIONS: '50',
+      },
+      async () => {
+        const { service } = loadService({
+          row: {
+            provider: 'openai',
+            textModel: 'gpt-4.1',
+            monthlyOperations: 0,
+          },
+        });
+
+        const view = await service.read();
+
+        // Модель из переменной окружения принадлежит её провайдеру: на
+        // OpenAI-строке `openai/gpt-5.6-luna` не предлагается, потому что
+        // сервер её в этом случае тоже не читает.
+        expect(view.effective).toEqual({
+          provider: 'openai',
+          textModel: 'gpt-4.1',
+          imageModel: null,
+          monthlyOperations: 0,
+        });
+      }
+    );
+  });
+
+  test('nothing anywhere reads as nothing, not as a number nobody typed', async () => {
+    await withEnvironment(
+      {
+        AI_PROVIDER: undefined,
+        AI_TEXT_MODEL: undefined,
+        AI_IMAGE_MODEL: undefined,
+        AI_INCLUDED_MONTHLY_OPERATIONS: undefined,
+      },
+      async () => {
+        const { service } = loadService({ row: null });
+
+        const view = await service.read();
+
+        expect(view.effective).toEqual({
+          provider: 'openai',
+          textModel: null,
+          imageModel: null,
+          monthlyOperations: null,
+        });
+      }
+    );
+  });
+
   test('saving merges rather than replaces, so a key survives an unrelated edit', async () => {
     const { service, state } = loadService({
       row: { searchApiKeys: { tavily: 'enc:kept-tavily' }, apiKey: 'enc:kept' },
@@ -295,36 +422,7 @@ describe('the superadmin screen never sees a key', () => {
   });
 
   test('zero is an obeyable answer, not «ask somebody else»', () => {
-    const usage = loadTypeScriptModule(
-      'libraries/nestjs-libraries/src/openai/ai.usage.service.ts',
-      {
-        '@prisma/client': { Prisma: {} },
-        '@nestjs/common': {
-          HttpException: class HttpException {
-            constructor(response) {
-              this.response = response;
-            }
-          },
-          HttpStatus: { TOO_MANY_REQUESTS: 429, SERVICE_UNAVAILABLE: 503 },
-          Injectable: () => (target) => target,
-        },
-        '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
-          PrismaService: class PrismaService {},
-        },
-        '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
-          setAiProviderSettingReader: () => undefined,
-          setInstanceAiDefaultsReader: () => undefined,
-          INSTANCE_AI_DEFAULTS_ID: 'instance',
-        },
-        '@contentfactory/nestjs-libraries/openai/ai.roles': {
-          modelFor: () => 'model',
-          roleForOperation: () => 'draft',
-        },
-        '@contentfactory/nestjs-libraries/user/acting.user': {
-          getActingUserId: () => null,
-        },
-      }
-    );
+    const usage = loadUsage();
 
     process.env.AI_INCLUDED_MONTHLY_OPERATIONS = '50';
     try {
@@ -387,9 +485,9 @@ test('every admin mutation proves the request came from our own screen', () => {
     .map(([, name]) => name);
 
   /**
-   * `connectTelegram` предшествует этому стражу и проверки источника не несёт —
-   * `content-factory-next-75xn.17`. Он назван здесь поимённо, чтобы список мог
-   * только сокращаться: новая дверь без проверки роняет набор.
+   * Список был `['connectTelegram']` один день: дверь предшествовала стражу и
+   * получила проверку источника волной 13.09 (`content-factory-next-75xn.17`).
+   * Теперь он пуст, и новая дверь без проверки роняет набор.
    */
-  expect(unchecked).toEqual(['connectTelegram']);
+  expect(unchecked).toEqual([]);
 });

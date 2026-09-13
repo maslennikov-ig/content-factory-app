@@ -288,6 +288,9 @@ export function readIntakeEvent(line: string): IntakeReading | null {
               : 'not_found';
             return [{ url: item.url, title: asText(item.title, item.url), status }];
           }),
+          snapshotKey: typeof record.snapshotKey === 'string' ? record.snapshotKey : null,
+          corrections: readCorrections(record.corrections),
+          summary: readResearchSummary(record.summary) ?? undefined,
         },
       };
 
@@ -301,6 +304,9 @@ export function readIntakeEvent(line: string): IntakeReading | null {
               ? record.level
               : 'standard',
           facts: readBrief({ inputKind: 'thought', facts: record.facts, origins: {} })?.facts ?? [],
+          snapshotKey: typeof record.snapshotKey === 'string' ? record.snapshotKey : null,
+          corrections: readCorrections(record.corrections),
+          summary: readResearchSummary(record.summary) ?? undefined,
         },
       };
 
@@ -400,6 +406,51 @@ export const readQuestions = (value: unknown): IntakeQuestionV1[] =>
 const nullableText = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'null' ? value : null;
 
+const readCorrection = (value: unknown): { original: string; replacement: string } | null => {
+  const record = asRecord(value);
+  if (!record || typeof record.original !== 'string' || typeof record.replacement !== 'string') return null;
+  return { original: record.original, replacement: record.replacement };
+};
+
+export type IntakeCorrection = {
+  factKey: string;
+  original: string;
+  replacement: string;
+  sourceUrl: string | null;
+  quote: string | null;
+  note: string | null;
+  accepted: boolean;
+};
+
+export const readCorrections = (value: unknown): IntakeCorrection[] =>
+  asArray(value).flatMap((entry) => {
+    const record = asRecord(entry);
+    if (!record || typeof record.factKey !== 'string' || typeof record.original !== 'string' || typeof record.replacement !== 'string') return [];
+    return [{
+      factKey: record.factKey,
+      original: record.original,
+      replacement: record.replacement,
+      sourceUrl: typeof record.sourceUrl === 'string' ? record.sourceUrl : null,
+      quote: typeof record.quote === 'string' ? record.quote : null,
+      note: typeof record.note === 'string' ? record.note : null,
+      accepted: record.accepted !== false,
+    }];
+  });
+
+export type IntakeResearchSummary = {
+  confirmed: number; conflicting: number; unverified: number; found: number; sources: number; encyclopedic: number;
+};
+
+export const readResearchSummary = (value: unknown): IntakeResearchSummary | null => {
+  const record = asRecord(value);
+  if (!record) return null;
+  const number = (key: string) => (typeof record[key] === 'number' && Number.isFinite(record[key]) ? (record[key] as number) : 0);
+  return {
+    confirmed: number('confirmed'), conflicting: number('conflicting'), unverified: number('unverified'),
+    found: number('found'), sources: number('sources'), encyclopedic: number('encyclopedic'),
+  };
+};
+
 export function readBrief(value: unknown): BriefFilledV2 | null {
   const record = asRecord(value);
   if (!record) return null;
@@ -434,6 +485,11 @@ export function readBrief(value: unknown): BriefFilledV2 | null {
           ...(['own', 'external', 'found'].includes(asText(fact.kind)) ? { kind: fact.kind as 'own' | 'external' | 'found' } : {}),
           ...(['confirmed', 'conflicting', 'not_found', 'unverified'].includes(asText(fact.status)) ? { status: fact.status as 'confirmed' | 'conflicting' | 'not_found' | 'unverified' } : {}),
           ...(typeof fact.selected === 'boolean' ? { selected: fact.selected } : {}),
+          // Опоры с вердиктами (волна 13.09.2026): ключ строки, цитата, заметка, поправка.
+          ...(typeof fact.factKey === 'string' ? { factKey: fact.factKey } : {}),
+          ...(typeof fact.quote === 'string' ? { quote: fact.quote } : {}),
+          ...(typeof fact.note === 'string' ? { note: fact.note } : {}),
+          ...(readCorrection(fact.correction) ? { correction: readCorrection(fact.correction) } : {}),
         },
       ];
     }),
@@ -618,6 +674,8 @@ export function buildIntakePayload(input: {
   inputKind?: IntakeInputKindV1;
   options?: IntakeOptionsV1;
   researchSelections?: readonly string[];
+  /** Снимок первого прохода, чтобы второй продолжил его (`75xn.19`). */
+  snapshotKey?: string | null;
   sourceLeadId?: string;
   /** Ответы интервью заготовки; сервер ставит им время и происхождение шага. */
   interview?: readonly PieceAnswerInputV1[];
@@ -646,6 +704,7 @@ export function buildIntakePayload(input: {
     ...(input.researchSelections
       ? { researchSelections: [...input.researchSelections] }
       : {}),
+    ...(input.snapshotKey ? { snapshotKey: input.snapshotKey } : {}),
     ...(input.sourceLeadId ? { sourceLeadId: input.sourceLeadId } : {}),
     ...(input.interview?.length ? { interview: [...input.interview] } : {}),
     ...(input.decideKeys?.length ? { decideKeys: [...input.decideKeys] } : {}),

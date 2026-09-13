@@ -13,8 +13,10 @@ import {
   SearchProvider,
   requireActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import { judgeDiscoveryRows } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-discovery-judge';
 import {
   DEFAULT_SEARCH_TASK,
+  SEARCH_PROVIDERS,
   SearchTask,
   providerForSearchTask,
   searchKeyFor,
@@ -79,6 +81,15 @@ export interface WebResearchSource {
   title: string;
   publishedAt: string | null;
   provider: ResearchSourceProvider;
+  /** The engine's own relevance score, 0–1, when it gives one. */
+  score?: number;
+  /**
+   * The page itself, cleaned and capped, kept only for an explicit paid level
+   * (`content-factory-next-75xn.29`). Both engines already send the page
+   * inside the search answer; throwing it away and buying it again elsewhere
+   * was the one thing the owner refused. Absent for the free lanes.
+   */
+  text?: string;
 }
 
 export interface WebResearchFact {
@@ -86,11 +97,23 @@ export interface WebResearchFact {
   sourceUrl: string;
 }
 
+/**
+ * One judged row of a discovery sweep (`content-factory-next-75xn.23`): the
+ * cheap model pass that runs inside the same operation says whether the page
+ * is about the topic and what it says. Absent when the pass did not run.
+ */
+export interface WebResearchDiscoveryJudgement {
+  url: string;
+  relevant: boolean;
+  reason: { ru: string; en: string };
+}
+
 export interface WebResearchResult {
   summary: string;
   facts: WebResearchFact[];
   sources: WebResearchSource[];
   provider: SearchProvider | 'mixed';
+  discovery?: WebResearchDiscoveryJudgement[];
 }
 
 export interface WebResearchOptions {
@@ -298,20 +321,39 @@ export interface ResearchCacheJournalEntry {
   at: string;
 }
 
+/**
+ * How long one answer stands in for the same question
+ * (`content-factory-next-75xn.31`, owner decision 13.09.2026).
+ *
+ * Until then the cache had no clock at all: a topic checked again an hour
+ * later, or the same thought researched the next morning, answered from
+ * process memory until the container restarted — «Проверить снова» was a
+ * no-op that looked like a check. Thirty minutes keeps the repeat click free
+ * and lets a subscription's next tick see what the engine says now.
+ */
+export const RESEARCH_CACHE_TTL_MS = 30 * 60 * 1_000;
+
 /** In-memory insertion-ordered cache with a bounded hit/miss journal. */
 export class ResearchQueryCache<T = unknown> {
-  private readonly values = new Map<string, T>();
+  private readonly values = new Map<string, { value: T; storedAt: number }>();
   private readonly entries: ResearchCacheJournalEntry[] = [];
-  constructor(private readonly maximum = 10_000) {}
+  constructor(
+    private readonly maximum = 10_000,
+    private readonly ttlMs = RESEARCH_CACHE_TTL_MS
+  ) {}
   get(key: string, now = new Date()): T | undefined {
-    const value = this.values.get(key);
+    const stored = this.values.get(key);
+    const expired =
+      stored !== undefined && now.getTime() - stored.storedAt >= this.ttlMs;
+    if (expired) this.values.delete(key);
+    const value = expired ? undefined : stored?.value;
     this.entries.push({ key, hit: value !== undefined, at: now.toISOString() });
     if (this.entries.length > this.maximum) this.entries.shift();
     return value;
   }
-  set(key: string, value: T): void {
+  set(key: string, value: T, now = new Date()): void {
     this.values.delete(key);
-    this.values.set(key, value);
+    this.values.set(key, { value, storedAt: now.getTime() });
     while (this.values.size > this.maximum) {
       this.values.delete(this.values.keys().next().value as string);
     }
@@ -362,6 +404,7 @@ interface SearchResult {
     published_date?: string;
     publishedAt?: string;
     nonCitableSnippet?: string;
+    score?: number;
   }>;
 }
 
@@ -663,7 +706,7 @@ const readableLine = (line: string) => {
  * and a blank the cleaning itself created at the very start is removed rather
  * than left to open the excerpt with an empty line.
  */
-const cleanExcerpt = (value: string) => {
+export const cleanExcerpt = (value: string) => {
   const kept: string[] = [];
   let hasProseLine = false;
   for (const line of value.split('\n')) {
@@ -713,6 +756,27 @@ const providerSnippetExcerpt = (value: string | undefined) => {
   return text;
 };
 
+/**
+ * The page as material for the digest that turns findings into claims
+ * (`content-factory-next-75xn.29`): cleaned of chrome the same way an excerpt
+ * is, cut at a paragraph, and capped so five deep-level pages stay inside one
+ * prompt. Kept only on an explicit paid level.
+ */
+export const PAGE_TEXT_MAX_CHARS = 6_000;
+const PAGE_TEXT_SCAN_LIMIT = 8 * PAGE_TEXT_MAX_CHARS;
+const pageText = (value: string | undefined) => {
+  if (!value) return undefined;
+  const { text, hasProseLine } = cleanExcerpt(value.slice(0, PAGE_TEXT_SCAN_LIMIT));
+  if (!hasProseLine || !LETTER.test(text)) return undefined;
+  const cut = truncateAtParagraph(text, PAGE_TEXT_MAX_CHARS);
+  return cut || undefined;
+};
+
+/** Discovery buys a second, general-index pass when the news index gave fewer addresses than this. */
+export const DISCOVERY_NEWS_FLOOR = 3;
+/** Places of the source cap held for the keyless encyclopedic lane, returned when unused. */
+export const ENCYCLOPEDIC_RESERVED_SOURCES = 2;
+
 /** Nobody chose this text for the query, so it has to read like prose. */
 const wholePageExcerpt = (value: string | undefined) => {
   if (!value) return undefined;
@@ -748,6 +812,12 @@ const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
 export class WebSearchNotConfigured extends Error {
   readonly status = 409;
   readonly code = 'CONTENT_SEARCH_NOT_CONFIGURED';
+  /**
+   * Read by `AiUsageService`: this refusal happens before any request leaves
+   * the building, so the admission it was raised under is voided rather than
+   * counted as a failed call (`content-factory-next-75xn.20`, F1).
+   */
+  readonly configurationRefusal = true;
   constructor() {
     super(
       'Web search is not configured for this organization. Enable it and add a search key under Settings → AI provider.'
@@ -911,33 +981,44 @@ export class WebResearchService {
       this.logger.log(`Web research answered via ${primary}.`);
       return { provider: primary, response };
     } catch (error) {
-      if (
-        !isFallbackFailure(error) ||
-        config.provider !== 'openrouter' ||
-        primary === 'openrouter'
-      ) {
-        throw error;
-      }
+      /**
+       * The fallback is the other engine the workspace holds a search key
+       * for, and nothing else (`content-factory-next-75xn.32`, owner decision
+       * 13.09.2026). Until that day a Tavily deadline retried through
+       * OpenRouter, which answers with the generation key: a search outage
+       * quietly became model spend, on the one path the routing rule of
+       * `75xn.11` had already closed for a missing key. No second keyed
+       * engine means an honest refusal; the model key is never the reserve.
+       */
+      const reserve = isFallbackFailure(error)
+        ? SEARCH_PROVIDERS.find(
+            (engine) =>
+              engine !== primary &&
+              searchProviderNeedsKey(engine) &&
+              !!searchKeyFor(engine, config.search)
+          )
+        : undefined;
+      if (!reserve) throw error;
 
       this.logger.warn(
         `${primary} web research failed (${failureLabel(
           error
-        )}); retrying via OpenRouter.`
+        )}); retrying via ${reserve}.`
       );
       try {
-        egressCheck?.('openrouter');
+        egressCheck?.(reserve);
         const response = await invokeWithDeadline(
-          () => getWebSearchClient(organizationId, 'openrouter', options),
+          () => getWebSearchClient(organizationId, reserve, options),
           query,
           WEB_SEARCH_FALLBACK_TIMEOUT_MS
         );
         if (!response.results?.length) throw new EmptyWebSearchResults();
-        this.logger.log('Web research answered via openrouter.');
-        return { provider: 'openrouter', response };
+        this.logger.log(`Web research answered via ${reserve}.`);
+        return { provider: reserve, response };
       } catch (fallbackError) {
         throw new WebSearchFallbackError([error, fallbackError], [
           primary,
-          'openrouter',
+          reserve,
         ]);
       }
     }
@@ -1100,6 +1181,15 @@ Subject: {subject}`
         ? { maxResults: preset.maxSources }
         : {}),
       ...(options.windowDays ? { windowDays: options.windowDays } : {}),
+      /**
+       * Discovery asks the news index first (`content-factory-next-75xn.23`):
+       * it is the one Tavily mode that carries `published_date`, and a lead
+       * announced as «свежее за 30 дней» is worthless without one. Thirty of
+       * forty leads on 13.09 had no date for exactly this reason.
+       */
+      ...(task === 'discovery'
+        ? { topic: 'news' as 'news' | 'general' }
+        : {}),
     };
     const egressBudget: ResearchEgressBudget = {
       maxSearchQueries: preset.maxSearchQueries,
@@ -1155,6 +1245,78 @@ Subject: {subject}`
       error.code = `RESEARCH_EGRESS_${decision.code.toUpperCase()}`;
       throw error;
     };
+
+    /**
+     * Бесключевая полоса Wikipedia/Wikidata (`content-factory-next-m0iy.8`)
+     * стартует ДО поисковика, а не после него (`content-factory-next-75xn.22`).
+     *
+     * До 13.09 она включалась, когда потолок принятых источников уже был
+     * выбран поисковиком целиком, и лог каждого ресерча заканчивался
+     * «skipped: budget_accepted_sources» — энциклопедия не доходила никогда.
+     * Теперь полоса идёт параллельно с запросами, а за ней держатся до двух
+     * мест из потолка; неиспользованные места возвращаются поисковику. Она
+     * по-прежнему включается только при явно выбранном уровне, и её отказ
+     * никогда не отменяет уже полученный ответ.
+     */
+    const encyclopedicAllowed = (provider: EncyclopedicProvider) => {
+      const decision = decideResearchEgress({
+        organizationId,
+        providerId: provider,
+        approvedProviderIds: APPROVED_RESEARCH_PROVIDERS,
+        globalKillSwitch,
+        tenantKillSwitches,
+        providerKillSwitches,
+        budget: egressBudget,
+        spend: {
+          searchQueries: queries.length,
+          acceptedSources: 0,
+          responseBytes: 0,
+          wallClockMs: Date.now() - researchStartedAt,
+          providerCostMicros: 0,
+          inFlight: 0,
+        },
+        // The lane reads pages rather than buying a search, so the source
+        // cap is what bounds it.
+        kind: 'fetch',
+      });
+      if (decision.allowed === true) return true;
+      this.logger.warn(
+        `Encyclopedic lane skipped for ${provider}: ${decision.code}.`
+      );
+      return false;
+    };
+    const encyclopedicLane: Promise<
+      Awaited<ReturnType<WebResearchService['encyclopedicRows']>>
+    > = options.levelWasExplicit
+      ? withDeadline(
+          this.encyclopedicRows({
+            entityNames: [
+              ...new Set(
+                [subjectLanguageQuery, englishQuery].filter(
+                  (name): name is string => !!name
+                )
+              ),
+            ],
+            locales: [
+              ...new Set(
+                [classification.subjectLanguage, 'en']
+                  .map((locale) => String(locale || '').trim().toLowerCase())
+                  .filter(Boolean)
+              ),
+            ],
+            allow: encyclopedicAllowed,
+          }),
+          ENCYCLOPEDIC_LANE_TIMEOUT_MS
+        ).catch((error) => {
+          this.logger.warn(
+            `The keyless encyclopedic lane added nothing: ${describeLaneError(
+              error
+            )}`
+          );
+          return [];
+        })
+      : Promise.resolve([]);
+
     /**
      * Половина поиска не отменяет вторую (`content-factory-next-ec48.3`).
      *
@@ -1164,35 +1326,72 @@ Subject: {subject}`
      * ручной поиск по тем же темам минутой позже отвечал. Берётся всё, что
      * ответило; отказом считается только случай, когда не ответил никто.
      */
-    const settled = await Promise.allSettled(
-      queries.map((query, index) =>
-        this.searchOne(
-          organizationId,
-          query,
-          config,
-          searchOptions,
-          task,
-          egressCheck(index)
+    const runQueries = async (
+      queryOptions: typeof searchOptions,
+      indexOffset: number
+    ): Promise<ProviderSearchResult[]> => {
+      const settled = await Promise.allSettled(
+        queries.map((query, index) =>
+          this.searchOne(
+            organizationId,
+            query,
+            config,
+            queryOptions,
+            task,
+            egressCheck(indexOffset + index)
+          )
         )
-      )
-    );
-    const responses = settled
-      .filter(
-        (entry): entry is PromiseFulfilledResult<ProviderSearchResult> =>
-          entry.status === 'fulfilled'
-      )
-      .map((entry) => entry.value);
-    const failures = settled.filter(
-      (entry): entry is PromiseRejectedResult => entry.status === 'rejected'
-    );
-    if (!responses.length) throw failures[0].reason;
-    for (const failure of failures) {
-      this.logger.warn(
-        `One of ${queries.length} web research queries failed (${failureLabel(
-          failure.reason
-        )}); keeping the answers that arrived.`
       );
+      const answered = settled
+        .filter(
+          (entry): entry is PromiseFulfilledResult<ProviderSearchResult> =>
+            entry.status === 'fulfilled'
+        )
+        .map((entry) => entry.value);
+      const failures = settled.filter(
+        (entry): entry is PromiseRejectedResult => entry.status === 'rejected'
+      );
+      if (!answered.length && indexOffset === 0) throw failures[0].reason;
+      for (const failure of failures) {
+        this.logger.warn(
+          `One of ${queries.length} web research queries failed (${failureLabel(
+            failure.reason
+          )}); keeping the answers that arrived.`
+        );
+      }
+      return answered;
+    };
+    const responses = await runQueries(searchOptions, 0);
+    /**
+     * A narrow topic may have no news at all in the window while the wider
+     * index knows a trade page or a regulator's notice. Fewer than three
+     * addresses from the news index buys one more pass on the general index,
+     * inside the same operation and the same query budget.
+     */
+    if (task === 'discovery') {
+      const newsAddresses = new Set(
+        responses.flatMap(({ response }) =>
+          (response.results || [])
+            .map((item) => usableHttpsUrl(item.url))
+            .filter((url): url is string => !!url)
+        )
+      );
+      if (newsAddresses.size < DISCOVERY_NEWS_FLOOR) {
+        responses.push(
+          ...(await runQueries(
+            { ...searchOptions, topic: 'general' as const },
+            queries.length
+          ))
+        );
+      }
     }
+    const laneRows = await encyclopedicLane;
+    const laneUsable = laneRows.filter((row) => {
+      const url = usableHttpsUrl(row.url);
+      return !!url;
+    });
+    const reservedForLane = Math.min(ENCYCLOPEDIC_RESERVED_SOURCES, laneUsable.length);
+    const providerCap = Math.max(1, preset.maxSources - reservedForLane);
 
     const facts = new Map<string, WebResearchFact>();
     const sources = new Map<string, WebResearchSource>();
@@ -1214,14 +1413,23 @@ Subject: {subject}`
         );
         if (sources.has(url) && alreadyHasFact) continue;
         if (!sources.has(url)) {
-          if (sourceCount >= preset.maxSources) break;
+          if (sourceCount >= providerCap) break;
           sourceCount += 1;
         }
+        const score =
+          typeof item.score === 'number' && Number.isFinite(item.score)
+            ? item.score
+            : undefined;
+        const text = options.levelWasExplicit
+          ? pageText(item.rawContent)
+          : undefined;
         sources.set(url, {
           url,
           title: (item.title || url).trim().slice(0, 500),
           publishedAt: item.published_date || item.publishedAt || null,
           provider,
+          ...(score !== undefined ? { score } : {}),
+          ...(text ? { text } : {}),
         });
         if (!excerpt || remainingContent <= 0) continue;
         const sourceContent = truncateAtParagraph(
@@ -1238,96 +1446,64 @@ Subject: {subject}`
       }
     }
 
+    for (const row of laneUsable) {
+      const url = usableHttpsUrl(row.url);
+      if (!url || sources.has(url)) continue;
+      if (sourceCount >= preset.maxSources) break;
+      sourceCount += 1;
+      sources.set(url, {
+        url,
+        title: (row.title || url).trim().slice(0, 500),
+        // An encyclopedia article has no publication date of the kind a
+        // news result carries, and a revision date is not one.
+        publishedAt: null,
+        provider: row.provider,
+        ...(row.extract ? { text: row.extract.slice(0, PAGE_TEXT_MAX_CHARS) } : {}),
+      });
+      if (!row.extract || remainingContent <= 0) continue;
+      const content = truncateAtParagraph(
+        truncateAtParagraph(row.extract, WEB_SEARCH_MAX_SOURCE_CHARS),
+        remainingContent
+      );
+      if (!content) continue;
+      const key = `${url}|${content}`;
+      if (facts.has(key)) continue;
+      facts.set(key, { text: content, sourceUrl: url });
+      remainingContent -= content.length;
+    }
+
     /**
-     * Дальше — бесключевая полоса Wikipedia/Wikidata
-     * (`content-factory-next-m0iy.8`).
-     *
-     * Она включается только при явно выбранном уровне: это платный заход, где
-     * человек ждёт опору, а обычная генерация, автопостинг и копайлот не
-     * должны получать лишние сетевые запросы. Строки идут после ответов
-     * провайдера — в тот же потолок источников и тот же бюджет символов, — и
-     * отказ полосы никогда не отменяет уже полученный ответ.
+     * The discovery judge runs INSIDE this operation so a topic check stays
+     * one counted operation (`content-factory-next-75xn.23`): which rows are
+     * about the topic at all, and one sentence about what each says.
      */
-    if (options.levelWasExplicit) {
-      const encyclopedicAllowed = (provider: EncyclopedicProvider) => {
-        const decision = decideResearchEgress({
-          organizationId,
-          providerId: provider,
-          approvedProviderIds: APPROVED_RESEARCH_PROVIDERS,
-          globalKillSwitch,
-          tenantKillSwitches,
-          providerKillSwitches,
-          budget: egressBudget,
-          spend: {
-            searchQueries: queries.length,
-            acceptedSources: sourceCount,
-            responseBytes: 0,
-            wallClockMs: Date.now() - researchStartedAt,
-            providerCostMicros: 0,
-            inFlight: 0,
-          },
-          // The lane reads pages rather than buying a search, so the source
-          // cap is what bounds it.
-          kind: 'fetch',
-        });
-        if (decision.allowed === true) return true;
-        this.logger.warn(
-          `Encyclopedic lane skipped for ${provider}: ${decision.code}.`
-        );
-        return false;
-      };
-      const entityNames = [
-        ...new Set(
-          [subjectLanguageQuery, englishQuery].filter(
-            (name): name is string => !!name
-          )
-        ),
-      ];
-      const locales = [
-        ...new Set(
-          [classification.subjectLanguage, 'en']
-            .map((locale) => String(locale || '').trim().toLowerCase())
-            .filter(Boolean)
-        ),
-      ];
+    let discovery: WebResearchDiscoveryJudgement[] | undefined;
+    if (task === 'discovery' && sources.size) {
+      const excerptByUrl = new Map<string, string>();
+      for (const fact of facts.values()) {
+        if (!excerptByUrl.has(fact.sourceUrl)) excerptByUrl.set(fact.sourceUrl, fact.text);
+      }
       try {
-        const rows = await withDeadline(
-          this.encyclopedicRows({
-            entityNames,
-            locales,
-            allow: encyclopedicAllowed,
-          }),
-          ENCYCLOPEDIC_LANE_TIMEOUT_MS
+        const judged = await judgeDiscoveryRows(
+          organizationId,
+          subject,
+          [...sources.values()].map((source) => ({
+            url: source.url,
+            title: source.title,
+            excerpt: excerptByUrl.get(source.url) ?? null,
+            publishedAt: source.publishedAt,
+          }))
         );
-        for (const row of rows) {
-          const url = usableHttpsUrl(row.url);
-          if (!url || sources.has(url)) continue;
-          if (sourceCount >= preset.maxSources) break;
-          sourceCount += 1;
-          sources.set(url, {
+        if (judged.size) {
+          discovery = [...judged.entries()].map(([url, verdict]) => ({
             url,
-            title: (row.title || url).trim().slice(0, 500),
-            // An encyclopedia article has no publication date of the kind a
-            // news result carries, and a revision date is not one.
-            publishedAt: null,
-            provider: row.provider,
-          });
-          if (!row.extract || remainingContent <= 0) continue;
-          const content = truncateAtParagraph(
-            truncateAtParagraph(row.extract, WEB_SEARCH_MAX_SOURCE_CHARS),
-            remainingContent
-          );
-          if (!content) continue;
-          const key = `${url}|${content}`;
-          if (facts.has(key)) continue;
-          facts.set(key, { text: content, sourceUrl: url });
-          remainingContent -= content.length;
+            relevant: verdict.relevant,
+            reason: verdict.reason,
+          }));
         }
       } catch (error) {
         this.logger.warn(
-          `The keyless encyclopedic lane added nothing: ${describeLaneError(
-            error
-          )}`
+          `The discovery judge answered nothing: ${describeLaneError(error)}`
         );
       }
     }
@@ -1354,6 +1530,7 @@ Subject: {subject}`
       summary,
       facts: [...facts.values()],
       sources: [...sources.values()],
+      ...(discovery ? { discovery } : {}),
     };
   }
 }

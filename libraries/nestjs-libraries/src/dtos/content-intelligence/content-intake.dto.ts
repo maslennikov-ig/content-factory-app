@@ -198,13 +198,23 @@ export class IntakeDto {
   @Type(() => IntakeOptionsDto)
   options?: IntakeOptionsDto;
 
-  /** Selected statements when continuing a paused paid research intake. */
+  /**
+   * Selected rows when continuing a paused paid research intake: row keys
+   * (`factKey`) since `content-factory-next-75xn.19`; a tab opened before
+   * that deploy still sends statements, and the server matches those too.
+   */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
   @IsString({ each: true })
   @MaxLength(400, { each: true })
   researchSelections?: string[];
+
+  /** The first pass's snapshot, handed back so the second pass resumes it. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  snapshotKey?: string;
 
   /**
    * Тем же вложенным классом, что и у генератора: выбор аватара — одно

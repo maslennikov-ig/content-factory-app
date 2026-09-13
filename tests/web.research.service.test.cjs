@@ -139,6 +139,19 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
 const statusError = (status) =>
   Object.assign(new Error(`Search failed with status ${status}`), { status });
 
+/**
+ * Откат по сбою идёт на второй движок с поисковым ключом и никогда на
+ * OpenRouter (`content-factory-next-75xn.32`, решение владельца 13.09.2026):
+ * OpenRouter отвечает ключом генерации, и сбой поиска превращался в расход
+ * модели. В этих тестах вторым ключом лежит Exa.
+ */
+const withExaReserve = () => {
+  aiConfig.search.apiKeys = {
+    tavily: aiConfig.search.apiKey,
+    exa: 'tenant-exa-key',
+  };
+};
+
 describe('shared web research service', () => {
   beforeEach(() => {
     classifierInputs.length = 0;
@@ -242,7 +255,60 @@ describe('shared web research service', () => {
       windowDays: 30,
     });
 
-    expect(clientFactoryCalls).toHaveLength(2);
+    // Проверка фактов — один запрос; поводы — новостной индекс и, раз он дал
+    // меньше трёх адресов, второй проход по общему (`75xn.23`).
+    expect(clientFactoryCalls.map(({ options }) => options.topic)).toEqual([
+      undefined,
+      'news',
+      'general',
+    ]);
+  });
+
+  test('a discovery sweep with enough news never buys the general pass', async () => {
+    implementations.tavily = async ({ query }) => ({
+      results: [1, 2, 3].map((n) => ({
+        title: `News ${n} for ${query}`,
+        url: `https://example.com/news/${n}`,
+        content: `Fact ${n} for ${query}`,
+        published_date: '2026-09-01',
+        score: 0.9,
+      })),
+    });
+
+    const result = await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Subject',
+      { task: 'discovery', windowDays: 30 }
+    );
+
+    expect(clientFactoryCalls.map(({ options }) => options.topic)).toEqual(['news']);
+    expect(result.sources.map((source) => source.score)).toEqual([0.9, 0.9, 0.9]);
+  });
+
+  test('a cached answer expires after the research cache TTL (75xn.31)', async () => {
+    const { ResearchQueryCache, RESEARCH_CACHE_TTL_MS } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/openai/web.research.service.ts',
+      {
+        '@nestjs/common': {
+          Injectable: () => (target) => target,
+          Optional: () => () => {},
+          Inject: () => () => {},
+          Logger,
+        },
+        '@contentfactory/nestjs-libraries/openai/ai.provider.config': {},
+        '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
+        '@contentfactory/nestjs-libraries/openai/ai.clients': {},
+        '@contentfactory/nestjs-libraries/dtos/content.language': { contentLanguageNames: {} },
+        '@langchain/core/prompts': { ChatPromptTemplate: { fromTemplate: () => prompt } },
+      }
+    );
+    const cache = new ResearchQueryCache();
+    const storedAt = new Date('2026-09-13T10:00:00Z');
+    cache.set('k', { answer: 1 }, storedAt);
+
+    expect(cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS - 1))).toEqual({ answer: 1 });
+    expect(cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS))).toBeUndefined();
+    expect(RESEARCH_CACHE_TTL_MS).toBe(30 * 60 * 1000);
   });
 
   test('uses Tavily as primary and records the answering provider', async () => {
@@ -554,8 +620,9 @@ describe('shared web research service', () => {
   });
 
   test.each([402, 403, 429, 500, 599])(
-    'falls back to OpenRouter for Tavily status %s',
+    'falls back to the other keyed engine for Tavily status %s',
     async (status) => {
+      withExaReserve();
       implementations.tavily = async () => {
         throw statusError(status);
       };
@@ -567,14 +634,14 @@ describe('shared web research service', () => {
 
       expect(invocations.map(({ provider }) => provider)).toEqual([
         'tavily',
-        'openrouter',
+        'exa',
       ]);
-      expect(result.provider).toBe('openrouter');
-      expect(result.sources[0]).toMatchObject({ provider: 'openrouter' });
+      expect(result.provider).toBe('exa');
+      expect(result.sources[0]).toMatchObject({ provider: 'exa' });
       expect(result.sources[0].title).toBe('Source for current topic');
       expect(logEntries).toContainEqual({
         level: 'log',
-        message: 'Web research answered via openrouter.',
+        message: 'Web research answered via exa.',
       });
       expect(
         logEntries.some(({ message }) => message.includes(String(status)))
@@ -583,6 +650,7 @@ describe('shared web research service', () => {
   );
 
   test('falls back when Tavily returns no results', async () => {
+    withExaReserve();
     implementations.tavily = async () => ({
       answer: 'No sources',
       results: [],
@@ -595,13 +663,25 @@ describe('shared web research service', () => {
 
     expect(invocations.map(({ provider }) => provider)).toEqual([
       'tavily',
-      'openrouter',
+      'exa',
     ]);
-    expect(result.provider).toBe('openrouter');
+    expect(result.provider).toBe('exa');
+  });
+
+  test('without a second keyed engine a Tavily outage is the answer and OpenRouter is never asked (75xn.32)', async () => {
+    implementations.tavily = async () => {
+      throw statusError(503);
+    };
+
+    await expect(
+      new WebResearchService(aiUsage).research('organization-a', 'topic')
+    ).rejects.toMatchObject({ status: 503 });
+    expect(clientFactoryCalls.map(({ provider }) => provider)).toEqual(['tavily']);
   });
 
   test('the Tavily deadline fires and uses only the remaining fallback budget', async () => {
     jest.useFakeTimers();
+    withExaReserve();
     implementations.tavily = () => new Promise(() => undefined);
 
     const research = new WebResearchService(aiUsage).research(
@@ -609,14 +689,14 @@ describe('shared web research service', () => {
       'topic'
     );
     const completed = expect(research).resolves.toMatchObject({
-      provider: 'openrouter',
+      provider: 'exa',
     });
 
     await jest.advanceTimersByTimeAsync(WEB_SEARCH_PRIMARY_TIMEOUT_MS);
     await completed;
     expect(invocations.map(({ provider }) => provider)).toEqual([
       'tavily',
-      'openrouter',
+      'exa',
     ]);
     expect(WEB_SEARCH_PRIMARY_TIMEOUT_MS + WEB_SEARCH_FALLBACK_TIMEOUT_MS).toBe(
       WEB_SEARCH_TIMEOUT_MS
@@ -624,6 +704,7 @@ describe('shared web research service', () => {
   });
 
   test('falls back when Tavily reports its own transport timeout', async () => {
+    withExaReserve();
     implementations.tavily = async () => {
       throw Object.assign(new Error('Tavily request timed out'), {
         code: 'ETIMEDOUT',
@@ -632,14 +713,15 @@ describe('shared web research service', () => {
 
     await expect(
       new WebResearchService(aiUsage).research('organization-a', 'topic')
-    ).resolves.toMatchObject({ provider: 'openrouter' });
+    ).resolves.toMatchObject({ provider: 'exa' });
     expect(invocations.map(({ provider }) => provider)).toEqual([
       'tavily',
-      'openrouter',
+      'exa',
     ]);
   });
 
   test('does not pay for fallback when the error only mentions a three-digit number', async () => {
+    withExaReserve();
     implementations.tavily = async () => {
       throw new Error('maxResults must be below 500');
     };
@@ -650,13 +732,14 @@ describe('shared web research service', () => {
     expect(invocations.map(({ provider }) => provider)).toEqual(['tavily']);
   });
 
-  test('keeps the Tavily error when the OpenRouter fallback also fails', async () => {
+  test('keeps the Tavily error when the Exa fallback also fails', async () => {
+    withExaReserve();
     const primaryError = statusError(429);
-    const fallbackError = new Error('OpenRouter unavailable');
+    const fallbackError = new Error('Exa unavailable');
     implementations.tavily = async () => {
       throw primaryError;
     };
-    implementations.openrouter = async () => {
+    implementations.exa = async () => {
       throw fallbackError;
     };
 
@@ -673,6 +756,7 @@ describe('shared web research service', () => {
 
   test('includes client construction in the primary deadline', async () => {
     jest.useFakeTimers();
+    withExaReserve();
     factoryImplementations.tavily = (client) =>
       new Promise((resolve) =>
         setTimeout(() => resolve(client), WEB_SEARCH_PRIMARY_TIMEOUT_MS + 1)
@@ -684,8 +768,8 @@ describe('shared web research service', () => {
     );
 
     await jest.advanceTimersByTimeAsync(WEB_SEARCH_PRIMARY_TIMEOUT_MS + 1);
-    await expect(research).resolves.toMatchObject({ provider: 'openrouter' });
-    expect(invocations.map(({ provider }) => provider)).toEqual(['openrouter']);
+    await expect(research).resolves.toMatchObject({ provider: 'exa' });
+    expect(invocations.map(({ provider }) => provider)).toEqual(['exa']);
   });
 
   test('fires the deadline without fallback for an OpenAI organization', async () => {
@@ -710,6 +794,8 @@ describe('shared web research service', () => {
 
   test('does not expose fallback to an organization on OpenAI', async () => {
     aiConfig.provider = 'openai';
+    // Откат зависит от второго ПОИСКОВОГО ключа, а не от провайдера модели:
+    // здесь его нет, и OpenRouter не подставляется ни под каким провайдером.
     implementations.tavily = async () => {
       throw statusError(429);
     };
@@ -1138,7 +1224,8 @@ describe('shared web research service', () => {
       'https://en.wikipedia.org/api/rest_v1/page/summary/Ada_Lovelace',
       'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=current%20topic&language=en&format=json&limit=1',
     ]);
-    // Провайдер отвечает первым, полоса идёт следом и в тот же потолок.
+    // Провайдер отвечает первым, полоса идёт следом; с 13.09 за ней держатся
+    // два места из потолка (`75xn.22`), и статья несёт свой текст (`75xn.29`).
     expect(result.sources).toEqual([
       {
         url: 'https://example.com/tavily/current%20topic',
@@ -1151,6 +1238,7 @@ describe('shared web research service', () => {
         title: 'Ada Lovelace',
         publishedAt: null,
         provider: 'wikipedia',
+        text: 'Ada Lovelace was an English mathematician.',
       },
       {
         url: 'https://www.wikidata.org/wiki/Q7259',

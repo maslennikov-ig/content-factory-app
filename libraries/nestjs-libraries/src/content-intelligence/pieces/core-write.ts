@@ -135,7 +135,7 @@ const RU_SYSTEM = (rule: string): string =>
     '3) запрещены сглаживание, вводные обороты, обобщения вместо частностей, выводы «в итоге» и «таким образом», призывы и вопросы читателю;',
     '4) если слов человека мало — суть короткая; короткая правда лучше длинного пересказа; три предложения — нормальная суть;',
     '5) начинай с той фразы человека, которая ближе всего к тезису, — дословно;',
-    '6) без разметки, эмодзи, заголовков и списков; абзацы через пустую строку; язык — язык ввода;',
+    '6) без разметки, эмодзи, заголовков и списков; абзацы через пустую строку; язык — язык ввода; фрагмент на другом языке внутри входа (выдержка из чужого материала) — это материал для пересказа на языке ввода, а не строка для копирования;',
     `7) ${rule}`,
   ].join('\n');
 
@@ -148,7 +148,7 @@ const EN_SYSTEM = (rule: string): string =>
     '3) smoothing over, introductory turns of phrase, generalities in place of particulars, «in the end» and «thus» conclusions, calls to action and questions to the reader are forbidden;',
     '4) if the person gave few words, the core is short; a short truth beats a long retelling; three sentences is a normal core;',
     "5) begin with the person's own phrase that stands closest to the claim — verbatim;",
-    '6) no markup, no emoji, no headings, no lists; paragraphs separated by a blank line; the language is the language of the input;',
+    '6) no markup, no emoji, no headings, no lists; paragraphs separated by a blank line; the language is the language of the input; a fragment in another language inside the input (an excerpt of somebody else’s material) is material to retell in the input language, never a line to copy;',
     `7) ${rule}`,
   ].join('\n');
 

@@ -32,6 +32,11 @@ module.exports = {
     // reason. Also the real module — see the helper.
     '^@contentfactory/nestjs-libraries/content-intelligence/research/encyclopedic-reference$':
       '<rootDir>/tests/helpers/encyclopedic-reference.cjs',
+    // The discovery judge, called by the same service inside a discovery
+    // sweep. Also the real module — it imports its model client lazily, so a
+    // suite that never runs discovery never loads one.
+    '^@contentfactory/nestjs-libraries/content-intelligence/leads/lead-discovery-judge$':
+      '<rootDir>/tests/helpers/lead-discovery-judge.cjs',
   },
   testMatch: ['**/*.test.cjs'],
   // These suites deliberately use Node's native test runner. Jest cannot

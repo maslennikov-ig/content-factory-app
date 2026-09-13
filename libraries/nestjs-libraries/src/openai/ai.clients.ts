@@ -236,6 +236,8 @@ export interface WebSearchResponse {
     publishedAt?: string;
     /** Provider discovery text. It is never promoted to citable evidence. */
     nonCitableSnippet?: string;
+    /** The engine's relevance score for this row, 0–1, when it gives one. */
+    score?: number;
   }>;
 }
 
@@ -250,6 +252,13 @@ export interface WebSearchClientOptions {
   country?: string;
   freshnessRequired?: boolean;
   maxResults?: number;
+  /**
+   * Which index to ask, named by the caller rather than inferred
+   * (`content-factory-next-75xn.23`). `news` is the one Tavily mode that
+   * returns `published_date`; a discovery sweep needs that date more than it
+   * needs breadth. Unset keeps the freshness-driven choice.
+   */
+  topic?: 'news' | 'general';
   /**
    * Only pages published inside this many days back.
    *
@@ -308,6 +317,7 @@ interface TavilySearchResponse extends WebSearchResponse {
     content?: string;
     raw_content?: string | null;
     published_date?: string;
+    score?: number;
   }>;
 }
 
@@ -375,6 +385,7 @@ export class ExaWebSearch implements WebSearchClient {
         contents?: { text?: unknown; highlights?: unknown } | null;
         publishedDate?: unknown;
         published_date?: unknown;
+        score?: unknown;
       }>;
     };
     return {
@@ -419,6 +430,7 @@ export class ExaWebSearch implements WebSearchClient {
             ...(snippet ? { nonCitableSnippet: snippet } : {}),
             ...(rawContent ? { rawContent } : {}),
             ...(publishedDate ? { published_date: publishedDate } : {}),
+            ...(typeof item.score === 'number' ? { score: item.score } : {}),
           };
         })
         .filter((item) => !!item.url),
@@ -492,6 +504,7 @@ export class TavilyWebSearch implements WebSearchClient {
         ...(result.published_date
           ? { published_date: result.published_date }
           : {}),
+        ...(typeof result.score === 'number' ? { score: result.score } : {}),
       })),
     };
   }
@@ -584,8 +597,12 @@ export const getWebSearchClient = async (
     );
   }
 
-  const freshnessRequired =
-    options.freshnessRequired || config.search.topic === 'news';
+  // A named index wins over the inferred one: a discovery sweep says `news`
+  // because it needs dates, and says `general` on its second pass because the
+  // news index answered too little — neither is a claim about the subject.
+  const freshnessRequired = options.topic
+    ? options.topic === 'news'
+    : options.freshnessRequired || config.search.topic === 'news';
   const timeRange = tavilyTimeRange(options.windowDays);
   return webSearchMemo(
     identity(

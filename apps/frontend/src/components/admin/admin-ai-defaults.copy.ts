@@ -55,8 +55,8 @@ type Words = {
   ownKeyUntouched: string;
   /** Ключи отсюда не показываются никогда, даже тому, кто их сохранил. */
   neverShown: string;
-  /** Почему тут нет автосохранения, которое есть у соседнего экрана. */
-  manualSave: string;
+  /** Что сохраняется само, а что — только по кнопке. */
+  autosaveNote: string;
   /**
    * Имя кнопки-подсказки: «Подсказка: включённые операции», а не второе
    * «Включённые операции». Скринридер читает десяток одинаковых «подсказок»
@@ -66,10 +66,10 @@ type Words = {
   /** Названия трёх состояний поля ключа — короткие, для маркера. */
   origins: Record<KeyOrigin, string>;
   keys: {
-    /** Заголовок блока ключей. */
-    title: string;
-    /** Что такое эти ключи и кто их тратит — длинное, в подсказку. */
-    what: string;
+    /** Заголовок блока поисковых ключей. */
+    searchTitle: string;
+    /** Что такое поисковые ключи и кто их тратит — длинное, в подсказку. */
+    searchWhat: string;
     /** У OpenRouter своего поискового ключа нет. Это надо сказать словами. */
     openrouterNoKey: string;
     model: KeyFieldWords;
@@ -79,6 +79,8 @@ type Words = {
   models: {
     /** Заголовок блока «провайдер и модели». */
     title: string;
+    /** Что в этой карточке лежит и кто это тратит — длинное, в подсказку. */
+    what: string;
     /** Что значит пустое поле модели. */
     empty: string;
     /** Строка под полем, когда значение приходит из переменной окружения. */
@@ -122,8 +124,8 @@ const ru: Words = {
     'Область, выбравшая «Свой ключ», сюда не обращается: она платит своим ключом, и ничто на этом экране её не касается.',
   neverShown:
     'Сохранённый ключ не показывается больше никогда — ни другому администратору, ни тому, кто его сохранил. Экран знает только, задан ключ или нет.',
-  manualSave:
-    'Сохранение здесь только по кнопке: в отличие от настроек области, каждое поле — либо операторский секрет, либо число, которым платит весь инстанс.',
+  autosaveNote:
+    'Провайдер, модели и число операций сохраняются сами, как в настройках области. Кнопка «Сохранить» нужна ключам: вставленный ключ — это решение, а не набор символов, и уходит он только по ней.',
   hintFor: (subject) => `Подсказка: ${subject.toLowerCase()}`,
   origins: {
     screen: 'Задан здесь',
@@ -131,9 +133,9 @@ const ru: Words = {
     absent: 'Не задан',
   },
   keys: {
-    title: 'Ключи',
-    what:
-      'Ключ генерации оплачивает вызовы моделей, ключи Tavily и Exa — веб-поиск. Их тратят области в режиме «Ключи системы», по счёту инстанса.',
+    searchTitle: 'Ключи поиска',
+    searchWhat:
+      'Ключи Tavily и Exa оплачивают веб-поиск: проверку фактов, ресерч и поиск свежего по теме. Их тратят области в режиме «Ключи системы», по счёту инстанса.',
     openrouterNoKey:
       'У OpenRouter своего поискового ключа нет: на поисковый запрос он отвечает ключом генерации — тем самым, что задан выше.',
     model: {
@@ -181,10 +183,12 @@ const ru: Words = {
   },
   models: {
     title: 'Провайдер и модели',
+    what:
+      'Провайдер, ключ генерации и модели, которыми работают области в режиме «Ключи системы». Ключ лежит здесь же, под провайдером, потому что он оплачивает именно эти вызовы.',
     empty:
       'Пустое поле — это нормально: тогда работает модель, предложенная провайдером.',
     fromEnvironment:
-      'Здесь пусто, но значение задано переменной окружения на сервере — инстанс работает на нём.',
+      'В поле стоит значение из переменной окружения на сервере — инстанс работает на нём. Сохраните его, чтобы закрепить здесь, или замените своим.',
     providerHint:
       'Идентификаторы моделей принадлежат своему провайдеру: «gpt-4.1» ничего не значит для OpenRouter, «openai/gpt-4.1» — для OpenAI. После смены провайдера поля моделей стоит перебрать заново.',
   },
@@ -195,8 +199,9 @@ const ru: Words = {
       'Действует для области без подписки. Ноль означает, что включённый режим для такой области закрыт.',
     hint: 'Когда у области появится подписка, лимит подписки будет сильнее этого числа, и оно перестанет её касаться.',
     fromEnvironment:
-      'Здесь пусто, но число задано переменной окружения на сервере — инстанс считает по нему.',
-    absent: 'Не задано ни здесь, ни в переменных окружения.',
+      'В поле стоит число из переменной окружения на сервере — инстанс считает по нему. Сохраните его, чтобы закрепить здесь, или замените своим.',
+    absent:
+      'Не задано ни здесь, ни в переменных окружения: для области без подписки включённый режим сейчас закрыт.',
   },
   updatedAt: (when) => `Последнее изменение: ${when}`,
   loading: 'Читаем настройки инстанса…',
@@ -214,8 +219,8 @@ const en: Words = {
     'A workspace that chose «Own key» never reaches them: it pays with its own key, and nothing on this screen concerns it.',
   neverShown:
     'A stored key is never shown again — not to another administrator, and not to whoever saved it. This screen only knows whether a key is set.',
-  manualSave:
-    'Saving here is by button only: unlike the workspace settings, every field is either an operator secret or a number the whole instance pays with.',
+  autosaveNote:
+    'The provider, the models and the number of operations save themselves, exactly as the workspace settings do. The «Save» button is there for the keys: a pasted key is a decision rather than a string of characters, and it travels only through that button.',
   hintFor: (subject) => `Hint: ${subject.toLowerCase()}`,
   origins: {
     screen: 'Set here',
@@ -223,9 +228,9 @@ const en: Words = {
     absent: 'Not set',
   },
   keys: {
-    title: 'Keys',
-    what:
-      'The generation key pays for model calls, the Tavily and Exa keys for web search. Workspaces in «System keys» mode spend them, on the instance account.',
+    searchTitle: 'Search keys',
+    searchWhat:
+      'The Tavily and Exa keys pay for web search: fact checking, research and topic discovery. Workspaces in «System keys» mode spend them, on the instance account.',
     openrouterNoKey:
       'OpenRouter has no search key of its own: it answers a search question with the generation key — the one above.',
     model: {
@@ -273,10 +278,12 @@ const en: Words = {
   },
   models: {
     title: 'Provider and models',
+    what:
+      'The provider, the generation key and the models the workspaces in «System keys» mode run on. The key sits here, under the provider, because these are the calls it pays for.',
     empty:
       'An empty field is fine: the provider default is used when nothing is written here.',
     fromEnvironment:
-      'Empty here, but a value is set in an environment variable on the server — the instance runs on that one.',
+      'The field holds the value from an environment variable on the server — the instance runs on it. Save it to pin it here, or replace it with your own.',
     providerHint:
       'Model ids belong to their provider: «gpt-4.1» means nothing to OpenRouter, «openai/gpt-4.1» nothing to OpenAI. After switching the provider, go through the model fields again.',
   },
@@ -287,8 +294,9 @@ const en: Words = {
       'Applies to a workspace with no subscription. Zero means included mode is closed for such a workspace.',
     hint: 'Once a workspace has a subscription, the subscription limit is stronger than this number and this number stops concerning it.',
     fromEnvironment:
-      'Empty here, but the number is set in an environment variable on the server — the instance counts by that one.',
-    absent: 'Set neither here nor in the environment.',
+      'The field holds the number from an environment variable on the server — the instance counts by it. Save it to pin it here, or replace it with your own.',
+    absent:
+      'Set neither here nor in the environment: included mode is closed right now for a workspace with no subscription.',
   },
   updatedAt: (when) => `Last changed: ${when}`,
   loading: 'Reading the instance settings…',

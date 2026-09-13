@@ -368,11 +368,11 @@ describe('экран объясняет сам себя', () => {
     expect(text).toContain('не показывается больше никогда');
   });
 
-  it('говорит, что автосохранения здесь нет', () => {
+  it('говорит, что сохраняется само, а что — по кнопке', () => {
     draw();
     expect(
-      document.querySelector('[data-manual-save-note="true"]').textContent
-    ).toContain('только по кнопке');
+      document.querySelector('[data-autosave-note="true"]').textContent
+    ).toContain('сохраняются сами');
   });
 
   it('говорит, почему у OpenRouter нет поля ключа', () => {
@@ -388,5 +388,192 @@ describe('экран объясняет сам себя', () => {
     const text = document.body.textContent;
     expect(text).toContain('области без подписки');
     expect(text).toContain('Ноль');
+  });
+});
+
+/**
+ * `content-factory-next-75xn.25`, `.27`. Записи владельца 13.09.2026: «у нас
+ * вроде должен быть OpenRouter, но почему-то по умолчанию выбран OpenAI»,
+ * «почему бы там не показывать текущее по умолчанию установленное число?» и
+ * «непонятный блок» про ключ генерации, оторванный от провайдера.
+ */
+describe('поля показывают то, чем инстанс работает прямо сейчас', () => {
+  const withEffective = (overrides = {}) =>
+    defaults({
+      // Строка этого экрана пуста: всё действующее пришло с сервера.
+      provider: null,
+      effective: {
+        provider: 'openrouter',
+        textModel: 'openai/gpt-5.6-luna',
+        imageModel: null,
+        monthlyOperations: 50,
+        ...overrides,
+      },
+      fromEnvironment: {
+        apiKey: false,
+        provider: true,
+        textModel: true,
+        imageModel: false,
+        monthlyOperations: true,
+        searchKeys: { tavily: false, openrouter: false, exa: false },
+      },
+    });
+
+  const control = (selector) => document.querySelector(selector);
+
+  it('ставит в поле провайдера значение сервера, а не собственное «openai»', () => {
+    response = withEffective();
+    draw();
+
+    expect(control('#admin-ai-provider').value).toBe('openrouter');
+    expect(control('[name="admin-ai-text-model"]').value).toBe(
+      'openai/gpt-5.6-luna'
+    );
+    expect(control('[name="admin-ai-monthly-operations"]').value).toBe('50');
+  });
+
+  it('называет источник значения, а не выдаёт его за набранное здесь', () => {
+    response = withEffective();
+    draw();
+
+    const state = (name) =>
+      document.querySelector(`[data-value-field="${name}"]`);
+    expect(state('admin-ai-provider').getAttribute('data-value-origin')).toBe(
+      'environment'
+    );
+    expect(state('admin-ai-provider').textContent).toContain('Задан на сервере');
+    expect(
+      state('admin-ai-monthly-operations').getAttribute('data-value-origin')
+    ).toBe('environment');
+  });
+
+  it('без действующих значений не выдумывает число', () => {
+    response = defaults();
+    draw();
+
+    expect(control('[name="admin-ai-monthly-operations"]').value).toBe('');
+    expect(
+      document
+        .querySelector('[data-value-field="admin-ai-monthly-operations"]')
+        .getAttribute('data-value-origin')
+    ).toBe('absent');
+  });
+
+  it('понимает ответ сервера, который ещё не умеет говорить действующее', () => {
+    response = defaults({ provider: 'openrouter', monthlyOperations: 7 });
+    draw();
+
+    expect(control('#admin-ai-provider').value).toBe('openrouter');
+    expect(control('[name="admin-ai-monthly-operations"]').value).toBe('7');
+  });
+
+  it('держит ключ генерации в карточке провайдера, а не отдельным блоком', () => {
+    response = defaults();
+    draw();
+
+    const providerCard = control('#admin-ai-provider').closest('section');
+    expect(
+      providerCard.querySelector('[data-key-field="admin-ai-api-key"]')
+    ).toBeTruthy();
+    // Поисковые ключи остались своей карточкой: у них своя жизнь и свой счёт.
+    const searchCard = document
+      .querySelector('[data-key-field="admin-ai-search-key-tavily"]')
+      .closest('section');
+    expect(searchCard).not.toBe(providerCard);
+    expect(
+      searchCard.querySelector('[data-key-field="admin-ai-api-key"]')
+    ).toBeNull();
+  });
+});
+
+describe('экран сохраняет сам, а ключи — только по кнопке', () => {
+  it('смена провайдера уходит на сервер без нажатия «Сохранить»', async () => {
+    response = defaults({ provider: 'openai' });
+    draw();
+
+    await act(async () => {
+      fireEvent.change(document.querySelector('#admin-ai-provider'), {
+        target: { value: 'openrouter' },
+      });
+    });
+
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0]).toMatchObject({
+      url: '/admin/ai-defaults',
+      method: 'POST',
+    });
+    expect(JSON.parse(fetchCalls[0].body).provider).toBe('openrouter');
+  });
+
+  it('набранное число сохраняется, когда поле отпущено', async () => {
+    response = defaults();
+    draw();
+    const field = document.querySelector(
+      '[name="admin-ai-monthly-operations"]'
+    );
+
+    await act(async () => {
+      fireEvent.change(field, { target: { value: '120' } });
+    });
+    expect(fetchCalls).toEqual([]);
+
+    await act(async () => {
+      fireEvent.blur(field);
+    });
+
+    expect(JSON.parse(fetchCalls[0].body).monthlyOperations).toBe(120);
+  });
+
+  it('автосохранение не несёт ключей ни при каком состоянии формы', async () => {
+    response = defaults();
+    draw();
+
+    await act(async () => {
+      fireEvent.change(
+        document.querySelector('[data-key-field="admin-ai-api-key"] input'),
+        { target: { value: 'sk-typed-now' } }
+      );
+    });
+    await act(async () => {
+      fireEvent.change(document.querySelector('#admin-ai-provider'), {
+        target: { value: 'openrouter' },
+      });
+    });
+
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].body).not.toContain('sk-typed-now');
+    expect(JSON.parse(fetchCalls[0].body)).not.toHaveProperty('apiKey');
+    // И набранный ключ остался в поле: автосохранение его не трогает.
+    expect(
+      document.querySelector('[data-key-field="admin-ai-api-key"] input').value
+    ).toBe('sk-typed-now');
+  });
+
+  it('смена провайдера не тащит чужие идентификаторы моделей', async () => {
+    response = defaults({
+      provider: 'openai',
+      textModel: 'gpt-4.1',
+      effective: {
+        provider: 'openai',
+        textModel: 'gpt-4.1',
+        imageModel: null,
+        monthlyOperations: null,
+      },
+    });
+    draw();
+    expect(document.querySelector('[name="admin-ai-text-model"]').value).toBe(
+      'gpt-4.1'
+    );
+
+    await act(async () => {
+      fireEvent.change(document.querySelector('#admin-ai-provider'), {
+        target: { value: 'openrouter' },
+      });
+    });
+
+    expect(document.querySelector('[name="admin-ai-text-model"]').value).toBe(
+      ''
+    );
+    expect(JSON.parse(fetchCalls[0].body).textModel).toBe('');
   });
 });

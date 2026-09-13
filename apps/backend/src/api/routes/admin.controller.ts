@@ -356,9 +356,34 @@ export class AdminController {
     return { success: true };
   }
 
+  /**
+   * Binding a Telegram chat to the operator is a mutation like the others
+   * (`content-factory-next-75xn.17`): without the origin check a third-party
+   * page could issue a binding code while the superadmin is signed in.
+   */
+  private assertTelegramConnectRequest(userId: string, req: Request) {
+    assertSameOriginJsonMutation(
+      userId,
+      req,
+      {
+        action: 'a Telegram binding',
+        unavailableMessage:
+          'Telegram binding is unavailable: FRONTEND_URL is not configured',
+        unavailableCode: 'telegram_binding_unavailable',
+        forbiddenMessage: 'Forbidden Telegram binding request',
+        forbiddenCode: 'telegram_binding_forbidden',
+      },
+      this._logger
+    );
+  }
+
   @Post('/telegram/connect')
-  async connectTelegram(@GetUserFromRequest() user: User) {
+  async connectTelegram(
+    @GetUserFromRequest() user: User,
+    @Req() req: Request
+  ) {
     this.assertSuperAdmin(user);
+    this.assertTelegramConnectRequest(user.id, req);
     return this._usersService.issueTelegramBindingCode(user.id);
   }
 

@@ -1,4 +1,28 @@
-import { selectedFactsBrief, type PieceFactV2 } from '../pieces/piece-facts.v2';
+import { factKind, selectedFactsBrief, type PieceFactV2 } from '../pieces/piece-facts.v2';
+import { randomUUID } from 'node:crypto';
+import {
+  INTAKE_SNAPSHOT_STORE,
+  INTAKE_SNAPSHOT_TTL_SECONDS,
+  intakeSnapshotKey,
+  type IntakeSnapshotStore,
+} from './intake-snapshot.store';
+import {
+  RESEARCH_DIGEST_CLAIM_CAP,
+  RESEARCH_DIGEST_FINDING_CAPS,
+  applyCorrection,
+  digestSourcesFor,
+  factKeyOf,
+  researchDigestPrompt,
+  researchDigestSchema,
+  settleResearchDigest,
+  type ResearchDigestClaim,
+  type ResearchDigestSource,
+  type SettledResearchDigest,
+} from './research-digest';
+import type {
+  IntakeCorrectionV1,
+  IntakeResearchSummaryV1,
+} from '../brand-voice/voice-wiring.contract';
 export { textOrNull } from './intake-content';
 import { contentFromIntent, intakeDiscardDiagnostic, textOrNull } from './intake-content';
 import type { IntakeEventV2, BriefFilledV2 } from '../brand-voice/intake-v2.contract';
@@ -180,8 +204,24 @@ export type IntakePlanV1 = {
   };
   /** `null` means the paid research result still awaits the author's choice. */
   researchSelections: string[] | null;
+  /** The first pass's snapshot to resume, when the client kept it (`75xn.19`). */
+  snapshotKey: string | null;
   brandProfileSelection?: { mode: 'active' | 'version' | 'none'; versionId?: string };
   sourceLeadId?: string;
+};
+
+/** Состояние хода между «опоры готовы» и записью заготовки; сериализуемо. */
+export type IntakeRunState = {
+  filled: FilledBrief;
+  evidence: AcceptedEvidence[];
+  extraction: IntakeExtractionV1 | null;
+  urls: string[];
+  foreignShingles: string[];
+  level: 'quick' | 'standard' | 'deep' | null;
+  corrections: IntakeCorrectionV1[];
+  summary: IntakeResearchSummaryV1 | null;
+  /** Мысль человека с принятыми поправками; пустая строка — без поправок. */
+  correctedInput: string;
 };
 
 /** Доказательство, принятое за этот вход: адрес, заголовок, выдержка. */
@@ -190,6 +230,14 @@ type AcceptedEvidence = {
   url: string;
   title: string | null;
   excerpt: string;
+};
+
+/** Что платный поиск принёс входу: строки как прежде и источники для сжатия. */
+type IntakeResearch = {
+  found: BriefFilledFactV1[];
+  sources: ResearchDigestSource[];
+  sourcesCount: number;
+  encyclopedic: number;
 };
 
 /** Шов под проверку на ИИ-штампы: по умолчанию — `text-quality/slop-check` (поток S3), в тестах подменяется. */
@@ -269,7 +317,14 @@ export class IntakeService {
      * часть договора с наборами, которые собирают сервис руками, а без неё
      * заготовка выходит такой же, только без строки об источнике.
      */
-    @Optional() private readonly leads?: ContentLeadRepository
+    @Optional() private readonly leads?: ContentLeadRepository,
+    /**
+     * Снимок первого прохода (`75xn.19`). Токен рядом с `@Optional()`: без
+     * него параметр-объединение молча приходит `undefined` (ловушка `m2eg`).
+     */
+    @Optional()
+    @Inject(INTAKE_SNAPSHOT_STORE)
+    private readonly snapshots: IntakeSnapshotStore | null = null
   ) {
     this.now = now || (() => new Date());
     this.parse = parse || parseSourcePayload;
@@ -363,6 +418,7 @@ export class IntakeService {
             .map((statement: string) => statement.trim().slice(0, 400))
             .filter(Boolean)
         : null,
+      snapshotKey: trimmed(body?.snapshotKey) || null,
       brandProfileSelection: body?.brandProfileSelection,
       sourceLeadId: trimmed(body?.sourceLeadId) || undefined,
     };
@@ -372,6 +428,35 @@ export class IntakeService {
     return value === 'thought' || value === 'link' || value === 'foreign_post'
       ? value
       : null;
+  }
+
+  /**
+   * Что первый проход знает к моменту «опоры готовы», и что второй проход
+   * получает из снимка вместо того, чтобы считать заново
+   * (`content-factory-next-75xn.19`).
+   */
+  private stateOf(input: {
+    filled: FilledBrief;
+    evidence: Map<string, AcceptedEvidence>;
+    extraction: IntakeExtractionV1 | null;
+    urls: string[];
+    foreignShingles: string[];
+    level: 'quick' | 'standard' | 'deep' | null;
+    corrections?: IntakeCorrectionV1[];
+    summary?: IntakeResearchSummaryV1 | null;
+    correctedInput?: string;
+  }): IntakeRunState {
+    return {
+      filled: input.filled,
+      evidence: [...input.evidence.values()],
+      extraction: input.extraction,
+      urls: input.urls,
+      foreignShingles: input.foreignShingles,
+      level: input.level,
+      corrections: input.corrections ?? [],
+      summary: input.summary ?? null,
+      correctedInput: input.correctedInput ?? '',
+    };
   }
 
   /** Предел знаков берётся у провайдера, третьей таблицы у продукта нет. */
@@ -387,6 +472,25 @@ export class IntakeService {
       sources: plan.inputKind === 'foreign_post' && linksOf(plan.input).length
         ? ['foreign_post', 'link'] : [plan.inputKind],
     };
+
+    /*
+      Второй проход продолжает первый, а не повторяет его
+      (`content-factory-next-75xn.19`, F5/F11): извлечение, бриф и поиск уже
+      сделаны, и делать их заново значило бы ждать те же 22 секунды и получить
+      другие формулировки строк. Снимка нет (истёк, нет хранилища, другая
+      область) — честный повтор ниже, со сверкой выбора по ключам и по тексту.
+    */
+    if (plan.researchSelections !== null && plan.snapshotKey && actorUserId) {
+      const snapshot = await this.readSnapshot(organizationId, actorUserId, plan.snapshotKey);
+      if (snapshot) {
+        const state = this.applySelections(snapshot, plan);
+        yield { name: 'brief-started' };
+        yield this.researchReadyEvent(state, plan.snapshotKey);
+        yield* this.finish(organizationId, plan, actorUserId, state);
+        return;
+      }
+      this.logger.log('The intake snapshot was not found; running the first pass again.');
+    }
 
     const evidence = new Map<string, AcceptedEvidence>();
     let borrowedText: string | null = null;
@@ -420,7 +524,7 @@ export class IntakeService {
     }
 
     yield { name: 'brief-started' };
-    let filled = await this.fillBrief(
+    const filled = await this.fillBrief(
       organizationId,
       plan,
       extraction,
@@ -436,65 +540,70 @@ export class IntakeService {
       // The explicit paid lane is fail-closed: a missing key, exhausted quota
       // or provider outage must be visible to the person and must not silently
       // turn an opted-in research run into an ordinary draft.
-      const researched = await this.searchForFacts(
+      const researched = await this.researchForIntake(
         organizationId,
         plan.input,
         plan,
         evidence,
-        level,
-        true
+        level
       );
-      if (researched.length) {
-        const selectedResearch =
-          plan.researchSelections === null
-            ? null
-            : new Set(plan.researchSelections);
-        const brief: BriefFilledV1 = {
-          ...filled.brief,
-          facts: [
-            ...filled.brief.facts,
-            ...researched.map((fact): PieceFactV2 => ({
-              ...fact,
-              kind: 'found',
-              status: fact.verified ? 'confirmed' : 'unverified',
-              selected: selectedResearch?.has(fact.statement) ?? false,
-            })),
-          ],
-        };
-        filled = { ...filled, ...this.settled(brief), pendingSearch: null };
-      } else {
-        // Do not fall through to the legacy optional search lane. That would
-        // spend a second research call after a deliberate paid attempt.
-        filled = { ...filled, pendingSearch: null };
-      }
-      yield {
-        name: 'research-ready',
+      const digest = researched.sources.length
+        ? await this.digestResearch(organizationId, plan, filled, extraction, researched, level)
+        : null;
+      const rows = this.researchRows(filled, researched, digest, level);
+      // Do not fall through to the legacy optional search lane: that would
+      // spend a second research call after a deliberate paid attempt.
+      const base = this.stateOf({
+        filled: { ...filled, ...this.settled({ ...filled.brief, facts: rows.facts }), pendingSearch: null },
+        evidence,
+        extraction,
+        urls,
+        foreignShingles,
         level,
-        facts: filled.brief.facts,
-        sources: filled.brief.facts
-          .filter((fact) => fact.kind === 'found' && fact.sourceUrl)
-          .map((fact) => ({
-            url: fact.sourceUrl!,
-            title: evidence.get(fact.evidenceId ?? '')?.title || fact.sourceUrl!,
-            status:
-              fact.status === 'conflicting'
-                ? 'conflicting' as const
-                : fact.status === 'confirmed'
-                ? 'confirmed' as const
-                : 'not_found' as const,
-          })),
-      };
-      if (actorUserId && plan.researchSelections === null && researched.length) {
+        corrections: rows.corrections,
+        summary: rows.summary,
+      });
+      const state = this.applySelections(base, plan);
+      const pausing = !!actorUserId && plan.researchSelections === null;
+      const snapshotKey = pausing
+        ? await this.writeSnapshot(organizationId, actorUserId!, state)
+        : plan.snapshotKey ?? null;
+      yield this.researchReadyEvent(state, snapshotKey);
+      if (pausing) {
         yield {
           name: 'research-selection-required',
           level,
-          facts: filled.brief.facts,
+          facts: state.filled.brief.facts,
+          snapshotKey,
+          corrections: state.corrections,
+          summary: state.summary ?? undefined,
         };
-        yield { name: 'brief-filled', brief: filled.brief };
+        yield { name: 'brief-filled', brief: state.filled.brief };
         yield { name: 'done', pieceId: null };
         return;
       }
+      yield* this.finish(organizationId, plan, actorUserId, state);
+      return;
     }
+    yield* this.finish(
+      organizationId,
+      plan,
+      actorUserId,
+      this.stateOf({ filled, evidence, extraction, urls, foreignShingles, level: null })
+    );
+  }
+
+  /** Всё после опор: свободный поиск, квитанция, суть, запись заготовки. */
+  private async *finish(
+    organizationId: string,
+    plan: IntakePlanV1,
+    actorUserId: string | undefined,
+    state: IntakeRunState
+  ): AsyncGenerator<IntakeEventV2> {
+    const language = plan.language;
+    const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
+    const { extraction, urls, foreignShingles } = state;
+    let filled = state.filled;
     if (filled.pendingSearch) {
       yield { name: 'search-started', reason: 'facts', count: 1 };
       filled = await this.addSearchedFacts(
@@ -517,7 +626,15 @@ export class IntakeService {
     }
     const open = this.openQuestions(filled, plan);
     const answers = this.interviewAnswers(plan);
-    const personText = extraction ? '' : contentFromIntent(plan.input);
+    /*
+      Слова человека с принятыми поправками (`75xn.18`): число, которое источник
+      опроверг и которое человек согласился заменить, не должно уйти в суть из
+      исходной мысли, пока строка-поправка несёт новое.
+    */
+    const personText = extraction
+      ? ''
+      : contentFromIntent(state.correctedInput || plan.input);
+
     const written: ZagotovkaCoreV1 = open.length ? {
       version: 'piece-core/v1', text: '', brief: filled.brief, answers,
       slop: null, writtenBy: 'fallback', authorNumbers: false,
@@ -1266,6 +1383,398 @@ export class IntakeService {
       return wanted;
     }
     return 'auto';
+  }
+
+  /* -----------------------------------------------------------------------
+   * Опоры с вердиктами, ключи строк и снимок первого прохода
+   * (`content-factory-next-75xn.18`, `.19`, `.21`, `.29`)
+   * -------------------------------------------------------------------- */
+
+  private async readSnapshot(
+    organizationId: string,
+    actorUserId: string,
+    snapshotKey: string
+  ): Promise<IntakeRunState | null> {
+    if (!this.snapshots) return null;
+    try {
+      const raw = await this.snapshots.get(
+        intakeSnapshotKey(organizationId, actorUserId, snapshotKey)
+      );
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as {
+        organizationId?: string;
+        actorUserId?: string;
+        state?: IntakeRunState;
+      };
+      // Ключ уже несёт область и автора; проверка внутри — на случай, когда
+      // кто-то подставил чужой ключ в свою область: снимок молча не подходит.
+      if (
+        parsed.organizationId !== organizationId ||
+        parsed.actorUserId !== actorUserId ||
+        !parsed.state?.filled?.brief
+      ) {
+        return null;
+      }
+      return parsed.state;
+    } catch (error) {
+      this.logger.warn(`The intake snapshot could not be read: ${describeError(error)}`);
+      return null;
+    }
+  }
+
+  private async writeSnapshot(
+    organizationId: string,
+    actorUserId: string,
+    state: IntakeRunState
+  ): Promise<string | null> {
+    if (!this.snapshots) return null;
+    const id = randomUUID();
+    try {
+      await this.snapshots.set(
+        intakeSnapshotKey(organizationId, actorUserId, id),
+        JSON.stringify({ organizationId, actorUserId, state }),
+        'EX',
+        INTAKE_SNAPSHOT_TTL_SECONDS
+      );
+      return id;
+    } catch (error) {
+      this.logger.warn(`The intake snapshot could not be written: ${describeError(error)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Выбор человека, наложенный на строки. Ключи первыми, текст вторым
+   * (вкладка, открытая до выпуска, шлёт текст). Без выбора остаются
+   * умолчания, которые продукт решил сам: найденное подтверждённое — берём,
+   * поправку — принимаем, своё расходящееся — не берём.
+   */
+  private applySelections(state: IntakeRunState, plan: IntakePlanV1): IntakeRunState {
+    if (plan.researchSelections === null) return state;
+    const keys = new Set(plan.researchSelections);
+    const picked = (fact: PieceFactV2) =>
+      (!!fact.factKey && keys.has(fact.factKey)) || keys.has(fact.statement);
+    const facts = state.filled.brief.facts.map((fact: PieceFactV2): PieceFactV2 => {
+      const kind = factKind(fact, state.filled.brief.inputKind);
+      if (kind === 'found') return { ...fact, selected: picked(fact) };
+      if (fact.status === 'conflicting' || (fact.correction && fact.origin === 'search')) {
+        // Пара «своё расходящееся ↔ поправка»: названо одно из двух — берётся
+        // оно; не названо ничего (старый клиент) — умолчание остаётся.
+        const twin = state.filled.brief.facts.find(
+          (other: PieceFactV2) =>
+            other !== fact &&
+            !!other.correction &&
+            !!fact.correction &&
+            other.correction.original === fact.correction.original &&
+            other.evidenceId === fact.evidenceId
+        );
+        if (picked(fact)) return { ...fact, selected: true };
+        if (twin && picked(twin)) return { ...fact, selected: false };
+        return fact;
+      }
+      return fact;
+    });
+    const corrections = state.corrections.map((correction) => ({
+      ...correction,
+      accepted: facts.some(
+        (fact: PieceFactV2) => fact.factKey === correction.factKey && fact.selected === true
+      ),
+    }));
+    return {
+      ...state,
+      filled: { ...state.filled, brief: { ...state.filled.brief, facts } },
+      corrections,
+      correctedInput: this.correctedInputOf(plan, corrections),
+    };
+  }
+
+  private correctedInputOf(plan: IntakePlanV1, corrections: IntakeCorrectionV1[]): string {
+    if (plan.inputKind !== 'thought') return '';
+    let text = plan.input;
+    let changed = false;
+    for (const correction of corrections) {
+      if (!correction.accepted) continue;
+      const applied = applyCorrection(text, correction);
+      if (applied.applied) {
+        text = applied.text;
+        changed = true;
+      }
+    }
+    return changed ? text : '';
+  }
+
+  private researchReadyEvent(
+    state: IntakeRunState,
+    snapshotKey: string | null
+  ): Extract<IntakeEventV2, { name: 'research-ready' }> {
+    const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
+    return {
+      name: 'research-ready',
+      level: state.level ?? 'standard',
+      facts: state.filled.brief.facts,
+      sources: state.filled.brief.facts
+        .filter((fact) => factKind(fact, state.filled.brief.inputKind) === 'found' && fact.sourceUrl)
+        .map((fact) => ({
+          url: fact.sourceUrl!,
+          title: evidence.get(fact.evidenceId ?? '')?.title || fact.sourceUrl!,
+          status:
+            fact.status === 'conflicting'
+              ? 'conflicting' as const
+              : fact.status === 'confirmed'
+              ? 'confirmed' as const
+              : 'not_found' as const,
+        })),
+      snapshotKey,
+      corrections: state.corrections,
+      summary: state.summary ?? undefined,
+    };
+  }
+
+  /**
+   * Платный поиск для входа: столько источников, сколько обещает уровень
+   * (`75xn.21` — раньше всё резалось до восьми), каждый принят в реестр и
+   * несёт выдержку, а на глубоком уровне — и текст страницы, который движок
+   * уже вернул (`75xn.29`).
+   */
+  private async researchForIntake(
+    organizationId: string,
+    subject: string,
+    plan: IntakePlanV1,
+    evidence: Map<string, AcceptedEvidence>,
+    level: 'quick' | 'standard' | 'deep'
+  ): Promise<IntakeResearch> {
+    let answer: WebResearchResult;
+    try {
+      answer = await this.research.research(organizationId, subject, {
+        language: plan.language,
+        level,
+      });
+    } catch (error) {
+      if (
+        error instanceof ResearchQuotaExceeded ||
+        error instanceof WebSearchNotConfigured ||
+        error instanceof WebSearchFallbackError
+      ) {
+        throw error;
+      }
+      this.logger.warn(`Intake research found nothing: ${describeError(error)}`);
+      return { found: [], sources: [], sourcesCount: 0, encyclopedic: 0 };
+    }
+    const sourceByUrl = new Map((answer.sources || []).map((source) => [source.url, source]));
+    const found: BriefFilledFactV1[] = [];
+    const sources: ResearchDigestSource[] = [];
+    const seen = new Set<string>();
+    for (const fact of (answer.facts || []).slice(0, RESEARCH_LEVEL_PRESETS[level].maxSources)) {
+      if (seen.has(fact.sourceUrl)) continue;
+      const source = sourceByUrl.get(fact.sourceUrl);
+      try {
+        const accepted = await this.sources.acceptSearchResult(
+          organizationId,
+          {
+            url: fact.sourceUrl,
+            title: source?.title ?? null,
+            excerpt: fact.text,
+            publishedAt: source?.publishedAt ?? null,
+            provider: source?.provider ?? answer.provider,
+          },
+          { reuseBy: 'url' }
+        );
+        seen.add(fact.sourceUrl);
+        evidence.set(accepted.evidenceId, {
+          evidenceId: accepted.evidenceId,
+          url: accepted.url,
+          title: accepted.title,
+          excerpt: accepted.excerpt,
+        });
+        sources.push({
+          evidenceId: accepted.evidenceId,
+          url: accepted.url,
+          title: accepted.title,
+          excerpt: accepted.excerpt,
+          text: source?.text ?? null,
+        });
+        found.push({
+          statement: oneLine(accepted.excerpt).slice(0, 400),
+          sourceUrl: accepted.url,
+          factId: null,
+          evidenceId: accepted.evidenceId,
+          origin: 'search',
+          verified: false,
+        });
+      } catch (error) {
+        this.logger.warn(`A search result could not be kept as evidence: ${describeError(error)}`);
+      }
+    }
+    return {
+      found,
+      sources,
+      sourcesCount: (answer.sources || []).length,
+      encyclopedic: (answer.sources || []).filter(
+        (source) => source.provider === 'wikipedia' || source.provider === 'wikidata'
+      ).length,
+    };
+  }
+
+  /**
+   * Одна структурированная проверка: найденное — в утверждения с цитатой,
+   * слова автора — в вердикты. Вердикт ставит `settleResearchDigest`, не
+   * модель. Отказ модели оставляет строки, как они были до 13.09.
+   */
+  private async digestResearch(
+    organizationId: string,
+    plan: IntakePlanV1,
+    filled: FilledBrief,
+    extraction: IntakeExtractionV1 | null,
+    researched: IntakeResearch,
+    level: 'quick' | 'standard' | 'deep'
+  ): Promise<SettledResearchDigest | null> {
+    const claims: ResearchDigestClaim[] = filled.brief.facts
+      .filter((fact: PieceFactV2) => factKind(fact, filled.brief.inputKind) !== 'found')
+      .slice(0, RESEARCH_DIGEST_CLAIM_CAP)
+      .map((fact: PieceFactV2) => ({
+        key: factKeyOf({ ...fact, correction: null }),
+        statement: fact.statement,
+        own: factKind(fact, filled.brief.inputKind) === 'own',
+      }));
+    const sources = digestSourcesFor(researched.sources, level);
+    if (!sources.length) return null;
+    const input = {
+      language: plan.language,
+      level,
+      subject: extraction ? this.borrowedSummary(extraction) : plan.input,
+      claims,
+      sources: researched.sources,
+    };
+    try {
+      const answer = await this.aiUsage.executeAiOperation(
+        organizationId,
+        'intake',
+        async () => {
+          const model = (
+            await getChatModel(organizationId, 0, 4_096, 'review')
+          ).withStructuredOutput(researchDigestSchema);
+          return await model.invoke(researchDigestPrompt(input, sources));
+        },
+        'review'
+      );
+      const settled = settleResearchDigest(answer as any, input);
+      if (settled.rejected.verdicts || settled.rejected.findings) {
+        this.logger.warn(
+          `Research digest dropped ${settled.rejected.verdicts} verdict(s) and ${settled.rejected.findings} finding(s) whose quote was not in the source.`
+        );
+      }
+      return settled;
+    } catch (error) {
+      this.logger.warn(`The research digest failed; keeping the raw rows: ${describeError(error)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Строки таблицы опор после ресерча: свои и внешние с вердиктами (и
+   * строкой-поправкой рядом с расходящимся), найденные — утверждениями с
+   * цитатой, каждая с ключом и с умолчанием выбора, которое продукт решил сам.
+   */
+  private researchRows(
+    filled: FilledBrief,
+    researched: IntakeResearch,
+    digest: SettledResearchDigest | null,
+    level: 'quick' | 'standard' | 'deep'
+  ): { facts: PieceFactV2[]; corrections: IntakeCorrectionV1[]; summary: IntakeResearchSummaryV1 } {
+    const inputKind = filled.brief.inputKind;
+    const facts: PieceFactV2[] = [];
+    const corrections: IntakeCorrectionV1[] = [];
+    const summary: IntakeResearchSummaryV1 = {
+      confirmed: 0,
+      conflicting: 0,
+      unverified: 0,
+      found: 0,
+      sources: researched.sourcesCount,
+      encyclopedic: researched.encyclopedic,
+    };
+    const verdictByKey = new Map((digest?.verdicts ?? []).map((verdict) => [verdict.claimKey, verdict]));
+
+    for (const fact of filled.brief.facts as PieceFactV2[]) {
+      const kind = factKind(fact, inputKind);
+      if (kind === 'found') continue;
+      const key = factKeyOf({ ...fact, kind, correction: null });
+      const verdict = verdictByKey.get(key);
+      if (!verdict) {
+        facts.push({ ...fact, kind, factKey: key });
+        if (digest) summary.unverified += 1;
+        continue;
+      }
+      const evidenceId = verdict.evidenceId ?? fact.evidenceId ?? null;
+      const sourceUrl = verdict.sourceUrl ?? fact.sourceUrl ?? null;
+      if (verdict.status === 'confirmed') {
+        summary.confirmed += 1;
+        facts.push({
+          ...fact, kind, factKey: key, status: 'confirmed', verified: true,
+          evidenceId, sourceUrl, quote: verdict.quote, note: verdict.note,
+        });
+        continue;
+      }
+      if (verdict.status === 'conflicting') {
+        summary.conflicting += 1;
+        const original: PieceFactV2 = {
+          ...fact, kind, factKey: key, status: 'conflicting',
+          evidenceId, sourceUrl, quote: verdict.quote, note: verdict.note,
+          correction: verdict.correction, selected: false,
+        };
+        facts.push(original);
+        if (verdict.correction && evidenceId) {
+          const replaced = applyCorrection(fact.statement, verdict.correction);
+          const twin: PieceFactV2 = {
+            statement: replaced.applied ? replaced.text : `${fact.statement} → ${verdict.correction.replacement}`,
+            sourceUrl, factId: null, evidenceId, origin: 'search', verified: true,
+            kind, status: 'confirmed', quote: verdict.quote, note: verdict.note,
+            correction: verdict.correction, selected: true,
+          };
+          twin.factKey = factKeyOf(twin);
+          facts.push(twin);
+          corrections.push({
+            factKey: twin.factKey,
+            original: verdict.correction.original,
+            replacement: verdict.correction.replacement,
+            sourceUrl, quote: verdict.quote, note: verdict.note, accepted: true,
+          });
+        } else {
+          // Расходится, но замены нет: своё слово остаётся своим, вердикт видно.
+          original.selected = true;
+        }
+        continue;
+      }
+      summary.unverified += 1;
+      facts.push({
+        ...fact, kind, factKey: key, status: 'unverified',
+        ...(verdict.quote ? { evidenceId, sourceUrl, quote: verdict.quote } : {}),
+        note: verdict.note,
+      });
+    }
+
+    const evidenceTitle = new Map(researched.sources.map((source) => [source.evidenceId, source]));
+    if (digest && digest.findings.length) {
+      for (const finding of digest.findings.slice(0, RESEARCH_DIGEST_FINDING_CAPS[level])) {
+        const row: PieceFactV2 = {
+          statement: finding.statement, sourceUrl: finding.sourceUrl, factId: null,
+          evidenceId: finding.evidenceId, origin: 'search', verified: true,
+          kind: 'found', status: 'confirmed', quote: finding.quote, note: null, selected: true,
+        };
+        row.factKey = factKeyOf(row);
+        facts.push(row);
+        summary.found += 1;
+      }
+    } else {
+      // Без сжатия строки идут как до 13.09: выдержка, «не проверено», не отмечено.
+      for (const fact of researched.found.slice(0, RESEARCH_DIGEST_FINDING_CAPS[level])) {
+        const row: PieceFactV2 = { ...fact, kind: 'found', status: 'unverified', selected: false };
+        row.factKey = factKeyOf(row);
+        facts.push(row);
+        summary.found += 1;
+      }
+    }
+    void evidenceTitle;
+    return { facts, corrections, summary };
   }
 
   /** Опора для мысли, у которой её не было: один поиск, находки как факты. */

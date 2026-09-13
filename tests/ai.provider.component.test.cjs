@@ -388,11 +388,29 @@ describe('AI provider search settings component', () => {
       'name="searchTopic"',
       'name="searchDepth"',
       'name="provider"',
+      // Выключателя поиска здесь тоже нет: на ключах системы поиск включён
+      // ровно тогда, когда у оператора есть ключ, и флаг области сервер в этом
+      // режиме не читает (`content-factory-next-75xn.26`, после `.20`).
+      'name="searchEnabled"',
     ]) {
       expect(markup).not.toContain(field);
     }
-    // Выключатель поиска принадлежит обоим режимам и остаётся.
-    expect(markup).toContain('name="searchEnabled"');
+  });
+
+  test('без ключей системы строка зовёт того, кто может их задать', () => {
+    settings = {
+      ...settings,
+      usageMode: 'included',
+      searchEnabled: false,
+      searchKeys: { tavily: false, exa: false, openrouter: false },
+      searchTaskProviders: {},
+    };
+    const markup = renderToStaticMarkup(React.createElement(component.default));
+
+    expect(markup).toContain('The system search keys are not set up yet');
+    // Совета «включите ключи системы» человеку, который их уже включил, нет.
+    expect(markup).not.toContain('Search runs on the system keys');
+    expect(markup).not.toContain('No search engine has a key');
   });
 
   test('included payload omits workspace secrets and model ids entirely', () => {
@@ -420,10 +438,12 @@ describe('AI provider search settings component', () => {
    * `content-factory-next-75xn.4`: в режиме включённых ключей экран показывает
    * значения оператора, и вернуть их серверу — значит записать чужой движок
    * как свой. Сервер их в этом режиме игнорирует; экран их и не отправляет.
-   * Исключение одно — включён ли поиск вообще: это настройка обоих режимов, и
-   * сервер пишет её в обоих.
+   * Включён ли поиск вообще — тоже не отправляется: на ключах системы это
+   * решает наличие ключа у оператора, а в поле формы лежит именно его
+   * состояние, а не выбор области. Записать его обратно значило бы стереть
+   * «поиск выключен», выбранное областью на своём ключе.
    */
-  test('included payload sends no search routing at all, only the switch', () => {
+  test('included payload sends no search settings at all', () => {
     const payload = component.buildAiSettingsPayload({
       usageMode: 'included',
       provider: 'openrouter',
@@ -437,8 +457,9 @@ describe('AI provider search settings component', () => {
       searchDepth: 'basic',
     });
 
-    expect(payload).toMatchObject({ usageMode: 'included', searchEnabled: false });
+    expect(payload).toMatchObject({ usageMode: 'included' });
     for (const field of [
+      'searchEnabled',
       'searchProvider',
       'searchTopic',
       'searchDepth',
@@ -607,17 +628,17 @@ describe('AI provider search settings component', () => {
   });
 
   /**
-   * Режим включённых ключей молчал про свой ключ области: поля выключены,
-   * кнопки «убрать» нет, и сохранённый ключ не виден ниоткуда.
+   * `content-factory-next-75xn.26`. Владелец 13.09.2026: «если я выбираю ключи
+   * системы — зачем кнопки „Убрать ключ Tavily“, „Убрать ключ Exa“? Для
+   * суперадмина они есть в его админке, обычному человеку зачем?» И второе:
+   * тематика с глубиной в этом режиме не настраиваются нигде — тему выбирает
+   * задача, глубина `advanced` (решение владельца 10 в плане волны).
    */
   describe('включённые ключи', () => {
-    test('называет движок спящего ключа и даёт убрать именно его', () => {
+    test('про свой ключ области сказано одним предложением и ни одной кнопкой', () => {
       settings = {
         ...settings,
         usageMode: 'included',
-        // В этом режиме `searchKeys` описывает ключи оператора, а свои ключи
-        // области приходят отдельным полем — иначе их нельзя ни назвать, ни
-        // убрать поимённо (`content-factory-next-75xn.6`).
         searchKeys: { tavily: true, exa: true, openrouter: false },
         workspaceSearchKeys: { tavily: true, exa: false, openrouter: false },
       };
@@ -627,36 +648,9 @@ describe('AI provider search settings component', () => {
 
       expect(markup).toContain('data-search-included-key="true"');
       expect(markup).toContain('This workspace has a search key of its own');
-      expect(markup).toContain('data-search-included-engine="tavily"');
-      expect(markup).toContain(
-        'A Tavily key is stored for this workspace and is not being spent'
-      );
-      expect(markup).toContain('aria-label="Remove the stored Tavily key"');
-      // Ключ системы движком Exa своим не считается и убрать его не предлагают.
-      expect(markup).not.toContain('data-search-included-engine="exa"');
-      expect(markup).not.toContain('aria-label="Remove the stored Exa key"');
-    });
-
-    test('ответ без имён движков оставляет одну кнопку «убрать все»', () => {
-      // Старый ответ в кэше браузера: `hasSearchKey` есть, поимённого списка
-      // нет. Экран не должен ни молчать, ни выдумывать движок.
-      settings = {
-        ...settings,
-        usageMode: 'included',
-        searchProvider: 'openrouter',
-        hasSearchKey: true,
-        searchKeys: undefined,
-        workspaceSearchKeys: undefined,
-      };
-      const markup = renderToStaticMarkup(
-        React.createElement(component.default)
-      );
-
-      expect(markup).toContain('data-search-included-key="true"');
+      // Ни одной кнопки удаления: убрать ключ можно там, где стоит его поле.
       expect(markup).not.toContain('data-search-included-engine=');
-      expect(markup).toContain(
-        'aria-label="Remove the stored search keys of this workspace"'
-      );
+      expect(markup).not.toMatch(/aria-label="Remove the stored [^"]*key/);
     });
 
     test('без своего ключа строки нет', () => {
@@ -666,6 +660,23 @@ describe('AI provider search settings component', () => {
       );
 
       expect(markup).not.toContain('data-search-included-key="true"');
+    });
+
+    test('тематики и глубины поиска в этом режиме нет вовсе', () => {
+      settings = { ...settings, usageMode: 'included' };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).not.toContain('name="searchTopic"');
+      expect(markup).not.toContain('name="searchDepth"');
+      // А на своих ключах остаются: там платит область и выбирает она же.
+      settings = { ...settings, usageMode: 'workspace_key' };
+      const ownKeys = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+      expect(ownKeys).toContain('name="searchTopic"');
+      expect(ownKeys).toContain('name="searchDepth"');
     });
   });
 

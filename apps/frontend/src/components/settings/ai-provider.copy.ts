@@ -58,14 +58,6 @@ type KeyedEngineWords = EngineWords & {
   keyStored: string;
   /** Строка под полем, когда ключа нет. */
   keyMissing: string;
-  /**
-   * Та же мысль для режима включённых ключей: ключ есть, но лежит.
-   *
-   * Отдельной строкой, а не той же, что выше: «сохранён» и «сохранён, но не
-   * тратится» — разные факты, и человек, пришедший убрать свой ключ, должен
-   * увидеть второй, иначе решит, что платит дважды.
-   */
-  keyDormant: string;
   /** Имя кнопки удаления — у каждого движка своё, иначе их не различить. */
   removeKey: string;
   /** Что именно исчезнет. Спрашивается до запроса, а не после. */
@@ -116,6 +108,12 @@ type Words = {
      * нет вовсе, и строка обязана сказать, что это не потеря, а ответ.
      */
     systemKeysOnly: string;
+    /**
+     * И тот же ответ, когда ключей системы нет: в этом режиме область их не
+     * заводит, поэтому строка называет того, кто может, и второй выход —
+     * перейти на свой ключ (`content-factory-next-75xn.26`).
+     */
+    systemKeysMissing: string;
     /** Подпись блока своих поисковых ключей. */
     ownKeysTitle: string;
     /**
@@ -141,13 +139,11 @@ type Words = {
     /**
      * Режим включённых ключей: у области есть свой ключ, и он сейчас лежит.
      * Без названия движка — ответ сервера в этом режиме говорит про ключи
-     * системы, а про свои знает только «есть или нет».
+     * системы, а про свои знает только «есть или нет». Одно предложение и ни
+     * одной кнопки: убрать свой ключ можно там, где стоит его поле, то есть в
+     * режиме своих ключей (`content-factory-next-75xn.26`).
      */
     includedOwnKey: string;
-    /** Имя кнопки, которая убирает свои поисковые ключи целиком. */
-    includedRemoveKeys: string;
-    /** Что именно исчезнет. */
-    includedRemoveKeysConfirm: string;
     engines: {
       tavily: KeyedEngineWords;
       exa: KeyedEngineWords;
@@ -200,6 +196,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         'По умолчанию работают ключи системы. Их не видно, и вводить здесь ничего не нужно — поиск уже работает.',
       systemKeysOnly:
         'Поиск работает на ключах системы, вводить ничего не нужно.',
+      systemKeysMissing:
+        'Ключи системы для поиска пока не заданы, поэтому веб-исследование не работает. Их задаёт суперадмин инстанса; можно также выбрать «Свой ключ» и сохранить собственный.',
       ownKeysTitle: 'Свои ключи поиска',
       routing: (pairs) =>
         `Сейчас поиск идёт так: ${pairs
@@ -216,10 +214,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       openrouterNoKey:
         'У OpenRouter своего поискового ключа нет: он ищет через ваш ключ генерации, указанный выше, и тратит его.',
       includedOwnKey:
-        'У этой области сохранён свой поисковый ключ. Сейчас он не тратится — работают ключи системы, — и останется сохранённым до тех пор, пока вы его не уберёте.',
-      includedRemoveKeys: 'Убрать сохранённые поисковые ключи области',
-      includedRemoveKeysConfirm:
-        'Сохранённые поисковые ключи этой области будут удалены без возможности восстановления. Поиск продолжит работать на ключах системы, а при возврате к своим ключам восстанавливать будет нечего.',
+        'У этой области сохранён свой поисковый ключ. Сейчас он не тратится — работают ключи системы, — и снова заработает, как только вы выберете «Свой ключ». Убрать его можно там же.',
       engines: {
         tavily: {
           name: 'Tavily',
@@ -229,8 +224,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
             'Ключ Tavily сохранён для этой области. Он больше не показывается.',
           keyMissing:
             'Своего ключа Tavily нет — Tavily работает на ключе системы.',
-          keyDormant:
-            'Ключ Tavily сохранён за этой областью и сейчас не тратится.',
           removeKey: 'Убрать сохранённый ключ Tavily',
           removeKeyConfirm:
             'Сохранённый ключ Tavily будет удалён без возможности восстановления. Поиск через Tavily вернётся на ключ системы, а если его нет — перестанет работать.',
@@ -242,8 +235,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
           keyStored:
             'Ключ Exa сохранён для этой области. Он больше не показывается.',
           keyMissing: 'Своего ключа Exa нет — Exa работает на ключе системы.',
-          keyDormant:
-            'Ключ Exa сохранён за этой областью и сейчас не тратится.',
           removeKey: 'Убрать сохранённый ключ Exa',
           removeKeyConfirm:
             'Сохранённый ключ Exa будет удалён без возможности восстановления. Поиск через Exa вернётся на ключ системы, а если его нет — перестанет работать.',
@@ -307,6 +298,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
         'The system keys work by default. They are not shown and nothing has to be typed here — search already works.',
       systemKeysOnly:
         'Search runs on the system keys; nothing has to be typed here.',
+      systemKeysMissing:
+        'The system search keys are not set up yet, so web research does not run. The instance superadmin sets them; you can also choose «Own key» and save one of your own.',
       ownKeysTitle: 'Your own search keys',
       routing: (pairs) =>
         `Search runs like this now: ${pairs
@@ -323,10 +316,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       openrouterNoKey:
         'OpenRouter has no search key of its own: it searches through the generation key above and spends it.',
       includedOwnKey:
-        'This workspace has a search key of its own. It is not being spent right now — the system keys are in use — and it stays stored until you remove it.',
-      includedRemoveKeys: 'Remove the stored search keys of this workspace',
-      includedRemoveKeysConfirm:
-        'The stored search keys of this workspace are removed and cannot be recovered. Search keeps working on the system keys, and there will be nothing to restore when you switch back to your own.',
+        'This workspace has a search key of its own. It is not being spent right now — the system keys are in use — and it starts working again the moment you choose «Own key». That is also where it can be removed.',
       engines: {
         tavily: {
           name: 'Tavily',
@@ -336,8 +326,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
             'A Tavily key is stored for this workspace. It is never shown again.',
           keyMissing:
             'No Tavily key of your own — Tavily runs on the system key.',
-          keyDormant:
-            'A Tavily key is stored for this workspace and is not being spent.',
           removeKey: 'Remove the stored Tavily key',
           removeKeyConfirm:
             'The stored Tavily key is removed and cannot be recovered. Tavily search falls back to the system key, and stops if there is none.',
@@ -349,8 +337,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
           keyStored:
             'An Exa key is stored for this workspace. It is never shown again.',
           keyMissing: 'No Exa key of your own — Exa runs on the system key.',
-          keyDormant:
-            'An Exa key is stored for this workspace and is not being spent.',
           removeKey: 'Remove the stored Exa key',
           removeKeyConfirm:
             'The stored Exa key is removed and cannot be recovered. Exa search falls back to the system key, and stops if there is none.',

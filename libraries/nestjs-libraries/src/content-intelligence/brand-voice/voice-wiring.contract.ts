@@ -2239,6 +2239,20 @@ export type BriefFilledFactV1 = {
   kind?: 'own' | 'external' | 'found';
   status?: 'confirmed' | 'conflicting' | 'not_found' | 'unverified';
   selected?: boolean;
+  /**
+   * Устойчивый ключ строки (`content-factory-next-75xn.19`): выбор человека
+   * едет ключом, а не текстом, и переживает второй проход.
+   */
+  factKey?: string;
+  /** Дословная цитата из источника, по которой код поставил вердикт (`75xn.18`). */
+  quote?: string | null;
+  /** Одно предложение на языке читателя: что говорит источник. */
+  note?: string | null;
+  /**
+   * У строки «расходится» — что в словах автора заменить и на что; у
+   * строки-поправки — те же слова, которые она заменила.
+   */
+  correction?: { original: string; replacement: string } | null;
 };
 
 export type BriefFilledV1 = {
@@ -2327,6 +2341,8 @@ export type IntakeRequestV1 = {
   options?: IntakeOptionsV1;
   /** Exact statements the author chose from a pending paid research run. */
   researchSelections?: string[];
+  /** Снимок первого прохода, который второй проход продолжает (`75xn.19`). */
+  snapshotKey?: string | null;
   brandProfileSelection?: BrandProfileSelectionV1;
   /** Повод из «Откуда идеи», из которого пришёл текст; сервер вправе не знать его. */
   sourceLeadId?: string;
@@ -2476,6 +2492,31 @@ export type IntakeDraftContentV1 = {
   usedCitationIds: string[];
 };
 
+/**
+ * Поправка в словах автора, предложенная по источнику (`75xn.18`): что
+ * заменить, на что, откуда цитата. Ключ — строки-поправки в `facts`.
+ */
+export type IntakeCorrectionV1 = {
+  factKey: string;
+  original: string;
+  replacement: string;
+  sourceUrl: string | null;
+  quote: string | null;
+  note: string | null;
+  /** Принята ли поправка сейчас: по умолчанию да, «Вернуть моё» снимает. */
+  accepted: boolean;
+};
+
+/** Одна строка над таблицей: сколько чего нашлось. */
+export type IntakeResearchSummaryV1 = {
+  confirmed: number;
+  conflicting: number;
+  unverified: number;
+  found: number;
+  sources: number;
+  encyclopedic: number;
+};
+
 export type IntakeEventV1 =
   | {
       name: 'intake-started';
@@ -2495,11 +2536,18 @@ export type IntakeEventV1 =
       level: 'quick' | 'standard' | 'deep';
       facts: BriefFilledFactV1[];
       sources: Array<{ url: string; title: string; status: 'confirmed' | 'conflicting' | 'not_found' }>;
+      /** Дополнительно с волны 13.09.2026 (`75xn.18`, `.19`): читатель старше её видит строки как прежде. */
+      snapshotKey?: string | null;
+      corrections?: IntakeCorrectionV1[];
+      summary?: IntakeResearchSummaryV1;
     }
   | {
       name: 'research-selection-required';
       level: 'quick' | 'standard' | 'deep';
       facts: BriefFilledFactV1[];
+      snapshotKey?: string | null;
+      corrections?: IntakeCorrectionV1[];
+      summary?: IntakeResearchSummaryV1;
     }
   /**
    * Что осталось спросить — и **не терминальное** с волны

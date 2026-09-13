@@ -6,6 +6,7 @@ import {
   INSTANCE_AI_DEFAULTS_ID,
   resetAiConfigCache,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
+import { includedQuotaFallback } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
   AiRoleModels,
   parseRoleModels,
@@ -77,6 +78,58 @@ export class InstanceAiDefaultsService {
       ),
     };
 
+    /**
+     * What the instance is actually running on, field by field.
+     *
+     * The three-state line below says where a value came from; this says what
+     * the value *is*, and without it the screen had to guess. It guessed
+     * «openai» — the form's own initial value — on an instance started with
+     * `AI_PROVIDER=openrouter`, so the owner's walk of 13.09.2026 showed a
+     * superadmin a provider his instance had never used
+     * (`content-factory-next-75xn.25`). A field that shows the effective value
+     * cannot lie that way: saving it unchanged writes back the same thing.
+     *
+     * The rules are `operatorDefaults`' rules, not new ones: the row first, the
+     * variable as its floor, and a model from the variable only while the
+     * provider is still the variable's provider — a model id belongs to its
+     * provider, and carrying `gpt-4.1` into an OpenRouter field would offer a
+     * value that provider refuses.
+     */
+    const envProvider =
+      process.env.AI_PROVIDER === 'openai' ||
+      process.env.AI_PROVIDER === 'openrouter'
+        ? (process.env.AI_PROVIDER as AiProvider)
+        : null;
+    const storedProvider =
+      row?.provider === 'openai' || row?.provider === 'openrouter'
+        ? (row.provider as AiProvider)
+        : null;
+    const provider = storedProvider ?? envProvider ?? 'openai';
+    const envModel = (value: string | undefined) =>
+      provider === (envProvider ?? 'openai') ? value || null : null;
+    /**
+     * Empty stays empty: a model field left blank means «whatever the provider
+     * offers», and printing the built-in default into it would turn a
+     * deliberate silence into a saved model id on the next save.
+     */
+    const effective = {
+      provider,
+      textModel: row?.textModel ?? envModel(process.env.AI_TEXT_MODEL),
+      imageModel: row?.imageModel ?? envModel(process.env.AI_IMAGE_MODEL),
+      /**
+       * `null` rather than zero when nothing is set anywhere: zero is a real
+       * answer here — «included mode is closed» — and it must not appear in a
+       * field nobody filled in. When the variable is set, the number shown is
+       * the one billing counts by, read through billing's own function so the
+       * two cannot drift apart.
+       */
+      monthlyOperations:
+        row?.monthlyOperations ??
+        (process.env.AI_INCLUDED_MONTHLY_OPERATIONS
+          ? includedQuotaFallback()
+          : null),
+    };
+
     return {
       provider: (row?.provider as AiProvider) ?? null,
       textModel: row?.textModel ?? null,
@@ -89,6 +142,7 @@ export class InstanceAiDefaultsService {
         SEARCH_PROVIDERS.map((engine) => [engine, !!storedSearchKeys[engine]])
       ),
       fromEnvironment,
+      effective,
       updatedAt: row?.updatedAt ?? null,
       updatedByUserId: row?.updatedByUserId ?? null,
     };

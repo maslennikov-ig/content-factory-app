@@ -148,6 +148,17 @@ const roleOf = (operation: AiOperation, role?: AiRole): AiRole =>
  * A subscription, when one exists, still wins: billing is the authority the
  * moment there is any.
  */
+/**
+ * An error raised by a product check that ran before any provider request —
+ * search switched off, no key for the routed engine. Marked by the error
+ * itself (`configurationRefusal`), never inferred from a status code, so a
+ * provider's own 409 can never void a call that was actually made.
+ */
+const isConfigurationRefusal = (error: unknown): boolean =>
+  !!error &&
+  typeof error === 'object' &&
+  (error as { configurationRefusal?: unknown }).configurationRefusal === true;
+
 export const includedQuotaFallback = (): number => {
   const raw = Number(process.env.AI_INCLUDED_MONTHLY_OPERATIONS);
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
@@ -440,6 +451,26 @@ export class AiUsageService {
     }
   }
 
+  /**
+   * A refusal the product made before any request left the building
+   * (`content-factory-next-75xn.20`, F1: five topic subscriptions in a
+   * workspace with search off spent five included operations on being told
+   * «not configured»). «Failed calls are reserved and therefore counted» is
+   * the rule for calls; this was never a call, so the admission is removed
+   * rather than finished as failed, and the allowance reads as it did.
+   */
+  private async voidAdmission(organizationId: string, id: string) {
+    try {
+      // The organisation is named beside the id, as every query against an
+      // org-scoped model must be (`tests/tenant-isolation.guard.test.cjs`).
+      await this.prisma.aiUsageRecord.deleteMany({
+        where: { id, organizationId },
+      });
+    } catch {
+      console.error('Failed to void an AI usage admission after a configuration refusal');
+    }
+  }
+
   private async finishAdmission(id: string, succeeded: boolean) {
     try {
       await this.prisma.aiUsageRecord.update({
@@ -566,7 +597,11 @@ export class AiUsageService {
       await this.finishAdmission(admission.id, true);
       return result;
     } catch (error) {
-      await this.finishAdmission(admission.id, false);
+      if (isConfigurationRefusal(error)) {
+        await this.voidAdmission(organizationId, admission.id);
+      } else {
+        await this.finishAdmission(admission.id, false);
+      }
       throw error;
     }
   }

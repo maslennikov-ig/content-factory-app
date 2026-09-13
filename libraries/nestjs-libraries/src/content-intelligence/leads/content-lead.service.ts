@@ -20,16 +20,25 @@ import {
 } from '@contentfactory/nestjs-libraries/locale/backend-strings';
 
 /**
- * The two refusals a topic check can meet that are not failures.
+ * The refusals a topic check can meet that are not failures.
  *
  * A quota answer is a decision the product made on purpose, and printing it as
  * «проверка не удалась» sends a person looking for a broken feed. Only these
- * two are let through by name: every other error keeps the generic code, so an
+ * are let through by name: every other error keeps the generic code, so an
  * internal message can never reach the list by accident.
+ *
+ * `CONTENT_SEARCH_NOT_CONFIGURED` joined them on 13.09.2026
+ * (`content-factory-next-75xn.20`, F1). A fresh workspace with web research
+ * switched off made five topic subscriptions, each one checked itself on
+ * creation, and all five landed in ERRORED with «проверка не удалась» — the
+ * one answer that told the person nothing about the switch they had to flip.
+ * `WebSearchNotConfigured` is configuration, not an outage, and the screen now
+ * says so in a sentence.
  */
 const PASSTHROUGH_REFUSALS = new Set([
   'RESEARCH_QUOTA_EXHAUSTED',
   'AI_INCLUDED_QUOTA_EXHAUSTED',
+  'CONTENT_SEARCH_NOT_CONFIGURED',
 ]);
 
 const refusalCode = (error: unknown): string | null => {
@@ -484,6 +493,14 @@ export class ContentLeadService {
           subscriptionDisplayName: subscription.displayName,
           ownPostsText: recentOwnPosts,
           siblingTitles,
+          // The topic the person typed, so «тема повторилась» stops counting
+          // the subscription's own words as evidence of a repeat
+          // (`content-factory-next-75xn.23`, F14).
+          ...(isTopic && subscription.query ? { subscriptionQuery: subscription.query } : {}),
+          // What the discovery judge said about this very page, when it said
+          // anything. It wins over every rule: it is the only sentence in the
+          // product that names what is in the material.
+          ...(item.reason ? { judgedReason: item.reason } : {}),
           // Only a topic lead may be described by the window it was found
           // inside, and only by the window this check actually used — the
           // gateway owns that number, so it is read from there rather than

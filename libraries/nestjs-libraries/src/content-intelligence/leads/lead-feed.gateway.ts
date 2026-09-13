@@ -38,6 +38,14 @@ export type LeadFeedItemV1 = {
   excerpt: string | null;
   sourceUrl: string;
   publishedAt: Date | null;
+  /**
+   * The sentence a model wrote about what this material says, when one was
+   * written (`content-factory-next-75xn.23`). Only a topic sweep fills it: a
+   * feed item comes from an address a person chose, and there is nothing to
+   * judge about whether it belongs. Absent — the ordinary case — means
+   * `lead-reason.ts` writes the sentence from its rules, as it always has.
+   */
+  reason?: { ru: string; en: string } | null;
 };
 
 export type LeadFeedCheckResultV1 =

@@ -76,3 +76,35 @@ Tavily keys were decrypted inside the container and written into the host's
 included slots. Included mode answers for the first time.
 
 Released as `616fe17a2380`; schema unchanged.
+
+## Who sets the default keys, same day
+
+The owner's clarification, and the half of his earlier remark I had read too
+narrowly: **setting the default keys is the instance superadmin's; choosing
+between them and your own is the workspace administrator's.** The second half
+already stood. The first did not exist at all — those credentials lived only in
+environment variables, so changing the key the whole instance pays with needed
+a shell on the server.
+
+`InstanceAiDefaults` is one row, its uniqueness from a constant primary key the
+way `TelegramUpdateConsumerLease` does it. The environment is demoted to the
+floor rather than replaced, and read **field by field**: an instance is brought
+up by its variables, and somebody later changing one model on the screen must
+not thereby drop the key nobody touched. A row that will not decrypt — after a
+`JWT_SECRET` rotation, say — leaves the instance on its variables instead of
+closing included mode for every workspace at once.
+
+The screen shows three states per key, not two. «Задан на сервере» is the one
+that had to exist: a superadmin looking at an empty field on a working instance
+would otherwise conclude the key was missing and paste a second one.
+
+**A guard that was missing.** `/admin` carries no policy decorator; it is held
+together by a call each handler makes for itself, so nothing failed when one
+forgot. That order is now written down, and it immediately found
+`POST /admin/telegram/connect` without its same-origin check (`75xn.17`),
+grandfathered by name so the list can only shrink.
+
+Released as `cd0c137d0b1c`; one table applied before the switch. The production
+row was deliberately left unwritten: the keys stay in the variables and the
+screen shows them as «заданы на сервере», which is the normal state of an
+instance nobody has opened that screen on.

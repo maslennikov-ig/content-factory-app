@@ -169,8 +169,6 @@ describe('у каждого имени есть слова на обоих яз�
         'openrouterNoKey',
         'routingNone',
         'includedOwnKey',
-        'includedRemoveKeys',
-        'includedRemoveKeysConfirm',
       ]) {
         expect(words[key]).toBeTruthy();
       }

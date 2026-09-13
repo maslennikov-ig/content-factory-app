@@ -3,7 +3,7 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 /**
  * `content-factory-next-75xn.7`. The second kind of subscription — a topic
- * rather than an address — and the three promises its gateway makes.
+ * rather than an address — and the promises its gateway makes.
  *
  * **Off means silent.** `LEAD_TOPIC_CHECK_ENABLED` is its own switch, not
  * `LEAD_FEED_CHECK_ENABLED`: one operator turning on outbound traffic for
@@ -13,9 +13,7 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
  *
  * **The window is asked for.** Thirty days is what makes a lead a lead rather
  * than an encyclopedia entry, and it is asked of the engine
- * (`task: 'discovery'`, `windowDays`), not filtered out afterwards — though a
- * row that arrives dated outside it anyway is dropped here, because the
- * sentence `lead-reason.ts` prints names that window out loud.
+ * (`task: 'discovery'`, `windowDays`), not filtered out afterwards.
  *
  * **Identity survives a repeat.** `ContentLeadRepository.upsertLeads`
  * remembers a decline by `(organizationId, subscriptionId, externalId)`. A
@@ -24,9 +22,15 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
  * registry and the feed gateway already use. Without it the next check would
  * bring back a page a person had already declined, as a brand new lead.
  *
- * The real gateway runs against a stub research service: no key, no engine,
- * no network. `web.research.service` is mocked rather than loaded because
- * only the constructor parameter's type comes from it.
+ * Since the quality pass of 13.09.2026 (`content-factory-next-75xn.23`, F14)
+ * there is a fourth: **a row without a date is not a lead.** Half of what the
+ * owner was shown carried «свежее за 30 дней» over a page nobody had dated,
+ * and the undated ones were where the evergreen explainers and the mirrors
+ * lived. An undated row now gets one page read for the date the page states
+ * about itself, and is dropped if that does not answer.
+ *
+ * The real gateway runs against a stub research service and a stub fetch
+ * gateway: no key, no engine, no network.
  */
 
 const WINDOW_DAYS = 30;
@@ -37,10 +41,32 @@ const { LeadTopicGateway } = loadTypeScriptModule(
     '@nestjs/common': {
       Injectable: () => (target) => target,
       Optional: () => () => {},
+      Logger: class {
+        debug() {}
+        warn() {}
+        log() {}
+      },
     },
     '@contentfactory/nestjs-libraries/openai/web.research.service': {
       WebResearchService: class {},
+      // The one helper the gateway borrows from the research service: page
+      // chrome out of an excerpt. Stubbed to the same shape — a stand-in that
+      // drops a known menu line, so a test can see it was actually applied
+      // without loading the search stack.
+      cleanExcerpt: (value) => ({
+        text: String(value || '')
+          .split('\n')
+          .filter((line) => !/^(?:menu|opens a new window)/i.test(line.trim()))
+          .join('\n')
+          .trim(),
+        hasProseLine: true,
+      }),
     },
+    // Only the constructor parameter's runtime token comes from here.
+    '@contentfactory/nestjs-libraries/content-intelligence/source-registry/source-fetch.gateway':
+      {
+        SourceFetchGateway: class {},
+      },
     // The window the product watches, kept where the search clients keep it.
     // Mocked to the same number rather than loaded: `ai.clients.ts` builds
     // model and engine clients, and this test asks nothing of them.
@@ -57,6 +83,11 @@ const NOW = new Date('2026-09-13T12:00:00.000Z');
 const daysAgo = (days) =>
   new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
+const TOPIC = 'комиссии Wildberries и Ozon';
+const PROSE =
+  'Комиссии маркетплейсов впервые превысили сорок процентов от стоимости товара, ' +
+  'пишет издание со ссылкой на продавцов и данные площадок.';
+
 const researchStub = (result) => {
   const calls = [];
   return {
@@ -70,8 +101,55 @@ const researchStub = (result) => {
   };
 };
 
-const gatewayWith = (research, options = {}) =>
-  new LeadTopicGateway(research, { now: () => NOW, ...options });
+/** A sweep the rules have no reason to refuse: dated, with text, on topic. */
+const sweep = (sources, extra = {}) => ({
+  summary: '',
+  facts: sources.map((source) => ({
+    text: source.excerpt ?? PROSE,
+    sourceUrl: source.url,
+  })),
+  sources: sources.map(({ excerpt, ...source }) => ({
+    title: 'Комиссии на маркетплейсах выросли',
+    publishedAt: daysAgo(2),
+    provider: 'tavily',
+    ...source,
+  })),
+  provider: 'tavily',
+  ...extra,
+});
+
+/** A fetch gateway that answers with the pages it was given, and counts. */
+const pagesStub = (pages = {}, options = {}) => {
+  const reads = [];
+  return {
+    reads,
+    fetch: jest.fn(async (url, kind) => {
+      reads.push({ url, kind });
+      if (kind === 'ROBOTS') {
+        return { body: Buffer.from(options.robots ?? ''), contentType: 'text/plain' };
+      }
+      if (options.slowHosts?.some((host) => url.includes(host))) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const page = pages[url];
+      if (page === undefined) {
+        const error = new Error(`nothing recorded for ${url}`);
+        throw error;
+      }
+      return {
+        body: Buffer.from(page.html ?? ''),
+        contentType: page.contentType ?? 'text/html; charset=utf-8',
+      };
+    }),
+  };
+};
+
+const gatewayWith = (research, options = {}, pages = null) =>
+  new LeadTopicGateway(research, pages, {
+    now: () => NOW,
+    enabled: true,
+    ...options,
+  });
 
 describe('the switch an operator holds', () => {
   test('with topic checking off the gateway answers «disabled» and asks nothing', async () => {
@@ -111,10 +189,7 @@ describe('the switch an operator holds', () => {
   test('an empty topic asks nothing either, and is not an error', async () => {
     const research = researchStub();
 
-    const result = await gatewayWith(research, { enabled: true }).check(
-      'org-a',
-      '   '
-    );
+    const result = await gatewayWith(research).check('org-a', '   ');
 
     expect(result).toEqual({ disabled: false, items: [] });
     expect(research.research).not.toHaveBeenCalled();
@@ -125,10 +200,7 @@ describe('the question the gateway asks', () => {
   test('it is a discovery search with the thirty-day window', async () => {
     const research = researchStub();
 
-    await gatewayWith(research, { enabled: true }).check(
-      'org-a',
-      'регулирование ИИ в Европе'
-    );
+    await gatewayWith(research).check('org-a', 'регулирование ИИ в Европе');
 
     expect(research.calls).toHaveLength(1);
     expect(research.calls[0].organizationId).toBe('org-a');
@@ -142,90 +214,268 @@ describe('the question the gateway asks', () => {
     expect(research.calls[0].options.level).toBeUndefined();
   });
 
-  test('a page dated outside the window is dropped; an undated one is kept', async () => {
-    const research = researchStub({
-      summary: '',
-      facts: [],
-      sources: [
+  test('the first fact of a page becomes the fragment shown under its title, without its chrome', async () => {
+    const research = researchStub(
+      sweep([
         {
-          url: 'https://fresh.example/one',
-          title: 'Свежее',
-          publishedAt: daysAgo(3),
-          provider: 'tavily',
+          url: 'https://news.example/a',
+          excerpt: `Menu\nOpens a new window\n${PROSE}`,
         },
-        {
-          url: 'https://stale.example/two',
-          title: 'Трёхлетней давности',
-          publishedAt: daysAgo(1000),
-          provider: 'tavily',
-        },
-        {
-          url: 'https://undated.example/three',
-          title: 'Без даты',
-          publishedAt: null,
-          provider: 'tavily',
-        },
-      ],
-      provider: 'tavily',
-    });
-
-    const result = await gatewayWith(research, { enabled: true }).check(
-      'org-a',
-      'тема'
+      ])
     );
 
-    expect(result.items.map((item) => item.title)).toEqual([
-      'Свежее',
-      'Без даты',
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items[0].excerpt).toBe(PROSE);
+  });
+});
+
+describe('a date is required', () => {
+  test('a dated page inside the window stays and one outside it goes', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://fresh.example/one' },
+        { url: 'https://stale.example/two', publishedAt: daysAgo(1000) },
+      ])
+    );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+      'https://fresh.example/one',
     ]);
   });
 
-  test('the first fact of a page becomes the fragment shown under its title', async () => {
-    const research = researchStub({
-      summary: '',
-      facts: [
-        { text: 'Регулятор назвал срок.', sourceUrl: 'https://news.example/a' },
-        { text: 'Второй факт той же страницы.', sourceUrl: 'https://news.example/a' },
-      ],
-      sources: [
-        {
-          url: 'https://news.example/a',
-          title: 'Срок назван',
-          publishedAt: daysAgo(1),
-          provider: 'exa',
-        },
-      ],
-      provider: 'exa',
+  test('an undated row is dated from the page itself, and kept when that works', async () => {
+    const research = researchStub(
+      sweep([{ url: 'https://undated.example/three', publishedAt: null }])
+    );
+    const pages = pagesStub({
+      'https://undated.example/three': {
+        html: '<meta property="article:published_time" content="2026-09-08T09:00:00Z">',
+      },
     });
 
-    const result = await gatewayWith(research, { enabled: true }).check(
-      'org-a',
-      'тема'
+    const result = await gatewayWith(research, {}, pages).check('org-a', TOPIC);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].publishedAt.toISOString()).toBe('2026-09-08T09:00:00.000Z');
+    // Robots first, then the page: the same order the feed gateway reads in.
+    expect(pages.reads.map((read) => read.kind)).toEqual(['ROBOTS', 'URL']);
+  });
+
+  test('a page that gives no date is dropped — «нет даты» is no longer «сойдёт»', async () => {
+    const research = researchStub(
+      sweep([{ url: 'https://undated.example/four', publishedAt: null }])
+    );
+    const pages = pagesStub({
+      'https://undated.example/four': { html: '<html><body>Вечнозелёная страница</body></html>' },
+    });
+
+    const result = await gatewayWith(research, {}, pages).check('org-a', TOPIC);
+
+    expect(result.items).toEqual([]);
+  });
+
+  test('a page read that fails, a robots refusal or a non-HTML answer all mean «no date»', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://broken.example/a', publishedAt: null },
+        { url: 'https://refuses.example/b', publishedAt: null },
+        { url: 'https://binary.example/c', publishedAt: null },
+      ])
+    );
+    const pages = pagesStub(
+      {
+        'https://refuses.example/b': { html: '<meta name="date" content="2026-09-09">' },
+        'https://binary.example/c': {
+          html: '<meta name="date" content="2026-09-09">',
+          contentType: 'application/pdf',
+        },
+      },
+      { robots: 'User-agent: *\nDisallow: /' }
     );
 
-    expect(result.items[0].excerpt).toBe('Регулятор назвал срок.');
+    const result = await gatewayWith(research, {}, pages).check('org-a', TOPIC);
+
+    expect(result.items).toEqual([]);
+  });
+
+  test('with no fetch gateway at all the sweep still answers, with its dated rows only', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://dated.example/a' },
+        { url: 'https://undated.example/b', publishedAt: null },
+      ])
+    );
+
+    const result = await gatewayWith(research, {}, null).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual(['https://dated.example/a']);
+  });
+
+  test('at most eight pages are opened for one check', async () => {
+    const rows = Array.from({ length: 12 }, (unused, index) => ({
+      url: `https://undated.example/${index}`,
+      publishedAt: null,
+    }));
+    const research = researchStub(sweep(rows));
+    const pages = pagesStub(
+      Object.fromEntries(
+        rows.map((row) => [
+          row.url,
+          { html: '<meta name="date" content="2026-09-09">' },
+        ])
+      )
+    );
+
+    const result = await gatewayWith(research, { maximumPageReads: 8 }, pages).check(
+      'org-a',
+      TOPIC
+    );
+
+    expect(pages.reads.filter((read) => read.kind === 'URL')).toHaveLength(8);
+    expect(result.items).toHaveLength(8);
+  });
+
+  test('one slow host cannot hold up the check', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://slow.example/a', publishedAt: null },
+        { url: 'https://quick.example/b', publishedAt: null },
+      ])
+    );
+    const pages = pagesStub(
+      {
+        'https://slow.example/a': { html: '<meta name="date" content="2026-09-09">' },
+        'https://quick.example/b': { html: '<meta name="date" content="2026-09-09">' },
+      },
+      { slowHosts: ['slow.example'] }
+    );
+
+    const result = await gatewayWith(
+      research,
+      { pageReadDeadlineMs: 10 },
+      pages
+    ).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+      'https://quick.example/b',
+    ]);
+  });
+});
+
+describe('junk never reaches a person', () => {
+  test('mirrors, PDFs, textless rows and rows off the topic are all refused', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://www.kommersant.ru/doc/8908235' },
+        { url: 'https://www.facebook.com/kommersant.ru/posts/abc' },
+        { url: 'https://journal.example/paper.pdf' },
+        { url: 'https://short.example/a', excerpt: 'Коротко.' },
+        {
+          url: 'https://speeches.example/topics',
+          title: '100 тем для убедительной речи',
+          excerpt:
+            'Подборка идей для выступления: от школьной формы до пользы утренних ' +
+            'пробежек, с советами, как построить аргументацию и удержать внимание зала.',
+        },
+      ])
+    );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+      'https://www.kommersant.ru/doc/8908235',
+    ]);
+  });
+
+  test('a row the engine itself scores below a half is refused, and an unscored row is not', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://weak.example/a', score: 0.2 },
+        { url: 'https://strong.example/b', score: 0.8 },
+        { url: 'https://unscored.example/c' },
+      ])
+    );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+      'https://strong.example/b',
+      'https://unscored.example/c',
+    ]);
+  });
+
+  test('junk is refused before a page is ever opened for its date', async () => {
+    const research = researchStub(
+      sweep([
+        { url: 'https://www.facebook.com/kommersant.ru/posts/abc', publishedAt: null },
+      ])
+    );
+    const pages = pagesStub({});
+
+    await gatewayWith(research, {}, pages).check('org-a', TOPIC);
+
+    expect(pages.reads).toEqual([]);
+  });
+});
+
+describe('what the discovery judge decided', () => {
+  test('a row judged irrelevant is dropped', async () => {
+    const research = researchStub(
+      sweep([{ url: 'https://news.example/a' }, { url: 'https://news.example/b' }], {
+        discovery: [
+          { url: 'https://news.example/b', relevant: false, reason: { ru: '', en: '' } },
+        ],
+      })
+    );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items.map((item) => item.sourceUrl)).toEqual([
+      'https://news.example/a',
+    ]);
+  });
+
+  test('its sentence travels with the row, for `lead-reason.ts` to prefer', async () => {
+    const reason = {
+      ru: 'Комиссии площадок впервые перевалили за 40% от цены товара.',
+      en: 'Marketplace fees passed 40% of the item price for the first time.',
+    };
+    const research = researchStub(
+      sweep([{ url: 'https://news.example/a' }], {
+        discovery: [{ url: 'https://news.example/a', relevant: true, reason }],
+      })
+    );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items[0].reason).toEqual(reason);
+  });
+
+  test('a row nobody judged keeps its place and carries no sentence', async () => {
+    // No model key, a failed call, or a row the rules already refused: absent
+    // is «not judged», never «irrelevant».
+    const research = researchStub(sweep([{ url: 'https://news.example/a' }]));
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].reason).toBeNull();
   });
 });
 
 describe('identity across a repeated check', () => {
-  const sourcesShapedAs = (url) => ({
-    summary: '',
-    facts: [],
-    sources: [
-      { url, title: 'Одна и та же страница', publishedAt: daysAgo(2), provider: 'tavily' },
-    ],
-    provider: 'tavily',
-  });
+  const sourcesShapedAs = (url) => sweep([{ url }]);
 
   test('the same page in two spellings keeps one identity', async () => {
     const first = await gatewayWith(
-      researchStub(sourcesShapedAs('https://News.Example/a?utm_source=x#top')),
-      { enabled: true }
-    ).check('org-a', 'тема');
+      researchStub(sourcesShapedAs('https://News.Example/a?utm_source=x#top'))
+    ).check('org-a', TOPIC);
     const second = await gatewayWith(
-      researchStub(sourcesShapedAs('https://news.example/a?utm_source=x')),
-      { enabled: true }
-    ).check('org-a', 'тема');
+      researchStub(sourcesShapedAs('https://news.example/a?utm_source=x'))
+    ).check('org-a', TOPIC);
 
     expect(first.items[0].externalId).toBe(second.items[0].externalId);
     // And it is the canonical address, not a hash of whatever arrived: the
@@ -235,20 +485,14 @@ describe('identity across a repeated check', () => {
   });
 
   test('one pass never yields the same identity twice', async () => {
-    const research = researchStub({
-      summary: '',
-      facts: [],
-      sources: [
-        { url: 'https://news.example/a', title: 'Раз', publishedAt: null, provider: 'tavily' },
-        { url: 'https://news.example/a#again', title: 'Два', publishedAt: null, provider: 'tavily' },
-      ],
-      provider: 'tavily',
-    });
-
-    const result = await gatewayWith(research, { enabled: true }).check(
-      'org-a',
-      'тема'
+    const research = researchStub(
+      sweep([
+        { url: 'https://news.example/a' },
+        { url: 'https://news.example/a#again' },
+      ])
     );
+
+    const result = await gatewayWith(research).check('org-a', TOPIC);
 
     expect(result.items).toHaveLength(1);
   });
@@ -258,12 +502,14 @@ describe('identity across a repeated check', () => {
     // answer with something else. Dropping the row would hide a page a
     // person can read; a content hash keeps it and keeps it identifiable.
     const plain = 'http://insecure.example/a';
-    const first = await gatewayWith(researchStub(sourcesShapedAs(plain)), {
-      enabled: true,
-    }).check('org-a', 'тема');
-    const second = await gatewayWith(researchStub(sourcesShapedAs(plain)), {
-      enabled: true,
-    }).check('org-a', 'тема');
+    const first = await gatewayWith(researchStub(sourcesShapedAs(plain))).check(
+      'org-a',
+      TOPIC
+    );
+    const second = await gatewayWith(researchStub(sourcesShapedAs(plain))).check(
+      'org-a',
+      TOPIC
+    );
 
     expect(first.items).toHaveLength(1);
     expect(first.items[0].sourceUrl).toBe(plain);

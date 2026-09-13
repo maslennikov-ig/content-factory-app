@@ -169,7 +169,15 @@ const includedSearch = (
   const apiKeys = includedSearchKeys(provider, instance);
   const storedRoutes = parseSearchTaskProviders(instance?.searchTaskProviders);
   return {
-    enabled: stored.searchEnabled,
+    /**
+     * On system keys search is on exactly when the operator holds a search
+     * key (`content-factory-next-75xn.20`, F1). The screen said «поиск уже
+     * работает» while the row's own flag defaulted to off, and a fresh
+     * workspace's first topic check failed on configuration. There is
+     * nothing for a workspace to decide here — the key is not theirs — so the
+     * flag is not read in this mode.
+     */
+    enabled: Object.keys(apiKeys).length > 0,
     provider,
     apiKey: apiKeys[provider] || '',
     apiKeys,

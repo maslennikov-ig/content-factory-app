@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -9,6 +9,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
+import { MANUAL_CHECK_MIN_INTERVAL_MS } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-limits';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
@@ -120,6 +121,14 @@ const copy = {
     subscriptionsHint: 'Продукт заглядывает сам, по расписанию строки. «Проверить сейчас» не ждёт расписания.',
     checkNow: 'Проверить сейчас',
     checking: 'Проверяем…',
+    // content-factory-next-75xn.23 (F2): создание подписки само делает первую
+    // проверку, и минуту после неё дверь отвечает 429 CHECK_TOO_SOON. Кнопка
+    // теперь молчит эту минуту сама, а надпись говорит, почему её нет смысла
+    // жать: результат уже в списке. Отказ, которого человек не увидит, лучше
+    // отказа, который ему объяснили.
+    checkTooSoonFirst:
+      'Первая проверка уже сделана, результат в списке; повторная — через минуту.',
+    checkTooSoonAgain: 'Проверили только что — следующая проверка через минуту.',
     // Слово в слово как на карточке «Телеграм-канал» рядом: один и тот же
     // факт — «оператор выключил это на сервере» — должен читаться одинаково.
     checkOffHere: 'выключено на этом сервере',
@@ -143,6 +152,13 @@ const copy = {
     robotsDenied: 'сайт запрещает машинное чтение (robots.txt)',
     robotsHint: 'Это факт о самом сайте, а не отказ, который вы можете обойти отсюда. Продукт проверяет запрет перед каждым чтением.',
     checkFailedGeneric: (code: string) => `последняя проверка не удалась: ${code}`,
+    // content-factory-next-75xn.20 (F1): отказ по настройке — не поломка ленты.
+    // Пять тем в новой области ушли в «проверка не удалась» только потому, что
+    // веб-исследование не было включено, и код на экране не называл ни причину,
+    // ни того, кто её может убрать.
+    checkFailedByCode: {
+      CONTENT_SEARCH_NOT_CONFIGURED: 'поиск не настроен: включите его в настройках ИИ',
+    } as Record<string, string>,
     checkResultOk: (created: number) =>
       created > 0 ? `Готово: новых поводов — ${created}.` : 'Готово: новых поводов нет.',
     checkResultDisabled: 'Проверка выключена на этом сервере — адрес сохранён, проверить руками пока нельзя.',
@@ -217,6 +233,9 @@ const copy = {
     subscriptionsHint: 'The product checks on the row\'s own schedule. "Check now" does not wait for it.',
     checkNow: 'Check now',
     checking: 'Checking…',
+    checkTooSoonFirst:
+      'The first check is already done and its result is in the list; the next one in a minute.',
+    checkTooSoonAgain: 'Just checked — the next check in a minute.',
     checkOffHere: 'off on this server',
     archive: 'Unsubscribe',
     archiveConfirm: 'No more leads will come from this subscription. Earlier ones stay in the list.',
@@ -235,6 +254,9 @@ const copy = {
     robotsDenied: 'the site refuses machine reading (robots.txt)',
     robotsHint: 'This is a fact about the site itself, not a refusal you can override here. The product checks the policy before every read.',
     checkFailedGeneric: (code: string) => `last check failed: ${code}`,
+    checkFailedByCode: {
+      CONTENT_SEARCH_NOT_CONFIGURED: 'search is not configured: turn it on in the AI settings',
+    } as Record<string, string>,
     checkResultOk: (created: number) =>
       created > 0 ? `Done: ${created} new leads.` : 'Done: nothing new.',
     checkResultDisabled: 'Checking is off on this server — the address is saved; a manual check is not possible yet.',
@@ -295,6 +317,8 @@ function SubscriptionRowView({
   busy,
   canManage,
   checkEnabled,
+  checkedHereJustNow,
+  now,
   onCheckNow,
   onArchive,
 }: {
@@ -327,11 +351,33 @@ function SubscriptionRowView({
    * would disable a live button or offer a dead one.
    */
   checkEnabled: boolean;
+  /**
+   * Whether the person pressed «Проверить сейчас» on this row in this session,
+   * which decides only which of the two «через минуту» sentences is true: the
+   * one about the check the product made on its own when the subscription was
+   * created, or the one about the check they just asked for.
+   */
+  checkedHereJustNow: boolean;
+  /** Ticks while a row sits inside the minute, so the button comes back by itself. */
+  now: number;
   onCheckNow: () => void;
   onArchive: () => void;
 }) {
   const lastChecked = formatDateTime(subscription.lastCheckedAt, locale);
   const isTopic = isTopicKind(subscription.kind);
+  /**
+   * content-factory-next-75xn.23 (F2). Creating a subscription runs its first
+   * check, and for the minute after any check `POST …/:id/check` answers 429
+   * `CHECK_TOO_SOON` — so the very first thing a person did after saving a
+   * topic was press a button and be refused. The window is the server's own
+   * `MANUAL_CHECK_MIN_INTERVAL_MS`, read from the same constant the service
+   * refuses by, so the screen and the door can never disagree about it.
+   */
+  const checkedAt = subscription.lastCheckedAt
+    ? Date.parse(subscription.lastCheckedAt)
+    : Number.NaN;
+  const checkedTooRecently =
+    Number.isFinite(checkedAt) && now - checkedAt < MANUAL_CHECK_MIN_INTERVAL_MS;
   const isRobotsDenied = subscription.lastErrorCode === 'ROBOTS_DISALLOWED';
   const isErrored = subscription.state === 'ERRORED';
 
@@ -380,7 +426,16 @@ function SubscriptionRowView({
       </span>
       {isErrored && !isRobotsDenied && subscription.lastErrorCode && (
         <span className="w-full cf-caption text-cf-warning">
-          {t.checkFailedGeneric(subscription.lastErrorCode)}
+          {t.checkFailedByCode[subscription.lastErrorCode] ||
+            t.checkFailedGeneric(subscription.lastErrorCode)}
+        </span>
+      )}
+      {canManage && checkEnabled && checkedTooRecently && !busy && (
+        <span
+          data-content-lead-check-too-soon={subscription.id}
+          className="w-full cf-caption text-cf-ink-muted"
+        >
+          {checkedHereJustNow ? t.checkTooSoonAgain : t.checkTooSoonFirst}
         </span>
       )}
       {canManage && (
@@ -390,7 +445,7 @@ function SubscriptionRowView({
             <Button
               density="dense"
               variant="secondary"
-              disabled={busy || !checkEnabled}
+              disabled={busy || !checkEnabled || checkedTooRecently}
               onClick={onCheckNow}
             >
               {busy ? t.checking : t.checkNow}
@@ -744,6 +799,8 @@ export function ContentLeadsTab({
     setDialogOpen(true);
   }, []);
   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
+  /** Rows this session pressed «Проверить сейчас» on, for the honest caption. */
+  const [checkedHere, setCheckedHere] = useState<string[]>([]);
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null);
   const [leadFailure, setLeadFailure] = useState<LeadFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -753,9 +810,30 @@ export function ContentLeadsTab({
   const newLeads = readLeadsEnvelope(queue.data);
   const dismissedLeads = readLeadsEnvelope(dismissed.data);
 
+  /**
+   * A clock that runs only while it is needed.
+   *
+   * The check button is disabled for the minute after a check
+   * (`MANUAL_CHECK_MIN_INTERVAL_MS`), and nothing else would re-render the row
+   * when that minute is up — the person would sit in front of a dead button
+   * until something else moved. The interval exists only while some row is
+   * inside the window, and stops on its own when the last one leaves it.
+   */
+  const [now, setNow] = useState(() => Date.now());
+  const insideCheckWindow = subscriptionRows.some((row) => {
+    const checkedAt = row.lastCheckedAt ? Date.parse(row.lastCheckedAt) : Number.NaN;
+    return Number.isFinite(checkedAt) && now - checkedAt < MANUAL_CHECK_MIN_INTERVAL_MS;
+  });
+  useEffect(() => {
+    if (!insideCheckWindow) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [insideCheckWindow]);
+
   const checkNow = useCallback(
     async (id: string) => {
       setBusySubscriptionId(id);
+      setCheckedHere((rows) => (rows.includes(id) ? rows : [...rows, id]));
       try {
         const result = await read(checkSubscriptionUrl(id), {
           method: 'POST',
@@ -1088,6 +1166,8 @@ export function ContentLeadsTab({
                   checkEnabled={
                     isTopicKind(subscription.kind) ? topicCheckEnabled : feedCheckEnabled
                   }
+                  checkedHereJustNow={checkedHere.includes(subscription.id)}
+                  now={now}
                   onCheckNow={() => void checkNow(subscription.id)}
                   onArchive={() => void archiveSubscription(subscription.id)}
                 />

@@ -263,11 +263,18 @@ export const buildAiSettingsPayload = ({
       ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
       : {}),
     /**
-     * Whether search runs at all belongs to both modes — the included keys are
-     * spent by the same searches — so this is the one search field that is
-     * sent either way, and the server writes it either way.
+     * Whether search runs at all is a workspace-key setting now.
+     *
+     * On the system keys the server decides it by the presence of an operator
+     * search key and does not read the row's flag at all
+     * (`ai.provider.config.ts`, `includedSearch`), so the screen shows no
+     * switch there — and must not send one either. `searchEnabled` in this
+     * mode holds what the *operator* has, not what this workspace chose, and
+     * writing it back would overwrite a workspace's own «поиск выключен» the
+     * first time anything on this screen autosaved
+     * (`content-factory-next-75xn.26`, after `.20`).
      */
-    searchEnabled,
+    ...(usageMode === 'workspace_key' ? { searchEnabled } : {}),
     /**
      * Everything else about search is a workspace-key setting, and in
      * `included` mode the screen is showing the operator's values rather than
@@ -499,10 +506,8 @@ const AiProviderComponent = () => {
     data?.searchDepth || 'advanced'
   );
   // Which engine's key is being removed, so only that field's button waits.
-  // `all` is the one control that removes every stored search key at once.
-  const [clearingSearch, setClearingSearch] = useState<
-    KeyedSearchProvider | 'all' | null
-  >(null);
+  const [clearingSearch, setClearingSearch] =
+    useState<KeyedSearchProvider | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -639,18 +644,6 @@ const AiProviderComponent = () => {
   );
 
   /**
-   * The workspace's own key, which in `included` mode is not the same question:
-   * there `searchKeys` describes the operator's set, and a workspace's own key
-   * is stored, unspent and otherwise invisible.
-   */
-  const hasOwnSearchKey = useCallback(
-    (engine: SearchProvider) =>
-      data?.workspaceSearchKeys?.[engine] ??
-      (engine === data?.searchProvider && !!data?.hasSearchKey),
-    [data]
-  );
-
-  /**
    * The one sentence that replaced four selectors.
    *
    * It is computed rather than written down because the routing is: the same
@@ -671,7 +664,19 @@ const AiProviderComponent = () => {
     const payable = engines.some(
       (engine) => !searchProviderNeedsKey(engine) || hasStoredSearchKey(engine)
     );
-    if (!payable) return { line: words.search.routingNone, payable };
+    /**
+     * В режиме ключей системы «сохраните свой ключ или включите ключи системы»
+     * было бы советом человеку, который ключи системы уже включил: заводит их
+     * не область, а суперадмин инстанса. Строка называет того, кто может.
+     */
+    if (!payable)
+      return {
+        line:
+          usageMode === 'included'
+            ? words.search.systemKeysMissing
+            : words.search.routingNone,
+        payable,
+      };
     return {
       payable,
       line: words.search.routing(
@@ -681,7 +686,7 @@ const AiProviderComponent = () => {
         }))
       ),
     };
-  }, [data, hasStoredSearchKey, words]);
+  }, [data, hasStoredSearchKey, usageMode, words]);
 
   // Only OpenRouter publishes a catalogue; for OpenAI the fields stay free text.
   const loadModels = useCallback(
@@ -780,34 +785,29 @@ const AiProviderComponent = () => {
   }, []);
 
   /**
-   * Remove one engine's stored key, or — with no engine — every one of them.
+   * Remove one engine's stored key.
    *
    * The engine travels in the query string because that is what the door
    * reads, and the confirmation names the same engine: «the stored key» was an
    * honest sentence while a workspace had one, and is a guess now that it has
-   * two. The all-engines form exists for the included mode, where the response
-   * cannot say which engine the workspace's own key belongs to.
+   * two. There is no all-engines form any more: it existed for the included
+   * mode, and on the system keys a workspace administrator no longer removes
+   * anything (`content-factory-next-75xn.26`).
    */
   const clearSearchKey = useCallback(
-    async (engine: KeyedSearchProvider | null) => {
-      setClearingSearch(engine ?? 'all');
+    async (engine: KeyedSearchProvider) => {
+      setClearingSearch(engine);
       const outcome = await removeStoredKey({
-        endpoint: engine
-          ? `/settings/ai/search-key?provider=${engine}`
-          : '/settings/ai/search-key',
+        endpoint: `/settings/ai/search-key?provider=${engine}`,
         confirm: () =>
           deleteDialog(
-            engine
-              ? words.search.engines[engine].removeKeyConfirm
-              : words.search.includedRemoveKeysConfirm,
+            words.search.engines[engine].removeKeyConfirm,
             t('search_key_remove_approve', 'Yes, remove the key'),
             t('search_key_remove_title', 'Remove the stored search key?')
           ),
         request: fetch,
         onRemoved: async () => {
-          setSearchApiKeys((current) =>
-            engine ? { ...current, [engine]: '' } : {}
-          );
+          setSearchApiKeys((current) => ({ ...current, [engine]: '' }));
           await mutate();
         },
       });
@@ -1177,30 +1177,43 @@ const AiProviderComponent = () => {
         owner met that as «статус веб-исследования автоматически выключается»
         on 13.09.2026 without having touched the switch. The engine selector is
         gone, and with it the only writer of this value other than this control.
-      */}
-      <LabelledField
-        id="ai-search-enabled"
-        label={t('web_search_status', 'Web research status')}
-      >
-        <Select
-          id="ai-search-enabled"
-          label=""
-          name="searchEnabled"
-          value={searchEnabled ? 'enabled' : 'disabled'}
-          disableForm={true}
-          hideErrors={true}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-            const next = event.target.value === 'enabled';
-            setSearchEnabled(next);
-            autosave({ searchEnabled: next });
-          }}
-        >
-          <option value="disabled">{t('disabled', 'Disabled')}</option>
-          <option value="enabled">{t('enabled', 'Enabled')}</option>
-        </Select>
-      </LabelledField>
 
-      {!ownKeys && (
+        На ключах системы переключателя нет вовсе: там поиск включён ровно
+        тогда, когда у оператора есть поисковый ключ, и флаг области в этом
+        режиме сервер не читает (`ai.provider.config.ts`, `includedSearch`).
+        Переключатель, который ничего не переключает, — это не настройка, а
+        обещание, которого продукт не держит (`content-factory-next-75xn.26`).
+      */}
+      {ownKeys && (
+        <LabelledField
+          id="ai-search-enabled"
+          label={t('web_search_status', 'Web research status')}
+        >
+          <Select
+            id="ai-search-enabled"
+            label=""
+            name="searchEnabled"
+            value={searchEnabled ? 'enabled' : 'disabled'}
+            disableForm={true}
+            hideErrors={true}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+              const next = event.target.value === 'enabled';
+              setSearchEnabled(next);
+              autosave({ searchEnabled: next });
+            }}
+          >
+            <option value="disabled">{t('disabled', 'Disabled')}</option>
+            <option value="enabled">{t('enabled', 'Enabled')}</option>
+          </Select>
+        </LabelledField>
+      )}
+
+      {/*
+        Одна строка вместо переключателя: поиск на ключах системы работает, и
+        вводить ничего не нужно. Когда ключей системы нет, это уже сказано
+        строкой маршрутизации выше, и второй раз не повторяется.
+      */}
+      {!ownKeys && data?.searchEnabled && (
         <p
           data-search-system-keys="true"
           className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
@@ -1210,47 +1223,23 @@ const AiProviderComponent = () => {
       )}
 
       {/*
-        Режим включённых ключей молчал про свой ключ области: поля выключены,
-        кнопки «убрать» нет, и сохранённый ключ не виден ниоткуда. Он никуда не
-        делся и восстановится при возврате к своим ключам — значит, про него
-        надо сказать и дать его убрать, не выходя из режима. Без названия
-        движка: `searchKeys` в этом режиме описывает ключи системы, а про свои
-        ответ сервера знает только «есть или нет».
+        Про свой ключ области сказано одним предложением — и больше ничего.
+
+        Владелец 13.09.2026: «если я выбираю ключи системы — зачем кнопки
+        „Убрать ключ Tavily“, „Убрать ключ Exa“? Для суперадмина они есть в его
+        админке, обычному человеку зачем?» Убирать чужой ключ отсюда было
+        нечего, а свой — незачем: он лежит нетронутым и снова заработает, как
+        только область вернётся к своим ключам. Кнопка удаления стоит там, где
+        стоит само поле ключа, то есть в режиме своих ключей
+        (`content-factory-next-75xn.26`).
       */}
       {!ownKeys && data?.hasSearchKey && (
-        <div data-search-included-key="true" className="flex flex-col gap-[8px]">
-          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.search.includedOwnKey}
-          </p>
-          {/*
-            Поимённо, движок за движком: убрать чужой ключ вместе со своим —
-            не то, о чём просили, а «убрать всё» ниже остаётся для случая,
-            когда сервер ещё не умеет называть движки (старый ответ в кэше).
-          */}
-          {KEYED_SEARCH_PROVIDERS.filter(hasOwnSearchKey).map((engine) => (
-            <div
-              key={engine}
-              data-search-included-engine={engine}
-              className="flex flex-wrap items-center justify-between gap-[8px]"
-            >
-              <span className="cf-body-sm text-cf-ink-muted">
-                {words.search.engines[engine].keyDormant}
-              </span>
-              <ClearStoredKeyButton
-                label={words.search.engines[engine].removeKey}
-                busy={clearingSearch === engine}
-                onClear={() => clearSearchKey(engine)}
-              />
-            </div>
-          ))}
-          {!KEYED_SEARCH_PROVIDERS.some(hasOwnSearchKey) && (
-            <ClearStoredKeyButton
-              label={words.search.includedRemoveKeys}
-              busy={clearingSearch === 'all'}
-              onClear={() => clearSearchKey(null)}
-            />
-          )}
-        </div>
+        <p
+          data-search-included-key="true"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
+          {words.search.includedOwnKey}
+        </p>
       )}
 
       {ownKeys && (

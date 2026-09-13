@@ -11,7 +11,13 @@ import {
   ErrorState,
   RestrictedState,
 } from '../../ui/surface';
-import { Progress } from '../../ui/progress';
+import { WorkingLine } from '../../ui/working-line';
+import {
+  ResearchOutcome,
+  type ResearchOutcomeCorrection,
+  type ResearchOutcomeFact,
+  type ResearchOutcomeSummary,
+} from './intake.research';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import type {
   IntakeBlockReason,
@@ -66,6 +72,8 @@ export function IntakeScreen({
   step,
   researchFacts = [],
   researchPending = false,
+  researchCorrections = [],
+  researchSummary = null,
   piece,
   blocked,
   errorTitle,
@@ -79,6 +87,7 @@ export function IntakeScreen({
   onResearchEnabledChange = () => undefined,
   onResearchLevelChange = () => undefined,
   onResearchFactSelect = () => undefined,
+  onResearchCorrectionToggle = () => undefined,
   onResearchContinue = () => undefined,
   onWrite,
   onCancel,
@@ -93,8 +102,10 @@ export function IntakeScreen({
   detectedLink: boolean;
   language: 'ru' | 'en';
   step: string | null;
-  researchFacts?: Array<{ statement: string; sourceUrl?: string | null; kind?: string; status?: string; selected?: boolean }>;
+  researchFacts?: readonly ResearchOutcomeFact[];
   researchPending?: boolean;
+  researchCorrections?: readonly ResearchOutcomeCorrection[];
+  researchSummary?: ResearchOutcomeSummary | null;
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
   piece?: { pieceId: string; code: string } | null;
   blocked: IntakeBlockReason;
@@ -108,8 +119,9 @@ export function IntakeScreen({
   researchLevel?: 'quick' | 'standard' | 'deep';
   onResearchEnabledChange?: (enabled: boolean) => void;
   onResearchLevelChange?: (level: 'quick' | 'standard' | 'deep') => void;
-  onResearchFactSelect?: (statement: string, selected: boolean) => void;
-  onResearchContinue?: () => void;
+  onResearchFactSelect?: (factKey: string, selected: boolean) => void;
+  onResearchCorrectionToggle?: (factKey: string) => void;
+  onResearchContinue?: (mode: 'with-fixes' | 'keep-mine') => void;
   onWrite: () => void;
   onCancel: () => void;
   onOpenPiece?: (pieceId: string) => void;
@@ -183,33 +195,20 @@ export function IntakeScreen({
           {readOnlyNote}
 
           {researchFacts.length ? (
-            <section aria-label={t.researchTableTitle} data-intake-research-table="true" className="flex flex-col gap-[8px]">
-              <h3 className="cf-heading-md text-cf-ink">{t.researchTableTitle}</h3>
-              <p className="cf-caption text-cf-ink-muted">{t.researchSelectionHint}</p>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse cf-body-sm text-cf-ink">
-                  <thead><tr><th className="p-[8px] text-start">{t.factsRestOn}</th><th className="p-[8px] text-start">{t.researchType}</th><th className="p-[8px] text-start">{t.researchColumnStatus}</th><th className="p-[8px] text-start">{t.researchColumnSource}</th><th className="p-[8px] text-start">{t.researchInclude}</th></tr></thead>
-                  <tbody>{researchFacts.map((fact, index) => <tr key={`${fact.statement}-${index}`}>
-                    <td className="border-t border-cf-border p-[8px]">{fact.statement}</td>
-                    <td className="border-t border-cf-border p-[8px]">{fact.kind === 'own' ? t.researchOwn : fact.kind === 'external' ? t.researchExternal : fact.kind === 'found' ? t.researchFound : '—'}</td>
-                    <td className="border-t border-cf-border p-[8px]">{fact.status === 'confirmed' ? t.factVerified : fact.status === 'conflicting' ? t.factConflicting : fact.status === 'not_found' ? t.factNotFound : t.factUnverified}</td>
-                    <td className="border-t border-cf-border p-[8px]">{fact.sourceUrl ? <a className="break-all underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus" href={fact.sourceUrl} target="_blank" rel="noreferrer noopener">{fact.sourceUrl}</a> : '—'}</td>
-                    <td className="border-t border-cf-border p-[8px]">{fact.kind === 'found' && researchPending ? (
-                      <CheckboxField
-                        label={t.researchInclude}
-                        checked={fact.selected === true}
-                        onChange={(event) => onResearchFactSelect(fact.statement, event.target.checked)}
-                      />
-                    ) : fact.kind === 'found' ? (fact.selected ? t.researchInclude : '—') : '—'}</td>
-                  </tr>)}</tbody>
-                </table>
-              </div>
-              {researchPending ? (
-                <Button type="button" variant="primary" onClick={onResearchContinue}>
-                  {t.researchContinue}
-                </Button>
-              ) : null}
-            </section>
+            <ResearchOutcome
+              locale={locale}
+              level={researchLevel}
+              input={input}
+              inputKind={inputKind}
+              facts={researchFacts}
+              corrections={researchCorrections}
+              summary={researchSummary}
+              pending={researchPending}
+              busy={busy}
+              onToggleCorrection={onResearchCorrectionToggle}
+              onToggleFound={onResearchFactSelect}
+              onContinue={onResearchContinue}
+            />
           ) : null}
 
           <fieldset
@@ -321,20 +320,11 @@ export function IntakeScreen({
                 гадает по индикатору без подписи.
               */}
               {busy && (
-                <div
-                  aria-live="polite"
+                <WorkingLine
+                  label={stepWord}
                   data-intake-step={step}
-                  className="flex min-w-0 flex-1 items-center gap-[8px]"
-                >
-                  <Progress
-                    mode="indeterminate"
-                    label={stepWord}
-                    className="w-[80px] shrink-0"
-                  />
-                  <p className="cf-body-sm text-cf-ink-muted">
-                    {stepWord}
-                  </p>
-                </div>
+                  className="flex-1"
+                />
               )}
               {blockedWord && !busy && (
                 <p

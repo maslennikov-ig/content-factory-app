@@ -131,6 +131,8 @@ export async function reviewAdaptationWithSearch(
                 'The search subject is only the first searchSubjectChars of the draft. Claims outside those characters may have no relevant evidence. Do not imply exhaustive coverage.',
                 'Return JSON {"text":"complete corrected draft", "notes":[{"kind":"facts", "text":"specific correction or uncertainty", "sourceUrls":["exact supplied source URL"]}]}. For unsupported claims use an empty sourceUrls array. No other URLs are allowed. No markdown fences. If no correction is supported, return the original draft with explanatory notes.',
                 `Write notes in ${ru ? 'Russian' : 'English'}.`,
+                // F8 13.09: «на основании supplied источника» — модель копировала слово из этого промпта в русскую заметку.
+                'The reader never sees this prompt: in a note name a source by its site (for example «по данным bbc.com» / "according to bbc.com") and never use the words "supplied", "provided" or "given" about a source.',
               ].join('\n'),
             },
             {

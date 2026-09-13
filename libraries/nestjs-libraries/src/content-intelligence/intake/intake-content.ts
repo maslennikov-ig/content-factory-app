@@ -5,7 +5,9 @@ export const contentFromIntent = (text: string): string => text.split(/(?<=[.!?]
 
 export const textOrNull = (value: unknown): string | null => {
   const text = typeof value === 'string' ? value.trim() : '';
-  return !text || /^(?:null|none|undefined|n\/a|нет)$/iu.test(text.replace(/^[\s:"'`,;{}\[\]]+|[\s:"'`,;{}\[\]]+$/gu, '')) ? null : text;
+  // `>null` пришло с боевого 13.09.2026 (F8): модель обернула «null» в стрелку,
+  // и поле сути ушло на экран строкой. Стрелки и скобки снимаются до сверки.
+  return !text || /^(?:null|none|undefined|n\/a|нет)$/iu.test(text.replace(/^[\s:"'`,;{}\[\]<>]+|[\s:"'`,;{}\[\]<>]+$/gu, '')) ? null : text;
 };
 
 /** Fixed deployment cutoff: a restart cannot prolong the diagnostic window. */

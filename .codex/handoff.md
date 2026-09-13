@@ -2,105 +2,88 @@
 Current stage id: `content-factory-next-75xn`
 Last accepted stage id: `content-factory-next-zhv8`
 Selected Beads goal: `content-factory-next-75xn`
+**Оценка качества с сервера + второй проход владельца — 13.09.2026, код не менялся.**
+Владелец попросил судить качество ресерча и поводов самому, до его стадии C. Служебные
+области на бою (режим «Ключи системы»), девять сценариев intake, оба режима review, пять
+тем / сорок поводов с независимой датировкой: `evidence/quality-2026-09-13/FINDINGS.md`
+(F1–F14, вердикт). Движки не проблема; проблема — обработка выдачи: опоры = обрезки шапок
+страниц, всё `unverified`, ложные числа проходят в суть, выбор теряется на «Продолжить»,
+уровни неотличимы (`CONTENT_CONTEXT_MAX_EVIDENCE_V1 = 8`), Википедия не доходит никогда
+(`budget_accepted_sources`); поводы — 30/40 без даты, 12/40 мусор, две шаблонные фразы.
+Сильная часть — «Усилить ресерчем» и проверка фактов. Задачи `75xn.18`–`.24`. Второй
+проход владельца по странице (R1–S3): `75xn.25`–`.28` (суперадмин: OpenAI вместо
+openrouter в форме, ключ генерации не в том блоке, число операций не показано,
+автосохранение; область в режиме системных ключей: лишние «Убрать ключ», пропавшие
+тематика/глубина; чекбокс «Нужен ресерч» и лоадер не унифицированы). Служебные области и
+аккаунты удалены. Промпт для следующей сессии:
+`evidence/quality-2026-09-13/NEXT-SESSION-PROMPT.md`. Владелец: стадии C и E проходить
+после волны исправлений.
+**Ключи по умолчанию у суперадмина (`75xn.16`) — RELEASED `cd0c137d0b1c` 13.09.2026.**
+Приватный `7faeaedf`, откат `616fe17a2380`. Уточнение владельца: настройку самих ключей по
+умолчанию открывает только `isSuperAdmin`, область выбирает лишь между ними и своим ключом.
+Таблица `InstanceAiDefaults` — одна строка, единственность от константного ключа (приём
+`TelegramUpdateConsumerLease`); переменные окружения стали полом и читаются ПОЛЕ ЗА ПОЛЕМ,
+иначе правка одной модели на экране стёрла бы нетронутый ключ; нечитаемая строка оставляет
+инстанс на переменных. Четыре двери на `/admin`, ключ наружу не отдаётся никогда, экран
+различает три состояния поля («задан здесь», «задан на сервере», «не задан») — без второго
+суперадмин вставил бы второй ключ на работающем инстансе. ЗАВЁДЕН СТРАЖ, которого не было:
+у `/admin` нет политики CASL, раздел держится вызовом `assertSuperAdmin` в каждом хендлере;
+страж сразу нашёл `POST /admin/telegram/connect` без проверки источника (`75xn.17`). Схема:
+`CREATE TABLE InstanceAiDefaults` точечным psql, копия
+`20260913T081144Z-pre-instance-ai-defaults-product-only`; строку на бою не заводили — ключи
+остаются в переменных и показаны как «заданы на сервере». Квитанция Jest 426/5548. Evidence:
+`stages/content-factory-next-75xn/evidence/release-2026-09-13-superadmin.json`.
 **Поправка по прогону (`75xn.10`–`.15`) — RELEASED `616fe17a2380` 13.09.2026.** Приватный
-`cd9623f0`, откат `6fa6c34c6386`, схема не менялась. Владелец дошёл до стадии C и
-остановился. P1, найденный его записью: запасной ход читал старую колонку `searchApiKey`
-как ключ движка из ИЗМЕНЯЕМОГО `searchProvider` — область, сохранившая ключ при Tavily и
-переключённая на Exa, отдала бы его на `api.exa.ai`; колонка больше не читается, данные
-перенесены (на бою она пуста во всех шести строках). Владелец отменил отступление первой
-волны: движок под задачу выбирается сам (research→exa, facts и discovery→tavily, пока есть
-ключ), селекторы задач и сервера убраны; откат — любой движок с поисковым ключом, но НЕ
-OpenRouter (тратит ключ генерации). Экран: карточка раздела как у соседей (один
-`SettingsSection` вместо пяти рукописных копий), поля ключей только в режиме «Свой ключ»,
-автосохранение всего, кроме ключа, объяснения в `Hint`, шеврон и крестик на одном отступе
-(токен). Ключи владельца перенесены в системные расшифровкой внутри контейнера по его
-прямому разрешению; включённый режим впервые живой. Квитанция Jest 424/5518, Node 125/0.
-Evidence: `stages/content-factory-next-75xn/evidence/release-2026-09-13-correction.json`.
+`cd9623f0`, откат `6fa6c34c6386`, схема не менялась. P1, найденный записью владельца:
+запасной ход читал старую колонку `searchApiKey` как ключ движка из ИЗМЕНЯЕМОГО
+`searchProvider` — ключ Tavily мог уехать на `api.exa.ai`; колонка не читается, данные
+перенесены. Владелец отменил отступление первой волны: движок под задачу выбирается сам,
+селекторы убраны; откат — любой движок с поисковым ключом, но НЕ OpenRouter (тратит ключ
+генерации). Экран: карточка как у соседей, поля ключей только в режиме «Свой ключ»,
+автосохранение всего кроме ключа, объяснения в `Hint`, шеврон и крестик на одном отступе.
+Ключи владельца перенесены в системные по его прямому разрешению. Evidence:
+`stages/content-factory-next-75xn/evidence/release-2026-09-13-correction.json`.
 **Эпик «Поиск» (`75xn`) — RELEASED `6fa6c34c6386` 13.09.2026.** Приватный `67914bc7`,
 откат `17088939db40`. Ключ поиска на каждый движок (`AiProviderSetting.searchApiKeys`);
-правило «смена сервера стирает ключ» снято — ключ адресуется движком и недостижим из
-чужой ветки. Движок выбирается на задачу (`ai.search-tasks.ts` близнецом `ai.roles.ts`),
-задача выводится из явного уровня — того же признака, на котором стоит квота, — кроме
-проверки фактов, которая уровень тоже передаёт и называет задачу прямо. Порт получил
-`windowDays`: Tavily `time_range`, Exa `startPublishedDate` плюс `category` и
-`userLocation`, которых он не получал вовсе. «Откуда идеи» получила род `TOPIC`: одна
-проверка поиском за 30 дней, свой выключатель `LEAD_TOPIC_CHECK_ENABLED`, остальное —
-код лент. Включённый режим считает предел из `AI_INCLUDED_MONTHLY_OPERATIONS`, когда
-строки подписки нет (а без Stripe её нет ни у кого). Схема: три nullable-колонки
-применены точечным psql одной транзакцией по валидатору, копия
+правило «смена сервера стирает ключ» снято. Движок выбирается на задачу
+(`ai.search-tasks.ts` близнецом `ai.roles.ts`), задача выводится из явного уровня — того
+же признака, на котором стоит квота, — кроме проверки фактов, которая называет её прямо.
+Порт получил `windowDays`: Tavily `time_range`, Exa `startPublishedDate` плюс `category` и
+`userLocation`. «Откуда идеи» получила род `TOPIC`: проверка поиском за 30 дней, свой
+выключатель `LEAD_TOPIC_CHECK_ENABLED`. Схема: три nullable-колонки точечным psql, копия
 `20260913T053556Z-pre-searchkeys-product-only`. Evidence:
 `stages/content-factory-next-75xn/evidence/release-2026-09-13.json`.
-**Волна «разбор открытого» (`zhv8`) — RELEASED `17088939db40` 11.09.2026.**
-Приватный `eb5eb2fd`, публичный `17088939db4029298bf0cf05e56cdcaeb355a92f`, digest
-`sha256:4f639160cf120a8c839658b67de0f6eea466f522ad271d68f2e50e9c675febef`, откат
-`92f0b95dfe3f`. Закрыты `m0iy.8` и `m0iy.9`: при явном уровне ресерч после ответов
-провайдера идёт в Wikipedia/Wikidata без ключа через constrained fetch (DNS на каждом
-хопе, приватные адреса отсекаются, редиректы вручную), выдержка страницы через
-`/api/rest_v1/page/summary/{key}` становится фактом, Wikidata — источником без факта;
-лан ограничен 8 с и никогда не роняет ответ. Квота ресерча считается в Redis
-(`research:quota:{org}:{level}:{YYYY-MM}`, 40 дней, INCR/DECR, при отказе Redis —
-счётчик процесса с предупреждением), числа 20/10/3 прежние; клиент приходит через
-токен `RESEARCH_QUOTA_STORE` из `database.module.ts` — импорт `redis.service` в файле
-службы открывал сокет в каждом наборе и вешал node:test. Квитанция Jest 417/5403,
-Node 125/0, Python OK; diff из образа пуст, Mastra 29→29; хост healthy, три двери 200.
+**Волна «разбор открытого» (`zhv8`) — RELEASED `17088939db40` 11.09.2026.** Приватный
+`eb5eb2fd`, откат `92f0b95dfe3f`, схема не менялась. Закрыты `m0iy.8` (лан Wikipedia/Wikidata
+без ключа при явном уровне, 8 с, никогда не роняет ответ) и `m0iy.9` (квота в Redis
+`research:quota:{org}:{level}:{YYYY-MM}`, 40 дней, при отказе Redis — счётчик процесса).
+ЛОВУШКА: импорт `redis.service` на уровне модуля библиотечной службы открывает сокет при
+загрузке и держит процесс node:test живым; клиент отдавать через токен `RESEARCH_QUOTA_STORE`.
 Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
-За владельцем: `m0iy.10` замер пользы (порог входа в `.6`, до 25.09), `m0iy.11` ключ
-Exa, платная проверка предела Tavily (локального ключа нет), `or3.9` тариф.
-**Малая волна 11.09 (`6xi0`) — RELEASED `92f0b95dfe3f` 11.09.2026.** Приватный `3f84df3d`,
-откат `aaaf00afe664`. Потолок Tavily/OpenRouter 20, Exa 100, 50 источников deep — сумма
-по 25 запросам (§6); живой Tavily принимает и 50, потолок оставлен по документации, а не
-как починка сбоя. Политика egress импортируется из модуля (`research-egress.cjs` в jest).
-Evidence: `stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
-**Хвост ревью 11.09 — RELEASED `aaaf00afe664` 11.09.2026.** Приватный `e4ea8a3c`, откат
-`cc513632d93d`; схема не менялась. Квота только при явном уровне; хэштеги/CTA из
-`resolvedChannelProfile`. Отпечаток Mastra считать канонической выборкой из runbook:
-сырой `pg_dump` PostgreSQL 17 несёт случайный `\restrict`-токен. Правило «смена
-провайдера обнуляет ключ» отсюда отменено волной `75xn` — ключ адресуется движком.
-Evidence: `stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
-**Wave «третий заход 10.09» — RELEASED `cc513632d93d` 10.09.2026.** Private source
-`1066e49243e6`, rollback `4fdac6f1435a`; schema unchanged. Черновик при same-channel
-переносе переносится, а не копируется — решение владельца 11.09. Evidence:
-`stages/content-factory-next-tu3k.15/evidence/release-2026-09-10.json`.
-**Wave «второй заход 08.09» (`tu3k.14`, 30 tasks) — RELEASED `2fe4032ea3db` 08.09.2026.**
-Private source `7b07bec6a989`, rollback `5f657ccf294e`; schema unchanged, host verified.
-Navigation A and the Content menu, piece page/table v2, streaming intake and voice analysis,
-explicit paid checks, dedicated Channels, calendar without rail. S8: adaptation word retention
-unmeasured (no eligible pairs); no synthetic result substituted. Proof:
-`stages/content-factory-next-tu3k.14/evidence/release-2026-09-08.json`; scope
-`docs/product/second-walk-wave-2026-09-08-spec.md`.
-**Wave «прогон 07.09» (epic `m2eg`) — RELEASED `9b538b9a2e25` 07.09, audit tail
-`47cd8475c442`.** From the owner's live walk of `7e2b10bf1100` (24 notes). Owner decisions
-07.09: adaptation never searches the web, no citation checkboxes, no «Проверил» gate.
-Changed: piece before questions, real table (Tailwind `min-[…]` trap), channel card save,
-streamed voice analysis, `PIECE_ONLY` adaptation, orama `TextSearchService`. Bounded gaps:
-`related` not drawn on the piece page; index invalidation relies on the 5-minute TTL.
-Owner: `m2eg.25` (Telegram as a person needs MTProto — not planned).
-**Small wave 07.09 (`tu3k.6`, `.10`, `.11`, `.12`) — RELEASED as `7e2b10bf1100`**
-(rollback `a6be7f3fbb92`, no schema): channel badge «настроено» from
-`GET /integrations/list`, adaptation `kind` picked by the person
-(`ui/segmented.tsx`), «В архив», 8 container tests on adapt, `search-started`
-typed, `core-write.ts` under the AI-consumer guard, list door without tokens.
-**Wave «заготовка и адаптации» (06–07.09, epic `tu3k.9`) — RELEASED `a6be7f3fbb92`**
-(schema `piece-adaptation-schema-apply.sql` before the switch, rollback `cd636483ba0a`).
-`ContentPiece.kind='CORE'` + `brief`; `ContentDerivation.kind/title/body/mediaId`;
-publication state READ from the post; core = one `draft` call from the person's words
-(`pieces/core-write.ts`); the avatar-learning trap closed (`recordFromPost` compares
-`ContentDerivation.body`).
-**Wave «вход одной мыслью» (06.09, epic `tu3k`) — RELEASED `cd636483ba0a`**
-(`Integration.writingProfile` before the switch). `POST
-/content-intelligence/intake` (NDJSON): thought / link / foreign post → claims
-→ ≤3 number checks by search → brief fill → per-channel draft. Doors
-`GET/PUT/DELETE /integrations/:id/writing-profile`. Slop check
-`text-quality/slop-check.ts`. `SOURCE_DIRECT_FETCH=true` on production.
-
-**Earlier waves (05.09, all RELEASED):** «search into drafts» `443bd0a450c8`
-(`ec48`, `provenance: SEARCH`); «owner decisions» `da34f1a9e832` (avatar learns
-from edits, roles USER/EDITOR/ADMIN, word search, `tariff-levers.md`);
-«cleanup» `dcb6eae72608` + `035029af3c18`; «compose window» `fc9fa77148f6`
-(04.09, `fn33.28`); `d782858045fa` (04.09). Open there: `fn33.132`, `ec48.6`,
-`.7`, `fn33.159`, `.138`, `.141`–`.144`, `.28.5`, `.28.18`.
-
-## Current state
+За владельцем: `m0iy.10` замер пользы (до 25.09), `or3.9` тариф.
+**Малая волна 11.09 (`6xi0`) — RELEASED `92f0b95dfe3f`.** Потолок Tavily/OpenRouter 20,
+Exa 100, 50 источников deep — сумма по 25 запросам (§6). Evidence:
+`stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
+**Хвост ревью 11.09 — RELEASED `aaaf00afe664`.** Квота только при явном уровне;
+хэштеги/CTA из `resolvedChannelProfile`. Отпечаток Mastra считать канонической выборкой из
+runbook: сырой `pg_dump` PostgreSQL 17 несёт случайный `\restrict`-токен. Evidence:
+`stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
+**Earlier waves, all RELEASED (details in each stage's `evidence/release-*.json`):**
+«третий заход 10.09» `cc513632d93d` (source `1066e49243e6`, rollback `4fdac6f1435a`;
+same-channel draft moves, not copies — owner 11.09); «второй заход 08.09» (`tu3k.14`,
+30 tasks) `2fe4032ea3db` (nav A, piece page/table v2, streaming intake, dedicated
+Channels; spec `docs/product/second-walk-wave-2026-09-08-spec.md`); «прогон 07.09»
+(`m2eg`) `9b538b9a2e25` + audit tail `47cd8475c442` (adaptation never searches the
+web, no citation checkboxes, piece before questions, Tailwind `min-[…]` trap, orama
+`TextSearchService`; owner: `m2eg.25` MTProto not planned); small wave 07.09
+`7e2b10bf1100`; «заготовка и адаптации» (`tu3k.9`) `a6be7f3fbb92` (schema
+`piece-adaptation-schema-apply.sql`); «вход одной мыслью» (`tu3k`) `cd636483ba0a`
+(`Integration.writingProfile`, `POST /content-intelligence/intake` NDJSON,
+`SOURCE_DIRECT_FETCH=true`); 05.09: `443bd0a450c8` (`ec48`, `provenance: SEARCH`),
+`da34f1a9e832` (roles USER/EDITOR/ADMIN, avatar learns from edits, `tariff-levers.md`),
+`dcb6eae72608` + `035029af3c18` (cleanup), `fc9fa77148f6` (compose window, `fn33.28`),
+`d782858045fa` (04.09). Open there: `fn33.132`, `ec48.6`, `.7`, `fn33.159`, `.138`,
+`.141`–`.144`, `.28.5`, `.28.18`.
 
 **`retain-host-artifacts.sh`** keeps two images and three configuration copies —
 a **standing permission** since 03.09, scoped in the runbook, nothing else.
