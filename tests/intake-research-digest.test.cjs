@@ -153,7 +153,41 @@ describe('вердикты ставит код', () => {
         statement: 'Производительность в большинстве мест сохранилась или выросла',
       }),
     ]);
-    expect(settled.rejected).toEqual({ verdicts: 1, findings: 1 });
+    expect(settled.rejected).toEqual({ verdicts: 1, findings: 1, unknownClaims: 0, unknownSources: 1 });
+  });
+
+  test('ключи в скобках и с префиксом, как модель их копирует из промпта, всё равно узнаются', () => {
+    const settled = settleResearchDigest(
+      {
+        verdicts: [
+          {
+            claimKey: '[C:own:a]',
+            verdict: 'confirmed',
+            evidenceId: 'E:ev-autonomy',
+            quote: 'The trials involved 2,500 workers, over 1% of Iceland’s working population',
+            original: null,
+            replacement: null,
+            note: 'ok',
+          },
+          { claimKey: 'C:nobody', verdict: 'confirmed', evidenceId: 'ev-autonomy', quote: 'The trials involved 2,500 workers, over 1%', original: null, replacement: null, note: null },
+        ],
+        findings: [
+          { evidenceId: '[E:ev-conversation]', statement: 'Число 40% в докладе не встречается', quote: 'the figure of 40% appears nowhere in the report' },
+          { evidenceId: 'ev-nowhere', statement: 'x', quote: 'the figure of 40% appears nowhere in the report' },
+          // Адрес вместо ключа и текст утверждения вместо ключа — тоже узнаются.
+          { evidenceId: 'https://theconversation.com/four-day-week-overstated-165000', statement: 'Числа 40% в докладе нет', quote: 'the figure of 40% appears nowhere in the report' },
+        ],
+      },
+      input
+    );
+    expect(settled.verdicts[0]).toMatchObject({ claimKey: 'own:a', status: 'confirmed', evidenceId: 'ev-autonomy' });
+    expect(settled.findings).toHaveLength(2);
+    expect(settled.rejected).toEqual({ verdicts: 0, findings: 0, unknownClaims: 1, unknownSources: 1 });
+    const byText = settleResearchDigest(
+      { verdicts: [{ claimKey: 'Длился десять лет', verdict: 'unverifiable', evidenceId: null, quote: null, original: null, replacement: null, note: 'нет данных' }], findings: [] },
+      input
+    );
+    expect(byText.verdicts.find((v) => v.claimKey === 'own:b')).toMatchObject({ status: 'unverified', note: 'нет данных' });
   });
 
   test('утверждение, о котором модель промолчала, — «не проверено» без заметки', () => {

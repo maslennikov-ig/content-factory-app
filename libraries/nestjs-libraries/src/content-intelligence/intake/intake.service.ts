@@ -1658,9 +1658,25 @@ export class IntakeService {
         'review'
       );
       const settled = settleResearchDigest(answer as any, input);
-      if (settled.rejected.verdicts || settled.rejected.findings) {
+      const raw = answer as { verdicts?: unknown[]; findings?: unknown[] } | null;
+      const rawVerdicts = Array.isArray(raw?.verdicts) ? raw!.verdicts!.length : 0;
+      const rawFindings = Array.isArray(raw?.findings) ? raw!.findings!.length : 0;
+      const kept = settled.verdicts.filter((verdict) => verdict.note || verdict.quote).length;
+      if (
+        settled.rejected.verdicts ||
+        settled.rejected.findings ||
+        settled.rejected.unknownClaims ||
+        settled.rejected.unknownSources
+      ) {
         this.logger.warn(
-          `Research digest dropped ${settled.rejected.verdicts} verdict(s) and ${settled.rejected.findings} finding(s) whose quote was not in the source.`
+          `Research digest dropped ${settled.rejected.verdicts} verdict(s) and ${settled.rejected.findings} finding(s) whose quote was not in the source, ${settled.rejected.unknownClaims} verdict(s) with an unknown claim key and ${settled.rejected.unknownSources} row(s) with an unknown source id (raw ${rawVerdicts}/${rawFindings}).`
+        );
+      }
+      if (!kept && !settled.findings.length) {
+        // Пустой итог при непустом входе — единственный случай, когда ответ
+        // модели стоит увидеть глазами: обрезанный, чтобы не тащить страницы.
+        this.logger.warn(
+          `Research digest yielded nothing for ${claims.length} claim(s) and ${sources.length} source(s) (raw ${rawVerdicts}/${rawFindings}): ${JSON.stringify(raw).slice(0, 900)}`
         );
       }
       return settled;

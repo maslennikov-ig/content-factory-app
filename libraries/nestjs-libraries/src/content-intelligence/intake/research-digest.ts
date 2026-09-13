@@ -277,12 +277,28 @@ export type SettledFinding = {
 export type SettledResearchDigest = {
   verdicts: SettledVerdict[];
   findings: SettledFinding[];
-  /** Сколько вердиктов и находок отброшено за цитату, которой нет в источнике. */
-  rejected: { verdicts: number; findings: number };
+  /**
+   * Сколько отброшено: вердиктов и находок — за цитату, которой нет в
+   * источнике; ключей — за адрес утверждения или источника, которого не было
+   * в промпте.
+   */
+  rejected: { verdicts: number; findings: number; unknownClaims: number; unknownSources: number };
 };
 
 const textOf = (source: ResearchDigestSource) =>
   `${source.excerpt}\n${source.text || ''}`;
+
+/**
+ * Ключ так, как его вернула модель: она копирует `[E:…]`/`[C:…]` из промпта
+ * вместе со скобками и префиксом чаще, чем без них. Скобки, префикс и
+ * пробелы снимаются; сам ключ не трогается.
+ */
+export const bareKey = (value: unknown): string =>
+  String(value ?? '')
+    .trim()
+    .replace(/^\[?\s*(?:[EC]|evidence|claim)\s*:\s*/i, '')
+    .replace(/\]$/, '')
+    .trim();
 
 /**
  * Ответ модели становится вердиктами и находками детерминированно.
@@ -301,16 +317,37 @@ export const settleResearchDigest = (
   input: Pick<ResearchDigestInput, 'claims' | 'sources' | 'level'>
 ): SettledResearchDigest => {
   const sourcesById = new Map(input.sources.map((source) => [source.evidenceId, source]));
+  const sourcesByUrl = new Map(input.sources.map((source) => [normalizeForMatch(source.url), source]));
   const claimsByKey = new Map(input.claims.map((claim) => [claim.key, claim]));
-  const rejected = { verdicts: 0, findings: 0 };
+  const claimsByText = new Map(input.claims.map((claim) => [normalizeForMatch(claim.statement), claim]));
+  // Модель называет источник ключом, а иногда адресом, который стоит рядом
+  // с ключом в промпте; утверждение — ключом, а иногда его текстом. Оба
+  // вторых пути ведут к той же строке, и только к ней.
+  const sourceOf = (value: unknown): ResearchDigestSource | undefined => {
+    const key = bareKey(value);
+    if (!key) return undefined;
+    return sourcesById.get(key) ?? sourcesByUrl.get(normalizeForMatch(key));
+  };
+  const claimOf = (value: unknown): ResearchDigestClaim | undefined => {
+    const key = bareKey(value);
+    if (!key) return undefined;
+    return claimsByKey.get(key) ?? claimsByText.get(normalizeForMatch(key));
+  };
+  const rejected = { verdicts: 0, findings: 0, unknownClaims: 0, unknownSources: 0 };
   const verdicts: SettledVerdict[] = [];
   const seenClaims = new Set<string>();
   for (const raw of answer?.verdicts || []) {
-    const claim = claimsByKey.get(raw.claimKey);
-    if (!claim || seenClaims.has(claim.key)) continue;
+    const claim = claimOf(raw.claimKey);
+    if (!claim) {
+      rejected.unknownClaims += 1;
+      continue;
+    }
+    if (seenClaims.has(claim.key)) continue;
     seenClaims.add(claim.key);
     const note = oneLine(raw.note || '') || null;
-    const source = raw.evidenceId ? sourcesById.get(raw.evidenceId) : undefined;
+    const sourceKey = bareKey(raw.evidenceId);
+    const source = sourceOf(raw.evidenceId);
+    if (sourceKey && !source) rejected.unknownSources += 1;
     const verbatim = !!source && quoteIsVerbatim(raw.quote, textOf(source));
     if (raw.verdict === 'unverifiable' || !source || !verbatim) {
       if (raw.verdict !== 'unverifiable') rejected.verdicts += 1;
@@ -369,9 +406,13 @@ export const settleResearchDigest = (
   const findings: SettledFinding[] = [];
   const seenStatements = new Set<string>();
   for (const raw of answer?.findings || []) {
-    const source = sourcesById.get(raw.evidenceId);
+    const source = sourceOf(raw.evidenceId);
     const statement = oneLine(raw.statement || '');
-    if (!source || !statement) continue;
+    if (!source) {
+      rejected.unknownSources += 1;
+      continue;
+    }
+    if (!statement) continue;
     if (!quoteIsVerbatim(raw.quote, textOf(source))) {
       rejected.findings += 1;
       continue;

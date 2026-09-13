@@ -129,6 +129,13 @@ export class UndiciSourceTransport implements SourceTransport {
         body: result.body,
         dispose: async () => {
           try {
+            // A body destroyed before anyone read it emits its abort as an
+            // `error` event with no listener, and Node treats that as an
+            // uncaught exception: on 13.09.2026 one topic check's page-date
+            // read on a non-200 answer took a cluster worker down with it
+            // (`RequestAbortedError` at `BodyReadable._destroy`). The stream
+            // is being thrown away here, so its error is not news.
+            result.body.on('error', () => undefined);
             result.body.destroy();
           } finally {
             await agent.close();
