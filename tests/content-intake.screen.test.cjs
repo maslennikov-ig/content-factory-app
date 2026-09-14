@@ -120,6 +120,18 @@ describe('the door is one field, and its refusals are readable', () => {
     expect(panel.getAttribute('aria-busy')).toBe('false');
   });
 
+  // 14.09.2026, `content-factory-next-75xn.37`: что такое ресерч, объясняет
+  // кружок с вопросом рядом с флажком, а строки под флажком нет.
+  test('the research checkbox carries a hint and no caption beneath it', () => {
+    draw({ state: 'idle' });
+    const hint = screen.getByRole('button', { name: 'Подсказка: что такое ресерч' });
+    expect(hint).not.toBeNull();
+    const checkbox = screen.getByRole('checkbox', { name: 'Нужен ресерч' });
+    expect(checkbox).not.toBeNull();
+    expect(document.body.textContent).not.toContain('Соберём внешние опоры');
+    expect(document.body.textContent).not.toContain('платный расход');
+  });
+
   // `content-factory-next-tu3k.9`: дверь делает заготовку, и надпись на
   // кнопке зависит от выбора каналов. Без выбранного канала она обещает
   // ровно заготовку.

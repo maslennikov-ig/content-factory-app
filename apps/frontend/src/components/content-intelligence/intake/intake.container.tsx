@@ -216,6 +216,13 @@ export function IntakeContainer({
         const decoder = new TextDecoder();
         let recorded: string | null = null;
         let selectionRequired = false;
+        /*
+          Сервер объяснил отказ сам (`content-factory-next-75xn.36`): ссылка,
+          которую сайт не отдал, ключ, предел. Его слова — единственная
+          подсказка, что делать дальше; общая фраза «ответ пришёл неполным»
+          уместна только там, где поток оборвался без единого объяснения.
+        */
+        let explained = false;
 
         const splitter = createNdjsonSplitter((line) => {
           const reading = readIntakeEvent(line);
@@ -276,6 +283,7 @@ export function IntakeContainer({
               // уехали в бриф заготовки и живут на её странице.
               break;
             case 'error':
+              explained = true;
               setFailure({ title: w.errorTitle, message: event.message });
               break;
             default:
@@ -293,7 +301,7 @@ export function IntakeContainer({
         setStep(null);
 
         if (!recorded) {
-          if (selectionRequired) return;
+          if (selectionRequired || explained) return;
           setFailure({ title: w.errorTitle, message: w.errorIncomplete });
           return;
         }

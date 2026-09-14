@@ -5,6 +5,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { Hint } from '@contentfactory/react/layout/hint';
 import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 import {
   EmptyState,
@@ -269,12 +270,20 @@ export function IntakeScreen({
             </div>
 
             <div className="flex min-w-0 flex-col gap-[8px] sm:max-w-[420px]">
-              <CheckboxField
-                checked={researchEnabled}
-                onChange={(event) => onResearchEnabledChange(event.target.checked)}
-                label={<span>{t.researchLabel}</span>}
-              />
-              <p className="cf-caption text-cf-ink-muted">{t.researchHint}</p>
+              {/*
+                Что такое ресерч, объясняет кружок с вопросом рядом с подписью,
+                а не строка под флажком: экран остаётся коротким, объяснение
+                приходит по наведению или фокусу (владелец, 14.09.2026,
+                `content-factory-next-75xn.37`).
+              */}
+              <span className="flex min-w-0 items-center gap-[8px]">
+                <CheckboxField
+                  checked={researchEnabled}
+                  onChange={(event) => onResearchEnabledChange(event.target.checked)}
+                  label={<span>{t.researchLabel}</span>}
+                />
+                <Hint label={t.researchHintLabel}>{t.researchHint}</Hint>
+              </span>
               {researchEnabled ? (
                 <Select
                   standalone

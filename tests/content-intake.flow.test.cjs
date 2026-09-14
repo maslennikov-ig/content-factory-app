@@ -423,6 +423,28 @@ describe('what a broken answer and a closed screen do', () => {
     expect(alert.textContent).toContain('Ничего не сохранено.');
   });
 
+  test('a refusal the server explained keeps its own words after the stream ends', async () => {
+    // 14.09.2026: the site behind a pasted link answered 4xx, the server sent
+    // its explanation and closed the stream, and the screen wrote «ответ
+    // пришёл неполным» over it (`content-factory-next-75xn.36`).
+    serve(baseTable(intakeDoor(streamed([
+      { name: 'intake-started', inputKind: 'link', channels: [] },
+      {
+        name: 'error',
+        error: true,
+        code: 'INTAKE_LINK_UNREACHABLE',
+        message: 'Страницу по ссылке не удалось прочитать. Вставьте текст поста прямо в поле.',
+      },
+    ]))));
+    await open();
+    await start();
+
+    expect(panel().getAttribute('data-intake-state')).toBe('error');
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('Страницу по ссылке не удалось прочитать');
+    expect(alert.textContent).not.toContain('Ответ пришёл неполным');
+  });
+
   test('leaving the screen aborts the run instead of writing into nothing', async () => {
     let carried = null;
     serve(

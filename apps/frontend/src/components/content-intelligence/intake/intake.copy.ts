@@ -39,7 +39,13 @@ export const intakeCopy = {
     languageRu: 'Русский',
     languageEn: 'English',
     researchLabel: 'Нужен ресерч',
-    researchHint: 'Соберём внешние опоры до написания (платный расход).',
+    // Кружок с вопросом вместо подписи под флажком (владелец, 14.09.2026):
+    // объяснение живёт в подсказке и не занимает место на экране.
+    researchHintLabel: 'Подсказка: что такое ресерч',
+    researchHint:
+      'Проверим вашу мысль по внешним источникам: подтвердим числа и факты, ' +
+      'поправим то, что расходится с источниками, и добавим находки по теме ' +
+      'с адресами. Это платная операция, она тратит одну из операций месяца.',
     researchLevelLabel: 'Глубина ресерча',
     researchQuick: 'Быстрый · до 4 запросов',
     researchStandard: 'Стандартный · до 10 запросов',
@@ -249,7 +255,11 @@ export const intakeCopy = {
     languageRu: 'Русский',
     languageEn: 'English',
     researchLabel: 'Research this',
-    researchHint: 'Collect outside support before writing (paid usage).',
+    researchHintLabel: 'Hint: what research is',
+    researchHint:
+      'We check your thought against outside sources: confirm numbers and facts, ' +
+      'correct what the sources contradict, and add findings on the topic with ' +
+      'their addresses. This is a paid step: it spends one of the month’s operations.',
     researchLevelLabel: 'Research depth',
     researchQuick: 'Quick · up to 4 queries',
     researchStandard: 'Standard · up to 10 queries',

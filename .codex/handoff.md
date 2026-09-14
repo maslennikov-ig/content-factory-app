@@ -2,6 +2,27 @@
 Current stage id: `content-factory-next-75xn`
 Last accepted stage id: `content-factory-next-zhv8`
 Selected Beads goal: `content-factory-next-75xn`
+**Волна качества (`75xn.17`–`.32`) — RELEASED `65bcb0dd6829` 13.09.2026 вечером.**
+Три образа за вечер: `691eda1318c8` (волна, приватный `6bc680c9`), `11a3a80caee8`
+(поправка: ключи в ответе модели, тело страницы; `d6b1a3f8`), `65bcb0dd6829` («supplied»
+в review v2, дата со страницы, карточки реестров; `a1c7f5dc`); откат `cd0c137d0b1c`, схема
+не менялась, копия `20260913T170247Z-pre-quality-wave-product-only`. Решения владельца:
+движки те же; вердикт ставит код по дословной цитате; поправки применяются за человека
+(макет «Опоры после ресерча», вариант 1); страницы читаются бесплатно из ответа движка; TTL
+кэша 30 мин; откат по сбою не на OpenRouter; **правило продукта «решаем за человека»** в
+`PRODUCT.md`. Ядро: `intake/research-digest.ts` (сжатие, `settleResearchDigest`, `factKey`),
+снимок первого прохода в Redis (`INTAKE_SNAPSHOT_STORE`, час), `ResearchOutcome` на входе,
+`WorkingLine` и рисованный `CheckboxField` со стражами, discovery через `news` + судья внутри
+операции, `lead-page-date.ts`. Проверка с сервера после волны:
+`evidence/quality-2026-09-13-after/FINDINGS.md` (78/78 найденных строк с цитатой, i9: 3/3
+ложных числа с поправкой, выбор 100 %, уровни 8/20/50, поводы 16/16 с датой, мусора 0,
+свежая область проверяет тему с первого раза). ЛОВУШКИ: модель пишет ключи как `[E:…]`,
+адресом или текстом — узнавать все; дата движка со штампом `T17:00:00Z` врёт на дни, дата со
+страницы точна; тело ответа, выброшенное до чтения, роняло воркер (`RequestAbortedError`);
+квота deep-ресерча 3/мес списывается и за `REVIEW_INVALID`. Открыто: `75xn.33` (дубли
+сюжета), `.34` (перепечатки-агрегаторы), `.35` (повтор при `REVIEW_INVALID`), `.9`. Страница
+шестого захода: `evidence/walk-2026-09-13-evening/` (артефакт `606a3374…`). Evidence:
+`evidence/release-2026-09-13-quality-wave.json`.
 **Оценка качества с сервера + второй проход владельца — 13.09.2026, код не менялся.**
 Владелец попросил судить качество ресерча и поводов самому, до его стадии C. Служебные
 области на бою (режим «Ключи системы»), девять сценариев intake, оба режима review, пять
@@ -61,13 +82,10 @@ openrouter в форме, ключ генерации не в том блоке,
 загрузке и держит процесс node:test живым; клиент отдавать через токен `RESEARCH_QUOTA_STORE`.
 Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
 За владельцем: `m0iy.10` замер пользы (до 25.09), `or3.9` тариф.
-**Малая волна 11.09 (`6xi0`) — RELEASED `92f0b95dfe3f`.** Потолок Tavily/OpenRouter 20,
-Exa 100, 50 источников deep — сумма по 25 запросам (§6). Evidence:
-`stages/content-factory-next-6xi0/evidence/release-2026-09-11.json`.
-**Хвост ревью 11.09 — RELEASED `aaaf00afe664`.** Квота только при явном уровне;
-хэштеги/CTA из `resolvedChannelProfile`. Отпечаток Mastra считать канонической выборкой из
-runbook: сырой `pg_dump` PostgreSQL 17 несёт случайный `\restrict`-токен. Evidence:
-`stages/content-factory-next-xbfj/evidence/release-2026-09-11.json`.
+**11.09: `6xi0` RELEASED `92f0b95dfe3f`** (потолки Tavily/OpenRouter 20, Exa 100, deep 50 по
+25 запросам); **хвост ревью RELEASED `aaaf00afe664`** (квота только при явном уровне;
+отпечаток Mastra брать канонической выборкой из runbook — сырой `pg_dump` 17 несёт случайный
+`\restrict`-токен). Evidence в `stages/content-factory-next-{6xi0,xbfj}/evidence/`.
 **Earlier waves, all RELEASED (details in each stage's `evidence/release-*.json`):**
 «третий заход 10.09» `cc513632d93d` (source `1066e49243e6`, rollback `4fdac6f1435a`;
 same-channel draft moves, not copies — owner 11.09); «второй заход 08.09» (`tu3k.14`,

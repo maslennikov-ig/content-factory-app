@@ -1,5 +1,11 @@
 # Quality wave plan — research, «Усилить ресерчем», topic leads (13.09.2026)
 
+**Status 13.09 evening: RELEASED as `65bcb0dd6829` (three images), verified from the server —
+see `evidence/quality-2026-09-13-after/FINDINGS.md` and `evidence/release-2026-09-13-quality-wave.json`.
+Preflight checklist below: all items done; the tenant guard caught `aiUsageRecord.delete`
+without an organisation (fixed to `deleteMany` with the org); two production findings
+(model key spelling, discarded body crash) went out as the second image.**
+
 Source: owner session 13.09.2026 on top of `evidence/quality-2026-09-13/FINDINGS.md`
 (F1–F14) and the owner's second-pass notes (`evidence/walk-2026-09-13/notes/`).
 Tasks: `75xn.17`–`75xn.28` plus the ones added below. Design pick:
