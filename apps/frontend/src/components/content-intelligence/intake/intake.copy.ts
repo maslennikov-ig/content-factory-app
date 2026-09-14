@@ -178,6 +178,7 @@ export const intakeCopy = {
     errorFallback: 'Текст не собрался. Попробуйте ещё раз.',
     errorIncomplete: 'Ответ пришёл неполным. Ничего не сохранено.',
     retry: 'Попробовать снова',
+    continueWithoutLink: 'Продолжить без ссылки',
     emptyTitle: 'Сначала подключите канал',
     emptyBody:
       'Текст пишется под канал: его длину, эмодзи и призыв. Подключите хотя бы один — и сюда можно будет вернуться.',
@@ -358,6 +359,7 @@ export const intakeCopy = {
     errorFallback: 'The text was not built. Try again.',
     errorIncomplete: 'The answer arrived incomplete. Nothing was saved.',
     retry: 'Try again',
+    continueWithoutLink: 'Continue without the link',
     emptyTitle: 'Connect a channel first',
     emptyBody:
       'A text is written for a channel: its length, its emoji, its call. Connect at least one and come back here.',

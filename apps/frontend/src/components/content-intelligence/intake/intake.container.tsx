@@ -21,6 +21,7 @@ import {
   blockReason,
   buildIntakePayload,
   detectInputKind,
+  withoutLinks,
   readIntakeEvent,
   screenState,
   type BriefFilledV1,
@@ -107,7 +108,7 @@ export function IntakeContainer({
     `screenState` отличает `draft` от `idle`.
   */
   const [wrote, setWrote] = useState(false);
-  const [failure, setFailure] = useState<{ title: string; message: string } | null>(
+  const [failure, setFailure] = useState<{ title: string; message: string; code?: string } | null>(
     null
   );
   /*
@@ -173,7 +174,7 @@ export function IntakeContainer({
    * Один ход
    * ------------------------------------------------------------------ */
 
-  const run = useCallback(async (researchSelections?: readonly string[], snapshotKey?: string | null) => {
+  const run = useCallback(async (researchSelections?: readonly string[], snapshotKey?: string | null, inputText?: string) => {
       abort.current?.abort();
       const controller = new AbortController();
       abort.current = controller;
@@ -189,7 +190,7 @@ export function IntakeContainer({
           signal: controller.signal,
           body: JSON.stringify(
               buildIntakePayload({
-                input,
+                input: inputText ?? input,
                 language: language0,
                 options: { researchEnabled, researchLevel },
                 ...(researchSelections !== undefined ? { researchSelections } : {}),
@@ -284,7 +285,7 @@ export function IntakeContainer({
               break;
             case 'error':
               explained = true;
-              setFailure({ title: w.errorTitle, message: event.message });
+              setFailure({ title: w.errorTitle, message: event.message, code: event.code });
               break;
             default:
               break;
@@ -377,6 +378,21 @@ export function IntakeContainer({
     void run();
   }, [run]);
 
+  /*
+    Сайт по ссылке отказал, а слова человека остались (владелец 14.09.2026,
+    `content-factory-next-75xn.38`): кнопка убирает адрес из поля за него и
+    идёт дальше по словам. Показывается только когда без ссылки есть что
+    писать — на голую ссылку остаётся отказ с объяснением.
+  */
+  const textWithoutLink = failure?.code === 'INTAKE_LINK_UNREACHABLE' ? withoutLinks(input) : '';
+  const canContinueWithoutLink = /\S+\s+\S+/u.test(textWithoutLink);
+  const continueWithoutLink = useCallback(() => {
+    if (!canContinueWithoutLink) return;
+    setInput(textWithoutLink);
+    setFailure(null);
+    void run(undefined, undefined, textWithoutLink);
+  }, [canContinueWithoutLink, run, textWithoutLink]);
+
   /* ------------------------------------------------------------------ */
 
   const readOnlyNoteId = 'intake-read-only';
@@ -399,6 +415,7 @@ export function IntakeContainer({
         blocked={blocked}
         errorTitle={failure?.title}
         errorMessage={failure?.message}
+        onContinueWithoutLink={canContinueWithoutLink ? continueWithoutLink : undefined}
         // Та же фраза, которой отвечают остальные двери модели: одна беда —
         // одно объяснение, и оно уже переведено на шестнадцать языков.
         restrictedReason={t(

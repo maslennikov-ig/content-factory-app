@@ -2,6 +2,13 @@
 Current stage id: `content-factory-next-75xn`
 Last accepted stage id: `content-factory-next-zhv8`
 Selected Beads goal: `content-factory-next-75xn`
+**Поправка по первому шагу шестого захода (`75xn.36`–`.37`) — RELEASED `cde11f97e77f` 14.09.2026.**
+Приватный `188fb071`, откат `65bcb0dd6829`, схема не менялась. Сайт по вставленной ссылке ответил 4xx,
+экран прятал объяснение сервера за «Ответ пришёл неполным» — теперь общая фраза только для потока без
+объяснения; «Нужен ресерч» объясняет себя `Hint`, подпись снята. ЛОВУШКА: пустая строка между
+`Source-Commit` и `Co-Authored-By` ломает блок трейлеров — ворота квитанции не видят коммит; force-push
+в публичный запрещён, лечится пустым коммитом с верным блоком. Открыто `75xn.38` (ссылка не отдана —
+идти по словам человека, решение владельца). Evidence: `evidence/release-2026-09-14-intake-hint.json`.
 **Волна качества (`75xn.17`–`.32`) — RELEASED `65bcb0dd6829` 13.09.2026 вечером.**
 Три образа за вечер: `691eda1318c8` (волна, приватный `6bc680c9`), `11a3a80caee8`
 (поправка: ключи в ответе модели, тело страницы; `d6b1a3f8`), `65bcb0dd6829` («supplied»
@@ -148,21 +155,12 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-m0iy.10`. Recommended action: measure the
-benefit of R1–R5 (threshold for `.6` is written in `m0iy.10`); R6/R7 stay deferred. The next owner-facing action is the
-fourth live walkthrough and a measurement of research usefulness. Tavily remains
-the default provider; OpenRouter is the only reserve path. Recorded Exa responses
-cover offline checks until the owner supplies an Exa key. Live keyless
-Wikipedia/Wikidata wiring is tracked in `content-factory-next-m0iy.8`.
-Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures
-off and a neutral bot name.
-
-Cleanup 08.09: merged branches and worktrees removed, two unmerged August tips archived in
-`.git/cleanup-2026-09-08-legacy-orchestration.bundle` with owner approval; dev stand stopped;
-public clone `/home/me/code/content-factory-app` is clean at the released commit.
-
-Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks
-where the text is final, quality line, `/help`; owner closed `m2eg.25`, `fn33.159`, Workspace rename.
+Next stage id: `content-factory-next-m0iy.10`. Recommended action: measure the benefit of R1–R5
+(threshold in `m0iy.10`; R6/R7 deferred; `m0iy.8` keyless Wikipedia done 11.09).
+Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.
+Cleanup 08.09: branches/worktrees removed, two August tips in `.git/cleanup-2026-09-08-legacy-orchestration.bundle`.
+Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks where the text is final,
+quality line, `/help`; owner closed `m2eg.25`, `fn33.159`, Workspace rename.
 
 ## Starter prompt for next orchestrator
 

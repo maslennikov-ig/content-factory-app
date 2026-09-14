@@ -267,6 +267,19 @@ describe('the questions left this screen with the wave', () => {
     expect(opened).toEqual(['piece-12']);
   });
 
+  test('a refused link offers «Продолжить без ссылки» only when the container allows it', () => {
+    draw({ state: 'error', errorMessage: 'Страницу по ссылке не удалось прочитать.' });
+    expect(screen.queryByRole('button', { name: 'Продолжить без ссылки' })).toBeNull();
+    const continued = [];
+    draw({
+      state: 'error',
+      errorMessage: 'Страницу по ссылке не удалось прочитать.',
+      onContinueWithoutLink: () => continued.push(1),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить без ссылки' }));
+    expect(continued).toEqual([1]);
+  });
+
   test('a failed run offers the manual brief as the second way out', () => {
     draw({
       state: 'error',

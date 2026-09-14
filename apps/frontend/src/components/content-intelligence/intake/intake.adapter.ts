@@ -662,6 +662,35 @@ export function detectInputKind(input: string): IntakeInputKindV1 | undefined {
   }
 }
 
+/**
+ * Тот же текст без ссылок — для кнопки «Продолжить без ссылки»
+ * (`content-factory-next-75xn.38`): сайт по ссылке отказал, а слова человека
+ * остались, и убирать адрес руками он не должен. Разбор токена повторяет
+ * серверный `intake-kind.ts`: слово между пробелами, без обрамляющих кавычек
+ * и знаков, разбирается как http(s)-адрес.
+ */
+export function withoutLinks(input: string): string {
+  const isLink = (raw: string): boolean => {
+    const cleaned = raw.replace(/^[(«"'<]+/u, '').replace(/[)»"'>.,;:!?]+$/u, '');
+    try {
+      const url = new URL(cleaned);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+  return input
+    .split(/(\s+)/u)
+    .filter((token) => !token || /^\s+$/u.test(token) || !isLink(token))
+    .join('')
+    .replace(/[ \t]{2,}/gu, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/gu, '\n\n')
+    .trim();
+}
+
 export type IntakeAnswer = { field: BriefField; text: string };
 
 export function buildIntakePayload(input: {

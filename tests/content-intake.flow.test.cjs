@@ -445,6 +445,52 @@ describe('what a broken answer and a closed screen do', () => {
     expect(alert.textContent).not.toContain('Ответ пришёл неполным');
   });
 
+  test('«Продолжить без ссылки» drops the address for the person and runs again', async () => {
+    // Owner 14.09.2026 (`content-factory-next-75xn.38`): the link was not
+    // essential, and deleting it by hand is our job, not theirs.
+    serve(baseTable(intakeDoor(
+      streamed([
+        { name: 'intake-started', inputKind: 'foreign_post', channels: [] },
+        {
+          name: 'error',
+          error: true,
+          code: 'INTAKE_LINK_UNREACHABLE',
+          message: 'Страницу по ссылке не удалось прочитать. Вставьте текст поста прямо в поле.',
+        },
+      ]),
+      streamed(scenario('thin-input'))
+    )));
+    await open();
+    await start('Надо больше писать про ИИ, чем сейчас — вот пример: https://example.com/post/1.');
+
+    expect(panel().getAttribute('data-intake-state')).toBe('error');
+    await click(
+      screen.getByRole('button', { name: 'Продолжить без ссылки' }),
+      () => panel().getAttribute('data-intake-state') !== 'error'
+        && panel().getAttribute('data-intake-state') !== 'streaming'
+    );
+
+    expect(intakeAnswers).toHaveLength(2);
+    expect(intakeAnswers[0].input).toContain('https://example.com/post/1');
+    expect(intakeAnswers[1].input).toBe('Надо больше писать про ИИ, чем сейчас — вот пример:');
+    expect(document.querySelector('[name="intake-input"]').value).toBe(
+      'Надо больше писать про ИИ, чем сейчас — вот пример:'
+    );
+    expect(navigations).toHaveLength(1);
+  });
+
+  test('a bare link the site refused offers no way to continue without it', async () => {
+    serve(baseTable(intakeDoor(streamed([
+      { name: 'intake-started', inputKind: 'link', channels: [] },
+      { name: 'error', error: true, code: 'INTAKE_LINK_UNREACHABLE', message: 'Страницу по ссылке не удалось прочитать.' },
+    ]))));
+    await open();
+    await start('https://example.com/post/1');
+
+    expect(panel().getAttribute('data-intake-state')).toBe('error');
+    expect(screen.queryByRole('button', { name: 'Продолжить без ссылки' })).toBeNull();
+  });
+
   test('leaving the screen aborts the run instead of writing into nothing', async () => {
     let carried = null;
     serve(

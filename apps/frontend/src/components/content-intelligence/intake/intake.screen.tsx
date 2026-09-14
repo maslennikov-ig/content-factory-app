@@ -95,6 +95,7 @@ export function IntakeScreen({
   onOpenPiece,
   onManual,
   onRetry,
+  onContinueWithoutLink,
 }: {
   locale: IntakeLocale;
   state: IntakeScreenState;
@@ -128,6 +129,8 @@ export function IntakeScreen({
   onOpenPiece?: (pieceId: string) => void;
   onManual?: () => void;
   onRetry: () => void;
+  /** Сайт по ссылке отказал, а слова остались: идти дальше без неё (`75xn.38`). */
+  onContinueWithoutLink?: () => void;
 }) {
   const t = intakeCopy[locale];
   const busy = state === 'streaming';
@@ -386,6 +389,11 @@ export function IntakeScreen({
                   человеку нужен другой путь, а не третья попытка.
                 */
                 <span className="flex flex-wrap gap-[8px]">
+                  {onContinueWithoutLink && (
+                    <Button type="button" variant="primary" onClick={onContinueWithoutLink}>
+                      {t.continueWithoutLink}
+                    </Button>
+                  )}
                   <Button type="button" variant="secondary" onClick={onRetry}>
                     {t.retry}
                   </Button>
