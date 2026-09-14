@@ -136,10 +136,6 @@ export class IntakeBriefOverridesDto {
  */
 export class IntakeOptionsDto {
   /** По умолчанию `true`: числа и мысль без фактов проверяются поиском. */
-  @IsOptional()
-  @IsBoolean()
-  searchEnrichment?: boolean;
-
   /** Paid research is opt-in and disabled when omitted. */
   @IsOptional()
   @IsBoolean()

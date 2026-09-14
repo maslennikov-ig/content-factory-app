@@ -110,12 +110,12 @@ import {
 } from './intake.errors';
 import { detectInputKind, singleLinkOf, linksOf, wordShingles } from './intake-kind';
 import {
-  briefFillPromptV2 as briefFillPrompt,
-  briefFillSchemaV2 as briefFillSchema,
-  extractionPromptV2 as extractionPrompt,
-  extractionSchemaV2 as extractionSchema,
-  type IntakeExtractionV2 as IntakeExtractionV1,
-} from './intake.prompts.v2';
+  briefFillPromptV3 as briefFillPrompt,
+  briefFillSchemaV3 as briefFillSchema,
+  extractionPromptV3 as extractionPrompt,
+  extractionSchemaV3 as extractionSchema,
+  type IntakeExtractionV3 as IntakeExtractionV1,
+} from './intake.prompts.v3';
 import { oneLine } from './intake.prompts';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
@@ -197,7 +197,6 @@ export type IntakePlanV1 = {
   skipInterview: boolean;
   briefOverrides: Record<string, string>;
   options: {
-    searchEnrichment: boolean;
     researchEnabled: boolean;
     researchLevel: 'quick' | 'standard' | 'deep';
     isPicture: boolean;
@@ -225,7 +224,7 @@ export type IntakeRunState = {
 };
 
 /** Доказательство, принятое за этот вход: адрес, заголовок, выдержка. */
-type AcceptedEvidence = {
+export type AcceptedEvidence = {
   evidenceId: string;
   url: string;
   title: string | null;
@@ -257,11 +256,6 @@ type FilledBrief = {
   options: Partial<Record<BriefField, string[]>>;
   factIds: string[];
   evidenceIds: string[];
-  /**
-   * О чём стоит поискать опору, если её не нашлось ни одной. `null` — искать
-   * нечего или незачем; поиск делает `run`, объявив о нём событием.
-   */
-  pendingSearch: string | null;
 };
 
 @Injectable()
@@ -404,7 +398,6 @@ export class IntakeService {
         снимает незнакомое поле молча, и отказа не случается.
       */
       options: {
-        searchEnrichment: body?.options?.searchEnrichment !== false,
         researchEnabled: body?.options?.researchEnabled === true,
         researchLevel:
           body?.options?.researchLevel === 'quick' || body?.options?.researchLevel === 'deep'
@@ -551,10 +544,8 @@ export class IntakeService {
         ? await this.digestResearch(organizationId, plan, filled, extraction, researched, level)
         : null;
       const rows = this.researchRows(filled, researched, digest, level);
-      // Do not fall through to the legacy optional search lane: that would
-      // spend a second research call after a deliberate paid attempt.
       const base = this.stateOf({
-        filled: { ...filled, ...this.settled({ ...filled.brief, facts: rows.facts }), pendingSearch: null },
+        filled: { ...filled, ...this.settled({ ...filled.brief, facts: rows.facts }) },
         evidence,
         extraction,
         urls,
@@ -593,7 +584,7 @@ export class IntakeService {
     );
   }
 
-  /** Всё после опор: свободный поиск, квитанция, суть, запись заготовки. */
+  /** Всё после опор: квитанция, суть, запись заготовки. */
   private async *finish(
     organizationId: string,
     plan: IntakePlanV1,
@@ -603,16 +594,7 @@ export class IntakeService {
     const language = plan.language;
     const evidence = new Map(state.evidence.map((item) => [item.evidenceId, item]));
     const { extraction, urls, foreignShingles } = state;
-    let filled = state.filled;
-    if (filled.pendingSearch) {
-      yield { name: 'search-started', reason: 'facts', count: 1 };
-      filled = await this.addSearchedFacts(
-        organizationId,
-        plan,
-        filled,
-        evidence
-      );
-    }
+    const filled = state.filled;
     (filled.brief as BriefFilledV2).inputSources = [
       ...(plan.inputKind !== 'link' ? [{ kind: plan.inputKind }] : []),
       ...urls.map((url) => ({ kind: 'link' as const, url, evidenceId: [...evidence.values()].find((item) => item.url === url)?.evidenceId })),
@@ -790,7 +772,7 @@ export class IntakeService {
    * выражено. Когда он выключен, человек слышит понятное «вставьте текст
    * поста прямо в поле», а не тишину.
    */
-  private async readLink(
+  async readLink(
     organizationId: string,
     rawUrl: string
   ): Promise<AcceptedEvidence> {
@@ -1003,7 +985,12 @@ export class IntakeService {
   ): PieceOpenQuestionV1[] {
     if (plan.skipInterview) return [];
     const settled = this.settledFields(plan);
-    return (filled.questions ?? []).filter((question) => !settled.includes(question.field)).slice(0, 3);
+    return (filled.questions ?? [])
+      .filter(
+        (question) =>
+          question.field !== 'facts' && !settled.includes(question.field)
+      )
+      .slice(0, 2);
   }
 
   /**
@@ -1267,23 +1254,6 @@ export class IntakeService {
       });
     }
 
-    /*
-      Мысль без единого факта: продукт ищет опору сам, тем же путём, что и
-      генератор с 05.09.2026, и не спрашивает человека о том, что может найти.
-      Вопрос про факты остаётся на случай, когда не нашлось ничего.
-
-      Сам поиск отсюда вынесен (`content-factory-next-tu3k.7`): он занимает
-      секунды, а этот метод не генератор и сказать о них человеку не может.
-      Здесь остаётся только решение «искать и о чём», а ищет `run`, объявив об
-      этом событием `search-started`.
-    */
-    const pendingSearch =
-      !facts.some((fact) => fact.verified) &&
-      plan.options.searchEnrichment &&
-      !input.extraction
-        ? factsAnswer || thesis || plan.input
-        : null;
-
     const brief: BriefFilledV1 = {
       inputKind: plan.inputKind,
       goal,
@@ -1304,11 +1274,11 @@ export class IntakeService {
       options,
       questions: (Array.isArray(answer?.questions) ? answer.questions : [])
         .filter((question: any, index: number, all: any[]) =>
-          ['thesis', 'position', 'facts'].includes(question?.field) &&
+          ['thesis', 'position'].includes(question?.field) &&
           textOrNull(question?.question) &&
           all.findIndex((other: any) => other?.field === question.field) === index
         )
-        .slice(0, 3)
+        .slice(0, 2)
         .map((question: any) => ({
           field: question.field,
           question: textOrNull(question.question)!,
@@ -1316,12 +1286,11 @@ export class IntakeService {
             .map(textOrNull).filter(Boolean).slice(0, 3),
           suggested: null as string | null,
         })),
-      pendingSearch,
     };
   }
 
   /** Идентификаторы опоры пересчитываются по фактам, а не копятся рядом. */
-  private settled(brief: BriefFilledV1): Omit<FilledBrief, 'options' | 'pendingSearch'> {
+  private settled(brief: BriefFilledV1): Omit<FilledBrief, 'options'> {
     return {
       brief,
       factIds: [
@@ -1338,38 +1307,6 @@ export class IntakeService {
             .filter((id): id is string => Boolean(id))
         ),
       ],
-    };
-  }
-
-  /**
-   * Опора, найденная поиском, дописывается в уже собранный бриф.
-   *
-   * Отдельным шагом ровно потому, что о нём надо успеть сказать человеку:
-   * событие `search-started` уходит до него, а не после
-   * (`content-factory-next-tu3k.7`).
-   */
-  private async addSearchedFacts(
-    organizationId: string,
-    plan: IntakePlanV1,
-    filled: FilledBrief,
-    evidence: Map<string, AcceptedEvidence>
-  ): Promise<FilledBrief> {
-    if (!filled.pendingSearch) return filled;
-    const found = await this.searchForFacts(
-      organizationId,
-      filled.pendingSearch,
-      plan,
-      evidence
-    );
-    if (!found.length) return { ...filled, pendingSearch: null };
-    const brief: BriefFilledV1 = {
-      ...filled.brief,
-      facts: [...filled.brief.facts, ...found.map((fact): PieceFactV2 => ({ ...fact, kind: 'found', selected: false, status: fact.verified ? 'confirmed' : 'unverified' }))],
-    };
-    return {
-      ...filled,
-      ...this.settled(brief),
-      pendingSearch: null,
     };
   }
 
@@ -1449,6 +1386,39 @@ export class IntakeService {
    * умолчания, которые продукт решил сам: найденное подтверждённое — берём,
    * поправку — принимаем, своё расходящееся — не берём.
    */
+  /** Reuse intake research for an existing core without filling its brief again. */
+  async researchExistingCore(organizationId: string, input: string, brief: BriefFilledV1,
+    language: 'ru' | 'en'): Promise<IntakeRunState> {
+    const plan = this.existingCorePlan(input, language, null);
+    const evidence = new Map<string, AcceptedEvidence>();
+    const filled: FilledBrief = { options: {}, ...this.settled(brief) };
+    const researched = await this.researchForIntake(organizationId, input, plan, evidence, 'standard');
+    const digest = researched.sources.length
+      ? await this.digestResearch(organizationId, plan, filled, null, researched, 'standard') : null;
+    const rows = this.researchRows(filled, researched, digest, 'standard');
+    const keys = new Set(rows.facts.map(factKeyOf));
+    const previous = brief.facts.filter((fact: PieceFactV2) =>
+      factKind(fact, brief.inputKind) === 'found' && !keys.has(factKeyOf(fact)))
+      .map(fact => ({ ...fact, factKey: factKeyOf(fact) }));
+    return {
+      filled: { ...filled, ...this.settled({ ...brief, facts: [...previous, ...rows.facts] }) },
+      evidence: [...evidence.values()], extraction: null, urls: [], foreignShingles: [],
+      level: 'standard', corrections: rows.corrections, summary: rows.summary, correctedInput: '',
+    };
+  }
+
+  selectCoreResearch(state: IntakeRunState, input: string, language: 'ru' | 'en',
+    selectedKeys: string[]): IntakeRunState {
+    return this.applySelections(state, this.existingCorePlan(input, language, selectedKeys));
+  }
+
+  private existingCorePlan(input: string, language: 'ru' | 'en', researchSelections: string[] | null): IntakePlanV1 {
+    return { input, inputKind: 'thought', language, channels: [], answers: [], decide: [],
+      interview: [], decideKeys: [], skipInterview: true, briefOverrides: {},
+      options: { researchEnabled: true, researchLevel: 'standard', isPicture: false },
+      researchSelections, snapshotKey: null };
+  }
+
   private applySelections(state: IntakeRunState, plan: IntakePlanV1): IntakeRunState {
     if (plan.researchSelections === null) return state;
     const keys = new Set(plan.researchSelections);
@@ -1791,83 +1761,6 @@ export class IntakeService {
     }
     void evidenceTitle;
     return { facts, corrections, summary };
-  }
-
-  /** Опора для мысли, у которой её не было: один поиск, находки как факты. */
-  private async searchForFacts(
-    organizationId: string,
-    subject: string,
-    plan: IntakePlanV1,
-    evidence: Map<string, AcceptedEvidence>,
-    level?: 'quick' | 'standard' | 'deep',
-    required = false
-  ): Promise<BriefFilledFactV1[]> {
-    let answer: WebResearchResult;
-    try {
-      answer = await this.research.research(organizationId, subject, {
-        language: plan.language,
-        ...(level ? { level } : {}),
-      });
-    } catch (error) {
-      if (
-        required &&
-        (error instanceof ResearchQuotaExceeded ||
-          error instanceof WebSearchNotConfigured ||
-          error instanceof WebSearchFallbackError)
-      ) {
-        throw error;
-      }
-      if (!(error instanceof WebSearchNotConfigured)) {
-        this.logger.warn(
-          `Intake looked for material and found none: ${describeError(error)}`
-        );
-      }
-      return [];
-    }
-    const sourceByUrl = new Map(
-      (answer.sources || []).map((source) => [source.url, source])
-    );
-    const found: BriefFilledFactV1[] = [];
-    for (const fact of (answer.facts || []).slice(
-      0,
-      CONTENT_CONTEXT_MAX_EVIDENCE_V1
-    )) {
-      const source = sourceByUrl.get(fact.sourceUrl);
-      try {
-        const accepted = await this.sources.acceptSearchResult(
-          organizationId,
-          {
-            url: fact.sourceUrl,
-            title: source?.title ?? null,
-            excerpt: fact.text,
-            publishedAt: source?.publishedAt ?? null,
-            provider: source?.provider ?? answer.provider,
-          },
-          { reuseBy: 'url' }
-        );
-        evidence.set(accepted.evidenceId, {
-          evidenceId: accepted.evidenceId,
-          url: accepted.url,
-          title: accepted.title,
-          excerpt: accepted.excerpt,
-        });
-        found.push({
-          statement: oneLine(accepted.excerpt).slice(0, 400),
-          sourceUrl: accepted.url,
-          factId: null,
-          evidenceId: accepted.evidenceId,
-          origin: 'search',
-          verified: false,
-        });
-      } catch (error) {
-        this.logger.warn(
-          `A search result could not be kept as evidence: ${describeError(
-            error
-          )}`
-        );
-      }
-    }
-    return found;
   }
 
 }

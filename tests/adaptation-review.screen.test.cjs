@@ -60,6 +60,67 @@ const result = (mode) => ({
     adaptationBody: 'old',
   },
 });
+const researchPreview = () => ({
+  version: 'piece-research/v1',
+  snapshotKey: 'research-snapshot',
+  level: 'standard',
+  input: 'Автор указал 10% комиссии и пишет о новом рынке.',
+  facts: [
+    {
+      statement: 'Комиссия составляет 12%.',
+      sourceUrl: 'https://example.com/fees',
+      origin: 'input',
+      kind: 'own',
+      status: 'conflicting',
+      selected: false,
+      factKey: 'original-fee',
+      quote: 'Комиссия — 12%.',
+      note: 'Источник указывает другое значение.',
+      correction: { original: '10%', replacement: '12%' },
+    },
+    {
+      statement: 'Комиссия составляет 12%.',
+      sourceUrl: 'https://example.com/fees',
+      origin: 'search',
+      kind: 'external',
+      status: 'conflicting',
+      selected: true,
+      factKey: 'corrected-fee',
+      quote: 'Комиссия — 12%.',
+      note: 'Источник указывает другое значение.',
+      correction: { original: '10%', replacement: '12%' },
+    },
+    {
+      statement: 'Рынок вырос на 8%.',
+      sourceUrl: 'https://example.com/market',
+      origin: 'search',
+      kind: 'found',
+      status: 'confirmed',
+      selected: true,
+      factKey: 'found-growth',
+      quote: 'Рынок вырос на 8%.',
+    },
+  ],
+  corrections: [
+    {
+      factKey: 'corrected-fee',
+      original: '10%',
+      replacement: '12%',
+      sourceUrl: 'https://example.com/fees',
+      quote: 'Комиссия — 12%.',
+      note: 'Источник указывает другое значение.',
+      accepted: true,
+    },
+  ],
+  summary: {
+    confirmed: 1,
+    conflicting: 1,
+    unverified: 0,
+    found: 1,
+    sources: 2,
+    encyclopedic: 0,
+  },
+});
 const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 const draw = (props) =>
   render(React.createElement(AdaptationReview, { ...base, ...props }));
@@ -81,7 +142,7 @@ const choose = async (text) => {
 test('menu is explicit, keyboard accessible, shows cost on every option and opens without spending', () => {
   draw();
   fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
-  expect(screen.getAllByRole('menuitem')).toHaveLength(6);
+  expect(screen.getAllByRole('menuitem')).toHaveLength(5);
   expect(screen.getAllByText(/Один вызов модели/)).toHaveLength(4);
   expect(calls).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
@@ -189,15 +250,81 @@ test('read-only role cannot start review; identical texts retain the exact strin
   expect(view.container.textContent).toBe('один\nдва');
 });
 
-test('core exposes the paid research strengthening action and uses its review door', async () => {
+test('core exposes regeneration and research enrichment at the same secondary weight', () => {
   draw({ adaptationId: undefined });
-  fireEvent.click(screen.getByRole('button', { name: 'Усилить ресерчем' }));
-  await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить поиск и проверку' }))
-  );
+  const regenerate = screen.getByRole('button', { name: 'Перегенерировать' });
+  const research = screen.getByRole('button', { name: 'Дополнить ресерчем' });
+  expect(regenerate.className).toContain('bg-cf-surface');
+  expect(research.className).toContain('bg-cf-surface');
+  expect(calls).toHaveLength(0);
+});
+
+test('research opens the shared outcome, toggles correction twins, and accepts fact keys without review', async () => {
+  handler = (call) =>
+    call.url.endsWith('/research/accept')
+      ? ok({ body: 'Автор указал 12% комиссии.', title: 'Обновлённая суть' })
+      : ok(researchPreview());
+  draw({ adaptationId: undefined });
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
+  await act(async () => undefined);
+
   expect(calls).toHaveLength(1);
-  expect(calls[0].url).toBe('/content-intelligence/pieces/piece/review?language=ru');
-  expect(calls[0].payload).toEqual({ mode: 'research', confirmWebSpend: true });
+  expect(calls[0].url).toBe(
+    '/content-intelligence/pieces/piece/research?language=ru'
+  );
+  expect(calls[0].payload).toEqual({ confirmWebSpend: true });
+  expect(screen.getByRole('region', { name: 'Проверили по источникам' })).toBeTruthy();
+  expect(screen.getByText('Ваша мысль с правками')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Вернуть моё' })).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Вернуть моё' }));
+  expect(screen.getByRole('button', { name: 'Принять поправку' })).toBeTruthy();
+  await act(async () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }))
+  );
+
+  expect(calls).toHaveLength(2);
+  expect(calls[1].url).toBe(
+    '/content-intelligence/pieces/piece/research/accept'
+  );
+  expect(calls[1].payload).toEqual({
+    snapshotKey: 'research-snapshot',
+    selectedKeys: ['original-fee', 'found-growth'],
+  });
+  expect(calls.some((call) => call.url.includes('/review'))).toBe(false);
+  expect(base.onAccepted).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('region', { name: 'Проверили по источникам' })).toBeNull();
+});
+
+test('expired research snapshot keeps the preview visible, reports the error, and cannot accept again', async () => {
+  handler = (call) =>
+    call.url.endsWith('/research/accept')
+      ? {
+          ok: false,
+          status: 410,
+          json: async () => ({ message: 'Снимок ресерча истёк' }),
+        }
+      : ok(researchPreview());
+  draw({ adaptationId: undefined });
+  fireEvent.click(screen.getByRole('button', { name: 'Дополнить ресерчем' }));
+  await act(async () => undefined);
+  await act(async () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить с правками' }))
+  );
+
+  expect(screen.getByRole('alert').textContent).toBe('Снимок ресерча истёк');
+  expect(screen.getByRole('region', { name: 'Проверили по источникам' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Продолжить с правками' })).toBeNull();
+  expect(base.onAccepted).not.toHaveBeenCalled();
+  expect(calls.some((call) => call.url.includes('/review'))).toBe(false);
+});
+
+test('adaptation menu has no research action and a remembered legacy research mode is inert', () => {
+  window.localStorage.setItem(reviewModeKey('org'), 'research');
+  draw();
+  open();
+  expect(screen.queryByRole('menuitem', { name: /ресерч/i })).toBeNull();
+  expect(calls).toHaveLength(0);
 });
 
 const withSources = () => ({
@@ -307,13 +434,13 @@ test('regeneration chips only fill instruction, one request, no-change hides all
  expect(screen.queryByRole('button',{name:'Принять выбранные'})).toBeNull();
  expect(screen.queryByRole('button',{name:'Оставить как было'})).toBeNull();
 });
-test('partial selection sends IDs only; author questions cannot be selected', async()=>{
+test('partial selection sends IDs only; legacy author questions have no answer field', async()=>{
  handler=()=>ok({...result('both'),changes:[...result('both').changes,{id:'question',excerpt:'автор',replacement:'автор',why:'Откуда число?',basket:'ask'}]});
  draw(); await choose('И то и другое');
  expect(screen.getAllByRole('checkbox')).toHaveLength(1);
  fireEvent.click(screen.getByRole('checkbox'));
  expect(screen.getByRole('button',{name:'Принять выбранные'}).disabled).toBe(true);
- expect(screen.getByRole('textbox')).toBeTruthy();
+ expect(screen.queryByRole('textbox')).toBeNull();
 });
 
 test('two distant corrections keep the middle text once and expose explanations',()=>{
@@ -324,12 +451,14 @@ test('two distant corrections keep the middle text once and expose explanations'
  expect(view.container.querySelectorAll('del')).toHaveLength(2);
  expect(view.container.querySelector('[title="Уточнение начала"]')).toBeTruthy();
 });
-test('author answer is sent to the existing answer door with signed question ID',async()=>{
- handler=call=>ok(call.url.endsWith('/answer')?{version:'review-answer/v2'}:{...result('facts'),changes:[{id:'q1',excerpt:'автор',replacement:'автор',why:'Ваш результат?',basket:'ask'}]});
+test('source-not-found note stays visible without a bogus accept action',async()=>{
+ handler=()=>ok({...result('facts'),changes:[{id:'q1',excerpt:'автор',replacement:'автор',why:'Источник не найден, оставлено как есть.',basket:'show'}]});
  draw();await choose('Сверить с сутью');
- fireEvent.change(screen.getByRole('textbox'),{target:{value:'Наш результат'}});
- await act(async()=>fireEvent.click(screen.getByRole('button',{name:'Сохранить ответы'})));
- expect(calls[1].url).toBe('/content-intelligence/pieces/piece/answer');
- expect(calls[1].payload).toEqual({reviewAnswer:{token:'server-signed',adaptationId:'a',answers:[{questionId:'q1',text:'Наш результат'}]}});
- expect(base.onAccepted).toHaveBeenCalledTimes(1);
+ expect(document.querySelector('[data-review-no-change="true"]').textContent).toContain('Источник не найден');
+ expect(screen.queryByRole('textbox')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Сохранить ответы'})).toBeNull();
+ expect(screen.queryByRole('checkbox')).toBeNull();
+ expect(screen.queryByRole('button',{name:'Принять выбранные'})).toBeNull();
+ expect(calls).toHaveLength(1);
+ expect(base.onAccepted).not.toHaveBeenCalled();
 });

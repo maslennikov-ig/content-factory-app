@@ -62,6 +62,19 @@ const hostOf = (url: string | null | undefined): string => {
 const isCorrectionTwin = (fact: ResearchOutcomeFact) =>
   !!fact.correction && fact.origin === 'search' && fact.kind !== 'found';
 
+/**
+ * Строки, у которых есть что открыть. Неподтверждённое утверждение автора не
+ * является результатом ресерча и поэтому не занимает место на экране.
+ */
+export const sourcedResearchFacts = (facts: readonly ResearchOutcomeFact[]) =>
+  facts.filter(
+    (fact) =>
+      Boolean(fact.sourceUrl) &&
+      (fact.kind === 'found' ||
+        fact.status === 'confirmed' ||
+        fact.status === 'conflicting')
+  );
+
 /* Иконки состояний: штрих, 16px, перекрашиваются через currentColor. */
 const CheckIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-[16px] shrink-0">
@@ -74,14 +87,6 @@ const AlertIcon = () => (
     <path d="M8 1.8l6.2 11H1.8z" />
   </svg>
 );
-const QuestionIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" className="size-[16px] shrink-0">
-    <circle cx="8" cy="8" r="6.2" />
-    <path d="M6.3 6.2c0-.9.8-1.6 1.7-1.6s1.7.7 1.7 1.6c0 .9-.6 1.2-1.1 1.5-.4.3-.6.5-.6 1v.2" />
-    <circle cx="8" cy="11.4" r=".7" fill="currentColor" stroke="none" />
-  </svg>
-);
-
 const SourceLink = ({ url, label }: { url: string | null | undefined; label: string }) =>
   url ? (
     <a
@@ -146,6 +151,188 @@ function markedThought(
   return parts;
 }
 
+/**
+ * Общие строки результата ресерча. Их же показывает страница заготовки, чтобы
+ * утверждение, цитата и адрес не расходились между двумя экранами.
+ */
+export function ResearchEvidenceRows({
+  locale,
+  facts,
+  corrections = [],
+  pending = false,
+  busy = false,
+  editableFound = false,
+  onToggleCorrection,
+  onToggleFound,
+}: {
+  locale: IntakeLocale;
+  facts: readonly ResearchOutcomeFact[];
+  corrections?: readonly ResearchOutcomeCorrection[];
+  pending?: boolean;
+  busy?: boolean;
+  editableFound?: boolean;
+  onToggleCorrection?: (factKey: string) => void;
+  onToggleFound?: (factKey: string, selected: boolean) => void;
+}) {
+  const t = intakeCopy[locale];
+  const visible = sourcedResearchFacts(facts);
+  const claims = visible.filter(
+    (fact) => fact.kind !== 'found' && !isCorrectionTwin(fact)
+  );
+  const found = visible.filter((fact) => fact.kind === 'found');
+  const correctionByOriginal = new Map(
+    corrections.map((row) => [row.original, row])
+  );
+  if (!claims.length && !found.length) return null;
+
+  return (
+    <>
+      {claims.length ? (
+        <ul
+          className="flex min-w-0 flex-col divide-y divide-cf-border border-t border-cf-border"
+          data-intake-research-claims="true"
+        >
+          {claims.map((fact, index) => {
+            const correction = fact.correction
+              ? correctionByOriginal.get(fact.correction.original) ?? null
+              : null;
+            const status =
+              fact.status === 'conflicting' ? 'conflicting' : 'confirmed';
+            return (
+              <li
+                key={fact.factKey ?? `${fact.statement}-${index}`}
+                data-intake-claim-status={status}
+                className="flex min-w-0 items-start gap-[12px] py-[12px]"
+              >
+                <span
+                  className={
+                    status === 'confirmed'
+                      ? 'text-cf-accent'
+                      : 'text-cf-danger'
+                  }
+                >
+                  {status === 'confirmed' ? <CheckIcon /> : <AlertIcon />}
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
+                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+                    {status === 'conflicting' && correction ? (
+                      <>
+                        <span className="cf-label-md">
+                          {correction.original} → {correction.replacement}.
+                        </span>{' '}
+                        {fact.note}
+                      </>
+                    ) : status === 'conflicting' ? (
+                      <>
+                        <span className="cf-label-md">{fact.statement}.</span>{' '}
+                        {fact.note || t.researchConflictNoFix}
+                      </>
+                    ) : (
+                      <>
+                        <span className="cf-label-md">{fact.statement}.</span>{' '}
+                        {fact.note}
+                      </>
+                    )}
+                  </p>
+                  {fact.quote ? (
+                    <p
+                      className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                      data-intake-claim-quote="true"
+                    >
+                      «{fact.quote}»
+                    </p>
+                  ) : null}
+                  <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />
+                </div>
+                {status === 'conflicting' &&
+                correction &&
+                pending &&
+                onToggleCorrection ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busy}
+                    data-intake-correction-toggle={
+                      correction.accepted ? 'accepted' : 'kept'
+                    }
+                    onClick={() => onToggleCorrection(correction.factKey)}
+                  >
+                    {correction.accepted
+                      ? t.researchKeepMine
+                      : t.researchAcceptFix}
+                  </Button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      {found.length ? (
+        <div
+          className="flex min-w-0 flex-col gap-[4px]"
+          data-intake-research-found="true"
+        >
+          <span className="cf-label-sm uppercase text-cf-ink-muted">
+            {t.researchFoundTitle}
+          </span>
+          {editableFound ? (
+            <p className="cf-caption text-cf-ink-muted">
+              {t.researchFoundHint}
+            </p>
+          ) : null}
+          <ul className="flex min-w-0 flex-col divide-y divide-cf-border">
+            {found.map((fact, index) => (
+              <li
+                key={fact.factKey ?? `${fact.statement}-${index}`}
+                className="flex min-w-0 items-start gap-[12px] py-[8px]"
+              >
+                {editableFound && onToggleFound ? (
+                  <CheckboxField
+                    aria-label={`${t.researchInclude}: ${fact.statement}`}
+                    checked={fact.selected === true}
+                    disabled={busy}
+                    onChange={(event) =>
+                      onToggleFound(
+                        fact.factKey ?? fact.statement,
+                        event.target.checked
+                      )
+                    }
+                    label={<span className="sr-only">{t.researchInclude}</span>}
+                    className="min-h-0 py-0"
+                  />
+                ) : (
+                  <span
+                    className={
+                      fact.selected
+                        ? 'text-cf-accent'
+                        : 'text-cf-ink-muted'
+                    }
+                  >
+                    <CheckIcon />
+                  </span>
+                )}
+                <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
+                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
+                    {fact.statement}
+                  </p>
+                  {fact.quote ? (
+                    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                      «{fact.quote}»
+                    </p>
+                  ) : null}
+                  <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+    </>
+  );
+}
+
 export function ResearchOutcome({
   locale,
   level,
@@ -175,13 +362,13 @@ export function ResearchOutcome({
   onContinue: (mode: 'with-fixes' | 'keep-mine') => void;
 }) {
   const t = intakeCopy[locale];
-  const claims = facts.filter((fact) => fact.kind !== 'found' && !isCorrectionTwin(fact));
-  const found = facts.filter((fact) => fact.kind === 'found');
-  const correctionByOriginal = new Map(corrections.map((row) => [row.original, row]));
+  const visibleFacts = sourcedResearchFacts(facts);
+  const claims = visibleFacts.filter(
+    (fact) => fact.kind !== 'found' && !isCorrectionTwin(fact)
+  );
+  const found = visibleFacts.filter((fact) => fact.kind === 'found');
   const accepted = corrections.filter((row) => row.accepted).length;
   const corrected = corrections.length;
-  const unverified = claims.filter((fact) => fact.status !== 'confirmed' && fact.status !== 'conflicting').length
-    + claims.filter((fact) => fact.status === 'conflicting' && !fact.correction).length;
   const confirmed = claims.filter((fact) => fact.status === 'confirmed').length;
   const hosts = [...new Set(facts.map((fact) => hostOf(fact.sourceUrl)).filter(Boolean))];
 
@@ -213,10 +400,6 @@ export function ResearchOutcome({
             <span className="text-cf-danger"><AlertIcon /></span>
             {t.researchSummaryCorrected(corrected)}
           </span>
-          <span className="inline-flex items-center gap-[4px] cf-body-sm text-cf-ink">
-            <span className="text-cf-ink-muted"><QuestionIcon /></span>
-            {t.researchSummaryUnverified(unverified)}
-          </span>
           {found.length ? (
             <span className="inline-flex items-center gap-[4px] cf-body-sm text-cf-ink-muted">
               {t.researchSummaryFound(found.length)}
@@ -234,90 +417,16 @@ export function ResearchOutcome({
         </div>
       ) : null}
 
-      {claims.length ? (
-        <ul className="flex min-w-0 flex-col divide-y divide-cf-border border-t border-cf-border" data-intake-research-claims="true">
-          {claims.map((fact, index) => {
-            const correction = fact.correction ? correctionByOriginal.get(fact.correction.original) ?? null : null;
-            const status = fact.status === 'confirmed' ? 'confirmed' : fact.status === 'conflicting' ? 'conflicting' : 'unverified';
-            return (
-              <li key={fact.factKey ?? `${fact.statement}-${index}`} data-intake-claim-status={status} className="flex min-w-0 items-start gap-[12px] py-[12px]">
-                <span className={status === 'confirmed' ? 'text-cf-accent' : status === 'conflicting' ? 'text-cf-danger' : 'text-cf-ink-muted'}>
-                  {status === 'confirmed' ? <CheckIcon /> : status === 'conflicting' ? <AlertIcon /> : <QuestionIcon />}
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">
-                    {status === 'conflicting' && correction ? (
-                      <>
-                        <span className="cf-label-md">{correction.original} → {correction.replacement}.</span>{' '}
-                        {fact.note}
-                      </>
-                    ) : status === 'conflicting' ? (
-                      <>
-                        <span className="cf-label-md">{fact.statement}.</span> {fact.note || t.researchConflictNoFix}
-                      </>
-                    ) : status === 'confirmed' ? (
-                      <>
-                        <span className="cf-label-md">{fact.statement}.</span> {fact.note}
-                      </>
-                    ) : (
-                      <>
-                        <span className="cf-label-md">{fact.statement}.</span> {fact.note || t.researchUnverifiedDefault}
-                      </>
-                    )}
-                  </p>
-                  {fact.quote ? (
-                    <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]" data-intake-claim-quote="true">«{fact.quote}»</p>
-                  ) : null}
-                  {fact.sourceUrl ? <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} /> : null}
-                </div>
-                {status === 'conflicting' && correction && pending ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={busy}
-                    data-intake-correction-toggle={correction.accepted ? 'accepted' : 'kept'}
-                    onClick={() => onToggleCorrection(correction.factKey)}
-                  >
-                    {correction.accepted ? t.researchKeepMine : t.researchAcceptFix}
-                  </Button>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-
-      {found.length ? (
-        <div className="flex min-w-0 flex-col gap-[4px]" data-intake-research-found="true">
-          <span className="cf-label-sm uppercase text-cf-ink-muted">{t.researchFoundTitle}</span>
-          {pending ? <p className="cf-caption text-cf-ink-muted">{t.researchFoundHint}</p> : null}
-          <ul className="flex min-w-0 flex-col divide-y divide-cf-border">
-            {found.map((fact, index) => (
-              <li key={fact.factKey ?? `${fact.statement}-${index}`} className="flex min-w-0 items-start gap-[12px] py-[8px]">
-                {pending ? (
-                  <CheckboxField
-                    aria-label={`${t.researchInclude}: ${fact.statement}`}
-                    checked={fact.selected === true}
-                    disabled={busy}
-                    onChange={(event) => onToggleFound(fact.factKey ?? fact.statement, event.target.checked)}
-                    label={<span className="sr-only">{t.researchInclude}</span>}
-                    className="min-h-0 py-0"
-                  />
-                ) : (
-                  <span className={fact.selected ? 'text-cf-accent' : 'text-cf-ink-muted'}>
-                    <CheckIcon />
-                  </span>
-                )}
-                <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-                  <p className="cf-body-md text-cf-ink [text-wrap:pretty]">{fact.statement}</p>
-                  {fact.quote ? <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">«{fact.quote}»</p> : null}
-                  <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <ResearchEvidenceRows
+        locale={locale}
+        facts={visibleFacts}
+        corrections={corrections}
+        pending={pending}
+        busy={busy}
+        editableFound={pending}
+        onToggleCorrection={onToggleCorrection}
+        onToggleFound={onToggleFound}
+      />
 
       {pending ? (
         <div className="flex flex-wrap items-center gap-[8px]">

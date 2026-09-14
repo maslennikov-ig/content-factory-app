@@ -7,10 +7,10 @@ import type { BriefFilledV2 } from '@contentfactory/nestjs-libraries/content-int
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
-import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { Panel } from '@contentfactory/react/layout';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { Segmented } from '../../ui/segmented';
 import { Progress } from '../../ui/progress';
@@ -23,6 +23,11 @@ import {
 } from '../../ui/surface';
 import { SuggestedQuestionsCard } from '../intake/questions.card';
 import { intakeCopy } from '../intake/intake.copy';
+import {
+  ResearchEvidenceRows,
+  sourcedResearchFacts,
+  type ResearchOutcomeFact,
+} from '../intake/intake.research';
 import {
   RECEIPT_FIELDS,
   type BriefFieldOriginV1,
@@ -95,7 +100,6 @@ export function PieceScreen({
   questionsSlot,
   coreAnswer,
   coreRewriteSlot,
-  reviewQuestionsSlot,
   onAdapt,
   onArchive,
   onAnswer,
@@ -119,7 +123,10 @@ export function PieceScreen({
   draftAdaptationId?: string | null;
   initialPlatform?: string;
   renderReview?: (adaptation: AdaptationV1 & { body: string }) => ReactNode;
-  renderChannelProfile?: (channel: { id: string; name: string }) => ReactNode;
+  renderChannelProfile?: (
+    channel: { id: string; name: string },
+    channelLabel: ReactNode
+  ) => ReactNode;
   /** Проверки адаптации: приезжают событием стрима вместе с текстом. */
   draftChecks?: QualityChecksV1 | null;
   /** Чего в адаптации нет из привычек автора — тем же событием. */
@@ -138,7 +145,6 @@ export function PieceScreen({
   questionsSlot?: ReactNode;
   coreAnswer?: CoreAnswerFeedback | null;
   coreRewriteSlot?: ReactNode;
-  reviewQuestionsSlot?: ReactNode;
   onAdapt: (channelId: string, kind: AdaptationKindV1) => void;
   onArchive: () => void;
   onAnswer: (
@@ -336,7 +342,22 @@ export function PieceScreen({
   };
 
   const facts = core?.brief.facts ?? [];
-  const ungrounded = core?.brief.ungrounded ?? [];
+  const researchFacts = sourcedResearchFacts(
+    facts.map((fact: PieceFactV2): ResearchOutcomeFact => {
+      const rich = fact as PieceFactV2 & {
+        factKey?: string;
+        quote?: string | null;
+        note?: string | null;
+        correction?: { original: string; replacement: string } | null;
+      };
+      return {
+        ...rich,
+        factKey: rich.factKey ?? fact.statement,
+        kind: factKind(fact, core?.brief.inputKind),
+        status: factStatus(fact),
+      };
+    })
+  );
 
   const available = detail.targets.filter(
     (target) => target.available && target.channels.length > 0
@@ -566,6 +587,30 @@ export function PieceScreen({
                   );
                 const latest = channelAdaptations[0];
                 const status = overviewState(latest);
+                const channelLabel = target.channels.length > 1 ? (
+                  <Select
+                    standalone
+                    aria-label={`${t.targetsTitle} · ${target.name}`}
+                    value={channel.id}
+                    onChange={(event) =>
+                      setChosenChannels((current) => ({
+                        ...current,
+                        [target.platform]: event.target.value,
+                      }))
+                    }
+                    className="max-w-full"
+                  >
+                    {target.channels.map((one) => (
+                      <option key={one.id} value={one.id}>
+                        {one.name}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <span className="cf-body-sm text-cf-ink">
+                    {channel.name}
+                  </span>
+                );
                 return (
                   <Tr
                     key={target.platform}
@@ -587,32 +632,9 @@ export function PieceScreen({
                       </span>
                     </Td>
                     <Td>
-                      <div className="flex min-w-[180px] flex-col gap-[4px]">
-                        {target.channels.length > 1 ? (
-                          <Select
-                            standalone
-                            aria-label={`${t.targetsTitle} · ${target.name}`}
-                            value={channel.id}
-                            onChange={(event) =>
-                              setChosenChannels((current) => ({
-                                ...current,
-                                [target.platform]: event.target.value,
-                              }))
-                            }
-                            className="max-w-full"
-                          >
-                            {target.channels.map((one) => (
-                              <option key={one.id} value={one.id}>
-                                {one.name}
-                              </option>
-                            ))}
-                          </Select>
-                        ) : (
-                          <span className="cf-body-sm text-cf-ink">
-                            {channel.name}
-                          </span>
-                        )}
-                        {renderChannelProfile?.(channel) ?? null}
+                      <div className="min-w-[180px]">
+                        {renderChannelProfile?.(channel, channelLabel) ??
+                          channelLabel}
                       </div>
                     </Td>
                     <Td>
@@ -1056,6 +1078,33 @@ export function PieceScreen({
                     </dd>
                   </>
                 ) : null}
+                {(core.brief as BriefFilledV2).inputSources?.some(
+                  (source) => source?.kind === 'link' && source.url
+                ) ? (
+                  <>
+                    <dt className="cf-caption text-cf-ink-muted">
+                      {locale === 'ru' ? 'Материал' : 'Material'}
+                    </dt>
+                    <dd className="flex min-w-0 flex-wrap gap-[8px] cf-body-sm text-cf-ink">
+                      {(core.brief as BriefFilledV2).inputSources
+                        ?.filter(
+                          (source) => source?.kind === 'link' && source.url
+                        )
+                        .map((source, index) => (
+                          <a
+                            key={`${source.evidenceId ?? source.url}-${index}`}
+                            data-piece-input-source="link"
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                          >
+                            {hostOf(source.url)}
+                          </a>
+                        ))}
+                    </dd>
+                  </>
+                ) : null}
                 {RECEIPT_FIELDS.map((field) => {
                   const value = core.brief[field];
                   if (
@@ -1098,93 +1147,54 @@ export function PieceScreen({
             </Panel>
           ) : null}
 
-          {/*
-            На что опирается текст. Решение владельца 07.09.2026: единственное,
-            чего не было в компактной квитанции, — опоры и то, что опорой не
-            стало. Ради них жила несмонтированная карточка расписки; она
-            удалена, а эти два списка переехали сюда.
-
-            Подтверждение печатается словом, а не значком и не цветом: «не
-            подтверждено» — это право строки на недоверие, и читать его должен
-            и тот, кто цвета не различает. Источник — хост, а не полный адрес.
-
-            Пусто и там и там — блока нет вовсе. Заголовок «На что это
-            опирается» над пустотой отвечал бы «ни на что», а это неправда:
-            у старого материала брифа просто нет.
-          */}
-          {core && (facts.length > 0 || ungrounded.length > 0 || reviewQuestionsSlot) ? (
+          {/* Результат ресерча остаётся видимым только там, где есть адрес. */}
+          {core && researchFacts.length ? (
             <details
               id="piece-text-sources"
-              open={reviewQuestionsSlot ? true : undefined}
               data-piece-sources="true"
               className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
             >
               <summary className="cursor-pointer cf-label-sm uppercase text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
-                {locale === 'ru' ? 'Опоры текста' : 'Text sources'}
+                <span className="inline-flex items-center gap-[8px]">
+                  {locale === 'ru' ? 'Опоры текста' : 'Text sources'}
+                  <Hint
+                    label={
+                      locale === 'ru'
+                        ? 'Подсказка: опоры текста'
+                        : 'Hint: text sources'
+                    }
+                  >
+                    {locale === 'ru'
+                      ? 'Что нашёл ресерч по вашей теме: утверждение своими словами, цитата и адрес. Отмеченные строки идут в адаптации как проверенный материал; снимите галочку — строка не попадёт в тексты.'
+                      : 'What research found on your topic: a plain-language claim, a quote, and its address. Included rows become supported material for adaptations; clear a checkbox to keep a row out of the text.'}
+                  </Hint>
+                </span>
               </summary>
 
               <div className="mt-[12px] flex min-w-0 flex-col gap-[12px]">
-                {reviewQuestionsSlot}
-                {facts.some((fact) => factKind(fact, core.brief.inputKind) === 'found') ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? '«Берём» — использовать при следующем написании. Выбор не подтверждает факт.' : 'Include uses the source on the next draft. Selecting it does not verify the claim.'}</p> : null}
                 {factError ? <p role="alert" className="cf-body-sm text-cf-ink">{factError}</p> : null}
-                {facts.length > 0 ? (
-                  <div data-piece-facts="true"><Table caption={locale === 'ru' ? 'Опоры текста' : 'Text sources'}>
-                    <thead>
-                      <Tr>
-                        <Th>{locale === 'ru' ? 'Опора' : 'Source material'}</Th>
-                        <Th>{locale === 'ru' ? 'Тип' : 'Type'}</Th>
-                        <Th>{locale === 'ru' ? 'Статус' : 'Status'}</Th>
-                        <Th>{locale === 'ru' ? 'Источник' : 'Source'}</Th>
-                        <Th>{locale === 'ru' ? 'Берём' : 'Include'}</Th>
-                      </Tr>
-                    </thead>
-                    <tbody>
-                      {facts.map((fact: PieceFactV2, index) => (
-                        <Tr key={`${fact.statement}-${index}`}>
-                          <Td><span className="cf-body-sm text-cf-ink [text-wrap:pretty]">{fact.statement}</span></Td>
-                          <Td><span data-fact-kind={factKind(fact, core.brief.inputKind)}>{locale === 'ru' ? { own: 'своё', external: 'внешнее', found: 'найдено' }[factKind(fact, core.brief.inputKind)] : factKind(fact, core.brief.inputKind)}</span></Td>
-                          <Td><span data-piece-fact-verified={String(fact.verified)}>{locale === 'ru' ? { confirmed: 'подтверждено', conflicting: 'расходится', not_found: 'не нашлось', unverified: 'не проверено' }[factStatus(fact)] : factStatus(fact)}</span></Td>
-                          <Td>{fact.sourceUrl ? <a href={fact.sourceUrl} target="_blank" rel="noreferrer noopener" className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">{hostOf(fact.sourceUrl)}</a> : '—'}</Td>
-                          <Td>{factKind(fact, core.brief.inputKind) === 'found' && onFactSelect ? (
-                            <CheckboxField label={locale === 'ru' ? 'Берём' : 'Include'} checked={fact.selected === true} disabled={!canWrite || factSaving !== null}
-                              onChange={async (event) => {
-                                const selected = event.target.checked;
-                                setFactSaving(fact.statement);
-                                setFactError('');
-                                try { await onFactSelect(fact.statement, selected); }
-                                catch { setFactError(locale === 'ru' ? 'Выбор не сохранён. Попробуйте ещё раз.' : 'Selection was not saved. Try again.'); }
-                                finally { setFactSaving(null); }
-                              }} />
-                          ) : null}</Td>
-                        </Tr>
-                      ))}
-                    </tbody>
-                  </Table></div>
-                ) : null}
-
-                {/*
-                Утверждения, которые нечем подтвердить, стоят отдельно от фактов
-                нарочно: в текст они не пошли, и строка про них — объяснение
-                отсутствия, а не ещё одна опора.
-              */}
-                {ungrounded.length > 0 ? (
-                  <div className="flex min-w-0 flex-col gap-[4px] border-t border-cf-border pt-[12px]">
-                    <h3 className="cf-caption text-cf-ink-muted">
-                      {i.ungroundedLabel}
-                    </h3>
-                    <ul className="flex min-w-0 flex-col gap-[4px]">
-                      {ungrounded.map((statement, index) => (
-                        <li
-                          key={`${statement}-${index}`}
-                          data-piece-ungrounded="true"
-                          className="min-w-0 cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-                        >
-                          {statement}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                <div data-piece-facts="true">
+                  <ResearchEvidenceRows
+                    locale={locale}
+                    facts={researchFacts}
+                    editableFound={Boolean(onFactSelect)}
+                    busy={!canWrite || factSaving !== null}
+                    onToggleFound={(statement, selected) => {
+                      if (!onFactSelect) return;
+                      setFactSaving(statement);
+                      setFactError('');
+                      void onFactSelect(statement, selected)
+                        .catch(() =>
+                          setFactError(
+                            locale === 'ru'
+                              ? 'Выбор не сохранён. Попробуйте ещё раз.'
+                              : 'Selection was not saved. Try again.'
+                          )
+                        )
+                        .finally(() => setFactSaving(null));
+                    }}
+                  />
+                </div>
               </div>
             </details>
           ) : null}

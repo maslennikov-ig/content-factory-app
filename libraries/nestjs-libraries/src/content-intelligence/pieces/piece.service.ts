@@ -1,4 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { INTAKE_SNAPSHOT_STORE, INTAKE_SNAPSHOT_TTL_SECONDS, type IntakeSnapshotStore } from '../intake/intake-snapshot.store';
+import { PIECE_RESEARCH_VERSION, type PieceResearchPreview, type PieceResearchSelection } from './piece-research.contract';
+import type { IntakeRunState } from '../intake/intake.service';
 import { reviewOnceV2, signReview, readReview } from './review.v2';
 import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposal, type ReviewSnapshotV2 } from './review.v2.contract';
 import { webReviewSources } from './adaptation-web-review';
@@ -6,7 +10,8 @@ import { selectedFactsBrief, type PieceFactV2 } from './piece-facts.v2';
 import { briefForGate } from './core-questions';
 import { briefTitle } from '../brief/content-brief.compose';
 import { textOrNull } from '../intake/intake-content';
-import type { PieceAnswerEventV2 } from '../brand-voice/intake-v2.contract';
+import type { PieceAnswerEventV3 } from './piece-answer.v3.contract';
+import type { BriefFilledV2 } from '../brand-voice/intake-v2.contract';
 /**
  * Заготовки и адаптации: список, страница, адаптация под канал.
  *
@@ -120,7 +125,12 @@ import {
 } from '../brand-voice/voice-check.port';
 import { editorHtml } from '../brief/editor-html';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
-import { singleLinkOf } from '../intake/intake-kind';
+import { linksOf } from '../intake/intake-kind';
+import { oneLine } from '../intake/intake.prompts';
+import {
+  IntakeService,
+  type AcceptedEvidence,
+} from '../intake/intake.service';
 import {
   CORE_QUESTION_FIELDS,
   coreQuestionText,
@@ -284,7 +294,17 @@ export class PieceService {
     private readonly voiceCheck: VoiceCheckPort | null = null,
     @Optional()
     @Inject(WebResearchService)
-    private readonly webReview: WebResearchService | null = null
+    private readonly webReview: WebResearchService | null = null,
+    /**
+     * The same safe link reader used by intake. It is optional and last because
+     * tests and older consumers construct this service positionally.
+     */
+    @Optional()
+    @Inject(IntakeService)
+    private readonly intake: IntakeService | null = null,
+    @Optional()
+    @Inject(INTAKE_SNAPSHOT_STORE)
+    private readonly snapshots: IntakeSnapshotStore | null = null
   ) {
     this.now = now || (() => new Date());
     this.slopCheck = slopCheck || defaultSlopCheck;
@@ -910,7 +930,7 @@ export class PieceService {
     plan: PieceAnswerPlanV1,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     actorUserId?: string
-  ): AsyncGenerator<PieceAnswerEventV2> {
+  ): AsyncGenerator<PieceAnswerEventV3> {
     const language = plan.language;
     const before: PieceQuestionsV1 = plan.core.questions ?? {
       round: 0,
@@ -922,8 +942,34 @@ export class PieceService {
 
     const answeredAt = this.now().toISOString();
     const given = this.fieldAnswers(plan.request);
+    const acceptedEvidence: AcceptedEvidence[] = [];
+    if (this.intake) {
+      const urls = [
+        ...new Set(given.flatMap((answer) => linksOf(answer.text))),
+      ];
+      for (const url of urls) {
+        try {
+          const accepted = await this.intake.readLink(organizationId, url);
+          acceptedEvidence.push(accepted);
+          yield {
+            name: 'link',
+            url: accepted.url,
+            title: accepted.title,
+            evidenceId: accepted.evidenceId,
+          };
+        } catch (error) {
+          // The person's words remain usable even when the linked page cannot
+          // be read; link intake on this door is intentionally best-effort.
+          this.logger.warn(
+            `The answer link could not be read: ${describeError(error)}`
+          );
+        }
+      }
+    }
     const decided = [...new Set([...(plan.request.decide || []), ...before.items.map((question) => question.field)])].filter(
-      (field) => !given.some((answer) => answer.field === field)
+      (field) =>
+        field !== 'facts' &&
+        !given.some((answer) => answer.field === field)
     );
     const fresh: PieceFieldAnswerV1[] = [
       ...given.map((answer) => ({ ...answer, origin: 'person' as const, answeredAt })),
@@ -936,7 +982,7 @@ export class PieceService {
     ];
 
     const brief = given.length
-      ? this.briefWithAnswers(plan.core.brief, given)
+      ? this.briefWithAnswers(plan.core.brief, given, acceptedEvidence)
       : plan.core.brief;
     const answered = [...before.answered, ...fresh];
     const settled = [...new Set(answered.map((answer) => answer.field))];
@@ -1035,7 +1081,11 @@ export class PieceService {
     for (const answer of request.answers || []) {
       // Дословно: ни заглавной буквы, ни правки опечатки. Обрезаются только
       // пробелы по краям, потому что пустая строка — это не ответ.
-      if (answer?.field && trimmed(answer.text)) {
+      if (
+        answer?.field &&
+        answer.field !== 'facts' &&
+        trimmed(answer.text)
+      ) {
         byField.set(answer.field, answer.text.trim());
       }
     }
@@ -1045,14 +1095,14 @@ export class PieceService {
   /**
    * Бриф с ответами человека, где слово человека сильнее ответа модели.
    *
-   * Ответ про факты становится фактом с происхождением `person`, и адрес
-   * внутри него — его опорой. Без адреса опора всё равно есть: это слово
-   * автора, и ворота считают его опорой (`brief-gate.ts`, `own`). Ровно из-за
-   * обратного правила вопрос «на что это опирается» задавался по кругу.
+   * A successfully read URL is stored separately as borrowed evidence. The
+   * answer itself remains the person's wording and never becomes verified just
+   * because it contained an address.
    */
   private briefWithAnswers(
     brief: BriefFilledV1,
-    given: ReadonlyArray<{ field: BriefField; text: string }>
+    given: ReadonlyArray<{ field: BriefField; text: string }>,
+    evidence: readonly AcceptedEvidence[] = []
   ): BriefFilledV1 {
     const next: BriefFilledV1 = {
       ...brief,
@@ -1060,24 +1110,48 @@ export class PieceService {
       facts: [...brief.facts],
     };
     for (const answer of given) {
-      if (answer.field === 'facts') {
-        const url = singleLinkOf(answer.text);
-        const fact: BriefFilledFactV1 = {
-          statement: url
-            ? answer.text.replace(url, '').trim() || answer.text
-            : answer.text,
-          sourceUrl: url,
-          factId: null,
-          evidenceId: null,
-          origin: 'person',
-          verified: Boolean(url),
-        };
-        next.facts = [...next.facts, fact];
-        continue;
-      }
+      if (answer.field === 'facts') continue;
       next[answer.field] = answer.text;
       next.origins[answer.field] = 'person';
     }
+    const knownEvidence = new Set(
+      next.facts.map((fact) => fact.evidenceId).filter(Boolean)
+    );
+    for (const accepted of evidence) {
+      if (knownEvidence.has(accepted.evidenceId)) continue;
+      const fact: BriefFilledFactV1 = {
+        statement: oneLine(accepted.excerpt).slice(0, 400),
+        sourceUrl: accepted.url,
+        factId: null,
+        evidenceId: accepted.evidenceId,
+        origin: 'input',
+        verified: false,
+        kind: 'external',
+        status: 'unverified',
+        selected: true,
+      };
+      next.facts.push(fact);
+      knownEvidence.add(accepted.evidenceId);
+    }
+    const withSources = next as BriefFilledV2;
+    const inputSources = [...(withSources.inputSources ?? [])];
+    for (const accepted of evidence) {
+      if (
+        inputSources.some(
+          (source) =>
+            source.kind === 'link' &&
+            (source.evidenceId === accepted.evidenceId || source.url === accepted.url)
+        )
+      ) {
+        continue;
+      }
+      inputSources.push({
+        kind: 'link',
+        url: accepted.url,
+        evidenceId: accepted.evidenceId,
+      });
+    }
+    if (inputSources.length) withSources.inputSources = inputSources;
     next.ungrounded = next.facts
       .filter((fact) => !fact.verified && fact.origin !== 'person')
       .map((fact) => fact.statement);
@@ -1157,136 +1231,76 @@ export class PieceService {
     await this.pieces.deleteAdaptation(organizationId, pieceId, adaptationId);
   }
 
-  /** Signed review questions share /answer, but save author evidence without a model call. */
-  async answerReviewQuestions(
-    organizationId: string,
-    pieceId: string,
-    input: {
-      token: string;
-      adaptationId?: string;
-      answers: Array<{ questionId: string; text: string }>;
-    }
-  ) {
-    const proposal = readReview(
-      input.token,
-      organizationId,
-      pieceId,
-      input.adaptationId
-    );
+  async researchCore(organizationId: string, pieceId: string, actorUserId: string,
+    input: { confirmWebSpend?: boolean }, language: 'ru' | 'en' = 'ru'): Promise<PieceResearchPreview> {
+    if (input.confirmWebSpend !== true) throw new AdaptationReviewError('PIECE_RESEARCH_CONFIRM', 400,
+      language === 'ru' ? 'Подтвердите поиск по источникам.' : 'Confirm source research.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
-    if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
-    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', 'ru', pieceId);
-    if (
-      piece.body !== proposal.pieceSnapshot.body ||
-      piece.title !== proposal.pieceSnapshot.title ||
-      !isDeepStrictEqual(piece.brief, proposal.pieceSnapshot.brief)
-    )
-      throw reviewConflict();
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
     const core = this.coreOf(piece);
-    if (!core || !this.briefs)
-      throw pieceError('PIECE_CORE_MISSING', 'ru', pieceId);
-    if (input.adaptationId) {
-      const draft = await this.pieces.reviewDraft(
-        organizationId,
-        pieceId,
-        input.adaptationId
-      );
-      const snapshot = proposal.snapshot!;
-      if (
-        !draft?.post ||
-        draft.post.state !== 'DRAFT' ||
-        draft.post.deletedAt ||
-        draft.post.id !== snapshot.postId ||
-        draft.post.content !== snapshot.postContent ||
-        draft.post.updatedAt.toISOString() !== snapshot.postUpdatedAt ||
-        draft.body !== snapshot.adaptationBody ||
-        (draft.title ?? null) !== snapshot.adaptationTitle ||
-        draft.updatedAt.toISOString() !== snapshot.adaptationUpdatedAt
-      )
-        throw reviewConflict();
-    }
-    if (
-      !input.answers.length ||
-      new Set(input.answers.map((a) => a.questionId)).size !==
-        input.answers.length
-    )
-      throw new AdaptationReviewError(
-        'REVIEW_ANSWER',
-        400,
-        'Ответьте на вопрос из проверки.'
-      );
-    const answers = input.answers.map((answer) => {
-      const question = proposal.changes.find(
-        (change) => change.id === answer.questionId && change.basket === 'ask'
-      );
-      if (!question || !answer.text.trim() || answer.text.length > 2000)
-        throw new AdaptationReviewError(
-          'REVIEW_ANSWER',
-          400,
-          'Ответьте на вопрос из проверки.'
-        );
-      return {
-        questionId: question.id,
-        question: question.why,
-        excerpt: question.excerpt,
-        text: answer.text,
-        answeredAt: this.now().toISOString(),
-        origin: 'person' as const,
-      };
-    });
-    const facts: PieceFactV2[] = answers.map((answer) => ({
-      statement: answer.text,
-      sourceUrl: null,
-      factId: null,
-      evidenceId: null,
-      origin: 'person',
-      kind: 'own',
-      status: 'unverified',
-      verified: false,
-    }));
-    const stored = piece.brief as Record<string, unknown>;
-    const priorAnswers = (
-      core.brief as unknown as { reviewAnswers?: unknown[] }
-    ).reviewAnswers;
-    const nextBrief = {
-      ...stored,
-      brief: {
-        ...core.brief,
-        facts: [...core.brief.facts, ...facts],
-        reviewAnswers: [
-          ...(Array.isArray(priorAnswers) ? priorAnswers : []),
-          ...answers,
-        ],
-      },
-    };
-    await this.briefs.updateCoreMetadata(organizationId, pieceId, {
-      expectedBody: piece.body,
-      expectedBrief: piece.brief,
-      brief: nextBrief,
-    });
-    const remainingQuestions = proposal.changes.filter(
-      (change) =>
-        change.basket === 'ask' &&
-        !answers.some((answer) => answer.questionId === change.id)
-    );
-    const remaining = remainingQuestions.length
-      ? {
-          adaptationId: input.adaptationId,
-          questions: remainingQuestions,
-          token: signReview({
-            ...proposal,
-            changes: remainingQuestions,
-            pieceSnapshot: { ...proposal.pieceSnapshot, brief: nextBrief },
-          }),
-        }
-      : null;
-    return {
-      version: 'review-answer/v2' as const,
-      pieceId,
-      savedQuestionIds: answers.map((a) => a.questionId),
-      remaining,
-    };
+    if (!core?.text.trim()) throw new AdaptationReviewError('PIECE_CORE_MISSING', 409,
+      language === 'ru' ? 'Сначала добавьте суть.' : 'Add the core text first.');
+    if (!this.snapshots || !this.intake || !this.aiUsage || !actorUserId)
+      throw new AdaptationReviewError('PIECE_RESEARCH_UNAVAILABLE', 503,
+        language === 'ru' ? 'Исследование сейчас недоступно.' : 'Research is unavailable.');
+    const state = await this.intake.researchExistingCore(organizationId, core.text, core.brief, language);
+    const snapshotKey = randomUUID();
+    await this.snapshots.set(this.coreResearchKey(organizationId, actorUserId, pieceId, snapshotKey),
+      JSON.stringify({ version: PIECE_RESEARCH_VERSION, organizationId, actorUserId, pieceId, language,
+        body: piece.body, title: piece.title, brief: piece.brief, state,
+        expiresAt: this.now().getTime() + INTAKE_SNAPSHOT_TTL_SECONDS * 1000 }),
+      'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
+    return { version: PIECE_RESEARCH_VERSION, snapshotKey, level: 'standard', input: core.text,
+      facts: state.filled.brief.facts, corrections: state.corrections, summary: state.summary };
   }
+
+  async acceptCoreResearch(organizationId: string, pieceId: string, actorUserId: string,
+    input: PieceResearchSelection) {
+    const expired = () => new AdaptationReviewError('PIECE_RESEARCH_EXPIRED', 409,
+      'Результат исследования истёк. Запустите исследование снова.');
+    if (!this.snapshots || !this.intake || !this.aiUsage) throw expired();
+    const key = this.coreResearchKey(organizationId, actorUserId, pieceId, input.snapshotKey);
+    const raw = await this.snapshots.get(key);
+    let saved: { version: string; organizationId: string; actorUserId: string; pieceId: string;
+      language: 'ru' | 'en'; body: string; title: string; brief: unknown;
+      state: IntakeRunState; expiresAt: number };
+    try { saved = JSON.parse(raw || 'null'); } catch { throw expired(); }
+    if (!saved || saved.version !== PIECE_RESEARCH_VERSION || saved.organizationId !== organizationId ||
+      saved.actorUserId !== actorUserId || saved.pieceId !== pieceId ||
+      !Number.isFinite(saved.expiresAt) || saved.expiresAt <= this.now().getTime()) throw expired();
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', saved.language, pieceId);
+    if (piece.body !== saved.body || piece.title !== saved.title || !isDeepStrictEqual(piece.brief, saved.brief))
+      throw new AdaptationReviewError('PIECE_RESEARCH_STALE', 409,
+        'Заготовка уже изменилась. Обновите страницу перед новым исследованием.');
+    const core = this.coreOf(piece);
+    if (!core) throw expired();
+    const allowed = new Set(saved.state.filled.brief.facts.map((fact: PieceFactV2) => fact.factKey));
+    if (!Array.isArray(input.selectedKeys) || input.selectedKeys.length > 100 ||
+      input.selectedKeys.some(key => typeof key !== 'string' || !allowed.has(key)))
+      throw new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Выберите опоры из результата исследования.');
+    const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
+    const rewritten = await writeCore({ organizationId, language: saved.language,
+      brief: selectedFactsBrief(state.filled.brief), answers: core.answers, questionTextByKey: {},
+      personText: core.personText ?? '', existingCore: state.correctedInput || saved.body,
+      borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
+      { aiUsage: this.aiUsage, slopCheck: this.slopCheck, warn: message => this.logger.warn(message) });
+    if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())
+      throw new AdaptationReviewError('PIECE_RESEARCH_WRITE_FAILED', 503,
+        'Не удалось дополнить суть. Исходный текст сохранён; попробуйте применить результат ещё раз.');
+    const accepted = await this.pieces.acceptCoreReview(organizationId, pieceId,
+      { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, saved.title,
+      { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
+        brief: state.filled.brief, authorNumbers: core.authorNumbers,
+        personText: core.personText ?? '', questions: core.questions });
+    await this.snapshots.del(key);
+    return accepted;
+  }
+
+  private coreResearchKey(organizationId: string, actorUserId: string, pieceId: string, id: string): string {
+    return `piece:research:${organizationId}:${actorUserId}:${pieceId}:${id}`;
+  }
+
   async reviewV2(
     organizationId: string,
     pieceId: string,
@@ -1298,6 +1312,7 @@ export class PieceService {
     },
     language: 'ru' | 'en' = 'ru'
   ) {
+    if (input.mode === 'research') throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Исследование доступно через «Дополнить ресерчем».');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
     const core = this.coreOf(piece);
@@ -1354,7 +1369,7 @@ export class PieceService {
         'Сначала добавьте текст.'
       );
     let sources: ReturnType<typeof webReviewSources> | undefined;
-    if (input.mode === 'web' || input.mode === 'research') {
+    if (input.mode === 'web') {
       if (input.confirmWebSpend !== true || !this.webReview)
         throw new AdaptationReviewError(
           'REVIEW_WEB_CONFIRM',
@@ -1363,7 +1378,7 @@ export class PieceService {
         );
       sources = webReviewSources(
         await this.webReview.research(organizationId, text.slice(0, 5000), {
-          ...(input.mode === 'research' ? { level: 'deep' as const } : {}),
+          level: 'standard', task: 'facts',
         })
       );
       if (!sources.length)
@@ -1508,11 +1523,11 @@ export class PieceService {
   }
   async reviewAdaptation(organizationId: string, pieceId: string, adaptationId: string,
     mode: AdaptationReviewAction, language: 'ru' | 'en' = 'ru', confirmWebSpend = false): Promise<AdaptationReviewResult> {
-    if (!ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
+    if (mode === 'research' || !ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
       throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Выберите режим проверки.');
     }
-    if ((mode === 'web' || mode === 'research') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
-    if ((mode === 'web' || mode === 'research') && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
+    if ((mode === 'web') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
+    if ((mode === 'web') && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
     const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
@@ -1523,9 +1538,9 @@ export class PieceService {
     const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
     const originalText = provider.editor === 'html' || provider.editor === 'normal'
       ? htmlToPlainText(draft.post.content) : draft.post.content;
-    const result = mode === 'web' || mode === 'research'
+    const result = mode === 'web'
       ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!,
-        mode === 'research' ? 'deep' : 'standard', mode === 'research' ? 'research' : 'facts')
+        'standard', 'facts')
       : await reviewAdaptationOnce(organizationId, {
       mode, text: originalText, core: core?.text ?? piece.body,
       personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,
@@ -1634,10 +1649,24 @@ export class PieceService {
   private questionsOf(value: unknown): PieceQuestionsV1 | null {
     const stored = (value || null) as PieceQuestionsV1 | null;
     if (!stored || typeof stored !== 'object') return null;
+    const items = Array.isArray(stored.items) ? stored.items : [];
+    const answered = Array.isArray(stored.answered) ? stored.answered : [];
+    const retiredFacts = items.some((question) => question.field === 'facts');
     return {
       round: Number(stored.round) || 0,
-      items: Array.isArray(stored.items) ? stored.items : [],
-      answered: Array.isArray(stored.answered) ? stored.answered : [],
+      items: items.filter((question) => question.field !== 'facts'),
+      answered:
+        retiredFacts && !answered.some((answer) => answer.field === 'facts')
+          ? [
+              ...answered,
+              {
+                field: 'facts',
+                text: '',
+                origin: 'model',
+                answeredAt: this.now().toISOString(),
+              },
+            ]
+          : answered,
     };
   }
 

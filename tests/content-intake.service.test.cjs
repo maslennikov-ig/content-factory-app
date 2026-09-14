@@ -411,7 +411,6 @@ const request = (overrides = {}) => ({
   input: 'Надо больше писать про ИИ, но не так, как все',
   integrationIds: ['int-tg'],
   language: 'ru',
-  options: { searchEnrichment: false },
   ...overrides,
 });
 
@@ -447,7 +446,6 @@ describe('тонкий вход отвечает заготовкой, а воп
     const [questions] = named(events, 'questions');
     expect(questions.questions.map((row) => row.field)).toEqual([
       'thesis',
-      'facts',
       'position',
     ]);
     // Варианты приходят от модели: человек отвечает нажатием, а не сочинением.
@@ -457,7 +455,6 @@ describe('тонкий вход отвечает заготовкой, а воп
     const [, stored] = calls.recordCore[0];
     expect(stored.brief.questions.items.map((row) => row.field)).toEqual([
       'thesis',
-      'facts',
       'position',
     ]);
     expect(stored.brief.questions.round).toBe(0);
@@ -503,14 +500,9 @@ describe('тонкий вход отвечает заготовкой, а воп
     );
     expect(filled.brief.origins.position).toBe('model');
     expect(filled.brief.disagreement).toBe('Те, кто считает, что тема выгорела');
-    /*
-      Про отданное не переспрашивают. Остаются два: тезис, который придумала
-      сама модель (и она же отвечает на него первой), и факты, которых нет ни
-      одного. Позиция отдана — её нет в списке, и это ровно то, что «Реши
-      сама» означает.
-    */
+    // Позиция отдана модели, а вопросы о фактах больше не задаются.
     const [asked] = named(events, 'questions');
-    expect(asked.questions.map((row) => row.field)).toEqual(['thesis', 'facts']);
+    expect(asked.questions.map((row) => row.field)).toEqual(['thesis']);
     expect(asked.questions[0].suggested).toBeNull();
   });
 });
@@ -528,7 +520,6 @@ describe('чужой пост: утверждения не проверяютс�
       'org-a',
       request({
         input: foreignPost,
-        options: { searchEnrichment: true },
         skipInterview: true,
         ...overrides,
       })
@@ -808,7 +799,7 @@ describe('слово человека и выключенный поиск', () 
     expect(calls.recordCore).toHaveLength(1);
   });
 
-  test('мысль без опоры ищет её сама, когда поиск включён', async () => {
+  test('старый searchEnrichment не запускает платный поиск без галочки', async () => {
     const { service, calls } = build({
       models: [
         fullBriefAnswer({ facts: [], origins: { thesis: 'input' } }),
@@ -824,19 +815,10 @@ describe('слово человека и выключенный поиск', () 
     const events = await drain(service, 'org-a', plan);
     const [filled] = named(events, 'brief-filled');
 
-    expect(calls.research).toHaveLength(1);
-    expect(named(events, 'search-started')).toEqual([
-      { name: 'search-started', reason: 'facts', count: 1 },
-    ]);
-    expect(filled.brief.facts[0].origin).toBe('search');
-    expect(filled.brief.facts[0].sourceUrl).toBe('https://example.test/study');
-    /*
-      Опора нашлась поиском — и вопроса «на что это опирается» нет. Остался
-      другой вопрос про то же поле, и звучит он иначе: своего у человека
-      по-прежнему нет, и продукт просит личную историю, а не источник.
-    */
+    expect(calls.research).toHaveLength(0);
+    expect(named(events, 'search-started')).toEqual([]);
+    expect(filled.brief.facts).toEqual([]);
     expect(named(events, 'questions')).toEqual([]);
-    expect(filled.brief.facts[0]).toMatchObject({ kind: 'found', selected: false });
   });
 });
 
@@ -965,16 +947,15 @@ describe('mixed foreign post and URL', () => {
   });
 });
 
-describe('third walk: material questions precede the paid draft', () => {
-  test('a material-specific question saves an empty core without calling draft', async () => {
+describe('sixth walk: questions are only about the author opinion', () => {
+  test('a recorded old facts question is closed and does not block the draft', async () => {
     const { service, calls } = build({ models: [thinBriefAnswer({ questions: [
       { field: 'facts', question: 'Что именно вы проверили про ИИ в своей студии?', options: ['Сравнил сроки', 'Проверил ошибки'] },
     ] })] });
     const plan = await service.prepare('org-1', { input: 'Хочу написать про ошибки ИИ в нашей студии', language: 'ru' });
     const events = await drain(service, 'org-1', plan, 'user-1');
-    expect(modelCalls.map((call) => call.role)).toEqual(['extract']);
-    expect(calls.recordCore[0][1].body).toBe('');
-    expect(named(events, 'piece')[0].core.questions.items[0].question).toBe('Что именно вы проверили про ИИ в своей студии?');
+    expect(modelCalls.map((call) => call.role)).toEqual(['extract', 'draft']);
+    expect(named(events, 'piece')[0].core.questions.items).toEqual([]);
   });
 });
 

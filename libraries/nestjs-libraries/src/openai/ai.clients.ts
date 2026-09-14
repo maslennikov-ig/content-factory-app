@@ -249,6 +249,8 @@ export interface WebSearchClient {
 }
 
 export interface WebSearchClientOptions {
+  /** Country ranking is permitted only for a subject tied to one country. */
+  scope?: 'local' | 'global';
   country?: string;
   freshnessRequired?: boolean;
   maxResults?: number;
@@ -329,13 +331,13 @@ export class ExaWebSearch implements WebSearchClient {
     private readonly maxResults = 5,
     private readonly options: Pick<
       WebSearchClientOptions,
-      'country' | 'freshnessRequired' | 'windowDays'
+      'scope' | 'country' | 'freshnessRequired' | 'windowDays'
     > = {}
   ) {}
 
   async invoke({ query }: { query: string }): Promise<WebSearchResponse> {
     const startPublishedDate = publishedAfter(this.options.windowDays);
-    const userLocation = this.options.country
+    const userLocation = this.options.scope === 'local' && this.options.country
       ? EXA_USER_LOCATION[this.options.country]
       : undefined;
     const response = await this.fetchImpl('https://api.exa.ai/search', {
@@ -604,11 +606,12 @@ export const getWebSearchClient = async (
     ? options.topic === 'news'
     : options.freshnessRequired || config.search.topic === 'news';
   const timeRange = tavilyTimeRange(options.windowDays);
+  const country = options.scope === 'local' ? options.country : undefined;
   return webSearchMemo(
     identity(
       organizationId,
       config,
-      `${provider}|${searchApiKey}|${options.country || ''}|${freshnessRequired}|${
+      `${provider}|${searchApiKey}|${options.scope || ''}|${country || ''}|${freshnessRequired}|${
         options.maxResults ?? ''
       }|${options.windowDays ?? ''}`
     ),
@@ -634,8 +637,8 @@ export const getWebSearchClient = async (
               ? { timeRange: 'week' }
               : {}),
             // Tavily documents country boosting only for the general topic.
-            ...(!freshnessRequired && options.country
-              ? { country: options.country }
+            ...(!freshnessRequired && country
+              ? { country }
               : {}),
           })
         );
@@ -643,7 +646,8 @@ export const getWebSearchClient = async (
 
       if (provider === 'exa') {
         return new ExaWebSearch(searchApiKey, fetch, options.maxResults ?? 5, {
-          country: options.country,
+          scope: options.scope,
+          country,
           freshnessRequired,
           windowDays: options.windowDays,
         });

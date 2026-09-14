@@ -1,0 +1,19 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-4zul",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-4zul",
+  "source_digest": "6d24653b4d50bc43babbaa3b8f2f7fc99a84b0360dfe7ae4eb1cdcb80f1e3233",
+  "criteria": [
+    {
+      "criterion_id": "AC-spec-section-6",
+      "text": "На боевом, глазами (страница седьмого захода — `4zul.11`):\n\n- Мысль с тремя ложными числами **без** галочки: заготовка сразу, ни одной записи\n  `web_research`, раздела «Опоры текста» нет, вопрос — только если нет тезиса или\n  позиции, и он про мнение.\n- Та же мысль **с** галочкой: «Проверили по источникам» с поправками и «Вернуть\n  моё»; на странице заготовки «Опоры текста» только со строками с адресом, «?» у\n  заголовка, никакого «Не подтвердилось».\n- Чужой пост: два вопроса максимум, варианты от первого лица; ответ со ссылкой →\n  ссылка среди источников, в сути нет «вот ссылка»; начало сути — целое предложение.\n- Под «Сутью»: «Перегенерировать» и «Дополнить ресерчем» одинаковые; «Проверить\n  факты» только у текста с числами; «Адаптировать» — единственная акцентная.\n- «Дополнить ресерчем» → экран находок → «Продолжить с правками» → суть дополнена;\n  «Проверить факты» → diff с источниками, `needs_context` нигде; после «Принять\n  выбранные» никаких «Сохранить ответы» и ошибок.\n- «Настройки канала» по центру строки; в настройках на ключах системы нет фразы\n  «Сейчас поиск идёт так»; в /help есть ответ про поисковик и язык.\n- Тема «комиссии Wildberries и Ozon» ищется по-русски, «спор OpenAI и математиков» —\n  и по-английски без смещения к рунету (по журналу запросов).\n\nЛокально: `tsc --noEmit` ноль по трём приложениям, три половины `pnpm test`,\n`migrate diff` из нового образа пуст, `mastra_*` 29, выпуск по\n`docs/operations/production-deploy.md` «Обновление версии», трейлеры публичного\nкоммита одним блоком.",
+      "text_digest": "311327d08fd736eab3561344d694956d3a2e07bfb5223f6d2c33c921959b6134"
+    },
+    {
+      "criterion_id": "AC-delivery-boundaries",
+      "text": "Execute 4zul.1–.10 and 75xn.35; 4zul.11 belongs to Claude. Isolated S1/S2/S3, sequential S4 after S1/S2, integrate S3 then S1 then S2 then S4. Show localhost:4200 scenarios and obtain explicit owner yes before release. No schema changes or paid model tests. Preserve existing protected contracts through version successors. Batch close and verify all assigned Beads; record release evidence, <=200-line handoff, bd remember and FAQ. Release by runbook with rollback 447e360f7007.",
+      "text_digest": "b21c452917ec5bd31e596a90b07a728ad6affdfd786068ee3be44ae66e91428c"
+    }
+  ]
+}

@@ -526,7 +526,7 @@ test('standard adaptation review records its explicit paid research level', asyn
  * передают оба, — поэтому задачу называют прямо. «Проверить факты поиском»
  * просит короткую цитируемую выдержку, «Усилить ресерчем» — широту.
  */
-test('the two paid modes name different search tasks', async () => {
+test('fact review keeps standard search while enrichment leaves the review lane', async () => {
   const web = { research: jest.fn(async () => evidence) };
   const instance = serviceWithWeb(web);
 
@@ -538,11 +538,9 @@ test('the two paid modes name different search tasks', async () => {
   });
 
   output = webAnswer();
-  await instance.reviewAdaptation('org', 'piece', 'adaptation', 'research', 'ru', true);
-  expect(web.research.mock.calls[1][2]).toMatchObject({
-    level: 'deep',
-    task: 'research',
-  });
+  await expect(instance.reviewAdaptation('org', 'piece', 'adaptation', 'research', 'ru', true))
+    .rejects.toMatchObject({ status: 400 });
+  expect(web.research).toHaveBeenCalledTimes(1);
 });
 
 test.each(['unavailable', 'empty', 'no-excerpt', 'unsafe-url', 'empty-draft'])(
@@ -706,40 +704,15 @@ test('adaptation v2 CAS requires old independent title and writes title/body/pos
  expect(updatePost).toHaveBeenCalledTimes(1);
 });
 
-test('signed ask answers use stored own evidence and metadata CAS without confirming found facts',async()=>{
+test('review converts legacy ask output to a visible unchanged note and stores no author answer',async()=>{
  process.env.JWT_SECRET='test-review-key';
- const found={statement:'Найдено',kind:'found',selected:false,verified:false,origin:'search'};
- repository.getPiece.mockResolvedValue({...piece,title:'Заголовок',brief:{...piece.brief,brief:{...piece.brief.brief,facts:[found]}}});
  const metadata={updateCoreMetadata:jest.fn(async()=>{})};service.briefs=metadata;
  output={changes:[{id:'ask-1',excerpt:'Новый',replacement:'Новый',why:'Какой ваш результат?',basket:'ask'}],verdict:'review',summary:''};
  const result=await service.reviewV2('org','piece','adaptation',{mode:'facts'});
- const before=calls.length;
- await service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'ask-1',text:'У нас 10 заказов, источник https://example.com'}]});
- expect(calls).toHaveLength(before);
- const write=metadata.updateCoreMetadata.mock.calls[0];
- expect(write.slice(0,2)).toEqual(['org','piece']);expect(write[2].expectedBody).toBe(piece.body);
- expect(write[2].brief.brief.facts[0]).toEqual(found);
- expect(write[2].brief.brief.facts[1]).toMatchObject({statement:'У нас 10 заказов, источник https://example.com',kind:'own',origin:'person',verified:false,status:'unverified'});
- expect(write[2].brief.brief.reviewAnswers[0]).toMatchObject({questionId:'ask-1',question:'Какой ваш результат?'});
- await expect(service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'invented',text:'invented'}]})).rejects.toMatchObject({status:400});
- expect(metadata.updateCoreMetadata).toHaveBeenCalledTimes(1);
- repository.getPiece.mockResolvedValue({...piece,body:'Concurrent edit'});
- await expect(service.answerReviewQuestions('org','piece',{token:result.token,adaptationId:'adaptation',answers:[{questionId:'ask-1',text:'answer'}]})).rejects.toMatchObject({status:409});
-});
-test('two partial author answers receive fresh signed snapshots and persist without another model call',async()=>{
- process.env.JWT_SECRET='test-review-key';
- let current={...piece,title:'Заголовок'};
- repository.getPiece.mockImplementation(async()=>current);
- service.briefs={updateCoreMetadata:jest.fn(async(_org,_id,input)=>{expect(input.expectedBrief).toEqual(current.brief);current={...current,brief:input.brief};})};
- output={changes:[{id:'q1',excerpt:'Новый',replacement:'Новый',why:'Первый вопрос?',basket:'ask'},{id:'q2',excerpt:'текст',replacement:'текст',why:'Второй вопрос?',basket:'ask'}],verdict:'review',summary:''};
- const review=await service.reviewV2('org','piece','adaptation',{mode:'facts'});
- const before=calls.length;
- const first=await service.answerReviewQuestions('org','piece',{token:review.token,adaptationId:'adaptation',answers:[{questionId:'q1',text:'Первый ответ'}]});
- expect(first.remaining.questions.map(q=>q.id)).toEqual(['q2']);
- await expect(service.answerReviewQuestions('org','piece',{token:review.token,adaptationId:'adaptation',answers:[{questionId:'q2',text:'Второй ответ'}]})).rejects.toMatchObject({status:409});
- const second=await service.answerReviewQuestions('org','piece',{token:first.remaining.token,adaptationId:'adaptation',answers:[{questionId:'q2',text:'Второй ответ'}]});
- expect(second.remaining).toBeNull();
- expect(current.brief.brief.facts.slice(-2).map(f=>f.statement)).toEqual(['Первый ответ','Второй ответ']);
- expect(current.brief.brief.reviewAnswers.map(a=>a.questionId)).toEqual(['q1','q2']);
- expect(calls).toHaveLength(before);
+ expect(result.changes[0]).toMatchObject({
+  id:'ask-1',basket:'show',replacement:'Новый',
+  why:'Источник не найден, оставлено как есть.'
+ });
+ expect(service.answerReviewQuestions).toBeUndefined();
+ expect(metadata.updateCoreMetadata).not.toHaveBeenCalled();
 });

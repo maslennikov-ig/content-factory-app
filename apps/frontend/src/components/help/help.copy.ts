@@ -51,6 +51,7 @@ export const HELP_QUESTION_IDS = [
   'piece-vs-post',
   'already-written',
   'when-web-search',
+  'search-engine-language',
   'avatar-corpus',
   'slop-check',
   'adaptation-review',
@@ -104,7 +105,13 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'when-web-search',
         question: 'Когда модель ходит в интернет?',
         answer:
-          'Когда дополняет заготовку фактами или когда вы отдельно выбираете «Проверить поиском» и подтверждаете расход. Утверждения черновика автоматически по сети не проверяются. При обычной адаптации под канал модель берёт материал из заготовки и из ваших старых постов.',
+          'Поиск начинается только после вашего явного действия: перед созданием заготовки включите «Нужен ресерч», для уже написанной сути выберите «Дополнить ресерчем», а для добровольной сверки утверждений — «Проверить факты». Обычная адаптация под канал сама в интернет не ходит: модель берёт материал из заготовки и из ваших старых постов. После «Дополнить ресерчем» выберите находки с источниками: продолжение дополнит существующую суть без повторного поиска.',
+      },
+      {
+        id: 'search-engine-language',
+        question: 'Каким поисковиком и на каком языке ищем?',
+        answer:
+          'Движок выбирается по задаче: опоры ищет Exa, а факты и свежие темы — Tavily, если для него есть ключ. Локальные темы ищем на языке темы с фокусом на страну, а глобальные — на языке темы и по-английски, без привязки к стране.',
       },
       {
         id: 'avatar-corpus',
@@ -122,7 +129,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'adaptation-review',
         question: 'Как исправить штампы или сверить адаптацию с заготовкой?',
         answer:
-          "Откройте «Ещё ▾» рядом с «Опубликовать» и выберите проверку. У платного действия указана стоимость. Результат — один текст с подсветкой изменений; наведите на изменение, чтобы прочитать объяснение. Исправления опечаток выбраны заранее; стилистические правки можно выбрать по одной или все сразу. Вопросы о смысле и недостающих фактах показаны в «Опорах текста». Ответы сохраняются как ваши собственные опоры без вызова модели. Текст сохраняется только после «Принять выбранные». «Оставить как было» сохраняет прежний текст. Если правки не нужны, кнопки принятия нет. «Проверить факты поиском» ищет источники в интернете; ссылки свёрнуты под текстом. Найденные источники не подтверждают автоматически все факты.",
+          "Откройте «Ещё ▾» рядом с «Опубликовать» и выберите проверку. У платного действия указана стоимость. Результат — один текст с подсветкой изменений; наведите на изменение, чтобы прочитать объяснение. Исправления опечаток выбраны заранее; стилистические правки можно выбрать по одной или все сразу. Если источник не найден, проверка оставляет утверждение как есть и сообщает об этом заметкой. Текст сохраняется только после «Принять выбранные». «Оставить как было» сохраняет прежний текст. Если правки не нужны, кнопки принятия нет. «Проверить факты» ищет источники в интернете; ссылки свёрнуты под текстом. Найденные источники не подтверждают автоматически все факты.",
       },
       {
         id: "channel-model-choice",
@@ -200,7 +207,13 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'when-web-search',
         question: 'When does the model go to the internet?',
         answer:
-          'When enriching a piece with facts, or when you explicitly choose Check with web search and confirm spending. Draft claims are not automatically checked against the web. Normal channel adaptation uses the piece and your earlier posts.',
+          'Search starts only after you explicitly choose an action: turn on “Research this” before creating a piece, choose “Enrich with research” for an existing piece, or choose “Check facts” for a voluntary fact check. Normal channel adaptation does not go to the web: the model uses the piece and your earlier posts. After “Enrich with research”, choose findings with sources: continuing enriches the existing core without repeating the search.',
+      },
+      {
+        id: 'search-engine-language',
+        question: 'Which search engine and language do we use?',
+        answer:
+          "The engine is chosen by task: Exa collects supports, while Tavily handles facts and current topics when a key is available. Local topics are searched in the topic's language with a country focus; global topics are searched in the topic's language and in English, without country bias.",
       },
       {
         id: 'avatar-corpus',
@@ -218,7 +231,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'adaptation-review',
         question: 'How do I remove cliches or compare an adaptation with its piece?',
         answer:
-          "Open More beside Publish and choose a review. Paid actions show their cost. The result is one text with highlighted changes; hover over a change to read its explanation. Typo corrections are selected by default; style changes can be selected individually or together. Questions about meaning or missing facts appear in Text sources. Answers are saved as your own source material without a model call. Nothing is saved until you accept the selected changes. Keep original preserves the previous text. If no changes are needed, there is no accept button. Check facts with search finds web sources; links are collapsed below the text. Finding sources does not automatically verify every fact.",
+          "Open More beside Publish and choose a review. Paid actions show their cost. The result is one text with highlighted changes; hover over a change to read its explanation. Typo corrections are selected by default; style changes can be selected individually or together. When no source is found, the review leaves the claim unchanged and adds a note. Nothing is saved until you accept the selected changes. Keep original preserves the previous text. If no changes are needed, there is no accept button. Check facts finds web sources; links are collapsed below the text. Finding sources does not automatically verify every fact.",
       },
       {
         id: "channel-model-choice",

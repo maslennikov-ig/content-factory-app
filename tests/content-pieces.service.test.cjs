@@ -534,7 +534,8 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('СЛОВА ЧЕЛОВЕКА (дословно)');
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
-    expect(corePrompt).toContain('ДОСЛОВНО');
+    expect(corePrompt).toContain('характерные фразы человека переноси дословно');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v3');
     // И запреты взяты из каталога штампов, а не написаны рядом второй раз.
     expect(corePrompt).toContain('в конечном счёте');
 
@@ -647,7 +648,6 @@ describe('интервью заготовки', () => {
     briefAnswer({
       questions: [
         { field: 'thesis', question: 'Почему внешний дедлайн надёжнее?', options: ['Ответственность перед клиентом', 'Совместный план'] },
-        { field: 'facts', question: 'Какой ваш срок сдвинулся?', options: ['Внутренний', 'Клиентский'] },
         { field: 'position', question: 'Какие сроки вы выбираете теперь?', options: ['Вместе с клиентом', 'Внутри команды'] },
       ],
       origins: {
@@ -682,7 +682,6 @@ describe('интервью заготовки', () => {
     expect(asked.questions.length).toBeLessThanOrEqual(3);
     expect(asked.questions.map((row) => row.field)).toEqual([
       'thesis',
-      'facts',
       'position',
     ]);
     for (const question of asked.questions) {
@@ -730,9 +729,9 @@ describe('интервью заготовки', () => {
     const [filled] = named(events, 'brief-filled');
     expect(filled.brief.position).toBe('режу срок вместе с клиентом');
     expect(filled.brief.origins.position).toBe('person');
-    // Ответ приехал в промпт сути парой «вопрос → ответ», тоже дословно.
+    // Ответ приехал в промпт сути парой «вопрос → ответ» как материал по смыслу.
     const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(corePrompt).toContain('ОТВЕТЫ НА ВОПРОСЫ (дословно)');
+    expect(corePrompt).toContain('ОТВЕТЫ НА ВОПРОСЫ (интерпретировать по смыслу)');
     expect(corePrompt).toContain('сдивнулись пять');
   });
 
@@ -772,7 +771,7 @@ describe('каналы необязательны', () => {
     expect(named(events, 'done')[0].pieceId).toBe('piece-1');
   });
 
-  test('о поиске опоры говорится до него, а не после', async () => {
+  test('старый флаг поиска опоры больше не запускает платный поиск', async () => {
     const { service } = buildIntake({
       models: [briefAnswer({ facts: [] }), { text: CORE_TEXT }],
     });
@@ -783,11 +782,7 @@ describe('каналы необязательны', () => {
     const events = await drain(service.run('org-a', plan, 'user-1'));
     const names = events.map((event) => event.name);
 
-    expect(names).toContain('search-started');
-    expect(names.indexOf('search-started')).toBeLessThan(
-      names.indexOf('brief-filled')
-    );
-    expect(named(events, 'search-started')[0].reason).toBe('facts');
+    expect(names).not.toContain('search-started');
   });
 });
 
@@ -943,7 +938,9 @@ const buildPieces = (options = {}) => {
             return options.voice;
           },
         }
-      : null
+      : null,
+    null,
+    options.intake ?? null
   );
 
   return { service, calls };
@@ -1341,17 +1338,15 @@ describe('адаптация под канал', () => {
 /**
  * Заготовка с открытыми вопросами: та же строка, что пишет вход.
  *
- * Вопрос про `facts` здесь — это ровно тот вопрос, который на живом прогоне
- * 07.09.2026 задавался по кругу.
+ * Новая волна спрашивает только мнение: тезис и позицию, без вопроса о фактах.
  */
 const OPEN_QUESTIONS = {
   round: 0,
   items: [
     {
-      field: 'facts',
-      question:
-        'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть',
-      suggested: null,
+      field: 'thesis',
+      question: 'Что именно вы хотите доказать?',
+      suggested: 'Внешнее обещание держит срок',
       options: [],
     },
     {
@@ -1380,7 +1375,7 @@ const answerDrain = async (service, body) => {
 };
 
 describe('ответы на открытые вопросы заготовки', () => {
-  test('ответ ложится в бриф дословно, суть переписана, повтора нет', async () => {
+  test('ответ хранится дословно, а модель встраивает его в суть по смыслу', async () => {
     const { service, calls } = buildPieces({
       piece: askedPiece(),
       models: [{ text: 'Суть с ответом человека.' }],
@@ -1389,7 +1384,7 @@ describe('ответы на открытые вопросы заготовки',
     const events = await answerDrain(service, {
       answers: [
         {
-          field: 'facts',
+          field: 'position',
           text: 'из шести дедлайнов сдивнулись пять, я считал сам',
         },
       ],
@@ -1407,28 +1402,24 @@ describe('ответы на открытые вопросы заготовки',
     expect(savedId).toBe('piece-12');
     expect(saved.body).toBe('Суть с ответом человека.');
 
-    // Ответ хранится дословно, с опечаткой, и стал фактом со словом человека.
-    const answeredFact = saved.brief.brief.facts.find((fact) =>
-      fact.statement.includes('сдивнулись')
-    );
-    expect(answeredFact.origin).toBe('person');
-    expect(answeredFact.statement).toBe(
+    // Ответ хранится дословно в поле позиции, включая опечатку.
+    expect(saved.brief.brief.position).toBe(
       'из шести дедлайнов сдивнулись пять, я считал сам'
     );
+    expect(saved.brief.brief.origins.position).toBe('person');
     expect(saved.brief.questions.answered[0]).toMatchObject({
-      field: 'facts',
+      field: 'position',
       origin: 'person',
     });
 
     /*
-      И главное: вопрос про `facts` не задан второй раз. Без опоры слово
-      человека раньше приезжало `verified: false`, ворота считали факт
-      несуществующим — и спрашивали снова.
+      Отвеченное поле не задаётся второй раз.
     */
     expect(events.filter((event) => event.name === 'questions')).toEqual([]);
     expect(saved.brief.questions.items).toEqual([]);
 
-    // Ответ приехал в промпт сути парой «вопрос → ответ», тоже дословно.
+    // Ответ приехал в промпт сути парой «вопрос → ответ», но инструкция велит
+    // встроить его по смыслу.
     const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
     expect(prompt).toContain('сдивнулись');
     // И слова, с которых началась заготовка, в промпте тоже: суть
@@ -1436,10 +1427,91 @@ describe('ответы на открытые вопросы заготовки',
     expect(prompt).toContain('сдивнулся');
   });
 
+  test('ссылка в ответе читается как внешняя опора и не становится подтверждённым фактом', async () => {
+    const readLink = jest.fn(async () => ({
+      evidenceId: 'evidence-answer-1',
+      url: 'https://example.com/report.pdf',
+      title: 'Отчёт',
+      excerpt: 'В отчёте описаны 2 500 участников исследования.',
+    }));
+    const { service, calls } = buildPieces({
+      piece: askedPiece(),
+      models: [{ text: 'Суть использует материал источника без служебной фразы.' }],
+      intake: { readLink },
+    });
+
+    const events = await answerDrain(service, {
+      answers: [
+        {
+          field: 'position',
+          text: 'Вот ссылка https://example.com/report.pdf — ориентируюсь на этот отчёт',
+        },
+      ],
+    });
+
+    expect(readLink).toHaveBeenCalledWith(
+      'org-a',
+      'https://example.com/report.pdf'
+    );
+    expect(events.map((event) => event.name)).toEqual([
+      'answer-started',
+      'link',
+      'piece',
+      'done',
+    ]);
+    expect(events[1]).toMatchObject({
+      evidenceId: 'evidence-answer-1',
+      url: 'https://example.com/report.pdf',
+    });
+    const saved = calls.updateCore[0][2];
+    expect(saved.brief.brief.inputSources).toContainEqual({
+      kind: 'link',
+      url: 'https://example.com/report.pdf',
+      evidenceId: 'evidence-answer-1',
+    });
+    expect(saved.brief.brief.facts).toContainEqual(
+      expect.objectContaining({
+        evidenceId: 'evidence-answer-1',
+        sourceUrl: 'https://example.com/report.pdf',
+        kind: 'external',
+        verified: false,
+      })
+    );
+    const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
+    expect(prompt).toContain('материал по ссылке (не подтверждено)');
+    expect(prompt).toContain('2 500 участников');
+    expect(prompt).not.toContain('https://example.com/report.pdf');
+    expect(prompt).not.toContain('Вот ссылка');
+  });
+
+  test('нечитаемая ссылка не мешает сохранить слова человека', async () => {
+    const { service, calls } = buildPieces({
+      piece: askedPiece(),
+      models: [{ text: 'Суть с ответом человека.' }],
+      intake: { readLink: jest.fn(async () => { throw new Error('unreadable'); }) },
+    });
+    const events = await answerDrain(service, {
+      answers: [
+        {
+          field: 'position',
+          text: 'Смотрите https://example.com/missing — я выбираю этот подход',
+        },
+      ],
+    });
+    expect(events.map((event) => event.name)).toEqual([
+      'answer-started',
+      'piece',
+      'done',
+    ]);
+    expect(calls.updateCore[0][2].brief.brief.position).toContain(
+      'я выбираю этот подход'
+    );
+  });
+
   test('«Реши сама» закрывает вопрос и не зовёт модель', async () => {
     const { service, calls } = buildPieces({ piece: askedPiece(), models: [] });
 
-    const events = await answerDrain(service, { decide: ['facts', 'position'] });
+    const events = await answerDrain(service, { decide: ['thesis', 'position'] });
 
     // Ни одного платного вызова: отданное поле снимает вопрос, а не добавляет
     // слово, и платить за пересборку той же сути было бы платой за нажатие.
@@ -1451,7 +1523,7 @@ describe('ответы на открытые вопросы заготовки',
     expect(
       saved.brief.questions.answered.map((row) => [row.field, row.origin])
     ).toEqual([
-      ['facts', 'model'],
+      ['thesis', 'model'],
       ['position', 'model'],
     ]);
     expect(saved.brief.questions.items).toEqual([]);
@@ -1467,7 +1539,7 @@ describe('ответы на открытые вопросы заготовки',
     });
 
     const events = await answerDrain(service, {
-      answers: [{ field: 'facts', text: 'своими словами, без ссылки' }],
+      answers: [{ field: 'position', text: 'своими словами, без ссылки' }],
     });
 
     expect(events.map((event) => event.name)).toEqual([
@@ -1492,7 +1564,7 @@ describe('ответы на открытые вопросы заготовки',
     });
 
     const events = await answerDrain(service, {
-      answers: [{ field: 'facts', text: 'своими словами' }],
+      answers: [{ field: 'position', text: 'своими словами' }],
     });
 
     const [failure] = events.filter((event) => event.name === 'error');
@@ -1899,18 +1971,18 @@ describe('third walk first draft and editable title', () => {
   test('a pending core drafts once after delegation and recalculates the fallback title', async () => {
     const pending = { ...askedPiece(), body: '', title: ':null,' };
     const { service, calls } = buildPieces({ piece: pending, models: [{ text: 'Первый написанный текст.' }] });
-    await answerDrain(service, { decide: ['facts', 'position'] });
+    await answerDrain(service, { decide: ['thesis', 'position'] });
     expect(modelCalls.filter((call) => call.role === 'draft')).toHaveLength(1);
     expect(calls.updateCore[0][2].body).toBe('Первый написанный текст.');
     expect(calls.updateCore[0][2].title).not.toContain('null');
     expect(calls.updateCore[0][2].brief.questions.items).toEqual([]);
-    await answerDrain(service, { decide: ['facts', 'position'] });
+    await answerDrain(service, { decide: ['thesis', 'position'] });
     expect(modelCalls.filter((call) => call.role === 'draft')).toHaveLength(1);
   });
   test('a title manually edited before answering is preserved', async () => {
     const pending = { ...askedPiece(), body: '', title: 'Моё название', brief: { ...askedPiece().brief, titleEdited: true } };
     const { service, calls } = buildPieces({ piece: pending, models: [{ text: 'Первый написанный текст.' }] });
-    await answerDrain(service, { decide: ['facts', 'position'] });
+    await answerDrain(service, { decide: ['thesis', 'position'] });
     expect(calls.updateCore[0][2].title).toBeUndefined();
     expect(calls.updateCore[0][2].brief.titleEdited).toBe(true);
   });

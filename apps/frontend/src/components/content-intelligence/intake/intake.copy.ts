@@ -47,9 +47,9 @@ export const intakeCopy = {
       'поправим то, что расходится с источниками, и добавим находки по теме ' +
       'с адресами. Это платная операция, она тратит одну из операций месяца.',
     researchLevelLabel: 'Глубина ресерча',
-    researchQuick: 'Быстрый · до 4 запросов',
-    researchStandard: 'Стандартный · до 10 запросов',
-    researchDeep: 'Глубокий · до 25 запросов',
+    researchQuick: 'Быстрый · до 8 источников',
+    researchStandard: 'Стандартный · до 20 источников',
+    researchDeep: 'Глубокий · до 50 источников',
     researchContinue: 'Продолжить с выбранными опорами',
     // Итог ресерча в духе «сделали за вас» (владелец выбрал вариант 1, 13.09.2026).
     researchOutcomeTitle: 'Проверили по источникам',
@@ -262,9 +262,9 @@ export const intakeCopy = {
       'correct what the sources contradict, and add findings on the topic with ' +
       'their addresses. This is a paid step: it spends one of the month’s operations.',
     researchLevelLabel: 'Research depth',
-    researchQuick: 'Quick · up to 4 queries',
-    researchStandard: 'Standard · up to 10 queries',
-    researchDeep: 'Deep · up to 25 queries',
+    researchQuick: 'Quick · up to 8 sources',
+    researchStandard: 'Standard · up to 20 sources',
+    researchDeep: 'Deep · up to 50 sources',
     researchContinue: 'Continue with selected sources',
     researchOutcomeTitle: 'Checked against sources',
     researchLevelNames: { quick: 'quick', standard: 'standard', deep: 'deep' } as const,

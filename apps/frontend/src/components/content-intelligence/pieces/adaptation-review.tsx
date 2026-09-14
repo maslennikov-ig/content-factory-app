@@ -13,16 +13,35 @@ import { Hint } from '@contentfactory/react/layout/hint';
 import { DescribedMenuItem } from '../../ui/layers';
 import { WorkingLine } from '../../ui/working-line';
 import { Disclosure } from '../../ui/disclosure';
-import {
-  ReviewQuestions,
-  type PendingReviewQuestions,
-} from './review-questions';
 import { sentenceChanges } from './core-answer-diff';
+import { ResearchOutcome } from '../intake/intake.research';
 import {
   REVIEW_VERSION,
   type ReviewChange,
   type ReviewV2,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/review.v2.contract';
+import {
+  PIECE_RESEARCH_VERSION,
+  type PieceResearchPreview,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
+
+const isEditableReviewChange = (change: ReviewChange): boolean =>
+  change.basket !== 'ask' &&
+  (change.excerpt !== change.replacement ||
+    Boolean(change.variants?.some((variant) => variant !== change.excerpt)));
+
+type ReviewMode = 'slop' | 'facts' | 'both' | 'web';
+
+const reviewModes = new Set<ReviewMode>(['slop', 'facts', 'both', 'web']);
+
+const rememberedReviewMode = (workspaceId: string): ReviewMode | null => {
+  try {
+    const value = window.localStorage.getItem(reviewModeKey(workspaceId));
+    return reviewModes.has(value as ReviewMode) ? (value as ReviewMode) : null;
+  } catch {
+    return null;
+  }
+};
 
 /** One source text, with local deletions/insertions; unchanged paragraphs occur once. */
 export function ReviewText({
@@ -35,7 +54,9 @@ export function ReviewText({
   locale: 'ru' | 'en';
 }) {
   const edits = changes
-    .filter((c) => c.basket !== 'ask' && (c.target ?? 'body') === 'body')
+    .filter(
+      (c) => isEditableReviewChange(c) && (c.target ?? 'body') === 'body'
+    )
     .map((c) => ({ ...c, start: text.indexOf(c.excerpt) }))
     .filter((c) => c.start >= 0)
     .sort((a, b) => a.start - b.start);
@@ -80,7 +101,7 @@ export function AdaptationReview({
   disabled,
   onAccepted,
   onPublish,
-  onQuestions,
+  canCheckFacts = false,
 }: {
   pieceId: string;
   adaptationId?: string;
@@ -89,7 +110,7 @@ export function AdaptationReview({
   disabled?: boolean;
   onAccepted: () => void;
   onPublish?: () => void;
-  onQuestions?: (pending: PendingReviewQuestions | null) => void;
+  canCheckFacts?: boolean;
 }) {
   const ru = locale === 'ru',
     request = useFetch();
@@ -98,11 +119,13 @@ export function AdaptationReview({
     [web, setWeb] = useState(false),
     [instruction, setInstruction] = useState(''),
     [result, setResult] = useState<ReviewV2 | null>(null),
+    [researchPreview, setResearchPreview] = useState<PieceResearchPreview | null>(null),
+    [researchExpired, setResearchExpired] = useState(false),
     [selected, setSelected] = useState<string[]>([]),
     [variant, setVariant] = useState<string | undefined>(),
-    [busy, setBusy] = useState<'run' | 'accept' | null>(null),
+    [busy, setBusy] = useState<'run' | 'research' | 'accept' | null>(null),
     [error, setError] = useState<string | null>(null);
-  const [last, setLast] = useState<string | null>(null),
+  const [last, setLast] = useState<ReviewMode | null>(null),
     [stale, setStale] = useState(false);
   const active = useRef<AbortController | null>(null);
   const menuElement = useRef<HTMLDivElement | null>(null);
@@ -118,11 +141,11 @@ export function AdaptationReview({
     adaptationId ? `/adaptations/${encodeURIComponent(adaptationId)}` : ''
   }`;
   useEffect(() => {
-    try {
-      setLast(window.localStorage.getItem(reviewModeKey(workspaceId)));
-    } catch {}
+    setLast(rememberedReviewMode(workspaceId));
     setStale(false);
     setResult(null);
+    setResearchPreview(null);
+    setResearchExpired(false);
     setError(null);
     setRewrite(false);
     setWeb(false);
@@ -134,7 +157,7 @@ export function AdaptationReview({
       active.current = null;
     };
   }, [workspaceId, pieceId, adaptationId]);
-  async function run(mode?: string, customInstruction?: string) {
+  async function run(mode?: ReviewMode, customInstruction?: string) {
     const human = customInstruction ?? instruction;
     if (active.current || disabled || (!mode && !human.trim())) return;
     const abort = new AbortController();
@@ -151,6 +174,8 @@ export function AdaptationReview({
     setWeb(false);
     setError(null);
     setResult(null);
+    setResearchPreview(null);
+    setResearchExpired(false);
     try {
       const response = await request(
         `${base}/${mode ? 'review' : 'rewrite'}?language=${locale}`,
@@ -158,7 +183,7 @@ export function AdaptationReview({
           method: 'POST',
           body: JSON.stringify(
             mode
-              ? { mode, ...(mode === 'web' || mode === 'research' ? { confirmWebSpend: true } : {}) }
+              ? { mode, ...(mode === 'web' ? { confirmWebSpend: true } : {}) }
               : { instruction: human.trim() }
           ),
           signal: abort.signal,
@@ -176,17 +201,9 @@ export function AdaptationReview({
         );
       if (!abort.signal.aborted) {
         setResult(body);
-        const asked = body.changes.filter(
-          (change: ReviewChange) => change.basket === 'ask'
-        );
-        onQuestions?.(
-          asked.length
-            ? { token: body.token, adaptationId, questions: asked }
-            : null
-        );
         setSelected(
           body.changes
-            .filter((c: ReviewChange) => c.basket !== 'ask')
+            .filter(isEditableReviewChange)
             .map((c: ReviewChange) => c.id)
         );
         setVariant(undefined);
@@ -203,6 +220,150 @@ export function AdaptationReview({
       }
     }
   }
+
+  async function startResearch() {
+    if (active.current || disabled || adaptationId) return;
+    const abort = new AbortController();
+    active.current = abort;
+    setBusy('research');
+    setError(null);
+    setResult(null);
+    setResearchPreview(null);
+    setResearchExpired(false);
+    setRewrite(false);
+    setWeb(false);
+    setOpen(false);
+    try {
+      const response = await request(`${base}/research?language=${locale}`, {
+        method: 'POST',
+        body: JSON.stringify({ confirmWebSpend: true }),
+        signal: abort.signal,
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message);
+      if (
+        body.version !== PIECE_RESEARCH_VERSION ||
+        typeof body.snapshotKey !== 'string' ||
+        body.level !== 'standard' ||
+        typeof body.input !== 'string' ||
+        !Array.isArray(body.facts) ||
+        !Array.isArray(body.corrections) ||
+        (body.summary !== null && typeof body.summary !== 'object')
+      )
+        throw new Error(
+          ru ? 'Неполный результат ресерча.' : 'Incomplete research result.'
+        );
+      if (!abort.signal.aborted) setResearchPreview(body);
+    } catch (e) {
+      if (!abort.signal.aborted)
+        setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (active.current === abort) {
+        active.current = null;
+        setBusy(null);
+      }
+    }
+  }
+
+  function toggleResearchCorrection(factKey: string) {
+    setResearchPreview((current) => {
+      if (!current) return current;
+      const correction = current.corrections.find(
+        (row) => row.factKey === factKey
+      );
+      if (!correction) return current;
+      const accepted = !correction.accepted;
+      return {
+        ...current,
+        corrections: current.corrections.map((row) =>
+          row.factKey === factKey ? { ...row, accepted } : row
+        ),
+        facts: current.facts.map((fact) => {
+          if (fact.factKey === factKey) return { ...fact, selected: accepted };
+          if (
+            fact.correction?.original === correction.original &&
+            fact.origin !== 'search'
+          )
+            return { ...fact, selected: !accepted };
+          return fact;
+        }),
+      };
+    });
+  }
+
+  function toggleResearchFound(factKey: string, selectedFact: boolean) {
+    setResearchPreview((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        facts: current.facts.map((fact) =>
+          (fact.factKey ?? fact.statement) === factKey
+            ? { ...fact, selected: selectedFact }
+            : fact
+        ),
+      };
+    });
+  }
+
+  async function acceptResearch(mode: 'with-fixes' | 'keep-mine') {
+    if (!researchPreview || active.current || disabled || researchExpired)
+      return;
+    const facts =
+      mode === 'keep-mine'
+        ? researchPreview.facts.map((fact) =>
+            fact.correction
+              ? { ...fact, selected: fact.origin !== 'search' }
+              : fact
+          )
+        : researchPreview.facts;
+    const selectedKeys = facts
+      .filter((fact) => fact.selected === true)
+      .map((fact) => fact.factKey)
+      .filter(
+        (factKey): factKey is string =>
+          typeof factKey === 'string' && factKey.length > 0
+      );
+    const abort = new AbortController();
+    active.current = abort;
+    setBusy('accept');
+    setError(null);
+    try {
+      const response = await request(`${base}/research/accept`, {
+        method: 'POST',
+        body: JSON.stringify({
+          snapshotKey: researchPreview.snapshotKey,
+          selectedKeys,
+        }),
+        signal: abort.signal,
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 409 || response.status === 410)
+          setResearchExpired(true);
+        throw new Error(
+          typeof body?.message === 'string'
+            ? body.message
+            : ru
+            ? 'Результат ресерча устарел.'
+            : 'Research result expired.'
+        );
+      }
+      if (!abort.signal.aborted) {
+        setResearchPreview(null);
+        setResearchExpired(false);
+        onAccepted();
+      }
+    } catch (e) {
+      if (!abort.signal.aborted)
+        setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (active.current === abort) {
+        active.current = null;
+        setBusy(null);
+      }
+    }
+  }
+
   async function accept(chosenVariant?: string) {
     if (!result || active.current || disabled || stale || !selected.length)
       return;
@@ -245,8 +406,11 @@ export function AdaptationReview({
   const cost = ru
     ? 'Один вызов модели · расход по роли «проверка»'
     : 'One model call · review usage';
-  const questions = result?.changes.filter((c) => c.basket === 'ask') ?? [];
-  const editable = result?.changes.filter((c) => c.basket !== 'ask') ?? [];
+  const editable = result?.changes.filter(isEditableReviewChange) ?? [];
+  const noChangeNotes =
+    result?.changes.filter(
+      (change) => change.basket !== 'ask' && !isEditableReviewChange(change)
+    ) ?? [];
   return (
     <div
       className="flex w-full min-w-0 flex-col gap-[12px]"
@@ -274,16 +438,26 @@ export function AdaptationReview({
               {ru ? 'Перегенерировать' : 'Regenerate'}
             </Button>
             <Button
-              variant="quiet"
+              variant="secondary"
               density="dense"
               disabled={disabled || !!busy}
-              onClick={() => {
-                setLast('research');
-                setWeb(true);
-              }}
+              onClick={() => void startResearch()}
             >
-              {ru ? 'Усилить ресерчем' : 'Strengthen with research'}
+              {ru ? 'Дополнить ресерчем' : 'Add research'}
             </Button>
+            {canCheckFacts ? (
+              <Button
+                variant="quiet"
+                density="dense"
+                disabled={disabled || !!busy}
+                onClick={() => {
+                  setLast('web');
+                  setWeb(true);
+                }}
+              >
+                {ru ? 'Проверить факты' : 'Check facts'}
+              </Button>
+            ) : null}
           </>
         ) : (
           <Menu open={open} onOpenChange={setOpen}>
@@ -334,15 +508,6 @@ export function AdaptationReview({
                       onClick={() => void run(mode)}
                     />
                   ))}
-                  <DescribedMenuItem
-                    title={ru ? 'Усилить ресерчем' : 'Strengthen with research'}
-                    description={ru ? 'Глубокий поиск + один вызов модели' : 'Deep search + one model call'}
-                    onClick={() => {
-                      setOpen(false);
-                      setWeb(true);
-                      setLast('research');
-                    }}
-                  />
                   <DescribedMenuItem
                     title={
                       ru ? 'Проверить факты поиском' : 'Check facts with search'
@@ -420,7 +585,7 @@ export function AdaptationReview({
           <Button
             variant="primary"
             loading={busy === 'run'}
-            onClick={() => void run(last === 'research' ? 'research' : 'web')}
+            onClick={() => void run('web')}
           >
             {ru ? 'Запустить поиск и проверку' : 'Run search and review'}
           </Button>
@@ -429,6 +594,22 @@ export function AdaptationReview({
           </Button>
         </section>
       ) : null}
+      {researchPreview ? (
+        <ResearchOutcome
+          locale={locale}
+          level={researchPreview.level}
+          input={researchPreview.input}
+          inputKind="thought"
+          facts={researchPreview.facts}
+          corrections={researchPreview.corrections}
+          summary={researchPreview.summary}
+          pending={!researchExpired}
+          busy={busy === 'accept' || !!disabled}
+          onToggleCorrection={toggleResearchCorrection}
+          onToggleFound={toggleResearchFound}
+          onContinue={(mode) => void acceptResearch(mode)}
+        />
+      ) : null}
       {busy ? (
         <WorkingLine
           label={
@@ -436,9 +617,13 @@ export function AdaptationReview({
               ? ru
                 ? 'Сохраняем…'
                 : 'Saving…'
+              : busy === 'research'
+              ? ru
+                ? 'Ищем опоры…'
+                : 'Finding sources…'
               : ru
-              ? 'Проверяем текст…'
-              : 'Reviewing…'
+                ? 'Проверяем текст…'
+                : 'Reviewing…'
           }
         />
       ) : null}
@@ -457,6 +642,15 @@ export function AdaptationReview({
           ) : (
             <>
               <p className="cf-body-sm text-cf-ink-muted">{result.summary}</p>
+              {noChangeNotes.map((change) => (
+                <p
+                  key={change.id}
+                  data-review-no-change="true"
+                  className="cf-body-sm text-cf-ink-muted"
+                >
+                  {change.why}
+                </p>
+              ))}
               <ReviewText
                 text={result.originalText}
                 changes={result.changes}
@@ -515,37 +709,6 @@ export function AdaptationReview({
                     </div>
                   ))}
                 </div>
-              ) : null}
-              {questions.length ? (
-                onQuestions ? (
-                  <a
-                    href="#piece-text-sources"
-                    className="cf-body-sm text-cf-ink underline"
-                  >
-                    {ru
-                      ? 'Ответить на вопросы в «Опорах текста»'
-                      : 'Answer questions in Text sources'}
-                  </a>
-                ) : (
-                  <ReviewQuestions
-                    pieceId={pieceId}
-                    pending={{ token: result.token, adaptationId, questions }}
-                    locale={locale}
-                    disabled={disabled || !!busy}
-                    onSaved={(remaining) => {
-                      setResult(
-                        remaining
-                          ? {
-                              ...result,
-                              token: remaining.token,
-                              changes: remaining.questions,
-                            }
-                          : null
-                      );
-                      onAccepted();
-                    }}
-                  />
-                )
               ) : null}
               <div className="flex flex-wrap gap-[8px]">
                 {editable.length ? (

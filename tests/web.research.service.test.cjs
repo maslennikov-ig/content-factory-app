@@ -159,6 +159,7 @@ describe('shared web research service', () => {
     invocations.length = 0;
     logEntries.length = 0;
     classification = {
+      scope: 'global',
       subjectLanguage: 'en',
       englishQuery: 'current topic',
       subjectLanguageQuery: null,
@@ -321,7 +322,7 @@ describe('shared web research service', () => {
       {
         organizationId: 'organization-a',
         provider: 'tavily',
-        options: { country: undefined, freshnessRequired: false },
+        options: { scope: 'global', country: undefined, freshnessRequired: false },
       },
     ]);
     expect(invocations).toEqual([
@@ -404,38 +405,60 @@ describe('shared web research service', () => {
   });
 
   /**
-   * `content-factory-next-fn33.132`: Tavily has no language parameter — the
-   * language of a query is the language of its words — so a Russian subject
-   * that the classifier does not call «local» must still be asked in Russian,
-   * and the Russian query goes first because both queries share one excerpt
-   * budget.
+   * A global subject written in Russian uses both the author's language and
+   * English, while neither query inherits a Russia-only ranking hint.
    */
-  test('asks in the subject language and boosts the country without a local classification', async () => {
+  test('recorded global classification searches in both languages without a country bias', async () => {
     classification = {
+      scope: 'global',
       subjectLanguage: 'ru',
-      englishQuery: 'Telegram advertising labelling rules 2026',
-      subjectLanguageQuery: 'маркировка рекламы в Telegram ЕРИР штрафы 2026',
+      englishQuery: 'OpenAI mathematicians proof dispute',
+      subjectLanguageQuery: 'спор OpenAI и математиков о доказательстве',
       freshnessRequired: false,
     };
 
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
-      'Что изменилось в правилах маркировки рекламы в Telegram-каналах?'
+      'Спор OpenAI и математиков'
     );
 
     expect(clientFactoryCalls[0]).toMatchObject({
       provider: 'tavily',
-      options: { country: 'russia', freshnessRequired: false },
+      options: { scope: 'global', country: undefined, freshnessRequired: false },
     });
     expect(invocations.map(({ input }) => input.query)).toEqual([
-      'маркировка рекламы в Telegram ЕРИР штрафы 2026',
-      'Telegram advertising labelling rules 2026',
+      'спор OpenAI и математиков о доказательстве',
+      'OpenAI mathematicians proof dispute',
     ]);
     expect(result.facts).toHaveLength(2);
   });
 
+  test('recorded local classification searches only in the subject language with country ranking', async () => {
+    classification = {
+      scope: 'local',
+      subjectLanguage: 'ru',
+      englishQuery: 'Wildberries Ozon seller commissions Russia',
+      subjectLanguageQuery: 'комиссии Wildberries Ozon для продавцов',
+      freshnessRequired: false,
+    };
+
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Комиссии Wildberries и Ozon'
+    );
+
+    expect(clientFactoryCalls[0]).toMatchObject({
+      provider: 'tavily',
+      options: { scope: 'local', country: 'russia', freshnessRequired: false },
+    });
+    expect(invocations.map(({ input }) => input.query)).toEqual([
+      'комиссии Wildberries Ozon для продавцов',
+    ]);
+  });
+
   test('one failed query does not throw away the other answer (ec48.3)', async () => {
     classification = {
+      scope: 'global',
       subjectLanguage: 'ru',
       englishQuery: 'Bank of Russia key rate September 2026',
       subjectLanguageQuery: 'ключевая ставка Банка России сентябрь 2026',
@@ -472,6 +495,7 @@ describe('shared web research service', () => {
 
   test('when every query fails, the first failure is the answer (ec48.3)', async () => {
     classification = {
+      scope: 'local',
       subjectLanguage: 'ru',
       englishQuery: 'Bank of Russia key rate September 2026',
       subjectLanguageQuery: 'ключевая ставка Банка России сентябрь 2026',
@@ -538,6 +562,7 @@ describe('shared web research service', () => {
 
   test('does not pay twice when both queries came back the same', async () => {
     classification = {
+      scope: 'global',
       subjectLanguage: 'de',
       englishQuery: 'Bundesbank',
       subjectLanguageQuery: '  Bundesbank  ',
@@ -554,6 +579,7 @@ describe('shared web research service', () => {
 
   test('leaves a non-Russian subject language unboosted', async () => {
     classification = {
+      scope: 'global',
       subjectLanguage: 'de',
       englishQuery: 'German rental law',
       subjectLanguageQuery: 'Mietrecht Deutschland',

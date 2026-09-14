@@ -1,14 +1,23 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-75xn`
+Current stage id: `content-factory-next-4zul`
 Last accepted stage id: `content-factory-next-zhv8`
-Selected Beads goal: `content-factory-next-75xn`
-**Поправка по первому шагу шестого захода (`75xn.36`–`.37`) — RELEASED `cde11f97e77f` 14.09.2026.**
-Приватный `188fb071`, откат `65bcb0dd6829`, схема не менялась. Сайт по вставленной ссылке ответил 4xx,
+Selected Beads goal: `content-factory-next-4zul`
+**Wave 4zul in progress, 14.09.2026.** Goal: sixth-walk spec and order in
+`docs/product/sixth-walk-wave-2026-09-14-spec.md` and `docs/prompts/astra-sixth-walk-wave-2026-09-14.md`.
+Branch `wave/walk-2026-09-14`; S3, S1 and S2 integrated in order.
+S4 research snapshots and ResearchOutcome UI integrated; all streams accepted, final root checks starting.
+Scope: 4zul.1–.10 plus 75xn.35; 4zul.11 belongs to Claude. No schema changes or paid model tests.
+Owner approval of localhost:4200 remains required before release. Production still 447e360f7007.
+Stage contract, accepted streams and release baseline: `stages/content-factory-next-4zul/summary.md`.
+Original findings remain in `stages/content-factory-next-4zul/evidence/walk-2026-09-14/`.
+**Поправка по первому шагу шестого захода (`75xn.36`–`.38`) — RELEASED `447e360f7007` 14.09.2026.**
+Два образа: `cde11f97e77f` (приватный `188fb071`) и `447e360f7007` (`53a83baf`, кнопка «Продолжить без
+ссылки» убирает отказанный адрес за человека); откат `65bcb0dd6829`, схема не менялась. Сайт по вставленной ссылке ответил 4xx,
 экран прятал объяснение сервера за «Ответ пришёл неполным» — теперь общая фраза только для потока без
 объяснения; «Нужен ресерч» объясняет себя `Hint`, подпись снята. ЛОВУШКА: пустая строка между
 `Source-Commit` и `Co-Authored-By` ломает блок трейлеров — ворота квитанции не видят коммит; force-push
-в публичный запрещён, лечится пустым коммитом с верным блоком. Открыто `75xn.38` (ссылка не отдана —
-идти по словам человека, решение владельца). Evidence: `evidence/release-2026-09-14-intake-hint.json`.
+в публичный запрещён, лечится пустым коммитом с верным блоком.
+Evidence: `evidence/release-2026-09-14-intake-hint.json`.
 **Волна качества (`75xn.17`–`.32`) — RELEASED `65bcb0dd6829` 13.09.2026 вечером.**
 Три образа за вечер: `691eda1318c8` (волна, приватный `6bc680c9`), `11a3a80caee8`
 (поправка: ключи в ответе модели, тело страницы; `d6b1a3f8`), `65bcb0dd6829` («supplied»
@@ -30,22 +39,9 @@ Selected Beads goal: `content-factory-next-75xn`
 сюжета), `.34` (перепечатки-агрегаторы), `.35` (повтор при `REVIEW_INVALID`), `.9`. Страница
 шестого захода: `evidence/walk-2026-09-13-evening/` (артефакт `606a3374…`). Evidence:
 `evidence/release-2026-09-13-quality-wave.json`.
-**Оценка качества с сервера + второй проход владельца — 13.09.2026, код не менялся.**
-Владелец попросил судить качество ресерча и поводов самому, до его стадии C. Служебные
-области на бою (режим «Ключи системы»), девять сценариев intake, оба режима review, пять
-тем / сорок поводов с независимой датировкой: `evidence/quality-2026-09-13/FINDINGS.md`
-(F1–F14, вердикт). Движки не проблема; проблема — обработка выдачи: опоры = обрезки шапок
-страниц, всё `unverified`, ложные числа проходят в суть, выбор теряется на «Продолжить»,
-уровни неотличимы (`CONTENT_CONTEXT_MAX_EVIDENCE_V1 = 8`), Википедия не доходит никогда
-(`budget_accepted_sources`); поводы — 30/40 без даты, 12/40 мусор, две шаблонные фразы.
-Сильная часть — «Усилить ресерчем» и проверка фактов. Задачи `75xn.18`–`.24`. Второй
-проход владельца по странице (R1–S3): `75xn.25`–`.28` (суперадмин: OpenAI вместо
-openrouter в форме, ключ генерации не в том блоке, число операций не показано,
-автосохранение; область в режиме системных ключей: лишние «Убрать ключ», пропавшие
-тематика/глубина; чекбокс «Нужен ресерч» и лоадер не унифицированы). Служебные области и
-аккаунты удалены. Промпт для следующей сессии:
-`evidence/quality-2026-09-13/NEXT-SESSION-PROMPT.md`. Владелец: стадии C и E проходить
-после волны исправлений.
+**Оценка качества с сервера + второй проход владельца — 13.09.2026** (код не менялся): девять
+сценариев intake, оба режима review, сорок поводов — `evidence/quality-2026-09-13/FINDINGS.md` (F1–F14);
+породила задачи `75xn.18`–`.28`, все закрыты волной качества выше. Служебные области удалены.
 **Ключи по умолчанию у суперадмина (`75xn.16`) — RELEASED `cd0c137d0b1c` 13.09.2026.**
 Приватный `7faeaedf`, откат `616fe17a2380`. Уточнение владельца: настройку самих ключей по
 умолчанию открывает только `isSuperAdmin`, область выбирает лишь между ними и своим ключом.
@@ -155,8 +151,9 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-m0iy.10`. Recommended action: measure the benefit of R1–R5
-(threshold in `m0iy.10`; R6/R7 deferred; `m0iy.8` keyless Wikipedia done 11.09).
+Next stage id: `content-factory-next-4zul`. Recommended action: execute the sixth-walk wave by the order
+`docs/prompts/astra-sixth-walk-wave-2026-09-14.md` (spec §3, acceptance §6), release, then Claude builds the
+seventh-walk page (`4zul.11`). Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.
 Cleanup 08.09: branches/worktrees removed, two August tips in `.git/cleanup-2026-09-08-legacy-orchestration.bundle`.
 Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks where the text is final,

@@ -297,7 +297,7 @@ describe('per-organization AI clients', () => {
     const tavily = await clients.getWebSearchClient(
       tavilyOrganization,
       'tavily',
-      { country: 'russia', freshnessRequired: false }
+      { scope: 'local', country: 'russia', freshnessRequired: false }
     );
     const openrouterClient = await clients.getWebSearchClient(
       openrouterOrganization,
@@ -353,6 +353,7 @@ describe('per-organization AI clients', () => {
     });
 
     const tavily = await clients.getWebSearchClient(organization, 'tavily', {
+      scope: 'local',
       country: 'russia',
       freshnessRequired: false,
     });
@@ -377,12 +378,39 @@ describe('per-organization AI clients', () => {
     });
   });
 
+  test('ignores a country hint unless the classifier marked the subject local', async () => {
+    const tavilyOrganization = register({
+      ...openrouter,
+      search: { ...openrouter.search, topic: 'general' },
+    });
+    await clients.getWebSearchClient(tavilyOrganization, 'tavily', {
+      scope: 'global',
+      country: 'russia',
+      freshnessRequired: false,
+    });
+    expect(built.tavily[0]).not.toHaveProperty('country');
+
+    const requests = [];
+    const exa = new clients.ExaWebSearch(
+      'exa-key',
+      async (url, init) => {
+        requests.push({ url, init });
+        return { ok: true, status: 200, async json() { return { results: [] }; } };
+      },
+      5,
+      { scope: 'global', country: 'russia' }
+    );
+    await exa.invoke({ query: 'international debate' });
+    expect(JSON.parse(requests[0].init.body)).not.toHaveProperty('userLocation');
+  });
+
   test('caps one Tavily or OpenRouter query at 20 results whatever the level asks', async () => {
     // Tavily documents `max_results` as 0–20 and the client does not clamp:
     // 50 is a validation error, not a bigger page. Deep research collects its
     // 50 sources across 25 queries instead (`content-factory-next-6xi0.1`).
     const tavilyOrganization = register(openrouter);
     await clients.getWebSearchClient(tavilyOrganization, 'tavily', {
+      scope: 'local',
       country: 'russia',
       freshnessRequired: false,
       maxResults: 50,
@@ -393,7 +421,7 @@ describe('per-organization AI clients', () => {
     const openrouterClient = await clients.getWebSearchClient(
       openrouterOrganization,
       'openrouter',
-      { country: 'russia', freshnessRequired: false, maxResults: 50 }
+      { scope: 'local', country: 'russia', freshnessRequired: false, maxResults: 50 }
     );
     await openrouterClient.invoke({ query: 'deep subject' });
     expect(built.chatCompletions[0].request.plugins[0]).toMatchObject({
@@ -542,6 +570,7 @@ describe('per-organization AI clients', () => {
     };
     const before = Date.now();
     const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 5, {
+      scope: 'local',
       country: 'russia',
       freshnessRequired: true,
       windowDays: 30,
@@ -581,6 +610,7 @@ describe('per-organization AI clients', () => {
       return { ok: true, status: 200, async json() { return { results: [] }; } };
     };
     const exa = new clients.ExaWebSearch('exa-key', fetchImpl, 5, {
+      scope: 'local',
       country: 'atlantis',
     });
     await exa.invoke({ query: 'public topic' });
@@ -596,6 +626,7 @@ describe('per-organization AI clients', () => {
     });
 
     await clients.getWebSearchClient(organization, 'tavily', {
+      scope: 'local',
       country: 'russia',
       freshnessRequired: true,
     });

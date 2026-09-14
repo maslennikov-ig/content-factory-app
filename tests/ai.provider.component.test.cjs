@@ -381,6 +381,7 @@ describe('AI provider search settings component', () => {
 
     expect(markup).toContain('data-search-system-keys="true"');
     expect(markup).toContain('Search runs on the system keys');
+    expect(markup).not.toContain('data-search-routing="true"');
     for (const field of [
       'name="apiKey"',
       'name="searchApiKey-tavily"',

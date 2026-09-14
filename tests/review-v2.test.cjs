@@ -89,15 +89,21 @@ test('partial changes preserve untouched text; questions never alter claims', ()
   expect(() => applyReviewChanges('Первое. Первое.', changes, ['a'])).toThrow();
   expect(() => applyReviewChanges('Первое.', changes, ['a', 'a'])).toThrow();
 });
-test('missing-fact question replacement is forced to its original excerpt', async () => {
+test('missing factual support becomes a visible note without an author question', async () => {
   output = {
     changes: [change('q', 'мы пишем', 'модель выдумала', 'ask')],
     verdict: 'review',
-    summary: 'Вопрос',
+    summary: ' needs_context: Источник не найден',
   };
   const result = await reviewOnceV2('org', input, usage);
   expect(result.text).toBe(input.text);
   expect(result.changes[0].replacement).toBe('мы пишем');
+  expect(result.changes[0]).toMatchObject({
+    basket: 'show',
+    why: 'Источник не найден, оставлено как есть.',
+  });
+  expect(result.summary).toBe('Источник не найден');
+  expect(JSON.stringify(result)).not.toContain('needs_context');
 });
 test('signed proposals bind tenant, piece, adaptation and expiry; edits invalidate signature', () => {
   const proposal = {
@@ -170,9 +176,9 @@ test('web changes require an actual returned source; unknown URLs are rejected',
     text: expect.stringContaining('мы публикуем'),
   });
 });
-test('no-op proposals become clean and semantic missing context stays an author question', async () => {
+test('empty proposals become clean and the prompt forbids author questions', async () => {
   output = {
-    changes: [change('a', 'мы пишем', 'мы пишем')],
+    changes: [],
     verdict: 'review',
     summary: '',
   };
@@ -180,5 +186,6 @@ test('no-op proposals become clean and semantic missing context stays an author 
     changes: [],
     verdict: 'clean',
   });
-  expect(reviewPromptV2(input).system).toContain('needs_context');
+  expect(reviewPromptV2(input).system).not.toContain('needs_context');
+  expect(reviewPromptV2(input).system).toContain('Never use basket ask');
 });

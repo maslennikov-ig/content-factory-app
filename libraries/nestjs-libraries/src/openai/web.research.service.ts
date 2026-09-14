@@ -388,6 +388,7 @@ const researchSummary = z.object({
  * subject's own language, which every non-English subject gets.
  */
 const subjectClassification = z.object({
+  scope: z.enum(['local', 'global']),
   subjectLanguage: z.string().min(2).max(10),
   englishQuery: z.string().min(1),
   subjectLanguageQuery: z.string().nullable(),
@@ -562,10 +563,8 @@ const isEnglish = (language: string) => {
  * English does not identify a country, so an English subject stays unboosted
  * rather than being silently treated as United States content.
  *
- * It no longer waits for the classifier to call the subject «local»
- * (`content-factory-next-fn33.132`). Whether advertising labelling rules are a
- * global topic is an opinion; that a Russian-language subject is best answered
- * by Russian pages is not, and the hint only reorders results.
+ * Scope is decided by the classifier. Language alone cannot distinguish a
+ * Russian market rule from an international debate written in Russian.
  */
 const countryForSubjectLanguage = (language: string) => {
   const normalized = language.trim().toLowerCase();
@@ -961,6 +960,7 @@ export class WebResearchService {
     query: string,
     config: Awaited<ReturnType<typeof requireActiveAiConfig>>,
     options: {
+      scope: 'local' | 'global';
       country?: string;
       freshnessRequired: boolean;
       maxResults?: number;
@@ -1144,6 +1144,7 @@ Summary: {summary}`
     const classification = await ChatPromptTemplate.fromTemplate(
       `Classify the research subject, then prepare search queries.
 The content output language does not control the search language.
+Return scope "local" for laws, markets, companies or institutions tied to one country; return scope "global" when the subject crosses countries or concerns an international debate.
 Return subjectLanguage as a lowercase ISO 639-1 code: the language the subject is written in, or the language of the country whose rules, market or institutions it is about.
 Always provide englishQuery in English.
 Whenever subjectLanguage is not "en", also provide subjectLanguageQuery written in that language, using the terms a reader of that language would search for, including the local names of laws, registers and institutions. Only when subjectLanguage is "en" must subjectLanguageQuery be null.
@@ -1160,11 +1161,14 @@ Subject: {subject}`
      */
     const subjectLanguageQuery = classification.subjectLanguageQuery?.trim();
     const englishQuery = classification.englishQuery.trim();
-    const baseQueries =
-      subjectLanguageQuery &&
-      !isEnglish(classification.subjectLanguage) &&
-      subjectLanguageQuery !== englishQuery
-        ? [subjectLanguageQuery, englishQuery]
+    const ownLanguageQuery =
+      subjectLanguageQuery && !isEnglish(classification.subjectLanguage)
+        ? subjectLanguageQuery
+        : englishQuery;
+    const baseQueries = classification.scope === 'local'
+      ? [ownLanguageQuery]
+      : ownLanguageQuery !== englishQuery
+        ? [ownLanguageQuery, englishQuery]
         : [englishQuery];
 
     const level = options.level ?? 'standard';
@@ -1175,7 +1179,11 @@ Subject: {subject}`
     const queries = baseQueries.slice(0, preset.maxSearchQueries);
 
     const searchOptions = {
-      country: countryForSubjectLanguage(classification.subjectLanguage),
+      scope: classification.scope,
+      country:
+        classification.scope === 'local'
+          ? countryForSubjectLanguage(classification.subjectLanguage)
+          : undefined,
       freshnessRequired: classification.freshnessRequired,
       ...(options.levelWasExplicit
         ? { maxResults: preset.maxSources }
@@ -1290,20 +1298,14 @@ Subject: {subject}`
     > = options.levelWasExplicit
       ? withDeadline(
           this.encyclopedicRows({
-            entityNames: [
-              ...new Set(
-                [subjectLanguageQuery, englishQuery].filter(
-                  (name): name is string => !!name
-                )
-              ),
-            ],
-            locales: [
-              ...new Set(
-                [classification.subjectLanguage, 'en']
-                  .map((locale) => String(locale || '').trim().toLowerCase())
-                  .filter(Boolean)
-              ),
-            ],
+            entityNames: [...new Set(queries)],
+            locales: [...new Set(
+              (classification.scope === 'local'
+                ? [classification.subjectLanguage]
+                : [classification.subjectLanguage, 'en'])
+                .map((locale) => String(locale || '').trim().toLowerCase())
+                .filter(Boolean)
+            )],
             allow: encyclopedicAllowed,
           }),
           ENCYCLOPEDIC_LANE_TIMEOUT_MS

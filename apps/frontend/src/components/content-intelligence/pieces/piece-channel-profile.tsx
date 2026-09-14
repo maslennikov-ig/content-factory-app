@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
@@ -18,11 +18,13 @@ export function PieceChannelProfile({
   id,
   name,
   canWrite,
+  children,
 }: {
   locale: IntakeLocale;
   id: string;
   name: string;
   canWrite: boolean;
+  children: ReactNode;
 }) {
   const request = useFetch();
   const [open, setOpen] = useState(false);
@@ -56,9 +58,10 @@ export function PieceChannelProfile({
       }[profile.ctaKind]
     : '';
   return (
-    <div className="flex min-w-0 flex-col gap-[4px]">
-      <div className="flex flex-wrap items-center gap-[8px] cf-caption text-cf-ink-muted">
-        <span>
+    <div className="flex min-w-0 items-center gap-[8px]">
+      <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
+        {children}
+        <span className="cf-caption text-cf-ink-muted">
           {profile
             ? `${
                 data?.stored
@@ -77,6 +80,8 @@ export function PieceChannelProfile({
             ? t.profileFailed
             : t.profileLoading}
         </span>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-[8px]">
         <Button
           type="button"
           variant="secondary"

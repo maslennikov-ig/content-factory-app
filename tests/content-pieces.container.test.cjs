@@ -103,10 +103,9 @@ const ASKED_DETAIL = {
       round: 0,
       items: [
         {
-          field: 'facts',
-          question:
-            'На что это опирается? Нужен хотя бы один факт, на который текст опирается — со ссылкой, если она есть',
-          suggested: null,
+          field: 'position',
+          question: 'На чьей вы стороне?',
+          suggested: 'Я выбираю договорённость с клиентом',
           options: [],
         },
       ],
@@ -535,7 +534,7 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(card).not.toBeNull();
     const core = document.querySelector('[data-piece-core]');
     expect(card.compareDocumentPosition(core) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(card.textContent).toContain('На что это опирается?');
+    expect(card.textContent).toContain('На чьей вы стороне?');
     // Заготовка уже сохранена, и карточка говорит это словами.
     expect(card.textContent).toContain('Модель спросила по вашему тексту');
   });
@@ -569,12 +568,12 @@ describe('уточнение стоит там, где стоит суть', () 
 
     const card = document.querySelector('[data-piece-clarify="true"]');
     await click(
-      within(card.querySelector('[data-piece-question="facts"]')).getByRole(
+      within(card.querySelector('[data-piece-question="position"]')).getByRole(
         'radio',
         { name: 'Поправить' }
       )
     );
-    const field = document.querySelector('[name="piece-answer-facts"]');
+    const field = document.querySelector('[name="piece-answer-position"]');
     expect(field).not.toBeNull();
     await act(async () => {
       fireEvent.change(field, {
@@ -590,7 +589,7 @@ describe('уточнение стоит там, где стоит суть', () 
       {
         answers: [
           {
-            field: 'facts',
+            field: 'position',
             text: 'из шести дедлайнов сдивнулись пять, я считал',
           },
         ],
@@ -631,7 +630,7 @@ describe('уточнение стоит там, где стоит суть', () 
 
     const card = document.querySelector('[data-piece-clarify="true"]');
     await click(
-      within(card.querySelector('[data-piece-question="facts"]')).getByRole(
+      within(card.querySelector('[data-piece-question="position"]')).getByRole(
         'radio',
         { name: 'Реши сама' }
       )
@@ -640,20 +639,45 @@ describe('уточнение стоит там, где стоит суть', () 
       answered.length > 0
     );
 
-    expect(answered).toEqual([{ decide: ['facts'] }]);
+    expect(answered).toEqual([{ decide: ['position'] }]);
     await settle(() => document.querySelector('[data-core-answer="unchanged"]') !== null);
     expect(document.body.textContent).toContain('Суть не менялась, ответ сохранён');
   });
 
-  test('delegating all questions uses the answer door instead of hiding them', async () => {
-    const requests = [];
-    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)), answer: (call) => { requests.push(call.body); return streamed([{ name: 'done', pieceId: 'piece-12' }])(); } }));
+  test('single question has no duplicate bottom delegation action', async () => {
+    serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
     await open();
     const card = document.querySelector('[data-piece-clarify="true"]');
-    const buttons = within(card).getAllByRole('button', { name: 'Реши сама' });
-    await click(buttons[buttons.length - 1]);
+    expect(within(card).getAllByRole('radio', { name: 'Реши сама' })).toHaveLength(1);
+    expect(within(card).queryByRole('button', { name: 'Реши всё сама' })).toBeNull();
+  });
+
+  test('two questions delegate together through the answer door', async () => {
+    const requests = [];
+    const detail = {
+      ...ASKED_DETAIL,
+      core: {
+        ...ASKED_DETAIL.core,
+        questions: {
+          ...ASKED_DETAIL.core.questions,
+          items: [
+            ...ASKED_DETAIL.core.questions.items,
+            {
+              field: 'thesis',
+              question: 'Что вы хотите доказать?',
+              suggested: 'Внешнее обещание держит срок',
+              options: [],
+            },
+          ],
+        },
+      },
+    };
+    serve(table({ detail: detailDoor(ok(detail)), answer: (call) => { requests.push(call.body); return streamed([{ name: 'done', pieceId: 'piece-12' }])(); } }));
+    await open();
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    await click(within(card).getByRole('button', { name: 'Реши всё сама' }));
     expect(requests).toHaveLength(1);
-    expect(requests[0].decide).toEqual(ASKED_DETAIL.core.questions.items.map((question) => question.field));
+    expect(requests[0].decide).toEqual(['position', 'thesis']);
   });
 });
 
@@ -798,7 +822,7 @@ describe('what the piece rests on', () => {
     },
   });
 
-  test('facts carry the word, the source and the line that did not make it', async () => {
+  test('only sourced research rows remain and the hint explains their use', async () => {
     serve(
       table({
         detail: detailDoor(
@@ -831,35 +855,23 @@ describe('what the piece rests on', () => {
     expect(sources).not.toBeNull();
     expect(sources.open).toBe(false);
     expect(facts.textContent).toContain('Пять из шести сроков сдвинулись');
-
-    // Подтверждение — слово, и оно своё у каждой опоры, а не одно на список.
-    const words = [...facts.querySelectorAll('[data-piece-fact-verified]')];
-    expect(words.map((one) => one.getAttribute('data-piece-fact-verified'))).toEqual([
-      'true',
-      'false',
-    ]);
-    expect(words[0].textContent).toContain('подтверждено');
-    expect(words[1].textContent).toContain('не проверено');
-    // «не подтверждено» не должно случайно проходить проверкой на «подтверждено».
-    expect(words[1].textContent).not.toContain('в текст не вошло');
+    expect(facts.textContent).not.toContain('Средний срыв по отрасли 40%');
 
     // Источник ведёт наружу и назван хостом, а не полным адресом.
-    const link = words[0].closest('tr').querySelector('a');
+    const link = within(facts).getByRole('link', {
+      name: 'источник: industry.synthetic.invalid',
+    });
     expect(link.getAttribute('href')).toBe(
       'https://www.industry.synthetic.invalid/deadlines/2026'
     );
     expect(link.textContent).toBe('industry.synthetic.invalid');
     expect(link.getAttribute('target')).toBe('_blank');
-    // У опоры без адреса ссылки нет вовсе — пустой «—» здесь ничего не сообщал бы.
-    expect(words[1].querySelector('a')).toBeNull();
-
-    // То, что подтвердить нечем, стоит отдельно от опор и названо своими словами.
-    const ungrounded = [...document.querySelectorAll('[data-piece-ungrounded]')];
-    expect(ungrounded.map((one) => one.textContent)).toEqual([
-      'Средний срыв по отрасли 40%',
-    ]);
+    expect(within(facts).getAllByRole('link')).toHaveLength(1);
+    expect(
+      within(sources).getByRole('button', { name: 'Подсказка: опоры текста' })
+    ).toBeTruthy();
     expect(document.body.textContent).toContain('Опоры текста');
-    expect(document.body.textContent).toContain('Не подтвердилось и в текст не вошло');
+    expect(document.body.textContent).not.toContain('Не подтвердилось и в текст не вошло');
   });
 
   test('nothing to rest on: no heading over an empty block', async () => {

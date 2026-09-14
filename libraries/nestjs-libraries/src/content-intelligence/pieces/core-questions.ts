@@ -1,10 +1,8 @@
 /**
- * Три вопроса, которые продукт задаёт при создании заготовки.
+ * Вопросы, которые продукт задаёт при создании заготовки.
  *
- * `content-factory-next-tu3k.9.3`, список владельца для короткого текста
- * (§11.9 карты раздела): ключевая мысль, личная деталь или случай, позиция.
- * И три правила, все обязательные: модель всегда предлагает первой («я думаю,
- * вот так»); не больше трёх вопросов за шаг; ответы хранятся дословно.
+ * С волны `content-factory-next-4zul.1` их два: тезис и личная
+ * позиция. Факты и контекст продукт ищет сам и о них не спрашивает.
  *
  * Чего здесь нет и не будет — нового вызова модели. Предложение берётся из уже
  * заполненного брифа: модель однажды сказала, что поняла, и переспрашивать её
@@ -40,7 +38,6 @@ export const CORE_QUESTION_FIELDS: Partial<
 > = {
   key_idea: 'thesis',
   position: 'position',
-  personal_detail: 'facts',
 };
 
 const TEXTS: Record<
@@ -114,7 +111,7 @@ export const coreQuestionsFor = (
   ]);
 
   const question = (
-    key: 'key_idea' | 'personal_detail' | 'position',
+    key: 'key_idea' | 'position',
     suggested: string | null
   ): PieceQuestionV1 => {
     const text = TEXTS[key];
@@ -143,10 +140,6 @@ export const coreQuestionsFor = (
     );
   }
 
-  // Личную деталь модель предложить не может: её либо принёс человек, либо её
-  // нет. `suggested: null` здесь — честность, а не пробел.
-  if (!hasOwnDetail(brief)) list.push(question('personal_detail', null));
-
   if (!trimmed(brief.position) || brief.origins.position === 'model') {
     list.push(
       question(
@@ -158,7 +151,7 @@ export const coreQuestionsFor = (
 
   return list
     .filter((row) => !asked.has(row.key))
-    .slice(0, PIECE_MAX_QUESTIONS);
+    .slice(0, Math.min(2, PIECE_MAX_QUESTIONS));
 };
 
 /* -------------------------------------------------------------------------
@@ -213,12 +206,9 @@ export type OpenQuestionsInputV1 = {
  * первым же ходом. Здесь они сведены в один список, ключ которого — поле
  * брифа, поэтому повтор невозможен по устройству, а не по договорённости.
  *
- * Спрашивается ровно три вещи и ни одной больше:
+ * Спрашивается ровно две вещи и ни одной больше:
  *
  *  - **тезис** — когда его нет или его придумала модель;
- *  - **на чём стоит** — когда ни один факт не подтверждён; а если подтверждён,
- *    но своего у человека нет, то это уже не «нужен факт», а «есть личная
- *    история?», и вопрос звучит именно так;
  *  - **позиция** — когда её нет или её предположила модель.
  *
  * Про возражение и адресата не спрашивают вовсе: их модель предлагает, а
@@ -231,7 +221,6 @@ export const openQuestionsFor = (
   const { brief, language } = input;
   const settled = new Set<BriefField>(input.settled);
   const verdict = evaluateBrief(briefForGate(brief));
-  const missing = new Set(verdict.missing);
   const gateText = (field: BriefField) =>
     verdict.questions.find((question) => question.field === field)?.question[
       language
@@ -254,21 +243,6 @@ export const openQuestionsFor = (
     });
   }
 
-  if (missing.has('facts')) {
-    // Опору модель предложить не может: она либо есть, либо её нет.
-    add({ field: 'facts', question: gateText('facts'), suggested: null });
-  } else if (!hasOwnDetail(brief)) {
-    add({
-      field: 'facts',
-      question: textOf('personal_detail', language),
-      suggested: null,
-      why:
-        language === 'ru'
-          ? (TEXTS.personal_detail.whyRu as string)
-          : (TEXTS.personal_detail.whyEn as string),
-    });
-  }
-
   const position = trimmed(brief.position);
   if (!position || brief.origins.position === 'model') {
     add({
@@ -281,5 +255,5 @@ export const openQuestionsFor = (
     });
   }
 
-  return list.slice(0, PIECE_MAX_QUESTIONS);
+  return list.slice(0, Math.min(2, PIECE_MAX_QUESTIONS));
 };

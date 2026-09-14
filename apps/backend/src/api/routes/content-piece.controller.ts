@@ -1,3 +1,4 @@
+import { PieceResearchDto, PieceResearchAcceptDto } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/piece-research.dto';
 import { startNdjsonStream } from './ndjson-stream';
 import {
   Body,
@@ -26,6 +27,7 @@ import {
   PieceTitleDto,
   PieceFactSelectionDto,
   PieceArchiveDto,
+  PieceAnswerDoorDto,
   PiecesQueryDto,
   ReadyAdaptationsQueryDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
@@ -35,7 +37,6 @@ import {
   AdaptationReviewDto,
   RewriteDto,
   ReviewAcceptV2Dto,
-  PieceAnswerDoorV2Dto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/adaptation-review.dto';
 
 /**
@@ -174,6 +175,24 @@ export class ContentPieceController {
     } catch (error) {
       safeHttpError(error, 'Core rewrite failed');
     }
+  }
+
+  @Post('/:id/research')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async researchCore(@GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() actor: User, @Param('id') id: string,
+    @Body() body: PieceResearchDto, @Query('language') requested?: string) {
+    try { return await this.pieces.researchCore(organization.id, id, actor.id, body, languageOf(requested)); }
+    catch (error) { safeHttpError(error, 'Core research failed'); }
+  }
+
+  @Post('/:id/research/accept')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async acceptCoreResearch(@GetOrgFromRequest() organization: Organization,
+    @GetUserFromRequest() actor: User, @Param('id') id: string,
+    @Body() body: PieceResearchAcceptDto) {
+    try { return await this.pieces.acceptCoreResearch(organization.id, id, actor.id, body); }
+    catch (error) { safeHttpError(error, 'Core research acceptance failed'); }
   }
 
   /** Core review uses the same transient proposal contract as adaptation review. */
@@ -420,17 +439,10 @@ export class ContentPieceController {
     @GetOrgFromRequest() organization: Organization,
     @GetUserFromRequest() user: User,
     @Param('id') id: string,
-    @Body() body: PieceAnswerDoorV2Dto,
+    @Body() body: PieceAnswerDoorDto,
     @Res({ passthrough: false }) response: Response,
     @Query('language') requested?: string
   ) {
-    if (body.reviewAnswer) {
-      try {
-        const result = await this.pieces.answerReviewQuestions(organization.id, id, body.reviewAnswer);
-        response.status(200).json(result);
-        return;
-      } catch (error) { safeHttpError(error, 'Review answer failed'); }
-    }
     // До первого байта — обычный HTTP: заготовка, архив, наличие сути.
     let plan;
     try {

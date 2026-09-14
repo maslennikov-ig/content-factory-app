@@ -1162,12 +1162,18 @@ const AiProviderComponent = () => {
           ресерч, какой — проверку фактов, и что это следует из сохранённых
           ключей (`content-factory-next-75xn.10`).
         */}
-        <p
-          data-search-routing="true"
-          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-        >
-          {routing.line}
-        </p>
+        {ownKeys ? (
+          <p
+            data-search-routing="true"
+            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {routing.line}
+          </p>
+        ) : !routing.payable ? (
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {routing.line}
+          </p>
+        ) : null}
       </div>
 
       {/*

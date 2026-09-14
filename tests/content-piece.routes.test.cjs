@@ -204,6 +204,8 @@ describe('дверь отвечает ровно по тем адресам, ч�
     'PATCH /content-intelligence/pieces/:id/facts',
     'POST /content-intelligence/pieces/:id/rewrite',
     'POST /content-intelligence/pieces/:id/rewrite/accept',
+    'POST /content-intelligence/pieces/:id/research',
+    'POST /content-intelligence/pieces/:id/research/accept',
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/rewrite',
     // The explicit review is a separate contract; the shipped voice contract stays immutable.
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review',
@@ -679,4 +681,23 @@ describe('DTO отказывает мусору и принимает то, чт
       );
     }
   });
+});
+
+
+test('research doors bind the tenant, actor, piece and selection to the service', async () => {
+  const service = {
+    researchCore: jest.fn(async () => ({ version: 'piece-research/v1', snapshotKey: 'snapshot' })),
+    acceptCoreResearch: jest.fn(async () => ({ body: 'enriched', title: 'title' })),
+  };
+  const controller = new ContentPieceController(service);
+  const start = { confirmWebSpend: true };
+  const selection = { snapshotKey: 'snapshot', selectedKeys: ['fact'] };
+  await controller.researchCore({ id: 'org' }, { id: 'actor' }, 'piece', start, 'en');
+  expect(service.researchCore).toHaveBeenCalledWith('org', 'piece', 'actor', start, 'en');
+  await controller.acceptCoreResearch({ id: 'org' }, { id: 'actor' }, 'piece', selection);
+  expect(service.acceptCoreResearch).toHaveBeenCalledWith('org', 'piece', 'actor', selection);
+  service.acceptCoreResearch.mockRejectedValue(refusal('PIECE_RESEARCH_STALE', 409, 'stale'));
+  const error = await failure(() => controller.acceptCoreResearch({ id: 'org' }, { id: 'actor' }, 'piece', selection));
+  expect(error.getStatus()).toBe(409);
+  expect(error.getResponse().code).toBe('PIECE_RESEARCH_STALE');
 });

@@ -322,7 +322,7 @@ export function SuggestedQuestionsCard({
     answers: readonly SuggestedAnswer[],
     decideKeys: readonly string[]
   ) => void;
-  onSkipAll: () => void;
+  onSkipAll?: () => void;
 }) {
   const [answers, setAnswers] = useState<QuestionAnswers>({});
 
@@ -522,15 +522,17 @@ export function SuggestedQuestionsCard({
           Второй выход, равный по силе первому: интервью пропускается целиком
           одной кнопкой — правило владельца, а не любезность.
         */}
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy}
-          data-piece-skip-interview="true"
-          onClick={onSkipAll}
-        >
-          {words.skipAll}
-        </Button>
+        {onSkipAll ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            data-piece-skip-interview="true"
+            onClick={onSkipAll}
+          >
+            {words.skipAll}
+          </Button>
+        ) : null}
       </footer>
     </section>
   );

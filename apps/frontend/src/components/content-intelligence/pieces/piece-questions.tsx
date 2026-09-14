@@ -64,7 +64,7 @@ export function PieceQuestions({
           ownAnswerLabel: t.ownAnswerLabel,
           ownAnswerHint: t.ownAnswerHint,
           send: t.interviewSend,
-          skipAll: t.answerDecide,
+          skipAll: t.answerDecideAll,
         }}
         questions={questions.map((question) => ({
           key: question.field,
@@ -86,7 +86,7 @@ export function PieceQuestions({
             decide as readonly BriefField[]
           )
         }
-        onSkipAll={onSkip}
+        onSkipAll={questions.length >= 2 ? onSkip : undefined}
       />
     </div>
   );

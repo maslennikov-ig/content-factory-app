@@ -97,18 +97,17 @@ describe('итог ресерча «сделали за вас»', () => {
     const summaryRow = document.querySelector('[data-intake-research-summary]');
     expect(summaryRow.textContent).toContain('1 подтвердилось');
     expect(summaryRow.textContent).toContain('1 поправили по источникам');
-    expect(summaryRow.textContent).toContain('1 проверить нечем');
+    expect(summaryRow.textContent).not.toContain('проверить нечем');
     expect(document.querySelector('[data-intake-research-level="standard"]').textContent).toBe(
       'стандартный · 8 источников, 1 энциклопедия'
     );
   });
 
-  test('строки: расходится с кнопкой «Вернуть моё», подтверждено с цитатой и адресом, «проверить нечем» со словами автора; поправка не дублируется строкой', () => {
+  test('строки: расходится с кнопкой «Вернуть моё» и подтверждено с цитатой; неподтверждённое скрыто', () => {
     const calls = renderOutcome();
     const rows = [...document.querySelectorAll('[data-intake-research-claims] > li')];
     expect(rows.map((row) => row.getAttribute('data-intake-claim-status'))).toEqual([
       'conflicting',
-      'unverified',
       'confirmed',
     ]);
     expect(rows[0].textContent).toContain('25 тысяч → около 2 500.');
@@ -116,8 +115,8 @@ describe('итог ресерча «сделали за вас»', () => {
     expect(within(rows[0]).getByRole('link', { name: 'источник: autonomy.work' })).toBeTruthy();
     fireEvent.click(within(rows[0]).getByRole('button', { name: 'Вернуть моё' }));
     expect(calls.toggleCorrection).toEqual(['ev-1:fix:1']);
-    expect(rows[1].textContent).toContain('Числа в источниках нет.');
-    expect(within(rows[2]).getByRole('link', { name: 'источник: bbc.com' })).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Числа в источниках нет.');
+    expect(within(rows[1]).getByRole('link', { name: 'источник: bbc.com' })).toBeTruthy();
   });
 
   test('снятая поправка: слова остаются с пунктиром, кнопка зовёт принять, «Оставить мои числа» пропадает', () => {
