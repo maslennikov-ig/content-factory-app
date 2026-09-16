@@ -10,17 +10,24 @@ import {
   getWebSearchClient,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import {
+  AiConfig,
   SearchProvider,
+  getActiveAiConfig,
+  loadAiConfig,
   requireActiveAiConfig,
+  withActiveAiConfig,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
 import { judgeDiscoveryRows } from '@contentfactory/nestjs-libraries/content-intelligence/leads/lead-discovery-judge';
 import {
   DEFAULT_SEARCH_TASK,
   SEARCH_PROVIDERS,
+  SearchCredentialSource,
   SearchTask,
   providerForSearchTask,
+  searchCredentialFor,
   searchKeyFor,
   searchProviderNeedsKey,
+  searchRouteFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
 import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
@@ -147,11 +154,12 @@ export interface WebResearchOptions {
 export type ResearchLevel = 'quick' | 'standard' | 'deep';
 
 /** Monthly admission limits until durable tariff counters are introduced. */
-export const RESEARCH_MONTHLY_QUOTAS: Readonly<Record<ResearchLevel, number>> = Object.freeze({
-  quick: 20,
-  standard: 10,
-  deep: 3,
-});
+export const RESEARCH_MONTHLY_QUOTAS: Readonly<Record<ResearchLevel, number>> =
+  Object.freeze({
+    quick: 20,
+    standard: 10,
+    deep: 3,
+  });
 
 export class ResearchQuotaExceeded extends Error {
   readonly status = 429;
@@ -235,7 +243,10 @@ export class ResearchQuotaService {
   }
 
   private period(now: Date): string {
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(
+      2,
+      '0'
+    )}`;
   }
 
   private warn(action: string, error: unknown) {
@@ -246,7 +257,11 @@ export class ResearchQuotaService {
     );
   }
 
-  private reserveInMemory(organizationId: string, level: ResearchLevel, now: Date) {
+  private reserveInMemory(
+    organizationId: string,
+    level: ResearchLevel,
+    now: Date
+  ) {
     const key = `${organizationId}|${level}`;
     const period = this.period(now);
     const current = this.counters.get(key);
@@ -258,7 +273,11 @@ export class ResearchQuotaService {
     return { used: counter.count, limit };
   }
 
-  async reserve(organizationId: string, level: ResearchLevel, now = new Date()) {
+  async reserve(
+    organizationId: string,
+    level: ResearchLevel,
+    now = new Date()
+  ) {
     const limit = RESEARCH_MONTHLY_QUOTAS[level];
     const key = researchQuotaKey(organizationId, level, now);
     let used: number;
@@ -289,7 +308,9 @@ export class ResearchQuotaService {
     let used: number;
     try {
       if (!this.store) throw new Error('no store');
-      const stored = await this.store.get(researchQuotaKey(organizationId, level, now));
+      const stored = await this.store.get(
+        researchQuotaKey(organizationId, level, now)
+      );
       const parsed = Number(stored ?? 0);
       used = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
     } catch (error) {
@@ -358,20 +379,47 @@ export class ResearchQueryCache<T = unknown> {
       this.values.delete(this.values.keys().next().value as string);
     }
   }
-  journal(): readonly ResearchCacheJournalEntry[] { return this.entries.slice(); }
-  size(): number { return this.values.size; }
-  clear(): void { this.values.clear(); this.entries.length = 0; }
+  journal(): readonly ResearchCacheJournalEntry[] {
+    return this.entries.slice();
+  }
+  size(): number {
+    return this.values.size;
+  }
+  clear(): void {
+    this.values.clear();
+    this.entries.length = 0;
+  }
 }
 
-export const RESEARCH_LEVEL_PRESETS: Readonly<Record<ResearchLevel, {
-  maxSearchQueries: number;
-  maxSources: number;
-  maxProviderCostMicros: number;
-  maxWallClockMs: number;
-}>> = Object.freeze({
-  quick: { maxSearchQueries: 4, maxSources: 8, maxProviderCostMicros: 500_000, maxWallClockMs: 180_000 },
-  standard: { maxSearchQueries: 10, maxSources: 20, maxProviderCostMicros: 2_000_000, maxWallClockMs: 600_000 },
-  deep: { maxSearchQueries: 25, maxSources: 50, maxProviderCostMicros: 6_000_000, maxWallClockMs: 1_800_000 },
+export const RESEARCH_LEVEL_PRESETS: Readonly<
+  Record<
+    ResearchLevel,
+    {
+      maxSearchQueries: number;
+      maxSources: number;
+      maxProviderCostMicros: number;
+      maxWallClockMs: number;
+    }
+  >
+> = Object.freeze({
+  quick: {
+    maxSearchQueries: 4,
+    maxSources: 8,
+    maxProviderCostMicros: 500_000,
+    maxWallClockMs: 180_000,
+  },
+  standard: {
+    maxSearchQueries: 10,
+    maxSources: 20,
+    maxProviderCostMicros: 2_000_000,
+    maxWallClockMs: 600_000,
+  },
+  deep: {
+    maxSearchQueries: 25,
+    maxSources: 50,
+    maxProviderCostMicros: 6_000_000,
+    maxWallClockMs: 1_800_000,
+  },
 });
 
 const researchSummary = z.object({
@@ -411,8 +459,14 @@ interface SearchResult {
 
 interface ProviderSearchResult {
   provider: SearchProvider;
+  keySource: SearchCredentialSource;
   response: SearchResult;
 }
+
+type SearchAttempt = (
+  provider: SearchProvider,
+  invoke: () => Promise<SearchResult>
+) => Promise<SearchResult>;
 
 /**
  * The same bound the HTTP contract states, applied here because the callers
@@ -574,6 +628,28 @@ const countryForSubjectLanguage = (language: string) => {
     ? 'russia'
     : undefined;
 };
+
+const RESEARCH_LOG_TOPIC_MAX_CHARS = 240;
+const LOG_URL = /https?:\/\/[^\s<>()]+/giu;
+const LOG_EMAIL = /\b[^\s@]+@[^\s@]+\.[^\s@]+\b/giu;
+const LOG_BEARER = /\bBearer\s+[A-Za-z0-9._~+/-]{8,}=*/giu;
+const LOG_SECRET_ASSIGNMENT =
+  /\b(api[_-]?key|token|secret|authorization)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/giu;
+const LOG_CREDENTIAL =
+  /\b(?:sk-(?:proj-)?|pk-|ghp_|github_pat_|xox[baprs]-|eyJ)[A-Za-z0-9._-]{8,}\b/giu;
+
+/** A diagnostic topic, never a copy of pasted material or workspace access data. */
+const researchLogTopic = (subject: unknown): string =>
+  String(subject)
+    .replace(/[\r\n\u2028\u2029]+/gu, ' ')
+    .replace(LOG_URL, '[url]')
+    .replace(LOG_EMAIL, '[email]')
+    .replace(LOG_BEARER, '[redacted]')
+    .replace(LOG_SECRET_ASSIGNMENT, '$1=[redacted]')
+    .replace(LOG_CREDENTIAL, '[redacted]')
+    .replace(/\s{2,}/gu, ' ')
+    .trim()
+    .slice(0, RESEARCH_LOG_TOPIC_MAX_CHARS);
 
 /**
  * Prefer a complete paragraph. Pages without any separator still need a hard
@@ -765,7 +841,9 @@ export const PAGE_TEXT_MAX_CHARS = 6_000;
 const PAGE_TEXT_SCAN_LIMIT = 8 * PAGE_TEXT_MAX_CHARS;
 const pageText = (value: string | undefined) => {
   if (!value) return undefined;
-  const { text, hasProseLine } = cleanExcerpt(value.slice(0, PAGE_TEXT_SCAN_LIMIT));
+  const { text, hasProseLine } = cleanExcerpt(
+    value.slice(0, PAGE_TEXT_SCAN_LIMIT)
+  );
   if (!hasProseLine || !LETTER.test(text)) return undefined;
   const cut = truncateAtParagraph(text, PAGE_TEXT_MAX_CHARS);
   return cut || undefined;
@@ -779,9 +857,7 @@ export const ENCYCLOPEDIC_RESERVED_SOURCES = 2;
 /** Nobody chose this text for the query, so it has to read like prose. */
 const wholePageExcerpt = (value: string | undefined) => {
   if (!value) return undefined;
-  const { text, hasProseLine } = cleanExcerpt(
-    value.slice(0, PAGE_SCAN_LIMIT)
-  );
+  const { text, hasProseLine } = cleanExcerpt(value.slice(0, PAGE_SCAN_LIMIT));
   if (!hasProseLine) return undefined;
   const letters = (text.match(/\p{L}/gu) || []).length;
   if (letters === 0) return undefined;
@@ -967,19 +1043,28 @@ export class WebResearchService {
       windowDays?: number;
     },
     task: SearchTask,
+    attempt: SearchAttempt,
     egressCheck?: (provider: SearchProvider) => void
   ): Promise<ProviderSearchResult> {
     const primary = providerForSearchTask(task, config.search);
     try {
       egressCheck?.(primary);
-      const response = await invokeWithDeadline(
-        () => getWebSearchClient(organizationId, primary, options),
-        query,
-        WEB_SEARCH_PRIMARY_TIMEOUT_MS
+      const response = await attempt(primary, () =>
+        invokeWithDeadline(
+          () => getWebSearchClient(organizationId, primary, options),
+          query,
+          WEB_SEARCH_PRIMARY_TIMEOUT_MS
+        )
       );
       if (!response.results?.length) throw new EmptyWebSearchResults();
       this.logger.log(`Web research answered via ${primary}.`);
-      return { provider: primary, response };
+      return {
+        provider: primary,
+        keySource:
+          searchCredentialFor(primary, config.search)?.source ||
+          (config.usageMode === 'workspace_key' ? 'own' : 'system'),
+        response,
+      };
     } catch (error) {
       /**
        * The fallback is the other engine the workspace holds a search key
@@ -1007,19 +1092,27 @@ export class WebResearchService {
       );
       try {
         egressCheck?.(reserve);
-        const response = await invokeWithDeadline(
-          () => getWebSearchClient(organizationId, reserve, options),
-          query,
-          WEB_SEARCH_FALLBACK_TIMEOUT_MS
+        const response = await attempt(reserve, () =>
+          invokeWithDeadline(
+            () => getWebSearchClient(organizationId, reserve, options),
+            query,
+            WEB_SEARCH_FALLBACK_TIMEOUT_MS
+          )
         );
         if (!response.results?.length) throw new EmptyWebSearchResults();
         this.logger.log(`Web research answered via ${reserve}.`);
-        return { provider: reserve, response };
+        return {
+          provider: reserve,
+          keySource:
+            searchCredentialFor(reserve, config.search)?.source ||
+            (config.usageMode === 'workspace_key' ? 'own' : 'system'),
+          response,
+        };
       } catch (fallbackError) {
-        throw new WebSearchFallbackError([error, fallbackError], [
-          primary,
-          reserve,
-        ]);
+        throw new WebSearchFallbackError(
+          [error, fallbackError],
+          [primary, reserve]
+        );
       }
     }
   }
@@ -1072,39 +1165,171 @@ Summary: {summary}`
   ): Promise<WebResearchResult> {
     const level = options.level ?? 'standard';
     const levelWasExplicit = options.level !== undefined;
+    const config =
+      getActiveAiConfig(organizationId) ?? (await loadAiConfig(organizationId));
+    const task: SearchTask =
+      options.task ??
+      (levelWasExplicit === true ? 'research' : DEFAULT_SEARCH_TASK);
     // The task and the window are part of the question, not of the answer: a
     // thirty-day discovery sweep and a fact check on the same subject are two
     // different searches and must not share one cached result.
-    const key = `${organizationId}|${level}|${options.task ?? ''}|${
-      options.windowDays ?? ''
-    }|${options.language ?? ''}|${subject
-      .trim()
-      .slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
+    const key = `${organizationId}|${searchRouteFingerprint(
+      config.search
+    )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${
+      options.language ?? ''
+    }|${subject.trim().slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);
       return cached;
     }
-    // The level is an explicit paid choice only for the intake and the deep
-    // adaptation lane. Ordinary generation, autopost, copilot and the legacy
-    // tool omit it and remain available after the opt-in allowance is spent.
-    if (levelWasExplicit) {
-      await (this.quota ?? this.fallbackQuota).reserve(organizationId, level);
+    const primary = providerForSearchTask(task, config.search);
+    const primaryCredential = searchCredentialFor(primary, config.search);
+    if (
+      !config.search.enabled ||
+      (searchProviderNeedsKey(primary) && !primaryCredential)
+    ) {
+      throw new WebSearchNotConfigured();
     }
-    const result = await this.aiUsage.executeAiOperation(
-      organizationId,
-      'web_research',
-      () => this.researchWithinOperation(organizationId, subject, { ...options, level, levelWasExplicit }),
-      'research'
-    );
-    this.cache.set(key, result);
-    return result;
+
+    type UsageScope = Awaited<
+      ReturnType<AiUsageService['beginAiOperationWithConfig']>
+    >;
+    const scopes = new Map<
+      SearchCredentialSource,
+      { scope: UsageScope; succeeded: boolean; error?: unknown }
+    >();
+    const scopePromises = new Map<
+      SearchCredentialSource,
+      Promise<{ scope: UsageScope; succeeded: boolean; error?: unknown }>
+    >();
+    let systemQuota: Promise<unknown> | undefined;
+
+    const credentialFor = (provider: SearchProvider) => {
+      const credential = searchCredentialFor(provider, config.search);
+      if (credential) return credential;
+      if (provider === 'openrouter' && config.apiKey) {
+        return {
+          key: config.apiKey,
+          source: (config.usageMode === 'workspace_key'
+            ? 'own'
+            : 'system') as SearchCredentialSource,
+        };
+      }
+      return undefined;
+    };
+
+    const scopeFor = async (provider: SearchProvider) => {
+      const credential = credentialFor(provider);
+      if (!credential) throw new WebSearchNotConfigured();
+      const existing = scopes.get(credential.source);
+      if (existing) return existing;
+      const pending = scopePromises.get(credential.source);
+      if (pending) return pending;
+
+      // Publish the promise before the first await. RU and EN queries may
+      // discover the same fallback together; both must share one admission
+      // and one finalization for that credential source.
+      const creation = (async () => {
+        // Deep-search quota belongs to system spend. An own key never reserves
+        // it; an own-to-system fallback reserves it immediately before the
+        // first system request leaves the process.
+        if (credential.source === 'system' && levelWasExplicit) {
+          systemQuota ??= (this.quota ?? this.fallbackQuota).reserve(
+            organizationId,
+            level
+          );
+          await systemQuota;
+        }
+
+        const usageConfig: AiConfig = {
+          ...config,
+          usageMode:
+            credential.source === 'own' ? 'workspace_key' : 'included',
+          // Admission checks the credential selected for this operation. The
+          // generation key is unrelated to a Tavily or Exa request.
+          apiKey: credential.key,
+        };
+        const begin =
+          this.aiUsage.beginAiOperationWithConfig?.bind(this.aiUsage);
+        const scope: UsageScope = begin
+          ? await begin(
+              organizationId,
+              'web_research',
+              usageConfig,
+              'research'
+            )
+          : ({
+              // Compatibility for isolated consumers whose narrow test double
+              // predates source-aware admission.
+              run: <T>(callback: () => T) =>
+                withActiveAiConfig(
+                  organizationId,
+                  usageConfig,
+                  callback,
+                  'research'
+                ),
+              finish: async () => undefined,
+            } as UsageScope);
+        const tracked: { scope: UsageScope; succeeded: boolean; error?: unknown } = { scope, succeeded: false };
+        scopes.set(credential.source, tracked);
+        return tracked;
+      })();
+      scopePromises.set(credential.source, creation);
+      try {
+        return await creation;
+      } catch (error) {
+        if (scopePromises.get(credential.source) === creation) {
+          scopePromises.delete(credential.source);
+        }
+        throw error;
+      }
+    };
+
+    const attempt: SearchAttempt = async (provider, invoke) => {
+      const tracked = await scopeFor(provider);
+      try {
+        const response = await tracked.scope.run(invoke);
+        tracked.succeeded = true;
+        return response;
+      } catch (error) {
+        tracked.error = error;
+        throw error;
+      }
+    };
+
+    // Gate the primary source before classification or any provider work. A
+    // fallback opens its own source lazily in `attempt`.
+    await scopeFor(primary);
+    try {
+      const result = await withActiveAiConfig(
+        organizationId,
+        config,
+        () =>
+          this.researchWithinOperation(
+            organizationId,
+            subject,
+            { ...options, level, levelWasExplicit },
+            attempt
+          ),
+        'research'
+      );
+      this.cache.set(key, result);
+      return result;
+    } finally {
+      await Promise.all(
+        [...scopes.values()].map(({ scope, succeeded, error }) =>
+          scope.finish(succeeded, error)
+        )
+      );
+    }
   }
 
   private async researchWithinOperation(
     organizationId: string,
     subject: string,
-    options: WebResearchOptions & { levelWasExplicit?: boolean }
+    options: WebResearchOptions & { levelWasExplicit?: boolean },
+    attempt: SearchAttempt
   ): Promise<WebResearchResult> {
     const config = await requireActiveAiConfig(organizationId);
     /**
@@ -1144,7 +1369,8 @@ Summary: {summary}`
     const classification = await ChatPromptTemplate.fromTemplate(
       `Classify the research subject, then prepare search queries.
 The content output language does not control the search language.
-Return scope "local" for laws, markets, companies or institutions tied to one country; return scope "global" when the subject crosses countries or concerns an international debate.
+The reader's output language is {outputLanguage}; use it only to decide whether a named country or market is the reader's own.
+Return scope "local" only for laws, markets, companies or institutions of the reader's own country, or when searching outside one country would make no sense. A foreign country's experience discussed as an idea is "global", even when the event itself happened in one country. Return scope "global" when the subject crosses countries or concerns an international debate.
 Return subjectLanguage as a lowercase ISO 639-1 code: the language the subject is written in, or the language of the country whose rules, market or institutions it is about.
 Always provide englishQuery in English.
 Whenever subjectLanguage is not "en", also provide subjectLanguageQuery written in that language, using the terms a reader of that language would search for, including the local names of laws, registers and institutions. Only when subjectLanguage is "en" must subjectLanguageQuery be null.
@@ -1152,7 +1378,12 @@ Set freshnessRequired true only when the subject asks for latest, current, recen
 Subject: {subject}`
     )
       .pipe(classifier)
-      .invoke({ subject: String(subject).slice(0, MAXIMUM_SUBJECT_LENGTH) });
+      .invoke({
+        subject: String(subject).slice(0, MAXIMUM_SUBJECT_LENGTH),
+        outputLanguage: options.language
+          ? contentLanguageNames[options.language]
+          : 'unknown',
+      });
 
     /**
      * The subject's own language goes first and English second. Both queries
@@ -1165,9 +1396,10 @@ Subject: {subject}`
       subjectLanguageQuery && !isEnglish(classification.subjectLanguage)
         ? subjectLanguageQuery
         : englishQuery;
-    const baseQueries = classification.scope === 'local'
-      ? [ownLanguageQuery]
-      : ownLanguageQuery !== englishQuery
+    const baseQueries =
+      classification.scope === 'local'
+        ? [ownLanguageQuery]
+        : ownLanguageQuery !== englishQuery
         ? [ownLanguageQuery, englishQuery]
         : [englishQuery];
 
@@ -1178,16 +1410,19 @@ Subject: {subject}`
     // spend money without adding recall.
     const queries = baseQueries.slice(0, preset.maxSearchQueries);
 
+    const country = classification.scope === 'local'
+      ? countryForSubjectLanguage(classification.subjectLanguage)
+      : undefined;
+    const loggedSubject = researchLogTopic(subject);
+    this.logger.log(
+      `Web research classification: subject=${JSON.stringify(loggedSubject)} scope=${classification.scope} subjectLanguage=${classification.subjectLanguage} country=${country ?? 'none'} queries=${queries.length}.`
+    );
+
     const searchOptions = {
       scope: classification.scope,
-      country:
-        classification.scope === 'local'
-          ? countryForSubjectLanguage(classification.subjectLanguage)
-          : undefined,
+      country,
       freshnessRequired: classification.freshnessRequired,
-      ...(options.levelWasExplicit
-        ? { maxResults: preset.maxSources }
-        : {}),
+      ...(options.levelWasExplicit ? { maxResults: preset.maxSources } : {}),
       ...(options.windowDays ? { windowDays: options.windowDays } : {}),
       /**
        * Discovery asks the news index first (`content-factory-next-75xn.23`):
@@ -1195,9 +1430,7 @@ Subject: {subject}`
        * announced as «свежее за 30 дней» is worthless without one. Thirty of
        * forty leads on 13.09 had no date for exactly this reason.
        */
-      ...(task === 'discovery'
-        ? { topic: 'news' as 'news' | 'general' }
-        : {}),
+      ...(task === 'discovery' ? { topic: 'news' as 'news' | 'general' } : {}),
     };
     const egressBudget: ResearchEgressBudget = {
       maxSearchQueries: preset.maxSearchQueries,
@@ -1207,7 +1440,9 @@ Subject: {subject}`
       maxProviderCostMicros: preset.maxProviderCostMicros,
       maxConcurrency: Math.max(1, queries.length),
     };
-    const providerKillSwitches = (process.env.RESEARCH_PROVIDER_KILL_SWITCHES || '')
+    const providerKillSwitches = (
+      process.env.RESEARCH_PROVIDER_KILL_SWITCHES || ''
+    )
       .split(',')
       .map((provider) => provider.trim())
       .filter(Boolean);
@@ -1247,7 +1482,9 @@ Subject: {subject}`
       // Equality, not truthiness: the backend compiles without strictNullChecks,
       // where truthiness does not narrow a discriminated union.
       if (decision.allowed === true) return;
-      const error = new Error(`Research egress denied: ${decision.code}`) as Error & {
+      const error = new Error(
+        `Research egress denied: ${decision.code}`
+      ) as Error & {
         code?: string;
       };
       error.code = `RESEARCH_EGRESS_${decision.code.toUpperCase()}`;
@@ -1299,13 +1536,20 @@ Subject: {subject}`
       ? withDeadline(
           this.encyclopedicRows({
             entityNames: [...new Set(queries)],
-            locales: [...new Set(
-              (classification.scope === 'local'
-                ? [classification.subjectLanguage]
-                : [classification.subjectLanguage, 'en'])
-                .map((locale) => String(locale || '').trim().toLowerCase())
-                .filter(Boolean)
-            )],
+            locales: [
+              ...new Set(
+                (classification.scope === 'local'
+                  ? [classification.subjectLanguage]
+                  : [classification.subjectLanguage, 'en']
+                )
+                  .map((locale) =>
+                    String(locale || '')
+                      .trim()
+                      .toLowerCase()
+                  )
+                  .filter(Boolean)
+              ),
+            ],
             allow: encyclopedicAllowed,
           }),
           ENCYCLOPEDIC_LANE_TIMEOUT_MS
@@ -1340,6 +1584,7 @@ Subject: {subject}`
             config,
             queryOptions,
             task,
+            attempt,
             egressCheck(indexOffset + index)
           )
         )
@@ -1392,7 +1637,10 @@ Subject: {subject}`
       const url = usableHttpsUrl(row.url);
       return !!url;
     });
-    const reservedForLane = Math.min(ENCYCLOPEDIC_RESERVED_SOURCES, laneUsable.length);
+    const reservedForLane = Math.min(
+      ENCYCLOPEDIC_RESERVED_SOURCES,
+      laneUsable.length
+    );
     const providerCap = Math.max(1, preset.maxSources - reservedForLane);
 
     const facts = new Map<string, WebResearchFact>();
@@ -1460,7 +1708,9 @@ Subject: {subject}`
         // news result carries, and a revision date is not one.
         publishedAt: null,
         provider: row.provider,
-        ...(row.extract ? { text: row.extract.slice(0, PAGE_TEXT_MAX_CHARS) } : {}),
+        ...(row.extract
+          ? { text: row.extract.slice(0, PAGE_TEXT_MAX_CHARS) }
+          : {}),
       });
       if (!row.extract || remainingContent <= 0) continue;
       const content = truncateAtParagraph(
@@ -1483,7 +1733,8 @@ Subject: {subject}`
     if (task === 'discovery' && sources.size) {
       const excerptByUrl = new Map<string, string>();
       for (const fact of facts.values()) {
-        if (!excerptByUrl.has(fact.sourceUrl)) excerptByUrl.set(fact.sourceUrl, fact.text);
+        if (!excerptByUrl.has(fact.sourceUrl))
+          excerptByUrl.set(fact.sourceUrl, fact.text);
       }
       try {
         const judged = await judgeDiscoveryRows(
@@ -1518,7 +1769,8 @@ Subject: {subject}`
       .filter((answer): answer is string => !!answer)
       .join('\n\n');
     const summary =
-      options.language && summaryNeedsLanguage(providerSummary, options.language)
+      options.language &&
+      summaryNeedsLanguage(providerSummary, options.language)
         ? await this.summaryInLanguage(
             organizationId,
             providerSummary,

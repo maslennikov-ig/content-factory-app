@@ -26,7 +26,9 @@
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const tasks = () =>
-  loadTypeScriptModule('libraries/nestjs-libraries/src/openai/ai.search-tasks.ts');
+  loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/openai/ai.search-tasks.ts'
+  );
 
 describe('a key belongs to one engine', () => {
   test('an engine is answered with its own key and never with another', () => {
@@ -42,6 +44,24 @@ describe('a key belongs to one engine', () => {
     // OpenRouter answers a search question with the workspace's generation
     // key, so it has none of its own and must not borrow one.
     expect(searchKeyFor('openrouter', source)).toBe('');
+  });
+
+  test('a credential carries its own-or-system payer beside the key', () => {
+    const { searchCredentialFor } = tasks();
+    const source = {
+      provider: 'tavily',
+      apiKeys: { tavily: 'own-tavily', exa: 'system-exa' },
+      keySources: { tavily: 'own', exa: 'system' },
+    };
+
+    expect(searchCredentialFor('tavily', source)).toEqual({
+      key: 'own-tavily',
+      source: 'own',
+    });
+    expect(searchCredentialFor('exa', source)).toEqual({
+      key: 'system-exa',
+      source: 'system',
+    });
   });
 
   test('an engine with no key of its own gets nothing, not the default one', () => {
@@ -223,6 +243,17 @@ describe('the client cache key follows the routing', () => {
         apiKeys: { tavily: 'k', exa: 'e' },
       })
     ).not.toBe(searchRouteFingerprint(base));
+    expect(
+      searchRouteFingerprint({
+        ...base,
+        keySources: { tavily: 'own' },
+      })
+    ).not.toBe(
+      searchRouteFingerprint({
+        ...base,
+        keySources: { tavily: 'system' },
+      })
+    );
   });
 
   test('the fingerprint says whether a key exists, never what it is', () => {

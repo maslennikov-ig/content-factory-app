@@ -81,26 +81,25 @@ export function OnboardingWalkthrough({
   return (
     <section
       data-onboarding-walkthrough="true"
-      aria-labelledby="onboarding-title"
+      aria-labelledby={embedded ? 'onboarding-title' : undefined}
+      aria-label={embedded ? undefined : t.pageTitle}
       className="w-full rounded-[8px] border border-cf-border bg-cf-surface"
     >
       <header className="border-b border-cf-border p-[20px]">
-        {embedded ? (
+        {embedded && (
           <h2
             id="onboarding-title"
             className="cf-heading-md text-cf-ink [text-wrap:balance]"
           >
             {t.pageTitle}
           </h2>
-        ) : (
-          <h1
-            id="onboarding-title"
-            className="cf-heading-lg text-cf-ink [text-wrap:balance]"
-          >
-            {t.pageTitle}
-          </h1>
         )}
-        <p className="mt-[4px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+        <p
+          className={clsx(
+            'max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]',
+            embedded && 'mt-[4px]'
+          )}
+        >
           {t.pageLead}
         </p>
       </header>
@@ -316,15 +315,19 @@ export function OnboardingWalkthrough({
           for one action, with the inner one carrying the label and the outer
           one carrying the destination.
         */}
-        {!embedded && (
+        {!embedded && answered && !error && (
           <Link
-            href="/launches"
+            href={
+              progress.pieces > 0
+                ? ONBOARDING_STEP_HREF.brief
+                : ONBOARDING_STEP_HREF.voice
+            }
             className={buttonClassName({
               variant: 'secondary',
               className: 'shrink-0',
             })}
           >
-            {t.leave}
+            {progress.pieces > 0 ? t.leaveToPieces : t.leaveToAvatar}
           </Link>
         )}
       </footer>

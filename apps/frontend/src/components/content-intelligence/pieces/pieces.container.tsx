@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -20,8 +20,10 @@ import {
   piecePath,
   piecesListUrl,
   readPieceDetail,
+  readPieceSort,
   readPiecesResponse,
   readStoredColumns,
+  sortPieces,
   storeColumns,
   visibleColumns,
   type PieceCellV1,
@@ -129,9 +131,30 @@ export function PiecesContainer() {
     : envelope.state;
 
   const rows = useMemo(
-    () => filterPieces(envelope?.pieces ?? [], settledFilters),
+    () =>
+      sortPieces(
+        filterPieces(envelope?.pieces ?? [], settledFilters),
+        settledFilters.sort
+      ),
     [envelope?.pieces, settledFilters]
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sort = readPieceSort(window.location.search);
+    setFilters((current) =>
+      current.sort === sort ? current : { ...current, sort }
+    );
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('sort') === sort) return;
+    url.searchParams.set('sort', sort);
+    window.history.replaceState(
+      null,
+      '',
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }, []);
 
   const { shown, rest } = useMemo(
     () => visibleColumns(envelope?.columns ?? [], chosen),
@@ -141,6 +164,15 @@ export function PiecesContainer() {
   const setFilter = useCallback(
     <K extends keyof PiecesFilters>(key: K, value: PiecesFilters[K]) => {
       setFilters((current) => ({ ...current, [key]: value }));
+      if (key === 'sort' && typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', readPieceSort(value));
+        window.history.replaceState(
+          null,
+          '',
+          `${url.pathname}${url.search}${url.hash}`
+        );
+      }
     },
     []
   );

@@ -49,6 +49,13 @@ const model = loadWithMocks(path + 'channel-model.ts');
 beforeEach(() => { rows = fixtures(); listError = null; listLoading = false; mobile = false; role = 'ADMIN'; routeId = 'one'; document.cookie = 'channels-view=; Max-Age=0; path=/'; push.mockClear(); action.mockClear(); });
 afterEach(cleanup);
 
+test('upper shell owns the section title while subtitle and connect action remain', () => {
+  render(h(ChannelsScreen));
+  expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  expect(screen.getByText('Шаг 2 · куда публикуем и как там пишем')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Подключить канал' })).toBeTruthy();
+});
+
 test('default cards, table has the same rows, view survives remount; both share search and state filter', () => {
   let result = render(h(ChannelsScreen));
   expect(result.container.querySelectorAll('article[data-channel-id]')).toHaveLength(3);

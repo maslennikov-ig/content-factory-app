@@ -230,16 +230,15 @@ describe('экран показывает все шестнадцать вопр
     }
   });
 
-  test('заголовок и подпись — на языке экрана', () => {
+  test('верхняя оболочка владеет заголовком, подпись остаётся на языке экрана', () => {
     draw();
-    const heading = document.querySelector('h1');
-    expect(heading.textContent).toBe('Помощь');
+    expect(document.querySelector('h1')).toBeNull();
     expect(document.body.textContent).toContain(helpCopy.ru.pageLead);
 
     cleanup();
     language = 'en';
     draw();
-    expect(document.querySelector('h1').textContent).toBe('Help');
+    expect(document.querySelector('h1')).toBeNull();
     expect(document.body.textContent).toContain(helpCopy.en.pageLead);
     expect(rowFor('roles').textContent).toContain(
       helpCopy.en.questions.find((item) => item.id === 'roles').question

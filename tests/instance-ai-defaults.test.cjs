@@ -25,7 +25,8 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const root = path.resolve(__dirname, '..');
 const CONFIG = 'libraries/nestjs-libraries/src/openai/ai.provider.config.ts';
-const SERVICE = 'libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts';
+const SERVICE =
+  'libraries/nestjs-libraries/src/openai/instance-ai-defaults.service.ts';
 
 const loadConfig = (stored, instance) => {
   const config = loadTypeScriptModule(CONFIG, {
@@ -208,6 +209,42 @@ describe('the operator row stands in front of the environment', () => {
       }
     );
   });
+
+  test.each(['included', 'workspace_key'])(
+    'a workspace engine key overrides the system independently of generation mode %s',
+    async (usageMode) => {
+      await withEnvironment(
+        {
+          AI_INCLUDED_API_KEY: 'system-generation',
+          AI_INCLUDED_SEARCH_API_KEY_TAVILY: 'system-tavily',
+          AI_INCLUDED_SEARCH_API_KEY_EXA: 'system-exa',
+        },
+        async () => {
+          const { loadAiConfig } = loadConfig(
+            {
+              ...includedRow,
+              usageMode,
+              apiKey: 'own-generation',
+              searchApiKeys: { exa: 'own-exa' },
+            },
+            null
+          );
+
+          const config = await loadAiConfig('organization-a');
+
+          expect(config.search.apiKeys).toEqual({
+            tavily: 'system-tavily',
+            exa: 'plain:own-exa',
+          });
+          expect(config.search.keySources).toEqual({
+            tavily: 'system',
+            exa: 'own',
+          });
+          expect(config.search.enabled).toBe(true);
+        }
+      );
+    }
+  );
 
   test('an unreadable row leaves the instance on its variables', async () => {
     const consoleError = jest
@@ -429,12 +466,19 @@ describe('the superadmin screen never sees a key', () => {
       // Подписка сильнее всех. Потом строка суперадмина, где ноль — это отказ,
       // набранный нарочно. Потом переменная окружения.
       expect(
-        usage.includedMonthlyOperations({ includedAiMonthlyOperations: 7 }, {
-          monthlyOperations: 0,
-        })
+        usage.includedMonthlyOperations(
+          { includedAiMonthlyOperations: 7 },
+          {
+            monthlyOperations: 0,
+          }
+        )
       ).toBe(7);
-      expect(usage.includedMonthlyOperations(null, { monthlyOperations: 0 })).toBe(0);
-      expect(usage.includedMonthlyOperations(null, { monthlyOperations: 120 })).toBe(120);
+      expect(
+        usage.includedMonthlyOperations(null, { monthlyOperations: 0 })
+      ).toBe(0);
+      expect(
+        usage.includedMonthlyOperations(null, { monthlyOperations: 120 })
+      ).toBe(120);
       expect(usage.includedMonthlyOperations(null, null)).toBe(50);
     } finally {
       delete process.env.AI_INCLUDED_MONTHLY_OPERATIONS;

@@ -118,7 +118,7 @@ export function BriefViewSwitch({
 }
 
 /**
- * The frame: a heading, five tabs and one panel.
+ * The frame: section context, five tabs and one panel.
  *
  * Separate from the screen because it holds no data and makes no request, so
  * the review route can open it in every width, theme and language without a
@@ -156,15 +156,23 @@ export function ContentSectionShell({
   const t = contentSectionCopy[locale];
 
   // Avatar is a separate workflow destination, not a tab among pieces.
-  if (tab === 'avatars') return (
-    <div data-production-surface="content/section" data-content-tab={tab} className="flex min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink">
-      <header className="border-b border-cf-border bg-cf-surface p-[20px] md:p-[24px]">
-        <h1 className="cf-heading-lg text-cf-ink [text-wrap:balance]">{t.avatars}</h1>
-        <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">{t.avatarDescription}</p>
-      </header>
-      <div className="flex min-w-0 flex-col p-[20px] md:p-[24px]">{children}</div>
-    </div>
-  );
+  if (tab === 'avatars')
+    return (
+      <div
+        data-production-surface="content/section"
+        data-content-tab={tab}
+        className="flex min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink"
+      >
+        <header className="border-b border-cf-border bg-cf-surface p-[20px] md:p-[24px]">
+          <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+            {t.avatarDescription}
+          </p>
+        </header>
+        <div className="flex min-w-0 flex-col p-[20px] md:p-[24px]">
+          {children}
+        </div>
+      </div>
+    );
   const tabs = CONTENT_TABS;
   return (
     <Tabs value={tab} onChange={(value) => onTabChange(value as ContentTab)}>
@@ -178,10 +186,7 @@ export function ContentSectionShell({
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
       >
         <header className="border-b border-cf-border bg-cf-surface px-[20px] pt-[20px] md:px-[24px]">
-          <h1 className="cf-heading-lg text-cf-ink [text-wrap:balance]">
-            {t.title}
-          </h1>
-          <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
+          <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
             {t.description}
           </p>
 

@@ -25,7 +25,7 @@ test('every direct AI consumer is behind the explicit operation seam', () => {
       expect.objectContaining({
         relative,
         source: expect.stringMatching(
-          /executeAi(?:Stream)?Operation|prepareModelExecution/
+          /executeAi(?:Stream)?Operation|beginAiOperationWithConfig|prepareModelExecution/
         ),
       })
     );

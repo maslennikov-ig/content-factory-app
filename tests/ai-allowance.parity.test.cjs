@@ -212,4 +212,13 @@ describe('the member line and the administrator screen count one allowance', () 
     // рецензия и нашла; вернуться она может только молча.
     expect(source).not.toMatch(/usageMode:\s*'included'/);
   });
+
+  test('a failed review returns allowance while other terminal attempts still count', () => {
+    const where = usageModule.includedUsageFilter(
+      ORGANIZATION,
+      new Date('2026-09-01T00:00:00.000Z')
+    );
+    expect(where.NOT).toEqual({ status: 'failed', role: 'review' });
+    expect(where.OR[0]).toEqual({ status: { not: 'admitted' } });
+  });
 });

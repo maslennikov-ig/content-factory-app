@@ -167,7 +167,6 @@ interface AiSettings {
    */
   workspaceSearchKeys?: Partial<Record<SearchProvider, boolean>>;
   searchTaskProviders?: SearchTaskProviders;
-  searchFallbackAvailable: boolean;
   workspaceKeyConfigured: boolean;
   includedAvailable: boolean;
   includedMonthlyOperations: number;
@@ -262,19 +261,8 @@ export const buildAiSettingsPayload = ({
     ...(usageMode === 'workspace_key'
       ? { textModel, imageModel, roleModels: submittedRoleModels(roleModels) }
       : {}),
-    /**
-     * Whether search runs at all is a workspace-key setting now.
-     *
-     * On the system keys the server decides it by the presence of an operator
-     * search key and does not read the row's flag at all
-     * (`ai.provider.config.ts`, `includedSearch`), so the screen shows no
-     * switch there — and must not send one either. `searchEnabled` in this
-     * mode holds what the *operator* has, not what this workspace chose, and
-     * writing it back would overwrite a workspace's own «поиск выключен» the
-     * first time anything on this screen autosaved
-     * (`content-factory-next-75xn.26`, after `.20`).
-     */
-    ...(usageMode === 'workspace_key' ? { searchEnabled } : {}),
+    // Search credentials and tuning are independent of generation mode.
+    searchEnabled,
     /**
      * Everything else about search is a workspace-key setting, and in
      * `included` mode the screen is showing the operator's values rather than
@@ -289,14 +277,10 @@ export const buildAiSettingsPayload = ({
      * nothing to say about them and sending a value would mean overwriting an
      * override with a control the person never saw.
      */
-    ...(usageMode === 'workspace_key'
-      ? {
-          searchTopic,
-          searchDepth,
-          ...(Object.keys(typedSearchKeys).length
-            ? { searchApiKeys: typedSearchKeys }
-            : {}),
-        }
+    searchTopic,
+    searchDepth,
+    ...(Object.keys(typedSearchKeys).length
+      ? { searchApiKeys: typedSearchKeys }
       : {}),
   };
 };
@@ -638,8 +622,14 @@ const AiProviderComponent = () => {
    */
   const hasStoredSearchKey = useCallback(
     (engine: SearchProvider) =>
-      data?.searchKeys?.[engine] ??
+      data?.workspaceSearchKeys?.[engine] ??
       (engine === data?.searchProvider && !!data?.hasSearchKey),
+    [data]
+  );
+
+  /** Own-over-system credentials currently available to routing. */
+  const hasResolvedSearchKey = useCallback(
+    (engine: SearchProvider) => !!data?.searchKeys?.[engine],
     [data]
   );
 
@@ -658,11 +648,12 @@ const AiProviderComponent = () => {
       searchEngineForTask(task, {
         provider: data?.searchProvider || 'tavily',
         taskProviders: data?.searchTaskProviders,
-        hasKey: hasStoredSearchKey,
+        hasKey: hasResolvedSearchKey,
       })
     );
     const payable = engines.some(
-      (engine) => !searchProviderNeedsKey(engine) || hasStoredSearchKey(engine)
+      (engine) =>
+        !searchProviderNeedsKey(engine) || hasResolvedSearchKey(engine)
     );
     /**
      * В режиме ключей системы «сохраните свой ключ или включите ключи системы»
@@ -671,10 +662,7 @@ const AiProviderComponent = () => {
      */
     if (!payable)
       return {
-        line:
-          usageMode === 'included'
-            ? words.search.systemKeysMissing
-            : words.search.routingNone,
+        line: words.search.routingNone,
         payable,
       };
     return {
@@ -686,7 +674,7 @@ const AiProviderComponent = () => {
         }))
       ),
     };
-  }, [data, hasStoredSearchKey, usageMode, words]);
+  }, [data, hasResolvedSearchKey, words]);
 
   // Only OpenRouter publishes a catalogue; for OpenAI the fields stay free text.
   const loadModels = useCallback(
@@ -844,7 +832,7 @@ const AiProviderComponent = () => {
         id="ai-usage-mode"
         label={t('ai_usage_mode')}
         hintLabel={words.hintFor(t('ai_usage_mode'))}
-        hint={words.search.ownKeyKept}
+        hint={words.usageModeHint}
       >
         <Select
           id="ai-usage-mode"
@@ -983,7 +971,10 @@ const AiProviderComponent = () => {
 
       {ownKeys && (
         <>
-          <LabelledField id="ai-provider-name" label={t('provider', 'Provider')}>
+          <LabelledField
+            id="ai-provider-name"
+            label={t('provider', 'Provider')}
+          >
             <Select
               id="ai-provider-name"
               label=""
@@ -1162,222 +1153,110 @@ const AiProviderComponent = () => {
           ресерч, какой — проверку фактов, и что это следует из сохранённых
           ключей (`content-factory-next-75xn.10`).
         */}
-        {ownKeys ? (
-          <p
-            data-search-routing="true"
-            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {routing.line}
-          </p>
-        ) : !routing.payable ? (
-          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {routing.line}
-          </p>
-        ) : null}
+        <p
+          data-search-routing="true"
+          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
+          {routing.line}
+        </p>
       </div>
 
-      {/*
-        Whether search runs at all is a person's decision and nothing on this
-        screen makes it for them any more. It used to: changing the engine
-        switched the lane off by itself when the new engine had no key, and the
-        owner met that as «статус веб-исследования автоматически выключается»
-        on 13.09.2026 without having touched the switch. The engine selector is
-        gone, and with it the only writer of this value other than this control.
-
-        На ключах системы переключателя нет вовсе: там поиск включён ровно
-        тогда, когда у оператора есть поисковый ключ, и флаг области в этом
-        режиме сервер не читает (`ai.provider.config.ts`, `includedSearch`).
-        Переключатель, который ничего не переключает, — это не настройка, а
-        обещание, которого продукт не держит (`content-factory-next-75xn.26`).
-      */}
-      {ownKeys && (
-        <LabelledField
-          id="ai-search-enabled"
-          label={t('web_search_status', 'Web research status')}
-        >
-          <Select
-            id="ai-search-enabled"
-            label=""
-            name="searchEnabled"
-            value={searchEnabled ? 'enabled' : 'disabled'}
-            disableForm={true}
-            hideErrors={true}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-              const next = event.target.value === 'enabled';
-              setSearchEnabled(next);
-              autosave({ searchEnabled: next });
-            }}
-          >
-            <option value="disabled">{t('disabled', 'Disabled')}</option>
-            <option value="enabled">{t('enabled', 'Enabled')}</option>
-          </Select>
-        </LabelledField>
-      )}
-
-      {/*
-        Одна строка вместо переключателя: поиск на ключах системы работает, и
-        вводить ничего не нужно. Когда ключей системы нет, это уже сказано
-        строкой маршрутизации выше, и второй раз не повторяется.
-      */}
-      {!ownKeys && data?.searchEnabled && (
-        <p
-          data-search-system-keys="true"
-          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-        >
-          {words.search.systemKeysOnly}
-        </p>
-      )}
-
-      {/*
-        Про свой ключ области сказано одним предложением — и больше ничего.
-
-        Владелец 13.09.2026: «если я выбираю ключи системы — зачем кнопки
-        „Убрать ключ Tavily“, „Убрать ключ Exa“? Для суперадмина они есть в его
-        админке, обычному человеку зачем?» Убирать чужой ключ отсюда было
-        нечего, а свой — незачем: он лежит нетронутым и снова заработает, как
-        только область вернётся к своим ключам. Кнопка удаления стоит там, где
-        стоит само поле ключа, то есть в режиме своих ключей
-        (`content-factory-next-75xn.26`).
-      */}
-      {!ownKeys && data?.hasSearchKey && (
-        <p
-          data-search-included-key="true"
-          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-        >
-          {words.search.includedOwnKey}
-        </p>
-      )}
-
-      {ownKeys && (
-        <>
-          {/*
-            Поле на движок, а не одно на область: ключ адресуется движком, и Exa
-            не может прочитать ключ Tavily. Подписи и строки состояния живут в
-            `ai-provider.copy.ts`, потому что название движка в подписи — это не
-            перевод, а часть смысла: ключи локалей писались, когда движок был
-            один, и до сих пор называют Tavily в поле, которое теперь
-            принадлежит Exa.
-          */}
-          <BlockHeading
-            title={words.search.ownKeysTitle}
-            hintLabel={words.hintFor(words.search.ownKeysTitle)}
-            hint={words.search.openrouterNoKey}
-          />
-          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {words.search.ownKey}
-          </p>
-
-          {KEYED_SEARCH_PROVIDERS.map((engine) => (
-            <Input
-              key={engine}
-              label={words.search.engines[engine].keyLabel}
-              name={`searchApiKey-${engine}`}
-              secret={true}
-              value={searchApiKeys[engine] || ''}
-              disableForm={true}
-              action={
-                hasStoredSearchKey(engine) ? (
-                  <ClearStoredKeyButton
-                    label={words.search.engines[engine].removeKey}
-                    busy={clearingSearch === engine}
-                    onClear={() => clearSearchKey(engine)}
-                  />
-                ) : undefined
-              }
-              placeholder={
-                hasStoredSearchKey(engine)
-                  ? words.search.keySavedPlaceholder
-                  : words.search.keyEmptyPlaceholder
-              }
-              helper={
-                hasStoredSearchKey(engine)
-                  ? words.search.engines[engine].keyStored
-                  : words.search.engines[engine].keyMissing
-              }
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setSearchApiKeys((current) => ({
-                  ...current,
-                  [engine]: event.target.value,
-                }))
-              }
-            />
-          ))}
-
-          <LabelledField id="ai-search-topic" label={t('search_topic', 'Search topic')}>
-            <Select
-              id="ai-search-topic"
-              label=""
-              name="searchTopic"
-              value={searchTopic}
-              disableForm={true}
-              hideErrors={true}
-              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                const next =
-                  event.target.value === 'news' ? 'news' : 'general';
-                setSearchTopic(next);
-                autosave({ searchTopic: next });
-              }}
-            >
-              <option value="general">
-                {t('search_topic_general', 'General')}
-              </option>
-              <option value="news">{t('search_topic_news', 'News')}</option>
-            </Select>
-          </LabelledField>
-
-          <LabelledField
-            id="ai-search-depth"
-            label={t('search_depth', 'Search depth')}
-            hintLabel={words.hintFor(t('search_depth', 'Search depth'))}
-            hint={t(
-              'tavily_search_mode',
-              'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
-            )}
-          >
-            <Select
-              id="ai-search-depth"
-              label=""
-              name="searchDepth"
-              value={searchDepth}
-              disableForm={true}
-              hideErrors={true}
-              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                const next =
-                  event.target.value === 'advanced' ? 'advanced' : 'basic';
-                setSearchDepth(next);
-                autosave({ searchDepth: next });
-              }}
-            >
-              <option value="basic">{t('search_depth_basic', 'Basic')}</option>
-              <option value="advanced">
-                {t('search_depth_advanced', 'Advanced')}
-              </option>
-            </Select>
-          </LabelledField>
-
-          {/*
-            Состояние, а не объяснение: доступен ли откат на OpenRouter — это
-            факт про эту область прямо сейчас, и подсказка такого держать не
-            может.
-          */}
-          <div className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {data?.searchFallbackAvailable
-              ? t(
-                  'openrouter_fallback_available',
-                  'Automatic fallback is available through the OpenRouter AI key above. It runs only after a Tavily outage, quota error, timeout or empty result.'
-                )
-              : data?.provider === 'openrouter'
-              ? t(
-                  'openrouter_fallback_missing_key',
-                  'Automatic fallback needs an OpenRouter AI key above. Tavily remains primary.'
-                )
-              : t(
-                  'openrouter_fallback_wrong_provider',
-                  'Automatic fallback is unavailable while the AI provider is OpenAI. Tavily research still works normally.'
+      {/* One field per keyed engine. Blank means system; a saved own key wins. */}
+      {KEYED_SEARCH_PROVIDERS.map((engine) => (
+        <Input
+          key={engine}
+          label={`${words.search.engines[engine].keyLabel} — ${
+            hasStoredSearchKey(engine)
+              ? words.search.keyOwn
+              : words.search.keySystem
+          }`}
+          name={`searchApiKey-${engine}`}
+          secret={true}
+          value={searchApiKeys[engine] || ''}
+          disableForm={true}
+          action={
+            hasStoredSearchKey(engine) ? (
+              <ClearStoredKeyButton
+                label={words.search.returnToSystem(
+                  words.search.engines[engine].name
                 )}
-          </div>
-        </>
-      )}
+                busy={clearingSearch === engine}
+                onClear={() => clearSearchKey(engine)}
+              />
+            ) : undefined
+          }
+          placeholder={
+            hasStoredSearchKey(engine)
+              ? words.search.keySavedPlaceholder
+              : words.search.keyEmptyPlaceholder
+          }
+          helper={
+            hasStoredSearchKey(engine)
+              ? words.search.engines[engine].keyStored
+              : words.search.engines[engine].keyMissing
+          }
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            setSearchApiKeys((current) => ({
+              ...current,
+              [engine]: event.target.value,
+            }))
+          }
+        />
+      ))}
+
+      <LabelledField
+        id="ai-search-topic"
+        label={t('search_topic', 'Search topic')}
+      >
+        <Select
+          id="ai-search-topic"
+          label=""
+          name="searchTopic"
+          value={searchTopic}
+          disableForm={true}
+          hideErrors={true}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+            const next = event.target.value === 'news' ? 'news' : 'general';
+            setSearchTopic(next);
+            autosave({ searchTopic: next });
+          }}
+        >
+          <option value="general">
+            {t('search_topic_general', 'General')}
+          </option>
+          <option value="news">{t('search_topic_news', 'News')}</option>
+        </Select>
+      </LabelledField>
+
+      <LabelledField
+        id="ai-search-depth"
+        label={t('search_depth', 'Search depth')}
+        hintLabel={words.hintFor(t('search_depth', 'Search depth'))}
+        hint={t(
+          'tavily_search_mode',
+          'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
+        )}
+      >
+        <Select
+          id="ai-search-depth"
+          label=""
+          name="searchDepth"
+          value={searchDepth}
+          disableForm={true}
+          hideErrors={true}
+          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+            const next =
+              event.target.value === 'advanced' ? 'advanced' : 'basic';
+            setSearchDepth(next);
+            autosave({ searchDepth: next });
+          }}
+        >
+          <option value="basic">{t('search_depth_basic', 'Basic')}</option>
+          <option value="advanced">
+            {t('search_depth_advanced', 'Advanced')}
+          </option>
+        </Select>
+      </LabelledField>
 
       {/*
         Кнопка осталась, хотя всё остальное сохраняется само. Владелец

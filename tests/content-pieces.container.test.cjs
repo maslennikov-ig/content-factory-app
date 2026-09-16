@@ -874,6 +874,48 @@ describe('what the piece rests on', () => {
     expect(document.body.textContent).not.toContain('Не подтвердилось и в текст не вошло');
   });
 
+  test('factKey is sent to the door; a refused save restores the checkbox and names the row', async () => {
+    const factKey = 'ev-market:0123456789abcdef';
+    const fact = {
+      statement: 'Рынок вырос на 8%',
+      factKey,
+      origin: 'search',
+      kind: 'found',
+      status: 'confirmed',
+      verified: true,
+      selected: true,
+      sourceUrl: 'https://example.com/market',
+    };
+    serve({
+      ...table({
+        detail: detailDoor(
+          ok(withBrief({ facts: [fact], ungrounded: ['Другая строка'] }))
+        ),
+      }),
+      [`PATCH ${DETAIL_URL}/facts`]: refused(409, {
+        code: 'PIECE_FACT_NOT_FOUND',
+        message: 'Строка уже изменилась',
+      }),
+    });
+    await open();
+    fireEvent.click(screen.getByText('Опоры текста'));
+    const checkbox = screen.getByRole('checkbox', {
+      name: /Рынок вырос на 8%/,
+    });
+    expect(checkbox.checked).toBe(true);
+
+    await click(checkbox, () => screen.queryByRole('alert') !== null);
+    expect(calls.find((call) => call.method === 'PATCH').body).toEqual({
+      factKey,
+      selected: false,
+    });
+    expect(checkbox.checked).toBe(true);
+    const row = checkbox.closest('li');
+    expect(within(row).getByRole('alert').textContent).toContain(
+      'Выбор не сохранён'
+    );
+  });
+
   test('nothing to rest on: no heading over an empty block', async () => {
     serve(
       table({

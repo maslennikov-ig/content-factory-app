@@ -36,6 +36,7 @@
   основным, контракт — `docs/prompts/search-provider-port-spec.md` и
   `content-factory-next-yqh`. `writer-voice-style-transfer-2026-08-22.md` —
   основание эпика `content-factory-next-36r`.
+- `docs/product/seventh-walk-wave-2026-09-16-spec.md` — seventh walk wave `xmfb`: fact selection/review, foreign-post position, search language, research depth/direction, sorting and per-engine keys; execution order in `docs/prompts/astra-seventh-walk-wave-2026-09-16.md`.
 
 ## Runtime Shape
 
@@ -130,8 +131,7 @@
 - Runtime selection: `nvm use` then `node --version` and `pnpm --version`.
 - Dependency baseline: `pnpm install --frozen-lockfile`.
 - Build: `pnpm run build`.
-- Tests: `pnpm test`.
-- Repository checks: `git diff --check` and `scripts/orchestration/run_process_verification.sh`.
+- Tests: `pnpm test`; repository checks: `git diff --check` and `scripts/orchestration/run_process_verification.sh`.
 - Orchestration regression checks: `python3 -m unittest tests/test_orchestration_closeout.py tests/test_docs_links.py`.
 - Run focused checks for affected packages during development; use the full set only at integration or release boundaries.
 
@@ -147,4 +147,4 @@
 - No credentials, private materials, real provider calls, live publishing, paid model calls, deployment, or user messaging without explicit authority.
 - Keep current-state and target-state separate according to `docs/adr/0002-separate-current-and-target-state.md`.
 - Update documentation and the local Graphify index when architecture or durable workflow changes.
-- Проверка/перегенерация V2 — `docs/product/review-v2.md`, `pieces/review.v2.ts`, `review.v2.contract.ts` и `review-semantic.v2.ts` в content-intelligence; прежний V1 сохранён. Общий Disclosure — `apps/frontend/src/components/ui/disclosure.tsx`.
+- Review/regeneration: `docs/product/review-v2.md`; current `pieces/review.v3.ts`, `review.v3.contract.ts`, `review-semantic.v4.ts` preserve signed v2 results. Shared Disclosure: `apps/frontend/src/components/ui/disclosure.tsx`.

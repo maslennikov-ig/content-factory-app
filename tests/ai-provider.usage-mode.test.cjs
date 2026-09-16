@@ -120,7 +120,7 @@ describe('hybrid AI credential resolver', () => {
     });
   });
 
-  test('included uses only managed credentials and ignores stored keys and models', async () => {
+  test('included generation stays managed while an own search key overrides per engine', async () => {
     const { loadAiConfig } = loadConfig(async () => ({
       ...workspaceRow,
       usageMode: 'included',
@@ -134,9 +134,14 @@ describe('hybrid AI credential resolver', () => {
       textModel: 'managed-text',
       imageModel: 'managed-image',
       workspaceKeyConfigured: true,
-      search: { apiKey: 'managed-search' },
+      search: {
+        apiKey: 'decrypted:workspace-search',
+        apiKeys: { tavily: 'decrypted:workspace-search' },
+        keySources: { tavily: 'own' },
+      },
     });
-    expect(JSON.stringify(config)).not.toContain('decrypted:workspace');
+    expect(config.apiKey).not.toContain('workspace-ai');
+    expect(config.textModel).not.toContain('workspace-text');
   });
 
   test('included search routing comes from the operator environment only', async () => {
@@ -154,25 +159,32 @@ describe('hybrid AI credential resolver', () => {
   });
 
   test.each([
-    ['included', 'AI_INCLUDED_API_KEY', { ...workspaceRow, usageMode: 'included' }],
+    [
+      'included',
+      'AI_INCLUDED_API_KEY',
+      { ...workspaceRow, usageMode: 'included' },
+    ],
     ['workspace_key', null, { ...workspaceRow, apiKey: null }],
-  ])('%s never falls back to the other credential source', async (mode, missingEnv, row) => {
-    if (missingEnv) delete process.env[missingEnv];
-    const { requireAiConfig } = loadConfig(async () => row);
+  ])(
+    '%s never falls back to the other credential source',
+    async (mode, missingEnv, row) => {
+      if (missingEnv) delete process.env[missingEnv];
+      const { requireAiConfig } = loadConfig(async () => row);
 
-    const error = await requireAiConfig('organization-a').catch(
-      (caught) => caught
-    );
-    expect(error).toMatchObject({ name: 'AiProviderNotConfigured' });
-    expect(error.getStatus()).toBe(503);
-    expect(error.getResponse()).toMatchObject({
-      code: 'AI_SELECTED_CREDENTIAL_UNAVAILABLE',
-    });
-    const message = JSON.stringify(error.getResponse());
-    expect(message).not.toMatch(/wait|refresh/i);
-    expect(message).toMatch(/operator[\s\S]*included credentials/i);
-    expect(message).toMatch(/workspace administrator[\s\S]*workspace_key/i);
-  });
+      const error = await requireAiConfig('organization-a').catch(
+        (caught) => caught
+      );
+      expect(error).toMatchObject({ name: 'AiProviderNotConfigured' });
+      expect(error.getStatus()).toBe(503);
+      expect(error.getResponse()).toMatchObject({
+        code: 'AI_SELECTED_CREDENTIAL_UNAVAILABLE',
+      });
+      const message = JSON.stringify(error.getResponse());
+      expect(message).not.toMatch(/wait|refresh/i);
+      expect(message).toMatch(/operator[\s\S]*included credentials/i);
+      expect(message).toMatch(/workspace administrator[\s\S]*workspace_key/i);
+    }
+  );
 
   test('resolution opens no connection pool of its own', () => {
     const source = fs.readFileSync(
@@ -267,14 +279,13 @@ test('schema adds a compatible mode, zero quota and privacy-safe ledger', () => 
     'utf8'
   );
 
-  expect(schema).toMatch(/enum AiUsageMode\s*{\s*included\s+workspace_key\s*}/s);
   expect(schema).toMatch(
-    /usageMode\s+AiUsageMode\s+@default\(workspace_key\)/
+    /enum AiUsageMode\s*{\s*included\s+workspace_key\s*}/s
   );
-  expect(schema).toMatch(
-    /includedAiMonthlyOperations\s+Int\s+@default\(0\)/
-  );
-  const ledger = schema.match(/model AiUsageRecord\s*{([\s\S]*?)\n}/)?.[1] || '';
+  expect(schema).toMatch(/usageMode\s+AiUsageMode\s+@default\(workspace_key\)/);
+  expect(schema).toMatch(/includedAiMonthlyOperations\s+Int\s+@default\(0\)/);
+  const ledger =
+    schema.match(/model AiUsageRecord\s*{([\s\S]*?)\n}/)?.[1] || '';
   expect(ledger).toContain('organizationId');
   expect(ledger).toContain('operation');
   expect(ledger).toContain('status');

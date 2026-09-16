@@ -10,6 +10,7 @@ import {
 import {
   SEARCH_PROVIDERS,
   SearchProvider,
+  SearchProviderKeySources,
   SearchProviderKeys,
   SearchTaskProviders,
   parseSearchKeys,
@@ -60,6 +61,8 @@ export interface WebSearchConfig {
   apiKey: string;
   /** One key per engine; an engine with none is simply absent. */
   apiKeys: SearchProviderKeys;
+  /** Who pays for every resolved engine key. */
+  keySources: SearchProviderKeySources;
   /** Which engine each task gets; empty routes nothing. */
   taskProviders: SearchTaskProviders;
   topic: SearchTopic;
@@ -144,7 +147,8 @@ const includedSearchKeys = (
 
   for (const engine of SEARCH_PROVIDERS) {
     if (perEngine[engine]) continue;
-    const named = process.env[`AI_INCLUDED_SEARCH_API_KEY_${engine.toUpperCase()}`];
+    const named =
+      process.env[`AI_INCLUDED_SEARCH_API_KEY_${engine.toUpperCase()}`];
     if (named) perEngine[engine] = named;
   }
   const legacy = process.env.AI_INCLUDED_SEARCH_API_KEY;
@@ -153,34 +157,33 @@ const includedSearchKeys = (
 };
 
 /**
- * Included search is the operator's lane end to end.
- *
- * Neither the workspace's engine nor its routing is read here: in this mode
- * the key is ours, and an engine chosen by whoever opened the settings screen
- * would decide which API our key is spent at. Only `searchEnabled`, the topic
- * and the depth come from the row — a workspace may turn its own search off
- * and say what kind of search it wants, but not where the key goes.
+ * Search credentials resolve independently of the generation billing mode.
+ * Operator keys form the base map and a workspace key overrides only the same
+ * engine. Routing remains operator-owned, while `keySources` keeps the payer
+ * attached to the credential that will actually leave the process.
  */
-const includedSearch = (
+const resolvedSearch = (
   stored: StoredAiProviderSetting,
-  instance: StoredInstanceAiDefaults | null
+  instance: StoredInstanceAiDefaults | null,
+  ownKeys: SearchProviderKeys
 ): WebSearchConfig => {
   const provider = readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER);
-  const apiKeys = includedSearchKeys(provider, instance);
+  const systemKeys = includedSearchKeys(provider, instance);
+  const apiKeys: SearchProviderKeys = { ...systemKeys, ...ownKeys };
+  const keySources: SearchProviderKeySources = {};
+  for (const engine of SEARCH_PROVIDERS) {
+    if (ownKeys[engine]) keySources[engine] = 'own';
+    else if (systemKeys[engine]) keySources[engine] = 'system';
+  }
   const storedRoutes = parseSearchTaskProviders(instance?.searchTaskProviders);
   return {
-    /**
-     * On system keys search is on exactly when the operator holds a search
-     * key (`content-factory-next-75xn.20`, F1). The screen said «поиск уже
-     * работает» while the row's own flag defaulted to off, and a fresh
-     * workspace's first topic check failed on configuration. There is
-     * nothing for a workspace to decide here — the key is not theirs — so the
-     * flag is not read in this mode.
-     */
+    // A usable key map is the search switch. The generation mode and the old
+    // row-level flag cannot disable either an own key or an operator key.
     enabled: Object.keys(apiKeys).length > 0,
     provider,
     apiKey: apiKeys[provider] || '',
     apiKeys,
+    keySources,
     taskProviders: Object.keys(storedRoutes).length
       ? storedRoutes
       : parseSearchTaskProviders(
@@ -226,6 +229,7 @@ const envDefaults = () => {
       provider: 'tavily' as const,
       apiKey: '',
       apiKeys: {} as SearchProviderKeys,
+      keySources: {} as SearchProviderKeySources,
       taskProviders: {} as SearchTaskProviders,
       topic: 'general' as const,
       depth: 'advanced' as const,
@@ -405,7 +409,9 @@ const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
         : undefined,
     textModel:
       instance?.textModel ||
-      (provider === env.provider ? env.textModel : DEFAULT_MODELS[provider].text),
+      (provider === env.provider
+        ? env.textModel
+        : DEFAULT_MODELS[provider].text),
     imageModel:
       instance?.imageModel ||
       (provider === env.provider
@@ -477,6 +483,7 @@ export const loadAiConfig = async (
       const storedSearchKeys = workspaceSearchKeys(stored);
       const workspaceSearchKeyConfigured =
         Object.keys(storedSearchKeys).length > 0;
+      const search = resolvedSearch(stored, instance, storedSearchKeys);
       if (usageMode === 'included') {
         config = {
           ...defaults,
@@ -494,7 +501,7 @@ export const loadAiConfig = async (
            * applies, which is where the included bill can actually be cut.
            */
           roleModels: defaults.roleModels,
-          search: includedSearch(stored, instance),
+          search,
         };
       } else {
         const provider = (stored.provider as AiProvider) || defaults.provider;
@@ -518,16 +525,7 @@ export const loadAiConfig = async (
           workspaceSearchKeyConfigured,
           workspaceSearchKeys: keyPresence(storedSearchKeys),
           includedAvailable: !!includedKey,
-          search: {
-            enabled: stored.searchEnabled,
-            provider: readSearchProvider(stored.searchProvider),
-            apiKey:
-              storedSearchKeys[readSearchProvider(stored.searchProvider)] || '',
-            apiKeys: storedSearchKeys,
-            taskProviders: parseSearchTaskProviders(stored.searchTaskProviders),
-            topic: (stored.searchTopic as SearchTopic) || 'general',
-            depth: (stored.searchDepth as SearchDepth) || 'advanced',
-          },
+          search,
         };
       }
     }
@@ -610,7 +608,11 @@ export const withActiveAiConfig = <T>(
   role?: AiRole
 ): T =>
   activeAiConfig.run(
-    { organizationId, config, role: role ?? getActiveAiRole() ?? DEFAULT_AI_ROLE },
+    {
+      organizationId,
+      config,
+      role: role ?? getActiveAiRole() ?? DEFAULT_AI_ROLE,
+    },
     callback
   );
 

@@ -245,12 +245,27 @@ export const openQuestionsFor = (
 
   const position = trimmed(brief.position);
   if (!position || brief.origins.position === 'model') {
+    const positionOptions = input.options.position?.length
+      ? input.options.position
+      : brief.inputKind === 'foreign_post'
+        ? language === 'ru'
+          ? [
+              'Я согласен с позицией автора исходного поста',
+              'Я не согласен с позицией автора исходного поста',
+              'Я согласен частично и хочу уточнить свою позицию',
+            ]
+          : [
+              'I agree with the source author\'s position',
+              'I disagree with the source author\'s position',
+              'I partly agree and want to clarify my position',
+            ]
+        : undefined;
     add({
       field: 'position',
       question: textOf('position', language),
-      suggested: position || trimmed(input.options.position?.[0]) || null,
-      ...(input.options.position?.length
-        ? { options: input.options.position }
+      suggested: position || trimmed(positionOptions?.[0]) || null,
+      ...(positionOptions?.length
+        ? { options: positionOptions }
         : {}),
     });
   }

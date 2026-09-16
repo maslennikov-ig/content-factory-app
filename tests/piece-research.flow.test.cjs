@@ -58,13 +58,14 @@ beforeEach(() => {
   snapshots = { get: async key => storage.get(key), set: async (key, value) => storage.set(key, value), del: async key => storage.delete(key) };
   service = new PieceService(repo, {}, {}, undefined, () => null, usage, {}, null, null, null, intake, snapshots);
 });
-const start = () => service.researchCore('org', 'p', 'user', { confirmWebSpend: true }, 'ru');
+const start = (input = { confirmWebSpend: true }) =>
+  service.researchCore('org', 'p', 'user', input, 'ru');
 const accept = (preview, selectedKeys = preview.facts.filter(f => f.selected).map(f => f.factKey)) =>
   service.acceptCoreResearch('org', 'p', 'user', { snapshotKey: preview.snapshotKey, selectedKeys });
 
 test('recorded search → digest → saved findings → writer; continuation never repeats paid search', async () => {
   const preview = await start();
-  expect(preview.version).toBe('piece-research/v1');
+  expect(preview.version).toBe('piece-research/v2');
   expect(preview.level).toBe('standard');
   expect(preview.input).toBe(piece.body);
   expect(preview.facts).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'found', quote: excerpt, sourceUrl: url, selected: true })]));
@@ -82,6 +83,34 @@ test('recorded search → digest → saved findings → writer; continuation nev
   expect(piece.brief.questions.items).toEqual([]);
   await expect(accept(preview)).rejects.toMatchObject({ code: 'PIECE_RESEARCH_EXPIRED' });
   expect(research.research).toHaveBeenCalledTimes(1);
+});
+
+test('deep research carries an optional direction as a wish into search and digest', async () => {
+  const direction = 'Свежие цифры за 2026 год';
+  const preview = await start({ confirmWebSpend: true, level: 'deep', direction });
+
+  expect(preview).toEqual(expect.objectContaining({
+    version: 'piece-research/v2',
+    level: 'deep',
+    direction,
+  }));
+  expect(research.research).toHaveBeenCalledWith(
+    'org',
+    expect.stringMatching(/не считать фактом[\s\S]*Свежие цифры за 2026 год/i),
+    { language: 'ru', level: 'deep' }
+  );
+  expect(modelCalls[0].prompt).toContain(direction);
+  expect(modelCalls[0].prompt).toMatch(/^PROMPT VERSION: research-digest\/v2\n/);
+  expect(modelCalls[0].prompt).toMatch(/пожелание|wish/i);
+  expect(modelCalls[0].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
+});
+
+test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {
+  const preview = await start();
+  const key = [...storage.keys()][0];
+  storage.set(key, JSON.stringify({ ...JSON.parse(storage.get(key)), version: 'piece-research/v1' }));
+
+  await expect(accept(preview)).resolves.toEqual(expect.objectContaining({ body: expect.any(String) }));
 });
 
 test('foreign actor, expired snapshot, and edited core fail without repeat search or writer', async () => {
@@ -114,6 +143,85 @@ test('deselected finding is not fed to writer; writer failure preserves existing
   expect(repo.acceptCoreReview).not.toHaveBeenCalled();
 });
 
+test('accepted correction rewrites the thesis and removes settled claims from ungrounded', () => {
+  const corrected = intake.selectCoreResearch(
+    {
+      filled: {
+        brief: {
+          inputKind: 'thought',
+          thesis: 'Эксперимент охватил 25 тысяч человек',
+          position: 'Результат важнее часов.',
+          goal: null,
+          disagreement: null,
+          audience: null,
+          origins: { thesis: 'input' },
+          ungrounded: ['Эксперимент охватил 25 тысяч человек', 'Уже подтверждено'],
+          facts: [
+            {
+              statement: 'Эксперимент охватил 25 тысяч человек',
+              factKey: 'own:old',
+              origin: 'input',
+              kind: 'own',
+              status: 'conflicting',
+              verified: false,
+              selected: false,
+              evidenceId: 'ev-study',
+              correction: { original: '25 тысяч', replacement: 'около 2 500' },
+            },
+            {
+              statement: 'Эксперимент охватил около 2 500 человек',
+              factKey: 'ev-study:fix:new',
+              origin: 'search',
+              kind: 'external',
+              status: 'confirmed',
+              verified: true,
+              selected: true,
+              evidenceId: 'ev-study',
+              correction: { original: '25 тысяч', replacement: 'около 2 500' },
+            },
+            {
+              statement: 'Уже подтверждено',
+              factKey: 'ev-study:confirmed',
+              origin: 'search',
+              kind: 'found',
+              status: 'confirmed',
+              verified: true,
+              selected: true,
+            },
+          ],
+        },
+        options: {},
+      },
+      evidence: [],
+      extraction: null,
+      urls: [],
+      foreignShingles: [],
+      level: 'standard',
+      corrections: [
+        {
+          factKey: 'ev-study:fix:new',
+          original: '25 тысяч',
+          replacement: 'около 2 500',
+          sourceUrl: url,
+          quote: excerpt,
+          note: 'Источник уточняет число.',
+          accepted: true,
+        },
+      ],
+      summary: null,
+      correctedInput: '',
+    },
+    'Эксперимент охватил 25 тысяч человек',
+    'ru',
+    ['ev-study:fix:new', 'ev-study:confirmed']
+  );
+
+  expect(corrected.filled.brief.thesis).toBe(
+    'Эксперимент охватил около 2 500 человек'
+  );
+  expect(corrected.filled.brief.ungrounded).toEqual([]);
+});
+
 test('research is rejected by both review entrypoints before any paid call', async () => {
   await expect(service.reviewV2('org', 'p', undefined, { mode: 'research', confirmWebSpend: true }, 'ru')).rejects.toMatchObject({ status: 400 });
   await expect(service.reviewAdaptation('org', 'p', 'a', 'research', 'ru', true)).rejects.toMatchObject({ status: 400 });
@@ -124,6 +232,19 @@ test('research is rejected by both review entrypoints before any paid call', asy
 test('research DTOs require explicit intent and reject invalid snapshot IDs', async () => {
   const { validate } = require('class-validator');
   const { PieceResearchDto, PieceResearchAcceptDto } = loadWithMocks('libraries/nestjs-libraries/src/dtos/content-intelligence/piece-research.dto.ts', {});
+  expect(await validate(Object.assign(new PieceResearchDto(), {
+    confirmWebSpend: true,
+    level: 'deep',
+    direction: 'Свежие цифры за 2026 год',
+  }))).toHaveLength(0);
+  expect(await validate(Object.assign(new PieceResearchDto(), {
+    confirmWebSpend: true,
+    level: 'exhaustive',
+  }))).not.toHaveLength(0);
+  expect(await validate(Object.assign(new PieceResearchDto(), {
+    confirmWebSpend: true,
+    direction: 'x'.repeat(301),
+  }))).not.toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchDto(), { confirmWebSpend: true }))).toHaveLength(0);
   expect(await validate(new PieceResearchDto())).not.toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchAcceptDto(), { snapshotKey: '../other', selectedKeys: [] }))).not.toHaveLength(0);

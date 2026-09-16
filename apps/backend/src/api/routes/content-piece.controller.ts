@@ -145,7 +145,7 @@ export class ContentPieceController {
   @Patch('/:id/facts')
   @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async selectFact(@GetOrgFromRequest() organization: Organization, @Param('id') id: string, @Body() body: PieceFactSelectionDto) {
-    try { return await this.pieces.selectFact(organization.id, id, body.statement, body.selected); }
+    try { return await this.pieces.selectFact(organization.id, id, body.factKey ?? body.statement!, body.selected); }
     catch (error) { safeHttpError(error, 'Fact selection failed'); }
   }
 

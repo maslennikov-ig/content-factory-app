@@ -190,7 +190,7 @@ describe('the Content screen', () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual(labels);
   });
 
-  test('names the surface once, so the page has a single top heading', () => {
+  test('leaves the single top heading to the upper shell', () => {
     render(
       withLanguage(
         'en',
@@ -200,7 +200,7 @@ describe('the Content screen', () => {
       )
     );
 
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     // The container's own header carries a second `h1` and a second set of
     // jump links, which is why the screen turns it off.
     expect(source('screen')).toContain('showHeader={false}');
@@ -402,7 +402,8 @@ describe('the Content frame is reviewable without a network', () => {
 
     expect(markup).toContain('data-production-surface="content/section"');
     expect(markup).toContain('data-interface-review-state="' + state + '"');
-    expect(markup).toMatch(/Аватар|Заготовки/);
+    expect(markup).not.toContain('<h1');
+    expect(markup).toMatch(/Ваш голос:|От мысли к заготовке:/);
   });
 
   test('the scene shows the frame, never the container behind it', () => {
@@ -450,7 +451,9 @@ describe('the Content frame is reviewable without a network', () => {
    expect(screen.getAllByRole('tab')).toHaveLength(4);
    view.rerender(draw('avatars'));
    expect(screen.queryAllByRole('tab')).toHaveLength(0);
-   expect(screen.getByRole('heading', {level: 1}).textContent).toBe('Аватар');
+   expect(screen.queryByRole('heading', {level: 1})).toBeNull();
+   expect(screen.getByText(contentScreen.contentSectionCopy.ru.avatarDescription)).toBeTruthy();
    view.rerender(draw('materials'));
    expect(screen.getAllByRole('tab')).toHaveLength(4);
+   expect(screen.queryByRole('heading', {level: 1})).toBeNull();
  });

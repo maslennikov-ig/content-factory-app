@@ -50,12 +50,13 @@ const componentFile = path.join(
 );
 
 const NAMES = {
-  en: { '/launches': 'Calendar', '/content': 'Content' },
-  ru: { '/launches': 'Календарь', '/content': 'Контент' },
+  en: { '/launches': 'Calendar', '/content': 'Content', '/content?tab=avatars': 'Avatar', '/onboarding': 'Where to start' },
+  ru: { '/launches': 'Календарь', '/content': 'Контент', '/content?tab=avatars': 'Аватар', '/onboarding': 'С чего начать' },
 };
 
 let language = 'en';
 let pathname = '/launches';
+let searchParams = new URLSearchParams();
 const listeners = new Set();
 
 /**
@@ -73,6 +74,7 @@ const useMenuItem = () => {
     all: Object.entries(NAMES[language]).map(([itemPath, name]) => ({
       path: itemPath,
       name,
+      hide: itemPath === '/onboarding',
     })),
   };
 };
@@ -85,7 +87,7 @@ const changeLanguage = (next) => {
 };
 
 const mocks = {
-  'next/navigation': { usePathname: () => pathname },
+  'next/navigation': { usePathname: () => pathname, useSearchParams: () => searchParams },
   '@contentfactory/frontend/components/layout/top.menu': { useMenuItem },
 };
 
@@ -121,6 +123,7 @@ const { Title } = loaded.exports;
 beforeEach(() => {
   language = 'en';
   pathname = '/launches';
+  searchParams = new URLSearchParams();
 });
 
 afterEach(() => {
@@ -155,4 +158,32 @@ test('a different section still gets its own name', () => {
   changeLanguage('ru');
 
   expect(screen.getByRole('heading').textContent).toBe('Контент');
+});
+
+test('avatar query wins over content and follows language and tab changes', () => {
+  pathname = '/content';
+  searchParams = new URLSearchParams('tab=avatars&sort=title:asc');
+  const view = render(h(Title, {}));
+  expect(screen.getByRole('heading').textContent).toBe('Avatar');
+  changeLanguage('ru');
+  expect(screen.getByRole('heading').textContent).toBe('Аватар');
+  searchParams = new URLSearchParams('tab=materials');
+  view.rerender(h(Title, {}));
+  expect(screen.getByRole('heading').textContent).toBe('Контент');
+});
+
+test('completed onboarding retains its upper title even when hidden from navigation', () => {
+  pathname = '/onboarding';
+  language = 'ru';
+  render(h(Title, {}));
+  expect(screen.getByRole('heading').textContent).toBe('С чего начать');
+});
+
+test('piece detail keeps the content section and route lookalikes do not match', () => {
+  pathname = '/content/pieces/example';
+  const view = render(h(Title, {}));
+  expect(screen.getByRole('heading').textContent).toBe('Content');
+  pathname = '/content-unknown';
+  view.rerender(h(Title, {}));
+  expect(screen.queryByRole('heading')).toBeNull();
 });

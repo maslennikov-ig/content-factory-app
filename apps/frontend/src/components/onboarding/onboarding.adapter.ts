@@ -28,6 +28,8 @@ export type OnboardingProgress = {
   channels: number;
   voiceSamples: number;
   facts: number;
+  /** Chosen facts stored with current CORE pieces, outside `ContentFact`. */
+  pieceFacts: number;
   /** Заготовки области: `ContentPiece` c `kind='CORE'`, не в архиве. */
   pieces: number;
   drafts: number;
@@ -38,6 +40,7 @@ export const EMPTY_PROGRESS: OnboardingProgress = {
   channels: 0,
   voiceSamples: 0,
   facts: 0,
+  pieceFacts: 0,
   pieces: 0,
   drafts: 0,
   scheduled: 0,
@@ -59,6 +62,7 @@ export function readProgress(body: unknown): OnboardingProgress {
     channels: count(record.channels),
     voiceSamples: count(record.voiceSamples),
     facts: count(record.facts),
+    pieceFacts: count(record.pieceFacts),
     pieces: count(record.pieces),
     drafts: count(record.drafts),
     scheduled: count(record.scheduled),
@@ -131,7 +135,7 @@ export function stepIsDone(
     case 'voice':
       return progress.voiceSamples > 0;
     case 'fact':
-      return progress.facts > 0;
+      return progress.facts > 0 || progress.pieceFacts > 0;
     case 'brief':
       return (
         progress.pieces > 0 || progress.drafts > 0 || progress.scheduled > 0
@@ -167,7 +171,11 @@ export function currentStep(
 export function stepDetail(
   step: OnboardingStepKey,
   progress: OnboardingProgress,
-  words: { channels: (n: number) => string; samples: (n: number) => string; facts: (n: number) => string }
+  words: {
+    channels: (n: number) => string;
+    samples: (n: number) => string;
+    facts: (n: number) => string;
+  }
 ): string | null {
   switch (step) {
     case 'channel':
@@ -177,7 +185,9 @@ export function stepDetail(
         ? words.samples(progress.voiceSamples)
         : null;
     case 'fact':
-      return progress.facts > 0 ? words.facts(progress.facts) : null;
+      return progress.facts + progress.pieceFacts > 0
+        ? words.facts(progress.facts + progress.pieceFacts)
+        : null;
     default:
       return null;
   }

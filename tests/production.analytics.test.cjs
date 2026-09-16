@@ -217,5 +217,16 @@ describe('production analytics', () => {
     expect(screen).toContain('production_analytics_failure_rate');
     expect(screen).toContain('production_analytics_lead_time');
     expect(screen).toContain('production_analytics_origin_mix');
+
+    const shell = fs.readFileSync(
+      path.resolve(
+        __dirname,
+        '../apps/frontend/src/components/platform-analytics/analytics.screen.tsx'
+      ),
+      'utf8'
+    );
+    expect(shell).not.toContain('<h1');
+    expect(shell).toContain('<TabList');
+    expect(shell).toContain("t('analytics_sections', 'Analytics sections')");
   });
 });

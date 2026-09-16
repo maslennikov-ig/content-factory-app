@@ -39,7 +39,8 @@ type Words = {
   progressPending: string;
   allDoneTitle: string;
   allDoneBody: string;
-  leave: string;
+  leaveToPieces: string;
+  leaveToAvatar: string;
   comeBack: string;
   /** Откуда берутся галочки и почему нет кнопки «начать заново». */
   counted: string;
@@ -75,8 +76,9 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     allDoneTitle: 'Всё пройдено',
     allDoneBody:
       'Первый материал прошёл весь путь. Дальше можно не возвращаться сюда — но страница останется в настройках, если понадобится.',
-    leave: 'Закрыть и осмотреться',
-    comeBack: 'Закроете — вернётесь через пункт меню «С чего начать».',
+    leaveToPieces: 'К заготовкам',
+    leaveToAvatar: 'К аватару',
+    comeBack: 'Вернуться к этим шагам можно через пункт меню «С чего начать».',
     counted:
       'Шаги считаются по данным области. Сбросить нельзя: пройдите заново в новой области.',
     menuLabel: 'С чего начать',
@@ -88,7 +90,12 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     samples: (n) =>
       `${n} ${plural(n, 'образец', 'образца', 'образцов')} манеры`,
     facts: (n) =>
-      `${n} ${plural(n, 'утверждение', 'утверждения', 'утверждений')} в памяти`,
+      `${n} ${plural(
+        n,
+        'утверждение',
+        'утверждения',
+        'утверждений'
+      )} в памяти и заготовках`,
     steps: {
       channel: {
         short: 'Подключить канал',
@@ -109,10 +116,11 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       fact: {
         short: 'Найти, на что опереться',
         title: 'Найдите то, на что будете опираться',
-        why: 'Продукт не даст собрать черновик, пока нет ни одного утверждения. Без опоры модель напишет гладкий текст ни о чём, и в разборе поста показать будет нечего.',
+        why: 'Опора делает текст конкретным и показывает в разборе, на чём держится утверждение.',
         todo: 'Добавьте одно утверждение о своём деле — цену, срок, цифру, которую вы точно знаете. Или найдите его поиском и подтвердите.',
         action: 'Открыть «Новая заготовка»',
-        closes: 'Шаг закроется, когда появится первое утверждение.',
+        closes:
+          'Шаг закроется, когда пригодное утверждение появится в памяти или выбранное — в заготовке.',
       },
       brief: {
         short: 'Сделать заготовку',
@@ -155,8 +163,9 @@ export const onboardingCopy: { ru: Words; en: Words } = {
     allDoneTitle: 'All done',
     allDoneBody:
       'Your first piece went the whole way. You do not need to come back here — but the page stays in Settings if you ever do.',
-    leave: 'Close and look around',
-    comeBack: 'Close this and you can return through the "Where to start" menu item.',
+    leaveToPieces: 'Go to pieces',
+    leaveToAvatar: 'Go to avatar',
+    comeBack: 'Return to these steps through the "Where to start" menu item.',
     counted:
       'The ticks are counted from what is in this workspace. There is no reset: start again in a new workspace.',
     menuLabel: 'Where to start',
@@ -165,7 +174,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       'We could not read what is already done. The steps below are the same — the ticks are just missing.',
     channels: (n) => `${n} channel${n === 1 ? '' : 's'} connected`,
     samples: (n) => `${n} writing sample${n === 1 ? '' : 's'}`,
-    facts: (n) => `${n} claim${n === 1 ? '' : 's'} in memory`,
+    facts: (n) => `${n} claim${n === 1 ? '' : 's'} in memory and pieces`,
     steps: {
       channel: {
         short: 'Connect a channel',
@@ -186,10 +195,11 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       fact: {
         short: 'Find something to stand on',
         title: 'Find what the piece will stand on',
-        why: 'The product refuses to build a draft while there is not a single claim. With nothing to stand on the model writes something fluent about nothing, and a post review has nothing to show.',
+        why: 'A claim makes the writing concrete and lets the review show what that claim stands on.',
         todo: 'Add one claim about your own work — a price, a deadline, a number you know. Or find one by search and confirm it.',
         action: 'Open "New piece"',
-        closes: 'This closes when the first claim exists.',
+        closes:
+          'This closes when an eligible claim exists in memory or a selected claim exists in a piece.',
       },
       brief: {
         short: 'Make a piece',

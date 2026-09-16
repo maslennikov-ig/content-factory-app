@@ -22,11 +22,8 @@ export const AnalyticsScreen = () => {
     <Tabs value={view} onChange={(next) => setView(next as AnalyticsView)}>
       <div className="flex min-h-0 flex-1 flex-col bg-cf-canvas text-cf-ink">
         <header className="border-b border-cf-border bg-cf-surface px-[24px] pt-[22px]">
-          <h1 className="text-[24px] font-[650] tracking-[-0.02em]">
-            {t('analytics', 'Analytics')}
-          </h1>
           <TabList
-            className="mt-[16px] flex gap-[24px]"
+            className="flex gap-[24px]"
             aria-label={t('analytics_sections', 'Analytics sections')}
           >
             {(['production', 'audience'] as const).map((item) => (

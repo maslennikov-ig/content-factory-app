@@ -244,6 +244,9 @@ export const includedUsageFilter = (
   organizationId,
   usageMode: 'included' as const,
   createdAt: { gte: periodStart },
+  // Search is a separate admitted operation. Only the review call that failed
+  // returns allowance; succeeded review and every other terminal role count.
+  NOT: { status: 'failed' as const, role: 'review' },
   OR: [
     { status: { not: 'admitted' as const } },
     {
@@ -408,7 +411,10 @@ export class AiUsageService {
                 select: { monthlyOperations: true },
               }),
             ]);
-            const quota = includedMonthlyOperations(subscription, instanceDefaults);
+            const quota = includedMonthlyOperations(
+              subscription,
+              instanceDefaults
+            );
             if (quota <= 0) throw new AiIncludedQuotaExceeded();
 
             // Без подписки период якорится днём рождения области — так же, как
@@ -467,7 +473,9 @@ export class AiUsageService {
         where: { id, organizationId },
       });
     } catch {
-      console.error('Failed to void an AI usage admission after a configuration refusal');
+      console.error(
+        'Failed to void an AI usage admission after a configuration refusal'
+      );
     }
   }
 
@@ -563,6 +571,46 @@ export class AiUsageService {
       undefined,
       role
     );
+  }
+
+  /**
+   * Open one admission for a credential source whose provider call is chosen
+   * after the product operation has started.
+   *
+   * Search is the concrete consumer: an own Exa key may fail over to a system
+   * Tavily key. The admission therefore cannot be selected from generation
+   * `usageMode` before routing, and it must stay open while parallel queries
+   * share the same source. The caller owns the narrow lifetime and must close
+   * it in `finally`; closing twice is harmless.
+   */
+  async beginAiOperationWithConfig(
+    organizationId: string,
+    operation: AiOperation,
+    config: AiConfig,
+    role?: AiRole
+  ) {
+    this.assertTenant(organizationId);
+    if (!config.apiKey) throw new AiProviderNotConfigured();
+    const admission = await this.createAdmission(
+      organizationId,
+      operation,
+      config,
+      roleOf(operation, role)
+    );
+    let closed = false;
+    return {
+      run: <T>(callback: () => T): T =>
+        withActiveAiConfig(organizationId, config, callback, role),
+      finish: async (succeeded: boolean, error?: unknown) => {
+        if (closed) return;
+        closed = true;
+        if (isConfigurationRefusal(error)) {
+          await this.voidAdmission(organizationId, admission.id);
+        } else {
+          await this.finishAdmission(admission.id, succeeded);
+        }
+      },
+    };
   }
 
   private async executeOperationWithConfig<T>(

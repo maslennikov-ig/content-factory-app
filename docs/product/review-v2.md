@@ -1,5 +1,20 @@
 # Проверка и перегенерация текста — v2
 
+## Successor shipped with the seventh walk wave
+
+The current controller issues `adaptation-review/v3` using
+`pieces/review.v3.ts`, `review.v3.contract.ts` and `review-semantic.v4.ts`.
+Signed v2 proposals from already-open tabs remain readable. The v2 contract
+below is historical; the current behavior is specified in
+`seventh-walk-wave-2026-09-16-spec.md` section 3.2.
+
+Web review sends factual rules and sources only. Unsupported edits become
+notes, unknown URLs are removed, and invalid or overlapping changes are
+filtered individually. An unusable response envelope gets one retry with a
+validation code. Failed review does not spend included quota; completed search
+is accounted separately. No database schema change is required.
+
+
 `adaptation-review/v2` — преемник v1. Старые промпт и контракт сохраняются;
 контроллер использует v2. Схема БД не меняется.
 

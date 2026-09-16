@@ -18,6 +18,10 @@ describe('shared layout primitives', () => {
 
     expect(panel).toContain('export const Panel');
     expect(header).toContain('export const PageHeader');
+    expect(header).toContain('title?: ReactNode;');
+    expect(header).toContain('{title && (');
+    expect(header).toContain('<Heading className="cf-heading-lg');
+    expect(header).toContain("title && 'mt-[4px]'");
     expect(shell).toContain('export const PageShell');
     expect(spacing).toContain('export const layoutSpacing');
 

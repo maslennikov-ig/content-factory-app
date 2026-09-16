@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { PageHeader, PageShell } from '@contentfactory/react/layout';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { HelpDisclosure } from './help-disclosure';
 import {
   HELP_CONTENT_HREF,
@@ -30,21 +29,17 @@ import {
  * Каркас — `PageShell` и `PageHeader`: полотно, отступ и ритм у этого экрана
  * ровно те же, что у остальных, и своих чисел он не заводит.
  *
- * Название раздела берётся из ключа `help`, а не из `help.copy.ts`: тот же
- * ключ читают пункт меню и заголовок вкладки браузера, и одно имя раздела в
- * трёх местах должно приходить из одного места.
+ * Название раздела рисует верхняя оболочка. Экран оставляет здесь только
+ * пояснение, чтобы заголовок не повторялся перед первым вопросом.
  */
 export function HelpScreen() {
   const { language } = useVariables();
-  const translate = useT();
   const t = helpCopy[resolveHelpLocale(language)];
 
   return (
     <PageShell>
       <PageHeader
-        title={translate('help', 'Help')}
         description={t.pageLead}
-        headingLevel={1}
       />
 
       <div

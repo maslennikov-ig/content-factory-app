@@ -1,0 +1,24 @@
+{
+  "schema_version": "scope-criterion-snapshot/v1",
+  "goal_id": "content-factory-next-xmfb",
+  "source_kind": "beads",
+  "source_id": "content-factory-next-xmfb",
+  "source_digest": "d73b965ddf108a450ae37b926e2da244eaa57eb0af3425ed145f33d3c498a2e7",
+  "criteria": [
+    {
+      "criterion_id": "AC-spec-section-6",
+      "text": "На боевом, глазами (страница восьмого захода — `xmfb.11`):\n\n- «Опоры текста»: галочка снимается и ставится, ошибок нет; снятая строка не уходит в\n  следующую адаптацию.\n- «Проверить факты» на cnt-11 и cnt-12: окно `Dialog`, отзыв возвращается (не 502);\n  правки со ссылкой, остальное — заметки; при сбое квота не списана.\n- Чужой пост WB/Ozon: сохранён как `foreign_post`, есть вопрос о позиции от первого\n  лица; ответ меняет суть.\n- Журнал: Исландия — два запроса без страны; WB/Ozon — один русский со страной; строка\n  классификации видна в `docker logs`.\n- «Дополнить ресерчем»: окно с «Куда копать» и глубиной (умолчание «Стандартный»);\n  пожелание влияет на находки.\n- «Заготовки»: сортировка по коду, названию, формату, дате в обе стороны, таблицей и\n  карточками; ссылка с `?sort=` открывает тот же порядок.\n- Настройки: на ключах системы нет абзаца про сохранённый ключ; свой ключ одного движка\n  работает, «Вернуть на ключ системы» возвращает только этот движок.\n- Суть cnt-типа «Исландия» без галочки не содержит оговорок против позиции автора.\n\nЛокально: `tsc --noEmit` ноль по трём приложениям, три половины `pnpm test`,\n`migrate diff` из нового образа пуст, `mastra_*` 29, выпуск по\n`docs/operations/production-deploy.md` «Обновление версии», трейлеры публичного\nкоммита одним блоком.",
+      "text_digest": "9dd75094a63b687af2edd59b7959380baac85ea38c32b08f96d66747ea7fba7a"
+    },
+    {
+      "criterion_id": "AC-delivery-boundaries",
+      "text": "Execute xmfb.1 through xmfb.10; xmfb.11 belongs to Claude. Isolated S1/S2/S3/S4 and dependent S5 after S2; integrate S3 -> S4 -> S1 -> S2 -> S5. Show six scenarios on localhost:4200 and obtain owner explicit yes before release. No schema changes, paid model tests or secrets in artifacts. Version guarded AI contracts/prompts and preserve old pieces. Batch-close and read back Beads after all workers; bd dolt push, bd remember, release evidence and <=200-line handoff. Release from public copied tree by runbook; rollback 93aa33b85a79; stop and ask if host free disk below 6 GB before pull. No unrelated cleanup.",
+      "text_digest": "9edcd6c81aff9d4a24c5f2f758cc6215ab91c6561a12b100481720c287dd4807"
+    },
+    {
+      "criterion_id": "AC-owner-onboarding-amendment",
+      "text": "Owner amendment 16.09.2026, Beads content-factory-next-xmfb.12: diagnose onboarding completion against actual workspace records; existing pieces must count truthfully without inventing other completed actions. Retain one upper section title across duplicated sections, preserving unique subsection headings and actions. Owner selected contextual exit: existing pieces -> К заготовкам; otherwise -> К аватару. Include in the same unreleased wave; refresh affected acceptance and release receipt. Prior release candidate feac52a8bb78 is superseded; owner deployment confirmation remains pending.",
+      "text_digest": "157ffee4bedcbf2c16801139e980f33bf87308c0e3a8e9a5a95237169c133527"
+    }
+  ]
+}

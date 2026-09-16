@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 729,
+  "total": 726,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 703,
+      "total": 700,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -486,10 +486,7 @@
         },
         "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
           "font-[600]": 1,
-          "font-[650]": 1,
-          "text-[14px]": 1,
-          "text-[24px]": 1,
-          "tracking-[-0.02em]": 1
+          "text-[14px]": 1
         },
         "apps/frontend/src/components/platform-analytics/render.analytics.tsx": {
           "font-medium": 3,

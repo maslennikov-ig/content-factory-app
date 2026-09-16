@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { INTAKE_SNAPSHOT_STORE, INTAKE_SNAPSHOT_TTL_SECONDS, type IntakeSnapshotStore } from '../intake/intake-snapshot.store';
-import { PIECE_RESEARCH_VERSION, type PieceResearchPreview, type PieceResearchSelection } from './piece-research.contract';
+import {
+  PIECE_RESEARCH_VERSION,
+  PIECE_RESEARCH_VERSIONS,
+  type PieceResearchLevel,
+  type PieceResearchPreview,
+  type PieceResearchSelection,
+} from './piece-research.contract';
 import type { IntakeRunState } from '../intake/intake.service';
-import { reviewOnceV2, signReview, readReview } from './review.v2';
-import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposal, type ReviewSnapshotV2 } from './review.v2.contract';
+import { reviewOnceV3, signReview, readReview } from './review.v3';
+import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposalV3, type ReviewSnapshotV2 } from './review.v3.contract';
 import { webReviewSources } from './adaptation-web-review';
 import { selectedFactsBrief, type PieceFactV2 } from './piece-facts.v2';
 import { briefForGate } from './core-questions';
@@ -857,15 +863,22 @@ export class PieceService {
    * волны заготовок: сути у него нет, есть тело одного канала, и переписывать
    * его по ответам значило бы выдать чужую разметку за нейтральную суть.
    */
-  async selectFact(organizationId: string, pieceId: string, statement: string, selected: boolean) {
+  async selectFact(organizationId: string, pieceId: string, key: string, selected: boolean) {
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
     const core = this.coreOf(piece);
     if (!core || !this.briefs) throw pieceError('PIECE_CORE_MISSING', 'ru', pieceId);
-    if (!core.brief.facts.some((fact) => fact.statement === statement)) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
-    const facts = core.brief.facts.map((fact: PieceFactV2) => fact.statement === statement ? { ...fact, selected } : fact);
+    const matches = (fact: PieceFactV2) => fact.factKey === key || fact.statement === key;
+    const found = core.brief.facts.find(matches);
+    if (!found)
+      throw new AdaptationReviewError(
+        'PIECE_FACT_NOT_FOUND',
+        409,
+        'Такой опоры в актуальной заготовке уже нет. Обновите страницу.'
+      );
+    const facts = core.brief.facts.map((fact: PieceFactV2) => matches(fact) ? { ...fact, selected } : fact);
     await this.briefs.updateCoreMetadata(organizationId, pieceId, { expectedBody: piece.body, expectedBrief: piece.brief, brief: { ...(piece.brief as object), brief: { ...core.brief, facts } } });
-    return { statement, selected };
+    return { factKey: found.factKey ?? found.statement, selected };
   }
 
   async updateTitle(organizationId: string, pieceId: string, title: string) {
@@ -1232,7 +1245,8 @@ export class PieceService {
   }
 
   async researchCore(organizationId: string, pieceId: string, actorUserId: string,
-    input: { confirmWebSpend?: boolean }, language: 'ru' | 'en' = 'ru'): Promise<PieceResearchPreview> {
+    input: { confirmWebSpend?: boolean; level?: PieceResearchLevel; direction?: string },
+    language: 'ru' | 'en' = 'ru'): Promise<PieceResearchPreview> {
     if (input.confirmWebSpend !== true) throw new AdaptationReviewError('PIECE_RESEARCH_CONFIRM', 400,
       language === 'ru' ? 'Подтвердите поиск по источникам.' : 'Confirm source research.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
@@ -1243,14 +1257,28 @@ export class PieceService {
     if (!this.snapshots || !this.intake || !this.aiUsage || !actorUserId)
       throw new AdaptationReviewError('PIECE_RESEARCH_UNAVAILABLE', 503,
         language === 'ru' ? 'Исследование сейчас недоступно.' : 'Research is unavailable.');
-    const state = await this.intake.researchExistingCore(organizationId, core.text, core.brief, language);
+    const level: PieceResearchLevel = input.level === 'quick' || input.level === 'deep'
+      ? input.level
+      : 'standard';
+    const direction = typeof input.direction === 'string'
+      ? input.direction.trim().slice(0, 300)
+      : '';
+    const state = await this.intake.researchExistingCore(
+      organizationId,
+      core.text,
+      core.brief,
+      language,
+      level,
+      direction || undefined
+    );
     const snapshotKey = randomUUID();
     await this.snapshots.set(this.coreResearchKey(organizationId, actorUserId, pieceId, snapshotKey),
       JSON.stringify({ version: PIECE_RESEARCH_VERSION, organizationId, actorUserId, pieceId, language,
         body: piece.body, title: piece.title, brief: piece.brief, state,
         expiresAt: this.now().getTime() + INTAKE_SNAPSHOT_TTL_SECONDS * 1000 }),
       'EX', INTAKE_SNAPSHOT_TTL_SECONDS);
-    return { version: PIECE_RESEARCH_VERSION, snapshotKey, level: 'standard', input: core.text,
+    return { version: PIECE_RESEARCH_VERSION, snapshotKey, level, input: core.text,
+      ...(direction ? { direction } : {}),
       facts: state.filled.brief.facts, corrections: state.corrections, summary: state.summary };
   }
 
@@ -1265,7 +1293,8 @@ export class PieceService {
       language: 'ru' | 'en'; body: string; title: string; brief: unknown;
       state: IntakeRunState; expiresAt: number };
     try { saved = JSON.parse(raw || 'null'); } catch { throw expired(); }
-    if (!saved || saved.version !== PIECE_RESEARCH_VERSION || saved.organizationId !== organizationId ||
+    if (!saved || !(PIECE_RESEARCH_VERSIONS as readonly string[]).includes(saved.version) ||
+      saved.organizationId !== organizationId ||
       saved.actorUserId !== actorUserId || saved.pieceId !== pieceId ||
       !Number.isFinite(saved.expiresAt) || saved.expiresAt <= this.now().getTime()) throw expired();
     const piece = await this.pieces.getPiece(organizationId, pieceId);
@@ -1394,7 +1423,7 @@ export class PieceService {
         text.split('\n').find((line) => line.trim()) ??
         ''
       : piece.title;
-    const reviewed = await reviewOnceV2(
+    const reviewed = await reviewOnceV3(
       organizationId,
       {
         text,
@@ -1407,9 +1436,10 @@ export class PieceService {
         language,
         sources,
       },
-      this.aiUsage
+      this.aiUsage,
+      message => this.logger.warn(message)
     );
-    const proposal: ReviewProposal = {
+    const proposal: ReviewProposalV3 = {
       version: REVIEW_VERSION,
       language,
       organizationId,

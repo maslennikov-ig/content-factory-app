@@ -2074,6 +2074,26 @@ rm -rf /tmp/cf-ops
 Ничего из этого само по себе бэкап не запускает: график — отдельное действие
 владельца, см. [runbook PostgreSQL backup](postgres-backup.md).
 
+## Sixth walk wave released 14.09.2026: `93aa33b85a79`
+
+Private source `014360d31dc45618e8f5a0a6db44b5e8d96dd2ef`, public tree
+`93aa33b85a797ffa3ca6e19e6b45e3db8926f19e`; rollback `447e360f7007`.
+Owner explicitly moved manual acceptance to production and authorized deployment.
+Registry/host digest: `sha256:1e47c45f4bd0f92ba68442ca1dad89765e56f3241fe0778505ffe7d113563071`.
+Three app typechecks and build passed; receipt: Jest 437 suites / 5705 tests,
+Node 125 passed / 0 failed / 4 existing skips, Python 46 OK. Schema diff from
+new image was empty; no migration applied. Mastra stayed at 29 tables with
+canonical fingerprint `310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7`.
+
+The shared root disk filled during transfer/rollout: nginx could not buffer the
+source archive and PostgreSQL entered recovery. The prescribed retention script
+removed only our `cde11f97e77f` image and expired config backups, retaining current
+and rollback. PostgreSQL recovered automatically. HTTP checks and the archive
+hash then passed; container healthy, zero restarts. Remaining headroom is 2.5 GB
+on 79 GB; P1 `content-factory-next-hf97` requires ownership inventory and sufficient
+free space before another image pull. No other project data was removed.
+Evidence: `.codex/stages/content-factory-next-4zul/evidence/release-2026-09-14.json`.
+
 ## Обновление версии
 
 **Разрешение на волну 10.09.2026 и первую фазу ресерча.** Владелец поручил

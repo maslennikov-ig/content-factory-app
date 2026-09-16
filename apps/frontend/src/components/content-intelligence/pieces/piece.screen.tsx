@@ -162,13 +162,13 @@ export function PieceScreen({
   onOpenEditor: () => void;
   onRetry: () => void;
   onTitleSave?: (title: string) => Promise<void>;
-  onFactSelect?: (statement: string, selected: boolean) => Promise<void>;
+  onFactSelect?: (factKey: string, selected: boolean) => Promise<void>;
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [titleSaving, setTitleSaving] = useState(false);
   const [factSaving, setFactSaving] = useState<string | null>(null);
-  const [factError, setFactError] = useState('');
+  const [factError, setFactError] = useState<{ key: string; message: string } | null>(null);
   const [titleError, setTitleError] = useState('');
   const saveTitle = async (event: FormEvent) => {
     event.preventDefault();
@@ -1172,24 +1172,26 @@ export function PieceScreen({
               </summary>
 
               <div className="mt-[12px] flex min-w-0 flex-col gap-[12px]">
-                {factError ? <p role="alert" className="cf-body-sm text-cf-ink">{factError}</p> : null}
                 <div data-piece-facts="true">
                   <ResearchEvidenceRows
                     locale={locale}
                     facts={researchFacts}
                     editableFound={Boolean(onFactSelect)}
                     busy={!canWrite || factSaving !== null}
-                    onToggleFound={(statement, selected) => {
+                    foundErrorKey={factError?.key}
+                    foundErrorMessage={factError?.message}
+                    onToggleFound={(factKey, selected) => {
                       if (!onFactSelect) return;
-                      setFactSaving(statement);
-                      setFactError('');
-                      void onFactSelect(statement, selected)
+                      setFactSaving(factKey);
+                      setFactError(null);
+                      void onFactSelect(factKey, selected)
                         .catch(() =>
-                          setFactError(
-                            locale === 'ru'
+                          setFactError({
+                            key: factKey,
+                            message: locale === 'ru'
                               ? 'Выбор не сохранён. Попробуйте ещё раз.'
-                              : 'Selection was not saved. Try again.'
-                          )
+                              : 'Selection was not saved. Try again.',
+                          })
                         )
                         .finally(() => setFactSaving(null));
                     }}

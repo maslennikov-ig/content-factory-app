@@ -8,6 +8,13 @@ const { briefFillPromptV3, briefFillSchemaV3 } = loadWithMocks(
 const { intakeCopy } = loadWithMocks(
   'apps/frontend/src/components/content-intelligence/intake/intake.copy.ts'
 );
+const {
+  extractionPromptV4,
+  extractionSchemaV4,
+  briefFillPromptV4,
+} = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v4.ts'
+);
 
 const base = {
   goal: null,
@@ -43,6 +50,29 @@ test('sixth walk prompt asks only what the author knows and requires first-perso
   expect(prompt).toContain('only the author can know');
   expect(prompt).toContain('first person');
   expect(prompt).toContain('Never ask for a source, number, document or searchable context');
+});
+
+test('eighth walk extract records model-owned material kind', () => {
+  expect(extractionSchemaV4.safeParse({
+    materialKind: 'foreign_post',
+    topic: 'Комиссии маркетплейсов',
+    angle: 'Продавцы должны пересчитывать экономику',
+    structure: [],
+    claims: [],
+  }).success).toBe(true);
+  expect(extractionPromptV4('Готовая публикация', 'ru')).toContain(
+    'First-person wording inside such a publication belongs to its source author'
+  );
+});
+
+test('eighth walk borrowed brief cannot call the source author position input', () => {
+  const prompt = briefFillPromptV4({
+    language: 'ru', material: 'Краткий пересказ', materialKind: 'borrowed',
+    fixed: [], avatar: [], channel: [], facts: [], evidence: [],
+  });
+  expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v4');
+  expect(prompt).toContain('does not reveal the person\'s own position');
+  expect(prompt).toContain('Never mark its source author\'s position with origin `input`');
 });
 
 test('research depth describes source capacity rather than query count', () => {

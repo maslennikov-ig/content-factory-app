@@ -133,7 +133,9 @@ const lastBody = () => JSON.parse(posts().at(-1)[1].body);
 
 describe('автосохранение раздела ИИ', () => {
   beforeEach(() => {
-    fetchMock.mockReset().mockResolvedValue({ ok: true, json: async () => ({}) });
+    fetchMock
+      .mockReset()
+      .mockResolvedValue({ ok: true, json: async () => ({}) });
     settings = {
       usageMode: 'workspace_key',
       provider: 'openrouter',
@@ -182,14 +184,14 @@ describe('автосохранение раздела ИИ', () => {
     const { container } = await mount();
 
     await act(async () => {
-      fireEvent.change(container.querySelector('[name="searchEnabled"]'), {
-        target: { value: 'enabled' },
+      fireEvent.change(container.querySelector('[name="searchTopic"]'), {
+        target: { value: 'news' },
       });
     });
 
     expect(posts()).toHaveLength(1);
     expect(lastBody()).toMatchObject({
-      searchEnabled: true,
+      searchTopic: 'news',
       usageMode: 'workspace_key',
     });
   });
@@ -216,10 +218,9 @@ describe('автосохранение раздела ИИ', () => {
     const { container } = await mount();
 
     await act(async () => {
-      fireEvent.change(
-        container.querySelector('[name="searchApiKey-exa"]'),
-        { target: { value: 'exa-live-secret' } }
-      );
+      fireEvent.change(container.querySelector('[name="searchApiKey-exa"]'), {
+        target: { value: 'exa-live-secret' },
+      });
     });
 
     await act(async () => {
@@ -240,10 +241,9 @@ describe('автосохранение раздела ИИ', () => {
     const { container, getByText } = await mount();
 
     await act(async () => {
-      fireEvent.change(
-        container.querySelector('[name="searchApiKey-exa"]'),
-        { target: { value: 'exa-live-secret' } }
-      );
+      fireEvent.change(container.querySelector('[name="searchApiKey-exa"]'), {
+        target: { value: 'exa-live-secret' },
+      });
     });
 
     await act(async () => {

@@ -13,6 +13,7 @@ import {
   digestSourcesFor,
   factKeyOf,
   researchDigestPrompt,
+  researchDigestPromptV2,
   researchDigestSchema,
   settleResearchDigest,
   type ResearchDigestClaim,
@@ -94,6 +95,7 @@ import {
   CORE_QUESTION_FIELDS,
   briefForGate,
   coreQuestionText,
+  openQuestionsFor,
 } from '../pieces/core-questions';
 import { writeCore, type CoreBorrowedV1 } from '../pieces/core-write';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -108,14 +110,20 @@ import {
   PIECE_NOT_SAVED_MESSAGES,
   intakeError,
 } from './intake.errors';
-import { detectInputKind, singleLinkOf, linksOf, wordShingles } from './intake-kind';
 import {
-  briefFillPromptV3 as briefFillPrompt,
-  briefFillSchemaV3 as briefFillSchema,
-  extractionPromptV3 as extractionPrompt,
-  extractionSchemaV3 as extractionSchema,
-  type IntakeExtractionV3 as IntakeExtractionV1,
-} from './intake.prompts.v3';
+  detectInputKind,
+  FOREIGN_POST_MIN_CHARS,
+  singleLinkOf,
+  linksOf,
+  wordShingles,
+} from './intake-kind';
+import {
+  briefFillPromptV4 as briefFillPrompt,
+  briefFillSchemaV4 as briefFillSchema,
+  extractionPromptV4 as extractionPrompt,
+  extractionSchemaV4 as extractionSchema,
+  type IntakeExtractionV4 as IntakeExtractionV1,
+} from './intake.prompts.v4';
 import { oneLine } from './intake.prompts';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
@@ -487,6 +495,27 @@ export class IntakeService {
 
     const evidence = new Map<string, AcceptedEvidence>();
     let borrowedText: string | null = null;
+    let extraction: IntakeExtractionV1 | null = null;
+
+    // A long pasted text is the ambiguous seam that the old prose heuristic
+    // could not decide. Extract v4 owns that decision; the heuristic remains
+    // the fallback for a malformed/legacy recorded answer and for short notes.
+    if (
+      plan.inputKind === 'thought' &&
+      plan.input.length >= FOREIGN_POST_MIN_CHARS
+    ) {
+      const classified = await this.extract(
+        organizationId,
+        plan.input.slice(0, BORROWED_TEXT_LIMIT),
+        language
+      );
+      const materialKind = classified.materialKind === 'thought' ||
+        classified.materialKind === 'foreign_post'
+        ? classified.materialKind
+        : plan.inputKind;
+      plan.inputKind = materialKind;
+      extraction = materialKind === 'foreign_post' ? classified : null;
+    }
 
     const urls = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
       ? linksOf(plan.input) : [];
@@ -508,12 +537,23 @@ export class IntakeService {
     }
     borrowedText = borrowedParts.length ? borrowedParts.join('\n\n') : null;
 
-    let extraction: IntakeExtractionV1 | null = null;
     let foreignShingles: string[] = [];
-    if (borrowedText) {
-      extraction = await this.extract(organizationId, borrowedText, language);
+    if (borrowedText && !extraction) {
+      const classified = await this.extract(organizationId, borrowedText, language);
+      if (plan.inputKind === 'link') {
+        extraction = classified;
+      } else {
+        const materialKind = classified.materialKind === 'thought' ||
+          classified.materialKind === 'foreign_post'
+          ? classified.materialKind
+          : plan.inputKind;
+        plan.inputKind = materialKind;
+        extraction = materialKind === 'foreign_post' ? classified : null;
+      }
+    }
+    if (extraction && plan.inputKind !== 'thought') {
       yield { name: 'claims', claims: this.skippedClaims(extraction) };
-      foreignShingles = wordShingles(borrowedText);
+      foreignShingles = wordShingles(borrowedText || plan.input);
     }
 
     yield { name: 'brief-started' };
@@ -985,12 +1025,25 @@ export class IntakeService {
   ): PieceOpenQuestionV1[] {
     if (plan.skipInterview) return [];
     const settled = this.settledFields(plan);
-    return (filled.questions ?? [])
+    const modelQuestions = (filled.questions ?? [])
       .filter(
         (question) =>
           question.field !== 'facts' && !settled.includes(question.field)
       )
       .slice(0, 2);
+    if (plan.inputKind !== 'foreign_post') return modelQuestions;
+
+    const positionQuestion = openQuestionsFor({
+      brief: filled.brief,
+      options: filled.options,
+      language: plan.language,
+      settled: [...settled],
+    }).find((question) => question.field === 'position');
+    if (!positionQuestion) return modelQuestions;
+    return [
+      positionQuestion,
+      ...modelQuestions.filter((question) => question.field !== 'position'),
+    ].slice(0, 2);
   }
 
   /**
@@ -1165,6 +1218,11 @@ export class IntakeService {
 
     const originOf = (field: string): BriefFieldOriginV1 | null => {
       const claimed = trimmed(answer?.origins?.[field]);
+      if (
+        plan.inputKind === 'foreign_post' &&
+        field === 'position' &&
+        claimed === 'input'
+      ) return 'model';
       return (ORIGINS as string[]).includes(claimed)
         ? (claimed as BriefFieldOriginV1)
         : null;
@@ -1388,14 +1446,21 @@ export class IntakeService {
    */
   /** Reuse intake research for an existing core without filling its brief again. */
   async researchExistingCore(organizationId: string, input: string, brief: BriefFilledV1,
-    language: 'ru' | 'en'): Promise<IntakeRunState> {
-    const plan = this.existingCorePlan(input, language, null);
+    language: 'ru' | 'en', level: 'quick' | 'standard' | 'deep' = 'standard',
+    direction?: string): Promise<IntakeRunState> {
+    const plan = this.existingCorePlan(input, language, null, level);
     const evidence = new Map<string, AcceptedEvidence>();
     const filled: FilledBrief = { options: {}, ...this.settled(brief) };
-    const researched = await this.researchForIntake(organizationId, input, plan, evidence, 'standard');
+    const wish = oneLine(direction || '').slice(0, 300);
+    const searchSubject = wish
+      ? `${input}\n\n${language === 'ru'
+        ? 'Пожелание к направлению поиска (не считать фактом)'
+        : 'Search direction wish (do not treat as a fact)'}: ${wish}`
+      : input;
+    const researched = await this.researchForIntake(organizationId, searchSubject, plan, evidence, level);
     const digest = researched.sources.length
-      ? await this.digestResearch(organizationId, plan, filled, null, researched, 'standard') : null;
-    const rows = this.researchRows(filled, researched, digest, 'standard');
+      ? await this.digestResearch(organizationId, plan, filled, null, researched, level, wish) : null;
+    const rows = this.researchRows(filled, researched, digest, level);
     const keys = new Set(rows.facts.map(factKeyOf));
     const previous = brief.facts.filter((fact: PieceFactV2) =>
       factKind(fact, brief.inputKind) === 'found' && !keys.has(factKeyOf(fact)))
@@ -1403,7 +1468,7 @@ export class IntakeService {
     return {
       filled: { ...filled, ...this.settled({ ...brief, facts: [...previous, ...rows.facts] }) },
       evidence: [...evidence.values()], extraction: null, urls: [], foreignShingles: [],
-      level: 'standard', corrections: rows.corrections, summary: rows.summary, correctedInput: '',
+      level, corrections: rows.corrections, summary: rows.summary, correctedInput: '',
     };
   }
 
@@ -1412,10 +1477,11 @@ export class IntakeService {
     return this.applySelections(state, this.existingCorePlan(input, language, selectedKeys));
   }
 
-  private existingCorePlan(input: string, language: 'ru' | 'en', researchSelections: string[] | null): IntakePlanV1 {
+  private existingCorePlan(input: string, language: 'ru' | 'en', researchSelections: string[] | null,
+    researchLevel: 'quick' | 'standard' | 'deep' = 'standard'): IntakePlanV1 {
     return { input, inputKind: 'thought', language, channels: [], answers: [], decide: [],
       interview: [], decideKeys: [], skipInterview: true, briefOverrides: {},
-      options: { researchEnabled: true, researchLevel: 'standard', isPicture: false },
+      options: { researchEnabled: true, researchLevel, isPicture: false },
       researchSelections, snapshotKey: null };
   }
 
@@ -1450,9 +1516,19 @@ export class IntakeService {
         (fact: PieceFactV2) => fact.factKey === correction.factKey && fact.selected === true
       ),
     }));
+    let thesis = state.filled.brief.thesis;
+    for (const correction of corrections) {
+      if (!correction.accepted || !thesis) continue;
+      const applied = applyCorrection(thesis, correction);
+      if (applied.applied) thesis = applied.text;
+    }
+    const brief = { ...state.filled.brief, facts, thesis };
+    const ungrounded = selectedFactsBrief(brief).facts
+      .filter((fact) => !fact.verified)
+      .map((fact) => fact.statement);
     return {
       ...state,
-      filled: { ...state.filled, brief: { ...state.filled.brief, facts } },
+      filled: { ...state.filled, brief: { ...brief, ungrounded } },
       corrections,
       correctedInput: this.correctedInputOf(plan, corrections),
     };
@@ -1596,7 +1672,8 @@ export class IntakeService {
     filled: FilledBrief,
     extraction: IntakeExtractionV1 | null,
     researched: IntakeResearch,
-    level: 'quick' | 'standard' | 'deep'
+    level: 'quick' | 'standard' | 'deep',
+    direction?: string
   ): Promise<SettledResearchDigest | null> {
     const claims: ResearchDigestClaim[] = filled.brief.facts
       .filter((fact: PieceFactV2) => factKind(fact, filled.brief.inputKind) !== 'found')
@@ -1614,6 +1691,7 @@ export class IntakeService {
       subject: extraction ? this.borrowedSummary(extraction) : plan.input,
       claims,
       sources: researched.sources,
+      ...(direction ? { direction } : {}),
     };
     try {
       const answer = await this.aiUsage.executeAiOperation(
@@ -1623,7 +1701,11 @@ export class IntakeService {
           const model = (
             await getChatModel(organizationId, 0, 4_096, 'review')
           ).withStructuredOutput(researchDigestSchema);
-          return await model.invoke(researchDigestPrompt(input, sources));
+          return await model.invoke(
+            direction
+              ? researchDigestPromptV2(input, sources)
+              : researchDigestPrompt(input, sources)
+          );
         },
         'review'
       );

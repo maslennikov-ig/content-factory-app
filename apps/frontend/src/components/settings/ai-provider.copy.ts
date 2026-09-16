@@ -58,8 +58,6 @@ type KeyedEngineWords = EngineWords & {
   keyStored: string;
   /** Строка под полем, когда ключа нет. */
   keyMissing: string;
-  /** Имя кнопки удаления — у каждого движка своё, иначе их не различить. */
-  removeKey: string;
   /** Что именно исчезнет. Спрашивается до запроса, а не после. */
   removeKeyConfirm: string;
 };
@@ -87,6 +85,8 @@ type Words = {
   usageNoneHint: string;
   /** Что такое роль вызова и зачем её трогать — в подсказку, не на экран. */
   rolesHint: string;
+  /** Переключатель относится к генерации, а не к поисковым движкам. */
+  usageModeHint: string;
   /** Что значит пустое поле. Решающее, поэтому остаётся строкой. */
   rolesEmpty: string;
   roles: {
@@ -101,21 +101,6 @@ type Words = {
   search: {
     /** Что вообще делает этот раздел. */
     what: string;
-    /** Главное: по умолчанию всё уже работает и вводить нечего. */
-    systemKeys: string;
-    /**
-     * Та же мысль в режиме ключей системы, где она единственная: полей там
-     * нет вовсе, и строка обязана сказать, что это не потеря, а ответ.
-     */
-    systemKeysOnly: string;
-    /**
-     * И тот же ответ, когда ключей системы нет: в этом режиме область их не
-     * заводит, поэтому строка называет того, кто может, и второй выход —
-     * перейти на свой ключ (`content-factory-next-75xn.26`).
-     */
-    systemKeysMissing: string;
-    /** Подпись блока своих поисковых ключей. */
-    ownKeysTitle: string;
     /**
      * Одна строка вместо трёх селекторов «задача → сервер».
      *
@@ -126,24 +111,13 @@ type Words = {
     routing: (pairs: Array<{ task: string; engine: string }>) => string;
     /** Та же строка, когда тратить нечего ни одному движку. */
     routingNone: string;
-    /** Зачем тогда свой ключ и что он меняет. */
-    ownKey: string;
-    /** Что будет со своим ключом при возврате к ключам системы. */
-    ownKeyKept: string;
     /** Плейсхолдер поля, когда ключ этого движка уже сохранён. */
     keySavedPlaceholder: string;
     /** Плейсхолдер пустого поля. */
     keyEmptyPlaceholder: string;
-    /** Почему у OpenRouter нет своего поля ключа. */
-    openrouterNoKey: string;
-    /**
-     * Режим включённых ключей: у области есть свой ключ, и он сейчас лежит.
-     * Без названия движка — ответ сервера в этом режиме говорит про ключи
-     * системы, а про свои знает только «есть или нет». Одно предложение и ни
-     * одной кнопки: убрать свой ключ можно там, где стоит его поле, то есть в
-     * режиме своих ключей (`content-factory-next-75xn.26`).
-     */
-    includedOwnKey: string;
+    keyOwn: string;
+    keySystem: string;
+    returnToSystem: (engine: string) => string;
     engines: {
       tavily: KeyedEngineWords;
       exa: KeyedEngineWords;
@@ -167,6 +141,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       'Расход появляется после первого вызова модели: пока за этот период ни одного не было.',
     rolesHint:
       'Роль вызова — это работа, ради которой продукт обращается к модели. Менять стоит ради денег: классификация и разбор прекрасно работают на дешёвой модели, а платить за них по цене черновика незачем.',
+    usageModeHint:
+      'Этот переключатель относится только к генерации. Поисковые ключи выбираются отдельно для каждого движка ниже.',
     rolesEmpty:
       'Пустое поле означает «брать модель для текста, указанную выше». Заполнять здесь ничего не обязательно.',
     roles: {
@@ -185,36 +161,26 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       judge: {
         what: 'Проверка голоса — сверить готовый текст с вашей манерой и сказать, где он на неё не похож.',
       },
-      review: { what: 'Проверка адаптации — убрать штампы, сверить утверждения с сутью заготовки или сделать оба действия за один вызов.' },
+      review: {
+        what: 'Проверка адаптации — убрать штампы, сверить утверждения с сутью заготовки или сделать оба действия за один вызов.',
+      },
       image: {
         what: 'Картинки — единственная роль, которой нужна модель, умеющая рисовать.',
       },
     },
     search: {
-      what: 'Веб-исследование — это поиск в интернете, к которому продукт обращается сам: собрать опоры для текста, проверить утверждение, посмотреть свежие темы.',
-      systemKeys:
-        'По умолчанию работают ключи системы. Их не видно, и вводить здесь ничего не нужно — поиск уже работает.',
-      systemKeysOnly:
-        'Поиск работает на ключах системы, вводить ничего не нужно.',
-      systemKeysMissing:
-        'Ключи системы для поиска пока не заданы, поэтому веб-исследование не работает. Их задаёт суперадмин инстанса; можно также выбрать «Свой ключ» и сохранить собственный.',
-      ownKeysTitle: 'Свои ключи поиска',
+      what: 'Для каждого движка свой ключ области перекрывает ключ системы. Пустое поле использует ключ системы; свой ключ не расходует включённый лимит.',
       routing: (pairs) =>
         `Сейчас поиск идёт так: ${pairs
           .map((pair) => `${pair.task} — ${pair.engine}`)
           .join('; ')}. Движок выбирается сам, по тому, какие ключи сохранены.`,
       routingNone:
         'Ни у одного поискового движка нет ключа, поэтому искать сейчас нечем. Сохраните свой ключ или включите ключи системы.',
-      ownKey:
-        'Свой ключ — по желанию. Он заменяет системный только для этой области и тратится с вашего счёта у поискового сервиса.',
-      ownKeyKept:
-        'Если вернуться к ключам системы, свой ключ остаётся сохранённым и снова заработает, как только вы снова выберете свои ключи. Чтобы он исчез совсем, уберите его кнопкой рядом с полем.',
       keySavedPlaceholder: 'Ключ сохранён — введите новый, чтобы заменить',
       keyEmptyPlaceholder: 'Вставьте ключ',
-      openrouterNoKey:
-        'У OpenRouter своего поискового ключа нет: он ищет через ваш ключ генерации, указанный выше, и тратит его.',
-      includedOwnKey:
-        'У этой области сохранён свой поисковый ключ. Сейчас он не тратится — работают ключи системы, — и снова заработает, как только вы выберете «Свой ключ». Убрать его можно там же.',
+      keyOwn: 'Свой ключ',
+      keySystem: 'На ключе системы',
+      returnToSystem: (engine) => `Вернуть ${engine} на ключ системы`,
       engines: {
         tavily: {
           name: 'Tavily',
@@ -224,7 +190,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
             'Ключ Tavily сохранён для этой области. Он больше не показывается.',
           keyMissing:
             'Своего ключа Tavily нет — Tavily работает на ключе системы.',
-          removeKey: 'Убрать сохранённый ключ Tavily',
           removeKeyConfirm:
             'Сохранённый ключ Tavily будет удалён без возможности восстановления. Поиск через Tavily вернётся на ключ системы, а если его нет — перестанет работать.',
         },
@@ -235,7 +200,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
           keyStored:
             'Ключ Exa сохранён для этой области. Он больше не показывается.',
           keyMissing: 'Своего ключа Exa нет — Exa работает на ключе системы.',
-          removeKey: 'Убрать сохранённый ключ Exa',
           removeKeyConfirm:
             'Сохранённый ключ Exa будет удалён без возможности восстановления. Поиск через Exa вернётся на ключ системы, а если его нет — перестанет работать.',
         },
@@ -269,6 +233,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       'Usage appears after the first model call: there has not been one this period.',
     rolesHint:
       'A call role is the job the product goes to a model for. The reason to change one is money: classification and extraction do fine on a cheap model, and paying draft prices for them buys nothing.',
+    usageModeHint:
+      'This switch applies only to generation. Search keys are selected separately for each engine below.',
     rolesEmpty:
       'An empty field means "use the text model above". Filling these in is optional.',
     roles: {
@@ -287,36 +253,28 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       judge: {
         what: 'Voice check — comparing the finished text against your own way of writing and saying where it drifts.',
       },
-      review: { what: 'Adaptation review — remove cliches, compare claims with the piece, or do both in one call.' },
+      review: {
+        what: 'Adaptation review — remove cliches, compare claims with the piece, or do both in one call.',
+      },
       image: {
         what: 'Images — the one role that needs a model which can draw.',
       },
     },
     search: {
-      what: 'Web research is the search the product runs by itself: collecting supports for a text, checking a claim, looking at what is new on a subject.',
-      systemKeys:
-        'The system keys work by default. They are not shown and nothing has to be typed here — search already works.',
-      systemKeysOnly:
-        'Search runs on the system keys; nothing has to be typed here.',
-      systemKeysMissing:
-        'The system search keys are not set up yet, so web research does not run. The instance superadmin sets them; you can also choose «Own key» and save one of your own.',
-      ownKeysTitle: 'Your own search keys',
+      what: "For each engine, this workspace's own key overrides the system key. An empty field uses the system key; an own key does not spend the included allowance.",
       routing: (pairs) =>
         `Search runs like this now: ${pairs
           .map((pair) => `${pair.task} — ${pair.engine}`)
-          .join('; ')}. The engine is chosen for you, from the keys that are stored.`,
+          .join(
+            '; '
+          )}. The engine is chosen for you, from the keys that are stored.`,
       routingNone:
         'No search engine has a key, so there is nothing to search with. Save a key of your own, or switch to the system keys.',
-      ownKey:
-        'A key of your own is optional. It replaces the system one for this workspace only, and it is spent from your own account at that search service.',
-      ownKeyKept:
-        'Going back to the system keys keeps your key stored: it starts working again the moment you choose your own keys again. To make it disappear for good, remove it with the button beside the field.',
       keySavedPlaceholder: 'A key is saved — type a new one to replace it',
       keyEmptyPlaceholder: 'Paste a key',
-      openrouterNoKey:
-        'OpenRouter has no search key of its own: it searches through the generation key above and spends it.',
-      includedOwnKey:
-        'This workspace has a search key of its own. It is not being spent right now — the system keys are in use — and it starts working again the moment you choose «Own key». That is also where it can be removed.',
+      keyOwn: 'Own key',
+      keySystem: 'On the system key',
+      returnToSystem: (engine) => `Return ${engine} to the system key`,
       engines: {
         tavily: {
           name: 'Tavily',
@@ -326,7 +284,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
             'A Tavily key is stored for this workspace. It is never shown again.',
           keyMissing:
             'No Tavily key of your own — Tavily runs on the system key.',
-          removeKey: 'Remove the stored Tavily key',
           removeKeyConfirm:
             'The stored Tavily key is removed and cannot be recovered. Tavily search falls back to the system key, and stops if there is none.',
         },
@@ -337,7 +294,6 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
           keyStored:
             'An Exa key is stored for this workspace. It is never shown again.',
           keyMissing: 'No Exa key of your own — Exa runs on the system key.',
-          removeKey: 'Remove the stored Exa key',
           removeKeyConfirm:
             'The stored Exa key is removed and cannot be recovered. Exa search falls back to the system key, and stops if there is none.',
         },

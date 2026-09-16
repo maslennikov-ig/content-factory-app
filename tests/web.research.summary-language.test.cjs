@@ -88,7 +88,10 @@ const { WebResearchService } = loadTypeScriptModule(
       },
     },
     '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+      getActiveAiConfig: () => aiConfig,
+      loadAiConfig: async () => aiConfig,
       requireActiveAiConfig: async () => aiConfig,
+      withActiveAiConfig: (_organizationId, _config, callback) => callback(),
     },
     '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
       AiUsageService: class {},

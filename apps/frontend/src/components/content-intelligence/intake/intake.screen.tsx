@@ -20,6 +20,7 @@ import {
   type ResearchOutcomeSummary,
 } from './intake.research';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
+import { ResearchLevelSelect } from './research-level-select';
 import type {
   IntakeBlockReason,
   IntakeInputKindV1,
@@ -288,16 +289,12 @@ export function IntakeScreen({
                 <Hint label={t.researchHintLabel}>{t.researchHint}</Hint>
               </span>
               {researchEnabled ? (
-                <Select
-                  standalone
-                  aria-label={t.researchLevelLabel}
+                <ResearchLevelSelect
+                  locale={locale}
                   value={researchLevel}
-                  onChange={(event) => onResearchLevelChange(event.target.value as 'quick' | 'standard' | 'deep')}
-                >
-                  <option value="quick">{t.researchQuick}</option>
-                  <option value="standard">{t.researchStandard}</option>
-                  <option value="deep">{t.researchDeep}</option>
-                </Select>
+                  disabled={busy}
+                  onChange={onResearchLevelChange}
+                />
               ) : null}
             </div>
 

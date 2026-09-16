@@ -49,9 +49,14 @@ const screenModule = loadTypeScriptModule(
   'apps/frontend/src/components/settings/ai-provider.component.tsx',
   {
     react: require('react'),
-    swr: { __esModule: true, default: () => ({ data: undefined, mutate: stub }) },
+    swr: {
+      __esModule: true,
+      default: () => ({ data: undefined, mutate: stub }),
+    },
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: () => stub },
-    '@contentfactory/react/toaster/toaster': { useToaster: () => ({ show: stub }) },
+    '@contentfactory/react/toaster/toaster': {
+      useToaster: () => ({ show: stub }),
+    },
     '@contentfactory/react/form/select': { Select: stub },
     '@contentfactory/react/form/input': { Input: stub },
     '@contentfactory/react/form/button': { Button: stub },
@@ -130,20 +135,16 @@ describe('у каждого имени есть слова на обоих яз�
         expect(engineWords.name).toBeTruthy();
         expect(engineWords.what).toBeTruthy();
         if (!backend.searchProviderNeedsKey(engine)) continue;
-        // Подпись поля, обе строки состояния, имя кнопки и предупреждение
+        // Подпись поля, обе строки состояния и предупреждение
         // перед удалением — без любой из них поле молчит о том, что делает.
         for (const key of [
           'keyLabel',
           'keyStored',
           'keyMissing',
-          'removeKey',
           'removeKeyConfirm',
         ]) {
           expect(engineWords[key]).toBeTruthy();
         }
-        // Имя кнопки называет движок: двух одинаковых «убрать сохранённый
-        // ключ» на экране быть не может, их нечем различить.
-        expect(engineWords.removeKey).toContain(engineWords.name);
         expect(engineWords.keyLabel).toContain(engineWords.name);
       }
     });
@@ -158,20 +159,18 @@ describe('у каждого имени есть слова на обоих яз�
     });
 
     test(`${locale}: раздел объясняет ключи системы и свой ключ`, () => {
-      const words = copy.aiProviderCopy[locale].search;
+      const allWords = copy.aiProviderCopy[locale];
+      const words = allWords.search;
       for (const key of [
         'what',
-        'systemKeys',
-        'systemKeysOnly',
-        'ownKey',
-        'ownKeyKept',
-        'ownKeysTitle',
-        'openrouterNoKey',
         'routingNone',
-        'includedOwnKey',
+        'keyOwn',
+        'keySystem',
+        'returnToSystem',
       ]) {
         expect(words[key]).toBeTruthy();
       }
+      expect(allWords.usageModeHint).toBeTruthy();
     });
 
     /**
@@ -187,7 +186,8 @@ describe('у каждого имени есть слова на обоих яз�
       const line = words.routing(
         backend.SEARCH_TASKS.map((task) => ({
           task: words.tasks[task].label,
-          engine: words.engines[backend.DEFAULT_SEARCH_TASK_PROVIDERS[task]].name,
+          engine:
+            words.engines[backend.DEFAULT_SEARCH_TASK_PROVIDERS[task]].name,
         }))
       );
       expect(line).toBeTruthy();
@@ -262,16 +262,19 @@ describe('строка на экране и маршрутизация серв�
   });
 
   test('умолчания на клиенте — это умолчания сервера, а не второе мнение', () => {
-    const declaration = /const DEFAULT_SEARCH_TASK_PROVIDERS: Record<\s*SearchTask,\s*SearchProvider\s*> = \{([\s\S]*?)\};/.exec(
-      screen
-    );
+    const declaration =
+      /const DEFAULT_SEARCH_TASK_PROVIDERS: Record<\s*SearchTask,\s*SearchProvider\s*> = \{([\s\S]*?)\};/.exec(
+        screen
+      );
     expect(declaration).not.toBeNull();
     const declared = Object.fromEntries(
       declaration[1]
         .split(',')
         .map((entry) => entry.trim())
         .filter(Boolean)
-        .map((entry) => entry.split(':').map((part) => part.trim().replace(/'/g, '')))
+        .map((entry) =>
+          entry.split(':').map((part) => part.trim().replace(/'/g, ''))
+        )
     );
     expect(declared).toEqual({ ...backend.DEFAULT_SEARCH_TASK_PROVIDERS });
   });
@@ -292,13 +295,22 @@ describe('экран не выбирает движок и не трогает �
     expect(screen).not.toContain('changeSearchProvider');
   });
 
-  test('единственный, кто пишет searchEnabled, — обработчик самого выключателя', () => {
+  test('режим генерации не показывает и не переключает статус поиска', () => {
     const writes = screen.match(/setSearchEnabled\(/g) ?? [];
-    // Одно место читает его из ответа сервера при загрузке, одно — из выбора
-    // человека. Третьего быть не должно: третьим и был движок.
-    expect(writes).toHaveLength(2);
+    // Состояние читается только для совместимого payload; движок включается
+    // наличием own-over-system credential и не следует за generation mode.
+    expect(writes).toHaveLength(1);
     expect(screen).toContain('setSearchEnabled(data.searchEnabled);');
+    expect(screen).not.toContain('name="searchEnabled"');
     expect(screen).not.toContain('setSearchEnabled(false)');
+  });
+
+  test('поля движков видны в обоих режимах и OpenRouter не обещан как fallback', () => {
+    expect(screen).toContain('{KEYED_SEARCH_PROVIDERS.map((engine) => (');
+    expect(screen).toContain('words.search.returnToSystem(');
+    expect(screen).not.toContain('systemKeysOnly');
+    expect(screen).not.toContain('includedOwnKey');
+    expect(screen).not.toContain('openrouter_fallback_available');
   });
 
   test('ни маршрутизация, ни движок области не уходят на сервер', () => {
@@ -330,8 +342,7 @@ test('локаль не хранит поисковых подписей, кот
   const source = read(
     'apps/frontend/src/components/settings/ai-provider.component.tsx'
   );
-  const localesDir =
-    'libraries/react-shared-libraries/src/translation/locales';
+  const localesDir = 'libraries/react-shared-libraries/src/translation/locales';
 
   for (const key of dead) {
     // Слова раздела живут в `ai-provider.copy.ts`: название движка в подписи
@@ -340,9 +351,7 @@ test('локаль не хранит поисковых подписей, кот
     // выбирается, — и следующий, кто будет искать неверную подпись, найдёт
     // именно её (`content-factory-next-fl4k`).
     expect(source).not.toContain(`'${key}'`);
-    for (const locale of fs.readdirSync(
-      path.join(root, localesDir)
-    )) {
+    for (const locale of fs.readdirSync(path.join(root, localesDir))) {
       const file = path.join(localesDir, locale, 'translation.json');
       if (!fs.existsSync(path.join(root, file))) continue;
       expect(Object.keys(JSON.parse(read(file)))).not.toContain(key);

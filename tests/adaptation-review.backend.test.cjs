@@ -117,6 +117,12 @@ beforeEach(() => {
         });
       return action();
     }),
+    beginAiOperationWithConfig: jest.fn(
+      async (_org, _operation, _config, _role) => ({
+        run: (action) => action(),
+        finish: jest.fn(async () => undefined),
+      })
+    ),
   };
   service = new PieceService(
     repository,
@@ -649,12 +655,44 @@ test('web DTO requires true confirmation; controller forwards it together with r
 });
 
 test('real research admission and review admission remain separate, exactly once each', async () => {
-  const { WebResearchService } = loadWithMocks('libraries/nestjs-libraries/src/openai/web.research.service.ts', mocks);
+  const searchConfig = {
+    usageMode: 'included',
+    provider: 'openrouter',
+    apiKey: 'system-model-key',
+    search: {
+      enabled: true,
+      provider: 'tavily',
+      apiKey: 'system-search-key',
+      apiKeys: { tavily: 'system-search-key' },
+      keySources: { tavily: 'system' },
+      topic: 'general',
+      depth: 'advanced',
+    },
+  };
+  const { WebResearchService } = loadWithMocks(
+    'libraries/nestjs-libraries/src/openai/web.research.service.ts',
+    {
+      ...mocks,
+      '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
+        getActiveAiConfig: () => searchConfig,
+        loadAiConfig: async () => searchConfig,
+        requireActiveAiConfig: async () => searchConfig,
+        withActiveAiConfig: (_organizationId, _config, action) => action(),
+      },
+    }
+  );
   const web = new WebResearchService(usage);
   web.researchWithinOperation = jest.fn(async () => evidence);
   output = webAnswer();
   await webModule.reviewAdaptationWithSearch('org', { text: 'draft', language: 'en' }, usage, web);
-  expect(usage.executeAiOperation.mock.calls.map(call => call[1])).toEqual(['web_research', 'text_generation']);
+  expect(usage.beginAiOperationWithConfig).toHaveBeenCalledTimes(1);
+  expect(usage.beginAiOperationWithConfig).toHaveBeenCalledWith(
+    'org',
+    'web_research',
+    expect.objectContaining({ usageMode: 'included', apiKey: 'system-search-key' }),
+    'research'
+  );
+  expect(usage.executeAiOperation.mock.calls.map(call => call[1])).toEqual(['text_generation']);
   expect(web.researchWithinOperation).toHaveBeenCalledTimes(1);
   expect(calls).toHaveLength(1);
 });
@@ -663,7 +701,7 @@ test('v2 review signs server changes; partial acceptance uses snapshot and ignor
  process.env.JWT_SECRET='test-review-key';
  output={changes:[{id:'a',excerpt:'Новый',replacement:'Свежий',why:'Стиль',basket:'show'}],verdict:'review',summary:''};
  const result=await service.reviewV2('org','piece','adaptation',{mode:'slop'});
- expect(result.version).toBe('adaptation-review/v2');
+ expect(result.version).toBe('adaptation-review/v3');
  await service.acceptReviewV2('org','piece','adaptation',{token:result.token,selectedIds:['a'],text:'CLIENT INVENTED'});
  expect(repository.acceptReviewV2.mock.calls[0][4]).toBe('Свежий ручной текст');
  await expect(service.acceptReviewV2('other','piece','adaptation',{token:result.token,selectedIds:['a']})).rejects.toMatchObject({status:409});

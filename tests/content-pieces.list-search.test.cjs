@@ -239,4 +239,22 @@ describe('поиск по заготовкам не отбирает карет�
       asked[asked.length - 1]
     );
   });
+
+  test('keeps the selected sort in the page address without changing the API query', async () => {
+    const initialUrl = window.location.href;
+    await open();
+    const select = document.querySelector('[name="pieces-sort"]');
+
+    expect(new URL(window.location.href).searchParams.get('sort')).toBe(
+      'date:desc'
+    );
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'title:asc' } });
+    });
+    expect(new URL(window.location.href).searchParams.get('sort')).toBe(
+      'title:asc'
+    );
+    expect(asked[asked.length - 1]).not.toContain('sort=');
+    window.history.replaceState(null, '', initialUrl);
+  });
 });

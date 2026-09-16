@@ -215,10 +215,7 @@ export function ChannelsScreen() {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-auto bg-cf-canvas p-5">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="cf-heading-lg text-cf-ink">{t.title}</h1>
-          <p className="mt-1 cf-caption text-cf-ink-muted">{t.subtitle}</p>
-        </div>
+        <p className="cf-caption text-cf-ink-muted">{t.subtitle}</p>
         <AddProviderButton primary label={t.connect} update={reload} />
       </header>
       {error ? (

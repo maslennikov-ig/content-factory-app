@@ -8,6 +8,14 @@ import {
   ThHTMLAttributes,
 } from 'react';
 import { clsx } from 'clsx';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
+
+export type TableSortDirection = 'asc' | 'desc' | null;
+
+export type TableSort = {
+  direction: TableSortDirection;
+  onToggle: () => void;
+};
 
 /**
  * The dense product table: 36px rows, `border` rules, no zebra fill.
@@ -35,6 +43,8 @@ export const Table: FC<{
 export const Th: FC<
   {
     numeric?: boolean;
+    /** Optional keyboard-accessible sorting control for this column. */
+    sort?: TableSort;
     /**
      * The header row as a tonal band: `surface-subtle` behind it and the
      * stronger rule under it, so a long table keeps its column names when the
@@ -45,9 +55,18 @@ export const Th: FC<
      */
     banded?: boolean;
   } & ThHTMLAttributes<HTMLTableCellElement>
-> = ({ numeric, banded, className, children, ...rest }) => (
+> = ({ numeric, banded, sort, className, children, ...rest }) => (
   <th
     scope="col"
+    aria-sort={
+      sort?.direction === 'asc'
+        ? 'ascending'
+        : sort?.direction === 'desc'
+        ? 'descending'
+        : sort
+        ? 'none'
+        : undefined
+    }
     className={clsx(
       'h-[36px] px-[12px] border-b',
       banded
@@ -59,7 +78,30 @@ export const Th: FC<
     )}
     {...rest}
   >
-    {children}
+    {sort ? (
+      <ControlButton
+        density="dense"
+        onClick={sort.onToggle}
+        className="inline-flex w-full items-center justify-between gap-[8px] text-start font-inherit text-cf-ink-muted hover:text-cf-ink"
+      >
+        <span>{children}</span>
+        <span
+          aria-hidden="true"
+          className={clsx(
+            'cf-caption shrink-0',
+            sort.direction ? 'text-cf-accent' : 'text-cf-ink-muted'
+          )}
+        >
+          {sort.direction === 'asc'
+            ? '↑'
+            : sort.direction === 'desc'
+            ? '↓'
+            : '↕'}
+        </span>
+      </ControlButton>
+    ) : (
+      children
+    )}
   </th>
 );
 

@@ -166,6 +166,7 @@ const foreignPost = [
 ].join(' ');
 
 const extractionAnswer = () => ({
+  materialKind: 'foreign_post',
   topic: 'отказ от половины продуктовой линейки',
   angle: 'рост случился из-за сокращения, а не из-за рынка',
   structure: ['решение', 'числа', 'спор', 'вывод'],
@@ -531,6 +532,100 @@ describe('чужой пост: утверждения не проверяютс�
       research: [],
     });
 
+  test('recorded WB/Ozon extract overrides the fallback kind and asks for the person position', async () => {
+    const walkText = [
+      'Маркетплейсы снова подняли комиссии, и продавцы опять пишут, что работать стало невыгодно.',
+      'Wildberries и Ozon объясняют это логистикой и скидками для покупателей, а по факту переписывают правила игры каждый квартал.',
+      'Мне кажется, спорить с площадками бесполезно: они делают то, что выгодно им.',
+      'Единственный выход для продавца — считать юнит-экономику заново после каждого письма от площадки и держать свой канал продаж рядом с маркетплейсом.',
+    ].join('\n\n');
+    const recordedBrief = fullBriefAnswer({
+      position: 'Мне кажется, спорить с площадками бесполезно',
+      origins: {
+        ...fullBriefAnswer().origins,
+        position: 'input',
+      },
+      options: {
+        thesis: null,
+        position: [
+          'Я считаю, что продавцам нужно строить свой канал продаж',
+          'Я считаю, что с площадками всё же стоит спорить',
+        ],
+        disagreement: null,
+        audience: null,
+      },
+      questions: [],
+    });
+    const { service } = build({
+      models: [
+        {
+          ...extractionAnswer(),
+          materialKind: 'foreign_post',
+          topic: 'рост комиссий Wildberries и Ozon',
+          angle: 'продавцу нужно пересчитывать экономику и строить свой канал',
+          claims: [],
+        },
+        recordedBrief,
+      ],
+    });
+    const plan = await service.prepare('org-a', request({ input: walkText }));
+
+    // The old heuristic sees one first-person sentence and no figures.
+    expect(plan.inputKind).toBe('thought');
+    const events = await drain(service, 'org-a', plan);
+    const [filled] = named(events, 'brief-filled');
+    const [questions] = named(events, 'questions');
+
+    expect(filled.brief.inputKind).toBe('foreign_post');
+    expect(filled.brief.origins.position).toBe('model');
+    expect(questions.questions).toHaveLength(1);
+    expect(questions.questions[0]).toMatchObject({
+      field: 'position',
+      options: recordedBrief.options.position,
+    });
+    expect(questions.questions[0].options.every((option) => option.startsWith('Я '))).toBe(true);
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-extract/v4');
+  });
+
+  test('an old recorded extract without materialKind keeps the heuristic fallback', async () => {
+    const oldExtraction = extractionAnswer();
+    delete oldExtraction.materialKind;
+    const { service } = build({
+      models: [oldExtraction, fullBriefAnswer()],
+    });
+    const plan = await foreignPlan(service);
+    const events = await drain(service, 'org-a', plan);
+
+    expect(named(events, 'brief-filled')[0].brief.inputKind).toBe('foreign_post');
+  });
+
+  test('an explicit person position wins and prevents the foreign-post question', async () => {
+    const walkText = [
+      'Маркетплейсы снова подняли комиссии, и продавцы опять пишут, что работать стало невыгодно.',
+      'Wildberries и Ozon объясняют это логистикой и скидками для покупателей, а по факту переписывают правила игры каждый квартал.',
+      'Мне кажется, спорить с площадками бесполезно: они делают то, что выгодно им.',
+      'Единственный выход для продавца — считать юнит-экономику заново после каждого письма от площадки и держать свой канал продаж рядом с маркетплейсом.',
+    ].join('\n\n');
+    const personPosition = 'Я считаю, что продавцам нужно развивать свой канал продаж';
+    const { service } = build({
+      models: [
+        { ...extractionAnswer(), materialKind: 'foreign_post', claims: [] },
+        fullBriefAnswer({ questions: [] }),
+        { text: 'Суть с позицией человека.' },
+      ],
+    });
+    const plan = await service.prepare('org-a', request({
+      input: walkText,
+      answers: [{ field: 'position', text: personPosition }],
+    }));
+    const events = await drain(service, 'org-a', plan);
+    const [filled] = named(events, 'brief-filled');
+
+    expect(filled.brief.position).toBe(personPosition);
+    expect(filled.brief.origins.position).toBe('person');
+    expect(named(events, 'questions')).toEqual([]);
+  });
+
   test('все утверждения явно пропущены без единого запроса на проверку', async () => {
     const { service, calls } = foreignBuild();
     const plan = await foreignPlan(service);
@@ -795,7 +890,16 @@ describe('слово человека и выключенный поиск', () 
       записывает. Это и есть правка живого прогона: вопрос перестал быть
       условием существования заготовки.
     */
-    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'questions')[0].questions).toEqual([
+      expect.objectContaining({
+        field: 'position',
+        options: [
+          'Я согласен с позицией автора исходного поста',
+          'Я не согласен с позицией автора исходного поста',
+          'Я согласен частично и хочу уточнить свою позицию',
+        ],
+      }),
+    ]);
     expect(calls.recordCore).toHaveLength(1);
   });
 

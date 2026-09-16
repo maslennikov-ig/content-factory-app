@@ -2,7 +2,7 @@ import { FC, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 export type PageHeaderProps = {
-  title: ReactNode;
+  title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   className?: string;
@@ -29,16 +29,25 @@ export const PageHeader: FC<PageHeaderProps> = ({
         className
       )}
     >
-      <div className="min-w-0">
-        <Heading className="cf-heading-lg text-cf-ink text-balance">
-          {title}
-        </Heading>
-        {description && (
-          <p className="mt-[4px] cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
-            {description}
-          </p>
-        )}
-      </div>
+      {(title || description) && (
+        <div className="min-w-0">
+          {title && (
+            <Heading className="cf-heading-lg text-cf-ink text-balance">
+              {title}
+            </Heading>
+          )}
+          {description && (
+            <p
+              className={clsx(
+                'cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]',
+                title && 'mt-[4px]'
+              )}
+            >
+              {description}
+            </p>
+          )}
+        </div>
+      )}
       {actions && (
         <div className="flex items-center gap-[8px] shrink-0">{actions}</div>
       )}

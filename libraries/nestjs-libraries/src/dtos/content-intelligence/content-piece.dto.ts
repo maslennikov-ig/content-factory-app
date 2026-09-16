@@ -26,6 +26,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
@@ -283,10 +284,17 @@ export class PieceTitleDto {
 }
 
 export class PieceFactSelectionDto {
+  @ValidateIf((body: PieceFactSelectionDto) => !body.factKey)
   @IsString()
   @MinLength(1)
   @MaxLength(8000)
-  statement: string;
+  statement?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(8000)
+  factKey?: string;
 
   @IsBoolean()
   selected: boolean;

@@ -10,19 +10,23 @@ import {
   MenuList,
 } from '@contentfactory/react/choice/choice.menu';
 import { Hint } from '@contentfactory/react/layout/hint';
-import { DescribedMenuItem } from '../../ui/layers';
+import { DescribedMenuItem, Dialog } from '../../ui/layers';
 import { WorkingLine } from '../../ui/working-line';
 import { Disclosure } from '../../ui/disclosure';
 import { sentenceChanges } from './core-answer-diff';
 import { ResearchOutcome } from '../intake/intake.research';
 import {
-  REVIEW_VERSION,
-  type ReviewChange,
-  type ReviewV2,
-} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/review.v2.contract';
+  ResearchLevelSelect,
+  type ResearchLevel,
+} from '../intake/research-level-select';
 import {
-  PIECE_RESEARCH_VERSION,
-  type PieceResearchPreview,
+  REVIEW_VERSIONS,
+  type ReviewChange,
+  type ReviewV3,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/review.v3.contract';
+import {
+  PIECE_RESEARCH_VERSIONS,
+  type ReadablePieceResearchPreview,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
 
 const isEditableReviewChange = (change: ReviewChange): boolean =>
@@ -117,9 +121,12 @@ export function AdaptationReview({
   const [open, setOpen] = useState(false),
     [rewrite, setRewrite] = useState(false),
     [web, setWeb] = useState(false),
+    [researchDialog, setResearchDialog] = useState(false),
+    [researchDirection, setResearchDirection] = useState(''),
+    [researchLevel, setResearchLevel] = useState<ResearchLevel>('standard'),
     [instruction, setInstruction] = useState(''),
-    [result, setResult] = useState<ReviewV2 | null>(null),
-    [researchPreview, setResearchPreview] = useState<PieceResearchPreview | null>(null),
+    [result, setResult] = useState<ReviewV3 | null>(null),
+    [researchPreview, setResearchPreview] = useState<ReadablePieceResearchPreview | null>(null),
     [researchExpired, setResearchExpired] = useState(false),
     [selected, setSelected] = useState<string[]>([]),
     [variant, setVariant] = useState<string | undefined>(),
@@ -149,6 +156,9 @@ export function AdaptationReview({
     setError(null);
     setRewrite(false);
     setWeb(false);
+    setResearchDialog(false);
+    setResearchDirection('');
+    setResearchLevel('standard');
     setOpen(false);
     setInstruction('');
     setBusy(null);
@@ -192,7 +202,7 @@ export function AdaptationReview({
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       if (
-        body.version !== REVIEW_VERSION ||
+        !REVIEW_VERSIONS.includes(body.version) ||
         !Array.isArray(body.changes) ||
         typeof body.token !== 'string'
       )
@@ -236,15 +246,21 @@ export function AdaptationReview({
     try {
       const response = await request(`${base}/research?language=${locale}`, {
         method: 'POST',
-        body: JSON.stringify({ confirmWebSpend: true }),
+        body: JSON.stringify({
+          confirmWebSpend: true,
+          level: researchLevel,
+          ...(researchDirection.trim()
+            ? { direction: researchDirection.trim() }
+            : {}),
+        }),
         signal: abort.signal,
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       if (
-        body.version !== PIECE_RESEARCH_VERSION ||
+        !(PIECE_RESEARCH_VERSIONS as readonly string[]).includes(body.version) ||
         typeof body.snapshotKey !== 'string' ||
-        body.level !== 'standard' ||
+        !['quick', 'standard', 'deep'].includes(body.level) ||
         typeof body.input !== 'string' ||
         !Array.isArray(body.facts) ||
         !Array.isArray(body.corrections) ||
@@ -253,7 +269,10 @@ export function AdaptationReview({
         throw new Error(
           ru ? 'Неполный результат ресерча.' : 'Incomplete research result.'
         );
-      if (!abort.signal.aborted) setResearchPreview(body);
+      if (!abort.signal.aborted) {
+        setResearchPreview(body);
+        setResearchDialog(false);
+      }
     } catch (e) {
       if (!abort.signal.aborted)
         setError(e instanceof Error ? e.message : String(e));
@@ -441,7 +460,10 @@ export function AdaptationReview({
               variant="secondary"
               density="dense"
               disabled={disabled || !!busy}
-              onClick={() => void startResearch()}
+              onClick={() => {
+                setError(null);
+                setResearchDialog(true);
+              }}
             >
               {ru ? 'Дополнить ресерчем' : 'Add research'}
             </Button>
@@ -575,25 +597,88 @@ export function AdaptationReview({
           </Button>
         </section>
       ) : null}
-      {web ? (
-        <section className="flex flex-col gap-[8px]">
+      <Dialog
+        open={researchDialog}
+        onClose={() => {
+          if (busy !== 'research') setResearchDialog(false);
+        }}
+        title={ru ? 'Дополнить ресерчем' : 'Add research'}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy === 'research'}
+              onClick={() => setResearchDialog(false)}
+            >
+              {ru ? 'Отмена' : 'Cancel'}
+            </Button>
+            <Button
+              variant="primary"
+              loading={busy === 'research'}
+              loadingLabel={ru ? 'Ищем опоры…' : 'Finding sources…'}
+              onClick={() => void startResearch()}
+            >
+              {ru ? 'Запустить ресерч' : 'Run research'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-[12px]">
+          <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
+            {ru ? 'Куда копать' : 'Research direction'}
+            <Textarea
+              standalone
+              layout="content"
+              maxLength={300}
+              disabled={busy === 'research'}
+              value={researchDirection}
+              onChange={(event) => setResearchDirection(event.target.value)}
+            />
+          </label>
+          <p className="cf-caption text-cf-ink-muted">
+            {ru
+              ? 'Например: свежие цифры за 2026 год. Можно оставить пустым'
+              : 'For example: current figures for 2026. You can leave this empty.'}
+          </p>
+          <ResearchLevelSelect
+            locale={locale}
+            value={researchLevel}
+            disabled={busy === 'research'}
+            onChange={setResearchLevel}
+          />
+          {error ? (
+            <p role="alert" className="cf-body-sm text-cf-danger">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </Dialog>
+      <Dialog
+        open={web}
+        onClose={() => setWeb(false)}
+        title={ru ? 'Проверить факты поиском' : 'Check facts with search'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setWeb(false)}>
+              {ru ? 'Отмена' : 'Cancel'}
+            </Button>
+            <Button
+              variant="primary"
+              loading={busy === 'run'}
+              loadingLabel={ru ? 'Проверяем…' : 'Reviewing…'}
+              onClick={() => void run('web')}
+            >
+              {ru ? 'Запустить поиск и проверку' : 'Run search and review'}
+            </Button>
+          </>
+        }
+      >
           <p className="cf-body-sm text-cf-ink-muted">
             {ru
-              ? 'Поиск и модели расходуют лимит ИИ. Для поиска используются первые 5000 знаков. Источники могут охватить не все утверждения.'
-              : 'Search and models consume AI allowance. Search uses the first 5000 characters; sources may not cover every claim.'}
+              ? 'Поиск и модели могут расходовать квоту ИИ или средства подключённого провайдера. Для поиска используются первые 5000 знаков. Источники могут охватить не все утверждения.'
+              : 'Search and models may use your AI allowance or incur charges with your connected provider. Search uses the first 5000 characters; sources may not cover every claim.'}
           </p>
-          <Button
-            variant="primary"
-            loading={busy === 'run'}
-            onClick={() => void run('web')}
-          >
-            {ru ? 'Запустить поиск и проверку' : 'Run search and review'}
-          </Button>
-          <Button variant="quiet" onClick={() => setWeb(false)}>
-            {ru ? 'Отмена' : 'Cancel'}
-          </Button>
-        </section>
-      ) : null}
+      </Dialog>
       {researchPreview ? (
         <ResearchOutcome
           locale={locale}
@@ -627,7 +712,7 @@ export function AdaptationReview({
           }
         />
       ) : null}
-      {error ? (
+      {error && !researchDialog ? (
         <p role="alert" className="cf-body-sm text-cf-danger">
           {error}
         </p>

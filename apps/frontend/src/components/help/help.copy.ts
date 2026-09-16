@@ -123,23 +123,25 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'Что проверяет «проверка на штампы»?',
         answer:
-          "Ищет обороты, по которым текст узнают как машинный, и бесплатно пересчитывает находки при изменении текста. «N штампов» — число находок каталога, а не оценка смысла или фактов. «Убрать штампы» — платный вызов модели: она получает найденные цитаты и правила. После правки видно «было N → стало M». Не гонитесь за нулём: личные примеры и ваша позиция важнее балла.",
+          'Ищет обороты, по которым текст узнают как машинный, и бесплатно пересчитывает находки при изменении текста. «N штампов» — число находок каталога, а не оценка смысла или фактов. «Убрать штампы» — платный вызов модели: она получает найденные цитаты и правила. После правки видно «было N → стало M». Не гонитесь за нулём: личные примеры и ваша позиция важнее балла.',
       },
       {
         id: 'adaptation-review',
         question: 'Как исправить штампы или сверить адаптацию с заготовкой?',
         answer:
-          "Откройте «Ещё ▾» рядом с «Опубликовать» и выберите проверку. У платного действия указана стоимость. Результат — один текст с подсветкой изменений; наведите на изменение, чтобы прочитать объяснение. Исправления опечаток выбраны заранее; стилистические правки можно выбрать по одной или все сразу. Если источник не найден, проверка оставляет утверждение как есть и сообщает об этом заметкой. Текст сохраняется только после «Принять выбранные». «Оставить как было» сохраняет прежний текст. Если правки не нужны, кнопки принятия нет. «Проверить факты» ищет источники в интернете; ссылки свёрнуты под текстом. Найденные источники не подтверждают автоматически все факты.",
+          'Откройте «Ещё ▾» рядом с «Опубликовать» и выберите проверку. У платного действия указана стоимость. Результат — один текст с подсветкой изменений; наведите на изменение, чтобы прочитать объяснение. Исправления опечаток выбраны заранее; стилистические правки можно выбрать по одной или все сразу. Если источник не найден, проверка оставляет утверждение как есть и сообщает об этом заметкой. Текст сохраняется только после «Принять выбранные». «Оставить как было» сохраняет прежний текст. Если правки не нужны, кнопки принятия нет. «Проверить факты» ищет источники в интернете; ссылки свёрнуты под текстом. Найденные источники не подтверждают автоматически все факты.',
       },
       {
-        id: "channel-model-choice",
-        question: "Что значит «выбирает модель» в карточке канала?",
-        answer: "Модель выбирает это свойство по материалу и правилам канала: длину, эмодзи, ссылки, хэштеги или призыв. Остальные заданные вами поля сохраняют силу. «Мало» — от одного до трёх эмодзи, «Много» — от трёх до шести. Подсказка рядом с полем объясняет его действие.",
+        id: 'channel-model-choice',
+        question: 'Что значит «выбирает модель» в карточке канала?',
+        answer:
+          'Модель выбирает это свойство по материалу и правилам канала: длину, эмодзи, ссылки, хэштеги или призыв. Остальные заданные вами поля сохраняют силу. «Мало» — от одного до трёх эмодзи, «Много» — от трёх до шести. Подсказка рядом с полем объясняет его действие.',
       },
       {
-        id: "regenerate",
-        question: "Как перегенерировать только заголовок или часть текста?",
-        answer: "Нажмите «Перегенерировать» у сути или адаптации и заполните поле «Что перегенерировать?». Подсказки «Только заголовок» и «Весь текст» лишь подставляют инструкцию. Модель получает текущий текст, вашу просьбу и находки каталога штампов. Изменения показаны с объяснениями; их можно принять или оставить прежний текст. Для заголовка предлагаются три варианта на выбор. Это платный вызов модели.",
+        id: 'regenerate',
+        question: 'Как перегенерировать только заголовок или часть текста?',
+        answer:
+          'Нажмите «Перегенерировать» у сути или адаптации и заполните поле «Что перегенерировать?». Подсказки «Только заголовок» и «Весь текст» лишь подставляют инструкцию. Модель получает текущий текст, вашу просьбу и находки каталога штампов. Изменения показаны с объяснениями; их можно принять или оставить прежний текст. Для заголовка предлагаются три варианта на выбор. Это платный вызов модели.',
       },
       {
         id: 'account-pending',
@@ -157,7 +159,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'ai-keys',
         question: 'Где ключи ИИ и что такое «модель на роль»?',
         answer:
-          'В настройках, вкладка «ИИ». Ключ один на область. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
+          'В настройках, вкладка «ИИ». Переключатель «Ключи системы / Свой ключ» относится только к генерации. У каждого поискового движка своё поле: пустое использует ключ системы, а сохранённый свой ключ перекрывает системный только для этого движка и не расходует включённый лимит. «Вернуть на ключ системы» удаляет только выбранный ключ. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
       },
       {
         id: 'ai-usage',
@@ -225,23 +227,26 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'What does the cliché check look for?',
         answer:
-          "It finds stock phrases and recalculates findings for free when the text changes. The count describes catalog findings, not meaning or factual accuracy. Remove clichés is a paid model call using those exact excerpts and rules. Afterwards you can compare the counts before and after. Keep your examples and point of view; a zero score is not the goal.",
+          'It finds stock phrases and recalculates findings for free when the text changes. The count describes catalog findings, not meaning or factual accuracy. Remove clichés is a paid model call using those exact excerpts and rules. Afterwards you can compare the counts before and after. Keep your examples and point of view; a zero score is not the goal.',
       },
       {
         id: 'adaptation-review',
-        question: 'How do I remove cliches or compare an adaptation with its piece?',
+        question:
+          'How do I remove cliches or compare an adaptation with its piece?',
         answer:
-          "Open More beside Publish and choose a review. Paid actions show their cost. The result is one text with highlighted changes; hover over a change to read its explanation. Typo corrections are selected by default; style changes can be selected individually or together. When no source is found, the review leaves the claim unchanged and adds a note. Nothing is saved until you accept the selected changes. Keep original preserves the previous text. If no changes are needed, there is no accept button. Check facts finds web sources; links are collapsed below the text. Finding sources does not automatically verify every fact.",
+          'Open More beside Publish and choose a review. Paid actions show their cost. The result is one text with highlighted changes; hover over a change to read its explanation. Typo corrections are selected by default; style changes can be selected individually or together. When no source is found, the review leaves the claim unchanged and adds a note. Nothing is saved until you accept the selected changes. Keep original preserves the previous text. If no changes are needed, there is no accept button. Check facts finds web sources; links are collapsed below the text. Finding sources does not automatically verify every fact.',
       },
       {
-        id: "channel-model-choice",
-        question: "What does Let the model choose mean in a channel profile?",
-        answer: "The model chooses that property from the material and channel rules: length, emoji, links, hashtags, or a call to action. Your other explicit settings still apply. Few means one to three emoji; Many means three to six. Each field has a hint explaining its effect.",
+        id: 'channel-model-choice',
+        question: 'What does Let the model choose mean in a channel profile?',
+        answer:
+          'The model chooses that property from the material and channel rules: length, emoji, links, hashtags, or a call to action. Your other explicit settings still apply. Few means one to three emoji; Many means three to six. Each field has a hint explaining its effect.',
       },
       {
-        id: "regenerate",
-        question: "How can I regenerate just the title or part of the text?",
-        answer: "Choose Regenerate on the core text or adaptation and describe what to change. The Title only and Whole text hints just fill in the instruction. The model receives your current text, request, and catalog findings. Changes come with explanations and can be accepted or discarded. For a title, choose from three alternatives. This is a paid model call.",
+        id: 'regenerate',
+        question: 'How can I regenerate just the title or part of the text?',
+        answer:
+          'Choose Regenerate on the core text or adaptation and describe what to change. The Title only and Whole text hints just fill in the instruction. The model receives your current text, request, and catalog findings. Changes come with explanations and can be accepted or discarded. For a title, choose from three alternatives. This is a paid model call.',
       },
       {
         id: 'account-pending',
@@ -259,7 +264,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'ai-keys',
         question: 'Where are the AI keys, and what is «a model per role»?',
         answer:
-          'In settings, the «AI» tab. One key per workspace. «A model per role» is which model answers for which kind of work: a draft, reading someone else’s text, questions. Left empty, the default model works.',
+          'In settings, the «AI» tab. The «System keys / Own key» choice applies only to generation. Each search engine has its own field: blank uses the system key, while a saved own key overrides the system key only for that engine and does not spend the included allowance. «Return to system key» removes only the selected engine key. «A model per role» says which model handles each kind of work: drafting, reading someone else’s text, questions. Left empty, the default model works.',
       },
       {
         id: 'ai-usage',

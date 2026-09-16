@@ -97,15 +97,17 @@ describe('organization web-search configuration', () => {
       provider: 'tavily',
       apiKey: 'decrypted:search-a',
       apiKeys: { tavily: 'decrypted:search-a' },
+      keySources: { tavily: 'own' },
       taskProviders: {},
       topic: 'news',
       depth: 'advanced',
     });
     expect(second.search).toEqual({
-      enabled: false,
+      enabled: true,
       provider: 'tavily',
       apiKey: 'decrypted:search-b',
       apiKeys: { tavily: 'decrypted:search-b' },
+      keySources: { tavily: 'own' },
       taskProviders: {},
       topic: 'general',
       depth: 'basic',
@@ -317,14 +319,14 @@ describe('saving the AI provider settings', () => {
     });
   });
 
-  test('included mode does not write workspace credentials or models', async () => {
+  test('included generation ignores generation secrets but stores an own search key', async () => {
     const { service, upsert } = createService();
 
     await service.updateSettings('organization-a', {
       usageMode: 'included',
       provider: 'openrouter',
       apiKey: 'must-not-be-stored',
-      searchApiKey: 'must-not-be-stored',
+      searchApiKey: 'own-search-key',
       textModel: 'workspace-text',
       imageModel: 'workspace-image',
       searchEnabled: true,
@@ -334,8 +336,11 @@ describe('saving the AI provider settings', () => {
     expect(query.update).toEqual({
       usageMode: 'included',
       searchEnabled: true,
+      searchApiKeys: { tavily: 'encrypted:own-search-key' },
     });
-    expect(JSON.stringify(query)).not.toContain('must-not-be-stored');
+    expect(query.update).not.toHaveProperty('apiKey');
+    expect(query.update).not.toHaveProperty('textModel');
+    expect(query.update).not.toHaveProperty('imageModel');
   });
 
   /**
@@ -409,7 +414,7 @@ describe('saving the AI provider settings', () => {
    * поэтому сохранение настроек переписывало поисковый сервер области. Область
    * возвращалась к своему ключу уже с чужим провайдером.
    */
-  test('saving in included mode changes no search column of the workspace', async () => {
+  test('included generation stores search tuning but not hidden routing', async () => {
     const upsert = jest.fn().mockResolvedValue({});
     const findUnique = jest
       .fn()
@@ -432,6 +437,8 @@ describe('saving the AI provider settings', () => {
     expect(upsert.mock.calls[0][0].update).toEqual({
       usageMode: 'included',
       searchEnabled: true,
+      searchTopic: 'news',
+      searchDepth: 'basic',
     });
   });
 
@@ -468,7 +475,9 @@ test('the settings DTO accepts the configured search providers and rejects unkno
       searchProvider,
     });
     expect(
-      (await validate(valid)).some((error) => error.property === 'searchProvider')
+      (await validate(valid)).some(
+        (error) => error.property === 'searchProvider'
+      )
     ).toBe(false);
   }
 });
@@ -489,9 +498,7 @@ test('the settings DTO accepts only the two explicit usage modes', async () => {
   });
 
   expect(await validate(invalid)).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ property: 'usageMode' }),
-    ])
+    expect.arrayContaining([expect.objectContaining({ property: 'usageMode' })])
   );
   expect(await validate(valid)).toEqual([]);
 });

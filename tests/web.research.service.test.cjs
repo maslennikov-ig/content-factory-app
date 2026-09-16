@@ -46,9 +46,25 @@ const classifierInputs = [];
 const clientFactoryCalls = [];
 const invocations = [];
 const logEntries = [];
+const usageAdmissions = [];
 const aiUsage = {
   executeAiOperation: async (_organizationId, _operation, callback) =>
     callback(),
+  beginAiOperationWithConfig: async (_organizationId, operation, config) => {
+    const admission = {
+      operation,
+      usageMode: config.usageMode,
+      apiKey: config.apiKey,
+      finished: null,
+    };
+    usageAdmissions.push(admission);
+    return {
+      run: (callback) => callback(),
+      finish: async (succeeded) => {
+        admission.finished = succeeded;
+      },
+    };
+  },
 };
 
 const responseFor = (query, provider) => ({
@@ -94,6 +110,9 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
       },
       '@contentfactory/nestjs-libraries/openai/ai.provider.config': {
         requireActiveAiConfig: async () => aiConfig,
+        getActiveAiConfig: () => undefined,
+        loadAiConfig: async () => aiConfig,
+        withActiveAiConfig: (_organizationId, _config, callback) => callback(),
       },
       '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
         AiUsageService: class {},
@@ -150,6 +169,7 @@ const withExaReserve = () => {
     tavily: aiConfig.search.apiKey,
     exa: 'tenant-exa-key',
   };
+  aiConfig.search.keySources = { tavily: 'system', exa: 'system' };
 };
 
 describe('shared web research service', () => {
@@ -158,6 +178,7 @@ describe('shared web research service', () => {
     clientFactoryCalls.length = 0;
     invocations.length = 0;
     logEntries.length = 0;
+    usageAdmissions.length = 0;
     classification = {
       scope: 'global',
       subjectLanguage: 'en',
@@ -166,12 +187,15 @@ describe('shared web research service', () => {
       freshnessRequired: false,
     };
     aiConfig = {
+      usageMode: 'included',
       provider: 'openrouter',
       apiKey: 'tenant-model-key',
       search: {
         enabled: true,
         provider: 'tavily',
         apiKey: 'tenant-search-key',
+        apiKeys: { tavily: 'tenant-search-key' },
+        keySources: { tavily: 'system' },
         topic: 'general',
         depth: 'advanced',
       },
@@ -196,15 +220,22 @@ describe('shared web research service', () => {
       taskProviders: { research: 'exa' },
     };
 
-    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
-      level: 'deep',
-    });
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Subject',
+      {
+        level: 'deep',
+      }
+    );
     expect(clientFactoryCalls[0].provider).toBe('exa');
 
     clientFactoryCalls.length = 0;
     // Поиск, который продукт начал сам по ходу письма: уровня нет, квота не
     // тратится, и движок остаётся тем, что выбран областью.
-    await new WebResearchService(aiUsage).research('organization-a', 'Other subject');
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Other subject'
+    );
     expect(clientFactoryCalls[0].provider).toBe('tavily');
   });
 
@@ -216,10 +247,14 @@ describe('shared web research service', () => {
     };
 
     // «Проверить факты поиском» передаёт уровень тоже, поэтому называет задачу.
-    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
-      level: 'standard',
-      task: 'facts',
-    });
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Subject',
+      {
+        level: 'standard',
+        task: 'facts',
+      }
+    );
 
     expect(clientFactoryCalls[0].provider).toBe('tavily');
   });
@@ -231,18 +266,26 @@ describe('shared web research service', () => {
       taskProviders: { research: 'exa' },
     };
 
-    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
-      level: 'quick',
-    });
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Subject',
+      {
+        level: 'quick',
+      }
+    );
 
     expect(clientFactoryCalls[0].provider).toBe('tavily');
   });
 
   test('a discovery window is handed to the engine', async () => {
-    await new WebResearchService(aiUsage).research('organization-a', 'Subject', {
-      task: 'discovery',
-      windowDays: 30,
-    });
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      'Subject',
+      {
+        task: 'discovery',
+        windowDays: 30,
+      }
+    );
 
     expect(clientFactoryCalls[0].options).toMatchObject({ windowDays: 30 });
   });
@@ -282,8 +325,12 @@ describe('shared web research service', () => {
       { task: 'discovery', windowDays: 30 }
     );
 
-    expect(clientFactoryCalls.map(({ options }) => options.topic)).toEqual(['news']);
-    expect(result.sources.map((source) => source.score)).toEqual([0.9, 0.9, 0.9]);
+    expect(clientFactoryCalls.map(({ options }) => options.topic)).toEqual([
+      'news',
+    ]);
+    expect(result.sources.map((source) => source.score)).toEqual([
+      0.9, 0.9, 0.9,
+    ]);
   });
 
   test('a cached answer expires after the research cache TTL (75xn.31)', async () => {
@@ -297,18 +344,28 @@ describe('shared web research service', () => {
           Logger,
         },
         '@contentfactory/nestjs-libraries/openai/ai.provider.config': {},
-        '@contentfactory/nestjs-libraries/openai/ai.usage.service': { AiUsageService: class {} },
+        '@contentfactory/nestjs-libraries/openai/ai.usage.service': {
+          AiUsageService: class {},
+        },
         '@contentfactory/nestjs-libraries/openai/ai.clients': {},
-        '@contentfactory/nestjs-libraries/dtos/content.language': { contentLanguageNames: {} },
-        '@langchain/core/prompts': { ChatPromptTemplate: { fromTemplate: () => prompt } },
+        '@contentfactory/nestjs-libraries/dtos/content.language': {
+          contentLanguageNames: {},
+        },
+        '@langchain/core/prompts': {
+          ChatPromptTemplate: { fromTemplate: () => prompt },
+        },
       }
     );
     const cache = new ResearchQueryCache();
     const storedAt = new Date('2026-09-13T10:00:00Z');
     cache.set('k', { answer: 1 }, storedAt);
 
-    expect(cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS - 1))).toEqual({ answer: 1 });
-    expect(cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS))).toBeUndefined();
+    expect(
+      cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS - 1))
+    ).toEqual({ answer: 1 });
+    expect(
+      cache.get('k', new Date(storedAt.getTime() + RESEARCH_CACHE_TTL_MS))
+    ).toBeUndefined();
     expect(RESEARCH_CACHE_TTL_MS).toBe(30 * 60 * 1000);
   });
 
@@ -322,7 +379,11 @@ describe('shared web research service', () => {
       {
         organizationId: 'organization-a',
         provider: 'tavily',
-        options: { scope: 'global', country: undefined, freshnessRequired: false },
+        options: {
+          scope: 'global',
+          country: undefined,
+          freshnessRequired: false,
+        },
       },
     ]);
     expect(invocations).toEqual([
@@ -365,9 +426,143 @@ describe('shared web research service', () => {
     expect(quota.reserve).toHaveBeenCalledWith('organization-a', 'quick');
   });
 
+  test('an own engine key bypasses included and deep-search quota in included generation mode', async () => {
+    aiConfig.search.apiKey = 'own-tavily';
+    aiConfig.search.apiKeys = { tavily: 'own-tavily' };
+    aiConfig.search.keySources = { tavily: 'own' };
+    const quota = { reserve: jest.fn() };
+
+    await new WebResearchService(aiUsage, quota).research(
+      'organization-a',
+      'own-key topic',
+      { level: 'deep', task: 'facts' }
+    );
+
+    expect(quota.reserve).not.toHaveBeenCalled();
+    expect(usageAdmissions).toEqual([
+      expect.objectContaining({
+        operation: 'web_research',
+        usageMode: 'workspace_key',
+        apiKey: 'own-tavily',
+        finished: true,
+      }),
+    ]);
+  });
+
+  test('an own-to-system fallback admits and reserves the actual fallback source', async () => {
+    aiConfig.search.apiKeys = {
+      exa: 'own-exa',
+      tavily: 'system-tavily',
+    };
+    aiConfig.search.keySources = { exa: 'own', tavily: 'system' };
+    aiConfig.search.apiKey = 'system-tavily';
+    implementations.exa = async () => {
+      throw statusError(503);
+    };
+    const quota = { reserve: jest.fn(async () => ({ used: 1, limit: 20 })) };
+
+    await expect(
+      new WebResearchService(aiUsage, quota).research(
+        'organization-a',
+        'fallback topic',
+        { level: 'standard', task: 'research' }
+      )
+    ).resolves.toMatchObject({ provider: 'tavily' });
+
+    expect(invocations.map(({ provider }) => provider)).toEqual([
+      'exa',
+      'tavily',
+    ]);
+    expect(quota.reserve).toHaveBeenCalledTimes(1);
+    expect(
+      usageAdmissions.map(({ usageMode, apiKey, finished }) => ({
+        usageMode,
+        apiKey,
+        finished,
+      }))
+    ).toEqual([
+      { usageMode: 'workspace_key', apiKey: 'own-exa', finished: false },
+      { usageMode: 'included', apiKey: 'system-tavily', finished: true },
+    ]);
+  });
+
+  test('parallel own-to-system fallbacks share one admission per source', async () => {
+    classification = {
+      scope: 'global',
+      subjectLanguage: 'ru',
+      englishQuery: 'english query',
+      subjectLanguageQuery: 'русский запрос',
+      freshnessRequired: false,
+    };
+    aiConfig.search.apiKeys = {
+      exa: 'own-exa',
+      tavily: 'system-tavily',
+    };
+    aiConfig.search.keySources = { exa: 'own', tavily: 'system' };
+    aiConfig.search.apiKey = 'system-tavily';
+    implementations.exa = async () => {
+      throw statusError(503);
+    };
+    const admissions = [];
+    const concurrentUsage = {
+      beginAiOperationWithConfig: jest.fn(
+        async (_organizationId, operation, config) => {
+          // Keep creation pending long enough for both fallback attempts to
+          // request the same source.
+          await Promise.resolve();
+          const admission = {
+            operation,
+            usageMode: config.usageMode,
+            apiKey: config.apiKey,
+            finishes: 0,
+          };
+          admissions.push(admission);
+          return {
+            run: (callback) => callback(),
+            finish: async () => {
+              admission.finishes += 1;
+            },
+          };
+        }
+      ),
+    };
+    const quota = { reserve: jest.fn(async () => ({ used: 1, limit: 20 })) };
+
+    await expect(
+      new WebResearchService(concurrentUsage, quota).research(
+        'organization-a',
+        'parallel fallback topic',
+        { level: 'standard', task: 'research' }
+      )
+    ).resolves.toMatchObject({ provider: 'tavily' });
+
+    expect(invocations.map(({ provider }) => provider)).toEqual([
+      'exa',
+      'exa',
+      'tavily',
+      'tavily',
+    ]);
+    expect(quota.reserve).toHaveBeenCalledTimes(1);
+    expect(concurrentUsage.beginAiOperationWithConfig).toHaveBeenCalledTimes(2);
+    expect(
+      admissions.map(({ usageMode, apiKey, finishes }) => ({
+        usageMode,
+        apiKey,
+        finishes,
+      }))
+    ).toEqual([
+      { usageMode: 'workspace_key', apiKey: 'own-exa', finishes: 1 },
+      { usageMode: 'included', apiKey: 'system-tavily', finishes: 1 },
+    ]);
+  });
+
   test('waits for the reservation before paying for the search', async () => {
     const exhausted = Object.assign(new Error('quota spent'), { status: 429 });
-    const quota = { reserve: jest.fn(async () => { throw exhausted; }) };
+    const quota = {
+      reserve: jest.fn(async () => {
+        throw exhausted;
+      }),
+    };
     await expect(
       new WebResearchService(aiUsage, quota).research(
         'organization-a',
@@ -408,29 +603,37 @@ describe('shared web research service', () => {
    * A global subject written in Russian uses both the author's language and
    * English, while neither query inherits a Russia-only ranking hint.
    */
-  test('recorded global classification searches in both languages without a country bias', async () => {
+  test('recorded Iceland classification searches in both languages without a country bias and logs the decision', async () => {
     classification = {
       scope: 'global',
       subjectLanguage: 'ru',
-      englishQuery: 'OpenAI mathematicians proof dispute',
-      subjectLanguageQuery: 'спор OpenAI и математиков о доказательстве',
+      englishQuery: 'Iceland four day workweek experiment results',
+      subjectLanguageQuery: 'Исландия эксперимент четырёхдневная рабочая неделя',
       freshnessRequired: false,
     };
 
     const result = await new WebResearchService(aiUsage).research(
       'organization-a',
-      'Спор OpenAI и математиков'
+      'Исландия и четырёхдневка\nкак идея для российских компаний'
     );
 
     expect(clientFactoryCalls[0]).toMatchObject({
       provider: 'tavily',
-      options: { scope: 'global', country: undefined, freshnessRequired: false },
+      options: {
+        scope: 'global',
+        country: undefined,
+        freshnessRequired: false,
+      },
     });
     expect(invocations.map(({ input }) => input.query)).toEqual([
-      'спор OpenAI и математиков о доказательстве',
-      'OpenAI mathematicians proof dispute',
+      'Исландия эксперимент четырёхдневная рабочая неделя',
+      'Iceland four day workweek experiment results',
     ]);
     expect(result.facts).toHaveLength(2);
+    expect(logEntries).toContainEqual({
+      level: 'log',
+      message: 'Web research classification: subject="Исландия и четырёхдневка как идея для российских компаний" scope=global subjectLanguage=ru country=none queries=2.',
+    });
   });
 
   test('recorded local classification searches only in the subject language with country ranking', async () => {
@@ -454,6 +657,40 @@ describe('shared web research service', () => {
     expect(invocations.map(({ input }) => input.query)).toEqual([
       'комиссии Wildberries Ozon для продавцов',
     ]);
+    expect(logEntries).toContainEqual({
+      level: 'log',
+      message: 'Web research classification: subject="Комиссии Wildberries и Ozon" scope=local subjectLanguage=ru country=russia queries=1.',
+    });
+  });
+
+  test('classification log keeps a short topic but redacts pasted addresses and credentials', async () => {
+    const rawUrl = 'https://workspace.example.test/private/path';
+    const rawEmail = 'owner@example.test';
+    const rawToken = 'sk-proj-1234567890abcdefghijklmnop';
+    const rawBearer = 'Bearer eyJhbGciOiJIUzI1NiJ9.private.signature';
+    const longTail = 'длинное продолжение '.repeat(30);
+
+    await new WebResearchService(aiUsage).research(
+      'organization-a',
+      `Комиссии маркетплейсов\n${rawUrl} ${rawEmail} apiKey=${rawToken} Authorization=${rawBearer} ${longTail}`
+    );
+
+    const entry = logEntries.find(({ message }) =>
+      message.startsWith('Web research classification:')
+    );
+    expect(entry).toBeDefined();
+    expect(entry.message).toContain(
+      'subject="Комиссии маркетплейсов [url] [email] apiKey=[redacted]'
+    );
+    expect(entry.message).toContain(
+      'scope=global subjectLanguage=en country=none queries=1.'
+    );
+    expect(entry.message).not.toContain('\n');
+    expect(entry.message).not.toContain(rawUrl);
+    expect(entry.message).not.toContain(rawEmail);
+    expect(entry.message).not.toContain(rawToken);
+    expect(entry.message).not.toContain(rawBearer);
+    expect(entry.message.length).toBeLessThan(380);
   });
 
   test('one failed query does not throw away the other answer (ec48.3)', async () => {
@@ -488,7 +725,8 @@ describe('shared web research service', () => {
     expect(
       logEntries.some(
         ({ level, message }) =>
-          level === 'warn' && /One of 2 web research queries failed/.test(message)
+          level === 'warn' &&
+          /One of 2 web research queries failed/.test(message)
       )
     ).toBe(true);
   });
@@ -524,7 +762,8 @@ describe('shared web research service', () => {
         {
           title: 'Reuters again',
           url: 'https://example.com/reuters?outputType=amp',
-          content: 'Банк России сохранил ставку 14% годовых. Следующее заседание 11 сентября.',
+          content:
+            'Банк России сохранил ставку 14% годовых. Следующее заседание 11 сентября.',
         },
       ],
     });
@@ -627,6 +866,8 @@ describe('shared web research service', () => {
 
   test('a missing Tavily key never spends the model key through fallback', async () => {
     aiConfig.search.apiKey = '';
+    aiConfig.search.apiKeys = {};
+    aiConfig.search.keySources = {};
 
     await expect(
       new WebResearchService(aiUsage).research('organization-a', 'topic')
@@ -702,7 +943,9 @@ describe('shared web research service', () => {
     await expect(
       new WebResearchService(aiUsage).research('organization-a', 'topic')
     ).rejects.toMatchObject({ status: 503 });
-    expect(clientFactoryCalls.map(({ provider }) => provider)).toEqual(['tavily']);
+    expect(clientFactoryCalls.map(({ provider }) => provider)).toEqual([
+      'tavily',
+    ]);
   });
 
   test('the Tavily deadline fires and uses only the remaining fallback budget', async () => {
@@ -1212,7 +1455,11 @@ describe('shared web research service', () => {
         async json() {
           return {
             pages: [
-              { key: 'Ada_Lovelace', title: 'Ada Lovelace', description: 'mathematician' },
+              {
+                key: 'Ada_Lovelace',
+                title: 'Ada Lovelace',
+                description: 'mathematician',
+              },
             ],
           };
         },
@@ -1226,7 +1473,9 @@ describe('shared web research service', () => {
             type: 'standard',
             title: 'Ada Lovelace',
             extract: 'Ada Lovelace was an English mathematician.',
-            content_urls: { desktop: { page: 'https://en.wikipedia.org/wiki/Ada_Lovelace' } },
+            content_urls: {
+              desktop: { page: 'https://en.wikipedia.org/wiki/Ada_Lovelace' },
+            },
           };
         },
       };
@@ -1234,7 +1483,15 @@ describe('shared web research service', () => {
     return {
       ok: true,
       async json() {
-        return { search: [{ id: 'Q7259', label: 'Ada Lovelace', description: 'mathematician' }] };
+        return {
+          search: [
+            {
+              id: 'Q7259',
+              label: 'Ada Lovelace',
+              description: 'mathematician',
+            },
+          ],
+        };
       },
     };
   };

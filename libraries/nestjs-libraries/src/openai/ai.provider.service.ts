@@ -148,9 +148,9 @@ export class AiProviderService {
      */
     const includedUsedOperations =
       monthlyOperations > 0
-        ? ((await this._prisma.aiUsageRecord?.count({
+        ? (await this._prisma.aiUsageRecord?.count({
             where: includedUsageFilter(organizationId, periodStart),
-          })) ?? 0)
+          })) ?? 0
         : 0;
     const includedRemainingOperations = Math.max(
       0,
@@ -302,20 +302,12 @@ export class AiProviderService {
       ...(typeof body.searchEnabled === 'boolean'
         ? { searchEnabled: body.searchEnabled }
         : {}),
-      /**
-       * Каждая поисковая колонка — только из своего режима.
-       *
-       * До `content-factory-next-75xn.4` три строки ниже стояли снаружи этого
-       * условия, а экран возвращал серверу то, что сервер же ему и показал: в
-       * режиме `included` это значение операторской переменной. Область,
-       * сохранившая настройки на системных ключах, возвращалась к своему ключу
-       * уже с чужим провайдером — та самая утечка, от которой 11.09 ставилась
-       * защита, обойдённая с другой стороны.
-       */
+      /** Hidden routing remains generation-mode scoped; per-engine keys and
+       * visible search tuning belong to the workspace in either mode. */
       ...(workspaceSettings && body.searchProvider
         ? { searchProvider: body.searchProvider }
         : {}),
-      ...(workspaceSettings && (body.searchApiKey || body.searchApiKeys)
+      ...(body.searchApiKey || body.searchApiKeys
         ? { searchApiKeys: encryptedKeys }
         : {}),
       ...(workspaceSettings && body.searchTaskProviders !== undefined
@@ -325,12 +317,8 @@ export class AiProviderService {
             ) as SearchTaskProviders,
           }
         : {}),
-      ...(workspaceSettings && body.searchTopic
-        ? { searchTopic: body.searchTopic }
-        : {}),
-      ...(workspaceSettings && body.searchDepth
-        ? { searchDepth: body.searchDepth }
-        : {}),
+      ...(body.searchTopic ? { searchTopic: body.searchTopic } : {}),
+      ...(body.searchDepth ? { searchDepth: body.searchDepth } : {}),
     };
 
     await this._prisma.aiProviderSetting.upsert({

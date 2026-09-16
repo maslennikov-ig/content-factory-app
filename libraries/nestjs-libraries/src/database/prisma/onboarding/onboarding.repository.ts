@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
+import { selectedFactsBrief } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-facts.v2';
 
 /**
  * `ContentPiece` в том виде, в каком этот счёт её спрашивает.
@@ -9,13 +10,44 @@ import { PrismaRepository } from '@contentfactory/nestjs-libraries/database/pris
  * на живом запросе. `piece.repository.ts` и `content-brief.repository.ts`
  * ходят в ту же таблицу тем же способом, через собственный узкий тип поверх
  * клиента; заводить здесь второй способ значит развести две правды об одной
- * таблице. Тип узкий намеренно: это единственный вопрос, который отсюда
- * задаётся.
+ * таблице. Тип узкий намеренно: он умеет только посчитать живые заготовки и
+ * прочитать их брифы для счёта выбранных опор.
  */
 type PieceCounter = {
   count(args: {
     where: { organizationId: string; kind: string; archivedAt: null };
   }): Promise<number>;
+  findMany(args: {
+    where: { organizationId: string; kind: string; archivedAt: null };
+    select: { brief: true };
+  }): Promise<Array<{ brief: unknown }>>;
+};
+
+const recordOf = (value: unknown): Record<string, any> | null =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : null;
+
+/**
+ * Facts the current piece path will actually carry into generated text.
+ *
+ * This delegates the selection rule to the same pure helper the piece service
+ * uses. Found rows are opt-in; a person's own row is included by default; a
+ * conflicting/corrected pair includes only the selected side. Old briefs
+ * without v2 selection fields remain readable. An empty or malformed
+ * statement is never completion evidence.
+ */
+export const selectedPieceFactCount = (storedBrief: unknown): number => {
+  const stored = recordOf(storedBrief);
+  const brief = recordOf(stored?.brief);
+  if (!brief || !Array.isArray(brief.facts)) return 0;
+  const facts = brief.facts.filter((fact: unknown) => {
+    const row = recordOf(fact);
+    return Boolean(
+      row && typeof row.statement === 'string' && row.statement.trim()
+    );
+  });
+  return selectedFactsBrief({ ...brief, facts } as any).facts.length;
 };
 
 /**
@@ -27,11 +59,12 @@ type PieceCounter = {
  * teaches nothing, and a step that stays open until the work is done is the
  * product telling the truth about where you are.
  *
- * Six counts in one answer rather than six requests from the browser. The
- * page asks one question — how far along am I — and a screen that assembles
- * that from four endpoints has four ways to be half-right, each with its own
- * spinner and its own failure. Counts only: nothing here reads content, so it
- * stays cheap enough to ask on every visit to the page.
+ * One answer rather than a request per step from the browser. The page asks
+ * one question — how far along am I — and a screen that assembles that from
+ * several endpoints has several ways to be half-right, each with its own
+ * spinner and its own failure. The only stored content read here is the brief
+ * JSON of live CORE pieces: the current flow keeps its chosen facts there,
+ * separately from the older cross-piece fact memory.
  *
  * `pieces` joined them on 07.09.2026. The owner had made a заготовка and the
  * brief step stayed open: «У меня все пройдено, кроме пункта… Хотя, по идее,
@@ -115,6 +148,26 @@ export class OnboardingRepository {
         }),
       ]);
 
-    return { channels, voiceSamples, facts, pieces, drafts, scheduled };
+    // Most new workspaces have no pieces yet and need no JSON read at all.
+    // Once one exists, read only `brief`, never the body or title.
+    const corePieces = pieces
+      ? await this.contentPiece().findMany({
+          where: { organizationId, kind: 'CORE', archivedAt: null },
+          select: { brief: true },
+        })
+      : [];
+
+    return {
+      channels,
+      voiceSamples,
+      facts,
+      pieceFacts: corePieces.reduce(
+        (total, piece) => total + selectedPieceFactCount(piece.brief),
+        0
+      ),
+      pieces,
+      drafts,
+      scheduled,
+    };
   }
 }

@@ -535,7 +535,13 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('характерные фразы человека переноси дословно');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v3');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v4');
+    expect(corePrompt).toContain(
+      'суть держит позицию человека и не спорит с ней'
+    );
+    expect(corePrompt).toContain(
+      'оговорки, ограничения и контраргументы помещай только в поле «возражение»'
+    );
     // И запреты взяты из каталога штампов, а не написаны рядом второй раз.
     expect(corePrompt).toContain('в конечном счёте');
 
@@ -945,6 +951,62 @@ const buildPieces = (options = {}) => {
 
   return { service, calls };
 };
+
+describe('выбор опоры по устойчивому ключу', () => {
+  const keyedPiece = () =>
+    pieceRow({
+      brief: {
+        ...CORE_BRIEF,
+        brief: {
+          ...CORE_BRIEF.brief,
+          thesis: 'Тезис остаётся прежним',
+          ungrounded: ['Неподтверждённое остаётся'],
+          facts: [
+            {
+              statement: 'Рынок вырос на 8%',
+              factKey: 'ev-market:0123456789abcdef',
+              origin: 'search',
+              kind: 'found',
+              verified: true,
+              selected: true,
+            },
+          ],
+        },
+      },
+    });
+
+  test('строка из acceptCoreResearch снимается и возвращается без изменения тезиса и ungrounded', async () => {
+    const piece = keyedPiece();
+    const { service } = buildPieces({ piece });
+
+    await service.selectFact(
+      'org-a',
+      'piece-12',
+      'ev-market:0123456789abcdef',
+      false
+    );
+    expect(piece.brief.brief.facts[0].selected).toBe(false);
+    expect(piece.brief.brief.thesis).toBe('Тезис остаётся прежним');
+    expect(piece.brief.brief.ungrounded).toEqual([
+      'Неподтверждённое остаётся',
+    ]);
+
+    await service.selectFact(
+      'org-a',
+      'piece-12',
+      'ev-market:0123456789abcdef',
+      true
+    );
+    expect(piece.brief.brief.facts[0].selected).toBe(true);
+  });
+
+  test('неизвестный ключ — отдельный конфликт опоры, а не отсутствие заготовки', async () => {
+    const { service } = buildPieces({ piece: keyedPiece() });
+    await expect(
+      service.selectFact('org-a', 'piece-12', 'missing:key', false)
+    ).rejects.toMatchObject({ code: 'PIECE_FACT_NOT_FOUND', status: 409 });
+  });
+});
 
 describe('адаптация под канал', () => {
   test('Telegram adapts without a prepared hook or format questionnaire', async () => {

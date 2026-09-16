@@ -339,6 +339,103 @@ describe('the table renders as a table, and the row says how to open it', () => 
   });
 });
 
+describe('pieces keep one sort order across the table and cards', () => {
+  const sortableRows = [
+    {
+      ...ROWS[0],
+      id: 'sort-late-code',
+      code: 'cnt-99',
+      title: 'Beta',
+      format: 'short',
+      date: '03.01.26',
+      createdAt: '2026-01-03T00:00:00.000Z',
+    },
+    {
+      ...ROWS[1],
+      id: 'sort-early-code',
+      code: 'cnt-12',
+      title: 'Alpha',
+      format: 'long',
+      date: '01.01.26',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      ...ROWS[2],
+      id: 'sort-middle-code',
+      code: 'cnt-2',
+      title: 'Gamma',
+      format: 'short',
+      date: '02.01.26',
+      createdAt: '2026-01-02T00:00:00.000Z',
+    },
+  ];
+
+  const codes = (sort) =>
+    adapter.sortPieces(sortableRows, sort).map((row) => row.code);
+
+  test('sorts every requested field in both directions without mutating rows', () => {
+    expect(codes('code:asc')).toEqual(['cnt-12', 'cnt-2', 'cnt-99']);
+    expect(codes('code:desc')).toEqual(['cnt-99', 'cnt-2', 'cnt-12']);
+    expect(codes('title:asc')).toEqual(['cnt-12', 'cnt-99', 'cnt-2']);
+    expect(codes('title:desc')).toEqual(['cnt-2', 'cnt-99', 'cnt-12']);
+    expect(codes('format:asc')).toEqual(['cnt-12', 'cnt-99', 'cnt-2']);
+    expect(codes('format:desc')).toEqual(['cnt-99', 'cnt-2', 'cnt-12']);
+    expect(codes('date:asc')).toEqual(['cnt-12', 'cnt-2', 'cnt-99']);
+    expect(codes('date:desc')).toEqual(['cnt-99', 'cnt-2', 'cnt-12']);
+    expect(sortableRows.map((row) => row.code)).toEqual([
+      'cnt-99',
+      'cnt-12',
+      'cnt-2',
+    ]);
+  });
+
+  test('headers expose aria-sort and toggle the shared state', () => {
+    const changes = [];
+    drawTable({
+      onFilterChange: (key, value) => changes.push([key, value]),
+    });
+
+    const dateButton = screen.getByRole('button', { name: 'Дата' });
+    expect(dateButton.closest('th').getAttribute('aria-sort')).toBe(
+      'descending'
+    );
+    expect(dateButton.textContent).toContain('↓');
+
+    fireEvent.click(dateButton);
+    expect(changes).toEqual([['sort', 'date:asc']]);
+
+    const titleButton = screen.getByRole('button', { name: 'Заголовок' });
+    expect(titleButton.closest('th').getAttribute('aria-sort')).toBe('none');
+    fireEvent.click(titleButton);
+    expect(changes).toEqual([
+      ['sort', 'date:asc'],
+      ['sort', 'title:asc'],
+    ]);
+  });
+
+  test('the mobile select carries the same sort values, including format direction', () => {
+    drawTable();
+    const select = document.querySelector('[name="pieces-sort"]');
+    expect(select.getAttribute('aria-label')).toBe('Сортировка');
+    expect([...select.options].map((option) => option.value)).toEqual([
+      'date:desc',
+      'date:asc',
+      'title:asc',
+      'title:desc',
+      'format:asc',
+      'format:desc',
+    ]);
+  });
+
+  test('reads the page sort query while keeping it out of the list API', () => {
+    expect(adapter.readPieceSort('?sort=title%3Adesc')).toBe('title:desc');
+    expect(adapter.readPieceSort('?sort=unknown')).toBe('date:desc');
+    expect(
+      adapter.piecesListUrl({ ...adapter.emptyPiecesFilters, sort: 'title:asc' })
+    ).not.toContain('sort=');
+  });
+});
+
 describe('the intake button names what will happen', () => {
   const CHANNELS = [
     {

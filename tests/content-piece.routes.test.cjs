@@ -648,6 +648,24 @@ describe('DTO отказывает мусору и принимает то, чт
     ]);
   });
 
+  test('выбор опоры принимает новый factKey и старый statement, но не пустое тело', async () => {
+    expect(
+      await codes(dto.PieceFactSelectionDto, {
+        factKey: 'ev-1:0123456789abcdef',
+        selected: false,
+      })
+    ).toEqual([]);
+    expect(
+      await codes(dto.PieceFactSelectionDto, {
+        statement: 'Старая строка без ключа',
+        selected: true,
+      })
+    ).toEqual([]);
+    expect(await codes(dto.PieceFactSelectionDto, { selected: true })).toContain(
+      'statement'
+    );
+  });
+
   test('фильтры списка: четыре состояния, «да» строкой из адреса', async () => {
     expect(await codes(dto.PiecesQueryDto, {})).toEqual([]);
     expect(await codes(dto.PiecesQueryDto, { state: 'burning' })).toEqual([
@@ -686,11 +704,15 @@ describe('DTO отказывает мусору и принимает то, чт
 
 test('research doors bind the tenant, actor, piece and selection to the service', async () => {
   const service = {
-    researchCore: jest.fn(async () => ({ version: 'piece-research/v1', snapshotKey: 'snapshot' })),
+    researchCore: jest.fn(async () => ({ version: 'piece-research/v2', snapshotKey: 'snapshot' })),
     acceptCoreResearch: jest.fn(async () => ({ body: 'enriched', title: 'title' })),
   };
   const controller = new ContentPieceController(service);
-  const start = { confirmWebSpend: true };
+  const start = {
+    confirmWebSpend: true,
+    level: 'deep',
+    direction: 'Fresh 2026 figures',
+  };
   const selection = { snapshotKey: 'snapshot', selectedKeys: ['fact'] };
   await controller.researchCore({ id: 'org' }, { id: 'actor' }, 'piece', start, 'en');
   expect(service.researchCore).toHaveBeenCalledWith('org', 'piece', 'actor', start, 'en');

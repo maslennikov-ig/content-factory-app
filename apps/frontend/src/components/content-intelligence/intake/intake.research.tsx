@@ -162,6 +162,8 @@ export function ResearchEvidenceRows({
   pending = false,
   busy = false,
   editableFound = false,
+  foundErrorKey,
+  foundErrorMessage,
   onToggleCorrection,
   onToggleFound,
 }: {
@@ -171,6 +173,8 @@ export function ResearchEvidenceRows({
   pending?: boolean;
   busy?: boolean;
   editableFound?: boolean;
+  foundErrorKey?: string;
+  foundErrorMessage?: string;
   onToggleCorrection?: (factKey: string) => void;
   onToggleFound?: (factKey: string, selected: boolean) => void;
 }) {
@@ -322,6 +326,12 @@ export function ResearchEvidenceRows({
                     </p>
                   ) : null}
                   <SourceLink url={fact.sourceUrl} label={t.researchSourceOf} />
+                  {foundErrorMessage &&
+                  foundErrorKey === (fact.factKey ?? fact.statement) ? (
+                    <p role="alert" className="cf-body-sm text-cf-danger">
+                      {foundErrorMessage}
+                    </p>
+                  ) : null}
                 </div>
               </li>
             ))}

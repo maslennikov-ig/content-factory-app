@@ -1,15 +1,20 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-4zul`
-Last accepted stage id: `content-factory-next-zhv8`
-Selected Beads goal: `content-factory-next-4zul`
-**Wave 4zul in progress, 14.09.2026.** Goal: sixth-walk spec and order in
-`docs/product/sixth-walk-wave-2026-09-14-spec.md` and `docs/prompts/astra-sixth-walk-wave-2026-09-14.md`.
-Branch `wave/walk-2026-09-14`; S3, S1 and S2 integrated in order.
-S4 research snapshots and ResearchOutcome UI integrated; all streams accepted, final root checks starting.
-Scope: 4zul.1–.10 plus 75xn.35; 4zul.11 belongs to Claude. No schema changes or paid model tests.
-Owner approval of localhost:4200 remains required before release. Production still 447e360f7007.
-Stage contract, accepted streams and release baseline: `stages/content-factory-next-4zul/summary.md`.
-Original findings remain in `stages/content-factory-next-4zul/evidence/walk-2026-09-14/`.
+Current stage id: `content-factory-next-xmfb`
+Last accepted stage id: `content-factory-next-4zul`
+Selected Beads goal: `content-factory-next-xmfb`
+Next stage id: `content-factory-next-xmfb` (active implementation)
+**NEXT 16.09.2026: epic `content-factory-next-xmfb` (seventh walk read), executor Codex/Astra by order.**
+Owner walk on `93aa33b85a79` (artifact `5ebd9e76`, sent 12:23Z): A1/A3/B1/F1/F3 ok; B2 «Берём» 404 (factKey sent as statement), E1 review 502 REVIEW_INVALID (per-change validation), C1 foreign post taken as thought (no position question), language: Iceland one query (classifier local), plus sorting, Dialog confirm, research direction/depth, per-engine search keys.
+Spec `docs/product/seventh-walk-wave-2026-09-16-spec.md`; order `docs/prompts/astra-seventh-walk-wave-2026-09-16.md`; evidence `stages/content-factory-next-xmfb/evidence/walk-2026-09-16/`. Branch the wave from `wave/walk-2026-09-14` (not merged to main). Owner decisions 16.09: Codex executes; search keys per engine (own overrides system, own key spends no quota). `xmfb.11` (eighth walk page, with core/adaptation quality) is Claude's. 4zul closed.
+Recommended action: Amendment xmfb.12 integrated (selected piece facts count toward progress, one upper section title, contextual exit). Refresh root acceptance and release candidate, then obtain owner yes before release. Original S1–S5 passed full acceptance; local candidate feac52a8bb78 is superseded and was never pushed/deployed. Host <6 GB free blocks pull.
+**RELEASED 14.09.2026: `93aa33b85a79`, rollback `447e360f7007`.** Private source `014360d31dc4`, branch `wave/walk-2026-09-14`.
+S3 → S1 → S2 → S4 integrated; 4zul.1–.10 and 75xn.35 closed/read back. 4zul.11 closed 16.09: seventh-walk page `5ebd9e76` walked and read into epic `xmfb`; sent html in `evidence/walk-2026-09-15/`.
+Host disk 15.09 read-only: 8.9 GB free (was 2.5), hf97 still open.
+Owner moved the five-scenario acceptance from localhost to production and explicitly authorized deployment. Jest 437/5705, Node 125/0 (4 existing skips), Python 46 OK; three tsc/build/process passed.
+Schema diff empty; Mastra 29 with unchanged canonical fingerprint; healthy, zero restarts; HTTP/source archive verified. Disk filled during rollout; prescribed retention removed only old cde11f97e77f and expired config copies. PostgreSQL recovered.
+P1 `content-factory-next-hf97`: only 2.5 GB free on shared host; restore headroom before another image pull. No unrelated cleanup authorized.
+Evidence: `stages/content-factory-next-4zul/evidence/release-2026-09-14.json`; details in stage `summary.md`.
+Local passwordless helper: `/home/me/.local/bin/cf-dev-login`, outside product. Local AI stand still needs schema/key setup; no live local AI proof claimed.
 **Поправка по первому шагу шестого захода (`75xn.36`–`.38`) — RELEASED `447e360f7007` 14.09.2026.**
 Два образа: `cde11f97e77f` (приватный `188fb071`) и `447e360f7007` (`53a83baf`, кнопка «Продолжить без
 ссылки» убирает отказанный адрес за человека); откат `65bcb0dd6829`, схема не менялась. Сайт по вставленной ссылке ответил 4xx,
@@ -151,9 +156,9 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-4zul`. Recommended action: execute the sixth-walk wave by the order
-`docs/prompts/astra-sixth-walk-wave-2026-09-14.md` (spec §3, acceptance §6), release, then Claude builds the
-seventh-walk page (`4zul.11`). Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
+Next stage id: `content-factory-next-4zul.11`. Recommended action: Claude prepares the production walkthrough; address hf97 disk headroom.
+Walkthrough criteria: `docs/product/sixth-walk-wave-2026-09-14-spec.md` §6; the owner reviews the deployed version.
+Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.
 Cleanup 08.09: branches/worktrees removed, two August tips in `.git/cleanup-2026-09-08-legacy-orchestration.bundle`.
 Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks where the text is final,

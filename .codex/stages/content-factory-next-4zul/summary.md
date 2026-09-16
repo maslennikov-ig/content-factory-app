@@ -65,3 +65,13 @@ Final root acceptance: three application tsc checks prove types; record-suite-re
 Final acceptance first attempt at 56c2d1f9: all three tsc checks, pnpm run build and process verification passed. Jest reported 435 passed / 2 failed (5698 passed / 2 failed tests): new research routes were absent from the additive route expectation and roles-matrix documentation. Updated both, and added real controller forwarding/error coverage; focused 3 suites / 132 tests passed. No runtime source changed, so successful build/type evidence remains applicable. The exact-commit release receipt requires a fresh full suite after this test/docs-only correction.
 
 Owner stand opened in Windows at http://localhost:4200/content; frontend login and backend root returned 200, updated research routes mapped. Five required scenarios listed to owner; explicit approval requested and pending. Automated model/search checks use recorded responses only.
+
+## Released 14 September 2026
+
+Owner explicitly authorized deployment and moved the five-scenario review to production after the local AI readiness gap was found. The local passwordless helper lives outside this repository and is not part of the image.
+
+Released public 93aa33b85a79 from private source 014360d31dc4; rollback 447e360f7007. Exact source receipt: Jest 437/5705, Node 125 passed / 0 failed / 4 existing environment skips, Python 46 OK. Three tsc, build and process passed. Registry and host digest match. New-image schema diff was empty; Mastra remained 29 tables with canonical SHA 310d75fcf3e36475d5524559d1437522685534915f85f45d1e7c3b219acac8f7. Current container is healthy with zero restarts. Three HTTP endpoints return 200; downloaded source archive matches the build byte-for-byte.
+
+Deployment incident: host disk filled after transfer; archive buffering failed and PostgreSQL entered recovery. After the prescribed own-artifact retention, PostgreSQL recovered automatically; all HTTP/archive/Mastra checks passed again. Only our cde11f97e77f image and expired configuration copies were removed. Current and rollback images retained. Remaining 2.5 GB headroom is tracked as P1 content-factory-next-hf97; shared-host cleanup requires separate ownership/authority, and another image pull should wait for sufficient space.
+
+All .1–.10 and 75xn.35 closed together and individually read back; one GitHub reconciliation trigger per bead enqueued successfully. 4zul.11 remains open for Claude. docs-reviewed: updated. graph-reviewed: no-change-needed (current files and focused flow evidence used; stale graph not promoted as fresh proof). Final evidence: evidence/release-2026-09-14.json and evidence/release-logs/.

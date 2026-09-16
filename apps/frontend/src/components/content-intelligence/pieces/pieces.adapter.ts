@@ -663,13 +663,61 @@ export type PiecesFilters = {
   /** Состояние, либо `ALL`. */
   state: AdaptationStateV1 | 'ALL' | 'archived';
   includeArchived: boolean;
+  sort: PieceSort;
 };
+
+export const PIECE_SORT_DEFAULT = 'date:desc' as const;
+
+export const PIECE_SORT_FIELDS = ['code', 'title', 'format', 'date'] as const;
+export type PieceSortField = (typeof PIECE_SORT_FIELDS)[number];
+export type PieceSortDirection = 'asc' | 'desc';
+export type PieceSort = `${PieceSortField}:${PieceSortDirection}`;
+
+const PIECE_SORT_VALUES: readonly PieceSort[] = [
+  'code:asc',
+  'code:desc',
+  'title:asc',
+  'title:desc',
+  'format:asc',
+  'format:desc',
+  'date:asc',
+  'date:desc',
+];
+
+export const isPieceSort = (value: unknown): value is PieceSort =>
+  typeof value === 'string' && PIECE_SORT_VALUES.includes(value as PieceSort);
+
+/** Reads `sort` from a page query, falling back to newest pieces first. */
+export function readPieceSort(value: unknown): PieceSort {
+  if (isPieceSort(value)) return value;
+
+  let raw: string | null = null;
+  if (typeof value === 'string') {
+    try {
+      raw = new URLSearchParams(
+        value.startsWith('?') ? value.slice(1) : value
+      ).get('sort');
+    } catch {
+      raw = null;
+    }
+  } else if (
+    value &&
+    typeof value === 'object' &&
+    'get' in value &&
+    typeof value.get === 'function'
+  ) {
+    raw = value.get('sort');
+  }
+
+  return isPieceSort(raw) ? raw : PIECE_SORT_DEFAULT;
+}
 
 export const emptyPiecesFilters: PiecesFilters = {
   q: '',
   missingOn: 'ALL',
   state: 'ALL',
   includeArchived: false,
+  sort: PIECE_SORT_DEFAULT,
 };
 
 export const piecesQuery = (filters: PiecesFilters): PiecesQueryV1 => ({
@@ -826,4 +874,80 @@ export function filterPieces(
     }
     return true;
   });
+}
+
+const collator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+const displayDate = /^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$/;
+
+const dateValue = (value: string): number | null => {
+  const match = value.match(displayDate);
+  if (match) {
+    const year = Number(match[3]);
+    const fullYear = match[3].length === 2 ? 2000 + year : year;
+    return Date.UTC(fullYear, Number(match[2]) - 1, Number(match[1]));
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const sortText = (row: PieceRowV1, field: PieceSortField): string => {
+  switch (field) {
+    case 'code':
+      // Codes are the visible creation marker. The ISO timestamp keeps
+      // unpadded codes (cnt-9, cnt-12) in creation order when it is present.
+      return row.createdAt || row.code;
+    case 'date':
+      return row.createdAt || row.date;
+    case 'title':
+      return row.title;
+    case 'format':
+      return row.format;
+  }
+};
+
+const compareSortText = (
+  left: string,
+  right: string,
+  field: PieceSortField
+): number => {
+  if (field === 'code' || field === 'date') {
+    const leftDate = dateValue(left);
+    const rightDate = dateValue(right);
+    if (leftDate !== null && rightDate !== null && leftDate !== rightDate) {
+      return leftDate - rightDate;
+    }
+    // A missing date follows a dated row in the base (ascending) order.
+    if (leftDate !== null && rightDate === null) return -1;
+    if (leftDate === null && rightDate !== null) return 1;
+  }
+  return collator.compare(left, right);
+};
+
+/** Sorts the already-filtered list without mutating the response array. */
+export function sortPieces(
+  rows: readonly PieceRowV1[],
+  sort: PieceSort = PIECE_SORT_DEFAULT
+): PieceRowV1[] {
+  const value = readPieceSort(sort);
+  const separator = value.indexOf(':');
+  const field = value.slice(0, separator) as PieceSortField;
+  const direction = value.slice(separator + 1) as PieceSortDirection;
+  const multiplier = direction === 'asc' ? 1 : -1;
+
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((left, right) => {
+      const compared = compareSortText(
+        sortText(left.row, field),
+        sortText(right.row, field),
+        field
+      );
+      return compared === 0 ? left.index - right.index : compared * multiplier;
+    })
+    .map(({ row }) => row);
 }

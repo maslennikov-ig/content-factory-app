@@ -22,11 +22,15 @@ import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import {
   PIECE_TABLE_MIN_WIDTH,
   cellOf,
+  isPieceSort,
   type AdaptationV1,
   type PieceCellV1,
   type PieceCellStateV1,
   type PieceColumnV1,
   type PieceRowV1,
+  type PieceSort,
+  type PieceSortDirection,
+  type PieceSortField,
   type PiecesFilters,
   type VoiceScreenStateV1,
   type ZagotovkaCoreV1,
@@ -197,6 +201,44 @@ export function PiecesScreen({
   const busy = state === 'loading';
   const allColumns = [...columns, ...restColumns];
   const found = query ?? '';
+  const sortWords =
+    locale === 'ru'
+      ? {
+          label: 'Сортировка',
+          dateDesc: 'Сначала новые',
+          dateAsc: 'Сначала старые',
+          titleAsc: 'Название А–Я',
+          titleDesc: 'Название Я–А',
+          formatAsc: 'Формат А–Я',
+          formatDesc: 'Формат Я–А',
+        }
+      : {
+          label: 'Sort by',
+          dateDesc: 'Newest first',
+          dateAsc: 'Oldest first',
+          titleAsc: 'Name A–Z',
+          titleDesc: 'Name Z–A',
+          formatAsc: 'Format A–Z',
+          formatDesc: 'Format Z–A',
+        };
+
+  const sortParts = filters.sort.split(':');
+  const activeSortField = sortParts[0] as PieceSortField;
+  const activeSortDirection = sortParts[1] as PieceSortDirection;
+
+  const sortFor = (field: PieceSortField) => ({
+    direction:
+      activeSortField === field ? activeSortDirection : null,
+    onToggle: () => {
+      const direction: PieceSortDirection =
+        activeSortField === field
+          ? activeSortDirection === 'asc'
+            ? 'desc'
+            : 'asc'
+          : 'asc';
+      onFilterChange('sort', `${field}:${direction}` as PieceSort);
+    },
+  });
 
   const originWord = (row: PieceRowV1) =>
     row.origin === 'thought'
@@ -327,6 +369,24 @@ export function PiecesScreen({
         <option value="draft">{t.stateDraft}</option>
         <option value="error">{t.stateError}</option>
         <option value="archived">{t.archived}</option>
+      </Select>
+      <Select
+        standalone
+        name="pieces-sort"
+        aria-label={sortWords.label}
+        className="w-[176px] max-w-full table:hidden"
+        value={filters.sort}
+        onChange={(event) => {
+          const value = event.target.value;
+          onFilterChange('sort', isPieceSort(value) ? value : 'date:desc');
+        }}
+      >
+        <option value="date:desc">{sortWords.dateDesc}</option>
+        <option value="date:asc">{sortWords.dateAsc}</option>
+        <option value="title:asc">{sortWords.titleAsc}</option>
+        <option value="title:desc">{sortWords.titleDesc}</option>
+        <option value="format:asc">{sortWords.formatAsc}</option>
+        <option value="format:desc">{sortWords.formatDesc}</option>
       </Select>
     </FiltersRow>
   );
@@ -597,14 +657,17 @@ export function PiecesScreen({
                       banded
                       className="sticky z-[2] w-[96px]"
                       style={{ insetInlineStart: ARROW_WIDTH }}
+                      sort={sortFor('code')}
                     >
                       {t.columnCode}
                     </Th>
-                    <Th banded>{t.columnTitle}</Th>
-                    <Th banded className="w-[96px]">
+                    <Th banded sort={sortFor('title')}>
+                      {t.columnTitle}
+                    </Th>
+                    <Th banded className="w-[96px]" sort={sortFor('format')}>
                       {t.columnFormat}
                     </Th>
-                    <Th banded className="w-[96px]">
+                    <Th banded className="w-[96px]" sort={sortFor('date')}>
                       {t.columnDate}
                     </Th>
                     {columns.map((column) => (

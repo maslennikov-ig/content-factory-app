@@ -1,11 +1,11 @@
 import { contentFromIntent } from '../intake/intake-content';
 import {
-  CORE_WRITE_BLOCK_TITLES_V3,
+  CORE_WRITE_BLOCK_TITLES_V4,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V3,
-  coreWriteSystemV3,
-} from './core-write-prompt.v3';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v3';
+  CORE_WRITE_REPAIR_V4,
+  coreWriteSystemV4,
+} from './core-write-prompt.v4';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v4';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -172,7 +172,7 @@ const fenced = (title: string, lines: string[]): string =>
     : '';
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V3[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V4[input.language];
   const brief = input.brief;
   const said = input.answers.filter((answer) => answer.origin !== 'model');
 
@@ -239,7 +239,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     : [];
 
   return [
-    coreWriteSystemV3(
+    coreWriteSystemV4(
       input.language,
       forbiddenPhrasesRule(input.language)
     ),
@@ -352,7 +352,7 @@ export async function writeCore(
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const second = trimmed(
           ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V3[input.language]}${quoted}`
+            `${prompt}\n\n${CORE_WRITE_REPAIR_V4[input.language]}${quoted}`
           )) as any)?.text
         );
         return second || first;

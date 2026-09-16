@@ -513,7 +513,7 @@ export function PieceContainer({
 
   return (
     <PieceScreen
-      onFactSelect={async (statement, selected) => { const response = await request(`${url}/facts`, { method: 'PATCH', body: JSON.stringify({ statement, selected }) }); if (!response.ok) throw new Error('Fact selection failed'); await detail.mutate(); }}
+      onFactSelect={async (factKey, selected) => { const response = await request(`${url}/facts`, { method: 'PATCH', body: JSON.stringify({ factKey, selected }) }); if (!response.ok) throw new Error('Fact selection failed'); await detail.mutate(); }}
       onTitleSave={async (title) => { const response = await request(url, { method: 'PATCH', body: JSON.stringify({ title }) }); if (!response.ok) throw new Error('Title update failed'); await detail.mutate(); }}
       renderChannelProfile={(channel, channelLabel) => (
         <PieceChannelProfile

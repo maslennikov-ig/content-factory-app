@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useMenuItem } from '@contentfactory/frontend/components/layout/top.menu';
 
 /**
@@ -22,10 +22,24 @@ import { useMenuItem } from '@contentfactory/frontend/components/layout/top.menu
  */
 export const Title = () => {
   const path = usePathname();
+  const search = useSearchParams();
   const { all: menuItems } = useMenuItem();
-  const currentTitle = menuItems.find(
-    (item) => path.indexOf(item.path) > -1
-  )?.name;
+  // Use all routes, including completed onboarding hidden from navigation.
+  // A query-specific destination (Avatar) wins over its generic section.
+  const currentTitle = menuItems
+    .map((item) => {
+      const [pathname, query = ''] = item.path.split('?');
+      return { ...item, pathname, query: new URLSearchParams(query) };
+    })
+    .filter(
+      (item) =>
+        (path === item.pathname || path.startsWith(`${item.pathname}/`)) &&
+        (!item.query.size || path === item.pathname) &&
+        Array.from(item.query).every(([key, value]) => search?.get(key) === value)
+    )
+    .sort(
+      (a, b) => b.pathname.length - a.pathname.length || b.query.size - a.query.size
+    )[0]?.name;
 
-  return <h1>{currentTitle}</h1>;
+  return currentTitle ? <h1>{currentTitle}</h1> : null;
 };

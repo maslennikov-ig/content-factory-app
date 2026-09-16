@@ -90,6 +90,14 @@ export type SearchTaskProviders = Partial<Record<SearchTask, SearchProvider>>;
 /** A stored key per engine. Absent and empty both mean «none saved». */
 export type SearchProviderKeys = Partial<Record<SearchProvider, string>>;
 
+/** Who pays for one engine credential after own-over-system resolution. */
+export type SearchCredentialSource = 'own' | 'system';
+
+/** Source travels beside the key so billing never has to infer it later. */
+export type SearchProviderKeySources = Partial<
+  Record<SearchProvider, SearchCredentialSource>
+>;
+
 /**
  * Long enough for an encrypted key of any engine we know with room to spare,
  * short enough that a paste of a whole file is refused rather than stored.
@@ -124,9 +132,7 @@ export const parseSearchKeys = (raw: unknown): SearchProviderKeys => {
 };
 
 /** Read a stored task map defensively, on the same terms. */
-export const parseSearchTaskProviders = (
-  raw: unknown
-): SearchTaskProviders => {
+export const parseSearchTaskProviders = (raw: unknown): SearchTaskProviders => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const parsed: SearchTaskProviders = {};
   for (const [task, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -173,7 +179,29 @@ export interface SearchRouteSource {
   apiKey?: string;
   taskProviders?: SearchTaskProviders;
   apiKeys?: SearchProviderKeys;
+  /** The owner of each resolved key in `apiKeys`. */
+  keySources?: SearchProviderKeySources;
 }
+
+export interface ResolvedSearchCredential {
+  key: string;
+  source: SearchCredentialSource;
+}
+
+/** The key and its payer are one value all the way to the provider attempt. */
+export const searchCredentialFor = (
+  provider: SearchProvider,
+  source: SearchRouteSource
+): ResolvedSearchCredential | undefined => {
+  const key =
+    source.apiKeys?.[provider] ||
+    (provider === source.provider ? source.apiKey || '' : '');
+  if (!key) return undefined;
+  return {
+    key,
+    source: source.keySources?.[provider] || 'own',
+  };
+};
 
 /**
  * The key one engine is allowed to spend, and the only way to ask.
@@ -188,9 +216,7 @@ export interface SearchRouteSource {
 export const searchKeyFor = (
   provider: SearchProvider,
   source: SearchRouteSource
-): string =>
-  source.apiKeys?.[provider] ||
-  (provider === source.provider ? source.apiKey || '' : '');
+): string => searchCredentialFor(provider, source)?.key || '';
 
 /**
  * The one place a task becomes an engine.
@@ -256,6 +282,9 @@ export const searchRouteFingerprint = (source: SearchRouteSource): string =>
       (task) => `${task}=${source.taskProviders?.[task] ?? ''}`
     ).join(','),
     SEARCH_PROVIDERS.map(
-      (provider) => `${provider}=${source.apiKeys?.[provider] ? '1' : '0'}`
+      (provider) =>
+        `${provider}=${source.apiKeys?.[provider] ? '1' : '0'}:${
+          source.keySources?.[provider] ?? ''
+        }`
     ).join(','),
   ].join('|');

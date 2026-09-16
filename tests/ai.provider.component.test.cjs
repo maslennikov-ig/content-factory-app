@@ -209,13 +209,23 @@ describe('AI provider search settings component', () => {
       // Почему таблица пуста — теперь в подсказке рядом с её заголовком, а не
       // абзацем под ней (`content-factory-next-75xn.13`).
       expect(markup).toContain('after the first model call');
-      expect(markup).toContain('data-hint="Hint: AI usage by role, this period"');
+      expect(markup).toContain(
+        'data-hint="Hint: AI usage by role, this period"'
+      );
       // Шесть ролей с нулями: список ролей виден раньше полей ниже.
       const roleRows = markup.slice(
         markup.indexOf('data-ai-usage="role"'),
         markup.indexOf('name="provider"')
       );
-      for (const role of ['classify', 'extract', 'research', 'draft', 'judge', 'review', 'image']) {
+      for (const role of [
+        'classify',
+        'extract',
+        'research',
+        'draft',
+        'judge',
+        'review',
+        'image',
+      ]) {
         expect(roleRows).toContain(`>${role}</span>`);
       }
       expect(translationCalls).toEqual(
@@ -253,7 +263,9 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('money');
       // И одна строка про каждую роль рядом с её полем.
       expect(markup).toContain('one sentence in');
-      expect(markup).toContain('the one role that needs a model which can draw');
+      expect(markup).toContain(
+        'the one role that needs a model which can draw'
+      );
     });
   });
 
@@ -375,19 +387,16 @@ describe('AI provider search settings component', () => {
    * отказывается ею быть. Поля теперь отсутствуют, а не выключены, и одна
    * строка говорит, почему.
    */
-  test('the system-keys mode shows no key field at all, and says why', () => {
+  test('the generation system-keys mode still shows per-engine search fields', () => {
     settings = { ...settings, usageMode: 'included' };
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain('data-search-system-keys="true"');
-    expect(markup).toContain('Search runs on the system keys');
-    expect(markup).not.toContain('data-search-routing="true"');
+    expect(markup).toContain('name="searchApiKey-tavily"');
+    expect(markup).toContain('name="searchApiKey-exa"');
+    expect(markup).toContain('Tavily key — Own key');
+    expect(markup).toContain('Exa key — On the system key');
     for (const field of [
       'name="apiKey"',
-      'name="searchApiKey-tavily"',
-      'name="searchApiKey-exa"',
-      'name="searchTopic"',
-      'name="searchDepth"',
       'name="provider"',
       // Выключателя поиска здесь тоже нет: на ключах системы поиск включён
       // ровно тогда, когда у оператора есть ключ, и флаг области сервер в этом
@@ -408,10 +417,7 @@ describe('AI provider search settings component', () => {
     };
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain('The system search keys are not set up yet');
-    // Совета «включите ключи системы» человеку, который их уже включил, нет.
-    expect(markup).not.toContain('Search runs on the system keys');
-    expect(markup).not.toContain('No search engine has a key');
+    expect(markup).toContain('No search engine has a key');
   });
 
   test('included payload omits workspace secrets and model ids entirely', () => {
@@ -429,7 +435,9 @@ describe('AI provider search settings component', () => {
 
     expect(payload).not.toHaveProperty('apiKey');
     expect(payload).not.toHaveProperty('searchApiKey');
-    expect(payload).not.toHaveProperty('searchApiKeys');
+    expect(payload.searchApiKeys).toEqual({
+      tavily: 'workspace-search-secret',
+    });
     expect(payload).not.toHaveProperty('textModel');
     expect(payload).not.toHaveProperty('imageModel');
     expect(JSON.stringify(payload)).not.toContain('workspace-secret');
@@ -444,7 +452,7 @@ describe('AI provider search settings component', () => {
    * состояние, а не выбор области. Записать его обратно значило бы стереть
    * «поиск выключен», выбранное областью на своём ключе.
    */
-  test('included payload sends no search settings at all', () => {
+  test('included payload sends search settings independently of generation', () => {
     const payload = component.buildAiSettingsPayload({
       usageMode: 'included',
       provider: 'openrouter',
@@ -458,12 +466,14 @@ describe('AI provider search settings component', () => {
       searchDepth: 'basic',
     });
 
-    expect(payload).toMatchObject({ usageMode: 'included' });
+    expect(payload).toMatchObject({
+      usageMode: 'included',
+      searchEnabled: false,
+      searchTopic: 'news',
+      searchDepth: 'basic',
+    });
     for (const field of [
-      'searchEnabled',
       'searchProvider',
-      'searchTopic',
-      'searchDepth',
       'searchTaskProviders',
       'searchApiKeys',
     ]) {
@@ -486,12 +496,10 @@ describe('AI provider search settings component', () => {
     expect(markup).not.toContain('3 included AI operations are available');
   });
 
-  test('renders fallback availability from the backend response', () => {
+  test('does not promise OpenRouter as an automatic search fallback', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain(
-      'Automatic fallback is available through the OpenRouter AI key'
-    );
+    expect(markup).not.toContain('Automatic fallback is available through');
   });
 
   test('disables saving until persisted settings have loaded', () => {
@@ -508,8 +516,8 @@ describe('AI provider search settings component', () => {
     // Ключ сохранён только у Tavily — и кнопка есть только у него. Имя кнопки
     // называет движок: двух кнопок «убрать сохранённый ключ» на экране быть не
     // может, их нечем различить ни глазом, ни скринридером.
-    expect(markup).toContain('aria-label="Remove the stored Tavily key"');
-    expect(markup).not.toContain('aria-label="Remove the stored Exa key"');
+    expect(markup).toContain('aria-label="Return Tavily to the system key"');
+    expect(markup).not.toContain('aria-label="Return Exa to the system key"');
     expect(markup).not.toContain('aria-label="Remove stored key"');
   });
 
@@ -533,9 +541,9 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('Paste a key');
       expect(markup).toContain('A Tavily key is stored for this workspace');
       expect(markup).toContain('No Exa key of your own');
-      // У OpenRouter поля ключа нет, и сказано почему.
+      // У OpenRouter поля поискового ключа нет; в automatic fallback он не входит.
       expect(markup).not.toContain('name="searchApiKey-openrouter"');
-      expect(markup).toContain('OpenRouter has no search key of its own');
+      expect(markup).not.toContain('OpenRouter has no search key of its own');
     });
 
     test('кнопка зовёт дверь с названием движка', async () => {
@@ -565,9 +573,7 @@ describe('AI provider search settings component', () => {
         'utf8'
       );
 
-      expect(source).toContain(
-        '`/settings/ai/search-key?provider=${engine}`'
-      );
+      expect(source).toContain('`/settings/ai/search-key?provider=${engine}`');
     });
   });
 
@@ -636,7 +642,7 @@ describe('AI provider search settings component', () => {
    * задача, глубина `advanced` (решение владельца 10 в плане волны).
    */
   describe('включённые ключи', () => {
-    test('про свой ключ области сказано одним предложением и ни одной кнопкой', () => {
+    test('own overrides stay visible and clearable in included generation mode', () => {
       settings = {
         ...settings,
         usageMode: 'included',
@@ -647,31 +653,28 @@ describe('AI provider search settings component', () => {
         React.createElement(component.default)
       );
 
-      expect(markup).toContain('data-search-included-key="true"');
-      expect(markup).toContain('This workspace has a search key of its own');
-      // Ни одной кнопки удаления: убрать ключ можно там, где стоит его поле.
-      expect(markup).not.toContain('data-search-included-engine=');
-      expect(markup).not.toMatch(/aria-label="Remove the stored [^"]*key/);
+      expect(markup).toContain('Tavily key — Own key');
+      expect(markup).toContain('aria-label="Return Tavily to the system key"');
+      expect(markup).toContain('Exa key — On the system key');
     });
 
-    test('без своего ключа строки нет', () => {
+    test('без своего ключа поле прямо называет ключ системы', () => {
       settings = { ...settings, usageMode: 'included', hasSearchKey: false };
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
 
-      expect(markup).not.toContain('data-search-included-key="true"');
+      expect(markup).toContain('Tavily key — On the system key');
     });
 
-    test('тематики и глубины поиска в этом режиме нет вовсе', () => {
+    test('тематика и глубина поиска не зависят от режима генерации', () => {
       settings = { ...settings, usageMode: 'included' };
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
 
-      expect(markup).not.toContain('name="searchTopic"');
-      expect(markup).not.toContain('name="searchDepth"');
-      // А на своих ключах остаются: там платит область и выбирает она же.
+      expect(markup).toContain('name="searchTopic"');
+      expect(markup).toContain('name="searchDepth"');
       settings = { ...settings, usageMode: 'workspace_key' };
       const ownKeys = renderToStaticMarkup(
         React.createElement(component.default)
@@ -692,13 +695,14 @@ describe('AI provider search settings component', () => {
   test('объяснения живут в подсказках, а решающее — строкой', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    // То, что нужно в момент чтения: что за ключ и что он меняет.
-    expect(markup).toContain('A key of your own is optional');
+    // То, что нужно в момент чтения: source рядом с каждым полем.
+    expect(markup).toContain('Tavily key — Own key');
+    expect(markup).toContain('Exa key — On the system key');
     // Справочное — в подсказке, с собственным именем для скринридера.
     expect(markup).toContain('data-hint="Hint: Web research"');
-    expect(markup).toContain('Web research is the search the product runs');
-    expect(markup).toContain('keeps your key stored');
-    expect(markup).toContain('OpenRouter has no search key of its own');
+    expect(markup).toContain(
+      'workspace&#x27;s own key overrides the system key'
+    );
     // Абзац во всю колонку с собственной мерой строки ушёл вместе с ними.
     expect(markup).not.toContain('data-search-intro');
     expect(markup).not.toContain('max-w-[62ch]');

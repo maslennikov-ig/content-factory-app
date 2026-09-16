@@ -1,8 +1,17 @@
-import { ArrayMaxSize, Equals, IsArray, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class PieceResearchDto {
   @Equals(true)
   confirmWebSpend: boolean;
+
+  @IsOptional()
+  @IsIn(['quick', 'standard', 'deep'])
+  level?: 'quick' | 'standard' | 'deep';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  direction?: string;
 }
 
 export class PieceResearchAcceptDto {
