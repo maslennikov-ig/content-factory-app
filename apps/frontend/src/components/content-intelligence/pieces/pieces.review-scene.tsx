@@ -85,8 +85,8 @@ const NOTES: Partial<Record<InterfaceReviewState, { ru: string; en: string }>> =
     en: 'A reader sees the table, but nothing starts — the reason stands in words.',
   },
   disabled: {
-    ru: 'Идёт адаптация: вопросы под канал, у каждого ответ модели и четыре способа закрыть его.',
-    en: 'An adaptation is running: channel questions, each with the model’s answer and four ways to close it.',
+    ru: 'Идёт адаптация: вопросы под канал, у каждого ответ ИИ и четыре способа закрыть его.',
+    en: 'An adaptation is running: channel questions, each with the AI’s answer and four ways to close it.',
   },
   'long-content': {
     ru: 'Страница старого материала: сути нет, текст одного канала и предупреждение над ним.',

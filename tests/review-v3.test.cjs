@@ -51,6 +51,13 @@ beforeEach(() => {
   warnings.length = 0;
 });
 
+/**
+ * Замороженный промпт v4, а не тот, который проверка шлёт сегодня: с
+ * 18.09.2026 `reviewOnceV3` собирает запрос `reviewPromptV5`
+ * (`content-factory-next-97dq.3`), и это закреплено в
+ * `tests/review-fact-check.test.cjs`. Здесь проверяется, что записанные ответы
+ * v4 по-прежнему объясняются тем текстом, которым получены.
+ */
 test('web prompt sends sources but no style catalog and permits factual corrections only', () => {
   const prompt = reviewPromptV3(input);
   const user = JSON.parse(prompt.user);

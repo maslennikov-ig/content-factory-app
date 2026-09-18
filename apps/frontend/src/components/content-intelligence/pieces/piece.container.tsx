@@ -130,6 +130,16 @@ export function PieceContainer({
     checks: QualityChecksV1;
     draftGaps: readonly unknown[];
   } | null>(null);
+  /*
+    Что дала принятая правка: было столько находок каталога, стало столько.
+    Перечитанная заготовка несёт только нынешнее число, и без этой памяти
+    человек, нажавший «Принять выбранные», видел бы новую строку качества и
+    ни одного следа того, что сам только что сделал. Живёт до перезагрузки
+    страницы — ровно столько, сколько длится этот разговор.
+  */
+  const [reviewedSlop, setReviewedSlop] = useState<
+    Record<string, { slopBefore: number; slopAfter: number }>
+  >({});
   const [failure, setFailure] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   /*
@@ -546,6 +556,7 @@ export function PieceContainer({
       draftText={draft?.text ?? null}
       draftChecks={draft?.checks ?? null}
       draftGaps={draft?.draftGaps ?? null}
+      reviewedSlop={reviewedSlop}
       adaptingChannel={busy || questions.length ? adaptingChannel : null}
       errorMessage={
         failure ??
@@ -585,8 +596,10 @@ export function PieceContainer({
       renderReview={(adaptation) => adaptation.postId && adaptation.state === 'draft' ? (
         <AdaptationReview key={`${user?.orgId}:${pieceId}:${adaptation.id}`} pieceId={pieceId}
           adaptationId={adaptation.id} workspaceId={user?.orgId ?? ''} locale={locale} onPublish={() => { if (adaptation.postId) void openPost(adaptation.postId); }}
-          disabled={!canWrite || busy} onAccepted={() => {
+          disabled={!canWrite || busy} onAccepted={(outcome) => {
             setDraft((current) => current?.adaptationId === adaptation.id ? null : current);
+            if (outcome)
+              setReviewedSlop((current) => ({ ...current, [adaptation.id]: outcome }));
             void detail.mutate();
           }} />
       ) : null}

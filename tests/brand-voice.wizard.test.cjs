@@ -672,7 +672,7 @@ describe('the voice wizard on live data', () => {
           error: true,
           code: 'VOICE_ASSIST_UNAVAILABLE',
           message:
-            'Модель не ответила. Числа разбора сохранены, предложение голоса не составлено.',
+            'ИИ не ответил. Числа разбора сохранены, предложение голоса не составлено.',
         }
       ),
       [`GET ${VOICE_API}/analysis`]: analysisReady(),

@@ -87,7 +87,7 @@ export const piecesCopy = {
     /* --- Страница заготовки ------------------------------------------------ */
     coreTitle: 'Суть',
     coreFallback:
-      'Модель не ответила — суть собрана из брифа. Проверьте её перед адаптацией.',
+      'ИИ не ответил — суть собрана из брифа. Проверьте её перед адаптацией.',
     legacyTitle: 'Текст одного канала',
     legacyWarning:
       'Это старый материал: тело — текст одного канала, а не нейтральная суть. Адаптация будет опираться на него как есть.',
@@ -103,7 +103,7 @@ export const piecesCopy = {
     backToList: 'Все заготовки',
     laterShort: 'видео и аудио — позже',
     slopRewriteNote:
-      'Модель советует переписать. Адаптировать это не мешает — решаете вы.',
+      'Советуем переписать. Адаптировать это не мешает — решаете вы.',
     targetsTitle: 'Куда адаптировать',
     formatAutomatic: 'Подберём при адаптации',
     laterTitle: 'Позже',
@@ -138,7 +138,7 @@ export const piecesCopy = {
     interviewTitle: (count: number) =>
       `${count} ${plural(count, ['вопрос', 'вопроса', 'вопросов'])} — и пишем`,
     interviewLead:
-      'Модель предлагает первой. Согласитесь, поправьте или отдайте ей решение.',
+      'Предлагаем первой. Согласитесь, поправьте или отдайте решение нам.',
     suggestedLead: 'Я думаю, вот так',
     answerYes: 'Так и есть',
     answerFix: 'Поправить',
@@ -150,7 +150,7 @@ export const piecesCopy = {
     skipInterview: 'Пропустить интервью',
     interviewSend: 'Дальше',
     interviewExhausted:
-      'Больше спрашивать не будем: два круга — предел. Дальше решает модель.',
+      'Больше спрашивать не будем: два круга — предел. Дальше решим сами.',
 
     /* --- Уточнение заготовки ----------------------------------------------- */
     // `content-factory-next-m2eg`: вопросы приезжают вместе с заготовкой и
@@ -161,6 +161,82 @@ export const piecesCopy = {
     clarifyBusy: 'Переписываем суть…',
     clarifyDone: 'Суть переписана с вашими словами.',
     clarifyFailed: 'Ответ не сохранился. Попробуйте ещё раз.',
+
+    /* --- Тело адаптации ----------------------------------------------------- */
+    // `content-factory-next-97dq.4`: тело хранится с `**жирным**`, и до этой
+    // волны человек читал свой будущий пост со звёздочками посреди фразы.
+    showMarkup: 'Показать разметку',
+    hideMarkup: 'Скрыть разметку',
+
+    /* --- Опоры текста ------------------------------------------------------- */
+    textSourcesTitle: 'Опоры текста',
+    textSourcesHintLabel: 'Подсказка: опоры текста',
+    textSourcesHint:
+      'Что нашёл ресерч по вашей теме: утверждение своими словами, цитата и адрес. Отмеченные строки идут в адаптации и в следующую переписку сути. Уже написанный текст галочка не меняет.',
+
+    /* --- Проверка адаптации -------------------------------------------------- */
+    // Все слова проверки живут здесь, а не в `adaptation-review.tsx`: до
+    // 18.09.2026 их было четыре десятка прямо в разметке, и ни одно нельзя
+    // было прочитать, не открыв компонент.
+    reviewWhy: 'Почему',
+    reviewIncomplete: 'Неполный результат проверки.',
+    researchIncomplete: 'Неполный результат ресерча.',
+    researchStale: 'Результат ресерча устарел.',
+    publish: 'Опубликовать',
+    regenerate: 'Перегенерировать',
+    regenerateDescription:
+      'Скажете, что поменять: заголовок, абзац или весь текст.',
+    addResearch: 'Дополнить ресерчем',
+    checkFacts: 'Проверить факты',
+    checkFactsSearch: 'Проверить факты поиском',
+    checkFactsSearchDescription: 'Найдём источники по каждому числу и дате.',
+    checkFactsSpendLabel: 'Подсказка: расход на проверку фактов',
+    checkFactsSpend:
+      'Поиск и ИИ могут расходовать включённый лимит или средства подключённого провайдера. Источники могут охватить не все утверждения.',
+    reviewMenu: 'Ещё ▾',
+    // Владелец, 18.09.2026: «убрать штампы» называло список каталога, а
+    // человек ждал, что текст перестанет читаться как машинный.
+    removeAiTells: 'Убрать следы ИИ',
+    removeAiTellsDescription:
+      'Найдём обороты, по которым текст читается как написанный ИИ, и предложим правки. Штампы уберём заодно.',
+    compareCore: 'Сверить с сутью',
+    compareCoreDescription:
+      'Проверим, что пост говорит то же, что заготовка, и ничего не добавил от себя.',
+    reviewBoth: 'И то и другое',
+    reviewBothDescription: 'Следы ИИ и сверка с сутью за один проход.',
+    lastChoice: ' · Последний выбор',
+    rewritePrompt: 'Что перегенерировать?',
+    rewriteOnlyTitle: 'Только заголовок',
+    rewriteWholeText: 'Весь текст',
+    regenerating: 'Перегенерируем…',
+    cancelAction: 'Отмена',
+    findingSources: 'Ищем опоры…',
+    runResearch: 'Запустить ресерч',
+    researchDirection: 'Куда копать',
+    researchDirectionExample:
+      'Например: свежие цифры за 2026 год. Можно оставить пустым',
+    saving: 'Сохраняем…',
+    reviewing: 'Проверяем текст…',
+    noChangesNeeded: 'Правки не понадобились.',
+    // Одна фраза о штампах на две поверхности: строка результата проверки и
+    // строка качества после принятой правки.
+    slopBeforeAfter: (before: number, after: number) =>
+      `Штампов по каталогу: было ${before} → стало ${after}`,
+    slopCatalogNote:
+      'Считаем по каталогу бесплатно; «Убрать следы ИИ» — один проход ИИ по этому списку.',
+    // Сомнение владельца на прогоне 18.09.2026: «Я не уверен, что убрали
+    // именно те штампы, которые были». Два списка — ответ на него: что ушло и
+    // что осталось, отрывками из текста, а не числом.
+    catalogRemoved: 'Ушло:',
+    catalogRemaining: 'Осталось:',
+    catalogMore: (count: number) => `и ещё ${count}`,
+    quoted: (text: string) => `«${text}»`,
+    claimsChecked: (count: number) => `Проверено утверждений: ${count}`,
+    searchQueries: 'Что искали',
+    typoPrefix: 'Исправление опечатки: ',
+    acceptSelected: 'Принять выбранные',
+    leaveUnchanged: 'Оставить как было',
+    searchSources: 'Источники поиска',
   },
   en: {
     title: 'Pieces',
@@ -225,7 +301,7 @@ export const piecesCopy = {
 
     coreTitle: 'Substance',
     coreFallback:
-      'The model did not answer — the substance was assembled from the brief. Check it before adapting.',
+      'AI did not answer — the substance was assembled from the brief. Check it before adapting.',
     legacyTitle: 'Text of one channel',
     legacyWarning:
       'This is older material: the body is one channel’s text, not neutral substance. An adaptation will lean on it as it is.',
@@ -240,7 +316,7 @@ export const piecesCopy = {
     backToList: 'All pieces',
     laterShort: 'video and audio — later',
     slopRewriteNote:
-      'The model suggests a rewrite. That does not stop an adaptation — you decide.',
+      'We suggest a rewrite. That does not stop an adaptation — you decide.',
     targetsTitle: 'Where to adapt',
     formatAutomatic: 'Chosen during adaptation',
     laterTitle: 'Later',
@@ -274,7 +350,7 @@ export const piecesCopy = {
     interviewTitle: (count: number) =>
       `${count} ${count === 1 ? 'question' : 'questions'} and we write`,
     interviewLead:
-      'The model offers first. Agree, correct it, or hand the decision back.',
+      'We offer first. Agree, correct it, or hand the decision back.',
     suggestedLead: 'I think it goes like this',
     answerYes: 'That is right',
     answerFix: 'Correct it',
@@ -286,7 +362,7 @@ export const piecesCopy = {
     skipInterview: 'Skip the interview',
     interviewSend: 'Next',
     interviewExhausted:
-      'We will not ask again: two rounds is the limit. The model decides from here.',
+      'We will not ask again: two rounds is the limit. We decide from here.',
 
     clarifyLead:
       'The piece is already saved. Answer and the substance is rewritten with your words; leave it and it stays as it is.',
@@ -294,6 +370,67 @@ export const piecesCopy = {
     clarifyBusy: 'Rewriting the substance…',
     clarifyDone: 'The substance is rewritten with your words.',
     clarifyFailed: 'The answer was not saved. Try again.',
+
+    showMarkup: 'Show markup',
+    hideMarkup: 'Hide markup',
+
+    textSourcesTitle: 'Text sources',
+    textSourcesHintLabel: 'Hint: text sources',
+    textSourcesHint:
+      'What research found on your topic: a plain-language claim, a quote, and its address. Ticked rows go into adaptations and into the next rewrite of the substance. A tick changes no text that is already written.',
+
+    reviewWhy: 'Why',
+    reviewIncomplete: 'Incomplete review.',
+    researchIncomplete: 'Incomplete research result.',
+    researchStale: 'Research result expired.',
+    publish: 'Publish',
+    regenerate: 'Regenerate',
+    regenerateDescription:
+      'Tell us what to change: the title, a paragraph or the whole text.',
+    addResearch: 'Add research',
+    checkFacts: 'Check facts',
+    checkFactsSearch: 'Check facts with search',
+    checkFactsSearchDescription: 'We find sources for every figure and date.',
+    checkFactsSpendLabel: 'Hint: what the fact check spends',
+    checkFactsSpend:
+      'Search and AI may use your included allowance or incur charges with your connected provider. Sources may not cover every claim.',
+    reviewMenu: 'More ▾',
+    removeAiTells: 'Remove AI tells',
+    removeAiTellsDescription:
+      'We find the turns of phrase that make the text read as AI-written and suggest edits. Clichés go with them.',
+    compareCore: 'Compare with core',
+    compareCoreDescription:
+      'We check that the post says the same thing as the piece and added nothing of its own.',
+    reviewBoth: 'Both',
+    reviewBothDescription: 'AI tells and the comparison with the core in one pass.',
+    lastChoice: ' · Last choice',
+    rewritePrompt: 'What should change?',
+    rewriteOnlyTitle: 'Only title',
+    rewriteWholeText: 'Whole text',
+    regenerating: 'Regenerating…',
+    cancelAction: 'Cancel',
+    findingSources: 'Finding sources…',
+    runResearch: 'Run research',
+    researchDirection: 'Research direction',
+    researchDirectionExample:
+      'For example: current figures for 2026. You can leave this empty.',
+    saving: 'Saving…',
+    reviewing: 'Reviewing…',
+    noChangesNeeded: 'No changes needed.',
+    slopBeforeAfter: (before: number, after: number) =>
+      `Catalog clichés: ${before} → ${after}`,
+    slopCatalogNote:
+      'The catalog count is free; “Remove AI tells” is one AI pass over that list.',
+    catalogRemoved: 'Gone:',
+    catalogRemaining: 'Still there:',
+    catalogMore: (count: number) => `and ${count} more`,
+    quoted: (text: string) => `“${text}”`,
+    claimsChecked: (count: number) => `Claims checked: ${count}`,
+    searchQueries: 'What we searched for',
+    typoPrefix: 'Typo: ',
+    acceptSelected: 'Accept selected',
+    leaveUnchanged: 'Leave unchanged',
+    searchSources: 'Search sources',
   },
 } as const;
 

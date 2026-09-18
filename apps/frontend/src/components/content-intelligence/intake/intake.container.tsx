@@ -88,12 +88,25 @@ export function IntakeContainer({
   const [input, setInput] = useState(prefill?.input ?? '');
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
   const [researchEnabled, setResearchEnabled] = useState(false);
+  /*
+    «Это чужой текст» (владелец, 18.09.2026): единственное, что человек знает
+    про свой ввод, а сервер угадать не может. Ответ живёт рядом с ходом, а не
+    внутри `run`, потому что второй проход ресерча — тот же ход и должен нести
+    тот же вид ввода.
+  */
+  const [foreignText, setForeignText] = useState(false);
   const [researchLevel, setResearchLevel] = useState<'quick' | 'standard' | 'deep'>('standard');
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
   const [researchFacts, setResearchFacts] = useState<BriefFilledV1['facts']>([]);
   const [researchPending, setResearchPending] = useState(false);
+  /*
+    Второй проход после «Продолжить с правками»: ряд кнопок уходит, и его
+    место должно занять слово о том, что идёт работа, — а не пустота, как
+    18.09.2026 («всё как будто немножко подвисло»).
+  */
+  const [researchWorking, setResearchWorking] = useState(false);
   /*
     Итог ресерча «сделали за вас» (13.09.2026): поправки и сводка приходят с
     сервера, ключ снимка едет обратно, чтобы второй проход продолжил первый.
@@ -182,7 +195,10 @@ export function IntakeContainer({
       setBusy(true);
       setFailure(null);
       setStep('started');
-      if (researchSelections !== undefined) setResearchPending(false);
+      if (researchSelections !== undefined) {
+        setResearchPending(false);
+        setResearchWorking(true);
+      }
 
       try {
         const response = await request(INTAKE_API.intake, {
@@ -192,6 +208,7 @@ export function IntakeContainer({
               buildIntakePayload({
                 input: inputText ?? input,
                 language: language0,
+                foreignText,
                 options: { researchEnabled, researchLevel },
                 ...(researchSelections !== undefined ? { researchSelections } : {}),
                 ...(researchSelections !== undefined && snapshotKey ? { snapshotKey } : {}),
@@ -325,9 +342,10 @@ export function IntakeContainer({
       } finally {
         setBusy(false);
         setStep(null);
+        setResearchWorking(false);
       }
     },
-    [goToPiece, input, language0, prefill?.sourceLeadId, request, w, researchEnabled, researchLevel]
+    [goToPiece, input, language0, prefill?.sourceLeadId, request, w, researchEnabled, researchLevel, foreignText]
   );
 
   const write = useCallback(() => {
@@ -335,6 +353,7 @@ export function IntakeContainer({
     setBrief(null);
     setResearchFacts([]);
     setResearchPending(false);
+    setResearchWorking(false);
     setResearchCorrections([]);
     setResearchSummary(null);
     setResearchSnapshotKey(null);
@@ -409,6 +428,7 @@ export function IntakeContainer({
         step={step}
         researchFacts={researchFacts}
         researchPending={researchPending}
+        researchWorking={researchWorking}
         researchCorrections={researchCorrections}
         researchSummary={researchSummary}
         piece={piece}
@@ -437,6 +457,8 @@ export function IntakeContainer({
         onLanguageChange={setTextLanguage}
         researchEnabled={researchEnabled}
         researchLevel={researchLevel}
+        foreignText={foreignText}
+        onForeignTextChange={setForeignText}
         onResearchEnabledChange={setResearchEnabled}
         onResearchLevelChange={setResearchLevel}
         onResearchFactSelect={(factKey, selected) => {
@@ -452,6 +474,7 @@ export function IntakeContainer({
           abort.current = null;
           setBusy(false);
           setStep(null);
+          setResearchWorking(false);
         }}
         onOpenPiece={goToPiece}
         onManual={onSwitchToManual}

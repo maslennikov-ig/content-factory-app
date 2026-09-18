@@ -28,6 +28,15 @@ import {
   PIECE_RESEARCH_VERSIONS,
   type ReadablePieceResearchPreview,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-research.contract';
+import { piecesCopy } from './pieces.copy';
+
+/**
+ * Сколько отрывков каталога показать, прежде чем сказать «и ещё K».
+ *
+ * Список существует, чтобы человек увидел, что ушли именно его штампы, а не
+ * какие-то. Двадцать строк этого не показывают — их пролистывают.
+ */
+const CATALOG_SHOWN = 5;
 
 const isEditableReviewChange = (change: ReviewChange): boolean =>
   change.basket !== 'ask' &&
@@ -58,9 +67,7 @@ export function ReviewText({
   locale: 'ru' | 'en';
 }) {
   const edits = changes
-    .filter(
-      (c) => isEditableReviewChange(c) && (c.target ?? 'body') === 'body'
-    )
+    .filter((c) => isEditableReviewChange(c) && (c.target ?? 'body') === 'body')
     .map((c) => ({ ...c, start: text.indexOf(c.excerpt) }))
     .filter((c) => c.start >= 0)
     .sort((a, b) => a.start - b.start);
@@ -84,9 +91,7 @@ export function ReviewText({
             </ins>
           ))}
         </span>
-        <Hint label={`${locale === 'ru' ? 'Почему' : 'Why'}: ${c.id}`}>
-          {c.why}
-        </Hint>
+        <Hint label={`${piecesCopy[locale].reviewWhy}: ${c.id}`}>{c.why}</Hint>
       </span>
     );
   });
@@ -112,21 +117,26 @@ export function AdaptationReview({
   workspaceId: string;
   locale: 'ru' | 'en';
   disabled?: boolean;
-  onAccepted: () => void;
+  /**
+   * Что именно приняли. Счёт штампов до и после нужен странице: она держит
+   * «было N → стало M» рядом со строкой качества до следующей перезагрузки,
+   * а перечитанная заготовка этих двух чисел уже не несёт.
+   */
+  onAccepted: (outcome?: { slopBefore: number; slopAfter: number }) => void;
   onPublish?: () => void;
   canCheckFacts?: boolean;
 }) {
-  const ru = locale === 'ru',
+  const t = piecesCopy[locale],
     request = useFetch();
   const [open, setOpen] = useState(false),
     [rewrite, setRewrite] = useState(false),
-    [web, setWeb] = useState(false),
     [researchDialog, setResearchDialog] = useState(false),
     [researchDirection, setResearchDirection] = useState(''),
     [researchLevel, setResearchLevel] = useState<ResearchLevel>('standard'),
     [instruction, setInstruction] = useState(''),
     [result, setResult] = useState<ReviewV3 | null>(null),
-    [researchPreview, setResearchPreview] = useState<ReadablePieceResearchPreview | null>(null),
+    [researchPreview, setResearchPreview] =
+      useState<ReadablePieceResearchPreview | null>(null),
     [researchExpired, setResearchExpired] = useState(false),
     [selected, setSelected] = useState<string[]>([]),
     [variant, setVariant] = useState<string | undefined>(),
@@ -155,7 +165,6 @@ export function AdaptationReview({
     setResearchExpired(false);
     setError(null);
     setRewrite(false);
-    setWeb(false);
     setResearchDialog(false);
     setResearchDirection('');
     setResearchLevel('standard');
@@ -181,7 +190,6 @@ export function AdaptationReview({
       } catch {}
     }
     setOpen(false);
-    setWeb(false);
     setError(null);
     setResult(null);
     setResearchPreview(null);
@@ -206,9 +214,7 @@ export function AdaptationReview({
         !Array.isArray(body.changes) ||
         typeof body.token !== 'string'
       )
-        throw new Error(
-          ru ? 'Неполный результат проверки.' : 'Incomplete review.'
-        );
+        throw new Error(t.reviewIncomplete);
       if (!abort.signal.aborted) {
         setResult(body);
         setSelected(
@@ -241,7 +247,6 @@ export function AdaptationReview({
     setResearchPreview(null);
     setResearchExpired(false);
     setRewrite(false);
-    setWeb(false);
     setOpen(false);
     try {
       const response = await request(`${base}/research?language=${locale}`, {
@@ -258,7 +263,9 @@ export function AdaptationReview({
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       if (
-        !(PIECE_RESEARCH_VERSIONS as readonly string[]).includes(body.version) ||
+        !(PIECE_RESEARCH_VERSIONS as readonly string[]).includes(
+          body.version
+        ) ||
         typeof body.snapshotKey !== 'string' ||
         !['quick', 'standard', 'deep'].includes(body.level) ||
         typeof body.input !== 'string' ||
@@ -266,9 +273,7 @@ export function AdaptationReview({
         !Array.isArray(body.corrections) ||
         (body.summary !== null && typeof body.summary !== 'object')
       )
-        throw new Error(
-          ru ? 'Неполный результат ресерча.' : 'Incomplete research result.'
-        );
+        throw new Error(t.researchIncomplete);
       if (!abort.signal.aborted) {
         setResearchPreview(body);
         setResearchDialog(false);
@@ -360,11 +365,7 @@ export function AdaptationReview({
         if (response.status === 409 || response.status === 410)
           setResearchExpired(true);
         throw new Error(
-          typeof body?.message === 'string'
-            ? body.message
-            : ru
-            ? 'Результат ресерча устарел.'
-            : 'Research result expired.'
+          typeof body?.message === 'string' ? body.message : t.researchStale
         );
       }
       if (!abort.signal.aborted) {
@@ -409,8 +410,9 @@ export function AdaptationReview({
         throw new Error(body.message);
       }
       if (!abort.signal.aborted) {
+        const { slopBefore, slopAfter } = result;
         setResult(null);
-        onAccepted();
+        onAccepted({ slopBefore, slopAfter });
       }
     } catch (e) {
       if (!abort.signal.aborted)
@@ -422,10 +424,27 @@ export function AdaptationReview({
       }
     }
   }
-  const cost = ru
-    ? 'Один вызов модели · расход по роли «проверка»'
-    : 'One model call · review usage';
   const editable = result?.changes.filter(isEditableReviewChange) ?? [];
+  const catalogGroups = [
+    {
+      id: 'removed',
+      label: t.catalogRemoved,
+      findings: result?.catalog?.removed ?? [],
+    },
+    {
+      id: 'remaining',
+      label: t.catalogRemaining,
+      findings: result?.catalog?.remaining ?? [],
+    },
+  ] as const;
+  /*
+    Проверять было нечего: сверять с источниками в тексте нечего, поиск не
+    покупали, и сервер честно вернул чистый вердикт без правок. Это не пустой
+    результат и не сбой — это ответ, и он печатается словами сервера вместо
+    пустого блока «Принять выбранные».
+  */
+  const nothingToCheck =
+    result?.factCheck?.searched === false && result.factCheck.claims === 0;
   const noChangeNotes =
     result?.changes.filter(
       (change) => change.basket !== 'ask' && !isEditableReviewChange(change)
@@ -443,7 +462,7 @@ export function AdaptationReview({
             disabled={disabled || !!busy}
             onClick={onPublish}
           >
-            {ru ? 'Опубликовать' : 'Publish'}
+            {t.publish}
           </Button>
         ) : null}
         {!adaptationId ? (
@@ -454,7 +473,7 @@ export function AdaptationReview({
               disabled={disabled || !!busy}
               onClick={() => setRewrite((v) => !v)}
             >
-              {ru ? 'Перегенерировать' : 'Regenerate'}
+              {t.regenerate}
             </Button>
             <Button
               variant="secondary"
@@ -465,20 +484,29 @@ export function AdaptationReview({
                 setResearchDialog(true);
               }}
             >
-              {ru ? 'Дополнить ресерчем' : 'Add research'}
+              {t.addResearch}
             </Button>
             {canCheckFacts ? (
-              <Button
-                variant="quiet"
-                density="dense"
-                disabled={disabled || !!busy}
-                onClick={() => {
-                  setLast('web');
-                  setWeb(true);
-                }}
-              >
-                {ru ? 'Проверить факты' : 'Check facts'}
-              </Button>
+              /*
+                Проверка запускается нажатием, а не окном подтверждения.
+                Окно спрашивало «вы уверены?» о действии, которое человек и
+                так выбрал словами, и ничего нового в нём не сообщалось —
+                предложение о расходе стоит рядом подсказкой и читается до
+                нажатия, а не после.
+              */
+              <span className="inline-flex items-center gap-[4px]">
+                <Button
+                  variant="quiet"
+                  density="dense"
+                  disabled={disabled || !!busy}
+                  loading={busy === 'run'}
+                  loadingLabel={t.reviewing}
+                  onClick={() => void run('web')}
+                >
+                  {t.checkFacts}
+                </Button>
+                <Hint label={t.checkFactsSpendLabel}>{t.checkFactsSpend}</Hint>
+              </span>
             ) : null}
           </>
         ) : (
@@ -491,13 +519,20 @@ export function AdaptationReview({
                   density: 'dense',
                 })}
               >
-                {ru ? 'Ещё ▾' : 'More ▾'}
+                {t.reviewMenu}
               </MenuButton>
               {open ? (
+                /*
+                  Каждый пункт говорит, что произойдёт с текстом, а не во что
+                  это обойдётся: «один вызов модели» повторялось четырежды и
+                  не отвечало ни на один вопрос человека, который выбирает
+                  проверку. Расход проверки фактов сказан подсказкой у
+                  кнопки, где он и решается.
+                */
                 <MenuList className="absolute start-0 top-full z-20 mt-[4px] flex w-[320px] max-w-[calc(100vw-64px)] flex-col rounded-[8px] border border-cf-border-strong bg-cf-surface-raised p-[8px]">
                   <DescribedMenuItem
-                    title={ru ? 'Перегенерировать' : 'Regenerate'}
-                    description={cost}
+                    title={t.regenerate}
+                    description={t.regenerateDescription}
                     onClick={() => {
                       setOpen(false);
                       setRewrite(true);
@@ -507,48 +542,29 @@ export function AdaptationReview({
                     <DescribedMenuItem
                       key={mode}
                       title={
-                        ru
-                          ? {
-                              slop: 'Убрать штампы',
-                              facts: 'Сверить с сутью',
-                              both: 'И то и другое',
-                            }[mode]
-                          : {
-                              slop: 'Remove cliches',
-                              facts: 'Compare with core',
-                              both: 'Both',
-                            }[mode]
+                        {
+                          slop: t.removeAiTells,
+                          facts: t.compareCore,
+                          both: t.reviewBoth,
+                        }[mode]
                       }
                       description={
-                        cost +
-                        (last === mode
-                          ? ru
-                            ? ' · Последний выбор'
-                            : ' · Last choice'
-                          : '')
+                        {
+                          slop: t.removeAiTellsDescription,
+                          facts: t.compareCoreDescription,
+                          both: t.reviewBothDescription,
+                        }[mode] + (last === mode ? t.lastChoice : '')
                       }
                       onClick={() => void run(mode)}
                     />
                   ))}
                   <DescribedMenuItem
-                    title={
-                      ru ? 'Проверить факты поиском' : 'Check facts with search'
-                    }
+                    title={t.checkFactsSearch}
                     description={
-                      (ru
-                        ? 'Поиск + модели · отдельный расход'
-                        : 'Search + models · additional usage') +
-                      (last === 'web'
-                        ? ru
-                          ? ' · Последний выбор'
-                          : ' · Last choice'
-                        : '')
+                      t.checkFactsSearchDescription +
+                      (last === 'web' ? t.lastChoice : '')
                     }
-                    onClick={() => {
-                      setOpen(false);
-                      setWeb(true);
-                      setLast('web');
-                    }}
+                    onClick={() => void run('web')}
                   />
                 </MenuList>
               ) : null}
@@ -559,7 +575,7 @@ export function AdaptationReview({
       {rewrite ? (
         <section className="flex flex-col gap-[8px]">
           <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
-            {ru ? 'Что перегенерировать?' : 'What should change?'}
+            {t.rewritePrompt}
             <Textarea
               standalone
               layout="content"
@@ -570,10 +586,7 @@ export function AdaptationReview({
             />
           </label>
           <div className="flex flex-wrap gap-[8px]">
-            {(ru
-              ? ['Только заголовок', 'Весь текст']
-              : ['Only title', 'Whole text']
-            ).map((value) => (
+            {[t.rewriteOnlyTitle, t.rewriteWholeText].map((value) => (
               <Button
                 key={value}
                 variant="quiet"
@@ -584,16 +597,15 @@ export function AdaptationReview({
               </Button>
             ))}
           </div>
-          <p className="cf-caption text-cf-ink-muted">{cost}</p>
           <Button
             variant="primary"
             density="dense"
             disabled={disabled || !instruction.trim()}
             loading={busy === 'run'}
-            loadingLabel={ru ? 'Перегенерируем…' : 'Regenerating…'}
+            loadingLabel={t.regenerating}
             onClick={() => void run()}
           >
-            {ru ? 'Перегенерировать' : 'Regenerate'}
+            {t.regenerate}
           </Button>
         </section>
       ) : null}
@@ -602,7 +614,7 @@ export function AdaptationReview({
         onClose={() => {
           if (busy !== 'research') setResearchDialog(false);
         }}
-        title={ru ? 'Дополнить ресерчем' : 'Add research'}
+        title={t.addResearch}
         footer={
           <>
             <Button
@@ -610,22 +622,22 @@ export function AdaptationReview({
               disabled={busy === 'research'}
               onClick={() => setResearchDialog(false)}
             >
-              {ru ? 'Отмена' : 'Cancel'}
+              {t.cancelAction}
             </Button>
             <Button
               variant="primary"
               loading={busy === 'research'}
-              loadingLabel={ru ? 'Ищем опоры…' : 'Finding sources…'}
+              loadingLabel={t.findingSources}
               onClick={() => void startResearch()}
             >
-              {ru ? 'Запустить ресерч' : 'Run research'}
+              {t.runResearch}
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-[12px]">
           <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
-            {ru ? 'Куда копать' : 'Research direction'}
+            {t.researchDirection}
             <Textarea
               standalone
               layout="content"
@@ -636,9 +648,7 @@ export function AdaptationReview({
             />
           </label>
           <p className="cf-caption text-cf-ink-muted">
-            {ru
-              ? 'Например: свежие цифры за 2026 год. Можно оставить пустым'
-              : 'For example: current figures for 2026. You can leave this empty.'}
+            {t.researchDirectionExample}
           </p>
           <ResearchLevelSelect
             locale={locale}
@@ -652,32 +662,6 @@ export function AdaptationReview({
             </p>
           ) : null}
         </div>
-      </Dialog>
-      <Dialog
-        open={web}
-        onClose={() => setWeb(false)}
-        title={ru ? 'Проверить факты поиском' : 'Check facts with search'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setWeb(false)}>
-              {ru ? 'Отмена' : 'Cancel'}
-            </Button>
-            <Button
-              variant="primary"
-              loading={busy === 'run'}
-              loadingLabel={ru ? 'Проверяем…' : 'Reviewing…'}
-              onClick={() => void run('web')}
-            >
-              {ru ? 'Запустить поиск и проверку' : 'Run search and review'}
-            </Button>
-          </>
-        }
-      >
-          <p className="cf-body-sm text-cf-ink-muted">
-            {ru
-              ? 'Поиск и модели могут расходовать квоту ИИ или средства подключённого провайдера. Для поиска используются первые 5000 знаков. Источники могут охватить не все утверждения.'
-              : 'Search and models may use your AI allowance or incur charges with your connected provider. Search uses the first 5000 characters; sources may not cover every claim.'}
-          </p>
       </Dialog>
       {researchPreview ? (
         <ResearchOutcome
@@ -699,16 +683,10 @@ export function AdaptationReview({
         <WorkingLine
           label={
             busy === 'accept'
-              ? ru
-                ? 'Сохраняем…'
-                : 'Saving…'
+              ? t.saving
               : busy === 'research'
-              ? ru
-                ? 'Ищем опоры…'
-                : 'Finding sources…'
-              : ru
-                ? 'Проверяем текст…'
-                : 'Reviewing…'
+              ? t.findingSources
+              : t.reviewing
           }
         />
       ) : null}
@@ -719,10 +697,17 @@ export function AdaptationReview({
       ) : null}
       {result ? (
         <section className="flex flex-col gap-[12px] border-t border-cf-border pt-[12px]">
-          {!result.changes.length ? (
-            <p role="status" className="cf-body-sm text-cf-ink-muted">
-              {ru ? 'Правки не понадобились.' : 'No changes needed.'}{' '}
+          {nothingToCheck ? (
+            <p
+              role="status"
+              data-review-nothing-to-check="true"
+              className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
               {result.summary}
+            </p>
+          ) : !result.changes.length ? (
+            <p role="status" className="cf-body-sm text-cf-ink-muted">
+              {t.noChangesNeeded} {result.summary}
             </p>
           ) : (
             <>
@@ -742,10 +727,44 @@ export function AdaptationReview({
                 locale={locale}
               />
               <p className="cf-caption text-cf-ink-muted">
-                {ru
-                  ? `Штампы: было ${result.slopBefore} → стало ${result.slopAfter}. Бесплатный подсчёт по каталогу; «Убрать штампы» — вызов модели по этому списку.`
-                  : `Cliches: ${result.slopBefore} → ${result.slopAfter}. Free catalog count; removing them calls a model with this list.`}
+                {`${t.slopBeforeAfter(result.slopBefore, result.slopAfter)}. ${
+                  t.slopCatalogNote
+                }`}
               </p>
+              {/*
+                Числа «было N → стало M» человек проверить не может, а
+                отрывки — может. Списки нарочно не сводят с числами: правка
+                умеет внести новый штамп, и `slopAfter` тогда больше, чем
+                осталось в каталоге. Подгонять одно под другое значило бы
+                соврать ровно там, где строка оправдывается.
+              */}
+              {result.catalog ? (
+                <div
+                  data-review-catalog="true"
+                  className="flex min-w-0 flex-col gap-[4px]"
+                >
+                  {catalogGroups.map(({ id, label, findings }) =>
+                    findings.length ? (
+                      <p
+                        key={id}
+                        data-review-catalog-group={id}
+                        className="min-w-0 max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                      >
+                        <span className="text-cf-ink">{label}</span>{' '}
+                        {findings
+                          .slice(0, CATALOG_SHOWN)
+                          .map((finding) => t.quoted(finding.excerpt))
+                          .join(', ')}
+                        {findings.length > CATALOG_SHOWN
+                          ? `, ${t.catalogMore(
+                              findings.length - CATALOG_SHOWN
+                            )}`
+                          : ''}
+                      </p>
+                    ) : null
+                  )}
+                </div>
+              ) : null}
               {editable.length ? (
                 <div className="flex flex-col gap-[8px]">
                   {editable.map((c) => (
@@ -761,11 +780,7 @@ export function AdaptationReview({
                         }
                         label={
                           <span>
-                            {c.basket === 'silent'
-                              ? ru
-                                ? 'Исправление опечатки: '
-                                : 'Typo: '
-                              : ''}
+                            {c.basket === 'silent' ? t.typoPrefix : ''}
                             {c.excerpt} → {c.replacement}
                             <span className="block text-cf-ink-muted">
                               {c.why}
@@ -804,7 +819,7 @@ export function AdaptationReview({
                     disabled={disabled || stale || !selected.length || !!busy}
                     onClick={() => void accept()}
                   >
-                    {ru ? 'Принять выбранные' : 'Accept selected'}
+                    {t.acceptSelected}
                   </Button>
                 ) : null}
                 <Button
@@ -813,30 +828,51 @@ export function AdaptationReview({
                   disabled={!!busy}
                   onClick={() => setResult(null)}
                 >
-                  {ru ? 'Оставить как было' : 'Leave unchanged'}
+                  {t.leaveUnchanged}
                 </Button>
               </div>
             </>
           )}
-          {result.sources?.length ? (
-            <Disclosure summary={ru ? 'Источники поиска' : 'Search sources'}>
-              <ul className="flex flex-col gap-[8px]">
-                {result.sources.map((source) => (
-                  <li key={source.url}>
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="cf-body-sm text-cf-ink underline"
-                    >
-                      {source.title}
-                    </a>
-                    <p className="cf-body-sm text-cf-ink-muted">
-                      {source.excerpt}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+          {result.factCheck?.searched ? (
+            <p
+              data-review-claims="true"
+              className="cf-caption text-cf-ink-muted"
+            >
+              {t.claimsChecked(result.factCheck.claims)}
+            </p>
+          ) : null}
+          {result.sources?.length || result.factCheck?.queries.length ? (
+            <Disclosure summary={t.searchSources}>
+              {result.factCheck?.queries.length ? (
+                <p
+                  data-review-queries="true"
+                  className="min-w-0 max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+                >
+                  <span className="text-cf-ink">{t.searchQueries}</span>{' '}
+                  {result.factCheck.queries
+                    .map((query) => t.quoted(query))
+                    .join(', ')}
+                </p>
+              ) : null}
+              {result.sources?.length ? (
+                <ul className="flex flex-col gap-[8px]">
+                  {result.sources.map((source) => (
+                    <li key={source.url}>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="cf-body-sm text-cf-ink underline"
+                      >
+                        {source.title}
+                      </a>
+                      <p className="cf-body-sm text-cf-ink-muted">
+                        {source.excerpt}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </Disclosure>
           ) : null}
         </section>

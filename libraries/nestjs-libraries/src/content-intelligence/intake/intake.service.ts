@@ -10,6 +10,7 @@ import {
   RESEARCH_DIGEST_CLAIM_CAP,
   RESEARCH_DIGEST_FINDING_CAPS,
   applyCorrection,
+  correctionCoversStatement,
   digestSourcesFor,
   factKeyOf,
   researchDigestPrompt,
@@ -117,13 +118,19 @@ import {
   linksOf,
   wordShingles,
 } from './intake-kind';
+/*
+  Оба промпта входа — по преемникам v5 (`97dq.1`): одно число на утверждение
+  при разборе чужого текста и одна строка опоры на число человека при
+  заполнении брифа. Модули v4 остаются импортируемыми и нетронутыми.
+*/
 import {
-  briefFillPromptV4 as briefFillPrompt,
-  briefFillSchemaV4 as briefFillSchema,
-  extractionPromptV4 as extractionPrompt,
-  extractionSchemaV4 as extractionSchema,
-  type IntakeExtractionV4 as IntakeExtractionV1,
-} from './intake.prompts.v4';
+  briefFillPromptV5 as briefFillPrompt,
+  briefFillSchemaV5 as briefFillSchema,
+  extractionPromptV5 as extractionPrompt,
+  extractionSchemaV5 as extractionSchema,
+  type IntakeExtractionV5 as IntakeExtractionV1,
+} from './intake.prompts.v5';
+import { settleOwnFacts } from './own-facts';
 import { oneLine } from './intake.prompts';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
@@ -160,6 +167,16 @@ const MEMORY_FACTS_LIMIT = 8;
 /** Потолок разбора чужого текста в знаках — тот же, что у выдержки поиска. */
 const BORROWED_TEXT_LIMIT = WEB_SEARCH_MAX_SOURCE_CHARS;
 
+/**
+ * Сколько ссылок вставленного материала вход читает сам.
+ *
+ * Три — это «статья и пара сносок». Больше не про безопасность (адреса уже
+ * просеяны `usableHttpsUrl`, шлюз держит `robots.txt` и запретные домены), а
+ * про время и деньги: каждая ссылка — поход в сеть и кусок промпта, а
+ * вставленная статья несёт их десятками.
+ */
+export const INTAKE_MAX_PASTED_LINKS = 3;
+
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
@@ -188,6 +205,14 @@ export type IntakeChannelV1 = {
 export type IntakePlanV1 = {
   input: string;
   inputKind: IntakeInputKindV1;
+  /**
+   * Вид входа назвал человек, а не догадка по тексту (`97dq.1`).
+   *
+   * Галочка «Это чужой текст» на экране входа — это сказанное вслух, и модель
+   * его не пересматривает. Без галочки вид остаётся догадкой, и тогда модель
+   * вправе её только повысить.
+   */
+  inputKindExplicit: boolean;
   language: ContentLanguage;
   /**
    * Каналы, в которые пишутся адаптации. Пустой список — законный ход
@@ -229,6 +254,13 @@ export type IntakeRunState = {
   summary: IntakeResearchSummaryV1 | null;
   /** Мысль человека с принятыми поправками; пустая строка — без поправок. */
   correctedInput: string;
+  /**
+   * Вид материала, каким его знал первый проход, и назвал ли его человек
+   * (`97dq.1`). Старый снимок этих полей не несёт — тогда второй проход
+   * остаётся при своей догадке, как до этой волны.
+   */
+  inputKind?: IntakeInputKindV1;
+  inputKindExplicit?: boolean;
 };
 
 /** Доказательство, принятое за этот вход: адрес, заголовок, выдержка. */
@@ -366,11 +398,13 @@ export class IntakeService {
       if (text) overrides[field] = text;
     }
 
+    const namedKind = this.knownKind(body?.inputKind);
     return {
       input,
       // Слово клиента сильнее: ссылку он узнаёт сам и уже подписал ею поле, а
       // разошедшиеся половины одного правила — худшее из двух зол.
-      inputKind: this.knownKind(body?.inputKind) ?? detectInputKind(input),
+      inputKind: namedKind ?? detectInputKind(input),
+      inputKindExplicit: namedKind !== null,
       language,
       channels,
       answers: (Array.isArray(body?.answers) ? body.answers : [])
@@ -432,6 +466,27 @@ export class IntakeService {
   }
 
   /**
+   * Что классификация материала вправе изменить в виде входа (`97dq.1`).
+   *
+   * Названный человеком вид не трогается вовсе. Догадку модель может только
+   * ПОВЫСИТЬ — «мысль» до «чужого поста», — и никогда не понижает. Причина в
+   * цене ошибки, а она несимметрична: лишний вопрос о позиции человек
+   * пропускает одним нажатием, а чужое мнение, выданное за его собственное,
+   * уходит в текст и в канал (`cnt-19 760615d5` восьмого захода: модель дважды
+   * ответила «мысль», блок уточнения позиции не появился, и адаптация встала
+   * на позицию чужого автора).
+   */
+  private settleKind(
+    plan: IntakePlanV1,
+    classified: IntakeExtractionV1
+  ): IntakeInputKindV1 {
+    if (plan.inputKindExplicit) return plan.inputKind;
+    return classified.materialKind === 'foreign_post'
+      ? 'foreign_post'
+      : plan.inputKind;
+  }
+
+  /**
    * Что первый проход знает к моменту «опоры готовы», и что второй проход
    * получает из снимка вместо того, чтобы считать заново
    * (`content-factory-next-75xn.19`).
@@ -446,6 +501,7 @@ export class IntakeService {
     corrections?: IntakeCorrectionV1[];
     summary?: IntakeResearchSummaryV1 | null;
     correctedInput?: string;
+    plan?: IntakePlanV1;
   }): IntakeRunState {
     return {
       filled: input.filled,
@@ -457,7 +513,39 @@ export class IntakeService {
       corrections: input.corrections ?? [],
       summary: input.summary ?? null,
       correctedInput: input.correctedInput ?? '',
+      ...(input.plan
+        ? {
+            inputKind: input.plan.inputKind,
+            inputKindExplicit: input.plan.inputKindExplicit,
+          }
+        : {}),
     };
+  }
+
+  /**
+   * Вид материала, решённый первым проходом, — обратно в план второго
+   * (`97dq.1`).
+   *
+   * Второй проход приходит отдельным запросом, и `prepare` знает о нём ровно
+   * то, что прислал клиент: длинный вставленный пост снова становится
+   * «мыслью», вопрос о позиции не задаётся, а принятые поправки ложатся на
+   * чужой текст как на слова человека. Снимок помнит решение первого прохода,
+   * и оно сильнее догадки. Снимок старого образца полей не несёт — тогда всё
+   * остаётся как было.
+   */
+  private restoreKind(plan: IntakePlanV1, state: IntakeRunState): void {
+    /*
+      Снимок, записанный до этой волны, полей вида не несёт — но несёт бриф, а
+      в нём `inputKind` стоял с самого первого прохода. Он и есть решение
+      первого прохода: человек, поставивший ход на паузу до выпуска и
+      нажавший «Продолжить с правками» после него (час TTL), иначе получил бы
+      понижение до «мысли» и остался бы без вопроса о позиции.
+    */
+    const known = state.inputKind ?? this.knownKind(state.filled?.brief?.inputKind);
+    if (!known) return;
+    plan.inputKind = known;
+    plan.inputKindExplicit =
+      state.inputKindExplicit ?? plan.inputKindExplicit;
   }
 
   /** Предел знаков берётся у провайдера, третьей таблицы у продукта нет. */
@@ -467,12 +555,6 @@ export class IntakeService {
     actorUserId?: string
   ): AsyncGenerator<IntakeEventV2> {
     const language = plan.language;
-    yield {
-      name: 'intake-started',
-      inputKind: plan.inputKind,
-      sources: plan.inputKind === 'foreign_post' && linksOf(plan.input).length
-        ? ['foreign_post', 'link'] : [plan.inputKind],
-    };
 
     /*
       Второй проход продолжает первый, а не повторяет его
@@ -480,16 +562,31 @@ export class IntakeService {
       сделаны, и делать их заново значило бы ждать те же 22 секунды и получить
       другие формулировки строк. Снимка нет (истёк, нет хранилища, другая
       область) — честный повтор ниже, со сверкой выбора по ключам и по тексту.
+
+      Снимок читается ДО первого события: вид материала первого прохода стоит
+      уже в `intake-started`, а не появляется посреди хода (`97dq.1`).
     */
-    if (plan.researchSelections !== null && plan.snapshotKey && actorUserId) {
-      const snapshot = await this.readSnapshot(organizationId, actorUserId, plan.snapshotKey);
-      if (snapshot) {
-        const state = this.applySelections(snapshot, plan);
-        yield { name: 'brief-started' };
-        yield this.researchReadyEvent(state, plan.snapshotKey);
-        yield* this.finish(organizationId, plan, actorUserId, state);
-        return;
-      }
+    const resuming = plan.researchSelections !== null && !!plan.snapshotKey && !!actorUserId;
+    const snapshot = resuming
+      ? await this.readSnapshot(organizationId, actorUserId!, plan.snapshotKey!)
+      : null;
+    if (snapshot) this.restoreKind(plan, snapshot);
+
+    yield {
+      name: 'intake-started',
+      inputKind: plan.inputKind,
+      sources: plan.inputKind === 'foreign_post' && linksOf(plan.input).length
+        ? ['foreign_post', 'link'] : [plan.inputKind],
+    };
+
+    if (snapshot) {
+      const state = this.applySelections(snapshot, plan);
+      yield { name: 'brief-started' };
+      yield this.researchReadyEvent(state, plan.snapshotKey);
+      yield* this.finish(organizationId, plan, actorUserId, state);
+      return;
+    }
+    if (resuming) {
       this.logger.log('The intake snapshot was not found; running the first pass again.');
     }
 
@@ -498,9 +595,12 @@ export class IntakeService {
     let extraction: IntakeExtractionV1 | null = null;
 
     // A long pasted text is the ambiguous seam that the old prose heuristic
-    // could not decide. Extract v4 owns that decision; the heuristic remains
+    // could not decide. Extract v5 owns that decision; the heuristic remains
     // the fallback for a malformed/legacy recorded answer and for short notes.
+    // Названный человеком вид сюда не заходит вовсе: платить за ответ, который
+    // всё равно не будет прочитан, значило бы считать чужую галочку догадкой.
     if (
+      !plan.inputKindExplicit &&
       plan.inputKind === 'thought' &&
       plan.input.length >= FOREIGN_POST_MIN_CHARS
     ) {
@@ -509,29 +609,39 @@ export class IntakeService {
         plan.input.slice(0, BORROWED_TEXT_LIMIT),
         language
       );
-      const materialKind = classified.materialKind === 'thought' ||
-        classified.materialKind === 'foreign_post'
-        ? classified.materialKind
-        : plan.inputKind;
-      plan.inputKind = materialKind;
-      extraction = materialKind === 'foreign_post' ? classified : null;
+      plan.inputKind = this.settleKind(plan, classified);
+      extraction = plan.inputKind === 'foreign_post' ? classified : null;
     }
 
-    const urls = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
-      ? linksOf(plan.input) : [];
+    /*
+      Вставленная статья несёт свои ссылки десятками, и с галочкой «Это чужой
+      текст» это обычный ход, а не редкость (`97dq.1`). Читается не «сколько
+      прислали», а `INTAKE_MAX_PASTED_LINKS`, и недоступная ссылка внутри
+      ТЕКСТА ход не обрывает: материал у нас уже есть — сам текст. Ссылка как
+      вход (`link`) остаётся fail-closed: там, кроме неё, читать нечего.
+    */
+    const pasted = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
+      ? linksOf(plan.input).slice(0, INTAKE_MAX_PASTED_LINKS) : [];
+    // Прочитанные, а не присланные: строка источника в брифе обязана иметь
+    // доказательство, иначе заготовка ссылается на страницу, которой у неё нет.
+    const urls: string[] = [];
     const borrowedParts: string[] = plan.inputKind === 'foreign_post'
       ? [plan.input.slice(0, BORROWED_TEXT_LIMIT)] : [];
-    for (const url of urls) {
+    for (const url of pasted) {
       let accepted: AcceptedEvidence;
       try {
         accepted = await this.readLink(organizationId, url);
       } catch (error) {
         this.logger.warn(`Intake could not read the pasted link: ${describeError(error)}`);
-        yield { name: 'error', error: true, code: 'INTAKE_LINK_UNREACHABLE',
-          message: INTAKE_LINK_UNREACHABLE_MESSAGES[language] };
-        return;
+        if (plan.inputKind === 'link') {
+          yield { name: 'error', error: true, code: 'INTAKE_LINK_UNREACHABLE',
+            message: INTAKE_LINK_UNREACHABLE_MESSAGES[language] };
+          return;
+        }
+        continue;
       }
       evidence.set(accepted.evidenceId, accepted);
+      urls.push(accepted.url);
       yield { name: 'link-fetched', url: accepted.url, title: accepted.title, evidenceId: accepted.evidenceId };
       borrowedParts.push(accepted.excerpt);
     }
@@ -543,12 +653,8 @@ export class IntakeService {
       if (plan.inputKind === 'link') {
         extraction = classified;
       } else {
-        const materialKind = classified.materialKind === 'thought' ||
-          classified.materialKind === 'foreign_post'
-          ? classified.materialKind
-          : plan.inputKind;
-        plan.inputKind = materialKind;
-        extraction = materialKind === 'foreign_post' ? classified : null;
+        plan.inputKind = this.settleKind(plan, classified);
+        extraction = plan.inputKind === 'foreign_post' ? classified : null;
       }
     }
     if (extraction && plan.inputKind !== 'thought') {
@@ -584,8 +690,17 @@ export class IntakeService {
         ? await this.digestResearch(organizationId, plan, filled, extraction, researched, level)
         : null;
       const rows = this.researchRows(filled, researched, digest, level);
+      /*
+        Квитанция говорит правду уже на паузе (`97dq.1`): «без опоры» считается
+        по строкам после вердиктов, а не по тем, что были до поиска. Иначе
+        человек видит один список на экране выбора и другой — после него.
+      */
+      const withRows = { ...filled.brief, facts: rows.facts };
       const base = this.stateOf({
-        filled: { ...filled, ...this.settled({ ...filled.brief, facts: rows.facts }) },
+        filled: {
+          ...filled,
+          ...this.settled({ ...withRows, ungrounded: this.ungroundedOf(withRows) }),
+        },
         evidence,
         extraction,
         urls,
@@ -593,6 +708,7 @@ export class IntakeService {
         level,
         corrections: rows.corrections,
         summary: rows.summary,
+        plan,
       });
       const state = this.applySelections(base, plan);
       const pausing = !!actorUserId && plan.researchSelections === null;
@@ -620,7 +736,7 @@ export class IntakeService {
       organizationId,
       plan,
       actorUserId,
-      this.stateOf({ filled, evidence, extraction, urls, foreignShingles, level: null })
+      this.stateOf({ filled, evidence, extraction, urls, foreignShingles, level: null, plan })
     );
   }
 
@@ -1216,13 +1332,22 @@ export class IntakeService {
     const knownFacts = new Set(memory.map((fact) => fact.id));
     const origins: BriefFilledV1['origins'] = {};
 
+    /**
+     * Происхождение поля со слов модели, кроме одного случая.
+     *
+     * У чужого поста позиция человека не может прийти ниоткуда, кроме самого
+     * человека (`97dq.1`). Сюда `originOf` вызывается только тогда, когда
+     * человек про поле НЕ говорил, — значит любое названное происхождение
+     * («input», «avatar», «memory», да и «person») означает ровно одно:
+     * предположение модели. Раньше приводился только «input», и позиции с
+     * пометкой `avatar` хватало, чтобы вопрос о позиции не задали вовсе и
+     * текст встал на сторону чужого автора.
+     */
     const originOf = (field: string): BriefFieldOriginV1 | null => {
       const claimed = trimmed(answer?.origins?.[field]);
-      if (
-        plan.inputKind === 'foreign_post' &&
-        field === 'position' &&
-        claimed === 'input'
-      ) return 'model';
+      if (plan.inputKind === 'foreign_post' && field === 'position') {
+        return 'model';
+      }
       return (ORIGINS as string[]).includes(claimed)
         ? (claimed as BriefFieldOriginV1)
         : null;
@@ -1296,6 +1421,22 @@ export class IntakeService {
         verified: Boolean(evidenceId || factId),
       });
     }
+
+    /*
+      Числа человека — строками, по одному на строку (`97dq.1`). Промпт v5
+      просит эту форму, а этот шаг её добирает без второго вызова модели:
+      приписка «Автор утверждает, что…» снимается, склеенная строка
+      раскладывается по частям предложения, а число, которого модель не
+      выписала вовсе, получает свою строку из того предложения, где оно стоит.
+      Слова человека берутся только у мысли: у вставленного поста числа
+      принадлежат чужому автору, и «своими» они не становятся.
+    */
+    const settledFacts = settleOwnFacts({
+      facts,
+      personText: plan.inputKind === 'thought' ? plan.input : '',
+    });
+    facts.length = 0;
+    facts.push(...settledFacts);
 
     // Ответ человека про факты — его слово, и адрес внутри него становится
     // опорой. Без адреса опоры нет, и это честно видно в квитанции.
@@ -1469,6 +1610,7 @@ export class IntakeService {
       filled: { ...filled, ...this.settled({ ...brief, facts: [...previous, ...rows.facts] }) },
       evidence: [...evidence.values()], extraction: null, urls: [], foreignShingles: [],
       level, corrections: rows.corrections, summary: rows.summary, correctedInput: '',
+      inputKind: plan.inputKind, inputKindExplicit: plan.inputKindExplicit,
     };
   }
 
@@ -1479,7 +1621,8 @@ export class IntakeService {
 
   private existingCorePlan(input: string, language: 'ru' | 'en', researchSelections: string[] | null,
     researchLevel: 'quick' | 'standard' | 'deep' = 'standard'): IntakePlanV1 {
-    return { input, inputKind: 'thought', language, channels: [], answers: [], decide: [],
+    return { input, inputKind: 'thought', inputKindExplicit: false,
+      language, channels: [], answers: [], decide: [],
       interview: [], decideKeys: [], skipInterview: true, briefOverrides: {},
       options: { researchEnabled: true, researchLevel, isPicture: false },
       researchSelections, snapshotKey: null };
@@ -1523,15 +1666,26 @@ export class IntakeService {
       if (applied.applied) thesis = applied.text;
     }
     const brief = { ...state.filled.brief, facts, thesis };
-    const ungrounded = selectedFactsBrief(brief).facts
-      .filter((fact) => !fact.verified)
-      .map((fact) => fact.statement);
+    const ungrounded = this.ungroundedOf(brief);
     return {
       ...state,
       filled: { ...state.filled, brief: { ...brief, ungrounded } },
       corrections,
       correctedInput: this.correctedInputOf(plan, corrections),
     };
+  }
+
+  /**
+   * Строки без опоры — те из идущих в текст, что не подтверждены.
+   *
+   * Одно место на обе дороги (пауза и выбор): второй список, посчитанный
+   * иначе, и есть тот способ, которым «25 тысяч» уехали в суть как
+   * подтверждённые (`97dq.1`).
+   */
+  private ungroundedOf(brief: BriefFilledV1): string[] {
+    return selectedFactsBrief(brief)
+      .facts.filter((fact) => !fact.verified)
+      .map((fact) => fact.statement);
   }
 
   private correctedInputOf(plan: IntakePlanV1, corrections: IntakeCorrectionV1[]): string {
@@ -1792,10 +1946,23 @@ export class IntakeService {
         facts.push(original);
         if (verdict.correction && evidenceId) {
           const replaced = applyCorrection(fact.statement, verdict.correction);
+          /*
+            Поправка подтверждает свой отрезок, а не всё предложение
+            (`97dq.1`). Число, которое осталось за пределами замены и которого
+            нет ни в цитате, ни в самой замене, оставляет строку «не
+            проверено»: она всё равно лучше исходной и по-прежнему отмечена,
+            но в квитанции стоит честно и уходит в `ungrounded`.
+          */
+          const covered = correctionCoversStatement({
+            statement: fact.statement,
+            correction: verdict.correction,
+            quote: verdict.quote,
+          });
           const twin: PieceFactV2 = {
             statement: replaced.applied ? replaced.text : `${fact.statement} → ${verdict.correction.replacement}`,
-            sourceUrl, factId: null, evidenceId, origin: 'search', verified: true,
-            kind, status: 'confirmed', quote: verdict.quote, note: verdict.note,
+            sourceUrl, factId: null, evidenceId, origin: 'search', verified: covered,
+            kind, status: covered ? 'confirmed' : 'unverified',
+            quote: verdict.quote, note: verdict.note,
             correction: verdict.correction, selected: true,
           };
           twin.factKey = factKeyOf(twin);

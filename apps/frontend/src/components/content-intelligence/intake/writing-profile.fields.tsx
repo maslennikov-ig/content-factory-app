@@ -163,9 +163,9 @@ export function WritingProfileFields({
   });
 
   const hints: Record<string, string> = {
-    [t.profileLength]: locale === 'ru' ? 'Сколько знаков будет в посте. Модель может выбрать длину по материалу в пределах площадки.' : 'Post length. The model can choose within the platform limit.',
-    [t.profileEmoji]: locale === 'ru' ? 'Без эмодзи, 1–3 или много. Можно отдать выбор модели.' : 'No emoji, one to three, or many. Or let the model choose.',
-    [t.profileLink]: locale === 'ru' ? 'Где размещать ссылки: рядом с фактом или в конце. Новые адреса модель не выдумывает.' : 'Where links appear: inline or at the end. URLs are never invented.',
+    [t.profileLength]: locale === 'ru' ? 'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.' : 'Post length. We can choose within the platform limit.',
+    [t.profileEmoji]: locale === 'ru' ? 'Без эмодзи, 1–3 или много. Можно отдать выбор нам.' : 'No emoji, one to three, or many. Or let us choose.',
+    [t.profileLink]: locale === 'ru' ? 'Где размещать ссылки: рядом с фактом или в конце. Новые адреса мы не выдумываем.' : 'Where links appear: inline or at the end. URLs are never invented.',
     [t.profileHashtag]: locale === 'ru' ? 'Нужны ли метки темы и где они стоят.' : 'Whether topic tags are useful and where they go.',
     [t.profileCta]: locale === 'ru' ? 'Какого действия ждём от читателя после поста. Призыв может быть не нужен.' : 'What readers should do after reading. A call to action may be unnecessary.',
     [t.profileFormat]: locale === 'ru' ? 'Как построить текст: мнение, история, список или другой формат.' : 'How to structure the text: opinion, story, list, or another format.',

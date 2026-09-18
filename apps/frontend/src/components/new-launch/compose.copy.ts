@@ -126,7 +126,7 @@ export const composeCopy = {
      */
     relatedTitle: 'Свои тексты по теме',
     relatedHelp:
-      'Ваши вышедшие посты, близкие по словам. Их же видит модель — и может сослаться на один из них, если это к месту.',
+      'Ваши вышедшие посты, близкие по словам. Их же видит ИИ — и может сослаться на один из них, если это к месту.',
     /**
      * Имя стрелки рядом с основной кнопкой (`content-factory-next-m2eg.18`).
      * Кнопка без подписи обязана иметь имя, иначе с экрана её читают как
@@ -181,7 +181,7 @@ export const composeCopy = {
       'The facts and sources this text leans on. Nothing here needs marking.',
     relatedTitle: 'Your own posts on this topic',
     relatedHelp:
-      'Your published posts that share words with this one. The model sees the same list and may point back at one of them when it fits.',
+      'Your published posts that share words with this one. AI sees the same list and may point back at one of them when it fits.',
     morePublishingActions: 'Other ways to send this',
     postNowHint: 'straight to the channel, skipping the schedule',
     keepScheduledAt: (time: string) => `keep it scheduled for ${time}`,

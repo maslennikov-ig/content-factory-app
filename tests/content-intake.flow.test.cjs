@@ -396,6 +396,81 @@ describe('a link, declared to the door as a link', () => {
   });
 });
 
+/*
+  «Это чужой текст» — единственное, что человек знает про свой ввод, а сервер
+  угадать не может (живой прогон 18.09.2026, `content-factory-next-97dq.5`:
+  чужой пост прошёл как собственная мысль, и продукт встал на чужую позицию).
+  Флажок обязан доехать до двери и в первом ходе, и во втором проходе ресерча,
+  а без флажка вид ввода по-прежнему решает сервер.
+*/
+describe('«Это чужой текст» is carried to the door', () => {
+  const RESEARCH_PAUSE = [
+    { name: 'intake-started', inputKind: 'foreign_post', channels: [] },
+    {
+      name: 'research-selection-required',
+      level: 'standard',
+      snapshotKey: 'snap-1',
+      facts: [
+        {
+          statement: 'Производительность сохранилась или выросла',
+          kind: 'found',
+          origin: 'search',
+          status: 'confirmed',
+          selected: true,
+          factKey: 'ev-2:x',
+          sourceUrl: 'https://theconversation.com/a',
+        },
+      ],
+      corrections: [],
+      summary: { confirmed: 0, conflicting: 0, unverified: 0, found: 1, sources: 4, encyclopedic: 0 },
+    },
+  ];
+
+  const tickForeign = async () => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Это чужой текст' }));
+    });
+  };
+
+  test('the ticked box declares foreign_post on the first run and on the second pass', async () => {
+    serve(baseTable(intakeDoor(
+      streamed(RESEARCH_PAUSE),
+      streamed(scenario('thin-input'))
+    )));
+    await open();
+    await tickForeign();
+    await start('Вставленный чужой пост про четырёхдневную неделю');
+
+    expect(intakeAnswers[0].inputKind).toBe('foreign_post');
+    // Ряд продолжения стоит и над находками, и под ними.
+    const rows = document.querySelectorAll('[data-intake-research-row]');
+    expect(rows).toHaveLength(2);
+
+    await click(
+      screen.getAllByRole('button', { name: 'Продолжить' })[0],
+      () => intakeAnswers.length > 1
+    );
+
+    expect(intakeAnswers).toHaveLength(2);
+    expect(intakeAnswers[1].inputKind).toBe('foreign_post');
+    expect(intakeAnswers[1].snapshotKey).toBe('snap-1');
+  });
+
+  test('an untouched box says nothing, and a bare link stays a link', async () => {
+    serve(baseTable(intakeDoor(streamed(scenario('thin-input')))));
+    await open();
+    await start('Надо больше писать про ИИ, чем сейчас');
+    expect(intakeAnswers[0].inputKind).toBeUndefined();
+
+    cleanup();
+    serve(baseTable(intakeDoor(streamed(scenario('link')))));
+    await open();
+    await tickForeign();
+    await start('https://example.test/post');
+    expect(intakeAnswers[0].inputKind).toBe('link');
+  });
+});
+
 describe('two channels, and no text on the screen', () => {
   test('both drafts are asked for, and neither is drawn here', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('two-channels')))));

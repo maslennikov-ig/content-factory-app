@@ -157,28 +157,58 @@ const includedSearchKeys = (
 };
 
 /**
- * Search credentials resolve independently of the generation billing mode.
- * Operator keys form the base map and a workspace key overrides only the same
- * engine. Routing remains operator-owned, while `keySources` keeps the payer
- * attached to the credential that will actually leave the process.
+ * Which key each search engine may spend, decided by the usage mode the
+ * workspace chose for itself.
+ *
+ * Owner, 18.09.2026: «если выбрана глобальная настройка, что ключи системы, то
+ * зачем это все показывать… всё это нужно прятать». `included` means the
+ * system pays for everything, search included: the workspace's own search keys
+ * are dormant — still stored, never decrypted into this configuration, never
+ * spent — and they come back whole the moment the mode is `workspace_key`
+ * again. That replaces the rule of `content-factory-next-xmfb.8`, under which
+ * an own search key overrode the system key in either mode; a workspace that
+ * had pasted one was then paying a search bill it had explicitly asked the
+ * system to carry.
+ *
+ * `workspace_key` is unchanged: own key over system key, engine by engine, and
+ * an empty field is the system key rather than nothing. Neither mode can leave
+ * a person with no key at all while the operator has one.
+ *
+ * Routing stays operator-owned, and `keySources` keeps the payer attached to
+ * the credential that will actually leave the process — which is the whole of
+ * what quota admission in `WebResearchService` reads.
  */
 const resolvedSearch = (
   stored: StoredAiProviderSetting,
   instance: StoredInstanceAiDefaults | null,
-  ownKeys: SearchProviderKeys
+  ownKeys: SearchProviderKeys,
+  usageMode: AiUsageMode
 ): WebSearchConfig => {
   const provider = readSearchProvider(process.env.AI_INCLUDED_SEARCH_PROVIDER);
   const systemKeys = includedSearchKeys(provider, instance);
-  const apiKeys: SearchProviderKeys = { ...systemKeys, ...ownKeys };
+  /**
+   * The second of two independent guards, and deliberately not the only one:
+   * `loadAiConfig` does not decrypt the workspace's keys in `included` mode at
+   * all. The first version of the dormant-key rule carried a decrypted
+   * workspace key into the `included` configuration and was caught by
+   * `tests/ai-provider.usage-mode.test.cjs`; one guard at the caller would be
+   * one edit away from that defect again.
+   */
+  const activeOwnKeys: SearchProviderKeys =
+    usageMode === 'included' ? {} : ownKeys;
+  const apiKeys: SearchProviderKeys = { ...systemKeys, ...activeOwnKeys };
   const keySources: SearchProviderKeySources = {};
   for (const engine of SEARCH_PROVIDERS) {
-    if (ownKeys[engine]) keySources[engine] = 'own';
+    if (activeOwnKeys[engine]) keySources[engine] = 'own';
     else if (systemKeys[engine]) keySources[engine] = 'system';
   }
   const storedRoutes = parseSearchTaskProviders(instance?.searchTaskProviders);
   return {
-    // A usable key map is the search switch. The generation mode and the old
-    // row-level flag cannot disable either an own key or an operator key.
+    // A usable key map is the search switch: the old row-level flag cannot
+    // disable a key the mode has already selected, and an engine the mode left
+    // without a key is simply unavailable — a stored but dormant own key does
+    // not make `included` search possible for an engine the operator has no
+    // key for.
     enabled: Object.keys(apiKeys).length > 0,
     provider,
     apiKey: apiKeys[provider] || '',
@@ -329,6 +359,11 @@ export const resetAiConfigCache = (organizationId?: string) => {
 /**
  * The workspace's search keys, decrypted, addressed by engine.
  *
+ * Called only where a key is about to be usable, which since 18.09.2026 means
+ * `workspace_key` alone: in `included` mode the workspace's keys are dormant,
+ * and the safest form a dormant key can take in memory is the encrypted one it
+ * already had in the row.
+ *
  * A value that will not decrypt is dropped rather than thrown: one unreadable
  * key — a row written under a rotated secret, say — must not take the whole
  * configuration down to «nothing configured», which is what the surrounding
@@ -370,13 +405,24 @@ const workspaceSearchKeys = (
   return decrypted;
 };
 
-/** Which engines have a key, with nothing of the keys themselves. */
-const keyPresence = (
-  keys: SearchProviderKeys
+/**
+ * Which engines this workspace has a key saved for, with nothing of the keys
+ * themselves.
+ *
+ * Read from the stored row rather than from the decrypted map, so the answer
+ * is the same in both modes and needs no decryption to give: in `included`
+ * mode nothing decrypts the workspace's keys at all, and the settings screen
+ * still has to be able to say «у этой области сохранён свой ключ Exa» about a
+ * key that is dormant — otherwise switching back to «Свой ключ» would look
+ * like the key had been lost.
+ */
+const storedKeyPresence = (
+  stored: StoredAiProviderSetting
 ): Partial<Record<SearchProvider, boolean>> => {
+  const saved = parseSearchKeys(stored.searchApiKeys);
   const presence: Partial<Record<SearchProvider, boolean>> = {};
   for (const engine of SEARCH_PROVIDERS) {
-    if (keys[engine]) presence[engine] = true;
+    if (saved[engine]) presence[engine] = true;
   }
   return presence;
 };
@@ -480,10 +526,24 @@ export const loadAiConfig = async (
     if (stored) {
       const usageMode = (stored.usageMode as AiUsageMode) || 'workspace_key';
       const workspaceKeyConfigured = !!stored.apiKey;
-      const storedSearchKeys = workspaceSearchKeys(stored);
+      /**
+       * The first of the two guards on a dormant key: on «Ключи системы» the
+       * stored search keys are not decrypted at all, so there is no plaintext
+       * in this scope for a later edit to put into the configuration by
+       * accident. Presence is answered from the row instead, which is the only
+       * question the settings screen asks of a dormant key.
+       */
+      const searchKeyPresence = storedKeyPresence(stored);
+      const storedSearchKeys =
+        usageMode === 'included' ? {} : workspaceSearchKeys(stored);
       const workspaceSearchKeyConfigured =
-        Object.keys(storedSearchKeys).length > 0;
-      const search = resolvedSearch(stored, instance, storedSearchKeys);
+        Object.keys(searchKeyPresence).length > 0;
+      const search = resolvedSearch(
+        stored,
+        instance,
+        storedSearchKeys,
+        usageMode
+      );
       if (usageMode === 'included') {
         config = {
           ...defaults,
@@ -491,7 +551,7 @@ export const loadAiConfig = async (
           apiKey: includedKey,
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
-          workspaceSearchKeys: keyPresence(storedSearchKeys),
+          workspaceSearchKeys: searchKeyPresence,
           includedAvailable: !!includedKey,
           /**
            * The tenant's routing is deliberately not read here, for the same
@@ -523,7 +583,7 @@ export const loadAiConfig = async (
           roleModels: parseRoleModels(stored.roleModels),
           workspaceKeyConfigured,
           workspaceSearchKeyConfigured,
-          workspaceSearchKeys: keyPresence(storedSearchKeys),
+          workspaceSearchKeys: searchKeyPresence,
           includedAvailable: !!includedKey,
           search,
         };

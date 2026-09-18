@@ -15,6 +15,9 @@ const {
 } = loadWithMocks(
   'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v4.ts'
 );
+const { briefFillPromptV5 } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v5.ts'
+);
 
 const base = {
   goal: null,
@@ -66,13 +69,23 @@ test('eighth walk extract records model-owned material kind', () => {
 });
 
 test('eighth walk borrowed brief cannot call the source author position input', () => {
-  const prompt = briefFillPromptV4({
+  const input = {
     language: 'ru', material: 'Краткий пересказ', materialKind: 'borrowed',
     fixed: [], avatar: [], channel: [], facts: [], evidence: [],
-  });
+  };
+  const prompt = briefFillPromptV4(input);
   expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v4');
   expect(prompt).toContain('does not reveal the person\'s own position');
   expect(prompt).toContain('Never mark its source author\'s position with origin `input`');
+
+  /*
+    Вход спрашивает по преемнику (`97dq.1`), и правило восьмого захода в нём
+    осталось слово в слово; v4 остаётся импортируемым и нетронутым.
+  */
+  const successor = briefFillPromptV5(input);
+  expect(successor).toContain('PROMPT VERSION: intake-brief-fill/v5');
+  expect(successor).toContain('Never mark its source author\'s position with origin `input`');
+  expect(successor).toContain('one number per row');
 });
 
 test('research depth describes source capacity rather than query count', () => {

@@ -17,7 +17,7 @@ const invalid = () =>
   new AdaptationReviewError(
     'REVIEW_INVALID',
     502,
-    'Модель вернула неполную проверку. Текст не изменён.'
+    'ИИ вернул неполную проверку. Текст не изменён.'
   );
 const sanitizeReviewMetadata = (value: string): string =>
   value.replace(/\bneeds_context\s*:\s*/giu, '').trim();

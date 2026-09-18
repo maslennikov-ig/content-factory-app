@@ -632,7 +632,7 @@ describe('shared web research service', () => {
     expect(result.facts).toHaveLength(2);
     expect(logEntries).toContainEqual({
       level: 'log',
-      message: 'Web research classification: subject="Исландия и четырёхдневка как идея для российских компаний" scope=global subjectLanguage=ru country=none queries=2.',
+      message: 'Web research classification: subject="Исландия и четырёхдневка как идея для российских компаний" scope=global subjectLanguage=ru country=none queries=2 source=classifier.',
     });
   });
 
@@ -659,7 +659,7 @@ describe('shared web research service', () => {
     ]);
     expect(logEntries).toContainEqual({
       level: 'log',
-      message: 'Web research classification: subject="Комиссии Wildberries и Ozon" scope=local subjectLanguage=ru country=russia queries=1.',
+      message: 'Web research classification: subject="Комиссии Wildberries и Ozon" scope=local subjectLanguage=ru country=russia queries=1 source=classifier.',
     });
   });
 
@@ -683,7 +683,7 @@ describe('shared web research service', () => {
       'subject="Комиссии маркетплейсов [url] [email] apiKey=[redacted]'
     );
     expect(entry.message).toContain(
-      'scope=global subjectLanguage=en country=none queries=1.'
+      'scope=global subjectLanguage=en country=none queries=1 source=classifier.'
     );
     expect(entry.message).not.toContain('\n');
     expect(entry.message).not.toContain(rawUrl);

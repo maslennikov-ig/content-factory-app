@@ -200,6 +200,33 @@ describe('a task chooses an engine', () => {
     }
   });
 
+  /**
+   * `content-factory-next-97dq.6`. Режим — «Ключи системы» или «Свой ключ» —
+   * решается один раз, в `ai.provider.config.ts`, и приезжает сюда готовой
+   * картой. Этот файл не знает слова «режим» и знать его не должен: движка нет
+   * в карте — значит, в выбранном режиме за него нечем платить, и ни задача,
+   * ни откат к нему не пойдут. Спящий ключ области сюда не попадает вовсе.
+   */
+  test('an engine the resolved map left out is never routed to, whatever the row holds', () => {
+    const { SEARCH_TASKS, providerForSearchTask, searchCredentialFor } =
+      tasks();
+    // Ровно то, что отдаёт `included`: ключи оператора и ни одного своего.
+    const systemOnly = {
+      provider: 'tavily',
+      apiKeys: { tavily: 'system-tavily' },
+      keySources: { tavily: 'system' },
+    };
+
+    for (const task of SEARCH_TASKS) {
+      expect(providerForSearchTask(task, systemOnly)).toBe('tavily');
+    }
+    expect(searchCredentialFor('exa', systemOnly)).toBeUndefined();
+    expect(searchCredentialFor('tavily', systemOnly)).toEqual({
+      key: 'system-tavily',
+      source: 'system',
+    });
+  });
+
   test('an unusable stored route is dropped rather than repaired', () => {
     const { parseSearchTaskProviders } = tasks();
 
@@ -251,6 +278,29 @@ describe('the client cache key follows the routing', () => {
     ).not.toBe(
       searchRouteFingerprint({
         ...base,
+        keySources: { tavily: 'system' },
+      })
+    );
+  });
+
+  /**
+   * Смена режима меняет не имя движка, а того, чей ключ за ним стоит, — и
+   * клиент, собранный на прежнем ключе, обязан протухнуть. Отпечаток несёт
+   * источник рядом с наличием ключа именно поэтому.
+   */
+  test('the same engine on the other payer is a different cached client', () => {
+    const { searchRouteFingerprint } = tasks();
+
+    expect(
+      searchRouteFingerprint({
+        provider: 'tavily',
+        apiKeys: { tavily: 'own-tavily' },
+        keySources: { tavily: 'own' },
+      })
+    ).not.toBe(
+      searchRouteFingerprint({
+        provider: 'tavily',
+        apiKeys: { tavily: 'system-tavily' },
         keySources: { tavily: 'system' },
       })
     );

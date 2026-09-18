@@ -128,7 +128,7 @@ export async function runVoiceAssist(
     if (verdict === 'unavailable') {
       throw new VoiceError(
         'VOICE_ASSIST_UNAVAILABLE',
-        'Модель не ответила. Числа разбора сохранены, предложение голоса не составлено.'
+        'ИИ не ответил. Числа разбора сохранены, предложение голоса не составлено.'
       );
     }
     // `ungrounded` on the first pass is the one case worth asking again for.
@@ -136,7 +136,7 @@ export async function runVoiceAssist(
 
   throw new VoiceError(
     'VOICE_ASSIST_UNGROUNDED',
-    'Модель дважды ответила без цитаты из ваших текстов. Предложение отброшено.',
+    'ИИ дважды ответил без цитаты из ваших текстов. Предложение отброшено.',
     last?.rejected[0]?.sampleCode
   );
 }
@@ -168,14 +168,14 @@ export async function runVoiceAssistV2(
     if (verdict === 'unavailable') {
       throw new VoiceError(
         'VOICE_ASSIST_UNAVAILABLE',
-        'Модель не ответила. Числа разбора сохранены, предложение голоса не составлено.'
+        'ИИ не ответил. Числа разбора сохранены, предложение голоса не составлено.'
       );
     }
   }
 
   throw new VoiceError(
     'VOICE_ASSIST_UNGROUNDED',
-    'Модель дважды ответила без цитаты из ваших текстов. Предложение отброшено.',
+    'ИИ дважды ответил без цитаты из ваших текстов. Предложение отброшено.',
     last?.rejected[0]?.sampleCode
   );
 }

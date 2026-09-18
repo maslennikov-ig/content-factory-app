@@ -91,6 +91,8 @@ describe('hybrid AI credential resolver', () => {
   afterEach(() => {
     for (const key of Object.keys(managedEnv)) delete process.env[key];
     delete process.env.AI_INCLUDED_SEARCH_PROVIDER;
+    delete process.env.AI_INCLUDED_SEARCH_API_KEY_TAVILY;
+    delete process.env.AI_INCLUDED_SEARCH_API_KEY_EXA;
   });
 
   test('workspace_key uses only this organization encrypted credentials', async () => {
@@ -104,7 +106,11 @@ describe('hybrid AI credential resolver', () => {
       textModel: 'workspace-text',
       imageModel: 'workspace-image',
       workspaceKeyConfigured: true,
-      search: { apiKey: 'decrypted:workspace-search' },
+      search: {
+        apiKey: 'decrypted:workspace-search',
+        apiKeys: { tavily: 'decrypted:workspace-search' },
+        keySources: { tavily: 'own' },
+      },
     });
     expect(JSON.stringify(config)).not.toContain('managed-ai');
     expect(JSON.stringify(config)).not.toContain('managed-search');
@@ -120,7 +126,20 @@ describe('hybrid AI credential resolver', () => {
     });
   });
 
-  test('included generation stays managed while an own search key overrides per engine', async () => {
+  /**
+   * `content-factory-next-97dq.6`, решение владельца 18.09.2026: «если выбрана
+   * глобальная настройка, что ключи системы, то зачем это все показывать… всё
+   * это нужно прятать». Это заменяет правило `xmfb.8`, по которому свой
+   * поисковый ключ перекрывал системный в обоих режимах: область, выбравшая
+   * ключи системы, платила за поиск сама, ничего об этом не зная.
+   *
+   * Сохранённый ключ при этом спит, а не исчезает: строка не трогается, в
+   * конфигурацию он не попадает даже расшифрованным, и возвращается в работу
+   * на «Своём ключе». Первая версия этой строки принесла расшифрованный ключ
+   * области в included-конфигурацию — поймал этот же набор, поэтому проверка
+   * смотрит на весь объект целиком, а не на одно поле.
+   */
+  test('included search spends the system keys while an own key stays dormant', async () => {
     const { loadAiConfig } = loadConfig(async () => ({
       ...workspaceRow,
       usageMode: 'included',
@@ -135,13 +154,99 @@ describe('hybrid AI credential resolver', () => {
       imageModel: 'managed-image',
       workspaceKeyConfigured: true,
       search: {
-        apiKey: 'decrypted:workspace-search',
-        apiKeys: { tavily: 'decrypted:workspace-search' },
-        keySources: { tavily: 'own' },
+        enabled: true,
+        apiKey: 'managed-search',
+        apiKeys: { tavily: 'managed-search' },
+        keySources: { tavily: 'system' },
       },
     });
+    // Ни в каком виде: ни расшифрованным, ни тем, что лежит в строке.
+    const serialized = JSON.stringify(config);
+    expect(serialized).not.toContain('workspace-search');
+    expect(serialized).not.toContain('decrypted:workspace-search');
     expect(config.apiKey).not.toContain('workspace-ai');
     expect(config.textModel).not.toContain('workspace-text');
+    // И при этом экран узнаёт, что ключ у области есть — одним «да».
+    expect(config.workspaceSearchKeys).toEqual({ tavily: true });
+    expect(config.workspaceSearchKeyConfigured).toBe(true);
+  });
+
+  test('an engine with no system key is unavailable in included mode, stored own key or not', async () => {
+    process.env.AI_INCLUDED_SEARCH_PROVIDER = 'tavily';
+    const { loadAiConfig } = loadConfig(async () => ({
+      ...workspaceRow,
+      usageMode: 'included',
+      // У области свой ключ Exa; у оператора ключа Exa нет.
+      searchApiKeys: { exa: 'workspace-exa' },
+    }));
+
+    const config = await loadAiConfig('organization-a');
+
+    expect(config.search.apiKeys).toEqual({ tavily: 'managed-search' });
+    expect(config.search.keySources).toEqual({ tavily: 'system' });
+    expect(JSON.stringify(config)).not.toContain('workspace-exa');
+    // Спящий ключ не делает движок доступным: поиск идёт туда, где ключ есть.
+    expect(config.workspaceSearchKeys).toEqual({ exa: true });
+  });
+
+  test('included with no system key at all leaves search off rather than borrowing the own key', async () => {
+    delete process.env.AI_INCLUDED_SEARCH_API_KEY;
+    const { loadAiConfig } = loadConfig(async () => ({
+      ...workspaceRow,
+      usageMode: 'included',
+    }));
+
+    const config = await loadAiConfig('organization-a');
+
+    expect(config.search).toMatchObject({
+      enabled: false,
+      apiKey: '',
+      apiKeys: {},
+      keySources: {},
+    });
+    expect(JSON.stringify(config)).not.toContain('workspace-search');
+  });
+
+  test('an empty own field means the system key, not «no key»', async () => {
+    const { loadAiConfig } = loadConfig(async () => ({
+      ...workspaceRow,
+      usageMode: 'workspace_key',
+      searchApiKeys: {},
+    }));
+
+    const config = await loadAiConfig('organization-a');
+
+    expect(config.search).toMatchObject({
+      enabled: true,
+      apiKey: 'managed-search',
+      apiKeys: { tavily: 'managed-search' },
+      keySources: { tavily: 'system' },
+    });
+    expect(config.workspaceSearchKeys).toEqual({});
+  });
+
+  /**
+   * Спящий — значит сохранённый. Ни один режим ничего не стирает: строка одна
+   * и та же, меняется только выбранный режим, и ключ возвращается сам.
+   */
+  test('switching modes never erases a stored search key', async () => {
+    const row = { ...workspaceRow, usageMode: 'included' };
+    const findUnique = jest.fn(async () => row);
+    const { loadAiConfig } = loadConfig(findUnique);
+
+    const included = await loadAiConfig('organization-a');
+    expect(included.search.keySources).toEqual({ tavily: 'system' });
+    expect(included.workspaceSearchKeys).toEqual({ tavily: true });
+    // Строка не переписывалась: в ней лежит ровно то, что лежало.
+    expect(row.searchApiKeys).toEqual({ tavily: 'workspace-search' });
+
+    row.usageMode = 'workspace_key';
+    const returned = await loadAiConfig('organization-a');
+    expect(returned.search).toMatchObject({
+      apiKey: 'decrypted:workspace-search',
+      apiKeys: { tavily: 'decrypted:workspace-search' },
+      keySources: { tavily: 'own' },
+    });
   });
 
   test('included search routing comes from the operator environment only', async () => {

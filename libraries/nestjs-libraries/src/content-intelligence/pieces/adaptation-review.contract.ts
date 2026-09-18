@@ -28,7 +28,10 @@ export type AdaptationReviewResult = {
   notes: Array<{ kind: 'slop' | 'facts'; text: string; sourceUrls?: string[] }>;
   /** Present only for the explicit, confirmed web action. Never persisted. */
   sources?: AdaptationReviewSource[];
+  /** Сколько знаков черновика прочитали, чтобы найти утверждения. */
   searchedChars?: number;
+  /** Запросы, которые купили: по одному на проверяемое утверждение. */
+  searchedClaims?: string[];
   snapshot: AdaptationReviewSnapshot;
 };
 export class AdaptationReviewError extends Error {

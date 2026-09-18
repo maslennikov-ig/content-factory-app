@@ -4,22 +4,33 @@ const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const root = 'libraries/nestjs-libraries/src/content-intelligence/pieces';
 let calls = [],
   output,
-  denied = false;
+  denied = false,
+  /**
+   * Проверка фактов с 18.09.2026 сначала выделяет утверждения и только потом
+   * ищет (`content-factory-next-97dq.3`). Разбор идёт тем же клиентом, поэтому
+   * ответ на него узнаётся по версии промпта, а не по номеру вызова.
+   */
+  claimsOutput;
+const isClaimsCall = (body) =>
+  String(body.messages?.[0]?.content ?? '').includes('piece-claims/v1');
+const claimsCalls = () => calls.filter(({ body }) => isClaimsCall(body));
+const reviewCalls = () => calls.filter(({ body }) => !isClaimsCall(body));
 const clients = {
   getOpenAiClient: async (org) => ({
     chat: {
       completions: {
         create: async (body, options) => {
           calls.push({ org, body, options });
-          if (output instanceof Error) throw output;
+          const answer = isClaimsCall(body) ? claimsOutput : output;
+          if (answer instanceof Error) throw answer;
           return {
             choices: [
               {
                 message: {
                   content:
-                    typeof output === 'string'
-                      ? output
-                      : JSON.stringify(output),
+                    typeof answer === 'string'
+                      ? answer
+                      : JSON.stringify(answer),
                 },
               },
             ],
@@ -29,8 +40,8 @@ const clients = {
     },
   }),
   getModelForRole: async (org, role) => {
-    expect(role).toBe('review');
-    return 'review-model';
+    expect(['review', 'extract']).toContain(role);
+    return `${role}-model`;
   },
 };
 const mocks = {
@@ -101,6 +112,11 @@ beforeEach(() => {
   output = {
     text: 'Исправленный текст',
     notes: [{ kind: 'slop', text: 'штамп' }],
+  };
+  claimsOutput = {
+    claims: [
+      { text: 'Комиссия 10%', hasNumber: true, searchQuery: 'комиссия 10%' },
+    ],
   };
   repository = {
     getPiece: jest.fn(async () => piece),
@@ -461,16 +477,20 @@ test('web makes one research request then one no-retry review using excerpts, ne
     true
   );
   expect(web.research).toHaveBeenCalledTimes(1);
+  // Один разбор утверждений, один поиск по их запросам, одна проверка.
   expect(web.research).toHaveBeenCalledWith('org', 'Новый ручной текст', {
     level: 'standard',
     task: 'facts',
+    language: 'ru',
+    queries: ['комиссия 10%'],
   });
-  expect(calls).toHaveLength(1);
-  expect(calls[0].options.maxRetries).toBe(0);
-  expect(calls[0].body.messages[0].content).toContain('untrusted data');
-  expect(JSON.stringify(calls[0].body.messages)).not.toContain(
-    evidence.summary
-  );
+  expect(claimsCalls()).toHaveLength(1);
+  expect(reviewCalls()).toHaveLength(1);
+  const review = reviewCalls()[0];
+  expect(review.options.maxRetries).toBe(0);
+  expect(review.body.messages[0].content).toContain('untrusted data');
+  expect(JSON.stringify(review.body.messages)).not.toContain(evidence.summary);
+  expect(reviewed.searchedClaims).toEqual(['комиссия 10%']);
   expect(reviewed.sources).toEqual([
     {
       url: 'https://example.com/source',
@@ -481,7 +501,7 @@ test('web makes one research request then one no-retry review using excerpts, ne
   expect(reviewed.snapshot.postContent).toBe('<p>Новый ручной текст</p>');
   expect(repository.acceptReview).not.toHaveBeenCalled();
 });
-test('search input and returned evidence have fixed bounds, without per-claim fan-out', async () => {
+test('search input and returned evidence have fixed bounds, inside one research operation', async () => {
   const web = {
     research: jest.fn(async () => ({
       ...evidence,
@@ -503,12 +523,49 @@ test('search input and returned evidence have fixed bounds, without per-claim fa
     web
   );
   expect(web.research).toHaveBeenCalledTimes(1);
-  expect(web.research.mock.calls[0][1]).toHaveLength(5_000);
+  // Один поиск, один потолок чтения — и он больше не «первые пять тысяч».
+  expect(web.research.mock.calls[0][1]).toHaveLength(6_000);
   expect(reviewed.sources).toHaveLength(6);
   expect(
     reviewed.sources.every((source) => source.excerpt.length <= 1_600)
   ).toBe(true);
-  expect(reviewed.searchedChars).toBe(5_000);
+  expect(reviewed.searchedChars).toBe(6_000);
+});
+
+test('a draft longer than the claim limit is cut by one named constant, not by three', async () => {
+  const web = { research: jest.fn(async () => evidence) };
+  output = webAnswer();
+  const { REVIEW_CLAIM_TEXT_CHARS } = loadWithMocks(
+    `${root}/review-claims.ts`,
+    mocks
+  );
+  expect(REVIEW_CLAIM_TEXT_CHARS).toBe(20_000);
+  await webModule.reviewAdaptationWithSearch(
+    'org',
+    { text: 'я'.repeat(30_000), language: 'ru' },
+    usage,
+    web
+  );
+  expect(web.research.mock.calls[0][1]).toHaveLength(REVIEW_CLAIM_TEXT_CHARS);
+  // Двух из трёх независимых «5000» в этих файлах больше нет: ни безымянного
+  // числа в коде, ни собственной константы длины подписки.
+  const fs = require('node:fs');
+  for (const file of [
+    `${root}/piece.service.ts`,
+    `${root}/adaptation-web-review.ts`,
+  ]) {
+    const source = fs.readFileSync(file, 'utf8');
+    expect(source).not.toMatch(/slice\(\s*0\s*,\s*5_?000\s*\)/);
+    expect(source).not.toMatch(/=\s*5_?000/);
+    expect(source).not.toContain('WEB_REVIEW_SUBJECT_CHARS');
+  }
+  // Третье осталось в сервисе исследования и названо своей работой.
+  const research = fs.readFileSync(
+    'libraries/nestjs-libraries/src/openai/web.research.service.ts',
+    'utf8'
+  );
+  expect(research).toContain('const CLASSIFIER_SUBJECT_CHARS = 5_000;');
+  expect(research).not.toContain('MAXIMUM_SUBJECT_LENGTH');
 });
 
 test('standard adaptation review records its explicit paid research level', async () => {
@@ -521,9 +578,31 @@ test('standard adaptation review records its explicit paid research level', asyn
     web,
     'standard'
   );
+  // Без запросов язык не передаётся: он попросил бы пересказать сводку, а эта
+  // полоса сводку выбрасывает (`content-factory-next-97dq.3`, P2-7).
   expect(web.research).toHaveBeenCalledWith('org', 'draft', {
     level: 'standard',
     task: 'facts',
+  });
+});
+
+test('claim queries carry the language for the encyclopedic lane, and only then', async () => {
+  const web = { research: jest.fn(async () => evidence) };
+  output = webAnswer();
+  await webModule.reviewAdaptationWithSearch(
+    'org',
+    { text: 'draft', language: 'ru' },
+    usage,
+    web,
+    'standard',
+    'facts',
+    ['комиссия 10%']
+  );
+  expect(web.research).toHaveBeenCalledWith('org', 'draft', {
+    level: 'standard',
+    task: 'facts',
+    queries: ['комиссия 10%'],
+    language: 'ru',
   });
 });
 

@@ -74,6 +74,7 @@ export function IntakeScreen({
   step,
   researchFacts = [],
   researchPending = false,
+  researchWorking = false,
   researchCorrections = [],
   researchSummary = null,
   piece,
@@ -86,6 +87,8 @@ export function IntakeScreen({
   onLanguageChange,
   researchEnabled = false,
   researchLevel = 'standard',
+  foreignText = false,
+  onForeignTextChange = () => undefined,
   onResearchEnabledChange = () => undefined,
   onResearchLevelChange = () => undefined,
   onResearchFactSelect = () => undefined,
@@ -107,6 +110,8 @@ export function IntakeScreen({
   step: string | null;
   researchFacts?: readonly ResearchOutcomeFact[];
   researchPending?: boolean;
+  /** Второй проход ресерча уже идёт: строка хода встаёт на место кнопок. */
+  researchWorking?: boolean;
   researchCorrections?: readonly ResearchOutcomeCorrection[];
   researchSummary?: ResearchOutcomeSummary | null;
   /** Записанная заготовка: код и адрес, чтобы её было куда открыть. */
@@ -120,6 +125,9 @@ export function IntakeScreen({
   onLanguageChange: (language: 'ru' | 'en') => void;
   researchEnabled?: boolean;
   researchLevel?: 'quick' | 'standard' | 'deep';
+  /** «Это чужой текст»: человек сам называет вид ввода (`97dq.5`). */
+  foreignText?: boolean;
+  onForeignTextChange?: (foreign: boolean) => void;
   onResearchEnabledChange?: (enabled: boolean) => void;
   onResearchLevelChange?: (level: 'quick' | 'standard' | 'deep') => void;
   onResearchFactSelect?: (factKey: string, selected: boolean) => void;
@@ -210,6 +218,9 @@ export function IntakeScreen({
               summary={researchSummary}
               pending={researchPending}
               busy={busy}
+              continueAbove
+              working={researchWorking}
+              workingLabel={stepWord}
               onToggleCorrection={onResearchCorrectionToggle}
               onToggleFound={onResearchFactSelect}
               onContinue={onResearchContinue}
@@ -230,12 +241,19 @@ export function IntakeScreen({
               <Textarea
                 disabled={busy}
                 standalone
-                layout="content"
+                /*
+                  Высоту поля просил владелец 18.09.2026 («увеличить высоту
+                  поля, когда я создаю новую заготовку»), и она названа именем,
+                  а не числом: `composer` — это поле, В которое пишут, и его
+                  высота принадлежит примитиву. Мера ограничена здесь, потому
+                  что ширину колонки знает только экран.
+                */
+                layout="composer"
                 id="intake-input"
                 name="intake-input"
                 aria-label={t.inputLabel}
                 placeholder={t.inputPlaceholder}
-                className="w-full"
+                className="w-full max-w-[80ch]"
                 value={input}
                 onChange={(event) => onInputChange(event.target.value)}
               />
@@ -283,10 +301,29 @@ export function IntakeScreen({
               <span className="flex min-w-0 items-center gap-[8px]">
                 <CheckboxField
                   checked={researchEnabled}
+                  disabled={busy}
                   onChange={(event) => onResearchEnabledChange(event.target.checked)}
                   label={<span>{t.researchLabel}</span>}
                 />
                 <Hint label={t.researchHintLabel}>{t.researchHint}</Hint>
+              </span>
+              {/*
+                «Это чужой текст» стоит здесь же и по той же причине, что и
+                ресерч: это второе, что человек знает про свой ввод и чего не
+                видно ни по форме, ни по языку. Живой прогон 18.09.2026:
+                вставленный чужой пост прошёл как собственная мысль, и продукт
+                встал на чужую позицию (`content-factory-next-97dq`). Флажок
+                отвечает за вид ввода, подсказка — за последствие.
+              */}
+              <span className="flex min-w-0 items-center gap-[8px]">
+                <CheckboxField
+                  checked={foreignText}
+                  disabled={busy}
+                  data-intake-foreign-text={foreignText ? 'on' : 'off'}
+                  onChange={(event) => onForeignTextChange(event.target.checked)}
+                  label={<span>{t.foreignLabel}</span>}
+                />
+                <Hint label={t.foreignHintLabel}>{t.foreignHint}</Hint>
               </span>
               {researchEnabled ? (
                 <ResearchLevelSelect

@@ -1636,6 +1636,72 @@ describe('the scales, the strip and the check on generated text', () => {
       expect(short.verdict).toBe(check.similarity.verdict);
       expect(short.reason).toBe(check.similarity.reason);
     });
+
+    /**
+     * Много текстов — один разбор (`content-factory-next-97dq.2`, разбор
+     * корректности P1-2).
+     *
+     * Страница заготовки спрашивает вердикт на каждую адаптацию, и каждый
+     * вопрос заново читал разбор области и её мерку: четыре запроса на строку
+     * и двадцать строк на страницу. Разбор за одно чтение страницы не
+     * меняется.
+     */
+    describe('several texts are measured against one analysis', () => {
+      test('the overview and the measurement are read once for the whole batch', async () => {
+        const { service, profiles } = await measured();
+        const overview = jest.spyOn(profiles, 'overview');
+        const measurement = jest.spyOn(service, 'measurementForActiveVersion');
+
+        const verdicts = await service.voiceCheckMany(
+          'org-a',
+          [PARAGRAPH, `${PARAGRAPH} И ещё строка.`, PARAGRAPH],
+          'ru'
+        );
+
+        expect(verdicts).toHaveLength(3);
+        expect(overview).toHaveBeenCalledTimes(1);
+        expect(measurement).toHaveBeenCalledTimes(1);
+      });
+
+      test('the batch says exactly what the single check says', async () => {
+        const { service } = await measured();
+        const text = `${PARAGRAPH}`;
+
+        const [batched] = await service.voiceCheckMany('org-a', [text], 'ru');
+
+        expect(batched).toEqual(
+          await service.voiceCheckFor('org-a', text, 'ru')
+        );
+      });
+
+      test('an empty text keeps its place and its own reason', async () => {
+        const { service } = await measured();
+
+        const verdicts = await service.voiceCheckMany(
+          'org-a',
+          ['   ', PARAGRAPH],
+          'ru'
+        );
+
+        expect(verdicts[0]).toEqual({
+          verdict: 'UNKNOWN',
+          reason: 'TOO_SHORT',
+        });
+        expect(verdicts[1].verdict).not.toBe('UNKNOWN');
+      });
+
+      test('no voice answers once per text, and no text answers nothing', async () => {
+        const { service } = harness();
+
+        expect(
+          await service.voiceCheckMany('org-a', ['Раз.', 'Два.'], 'ru')
+        ).toEqual([
+          { verdict: 'UNKNOWN', reason: 'NO_PROFILE' },
+          { verdict: 'UNKNOWN', reason: 'NO_PROFILE' },
+        ]);
+        expect(await service.voiceCheckMany('org-a', [], 'ru')).toEqual([]);
+      });
+    });
   });
 
   /**

@@ -99,13 +99,13 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'already-written',
         question: 'Как найти свои прошлые тексты?',
         answer:
-          'В таблице заготовок клетки площадок показывают состояние и число постов. Индекс своих текстов собирается автоматически: при адаптации модель ищет в нём и может сослаться на прошлую публикацию. Находки видны в блоке «Свои тексты по теме». Отдельного вида «Что уже написали» больше нет.',
+          'В таблице заготовок клетки площадок показывают состояние и число постов. Индекс своих текстов собирается автоматически: при адаптации мы ищем в нём и можем сослаться на прошлую публикацию. Находки видны в блоке «Свои тексты по теме». Отдельного вида «Что уже написали» больше нет.',
       },
       {
         id: 'when-web-search',
-        question: 'Когда модель ходит в интернет?',
+        question: 'Когда ИИ ходит в интернет?',
         answer:
-          'Поиск начинается только после вашего явного действия: перед созданием заготовки включите «Нужен ресерч», для уже написанной сути выберите «Дополнить ресерчем», а для добровольной сверки утверждений — «Проверить факты». Обычная адаптация под канал сама в интернет не ходит: модель берёт материал из заготовки и из ваших старых постов. После «Дополнить ресерчем» выберите находки с источниками: продолжение дополнит существующую суть без повторного поиска.',
+          'Поиск начинается только после вашего явного действия: перед созданием заготовки включите «Нужен ресерч», для уже написанной сути выберите «Дополнить ресерчем», а для добровольной сверки утверждений — «Проверить факты». Обычная адаптация под канал сама в интернет не ходит: ИИ берёт материал из заготовки и из ваших старых постов. После «Дополнить ресерчем» выберите находки с источниками: продолжение дополнит существующую суть без повторного поиска.',
       },
       {
         id: 'search-engine-language',
@@ -123,7 +123,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'Что проверяет «проверка на штампы»?',
         answer:
-          'Ищет обороты, по которым текст узнают как машинный, и бесплатно пересчитывает находки при изменении текста. «N штампов» — число находок каталога, а не оценка смысла или фактов. «Убрать штампы» — платный вызов модели: она получает найденные цитаты и правила. После правки видно «было N → стало M». Не гонитесь за нулём: личные примеры и ваша позиция важнее балла.',
+          'Ищет обороты, по которым текст узнают как машинный, и бесплатно пересчитывает находки при изменении текста. «N штампов» — число находок каталога, а не оценка смысла или фактов. «Убрать следы ИИ» в меню «Ещё ▾» — платный проход ИИ по этому списку: он получает найденные цитаты и правила. После правки видно «было N → стало M». Не гонитесь за нулём: личные примеры и ваша позиция важнее балла.',
       },
       {
         id: 'adaptation-review',
@@ -133,15 +133,15 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'channel-model-choice',
-        question: 'Что значит «выбирает модель» в карточке канала?',
+        question: 'Что значит «выберем сами» в карточке канала?',
         answer:
-          'Модель выбирает это свойство по материалу и правилам канала: длину, эмодзи, ссылки, хэштеги или призыв. Остальные заданные вами поля сохраняют силу. «Мало» — от одного до трёх эмодзи, «Много» — от трёх до шести. Подсказка рядом с полем объясняет его действие.',
+          'Мы выбираем это свойство по материалу и правилам канала: длину, эмодзи, ссылки, хэштеги или призыв. Остальные заданные вами поля сохраняют силу. «Мало» — от одного до трёх эмодзи, «Много» — от трёх до шести. Подсказка рядом с полем объясняет его действие.',
       },
       {
         id: 'regenerate',
         question: 'Как перегенерировать только заголовок или часть текста?',
         answer:
-          'Нажмите «Перегенерировать» у сути или адаптации и заполните поле «Что перегенерировать?». Подсказки «Только заголовок» и «Весь текст» лишь подставляют инструкцию. Модель получает текущий текст, вашу просьбу и находки каталога штампов. Изменения показаны с объяснениями; их можно принять или оставить прежний текст. Для заголовка предлагаются три варианта на выбор. Это платный вызов модели.',
+          'Нажмите «Перегенерировать» у сути или адаптации и заполните поле «Что перегенерировать?». Подсказки «Только заголовок» и «Весь текст» лишь подставляют инструкцию. ИИ получает текущий текст, вашу просьбу и находки каталога штампов. Изменения показаны с объяснениями; их можно принять или оставить прежний текст. Для заголовка предлагаются три варианта на выбор. Это платный вызов ИИ.',
       },
       {
         id: 'account-pending',
@@ -159,7 +159,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'ai-keys',
         question: 'Где ключи ИИ и что такое «модель на роль»?',
         answer:
-          'В настройках, вкладка «ИИ». Переключатель «Ключи системы / Свой ключ» относится только к генерации. У каждого поискового движка своё поле: пустое использует ключ системы, а сохранённый свой ключ перекрывает системный только для этого движка и не расходует включённый лимит. «Вернуть на ключ системы» удаляет только выбранный ключ. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
+          'В настройках, вкладка «ИИ». Переключатель «Ключи системы / Свой ключ» относится и к генерации, и к поиску. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, полей для своих ключей там нет, а уже сохранённые ключи никуда не деваются и снова вступают в работу, как только вы выберете «Свой ключ». На «Своём ключе» у каждого поискового движка своё поле: пустое использует ключ системы, а сохранённый ключ перекрывает системный только для этого движка и не расходует включённый лимит. Крестик у поля возвращает этот движок на ключ системы — без ключа поиск не остаётся. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
       },
       {
         id: 'ai-usage',
@@ -203,13 +203,13 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'already-written',
         question: 'How do I find my earlier texts?',
         answer:
-          'Platform cells in the pieces table show post status and counts. Your text index is collected automatically: during adaptation the model searches it and can refer to an earlier publication. Matches appear in “Your texts on this topic”. There is no separate archive view.',
+          'Platform cells in the pieces table show post status and counts. Your text index is collected automatically: during adaptation we search it and can refer to an earlier publication. Matches appear in “Your texts on this topic”. There is no separate archive view.',
       },
       {
         id: 'when-web-search',
-        question: 'When does the model go to the internet?',
+        question: 'When does the AI go to the internet?',
         answer:
-          'Search starts only after you explicitly choose an action: turn on “Research this” before creating a piece, choose “Enrich with research” for an existing piece, or choose “Check facts” for a voluntary fact check. Normal channel adaptation does not go to the web: the model uses the piece and your earlier posts. After “Enrich with research”, choose findings with sources: continuing enriches the existing core without repeating the search.',
+          'Search starts only after you explicitly choose an action: turn on “Research this” before creating a piece, choose “Enrich with research” for an existing piece, or choose “Check facts” for a voluntary fact check. Normal channel adaptation does not go to the web: the AI uses the piece and your earlier posts. After “Enrich with research”, choose findings with sources: continuing enriches the existing core without repeating the search.',
       },
       {
         id: 'search-engine-language',
@@ -227,7 +227,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'slop-check',
         question: 'What does the cliché check look for?',
         answer:
-          'It finds stock phrases and recalculates findings for free when the text changes. The count describes catalog findings, not meaning or factual accuracy. Remove clichés is a paid model call using those exact excerpts and rules. Afterwards you can compare the counts before and after. Keep your examples and point of view; a zero score is not the goal.',
+          'It finds stock phrases and recalculates findings for free when the text changes. The count describes catalog findings, not meaning or factual accuracy. “Remove AI tells” in the “More ▾” menu is a paid AI pass over that list, using those exact excerpts and rules. Afterwards you can compare the counts before and after. Keep your examples and point of view; a zero score is not the goal.',
       },
       {
         id: 'adaptation-review',
@@ -238,15 +238,15 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'channel-model-choice',
-        question: 'What does Let the model choose mean in a channel profile?',
+        question: 'What does We pick mean in a channel profile?',
         answer:
-          'The model chooses that property from the material and channel rules: length, emoji, links, hashtags, or a call to action. Your other explicit settings still apply. Few means one to three emoji; Many means three to six. Each field has a hint explaining its effect.',
+          'We choose that property from the material and channel rules: length, emoji, links, hashtags, or a call to action. Your other explicit settings still apply. Few means one to three emoji; Many means three to six. Each field has a hint explaining its effect.',
       },
       {
         id: 'regenerate',
         question: 'How can I regenerate just the title or part of the text?',
         answer:
-          'Choose Regenerate on the core text or adaptation and describe what to change. The Title only and Whole text hints just fill in the instruction. The model receives your current text, request, and catalog findings. Changes come with explanations and can be accepted or discarded. For a title, choose from three alternatives. This is a paid model call.',
+          'Choose Regenerate on the core text or adaptation and describe what to change. The Title only and Whole text hints just fill in the instruction. The AI receives your current text, request, and catalog findings. Changes come with explanations and can be accepted or discarded. For a title, choose from three alternatives. This is a paid AI call.',
       },
       {
         id: 'account-pending',
@@ -264,7 +264,7 @@ export const helpCopy: { ru: Words; en: Words } = {
         id: 'ai-keys',
         question: 'Where are the AI keys, and what is «a model per role»?',
         answer:
-          'In settings, the «AI» tab. The «System keys / Own key» choice applies only to generation. Each search engine has its own field: blank uses the system key, while a saved own key overrides the system key only for that engine and does not spend the included allowance. «Return to system key» removes only the selected engine key. «A model per role» says which model handles each kind of work: drafting, reading someone else’s text, questions. Left empty, the default model works.',
+          'In settings, the «AI» tab. The «System keys / Own key» choice applies to generation and to search alike. On the system keys, search runs on them and spends the included allowance, there are no fields for own keys, and keys you have already saved stay where they are and come back into use the moment you choose «Own key». On your own key each search engine has its own field: blank uses the system key, while a saved key overrides the system key only for that engine and does not spend the included allowance. The cross beside a field returns that engine to the system key — search is never left without one. «A model per role» says which model handles each kind of work: drafting, reading someone else’s text, questions. Left empty, the default model works.',
       },
       {
         id: 'ai-usage',

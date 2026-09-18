@@ -107,7 +107,7 @@ export async function reviewAdaptationOnce(
         throw new AdaptationReviewError(
           'ADAPTATION_REVIEW_INVALID',
           502,
-          'Модель вернула неполную проверку. Черновик не изменён.'
+          'ИИ вернул неполную проверку. Черновик не изменён.'
         );
       }
     },

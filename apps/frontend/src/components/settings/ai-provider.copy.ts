@@ -85,7 +85,7 @@ type Words = {
   usageNoneHint: string;
   /** Что такое роль вызова и зачем её трогать — в подсказку, не на экран. */
   rolesHint: string;
-  /** Переключатель относится к генерации, а не к поисковым движкам. */
+  /** Переключатель выбирает ключи и для генерации, и для поиска. */
   usageModeHint: string;
   /** Что значит пустое поле. Решающее, поэтому остаётся строкой. */
   rolesEmpty: string;
@@ -102,6 +102,15 @@ type Words = {
     /** Что вообще делает этот раздел. */
     what: string;
     /**
+     * Единственная строка раздела на «Ключах системы».
+     *
+     * Владелец 18.09.2026: «если выбрана глобальная настройка, что ключи
+     * системы, то зачем это все показывать… всё это нужно прятать». Полей там
+     * нет, но молчание было бы хуже полей: человек должен знать, что поиск
+     * работает и на чей счёт.
+     */
+    systemKeys: string;
+    /**
      * Одна строка вместо трёх селекторов «задача → сервер».
      *
      * Считается из сохранённых ключей теми же умолчаниями, что и на сервере,
@@ -117,7 +126,17 @@ type Words = {
     keyEmptyPlaceholder: string;
     keyOwn: string;
     keySystem: string;
+    /** Имя крестика: что именно он сделает и с каким движком. */
     returnToSystem: (engine: string) => string;
+    /**
+     * Что будет после нажатия крестика.
+     *
+     * Владелец 18.09.2026: «должно быть пояснение при наведении на крестик…
+     * для обычного пользователя не должно быть возможности работать без
+     * ключа». Крестик выглядит как удаление, а означает возврат на ключ
+     * системы, и это надо сказать до нажатия, а не в диалоге после.
+     */
+    returnToSystemHint: string;
     engines: {
       tavily: KeyedEngineWords;
       exa: KeyedEngineWords;
@@ -142,7 +161,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     rolesHint:
       'Роль вызова — это работа, ради которой продукт обращается к модели. Менять стоит ради денег: классификация и разбор прекрасно работают на дешёвой модели, а платить за них по цене черновика незачем.',
     usageModeHint:
-      'Этот переключатель относится только к генерации. Поисковые ключи выбираются отдельно для каждого движка ниже.',
+      'Переключатель выбирает, на чьих ключах работает всё: и генерация, и поиск. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, а ваши сохранённые поисковые ключи ждут и возвращаются в работу, как только вы выберете «Свой ключ».',
     rolesEmpty:
       'Пустое поле означает «брать модель для текста, указанную выше». Заполнять здесь ничего не обязательно.',
     roles: {
@@ -169,7 +188,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       },
     },
     search: {
-      what: 'Для каждого движка свой ключ области перекрывает ключ системы. Пустое поле использует ключ системы; свой ключ не расходует включённый лимит.',
+      what: 'Поиск работает всегда. На «Своём ключе» у каждого движка своё поле: сохранённый ключ перекрывает ключ системы только для этого движка и не расходует включённый лимит, пустое поле берёт ключ системы. На «Ключах системы» поиск идёт на ключах системы.',
+      systemKeys: 'Поиск идёт на ключах системы и расходует включённый лимит.',
       routing: (pairs) =>
         `Сейчас поиск идёт так: ${pairs
           .map((pair) => `${pair.task} — ${pair.engine}`)
@@ -181,6 +201,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keyOwn: 'Свой ключ',
       keySystem: 'На ключе системы',
       returnToSystem: (engine) => `Вернуть ${engine} на ключ системы`,
+      returnToSystemHint:
+        'Нажмёте — поле вернётся на ключ системы. Поиск без ключа не остаётся.',
       engines: {
         tavily: {
           name: 'Tavily',
@@ -234,7 +256,7 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
     rolesHint:
       'A call role is the job the product goes to a model for. The reason to change one is money: classification and extraction do fine on a cheap model, and paying draft prices for them buys nothing.',
     usageModeHint:
-      'This switch applies only to generation. Search keys are selected separately for each engine below.',
+      'This switch chooses whose keys everything runs on — generation and search alike. On the system keys, search runs on them and spends the included allowance, while your own saved search keys wait and come back into use the moment you choose your own key.',
     rolesEmpty:
       'An empty field means "use the text model above". Filling these in is optional.',
     roles: {
@@ -261,7 +283,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       },
     },
     search: {
-      what: "For each engine, this workspace's own key overrides the system key. An empty field uses the system key; an own key does not spend the included allowance.",
+      what: 'Search always works. On your own key each engine has a field of its own: a saved key overrides the system key for that engine alone and does not spend the included allowance, and an empty field uses the system key. On the system keys, search runs on them.',
+      systemKeys:
+        'Search runs on the system keys and spends the included allowance.',
       routing: (pairs) =>
         `Search runs like this now: ${pairs
           .map((pair) => `${pair.task} — ${pair.engine}`)
@@ -275,6 +299,8 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keyOwn: 'Own key',
       keySystem: 'On the system key',
       returnToSystem: (engine) => `Return ${engine} to the system key`,
+      returnToSystemHint:
+        'Press it and the field returns to the system key. Search is never left without a key.',
       engines: {
         tavily: {
           name: 'Tavily',

@@ -238,6 +238,27 @@ describe("the channel owner's own words are quoted, never obeyed as a line", () 
     );
   });
 
+  test("the note outranks the card's defaults and nothing else", () => {
+    const lines = linesFor({
+      ...defaultWritingProfileFor('telegram', 'ru'),
+      notes: 'Последняя строка — «Считайте вместе с нами».',
+    });
+    const at = lines.findIndex((line) =>
+      line.startsWith('The channel owner adds')
+    );
+
+    // Right after the quoted words, so «above» points at them and only them.
+    expect(lines[at + 1]).toContain(
+      "follow the owner's words. They never lift the rules about facts"
+    );
+    // No note, no priority line: a default card must not promise an owner.
+    expect(
+      linesFor(defaultWritingProfileFor('telegram', 'ru')).some((line) =>
+        line.includes("follow the owner's words")
+      )
+    ).toBe(false);
+  });
+
   test('a note longer than the limit is clipped', () => {
     const line = withNotes('я'.repeat(600));
 

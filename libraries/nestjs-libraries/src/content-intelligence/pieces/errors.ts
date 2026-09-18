@@ -77,8 +77,8 @@ export const PIECE_ERROR_MESSAGES: Record<
     en: 'The post is published: the provenance of published text is not erased.',
   },
   PIECE_INTERVIEW_EXHAUSTED: {
-    ru: 'Уточнения кончились. Ответьте своими словами или дайте модели решить самой.',
-    en: 'No more questions. Answer in your own words, or let the model decide.',
+    ru: 'Уточнения кончились. Ответьте своими словами или дайте нам решить самим.',
+    en: 'No more questions. Answer in your own words, or let us decide.',
   },
   PIECE_CORE_MISSING: {
     ru: 'У этого материала нет выделенной сути: он сделан до заготовок, и уточнять в нём нечего.',

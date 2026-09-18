@@ -210,9 +210,27 @@ describe('the operator row stands in front of the environment', () => {
     );
   });
 
-  test.each(['included', 'workspace_key'])(
-    'a workspace engine key overrides the system independently of generation mode %s',
-    async (usageMode) => {
+  /**
+   * `content-factory-next-97dq.6`, решение владельца 18.09.2026. Прежнее
+   * правило (`xmfb.8`) отвязывало поиск от режима генерации: свой ключ движка
+   * перекрывал системный в обоих режимах. Теперь режим один на всё — область,
+   * выбравшая ключи системы, ищет на ключах системы, — а её собственный ключ
+   * спит в строке и возвращается вместе с «Своим ключом».
+   */
+  test.each([
+    [
+      'included',
+      { tavily: 'system-tavily', exa: 'system-exa' },
+      { tavily: 'system', exa: 'system' },
+    ],
+    [
+      'workspace_key',
+      { tavily: 'system-tavily', exa: 'plain:own-exa' },
+      { tavily: 'system', exa: 'own' },
+    ],
+  ])(
+    'the usage mode decides whose search key an engine spends: %s',
+    async (usageMode, apiKeys, keySources) => {
       await withEnvironment(
         {
           AI_INCLUDED_API_KEY: 'system-generation',
@@ -232,15 +250,14 @@ describe('the operator row stands in front of the environment', () => {
 
           const config = await loadAiConfig('organization-a');
 
-          expect(config.search.apiKeys).toEqual({
-            tavily: 'system-tavily',
-            exa: 'plain:own-exa',
-          });
-          expect(config.search.keySources).toEqual({
-            tavily: 'system',
-            exa: 'own',
-          });
+          expect(config.search.apiKeys).toEqual(apiKeys);
+          expect(config.search.keySources).toEqual(keySources);
           expect(config.search.enabled).toBe(true);
+          // Спящий ключ остаётся сохранённым и виден экрану одним «да».
+          expect(config.workspaceSearchKeys).toEqual({ exa: true });
+          if (usageMode === 'included') {
+            expect(JSON.stringify(config)).not.toContain('own-exa');
+          }
         }
       );
     }

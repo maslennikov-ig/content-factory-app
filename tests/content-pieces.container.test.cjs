@@ -536,7 +536,7 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(card.compareDocumentPosition(core) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.textContent).toContain('На чьей вы стороне?');
     // Заготовка уже сохранена, и карточка говорит это словами.
-    expect(card.textContent).toContain('Модель спросила по вашему тексту');
+    expect(card.textContent).toContain('Мы спросили по вашему тексту');
   });
 
   test('an answer travels by field, and the piece is read again', async () => {

@@ -1,12 +1,20 @@
 # Content Factory Handoff
-Current stage id: `content-factory-next-xmfb`
-Last accepted stage id: `content-factory-next-4zul`
-Selected Beads goal: `content-factory-next-xmfb`
-Next stage id: `content-factory-next-xmfb` (active implementation)
-**NEXT 16.09.2026: epic `content-factory-next-xmfb` (seventh walk read), executor Codex/Astra by order.**
+Current stage id: `content-factory-next-97dq`
+Last accepted stage id: `content-factory-next-xmfb`
+Selected Beads goal: `content-factory-next-97dq`
+Next stage id: `content-factory-next-97dq.9` (Claude root: release, backfill dry-run, ninth walk page)
+**NINTH WAVE `97dq` (eighth-walk findings, 18.09.2026): integrated on `wave/walk-2026-09-18`, release authorized by the owner 18.09, not yet released at this line's writing — see stage `summary.md` for the release record.** Rollback target `3504f07a8f25`. No schema change.
+Owner walk on `3504f07a8f25` (artifact `1f06838e`, sent 18.09 11:16Z): C1/C2 foreign post still a thought (real model says `thought`; tests mocked it), G2 search keys shown on system mode + uppercase hint; owner marked B1 ok but production data showed «25 тысяч»/«40%» surviving research; asks: the word «модель», loader after «Продолжить с правками», research findings reaching adaptations, fact check by claims instead of first 5000 chars, bold markup, honest name for «Убрать штампы», status-icon cells with a filter, «Новая заготовка» from a piece, taller intake field.
+Owner decisions 18.09: checkbox «Это чужой текст» (model may only upgrade to foreign); «Убрать следы ИИ»; on «Ключи системы» own search keys are hidden AND dormant (replaces xmfb.8), cross with a hint returns a field to the system key; no wishes field at first adaptation; «модель» → «мы»/«ИИ» outside provider settings; Claude orchestrates, Opus 5 workers; paid stand calls, private push and release authorized.
+Spec `docs/product/eighth-walk-wave-2026-09-18-spec.md`; stage `stages/content-factory-next-97dq/` (summary, evidence `walk-2026-09-18/`, `live-stand-2026-09-18/`, premortem, `evidence/correctness-review.md`). Design canvas for 97dq.8 (state cells) awaits the owner: artifact `4f1c7a0b`, sources `docs/design/desert-lab/ninth-wave/`.
+Streams S1 S2 S3 S4 S5 S6 S7 integrated with follow-ups S1b S1c S2b S3b S4b; S8 (state cells) not started. Live-model stand found three defects recorded tests could not (pre-filled foreign stance, brief fill returning 0–3 own facts for one sentence, owner note welded into CTA); correctness review: no P0, 5 P1 fixed.
+Release data step after switch: `adaptations:rerender-bold` (dry-run default) re-renders DRAFT posts whose body carries `**` — `apps/commands` is compiled in place inside the container. Release note: a self-hosted instance with no `AI_INCLUDED_SEARCH_API_KEY_*` loses search for workspaces on system keys; this production has both keys.
+Open after the wave: 97dq.8 (owner's word on the canvas), 97dq.10 (vague-quantity on exact numbers — owner decision), 97dq.11 (publish-time unescape in shared helper, Listmonk/WordPress), follow-ups from the review listed in Beads.
+Stand traps 18.09: start `cf-dev-temporal-postgresql cf-dev-temporal-elasticsearch cf-dev-temporal` by name or the backend hangs on 7234; the stand's stored generation key no longer decrypts (`bad decrypt`), live runs used `included` mode + `AI_PROVIDER/AI_TEXT_MODEL` env; `pkill -f` on the backend pattern kills the calling shell — kill by pid.
+**RELEASED 16.09.2026: `3504f07a8f25`, rollback `93aa33b85a79`; xmfb.1–.10 and .12 closed/read back.** xmfb.11 done 18.09 (eighth walk read into 97dq); xmfb.13 folded into 97dq.6.
 Owner walk on `93aa33b85a79` (artifact `5ebd9e76`, sent 12:23Z): A1/A3/B1/F1/F3 ok; B2 «Берём» 404 (factKey sent as statement), E1 review 502 REVIEW_INVALID (per-change validation), C1 foreign post taken as thought (no position question), language: Iceland one query (classifier local), plus sorting, Dialog confirm, research direction/depth, per-engine search keys.
 Spec `docs/product/seventh-walk-wave-2026-09-16-spec.md`; order `docs/prompts/astra-seventh-walk-wave-2026-09-16.md`; evidence `stages/content-factory-next-xmfb/evidence/walk-2026-09-16/`. Branch the wave from `wave/walk-2026-09-14` (not merged to main). Owner decisions 16.09: Codex executes; search keys per engine (own overrides system, own key spends no quota). `xmfb.11` (eighth walk page, with core/adaptation quality) is Claude's. 4zul closed.
-Recommended action: Amendment xmfb.12 integrated (selected piece facts count toward progress, one upper section title, contextual exit). Refresh root acceptance and release candidate, then obtain owner yes before release. Original S1–S5 passed full acceptance; local candidate feac52a8bb78 is superseded and was never pushed/deployed. Host <6 GB free blocks pull.
+Recommended action: owner walks eighth page artifact 1f06838e (xmfb.11, evidence walk-2026-09-16-eighth/); Claude reads it on «отправил». xmfb.13 routing line awaits owner answer. Owner approved production acceptance. Source c1e44cfdd0cc; Jest 440/5757, Node 125/0, Python 46; types/build/process pass. Empty schema diff, Mastra 29 unchanged, healthy/0 restarts, source archive exact. Production onboarding 6/6. Disk 7.31 GB after authorized retention. Evidence: stages/content-factory-next-xmfb/evidence/release-2026-09-16.json.
 **RELEASED 14.09.2026: `93aa33b85a79`, rollback `447e360f7007`.** Private source `014360d31dc4`, branch `wave/walk-2026-09-14`.
 S3 → S1 → S2 → S4 integrated; 4zul.1–.10 and 75xn.35 closed/read back. 4zul.11 closed 16.09: seventh-walk page `5ebd9e76` walked and read into epic `xmfb`; sent html in `evidence/walk-2026-09-15/`.
 Host disk 15.09 read-only: 8.9 GB free (was 2.5), hf97 still open.
@@ -156,8 +164,8 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-4zul.11`. Recommended action: Claude prepares the production walkthrough; address hf97 disk headroom.
-Walkthrough criteria: `docs/product/sixth-walk-wave-2026-09-14-spec.md` §6; the owner reviews the deployed version.
+Next stage id: `content-factory-next-xmfb.11`. Recommended action: Claude prepares the eighth production walkthrough; keep hf97 disk headroom monitoring.
+Walkthrough criteria: `docs/product/seventh-walk-wave-2026-09-16-spec.md` §6; the owner reviews release 3504f07a8f25.
 Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.
 Cleanup 08.09: branches/worktrees removed, two August tips in `.git/cleanup-2026-09-08-legacy-orchestration.bundle`.
@@ -190,11 +198,3 @@ need `clone()`. `/home/me/.local/bin/node` shadows nvm — prefix
 separate from Jest and is **zero on all three apps — keep it so**. `pnpm test`
 is three runs joined by `&&`. Never `await import('@contentfactory/…')` in
 backend code. This handoff is capped at 200 lines. Beads rolls back closures
-while agents run: close in one batch, then verify by name. Artifact `evidence`
-entries are labels, not paths.
-
-**A red check must actually go red, and check it yourself.** A green suite
-proves the unit, never the wiring: open the page — the pieces table was green
-for a week and never rendered. Deleting on the shared host, paid calls, DNS,
-deploys, pushes and secrets each need fresh owner authority, recorded where
-the next reader will look.

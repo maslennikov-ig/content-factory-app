@@ -222,7 +222,7 @@ export const briefCopy = {
   ru: {
     formTitle: 'Ответьте на пять вопросов',
     formLead:
-      'Черновик собирается из брифа, а не из темы. Пока в брифе нет сути, модель напишет что-то гладкое и ни о чём.',
+      'Черновик собирается из брифа, а не из темы. Пока в брифе нет сути, ИИ напишет что-то гладкое и ни о чём.',
     factStatement: 'Утверждение',
     factSource: 'Ссылка, которую можно проверить',
     addFact: 'Добавить факт',
@@ -264,7 +264,7 @@ export const briefCopy = {
   en: {
     formTitle: 'Answer five questions',
     formLead:
-      'A draft is built from the brief, not from the topic. While the brief has no substance, the model writes something fluent about nothing.',
+      'A draft is built from the brief, not from the topic. While the brief has no substance, AI writes something fluent about nothing.',
     factStatement: 'The claim',
     factSource: 'A source a reader can check',
     addFact: 'Add a fact',

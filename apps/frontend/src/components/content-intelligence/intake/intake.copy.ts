@@ -46,6 +46,16 @@ export const intakeCopy = {
       'Проверим вашу мысль по внешним источникам: подтвердим числа и факты, ' +
       'поправим то, что расходится с источниками, и добавим находки по теме ' +
       'с адресами. Это платная операция, она тратит одну из операций месяца.',
+    // Владелец, 18.09.2026 (живой прогон 18.09, `content-factory-next-97dq`):
+    // вставленный чужой пост ничем не отличался от собственной мысли, и продукт
+    // выдавал чужое мнение за авторское. Флажок стоит рядом с ресерчем — это
+    // второе, что человек говорит о своём тексте, — а подсказка называет
+    // последствие, а не свойство.
+    foreignLabel: 'Это чужой текст',
+    foreignHintLabel: 'Подсказка: чужой текст',
+    foreignHint:
+      'Поставьте, если вставили чужой пост или статью: спросим вашу позицию и ' +
+      'не выдадим чужое мнение за ваше',
     researchLevelLabel: 'Глубина ресерча',
     researchQuick: 'Быстрый · до 8 источников',
     researchStandard: 'Стандартный · до 20 источников',
@@ -112,7 +122,7 @@ export const intakeCopy = {
         'вопросов',
       ])} — и пишем`,
     questionsLead:
-      'Спрашиваем только то, чего в вашем тексте нет. Остальное модель предположила сама — поправите в квитанции.',
+      'Спрашиваем только то, чего в вашем тексте нет. Остальное мы предположили сами — поправите в квитанции.',
     ownAnswer: 'Свой ответ',
     ownAnswerLabel: 'Ваш ответ',
     decideThis: 'Реши сама',
@@ -122,7 +132,7 @@ export const intakeCopy = {
     blockedUnanswered: 'Ответьте или нажмите «Реши сама»',
 
     /* --- Квитанция -------------------------------------------------------- */
-    receiptTitle: 'Что модель поняла',
+    receiptTitle: 'Что мы поняли',
     originInput: 'из вашего текста',
     originPerson: 'ваш ответ',
     originAvatar: 'из аватара',
@@ -192,7 +202,7 @@ export const intakeCopy = {
     profileTitle: (name: string) => `Как пишем в «${name}»`,
     profileDefaultsCaption:
       'Значения по умолчанию — из рекомендаций для Telegram; правьте под свой канал.',
-    profileAuto: 'выбирает модель',
+    profileAuto: 'выберем сами',
     profileLength: 'Длина',
     profileLengthShort: 'до 500',
     profileLengthIdeal: '500–1000',
@@ -231,7 +241,7 @@ export const intakeCopy = {
     profileLoading: 'Загружаем карточку',
 
     /* --- Форматы ----------------------------------------------------------- */
-    formatAuto: 'выберет модель',
+    formatAuto: 'выберем сами',
     formatOpinion: 'мнение',
     formatAnnouncement: 'анонс',
     formatList: 'список',
@@ -261,6 +271,11 @@ export const intakeCopy = {
       'We check your thought against outside sources: confirm numbers and facts, ' +
       'correct what the sources contradict, and add findings on the topic with ' +
       'their addresses. This is a paid step: it spends one of the month’s operations.',
+    foreignLabel: 'This is someone else’s text',
+    foreignHintLabel: 'Hint: someone else’s text',
+    foreignHint:
+      'Tick this if you pasted someone else’s post or article: we will ask for ' +
+      'your position and will not present their opinion as yours',
     researchLevelLabel: 'Research depth',
     researchQuick: 'Quick · up to 8 sources',
     researchStandard: 'Standard · up to 20 sources',
@@ -315,7 +330,7 @@ export const intakeCopy = {
     questionsTitle: (count: number) =>
       count === 1 ? 'One question and we write' : 'Two questions and we write',
     questionsLead:
-      'We only ask for what your text does not have. The rest the model assumed itself — correct it in the receipt.',
+      'We only ask for what your text does not have. The rest we assumed ourselves — correct it in the receipt.',
     ownAnswer: 'My own answer',
     ownAnswerLabel: 'Your answer',
     decideThis: 'You decide',
@@ -324,7 +339,7 @@ export const intakeCopy = {
     addFact: 'Add a fact',
     blockedUnanswered: 'Answer, or press “You decide”',
 
-    receiptTitle: 'What the model understood',
+    receiptTitle: 'What we understood',
     originInput: 'from your text',
     originPerson: 'your answer',
     originAvatar: 'from the avatar',
@@ -372,7 +387,7 @@ export const intakeCopy = {
     profileTitle: (name: string) => `How we write in “${name}”`,
     profileDefaultsCaption:
       'The defaults come from the Telegram guidance; adjust them for your own channel.',
-    profileAuto: 'model decides',
+    profileAuto: 'we decide',
     profileLength: 'Length',
     profileLengthShort: 'up to 500',
     profileLengthIdeal: '500–1000',
@@ -410,7 +425,7 @@ export const intakeCopy = {
     profileSaveFailed: 'The card was not saved. Try again.',
     profileLoading: 'Loading the card',
 
-    formatAuto: 'the model picks',
+    formatAuto: 'we pick',
     formatOpinion: 'opinion',
     formatAnnouncement: 'announcement',
     formatList: 'list',

@@ -390,6 +390,127 @@ describe('опоры с вердиктами', () => {
     expect(named(events, 'piece')).toHaveLength(1);
   });
 
+  /*
+    Восьмой заход, `B1 8cc5a492` (`97dq.1`). Разбор до этой волны отдавал одно
+    утверждение с тремя числами, источник опроверг одно из них, и строка с
+    принятой поправкой уехала в суть как «подтверждено» — вместе с охватом и
+    ростом, которых источник не подтверждал. С волны `97dq.1` утверждения
+    атомарны, но старая строка с тремя числами обязана обрабатываться честно.
+  */
+  describe('поправка на старом утверждении с тремя числами', () => {
+    /*
+      Строка, которую детерминированный разбор `own-facts` не разложил: ни
+      запятой, ни союза — одно предложение с тремя числами. Разложимую он
+      теперь делит сам (`97dq.1`, набор `content-intake.own-facts`), и честность
+      поправки остаётся последней защитой ровно для таких неразложимых строк.
+    */
+    const THREE_NUMBERS =
+      'Исландский эксперимент охватил 25 тысяч человек за десять лет при росте производительности на 40%';
+    const legacyBrief = () => ({
+      ...briefAnswer(),
+      facts: [{ statement: THREE_NUMBERS, factId: null, evidenceId: null }],
+    });
+    const legacyDigest = (prompt) => {
+      const keys = new Map(claimKeysFrom(prompt));
+      const evidence = [...prompt.matchAll(/\[E:([^\]]+)\] [^\n]*— (\S+)/g)].reduce(
+        (map, match) => map.set(match[2], match[1]),
+        new Map()
+      );
+      return {
+        verdicts: [
+          {
+            claimKey: keys.get(THREE_NUMBERS),
+            verdict: 'conflicting',
+            evidenceId: evidence.get(AUTONOMY),
+            quote: 'Two large-scale trials ran between 2015 and 2019',
+            original: 'за десять лет',
+            replacement: 'за 2015–2019 годы',
+            note: 'Источник говорит о двух испытаниях 2015–2019 годов и не подтверждает охват 25 тысяч человек или рост на 40%.',
+          },
+        ],
+        findings: [],
+      };
+    };
+
+    test('поправленная строка не подтверждена целиком, а её числа остаются без опоры', async () => {
+      const { service } = build({
+        models: [legacyBrief(), legacyDigest],
+        research: [researchAnswer()],
+      });
+      const plan = await service.prepare('org-a', request());
+      const events = await drain(service, plan);
+      const [ready] = named(events, 'research-ready');
+      const corrected = ready.facts.find(
+        (fact) => fact.statement.includes('за 2015–2019 годы')
+      );
+
+      // Замена приложена, заметка на месте, строка по-прежнему отмечена —
+      // и при этом честно «не проверено»: два числа никто не подтверждал.
+      expect(corrected).toMatchObject({
+        status: 'unverified',
+        verified: false,
+        selected: true,
+        sourceUrl: AUTONOMY,
+        correction: { original: 'за десять лет', replacement: 'за 2015–2019 годы' },
+      });
+      expect(corrected.statement).toContain('25 тысяч');
+      expect(corrected.statement).toContain('40%');
+
+      // Поправка сама по себе остаётся принятой: свой отрезок она подтверждает.
+      expect(ready.corrections).toEqual([
+        expect.objectContaining({
+          original: 'за десять лет',
+          replacement: 'за 2015–2019 годы',
+          accepted: true,
+        }),
+      ]);
+
+      // Квитанция говорит это словами уже на паузе: строка без опоры видна.
+      const [filled] = named(events, 'brief-filled');
+      expect(filled.brief.ungrounded).toContain(corrected.statement);
+      // Исходная строка не выбрана и в «без опоры» не дублируется.
+      expect(filled.brief.ungrounded).not.toContain(THREE_NUMBERS);
+    });
+
+    test('атомарное утверждение с одним числом поправка подтверждает целиком', async () => {
+      const single = 'Эксперимент охватил 25 тысяч человек';
+      const { service } = build({
+        models: [
+          { ...briefAnswer(), facts: [{ statement: single, factId: null, evidenceId: null }] },
+          (prompt) => {
+            const keys = new Map(claimKeysFrom(prompt));
+            const evidence = [...prompt.matchAll(/\[E:([^\]]+)\] [^\n]*— (\S+)/g)].reduce(
+              (map, match) => map.set(match[2], match[1]),
+              new Map()
+            );
+            return {
+              verdicts: [
+                {
+                  claimKey: keys.get(single),
+                  verdict: 'conflicting',
+                  evidenceId: evidence.get(AUTONOMY),
+                  quote: 'The trials involved 2,500 workers, over 1% of Iceland’s working population',
+                  original: '25 тысяч',
+                  replacement: 'около 2 500',
+                  note: 'Доклад организаторов называет 2 500 участников.',
+                },
+              ],
+              findings: [],
+            };
+          },
+        ],
+        research: [researchAnswer()],
+      });
+      const plan = await service.prepare('org-a', request());
+      const events = await drain(service, plan);
+      const [ready] = named(events, 'research-ready');
+
+      expect(
+        ready.facts.find((fact) => fact.statement === 'Эксперимент охватил около 2 500 человек')
+      ).toMatchObject({ status: 'confirmed', verified: true, selected: true });
+    });
+  });
+
   test('отказ сжатия оставляет строки, как до 13.09: выдержки, «не проверено», не отмечено', async () => {
     const { service } = build({
       models: [briefAnswer(), () => { throw new Error('model down'); }],

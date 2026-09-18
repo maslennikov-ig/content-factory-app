@@ -4,11 +4,17 @@ import { DatabaseModule } from '@contentfactory/nestjs-libraries/database/prisma
 import { RefreshTokens } from './tasks/refresh.tokens';
 import { ConfigurationTask } from './tasks/configuration';
 import { PruneProductEvents } from './tasks/prune.product.events';
+import { RerenderAdaptationBold } from './tasks/rerender.adaptation.bold';
 
 @Module({
   imports: [ExternalCommandModule, DatabaseModule],
   controllers: [],
-  providers: [RefreshTokens, ConfigurationTask, PruneProductEvents],
+  providers: [
+    RefreshTokens,
+    ConfigurationTask,
+    PruneProductEvents,
+    RerenderAdaptationBold,
+  ],
   get exports() {
     return [...this.imports, ...this.providers];
   },

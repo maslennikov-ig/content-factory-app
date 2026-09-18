@@ -140,17 +140,40 @@ const choose = async (text) => {
     fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(text) }))
   );
 };
-test('menu is explicit, keyboard accessible, shows cost on every option and opens without spending', () => {
+test('menu is explicit, keyboard accessible, says what each option does and opens without spending', () => {
   draw();
   fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
-  expect(screen.getAllByRole('menuitem')).toHaveLength(5);
-  expect(screen.getAllByText(/Один вызов модели/)).toHaveLength(4);
+  const items = screen.getAllByRole('menuitem');
+  expect(items).toHaveLength(5);
+  // Every option explains what happens to the text, not what it costs.
+  for (const item of items) expect(item.textContent.trim().length).toBeGreaterThan(30);
+  expect(
+    screen.getByText(
+      'Найдём обороты, по которым текст читается как написанный ИИ, и предложим правки. Штампы уберём заодно.'
+    )
+  ).toBeTruthy();
+  expect(screen.getByText('Найдём источники по каждому числу и дате.')).toBeTruthy();
   expect(calls).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
   expect(screen.queryByRole('menu')).toBeNull();
 });
+
+/*
+  Владелец, 18.09.2026: продукт говорит «ИИ» или «мы», а «модель» остаётся
+  настройкам. Компонент проверки говорил её на каждом пункте меню.
+*/
+test('nothing this component shows the person names a model', async () => {
+  handler = (call) => ok(result(call.payload.mode));
+  draw();
+  open();
+  expect(document.body.textContent).not.toMatch(/модел/i);
+  await act(async () =>
+    fireEvent.click(screen.getByRole('menuitem', { name: /Убрать следы ИИ/ }))
+  );
+  expect(document.body.textContent).not.toMatch(/модел/i);
+});
 test.each([
-  ['Убрать штампы', 'slop'],
+  ['Убрать следы ИИ', 'slop'],
   ['Сверить с сутью', 'facts'],
   ['И то и другое', 'both'],
 ])(
@@ -182,7 +205,7 @@ test('accept passes the returned snapshot to the draft door and refreshes owner 
         : result(call.payload.mode)
     );
   draw();
-  await choose('Убрать штампы');
+  await choose('Убрать следы ИИ');
   await act(async () =>
     fireEvent.click(screen.getByRole('button', { name: 'Принять выбранные' }))
   );
@@ -193,6 +216,8 @@ test('accept passes the returned snapshot to the draft door and refreshes owner 
     selectedIds: ['one'],
   });
   expect(base.onAccepted).toHaveBeenCalledTimes(1);
+  // The page keeps «было N → стало M»; only the review result knows both.
+  expect(base.onAccepted).toHaveBeenCalledWith({ slopBefore: 1, slopAfter: 0 });
 });
 test('stale draft refuses acceptance visibly and cannot be overwritten by a second accept', async () => {
   handler = (call) =>
@@ -204,7 +229,7 @@ test('stale draft refuses acceptance visibly and cannot be overwritten by a seco
         }
       : ok(result(call.payload.mode));
   draw();
-  await choose('Убрать штампы');
+  await choose('Убрать следы ИИ');
   await act(async () =>
     fireEvent.click(screen.getByRole('button', { name: 'Принять выбранные' }))
   );
@@ -235,7 +260,7 @@ test('duplicate click spends one call and unmount aborts the in-flight review', 
     });
   const view = draw();
   open();
-  const choice = screen.getByRole('menuitem', { name: /Убрать штампы/ });
+  const choice = screen.getByRole('menuitem', { name: /Убрать следы ИИ/ });
   fireEvent.click(choice);
   fireEvent.click(choice);
   expect(calls).toHaveLength(1);
@@ -400,33 +425,36 @@ const withSources = () => ({
   ],
   searchedChars: 40,
 });
-test('web choice requires visible spending confirmation and cancel does not spend', async () => {
-  draw();
-  await choose('Проверить факты поиском');
+/*
+  Подтверждения больше нет: человек выбрал действие словами, и окно
+  переспрашивало то же самое. Предложение о расходе стоит подсказкой у кнопки
+  и читается до нажатия.
+*/
+test('the fact check starts on the click itself, with the spend sentence beside the button', async () => {
+  draw({ adaptationId: undefined, canCheckFacts: true });
+  const hint = screen.getByRole('button', {
+    name: 'Подсказка: расход на проверку фактов',
+  });
+  fireEvent.click(hint);
+  expect(
+    screen.getByRole('tooltip').textContent
+  ).toBe(
+    'Поиск и ИИ могут расходовать включённый лимит или средства подключённого провайдера. Источники могут охватить не все утверждения.'
+  );
+  expect(screen.queryByText(/первые 5000 знаков/)).toBeNull();
   expect(calls).toHaveLength(0);
-  expect(
-    screen.getByRole('dialog', { name: 'Проверить факты поиском' })
-  ).toBeTruthy();
-  expect(
-    screen.getByText(/Поиск и модели могут расходовать квоту ИИ или средства подключённого провайдера/)
-  ).toBeTruthy();
-  expect(screen.getByText(/первые 5000 знаков/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
-  expect(calls).toHaveLength(0);
-  expect(
-    screen.queryByRole('button', { name: 'Запустить поиск и проверку' })
-  ).toBeNull();
+  await act(async () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Проверить факты' }))
+  );
+  expect(calls).toHaveLength(1);
+  expect(calls[0].payload).toEqual({ mode: 'web', confirmWebSpend: true });
+  expect(screen.queryByRole('dialog')).toBeNull();
 });
 test('confirmed web action sends spending flag, shows only returned sources and uses existing CAS accept', async () => {
   handler = (call) =>
     ok(call.url.endsWith('/accept') ? { accepted: true } : withSources());
   draw();
   await choose('Проверить факты поиском');
-  await act(async () =>
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Запустить поиск и проверку' })
-    )
-  );
   expect(calls).toHaveLength(1);
   expect(calls[0].payload).toEqual({ mode: 'web', confirmWebSpend: true });
   fireEvent.click(screen.getByRole('button', { name: 'Источники поиска' }));
@@ -447,7 +475,7 @@ test('confirmed web action sends spending flag, shows only returned sources and 
     selectedIds: ['one'],
   });
 });
-test('remembered web action still requires a fresh confirmation and makes no automatic request', async () => {
+test('a remembered web action is marked but never fires on its own', async () => {
   window.localStorage.setItem(reviewModeKey('org'), 'web');
   draw();
   expect(calls).toHaveLength(0);
@@ -455,9 +483,7 @@ test('remembered web action still requires a fresh confirmation and makes no aut
   expect(
     screen.getByRole('menuitem', { name: /Проверить факты поиском/ }).textContent
   ).toContain('Последний выбор');
-  await act(async () =>
-    fireEvent.click(screen.getByRole('menuitem', { name: /Проверить факты поиском/ }))
-  );
+  // Opening the menu is not choosing: the request waits for the click.
   expect(calls).toHaveLength(0);
 });
 test('failed or empty web result exposes no acceptance or claim of verification', async () => {
@@ -468,14 +494,145 @@ test('failed or empty web result exposes no acceptance or claim of verification'
   });
   draw();
   await choose('Проверить факты поиском');
-  await act(async () =>
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Запустить поиск и проверку' })
-    )
-  );
   expect(screen.getByRole('alert').textContent).toContain('Подтверждений нет');
   expect(screen.queryByRole('button', { name: 'Принять выбранные' })).toBeNull();
   expect(base.onAccepted).not.toHaveBeenCalled();
+});
+
+/*
+  Сомнение владельца на прогоне 18.09.2026: «Я не уверен, что убрали именно
+  штампы, которые были». Числа «было N → стало M» на это не отвечают —
+  отвечают отрывки, и вот они.
+*/
+describe('the catalog delta says which findings went and which stayed', () => {
+  const finding = (n) => ({ ruleId: `rule-${n}`, excerpt: `штамп ${n}` });
+  const withCatalog = (catalog) => () =>
+    ok({ ...result('slop'), catalog });
+
+  test('both lists are shown, quoted, under the counters', async () => {
+    handler = withCatalog({
+      removed: [finding(1), finding(2)],
+      remaining: [finding(3)],
+    });
+    draw();
+    await choose('Убрать следы ИИ');
+    const panel = document.querySelector('[data-review-catalog="true"]');
+    const removed = panel.querySelector('[data-review-catalog-group="removed"]');
+    const remaining = panel.querySelector(
+      '[data-review-catalog-group="remaining"]'
+    );
+    expect(removed.textContent).toBe('Ушло: «штамп 1», «штамп 2»');
+    expect(remaining.textContent).toBe('Осталось: «штамп 3»');
+    expect(screen.getByText(/Штампов по каталогу: было 1 → стало 0/)).toBeTruthy();
+  });
+
+  test('a long list stops at five and counts the rest', async () => {
+    handler = withCatalog({
+      removed: [1, 2, 3, 4, 5, 6, 7].map(finding),
+      remaining: [],
+    });
+    draw();
+    await choose('Убрать следы ИИ');
+    const removed = document.querySelector(
+      '[data-review-catalog-group="removed"]'
+    );
+    expect(removed.textContent).toContain('«штамп 5»');
+    expect(removed.textContent).not.toContain('«штамп 6»');
+    expect(removed.textContent).toContain('и ещё 2');
+    expect(document.querySelector('[data-review-catalog-group="remaining"]')).toBeNull();
+  });
+
+  /*
+    Правка умеет внести новый штамп, и тогда `slopAfter` больше, чем осталось
+    в каталоге. Экран печатает и то и другое как есть: подгонка одного под
+    другое соврала бы ровно там, где строка оправдывается.
+  */
+  test('counters and lists are never reconciled with each other', async () => {
+    handler = () =>
+      ok({
+        ...result('slop'),
+        slopBefore: 3,
+        slopAfter: 2,
+        catalog: { removed: [finding(1)], remaining: [finding(2)] },
+      });
+    draw();
+    await choose('Убрать следы ИИ');
+    expect(screen.getByText(/было 3 → стало 2/)).toBeTruthy();
+    expect(
+      document.querySelector('[data-review-catalog-group="remaining"]').textContent
+    ).toBe('Осталось: «штамп 2»');
+  });
+
+  test('a proposal from before this wave renders exactly as it did', async () => {
+    draw();
+    await choose('Убрать следы ИИ');
+    expect(document.querySelector('[data-review-catalog="true"]')).toBeNull();
+    expect(document.querySelector('[data-review-claims="true"]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Принять выбранные' })).toBeTruthy();
+    expect(screen.getByText(/Штампов по каталогу/)).toBeTruthy();
+  });
+});
+
+describe('the fact check reports what it did, including doing nothing', () => {
+  test('nothing to check is an answer, not an empty acceptance block', async () => {
+    handler = () =>
+      ok({
+        ...result('web'),
+        verdict: 'clean',
+        changes: [],
+        sources: [],
+        summary:
+          'Проверять нечего: в тексте нет утверждений, которые можно сверить с источниками.',
+        factCheck: { claims: 0, queries: [], searched: false },
+      });
+    draw();
+    await choose('Проверить факты поиском');
+    expect(
+      document.querySelector('[data-review-nothing-to-check="true"]').textContent
+    ).toBe(
+      'Проверять нечего: в тексте нет утверждений, которые можно сверить с источниками.'
+    );
+    expect(screen.queryByText(/Правки не понадобились/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Принять выбранные' })).toBeNull();
+    expect(document.querySelector('[data-review-claims="true"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Источники поиска' })).toBeNull();
+  });
+
+  test('a search that happened says how many claims it weighed, and what it asked', async () => {
+    handler = () =>
+      ok({
+        ...withSources(),
+        factCheck: {
+          claims: 3,
+          queries: ['рост рынка 2026', 'комиссия площадки'],
+          searched: true,
+        },
+      });
+    draw();
+    await choose('Проверить факты поиском');
+    expect(
+      document.querySelector('[data-review-claims="true"]').textContent
+    ).toBe('Проверено утверждений: 3');
+    fireEvent.click(screen.getByRole('button', { name: 'Источники поиска' }));
+    expect(
+      document.querySelector('[data-review-queries="true"]').textContent
+    ).toBe('Что искали «рост рынка 2026», «комиссия площадки»');
+    expect(screen.getAllByRole('link', { name: 'Источник числа' })[0]).toBeTruthy();
+  });
+
+  test('queries without sources still open, and nothing crashes on the missing list', async () => {
+    handler = () =>
+      ok({
+        ...result('web'),
+        factCheck: { claims: 1, queries: ['одно утверждение'], searched: true },
+      });
+    draw();
+    await choose('Проверить факты поиском');
+    fireEvent.click(screen.getByRole('button', { name: 'Источники поиска' }));
+    expect(
+      document.querySelector('[data-review-queries="true"]').textContent
+    ).toContain('«одно утверждение»');
+  });
 });
 
 test('regeneration chips only fill instruction, one request, no-change hides all acceptance', async () => {

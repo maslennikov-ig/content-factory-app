@@ -663,6 +663,29 @@ export function detectInputKind(input: string): IntakeInputKindV1 | undefined {
 }
 
 /**
+ * Что человек сам сказал о своём вводе, поверх того, что видно по форме.
+ *
+ * Флажок «Это чужой текст» — единственный случай, когда экран знает больше
+ * сервера: вставленный чужой пост неотличим от собственной мысли ни по форме,
+ * ни по языку, и 18.09.2026 живой прогон показал, чем это кончается — продукт
+ * выдал чужое мнение за авторское (`content-factory-next-97dq`, факт 1).
+ * Поэтому флажок называет вид ввода прямо, а сервер такой явный вид уже не
+ * переспрашивает.
+ *
+ * Голая ссылка остаётся ссылкой и с флажком: страницу всё равно надо
+ * прочитать, а чужое авторство у неё и так предполагается. Без флажка
+ * молчание сохраняется — `undefined`, и вид решает сервер.
+ */
+export function intakeInputKind(
+  input: string,
+  options?: { foreignText?: boolean }
+): IntakeInputKindV1 | undefined {
+  const detected = detectInputKind(input);
+  if (detected) return detected;
+  return options?.foreignText ? 'foreign_post' : undefined;
+}
+
+/**
  * Тот же текст без ссылок — для кнопки «Продолжить без ссылки»
  * (`content-factory-next-75xn.38`): сайт по ссылке отказал, а слова человека
  * остались, и убирать адрес руками он не должен. Разбор токена повторяет
@@ -701,6 +724,8 @@ export function buildIntakePayload(input: {
   decide?: readonly BriefField[];
   briefOverrides?: Partial<Record<ReceiptField, string>>;
   inputKind?: IntakeInputKindV1;
+  /** Флажок «Это чужой текст» на экране входа (`97dq.5`). */
+  foreignText?: boolean;
   options?: IntakeOptionsV1;
   researchSelections?: readonly string[];
   /** Снимок первого прохода, чтобы второй продолжил его (`75xn.19`). */
@@ -713,7 +738,9 @@ export function buildIntakePayload(input: {
   /** Интервью пропущено целиком одной кнопкой. */
   skipInterview?: boolean;
 }): IntakeRequestV2 {
-  const kind = input.inputKind ?? detectInputKind(input.input);
+  const kind =
+    input.inputKind ??
+    intakeInputKind(input.input, { foreignText: input.foreignText });
   const overrides = Object.fromEntries(
     Object.entries(input.briefOverrides ?? {}).filter(
       ([, value]) => typeof value === 'string' && value.trim()

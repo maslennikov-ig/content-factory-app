@@ -209,7 +209,7 @@ export const voiceCopy = {
     analysisStageMeasuring: 'считаем длину фраз, пунктуацию и повторы',
     analysisStageAssisting: 'составляем аватар',
     analysisNote:
-      'Пока это арифметика по вашим текстам: считаются слова, знаки и повторы. Модель подключится на следующем шаге, когда из подсчёта нужно будет собрать формулировки.',
+      'Пока это арифметика по вашим текстам: считаются слова, знаки и повторы. ИИ подключится на следующем шаге, когда из подсчёта нужно будет собрать формулировки.',
     analysisMeasuredHeading: 'Что уже видно в ваших текстах',
     analysisHoldout: (count: number) =>
       count === 1
@@ -273,7 +273,7 @@ export const voiceCopy = {
      */
     portraitTitle: 'Аватар',
     portraitHint:
-      'Кто это, а не какой у него стиль. Модель пишет от его лица, и при расхождении с остальными полями побеждает он. Правьте свободно — это ваш человек.',
+      'Кто это, а не какой у него стиль. ИИ пишет от его лица, и при расхождении с остальными полями побеждает он. Правьте свободно — это ваш человек.',
     portraitFieldRole:
       'Портрет задаёт голос целиком. Строки ниже помогают, когда портрета нет, а запреты и темы применяются всегда.',
     proposalWhy: 'Почему предложено именно это',
@@ -526,7 +526,7 @@ export const voiceCopy = {
       'Продукт выберет несколько ваших постов из разобранного корпуса и заменит ими нынешний список. Добавленное вручную тоже заменится — сначала скопируйте его, если оно нужно.',
     passportExampleAdd: 'Добавить свой пример',
     passportExampleAddHint:
-      'Свой текст в списке примеров работает как показанный образец манеры: модель на него смотрит, но факты из него не берёт. Полезно, когда нужный тон есть в тексте, которого нет в корпусе.',
+      'Свой текст в списке примеров работает как показанный образец манеры: ИИ на него смотрит, но факты из него не берёт. Полезно, когда нужный тон есть в тексте, которого нет в корпусе.',
     passportExampleAddPlaceholder: 'Вставьте свой текст — абзац или короткий пост',
     passportExampleAddSave: 'Добавить',
     passportExampleCancel: 'Отмена',
@@ -543,13 +543,13 @@ export const voiceCopy = {
       'Правка сразу создаёт новую версию: она появится в истории ниже, а старые публикации останутся привязаны к той версии, которой были написаны.',
     passportEditEmpty: 'Строка не может быть пустой.',
     passportHintWhoSpeaks:
-      'Одна фраза о том, кто пишет: роль, должность, отношение к делу. Модель читает её первой и от неё отсчитывает всё остальное.',
+      'Одна фраза о том, кто пишет: роль, должность, отношение к делу. ИИ читает её первой и от неё отсчитывает всё остальное.',
     passportHintTone:
       'Как звучит текст — спокойно, резко, тепло. Это интонация, а не тема и не словарь.',
     passportHintAudience:
       'Кому адресован текст. От этого зависит, что можно не объяснять и какие слова считаются понятными.',
     passportHintSentenceStyle:
-      'Какой длины фразы вы пишете, своими словами. Число рядом посчитано по вашим текстам; эта строка — то, что вы хотите от модели.',
+      'Какой длины фразы вы пишете, своими словами. Число рядом посчитано по вашим текстам; эта строка — то, что вы хотите от ИИ.',
     passportHintNeverSay:
       'Обороты, которых в тексте быть не должно. Перечисляйте через точку с запятой: «мы рады сообщить; уникальное предложение».',
     passportHintExamples:
@@ -576,7 +576,7 @@ export const voiceCopy = {
     scalesRecalibrateWhy:
       'С тех пор как эти числа сняли, продукт научился считать точнее.',
     scalesRecalibrateWhat:
-      'Продукт заново измерит ваши тексты и обновит числа в паспорте и рамки на шкалах. Слова аватара — кто говорит, каким тоном — не изменятся. Платить не нужно, модель не вызывается.',
+      'Продукт заново измерит ваши тексты и обновит числа в паспорте и рамки на шкалах. Слова аватара — кто говорит, каким тоном — не изменятся. Платить не нужно, ИИ не вызывается.',
     scalesRecalibrateMoved: (count: number) =>
       `${count} ${plural(count, ['шкалу', 'шкалы', 'шкал'])} вы двигали сами. ${
         count === 1 ? 'Она останется' : 'Они останутся'
@@ -670,7 +670,7 @@ export const voiceCopy = {
 
     // Screen 12 — the avatars of a space.
     avatarsTitle: 'Аватары',
-    avatarsSubtitle: 'Люди и бренды, от чьего лица пишет модель',
+    avatarsSubtitle: 'Люди и бренды, от чьего лица пишет ИИ',
     avatarsCount: (count: number, limit: number) =>
       `${count} ${plural(count, ['аватар', 'аватара', 'аватаров'])} из ${limit}`,
     avatarsCreate: 'Создать аватар',
@@ -807,7 +807,7 @@ export const voiceCopy = {
     learnNow: 'Учиться сейчас',
     learnBusy: 'Разбираем правки…',
     learnHint:
-      'Один разбор — один платный вызов модели на всю накопленную пачку. Текст ваших постов при этом не переписывается.',
+      'Один разбор — один платный вызов ИИ на всю накопленную пачку. Текст ваших постов при этом не переписывается.',
     learnForget: 'Отменить правило',
     learnRestricted:
       'Учить аватара и отменять правила — право редактора или администратора пространства. Читать выученное может любой участник.',
@@ -948,7 +948,7 @@ export const voiceCopy = {
     analysisStageMeasuring: 'counting sentence length, punctuation and repetition',
     analysisStageAssisting: 'drafting the avatar',
     analysisNote:
-      'This is still arithmetic over your texts: words, marks and repeats. The model joins on the next step, once the counts need to become wording.',
+      'This is still arithmetic over your texts: words, marks and repeats. AI joins on the next step, once the counts need to become wording.',
     analysisMeasuredHeading: 'What already shows in your texts',
     analysisHoldout: (count: number) =>
       count === 1
@@ -995,7 +995,7 @@ export const voiceCopy = {
     proposalFields: 'Proposed avatar',
     portraitTitle: 'Avatar',
     portraitHint:
-      'Who this is, not what their style is like. The model writes as them, and where this and the other fields disagree, the person wins. Edit freely — this is your person.',
+      'Who this is, not what their style is like. AI writes as them, and where this and the other fields disagree, the person wins. Edit freely — this is your person.',
     portraitFieldRole:
       'The portrait sets the whole voice. The lines below help when no portrait exists; restrictions and topics always apply.',
     proposalWhy: 'Why this was proposed',
@@ -1214,14 +1214,14 @@ export const voiceCopy = {
       'The corpus is thin: the profile was computed, but habits settle less firmly on less text.',
     passportExamples: 'Your examples',
     passportExamplesHint:
-      'Picked from your own texts and sent to the model as a sample of manner. Facts are never taken from them.',
+      'Picked from your own texts and sent to the AI as a sample of manner. Facts are never taken from them.',
     passportExampleRemove: 'Remove',
     passportExamplesRefresh: 'Pick from my texts',
     passportExamplesRefreshHint:
       'The product picks a few of your own posts from the measured corpus and replaces the current list with them. Anything added by hand is replaced too — copy it first if you need it.',
     passportExampleAdd: 'Add my own example',
     passportExampleAddHint:
-      'Your own text in this list works as a shown sample of manner: the model looks at it and takes no facts from it. Useful when the tone you want lives in a text the corpus does not hold.',
+      'Your own text in this list works as a shown sample of manner: AI looks at it and takes no facts from it. Useful when the tone you want lives in a text the corpus does not hold.',
     passportExampleAddPlaceholder: 'Paste your text — a paragraph or a short post',
     passportExampleAddSave: 'Add',
     passportExampleCancel: 'Cancel',
@@ -1234,13 +1234,13 @@ export const voiceCopy = {
       'An edit creates a new version at once: it shows up in the history below, and posts already written stay attached to the version that wrote them.',
     passportEditEmpty: 'The line cannot be empty.',
     passportHintWhoSpeaks:
-      'One sentence about who is writing: role, job, relationship to the work. The model reads it first and measures everything else from it.',
+      'One sentence about who is writing: role, job, relationship to the work. AI reads it first and measures everything else from it.',
     passportHintTone:
       'How the text sounds — calm, blunt, warm. This is intonation, not subject matter and not vocabulary.',
     passportHintAudience:
       'Who the text is addressed to. It decides what can go unexplained and which words count as known.',
     passportHintSentenceStyle:
-      'How long your sentences run, in your own words. The number beside it is measured from your texts; this line is what you want from the model.',
+      'How long your sentences run, in your own words. The number beside it is measured from your texts; this line is what you want from the AI.',
     passportHintNeverSay:
       'Turns of phrase that must not appear. List them separated by semicolons: "we are pleased to announce; unique offer".',
     passportHintExamples:
@@ -1347,7 +1347,7 @@ export const voiceCopy = {
     comparisonChangedMark: 'changed',
 
     avatarsTitle: 'Avatars',
-    avatarsSubtitle: 'The people and brands the model writes as',
+    avatarsSubtitle: 'The people and brands the AI writes as',
     avatarsCount: (count: number, limit: number) =>
       `${count} of ${limit} avatars`,
     avatarsCreate: 'New avatar',

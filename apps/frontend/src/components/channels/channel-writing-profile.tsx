@@ -37,7 +37,7 @@ const panelCopy = {
     cancel: 'Отмена',
     retry: 'Повторить',
     defaults: (provider: string) =>
-      `Карточка не заполнена: модель пишет по умолчаниям для ${
+      `Карточка не заполнена: пишем по умолчаниям для ${
         provider || 'площадки'
       }. Проверьте их — это три минуты, и каждая адаптация станет точнее.`,
   },
@@ -48,7 +48,7 @@ const panelCopy = {
     cancel: 'Cancel',
     retry: 'Retry',
     defaults: (provider: string) =>
-      `This card is not filled in: the model uses the defaults for ${
+      `This card is not filled in: we use the defaults for ${
         provider || 'this platform'
       }. Review them once so every adaptation is more accurate.`,
   },

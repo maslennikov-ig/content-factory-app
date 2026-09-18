@@ -125,7 +125,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       brief: {
         short: 'Сделать заготовку',
         title: 'Сделайте заготовку и получите черновик',
-        why: 'Заготовка — это суть материала: одна мысль, записанная простыми словами, и заполненный бриф рядом с ней. Из неё собираются черновики под каждый канал. Пока сути нет, модель пишет складно и ни о чём.',
+        why: 'Заготовка — это суть материала: одна мысль, записанная простыми словами, и заполненный бриф рядом с ней. Из неё собираются черновики под каждый канал. Пока сути нет, ИИ пишет складно и ни о чём.',
         todo: 'Нажмите «Новая заготовка», войдите одной мыслью — что вы хотите сказать — и ответьте на вопросы брифа.',
         action: 'Открыть «Контент»',
         closes:
@@ -204,7 +204,7 @@ export const onboardingCopy: { ru: Words; en: Words } = {
       brief: {
         short: 'Make a piece',
         title: 'Make a piece and get a draft',
-        why: 'A piece is the substance: one thought written out in plain words, with the filled brief beside it. Drafts for each channel are cut from it. While there is no substance, the model writes something fluent about nothing.',
+        why: 'A piece is the substance: one thought written out in plain words, with the filled brief beside it. Drafts for each channel are cut from it. While there is no substance, AI writes something fluent about nothing.',
         todo: 'Press "New piece", start with one thought — what you want to say — and answer the brief.',
         action: 'Open "Content"',
         closes:

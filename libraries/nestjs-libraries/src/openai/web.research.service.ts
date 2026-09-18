@@ -149,6 +149,25 @@ export interface WebResearchOptions {
    * this» rather than «what is true about this».
    */
   windowDays?: number;
+  /**
+   * Ready search queries, written by a caller that already knows what has to
+   * be checked (`content-factory-next-97dq.3`).
+   *
+   * Without them this service asks the classifier to compress the whole
+   * subject into one or two queries, which is the right shape for «соберите
+   * опоры по теме» and the wrong one for «проверьте вот эти утверждения»: the
+   * fact check of a draft used to send the opening of the text and search for
+   * its topic, so a number in the middle of a post was never looked up at all.
+   *
+   * Supplied queries replace the generated ones and skip the classifier
+   * entirely — it is a paid call whose only remaining output would be the
+   * queries it is no longer asked for. Scope is then read as `global` and the
+   * encyclopedic lane takes its locales from `language`: a caller that writes
+   * its own queries has already put each one in the language it needs, and
+   * guessing a country from a query would boost sources the caller did not ask
+   * for. The bound is still the level preset's `maxSearchQueries`.
+   */
+  queries?: string[];
 }
 
 export type ResearchLevel = 'quick' | 'standard' | 'deep';
@@ -422,6 +441,22 @@ export const RESEARCH_LEVEL_PRESETS: Readonly<
   },
 });
 
+/**
+ * The caller's queries as this service will actually use them: trimmed,
+ * deduplicated in the caller's order and cut to the level's query budget.
+ *
+ * One function so the cache key and the searches cannot disagree. Two callers
+ * that ask the same questions in a different order still ask different
+ * questions here, because the budget cuts from the end and the order decides
+ * which query survives it.
+ */
+const callerQueries = (
+  options: WebResearchOptions,
+  level: ResearchLevel
+): string[] => [
+  ...new Set((options.queries ?? []).map((query) => query.trim()).filter(Boolean)),
+].slice(0, RESEARCH_LEVEL_PRESETS[level].maxSearchQueries);
+
 const researchSummary = z.object({
   summary: z.string(),
 });
@@ -442,6 +477,41 @@ const subjectClassification = z.object({
   subjectLanguageQuery: z.string().nullable(),
   freshnessRequired: z.boolean(),
 });
+
+type SubjectClassification = z.infer<typeof subjectClassification>;
+
+/**
+ * The classifier prompt carried no version line until 18.09.2026, so the text
+ * that shipped until then is `research-classify/v1` by convention and this one
+ * is v2. The line is here so a recorded classification can say which
+ * instructions produced it; nothing reads the version at runtime.
+ *
+ * What changed in v2, and why (`content-factory-next-97dq.1` → `.3`, eighth
+ * walk): «Return subjectLanguage … or the language of the country whose rules,
+ * market or institutions it is about» made the discussed country decide the
+ * language. Production logged `subjectLanguage=is` for a Russian text about
+ * Iceland and searched in Icelandic, so a Russian author got sources he could
+ * not read about a subject he wrote in Russian. The language of a subject is a
+ * property of the subject's words. The one case where the country may decide
+ * is `local` scope, which by its own definition means the reader's own country
+ * — and the reader's country and the reader's language coincide there.
+ *
+ * Exported so a test can read the wording instead of the template object:
+ * `ChatPromptTemplate.fromTemplate` keeps no readable copy of its source.
+ */
+export const RESEARCH_CLASSIFY_PROMPT_VERSION = 'research-classify/v2' as const;
+
+export const RESEARCH_CLASSIFY_PROMPT = `Classify the research subject, then prepare search queries.
+PROMPT VERSION: ${RESEARCH_CLASSIFY_PROMPT_VERSION}
+The content output language does not control the search language.
+The reader's output language is {outputLanguage}; use it only to decide whether a named country or market is the reader's own.
+Return scope "local" only for laws, markets, companies or institutions of the reader's own country, or when searching outside one country would make no sense. A foreign country's experience discussed as an idea is "global", even when the event itself happened in one country. Return scope "global" when the subject crosses countries or concerns an international debate.
+Return subjectLanguage as a lowercase ISO 639-1 code: the language the subject itself is written in. The country the subject discusses never changes it — a Russian sentence about Iceland, Japan or Brazil has subjectLanguage "ru".
+Only when scope is "local" may subjectLanguage be the language of that country instead, because a local subject is about the reader's own country.
+Always provide englishQuery in English.
+Whenever subjectLanguage is not "en", also provide subjectLanguageQuery written in that language, using the terms a reader of that language would search for, including the local names of laws, registers and institutions. Only when subjectLanguage is "en" must subjectLanguageQuery be null.
+Set freshnessRequired true only when the subject asks for latest, current, recent, breaking or time-sensitive information.
+Subject: {subject}`;
 
 interface SearchResult {
   answer?: string;
@@ -469,12 +539,20 @@ type SearchAttempt = (
 ) => Promise<SearchResult>;
 
 /**
- * The same bound the HTTP contract states, applied here because the callers
- * that matter do not come through it: an RSS `content:encoded` body or a whole
- * scraped page reaches this service directly. A classifier only needs the
- * opening of the material to name the subject.
+ * What the classifier reads, and what identifies the answer in the cache.
+ *
+ * Named for its two jobs since `content-factory-next-97dq.3`, because it used
+ * to be one of three unrelated `5_000`s that looked like one rule and were
+ * not. This one is the only one left here, and it bounds nothing a reader
+ * sees: the classifier needs the opening of the material to name the subject,
+ * and the cache key needs a bounded string. The callers that matter do not
+ * come through the HTTP contract — an RSS `content:encoded` body or a whole
+ * scraped page reaches this service directly — so the bound lives here.
+ *
+ * It is NOT the limit on how much of a text gets fact-checked. That limit
+ * belongs to whoever writes the queries; see `WebResearchOptions.queries`.
  */
-const MAXIMUM_SUBJECT_LENGTH = 5_000;
+const CLASSIFIER_SUBJECT_CHARS = 5_000;
 
 class WebSearchDeadlineExceeded extends Error {
   constructor(milliseconds: number) {
@@ -881,8 +959,21 @@ const wholePageExcerpt = (value: string | undefined) => {
  */
 const containsCyrillic = (value: string) => /[А-ЯЁа-яё]/.test(value);
 
+/**
+ * Пустую сводку переписывать не на что.
+ *
+ * `!containsCyrillic('')` — правда, и до 18.09.2026 поиск без сводки (движок
+ * её не вернул, или её и не просили — проверка фактов живёт выдержками) звал
+ * модель переписать пустую строку на русский. Платный вызов ни за что, и
+ * видно его только в ленте расхода. Замечено в `content-factory-next-97dq.3`,
+ * когда проверка фактов начала передавать язык читателя.
+ */
 const summaryNeedsLanguage = (summary: string, language: ContentLanguage) =>
-  language === 'ru' ? !containsCyrillic(summary) : containsCyrillic(summary);
+  summary.trim()
+    ? language === 'ru'
+      ? !containsCyrillic(summary)
+      : containsCyrillic(summary)
+    : false;
 
 export class WebSearchNotConfigured extends Error {
   readonly status = 409;
@@ -1172,12 +1263,19 @@ Summary: {summary}`
       (levelWasExplicit === true ? 'research' : DEFAULT_SEARCH_TASK);
     // The task and the window are part of the question, not of the answer: a
     // thirty-day discovery sweep and a fact check on the same subject are two
-    // different searches and must not share one cached result.
+    // different searches and must not share one cached result. Supplied
+    // queries are the question itself, so two different claim sets on one
+    // draft are likewise two searches. They are joined by a newline, which a
+    // query cannot contain: a control character invisible in the source is a
+    // separator nobody can review, and an empty one would let ["ab","c"] and
+    // ["a","bc"] collide into one key (`content-factory-next-97dq.3`, P3).
     const key = `${organizationId}|${searchRouteFingerprint(
       config.search
     )}|${level}|${options.task ?? ''}|${options.windowDays ?? ''}|${
       options.language ?? ''
-    }|${subject.trim().slice(0, MAXIMUM_SUBJECT_LENGTH)}`;
+    }|${callerQueries(options, level).join('\n')}|${subject
+      .trim()
+      .slice(0, CLASSIFIER_SUBJECT_CHARS)}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.logger.debug(`Research cache hit for ${level}.`);
@@ -1356,34 +1454,39 @@ Summary: {summary}`
       throw new WebSearchNotConfigured();
     }
 
+    const level = options.level ?? 'standard';
+    const preset = RESEARCH_LEVEL_PRESETS[level];
+    const supplied = callerQueries(options, level);
+
     /**
      * The cheapest call in the product, and for two years it was billed as the
      * most expensive one: one sentence in, five short fields out, on the same
      * model that writes drafts. It says `classify` so a workspace can put it
      * on a small model without touching anything the reader sees
      * (`content-factory-next-x63z`).
+     *
+     * A caller that brought its own queries buys nothing here and skips it.
      */
-    const classifier = (
-      await getChatModel(organizationId, 0, undefined, 'classify')
-    ).withStructuredOutput(subjectClassification);
-    const classification = await ChatPromptTemplate.fromTemplate(
-      `Classify the research subject, then prepare search queries.
-The content output language does not control the search language.
-The reader's output language is {outputLanguage}; use it only to decide whether a named country or market is the reader's own.
-Return scope "local" only for laws, markets, companies or institutions of the reader's own country, or when searching outside one country would make no sense. A foreign country's experience discussed as an idea is "global", even when the event itself happened in one country. Return scope "global" when the subject crosses countries or concerns an international debate.
-Return subjectLanguage as a lowercase ISO 639-1 code: the language the subject is written in, or the language of the country whose rules, market or institutions it is about.
-Always provide englishQuery in English.
-Whenever subjectLanguage is not "en", also provide subjectLanguageQuery written in that language, using the terms a reader of that language would search for, including the local names of laws, registers and institutions. Only when subjectLanguage is "en" must subjectLanguageQuery be null.
-Set freshnessRequired true only when the subject asks for latest, current, recent, breaking or time-sensitive information.
-Subject: {subject}`
-    )
-      .pipe(classifier)
-      .invoke({
-        subject: String(subject).slice(0, MAXIMUM_SUBJECT_LENGTH),
-        outputLanguage: options.language
-          ? contentLanguageNames[options.language]
-          : 'unknown',
-      });
+    const classification: SubjectClassification = supplied.length
+      ? {
+          scope: 'global',
+          subjectLanguage: options.language ?? 'en',
+          englishQuery: supplied[0],
+          subjectLanguageQuery: null,
+          freshnessRequired: false,
+        }
+      : await ChatPromptTemplate.fromTemplate(RESEARCH_CLASSIFY_PROMPT)
+          .pipe(
+            (
+              await getChatModel(organizationId, 0, undefined, 'classify')
+            ).withStructuredOutput(subjectClassification)
+          )
+          .invoke({
+            subject: String(subject).slice(0, CLASSIFIER_SUBJECT_CHARS),
+            outputLanguage: options.language
+              ? contentLanguageNames[options.language]
+              : 'unknown',
+          });
 
     /**
      * The subject's own language goes first and English second. Both queries
@@ -1403,19 +1506,20 @@ Subject: {subject}`
         ? [ownLanguageQuery, englishQuery]
         : [englishQuery];
 
-    const level = options.level ?? 'standard';
-    const preset = RESEARCH_LEVEL_PRESETS[level];
     // Keep query generation deterministic and bounded. Additional slots are
     // only useful for a distinct locale query; repeating the same words would
-    // spend money without adding recall.
-    const queries = baseQueries.slice(0, preset.maxSearchQueries);
+    // spend money without adding recall. Supplied queries are already cut to
+    // the same budget by `callerQueries`.
+    const queries = supplied.length
+      ? supplied
+      : baseQueries.slice(0, preset.maxSearchQueries);
 
     const country = classification.scope === 'local'
       ? countryForSubjectLanguage(classification.subjectLanguage)
       : undefined;
     const loggedSubject = researchLogTopic(subject);
     this.logger.log(
-      `Web research classification: subject=${JSON.stringify(loggedSubject)} scope=${classification.scope} subjectLanguage=${classification.subjectLanguage} country=${country ?? 'none'} queries=${queries.length}.`
+      `Web research classification: subject=${JSON.stringify(loggedSubject)} scope=${classification.scope} subjectLanguage=${classification.subjectLanguage} country=${country ?? 'none'} queries=${queries.length} source=${supplied.length ? 'caller' : 'classifier'}.`
     );
 
     const searchOptions = {
@@ -1530,9 +1634,24 @@ Subject: {subject}`
       );
       return false;
     };
+    /**
+     * Полоса ищет ИМЕНА СУЩНОСТЕЙ, и запросы классификатора ими были: он писал
+     * «Iceland four day workweek», а это название статьи. Утверждения, которые
+     * приносит проверка фактов, — предложения: «комиссия Wildberries 10% для
+     * продавцов 2026». Энциклопедия по такой строке не находит ничего или
+     * находит не то, а стоит это круга запросов на каждое утверждение —
+     * последовательно, до восьми секунд, которые человек ждёт, и до двух мест
+     * из шести, которые увидит проверяющая модель. Найденная не по делу статья
+     * не просто бесполезна: она вытесняет настоящий источник поиска.
+     *
+     * Поэтому с готовыми запросами полоса не открывается: у этой службы здесь
+     * нет имени сущности, чтобы её открыть (`content-factory-next-97dq.3`, то
+     * же, что P2-7, но в задержке, а не в деньгах). Собственный ресерч, где
+     * запросы пишет классификатор, работает как работал.
+     */
     const encyclopedicLane: Promise<
       Awaited<ReturnType<WebResearchService['encyclopedicRows']>>
-    > = options.levelWasExplicit
+    > = options.levelWasExplicit && !supplied.length
       ? withDeadline(
           this.encyclopedicRows({
             entityNames: [...new Set(queries)],
@@ -1768,8 +1887,19 @@ Subject: {subject}`
       .map(({ response }) => response.answer)
       .filter((answer): answer is string => !!answer)
       .join('\n\n');
+    /**
+     * Сводку переписывают на язык читателя только для того, кто её прочитает.
+     *
+     * Поставщик готовых запросов её не читает: проверка фактов берёт из ответа
+     * выдержки и адреса (`webReviewSources`) и сводку выбрасывает — об этом
+     * прямо написано на её стороне, «Do not request a translated summary». А
+     * платила она за перевод всё равно: английский `answer` на русский
+     * черновик поднимал ещё один вызов модели, невидимый нигде, кроме ленты
+     * расхода (`content-factory-next-97dq.3`, P2-7).
+     */
     const summary =
       options.language &&
+      !supplied.length &&
       summaryNeedsLanguage(providerSummary, options.language)
         ? await this.summaryInLanguage(
             organizationId,

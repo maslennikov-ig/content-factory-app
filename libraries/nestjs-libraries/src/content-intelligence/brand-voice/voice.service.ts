@@ -1230,7 +1230,7 @@ export class VoiceService {
       if (!this._assist) {
         throw new VoiceError(
           'VOICE_ASSIST_UNAVAILABLE',
-          'Агентный слепок недоступен: модель не подключена.'
+          'Агентный слепок недоступен: ИИ не подключён.'
         );
       }
       const byCode = new Map(inputs.map((sample) => [sample.code, sample]));
@@ -3566,52 +3566,9 @@ export class VoiceService {
        */
       return this.silentCheck(actor, body.text);
     }
-    const metrics = metricsOf(measurement);
     const check = checkText(
       body.text,
-      {
-        analyzerVersion: measurement.analyzerVersion,
-        localePackVersion: measurement.localePackVersion,
-        language: (measurement.language as BrandVoiceLocale) ?? 'ru',
-        sampleCount: measurement.sampleCount,
-        charCount: measurement.charCount,
-        wordCount: measurement.wordCount,
-        sentenceCount: measurement.sentenceCount,
-        // An excluded scale is one the workspace took out of its own profile.
-        // Reporting it anyway would be a style guide nobody asked for.
-        scales: Object.fromEntries(
-          Object.entries(metrics.scales).filter(
-            ([, scale]) => !(scale as StoredScaleValue)?.excluded
-          )
-        ),
-        lexicon: measurement.lexicon ?? [],
-        punctuation:
-          measurement.punctuation ?? {
-            dashInsteadOfCopula: null,
-            colonBeforeList: null,
-            questionAtEnd: null,
-            exclamation: null,
-          },
-        rejected: [],
-        split: measurement.corpusSplit ?? {},
-        // Absent on every measurement written before 2026-08-24. The check
-        // then answers "cannot tell", which is the truth, rather than falling
-        // back on the eight scales and calling their share a verdict.
-        voicePrint: metrics.voicePrint ?? null,
-        // Тоже отсутствует до 27.08.2026, и тоже читается как «не могу
-        // сказать»: без границ, снятых на этом авторе, голос сообщается, а
-        // вердикт не выносится.
-        calibration: metrics.calibration ?? null,
-        // Кем судили. Без шеренги границы нечитаемы: голос это число
-        // относительно неё, и порог, снятый против одной, к голосу против
-        // другой неприменим.
-        lineup: metrics.lineup ?? null,
-        // The check never reads these; they exist for the model's explanation.
-        // Passed through so the shape is the analyser's own and not a partial
-        // copy that drifts the next time a field is added.
-        postHabits: metrics.postHabits ?? null,
-        postLayout: metrics.postLayout ?? null,
-      },
+      this.analyzerProfileOf(measurement),
       // The language the product answers in, which is not the language the
       // corpus is written in. A German corpus is still reported on in Russian
       // or English, because those are the two the voice copy exists in.
@@ -3642,6 +3599,61 @@ export class VoiceService {
        */
       calibrationErrors: check.calibrationErrors,
       silenceHint: check.silenceHint,
+    };
+  }
+
+  /**
+   * Разбор области — в том виде, в каком его читает мерка.
+   *
+   * Вынесено из `textCheck` без единой правки полей
+   * (`content-factory-next-97dq.2`): против одного разбора теперь меряют и один
+   * текст, и двадцать, а собранный дважды он однажды разъехался бы на поле,
+   * которое добавили в одном месте.
+   */
+  private analyzerProfileOf(measurement: any) {
+    const metrics = metricsOf(measurement);
+    return {
+      analyzerVersion: measurement.analyzerVersion,
+      localePackVersion: measurement.localePackVersion,
+      language: (measurement.language as BrandVoiceLocale) ?? 'ru',
+      sampleCount: measurement.sampleCount,
+      charCount: measurement.charCount,
+      wordCount: measurement.wordCount,
+      sentenceCount: measurement.sentenceCount,
+      // An excluded scale is one the workspace took out of its own profile.
+      // Reporting it anyway would be a style guide nobody asked for.
+      scales: Object.fromEntries(
+        Object.entries(metrics.scales).filter(
+          ([, scale]) => !(scale as StoredScaleValue)?.excluded
+        )
+      ),
+      lexicon: measurement.lexicon ?? [],
+      punctuation:
+        measurement.punctuation ?? {
+          dashInsteadOfCopula: null,
+          colonBeforeList: null,
+          questionAtEnd: null,
+          exclamation: null,
+        },
+      rejected: [] as never[],
+      split: measurement.corpusSplit ?? {},
+      // Absent on every measurement written before 2026-08-24. The check
+      // then answers "cannot tell", which is the truth, rather than falling
+      // back on the eight scales and calling their share a verdict.
+      voicePrint: metrics.voicePrint ?? null,
+      // Тоже отсутствует до 27.08.2026, и тоже читается как «не могу
+      // сказать»: без границ, снятых на этом авторе, голос сообщается, а
+      // вердикт не выносится.
+      calibration: metrics.calibration ?? null,
+      // Кем судили. Без шеренги границы нечитаемы: голос это число
+      // относительно неё, и порог, снятый против одной, к голосу против
+      // другой неприменим.
+      lineup: metrics.lineup ?? null,
+      // The check never reads these; they exist for the model's explanation.
+      // Passed through so the shape is the analyser's own and not a partial
+      // copy that drifts the next time a field is added.
+      postHabits: metrics.postHabits ?? null,
+      postLayout: metrics.postLayout ?? null,
     };
   }
 
@@ -3687,6 +3699,74 @@ export class VoiceService {
         }`
       );
       return VOICE_CHECK_SILENT;
+    }
+  }
+
+  /**
+   * Столько же вердиктов, сколько текстов, — и один разбор на все.
+   *
+   * `content-factory-next-97dq.2`, разбор корректности P1-2: страница
+   * заготовки спрашивает вердикт на каждую адаптацию, а `voiceCheckFor` читал
+   * разбор области и её мерку заново на каждый вопрос — четыре запроса на
+   * строку. Разбор у области один и за одно чтение страницы не меняется:
+   * читается он здесь один раз, а дальше меряется текст за текстом.
+   *
+   * Считает та же `checkText`, тем же профилем, что и одиночная проверка, —
+   * иначе строка качества на странице и строка в ленте голоса отвечали бы о
+   * разном. Дешевле она не стала: арифметика по каждому тексту та же, ушли
+   * только повторные чтения базы.
+   *
+   * Не бросает — ни целиком, ни по одному тексту: упавшая мерка отвечает
+   * `UNKNOWN`, и остальные строки страницы это не роняет.
+   */
+  async voiceCheckMany(
+    organizationId: string,
+    texts: readonly string[],
+    locale: 'ru' | 'en' = 'ru'
+  ): Promise<VoiceCheckReportV1[]> {
+    if (!texts.length) return [];
+    try {
+      const { activeVersion } = await this._profiles.overview(organizationId);
+      const measurement = await this.measurementForActiveVersion(
+        organizationId,
+        activeVersion
+      );
+      // Разбора нет — сказать нечего, и это ответ, а не отказ: тот же
+      // `NO_PROFILE`, что отдаёт молчаливая проверка одного текста.
+      if (!measurement)
+        return texts.map(() => ({
+          verdict: 'UNKNOWN' as const,
+          reason: 'NO_PROFILE' as const,
+        }));
+      const profile = this.analyzerProfileOf(measurement);
+      return texts.map((text) => {
+        if (!text.trim())
+          return { verdict: 'UNKNOWN' as const, reason: 'TOO_SHORT' as const };
+        try {
+          const { similarity } = checkText(
+            text,
+            profile,
+            locale === 'en' ? 'en' : 'ru'
+          );
+          return similarity.reason
+            ? { verdict: similarity.verdict, reason: similarity.reason }
+            : { verdict: similarity.verdict };
+        } catch (error) {
+          this.logger.warn(
+            `Проверка голоса не ответила по одному тексту: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+          return VOICE_CHECK_SILENT;
+        }
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Проверка голоса не ответила: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return texts.map(() => VOICE_CHECK_SILENT);
     }
   }
 

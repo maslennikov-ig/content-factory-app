@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { WorkingLine } from '../../ui/working-line';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 
 /**
@@ -343,6 +344,67 @@ export function ResearchEvidenceRows({
   );
 }
 
+/**
+ * Ряд продолжения: две кнопки — или строка хода на их месте.
+ *
+ * Владелец, 18.09.2026: «После нажатия „Продолжить с правками“ всё как будто
+ * немножко подвисло… кнопка находится в самом низу. Может быть, её имеет смысл
+ * продублировать и сверху». Обе половины жалобы лечатся одним рядом: он
+ * монтируется дважды — над находками и под ними, — и на своём месте, а не
+ * экраном ниже, превращается в `WorkingLine`, пока идёт второй проход. Ряд
+ * один; два вызова ниже отличаются только тем, кто из них несёт список
+ * источников, чтобы длинная строка адресов не повторилась дважды.
+ */
+function ResearchContinueRow({
+  locale,
+  place,
+  busy,
+  working,
+  workingLabel,
+  accepted,
+  hosts = [],
+  onContinue,
+}: {
+  locale: IntakeLocale;
+  place: 'above' | 'below';
+  busy: boolean;
+  working: boolean;
+  workingLabel?: string;
+  accepted: number;
+  hosts?: readonly string[];
+  onContinue: (mode: 'with-fixes' | 'keep-mine') => void;
+}) {
+  const t = intakeCopy[locale];
+  if (working) {
+    return (
+      <WorkingLine
+        label={workingLabel ?? t.stepStarted}
+        data-intake-research-working={place}
+      />
+    );
+  }
+  return (
+    <div
+      className="flex flex-wrap items-center gap-[8px]"
+      data-intake-research-row={place}
+    >
+      <Button type="button" variant="primary" disabled={busy} onClick={() => onContinue('with-fixes')} data-intake-research-continue="true">
+        {accepted ? t.researchContinueWithFixes : t.researchContinuePlain}
+      </Button>
+      {accepted ? (
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => onContinue('keep-mine')} data-intake-research-keep-mine="true">
+          {t.researchKeepMyNumbers}
+        </Button>
+      ) : null}
+      {hosts.length ? (
+        <span className="cf-caption min-w-0 flex-1 truncate text-cf-ink-muted" title={hosts.join(' · ')}>
+          {hosts.join(' · ')}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function ResearchOutcome({
   locale,
   level,
@@ -353,6 +415,9 @@ export function ResearchOutcome({
   summary,
   pending,
   busy = false,
+  continueAbove = false,
+  working = false,
+  workingLabel,
   onToggleCorrection,
   onToggleFound,
   onContinue,
@@ -367,6 +432,22 @@ export function ResearchOutcome({
   /** Ход стоит на выборе: кнопки продолжения видны. */
   pending: boolean;
   busy?: boolean;
+  /**
+   * Тот же ряд продолжения ещё раз — над находками.
+   *
+   * Просьба владельца 18.09.2026 про экран входа, где находок бывает на
+   * полтора экрана и единственная кнопка стоит под ними. Страница заготовки
+   * показывает тот же итог в коротком блоке и ряд не удваивает, поэтому
+   * решение принадлежит вызывающему, а не компоненту.
+   */
+  continueAbove?: boolean;
+  /**
+   * Второй проход уже идёт: на месте ряда кнопок стоит строка хода.
+   * Необязательный — страница заготовки рисует тот же итог без него.
+   */
+  working?: boolean;
+  /** Слово текущего шага, уже переведённое. */
+  workingLabel?: string;
   onToggleCorrection: (factKey: string) => void;
   onToggleFound: (factKey: string, selected: boolean) => void;
   onContinue: (mode: 'with-fixes' | 'keep-mine') => void;
@@ -427,6 +508,18 @@ export function ResearchOutcome({
         </div>
       ) : null}
 
+      {continueAbove && (pending || working) ? (
+        <ResearchContinueRow
+          locale={locale}
+          place="above"
+          busy={busy}
+          working={working}
+          workingLabel={workingLabel}
+          accepted={accepted}
+          onContinue={onContinue}
+        />
+      ) : null}
+
       <ResearchEvidenceRows
         locale={locale}
         facts={visibleFacts}
@@ -438,22 +531,17 @@ export function ResearchOutcome({
         onToggleFound={onToggleFound}
       />
 
-      {pending ? (
-        <div className="flex flex-wrap items-center gap-[8px]">
-          <Button type="button" variant="primary" disabled={busy} onClick={() => onContinue('with-fixes')} data-intake-research-continue="true">
-            {accepted ? t.researchContinueWithFixes : t.researchContinuePlain}
-          </Button>
-          {accepted ? (
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => onContinue('keep-mine')} data-intake-research-keep-mine="true">
-              {t.researchKeepMyNumbers}
-            </Button>
-          ) : null}
-          {hosts.length ? (
-            <span className="cf-caption min-w-0 flex-1 truncate text-cf-ink-muted" title={hosts.join(' · ')}>
-              {hosts.join(' · ')}
-            </span>
-          ) : null}
-        </div>
+      {pending || working ? (
+        <ResearchContinueRow
+          locale={locale}
+          place="below"
+          busy={busy}
+          working={working}
+          workingLabel={workingLabel}
+          accepted={accepted}
+          hosts={hosts}
+          onContinue={onContinue}
+        />
       ) : null}
     </section>
   );

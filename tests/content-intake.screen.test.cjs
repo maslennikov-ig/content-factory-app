@@ -132,6 +132,48 @@ describe('the door is one field, and its refusals are readable', () => {
     expect(document.body.textContent).not.toContain('платный расход');
   });
 
+  /*
+    18.09.2026, `content-factory-next-97dq.5`. Живой прогон показал, что
+    вставленный чужой пост неотличим от собственной мысли: продукт встал на
+    чужую позицию и выдал её за авторскую. Флажок стоит рядом с ресерчем,
+    объяснение живёт в подсказке и называет последствие, а не свойство.
+  */
+  test('«Это чужой текст» is a checkbox beside research, with a hint that names the consequence', async () => {
+    const seen = [];
+    draw({ state: 'idle', onForeignTextChange: (value) => seen.push(value) });
+    const box = screen.getByRole('checkbox', { name: 'Это чужой текст' });
+    expect(box.checked).toBe(false);
+    expect(box.disabled).toBe(false);
+    const hint = screen.getByRole('button', { name: 'Подсказка: чужой текст' });
+    expect(hint).not.toBeNull();
+    await click(hint);
+    expect(document.querySelector('[role="tooltip"]').textContent).toBe(
+      'Поставьте, если вставили чужой пост или статью: спросим вашу позицию и не выдадим чужое мнение за ваше'
+    );
+    await click(box);
+    expect(seen).toEqual([true]);
+  });
+
+  test('the foreign-text checkbox is off while the run is in flight, and reads back its state', () => {
+    draw({ state: 'streaming', step: 'writing', blocked: null, foreignText: true });
+    const box = screen.getByRole('checkbox', { name: 'Это чужой текст' });
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(true);
+    expect(box.getAttribute('data-intake-foreign-text')).toBe('on');
+  });
+
+  /*
+    «Увеличить высоту поля, когда я создаю новую заготовку» (владелец,
+    18.09.2026). Высота названа именем варианта примитива, а не числом в этом
+    файле: экран просит поле, В которое пишут, и ограничивает только меру.
+  */
+  test('the first field asks the primitive for the composer height instead of typing one', () => {
+    draw({ state: 'idle' });
+    const field = document.getElementById('intake-input');
+    expect(field.className).toContain('min-h-[200px]');
+    expect(field.className).toContain('max-w-[80ch]');
+  });
+
   // `content-factory-next-tu3k.9`: дверь делает заготовку, и надпись на
   // кнопке зависит от выбора каналов. Без выбранного канала она обещает
   // ровно заготовку.

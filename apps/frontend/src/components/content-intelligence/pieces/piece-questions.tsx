@@ -55,7 +55,7 @@ export function PieceQuestions({
         words={{
           badge: t.interviewBadge,
           title: t.interviewTitle,
-          lead: locale === 'ru' ? 'Модель спросила по вашему тексту. Ответьте, затем напишем суть.' : 'The model asked about your material. Answer before drafting the core.',
+          lead: locale === 'ru' ? 'Мы спросили по вашему тексту. Ответьте, затем напишем суть.' : 'We asked about your material. Answer before drafting the core.',
           suggestedLead: t.suggestedLead,
           yes: t.answerYes,
           fix: t.answerFix,

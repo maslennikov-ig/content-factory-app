@@ -23,6 +23,8 @@ const {
   quoteIsVerbatim,
   applyCorrection,
   factKeyOf,
+  numbersIn,
+  correctionCoversStatement,
   isHomepageUrl,
   digestSourcesFor,
   researchDigestPrompt,
@@ -279,6 +281,117 @@ describe('ключи строк', () => {
       correction: { original: '25 тысяч', replacement: 'около 2 500' },
     };
     expect(factKeyOf(fix)).toMatch(/^ev-1:fix:[0-9a-f]{16}$/);
+  });
+});
+
+describe('поправка подтверждает свой отрезок, а не всё предложение', () => {
+  /*
+    Восьмой заход, `B1 8cc5a492`: одно утверждение автора несло три числа,
+    источник опроверг одно из них, и строка-поправка встала «подтверждено»,
+    хотя её же заметка говорила, что охват и рост источник не подтверждает.
+  */
+  const ICELAND =
+    'Исландский эксперимент с четырёхдневной рабочей неделей, по словам автора, охватил 25 тысяч человек, длился десять лет, а производительность выросла на 40%.';
+
+  /*
+    Таблица целиком, потому что две её половины ломаются друг о друга: разряды
+    обязаны склеиваться («25 000» — одно число), а соседние числа обязаны не
+    склеиваться («В 2024 2025 годах» — два). До этой правки обе строки давали
+    одно число, и сетка опор добирала строку под число, которого не было.
+  */
+  test.each([
+    ['охватил 25 тысяч человек и вырос на 40%', ['25', '40']],
+    ['The Reykjavík City trial (2014–2019)', ['2014', '2019']],
+    ['2 500 работников', ['2500']],
+    ['2,500 workers', ['2500']],
+    ['25 000 человек', ['25000']],
+    ['620 000 рублей', ['620000']],
+    ['В 2024 2025 годах', ['2024', '2025']],
+    ['на 30, 40 и 50%', ['30', '40', '50']],
+    ['Конверсия выросла с 1,2% до 3%', ['12', '3']],
+    ['Выручка 4,2 млрд', ['42']],
+    ['', []],
+  ])('числа строки «%s»', (text, expected) => {
+    expect(numbersIn(text)).toEqual(expected);
+  });
+
+  test('пустое значение чисел не даёт', () => {
+    expect(numbersIn(null)).toEqual([]);
+    expect(numbersIn(undefined)).toEqual([]);
+  });
+
+  test('числа вне заменённого отрезка, которых нет в источнике, оставляют строку непроверенной', () => {
+    expect(
+      correctionCoversStatement({
+        statement: ICELAND,
+        correction: {
+          original: 'длился десять лет',
+          replacement: 'одно из испытаний проходило в 2014–2019 годах',
+        },
+        quote: 'The Reykjavík City trial (2014–2019)',
+      })
+    ).toBe(false);
+  });
+
+  test('одно число на утверждение: поправка закрывает его целиком', () => {
+    expect(
+      correctionCoversStatement({
+        statement: 'Эксперимент охватил 25 тысяч человек',
+        correction: { original: '25 тысяч', replacement: 'около 2 500' },
+        quote: 'The trials involved 2,500 workers, over 1% of Iceland’s working population',
+      })
+    ).toBe(true);
+    expect(
+      correctionCoversStatement({
+        statement: 'Длился десять лет',
+        correction: { original: 'десять лет', replacement: 'четыре года' },
+        quote: 'Two large-scale trials ran between 2015 and 2019',
+      })
+    ).toBe(true);
+  });
+
+  test('число, которое стоит в цитате, подтверждено и вне отрезка', () => {
+    expect(
+      correctionCoversStatement({
+        statement: 'Испытание 2015 года охватило 25 тысяч человек',
+        correction: { original: '25 тысяч', replacement: 'около 2 500' },
+        quote: 'Two large-scale trials ran between 2015 and 2019, involving 2,500 workers',
+      })
+    ).toBe(true);
+  });
+
+  test('замена, которую не удалось приложить к словам автора, не подтверждает ничего', () => {
+    expect(
+      correctionCoversStatement({
+        statement: 'Производительность выросла на 40%',
+        correction: { original: 'на 45%', replacement: 'на 4%' },
+        quote: 'Productivity remained the same or improved in the majority of workplaces',
+      })
+    ).toBe(false);
+    // И на строке без чисел тоже: «не нашлось куда приложить» — это не
+    // «подтверждено», что бы ни говорил скелет.
+    expect(
+      correctionCoversStatement({
+        statement: 'Эксперимент признан успешным',
+        correction: { original: 'признан провальным', replacement: 'признан успешным' },
+        quote: 'The trials were an overwhelming success by all measures and metrics',
+      })
+    ).toBe(false);
+  });
+
+  test('число подтверждает цитата источника, а не совпавшие цифры замены', () => {
+    /*
+      Обзор корректности, P2-1: замена «40%» → «25%» несла скелет «25», и
+      стоявшие рядом «25 тысяч» проходили как подтверждённые. Подтверждает
+      только то, что источник сказал вслух.
+    */
+    expect(
+      correctionCoversStatement({
+        statement: 'Проект охватил 25 тысяч человек, а производительность выросла на 40%',
+        correction: { original: '40%', replacement: '25%' },
+        quote: 'Productivity rose by 25% across the participating teams during the trial',
+      })
+    ).toBe(false);
   });
 });
 

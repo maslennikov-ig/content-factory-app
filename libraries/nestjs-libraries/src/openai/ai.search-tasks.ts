@@ -171,7 +171,16 @@ export const DEFAULT_SEARCH_TASK_PROVIDERS: Readonly<
   discovery: 'tavily',
 });
 
-/** The part of a resolved configuration this file reads, and nothing else. */
+/**
+ * The part of a resolved configuration this file reads, and nothing else.
+ *
+ * «Resolved» carries the usage mode with it: `ai.provider.config.ts` has
+ * already decided whose keys these are, so on «Ключи системы» the map holds
+ * the operator's keys only and the workspace's own ones are not in it at all.
+ * Nothing here re-reads a mode or reaches for a key that the resolution left
+ * out — an engine with no entry is an engine this workspace cannot search
+ * with, and routing treats it exactly so.
+ */
 export interface SearchRouteSource {
   /** The workspace's engine: what a task with no route of its own gets. */
   provider: SearchProvider;

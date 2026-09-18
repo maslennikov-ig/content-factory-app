@@ -37,6 +37,8 @@ import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
 import { voiceCopy } from '../../brand-voice/voice-copy';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { stateWord } from './adaptation.cell';
+import { AdaptationBody } from './adaptation-body';
+import { NEW_PIECE_PATH } from './pieces.adapter';
 import type {
   AdaptationKindV1,
   AdaptationV1,
@@ -92,6 +94,7 @@ export function PieceScreen({
   renderChannelProfile,
   draftChecks,
   draftGaps,
+  reviewedSlop,
   adaptingChannel,
   errorMessage,
   notice,
@@ -131,6 +134,17 @@ export function PieceScreen({
   draftChecks?: QualityChecksV1 | null;
   /** Чего в адаптации нет из привычек автора — тем же событием. */
   draftGaps?: readonly unknown[] | null;
+  /**
+   * Счёт штампов до и после принятой правки, по адаптациям.
+   *
+   * Живёт у контейнера и до следующей перезагрузки страницы: перечитанная
+   * заготовка знает только нынешнее число находок, а человек только что
+   * нажал «Принять выбранные» и вправе увидеть, что изменилось.
+   */
+  reviewedSlop?: Record<
+    string,
+    { slopBefore: number; slopAfter: number }
+  > | null;
   /** Канал, под который идёт адаптация прямо сейчас. */
   adaptingChannel: string | null;
   errorMessage?: string;
@@ -494,6 +508,22 @@ export function PieceScreen({
           >
             {t.backToList}
           </a>
+          {/*
+            «Новая заготовка» — выход со страницы, а не действие над ней:
+            тихий вес, тот же якорь, что у «Все заготовки». Главное действие
+            страницы — «Адаптировать» выше, и соперничать с ним эта ссылка не
+            должна.
+          */}
+          <a
+            href={NEW_PIECE_PATH}
+            data-piece-new="true"
+            className={buttonClassName({
+              variant: 'quiet',
+              density: 'dense',
+            })}
+          >
+            {t.newPiece}
+          </a>
           {!piece.archivedAt ? (
             <Button
               type="button"
@@ -836,7 +866,7 @@ export function PieceScreen({
             ) : null}
 
             {questionsSlot}
-            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно выбрать «Реши сама».' : 'The core will appear after your answers. You can let the model decide.'}</p> : null}
+            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно выбрать «Реши сама».' : 'The core will appear after your answers. You can let us decide.'}</p> : null}
             {core?.text && core.writtenBy === 'fallback' ? (
               <p
                 role="status"
@@ -990,15 +1020,11 @@ export function PieceScreen({
                         className="border-t border-cf-border p-[16px]"
                       >
                         {text ? (
-                          <article
-                            data-intake-draft="true"
-                            data-piece-draft-id={
-                              currentDraft ? adaptation.id : undefined
-                            }
-                            className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
-                          >
-                            {text}
-                          </article>
+                          <AdaptationBody
+                            locale={locale}
+                            text={text}
+                            draftId={currentDraft ? adaptation.id : undefined}
+                          />
                         ) : (
                           <p className="cf-body-sm text-cf-ink-muted">
                             {locale === 'ru'
@@ -1006,13 +1032,33 @@ export function PieceScreen({
                               : 'The text is available in the post.'}
                           </p>
                         )}
-                        <QualityLine
-                          locale={locale}
-                          slop={checks?.slop}
-                          antiCopy={checks?.antiCopy}
-                          voice={checks?.voice}
-                          draftGaps={currentDraft ? draftGaps : null}
-                        />
+                        <div className="flex min-w-0 flex-col gap-[4px]">
+                          <QualityLine
+                            locale={locale}
+                            slop={checks?.slop}
+                            antiCopy={checks?.antiCopy}
+                            voice={checks?.voice}
+                            draftGaps={currentDraft ? draftGaps : null}
+                          />
+                          {/*
+                            «Было N → стало M» знает только принятая правка:
+                            перечитанная заготовка несёт один счёт — нынешний.
+                            Поэтому строка живёт до следующей перезагрузки
+                            страницы и стоит рядом со строкой качества, а не
+                            вместо неё.
+                          */}
+                          {reviewedSlop?.[adaptation.id] ? (
+                            <p
+                              data-adaptation-slop-change={adaptation.id}
+                              className="cf-caption text-cf-ink-muted"
+                            >
+                              {t.slopBeforeAfter(
+                                reviewedSlop[adaptation.id].slopBefore,
+                                reviewedSlop[adaptation.id].slopAfter
+                              )}
+                            </p>
+                          ) : null}
+                        </div>
                         {text
                           ? renderReview?.({ ...adaptation, body: text })
                           : null}
@@ -1156,18 +1202,8 @@ export function PieceScreen({
             >
               <summary className="cursor-pointer cf-label-sm uppercase text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
                 <span className="inline-flex items-center gap-[8px]">
-                  {locale === 'ru' ? 'Опоры текста' : 'Text sources'}
-                  <Hint
-                    label={
-                      locale === 'ru'
-                        ? 'Подсказка: опоры текста'
-                        : 'Hint: text sources'
-                    }
-                  >
-                    {locale === 'ru'
-                      ? 'Что нашёл ресерч по вашей теме: утверждение своими словами, цитата и адрес. Отмеченные строки идут в адаптации как проверенный материал; снимите галочку — строка не попадёт в тексты.'
-                      : 'What research found on your topic: a plain-language claim, a quote, and its address. Included rows become supported material for adaptations; clear a checkbox to keep a row out of the text.'}
-                  </Hint>
+                  {t.textSourcesTitle}
+                  <Hint label={t.textSourcesHintLabel}>{t.textSourcesHint}</Hint>
                 </span>
               </summary>
 

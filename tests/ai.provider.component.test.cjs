@@ -387,15 +387,33 @@ describe('AI provider search settings component', () => {
    * отказывается ею быть. Поля теперь отсутствуют, а не выключены, и одна
    * строка говорит, почему.
    */
-  test('the generation system-keys mode still shows per-engine search fields', () => {
-    settings = { ...settings, usageMode: 'included' };
+  /**
+   * `content-factory-next-97dq.6`. Владелец 18.09.2026: «если выбрана
+   * глобальная настройка, что ключи системы, то зачем это все показывать… всё
+   * это нужно прятать». На ключах системы ни одно из этих полей ни на что не
+   * влияет: поиск идёт на ключах системы, а свой ключ области спит.
+   */
+  test('the system-keys mode hides the whole key block and says one sentence', () => {
+    settings = {
+      ...settings,
+      usageMode: 'included',
+      // У области есть свой ключ, и он всё равно не показывается: он спит.
+      workspaceSearchKeys: { tavily: true, exa: false, openrouter: false },
+      searchKeys: { tavily: true, exa: false, openrouter: false },
+    };
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
-    expect(markup).toContain('name="searchApiKey-tavily"');
-    expect(markup).toContain('name="searchApiKey-exa"');
-    expect(markup).toContain('Tavily key — Own key');
-    expect(markup).toContain('Exa key — On the system key');
+    expect(markup).toContain(
+      'Search runs on the system keys and spends the included allowance.'
+    );
+    expect(markup).toContain('data-search-system-keys="true"');
     for (const field of [
+      'name="searchApiKey-tavily"',
+      'name="searchApiKey-exa"',
+      'data-search-routing="true"',
+      'Return Tavily to the system key',
+      'Tavily key',
+      'Exa key',
       'name="apiKey"',
       'name="provider"',
       // Выключателя поиска здесь тоже нет: на ключах системы поиск включён
@@ -407,12 +425,14 @@ describe('AI provider search settings component', () => {
     }
   });
 
-  test('без ключей системы строка зовёт того, кто может их задать', () => {
+  test('без единого ключа на своём ключе строка зовёт того, кто может их задать', () => {
     settings = {
       ...settings,
-      usageMode: 'included',
+      usageMode: 'workspace_key',
       searchEnabled: false,
+      hasSearchKey: false,
       searchKeys: { tavily: false, exa: false, openrouter: false },
+      workspaceSearchKeys: { tavily: false, exa: false, openrouter: false },
       searchTaskProviders: {},
     };
     const markup = renderToStaticMarkup(React.createElement(component.default));
@@ -642,29 +662,81 @@ describe('AI provider search settings component', () => {
    * задача, глубина `advanced` (решение владельца 10 в плане волны).
    */
   describe('включённые ключи', () => {
-    test('own overrides stay visible and clearable in included generation mode', () => {
+    /**
+     * `content-factory-next-97dq.6`, решение владельца 18.09.2026. Прежнее
+     * правило (`xmfb.8`) оставляло свой ключ работать в обоих режимах; теперь
+     * он спит и возвращается вместе с «Своим ключом». Экран обязан показать
+     * именно возвращение, а не «ключ пропал»: сервер присылает присутствие
+     * ключа (`workspaceSearchKeys`) в обоих режимах ровно ради этой минуты.
+     */
+    test('a dormant key is hidden on the system keys and comes back with «Свой ключ»', () => {
+      const withDormantKey = {
+        ...settings,
+        // На ключах системы область платит включённым лимитом, поэтому карта
+        // доступных ключей — операторская.
+        searchKeys: { tavily: true, exa: false, openrouter: false },
+        workspaceSearchKeys: { tavily: true, exa: false, openrouter: false },
+      };
+      settings = { ...withDormantKey, usageMode: 'included' };
+      const included = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(included).not.toContain('Tavily key');
+      expect(included).not.toContain('Own key');
+
+      settings = { ...withDormantKey, usageMode: 'workspace_key' };
+      const ownKeys = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(ownKeys).toContain('Tavily key — Own key');
+      expect(ownKeys).toContain('aria-label="Return Tavily to the system key"');
+      expect(ownKeys).toContain('Exa key — On the system key');
+    });
+
+    test('без своего ключа поле прямо называет ключ системы', () => {
       settings = {
         ...settings,
-        usageMode: 'included',
-        searchKeys: { tavily: true, exa: true, openrouter: false },
-        workspaceSearchKeys: { tavily: true, exa: false, openrouter: false },
+        usageMode: 'workspace_key',
+        hasSearchKey: false,
+        workspaceSearchKeys: { tavily: false, exa: false, openrouter: false },
       };
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
 
-      expect(markup).toContain('Tavily key — Own key');
-      expect(markup).toContain('aria-label="Return Tavily to the system key"');
-      expect(markup).toContain('Exa key — On the system key');
+      expect(markup).toContain('Tavily key — On the system key');
     });
 
-    test('без своего ключа поле прямо называет ключ системы', () => {
-      settings = { ...settings, usageMode: 'included', hasSearchKey: false };
+    /**
+     * Владелец 18.09.2026 о крестике: «должно быть пояснение при наведении на
+     * крестик… для обычного пользователя не должно быть возможности работать
+     * без ключа». Имя кнопки называет движок, подсказка — что будет после
+     * нажатия; ни то, ни другое не заменяет другого.
+     */
+    test('у крестика есть и имя, и объяснение, что поле вернётся на ключ системы', () => {
       const markup = renderToStaticMarkup(
         React.createElement(component.default)
       );
+      const sentence =
+        'Press it and the field returns to the system key. Search is never left without a key.';
 
-      expect(markup).toContain('Tavily key — On the system key');
+      // Имя — короткое и называет движок: два одинаковых крестика на экране
+      // различить было бы нечем.
+      expect(markup).toContain('aria-label="Return Tavily to the system key"');
+      // При наведении — что останется после нажатия, а не второе имя.
+      expect(markup).toContain(`title="${sentence}"`);
+      // И то же самое с клавиатуры, подсказкой со своим именем.
+      expect(markup).toContain(
+        'data-hint="Hint: Return Tavily to the system key"'
+      );
+      expect(markup).toContain(sentence);
+      // Крестика и подсказки нет там, где своего ключа нет.
+      expect(markup).not.toContain('aria-label="Return Exa to the system key"');
+      expect(markup).not.toContain(
+        'data-hint="Hint: Return Exa to the system key"'
+      );
     });
 
     test('тематика и глубина поиска не зависят от режима генерации', () => {
@@ -701,11 +773,32 @@ describe('AI provider search settings component', () => {
     // Справочное — в подсказке, с собственным именем для скринридера.
     expect(markup).toContain('data-hint="Hint: Web research"');
     expect(markup).toContain(
-      'workspace&#x27;s own key overrides the system key'
+      'a saved key overrides the system key for that engine alone'
     );
     // Абзац во всю колонку с собственной мерой строки ушёл вместе с ними.
     expect(markup).not.toContain('data-search-intro');
     expect(markup).not.toContain('max-w-[62ch]');
+  });
+
+  /**
+   * `content-factory-next-97dq.6`. Владелец 18.09.2026: «зачем подсказка вся
+   * заглавными буквами?» Подсказка стояла ребёнком `<h5>` с `uppercase`, а он
+   * наследуется — пузырь кричал на всех трёх заголовках блоков. Заголовок
+   * остаётся заглавным, объяснение — нет, и проверяется это разметкой, а не
+   * снимком: подсказки внутри `<h5>` быть не должно.
+   */
+  test('подсказка заголовка блока стоит рядом с ним, а не внутри верхнего регистра', () => {
+    const markup = renderToStaticMarkup(React.createElement(component.default));
+
+    const headings = markup.match(/<h5[^>]*>[\s\S]*?<\/h5>/g) ?? [];
+    expect(headings.length).toBeGreaterThan(0);
+    for (const heading of headings) {
+      expect(heading).toContain('uppercase');
+      expect(heading).not.toContain('data-hint');
+    }
+    // И при этом подсказки заголовков на экране есть — обе.
+    expect(markup).toContain('data-hint="Hint: Web research"');
+    expect(markup).toContain('data-hint="Hint: Usage and call roles"');
   });
 
   test('the page action row carries saving alone', () => {

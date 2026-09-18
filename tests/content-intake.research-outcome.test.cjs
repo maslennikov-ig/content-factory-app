@@ -75,6 +75,7 @@ const renderOutcome = (overrides = {}) => {
       corrections: corrections(),
       summary,
       pending: true,
+      continueAbove: true,
       onToggleCorrection: (key) => calls.toggleCorrection.push(key),
       onToggleFound: (key, selected) => calls.toggleFound.push([key, selected]),
       onContinue: (mode) => calls.continue.push(mode),
@@ -123,8 +124,8 @@ describe('итог ресерча «сделали за вас»', () => {
     renderOutcome({ corrections: corrections(false) });
     expect(document.querySelector('[data-intake-correction="kept"]').textContent).toBe('25 тысяч');
     expect(screen.getByRole('button', { name: 'Принять поправку' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Оставить мои числа' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Продолжить' })).toBeTruthy();
+    expect(screen.queryAllByRole('button', { name: 'Оставить мои числа' })).toEqual([]);
+    expect(screen.getAllByRole('button', { name: 'Продолжить' })).toHaveLength(2);
   });
 
   test('найденное отмечено заранее, снимается галочкой по ключу; две кнопки продолжения отдают режим', () => {
@@ -135,15 +136,68 @@ describe('итог ресерча «сделали за вас»', () => {
     fireEvent.click(box);
     expect(calls.toggleFound).toEqual([['ev-2:x', false]]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Продолжить с правками' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Оставить мои числа' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Продолжить с правками' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Оставить мои числа' })[1]);
     expect(calls.continue).toEqual(['with-fixes', 'keep-mine']);
+  });
+
+  /*
+    Владелец, 18.09.2026: «кнопка находится в самом низу. Может быть, её имеет
+    смысл продублировать и сверху». Ряд один, монтируется дважды, и список
+    источников несёт только нижний — иначе длинная строка адресов повторяется.
+  */
+  test('ряд продолжения стоит и над находками, и под ними, а источники — один раз', () => {
+    const calls = renderOutcome();
+    const rows = [...document.querySelectorAll('[data-intake-research-row]')];
+    expect(rows.map((row) => row.getAttribute('data-intake-research-row'))).toEqual([
+      'above',
+      'below',
+    ]);
+    const claims = document.querySelector('[data-intake-research-claims]');
+    const { DOCUMENT_POSITION_PRECEDING, DOCUMENT_POSITION_FOLLOWING } = dom.window.Node;
+    expect(rows[0].compareDocumentPosition(claims) & DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rows[1].compareDocumentPosition(claims) & DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(rows[0].textContent).not.toContain('autonomy.work');
+    expect(rows[1].textContent).toContain('autonomy.work');
+
+    fireEvent.click(within(rows[0]).getByRole('button', { name: 'Продолжить с правками' }));
+    expect(calls.continue).toEqual(['with-fixes']);
+  });
+
+  /*
+    Тот же итог рисует страница заготовки, и там находки стоят коротким
+    блоком: ряд там один, и решает это вызывающий, а не компонент.
+  */
+  test('без просьбы вызывающего верхнего ряда нет, а нижний на месте', () => {
+    renderOutcome({ continueAbove: false });
+    const rows = [...document.querySelectorAll('[data-intake-research-row]')];
+    expect(rows.map((row) => row.getAttribute('data-intake-research-row'))).toEqual(['below']);
+    expect(screen.getAllByRole('button', { name: 'Продолжить с правками' })).toHaveLength(1);
+  });
+
+  /*
+    «После нажатия „Продолжить с правками“ все как будто немножко подвисло»
+    (владелец, 18.09.2026): ход занимает место ряда, а не появляется экраном
+    ниже. Кнопок в это время нет — нажать второй раз нечего.
+  */
+  test('во время второго прохода на месте ряда стоит строка хода со словом шага', () => {
+    renderOutcome({ pending: false, working: true, workingLabel: 'Пишем…' });
+    const lines = [...document.querySelectorAll('[data-intake-research-working]')];
+    expect(lines.map((line) => line.getAttribute('data-intake-research-working'))).toEqual([
+      'above',
+      'below',
+    ]);
+    expect(lines[0].textContent).toContain('Пишем…');
+    expect(lines[0].getAttribute('aria-live')).toBe('polite');
+    expect(screen.queryAllByRole('button', { name: 'Продолжить с правками' })).toEqual([]);
+    expect(document.querySelector('[data-intake-research-row]')).toBeNull();
   });
 
   test('после продолжения кнопок нет, а галочки становятся значками', () => {
     renderOutcome({ pending: false });
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(document.querySelector('[data-intake-research-working]')).toBeNull();
     expect(document.querySelector('[data-intake-research-found]')).not.toBeNull();
   });
 });

@@ -1,0 +1,80 @@
+{
+  "schema_version": "orchestration-stage/v1",
+  "stage_id": "content-factory-next-97dq",
+  "goal_id": "content-factory-next-97dq",
+  "profile_at_creation": "balanced-v2.20",
+  "status": "in_progress",
+  "sequence": 1,
+  "acceptance_boundary_id": "eighth-walk-2026-09-18",
+  "acceptance_owner": "root",
+  "stage_shape": "cohesive_vertical_slice",
+  "stage_boundary_reason": "shared_acceptance_boundary",
+  "boundary": {
+    "subsystems": [
+      "intake",
+      "piece",
+      "adaptation",
+      "review",
+      "research",
+      "settings",
+      "materials-list"
+    ],
+    "risk_models": [
+      "search-credentials-by-usage-mode",
+      "quota-attribution",
+      "prompt-successor-versioning",
+      "legacy-json-compatibility",
+      "published-markup",
+      "release-isolation"
+    ],
+    "test_environments": [
+      "local-node22",
+      "local-stand-live-model",
+      "production-release-authorized"
+    ],
+    "rollback_boundary": "3504f07a8f25",
+    "acceptance_proofs": [
+      "spec-section-6",
+      "live-model-stand-proof",
+      "three-app-tsc",
+      "full-suite-receipt",
+      "build",
+      "process",
+      "empty-schema-diff",
+      "mastra-unchanged",
+      "three-addresses-200"
+    ]
+  },
+  "source": "docs/product/eighth-walk-wave-2026-09-18-spec.md",
+  "branch": "wave/walk-2026-09-18",
+  "scope_ledger": "none",
+  "work_areas": [
+    "implementation",
+    "tests",
+    "proof",
+    "docs_and_graph_review"
+  ],
+  "supporting_artifacts": [
+    ".codex/stages/content-factory-next-97dq/summary.md"
+  ],
+  "stream_artifacts": [],
+  "scope_snapshot": {
+    "source_kind": "beads",
+    "source_id": "content-factory-next-97dq",
+    "source_digest": "98921a32e8642696e3e77ac1cbb87b66a6478d952cbfb60ee9539225ba7a8416",
+    "criteria": [
+      {
+        "criterion_id": "AC-spec-section-6",
+        "text": "On the stand with the real model (root): the WB/Ozon post with the checkbox asks for the position and without it\nis never downgraded; Iceland with research leaves no «25 тысяч» as confirmed and `ungrounded` is not empty;\nenrichment + adaptation puts researched numbers into the post and invents no advice; `**` is bold on screen and\n`<b>` in the post body; fact check of a long text searches by claims; «Убрать следы ИИ» keeps the before/after\ncount after F5; with «Ключи системы» the key block is hidden and search spends included quota.\nLocally: `tsc --noEmit` × 3 apps, three halves of `pnpm test` under Node 22, design guards,\n`scripts/orchestration/run_process_verification.sh`, empty `prisma migrate diff`, `mastra_*` 29→29 at release.",
+        "text_digest": "9c077fe77885d68c99780b990613d907ad12caaf57d8cfbc834b0ab4520b7c51"
+      },
+      {
+        "criterion_id": "AC-delivery-boundaries",
+        "text": "Execute 97dq.1 through 97dq.8; 97dq.9 (acceptance, live-model stand proof, release, ninth walk page) belongs to the Claude root. Streams S1 S2 S5 first, then S3 S4 S6, then S7; S8 only after the owner approves the design canvas. At most three parallel write streams, each in its own worktree branch agent/97dq-sN from wave/walk-2026-09-18; integrate one at a time, S2 before S3. No schema changes. Guarded AI prompts and contracts are versioned by successor modules. Streams never push, deploy or make paid calls. Owner authorized on 18.09.2026: paid model and search calls on the local stand, push to the private origin, production release after green acceptance; rollback 3504f07a8f25; stop and ask if host free disk is below 6 GB before pull. Batch-close and read back Beads only after all workers stopped. No unrelated cleanup.",
+        "text_digest": "d5b162cace8c8c96971d9e1c85e463d74346af9eaeb0ddd0db7fa9183e0b423c"
+      }
+    ]
+  },
+  "scope_anchor": ".codex/goals/content-factory-next-97dq/scope-criterion-snapshot.json",
+  "scope_anchor_digest": "98921a32e8642696e3e77ac1cbb87b66a6478d952cbfb60ee9539225ba7a8416"
+}

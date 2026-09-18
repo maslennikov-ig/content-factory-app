@@ -8,6 +8,12 @@ import type { AiUsageService } from '../../openai/ai.usage.service';
 import { slopCheck } from '../text-quality/slop-check';
 import { AdaptationReviewError } from './adaptation-review.contract';
 import { REVIEW_SEMANTIC_V4 } from './review-semantic.v4';
+import {
+  catalogDelta,
+  catalogFindingsOf,
+  reviewPromptV5,
+  type ReviewPromptInput,
+} from './review-prompt.v5';
 import { readReview as readReviewV2 } from './review.v2';
 import {
   applyReviewChanges,
@@ -16,13 +22,23 @@ import {
   type ReviewProposalV3,
 } from './review.v3.contract';
 
+/**
+ * Версия промпта, замороженная вместе с `reviewPromptV3` ниже.
+ *
+ * С 18.09.2026 (`content-factory-next-97dq.3`) проверка идёт промптом
+ * `adaptation-review-prompt/v5` из `review-prompt.v5.ts`, у которого режимы
+ * различаются запретами, а не словом в строке. Здешние `REVIEW_PROMPT_VERSION`
+ * и `reviewPromptV3` остаются такими, какими ушли в записанные ответы: версия
+ * в промпте — единственное, что говорит, какими указаниями получен записанный
+ * ответ, и переписать её задним числом значило бы стереть эту запись.
+ */
 export const REVIEW_PROMPT_VERSION = 'adaptation-review-prompt/v4' as const;
 
 const invalid = () =>
   new AdaptationReviewError(
     'REVIEW_INVALID',
     502,
-    'Модель вернула неполную проверку. Текст не изменён.'
+    'ИИ вернул неполную проверку. Текст не изменён.'
   );
 
 const changeOutput = z.object({
@@ -141,7 +157,7 @@ const parseOutput = (
 
 const sanitizedChanges = (
   parsed: ParsedOutput,
-  input: Parameters<typeof reviewPromptV3>[0],
+  input: ReviewPromptInput,
   warn: Warn
 ): ReviewChange[] => {
   const sourceUrls = new Set(
@@ -238,12 +254,13 @@ const sanitizedChanges = (
 
 export async function reviewOnceV3(
   org: string,
-  input: Parameters<typeof reviewPromptV3>[0],
+  input: ReviewPromptInput,
   usage: Pick<AiUsageService, 'executeAiOperation'>,
   warn: Warn = () => undefined
 ) {
   secret();
-  const prompt = reviewPromptV3(input);
+  const prompt = reviewPromptV5(input);
+  const before = catalogFindingsOf(input.text, input.language, input.platform);
   return usage.executeAiOperation(
     org,
     'text_generation',
@@ -292,6 +309,7 @@ export async function reviewOnceV3(
           selected = changes.filter(changesText).map((change) => change.id);
           text = applyReviewChanges(input.text, changes, selected);
         }
+        const after = catalogFindingsOf(text, input.language, input.platform);
         return {
           changes,
           text,
@@ -301,8 +319,12 @@ export async function reviewOnceV3(
               ? ('review' as const)
               : parsed.parsed.verdict
             : ('clean' as const),
-          slopBefore: slopCheck(input.text, { locale: input.language }).findings.length,
-          slopAfter: slopCheck(text, { locale: input.language }).findings.length,
+          slopBefore: before.length,
+          slopAfter: after.length,
+          // Считается по текстам, а не со слов модели: «было N → стало M»
+          // показывают человеку, и назвать убранным то, что осталось, здесь
+          // стоило бы ровно того доверия, ради которого строку и вводят.
+          catalog: catalogDelta(before, after),
         };
       }
       throw invalid();

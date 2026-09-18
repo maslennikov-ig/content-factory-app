@@ -143,14 +143,23 @@ const FORMAT_LINE: Record<IntakeFormatV1, string> = {
  * а его устройство. Канал без разметки покажет `<b>` как есть, и звёздочки в
  * тексте — тоже; канал с разметкой её примет, и тогда предел ставит уже
  * исследование — выделение работает, пока оно редкое.
+ *
+ * Синтаксис назван (`content-factory-next-97dq.2`). Владелец, 18.09.2026: «в
+ * адаптации есть звёздочки… Markdown-разметка не срабатывает». Модель писала
+ * `**жирный**` и раньше — просто потому, что так пишут все, — а продукт об
+ * этом не договаривался ни с ней, ни с собой: в пост уходили звёздочки. Теперь
+ * форма одна и сказана здесь, а перевод в разметку площадки делает
+ * `brief/editor-html.ts`. Редакторы без выделения получают прямой запрет:
+ * сказать «не больше двух выделений» каналу, который покажет их знаками, —
+ * значит попросить те самые звёздочки.
  */
 const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
   none: 'This channel shows no formatting at all: no bold, no italics, no markup characters — write it plain.',
   normal:
-    'Formatting is emphasis, not decoration: at most two short bold spans in the whole post.',
+    'This channel shows no formatting at all: no bold, no italics, no markup characters — write it plain.',
   markdown:
-    'Formatting is emphasis, not decoration: at most two short bold spans in the whole post.',
-  html: 'Formatting is emphasis, not decoration: at most two short bold spans in the whole post.',
+    'Formatting is emphasis, not decoration: write bold as **text**, and use at most two short bold spans in the whole post.',
+  html: 'Formatting is emphasis, not decoration: write bold as **text**, and use at most two short bold spans in the whole post.',
 };
 
 /**
@@ -162,6 +171,19 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
  * строку; кавычки-ёлочки внутри заменяются на прямые, чтобы она не закрыла
  * ограду раньше времени; длина режется по тому же пределу, что и правило.
  */
+/**
+ * The owner's note outranks the card's defaults, and only them.
+ *
+ * On the stand (18.09.2026) the card said «призыв — вопрос» and the note said
+ * «последняя строка — „Считайте вместе с нами“»; with both lines equal the
+ * model welded them into one sentence. The note is the more specific and the
+ * more recent word of the same person, so it wins over length, emoji, call to
+ * action and shape. It never lifts the rules on facts, copying or voice: the
+ * note is still a person's text inside the instruction block.
+ */
+export const NOTES_PRIORITY_LINE =
+  "Where the owner's words above conflict with this channel's defaults for length, emoji, call to action or shape, follow the owner's words. They never lift the rules about facts, copying or the author's voice.";
+
 const notesLine = (notes?: string | null): string | null => {
   if (typeof notes !== 'string') return null;
   const clean = notes.replace(/\s+/g, ' ').replace(/[«»]/g, '"').trim();
@@ -242,7 +264,7 @@ export function channelInstructionLines(
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
   const notes = notesLine(resolved.notes);
-  if (notes) lines.push(notes);
+  if (notes) lines.push(notes, NOTES_PRIORITY_LINE);
 
   if (options.foreignShingles?.length) lines.push(ANTI_COPY_LINE);
 

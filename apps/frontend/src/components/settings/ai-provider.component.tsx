@@ -332,16 +332,29 @@ export const removeStoredKey = async ({
  */
 const ClearStoredKeyButton = ({
   label,
+  hint,
   busy,
   onClear,
 }: {
   label: string;
+  /**
+   * What happens after the press, shown on hover.
+   *
+   * Owner, 18.09.2026: «должно быть пояснение при наведении на крестик». The
+   * name of the button says what it does — the tooltip says what a person is
+   * left with, which for a reset is the whole question. It stays out of
+   * `aria-label` because the name has to be short enough to tell two crosses
+   * apart in a list of controls; the same sentence reaches the keyboard
+   * through the `Hint` on the field's helper line, which is not clipped by the
+   * field's `overflow-hidden` the way a bubble inside the box would be.
+   */
+  hint?: string;
   busy: boolean;
   onClear: () => void;
 }) => (
   <ControlButton
     aria-label={label}
-    title={label}
+    title={hint ?? label}
     disabled={busy}
     onClick={onClear}
     className="relative inline-flex w-[12px] shrink-0 items-center justify-center rounded-[4px] text-cf-ink-muted transition-colors duration-state hover:text-cf-ink before:absolute before:-inset-x-[8px] before:inset-y-0 before:content-['']"
@@ -388,7 +401,16 @@ const LabelledField = ({
   </div>
 );
 
-/** A block inside the section: its name, and the hint that name needs. */
+/**
+ * A block inside the section: its name, and the hint that name needs.
+ *
+ * The hint is a sibling of the heading rather than a child of it, and that is
+ * the whole reason this wrapper exists. `uppercase` inherits, so a bubble
+ * rendered inside the `<h5>` was shouting its two sentences in capitals at all
+ * three call sites. Owner, 18.09.2026: «зачем подсказка вся заглавными
+ * буквами?» The heading keeps its own case; the explanation is set in the case
+ * it was written in.
+ */
 const BlockHeading = ({
   title,
   hint,
@@ -398,10 +420,10 @@ const BlockHeading = ({
   hint?: ReactNode;
   hintLabel?: string;
 }) => (
-  <h5 className="flex flex-wrap items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted">
-    {title}
+  <div className="flex flex-wrap items-center gap-[4px]">
+    <h5 className="cf-label-sm uppercase text-cf-ink-muted">{title}</h5>
     {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
-  </h5>
+  </div>
 );
 
 /**
@@ -1147,62 +1169,112 @@ const AiProviderComponent = () => {
           hintLabel={words.hintFor(t('web_search', 'Web research'))}
           hint={words.search.what}
         />
-        {/*
-          Одна строка вместо четырёх селекторов и абзаца объяснения. Она
-          называет то, что происходит на самом деле: какой движок обслуживает
-          ресерч, какой — проверку фактов, и что это следует из сохранённых
-          ключей (`content-factory-next-75xn.10`).
-        */}
-        <p
-          data-search-routing="true"
-          className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-        >
-          {routing.line}
-        </p>
+        {ownKeys ? (
+          /*
+            Одна строка вместо четырёх селекторов и абзаца объяснения. Она
+            называет то, что происходит на самом деле: какой движок обслуживает
+            ресерч, какой — проверку фактов, и что это следует из сохранённых
+            ключей (`content-factory-next-75xn.10`).
+          */
+          <p
+            data-search-routing="true"
+            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {routing.line}
+          </p>
+        ) : (
+          /*
+            На «Ключах системы» говорить о движках и ключах не о чем: их
+            заводит суперадмин, и выбирать тут человеку нечего. Владелец
+            18.09.2026: «если выбрана глобальная настройка, что ключи системы,
+            то зачем это все показывать… всё это нужно прятать». Остаётся одна
+            строка — что поиск работает и на чей счёт.
+          */
+          <p
+            data-search-system-keys="true"
+            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+          >
+            {words.search.systemKeys}
+          </p>
+        )}
       </div>
 
-      {/* One field per keyed engine. Blank means system; a saved own key wins. */}
-      {KEYED_SEARCH_PROVIDERS.map((engine) => (
-        <Input
-          key={engine}
-          label={`${words.search.engines[engine].keyLabel} — ${
-            hasStoredSearchKey(engine)
-              ? words.search.keyOwn
-              : words.search.keySystem
-          }`}
-          name={`searchApiKey-${engine}`}
-          secret={true}
-          value={searchApiKeys[engine] || ''}
-          disableForm={true}
-          action={
-            hasStoredSearchKey(engine) ? (
-              <ClearStoredKeyButton
-                label={words.search.returnToSystem(
-                  words.search.engines[engine].name
-                )}
-                busy={clearingSearch === engine}
-                onClear={() => clearSearchKey(engine)}
-              />
-            ) : undefined
-          }
-          placeholder={
-            hasStoredSearchKey(engine)
-              ? words.search.keySavedPlaceholder
-              : words.search.keyEmptyPlaceholder
-          }
-          helper={
-            hasStoredSearchKey(engine)
-              ? words.search.engines[engine].keyStored
-              : words.search.engines[engine].keyMissing
-          }
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            setSearchApiKeys((current) => ({
-              ...current,
-              [engine]: event.target.value,
-            }))
-          }
-        />
-      ))}
+      {/*
+        Поле на движок — и только там, где оно задаёт вопрос. Пустое поле
+        означает ключ системы, сохранённое перекрывает его для своего движка.
+        На «Ключах системы» полей нет вовсе: свой ключ там спит, а форма,
+        которая ни на что не влияет, — это и есть то, что владелец просил
+        спрятать (`content-factory-next-97dq.6`).
+      */}
+      {ownKeys &&
+        KEYED_SEARCH_PROVIDERS.map((engine) => (
+          <Input
+            key={engine}
+            label={`${words.search.engines[engine].keyLabel} — ${
+              hasStoredSearchKey(engine)
+                ? words.search.keyOwn
+                : words.search.keySystem
+            }`}
+            name={`searchApiKey-${engine}`}
+            secret={true}
+            value={searchApiKeys[engine] || ''}
+            disableForm={true}
+            action={
+              hasStoredSearchKey(engine) ? (
+                /*
+                  Крестик выглядит как удаление, а означает возврат на ключ
+                  системы. Владелец 18.09.2026: «должно быть пояснение при
+                  наведении на крестик… для обычного пользователя не должно
+                  быть возможности работать без ключа». Имя кнопки называет
+                  движок, всплывающая строка — что останется после нажатия.
+                */
+                <ClearStoredKeyButton
+                  label={words.search.returnToSystem(
+                    words.search.engines[engine].name
+                  )}
+                  hint={words.search.returnToSystemHint}
+                  busy={clearingSearch === engine}
+                  onClear={() => clearSearchKey(engine)}
+                />
+              ) : undefined
+            }
+            placeholder={
+              hasStoredSearchKey(engine)
+                ? words.search.keySavedPlaceholder
+                : words.search.keyEmptyPlaceholder
+            }
+            helper={
+              hasStoredSearchKey(engine) ? (
+                /*
+                  То же объяснение с клавиатуры: `title` мышиный, а подсказка —
+                  кнопка со своим именем. Живёт под полем, а не в нём: у рамки
+                  поля `overflow-hidden`, и пузырь внутри неё был бы обрезан.
+                */
+                <span className="flex flex-wrap items-center gap-[4px]">
+                  {words.search.engines[engine].keyStored}
+                  <Hint
+                    label={words.hintFor(
+                      words.search.returnToSystem(
+                        words.search.engines[engine].name
+                      )
+                    )}
+                    side="start"
+                  >
+                    {words.search.returnToSystemHint}
+                  </Hint>
+                </span>
+              ) : (
+                words.search.engines[engine].keyMissing
+              )
+            }
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchApiKeys((current) => ({
+                ...current,
+                [engine]: event.target.value,
+              }))
+            }
+          />
+        ))}
 
       <LabelledField
         id="ai-search-topic"

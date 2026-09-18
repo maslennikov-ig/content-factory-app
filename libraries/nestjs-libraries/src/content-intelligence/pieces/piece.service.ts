@@ -12,7 +12,20 @@ import type { IntakeRunState } from '../intake/intake.service';
 import { reviewOnceV3, signReview, readReview } from './review.v3';
 import { REVIEW_VERSION, applyReviewChanges, syncEmbeddedTitle, type ReviewProposalV3, type ReviewSnapshotV2 } from './review.v3.contract';
 import { webReviewSources } from './adaptation-web-review';
-import { selectedFactsBrief, type PieceFactV2 } from './piece-facts.v2';
+import {
+  REVIEW_CLAIM_QUERIES_MAX,
+  REVIEW_CLAIM_TEXT_CHARS,
+  checkableClaims,
+  claimQueries,
+} from './review-claims';
+import { catalogFindingsOf } from './review-prompt.v5';
+import { reviewTextOf } from './review-input';
+import {
+  factKind,
+  factStatus,
+  selectedFactsBrief,
+  type PieceFactV2,
+} from './piece-facts.v2';
 import { briefForGate } from './core-questions';
 import { briefTitle } from '../brief/content-brief.compose';
 import { textOrNull } from '../intake/intake-content';
@@ -54,8 +67,13 @@ import { AgentGraphService } from '@contentfactory/nestjs-libraries/agent/agent.
 import type {
   GeneratorRunInput,
   IntakeGenerationHintsV1,
+  IntakeMaterialHintV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
-import { INTAKE_HINTS_VERSION } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
+import {
+  INTAKE_HINTS_VERSION,
+  INTAKE_MATERIAL_MAX_CHARS,
+  INTAKE_MATERIAL_MAX_ITEMS,
+} from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import { IntegrationManager } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 import { slopCheck as runSlopCheck } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/slop-check';
 import type {
@@ -126,9 +144,10 @@ import {
 */
 import {
   VOICE_CHECK_PORT,
-  VOICE_CHECK_SILENT,
   type VoiceCheckPort,
 } from '../brand-voice/voice-check.port';
+import { adaptationChecksMany, adaptationChecksOf } from './adaptation-checks';
+import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 import { editorHtml } from '../brief/editor-html';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { linksOf } from '../intake/intake-kind';
@@ -148,7 +167,11 @@ import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
 import { htmlToPlainText } from '../brand-voice/html-text';
 import { reviewAdaptationOnce } from './adaptation-review';
 import { reviewAdaptationWithSearch } from './adaptation-web-review';
-import { WebResearchService } from '@contentfactory/nestjs-libraries/openai/web.research.service';
+import {
+  RESEARCH_LEVEL_PRESETS,
+  WebResearchService,
+  type ResearchLevel,
+} from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { ADAPTATION_REVIEW_ACTIONS, ADAPTATION_REVIEW_VERSION, AdaptationReviewError, reviewConflict,
   type AdaptationReviewAction, type AdaptationReviewResult, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import {
@@ -173,6 +196,41 @@ const describeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 /**
+ * Пост из принятого текста — с одной проверкой, которой не было.
+ *
+ * `editorHtml` может честно вернуть пустую строку из непустого текста: `****`,
+ * одинокая пара звёздочек или строка из одних маркеров разметки превращаются в
+ * ничто, потому что непарные `**` снимаются, а пустой абзац отбрасывается.
+ * Приёмка писала это «ничто» в пост, и черновик, который человек видел на
+ * экране, молча становился пустым — при непустом теле адаптации
+ * (`content-factory-next-97dq.3`, P2-19). Проверяется именно результат сборки:
+ * проверять исходный текст здесь бесполезно, он-то как раз непустой.
+ */
+const renderedPost = (
+  text: string,
+  editor: 'none' | 'normal' | 'markdown' | 'html'
+): string => {
+  const content = editorHtml(text, editor);
+  if (text.trim() && !content.trim())
+    throw new AdaptationReviewError(
+      'ADAPTATION_REVIEW_EMPTY',
+      400,
+      'После правки в тексте не осталось ничего, кроме разметки. Черновик не изменён.'
+    );
+  return content;
+};
+
+/** «1 утверждение», «2 утверждения», «5 утверждений» — для одной строки ниже. */
+const claimWord = (count: number): string => {
+  const tens = count % 100;
+  const ones = count % 10;
+  if (tens >= 11 && tens <= 14) return 'утверждений';
+  if (ones === 1) return 'утверждение';
+  if (ones >= 2 && ones <= 4) return 'утверждения';
+  return 'утверждений';
+};
+
+/**
  * Источник повода из сохранённого JSON (`content-factory-next-75xn.8`).
  *
  * Без адреса строки нет: она существует, чтобы человек мог открыть исходное, и
@@ -189,6 +247,88 @@ const leadSourceOf = (value: unknown): PieceLeadSourceV1 | null => {
     url,
     ...(title ? { title } : {}),
   };
+};
+
+/**
+ * Сколько строк страницы получают квитанцию проверок.
+ *
+ * `content-factory-next-97dq.2`, разбор корректности P1-2. Каждая пересчитанная
+ * строка — это арифметика по всему телу; двадцать свежих адаптаций одной
+ * заготовки покрывают любую живую работу, а всё, что старше, человек читает
+ * как историю, и строка качества там ничего не решает.
+ */
+const PIECE_CHECKED_ADAPTATIONS = 20;
+
+/** Одна опора в промпте длиннее абзаца не бывает: это опора, а не текст. */
+const MATERIAL_STATEMENT_MAX_CHARS = 400;
+/** Адрес длиннее этого — уже не адрес, а хвост разметки поисковика. */
+const MATERIAL_URL_MAX_CHARS = 300;
+
+/** Адрес источника, пригодный для печати: одна строка, http(s) и предел. */
+const materialUrl = (value: unknown): string => {
+  const url = oneLine(trimmed(value)).slice(0, MATERIAL_URL_MAX_CHARS);
+  return /^https?:\/\//iu.test(url) ? url : '';
+};
+
+/**
+ * Отмеченные опоры — строками для промпта, с адресом и под пределом.
+ *
+ * `content-factory-next-97dq.2`. Каждая строка сводится к одной (`oneLine`) по
+ * той же причине, по которой это делает промпт сути: утверждение писала
+ * модель по чужому тексту, и перевод строки внутри него открыл бы в блоке
+ * собственную строку. То же правило теперь и у адреса: он приходит от
+ * поисковика строкой и через `new URL` не проходил ни разу, так что перевод
+ * строки внутри него рисовал бы в блоке лишние пункты прямо над правилом «не
+ * выдумывай» (разбор корректности, P2-10).
+ *
+ * Три правила отбора, и каждое стоило находки разбора:
+ *
+ *  - **длинная строка не занимает бюджет целиком**: один ответ человека на
+ *    две тысячи знаков (столько разрешает `IntakeAnswerDto`) выносил из
+ *    промпта ВСЕ находки ресерча, потому что счётчик знаков обрывал цикл
+ *    (P1-1). Теперь строка режется по `MATERIAL_STATEMENT_MAX_CHARS`, а
+ *    не помещающаяся пропускается — цикл идёт дальше;
+ *  - **сверенное идёт первым**: порядок в брифе — это порядок появления, и
+ *    свой длинный ответ стоит в нём раньше находок. Проверенное вперёд —
+ *    единственный способ не дать ему вытеснить то, ради чего ресерч и звали;
+ *  - **непроверенное не называется проверенным** (P2-12): чужое утверждение
+ *    без подтверждения не едет вовсе, своё — едет отдельной пометкой, и
+ *    промпт печатает его под своим заголовком.
+ */
+const materialHints = (
+  facts: readonly PieceFactV2[],
+  inputKind?: string
+): IntakeMaterialHintV1[] => {
+  const checked = (fact: PieceFactV2) =>
+    fact?.verified === true || factStatus(fact) === 'confirmed';
+  const own = (fact: PieceFactV2) => factKind(fact, inputKind) === 'own';
+  const ordered = [
+    ...facts.filter((fact) => checked(fact)),
+    // Слово человека без сверки: материал автора, но не подтверждение.
+    ...facts.filter((fact) => !checked(fact) && own(fact)),
+  ];
+  const seen = new Set<string>();
+  const lines: IntakeMaterialHintV1[] = [];
+  let chars = 0;
+  for (const fact of ordered) {
+    if (lines.length >= INTAKE_MATERIAL_MAX_ITEMS) break;
+    const statement = oneLine(trimmed(fact?.statement)).slice(
+      0,
+      MATERIAL_STATEMENT_MAX_CHARS
+    );
+    if (!statement || seen.has(statement)) continue;
+    const sourceUrl = materialUrl(fact?.sourceUrl);
+    if (chars + statement.length + sourceUrl.length > INTAKE_MATERIAL_MAX_CHARS)
+      continue;
+    seen.add(statement);
+    chars += statement.length + sourceUrl.length;
+    lines.push({
+      statement,
+      ...(sourceUrl ? { sourceUrl } : {}),
+      ...(checked(fact) ? { checked: true } : {}),
+    });
+  }
+  return lines;
 };
 
 const isoOf = (value: Date | string | null | undefined): string | null => {
@@ -338,7 +478,17 @@ export class PieceService {
       items: rows.flatMap((row) => {
         const pieceIndex = pieceIndexes.get(row.piece.id);
         if (pieceIndex === undefined) return [];
-        const text = htmlToPlainText(row.body || row.post.content || '');
+        /*
+          Разметка тела в список не едет (`content-factory-next-97dq.2`,
+          разбор корректности P2-22): тело хранится с `**жирным**`, и строка
+          «`**Заголовок**`» показывала звёздочки ровно там, где страница
+          заготовки уже показывает жирное. Список — это одна строка текста, а
+          не предпросмотр поста: выделять в ней нечем, поэтому маркеры
+          снимаются, а звёздочки прозы остаются собой.
+        */
+        const text = stripBoldMarkers(
+          htmlToPlainText(row.body || row.post.content || '')
+        );
         const firstLine =
           text
             .split(/\r?\n/u)
@@ -467,13 +617,47 @@ export class PieceService {
     );
     const core = this.coreOf(piece);
 
+    /*
+      Квитанции — одним заходом на страницу (`content-factory-next-97dq.2`,
+      разбор корректности P1-2).
+
+      Считались они построчно, и каждый вердикт голоса заново читал разбор
+      области и её мерку: четыре запроса и своя арифметика на КАЖДУЮ строку.
+      `Promise.all` этого не спасал — дорогая половина синхронная, так что
+      параллельность только веером расходилась по базе.
+
+      Теперь разбор читается один раз (`adaptationChecksMany`), и считаются
+      только последние `PIECE_CHECKED_ADAPTATIONS` строк: строка качества
+      относится к тексту, который человек сейчас правит, а двадцатая сверху
+      адаптация — это история, и её квитанция стоила бы столько же, сколько
+      живая. У строк постарше квитанции просто нет, и экран уже умеет её не
+      показывать.
+    */
+    const checkable = adaptations.slice(-PIECE_CHECKED_ADAPTATIONS);
+    const scored = checkable.filter((row) => trimmed(row.body));
+    const checks = await adaptationChecksMany(
+      {
+        organizationId,
+        language,
+        foreignShingles: this.foreignShinglesOf(piece),
+      },
+      scored.map((row) => ({
+        text: row.body as string,
+        platform: providerOfPlatform(row.platform),
+      })),
+      { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
+    );
+    const checksById = new Map(
+      scored.map((row, index) => [row.id, checks[index]])
+    );
+
     return {
       state: 'default',
       piece: this.row(piece, index < 0 ? order.length : index, language, cells),
       core,
       legacyBody: core ? null : piece.body,
       adaptations: adaptations.map((row) =>
-        this.adaptationOf(row, pieceId, integrations)
+        this.adaptationOf(row, pieceId, integrations, checksById.get(row.id))
       ),
       targets: this.targetsOf(integrations, adaptations),
       later: ADAPTATION_KINDS_LATER,
@@ -618,9 +802,12 @@ export class PieceService {
     };
 
     const answers = this.channelAnswers(plan);
-    const hints = this.hintsOf(plan, answers);
-    hints.allowQuestion = !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
+    // Материал считается до подсказок: он едет и словами (в промпт), и
+    // идентификаторами (в строитель контекста), и считать его дважды значило
+    // бы завести два ответа на вопрос «на чём стоит эта заготовка».
     const brief = this.briefMaterial(plan);
+    const hints = this.hintsOf(plan, answers, brief.material);
+    hints.allowQuestion = !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
     /*
       Свои прежние тексты по теме — до генерации и одним списком для экрана и
       для модели (`content-factory-next-m2eg.19`). Событие идёт только когда
@@ -801,20 +988,21 @@ export class PieceService {
      * Решение владельца (`fn33.28.4`): проверки живут там, где текст
      * окончателен, и просить о них не надо. Обе бесплатны: каталог штампов —
      * арифметика, вердикт голоса — та же мерка разбора, что и кнопка в ленте.
+     *
+     * Считает их `adaptationChecksOf` — то же место, что и чтение страницы
+     * (`content-factory-next-97dq.2`). Отчёт антикопии отдаётся как есть: про
+     * второй заход генерации знает только генерация.
      */
-    const checks: AdaptationChecksV1 = {
-      antiCopy: output.antiCopy ?? null,
-      slop: this.slopCheck
-        ? this.slopCheck(plain, plan.channel.providerIdentifier, plan.language)
-        : null,
-      voice: this.voiceCheck
-        ? await this.voiceCheck.voiceCheckFor(
-            organizationId,
-            plain,
-            plan.language
-          )
-        : VOICE_CHECK_SILENT,
-    };
+    const checks: AdaptationChecksV1 = await adaptationChecksOf(
+      {
+        organizationId,
+        text: plain,
+        platform: plan.channel.providerIdentifier,
+        language: plan.language,
+        antiCopy: output.antiCopy ?? null,
+      },
+      { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
+    );
     const adaptation: AdaptationV1 = {
       id: row.id,
       pieceId: plan.pieceId,
@@ -1365,6 +1553,14 @@ export class PieceService {
       );
     let text = core?.text ?? piece.body;
     let snapshot: ReviewSnapshotV2 | undefined;
+    /**
+     * Площадка, по порогам которой считается каталог штампов. У сути это
+     * `core` — ровно то, чем её метит приёмка правки ниже, — а у адаптации её
+     * канал, тот же, что берёт строка качества на странице
+     * (`adaptationOf` → `adaptationChecksOf`). Одно число о тексте должно
+     * считаться одними порогами (`content-factory-next-97dq.3`, P2-17).
+     */
+    let platform = 'core';
     if (adaptationId) {
       const draft = await this.pieces.reviewDraft(
         organizationId,
@@ -1378,10 +1574,8 @@ export class PieceService {
       const provider = this.integrationManager.getSocialIntegration(
         draft.post.integration.providerIdentifier
       );
-      text =
-        provider.editor === 'html' || provider.editor === 'normal'
-          ? htmlToPlainText(draft.post.content)
-          : draft.post.content;
+      platform = providerOfPlatform(draft.post.integration.providerIdentifier);
+      text = reviewTextOf(draft, provider.editor);
       snapshot = {
         adaptationTitle: draft.title ?? null,
         postId: draft.post.id,
@@ -1397,19 +1591,143 @@ export class PieceService {
         400,
         'Сначала добавьте текст.'
       );
+    // Only legacy null titles fall back to the first nonempty line.
+    const title = adaptationId
+      ? snapshot!.adaptationTitle ??
+        text.split('\n').find((line) => line.trim()) ??
+        ''
+      : piece.title;
+    const sign = (
+      reviewed: Omit<
+        ReviewProposalV3,
+        | 'version'
+        | 'language'
+        | 'organizationId'
+        | 'pieceId'
+        | 'adaptationId'
+        | 'expires'
+        | 'originalText'
+        | 'title'
+        | 'snapshot'
+        | 'pieceSnapshot'
+      >
+    ) => {
+      const proposal: ReviewProposalV3 = {
+        version: REVIEW_VERSION,
+        language,
+        organizationId,
+        pieceId,
+        ...(adaptationId ? { adaptationId } : {}),
+        expires: Date.now() + 30 * 60 * 1000,
+        originalText: text,
+        title,
+        ...reviewed,
+        snapshot,
+        pieceSnapshot: {
+          body: piece.body,
+          brief: piece.brief,
+          title: piece.title,
+        },
+      };
+      const {
+        organizationId: _org,
+        pieceId: _piece,
+        adaptationId: _adaptation,
+        expires: _expires,
+        snapshot: _snapshot,
+        pieceSnapshot: _pieceSnapshot,
+        ...publicResult
+      } = proposal;
+      return { ...publicResult, token: signReview(proposal) };
+    };
     let sources: ReturnType<typeof webReviewSources> | undefined;
+    let factCheck: ReviewProposalV3['factCheck'] | undefined;
     if (input.mode === 'web') {
       if (input.confirmWebSpend !== true || !this.webReview)
         throw new AdaptationReviewError(
           'REVIEW_WEB_CONFIRM',
           400,
-          'Подтвердите расход на поиск и модели.'
+          'Подтвердите расход на поиск и ИИ.'
         );
-      sources = webReviewSources(
-        await this.webReview.research(organizationId, text.slice(0, 5000), {
-          level: 'standard', task: 'facts',
-        })
+      /**
+       * Сначала — что проверять, и только потом — поиск.
+       *
+       * Восьмой заход, E1: «почему только первые 5000 знаков… мы должны
+       * выбирать суть, которую нужно проверить». Раньше сюда уходило начало
+       * текста, исследование сжимало его в один-два запроса о теме, и число в
+       * середине поста не искали вовсе. Теперь по запросу на утверждение,
+       * в пределах потолка уровня; одно исследование — одна бронь квоты, как
+       * и было.
+       */
+      const level: ResearchLevel = 'standard';
+      const found = await checkableClaims(
+        organizationId,
+        { text, language },
+        this.aiUsage,
+        Math.min(
+          RESEARCH_LEVEL_PRESETS[level].maxSearchQueries,
+          REVIEW_CLAIM_QUERIES_MAX
+        )
       );
+      const queries = claimQueries(found.claims);
+      if (!queries.length) {
+        /**
+         * Тихий удачный исход — но не один на два разных случая.
+         *
+         * «Проверять нечего» верно, только когда утверждений не нашлось вовсе:
+         * текст без них ничем не хуже, и 4xx на него врал бы про поломку там,
+         * где её нет. Если утверждения есть, а запроса по ним не составлено —
+         * это наш пробел, и записывать его в свойство текста нечестно
+         * (`content-factory-next-97dq.3`, P2-9). Ни поиска, ни вызова
+         * проверяющей модели ни в том, ни в другом случае.
+         */
+        const findings = catalogFindingsOf(text, language, platform);
+        const nothingFound = found.extracted === 0;
+        return sign({
+          text,
+          changes: [],
+          verdict: 'clean',
+          summary: nothingFound
+            ? language === 'ru'
+              ? 'Проверять нечего: в тексте нет утверждений, которые можно сверить с источниками.'
+              : 'Nothing to check: the text states no claim a source could confirm.'
+            : language === 'ru'
+            ? `Нашли ${found.extracted} ${claimWord(
+                found.extracted
+              )}, но не смогли составить по ним поисковый запрос. Поиск не запускали.`
+            : `Found ${found.extracted} claim${
+                found.extracted === 1 ? '' : 's'
+              }, but could not turn them into a search query. No search was run.`,
+          slopBefore: findings.length,
+          slopAfter: findings.length,
+          catalog: {
+            removed: [],
+            remaining: findings.map(({ ruleId, excerpt }) => ({ ruleId, excerpt })),
+          },
+          sources: [],
+          factCheck: {
+            claims: 0,
+            queries: [],
+            searched: false,
+            extracted: found.extracted,
+            unphrased: found.unphrased,
+          },
+        });
+      }
+      sources = webReviewSources(
+        await this.webReview.research(
+          organizationId,
+          text.slice(0, REVIEW_CLAIM_TEXT_CHARS),
+          { level, task: 'facts', language, queries }
+        )
+      );
+      factCheck = {
+        claims: queries.length,
+        queries,
+        searched: true,
+        extracted: found.extracted,
+        unphrased: found.unphrased,
+      };
       if (!sources.length)
         throw new AdaptationReviewError(
           'REVIEW_WEB_EMPTY',
@@ -1417,12 +1735,6 @@ export class PieceService {
           'Поиск не дал источников с текстом. Черновик не изменён.'
         );
     }
-    // Only legacy null titles fall back to the first nonempty line.
-    const title = adaptationId
-      ? snapshot!.adaptationTitle ??
-        text.split('\n').find((line) => line.trim()) ??
-        ''
-      : piece.title;
     const reviewed = await reviewOnceV3(
       organizationId,
       {
@@ -1434,39 +1746,13 @@ export class PieceService {
         personText: core?.personText ?? '',
         facts: core ? selectedFactsBrief(core.brief).facts : [],
         language,
+        platform,
         sources,
       },
       this.aiUsage,
       message => this.logger.warn(message)
     );
-    const proposal: ReviewProposalV3 = {
-      version: REVIEW_VERSION,
-      language,
-      organizationId,
-      pieceId,
-      ...(adaptationId ? { adaptationId } : {}),
-      expires: Date.now() + 30 * 60 * 1000,
-      originalText: text,
-      title,
-      ...reviewed,
-      sources,
-      snapshot,
-      pieceSnapshot: {
-        body: piece.body,
-        brief: piece.brief,
-        title: piece.title,
-      },
-    };
-    const {
-      organizationId: _org,
-      pieceId: _piece,
-      adaptationId: _adaptation,
-      expires: _expires,
-      snapshot: _snapshot,
-      pieceSnapshot: _pieceSnapshot,
-      ...publicResult
-    } = proposal;
-    return { ...publicResult, token: signReview(proposal) };
+    return sign({ ...reviewed, sources, ...(factCheck ? { factCheck } : {}) });
   }
 
   async acceptReviewV2(
@@ -1531,7 +1817,7 @@ export class PieceService {
         adaptationId,
         proposal.snapshot!,
         text,
-        editorHtml(text, provider.editor),
+        renderedPost(text, provider.editor),
         titleSelected ? title : proposal.snapshot!.adaptationTitle
       );
     }
@@ -1556,7 +1842,7 @@ export class PieceService {
     if (mode === 'research' || !ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
       throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Выберите режим проверки.');
     }
-    if ((mode === 'web') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и модели.' : 'Confirm spending on search and models.');
+    if ((mode === 'web') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и ИИ.' : 'Confirm spending on search and AI.');
     if ((mode === 'web') && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
@@ -1566,11 +1852,17 @@ export class PieceService {
     if (!this.aiUsage) throw new AdaptationReviewError('AI_UNAVAILABLE', 503, 'Проверка сейчас недоступна.');
     const core = this.coreOf(piece);
     const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
-    const originalText = provider.editor === 'html' || provider.editor === 'normal'
-      ? htmlToPlainText(draft.post.content) : draft.post.content;
+    const originalText = reviewTextOf(draft, provider.editor);
+    // Та же полоса, что у `reviewV2`: ищут по утверждениям, а не по началу
+    // текста. Дверь этого метода наружу закрыта (маршрутов на него нет), но
+    // второй политики поиска в одном продукте быть не должно. Пустой черновик
+    // не платит и за разбор: отказ на него ниже.
+    const queries = mode === 'web' && originalText.trim()
+      ? claimQueries((await checkableClaims(organizationId, { text: originalText, language }, this.aiUsage)).claims)
+      : [];
     const result = mode === 'web'
       ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!,
-        'standard', 'facts')
+        'standard', 'facts', queries)
       : await reviewAdaptationOnce(organizationId, {
       mode, text: originalText, core: core?.text ?? piece.body,
       personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,
@@ -1589,7 +1881,7 @@ export class PieceService {
     if (!input.text.trim()) throw new AdaptationReviewError('ADAPTATION_REVIEW_EMPTY', 400, 'Исправленный текст пуст.');
     const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
     return this.pieces.acceptReview(organizationId, pieceId, adaptationId, input.snapshot,
-      input.text, editorHtml(input.text, provider.editor));
+      input.text, renderedPost(input.text, provider.editor));
   }
 
   async archive(
@@ -1760,11 +2052,19 @@ export class PieceService {
    * адаптации без поста имени иначе нет вовсе (решение Z1, записано в
    * `content-material.repository.ts`). Пост, когда он есть, отвечает первым:
    * он знает, куда текст ушёл на самом деле.
+   *
+   * Квитанция проверок считается здесь заново по сохранённому телу
+   * (`content-factory-next-97dq.2`). Хранить её негде — схема в этой волне не
+   * меняется, — а считать дважды разными руками нельзя, поэтому обе стороны
+   * зовут `adaptationChecksOf`. Это страница одной заготовки, а не список:
+   * список вообще не показывает строку качества, и считать её на каждую
+   * строку области значило бы платить временем за то, чего никто не видит.
    */
   private adaptationOf(
     row: AdaptationRow,
     pieceId: string,
-    integrations: PieceIntegrationRow[]
+    integrations: PieceIntegrationRow[],
+    checks?: AdaptationChecksV1
   ): AdaptationV1 {
     const state = adaptationState(row.post);
     const named =
@@ -1772,23 +2072,29 @@ export class PieceService {
       integrations.find((one) => one.id === row.integrationId) ??
       null;
     const dated = state === 'published' || state === 'queued';
+    const platform = providerOfPlatform(row.platform);
+    const body = row.body ?? null;
     return {
       id: row.id,
       pieceId,
       kind: (trimmed(row.kind) || 'post') as AdaptationKindV1,
-      platform: providerOfPlatform(row.platform),
+      platform,
       integrationId: row.integrationId ?? named?.id ?? null,
       integrationName: named?.name ?? null,
       title: row.title ?? null,
       // Текст строк до этой волны живёт в посте, и тянуть его сюда значило бы
       // выдать разметку канала за текст адаптации. `null` честнее.
-      body: row.body ?? null,
+      body,
       postId: row.postId ?? null,
       mediaId: row.mediaId ?? null,
       state: state ?? 'draft',
       date: dated ? isoOf(row.post?.publishDate) : null,
       url: row.post?.releaseURL ?? null,
       createdAt: isoOf(row.createdAt) || '',
+      // Квитанцию считает страница, одним заходом на все строки сразу. Её
+      // нет у строки без тела и у строки постарше последних
+      // `PIECE_CHECKED_ADAPTATIONS`: считать нечего либо незачем.
+      ...(checks ? { checks } : {}),
     };
   }
 
@@ -1929,12 +2235,20 @@ export class PieceService {
    * чём стоит заготовка, обязано доехать до строителя контекста своими
    * идентификаторами. Берётся только записанное: у факта — `factId`, у
    * доказательства — `evidenceId`. Утверждение брифа без записи в памяти
-   * области идентификатора не имеет, и выдумывать его здесь нечем — оно уже
-   * доехало словами, внутри сути и брифа.
+   * области идентификатора не имеет, и выдумывать его здесь нечем.
+   *
+   * И оно же — словами (`content-factory-next-97dq.2`). Владелец, 18.09.2026:
+   * «заготовка должна подготавливать всё полезное, что может быть для
+   * адаптации». Одних идентификаторов для этого мало: строка без записи в
+   * памяти не доезжала вовсе, а записанная приезжала тем, что строитель
+   * контекста счёл нужным показать. Отбор — тот же `selectedFactsBrief`, что
+   * решает, какие опоры идут в текст: своё и подтверждённое целиком, из
+   * находок ресерча — только отмеченные человеком.
    */
   private briefMaterial(plan: PieceAdaptPlanV1): {
     factIds: string[];
     evidenceIds: string[];
+    material: IntakeMaterialHintV1[];
   } {
     const facts = plan.core?.brief ? selectedFactsBrief(plan.core.brief).facts : [];
     return {
@@ -1946,13 +2260,18 @@ export class PieceService {
           facts.map((fact) => trimmed(fact?.evidenceId)).filter(Boolean)
         ),
       ],
+      material: materialHints(
+        facts as PieceFactV2[],
+        plan.core?.brief?.inputKind
+      ),
     };
   }
 
-  /** Подсказки генератору: канал, бриф заготовки, суть и ответы под канал. */
+  /** Подсказки генератору: канал, бриф заготовки, суть, опоры и ответы. */
   private hintsOf(
     plan: PieceAdaptPlanV1,
-    answers: PieceAnswerV1[]
+    answers: PieceAnswerV1[],
+    material: IntakeMaterialHintV1[] = []
   ): IntakeGenerationHintsV1 {
     const brief = plan.core?.brief;
     const formatHint =
@@ -1969,6 +2288,7 @@ export class PieceService {
         goal: brief?.goal ?? null,
       },
       ...(plan.core ? { core: plan.core.text } : {}),
+      ...(material.length ? { material } : {}),
       ...(answers.length
         ? { answers: answers.map((answer) => `${answer.key}: ${answer.text}`) }
         : {}),

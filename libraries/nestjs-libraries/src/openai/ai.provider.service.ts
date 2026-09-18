@@ -187,12 +187,15 @@ export class AiProviderService {
       hasSearchKey:
         config.workspaceSearchKeyConfigured ?? !!config.search.apiKey,
       /**
-       * Which engines have a key, and nothing about what the keys are.
+       * Which engines can search right now, and nothing about what the keys
+       * are.
        *
-       * A map rather than the old single flag because the screen now draws a
-       * field per engine and each of them has to say «saved» or «empty» on its
-       * own; `hasSearchKey` stays beside it for the callers that only ask
-       * whether search is configured at all.
+       * A map rather than the old single flag because the screen draws a field
+       * per engine and each of them has to say «saved» or «empty» on its own;
+       * `hasSearchKey` stays beside it for the callers that only ask whether
+       * search is configured at all. On «Ключи системы» this is the operator's
+       * set alone — the workspace's own keys are dormant there and answer
+       * through `workspaceSearchKeys` below.
        */
       searchKeys: Object.fromEntries(
         SEARCH_PROVIDERS.map((engine) => [
@@ -203,10 +206,12 @@ export class AiProviderService {
       /**
        * Which engines this workspace has saved a key for, in either mode.
        *
-       * In `workspace_key` it repeats `searchKeys`; in `included` it is the
-       * only thing that can say «у этой области сохранён свой ключ Exa» about
-       * a key that is dormant rather than spent — and a screen that cannot
-       * name it cannot offer to remove that one engine's key.
+       * In `workspace_key` it repeats `searchKeys` for the engines the
+       * workspace pays for itself; in `included` it is the only thing that can
+       * say «у этой области сохранён свой ключ Exa» about a key that is
+       * dormant rather than spent. Without it, switching back to «Свой ключ»
+       * would look like the key had been lost — and a screen that cannot name
+       * the key cannot offer to remove it either.
        */
       workspaceSearchKeys: Object.fromEntries(
         SEARCH_PROVIDERS.map((engine) => [

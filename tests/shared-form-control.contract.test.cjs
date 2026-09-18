@@ -877,6 +877,39 @@ describe('shared form-control contracts', () => {
     expect(textarea).toContain('min-h-[150px]');
   });
 
+  /*
+    The height of a text field is a named variant, not a pixel a screen types.
+    The owner asked on 18.09.2026 for a taller first field on the intake screen
+    («увеличить высоту поля, когда я создаю новую заготовку»); the field a
+    person writes *into* is `composer`, the short one beside other controls is
+    `content`, and the long form field is the default. All three stay on the
+    4px rhythm, and a call site that wants its own height is filtered out by
+    the same rule that filters every other consumer height.
+  */
+  test('names the three field heights instead of letting a screen type one', () => {
+    const field = (props) =>
+      render(Textarea, {
+        standalone: true,
+        name: 'note',
+        value: '',
+        onChange: () => {},
+        ...props,
+      });
+
+    expect(field({ layout: 'composer' })).toContain('min-h-[200px]');
+    expect(field({ layout: 'content' })).toContain('min-h-[80px]');
+    expect(field({})).toContain('min-h-[150px]');
+    // The two named variants sit on the 4px rhythm; the inherited default at
+    // 150px does not, and it is debt this change neither repeats nor pays.
+    for (const height of [200, 80]) expect(height % 4).toBe(0);
+    // A taller field asked for at the call site is still not a call site's
+    // decision: the consumer height is filtered, the variant survives.
+    const overridden = field({ layout: 'composer', className: 'min-h-[300px] max-w-[80ch]' });
+    expect(overridden).toContain('min-h-[200px]');
+    expect(overridden).not.toContain('min-h-[300px]');
+    expect(overridden).toContain('max-w-[80ch]');
+  });
+
   test('reserves non-overlapping mobile hit space only for radio choices', () => {
     const denseRadios = render(
       RadioGroup,

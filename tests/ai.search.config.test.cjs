@@ -167,6 +167,95 @@ describe('organization web-search configuration', () => {
     consoleError.mockRestore();
   });
 
+  /**
+   * `content-factory-next-97dq.6`: режим решает, чей ключ тратится.
+   *
+   * Владелец 18.09.2026 выбрал простое правило вместо прежнего (`xmfb.8`):
+   * «Ключи системы» — значит ключи системы и для поиска тоже, а свой ключ
+   * области спит в строке. Здесь это проверяется до маршрутизации
+   * включительно: движок, у которого в выбранном режиме ключа нет, не получает
+   * ни одной задачи, сколько бы своих ключей ни лежало в строке.
+   */
+  describe('режим выбирает, чей поисковый ключ тратится', () => {
+    const routing = require('./helpers/ai-search-tasks.cjs');
+
+    const includedRow = {
+      usageMode: 'included',
+      provider: 'openrouter',
+      apiKey: 'ai-a',
+      searchEnabled: true,
+      searchProvider: 'tavily',
+      searchApiKeys: { exa: 'own-exa' },
+      searchTopic: 'general',
+      searchDepth: 'advanced',
+    };
+
+    afterEach(() => {
+      delete process.env.AI_INCLUDED_SEARCH_API_KEY_TAVILY;
+      delete process.env.AI_INCLUDED_SEARCH_API_KEY_EXA;
+    });
+
+    test('included routes every task to a system key and never to the dormant engine', async () => {
+      process.env.AI_INCLUDED_SEARCH_API_KEY_TAVILY = 'system-tavily';
+      const { loadAiConfig: load } = loadConfigModule(async () => includedRow);
+
+      const config = await load('organization-a');
+
+      expect(config.search.apiKeys).toEqual({ tavily: 'system-tavily' });
+      expect(config.search.keySources).toEqual({ tavily: 'system' });
+      for (const task of routing.SEARCH_TASKS) {
+        // Ресерч по умолчанию уходит к Exa — но ключа Exa в этом режиме нет.
+        expect(routing.providerForSearchTask(task, config.search)).toBe(
+          'tavily'
+        );
+        expect(
+          routing.searchCredentialFor('exa', config.search)
+        ).toBeUndefined();
+      }
+      expect(JSON.stringify(config)).not.toContain('own-exa');
+    });
+
+    test('the same row on its own key spends the own key for its own engine', async () => {
+      process.env.AI_INCLUDED_SEARCH_API_KEY_TAVILY = 'system-tavily';
+      const { loadAiConfig: load } = loadConfigModule(async () => ({
+        ...includedRow,
+        usageMode: 'workspace_key',
+      }));
+
+      const config = await load('organization-a');
+
+      expect(config.search.apiKeys).toEqual({
+        tavily: 'system-tavily',
+        exa: 'decrypted:own-exa',
+      });
+      expect(config.search.keySources).toEqual({
+        tavily: 'system',
+        exa: 'own',
+      });
+      expect(routing.providerForSearchTask('research', config.search)).toBe(
+        'exa'
+      );
+      expect(routing.searchCredentialFor('exa', config.search)).toEqual({
+        key: 'decrypted:own-exa',
+        source: 'own',
+      });
+    });
+
+    test('a dormant key is never decrypted, so no decryption failure is even logged', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      process.env.AI_INCLUDED_SEARCH_API_KEY_TAVILY = 'system-tavily';
+      const { loadAiConfig: load } = loadConfigModule(async () => includedRow);
+
+      const config = await load('organization-a');
+
+      expect(config.workspaceSearchKeys).toEqual({ exa: true });
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+  });
+
   test('a changed setting is picked up by the next resolve without a restart', async () => {
     const stored = { ...rows['organization-a'] };
     const findUnique = jest.fn(async () => stored);

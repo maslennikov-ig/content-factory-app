@@ -114,7 +114,7 @@ describe('списки задач и движков совпадают с сер
     expect(screen).toContain(
       'const KEYED_SEARCH_PROVIDERS = SEARCH_PROVIDERS.filter(searchProviderNeedsKey);'
     );
-    expect(screen).toContain('{KEYED_SEARCH_PROVIDERS.map((engine) => (');
+    expect(screen).toContain('KEYED_SEARCH_PROVIDERS.map((engine) => (');
     // И у каждого такого движка есть подпись поля, а у беcключевого её нет.
     for (const engine of backend.SEARCH_PROVIDERS) {
       const engineWords = copy.aiProviderCopy.ru.search.engines[engine];
@@ -167,10 +167,19 @@ describe('у каждого имени есть слова на обоих яз�
         'keyOwn',
         'keySystem',
         'returnToSystem',
+        // Слова нового правила: единственная строка режима «Ключи системы» и
+        // пояснение к крестику (`content-factory-next-97dq.6`).
+        'systemKeys',
+        'returnToSystemHint',
       ]) {
         expect(words[key]).toBeTruthy();
       }
       expect(allWords.usageModeHint).toBeTruthy();
+      // Переключатель больше не «только про генерацию»: он выбирает ключи и
+      // для поиска, и подсказка обязана говорить это, а не прежнее.
+      expect(allWords.usageModeHint).not.toMatch(
+        /только к генерации|only to generation/
+      );
     });
 
     /**
@@ -305,9 +314,17 @@ describe('экран не выбирает движок и не трогает �
     expect(screen).not.toContain('setSearchEnabled(false)');
   });
 
-  test('поля движков видны в обоих режимах и OpenRouter не обещан как fallback', () => {
-    expect(screen).toContain('{KEYED_SEARCH_PROVIDERS.map((engine) => (');
+  /**
+   * `content-factory-next-97dq.6`. Поля ключей принадлежат одному режиму.
+   * Владелец 18.09.2026: «если выбрана глобальная настройка, что ключи
+   * системы, то зачем это все показывать… всё это нужно прятать». На ключах
+   * системы своих полей нет вовсе — они там ни на что не влияют.
+   */
+  test('поля движков рисуются только на своём ключе, и OpenRouter не обещан как fallback', () => {
+    expect(screen).toContain('{ownKeys &&\n        KEYED_SEARCH_PROVIDERS.map');
     expect(screen).toContain('words.search.returnToSystem(');
+    expect(screen).toContain('words.search.returnToSystemHint');
+    expect(screen).toContain('words.search.systemKeys');
     expect(screen).not.toContain('systemKeysOnly');
     expect(screen).not.toContain('includedOwnKey');
     expect(screen).not.toContain('openrouter_fallback_available');

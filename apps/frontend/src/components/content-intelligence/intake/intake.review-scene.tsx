@@ -105,8 +105,8 @@ const NOTES: Partial<Record<InterfaceReviewState, { ru: string; en: string }>> =
     en: 'It did not get written. The answer was incomplete, and nothing was saved — said plainly.',
   },
   restricted: {
-    ru: 'Звать модель нечем: вместо формы одна честная строка, запроса не было.',
-    en: 'Nothing to call the model with: one honest line instead of the form, and no request was made.',
+    ru: 'Звать ИИ нечем: вместо формы одна честная строка, запроса не было.',
+    en: 'Nothing to call the AI with: one honest line instead of the form, and no request was made.',
   },
   disabled: {
     ru: 'Ход идёт: поле и кнопки выключены, шаг назван, «Отменить» рядом.',

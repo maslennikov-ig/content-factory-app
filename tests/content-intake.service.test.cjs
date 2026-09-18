@@ -49,7 +49,7 @@ const { usableHttpsUrl, WebSearchNotConfigured } = loadWithMocks(
 const modelCalls = [];
 let modelAnswers = [];
 
-const { IntakeService } = loadWithMocks(SERVICE, {
+const { IntakeService, INTAKE_MAX_PASTED_LINKS } = loadWithMocks(SERVICE, {
   '@contentfactory/nestjs-libraries/agent/agent.graph.service': {
     AgentGraphService: class {},
   },
@@ -332,6 +332,10 @@ const build = (options = {}) => {
     {
       fetch: async (url, kind) => {
         calls.fetch.push([url, kind]);
+        // Недоступная страница — как в сети: шлюз бросает, а не возвращает.
+        if ((options.deadUrls || []).some((dead) => url.startsWith(dead))) {
+          throw new Error('the page could not be reached');
+        }
         return {
           status: 200,
           finalUrl: url,
@@ -579,12 +583,21 @@ describe('чужой пост: утверждения не проверяютс�
     expect(filled.brief.inputKind).toBe('foreign_post');
     expect(filled.brief.origins.position).toBe('model');
     expect(questions.questions).toHaveLength(1);
+    // The three stances, not the model's own options: on the stand the model
+    // offered rewordings of the source author's view with one pre-filled.
     expect(questions.questions[0]).toMatchObject({
       field: 'position',
-      options: recordedBrief.options.position,
+      suggested: null,
+      options: [
+        'Я согласен с позицией автора исходного поста',
+        'Я не согласен с позицией автора исходного поста',
+        'Я согласен частично и хочу уточнить свою позицию',
+      ],
     });
     expect(questions.questions[0].options.every((option) => option.startsWith('Я '))).toBe(true);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-extract/v4');
+    // Преемник разбора с волны `97dq.1`: v4 остаётся импортируемым, но вход
+    // спрашивает по v5 — одно число на утверждение.
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-extract/v5');
   });
 
   test('an old recorded extract without materialKind keeps the heuristic fallback', async () => {
@@ -1040,14 +1053,78 @@ describe('mixed foreign post and URL', () => {
       expect(calls.start).toEqual([]);
     } finally { delete process.env.SOURCE_DIRECT_FETCH; }
   });
-  test('mixed input respects SOURCE_DIRECT_FETCH instead of silently dropping the URL', async () => {
-    const { service, calls } = build({ models: [] });
+  /*
+    Ссылка внутри ВСТАВЛЕННОГО ТЕКСТА и ссылка КАК ВХОД — два разных обещания
+    (`97dq.1`, P2-6 обзора). В первом случае материал у нас уже есть — сам
+    текст, — и недоступная сноска ход не обрывает. Во втором читать, кроме неё,
+    нечего, и отказ остаётся честным отказом.
+  */
+  test('недоступная ссылка внутри вставленного текста пропускается, ход идёт дальше', async () => {
+    const { service, calls } = build({
+      models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }],
+      deadUrls: ['https://dead.test'],
+    });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const plan = await service.prepare('org-a', request({
+        input: `${foreignPost}\nhttps://dead.test/post`,
+      }));
+      const events = await drain(service, 'org-a', plan);
+
+      expect(named(events, 'error')).toEqual([]);
+      expect(named(events, 'link-fetched')).toEqual([]);
+      expect(calls.recordCore).toHaveLength(1);
+      // Разбор всё равно состоялся — по самому тексту.
+      expect(modelCalls[0].prompt).toContain('Мы закрыли половину');
+      const brief = named(events, 'piece')[0].core.brief;
+      expect(brief.inputSources).toEqual([{ kind: 'foreign_post' }]);
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+
+  test('ссылка как вход остаётся fail-closed: недоступна — отказ', async () => {
+    const { service, calls } = build({ models: [], deadUrls: ['https://dead.test'] });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const plan = await service.prepare('org-a', request({ input: 'https://dead.test/post' }));
+      const events = await drain(service, 'org-a', plan);
+
+      expect(plan.inputKind).toBe('link');
+      expect(named(events, 'error')[0].code).toBe('INTAKE_LINK_UNREACHABLE');
+      expect(calls.recordCore).toEqual([]);
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+
+  test('вставленная статья читается тремя ссылками, а не всеми подряд', async () => {
+    const { service, calls } = build({
+      models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }],
+    });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const links = Array.from({ length: 6 }, (_, index) => `https://example.test/a${index}`);
+      const plan = await service.prepare('org-a', request({
+        input: `${foreignPost}\n${links.join('\n')}`,
+      }));
+      const events = await drain(service, 'org-a', plan);
+
+      expect(INTAKE_MAX_PASTED_LINKS).toBe(3);
+      expect(named(events, 'link-fetched').map((event) => event.url)).toEqual(links.slice(0, 3));
+      // Две дороги на ссылку: robots и страница. Шести адресов здесь быть не может.
+      expect(calls.fetch).toHaveLength(6);
+      expect(policyCalls.robots).toEqual(links.slice(0, 3));
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+
+  test('выключенный SOURCE_DIRECT_FETCH соблюдается: ни одного похода в сеть', async () => {
+    const { service, calls } = build({
+      models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }],
+    });
     delete process.env.SOURCE_DIRECT_FETCH;
     const plan = await service.prepare('org-a', request({ input: `${foreignPost}\nhttps://example.test/post` }));
     const events = await drain(service, 'org-a', plan);
-    expect(named(events, 'error')[0].code).toBe('INTAKE_LINK_UNREACHABLE');
+
     expect(calls.fetch).toEqual([]);
-    expect(calls.usage).toEqual([]);
+    expect(named(events, 'link-fetched')).toEqual([]);
+    expect(named(events, 'error')).toEqual([]);
   });
 });
 

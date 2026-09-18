@@ -105,6 +105,34 @@ test('deep research carries an optional direction as a wish into search and dige
   expect(modelCalls[0].prompt).toMatch(/не считать фактом|never treat it as a fact/i);
 });
 
+/**
+ * Дополнение сути перестало быть коротким (`content-factory-next-97dq.2`).
+ *
+ * Владелец, 18.09.2026: «Довольно много всего нашло, но пост как будто не
+ * сильно увеличился». Отмеченных строк было тринадцать, до сути доехало шесть,
+ * и держало их не качество находок, а правило 4 («три предложения — нормальная
+ * суть»), написанное для ПЕРВОЙ сути и молча применявшееся к дополнению.
+ */
+test('enrichment prompt lifts the short-core rule and asks a sentence per selected support', async () => {
+  const preview = await start();
+  await accept(preview);
+  const prompt = modelCalls[1].prompt;
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v5');
+  expect(prompt).toContain('правило 4 здесь не действует');
+  expect(prompt).toContain('получает в тексте своё предложение');
+  expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
+  expect(prompt).toContain('которая тезису не служит, в текст не входит вовсе');
+  expect(prompt).toContain(
+    'новых чисел, примеров, советов и шагов в дополнении не бывает'
+  );
+  // Правило 11 остаётся: дополнение не спорит с автором.
+  expect(prompt).toContain('суть держит позицию человека и не спорит с ней');
+  // И существующая суть по-прежнему приезжает огороженным блоком.
+  expect(prompt).toContain('Существующая суть');
+  expect(prompt).toContain('Мне важен результат работы.');
+});
+
 test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {
   const preview = await start();
   const key = [...storage.keys()][0];

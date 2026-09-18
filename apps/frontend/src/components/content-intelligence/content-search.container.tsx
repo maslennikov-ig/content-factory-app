@@ -59,7 +59,7 @@ const copy = {
     published: 'Опубликовано',
     provider: 'Нашёл',
     notConfigured:
-      'Поиск не подключён. Включите его и добавьте ключ Tavily в настройках модели.',
+      'Поиск не подключён. Включите его и добавьте ключ Tavily в настройках ИИ.',
     searchFallback: 'Поиск не отработал. Ничего не потеряно — попробуйте ещё раз.',
     searchUnavailable:
       'Поисковики сейчас не отвечают. Это временный сбой, а не настройка: повторите запрос через минуту.',
@@ -101,7 +101,7 @@ const copy = {
     published: 'Published',
     provider: 'Found by',
     notConfigured:
-      'Search is not connected. Enable it and add a Tavily key in the model settings.',
+      'Search is not connected. Enable it and add a Tavily key in the AI settings.',
     searchFallback: 'The search did not run. Nothing is lost — try again.',
     searchUnavailable:
       'The search providers are not answering right now. This is a passing outage, not a setting: try the same subject again in a minute.',

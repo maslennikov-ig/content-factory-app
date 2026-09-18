@@ -18,8 +18,26 @@ type NativeTextareaProps = DetailedHTMLProps<
   HTMLTextAreaElement
 >;
 
+/**
+ * Named heights of the field, owned here rather than at the call site.
+ *
+ * `content` is the short field beside other controls, the default is the long
+ * form field, and `composer` is the one a person writes *into* — the first
+ * field of a screen, where the text is the work. The owner asked for the
+ * intake field to be taller on 18.09.2026, and the wrong answer would be a
+ * pixel typed into `intake.screen.tsx`: the next screen with the same job
+ * would type its own. All three stay on the 4px rhythm.
+ */
+const LAYOUT_MIN_HEIGHT = {
+  content: 'min-h-[80px]',
+  composer: 'min-h-[200px]',
+  default: 'min-h-[150px]',
+} as const;
+
+export type TextareaLayout = 'content' | 'composer';
+
 type SharedTextareaProps = NativeTextareaProps & {
-  layout?: 'content';
+  layout?: TextareaLayout;
   error?: any;
   disableForm?: boolean;
   /** Layout classes for the outer field, e.g. `flex-1`; `className` paints the control. */
@@ -66,7 +84,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>((props, r
       {...(!standalone && !disableForm && props.name ? form.register(props.name) : {})}
       className={clsx(
         'bg-cf-surface p-[12px] border rounded-[8px] text-[14px] text-cf-ink placeholder:text-cf-ink-muted',
-        layout === 'content' ? 'min-h-[80px]' : 'min-h-[150px]',
+        LAYOUT_MIN_HEIGHT[layout ?? 'default'],
         'outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
         err ? 'border-cf-danger' : 'border-cf-border-control',
         withoutConsumerHeight(className)

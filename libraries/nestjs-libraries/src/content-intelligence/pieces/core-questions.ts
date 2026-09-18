@@ -245,25 +245,33 @@ export const openQuestionsFor = (
 
   const position = trimmed(brief.position);
   if (!position || brief.origins.position === 'model') {
-    const positionOptions = input.options.position?.length
-      ? input.options.position
-      : brief.inputKind === 'foreign_post'
-        ? language === 'ru'
-          ? [
-              'Я согласен с позицией автора исходного поста',
-              'Я не согласен с позицией автора исходного поста',
-              'Я согласен частично и хочу уточнить свою позицию',
-            ]
-          : [
-              'I agree with the source author\'s position',
-              'I disagree with the source author\'s position',
-              'I partly agree and want to clarify my position',
-            ]
+    // A foreign post always gets the three stances, never the model's own
+    // options: on the stand (18.09.2026) the model offered three rewordings of
+    // the source author's view with the first one pre-filled, so pressing
+    // «Дальше» adopted the foreign position — the defect the question exists
+    // to prevent. Nothing is pre-filled either: the person has to choose.
+    const foreign = brief.inputKind === 'foreign_post';
+    const positionOptions = foreign
+      ? language === 'ru'
+        ? [
+            'Я согласен с позицией автора исходного поста',
+            'Я не согласен с позицией автора исходного поста',
+            'Я согласен частично и хочу уточнить свою позицию',
+          ]
+        : [
+            'I agree with the source author\'s position',
+            'I disagree with the source author\'s position',
+            'I partly agree and want to clarify my position',
+          ]
+      : input.options.position?.length
+        ? input.options.position
         : undefined;
     add({
       field: 'position',
       question: textOf('position', language),
-      suggested: position || trimmed(positionOptions?.[0]) || null,
+      suggested: foreign
+        ? null
+        : position || trimmed(positionOptions?.[0]) || null,
       ...(positionOptions?.length
         ? { options: positionOptions }
         : {}),
