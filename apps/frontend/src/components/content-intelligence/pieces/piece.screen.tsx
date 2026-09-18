@@ -866,7 +866,7 @@ export function PieceScreen({
             ) : null}
 
             {questionsSlot}
-            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно выбрать «Реши сама».' : 'The core will appear after your answers. You can let us decide.'}</p> : null}
+            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно нажать «Решите за меня».' : 'The core will appear after your answers. You can let us decide.'}</p> : null}
             {core?.text && core.writtenBy === 'fallback' ? (
               <p
                 role="status"

@@ -99,6 +99,14 @@ export function IntakeContainer({
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefFilledV1 | null>(null);
+  /*
+    Ссылки, которых в заготовке не окажется (`content-factory-next-97dq.12`).
+    Держится до следующего хода, а не до конца события: сервер говорит это один
+    раз, а прочитать человек должен успеть — в том числе на паузе выбора опор.
+  */
+  const [linksSkipped, setLinksSkipped] = useState<
+    { unreadable: number; beyondLimit: number } | null
+  >(null);
   const [researchFacts, setResearchFacts] = useState<BriefFilledV1['facts']>([]);
   const [researchPending, setResearchPending] = useState(false);
   /*
@@ -276,6 +284,12 @@ export function IntakeContainer({
             case 'link-fetched':
               setStep('brief-started');
               break;
+            case 'links-skipped':
+              setLinksSkipped({
+                unreadable: event.unreadable,
+                beyondLimit: event.beyondLimit,
+              });
+              break;
             case 'brief-filled':
               setBrief(event.brief);
               setStep('writing');
@@ -351,6 +365,7 @@ export function IntakeContainer({
   const write = useCallback(() => {
     setWrote(false);
     setBrief(null);
+    setLinksSkipped(null);
     setResearchFacts([]);
     setResearchPending(false);
     setResearchWorking(false);
@@ -424,6 +439,7 @@ export function IntakeContainer({
         input={input}
         inputKind={brief?.inputKind ?? detectInputKind(input) ?? null}
         detectedLink={detectedLink}
+        linksSkipped={linksSkipped}
         language={language0}
         step={step}
         researchFacts={researchFacts}

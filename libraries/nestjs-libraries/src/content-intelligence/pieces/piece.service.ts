@@ -165,15 +165,13 @@ import { PieceRepository, type PieceIntegrationRow, type PieceRow } from './piec
 import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
 
 import { htmlToPlainText } from '../brand-voice/html-text';
-import { reviewAdaptationOnce } from './adaptation-review';
-import { reviewAdaptationWithSearch } from './adaptation-web-review';
 import {
   RESEARCH_LEVEL_PRESETS,
   WebResearchService,
   type ResearchLevel,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
-import { ADAPTATION_REVIEW_ACTIONS, ADAPTATION_REVIEW_VERSION, AdaptationReviewError, reviewConflict,
-  type AdaptationReviewAction, type AdaptationReviewResult, type AdaptationReviewSnapshot } from './adaptation-review.contract';
+import { AdaptationReviewError, reviewConflict,
+  type AdaptationReviewAction, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import {
   READY_ADAPTATIONS_VERSION,
   type ReadyAdaptationsResponseV1,
@@ -183,11 +181,17 @@ import {
 export type PieceSlopCheckPort = (
   text: string,
   platform: string,
-  locale: 'ru' | 'en'
+  locale: 'ru' | 'en',
+  /** Опоры заготовки: точное число из них размытым количеством не считается. */
+  grounded?: readonly string[]
 ) => SlopReportV1 | null;
 
-const defaultSlopCheck: PieceSlopCheckPort = (text, platform, locale) =>
-  runSlopCheck(text, { platform, locale, html: false });
+const defaultSlopCheck: PieceSlopCheckPort = (
+  text,
+  platform,
+  locale,
+  grounded
+) => runSlopCheck(text, { platform, locale, html: false, grounded });
 
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
@@ -640,6 +644,7 @@ export class PieceService {
         organizationId,
         language,
         foreignShingles: this.foreignShinglesOf(piece),
+        grounded: this.groundedOf(core),
       },
       scored.map((row) => ({
         text: row.body as string,
@@ -1000,6 +1005,9 @@ export class PieceService {
         platform: plan.channel.providerIdentifier,
         language: plan.language,
         antiCopy: output.antiCopy ?? null,
+        // Тот же материал, из которого адаптация и написана: число из него
+        // размытым количеством не считается (`97dq.10`).
+        grounded: this.groundedOf(plan.core ?? null),
       },
       { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
     );
@@ -1681,7 +1689,14 @@ export class PieceService {
          * (`content-factory-next-97dq.3`, P2-9). Ни поиска, ни вызова
          * проверяющей модели ни в том, ни в другом случае.
          */
-        const findings = catalogFindingsOf(text, language, platform);
+        const findings = catalogFindingsOf(
+          text,
+          language,
+          platform,
+          // Те же опоры, что у обычного хода проверки (`97dq.10`): одно число
+          // о тексте не должно зависеть от того, нашёлся ли запрос к поиску.
+          this.groundedOf(core ?? null)
+        );
         const nothingFound = found.extracted === 0;
         return sign({
           text,
@@ -1837,42 +1852,6 @@ export class PieceService {
       stored
     );
   }
-  async reviewAdaptation(organizationId: string, pieceId: string, adaptationId: string,
-    mode: AdaptationReviewAction, language: 'ru' | 'en' = 'ru', confirmWebSpend = false): Promise<AdaptationReviewResult> {
-    if (mode === 'research' || !ADAPTATION_REVIEW_ACTIONS.includes(mode)) {
-      throw new AdaptationReviewError('ADAPTATION_REVIEW_MODE', 400, 'Выберите режим проверки.');
-    }
-    if ((mode === 'web') && confirmWebSpend !== true) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_CONFIRM', 400, language === 'ru' ? 'Подтвердите расход на поиск и ИИ.' : 'Confirm spending on search and AI.');
-    if ((mode === 'web') && !this.webReview) throw new AdaptationReviewError('ADAPTATION_REVIEW_WEB_UNAVAILABLE', 503, language === 'ru' ? 'Поиск сейчас недоступен. Черновик не изменён.' : 'Search is unavailable. The draft has not changed.');
-    const piece = await this.pieces.getPiece(organizationId, pieceId);
-    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
-    const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
-    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
-    if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt) throw reviewConflict();
-    if (!this.aiUsage) throw new AdaptationReviewError('AI_UNAVAILABLE', 503, 'Проверка сейчас недоступна.');
-    const core = this.coreOf(piece);
-    const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
-    const originalText = reviewTextOf(draft, provider.editor);
-    // Та же полоса, что у `reviewV2`: ищут по утверждениям, а не по началу
-    // текста. Дверь этого метода наружу закрыта (маршрутов на него нет), но
-    // второй политики поиска в одном продукте быть не должно. Пустой черновик
-    // не платит и за разбор: отказ на него ниже.
-    const queries = mode === 'web' && originalText.trim()
-      ? claimQueries((await checkableClaims(organizationId, { text: originalText, language }, this.aiUsage)).claims)
-      : [];
-    const result = mode === 'web'
-      ? await reviewAdaptationWithSearch(organizationId, { text: originalText, language }, this.aiUsage, this.webReview!,
-        'standard', 'facts', queries)
-      : await reviewAdaptationOnce(organizationId, {
-      mode, text: originalText, core: core?.text ?? piece.body,
-      personText: core?.personText ?? '', facts: core?.brief.facts ?? [], language,
-    }, this.aiUsage);
-    return { version: ADAPTATION_REVIEW_VERSION, mode, originalText, ...result,
-      snapshot: { postId: draft.post.id, postContent: draft.post.content,
-        postUpdatedAt: draft.post.updatedAt.toISOString(), adaptationBody: draft.body,
-        adaptationUpdatedAt: draft.updatedAt.toISOString() } };
-  }
-
   async acceptAdaptationReview(organizationId: string, pieceId: string, adaptationId: string,
     input: { text: string; snapshot: AdaptationReviewSnapshot }) {
     const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
@@ -2265,6 +2244,29 @@ export class PieceService {
         plan.core?.brief?.inputKind
       ),
     };
+  }
+
+  /**
+   * На чём стоит заготовка — словами, для проверки на штампы.
+   *
+   * `content-factory-next-97dq.10`, решение владельца 18.09.2026: точное число
+   * из источников размытым количеством не считается. Чтобы это было правдой, а
+   * не догадкой, каталогу передаётся ровно тот материал, из которого написана
+   * адаптация: суть, слова человека и отмеченные опоры брифа — тот же
+   * `selectedFactsBrief` → `materialHints`, что собирает промпт. Второго
+   * сборщика здесь нет намеренно: два ответа на вопрос «на чём стоит эта
+   * заготовка» разошлись бы молча, и находка то появлялась бы, то исчезала.
+   */
+  private groundedOf(core: ZagotovkaCoreV1 | null): string[] {
+    if (!core) return [];
+    const facts = core.brief ? selectedFactsBrief(core.brief).facts : [];
+    return [
+      trimmed(core.text),
+      trimmed(core.personText),
+      ...materialHints(facts as PieceFactV2[], core.brief?.inputKind).map(
+        (hint) => hint.statement
+      ),
+    ].filter(Boolean);
   }
 
   /** Подсказки генератору: канал, бриф заготовки, суть, опоры и ответы. */

@@ -1,4 +1,10 @@
-import { TemporalModule } from 'nestjs-temporal-core';
+import { DynamicModule, INestApplicationContext } from '@nestjs/common';
+import {
+  TemporalModule,
+  TemporalOptions,
+  TEMPORAL_CLIENT,
+  TEMPORAL_CONNECTION,
+} from 'nestjs-temporal-core';
 import { socialIntegrationList } from '@contentfactory/nestjs-libraries/integrations/integration.manager';
 
 // How many activity tasks one worker of this server may run at the same time.
@@ -51,11 +57,14 @@ const MAX_CONCURRENT_WORKFLOW_TASKS = 10;
 // the Temporal server for a queue that is idle most of the day.
 const MAX_CONCURRENT_WORKFLOW_TASK_POLLS = 5;
 
-export const getTemporalModule = (
+// The options this repository hands the library, in one place so a second
+// caller can take the same options and change one of them without copying the
+// whole thing.
+const buildTemporalOptions = (
   isWorkers: boolean,
   path?: string,
   activityClasses?: any[]
-) => {
+): Partial<TemporalOptions> => {
   // Queues this worker server should NOT run, comma-separated
   // (e.g. EXCLUDE_QUEUE="reddit,x,twitch"). Use it to pin a queue to a single
   // server: exclude it on every server except the one that should own it.
@@ -73,7 +82,7 @@ export const getTemporalModule = (
     Number(process.env.WORKER_CONCURRENCY_DIVIDER) || 1
   );
 
-  return TemporalModule.register({
+  return {
     isGlobal: true,
     connection: {
       address: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
@@ -159,5 +168,108 @@ export const getTemporalModule = (
             }),
         }
       : {}),
-  });
+  };
+};
+
+export const getTemporalModule = (
+  isWorkers: boolean,
+  path?: string,
+  activityClasses?: any[]
+) =>
+  TemporalModule.register(
+    buildTemporalOptions(isWorkers, path, activityClasses)
+  );
+
+// How long a command's shutdown may wait for a worker it never started.
+//
+// The library races `shutdownWorker()` against a timer of `shutdownTimeout`
+// and never clears the timer when the race is already won. With nothing to
+// shut down the race is won immediately and the timer is pure delay — thirty
+// seconds of it at the default, on a process that had already printed its
+// answer. It cannot be switched off, so it is made short instead.
+const COMMAND_SHUTDOWN_TIMEOUT_MS = 100;
+
+// Temporal for a process that is supposed to end: the `apps/commands` CLI.
+//
+// `getTemporalModule(false)` already asks for no workers, but the library
+// registers a `TEMPORAL_CONNECTION` provider regardless of that flag, and its
+// factory calls `NativeConnection.connect()` — a real socket held by the Rust
+// core, with its own threads. Nest instantiates every provider of a module
+// eagerly, so a command that never touches Temporal still opened that socket,
+// and `app.close()` did not close it: the library's cleanup says in as many
+// words that worker connections are "managed by the worker service lifecycle",
+// and no worker service is running here to manage it. Measured on
+// `main.js --help` before this existed: the help text printed, then the process
+// sat there until it was killed.
+//
+// So this variant keeps everything the client path needs and hands the worker
+// connection token an explicit `null`:
+//
+//  - the **client** stays: `Connection.lazy()` opens nothing until the first
+//    call, so no command needs a reachable Temporal server to start, and a
+//    command that does start a workflow connects at that moment and works. No
+//    shipped command reaches Temporal today — the correctness review of the
+//    second release checked the one this comment used to name, `refresh`: its
+//    `signalWithStart` sits on the digest branch of `inAppNotification`, which
+//    token refreshing does not take. The socket that opens on that first call
+//    is closed by `closeTemporalCommandClient` below;
+//  - the **worker** stays off: `TemporalWorkerManagerService` reads this token
+//    as an optional injected connection, finds `null`, and with no `workers`
+//    option skips initialization entirely;
+//  - the **shutdown timer** is made short, for the reason above it.
+//
+// Nothing about a workflow or activity contract changes here. This only decides
+// which sockets one process opens and how long it waits before it may end.
+export const getTemporalCommandModule = (): DynamicModule => {
+  const temporal = TemporalModule.register({
+    ...buildTemporalOptions(false),
+    shutdownTimeout: COMMAND_SHUTDOWN_TIMEOUT_MS,
+  }) as DynamicModule;
+
+  return {
+    ...temporal,
+    providers: (temporal.providers || []).map((provider) =>
+      typeof provider === 'object' &&
+      provider !== null &&
+      'provide' in provider &&
+      provider.provide === TEMPORAL_CONNECTION
+        ? { provide: TEMPORAL_CONNECTION, useValue: null }
+        : provider
+    ),
+  };
+};
+
+/**
+ * Closes the client connection a command may have opened.
+ *
+ * Correctness review of the second release, P2-2. The worker connection is
+ * neutralised above, and that was the socket opened at boot — but the client
+ * has the same owner problem one connection over:
+ * `TemporalConnectionFactory.onModuleDestroy` clears its caches and never
+ * calls `close()` on the `Connection`
+ * (`temporal-connection.factory.js:64-73`). While nothing has been sent the
+ * connection is lazy and there is no socket to leak; the first workflow a
+ * command starts opens one, and `app.close()` would leave the process sitting
+ * on it exactly as it used to sit on the worker's.
+ *
+ * Nothing shipped starts a workflow from a command today. That is a fact about
+ * this month's commands, not a property of the CLI, so the close is wired now
+ * rather than after someone writes the command that needs it.
+ *
+ * Takes the application context so the caller does not have to know the token,
+ * and swallows what closing throws: a connection that never connected, or one
+ * already gone, must not turn a finished command into a failed one.
+ */
+export const closeTemporalCommandClient = async (
+  app: INestApplicationContext
+): Promise<void> => {
+  try {
+    const client = app.get<{
+      connection?: { close?: () => Promise<void> };
+    } | null>(TEMPORAL_CLIENT, { strict: false });
+
+    await client?.connection?.close?.();
+  } catch {
+    // Никакого клиента в графе нет — значит и закрывать нечего.
+  }
 };

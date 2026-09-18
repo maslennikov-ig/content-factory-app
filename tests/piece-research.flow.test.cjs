@@ -118,7 +118,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v5');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v6');
   expect(prompt).toContain('правило 4 здесь не действует');
   expect(prompt).toContain('получает в тексте своё предложение');
   expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
@@ -131,6 +131,44 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   // И существующая суть по-прежнему приезжает огороженным блоком.
   expect(prompt).toContain('Существующая суть');
   expect(prompt).toContain('Мне важен результат работы.');
+});
+
+/**
+ * Отмеченное — ещё не подтверждённое (`content-factory-next-97dq.14`, P3).
+ *
+ * Строка-поправка, которую источник подтвердил не целиком, приходит в суть
+ * `selected: true` и `verified: false`. До версии `core-write/v6` она проходила
+ * `isOwnOrConfirmed` и печаталась под «факты подтверждённые» — и тут же второй
+ * раз под «взято из ресерча», — тогда как квитанция в тот же миг называла её в
+ * `ungrounded`. Промпт и квитанция обязаны говорить о ней одно и то же.
+ */
+test('a partly confirmed correction stands once, and never in the confirmed block', () => {
+  const { corePrompt } = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
+  const brief = {
+    inputKind: 'thought', thesis: 'Сокращённая неделя работает.', position: null,
+    disagreement: null, audience: null, origins: {},
+    ungrounded: ['Эксперимент охватил около 2 500 человек'],
+    facts: [
+      { statement: 'Эксперимент охватил около 2 500 человек', sourceUrl: url, factId: null,
+        evidenceId: 'ev-study', origin: 'search', kind: 'own', status: 'unverified',
+        verified: false, selected: true, correction: { original: '25 тысяч', replacement: 'около 2 500' } },
+      { statement: 'Производительность сохранилась или выросла', sourceUrl: url, factId: null,
+        evidenceId: 'ev-study', origin: 'search', kind: 'found', status: 'confirmed',
+        verified: true, selected: true },
+    ],
+  };
+
+  const prompt = corePrompt({ organizationId: 'org', language: 'ru', brief, answers: [],
+    questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
+    foreignShingles: [] });
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v6');
+  expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
+    'взято из ресерча (не подтверждено): Эксперимент охватил около 2 500 человек',
+  ]);
+  expect(prompt).toContain(
+    'факты подтверждённые: Производительность сохранилась или выросла'
+  );
 });
 
 test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {
@@ -250,9 +288,11 @@ test('accepted correction rewrites the thesis and removes settled claims from un
   expect(corrected.filled.brief.ungrounded).toEqual([]);
 });
 
-test('research is rejected by both review entrypoints before any paid call', async () => {
+// Вход в проверку теперь один: `reviewAdaptation` удалена вместе со своей
+// полосой (`content-factory-next-97dq.14`, P3).
+test('research is rejected by the review entrypoint before any paid call', async () => {
   await expect(service.reviewV2('org', 'p', undefined, { mode: 'research', confirmWebSpend: true }, 'ru')).rejects.toMatchObject({ status: 400 });
-  await expect(service.reviewAdaptation('org', 'p', 'a', 'research', 'ru', true)).rejects.toMatchObject({ status: 400 });
+  expect(service.reviewAdaptation).toBeUndefined();
   expect(research.research).not.toHaveBeenCalled();
   expect(modelCalls).toHaveLength(0);
 });

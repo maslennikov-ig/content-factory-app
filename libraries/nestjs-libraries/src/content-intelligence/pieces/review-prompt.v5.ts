@@ -52,6 +52,32 @@ export type ReviewPromptInput = {
 };
 
 /**
+ * Опоры проверки — то же, что уезжает модели в запрос.
+ *
+ * `content-factory-next-97dq.10`. Собирается здесь, а не у вызывающего:
+ * «было» и «стало» считаются в разных местах `review.v3.ts`, и один сборщик —
+ * единственный способ гарантировать, что оба числа посчитаны по одним опорам.
+ * `facts` приходит как `unknown` (это записанный JSON брифа), поэтому читается
+ * защитно: чужой формы здесь быть не должно, но бывает.
+ */
+export const reviewGroundedOf = (
+  input: Pick<ReviewPromptInput, 'core' | 'personText' | 'facts'>
+): string[] => {
+  const statements = Array.isArray(input.facts)
+    ? input.facts
+        .map((fact) =>
+          typeof (fact as { statement?: unknown })?.statement === 'string'
+            ? ((fact as { statement: string }).statement as string)
+            : ''
+        )
+        .filter(Boolean)
+    : [];
+  return [input.core ?? '', input.personText ?? '', ...statements]
+    .map((line) => line.trim())
+    .filter(Boolean);
+};
+
+/**
  * Находки каталога так, как их показывают: правило и отрывок.
  *
  * Площадка обязательна к передаче, потому что от неё зависят пороги: у
@@ -65,9 +91,16 @@ export type ReviewPromptInput = {
 export const catalogFindingsOf = (
   text: string,
   language: 'ru' | 'en',
-  platform?: string | null
+  platform?: string | null,
+  /**
+   * Опоры заготовки: суть, слова человека и отмеченные факты
+   * (`content-factory-next-97dq.10`). Передавать их обязаны ОБЕ стороны
+   * «было N → стало M»: посчитанные по разным опорам числа сказали бы, что
+   * правка убрала находку, которой не было.
+   */
+  grounded?: readonly string[]
 ): Array<ReviewCatalogFinding & { start: number; end: number }> =>
-  slopCheck(text, { locale: language, platform }).findings.map(
+  slopCheck(text, { locale: language, platform, grounded }).findings.map(
     ({ ruleId, excerpt, start, end }) => ({ ruleId, excerpt, start, end })
   );
 
@@ -154,7 +187,12 @@ export function reviewPromptV5(input: ReviewPromptInput) {
   const sendsCatalog = !web && input.mode !== 'facts';
   const sendsCore = !web ? input.mode !== 'slop' : true;
   const findings = sendsCatalog
-    ? catalogFindingsOf(input.text, input.language, input.platform)
+    ? catalogFindingsOf(
+        input.text,
+        input.language,
+        input.platform,
+        reviewGroundedOf(input)
+      )
     : undefined;
   return {
     system: [

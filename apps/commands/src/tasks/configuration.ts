@@ -26,7 +26,10 @@ export class ConfigurationTask {
       console.log('Configuration check complete, no issues found.');
     }
 
-    console.log('Press Ctrl+C to exit.');
+    // Upstream ended this with "Press Ctrl+C to exit", which was a description
+    // of the defect rather than an instruction: the command had finished and
+    // the process stayed up. It now ends on its own, so the line would be a
+    // lie about what the reader is looking at.
     return true;
   }
 }

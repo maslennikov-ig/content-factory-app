@@ -1,5 +1,6 @@
 import {
-  characterNgramDistance,
+  characterNgramDistanceOf,
+  countedNgramsOf,
   type CharacterNgramProfile,
 } from './character-ngrams';
 import type { BrandVoiceLocale } from './brand-voice.types';
@@ -193,6 +194,18 @@ export function impostorVote(
     Math.round(print.grams.length * (options.share ?? IMPOSTOR_FEATURE_SHARE))
   );
 
+  /**
+   * Окна текста считаются один раз на всё голосование
+   * (`content-factory-next-97dq.13`).
+   *
+   * От раунда к раунду меняется подвыборка окон АВТОРА, а сам текст — нет, и
+   * его разбор повторялся на каждое сравнение: шестьдесят раундов на четыре
+   * стороны — двести сорок чтений одной и той же строки. Ответ прежний до
+   * последней граммы: размер окна берётся из отпечатка, а все стороны
+   * сравнения выровнены по нему же.
+   */
+  const counted = countedNgramsOf(text, print.size);
+
   let wins = 0;
   for (let round = 0; round < rounds; round += 1) {
     const picked = new Set<number>();
@@ -206,7 +219,7 @@ export function impostorVote(
      * it never wrote one.
      */
     const grams = indices.map((index) => print.grams[index]);
-    const mine = characterNgramDistance(text, {
+    const mine = characterNgramDistanceOf(counted, {
       ...print,
       grams,
       weight: indices.map((index) => print.weight[index]),
@@ -214,7 +227,7 @@ export function impostorVote(
     if (mine === null) return { ...base, reason: 'TOO_SHORT' };
     let best = Infinity;
     for (const rates of set.impostors) {
-      const theirs = characterNgramDistance(text, {
+      const theirs = characterNgramDistanceOf(counted, {
         ...print,
         grams,
         weight: weightsOf(rates, grams, indices),

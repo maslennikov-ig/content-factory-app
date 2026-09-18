@@ -17,6 +17,8 @@
  * paragraph is a unit two of the eight scales divide by.
  */
 
+import { createEntityDecoder } from '@contentfactory/helpers/utils/html-entities';
+
 /** Tags that end a block: what follows them starts a new paragraph. */
 const BLOCK_END = /<\/(?:p|div|li|ul|ol|h[1-6]|blockquote|tr)\s*>/gi;
 
@@ -24,19 +26,29 @@ const LINE_BREAK = /<br\s*\/?>/gi;
 
 const ANY_TAG = /<[^>]*>/g;
 
-const ENTITIES: Array<[RegExp, string]> = [
-  [/&nbsp;/gi, ' '],
-  [/&amp;/gi, '&'],
-  [/&lt;/gi, '<'],
-  [/&gt;/gi, '>'],
-  [/&quot;/gi, '"'],
-  [/&#0?39;/gi, "'"],
-  [/&apos;/gi, "'"],
-  [/&laquo;/gi, '«'],
-  [/&raquo;/gi, '»'],
-  [/&mdash;/gi, '—'],
-  [/&ndash;/gi, '–'],
-];
+/**
+ * Сущности этого счётчика.
+ *
+ * Снимаются одним проходом (`content-factory-next-97dq.11`). Раньше это была
+ * цепочка `.replace`, в которой `&amp;` стоял перед `&lt;`: написанное буквами
+ * `&amp;lt;` первый проход превращал в `&lt;`, а второй — в `<`. Мера голоса
+ * считала бы знак там, где человек написал слово.
+ */
+const ENTITIES = [
+  ['&nbsp;', ' '],
+  ['&amp;', '&'],
+  ['&lt;', '<'],
+  ['&gt;', '>'],
+  ['&quot;', '"'],
+  ['&#0?39;', "'"],
+  ['&apos;', "'"],
+  ['&laquo;', '«'],
+  ['&raquo;', '»'],
+  ['&mdash;', '—'],
+  ['&ndash;', '–'],
+] as const;
+
+const decodeEntities = createEntityDecoder(ENTITIES);
 
 /**
  * True when the value carries markup worth removing.
@@ -49,20 +61,21 @@ export const looksLikeHtml = (value: string): boolean =>
 
 export function htmlToPlainText(value: string): string {
   if (!looksLikeHtml(value)) return value;
-  let text = value
-    .replace(LINE_BREAK, '\n')
-    .replace(BLOCK_END, '\n\n')
-    .replace(ANY_TAG, '');
-  for (const [pattern, replacement] of ENTITIES) {
-    text = text.replace(pattern, replacement);
-  }
-  return text
-    .replace(/\r\n?/g, '\n')
-    // Three or more blank lines say nothing a single blank line does not, and
-    // an empty paragraph would otherwise become one.
-    .replace(/\n{3,}/g, '\n\n')
-    .split('\n')
-    .map((line) => line.replace(/[ \t ]+/g, ' ').trimEnd())
-    .join('\n')
-    .trim();
+  const text = decodeEntities(
+    value
+      .replace(LINE_BREAK, '\n')
+      .replace(BLOCK_END, '\n\n')
+      .replace(ANY_TAG, '')
+  );
+  return (
+    text
+      .replace(/\r\n?/g, '\n')
+      // Three or more blank lines say nothing a single blank line does not, and
+      // an empty paragraph would otherwise become one.
+      .replace(/\n{3,}/g, '\n\n')
+      .split('\n')
+      .map((line) => line.replace(/[ \t ]+/g, ' ').trimEnd())
+      .join('\n')
+      .trim()
+  );
 }

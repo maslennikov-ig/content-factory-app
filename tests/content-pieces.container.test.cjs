@@ -632,7 +632,7 @@ describe('уточнение стоит там, где стоит суть', () 
     await click(
       within(card.querySelector('[data-piece-question="position"]')).getByRole(
         'radio',
-        { name: 'Реши сама' }
+        { name: 'Решите за меня' }
       )
     );
     await click(within(card).getByRole('button', { name: 'Дальше' }), () =>
@@ -648,7 +648,7 @@ describe('уточнение стоит там, где стоит суть', () 
     serve(table({ detail: detailDoor(ok(ASKED_DETAIL)) }));
     await open();
     const card = document.querySelector('[data-piece-clarify="true"]');
-    expect(within(card).getAllByRole('radio', { name: 'Реши сама' })).toHaveLength(1);
+    expect(within(card).getAllByRole('radio', { name: 'Решите за меня' })).toHaveLength(1);
     expect(within(card).queryByRole('button', { name: 'Реши всё сама' })).toBeNull();
   });
 

@@ -1078,6 +1078,59 @@ describe('mixed foreign post and URL', () => {
       expect(modelCalls[0].prompt).toContain('Мы закрыли половину');
       const brief = named(events, 'piece')[0].core.brief;
       expect(brief.inputSources).toEqual([{ kind: 'foreign_post' }]);
+      // И об этом сказано человеку, а не только журналу (`97dq.12`).
+      expect(named(events, 'links-skipped')).toEqual([
+        { name: 'links-skipped', unreadable: 1, beyondLimit: 0 },
+      ]);
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+
+  /*
+    `content-factory-next-97dq.12`. Пропуск ссылки знал один `logger.warn`, и
+    человек оставался с заготовкой, в которой чего-то нет, не зная об этом.
+    Событие приходит один раз за ход и различает два случая: «не открылась» и
+    «до неё не дошли» — читаются первые `INTAKE_MAX_PASTED_LINKS`.
+  */
+  test('прочитанные ссылки без пропусков не рождают события вовсе', async () => {
+    const { service } = build({
+      models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }],
+    });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const plan = await service.prepare('org-a', request({
+        input: `${foreignPost}\nhttps://example.test/post`,
+      }));
+      const events = await drain(service, 'org-a', plan);
+
+      expect(named(events, 'link-fetched')).toHaveLength(1);
+      expect(named(events, 'links-skipped')).toEqual([]);
+    } finally { delete process.env.SOURCE_DIRECT_FETCH; }
+  });
+
+  test('ссылки сверх предела и недоступная считаются порознь в одном событии', async () => {
+    const { service } = build({
+      models: [extractionAnswer(), fullBriefAnswer(), { text: 'Нейтральная суть.' }],
+      deadUrls: ['https://dead.test'],
+    });
+    process.env.SOURCE_DIRECT_FETCH = 'true';
+    try {
+      const links = [
+        'https://dead.test/a',
+        'https://example.test/b',
+        'https://example.test/c',
+        'https://example.test/d',
+        'https://example.test/e',
+      ];
+      const plan = await service.prepare('org-a', request({
+        input: `${foreignPost}\n${links.join('\n')}`,
+      }));
+      const events = await drain(service, 'org-a', plan);
+
+      expect(named(events, 'link-fetched').map((event) => event.url)).toEqual(links.slice(1, 3));
+      expect(named(events, 'links-skipped')).toEqual([
+        { name: 'links-skipped', unreadable: 1, beyondLimit: links.length - INTAKE_MAX_PASTED_LINKS },
+      ]);
+      expect(named(events, 'error')).toEqual([]);
     } finally { delete process.env.SOURCE_DIRECT_FETCH; }
   });
 
@@ -1150,4 +1203,28 @@ test('third walk: placeholder fields never become titles, and discarded values a
   expect(calls.recordCore[0][1].brief.brief.facts).toEqual([]);
   expect(warn.mock.calls.some(([line]) => String(line).includes('"field":"goal"') && String(line).includes('"operation":"intake"'))).toBe(true);
   warn.mockRestore();
+});
+
+describe('97dq.10: число из слов человека не считается размытым количеством на входе', () => {
+  const vague = (stored) =>
+    (stored.brief.slop?.findings || []).filter((row) => row.ruleId === 'vague-quantity');
+
+  test('первая суть считается с опорами: «более 620 000» из ввода проходит', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer({ questions: [] }), { text: 'На платформе более 620 000 бизнесов, и рынок это чувствует.' }],
+    });
+    const plan = await service.prepare('org-1', { input: 'Хочу написать: на платформе более 620 000 бизнесов, и это меняет рынок', language: 'ru' });
+    await drain(service, 'org-1', plan);
+    expect(calls.recordCore[0][1].brief.slop).not.toBeNull();
+    expect(vague(calls.recordCore[0][1])).toEqual([]);
+  });
+
+  test('число, которого во вводе нет, по-прежнему находка', async () => {
+    const { service, calls } = build({
+      models: [thinBriefAnswer({ questions: [] }), { text: 'На платформе более 620 000 бизнесов, и рынок это чувствует.' }],
+    });
+    const plan = await service.prepare('org-1', { input: 'Хочу написать про то, как платформа меняет рынок', language: 'ru' });
+    await drain(service, 'org-1', plan);
+    expect(vague(calls.recordCore[0][1]).map((row) => row.excerpt)).toEqual(['более 620 000']);
+  });
 });

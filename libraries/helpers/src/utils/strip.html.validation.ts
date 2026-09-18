@@ -1,5 +1,62 @@
 import striptags from 'striptags';
 import { parseFragment, serialize } from 'parse5';
+import { createEntityDecoder } from './html-entities';
+
+/**
+ * Сущности, которые получатель простого текста видеть не должен.
+ *
+ * X, Bluesky, Facebook и предпросмотр на странице печатают то, что им дали,
+ * буквально: `&lt;` у них так и останется пятью знаками. Поэтому для них
+ * сущности снимаются — но ровно один раз и ровно после `striptags`, см. ниже.
+ */
+const TEXT_ENTITIES = [
+  ['&gt;', '>'],
+  ['&lt;', '<'],
+  ['&amp;', '&'],
+  ['&nbsp;', ' '],
+  ['&quot;', '"'],
+  ['&#0?39;', "'"],
+] as const;
+
+/**
+ * Разэкранирование для получателя простого текста.
+ *
+ * Два правила, и каждое стоило дефекта:
+ *
+ *  1. **После `striptags`, а не до.** Тело хранится экранированным: человек,
+ *     написавший в адаптации `<b>жирный</b>` буквами, хранится как
+ *     `&lt;b&gt;жирный&lt;/b&gt;`. Снять экранирование до `striptags` значит
+ *     отдать стрипперу текст в виде тегов — он их выбросит, и от написанного
+ *     человеком останется «жирный». После — останется ровно то, что он писал.
+ *  2. **Один проход.** `&amp;lt;` — это буквы «&lt;», а не знак «меньше»;
+ *     цепочка из двух `.replace` делала из него `<`. См. `html-entities.ts`.
+ */
+const decodeForText = createEntityDecoder(TEXT_ENTITIES);
+
+/**
+ * Единственная сущность, которую снимают и получателю разметки.
+ *
+ * Разбор корректности второго выпуска, P1-1. Первое, что делает помощник, —
+ * `serialize(parseFragment(val))`, а сериализатор parse5 экранирует ровно пять
+ * вещей (`parse5/lib/serializer/index.js:164-173`): в тексте `&`, U+00A0, `<`
+ * и `>`, в значении атрибута `&`, U+00A0 и `"`. То есть `&nbsp;` появляется в
+ * теле сам, от неразрывного пробела, которого человек не писал сущностью:
+ * русская типографика, вставленный текст и ответ модели дают U+00A0 постоянно.
+ *
+ * Из этих пяти четыре несут смысл разметки и обязаны остаться экранированными.
+ * `&nbsp;` не несёт никакого, а Telegram из именованных сущностей понимает
+ * только `&lt;`, `&gt;`, `&amp;` и `&quot;` — и требует, чтобы всякий `&` вне
+ * сущности был экранирован. Значит `5&nbsp;000` в посте либо печатается
+ * шестью знаками, либо валит отправку с `can't parse entities`.
+ *
+ * Разворачивается он в обычный пробел, а не в U+00A0, потому что так делал
+ * выпущенный помощник: цепочка снимала `&nbsp;` в пробел, и на обычных телах
+ * выход обязан совпасть с выпущенным до знака. Неразрывный пробел был бы
+ * вернее типографски — это отдельное решение о продукте, а не починка дефекта.
+ */
+const MARKUP_ENTITIES = [['&nbsp;', ' ']] as const;
+
+const decodeForMarkup = createEntityDecoder(MARKUP_ENTITIES);
 
 const bold = {
   a: '𝗮',
@@ -146,92 +203,100 @@ export const stripHtmlValidation = (
   const value = serialize(parseFragment(val));
 
   if (type === 'none') {
-    return striptags(value)
-      .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+    return decodeForText(striptags(value));
   }
 
+  // Получатель разметки: Listmonk вставляет это в HTML-кампанию, WordPress
+  // пишет содержимым записи, Telegram отправляет с `parse_mode: HTML`.
+  //
+  // `content-factory-next-97dq.11`: здесь стояло разэкранирование, и оно
+  // превращало безопасно хранимый текст в живую разметку. Тело, где написано
+  // `&lt;script&gt;`, уходило в письмо тегом `<script>` — а с галочкой «это
+  // чужой текст» содержимое адаптации приходит извне.
+  //
+  // Для получателя разметки экранирование снимать не нужно и нельзя: `&lt;`
+  // и есть правильный способ сказать «знак меньше» в HTML, читатель увидит
+  // именно его. Снятие ещё и портило написанное: `a &lt; b` уезжало в письмо
+  // как `a < b`, то есть как начало тега, а в Telegram — как разметка, которую
+  // его разборщик не принимает. Остаётся отбор разрешённых тегов и одна
+  // сущность, которую сюда кладёт сам parse5, — см. `MARKUP_ENTITIES`.
   if (type === 'html') {
-    return striptags(convertMention(value, convertMentionFunction), [
-      'ul',
-      'li',
-      'h1',
-      'h2',
-      'h3',
-      'p',
-      'strong',
-      'u',
-      'a',
-    ])
-      .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<')
-      .replace(/&amp;/gi, '&')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
+    return decodeForMarkup(
+      striptags(convertMention(value, convertMentionFunction), [
+        'ul',
+        'li',
+        'h1',
+        'h2',
+        'h3',
+        'p',
+        'strong',
+        'u',
+        'a',
+      ])
+    );
   }
 
+  // Markdown остаётся как был, с одной правкой: сущности снимаются после
+  // `striptags` и одним проходом. Раньше `&amp;` снимался до него, и пара
+  // проходов делала из написанного буквами `&amp;lt;` знак «меньше».
+  //
+  // Почему для markdown экранирование всё же снимается, в отличие от `html`:
+  // получатели тут разные. Discord и Lemmy напечатают `&lt;` пятью знаками,
+  // а Medium и dev.to прочитают его как разметку. Одного верного ответа на
+  // оба у общего помощника нет, и выбор в пользу одного из них — это решение
+  // о продукте, а не о защите; поведение здесь не меняется.
   if (type === 'markdown') {
-    return striptags(
-      convertMention(
-        value
-          .replace(/<h1>([.\s\S]*?)<\/h1>/g, (match, p1) => {
-            return `<h1># ${p1}</h1>\n`;
-          })
-          .replace(/&amp;/gi, '&')
-          .replace(/&nbsp;/gi, ' ')
-          .replace(/&quot;/gi, '"')
-          .replace(/&#39;/gi, "'")
-          .replace(/<h2>([.\s\S]*?)<\/h2>/g, (match, p1) => {
-            return `<h2>## ${p1}</h2>\n`;
-          })
-          .replace(/<h3>([.\s\S]*?)<\/h3>/g, (match, p1) => {
-            return `<h3>### ${p1}</h3>\n`;
-          })
-          .replace(/<u>([.\s\S]*?)<\/u>/g, (match, p1) => {
-            return `<u>__${p1}__</u>`;
-          })
-          .replace(/<strong>([.\s\S]*?)<\/strong>/g, (match, p1) => {
-            return `<strong>**${p1}**</strong>`;
-          })
-          .replace(/<li.*?>([.\s\S]*?)<\/li.*?>/gm, (match, p1) => {
-            return `<li>- ${p1.replace(/\n/gm, '')}</li>`;
-          })
-          .replace(/<p>([.\s\S]*?)<\/p>/g, (match, p1) => {
-            return `<p>${p1}</p>\n`;
-          })
-          .replace(
-            /<a.*?href="([.\s\S]*?)".*?>([.\s\S]*?)<\/a>/g,
-            (match, p1, p2) => {
-              return `<a href="${p1}">[${p2}](${p1})</a>`;
-            }
-          ),
-        convertMentionFunction
+    return decodeForText(
+      striptags(
+        convertMention(
+          value
+            .replace(/<h1>([.\s\S]*?)<\/h1>/g, (match, p1) => {
+              return `<h1># ${p1}</h1>\n`;
+            })
+            .replace(/<h2>([.\s\S]*?)<\/h2>/g, (match, p1) => {
+              return `<h2>## ${p1}</h2>\n`;
+            })
+            .replace(/<h3>([.\s\S]*?)<\/h3>/g, (match, p1) => {
+              return `<h3>### ${p1}</h3>\n`;
+            })
+            .replace(/<u>([.\s\S]*?)<\/u>/g, (match, p1) => {
+              return `<u>__${p1}__</u>`;
+            })
+            .replace(/<strong>([.\s\S]*?)<\/strong>/g, (match, p1) => {
+              return `<strong>**${p1}**</strong>`;
+            })
+            .replace(/<li.*?>([.\s\S]*?)<\/li.*?>/gm, (match, p1) => {
+              return `<li>- ${p1.replace(/\n/gm, '')}</li>`;
+            })
+            .replace(/<p>([.\s\S]*?)<\/p>/g, (match, p1) => {
+              return `<p>${p1}</p>\n`;
+            })
+            .replace(
+              /<a.*?href="([.\s\S]*?)".*?>([.\s\S]*?)<\/a>/g,
+              (match, p1, p2) => {
+                return `<a href="${p1}">[${p2}](${p1})</a>`;
+              }
+            ),
+          convertMentionFunction
+        )
       )
-    )
-      .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<');
+    );
   }
 
   if (value.indexOf('<p>') === -1 && !none) {
     return value;
   }
 
+  // Абзацы становятся переводами строк. Сущности здесь больше не снимаются:
+  // это делает `decodeForText` на выходе каждой из трёх веток ниже, после
+  // `striptags` и один раз.
   const html = (value || '')
-    .replace(/&amp;/gi, '&')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
     .replace(/^<p[^>]*>/i, '')
     .replace(/<p[^>]*>/gi, '\n')
     .replace(/<\/p>/gi, '');
 
   if (none) {
-    return striptags(html).replace(/&gt;/gi, '>').replace(/&lt;/gi, '<');
+    return decodeForText(striptags(html));
   }
 
   if (replaceBold) {
@@ -253,19 +318,14 @@ export const stripHtmlValidation = (
       convertMentionFunction
     );
 
-    return striptags(processedHtml)
-      .replace(/&gt;/gi, '>')
-      .replace(/&lt;/gi, '<')
-      .replace(/&𝗹𝘁;/gi, '<')
-      .replace(/&𝗴𝘁;/gi, '>')
-      .replace(/&g̲t̲;/gi, '>')
-      .replace(/&l̲t̲;/gi, '<');
+    // Ветки `&𝗹𝘁;` и `&l̲t̲;` здесь больше нет, потому что нет и причины:
+    // `convertToAscii` не трогает сущности, поэтому `&lt;` внутри выделения
+    // остаётся `&lt;` и снимается обычным проходом.
+    return decodeForText(striptags(processedHtml));
   }
 
   // Strip all other tags
-  return striptags(html, ['ul', 'li', 'h1', 'h2', 'h3'])
-    .replace(/&gt;/gi, '>')
-    .replace(/&lt;/gi, '<');
+  return decodeForText(striptags(html, ['ul', 'li', 'h1', 'h2', 'h3']));
 };
 
 export const convertMention = (
@@ -284,22 +344,28 @@ export const convertMention = (
   );
 };
 
+/**
+ * Либо целая сущность, либо один знак.
+ *
+ * Начертание — это про буквы, а `&lt;` буквами не является: это один знак,
+ * записанный пятью. Раньше выделение переводило и его, из `&lt;` получалось
+ * `&𝗹𝘁;`, и внизу помощника стояли четыре строки, вручную узнающие такие
+ * обломки. Здесь сущность узнаётся целиком и остаётся собой.
+ */
+const ENTITY_OR_CHARACTER =
+  /&(?:[a-z][a-z0-9]{1,9}|#\d{1,6}|#x[0-9a-f]{1,6});|[\s\S]/gi;
+
+const convertLetters = (value: string, map: Record<string, string>): string =>
+  value.replace(ENTITY_OR_CHARACTER, (chunk) =>
+    chunk.length > 1 ? chunk : map[chunk] || chunk
+  );
+
 export const convertToAscii = (value: string): string => {
   return value
     .replace(/<strong>(.+?)<\/strong>/gi, (match, p1) => {
-      const replacer = p1.split('').map((char: string) => {
-        // @ts-ignore
-        return bold?.[char] || char;
-      });
-
-      return match.replace(p1, replacer.join(''));
+      return match.replace(p1, convertLetters(p1, bold));
     })
     .replace(/<u>(.+?)<\/u>/gi, (match, p1) => {
-      const replacer = p1.split('').map((char: string) => {
-        // @ts-ignore
-        return underlineMap?.[char] || char;
-      });
-
-      return match.replace(p1, replacer.join(''));
+      return match.replace(p1, convertLetters(p1, underlineMap));
     });
 };

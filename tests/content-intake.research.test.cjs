@@ -391,6 +391,42 @@ describe('опоры с вердиктами', () => {
   });
 
   /*
+    `content-factory-next-97dq.14`, P3. Вкладка, открытая до этой волны, помнит
+    строку вместе с припиской «Автор утверждает, что…»: тогда её печатали так.
+    С волны `97dq.1` приписка снимается, и сверка сырых строк на честном повторе
+    (снимка нет) не находила ничего — выбор человека «Оставить мои числа» молча
+    возвращался к умолчанию, то есть к принятой поправке. Числа в сути при этом
+    заменялись на те, которых он не выбирал.
+  */
+  test('старая вкладка шлёт строку с припиской: галочка человека не сбрасывается', async () => {
+    const first = build({ models: [briefAnswer(), digestAnswer], research: [researchAnswer()] });
+    const plan = await first.service.prepare('org-a', request());
+    const [pause] = named(await drain(first.service, plan), 'research-selection-required');
+    expect(pause.snapshotKey).toBeNull();
+    // Так эту же строку печатал выпуск до волны — с рамкой пересказа впереди.
+    const own = pause.facts.find((fact) => fact.status === 'conflicting' && fact.correction?.original === '25 тысяч');
+    expect(own.statement).toBe('Эксперимент охватил 25 тысяч человек');
+    const asOldTabRemembers = `Автор утверждает, что ${own.statement[0].toLowerCase()}${own.statement.slice(1)}`;
+
+    const second = build({ models: [briefAnswer(), digestAnswer, { text: 'Суть.' }], research: [researchAnswer()] });
+    const resumed = await second.service.prepare('org-a', request({
+      researchSelections: [asOldTabRemembers],
+    }));
+    const events = await drain(second.service, resumed);
+    const [ready] = named(events, 'research-ready');
+
+    const byStatement = Object.fromEntries(ready.facts.map((fact) => [fact.statement, fact]));
+    expect(byStatement['Эксперимент охватил 25 тысяч человек'].selected).toBe(true);
+    expect(byStatement['Эксперимент охватил около 2 500 человек'].selected).toBe(false);
+    expect(ready.corrections.find((correction) => correction.original === '25 тысяч').accepted).toBe(false);
+    // Не названная пара осталась на умолчании: там поправка по-прежнему принята.
+    expect(ready.corrections.find((correction) => correction.original === 'десять лет').accepted).toBe(true);
+    // И суть написана числом человека, а не заменой.
+    expect(modelCalls[modelCalls.length - 1].prompt).toContain('25 тысяч');
+    expect(modelCalls[modelCalls.length - 1].prompt).not.toContain('около 2 500');
+  });
+
+  /*
     Восьмой заход, `B1 8cc5a492` (`97dq.1`). Разбор до этой волны отдавал одно
     утверждение с тремя числами, источник опроверг одно из них, и строка с
     принятой поправкой уехала в суть как «подтверждено» — вместе с охватом и

@@ -26,8 +26,10 @@ export const piecesCopy = {
     newPiece: 'Новая заготовка',
     searchLabel: 'Поиск по словам',
     searchPlaceholder: 'Слово из заголовка, сути или брифа…',
-    missingOnLabel: 'Ещё нет в…',
-    missingOnAll: 'Где угодно',
+    // Пара фильтров читается одной фразой: «на площадке — в состоянии».
+    // «Ещё нет в…» была той же фразой с намертво вписанным состоянием.
+    platformFilterLabel: 'Площадка',
+    platformFilterAll: 'Все',
     stateFilterLabel: 'Состояние',
     stateFilterAll: 'Любое',
     columnsLabel: 'Площадки',
@@ -47,9 +49,22 @@ export const piecesCopy = {
     stateNone: 'ещё нет',
     stateNoChannel: 'нет канала',
     stateUnknown: 'пока не знаем',
-    noChannelReason: 'Подключите канал, чтобы писать сюда',
+    noChannelReason: 'Подключите канал, чтобы писать сюда.',
     unknownReason: 'Публикации ещё не прочитаны — состояние появится само.',
     cellLabel: (platform: string, state: string) => `${platform}: ${state}`,
+    // Подсказка клетки собирается из того, что приехало: имени канала в
+    // ответе нет, и предложения про канал в ней нет тоже.
+    cellWhenPublished: (day: string) => `Вышло ${day}.`,
+    cellWhenQueued: (day: string, time: string) =>
+      `Выйдет ${day} в ${time}.`,
+    cellChannels: (count: number) =>
+      `${count} ${plural(count, ['канал', 'канала', 'каналов'])} площадки.`,
+    cellOpensPost: 'Нажмите, чтобы открыть пост.',
+    cellOpensAdapt: 'Нажмите, чтобы адаптировать.',
+    legendLabel: 'Состояния клеток',
+    legendHintLabel: 'Подсказка: состояния клеток',
+    legendHint:
+      'В клетке стоит состояние площадки: значок и цвет вместе, слово — в подсказке клетки. Цифра в углу — каналов этой площадки больше одного.',
 
     /* --- Строка и её изнанка --------------------------------------------- */
     coreMissing: 'суть не выделена',
@@ -142,7 +157,7 @@ export const piecesCopy = {
     suggestedLead: 'Я думаю, вот так',
     answerYes: 'Так и есть',
     answerFix: 'Поправить',
-    answerDecide: 'Реши сама',
+    answerDecide: 'Решите за меня',
     answerDecideAll: 'Реши всё сама',
     answerSkip: 'Пропустить',
     ownAnswerLabel: 'Ваш ответ',
@@ -245,8 +260,8 @@ export const piecesCopy = {
     newPiece: 'New piece',
     searchLabel: 'Search by words',
     searchPlaceholder: 'A word from the title, the substance or the brief…',
-    missingOnLabel: 'Not yet on…',
-    missingOnAll: 'Anywhere',
+    platformFilterLabel: 'Platform',
+    platformFilterAll: 'All',
     stateFilterLabel: 'State',
     stateFilterAll: 'Any',
     columnsLabel: 'Platforms',
@@ -265,10 +280,21 @@ export const piecesCopy = {
     stateNone: 'not yet',
     stateNoChannel: 'no channel',
     stateUnknown: 'not known yet',
-    noChannelReason: 'Connect a channel to write here',
+    noChannelReason: 'Connect a channel to write here.',
     unknownReason:
       'The posts have not been read yet — the state will appear on its own.',
     cellLabel: (platform: string, state: string) => `${platform}: ${state}`,
+    cellWhenPublished: (day: string) => `Went out ${day}.`,
+    cellWhenQueued: (day: string, time: string) =>
+      `Goes out ${day} at ${time}.`,
+    cellChannels: (count: number) =>
+      `${count} ${count === 1 ? 'channel' : 'channels'} of this platform.`,
+    cellOpensPost: 'Press to open the post.',
+    cellOpensAdapt: 'Press to adapt.',
+    legendLabel: 'Cell states',
+    legendHintLabel: 'Hint: cell states',
+    legendHint:
+      'A cell carries the state of the platform: the icon and the colour together, the word in the cell’s own hint. A digit in the corner means the platform has more than one channel.',
 
     coreMissing: 'substance not extracted',
     originThought: 'from a thought',

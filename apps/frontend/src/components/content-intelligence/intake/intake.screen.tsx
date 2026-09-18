@@ -70,6 +70,7 @@ export function IntakeScreen({
   input,
   inputKind,
   detectedLink,
+  linksSkipped = null,
   language,
   step,
   researchFacts = [],
@@ -106,6 +107,8 @@ export function IntakeScreen({
   input: string;
   inputKind: IntakeInputKindV1 | null;
   detectedLink: boolean;
+  /** Ссылки из текста, которые не прочитали (`97dq.12`): сказать, а не умолчать. */
+  linksSkipped?: { unreadable: number; beyondLimit: number } | null;
   language: 'ru' | 'en';
   step: string | null;
   researchFacts?: readonly ResearchOutcomeFact[];
@@ -266,6 +269,26 @@ export function IntakeScreen({
                   {t.kindLink}
                 </p>
               )}
+              {/*
+                Пропущенная ссылка — одна тихая строка под тем самым полем, где
+                стоит её текст (`content-factory-next-97dq.12`). Та же форма,
+                что у строки «похоже на ссылку» рядом: это сообщение о том, что
+                продукт сделал иначе, а не отказ и не вопрос. Ни диалога, ни
+                настройки: решать тут нечего, ход уже прошёл.
+              */}
+              {linksSkipped &&
+                (linksSkipped.unreadable > 0 || linksSkipped.beyondLimit > 0) && (
+                  <p
+                    role="status"
+                    data-intake-links-skipped={`${linksSkipped.unreadable}/${linksSkipped.beyondLimit}`}
+                    className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                  >
+                    {t.linksSkipped(
+                      linksSkipped.unreadable,
+                      linksSkipped.beyondLimit
+                    )}
+                  </p>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-[4px] sm:max-w-[280px]">

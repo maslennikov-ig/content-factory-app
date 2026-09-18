@@ -2211,6 +2211,14 @@ export const INTAKE_MAX_QUESTIONS = 2 as const;
 export const INTAKE_MAX_ROUNDS = 2 as const;
 export const INTAKE_INPUT_MAX_CHARS = 20_000 as const;
 export const INTAKE_INPUT_MIN_CHARS = 10 as const;
+/**
+ * Сколько ссылок вход читает из вставленного текста (`content-factory-next-97dq.1`).
+ *
+ * Стоит здесь, а не рядом с чтением, потому что это же число называет вслух
+ * экран: «читаем первые три». Одно решение — одно место, иначе строка на экране
+ * и поведение сервера расходятся на четвёртой ссылке.
+ */
+export const INTAKE_MAX_PASTED_LINKS = 3 as const;
 
 export type IntakeInputKindV1 = 'thought' | 'link' | 'foreign_post';
 
@@ -2524,6 +2532,22 @@ export type IntakeEventV1 =
       channels: Array<{ id: string; name: string; providerIdentifier: string }>;
     }
   | { name: 'link-fetched'; url: string; title: string | null; evidenceId: string }
+  /**
+   * Ссылка из текста, которую не прочитали, — сказанная человеку, а не только
+   * журналу (`content-factory-next-97dq.12`).
+   *
+   * Событие аддитивное: читатель, который о нём не знает, видит обычный шаг
+   * работы и ничего не теряет (`readIntakeEvent`, ветка `step`). Приходит один
+   * раз за ход и только когда есть о чём говорить; ход оно не обрывает —
+   * материал у нас уже есть, это сам текст.
+   */
+  | {
+      name: 'links-skipped';
+      /** Ссылки внутри текста, которые не открылись. */
+      unreadable: number;
+      /** Ссылки сверх `INTAKE_MAX_PASTED_LINKS`: до них не дошли. */
+      beyondLimit: number;
+    }
   | { name: 'claims'; claims: IntakeClaimV1[] }
   | { name: 'brief-filled'; brief: BriefFilledV1 }
   | {

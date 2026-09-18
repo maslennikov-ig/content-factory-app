@@ -14,6 +14,10 @@
  */
 
 import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
+import { INTAKE_MAX_PASTED_LINKS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+
+/** Ссылки в русской счётной строке: одна ссылка, две ссылки, пять ссылок. */
+const LINKS_RU = ['ссылку', 'ссылки', 'ссылок'] as const;
 
 export type IntakeLocale = 'ru' | 'en';
 
@@ -27,6 +31,29 @@ export const intakeCopy = {
     inputLabel: 'О чём будем писать',
     inputPlaceholder: 'Вставьте мысль, ссылку или чужой пост…',
     kindLink: 'Похоже на ссылку — прочитаем страницу и возьмём её как источник.',
+    /*
+      Пропущенная ссылка сказана человеку, а не только журналу
+      (`content-factory-next-97dq.12`). Одна строка, без диалога и без
+      настройки: ход не прерывался, материал у нас есть — сам текст, — и
+      человеку нужно знать ровно то, чего в заготовке не окажется. Два случая
+      разные и называются по-разному: «не открылась» и «до неё не дошли».
+    */
+    linksSkipped: (unreadable: number, beyondLimit: number) =>
+      [
+        unreadable
+          ? `Не смогли открыть ${unreadable} ${plural(unreadable, LINKS_RU)} из текста — ${
+              unreadable === 1 ? 'её' : 'их'
+            } пропустили.`
+          : '',
+        beyondLimit
+          ? `Читаем не больше ${INTAKE_MAX_PASTED_LINKS} ссылок из текста: ${beyondLimit} ${plural(
+              beyondLimit,
+              LINKS_RU
+            )} не открывали.`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
 
     /* --- Каналы, язык, действие ------------------------------------------ */
     channelsLabel: 'Куда',
@@ -125,11 +152,11 @@ export const intakeCopy = {
       'Спрашиваем только то, чего в вашем тексте нет. Остальное мы предположили сами — поправите в квитанции.',
     ownAnswer: 'Свой ответ',
     ownAnswerLabel: 'Ваш ответ',
-    decideThis: 'Реши сама',
+    decideThis: 'Решите за меня',
     decideAll: 'Реши всё сама',
     manualForm: 'Заполнить бриф вручную',
     addFact: 'Добавить факт',
-    blockedUnanswered: 'Ответьте или нажмите «Реши сама»',
+    blockedUnanswered: 'Ответьте или нажмите «Решите за меня»',
 
     /* --- Квитанция -------------------------------------------------------- */
     receiptTitle: 'Что мы поняли',
@@ -255,6 +282,21 @@ export const intakeCopy = {
     inputLabel: 'Where we start',
     inputPlaceholder: 'Paste a thought, a link or somebody else’s post…',
     kindLink: 'Looks like a link — we will read the page and take it as a source.',
+    linksSkipped: (unreadable: number, beyondLimit: number) =>
+      [
+        unreadable
+          ? `We could not open ${unreadable} link${
+              unreadable === 1 ? '' : 's'
+            } in your text — ${unreadable === 1 ? 'it was' : 'they were'} skipped.`
+          : '',
+        beyondLimit
+          ? `We read at most ${INTAKE_MAX_PASTED_LINKS} links from a text: ${beyondLimit} more ${
+              beyondLimit === 1 ? 'was' : 'were'
+            } left unopened.`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
 
     channelsLabel: 'Where to',
     channelsHint: 'Optional. Up to three channels at a time — each gets its own text.',

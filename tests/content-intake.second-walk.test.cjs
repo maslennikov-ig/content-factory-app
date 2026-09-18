@@ -23,6 +23,30 @@ test('heartbeat is invisible and V2 intake cannot send channels', () => {
   expect(readIntakeEvent('{"name":"heartbeat"}')).toBeNull();
   expect(buildIntakePayload({ input: 'Текст мысли', language: 'ru', integrationIds: ['old-channel'] }).integrationIds).toBeUndefined();
 });
+/*
+  `content-factory-next-97dq.12`. Событие о пропущенной ссылке читается как
+  событие, а не как безымянный шаг, и его числа читаются терпимо: мусор в поле
+  не должен напечатать человеку «-1 ссылку».
+*/
+test('a skipped link arrives as an event, with numbers read forgivingly', () => {
+  expect(
+    readIntakeEvent('{"name":"links-skipped","unreadable":1,"beyondLimit":4}')
+  ).toEqual({
+    kind: 'event',
+    event: { name: 'links-skipped', unreadable: 1, beyondLimit: 4 },
+  });
+  expect(
+    readIntakeEvent('{"name":"links-skipped","unreadable":-2,"beyondLimit":"два"}')
+  ).toEqual({
+    kind: 'event',
+    event: { name: 'links-skipped', unreadable: 0, beyondLimit: 0 },
+  });
+  // Читатель старше этого события видит обычный шаг работы и ничего не теряет.
+  expect(readIntakeEvent('{"name":"links-postponed"}')).toEqual({
+    kind: 'step',
+    name: 'links-postponed',
+  });
+});
 test('mixed source identity survives brief parsing', () => {
   const inputSources = [{ kind: 'foreign_post' }, { kind: 'link', url: 'https://example.test/post', evidenceId: 'e-1' }];
   expect(readBrief({ inputKind: 'foreign_post', inputSources }).inputSources).toEqual(inputSources);

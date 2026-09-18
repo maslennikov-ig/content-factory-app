@@ -37,6 +37,7 @@ import type {
   SlopVerdictV1,
 } from '../brand-voice/voice-wiring.contract';
 import { maskCode, maskSkipZones } from './slop-skip-zones';
+import { numberAt, numberKeysOf } from './numbers';
 import {
   maskSlopMetricStructures,
   slopPlatformKey,
@@ -74,6 +75,18 @@ export type SlopCheckOptions = {
   locale?: 'ru' | 'en';
   /** `true`, когда текст пришёл из редактора как HTML. */
   html?: boolean;
+  /**
+   * Опоры: то, на чём человек уже стоит — суть заготовки, факты брифа,
+   * отмеченные находки ресерча.
+   *
+   * `content-factory-next-97dq.10`. Читают их только правила с
+   * `passWhenGrounded`, и читают одно — числа. Опора здесь не разрешение
+   * молчать вообще: точное число из источников перестаёт быть размытым
+   * количеством, всё остальное правило проверяет как проверяло. Двери, у
+   * которых материала нет (окно проверки поста), не передают ничего, и это
+   * честнее, чем передать пустое и считать текст обоснованным.
+   */
+  grounded?: string | readonly string[];
 };
 
 /**
@@ -269,6 +282,17 @@ export function slopCheck(
   const thresholds = slopThresholds(platform, words);
   const findings: SlopFindingV1[] = [];
 
+  /*
+    Числа опор считаются один раз и только когда о них спросили: текст без
+    правил `passWhenGrounded` и вызов без опор не должны платить за разбор
+    материала, которого у них нет.
+  */
+  let groundedKeys: Set<string> | null = null;
+  const groundedNumbers = (): Set<string> => {
+    if (!groundedKeys) groundedKeys = numberKeysOf(options.grounded);
+    return groundedKeys;
+  };
+
   const add = (
     rule: SlopRule,
     span: { start: number; end: number } | null,
@@ -293,7 +317,21 @@ export function slopCheck(
       const haystack = rule.scope === 'raw' ? raw : prose;
       for (const match of haystack.matchAll(rule.pattern)) {
         const start = match.index ?? 0;
-        const end = start + match[0].length;
+        let end = start + match[0].length;
+        if (rule.passWhenGrounded) {
+          /*
+            Правило о числе кончается ровно на первой его цифре, и находка
+            обрывалась вместе с ним: «свыше 9» вместо «свыше 90 дней»
+            (`content-factory-next-97dq.10`). Число дочитывается целиком по
+            той же мерке, по которой читаются опоры, — и если оно в опорах
+            стоит, находки нет вовсе.
+          */
+          const number = numberAt(haystack, end - 1);
+          if (number) {
+            end = number.end;
+            if (groundedNumbers().has(number.key)) continue;
+          }
+        }
         // Отрывок берётся из исходной строки: `excerpt` — это ровно
         // `text.slice(start, end)`, чтобы подсветка совпала с текстом.
         add(rule, { start, end }, text.slice(start, end));

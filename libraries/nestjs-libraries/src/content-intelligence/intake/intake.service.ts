@@ -91,6 +91,7 @@ import type {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   INTAKE_INPUT_MIN_CHARS,
+  INTAKE_MAX_PASTED_LINKS,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   CORE_QUESTION_FIELDS,
@@ -130,7 +131,7 @@ import {
   extractionSchemaV5 as extractionSchema,
   type IntakeExtractionV5 as IntakeExtractionV1,
 } from './intake.prompts.v5';
-import { settleOwnFacts } from './own-facts';
+import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { oneLine } from './intake.prompts';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
@@ -174,8 +175,12 @@ const BORROWED_TEXT_LIMIT = WEB_SEARCH_MAX_SOURCE_CHARS;
  * просеяны `usableHttpsUrl`, шлюз держит `robots.txt` и запретные домены), а
  * про время и деньги: каждая ссылка — поход в сеть и кусок промпта, а
  * вставленная статья несёт их десятками.
+ *
+ * Само число переехало в общий контракт (`97dq.12`): его называет вслух экран,
+ * и двух копий у такого числа быть не может. Имя здесь остаётся — его читают
+ * наборы проверок и старый код.
  */
-export const INTAKE_MAX_PASTED_LINKS = 3;
+export { INTAKE_MAX_PASTED_LINKS };
 
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
@@ -283,11 +288,13 @@ type IntakeResearch = {
 export type SlopCheckPort = (
   text: string,
   platform: string,
-  locale: ContentLanguage
+  locale: ContentLanguage,
+  /** Опоры заготовки: число, которое в них стоит, не размытое количество (`97dq.10`). */
+  grounded?: readonly string[]
 ) => SlopReportV1 | null;
 
-const defaultSlopCheck: SlopCheckPort = (text, platform, locale) =>
-  runSlopCheck(text, { platform, locale, html: false });
+const defaultSlopCheck: SlopCheckPort = (text, platform, locale, grounded) =>
+  runSlopCheck(text, { platform, locale, html: false, grounded });
 
 type FilledBrief = {
   questions?: PieceOpenQuestionV1[];
@@ -620,11 +627,15 @@ export class IntakeService {
       ТЕКСТА ход не обрывает: материал у нас уже есть — сам текст. Ссылка как
       вход (`link`) остаётся fail-closed: там, кроме неё, читать нечего.
     */
-    const pasted = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
-      ? linksOf(plan.input).slice(0, INTAKE_MAX_PASTED_LINKS) : [];
+    const links = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
+      ? linksOf(plan.input) : [];
+    const pasted = links.slice(0, INTAKE_MAX_PASTED_LINKS);
     // Прочитанные, а не присланные: строка источника в брифе обязана иметь
     // доказательство, иначе заготовка ссылается на страницу, которой у неё нет.
     const urls: string[] = [];
+    // Пропущенное считается, чтобы сказать о нём человеку, а не только журналу
+    // (`97dq.12`): сколько не открылось и до скольких не дошли.
+    let unreadableLinks = 0;
     const borrowedParts: string[] = plan.inputKind === 'foreign_post'
       ? [plan.input.slice(0, BORROWED_TEXT_LIMIT)] : [];
     for (const url of pasted) {
@@ -638,12 +649,17 @@ export class IntakeService {
             message: INTAKE_LINK_UNREACHABLE_MESSAGES[language] };
           return;
         }
+        unreadableLinks += 1;
         continue;
       }
       evidence.set(accepted.evidenceId, accepted);
       urls.push(accepted.url);
       yield { name: 'link-fetched', url: accepted.url, title: accepted.title, evidenceId: accepted.evidenceId };
       borrowedParts.push(accepted.excerpt);
+    }
+    const beyondLimit = links.length - pasted.length;
+    if (unreadableLinks || beyondLimit) {
+      yield { name: 'links-skipped', unreadable: unreadableLinks, beyondLimit };
     }
     borrowedText = borrowedParts.length ? borrowedParts.join('\n\n') : null;
 
@@ -1631,8 +1647,16 @@ export class IntakeService {
   private applySelections(state: IntakeRunState, plan: IntakePlanV1): IntakeRunState {
     if (plan.researchSelections === null) return state;
     const keys = new Set(plan.researchSelections);
+    /*
+      Запасной ход по тексту сверяется одной нормальной формой с обеих сторон
+      (`statementMatchKey`, `97dq.14`). Сырые строки расходились там, где строку
+      правили мы сами: со снятой припиской «Автор утверждает, что…» присланное
+      слово не находило свою опору, и на честном повторе выбор человека молча
+      возвращался к умолчаниям.
+    */
+    const texts = new Set(plan.researchSelections.map(statementMatchKey));
     const picked = (fact: PieceFactV2) =>
-      (!!fact.factKey && keys.has(fact.factKey)) || keys.has(fact.statement);
+      (!!fact.factKey && keys.has(fact.factKey)) || texts.has(statementMatchKey(fact.statement));
     const facts = state.filled.brief.facts.map((fact: PieceFactV2): PieceFactV2 => {
       const kind = factKind(fact, state.filled.brief.inputKind);
       if (kind === 'found') return { ...fact, selected: picked(fact) };

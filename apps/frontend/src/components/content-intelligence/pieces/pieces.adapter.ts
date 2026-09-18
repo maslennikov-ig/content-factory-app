@@ -55,6 +55,8 @@ import {
   type VoiceScreenStateV1,
   type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { PLATFORM_NAMES } from '@contentfactory/react/platform/platform.families';
+import { platformLabel } from '../../brand-voice/voice-copy';
 import {
   readBrief,
   readQualityChecks,
@@ -101,6 +103,27 @@ export {
   PIECE_MAX_QUESTIONS,
   PIECE_TABLE_MIN_WIDTH,
 };
+
+/**
+ * Имя площадки, как её называет человек.
+ *
+ * Сервер кладёт в `name` сам идентификатор провайдера (`columnsOf`), и до этой
+ * правки шапка таблицы, фишка фильтра и подсказка клетки печатали `telegram`,
+ * `vk`, `wordpress` строчными. Двух новых словарей здесь не заводится: сперва
+ * спрашивается словарь раздела — он один знает продуктовые «Сайт» и
+ * «Рассылка», которых у провайдеров нет вовсе, — потом общий список из
+ * тридцати пяти назначений. Неизвестное имя возвращается как есть: код,
+ * который никто не перевёл, человек хотя бы может назвать в письме.
+ */
+export function platformName(
+  platform: string,
+  locale: 'ru' | 'en',
+  fallback?: string
+): string {
+  const section = platformLabel(platform, locale);
+  if (section !== platform) return section;
+  return PLATFORM_NAMES[platform] ?? fallback ?? platform;
+}
 
 /** Адреса, по одному месту на каждый. */
 export const PIECES_API = {
@@ -656,15 +679,37 @@ export function readAdaptEvent(line: string): PieceAdaptReading | null {
  * Запросы
  * ---------------------------------------------------------------------- */
 
+/**
+ * Шапка списка: одна фраза из двух фильтров.
+ *
+ * `platform` и `state` читаются вместе — «на площадке в состоянии», — и пара
+ * заменила прежнее «Ещё нет в…»: то была та же фраза с намертво вписанным
+ * состоянием `none`, и спросить у той же площадки что-либо ещё было нельзя.
+ * Сервер по-прежнему знает ровно два вопроса из этой пары, и именно они уходят
+ * в запрос; остальные сочетания отбираются на уже загруженных строках.
+ */
 export type PiecesFilters = {
   q: string;
-  /** Площадка фильтра «Ещё нет в…», либо `ALL`. */
-  missingOn: string;
-  /** Состояние, либо `ALL`. */
-  state: AdaptationStateV1 | 'ALL' | 'archived';
+  /** Площадка, либо `ALL`. */
+  platform: string;
+  /** Состояние клетки, либо `ALL`, либо архив. */
+  state: PieceCellStateV1 | 'ALL' | 'archived';
   includeArchived: boolean;
   sort: PieceSort;
 };
+
+/** Состояния, про которые умеет спрашивать сервер. */
+const SERVER_STATES: readonly AdaptationStateV1[] = [
+  'published',
+  'queued',
+  'error',
+  'draft',
+];
+
+const isServerState = (
+  state: PiecesFilters['state']
+): state is AdaptationStateV1 =>
+  SERVER_STATES.includes(state as AdaptationStateV1);
 
 export const PIECE_SORT_DEFAULT = 'date:desc' as const;
 
@@ -714,16 +759,26 @@ export function readPieceSort(value: unknown): PieceSort {
 
 export const emptyPiecesFilters: PiecesFilters = {
   q: '',
-  missingOn: 'ALL',
+  platform: 'ALL',
   state: 'ALL',
   includeArchived: false,
   sort: PIECE_SORT_DEFAULT,
 };
 
+/**
+ * Что из пары умеет спросить сервер.
+ *
+ * «Площадка + ещё нет» — это ровно `missingOn`, а «состояние при любой
+ * площадке» — ровно `state`. Прочие сочетания сервер не знает, и выдумывать
+ * ему параметр волна не стала: строка приезжает целиком, а отбор доделывает
+ * `filterPieces` на том, что уже загружено.
+ */
 export const piecesQuery = (filters: PiecesFilters): PiecesQueryV1 => ({
   ...(filters.q.trim() ? { q: filters.q.trim() } : {}),
-  ...(filters.missingOn !== 'ALL' ? { missingOn: filters.missingOn } : {}),
-  ...(filters.state !== 'ALL' && filters.state !== 'archived'
+  ...(filters.platform !== 'ALL' && filters.state === 'none'
+    ? { missingOn: filters.platform }
+    : {}),
+  ...(filters.platform === 'ALL' && isServerState(filters.state)
     ? { state: filters.state }
     : {}),
   ...(filters.includeArchived || filters.state === 'archived'
@@ -842,13 +897,27 @@ export function storeColumns(
   }
 }
 
+/** Состояния, которые значат «адаптация здесь есть». */
+const WRITTEN_STATES: readonly PieceCellStateV1[] = [
+  'published',
+  'queued',
+  'error',
+  'draft',
+];
+
 /**
- * Отбор строк по шапке, тот же, что просит сервер.
+ * Отбор строк по шапке.
  *
- * Дублирование намеренное и одностороннее: запрос уходит с теми же
- * параметрами, а это — то, что экран покажет, если сервер параметр ещё не
- * знает (двери пишут параллельно). Повторно применённый отбор ничего не
- * меняет; отсутствующий превратил бы фильтр в кнопку без действия.
+ * Дублирование намеренное и одностороннее: то, что сервер умеет спросить,
+ * уходит в запрос, а здесь применяется всё целиком — и то, чего сервер не
+ * знает. Повторно применённый отбор ничего не меняет; отсутствующий превратил
+ * бы половину пары в кнопку без действия.
+ *
+ * Пара читается одной фразой. Площадка без состояния значит «здесь уже
+ * писали» — иначе выбор площадки не отбирал бы ничего вовсе, потому что
+ * клетка на этой площадке есть у каждой строки. Состояние без площадки значит
+ * «хоть где-нибудь». «Ещё нет» по-прежнему не захватывает строки, публикации
+ * которых просто не прочитаны: `unknown` — это незнание, а не отсутствие.
  */
 export function filterPieces(
   rows: readonly PieceRowV1[],
@@ -862,15 +931,23 @@ export function filterPieces(
       row.archivedAt
     )
       return false;
-    if (filters.missingOn !== 'ALL') {
-      const cell = cellOf(row, filters.missingOn);
-      // «Ещё нет» — это отсутствие адаптации, а не незнание о ней: строка,
-      // публикацию которой не прочитали, в этот фильтр не попадает.
-      if (cell.state !== 'none') return false;
+    if (filters.state === 'archived') return true;
+
+    const platform = filters.platform;
+    const state = filters.state;
+
+    if (platform !== 'ALL' && state !== 'ALL') {
+      return cellOf(row, platform).state === state;
     }
-    if (filters.state !== 'ALL' && filters.state !== 'archived') {
-      const cells = row.cells ?? [];
-      if (!cells.some((cell) => cell.state === filters.state)) return false;
+    if (platform !== 'ALL') {
+      return WRITTEN_STATES.includes(cellOf(row, platform).state);
+    }
+    if (state !== 'ALL') {
+      const columns = row.cells;
+      // Строка без клеток — сплошное «пока не знаем»: другого состояния у неё
+      // нет, и подставлять ей «ещё нет» фильтр не смеет.
+      if (!columns) return state === 'unknown';
+      return columns.some((cell) => cell.state === state);
     }
     return true;
   });

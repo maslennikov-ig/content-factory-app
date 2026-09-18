@@ -192,3 +192,18 @@ enrichment + adaptation puts researched numbers into the post and invents no adv
 count after F5; with «Ключи системы» the key block is hidden and search spends included quota.
 Locally: `tsc --noEmit` × 3 apps, three halves of `pnpm test` under Node 22, design guards,
 `scripts/orchestration/run_process_verification.sh`, empty `prisma migrate diff`, `mastra_*` 29→29 at release.
+
+## 7. Second release of the wave (owner, 18.09.2026 evening)
+
+After the report on `2542f433e993` the owner answered (verbatim): «Мне понравился макет, давай так и сделаем. И
+можешь сразу это сдеплоить. Если есть точные числа из источников, то их, конечно, можно пропускать. Всё, что не
+сделано, тоже исправь, пожалуйста. Доведи всё до завершения.»
+
+- `97dq.8` starts from the approved canvas `docs/design/desert-lab/ninth-wave/Main.dc.html`.
+- `97dq.10`: the `vague-quantity` rule stays, but a number that stands in the piece's own grounded material (the
+  core, the brief facts, the checked findings) is not a vague quantity: «более 620 000 бизнесов» from a source
+  passes, «более 20 моделей» with nothing behind it still fires. A firing excerpt shows the whole number.
+- `97dq.11`–`.16` are taken into this release, not a later wave. `97dq.16`: the chip is «Решите за меня» — the
+  person's voice, like its siblings «Так и есть» and «Поправить».
+- After the release the data step `adaptations:rerender-bold` is run from the new image (dry run first).
+- Authority: release to production is granted for this second release; rollback target `2542f433e993`.

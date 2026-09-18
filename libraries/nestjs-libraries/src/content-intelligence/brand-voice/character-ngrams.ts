@@ -285,22 +285,75 @@ export function buildCharacterNgramProfile(
   };
 }
 
-export function characterNgramDistance(
+/**
+ * Текст, посчитанный один раз, — для того, кто меряет его многократно.
+ *
+ * `content-factory-next-97dq.13`. Голосование подставными сравнивает ОДИН
+ * текст с автором и тремя подставными в каждом из шестидесяти раундов, то есть
+ * читает его двести сорок раз подряд, хотя окна текста от раунда к раунду не
+ * меняются: меняется только то, какие окна автора взяты в подвыборку.
+ *
+ * Текст носится вместе со счётом намеренно. Размер окна — свойство отпечатка, и
+ * пересчитать его под другой размер можно только из текста; без него
+ * несовпадение пришлось бы либо запрещать, либо считать по чужой мерке молча.
+ */
+export type CountedNgramsV1 = {
+  text: string;
+  size: number;
+  counts: Map<string, number>;
+  /** Знаков в тексте без краёв — та же мерка, что решает `TOO_SHORT`. */
+  charCount: number;
+};
+
+export const countedNgramsOf = (
   text: string,
-  profile: CharacterNgramProfile | null | undefined,
-  ): NgramDistance {
-  const charCount = text.trim().length;
+  size: number
+): CountedNgramsV1 => ({
+  text,
+  size,
+  counts: countNgrams(text, size),
+  charCount: text.trim().length,
+});
+
+/** Та же мерка, что и `characterNgramDistance`, по уже посчитанным окнам. */
+export function characterNgramDistanceOf(
+  counted: CountedNgramsV1,
+  profile: CharacterNgramProfile | null | undefined
+): NgramDistance {
+  const charCount = counted.charCount;
   if (!profile || profile.grams.length === 0) {
     return { measured: false, distance: null, reason: 'NO_PROFILE', charCount };
   }
   if (charCount < MIN_TEXT_CHARS) {
     return { measured: false, distance: null, reason: 'TOO_SHORT', charCount };
   }
-  const counts = countNgrams(text, profile.size);
+  const counts =
+    counted.size === profile.size
+      ? counted.counts
+      : countNgrams(counted.text, profile.size);
   return {
     measured: true,
     distance: round4(cosineDistance(counts, profile.grams, profile.weight)),
     reason: null,
     charCount,
   };
+}
+
+export function characterNgramDistance(
+  text: string,
+  profile: CharacterNgramProfile | null | undefined,
+  ): NgramDistance {
+  const charCount = text.trim().length;
+  // Оба отказа раньше счёта: текст, который мерить нечем или не о чем, не
+  // должен платить за разбор своих окон.
+  if (!profile || profile.grams.length === 0) {
+    return { measured: false, distance: null, reason: 'NO_PROFILE', charCount };
+  }
+  if (charCount < MIN_TEXT_CHARS) {
+    return { measured: false, distance: null, reason: 'TOO_SHORT', charCount };
+  }
+  return characterNgramDistanceOf(
+    countedNgramsOf(text, profile.size),
+    profile
+  );
 }

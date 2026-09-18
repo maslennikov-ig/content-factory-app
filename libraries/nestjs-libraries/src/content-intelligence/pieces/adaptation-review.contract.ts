@@ -1,5 +1,12 @@
-/** Explicit, transient review. No changes to the shipped voice-wiring contract. */
-export const ADAPTATION_REVIEW_VERSION = 'adaptation-review/v1' as const;
+/**
+ * Explicit, transient review. No changes to the shipped voice-wiring contract.
+ *
+ * Версии здесь больше нет: `adaptation-review/v1` принадлежала ответу
+ * `reviewAdaptation`, двери без маршрута, удалённой в `97dq.14`. Живой ответ
+ * проверки версионируется своим контрактом (`review.v2.contract.ts`,
+ * `REVIEW_VERSION`), а эти имена остались тем, чем всегда были: перечнем
+ * режимов для DTO, снимком черновика и отказом.
+ */
 export const ADAPTATION_REVIEW_MODES = ['slop', 'facts', 'both'] as const;
 export const ADAPTATION_REVIEW_ACTIONS = [
   ...ADAPTATION_REVIEW_MODES,
@@ -12,27 +19,12 @@ export type AdaptationReviewSource = {
   title: string;
   excerpt: string;
 };
-export type AdaptationReviewMode = (typeof ADAPTATION_REVIEW_MODES)[number];
 export type AdaptationReviewSnapshot = {
   postId: string;
   postUpdatedAt: string;
   postContent: string;
   adaptationUpdatedAt: string;
   adaptationBody: string | null;
-};
-export type AdaptationReviewResult = {
-  version: typeof ADAPTATION_REVIEW_VERSION;
-  mode: AdaptationReviewAction;
-  originalText: string;
-  text: string;
-  notes: Array<{ kind: 'slop' | 'facts'; text: string; sourceUrls?: string[] }>;
-  /** Present only for the explicit, confirmed web action. Never persisted. */
-  sources?: AdaptationReviewSource[];
-  /** Сколько знаков черновика прочитали, чтобы найти утверждения. */
-  searchedChars?: number;
-  /** Запросы, которые купили: по одному на проверяемое утверждение. */
-  searchedClaims?: string[];
-  snapshot: AdaptationReviewSnapshot;
 };
 export class AdaptationReviewError extends Error {
   constructor(readonly code: string, readonly status: number, message: string) {

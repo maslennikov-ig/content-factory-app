@@ -1,12 +1,12 @@
 import { contentFromIntent } from '../intake/intake-content';
 import {
-  CORE_WRITE_BLOCK_TITLES_V5,
-  CORE_WRITE_ENRICH_LEAD_V5,
+  CORE_WRITE_BLOCK_TITLES_V6,
+  CORE_WRITE_ENRICH_LEAD_V6,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V5,
-  coreWriteSystemV5,
-} from './core-write-prompt.v5';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v5';
+  CORE_WRITE_REPAIR_V6,
+  coreWriteSystemV6,
+} from './core-write-prompt.v6';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v6';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -57,11 +57,17 @@ import { oneLine } from '../intake/intake.prompts';
 /** По какой площадке считаются пороги штампов у нейтральной сути. */
 export const CORE_SLOP_PLATFORM = 'core';
 
-/** Шов проверки на штампы — тот же, что у входа одной мыслью. */
+/**
+ * Шов проверки на штампы — тот же, что у входа одной мыслью.
+ *
+ * Последний довод необязателен (`content-factory-next-97dq.10`): опоры — это
+ * материал, из которого суть и написана, а порт из набора о них знать не обязан.
+ */
 export type CoreSlopCheck = (
   text: string,
   platform: string,
-  locale: 'ru' | 'en'
+  locale: 'ru' | 'en',
+  grounded?: readonly string[]
 ) => SlopReportV1 | null;
 
 /** Взятое из чужого текста. Сам текст сюда не кладётся никогда. */
@@ -173,7 +179,7 @@ const fenced = (title: string, lines: string[]): string =>
     : '';
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V5[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V6[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -184,11 +190,28 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const brief = input.brief;
   const said = input.answers.filter((answer) => answer.origin !== 'model');
 
+  /*
+    Отмеченное человеком — ещё не подтверждённое (`content-factory-next-97dq.14`,
+    P3, версия промпта `core-write/v6`).
+
+    Галочка говорит «возьми это в текст», и только. Подтверждает строку либо
+    источник (`verified`), либо сам человек, написавший её своими словами
+    (`origin` `input`/`person` — §9.5 карты раздела). Строка-поправка, которую
+    источник подтвердил не целиком, приходит сюда `selected: true`,
+    `verified: false`, `origin: 'search'` — и до v6 печаталась под «факты
+    подтверждённые», хотя квитанция в тот же миг называла её в `ungrounded`.
+    Теперь она стоит один раз и там, где ей место: в блоке взятого из ресерча.
+  */
   const confirmedFacts = brief.facts.filter(
     (fact) =>
       isOwnOrConfirmed(fact) &&
       !(fact.origin === 'person' && !fact.sourceUrl) &&
-      !(fact.selected === true && fact.kind === 'found' && !fact.verified)
+      !(
+        fact.selected === true &&
+        !fact.verified &&
+        fact.origin !== 'input' &&
+        fact.origin !== 'person'
+      )
   );
   const selectedResearchFacts = brief.facts.filter(
     (fact) =>
@@ -247,7 +270,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     : [];
 
   return [
-    coreWriteSystemV5(
+    coreWriteSystemV6(
       input.language,
       forbiddenPhrasesRule(input.language),
       { enrichment }
@@ -269,7 +292,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       .filter((line) => !line.endsWith('→ '))
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V5[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V6[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -321,15 +344,39 @@ export const fallbackCore = (
  * ---------------------------------------------------------------------- */
 
 /**
+ * На чём стоит суть: слова человека, его ответы и опоры брифа.
+ *
+ * `content-factory-next-97dq.10`, решение владельца 18.09.2026. Ровно тот
+ * материал, который уехал в промпт: число из него — это факт автора, а не
+ * размытое количество, и правило `vague-quantity` о нём молчит. Чужое
+ * утверждение без подтверждения сюда не попадает — в промпт оно тоже едет
+ * помеченным, и обосновывать им число значило бы называть проверенным
+ * непроверенное.
+ */
+export const coreGrounded = (input: CoreWriteInputV1): string[] =>
+  [
+    input.personText,
+    ...input.answers
+      .filter((answer) => answer.origin !== 'model')
+      .map((answer) => answer.text),
+    ...input.brief.facts
+      .filter((fact) => isOwnOrConfirmed(fact) || fact.selected === true)
+      .map((fact) => fact.statement),
+  ]
+    .map((line) => trimmed(line))
+    .filter(Boolean);
+
+/**
  * Суть заготовки: один вызов, проверка на штампы и честная пометка автора.
  */
 export async function writeCore(
   input: CoreWriteInputV1,
   deps: CoreWriteDepsV1
 ): Promise<ZagotovkaCoreV1> {
+  const grounded = coreGrounded(input);
   const slop = (text: string): SlopReportV1 | null =>
     text && deps.slopCheck
-      ? deps.slopCheck(text, CORE_SLOP_PLATFORM, input.language)
+      ? deps.slopCheck(text, CORE_SLOP_PLATFORM, input.language, grounded)
       : null;
 
   const shaped = (text: string, writtenBy: 'model' | 'fallback'): ZagotovkaCoreV1 => ({
@@ -364,7 +411,7 @@ export async function writeCore(
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const second = trimmed(
           ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V5[input.language]}${quoted}`
+            `${prompt}\n\n${CORE_WRITE_REPAIR_V6[input.language]}${quoted}`
           )) as any)?.text
         );
         return second || first;

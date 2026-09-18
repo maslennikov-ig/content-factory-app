@@ -727,6 +727,9 @@ export const RU_RULES: SlopRule[] = [
         `|${LEFT}лидирующие позиции`,
       'giu'
     ),
+    // Число здесь и есть предмет правила: находка показывает его целиком, а
+    // число из опор человека находкой не считается (`97dq.10`).
+    passWhenGrounded: true,
     hint: {
       ru: 'Размытое количество. Назовите точное число или не называйте вовсе.',
       en: 'A vague quantity. Give the exact number or none at all.',

@@ -143,6 +143,11 @@ describe('the cell says which of seven states it is in', () => {
       .getAttribute('data-piece-cell-state');
   };
 
+  /*
+    Слово состояния уехало из клетки в её доступное имя, подсказку и легенду
+    (макет владельца от 18.09.2026): в клетке остались значок и цвет, и
+    проверяется теперь именно эта пара, а не строка текста внутри квадрата.
+  */
   test('six states of a real answer, each with its own word', () => {
     drawTable();
 
@@ -156,12 +161,12 @@ describe('the cell says which of seven states it is in', () => {
     const published = document
       .querySelector('[data-piece-row="cnt-12"]')
       .querySelector('[data-piece-cell="telegram"]');
-    expect(published.textContent).toContain('опубликовано');
-    // Три канала одной площадки: клетка несёт лучшее состояние и счёт
-    // остальных, а не четыре колонки Telegram.
-    expect(
-      document.querySelector('[data-piece-cell-more="telegram"]').textContent
-    ).toBe('3 поста');
+    expect(published.getAttribute('aria-label')).toBe('Telegram: опубликовано');
+    expect(published.getAttribute('title')).toContain('Telegram.');
+    // Три канала одной площадки: клетка несёт лучшее состояние и цифру в
+    // углу, а не четыре колонки Telegram.
+    expect(published.textContent).toBe('3');
+    expect(published.getAttribute('title')).toContain('3 канала площадки.');
   });
 
   test('a row with no cells says «пока не знаем», never «ещё нет»', () => {
@@ -171,8 +176,11 @@ describe('the cell says which of seven states it is in', () => {
     const cell = document
       .querySelector('[data-piece-row="cnt-04"]')
       .querySelector('[data-piece-cell="telegram"]');
-    expect(cell.textContent).toContain('пока не знаем');
-    expect(cell.textContent).not.toContain('ещё нет');
+    expect(cell.getAttribute('aria-label')).toContain('пока не знаем');
+    expect(cell.getAttribute('aria-label')).not.toContain('ещё нет');
+    expect(cell.getAttribute('title')).toContain(
+      'Публикации ещё не прочитаны'
+    );
     expect(cell.disabled).toBe(true);
   });
 
@@ -181,18 +189,23 @@ describe('the cell says which of seven states it is in', () => {
     const empty = document
       .querySelector('[data-piece-row="cnt-12"]')
       .querySelector('[data-piece-cell="linkedin"]');
-    expect(empty.textContent).toContain('ещё нет');
+    expect(empty.getAttribute('aria-label')).toContain('ещё нет');
     expect(empty.disabled).toBe(false);
-    // Пунктир — единственная разница: ни тревожного цвета, ни счётчика.
-    expect(empty.className).toContain('border-dashed');
+    // Пунктир и плюс — единственная разница: ни тревожного цвета, ни счётчика.
+    expect(empty.querySelector('span').className).toContain('border-dashed');
+    expect(empty.getAttribute('title')).toContain('Нажмите, чтобы адаптировать.');
     expect(document.body.textContent).not.toMatch(/заполнено \d+ из \d+/);
 
     const noChannel = document
       .querySelector('[data-piece-row="cnt-99"]')
       .querySelector('[data-piece-cell="telegram"]');
     expect(noChannel.disabled).toBe(true);
-    expect(noChannel.getAttribute('title')).toBe(
-      'Подключите канал, чтобы писать сюда'
+    expect(noChannel.getAttribute('title')).toContain(
+      'Подключите канал, чтобы писать сюда.'
+    );
+    // «Нет канала» не спорит с живыми клетками: рамки у него нет вовсе.
+    expect(noChannel.querySelector('span').className).toContain(
+      'border-transparent'
     );
   });
 
@@ -205,12 +218,13 @@ describe('the cell says which of seven states it is in', () => {
   });
 });
 
-describe('«Ещё нет в…» keeps the rows that platform has nothing on', () => {
+describe('«Площадка + ещё нет» keeps the rows that platform has nothing on', () => {
   test('a row with an adaptation there is filtered out, and an unknown one too', () => {
     const kept = adapter
       .filterPieces(ROWS, {
         ...adapter.emptyPiecesFilters,
-        missingOn: 'linkedin',
+        platform: 'linkedin',
+        state: 'none',
       })
       .map((row) => row.code);
 
@@ -282,31 +296,32 @@ describe('the table renders as a table, and the row says how to open it', () => 
     // Пустая клетка несла `PlatformBadge` с пустым запасным вариантом — на
     // боевой это был квадрат без содержимого рядом со словом «ещё нет».
     expect(cell.querySelector('img')).toBeNull();
-    expect(cell.textContent.trim()).toBe('ещё нет');
+    // Теперь в клетке только значок: никаких слов и никаких цифр, пока
+    // площадка несёт один канал.
+    expect(cell.textContent.trim()).toBe('');
+    expect(cell.querySelector('svg')).not.toBeNull();
   });
 
-  test('the three filter controls stand on one baseline: no field keeps a message row', () => {
+  test('the search field keeps no message row under it', () => {
     drawTable();
-    // Ряд выровнен по низу. `Input` без `removeError` и `Select` без `hideErrors`
-    // резервируют под полем строку сообщения в 16 px, и поле без неё
-    // проваливается на эти 16 px — так на боевом поиск стоял ниже списков.
-    for (const name of ['pieces-search', 'pieces-missing-on', 'pieces-state']) {
-      const control = document.querySelector(`[name="${name}"]`);
-      expect(control).not.toBeNull();
-      const field = control.closest('.flex-col');
-      expect(field).not.toBeNull();
-      expect(field.querySelector('[id$="-error"]')).toBeNull();
-    }
+    // Ряд выровнен по низу. `Input` без `removeError` резервирует под полем
+    // строку сообщения в 16 px, и поле без неё проваливается на эти 16 px —
+    // так на боевом поиск стоял ниже списков.
+    const control = document.querySelector('[name="pieces-search"]');
+    expect(control).not.toBeNull();
+    const field = control.closest('.flex-col');
+    expect(field).not.toBeNull();
+    expect(field.querySelector('[id$="-error"]')).toBeNull();
   });
 
-  test('filters use the shared labelled group without visible field labels', () => {
+  test('filters use the shared labelled group and name both questions', () => {
     drawTable();
     const row = screen.getByRole('group', { name: 'Заготовки' });
 
     expect(row.getAttribute('data-filters-row')).toBe('true');
     expect(screen.getByRole('textbox', { name: 'Поиск по словам' })).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: 'Ещё нет в…' })).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: 'Состояние' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Площадка' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Состояние' })).toBeTruthy();
     expect(row.querySelector('label')).toBeNull();
   });
 
@@ -323,19 +338,24 @@ describe('the table renders as a table, and the row says how to open it', () => 
     }
   });
 
-  test('the strongest cell state is visible beside the code', () => {
+  /*
+    До 18.09.2026 рядом с кодом стояла пилюля «самого сильного» состояния
+    строки. Она считалась из тех же клеток, что стоят правее в этой же строке,
+    и на одобренном макете её нет: один ответ, разобранный на два разных, —
+    «черновик» у кода и «опубликовано» в двух колонках из трёх.
+  */
+  test('the row no longer repeats a state its own cells already carry', () => {
     drawTable();
 
+    for (const code of ['cnt-11', 'cnt-12']) {
+      const row = document.querySelector(`[data-piece-row="${code}"]`);
+      expect(row.querySelector('[data-piece-row-status]')).toBeNull();
+    }
+    // Клетки на месте — состояние никуда не делось, оно стоит по площадкам.
     expect(
-      document.querySelector(
-        '[data-piece-row="cnt-11"] [data-piece-row-status="error"]'
-      ).textContent
-    ).toContain('не ушло');
-    expect(
-      document.querySelector(
-        '[data-piece-row="cnt-12"] [data-piece-row-status="queued"]'
-      ).textContent
-    ).toContain('запланировано');
+      document.querySelectorAll('[data-piece-row="cnt-11"] [data-piece-cell]')
+        .length
+    ).toBeGreaterThan(0);
   });
 });
 

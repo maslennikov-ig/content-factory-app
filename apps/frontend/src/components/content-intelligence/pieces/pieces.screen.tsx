@@ -6,6 +6,11 @@ import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import {
+  RadioGroup,
+  RadioOption,
+} from '@contentfactory/react/choice/radio.group';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { Panel } from '@contentfactory/react/layout';
 import {
   EmptyState,
@@ -17,15 +22,21 @@ import {
 import { Table, Td, Th, Tr } from '../../ui/table';
 import { FiltersRow } from '../../ui/filters-row';
 import { HighlightedWords } from '../content-search-words';
-import { AdaptationCell, stateWord } from './adaptation.cell';
+import {
+  AdaptationCell,
+  AdaptationLegend,
+  FILTER_STATES,
+  StateGlyph,
+  stateWord,
+} from './adaptation.cell';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import {
   PIECE_TABLE_MIN_WIDTH,
   cellOf,
   isPieceSort,
+  platformName,
   type AdaptationV1,
   type PieceCellV1,
-  type PieceCellStateV1,
   type PieceColumnV1,
   type PieceRowV1,
   type PieceSort,
@@ -90,32 +101,88 @@ export type PieceExpansion = {
  */
 const ARROW_WIDTH = 44;
 
-type RowState = Extract<
-  PieceCellStateV1,
-  'error' | 'queued' | 'published' | 'draft'
->;
+/*
+  `strongestRowState` жил здесь до 18.09.2026 и считал «самое сильное»
+  состояние строки из её же клеток. Клетка теперь несёт состояние площадки
+  сама, и вторая, свёрнутая до одного слова копия того же факта рядом с кодом
+  спорила с ней: «черновик» у кода и «опубликовано» в двух колонках из трёх —
+  это один ответ, разобранный на два разных. Пилюля ушла вместе с функцией.
+*/
 
-const ROW_STATE_PRIORITY: readonly RowState[] = [
-  'error',
-  'queued',
-  'published',
-  'draft',
-];
-
-const ROW_STATE_TONE = {
-  error: 'danger',
-  queued: 'info',
-  published: 'accent',
-  draft: 'neutral',
-} as const;
-
-/** The row calls out the state that needs attention before quieter states. */
-export const strongestRowState = (
-  row: Pick<PieceRowV1, 'cells'>
-): RowState | null =>
-  ROW_STATE_PRIORITY.find((state) =>
-    row.cells?.some((cell) => cell.state === state)
-  ) ?? null;
+/**
+ * Полоса фишек — один вопрос и его ответы на виду.
+ *
+ * Роль, стрелки и остановку Tab пишет `RadioGroup`: выбор здесь дёшев и
+ * обратим, так что он следует за фокусом, как и просит правило семейства. Вид
+ * принадлежит этому экрану — примитив не навязывает ни цвета, ни геометрии, а
+ * высоту фишки (32 px, плотный вариант) держит `density`, а не класс отсюда.
+ *
+ * На телефоне вопрос занимает две строки, а не четыре. Ниже экрана `table` —
+ * того же, на котором таблица становится карточками, — подпись встаёт над
+ * фишками, а сами фишки едут одной строкой вбок: два переносящихся ряда по
+ * девять фишек на 400 px съедали весь первый экран, и список начинался под
+ * сгибом. Прокрутка вертикальных полей не съедает: `overflow-x` делает
+ * `overflow-y` тоже прокручиваемым, поэтому кольцо фокуса живёт в собственных
+ * 4 px отступа, снятых отрицательным полем, — геометрия ряда от этого не
+ * меняется.
+ */
+function ChipFilter({
+  name,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string; icon?: ReactNode }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      data-piece-filter={name}
+      className="flex min-w-0 flex-col gap-[4px] table:flex-row table:flex-wrap table:items-center table:gap-[8px]"
+    >
+      <span className="cf-label-sm text-cf-ink-muted">{label}</span>
+      <RadioGroup
+        value={value}
+        onChange={onChange}
+        aria-label={label}
+        data-piece-filter-scroller="true"
+        className={clsx(
+          'flex min-w-0 flex-nowrap items-center gap-[8px] overflow-x-auto',
+          '-my-[4px] py-[4px]',
+          'table:flex-wrap table:overflow-visible table:my-0 table:py-0'
+        )}
+      >
+        {options.map((option) => {
+          const chosen = option.value === value;
+          return (
+            <RadioOption
+              key={option.value}
+              value={option.value}
+              density="dense"
+              data-piece-filter-option={`${name}:${option.value}`}
+              className={clsx(
+                // Фишка не сжимается: на узкой полосе ряд едет вбок целиком,
+                // а не превращается в колонку раздавленных слов.
+                'inline-flex flex-none items-center gap-[8px] rounded-full border px-[12px] cf-label-sm',
+                'transition-colors duration-state motion-reduce:transition-none',
+                chosen
+                  ? 'border-cf-accent bg-cf-accent-soft text-cf-accent'
+                  : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle'
+              )}
+            >
+              {option.icon}
+              {option.label}
+            </RadioOption>
+          );
+        })}
+      </RadioGroup>
+    </div>
+  );
+}
 
 const Chevron = ({ open }: { open: boolean }) => (
   <svg
@@ -201,6 +268,13 @@ export function PiecesScreen({
   const busy = state === 'loading';
   const allColumns = [...columns, ...restColumns];
   const found = query ?? '';
+  /*
+    Имя площадки человеку, а не идентификатор провайдера: сервер кладёт в
+    `name` сам `telegram`, и шапка, фишка, подсказка и доступное имя берут его
+    из одного места — `platformName` в адаптере.
+  */
+  const columnName = (column: PieceColumnV1) =>
+    platformName(column.platform, locale, column.name);
   const sortWords =
     locale === 'ru'
       ? {
@@ -338,38 +412,42 @@ export function PiecesScreen({
         value={filters.q}
         onChange={(event) => onFilterChange('q', event.target.value)}
       />
-      <Select
-        standalone
-        name="pieces-missing-on"
-        aria-label={t.missingOnLabel}
-        className="w-[160px] max-w-full"
-        value={filters.missingOn}
-        onChange={(event) => onFilterChange('missingOn', event.target.value)}
-      >
-        <option value="ALL">{t.missingOnAll}</option>
-        {allColumns.map((column) => (
-          <option key={column.platform} value={column.platform}>
-            {column.name}
-          </option>
-        ))}
-      </Select>
-      <Select
-        standalone
-        name="pieces-state"
-        aria-label={t.stateFilterLabel}
-        className="w-[140px] max-w-full"
+      {/*
+        Две полосы фишек вместо двух списков, и это не украшение: пара
+        «Площадка + Состояние» читается одной фразой, а два закрытых списка
+        прятали и то, какие площадки вообще есть, и то, что состояний семь.
+        Площадки — ровно те, что пришли колонками; выдуманных здесь нет.
+      */}
+      <ChipFilter
+        name="platform"
+        label={t.platformFilterLabel}
+        value={filters.platform}
+        onChange={(value) => onFilterChange('platform', value)}
+        options={[
+          { value: 'ALL', label: t.platformFilterAll },
+          ...allColumns.map((column) => ({
+            value: column.platform,
+            label: columnName(column),
+          })),
+        ]}
+      />
+      <ChipFilter
+        name="state"
+        label={t.stateFilterLabel}
         value={filters.state}
-        onChange={(event) =>
-          onFilterChange('state', event.target.value as PiecesFilters['state'])
+        onChange={(value) =>
+          onFilterChange('state', value as PiecesFilters['state'])
         }
-      >
-        <option value="ALL">{t.stateFilterAll}</option>
-        <option value="published">{t.statePublished}</option>
-        <option value="queued">{t.stateQueued}</option>
-        <option value="draft">{t.stateDraft}</option>
-        <option value="error">{t.stateError}</option>
-        <option value="archived">{t.archived}</option>
-      </Select>
+        options={[
+          { value: 'ALL', label: t.stateFilterAll },
+          ...FILTER_STATES.map((state) => ({
+            value: state,
+            label: stateWord(state, t),
+            icon: <StateGlyph state={state} />,
+          })),
+          { value: 'archived', label: t.archived },
+        ]}
+      />
       <Select
         standalone
         name="pieces-sort"
@@ -391,22 +469,21 @@ export function PiecesScreen({
     </FiltersRow>
   );
 
-  const rowStatuses = (row: PieceRowV1) => {
-    const strongest = strongestRowState(row);
-    return (
-      <span
-        data-piece-row-status={strongest ?? 'none'}
-        className="flex flex-wrap gap-[4px]"
-      >
-        {row.archivedAt ? <Status tone="warning">{t.archived}</Status> : null}
-        {strongest ? (
-          <Status tone={ROW_STATE_TONE[strongest]}>
-            {stateWord(strongest, t)}
-          </Status>
-        ) : null}
+  /**
+   * Что стоит рядом с кодом строки.
+   *
+   * Только архив. Пилюля «самого сильного состояния» отсюда ушла: она
+   * считалась из тех же клеток, что стоят в этой же строке правее, и на
+   * одобренном макете её нет — строка говорила «черновик», не называя, где
+   * именно черновик, а колонка площадки отвечала на тот же вопрос точнее.
+   * «В архиве» осталось: этого клетки не знают, это свойство самой заготовки.
+   */
+  const rowStatuses = (row: PieceRowV1) =>
+    row.archivedAt ? (
+      <span data-piece-row-status="archived" className="flex flex-wrap gap-[4px]">
+        <Status tone="warning">{t.archived}</Status>
       </span>
-    );
-  };
+    ) : null;
 
   /** Кнопка раскрытия: своё имя, стрелка вместо подписи, одна на оба вида. */
   const expandButton = (row: PieceRowV1, open: boolean) => (
@@ -564,7 +641,9 @@ export function PiecesScreen({
               key={`${row.id}-${column.platform}-card`}
               locale={locale}
               cell={cellOf(row, column.platform)}
-              platformName={column.name}
+              platformName={columnName(column)}
+              /* Колонок здесь нет — площадку называет сама клетка. */
+              showPlatformName
               disabled={!canWrite}
               onOpenPost={onOpenPost}
               onAdapt={(cell) => onAdapt(row.id, cell.platform)}
@@ -675,9 +754,11 @@ export function PiecesScreen({
                         banded
                         key={column.platform}
                         data-piece-column={column.platform}
-                        className="w-[160px]"
+                        /* Колонка под квадрат 28 px, а не под слово: до этой
+                           волны каждая занимала 160 px под «запланировано». */
+                        className="w-[84px] text-center"
                       >
-                        {column.name}
+                        {columnName(column)}
                       </Th>
                     ))}
                     {restColumns.length > 0 ? (
@@ -772,12 +853,12 @@ export function PiecesScreen({
                           {columns.map((column) => (
                             <Td
                               key={`${row.id}-${column.platform}`}
-                              className="py-[8px] align-top"
+                              className="py-[8px] text-center align-middle"
                             >
                               <AdaptationCell
                                 locale={locale}
                                 cell={cellOf(row, column.platform)}
-                                platformName={column.name}
+                                platformName={columnName(column)}
                                 disabled={!canWrite}
                                 onOpenPost={onOpenPost}
                                 onAdapt={(cell) =>
@@ -828,6 +909,17 @@ export function PiecesScreen({
               </Table>
             </div>
           </Panel>
+
+          {/*
+            Легенда — не украшение под таблицей, а место, где слово состояния
+            остаётся видимым без наведения: из клетки оно ушло в подсказку, и
+            без легенды цвет со значком остались бы единственным носителем.
+            Одна на оба вида списка: карточки и таблица читаются одинаково.
+          */}
+          <div className="flex flex-wrap items-center gap-[8px]">
+            <AdaptationLegend locale={locale} />
+            <Hint label={t.legendHintLabel}>{t.legendHint}</Hint>
+          </div>
         </>
       )}
     </section>

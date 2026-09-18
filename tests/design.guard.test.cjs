@@ -531,6 +531,15 @@ const RAW_PALETTE_PATTERN =
   '([^a-zA-Z0-9-]|$)' +
   '|(^|[^a-zA-Z0-9-])text-black([^a-zA-Z0-9-]|$)';
 
+// Семь предпросмотров выбыли из этого списка не тем, что покрасились в
+// токены: метка обрезанного хвоста `<mark class="bg-red-500">` была
+// скопирована в каждом из них слово в слово и уехала в
+// `apps/frontend/src/components/launches/helpers/preview.content.tsx`
+// (`content-factory-next-97dq.11`, разбор второго выпуска P1-2). Помощник
+// назван `.tsx` нарочно, хотя JSX в нём нет: стражи читают только `.tsx` и
+// `.jsx`, и долг, уехавший в `.ts`, пропал бы из реестров, а не сократился.
+// Строка теперь одна, и замена её на токен станет одной правкой. Четыре файла
+// ушли целиком; у `pinterest`, `tiktok` и `youtube` осталась своя `bg-black`.
 const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/app/(extension)/modal/[style]/[platform]/page.tsx',
   'apps/frontend/src/components/admin/admin-errors.component.tsx',
@@ -543,8 +552,8 @@ const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/components/launches/calendar.tsx',
   'apps/frontend/src/components/launches/comments/comment.component.tsx',
   'apps/frontend/src/components/launches/customer.modal.tsx',
-  'apps/frontend/src/components/launches/general.preview.component.tsx',
   'apps/frontend/src/components/launches/helpers/media.settings.component.tsx',
+  'apps/frontend/src/components/launches/helpers/preview.content.tsx',
   'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
   'apps/frontend/src/components/launches/merge.post.tsx',
   'apps/frontend/src/components/launches/separate.post.tsx',
@@ -559,11 +568,8 @@ const RAW_PALETTE_ALLOWED = [
   'apps/frontend/src/components/new-launch/mention.component.tsx',
   'apps/frontend/src/components/new-launch/providers/continue-provider/tumblr/tumblr.continue.tsx',
   'apps/frontend/src/components/new-launch/providers/continue-provider/youtube/youtube.continue.tsx',
-  'apps/frontend/src/components/new-launch/providers/facebook/facebook.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/hashnode/hashnode.tags.tsx',
-  'apps/frontend/src/components/new-launch/providers/instagram/instagram.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/lemmy/lemmy.provider.tsx',
-  'apps/frontend/src/components/new-launch/providers/linkedin/linkedin.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx',
   'apps/frontend/src/components/new-launch/providers/reddit/reddit.provider.tsx',
   'apps/frontend/src/components/new-launch/providers/tiktok/tiktok.preview.tsx',

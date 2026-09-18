@@ -240,6 +240,26 @@ export function readIntakeEvent(line: string): IntakeReading | null {
         },
       };
 
+    /*
+      Ссылка из текста, которую не прочитали (`content-factory-next-97dq.12`).
+      Числа читаются терпимо: событие говорит «скажи человеку», а не «покажи
+      ровно это», и отрицательное или нечисловое значение считается нулём.
+    */
+    case 'links-skipped': {
+      const count = (value: unknown): number =>
+        typeof value === 'number' && Number.isFinite(value) && value > 0
+          ? Math.floor(value)
+          : 0;
+      return {
+        kind: 'event',
+        event: {
+          name: 'links-skipped',
+          unreadable: count(record.unreadable),
+          beyondLimit: count(record.beyondLimit),
+        },
+      };
+    }
+
     case 'claims':
       return {
         kind: 'event',

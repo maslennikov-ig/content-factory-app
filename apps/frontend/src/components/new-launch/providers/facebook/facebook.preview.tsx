@@ -1,8 +1,8 @@
+import { previewContent } from '@contentfactory/frontend/components/launches/helpers/preview.content';
 import { useIntegration } from '@contentfactory/frontend/components/launches/helpers/use.integration';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@contentfactory/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
-import { textSlicer } from '@contentfactory/helpers/utils/count.length';
 import { FACEBOOK_PRESET_MAX_CHARS } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
 import { getPresetBackground } from '@contentfactory/frontend/components/new-launch/providers/facebook/facebook.background';
 import { FC } from 'react';
@@ -88,37 +88,9 @@ export const FacebookPreview: FC<{
       ? getPresetBackground(preset)
       : undefined;
 
-  const renderContent = topValue.map((p) => {
-    const newContent = stripHtmlValidation(
-      'normal',
-      p.content.replace(
-        /<span.*?data-mention-id="([.\s\S]*?)"[.\s\S]*?>([.\s\S]*?)<\/span>/gi,
-        (match, match1, match2) => {
-          return `[[[${match2}]]]`;
-        }
-      ),
-      true
-    );
-
-    const { start, end } = textSlicer(
-      integration?.identifier || '',
-      props.maximumCharacters || 10000,
-      newContent
-    );
-
-    const finalValue =
-      newContent
-        .slice(start, end)
-        .replace(/\[\[\[([.\s\S]*?)]]]/, (match, match1) => {
-          return `<span class="font-bold font-[arial]" style="color: var(--cf-accent)">${match1}</span>`;
-        }) +
-      `<mark class="bg-red-500" data-tooltip-id="tooltip" data-tooltip-content="This text will be cropped">` +
-      newContent.slice(end).replace(/\[\[\[([.\s\S]*?)]]]/, (match, match1) => {
-        return `<span class="font-bold font-[arial]" style="color: var(--cf-accent)">${match1}</span>`;
-      }) +
-      `</mark>`;
-
-    return { text: finalValue, images: p.image };
+  const renderContent = previewContent(topValue, {
+    identifier: integration?.identifier,
+    maximumCharacters: props.maximumCharacters,
   });
   return (
     <div className="py-[15px] flex flex-col px-[15px] w-full gap-[20px] bg-bgFacebook rounded-[12px]">

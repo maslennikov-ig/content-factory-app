@@ -11,6 +11,7 @@ import { REVIEW_SEMANTIC_V4 } from './review-semantic.v4';
 import {
   catalogDelta,
   catalogFindingsOf,
+  reviewGroundedOf,
   reviewPromptV5,
   type ReviewPromptInput,
 } from './review-prompt.v5';
@@ -106,9 +107,15 @@ export function reviewPromptV3(input: {
   const web = input.mode === 'web';
   const findings = web
     ? undefined
-    : slopCheck(input.text, { locale: input.language }).findings.map(
-        ({ ruleId, excerpt, start, end }) => ({ ruleId, excerpt, start, end })
-      );
+    : slopCheck(input.text, {
+        locale: input.language,
+        grounded: reviewGroundedOf(input),
+      }).findings.map(({ ruleId, excerpt, start, end }) => ({
+        ruleId,
+        excerpt,
+        start,
+        end,
+      }));
   return {
     system: [
       web
@@ -260,7 +267,15 @@ export async function reviewOnceV3(
 ) {
   secret();
   const prompt = reviewPromptV5(input);
-  const before = catalogFindingsOf(input.text, input.language, input.platform);
+  // Опоры считаются один раз на весь ход: «было» и «стало» обязаны стоять на
+  // одном материале, иначе разница врёт (`content-factory-next-97dq.10`).
+  const grounded = reviewGroundedOf(input);
+  const before = catalogFindingsOf(
+    input.text,
+    input.language,
+    input.platform,
+    grounded
+  );
   return usage.executeAiOperation(
     org,
     'text_generation',
@@ -309,7 +324,12 @@ export async function reviewOnceV3(
           selected = changes.filter(changesText).map((change) => change.id);
           text = applyReviewChanges(input.text, changes, selected);
         }
-        const after = catalogFindingsOf(text, input.language, input.platform);
+        const after = catalogFindingsOf(
+          text,
+          input.language,
+          input.platform,
+          grounded
+        );
         return {
           changes,
           text,

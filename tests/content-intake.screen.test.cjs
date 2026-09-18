@@ -253,6 +253,68 @@ describe('the run, and what it leaves on this screen', () => {
     expect(screen.queryByRole('button', { name: 'Пересобрать' })).toBeNull();
   });
 
+  /*
+    `content-factory-next-97dq.12`. Недоступная ссылка внутри вставленного
+    текста пропускается, и до этой волны о пропуске знал только журнал. Одна
+    тихая строка, без диалога и без настройки: решать человеку нечего, ход уже
+    прошёл, — но в заготовке чего-то нет, и он вправе это знать.
+  */
+  describe('a link that was not read is said out loud', () => {
+    const line = () => document.querySelector('[data-intake-links-skipped]');
+
+    test('one unreadable link is one line, with the right Russian ending', () => {
+      draw({ state: 'streaming', blocked: null, linksSkipped: { unreadable: 1, beyondLimit: 0 } });
+      expect(line().textContent).toBe(
+        'Не смогли открыть 1 ссылку из текста — её пропустили.'
+      );
+      expect(line().getAttribute('role')).toBe('status');
+    });
+
+    test.each([
+      [2, 'Не смогли открыть 2 ссылки из текста — их пропустили.'],
+      [5, 'Не смогли открыть 5 ссылок из текста — их пропустили.'],
+    ])('%i unreadable links are counted the way Russian counts', (unreadable, expected) => {
+      draw({ state: 'streaming', blocked: null, linksSkipped: { unreadable, beyondLimit: 0 } });
+      expect(line().textContent).toBe(expected);
+    });
+
+    test('links beyond the third get their own wording, not the same one', () => {
+      draw({ state: 'streaming', blocked: null, linksSkipped: { unreadable: 0, beyondLimit: 4 } });
+      expect(line().textContent).toBe(
+        'Читаем не больше 3 ссылок из текста: 4 ссылки не открывали.'
+      );
+    });
+
+    test('both at once stay one line', () => {
+      draw({ state: 'streaming', blocked: null, linksSkipped: { unreadable: 1, beyondLimit: 2 } });
+      expect(document.querySelectorAll('[data-intake-links-skipped]')).toHaveLength(1);
+      expect(line().textContent).toBe(
+        'Не смогли открыть 1 ссылку из текста — её пропустили. ' +
+          'Читаем не больше 3 ссылок из текста: 2 ссылки не открывали.'
+      );
+    });
+
+    test('nothing skipped draws nothing', () => {
+      draw({ state: 'streaming', blocked: null, linksSkipped: { unreadable: 0, beyondLimit: 0 } });
+      expect(line()).toBeNull();
+      draw({ state: 'streaming', blocked: null });
+      expect(line()).toBeNull();
+    });
+
+    test('the English reader is told the same thing', () => {
+      draw({
+        locale: 'en',
+        state: 'streaming',
+        blocked: null,
+        linksSkipped: { unreadable: 1, beyondLimit: 2 },
+      });
+      expect(line().textContent).toBe(
+        'We could not open 1 link in your text — it was skipped. ' +
+          'We read at most 3 links from a text: 2 more were left unopened.'
+      );
+    });
+  });
+
   test('the last frame here is the saved piece, and the field stays', () => {
     draw({
       state: 'draft',

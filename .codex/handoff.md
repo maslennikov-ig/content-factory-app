@@ -2,8 +2,8 @@
 Current stage id: `content-factory-next-97dq`
 Last accepted stage id: `content-factory-next-xmfb`
 Selected Beads goal: `content-factory-next-97dq`
-Next stage id: `content-factory-next-97dq.9` (Claude root: release, backfill dry-run, ninth walk page)
-**NINTH WAVE `97dq` (eighth-walk findings, 18.09.2026): integrated on `wave/walk-2026-09-18`, release authorized by the owner 18.09, not yet released at this line's writing — see stage `summary.md` for the release record.** Rollback target `3504f07a8f25`. No schema change.
+Next stage id: `content-factory-next-97dq.9` (owner walks the ninth page, artifact `658c88fd`; Claude reads it on «отправил»)
+**RELEASED 18.09.2026: `2542f433e993`, rollback `3504f07a8f25`.** Ninth wave `97dq` (eighth-walk findings); private source `0227165137708f0b2fc466d968f2c11c29173aa9` on `wave/walk-2026-09-18` (pushed); Jest 450/5994, Node 125/0, Python OK; schema unchanged, Mastra 29→29, four addresses 200, source archive byte-equal, host 13 GB free after retention. Evidence `stages/content-factory-next-97dq/evidence/release-2026-09-18.json`. **Data step `adaptations:rerender-bold` NOT run: `apps/commands` does not boot in the image (pre-existing DI defect, 97dq.15); one owner test draft affected.**
 Owner walk on `3504f07a8f25` (artifact `1f06838e`, sent 18.09 11:16Z): C1/C2 foreign post still a thought (real model says `thought`; tests mocked it), G2 search keys shown on system mode + uppercase hint; owner marked B1 ok but production data showed «25 тысяч»/«40%» surviving research; asks: the word «модель», loader after «Продолжить с правками», research findings reaching adaptations, fact check by claims instead of first 5000 chars, bold markup, honest name for «Убрать штампы», status-icon cells with a filter, «Новая заготовка» from a piece, taller intake field.
 Owner decisions 18.09: checkbox «Это чужой текст» (model may only upgrade to foreign); «Убрать следы ИИ»; on «Ключи системы» own search keys are hidden AND dormant (replaces xmfb.8), cross with a hint returns a field to the system key; no wishes field at first adaptation; «модель» → «мы»/«ИИ» outside provider settings; Claude orchestrates, Opus 5 workers; paid stand calls, private push and release authorized.
 Spec `docs/product/eighth-walk-wave-2026-09-18-spec.md`; stage `stages/content-factory-next-97dq/` (summary, evidence `walk-2026-09-18/`, `live-stand-2026-09-18/`, premortem, `evidence/correctness-review.md`). Design canvas for 97dq.8 (state cells) awaits the owner: artifact `4f1c7a0b`, sources `docs/design/desert-lab/ninth-wave/`.
@@ -164,7 +164,7 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-xmfb.11`. Recommended action: Claude prepares the eighth production walkthrough; keep hf97 disk headroom monitoring.
+Next stage id: `content-factory-next-97dq.9` (owner walks the ninth page, artifact `658c88fd`; Claude reads it on «отправил»)
 Walkthrough criteria: `docs/product/seventh-walk-wave-2026-09-16-spec.md` §6; the owner reviews release 3504f07a8f25.
 Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.

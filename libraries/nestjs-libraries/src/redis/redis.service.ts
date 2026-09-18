@@ -96,3 +96,27 @@ export const ioRedis = process.env.REDIS_URL
       connectTimeout: 10000,
     })
   : (new MockRedis() as unknown as Redis); // Type cast to Redis to maintain interface compatibility
+
+/**
+ * Closes the shared client, for a process that is supposed to end.
+ *
+ * The client above is created when this file is imported, not when a module
+ * asks for it, and nothing in the Nest graph owns it — so `app.close()` leaves
+ * its socket open. A server does not notice; a command does, because an open
+ * socket is an active handle and Node keeps the process alive for it. Every
+ * `apps/commands` run finished its work and then sat there until it was killed.
+ *
+ * Safe to call when `REDIS_URL` is unset (the stand-in has nothing to close)
+ * and safe to call twice. `quit()` waits for in-flight commands and rejects if
+ * the connection is already gone, which is exactly when `disconnect()` is the
+ * right answer.
+ */
+export const closeIoRedis = async (): Promise<void> => {
+  const client = ioRedis as Partial<Redis>;
+  if (typeof client.quit !== 'function') return;
+  try {
+    await client.quit();
+  } catch {
+    client.disconnect?.();
+  }
+};

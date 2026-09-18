@@ -227,3 +227,85 @@ describe('подставные — производные статистики, 
     }
   });
 });
+
+/**
+ * Текст читается один раз, и ответ от этого не меняется.
+ *
+ * `content-factory-next-97dq.13`. Голосование сравнивало один и тот же текст с
+ * автором и тремя подставными в каждом из шестидесяти раундов и на КАЖДОЕ
+ * сравнение заново разбирало его на окна — двести сорок чтений одной строки.
+ * От раунда к раунду меняется подвыборка окон автора, а окна текста нет, так
+ * что разбор вынесен из цикла (`countedNgramsOf`).
+ *
+ * Замер на восьми тысячах знаков, Node 22.23.2, медиана десяти прогонов:
+ * 243,0 мс до правки и 4,0 мс после.
+ *
+ * Числа ниже сняты с ПРЕЖНЕГО кода, до переноса, и в этом весь их смысл:
+ * ускорение, которое тихо сдвинуло бы голос хоть на один раунд, — это не
+ * ускорение, а другая мерка. Чужой текст взят потому, что его голос дробный и
+ * от любого сдвига арифметики поехал бы; свой стоит на единице и такого сдвига
+ * не показал бы вовсе.
+ */
+describe('перенос разбора окон из цикла ничего не изменил', () => {
+  const vote = (text, options) =>
+    impostors.impostorVote(text, print.ngrams, sets.IMPOSTOR_SETS.ru, options);
+
+  it('голос чужого текста сошёлся раунд в раунд по семи зерновкам', () => {
+    const wins = {};
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      wins[seed] = Math.round(vote(ALIEN_TEXT, { seed }).votes * 60);
+    }
+
+    expect(wins).toEqual({ 1: 5, 2: 4, 3: 4, 5: 3, 7: 5, 11: 4, 13: 5, 17: 1 });
+  });
+
+  it('голос чужого текста сошёлся на каждой доле окон', () => {
+    const wins = {};
+    for (const share of [0.1, 0.2, 0.35, 0.5]) {
+      wins[share] = Math.round(vote(ALIEN_TEXT, { share, seed: 4 }).votes * 60);
+    }
+
+    expect(wins).toEqual({ 0.1: 1, 0.2: 2, 0.35: 4, 0.5: 3 });
+  });
+
+  it('свой текст, короткий текст и число раундов — как были', () => {
+    expect(vote(OWN_TEXT).votes).toBe(1);
+    expect(Math.round(vote(ALIEN_TEXT).votes * 60)).toBe(2);
+    expect(vote(OWN_TEXT, { rounds: 10 })).toMatchObject({
+      votes: 1,
+      rounds: 10,
+    });
+    expect(vote('слишком коротко').reason).toBe('TOO_SHORT');
+  });
+
+  it('посчитанные окна дают ту же меру, что и текст', () => {
+    const halved = {
+      ...print.ngrams,
+      grams: print.ngrams.grams.slice(0, 40),
+      weight: print.ngrams.weight.slice(0, 40),
+    };
+    const counted = ngrams.countedNgramsOf(OWN_TEXT, print.ngrams.size);
+
+    for (const profile of [print.ngrams, halved]) {
+      expect(ngrams.characterNgramDistanceOf(counted, profile)).toEqual(
+        ngrams.characterNgramDistance(OWN_TEXT, profile)
+      );
+    }
+    // Мерка чужого размера окна не берётся молча: она пересчитывается.
+    expect(
+      ngrams.characterNgramDistanceOf(counted, { ...print.ngrams, size: 4 })
+    ).toEqual(
+      ngrams.characterNgramDistance(OWN_TEXT, { ...print.ngrams, size: 4 })
+    );
+    // Отказы у обеих половин одни и те же.
+    expect(ngrams.characterNgramDistanceOf(counted, null).reason).toBe(
+      'NO_PROFILE'
+    );
+    expect(
+      ngrams.characterNgramDistanceOf(
+        ngrams.countedNgramsOf('коротко', print.ngrams.size),
+        print.ngrams
+      ).reason
+    ).toBe('TOO_SHORT');
+  });
+});

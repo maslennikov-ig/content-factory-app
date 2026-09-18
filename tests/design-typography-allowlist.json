@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 726,
+  "total": 713,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 700,
+      "total": 687,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -219,7 +219,6 @@
         "apps/frontend/src/components/launches/general.preview.component.tsx": {
           "font-[400]": 1,
           "font-[700]": 1,
-          "font-bold": 2,
           "text-[15px]": 3
         },
         "apps/frontend/src/components/launches/helpers/date.picker.tsx": {
@@ -228,6 +227,9 @@
         },
         "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {
           "text-sm": 2
+        },
+        "apps/frontend/src/components/launches/helpers/preview.content.tsx": {
+          "font-bold": 1
         },
         "apps/frontend/src/components/launches/import-debug-post.modal.tsx": {
           "font-[400]": 1,
@@ -363,7 +365,6 @@
           "font-[400]": 5,
           "font-[500]": 2,
           "font-[700]": 6,
-          "font-bold": 2,
           "leading-[17px]": 1,
           "leading-[18px]": 1,
           "leading-[36px]": 1,
@@ -394,7 +395,6 @@
           "font-[400]": 3,
           "font-[600]": 2,
           "font-[700]": 4,
-          "font-bold": 2,
           "leading-[17px]": 1,
           "leading-[18px]": 1,
           "text-[12px]": 1,
@@ -411,7 +411,6 @@
           "font-[400]": 8,
           "font-[500]": 2,
           "font-[700]": 3,
-          "font-bold": 2,
           "leading-[16px]": 1,
           "leading-[17px]": 1,
           "text-[12px]": 6,
@@ -423,7 +422,6 @@
         },
         "apps/frontend/src/components/new-launch/providers/pinterest/pinterest.preview.tsx": {
           "font-[600]": 1,
-          "font-bold": 2,
           "text-[16px]": 1
         },
         "apps/frontend/src/components/new-launch/providers/reddit/reddit.provider.tsx": {
@@ -438,7 +436,6 @@
           "font-[400]": 1,
           "font-[500]": 1,
           "font-[700]": 1,
-          "font-bold": 2,
           "text-[13px]": 1,
           "text-[14px]": 1,
           "text-[8px]": 1
@@ -450,7 +447,6 @@
         "apps/frontend/src/components/new-launch/providers/youtube/youtube.preview.tsx": {
           "font-[400]": 2,
           "font-[500]": 2,
-          "font-bold": 2,
           "text-[10px]": 1,
           "text-[12px]": 2,
           "text-[13px]": 1,

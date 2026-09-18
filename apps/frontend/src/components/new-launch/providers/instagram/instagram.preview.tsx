@@ -1,8 +1,7 @@
+import { previewContent } from '@contentfactory/frontend/components/launches/helpers/preview.content';
 import { useIntegration } from '@contentfactory/frontend/components/launches/helpers/use.integration';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@contentfactory/react/helpers/use.media.directory';
-import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
-import { textSlicer } from '@contentfactory/helpers/utils/count.length';
 import { FC } from 'react';
 import { VideoOrImage } from '@contentfactory/react/helpers/video.or.image';
 import { SliderComponent } from '@contentfactory/frontend/components/third-parties/slider.component';
@@ -14,38 +13,12 @@ export const InstagramPreview: FC<{
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
 
-  const renderContent = topValue.map((p) => {
-    const newContent = stripHtmlValidation(
-      'normal',
-      p.content.replace(
-        /<span.*?data-mention-id="([.\s\S]*?)"[.\s\S]*?>([.\s\S]*?)<\/span>/gi,
-        (match, match1, match2) => {
-          return `[[[${match2}]]]`;
-        }
-      ),
-      true
-    );
-
-    const { start, end } = textSlicer(
-      integration?.identifier || '',
-      props.maximumCharacters || 10000,
-      newContent
-    );
-
-    const finalValue =
-      `<strong class="text-[15px] font-[600]">${integration?.name} </strong>` +
-      newContent
-        .slice(start, end)
-        .replace(/\[\[\[([.\s\S]*?)]]]/, (match, match1) => {
-          return `<span class="font-bold font-[arial]" style="color: var(--cf-accent)">${match1}</span>`;
-        }) +
-      `<mark class="bg-red-500" data-tooltip-id="tooltip" data-tooltip-content="This text will be cropped">` +
-      newContent.slice(end).replace(/\[\[\[([.\s\S]*?)]]]/, (match, match1) => {
-        return `<span class="font-bold font-[arial]" style="color: var(--cf-accent)">${match1}</span>`;
-      }) +
-      `</mark>`;
-
-    return { text: finalValue, images: p.image };
+  const renderContent = previewContent(topValue, {
+    identifier: integration?.identifier,
+    maximumCharacters: props.maximumCharacters,
+    // Инстаграм печатает имя канала перед текстом; оформление — его,
+    // экранирование имени — общее, см. `preview.content.tsx`.
+    lead: { text: integration?.name, className: 'text-[15px] font-[600]' },
   });
   return (
     <div className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]">

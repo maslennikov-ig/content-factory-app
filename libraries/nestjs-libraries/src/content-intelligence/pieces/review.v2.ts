@@ -7,6 +7,7 @@ import {
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
 import type { AiUsageService } from '../../openai/ai.usage.service';
 import { slopCheck } from '../text-quality/slop-check';
+import { reviewGroundedOf } from './review-prompt.v5';
 import { AdaptationReviewError } from './adaptation-review.contract';
 import {
   applyReviewChanges,
@@ -60,6 +61,7 @@ export function reviewPromptV2(input: {
 }) {
   const findings = slopCheck(input.text, {
     locale: input.language,
+    grounded: reviewGroundedOf(input),
   }).findings.map(({ ruleId, excerpt, start, end }) => ({
     ruleId,
     excerpt,
@@ -214,10 +216,16 @@ export async function reviewOnceV2(
               ? ('review' as const)
               : parsed.verdict!
             : ('clean' as const),
-          slopBefore: slopCheck(input.text, { locale: input.language }).findings
-            .length,
-          slopAfter: slopCheck(text, { locale: input.language }).findings
-            .length,
+          // Опоры у «было» и «стало» одни и те же: посчитанные по разным
+          // разница показала бы убранным то, чего не было (`97dq.10`).
+          slopBefore: slopCheck(input.text, {
+            locale: input.language,
+            grounded: reviewGroundedOf(input),
+          }).findings.length,
+          slopAfter: slopCheck(text, {
+            locale: input.language,
+            grounded: reviewGroundedOf(input),
+          }).findings.length,
         };
       } catch {
         throw invalid();

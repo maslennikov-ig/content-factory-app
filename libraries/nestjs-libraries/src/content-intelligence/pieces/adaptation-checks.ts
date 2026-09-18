@@ -40,11 +40,17 @@ import {
   type VoiceCheckPort,
 } from '../brand-voice/voice-check.port';
 
-/** Шов проверки на ИИ-штампы: тот же порт, что держит сервис заготовок. */
+/**
+ * Шов проверки на ИИ-штампы: тот же порт, что держит сервис заготовок.
+ *
+ * Опоры — необязательный последний довод (`content-factory-next-97dq.10`):
+ * подменённый порт в наборах о них не знает и продолжает собираться.
+ */
 export type AdaptationSlopCheck = (
   text: string,
   platform: string,
-  locale: 'ru' | 'en'
+  locale: 'ru' | 'en',
+  grounded?: readonly string[]
 ) => SlopReportV1 | null;
 
 export type AdaptationChecksInput = {
@@ -60,6 +66,14 @@ export type AdaptationChecksInput = {
    * полем — `retried`, — и подделывать его чтением нечем.
    */
   antiCopy?: AntiCopyReportV1 | null;
+  /**
+   * На чём стоит эта заготовка: её суть и отмеченные опоры брифа.
+   *
+   * `content-factory-next-97dq.10`. Точное число из материала перестаёт быть
+   * размытым количеством: «более 620 000 бизнесов» из источника — это факт, а
+   * не штамп. Пусто — каталог считает как считал.
+   */
+  grounded?: readonly string[];
 };
 
 export type AdaptationChecksDeps = {
@@ -105,7 +119,14 @@ const offlineChecks = (
         : null,
     slop:
       text && deps.slopCheck
-        ? quietly(() => deps.slopCheck!(text, input.platform, input.language))
+        ? quietly(() =>
+            deps.slopCheck!(
+              text,
+              input.platform,
+              input.language,
+              input.grounded
+            )
+          )
         : null,
   };
 };
@@ -146,6 +167,8 @@ export async function adaptationChecksMany(
     organizationId: string;
     language: 'ru' | 'en';
     foreignShingles?: readonly string[];
+    /** Опоры заготовки: у всех её адаптаций они одни и те же. */
+    grounded?: readonly string[];
   },
   rows: ReadonlyArray<{ text: string; platform: string }>,
   deps: AdaptationChecksDeps
@@ -179,6 +202,7 @@ export async function adaptationChecksMany(
         platform: row.platform,
         language: common.language,
         foreignShingles: common.foreignShingles,
+        grounded: common.grounded,
       },
       deps
     ),

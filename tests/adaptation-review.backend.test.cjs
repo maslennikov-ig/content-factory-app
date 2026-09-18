@@ -60,10 +60,6 @@ const mocks = {
   '../search/text-search.service': { TextSearchService: class {} },
 };
 const { PieceService } = loadWithMocks(`${root}/piece.service.ts`, mocks);
-const { reviewPrompt, reviewAdaptationOnce } = loadWithMocks(
-  `${root}/adaptation-review.ts`,
-  mocks
-);
 const { PieceRepository } = loadWithMocks(`${root}/piece.repository.ts`, {
   '@contentfactory/nestjs-libraries/database/prisma/prisma.service': {
     PrismaRepository: class {},
@@ -97,14 +93,6 @@ const draft = () => ({
     integration: { providerIdentifier: 'telegram' },
   },
 });
-const input = {
-  mode: 'both',
-  text: 'Исходник',
-  core: 'Суть',
-  personText: 'Слова человека',
-  facts: [],
-  language: 'ru',
-};
 let repository, usage, service;
 beforeEach(() => {
   calls = [];
@@ -149,84 +137,33 @@ beforeEach(() => {
     usage
   );
 });
-test.each(['slop', 'facts', 'both'])(
-  '%s: one admission, one provider call, review routing, no retry, no write',
-  async (mode) => {
-    output.notes = [
-      { kind: mode === 'facts' ? 'facts' : 'slop', text: 'пометка' },
-    ];
-    const result = await service.reviewAdaptation(
-      'org',
-      'piece',
-      'adaptation',
-      mode
-    );
-    expect(usage.executeAiOperation).toHaveBeenCalledWith(
-      'org',
-      'text_generation',
-      expect.any(Function),
-      'review'
-    );
-    expect(calls).toHaveLength(1);
-    expect(calls[0].options).toEqual({ maxRetries: 0, timeout: 60000 });
-    expect(calls[0].body.model).toBe('review-model');
-    expect(result.originalText).toBe('Новый ручной текст');
-    expect(result.snapshot.postContent).toBe('<p>Новый ручной текст</p>');
-    expect(repository.acceptReview).not.toHaveBeenCalled();
-    const sent = JSON.parse(calls[0].body.messages[1].content);
-    if (mode === 'slop') expect(sent).toEqual({ draft: 'Новый ручной текст' });
-    else {
-      expect(sent.core).toBe('Суть 10');
-      expect(sent.personText).toBe('Мои слова');
-    }
-  }
-);
-test('bad mode, missing tenant piece, missing adaptation and published draft spend nothing', async () => {
+/*
+  Дверь одна (`content-factory-next-97dq.14`, P3). `reviewAdaptation` и её
+  промпт `adaptation-review.ts` удалены: на них не вёл ни один маршрут, а
+  покупали они разбор утверждений и не имели ветки «проверять нечего». Всё, что
+  здесь проверялось через ту дверь, проверяется через живую — `reviewV2`.
+*/
+test('research mode, missing tenant piece, missing adaptation and published draft spend nothing', async () => {
   await expect(
-    service.reviewAdaptation('org', 'piece', 'a', 'bad')
+    service.reviewV2('org', 'piece', 'a', { mode: 'research' })
   ).rejects.toMatchObject({ status: 400 });
   repository.getPiece.mockResolvedValueOnce(null);
   await expect(
-    service.reviewAdaptation('other', 'piece', 'a', 'slop')
+    service.reviewV2('other', 'piece', 'a', { mode: 'slop' })
   ).rejects.toMatchObject({ status: 404 });
   repository.reviewDraft.mockResolvedValueOnce(null);
   await expect(
-    service.reviewAdaptation('org', 'piece', 'a', 'slop')
+    service.reviewV2('org', 'piece', 'a', { mode: 'slop' })
   ).rejects.toMatchObject({ status: 404 });
   repository.reviewDraft.mockResolvedValueOnce({
     ...draft(),
     post: { ...draft().post, state: 'PUBLISHED' },
   });
   await expect(
-    service.reviewAdaptation('org', 'piece', 'a', 'slop')
+    service.reviewV2('org', 'piece', 'a', { mode: 'slop' })
   ).rejects.toMatchObject({ status: 409 });
   expect(usage.executeAiOperation).not.toHaveBeenCalled();
   expect(calls).toHaveLength(0);
-});
-test('quota denial invokes no provider; invalid response or provider failure never retries', async () => {
-  denied = true;
-  await expect(reviewAdaptationOnce('org', input, usage)).rejects.toMatchObject(
-    { code: 'AI_QUOTA_EXCEEDED' }
-  );
-  expect(calls).toHaveLength(0);
-  denied = false;
-  output = 'broken json';
-  await expect(reviewAdaptationOnce('org', input, usage)).rejects.toMatchObject(
-    { code: 'ADAPTATION_REVIEW_INVALID' }
-  );
-  expect(calls).toHaveLength(1);
-  output = new Error('provider failed');
-  await expect(reviewAdaptationOnce('org', input, usage)).rejects.toThrow(
-    'provider failed'
-  );
-  expect(calls).toHaveLength(2);
-});
-test('facts prompt excludes style catalog and explicitly forbids external knowledge and instructions in material', () => {
-  const prompt = reviewPrompt({ ...input, mode: 'facts' });
-  expect(prompt.system).toContain('No web, no external knowledge, no tools');
-  expect(prompt.system).toContain('untrusted data');
-  expect(prompt.system).toContain('Do not rewrite style');
-  expect(prompt.system).not.toContain('using this catalog');
 });
 test('accept writes escaped editor content, no model, preserves snapshot', async () => {
   const snapshot = {
@@ -423,16 +360,6 @@ const evidence = {
     },
   ],
 };
-const webAnswer = () => ({
-  text: 'Исправленный текст',
-  notes: [
-    {
-      kind: 'facts',
-      text: 'Исправлено число',
-      sourceUrls: ['https://example.com/source'],
-    },
-  ],
-});
 const serviceWithWeb = (web) =>
   new PieceService(
     repository,
@@ -446,107 +373,71 @@ const serviceWithWeb = (web) =>
     null,
     web
   );
-test('web service requires explicit spend confirmation before any external call; original three modes never search', async () => {
+test('web mode requires explicit spend confirmation before any external call; the three plain modes never search', async () => {
+  process.env.JWT_SECRET = 'test-review-key';
   const web = { research: jest.fn(async () => evidence) },
     instance = serviceWithWeb(web);
   await expect(
-    instance.reviewAdaptation('org', 'piece', 'adaptation', 'web')
-  ).rejects.toMatchObject({ code: 'ADAPTATION_REVIEW_WEB_CONFIRM' });
+    instance.reviewV2('org', 'piece', 'adaptation', { mode: 'web' })
+  ).rejects.toMatchObject({ code: 'REVIEW_WEB_CONFIRM' });
   expect(web.research).not.toHaveBeenCalled();
   expect(usage.executeAiOperation).not.toHaveBeenCalled();
   for (const mode of ['slop', 'facts', 'both']) {
-    output = {
-      text: 'Поправлено',
-      notes: [{ kind: mode === 'facts' ? 'facts' : 'slop', text: 'note' }],
-    };
-    await instance.reviewAdaptation('org', 'piece', 'adaptation', mode);
+    output = { changes: [], verdict: 'clean', summary: '' };
+    await instance.reviewV2('org', 'piece', 'adaptation', { mode });
   }
   expect(web.research).not.toHaveBeenCalled();
-  expect(calls).toHaveLength(3);
+  expect(reviewCalls()).toHaveLength(3);
+  expect(claimsCalls()).toHaveLength(0);
 });
-test('web makes one research request then one no-retry review using excerpts, never the search model summary', async () => {
-  const web = { research: jest.fn(async () => evidence) },
-    instance = serviceWithWeb(web);
-  output = webAnswer();
-  const reviewed = await instance.reviewAdaptation(
-    'org',
-    'piece',
-    'adaptation',
-    'web',
-    'ru',
-    true
-  );
-  expect(web.research).toHaveBeenCalledTimes(1);
-  // Один разбор утверждений, один поиск по их запросам, одна проверка.
-  expect(web.research).toHaveBeenCalledWith('org', 'Новый ручной текст', {
-    level: 'standard',
-    task: 'facts',
-    language: 'ru',
-    queries: ['комиссия 10%'],
-  });
-  expect(claimsCalls()).toHaveLength(1);
-  expect(reviewCalls()).toHaveLength(1);
-  const review = reviewCalls()[0];
-  expect(review.options.maxRetries).toBe(0);
-  expect(review.body.messages[0].content).toContain('untrusted data');
-  expect(JSON.stringify(review.body.messages)).not.toContain(evidence.summary);
-  expect(reviewed.searchedClaims).toEqual(['комиссия 10%']);
-  expect(reviewed.sources).toEqual([
-    {
-      url: 'https://example.com/source',
-      title: 'Original source',
-      excerpt: evidence.facts[0].text,
-    },
-  ]);
-  expect(reviewed.snapshot.postContent).toBe('<p>Новый ручной текст</p>');
-  expect(repository.acceptReview).not.toHaveBeenCalled();
-});
-test('search input and returned evidence have fixed bounds, inside one research operation', async () => {
-  const web = {
-    research: jest.fn(async () => ({
-      ...evidence,
-      sources: Array.from({ length: 12 }, (_, i) => ({
-        url: `https://example.com/${i}`,
-        title: 'source',
-      })),
-      facts: Array.from({ length: 12 }, (_, i) => ({
-        sourceUrl: `https://example.com/${i}`,
-        text: 'x'.repeat(10_000),
-      })),
+
+/**
+ * Доказательством становится только настоящая выдержка настоящей страницы, и
+ * её объём ограничен двумя названными числами. Чистая функция — та же, что
+ * читает `reviewV2`; своего платного хода у этого файла больше нет.
+ */
+test('returned evidence has fixed bounds and refuses anything that is not an https excerpt', () => {
+  const many = webModule.webReviewSources({
+    ...evidence,
+    sources: Array.from({ length: 12 }, (_, i) => ({
+      url: `https://example.com/${i}`,
+      title: 'source',
     })),
-  };
-  output = { text: 'x'.repeat(6_000), notes: [] };
-  const reviewed = await webModule.reviewAdaptationWithSearch(
-    'org',
-    { text: output.text, language: 'en' },
-    usage,
-    web
-  );
-  expect(web.research).toHaveBeenCalledTimes(1);
-  // Один поиск, один потолок чтения — и он больше не «первые пять тысяч».
-  expect(web.research.mock.calls[0][1]).toHaveLength(6_000);
-  expect(reviewed.sources).toHaveLength(6);
+    facts: Array.from({ length: 12 }, (_, i) => ({
+      sourceUrl: `https://example.com/${i}`,
+      text: 'x'.repeat(10_000),
+    })),
+  });
+  expect(many).toHaveLength(webModule.WEB_REVIEW_MAX_SOURCES);
   expect(
-    reviewed.sources.every((source) => source.excerpt.length <= 1_600)
+    many.every(
+      (source) => source.excerpt.length <= webModule.WEB_REVIEW_SOURCE_CHARS
+    )
   ).toBe(true);
-  expect(reviewed.searchedChars).toBe(6_000);
+
+  // Ни адреса без выдержки, ни выдержки без вернувшегося источника, ни схемы,
+  // которая адресом страницы не является.
+  expect(webModule.webReviewSources({ ...evidence, facts: [] })).toEqual([]);
+  expect(
+    webModule.webReviewSources({
+      ...evidence,
+      facts: [{ sourceUrl: evidence.sources[0].url, text: '   ' }],
+    })
+  ).toEqual([]);
+  expect(
+    webModule.webReviewSources({
+      sources: [{ url: 'javascript:alert(1)', title: 'bad' }],
+      facts: [{ sourceUrl: 'javascript:alert(1)', text: 'bad' }],
+    })
+  ).toEqual([]);
 });
 
 test('a draft longer than the claim limit is cut by one named constant, not by three', async () => {
-  const web = { research: jest.fn(async () => evidence) };
-  output = webAnswer();
   const { REVIEW_CLAIM_TEXT_CHARS } = loadWithMocks(
     `${root}/review-claims.ts`,
     mocks
   );
   expect(REVIEW_CLAIM_TEXT_CHARS).toBe(20_000);
-  await webModule.reviewAdaptationWithSearch(
-    'org',
-    { text: 'я'.repeat(30_000), language: 'ru' },
-    usage,
-    web
-  );
-  expect(web.research.mock.calls[0][1]).toHaveLength(REVIEW_CLAIM_TEXT_CHARS);
   // Двух из трёх независимых «5000» в этих файлах больше нет: ни безымянного
   // числа в коде, ни собственной константы длины подписки.
   const fs = require('node:fs');
@@ -568,125 +459,28 @@ test('a draft longer than the claim limit is cut by one named constant, not by t
   expect(research).not.toContain('MAXIMUM_SUBJECT_LENGTH');
 });
 
-test('standard adaptation review records its explicit paid research level', async () => {
-  const web = { research: jest.fn(async () => evidence) };
-  output = webAnswer();
-  await webModule.reviewAdaptationWithSearch(
-    'org',
-    { text: 'draft', language: 'en' },
-    usage,
-    web,
-    'standard'
-  );
-  // Без запросов язык не передаётся: он попросил бы пересказать сводку, а эта
-  // полоса сводку выбрасывает (`content-factory-next-97dq.3`, P2-7).
-  expect(web.research).toHaveBeenCalledWith('org', 'draft', {
-    level: 'standard',
-    task: 'facts',
-  });
-});
-
-test('claim queries carry the language for the encyclopedic lane, and only then', async () => {
-  const web = { research: jest.fn(async () => evidence) };
-  output = webAnswer();
-  await webModule.reviewAdaptationWithSearch(
-    'org',
-    { text: 'draft', language: 'ru' },
-    usage,
-    web,
-    'standard',
-    'facts',
-    ['комиссия 10%']
-  );
-  expect(web.research).toHaveBeenCalledWith('org', 'draft', {
-    level: 'standard',
-    task: 'facts',
-    queries: ['комиссия 10%'],
-    language: 'ru',
-  });
-});
-
 /**
- * `content-factory-next-75xn.2`. Уровень здесь не различает два режима — его
- * передают оба, — поэтому задачу называют прямо. «Проверить факты поиском»
- * просит короткую цитируемую выдержку, «Усилить ресерчем» — широту.
+ * Живая полоса передаёт уровень, задачу и — вместе с запросами — язык сама
+ * (`reviewV2`, `content-factory-next-97dq.3`): это проверяется в
+ * `review-fact-check.test.cjs`, где стоит и отказ «источников с текстом нет».
+ * Здесь остался только тот отказ, который виден с этой стороны двери.
  */
-test('fact review keeps standard search while enrichment leaves the review lane', async () => {
-  const web = { research: jest.fn(async () => evidence) };
+test('a search that returned no usable excerpt refuses instead of reviewing without evidence', async () => {
+  const web = { research: jest.fn(async () => ({ ...evidence, facts: [] })) };
   const instance = serviceWithWeb(web);
-
-  output = webAnswer();
-  await instance.reviewAdaptation('org', 'piece', 'adaptation', 'web', 'ru', true);
-  expect(web.research.mock.calls[0][2]).toMatchObject({
-    level: 'standard',
-    task: 'facts',
-  });
-
-  output = webAnswer();
-  await expect(instance.reviewAdaptation('org', 'piece', 'adaptation', 'research', 'ru', true))
-    .rejects.toMatchObject({ status: 400 });
-  expect(web.research).toHaveBeenCalledTimes(1);
+  await expect(
+    instance.reviewV2(
+      'org',
+      'piece',
+      'adaptation',
+      { mode: 'web', confirmWebSpend: true },
+      'ru'
+    )
+  ).rejects.toMatchObject({ code: 'REVIEW_WEB_EMPTY', status: 422 });
+  expect(reviewCalls()).toHaveLength(0);
+  expect(repository.acceptReview).not.toHaveBeenCalled();
 });
 
-test.each(['unavailable', 'empty', 'no-excerpt', 'unsafe-url', 'empty-draft'])(
-  '%s stops before the review model and never mutates a draft',
-  async (condition) => {
-    const web = {
-      research: jest.fn(async () => {
-        if (condition === 'unavailable')
-          throw new Error('provider secret error');
-        if (condition === 'empty')
-          return { ...evidence, sources: [], facts: [] };
-        if (condition === 'no-excerpt') return { ...evidence, facts: [] };
-        if (condition === 'unsafe-url')
-          return {
-            ...evidence,
-            sources: [{ url: 'javascript:alert(1)', title: 'bad' }],
-            facts: [{ sourceUrl: 'javascript:alert(1)', text: 'bad' }],
-          };
-        return evidence;
-      }),
-    };
-    await expect(
-      webModule.reviewAdaptationWithSearch(
-        'org',
-        { text: condition === 'empty-draft' ? '' : 'draft', language: 'en' },
-        usage,
-        web
-      )
-    ).rejects.toMatchObject({ status: expect.any(Number) });
-    expect(calls).toHaveLength(0);
-    expect(repository.acceptReview).not.toHaveBeenCalled();
-  }
-);
-test.each(['unknown-url', 'no-citation'])(
-  '%s model correction is rejected without retry',
-  async (condition) => {
-    const web = { research: jest.fn(async () => evidence) };
-    output = {
-      text: 'corrected',
-      notes: [
-        {
-          kind: 'facts',
-          text: 'claim',
-          sourceUrls:
-            condition === 'unknown-url'
-              ? ['https://invented.example.com/']
-              : [],
-        },
-      ],
-    };
-    await expect(
-      webModule.reviewAdaptationWithSearch(
-        'org',
-        { text: 'draft', language: 'en' },
-        usage,
-        web
-      )
-    ).rejects.toMatchObject({ code: 'ADAPTATION_REVIEW_INVALID' });
-    expect(calls).toHaveLength(1);
-  }
-);
 test('web DTO requires true confirmation; controller forwards it together with request organization', async () => {
   const { validate } = require('class-validator'),
     { plainToInstance } = require('class-transformer');
@@ -760,10 +554,17 @@ test('real research admission and review admission remain separate, exactly once
       },
     }
   );
+  process.env.JWT_SECRET = 'test-review-key';
   const web = new WebResearchService(usage);
   web.researchWithinOperation = jest.fn(async () => evidence);
-  output = webAnswer();
-  await webModule.reviewAdaptationWithSearch('org', { text: 'draft', language: 'en' }, usage, web);
+  output = { changes: [], verdict: 'clean', summary: '' };
+  await serviceWithWeb(web).reviewV2(
+    'org',
+    'piece',
+    'adaptation',
+    { mode: 'web', confirmWebSpend: true },
+    'ru'
+  );
   expect(usage.beginAiOperationWithConfig).toHaveBeenCalledTimes(1);
   expect(usage.beginAiOperationWithConfig).toHaveBeenCalledWith(
     'org',
@@ -771,9 +572,15 @@ test('real research admission and review admission remain separate, exactly once
     expect.objectContaining({ usageMode: 'included', apiKey: 'system-search-key' }),
     'research'
   );
-  expect(usage.executeAiOperation.mock.calls.map(call => call[1])).toEqual(['text_generation']);
+  // Разбор утверждений — своя дешёвая операция, проверка — своя. Ни одна не
+  // считается второй раз, и ни одна не подменяет броню поиска.
+  expect(usage.executeAiOperation.mock.calls.map(call => call[1])).toEqual([
+    'content_classification',
+    'text_generation',
+  ]);
   expect(web.researchWithinOperation).toHaveBeenCalledTimes(1);
-  expect(calls).toHaveLength(1);
+  expect(claimsCalls()).toHaveLength(1);
+  expect(reviewCalls()).toHaveLength(1);
 });
 
 test('v2 review signs server changes; partial acceptance uses snapshot and ignores client text',async()=>{
