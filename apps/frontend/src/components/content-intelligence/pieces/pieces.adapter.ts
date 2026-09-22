@@ -431,6 +431,16 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
     // волны вопросов не несут вовсе, и это читается как «спрашивать нечего», а
     // не как пробел: `null` здесь — обычное состояние готовой заготовки.
     questions: readOpenQuestions(record.questions),
+    // Что человек прислал (`content-factory-next-97dq.25`): свои слова или
+    // чужой пост дословно. Страница показывает это на месте сути, пока сути
+    // нет, — вопросы задаются по этому тексту. У заготовок до этой волны
+    // чужого текста нет, а свои слова читаются защитно.
+    ...(asText(record.personText).trim()
+      ? { personText: asText(record.personText) }
+      : {}),
+    ...(asText(record.sourceText).trim()
+      ? { sourceText: asText(record.sourceText) }
+      : {}),
     // Источник повода (`content-factory-next-75xn.8`). Без адреса записи нет:
     // строка на странице существует, чтобы человек мог открыть исходное.
     ...(asText(asRecord(record.leadSource)?.url)

@@ -443,6 +443,23 @@ describe('второй проход помнит, чей это был текс�
     // Чужой текст в суть не идёт ни одним полем.
     expect(stored.brief.personText).toBe('');
     expect(stored.brief.brief.inputSources).toEqual([{ kind: 'foreign_post' }]);
+    // …но хранится дословно для страницы заготовки: вопрос о позиции задан по
+    // нему, и он должен стоять перед глазами (`97dq.25`).
+    expect(stored.brief.sourceText).toBe(MARKETPLACE_POST.trim());
+  });
+
+  test('своя мысль хранит свои слова, а чужого текста у неё нет', async () => {
+    const { service, calls } = build({
+      models: [briefAnswer({ questions: [] }), { text: 'Суть из своей мысли.' }],
+    });
+    const plan = await service.prepare(
+      'org-a',
+      request({ input: 'Мы сократили неделю до четырёх дней.', inputKind: 'thought' })
+    );
+    await drain(service, plan);
+    const [, stored] = calls.recordCore[0];
+    expect(stored.brief.personText).toBe('Мы сократили неделю до четырёх дней.');
+    expect(stored.brief.sourceText).toBeUndefined();
   });
 
   /** Снимок, записанный до этой волны: полей вида материала в нём нет. */

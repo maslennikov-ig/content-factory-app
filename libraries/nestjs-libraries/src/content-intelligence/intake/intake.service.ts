@@ -809,6 +809,12 @@ export class IntakeService {
     const personText = extraction
       ? ''
       : contentFromIntent(state.correctedInput || plan.input);
+    /*
+      Чужой пост или сообщение со ссылкой — дословно, для страницы заготовки,
+      пока сути нет (`97dq.25`). В `writeCore` ниже он не передаётся: суть
+      пишется по пересказанным блокам разбора, и антикопия держится на этом.
+    */
+    const sourceText = extraction ? trimmed(plan.input) : '';
 
     const written: ZagotovkaCoreV1 = open.length ? {
       version: 'piece-core/v1', text: '', brief: filled.brief, answers,
@@ -848,6 +854,7 @@ export class IntakeService {
         answered: this.settledAnswers(plan),
       },
       personText,
+      ...(sourceText ? { sourceText } : {}),
       ...(extraction ? { borrowed: this.borrowedForCore(extraction) } : {}),
     };
 

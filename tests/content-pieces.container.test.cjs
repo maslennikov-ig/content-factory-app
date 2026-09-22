@@ -539,6 +539,58 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(card.textContent).toContain('Мы спросили по вашему тексту');
   });
 
+  /*
+    Десятый заход 22.09.2026 (`content-factory-next-97dq.25`): пока сути нет,
+    вопрос задан по тексту, которого перед глазами нет. Теперь присланное стоит
+    на месте сути — чужой пост под своей подписью, своя мысль под своей, — а
+    как только суть написана, показывается она сама.
+  */
+  test('while the core is empty, the sent text stands in its place', async () => {
+    const foreign = {
+      ...ASKED_DETAIL,
+      core: {
+        ...ASKED_DETAIL.core,
+        text: '',
+        brief: { ...ASKED_DETAIL.core.brief, inputKind: 'foreign_post' },
+        sourceText: 'Маркетплейсы снова подняли комиссии, и продавцы опять пишут, что работать стало невыгодно.',
+      },
+    };
+    serve(table({ detail: detailDoor(ok(foreign)) }));
+    await open();
+
+    const sent = document.querySelector('[data-piece-sent-text]');
+    expect(sent).not.toBeNull();
+    expect(sent.getAttribute('data-piece-sent-text')).toBe('source');
+    expect(sent.textContent).toContain('Чужой пост, на который вы отвечаете');
+    expect(sent.textContent).toContain('Маркетплейсы снова подняли комиссии');
+    // Текст стоит над вопросами: с двумя вопросами карточка выше экрана, и
+    // текст под ней уходил за сгиб (стенд 22.09.2026, s2-page.png).
+    const card = document.querySelector('[data-piece-clarify="true"]');
+    expect(sent.compareDocumentPosition(card) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('a thought without a core shows the person’s own words; a written core shows nothing extra', async () => {
+    const thought = {
+      ...ASKED_DETAIL,
+      core: { ...ASKED_DETAIL.core, text: '', personText: 'Мы сократили неделю до четырёх дней.' },
+    };
+    serve(table({ detail: detailDoor(ok(thought)) }));
+    await open();
+    const sent = document.querySelector('[data-piece-sent-text]');
+    expect(sent.getAttribute('data-piece-sent-text')).toBe('person');
+    expect(sent.textContent).toContain('Ваш текст');
+    expect(sent.textContent).toContain('Мы сократили неделю до четырёх дней.');
+    cleanup();
+
+    const written = {
+      ...ASKED_DETAIL,
+      core: { ...ASKED_DETAIL.core, personText: 'Мы сократили неделю до четырёх дней.' },
+    };
+    serve(table({ detail: detailDoor(ok(written)) }));
+    await open();
+    expect(document.querySelector('[data-piece-sent-text]')).toBeNull();
+  });
+
   test('an answer travels by field, and the piece is read again', async () => {
     const answered = [];
     serve(

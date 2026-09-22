@@ -118,7 +118,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
   expect(prompt).toContain('правило 4 здесь не действует');
   expect(prompt).toContain('получает в тексте своё предложение');
   expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
@@ -162,7 +162,7 @@ test('a partly confirmed correction stands once, and never in the confirmed bloc
     questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
     foreignShingles: [] });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
   expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
     'взято из ресерча (не подтверждено): Эксперимент охватил около 2 500 человек',
   ]);
@@ -216,7 +216,7 @@ const personText = 'Исландский эксперимент охватил 2
 test('an own number the search did not confirm leaves the confirmed block and keeps its note', () => {
   const prompt = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
   expect(prompt.split('\n').filter((line) => line.includes('25 тысяч человек.'))).toEqual([
     'не подтвердилось поиском: Исландский эксперимент охватил 25 тысяч человек. — Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
   ]);
@@ -234,7 +234,7 @@ test('an own row the search confirmed still stands in the confirmed block', () =
   };
   const prompt = promptOf({ brief: icelandBrief([confirmedOwn]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
   expect(prompt).toContain('факты подтверждённые: Эксперимент шёл с 2015 по 2019 год.');
   expect(prompt).not.toContain('не подтвердилось поиском');
 });
@@ -280,21 +280,27 @@ test('a thought with no research keeps the v6 text word for word', () => {
     personText: 'Мы сократили неделю до четырёх дней.',
   });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
   expect(prompt).toContain('факты подтверждённые: Мы сократили неделю до четырёх дней.');
   expect(prompt).not.toContain('не подтвердилось поиском');
   expect(prompt).not.toContain('правило 4 здесь не действует');
   expect(prompt).toContain('три предложения — нормальная суть');
-  expect(prompt).not.toContain('Отдельное правило о блоках чужого поста');
+  expect(prompt).not.toContain('Отдельное правило о блоках исходного материала');
 });
 
 /**
- * Суть по чужому посту получает правило о его блоках (`content-factory-next-97dq.21`).
+ * Суть по чужому посту получает правило о его блоках (`content-factory-next-97dq.21`,
+ * переписано в `97dq.24`).
  *
  * Стенд 22.09.2026: с разбором v6 в бриф пришли пять утверждений и четыре шага
  * строения, а модель вернула одну фразу — позицию человека, потому что ни одно
- * правило не говорило, что с блоками чужого поста делать. Правило стоит только
- * когда есть что пересказывать; тема и угол сами по себе его не включают.
+ * правило не говорило, что с блоками чужого поста делать. Правило v7 велело
+ * «пересказать как предмет спора» — и десятый заход (`cnt-23`) получил
+ * рецензию: «Чужой пост связывает… автор поста пишет». Правило v8 говорит
+ * обратное: чужой пост — материал для своего текста, и отсылок к нему в сути
+ * нет. Подписи блоков тоже больше не называют «чужой пост»: модель повторяла
+ * подпись в тексте. Правило стоит только когда есть что взять; тема и угол
+ * сами по себе его не включают.
  */
 test('a foreign post with claims or structure gets the named rule about its blocks', () => {
   const brief = {
@@ -309,13 +315,19 @@ test('a foreign post with claims or structure gets the named rule about its bloc
   };
   const prompt = promptOf({ brief, borrowed, personText: '' });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
-  expect(prompt).toContain('Отдельное правило о блоках чужого поста');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('Отдельное правило о блоках исходного материала');
+  expect(prompt).toContain('делает из него СВОЙ текст');
   expect(prompt).toContain('Правило 4 здесь не действует');
-  expect(prompt).toContain('что чужой пост утверждает (пересказ, не его слова): Маркетплейсы повысили комиссии для продавцов.');
+  expect(prompt).toContain('что происходит по исходному материалу (пересказ; числа отсюда не проверены): Маркетплейсы повысили комиссии для продавцов.');
+  // Ни подпись блока, ни правило больше не зовут материал «чужим постом»:
+  // модель повторяла подпись в сути («Чужой пост связывает…»).
+  expect(prompt).not.toContain('что чужой пост утверждает');
+  expect(prompt).not.toContain('строение чужого поста');
+  expect(prompt).not.toContain('перескажи своими словами, на что он отвечает');
 
   const topicOnly = promptOf({ brief, borrowed: { ...borrowed, structure: [], claims: [] }, personText: '' });
-  expect(topicOnly).not.toContain('Отдельное правило о блоках чужого поста');
+  expect(topicOnly).not.toContain('Отдельное правило о блоках исходного материала');
 });
 
 test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {

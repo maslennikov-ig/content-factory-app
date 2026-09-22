@@ -866,6 +866,32 @@ export function PieceScreen({
               </p>
             ) : null}
 
+            {/*
+              Пока сути нет, на её месте стоит то, что человек прислал
+              (`content-factory-next-97dq.25`): вопросы ниже заданы по этому
+              тексту, и отвечать на них, не видя его, неудобно — десятый заход
+              22.09.2026. Стоит НАД вопросами: с двумя вопросами карточка
+              выше экрана, и текст под ней уходил за сгиб. Как только суть написана, её место занимает она сама,
+              и присланное больше не показывается: «если уже что-то писала,
+              то то, что уже написала».
+            */}
+            {core && !core.text && (core.sourceText || core.personText) ? (
+              <div
+                data-piece-sent-text={core.sourceText ? 'source' : 'person'}
+                className="flex min-w-0 max-w-[72ch] flex-col gap-[8px]"
+              >
+                <p className="cf-label-sm uppercase text-cf-ink-muted">
+                  {core.sourceText
+                    ? core.brief.inputKind === 'foreign_post'
+                      ? t.sentSourceTitle
+                      : t.sentLinkTitle
+                    : t.sentPersonTitle}
+                </p>
+                <blockquote className="whitespace-pre-wrap border-l border-cf-border pl-[12px] cf-body-md text-cf-ink [text-wrap:pretty]">
+                  {core.sourceText || core.personText}
+                </blockquote>
+              </div>
+            ) : null}
             {questionsSlot}
             {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно нажать «Решите за меня».' : 'The core will appear after your answers. You can let us decide.'}</p> : null}
             {core?.text && core.writtenBy === 'fallback' ? (

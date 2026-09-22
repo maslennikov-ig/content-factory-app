@@ -1217,8 +1217,9 @@ export class PieceService {
               before.items.find((question) => question.field === CORE_QUESTION_FIELDS[answer.key])?.question || coreQuestionText(answer.key, language),
             ])
           ),
-          // Слова человека, с которых началась заготовка. Чужого текста здесь
-          // нет ни одним полем и быть не может: он не сохраняется вовсе.
+          // Слова человека, с которых началась заготовка. Чужой текст
+          // (`sourceText`) сюда не идёт ни одним полем: суть пишется по
+          // пересказанным блокам разбора, и антикопия держится на этом.
           personText: plan.core.personText ?? '',
           borrowed: plan.borrowed ?? null,
           foreignShingles: plan.foreignShingles,
@@ -1229,7 +1230,7 @@ export class PieceService {
           warn: (message) => this.logger.warn(message),
         }
       );
-      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '' };
+      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}) };
     }
 
     if (!core.text.trim()) {
@@ -1534,7 +1535,7 @@ export class PieceService {
       { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, saved.title,
       { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
         brief: state.filled.brief, authorNumbers: core.authorNumbers,
-        personText: core.personText ?? '', questions: core.questions });
+        personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), questions: core.questions });
     await this.snapshots.del(key);
     return accepted;
   }
@@ -1940,6 +1941,10 @@ export class PieceService {
       questions: this.questionsOf(stored.questions),
       ...(typeof stored.personText === 'string'
         ? { personText: stored.personText }
+        : {}),
+      // Присланный чужой текст (`97dq.25`): у заготовок до этой волны его нет.
+      ...(typeof stored.sourceText === 'string' && stored.sourceText.trim()
+        ? { sourceText: stored.sourceText }
         : {}),
       // Источник повода (`content-factory-next-75xn.8`). Читается защитно и
       // по одному полю: у заготовок до этой волны его нет вовсе, а `brief` —

@@ -104,6 +104,10 @@ export const piecesCopy = {
     coreFallback:
       'ИИ не ответил — суть собрана из брифа. Проверьте её перед адаптацией.',
     legacyTitle: 'Текст одного канала',
+    /* Пока сути нет: то, что человек прислал, стоит на её месте (97dq.25). */
+    sentPersonTitle: 'Ваш текст',
+    sentSourceTitle: 'Чужой пост, на который вы отвечаете',
+    sentLinkTitle: 'Что вы прислали',
     legacyWarning:
       'Это старый материал: тело — текст одного канала, а не нейтральная суть. Адаптация будет опираться на него как есть.',
     slopTitle: 'Проверка на штампы',
@@ -331,6 +335,9 @@ export const piecesCopy = {
     coreFallback:
       'AI did not answer — the substance was assembled from the brief. Check it before adapting.',
     legacyTitle: 'Text of one channel',
+    sentPersonTitle: 'Your text',
+    sentSourceTitle: 'The post you are answering',
+    sentLinkTitle: 'What you sent',
     legacyWarning:
       'This is older material: the body is one channel’s text, not neutral substance. An adaptation will lean on it as it is.',
     slopTitle: 'Cliché check',

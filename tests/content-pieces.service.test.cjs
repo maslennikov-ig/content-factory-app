@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('характерные фразы человека переноси дословно');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v7');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v8');
     /*
       Первая суть судится теми же правилами, что и до волны `97dq`: правило 4
       («три предложения — нормальная суть») на месте, а правила дополнения не

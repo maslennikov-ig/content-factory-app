@@ -2,7 +2,8 @@
 Current stage id: `content-factory-next-97dq`
 Last accepted stage id: `content-factory-next-xmfb`
 Selected Beads goal: `content-factory-next-97dq`
-Next stage id: release of the fix wave `97dq.21`–`.23`, then a fresh walk page (tenth) for the owner
+Next stage id: `content-factory-next-97dq` tenth walk — owner walks artifact `3fd99e8b` on `1b175c45e094`; Claude reads it on «отправил»
+**RELEASED 22.09.2026 (fix wave): `1b175c45e094`, rollback `8cd15fe748c2`.** Private source `b946357787c3` on `wave/walk-2026-09-18` (not pushed — no push authority asked this time); public `1b175c4`; Jest 457/6177, Node 125/0, Python OK; tsc × 4; schema unchanged; digest matches on host; healthy, 0 restarts; five addresses 200; archive byte-equal; host 22 GB free. Evidence `stages/content-factory-next-97dq/evidence/release-2026-09-22.json`. 97dq.21–.23 closed and read back.
 **Ninth walk on `8cd15fe748c2` (artifact `658c88fd`, sent 22.09 08:21Z, evidence `evidence/walk-2026-09-22/`): A1/A2/B1 discrepancies, owner stopped the walk.** Causes read from production and fixed the same day (Beads `97dq.21`–`.23`, streams 60636195 / 3dac5bc1 / 8c89e221, root 71c15b31 + 15bfa9ce, all merged into `wave/walk-2026-09-18`): (1) `intake-extract/v6` — a known kind is extracted, never classified (v5 returned empty claims/structure for the owner's opinion post it called a `thought`, and the checkbox only pinned the kind); (2) `core-write/v7` — own numbers the search refuted leave «факты подтверждённые» for their own block with the source note, first core with research gets rules 12–15, and a named rule tells the model what the pasted-post blocks are for (without it the model still wrote one sentence on the live stand); (3) the «согласен частично…» stance opens a field (`ownOption` marker from the backend), service chips on their own quiet row, «Реши всё сама» → «Решите всё за меня». Live-model proof `evidence/live-stand-2026-09-22/` (foreign core 581 chars, Iceland first core 848 chars without «25 тысяч»/«40%»). Lesson: the 18.09 stand evidence had `claims: []` and a one-sentence core and was read as a pass — judge a core by its material, not its first words.
 **RELEASED 18.09.2026 (second release of the wave): `8cd15fe748c2`, rollback `2542f433e993`.** Private source `fc10583d961e` on `wave/walk-2026-09-18`; Jest 455/6159, Node 125/0, Python OK; tsc × 4 (commands included); schema unchanged, Mastra 29→29, five addresses 200, source archive byte-equal, host 13 GB free. Owner's word 18.09 evening (spec §7): canvas approved, exact numbers from sources pass the vague-quantity rule, take everything left open, release. Shipped: 97dq.8 state cells (28×28 icon+tone, legend, chip filters, no row status pill), .10 grounded numbers (`text-quality/numbers.ts`, `passWhenGrounded`), .11 escaped bodies stay escaped for markup receivers + previews escape + nbsp, .12 `links-skipped` event and one quiet line, .13 impostor vote 243→4 ms, .14 review tails (`core-write/v6`, `reviewAdaptation` deleted), .15 commands app boots (`getTemporalCommandModule`), .16 chip «Решите за меня». Data step `adaptations:rerender-bold` RUN from the new image: 1 of 1. Evidence `stages/content-factory-next-97dq/evidence/release-2026-09-18-second.json`, review `evidence/correctness-review-second-release.md` (no P0, 2 P1 fixed).
 First release of the wave: `2542f433e993` (rollback `3504f07a8f25`, evidence `release-2026-09-18.json`). Traps of the second: debt moved from `.tsx` into a `.ts` helper vanishes from the design ledgers (guards read only tsx/jsx) and the stale ledger fails the receipt; commands `--help` needs a reachable DATABASE_URL (P1012 otherwise); take a production snapshot and the write in separate commands; `nvm use` in a tool command still loses to `~/.local/bin` (see the PATH prefix below).
@@ -165,12 +166,10 @@ outside the EU (needs its own ADR, marking grace ends 02.12.2026). `2la`:
 
 ## Next recommended
 
-Next stage id: `content-factory-next-97dq.9` (owner walks the ninth page, artifact `658c88fd`; Claude reads it on «отправил»)
+Next stage id: tenth walk, artifact `3fd99e8b` (see the top of this file)
 Walkthrough criteria: `docs/product/seventh-walk-wave-2026-09-16-spec.md` §6; the owner reviews release 3504f07a8f25.
 Still open: `m0iy.10` benefit measurement (by 25.09), `75xn.9/.33/.34`.
 Still the owner's: GPG key before 16.09.2026, `or3.9`, `fn33.132`, channel signatures off, neutral bot name.
-Released `5f657ccf294e` 07.09 evening (rollback `47cd8475c442`, epic `k879`): checks where the text is final,
-quality line, `/help`; owner closed `m2eg.25`, `fn33.159`, Workspace rename.
 
 ## Starter prompt for next orchestrator
 

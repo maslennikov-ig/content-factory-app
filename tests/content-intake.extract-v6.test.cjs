@@ -45,8 +45,10 @@ const { extractionPromptV6, EXTRACT_PROMPT_VERSION_V6 } = loadWithMocks(
 const { EXTRACT_PROMPT_VERSION_V5, extractionPromptV5 } = loadWithMocks(
   'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v5.ts'
 );
-const { CORE_WRITE_BLOCK_TITLES_V3 } = loadWithMocks(
-  'libraries/nestjs-libraries/src/content-intelligence/pieces/core-write-prompt.v3.ts'
+// Подписи блоков берутся у действующей версии промпта: с `core-write/v8`
+// (`97dq.24`) они зовут взятое «исходным материалом», а не «чужим постом».
+const { CORE_WRITE_BLOCK_TITLES_V8 } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/core-write-prompt.v8.ts'
 );
 
 const modelCalls = [];
@@ -311,8 +313,8 @@ describe('97dq.21: названный чужой текст разбирают, 
     expect(stored.brief.borrowed.claims).toHaveLength(3);
     expect(stored.brief.borrowed.structure).toHaveLength(3);
 
-    // И то же самое видит модель сути — блоками чужого материала.
-    const words = CORE_WRITE_BLOCK_TITLES_V3.ru;
+    // И то же самое видит модель сути — блоками исходного материала.
+    const words = CORE_WRITE_BLOCK_TITLES_V8.ru;
     const draft = modelCalls.find((call) => call.role === 'draft')?.prompt || '';
     expect(draft).toContain(`${words.structure}: площадки подняли комиссии`);
     expect(draft).toContain(
