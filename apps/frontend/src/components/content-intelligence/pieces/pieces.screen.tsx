@@ -3,6 +3,7 @@
 import { Fragment, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
+import { PieceDeleteButton } from './piece-delete.button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -224,6 +225,7 @@ export function PiecesScreen({
   onExpand,
   onOpenPiece,
   onAdapt,
+  onDelete,
   onOpenPost,
   onNewPiece,
   onRetry,
@@ -260,6 +262,8 @@ export function PiecesScreen({
   onExpand: (id: string) => void;
   onOpenPiece: (id: string) => void;
   onAdapt: (id: string, platform?: string) => void;
+  /** Удалить заготовку из раскрытой строки (`97dq.30`). */
+  onDelete: (id: string) => void;
   onOpenPost: (cell: PieceCellV1) => void;
   onNewPiece: () => void;
   onRetry: () => void;
@@ -321,6 +325,8 @@ export function PiecesScreen({
       ? t.originLink
       : row.origin === 'foreign_post'
       ? t.originForeign
+      : row.origin === 'instruction'
+      ? t.originInstruction
       : row.origin === 'lead'
       ? t.originLead
       : row.origin === 'legacy'
@@ -582,6 +588,13 @@ export function PiecesScreen({
             >
               {t.adapt}
             </Button>
+            <PieceDeleteButton
+              label={t.deletePiece}
+              armedLabel={t.deletePieceArmed}
+              disabled={!canWrite}
+              data-piece-delete={row.code}
+              onConfirm={() => onDelete(row.id)}
+            />
           </div>
         </div>
       </div>

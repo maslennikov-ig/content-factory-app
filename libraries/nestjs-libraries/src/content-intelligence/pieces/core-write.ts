@@ -1,12 +1,12 @@
 import { contentFromIntent } from '../intake/intake-content';
 import {
-  CORE_WRITE_BLOCK_TITLES_V9,
-  CORE_WRITE_ENRICH_LEAD_V9,
+  CORE_WRITE_BLOCK_TITLES_V10,
+  CORE_WRITE_ENRICH_LEAD_V10,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V9,
-  coreWriteSystemV9,
-} from './core-write-prompt.v9';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v9';
+  CORE_WRITE_REPAIR_V10,
+  coreWriteSystemV10,
+} from './core-write-prompt.v10';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v10';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -86,8 +86,14 @@ export type CoreWriteInputV1 = {
   /** Ответы интервью, дословно, с вопросами, на которые они отвечают. */
   answers: PieceAnswerV1[];
   questionTextByKey: Partial<Record<string, string>>;
-  /** Слова человека: мысль или ссылка с комментарием. Для чужого поста — пусто. */
+  /** Слова человека: мысль или ссылка с комментарием. Для чужого поста и задания — пусто. */
   personText: string;
+  /**
+   * Задание (`97dq.29`): описание поста, который человек хочет, и ссылки из
+   * него, которые велено сохранить. Едет своими блоками, а не как «слова
+   * человека»: фразы задания в текст не переносятся, ссылки — дословно.
+   */
+  instruction?: { text: string; links: readonly string[] } | null;
   /** Existing core to enrich; never attributed as fresh author input. */
   existingCore?: string;
   borrowed: CoreBorrowedV1 | null;
@@ -197,7 +203,7 @@ const searchRefuted = (fact: BriefFilledV1['facts'][number]): boolean =>
   !fact.verified && Boolean(fact.status) && fact.status !== 'confirmed';
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V9[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V10[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -327,8 +333,11 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     selectedResearchFacts.length > 0 ||
     confirmedFacts.some((fact) => fact.origin === 'search');
 
+  const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
+
   return [
-    coreWriteSystemV9(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV10(input.language, forbiddenPhrasesRule(input.language), {
+      instruction: Boolean(instruction),
       enrichment,
       firstWithResearch: !enrichment && researchPresent,
       unconfirmed: unconfirmedOwnFacts.length > 0,
@@ -341,6 +350,10 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     }),
     '',
     `PROMPT VERSION: ${CORE_WRITE_PROMPT_VERSION}`,
+    instruction ? fenced(words.instruction, [trimmed(instruction.text)]) : '',
+    instruction && instruction.links.length
+      ? fenced(words.links, [...instruction.links])
+      : '',
     fenced(
       words.person,
       editorialAnswerText(input.personText)
@@ -356,7 +369,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       .filter((line) => !line.endsWith('→ '))
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V9[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V10[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -420,6 +433,10 @@ export const fallbackCore = (
 export const coreGrounded = (input: CoreWriteInputV1): string[] =>
   [
     input.personText,
+    // Задание и его ссылки — тоже опора (`97dq.29`): число из задания и адрес,
+    // который велено сохранить, стоят в сути по слову человека.
+    input.instruction?.text ?? '',
+    ...(input.instruction?.links ?? []),
     ...input.answers
       .filter((answer) => answer.origin !== 'model')
       .map((answer) => answer.text),
@@ -475,7 +492,7 @@ export async function writeCore(
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const second = trimmed(
           ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V9[input.language]}${quoted}`
+            `${prompt}\n\n${CORE_WRITE_REPAIR_V10[input.language]}${quoted}`
           )) as any)?.text
         );
         return second || first;
@@ -492,8 +509,15 @@ export async function writeCore(
   }
 
   if (text) return shaped(text, 'model');
+  // Без модели ссылки из задания всё равно не теряются: последним абзацем.
+  const keptLinks = input.instruction?.links ?? [];
   return shaped(
-    contentFromIntent(fallbackCore(input.brief, input.answers, input.personText)),
+    [
+      contentFromIntent(fallbackCore(input.brief, input.answers, input.personText)),
+      keptLinks.join('\n'),
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
     'fallback'
   );
 }

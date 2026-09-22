@@ -386,4 +386,21 @@ export class PieceRepository {
       data: { archivedAt },
     });
   }
+
+  /**
+   * Удалить заготовку с её адаптациями (`97dq.30`). Посты не трогаются: у
+   * `ContentDerivation.post` связи на удаление нет, и опубликованное остаётся
+   * там, где опубликовано. Строки адаптаций снимаются явно, а не только
+   * каскадом внешнего ключа: так удаление читается из кода, а не из схемы.
+   * Оба `deleteMany` — с областью: промахнуться по чужой заготовке нечем.
+   */
+  async delete(organizationId: string, pieceId: string): Promise<number> {
+    await this.client().contentDerivation.deleteMany({
+      where: { organizationId, contentPieceId: pieceId },
+    });
+    const removed = await this.client().contentPiece.deleteMany({
+      where: { organizationId, id: pieceId },
+    });
+    return removed.count as number;
+  }
 }

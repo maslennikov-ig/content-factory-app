@@ -26,6 +26,7 @@ import {
   screenState,
   type BriefFilledV1,
   type IntakeCorrection,
+  type IntakeMaterialKind,
   type IntakeResearchSummary,
 } from './intake.adapter';
 import { piecePath } from '../pieces/pieces.adapter';
@@ -89,12 +90,12 @@ export function IntakeContainer({
   const [textLanguage, setTextLanguage] = useState<'ru' | 'en' | null>(null);
   const [researchEnabled, setResearchEnabled] = useState(false);
   /*
-    «Это чужой текст» (владелец, 18.09.2026): единственное, что человек знает
-    про свой ввод, а сервер угадать не может. Ответ живёт рядом с ходом, а не
-    внутри `run`, потому что второй проход ресерча — тот же ход и должен нести
-    тот же вид ввода.
+    Вид входа называет человек (владелец, 18.09 и 22.09.2026): свой текст,
+    чужой пост или задание — то, что сервер угадать не может, и что он угадал
+    неверно на `cnt-28`. Ответ живёт рядом с ходом, а не внутри `run`, потому
+    что второй проход ресерча — тот же ход и должен нести тот же вид ввода.
   */
-  const [foreignText, setForeignText] = useState(false);
+  const [materialKind, setMaterialKind] = useState<IntakeMaterialKind>('thought');
   const [researchLevel, setResearchLevel] = useState<'quick' | 'standard' | 'deep'>('standard');
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
@@ -216,7 +217,7 @@ export function IntakeContainer({
               buildIntakePayload({
                 input: inputText ?? input,
                 language: language0,
-                foreignText,
+                materialKind,
                 options: { researchEnabled, researchLevel },
                 ...(researchSelections !== undefined ? { researchSelections } : {}),
                 ...(researchSelections !== undefined && snapshotKey ? { snapshotKey } : {}),
@@ -359,7 +360,7 @@ export function IntakeContainer({
         setResearchWorking(false);
       }
     },
-    [goToPiece, input, language0, prefill?.sourceLeadId, request, w, researchEnabled, researchLevel, foreignText]
+    [goToPiece, input, language0, prefill?.sourceLeadId, request, w, researchEnabled, researchLevel, materialKind]
   );
 
   const write = useCallback(() => {
@@ -473,8 +474,8 @@ export function IntakeContainer({
         onLanguageChange={setTextLanguage}
         researchEnabled={researchEnabled}
         researchLevel={researchLevel}
-        foreignText={foreignText}
-        onForeignTextChange={setForeignText}
+        materialKind={materialKind}
+        onMaterialKindChange={setMaterialKind}
         onResearchEnabledChange={setResearchEnabled}
         onResearchLevelChange={setResearchLevel}
         onResearchFactSelect={(factKey, selected) => {

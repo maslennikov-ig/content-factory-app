@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v9');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v10');
     /*
       Первая суть судится теми же правилами, что и до волны `97dq`: правило 4
       («три предложения — нормальная суть») на месте, а правила дополнения не
@@ -844,6 +844,7 @@ const buildPieces = (options = {}) => {
     createDraft: [],
     createAdaptation: [],
     deleted: [],
+    removed: [],
     search: [],
     usage: [],
     updateCore: [],
@@ -891,6 +892,10 @@ const buildPieces = (options = {}) => {
       return { count: 1 };
     },
     archive: async () => ({ count: 1 }),
+    delete: async (organizationId, pieceId) => {
+      calls.removed.push([organizationId, pieceId]);
+      return 1;
+    },
   };
 
   /**
@@ -1632,6 +1637,24 @@ describe('адаптация под канал', () => {
     expect(calls.start[0][1].intake.formatHint).toBe('expert');
   });
 
+  /** Ссылки из задания (`97dq.29`): из сохранённой заготовки — в подсказки графа. */
+  test('ссылки задания из сохранённой заготовки доезжают до адаптации, а без задания их нет', async () => {
+    const keepLinks = ['https://t.me/radiosputnik_khv/20430', 'https://max.ru/radiosputnik_khv/AaCtY6o4aXg'];
+    const withTask = buildPieces({
+      piece: pieceRow({
+        brief: { ...CORE_BRIEF, inputKind: 'instruction', instructionText: 'Пост о том, что я выступил на радио', keepLinks },
+      }),
+    });
+    const plan = await withTask.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    await drain(withTask.service.adapt('org-a', plan));
+    expect(withTask.calls.start[0][1].intake.keepLinks).toEqual(keepLinks);
+
+    const plain = buildPieces();
+    const plan2 = await plain.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    await drain(plain.service.adapt('org-a', plan2));
+    expect(plain.calls.start[0][1].intake.keepLinks).toBeUndefined();
+  });
+
   test('отпечатки чужого поста из сохранённой заготовки доезжают до адаптации', async () => {
     const foreignShingles = [
       'мы перестали публиковать каждый день и стали писать',
@@ -2048,6 +2071,23 @@ describe('снятие адаптации и архив', () => {
     await expect(service.archive('org-a', 'piece-12', true)).rejects.toMatchObject(
       { code: 'PIECE_NOT_FOUND', status: 404 }
     );
+  });
+
+  /** Удаление заготовки (`97dq.30`): опубликованная адаптация — не запрет. */
+  test('удаление заготовки идёт с областью и не спрашивает про опубликованное', async () => {
+    const { service, calls } = buildPieces({
+      adaptation: { id: 'adaptation-9', postId: 'post-9', post: { state: 'PUBLISHED', deletedAt: null } },
+    });
+    await service.delete('org-a', 'piece-12');
+    expect(calls.removed).toEqual([['org-a', 'piece-12']]);
+  });
+
+  test('удаление несуществующей заготовки отказывает своим кодом', async () => {
+    const { service, calls } = buildPieces({ piece: null });
+    await expect(service.delete('org-a', 'piece-12')).rejects.toMatchObject(
+      { code: 'PIECE_NOT_FOUND', status: 404 }
+    );
+    expect(calls.removed).toEqual([]);
   });
 });
 

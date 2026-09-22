@@ -133,33 +133,47 @@ describe('the door is one field, and its refusals are readable', () => {
   });
 
   /*
-    18.09.2026, `content-factory-next-97dq.5`. Живой прогон показал, что
-    вставленный чужой пост неотличим от собственной мысли: продукт встал на
-    чужую позицию и выдал её за авторскую. Флажок стоит рядом с ресерчем,
-    объяснение живёт в подсказке и называет последствие, а не свойство.
+    22.09.2026, `content-factory-next-97dq.28`/`.29`. Флажок «Это чужой текст»
+    от 18.09 сменился переключателем над полем: вид входа называет человек, а
+    не угадывает сервер — на `cnt-28` тот принял слова владельца о собственном
+    посте за чужой пост. Три положения, «Свой текст» по умолчанию, строка под
+    полосой называет последствие выбранного положения.
   */
-  test('«Это чужой текст» is a checkbox beside research, with a hint that names the consequence', async () => {
+  test('the kind switch stands above the field with «Свой текст» selected, and names the consequence', async () => {
     const seen = [];
-    draw({ state: 'idle', onForeignTextChange: (value) => seen.push(value) });
-    const box = screen.getByRole('checkbox', { name: 'Это чужой текст' });
-    expect(box.checked).toBe(false);
-    expect(box.disabled).toBe(false);
-    const hint = screen.getByRole('button', { name: 'Подсказка: чужой текст' });
-    expect(hint).not.toBeNull();
-    await click(hint);
-    expect(document.querySelector('[role="tooltip"]').textContent).toBe(
-      'Поставьте, если вставили чужой пост или статью: спросим вашу позицию и не выдадим чужое мнение за ваше'
+    draw({ state: 'idle', onMaterialKindChange: (value) => seen.push(value) });
+    const group = screen.getByRole('radiogroup', { name: 'Что вы присылаете' });
+    expect(group.getAttribute('data-intake-material-kind')).toBe('thought');
+    const options = within(group).getAllByRole('radio').map((el) => el.textContent);
+    expect(options).toEqual(['Свой текст', 'Чужой пост', 'Задание']);
+    expect(screen.queryByRole('checkbox', { name: 'Это чужой текст' })).toBeNull();
+    expect(document.querySelector('[data-intake-kind-hint="thought"]').textContent).toBe(
+      'Ваши мысли или набросок: поправим речь, слова и смысл останутся вашими'
     );
-    await click(box);
-    expect(seen).toEqual([true]);
+    const field = document.getElementById('intake-input');
+    expect(group.compareDocumentPosition(field) & 4).toBeTruthy(); // DOCUMENT_POSITION_FOLLOWING
+    await click(within(group).getByRole('radio', { name: 'Задание' }));
+    expect(seen).toEqual(['instruction']);
   });
 
-  test('the foreign-text checkbox is off while the run is in flight, and reads back its state', () => {
-    draw({ state: 'streaming', step: 'writing', blocked: null, foreignText: true });
-    const box = screen.getByRole('checkbox', { name: 'Это чужой текст' });
-    expect(box.checked).toBe(true);
-    expect(box.disabled).toBe(true);
-    expect(box.getAttribute('data-intake-foreign-text')).toBe('on');
+  test('each position of the switch reads back and explains itself', () => {
+    draw({ state: 'idle', materialKind: 'instruction' });
+    expect(document.querySelector('[data-intake-kind-hint="instruction"]').textContent).toBe(
+      'Опишите, какой пост нужен: напишем по описанию, ссылки сохраним как есть'
+    );
+    draw({ state: 'idle', materialKind: 'foreign_post' });
+    expect(document.querySelector('[data-intake-kind-hint="foreign_post"]').textContent).toBe(
+      'Чужой пост или статья: сделаем из него ваш пост и спросим вашу позицию'
+    );
+  });
+
+  test('the kind switch ignores clicks while the run is in flight', async () => {
+    const seen = [];
+    draw({ state: 'streaming', step: 'writing', blocked: null, materialKind: 'foreign_post', onMaterialKindChange: (value) => seen.push(value) });
+    const group = screen.getByRole('radiogroup', { name: 'Что вы присылаете' });
+    expect(group.getAttribute('data-intake-material-kind')).toBe('foreign_post');
+    await click(within(group).getByRole('radio', { name: 'Задание' }));
+    expect(seen).toEqual([]);
   });
 
   /*

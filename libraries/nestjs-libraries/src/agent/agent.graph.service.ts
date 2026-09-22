@@ -1816,6 +1816,7 @@ export class AgentGraphService {
             withPicture: body.isPicture,
             formatHint: hints?.formatHint,
             foreignShingles: hints?.foreignShingles,
+            keepLinks: hints?.keepLinks,
           }
         )
       : undefined;

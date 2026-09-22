@@ -199,6 +199,8 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${
       contract.PIECE_ROUTES.deleteAdaptation.method
     } ${contract.PIECE_ROUTES.deleteAdaptation.path(':id', ':adaptationId')}`,
+    // Удаление заготовки (`97dq.30`): тоже только по идентификатору из пути.
+    `${contract.PIECE_ROUTES.delete.method} ${contract.PIECE_ROUTES.delete.path(':id')}`,
     // Additive editing/rewrite doors do not mutate the shipped voice contract.
     'PATCH /content-intelligence/pieces/:id',
     'PATCH /content-intelligence/pieces/:id/facts',
@@ -482,19 +484,21 @@ describe('удаление адаптации', () => {
    * решает, что удалять, однажды удалила всё. Здесь удалять нечем, кроме двух
    * идентификаторов из пути.
    */
-  test('у двери удаления нет ни тела, ни пути без идентификатора версии', () => {
+  test('у дверей удаления нет тела, а путь всегда называет, что удалять', () => {
     const source = read(FILES.controller);
     const at = source.indexOf("@Delete(");
     const block = source.slice(at, source.indexOf("@Post('/:id/archive')"));
 
     expect(block).not.toContain('@Body(');
     expect(block).toContain("@Param('adaptationId')");
-    // Ни одного `@Delete` без `adaptationId` в пути: массового удаления нет
-    // даже как маршрута, поэтому промахнуться некуда.
+    // Ни одного `@Delete` без идентификатора в пути: массового удаления нет
+    // даже как маршрута, поэтому промахнуться некуда. Удаление заготовки
+    // (`97dq.30`) — по `:id`, удаление версии — по `:id` и `:adaptationId`.
     const deletes = [...source.matchAll(/@Delete\('([^']*)'\)/g)].map(
       (match) => match[1]
     );
-    expect(deletes).toEqual(['/:id/adaptations/:adaptationId']);
+    expect(deletes.sort()).toEqual(['/:id', '/:id/adaptations/:adaptationId']);
+    for (const path of deletes) expect(path).toMatch(/^\/:id(\/|$)/u);
   });
 
   test('каждая дверь берёт область из запроса, а не из того, что прислали', async () => {

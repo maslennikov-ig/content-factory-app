@@ -103,7 +103,7 @@ export const readOrigin = (value: unknown): BriefFieldOriginV1 =>
     ? (value as BriefFieldOriginV1)
     : 'model';
 
-const KNOWN_KINDS: readonly IntakeInputKindV1[] = ['thought', 'link', 'foreign_post'];
+const KNOWN_KINDS: readonly IntakeInputKindV1[] = ['thought', 'link', 'foreign_post', 'instruction'];
 
 export const readInputKind = (value: unknown): IntakeInputKindV1 =>
   KNOWN_KINDS.includes(value as IntakeInputKindV1)
@@ -225,7 +225,7 @@ export function readIntakeEvent(line: string): IntakeReading | null {
         event: {
           name: 'intake-started',
           inputKind: readInputKind(record.inputKind),
-          sources: asArray(record.sources).filter((source): source is 'foreign_post' | 'link' | 'thought' => source === 'foreign_post' || source === 'link' || source === 'thought'),
+          sources: asArray(record.sources).filter((source): source is IntakeInputKindV1 => KNOWN_KINDS.includes(source as IntakeInputKindV1)),
         },
       };
 
@@ -488,8 +488,8 @@ export function readBrief(value: unknown): BriefFilledV2 | null {
     inputKind: readInputKind(record.inputKind),
     inputSources: asArray(record.inputSources).flatMap((source) => {
       const item = asRecord(source);
-      if (!item || !['thought', 'foreign_post', 'link'].includes(asText(item.kind))) return [];
-      return [{ kind: item.kind as 'thought' | 'foreign_post' | 'link', ...(typeof item.url === 'string' ? { url: item.url } : {}), ...(typeof item.evidenceId === 'string' ? { evidenceId: item.evidenceId } : {}) }];
+      if (!item || !KNOWN_KINDS.includes(asText(item.kind) as IntakeInputKindV1)) return [];
+      return [{ kind: item.kind as IntakeInputKindV1, ...(typeof item.url === 'string' ? { url: item.url } : {}), ...(typeof item.evidenceId === 'string' ? { evidenceId: item.evidenceId } : {}) }];
     }),
     goal: nullableText(record.goal),
     thesis: nullableText(record.thesis),
@@ -691,26 +691,27 @@ export function detectInputKind(input: string): IntakeInputKindV1 | undefined {
 }
 
 /**
- * Что человек сам сказал о своём вводе, поверх того, что видно по форме.
+ * Вид входа, названный человеком (`97dq.28`, `.29`), поверх того, что видно
+ * по форме.
  *
- * Флажок «Это чужой текст» — единственный случай, когда экран знает больше
- * сервера: вставленный чужой пост неотличим от собственной мысли ни по форме,
- * ни по языку, и 18.09.2026 живой прогон показал, чем это кончается — продукт
- * выдал чужое мнение за авторское (`content-factory-next-97dq`, факт 1).
- * Поэтому флажок называет вид ввода прямо, а сервер такой явный вид уже не
- * переспрашивает.
+ * До 22.09.2026 экран знал только флажок «Это чужой текст», а всё остальное
+ * угадывал сервер — и угадал собственные слова владельца о собственном посте
+ * как чужой пост (`cnt-28`). Теперь переключатель над полем называет вид
+ * всегда: свой текст, чужой пост или задание. Явно названный вид сервер не
+ * переспрашивает и не «повышает».
  *
- * Голая ссылка остаётся ссылкой и с флажком: страницу всё равно надо
- * прочитать, а чужое авторство у неё и так предполагается. Без флажка
- * молчание сохраняется — `undefined`, и вид решает сервер.
+ * Голая ссылка остаётся ссылкой при любом положении переключателя: страницу
+ * всё равно надо прочитать, а чужое авторство у неё и так предполагается.
  */
+export type IntakeMaterialKind = Extract<IntakeInputKindV1, 'thought' | 'foreign_post' | 'instruction'>;
+
 export function intakeInputKind(
   input: string,
-  options?: { foreignText?: boolean }
+  options?: { materialKind?: IntakeMaterialKind }
 ): IntakeInputKindV1 | undefined {
   const detected = detectInputKind(input);
   if (detected) return detected;
-  return options?.foreignText ? 'foreign_post' : undefined;
+  return options?.materialKind;
 }
 
 /**
@@ -752,8 +753,8 @@ export function buildIntakePayload(input: {
   decide?: readonly BriefField[];
   briefOverrides?: Partial<Record<ReceiptField, string>>;
   inputKind?: IntakeInputKindV1;
-  /** Флажок «Это чужой текст» на экране входа (`97dq.5`). */
-  foreignText?: boolean;
+  /** Переключатель вида входа над полем (`97dq.28`). */
+  materialKind?: IntakeMaterialKind;
   options?: IntakeOptionsV1;
   researchSelections?: readonly string[];
   /** Снимок первого прохода, чтобы второй продолжил его (`75xn.19`). */
@@ -768,7 +769,7 @@ export function buildIntakePayload(input: {
 }): IntakeRequestV2 {
   const kind =
     input.inputKind ??
-    intakeInputKind(input.input, { foreignText: input.foreignText });
+    intakeInputKind(input.input, { materialKind: input.materialKind });
   const overrides = Object.fromEntries(
     Object.entries(input.briefOverrides ?? {}).filter(
       ([, value]) => typeof value === 'string' && value.trim()

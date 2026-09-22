@@ -125,12 +125,18 @@ import {
   заполнении брифа. Модули v4 остаются импортируемыми и нетронутыми.
 */
 import {
-  briefFillPromptV5 as briefFillPrompt,
-  briefFillSchemaV5 as briefFillSchema,
   extractionPromptV5 as extractionPrompt,
   extractionSchemaV5 as extractionSchema,
   type IntakeExtractionV5 as IntakeExtractionV1,
 } from './intake.prompts.v5';
+/*
+  Бриф по заданию (`97dq.29`): v7 знает третий вид материала — описание поста,
+  который человек хочет, — и для двух прежних видов отдаёт слово v5 без правок.
+*/
+import {
+  briefFillPromptV7 as briefFillPrompt,
+  briefFillSchemaV7 as briefFillSchema,
+} from './intake.prompts.v7';
 /*
   Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
   что это», потому что решать нечего — галочку человека и страницу по ссылке
@@ -477,9 +483,20 @@ export class IntakeService {
   }
 
   private knownKind(value: unknown): IntakeInputKindV1 | null {
-    return value === 'thought' || value === 'link' || value === 'foreign_post'
+    return value === 'thought' ||
+      value === 'link' ||
+      value === 'foreign_post' ||
+      value === 'instruction'
       ? value
       : null;
+  }
+
+  /**
+   * Чьи это слова: мысль и задание пишет сам человек, и числа в них — его
+   * собственные (`97dq.29`). Чужой пост и страница по ссылке — нет.
+   */
+  private ownWords(plan: IntakePlanV1): boolean {
+    return plan.inputKind === 'thought' || plan.inputKind === 'instruction';
   }
 
   /**
@@ -806,7 +823,15 @@ export class IntakeService {
       опроверг и которое человек согласился заменить, не должно уйти в суть из
       исходной мысли, пока строка-поправка несёт новое.
     */
-    const personText = extraction
+    /*
+      Задание — не материал (`97dq.29`): его слова в суть дословно не идут, и
+      блок «СЛОВА ЧЕЛОВЕКА» остаётся пустым. Само задание едет своим блоком, а
+      ссылки из него — списком, который переносится в текст как есть.
+    */
+    const instruction = plan.inputKind === 'instruction'
+      ? { text: trimmed(state.correctedInput || plan.input), links: linksOf(plan.input) }
+      : null;
+    const personText = extraction || instruction
       ? ''
       : contentFromIntent(state.correctedInput || plan.input);
     /*
@@ -834,6 +859,7 @@ export class IntakeService {
         // Чужой текст в суть не идёт ни одним полем: для вставленного поста
         // словами человека не располагаем вовсе, и блок остаётся пустым.
         personText,
+        ...(instruction ? { instruction } : {}),
         borrowed: extraction ? this.borrowedForCore(extraction) : null,
         foreignShingles,
       },
@@ -855,6 +881,9 @@ export class IntakeService {
       },
       personText,
       ...(sourceText ? { sourceText } : {}),
+      ...(instruction
+        ? { instructionText: instruction.text, keepLinks: instruction.links }
+        : {}),
       ...(extraction ? { borrowed: this.borrowedForCore(extraction) } : {}),
     };
 
@@ -1116,6 +1145,11 @@ export class IntakeService {
     const material = extraction
       ? this.borrowedSummary(extraction)
       : plan.input;
+    const materialKind = extraction
+      ? ('borrowed' as const)
+      : plan.inputKind === 'instruction'
+      ? ('instruction' as const)
+      : ('thought' as const);
 
     const answer = await this.aiUsage.executeAiOperation(
       organizationId,
@@ -1128,7 +1162,10 @@ export class IntakeService {
           briefFillPrompt({
             language: plan.language,
             material,
-            materialKind: extraction ? 'borrowed' : 'thought',
+            materialKind,
+            ...(materialKind === 'instruction'
+              ? { keepLinks: linksOf(plan.input) }
+              : {}),
             fixed: Object.entries(person).map(([field, text]) => ({
               field,
               text,
@@ -1488,7 +1525,7 @@ export class IntakeService {
         factId,
         evidenceId,
         origin: evidenceId ? 'search' : factId ? 'memory' : 'input',
-        kind: evidenceId || plan.inputKind !== 'thought' ? 'external' : 'own',
+        kind: evidenceId || !this.ownWords(plan) ? 'external' : 'own',
         status: evidenceId || factId ? 'confirmed' : 'unverified',
         verified: Boolean(evidenceId || factId),
       });
@@ -1505,6 +1542,9 @@ export class IntakeService {
     */
     const settledFacts = settleOwnFacts({
       facts,
+      // Сеть по числам — только для мысли: в задании числа — это даты в шапке
+      // переписки и номера вопросов, и на стенде 22.09.2026 сеть выписала
+      // «[17.09.2026 5:13] Дарья: Игорь, добрый день!» строкой брифа.
       personText: plan.inputKind === 'thought' ? plan.input : '',
     });
     facts.length = 0;
@@ -1769,7 +1809,7 @@ export class IntakeService {
   }
 
   private correctedInputOf(plan: IntakePlanV1, corrections: IntakeCorrectionV1[]): string {
-    if (plan.inputKind !== 'thought') return '';
+    if (!this.ownWords(plan)) return '';
     let text = plan.input;
     let changed = false;
     for (const correction of corrections) {

@@ -390,6 +390,22 @@ export type PieceAnswerPlanV1 = {
   title: string;
 };
 
+/**
+ * Задание, с которого началась заготовка, — для переписи сути после ответа и
+ * для дополнения ресерчем (`97dq.29`): без него второй вызов писал бы по
+ * одному брифу и терял бы ссылки, которые велено сохранить.
+ */
+const instructionOf = (core: ZagotovkaCoreV1) =>
+  core.instructionText?.trim()
+    ? { text: core.instructionText, links: core.keepLinks ?? [] }
+    : null;
+
+/** Те же два поля обратно в запись сути, когда они есть. */
+const keptInstruction = (core: ZagotovkaCoreV1) =>
+  core.instructionText?.trim()
+    ? { instructionText: core.instructionText, keepLinks: core.keepLinks ?? [] }
+    : {};
+
 @Injectable()
 export class PieceService {
   private readonly logger = new Logger(PieceService.name);
@@ -1221,6 +1237,7 @@ export class PieceService {
           // (`sourceText`) сюда не идёт ни одним полем: суть пишется по
           // пересказанным блокам разбора, и антикопия держится на этом.
           personText: plan.core.personText ?? '',
+          instruction: instructionOf(plan.core),
           borrowed: plan.borrowed ?? null,
           foreignShingles: plan.foreignShingles,
         },
@@ -1230,7 +1247,7 @@ export class PieceService {
           warn: (message) => this.logger.warn(message),
         }
       );
-      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}) };
+      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core) };
     }
 
     if (!core.text.trim()) {
@@ -1525,7 +1542,7 @@ export class PieceService {
     const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
     const rewritten = await writeCore({ organizationId, language: saved.language,
       brief: selectedFactsBrief(state.filled.brief), answers: core.answers, questionTextByKey: {},
-      personText: core.personText ?? '', existingCore: state.correctedInput || saved.body,
+      personText: core.personText ?? '', instruction: instructionOf(core), existingCore: state.correctedInput || saved.body,
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
       { aiUsage: this.aiUsage, slopCheck: this.slopCheck, warn: message => this.logger.warn(message) });
     if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())
@@ -1535,7 +1552,7 @@ export class PieceService {
       { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, saved.title,
       { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
         brief: state.filled.brief, authorNumbers: core.authorNumbers,
-        personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), questions: core.questions });
+        personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions });
     await this.snapshots.del(key);
     return accepted;
   }
@@ -1895,6 +1912,19 @@ export class PieceService {
     );
   }
 
+  /**
+   * Удалить заготовку насовсем (`97dq.30`, владелец 22.09.2026: «нет
+   * возможности удалить заготовку, она должна быть из списка и из самой
+   * заготовки»). В отличие от адаптации, опубликованный пост здесь не
+   * запрет: удаляется запись заготовки и строки адаптаций, а посты в каналах
+   * остаются — как и при архиве.
+   */
+  async delete(organizationId: string, pieceId: string): Promise<void> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', 'ru', pieceId);
+    await this.pieces.delete(organizationId, pieceId);
+  }
+
   /* -----------------------------------------------------------------------
    * Чистая половина
    * -------------------------------------------------------------------- */
@@ -1945,6 +1975,13 @@ export class PieceService {
       // Присланный чужой текст (`97dq.25`): у заготовок до этой волны его нет.
       ...(typeof stored.sourceText === 'string' && stored.sourceText.trim()
         ? { sourceText: stored.sourceText }
+        : {}),
+      // Задание и ссылки из него (`97dq.29`): тоже только у новых заготовок.
+      ...(typeof stored.instructionText === 'string' && stored.instructionText.trim()
+        ? { instructionText: stored.instructionText }
+        : {}),
+      ...(Array.isArray(stored.keepLinks)
+        ? { keepLinks: stored.keepLinks.filter((link: unknown): link is string => typeof link === 'string' && !!link.trim()) }
         : {}),
       // Источник повода (`content-factory-next-75xn.8`). Читается защитно и
       // по одному полю: у заготовок до этой волны его нет вовсе, а `brief` —
@@ -2040,7 +2077,7 @@ export class PieceService {
     */
     if (leadSourceOf(stored?.leadSource)) return 'lead';
     const kind = trimmed(stored?.brief?.inputKind);
-    return kind === 'thought' || kind === 'link' || kind === 'foreign_post'
+    return kind === 'thought' || kind === 'link' || kind === 'foreign_post' || kind === 'instruction'
       ? (kind as PieceOriginV1)
       : 'legacy';
   }
@@ -2317,6 +2354,7 @@ export class PieceService {
         ? { answers: answers.map((answer) => `${answer.key}: ${answer.text}`) }
         : {}),
       ...(formatHint ? { formatHint } : {}),
+      ...(plan.core?.keepLinks?.length ? { keepLinks: [...plan.core.keepLinks] } : {}),
       ...(plan.foreignShingles.length
         ? { foreignShingles: plan.foreignShingles }
         : {}),

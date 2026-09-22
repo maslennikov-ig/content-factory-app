@@ -397,13 +397,14 @@ describe('a link, declared to the door as a link', () => {
 });
 
 /*
-  «Это чужой текст» — единственное, что человек знает про свой ввод, а сервер
-  угадать не может (живой прогон 18.09.2026, `content-factory-next-97dq.5`:
-  чужой пост прошёл как собственная мысль, и продукт встал на чужую позицию).
-  Флажок обязан доехать до двери и в первом ходе, и во втором проходе ресерча,
-  а без флажка вид ввода по-прежнему решает сервер.
+  Вид входа называет человек (`content-factory-next-97dq.28`, `.29`): до
+  22.09.2026 был флажок «Это чужой текст», а остальное угадывал сервер — и
+  угадал собственные слова владельца о собственном посте как чужой пост
+  (`cnt-28`). Переключатель обязан доехать до двери и в первом ходе, и во
+  втором проходе ресерча; по умолчанию дверь получает `thought`, названный
+  явно; голая ссылка остаётся ссылкой при любом положении.
 */
-describe('«Это чужой текст» is carried to the door', () => {
+describe('the kind switch is carried to the door', () => {
   const RESEARCH_PAUSE = [
     { name: 'intake-started', inputKind: 'foreign_post', channels: [] },
     {
@@ -426,19 +427,21 @@ describe('«Это чужой текст» is carried to the door', () => {
     },
   ];
 
-  const tickForeign = async () => {
+  const choose = async (label) => {
     await act(async () => {
-      fireEvent.click(screen.getByRole('checkbox', { name: 'Это чужой текст' }));
+      fireEvent.click(
+        within(screen.getByRole('radiogroup', { name: 'Что вы присылаете' })).getByRole('radio', { name: label })
+      );
     });
   };
 
-  test('the ticked box declares foreign_post on the first run and on the second pass', async () => {
+  test('«Чужой пост» declares foreign_post on the first run and on the second pass', async () => {
     serve(baseTable(intakeDoor(
       streamed(RESEARCH_PAUSE),
       streamed(scenario('thin-input'))
     )));
     await open();
-    await tickForeign();
+    await choose('Чужой пост');
     await start('Вставленный чужой пост про четырёхдневную неделю');
 
     expect(intakeAnswers[0].inputKind).toBe('foreign_post');
@@ -456,16 +459,23 @@ describe('«Это чужой текст» is carried to the door', () => {
     expect(intakeAnswers[1].snapshotKey).toBe('snap-1');
   });
 
-  test('an untouched box says nothing, and a bare link stays a link', async () => {
+  test('the untouched switch names «thought», «Задание» names instruction, and a bare link stays a link', async () => {
     serve(baseTable(intakeDoor(streamed(scenario('thin-input')))));
     await open();
     await start('Надо больше писать про ИИ, чем сейчас');
-    expect(intakeAnswers[0].inputKind).toBeUndefined();
+    expect(intakeAnswers[0].inputKind).toBe('thought');
+
+    cleanup();
+    serve(baseTable(intakeDoor(streamed(scenario('thin-input')))));
+    await open();
+    await choose('Задание');
+    await start('Хочу пост о том, что я выступил на радио, сохранить https://t.me/radiosputnik_khv/20430');
+    expect(intakeAnswers[0].inputKind).toBe('instruction');
 
     cleanup();
     serve(baseTable(intakeDoor(streamed(scenario('link')))));
     await open();
-    await tickForeign();
+    await choose('Чужой пост');
     await start('https://example.test/post');
     expect(intakeAnswers[0].inputKind).toBe('link');
   });

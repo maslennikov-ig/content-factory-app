@@ -507,6 +507,31 @@ export class ContentPieceController {
     }
   }
 
+  /**
+   * Удалить заготовку насовсем (`97dq.30`). Путь только с `id`: дверь без
+   * параметра, принявшая пустое тело как «все», уже стоила стенду всех постов
+   * (`fn33.90.3`), и здесь её нет.
+   */
+  @Delete('/:id')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.EDITOR])
+  async deletePiece(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Query('language') requested?: string
+  ) {
+    try {
+      await this.pieces.delete(organization.id, id);
+      return { deleted: true };
+    } catch (error) {
+      safeHttpError(
+        error,
+        languageOf(requested) === 'ru'
+          ? 'Заготовку удалить не удалось.'
+          : 'The piece could not be deleted.'
+      );
+    }
+  }
+
   /** Убрать заготовку из списка или вернуть её обратно. */
   @Post('/:id/archive')
   @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])

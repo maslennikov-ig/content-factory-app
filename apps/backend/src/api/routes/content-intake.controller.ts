@@ -5,6 +5,7 @@ import {
   HttpException,
   Post,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -93,6 +94,8 @@ function streamErrorMessage(error: unknown): string {
 @ApiTags('Content intelligence intake')
 @Controller('/content-intelligence/intake')
 export class ContentIntakeController {
+  private readonly logger = new Logger(ContentIntakeController.name);
+
   constructor(private readonly intake: IntakeService) {}
 
   @Post('/')
@@ -132,7 +135,13 @@ export class ContentIntakeController {
     } catch (error) {
       // Стрим уже начался, поэтому обычного отказа больше не будет: последняя
       // строка называет код и причину, чтобы клиент остановился и показал их,
-      // а не завис на оборванном ответе.
+      // а не завис на оборванном ответе. Причина — в журнал: до 22.09.2026
+      // `INTAKE_FAILED` уходил клиенту, а сервер о нём молчал (`97dq.29`).
+      this.logger.warn(
+        `Intake stream ended with an error: ${
+          error instanceof Error ? error.stack || error.message : String(error)
+        }`
+      );
       response.write(
         JSON.stringify({
           name: 'error',

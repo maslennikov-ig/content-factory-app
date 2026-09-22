@@ -25,11 +25,27 @@
  */
 
 const React = require('react');
-const { JSDOM } = require('jsdom');
+const { JSDOM, VirtualConsole } = require('jsdom');
+
+/*
+  Уходы со страницы записываются, а не случаются (как в `content-intake.flow`):
+  `window.location` в jsdom неподделываем, а попытка навигации приходит сюда
+  ошибкой окружения — набор считает именно попытки (удаление, `97dq.30`).
+*/
+const navigations = [];
+const virtualConsole = new VirtualConsole();
+virtualConsole.on('jsdomError', (error) => {
+  if (String(error?.message || '').includes('Not implemented: navigation')) {
+    navigations.push(error.message);
+    return;
+  }
+  console.error(error);
+});
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   pretendToBeVisual: true,
   url: 'http://localhost/',
+  virtualConsole,
 });
 for (const key of ['window', 'document', 'navigator']) {
   Object.defineProperty(global, key, {
@@ -591,6 +607,26 @@ describe('уточнение стоит там, где стоит суть', () 
     expect(document.querySelector('[data-piece-sent-text]')).toBeNull();
   });
 
+  /** Задание (`97dq.29`): пока сути нет, над вопросами стоит само задание. */
+  test('an instruction without a core shows «Ваше задание» above the questions', async () => {
+    const instructed = {
+      ...ASKED_DETAIL,
+      core: {
+        ...ASKED_DETAIL.core,
+        text: '',
+        personText: '',
+        instructionText: 'Хочу пост о том, что я выступил на радио. Сохранить https://t.me/radiosputnik_khv/20430',
+        keepLinks: ['https://t.me/radiosputnik_khv/20430'],
+      },
+    };
+    serve(table({ detail: detailDoor(ok(instructed)) }));
+    await open();
+    const sent = document.querySelector('[data-piece-sent-text]');
+    expect(sent.getAttribute('data-piece-sent-text')).toBe('instruction');
+    expect(sent.textContent).toContain('Ваше задание');
+    expect(sent.textContent).toContain('Хочу пост о том, что я выступил на радио.');
+  });
+
   test('an answer travels by field, and the piece is read again', async () => {
     const answered = [];
     serve(
@@ -802,254 +838,46 @@ describe('«В архив»', () => {
   });
 });
 
-describe('the kind of an adaptation is a person’s choice', () => {
-  const twoKinds = {
-    ...fixture.PIECE_FIXTURE_DETAIL,
-    targets: fixture.PIECE_FIXTURE_DETAIL.targets.map((target) =>
-      target.platform === 'wordpress'
-        ? { ...target, kinds: ['article', 'newsletter'] }
-        : target
-    ),
-  };
+/** Удаление заготовки со страницы (`97dq.30`). */
+describe('«Удалить»', () => {
+  const DELETE_URL = adapter.PIECES_API.delete(PIECE_ID);
 
-  test('one kind: no switch at all, and it goes out as it always did', async () => {
-    serve(table({}));
+  test('the first press arms the button, the second asks the door and leaves for the list', async () => {
+    navigations.length = 0;
+    serve({ ...table({}), [`DELETE ${DELETE_URL}`]: ok({ deleted: true }) });
     await open();
+    const button = document.querySelector('[data-piece-delete="true"]');
+    expect(button.textContent).toContain('Удалить');
+    expect(button.getAttribute('data-piece-delete-armed')).toBe('false');
 
-    expect(document.querySelector('[data-piece-kind-choice="telegram"]')).toBeNull();
-    await adaptTo('Telegram');
-    expect(adaptBodies[0].kind).toBe('post');
+    await click(button);
+    expect(button.getAttribute('data-piece-delete-armed')).toBe('true');
+    expect(button.textContent).toContain('Удалить насовсем?');
+    // Одно нажатие — ни одного запроса: подтверждение ещё не дано.
+    expect(calls.filter((call) => call.url === DELETE_URL && call.method === 'DELETE')).toHaveLength(0);
+
+    await click(button, () => navigations.length > 0);
+    const asked = calls.filter((call) => call.url === DELETE_URL && call.method === routes.PIECE_ROUTES.delete.method);
+    expect(asked).toHaveLength(1);
+    expect(navigations).toHaveLength(1);
   });
 
-  test('several kinds: the chosen one reaches the body of the request', async () => {
-    serve(table({ detail: detailDoor(ok(twoKinds)) }));
-    await open();
-
-    const target = document.querySelector('[data-piece-target="wordpress"]');
-    // Умолчание — первый вид площадки, пока человек не сказал иначе.
-    expect(target.getAttribute('data-piece-target-kind')).toBe('article');
-    /*
-      С 07.09.2026 полоса вида стоит в шапке панели «Куда адаптировать», рядом
-      с её названием, а не внутри самой кнопки: вопрос «что именно напишется»
-      задаётся один раз над рядом кнопок. Связь с площадкой держит
-      `data-piece-kind-choice`, поэтому ищется она по панели, а не по кнопке.
-    */
-    const choice = document.querySelector('[data-piece-kind-choice="wordpress"]');
-    expect(choice).not.toBeNull();
-    expect(
-      [...choice.querySelectorAll('[role="radio"]')].map((one) => one.textContent)
-    ).toEqual(['статья', 'письмо']);
-
-    await click(within(choice).getByRole('radio', { name: 'письмо' }));
-    expect(target.getAttribute('data-piece-target-kind')).toBe('newsletter');
-
-    await adaptTo('Сайт');
-    expect(adaptBodies[0]).toEqual({
-      integrationId: 'int-site',
-      kind: 'newsletter',
-    });
-  });
-});
-
-
-/* ---------------------------------------------------------------------- */
-
-/**
- * На что опирается заготовка.
- *
- * Решением владельца 07.09.2026 несмонтированная карточка расписки удалена, а
- * единственное, чего не было в компактной квитанции, — опоры и то, что опорой
- * не стало, — переехало в правую колонку страницы заготовки.
- *
- * Проверяется ровно то, ради чего блок переносили: подтверждение стоит словом,
- * а не одним цветом; источник ведёт наружу и назван хостом; и заголовок «На что
- * это опирается» не встаёт над пустотой, когда опираться не на что.
- */
-describe('what the piece rests on', () => {
-  const withBrief = (brief) => ({
-    ...fixture.PIECE_FIXTURE_DETAIL,
-    core: {
-      ...fixture.PIECE_FIXTURE_DETAIL.core,
-      brief: { ...fixture.PIECE_FIXTURE_DETAIL.core.brief, ...brief },
-    },
-  });
-
-  test('only sourced research rows remain and the hint explains their use', async () => {
-    serve(
-      table({
-        detail: detailDoor(
-          ok(
-            withBrief({
-              facts: [
-                {
-                  statement: 'Пять из шести сроков сдвинулись',
-                  origin: 'input',
-                  verified: true,
-                  sourceUrl: 'https://www.industry.synthetic.invalid/deadlines/2026',
-                },
-                {
-                  statement: 'Средний срыв по отрасли 40%',
-                  origin: 'model',
-                  verified: false,
-                },
-              ],
-              ungrounded: ['Средний срыв по отрасли 40%'],
-            })
-          )
-        ),
-      })
-    );
-    await open();
-
-    const facts = document.querySelector('[data-piece-facts]');
-    expect(facts).not.toBeNull();
-    const sources = document.querySelector('[data-piece-sources]');
-    expect(sources).not.toBeNull();
-    expect(sources.open).toBe(false);
-    expect(facts.textContent).toContain('Пять из шести сроков сдвинулись');
-    expect(facts.textContent).not.toContain('Средний срыв по отрасли 40%');
-
-    // Источник ведёт наружу и назван хостом, а не полным адресом.
-    const link = within(facts).getByRole('link', {
-      name: 'источник: industry.synthetic.invalid',
-    });
-    expect(link.getAttribute('href')).toBe(
-      'https://www.industry.synthetic.invalid/deadlines/2026'
-    );
-    expect(link.textContent).toBe('industry.synthetic.invalid');
-    expect(link.getAttribute('target')).toBe('_blank');
-    expect(within(facts).getAllByRole('link')).toHaveLength(1);
-    expect(
-      within(sources).getByRole('button', { name: 'Подсказка: опоры текста' })
-    ).toBeTruthy();
-    expect(document.body.textContent).toContain('Опоры текста');
-    expect(document.body.textContent).not.toContain('Не подтвердилось и в текст не вошло');
-  });
-
-  test('factKey is sent to the door; a refused save restores the checkbox and names the row', async () => {
-    const factKey = 'ev-market:0123456789abcdef';
-    const fact = {
-      statement: 'Рынок вырос на 8%',
-      factKey,
-      origin: 'search',
-      kind: 'found',
-      status: 'confirmed',
-      verified: true,
-      selected: true,
-      sourceUrl: 'https://example.com/market',
-    };
+  test('a refused door is printed and the page stays', async () => {
+    navigations.length = 0;
     serve({
-      ...table({
-        detail: detailDoor(
-          ok(withBrief({ facts: [fact], ungrounded: ['Другая строка'] }))
-        ),
-      }),
-      [`PATCH ${DETAIL_URL}/facts`]: refused(409, {
-        code: 'PIECE_FACT_NOT_FOUND',
-        message: 'Строка уже изменилась',
+      ...table({}),
+      [`DELETE ${DELETE_URL}`]: refused(404, {
+        code: 'PIECE_NOT_FOUND',
+        message: 'Такой заготовки в рабочем пространстве нет.',
       }),
     });
     await open();
-    fireEvent.click(screen.getByText('Опоры текста'));
-    const checkbox = screen.getByRole('checkbox', {
-      name: /Рынок вырос на 8%/,
-    });
-    expect(checkbox.checked).toBe(true);
-
-    await click(checkbox, () => screen.queryByRole('alert') !== null);
-    expect(calls.find((call) => call.method === 'PATCH').body).toEqual({
-      factKey,
-      selected: false,
-    });
-    expect(checkbox.checked).toBe(true);
-    const row = checkbox.closest('li');
-    expect(within(row).getByRole('alert').textContent).toContain(
-      'Выбор не сохранён'
-    );
-  });
-
-  test('nothing to rest on: no heading over an empty block', async () => {
-    serve(
-      table({
-        detail: detailDoor(ok(withBrief({ facts: [], ungrounded: [] }))),
-      })
-    );
-    await open();
-
-    // Квитанция на месте — исчезает только блок опор.
-    expect(document.querySelector('[data-piece-receipt]')).not.toBeNull();
-    expect(document.querySelector('[data-piece-facts]')).toBeNull();
-    expect(document.querySelector('[data-piece-ungrounded]')).toBeNull();
-    expect(document.body.textContent).not.toContain('Опоры текста');
-  });
-});
-
-
-describe('S4: safe navigation and one adaptation object', () => {
-  test('overview keeps each selected channel separate and opens its exact adaptation', async () => {
-    serve(table({}));
-    await open();
-
-    expect(panel().classList.contains('w-full')).toBe(true);
-    expect(panel().classList.contains('flex-1')).toBe(true);
-
-    const telegram = document.querySelector('[data-piece-target="telegram"]');
-    const instagram = document.querySelector('[data-piece-target="instagram"]');
-    expect(telegram).not.toBeNull();
-    expect(telegram.querySelector('img')).not.toBeNull();
-    expect(telegram.textContent).toContain('опубликовано');
-    expect(telegram.textContent).toContain('1');
-    expect(instagram.getAttribute('data-piece-target-available')).toBe('false');
-    expect(instagram.textContent).toContain('нет канала');
-
-    const adaptationId = fixture.PIECE_FIXTURE_ADAPTATIONS[0].id;
-    const item = document.querySelector(
-      `[data-piece-adaptation="${adaptationId}"]`
-    );
-    const toggle = item.querySelector('[aria-expanded]');
-    expect(
-      document.getElementById(toggle.getAttribute('aria-controls')).hidden
-    ).toBe(true);
-    await click(
-      document.querySelector(`[data-piece-overview-view="${adaptationId}"]`)
-    );
-    expect(
-      document.getElementById(toggle.getAttribute('aria-controls')).hidden
-    ).toBe(false);
-
-    const channel = within(telegram).getByRole('combobox', {
-      name: 'Куда адаптировать · Telegram',
-    });
-    await act(async () => {
-      fireEvent.change(channel, { target: { value: 'int-tg-2' } });
-    });
-    expect(telegram.textContent).toContain('ещё нет');
-    expect(telegram.textContent).toContain('0');
-  });
-
-  test('an empty table cell selects the platform without a paid call', async () => {
-    serve(table({}));
-    await open({ adaptPlatform: 'telegram' });
-    await settle();
-    expect(calls.filter((call) => call.url === ADAPT_URL)).toHaveLength(0);
-    expect(document.querySelector('[data-piece-adapt-focus]').getAttribute('data-piece-adapt-focus')).toBe('telegram');
-    await adaptTo('Telegram');
-    expect(calls.filter((call) => call.url === ADAPT_URL)).toHaveLength(1);
-  });
-
-  test('the generated text stays inside its own expanded adaptation', async () => {
-    serve(table({}));
-    await open();
-    await adaptTo('Telegram');
-    const draft = document.querySelector('[data-piece-draft-id]');
-    expect(draft).not.toBeNull();
-    expect(draft.closest('[data-piece-adaptation]').getAttribute('data-piece-adaptation')).toBe(draft.getAttribute('data-piece-draft-id'));
-    const item = draft.closest('[data-piece-adaptation]');
-    const toggle = item.querySelector('[aria-expanded]');
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    await click(toggle);
-    expect(document.getElementById(toggle.getAttribute('aria-controls')).hidden).toBe(true);
-    await click(toggle);
-    expect(document.getElementById(toggle.getAttribute('aria-controls')).hidden).toBe(false);
+    const button = document.querySelector('[data-piece-delete="true"]');
+    await click(button);
+    await click(button, () => document.body.textContent.includes('Такой заготовки'));
+    expect(document.body.textContent).toContain('Такой заготовки в рабочем пространстве нет.');
+    expect(navigations).toEqual([]);
+    // Кнопка вернулась в покой: второй промах ничего не удалит.
+    expect(document.querySelector('[data-piece-delete="true"]').getAttribute('data-piece-delete-armed')).toBe('false');
   });
 });

@@ -5,6 +5,7 @@ import { Button } from '@contentfactory/react/form/button';
 import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
+import { Segmented } from '../../ui/segmented';
 import { Hint } from '@contentfactory/react/layout/hint';
 import type { ChannelPickerIntegration } from '../../new-launch/picks.socials.component';
 import {
@@ -24,6 +25,7 @@ import { ResearchLevelSelect } from './research-level-select';
 import type {
   IntakeBlockReason,
   IntakeInputKindV1,
+  IntakeMaterialKind,
   IntakeScreenState,
 } from './intake.adapter';
 
@@ -88,8 +90,8 @@ export function IntakeScreen({
   onLanguageChange,
   researchEnabled = false,
   researchLevel = 'standard',
-  foreignText = false,
-  onForeignTextChange = () => undefined,
+  materialKind = 'thought',
+  onMaterialKindChange = () => undefined,
   onResearchEnabledChange = () => undefined,
   onResearchLevelChange = () => undefined,
   onResearchFactSelect = () => undefined,
@@ -128,9 +130,9 @@ export function IntakeScreen({
   onLanguageChange: (language: 'ru' | 'en') => void;
   researchEnabled?: boolean;
   researchLevel?: 'quick' | 'standard' | 'deep';
-  /** «Это чужой текст»: человек сам называет вид ввода (`97dq.5`). */
-  foreignText?: boolean;
-  onForeignTextChange?: (foreign: boolean) => void;
+  /** Вид входа, названный человеком: свой текст, чужой пост, задание (`97dq.28`). */
+  materialKind?: IntakeMaterialKind;
+  onMaterialKindChange?: (kind: IntakeMaterialKind) => void;
   onResearchEnabledChange?: (enabled: boolean) => void;
   onResearchLevelChange?: (level: 'quick' | 'standard' | 'deep') => void;
   onResearchFactSelect?: (factKey: string, selected: boolean) => void;
@@ -235,6 +237,41 @@ export function IntakeScreen({
             className="contents min-w-0"
           >
             <div className="flex min-w-0 flex-col gap-[4px]">
+              {/*
+                Вид входа называет человек, а не угадывает продукт
+                (`content-factory-next-97dq.28`, `.29`). До 22.09.2026 здесь
+                стоял флажок «Это чужой текст», а всё прочее сервер угадывал по
+                речи — и принял слова владельца о собственном посте за чужой
+                пост, спросив, согласен ли он с автором. Три положения — три
+                разных отношения к словам: свой текст правится и остаётся
+                своим, из чужого поста делается свой, задание описывает пост,
+                и его ссылки сохраняются как есть. Полоса стоит над полем:
+                выбор делается до того, как текст вставлен, а не ищется после.
+              */}
+              <Segmented
+                label={t.kindLabel}
+                value={materialKind}
+                data-intake-material-kind={materialKind}
+                options={[
+                  { value: 'thought', label: t.kindOwn },
+                  { value: 'foreign_post', label: t.kindForeign },
+                  { value: 'instruction', label: t.kindInstruction },
+                ]}
+                onChange={(kind) => {
+                  if (!busy) onMaterialKindChange(kind);
+                }}
+              />
+              <p
+                role="status"
+                data-intake-kind-hint={materialKind}
+                className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
+              >
+                {materialKind === 'foreign_post'
+                  ? t.kindForeignHint
+                  : materialKind === 'instruction'
+                  ? t.kindInstructionHint
+                  : t.kindOwnHint}
+              </p>
               <label
                 htmlFor="intake-input"
                 className="cf-label-sm uppercase text-cf-ink-muted"
@@ -329,24 +366,6 @@ export function IntakeScreen({
                   label={<span>{t.researchLabel}</span>}
                 />
                 <Hint label={t.researchHintLabel}>{t.researchHint}</Hint>
-              </span>
-              {/*
-                «Это чужой текст» стоит здесь же и по той же причине, что и
-                ресерч: это второе, что человек знает про свой ввод и чего не
-                видно ни по форме, ни по языку. Живой прогон 18.09.2026:
-                вставленный чужой пост прошёл как собственная мысль, и продукт
-                встал на чужую позицию (`content-factory-next-97dq`). Флажок
-                отвечает за вид ввода, подсказка — за последствие.
-              */}
-              <span className="flex min-w-0 items-center gap-[8px]">
-                <CheckboxField
-                  checked={foreignText}
-                  disabled={busy}
-                  data-intake-foreign-text={foreignText ? 'on' : 'off'}
-                  onChange={(event) => onForeignTextChange(event.target.checked)}
-                  label={<span>{t.foreignLabel}</span>}
-                />
-                <Hint label={t.foreignHintLabel}>{t.foreignHint}</Hint>
               </span>
               {researchEnabled ? (
                 <ResearchLevelSelect

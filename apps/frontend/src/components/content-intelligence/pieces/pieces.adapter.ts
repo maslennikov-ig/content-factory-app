@@ -132,6 +132,7 @@ export const PIECES_API = {
   create: PIECE_ROUTES.create.path,
   adapt: PIECE_ROUTES.adapt.path,
   archive: PIECE_ROUTES.archive.path,
+  delete: PIECE_ROUTES.delete.path,
   deleteAdaptation: PIECE_ROUTES.deleteAdaptation.path,
 } as const;
 
@@ -213,6 +214,7 @@ const ORIGINS: readonly PieceOriginV1[] = [
   'thought',
   'link',
   'foreign_post',
+  'instruction',
   'lead',
   'manual',
   'legacy',
@@ -437,6 +439,9 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
     // чужого текста нет, а свои слова читаются защитно.
     ...(asText(record.personText).trim()
       ? { personText: asText(record.personText) }
+      : {}),
+    ...(asText(record.instructionText).trim()
+      ? { instructionText: asText(record.instructionText) }
       : {}),
     ...(asText(record.sourceText).trim()
       ? { sourceText: asText(record.sourceText) }

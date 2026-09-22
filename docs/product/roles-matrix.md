@@ -118,7 +118,7 @@ if (!packageOptions) {
 | `/content-intelligence/materials/:id/draft` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/materials/:id/recut-preview` | EDITOR | 1 | редактор |
 | `/content-intelligence/materials/archive/import` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
-| `/content-intelligence/pieces/:id` | EDITOR | 1 | редактор; изменение заголовка |
+| `/content-intelligence/pieces/:id` | EDITOR | 2 | редактор; изменение заголовка и удаление заготовки |
 | `/content-intelligence/pieces/:id/review` | EDITOR | 1 | редактор; проверка сути |
 | `/content-intelligence/pieces/:id/research` | EDITOR | 1 | editor; explicit research with actor-bound snapshot |
 | `/content-intelligence/pieces/:id/research/accept` | EDITOR | 1 | editor; apply selected findings from the actor-bound snapshot |

@@ -117,6 +117,8 @@ export type IntakeGenerationHintsV1 = {
   answers?: string[];
   /** Выбранная форма текста; локализованный ответ уже разобран сервером. */
   formatHint?: IntakeFormatV1;
+  /** Ссылки из задания, которые велено сохранить: в пост дословно (`97dq.29`). */
+  keepLinks?: string[];
   channel: IntakeChannelHintsV1;
 };
 

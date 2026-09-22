@@ -460,6 +460,29 @@ export function PieceContainer({
     }
   }, [detail, pieceId, request, w]);
 
+  /*
+    Удаление заготовки (`97dq.30`): подтверждение живёт в кнопке, дверь одна,
+    после успеха — в список, потому что страницы больше нет. Как и архив,
+    удаление не трогает посты в каналах.
+  */
+  const removePiece = useCallback(async () => {
+    try {
+      const response = await request(PIECES_API.delete(pieceId), {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setFailure(
+          (typeof body?.message === 'string' && body.message) || w.errorBody
+        );
+        return;
+      }
+      if (typeof window !== 'undefined') window.location.assign('/content?tab=materials');
+    } catch {
+      setFailure(w.errorBody);
+    }
+  }, [pieceId, request, w]);
+
   const removeAdaptation = useCallback(
     async (adaptation: AdaptationV1) => {
       // Опубликованную дверь отказывает кодом `ADAPTATION_PUBLISHED`; экран
@@ -605,6 +628,7 @@ export function PieceContainer({
       ) : null}
       onAdapt={adapt}
       onArchive={() => void archive()}
+      onDelete={() => void removePiece()}
       onAnswer={answer}
       onSkipInterview={skipInterview}
       onCancel={() => {

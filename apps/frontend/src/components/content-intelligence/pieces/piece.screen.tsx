@@ -13,6 +13,7 @@ import { Panel } from '@contentfactory/react/layout';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { Segmented } from '../../ui/segmented';
+import { PieceDeleteButton } from './piece-delete.button';
 import { Progress } from '../../ui/progress';
 import { Table, Td, Th, Tr } from '../../ui/table';
 import {
@@ -110,6 +111,7 @@ export function PieceScreen({
   onCancel,
   onOpenPost,
   onDeleteAdaptation,
+  onDelete,
   onOpenEditor,
   onRetry,
   onTitleSave,
@@ -173,6 +175,8 @@ export function PieceScreen({
   onCancel: () => void;
   onOpenPost: (adaptation: AdaptationV1) => void;
   onDeleteAdaptation: (adaptation: AdaptationV1) => void;
+  /** Удалить заготовку насовсем (`97dq.30`); подтверждение — в самой кнопке. */
+  onDelete: () => void;
   onOpenEditor: () => void;
   onRetry: () => void;
   onTitleSave?: (title: string) => Promise<void>;
@@ -314,6 +318,8 @@ export function PieceScreen({
       ? t.originLink
       : piece.origin === 'foreign_post'
       ? t.originForeign
+      : piece.origin === 'instruction'
+      ? t.originInstruction
       : piece.origin === 'lead'
       ? t.originLead
       : piece.origin === 'legacy'
@@ -537,6 +543,13 @@ export function PieceScreen({
               {t.archive}
             </Button>
           ) : null}
+          <PieceDeleteButton
+            label={t.deletePiece}
+            armedLabel={t.deletePieceArmed}
+            disabled={!canWrite || busy}
+            data-piece-delete="true"
+            onConfirm={onDelete}
+          />
         </div>
       </div>
 
@@ -875,9 +888,9 @@ export function PieceScreen({
               и присланное больше не показывается: «если уже что-то писала,
               то то, что уже написала».
             */}
-            {core && !core.text && (core.sourceText || core.personText) ? (
+            {core && !core.text && (core.sourceText || core.instructionText || core.personText) ? (
               <div
-                data-piece-sent-text={core.sourceText ? 'source' : 'person'}
+                data-piece-sent-text={core.sourceText ? 'source' : core.instructionText ? 'instruction' : 'person'}
                 className="flex min-w-0 max-w-[72ch] flex-col gap-[8px]"
               >
                 <p className="cf-label-sm uppercase text-cf-ink-muted">
@@ -885,10 +898,12 @@ export function PieceScreen({
                     ? core.brief.inputKind === 'foreign_post'
                       ? t.sentSourceTitle
                       : t.sentLinkTitle
+                    : core.instructionText
+                    ? t.sentInstructionTitle
                     : t.sentPersonTitle}
                 </p>
                 <blockquote className="whitespace-pre-wrap border-l border-cf-border pl-[12px] cf-body-md text-cf-ink [text-wrap:pretty]">
-                  {core.sourceText || core.personText}
+                  {core.sourceText || core.instructionText || core.personText}
                 </blockquote>
               </div>
             ) : null}

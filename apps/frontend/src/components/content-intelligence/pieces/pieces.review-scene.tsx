@@ -135,6 +135,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
               restrictedReason={t.restrictedBody}
               onAdapt={noop}
               onArchive={noop}
+              onDelete={noop}
               onAnswer={noop}
               onSkipInterview={noop}
               onCancel={noop}
@@ -182,6 +183,7 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
               onExpand={noop}
               onOpenPiece={noop}
               onAdapt={noop}
+              onDelete={noop}
               onOpenPost={noop}
               onNewPiece={noop}
               onRetry={noop}

@@ -164,8 +164,8 @@ export class IntakeDto {
 
   /** Клиент распознаёт только ссылку; остальное решает сервер. */
   @IsOptional()
-  @IsIn(['thought', 'link', 'foreign_post'])
-  inputKind?: 'thought' | 'link' | 'foreign_post';
+  @IsIn(['thought', 'link', 'foreign_post', 'instruction'])
+  inputKind?: 'thought' | 'link' | 'foreign_post' | 'instruction';
 
   @IsIn(['ru', 'en'])
   language: 'ru' | 'en';

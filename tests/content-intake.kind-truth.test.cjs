@@ -569,3 +569,102 @@ describe('разбор материала: одно число — одно ут
     ]);
   });
 });
+
+/* -------------------------------------------------------------------------
+ * Задание (`97dq.28`, `97dq.29`; `cnt-28` десятого захода 22.09.2026)
+ * ---------------------------------------------------------------------- */
+
+/** `cnt-28`: переписка со ссылками, своё задание и вопросы ведущего под ним. */
+const RADIO_INSTRUCTION = [
+  '[17.09.2026 5:13] Дарья: Игорь, добрый день! сможете репостнуть эфир с вами у себя в соцсетях, пожалуйста:',
+  'https://vk.ru/radiosputnik_khv?w=wall-236404135_1466',
+  '[17.09.2026 6:27] Дарья: https://max.ru/radiosputnik_khv/AaCtY6o4aXg',
+  'https://t.me/radiosputnik_khv/20430',
+  '',
+  'Хочу написать у себя в ТГ-канале пост о том, что я выступил на радио. И здесь можно как раз посмотреть выступление.',
+  'Для меня был на это новый любопытный опыт. Отвечал на вопросы. И вот здесь вот список вопросов, на которые я отвечал, ниже.',
+  'Вот на основе этого хочу сформировать пост. И сохранить вот эти ссылки на эти соцсети.',
+  '',
+  'Вот сами вопросы:',
+  '1. «ИИ украл идею» или «нашел закономерность»: где грань между обучением и воровством?',
+  '2. Бизнес на ИИ: кто владеет результатом, если «автор» — нейросеть?',
+  '3. Во сколько может обойтись «доверие» ИИ?',
+  '4. Три шага, чтобы работать с ИИ и не потерять свои идеи.',
+].join('\n');
+
+const RADIO_LINKS = [
+  'https://vk.ru/radiosputnik_khv?w=wall-236404135_1466',
+  'https://max.ru/radiosputnik_khv/AaCtY6o4aXg',
+  'https://t.me/radiosputnik_khv/20430',
+];
+
+describe('задание: слова человека о посте — не материал, ссылки — сохраняются', () => {
+  test('названное задание не читает ссылки, не зовёт разбор и не спрашивает о позиции', async () => {
+    const { service, calls } = build({
+      models: [
+        (prompt) => {
+          // Бриф по заданию заполняет промпт v7, и ссылки в нём — адреса, а не источники.
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v7');
+          expect(prompt).toContain('person’s INSTRUCTION: they describe the post they want written');
+          expect(prompt).toContain('Links the person told us to keep (addresses only, not sources):');
+          for (const link of RADIO_LINKS) expect(prompt).toContain(`- ${link}`);
+          return briefAnswer({
+            thesis: 'Я выступил на радио и отвечал на вопросы о том, может ли ИИ украсть идею',
+            position: null,
+            origins: { goal: 'input', thesis: 'input', position: 'model', disagreement: 'model', audience: 'avatar', format: 'model' },
+            options: { thesis: null, position: null, disagreement: null, audience: null },
+            questions: [],
+          });
+        },
+        (prompt) => {
+          // Суть пишется по блокам задания, а не по «словам человека».
+          expect(prompt).toContain('PROMPT VERSION: core-write/v10');
+          expect(prompt).toContain('ЗАДАНИЕ (что человек хочет написать; описание поста, не его текст)');
+          expect(prompt).toContain('ССЫЛКИ ИЗ ЗАДАНИЯ (переносятся в текст как есть)');
+          for (const link of RADIO_LINKS) expect(prompt).toContain(link);
+          expect(prompt).toContain('Отдельное правило о блоке «задание»');
+          // Блок «слова человека» пуст: фразы задания — не материал.
+          expect(prompt).not.toMatch(/СЛОВА ЧЕЛОВЕКА[^\n]*\n[^\n]*Хочу написать/u);
+          return { text: `Я выступил на радио Sputnik Хабаровск. Посмотреть можно здесь: ${RADIO_LINKS[0]}` };
+        },
+      ],
+    });
+    const plan = await service.prepare(
+      'org-a',
+      request({ input: RADIO_INSTRUCTION, inputKind: 'instruction', skipInterview: true })
+    );
+    expect(plan.inputKind).toBe('instruction');
+    expect(plan.inputKindExplicit).toBe(true);
+
+    const events = await drain(service, plan);
+    expect(named(events, 'intake-started')[0]).toEqual({ name: 'intake-started', inputKind: 'instruction', sources: ['instruction'] });
+    // По ссылкам никто не ходил: в этом наборе fetch бросает, и события чтения нет.
+    expect(named(events, 'link-fetched')).toEqual([]);
+    expect(named(events, 'links-skipped')).toEqual([]);
+    expect(extractPrompts()).toEqual([]);
+    const [filled] = named(events, 'brief-filled');
+    expect(filled.brief.inputKind).toBe('instruction');
+    expect(filled.brief.inputSources).toEqual([{ kind: 'instruction' }]);
+    // Вопрос «согласны ли вы с автором» — только у чужого поста.
+    expect(named(events, 'questions').flatMap((row) => row.questions.map((q) => q.field))).not.toContain('position');
+
+    const [, stored] = calls.recordCore[0];
+    expect(stored.brief.personText).toBe('');
+    expect(stored.brief.sourceText).toBeUndefined();
+    expect(stored.brief.instructionText).toBe(RADIO_INSTRUCTION);
+    expect(stored.brief.keepLinks).toEqual(RADIO_LINKS);
+    expect(stored.body).toContain(RADIO_LINKS[0]);
+  });
+
+  test('без названного вида собственная речь от первого лица больше не делает вход чужим постом', async () => {
+    const { service } = build({
+      models: [extractAnswer({ materialKind: 'thought' }), briefAnswer({ questions: [] }), { text: 'Суть.' }],
+    });
+    const plan = await service.prepare('org-a', request({ input: RADIO_INSTRUCTION, skipInterview: true }));
+    // `cnt-28` на бою: «Хочу написать…», «Для меня был…», «Отвечал…» делали вход чужим постом.
+    expect(plan.inputKind).toBe('thought');
+    expect(plan.inputKindExplicit).toBe(false);
+    const events = await drain(service, plan);
+    expect(named(events, 'brief-filled')[0].brief.inputKind).toBe('thought');
+  });
+});

@@ -211,6 +211,35 @@ export function PiecesContainer() {
     if (typeof window !== 'undefined') window.location.assign(path);
   }, []);
 
+  /*
+    Удаление из строки (`97dq.30`): подтверждение — в кнопке, после успеха
+    список перечитывается. Код заготовки — место строки среди заготовок
+    области (`cnt-12`), и удалённая строка из счёта уходит: коды ниже
+    сдвигаются, как при любом удалении. Отказ двери печатается той же
+    строкой заметки, что и остальные сообщения списка.
+  */
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
+  const removePiece = useCallback(
+    async (id: string) => {
+      try {
+        const response = await request(PIECES_API.delete(id), { method: 'DELETE' });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          setDeleteFailure(
+            (typeof body?.message === 'string' && body.message) || w.errorBody
+          );
+          return;
+        }
+        setDeleteFailure(null);
+        setExpandedId(null);
+        void list.mutate();
+      } catch {
+        setDeleteFailure(w.errorBody);
+      }
+    },
+    [list, request, w]
+  );
+
   return (
     <PiecesScreen
       locale={locale}
@@ -223,7 +252,7 @@ export function PiecesContainer() {
       expandedId={expandedId}
       expansion={expansion}
       canWrite={canWrite}
-      notice={envelope?.notice ?? null}
+      notice={deleteFailure ?? envelope?.notice ?? null}
       errorMessage={w.errorBody}
       restrictedReason={t(
         'ai_allowance_unavailable',
@@ -268,6 +297,7 @@ export function PiecesContainer() {
       onOpenPost={(cell: PieceCellV1) => {
         if (cell.postId) void openPost(cell.postId);
       }}
+      onDelete={(id) => void removePiece(id)}
       onNewPiece={() => go(NEW_PIECE_PATH)}
       onRetry={() => void list.mutate()}
     />

@@ -78,11 +78,19 @@ export const intakeCopy = {
     // выдавал чужое мнение за авторское. Флажок стоит рядом с ресерчем — это
     // второе, что человек говорит о своём тексте, — а подсказка называет
     // последствие, а не свойство.
-    foreignLabel: 'Это чужой текст',
-    foreignHintLabel: 'Подсказка: чужой текст',
-    foreignHint:
-      'Поставьте, если вставили чужой пост или статью: спросим вашу позицию и ' +
-      'не выдадим чужое мнение за ваше',
+    // Переключатель вида входа над полем (владелец, 22.09.2026, `97dq.28`):
+    // три положения — три разных отношения к словам, и строка под полосой
+    // называет последствие выбранного, а не его свойство.
+    kindLabel: 'Что вы присылаете',
+    kindOwn: 'Свой текст',
+    kindForeign: 'Чужой пост',
+    kindInstruction: 'Задание',
+    kindOwnHint:
+      'Ваши мысли или набросок: поправим речь, слова и смысл останутся вашими',
+    kindForeignHint:
+      'Чужой пост или статья: сделаем из него ваш пост и спросим вашу позицию',
+    kindInstructionHint:
+      'Опишите, какой пост нужен: напишем по описанию, ссылки сохраним как есть',
     researchLevelLabel: 'Глубина ресерча',
     researchQuick: 'Быстрый · до 8 источников',
     researchStandard: 'Стандартный · до 20 источников',
@@ -313,11 +321,16 @@ export const intakeCopy = {
       'We check your thought against outside sources: confirm numbers and facts, ' +
       'correct what the sources contradict, and add findings on the topic with ' +
       'their addresses. This is a paid step: it spends one of the month’s operations.',
-    foreignLabel: 'This is someone else’s text',
-    foreignHintLabel: 'Hint: someone else’s text',
-    foreignHint:
-      'Tick this if you pasted someone else’s post or article: we will ask for ' +
-      'your position and will not present their opinion as yours',
+    kindLabel: 'What you are sending',
+    kindOwn: 'My text',
+    kindForeign: 'Someone’s post',
+    kindInstruction: 'Instruction',
+    kindOwnHint:
+      'Your thoughts or a draft: we tidy the wording, the words and meaning stay yours',
+    kindForeignHint:
+      'Someone else’s post or article: we make your post out of it and ask for your position',
+    kindInstructionHint:
+      'Describe the post you need: we write from the description and keep links as they are',
     researchLevelLabel: 'Research depth',
     researchQuick: 'Quick · up to 8 sources',
     researchStandard: 'Standard · up to 20 sources',

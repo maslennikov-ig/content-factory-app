@@ -20,8 +20,8 @@ export type IntakeEventV2 =
     >
   | {
       name: 'intake-started';
-      inputKind: 'thought' | 'link' | 'foreign_post';
-      sources: Array<'foreign_post' | 'link' | 'thought'>;
+      inputKind: import('./voice-wiring.contract').IntakeInputKindV1;
+      sources: Array<import('./voice-wiring.contract').IntakeInputKindV1>;
     }
   | { name: 'brief-started' }
   | Extract<import('./voice-wiring.contract').IntakeEventV1, { name: 'research-started' | 'research-ready' | 'research-selection-required' }>
@@ -33,7 +33,7 @@ export type PieceAnswerEventV2 =
 import type { BriefFilledV1 } from './voice-wiring.contract';
 export type BriefFilledV2 = BriefFilledV1 & {
   inputSources?: Array<{
-    kind: 'foreign_post' | 'link' | 'thought';
+    kind: import('./voice-wiring.contract').IntakeInputKindV1;
     url?: string;
     evidenceId?: string;
   }>;

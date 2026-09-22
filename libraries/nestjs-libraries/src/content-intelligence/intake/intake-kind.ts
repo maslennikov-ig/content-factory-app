@@ -55,10 +55,13 @@ const NUMBER_SPACES = '\\u0020\\u00a0\\u202f\\u2009';
  *
  * Не «любая цифра»: дата в подписи и номер дома есть в каждом втором тексте.
  * Считается число, за которым стоит знак процента, знак валюты или слово, —
- * «на 37%», «4,2 млрд», «12 стран».
+ * «на 37%», «4,2 млрд», «12 стран». Точка и запятая внутри числа — только
+ * между цифрами (`97dq.28`): «2. Бизнес» и «4. Три шага» — номера списка, а
+ * не числа с единицей, и четыре вопроса ведущего в `cnt-28` не должны делать
+ * задание перепечатанной новостью.
  */
 const NUMBER_WITH_UNIT = new RegExp(
-  `(?:[$€£₽¥][${NUMBER_SPACES}]?\\d|\\d[\\d${NUMBER_SPACES}.,]*[${NUMBER_SPACES}]?(?:%|[$€£₽¥]|\\p{L}{2,}))`,
+  `(?:[$€£₽¥][${NUMBER_SPACES}]?\\d|\\d[\\d${NUMBER_SPACES}]*(?:[.,]\\d+)*[${NUMBER_SPACES}]?(?:%|[$€£₽¥]|\\p{L}{2,}))`,
   'gu'
 );
 
@@ -110,9 +113,18 @@ export const singleLinkOf = (input: string): string | null => {
   return rest.length <= LINK_COMMENT_MAX_CHARS ? links[0].url : null;
 };
 
-/** Сколько чисел с единицей стоит в тексте. */
-export const numberWithUnitCount = (text: string): number =>
-  (text.match(NUMBER_WITH_UNIT) || []).length;
+/**
+ * Сколько чисел с единицей стоит в тексте.
+ *
+ * Адреса из счёта убраны (`97dq.28`): `max.ru/…/AaCtY6o4aXg` — это «6o4aXg»
+ * и «4aXg», два «числа с единицей» по букве правила, и три ссылки на эфир в
+ * `cnt-28` дали семь таких находок на текст без единого числа.
+ */
+export const numberWithUnitCount = (text: string): number => {
+  let rest = text;
+  for (const { raw } of httpsTokens(text)) rest = rest.split(raw).join(' ');
+  return (rest.match(NUMBER_WITH_UNIT) || []).length;
+};
 
 /** В скольких предложениях текста говорят от первого лица. */
 export const firstPersonSentenceCount = (text: string): number =>
@@ -125,10 +137,16 @@ export const firstPersonSentenceCount = (text: string): number =>
  *
  * Шапка пересылки решает сразу: её поставил клиент мессенджера. Затем ссылка —
  * признак структурный, ошибиться в нём нельзя. Чужой пост определяется длиной
- * и двумя приметами: числа с единицами (перепечатанная новость) или речь от
- * первого лица в двух и более предложениях (перепечатанный пост). Всё
+ * и одной приметой: числа с единицами (перепечатанная новость). Всё
  * остальное — мысль, и это правильный отказ по умолчанию: мысль обрабатывается
  * дешевле всего и ничего у человека не забирает.
+ *
+ * Речь от первого лица приметой чужого поста больше не считается
+ * (`content-factory-next-97dq.28`): на десятом заходе 22.09.2026 «Хочу
+ * написать…», «Для меня был… опыт», «Отвечал на вопросы» — собственные слова
+ * человека о собственном посте — сделали вход чужим постом, и продукт спросил
+ * его, согласен ли он с автором. С той же волны вид входа называет человек
+ * переключателем на экране, и сюда заходят только запросы без него.
  */
 export const detectInputKind = (input: string): IntakeInputKindV1 => {
   const text = trimmed(input);
@@ -137,7 +155,6 @@ export const detectInputKind = (input: string): IntakeInputKindV1 => {
   if (singleLinkOf(text)) return 'link';
   if (text.length < FOREIGN_POST_MIN_CHARS) return 'thought';
   if (numberWithUnitCount(text) >= 2) return 'foreign_post';
-  if (firstPersonSentenceCount(text) >= 2) return 'foreign_post';
   return 'thought';
 };
 

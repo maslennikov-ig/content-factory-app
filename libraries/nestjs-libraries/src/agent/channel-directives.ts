@@ -53,6 +53,13 @@ export type ChannelDirectiveOptions = {
    * вызывающего не появилось второго места, где решается, что чужой текст был.
    */
   foreignShingles?: string[] | null;
+  /**
+   * Ссылки из задания, которые велено сохранить (`97dq.29`). Сильнее политики
+   * ссылок карточки: человек сказал «сохранить», и «без ссылок» в карточке —
+   * умолчание для поста, а не запрет на его прямую просьбу. На стенде
+   * 22.09.2026 адаптация без этой строки оставила одну ссылку из трёх.
+   */
+  keepLinks?: string[] | null;
 };
 
 /**
@@ -259,6 +266,12 @@ export function channelInstructionLines(
 
   if (resolved.emojiLevel !== 'auto') lines.push('For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]);
   lines.push(LINK_LINE[resolved.linkPolicy]);
+  if (options.keepLinks?.length) {
+    lines.push(
+      'The person asked to keep these links, and this overrides the link rule above: every one of them appears in the post exactly as written, character for character, once, where it belongs by meaning — none may be dropped, shortened or merged: ' +
+        options.keepLinks.map((link) => `<${link}>`).join(', ')
+    );
+  }
   lines.push(HASHTAG_LINE[resolved.hashtagPolicy]);
   if (resolved.ctaKind !== 'auto') lines.push(CTA_LINE[resolved.ctaKind]);
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);

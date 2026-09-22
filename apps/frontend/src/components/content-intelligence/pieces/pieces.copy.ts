@@ -71,6 +71,7 @@ export const piecesCopy = {
     originThought: 'из мысли',
     originLink: 'из ссылки',
     originForeign: 'из чужого поста',
+    originInstruction: 'по заданию',
     originLead: 'из повода',
     // content-factory-next-75xn.8: подпись «из повода» была на месте, а
     // вернуться к материалу, из которого повод вырос, было некуда.
@@ -108,6 +109,7 @@ export const piecesCopy = {
     sentPersonTitle: 'Ваш текст',
     sentSourceTitle: 'Чужой пост, на который вы отвечаете',
     sentLinkTitle: 'Что вы прислали',
+    sentInstructionTitle: 'Ваше задание',
     legacyWarning:
       'Это старый материал: тело — текст одного канала, а не нейтральная суть. Адаптация будет опираться на него как есть.',
     slopTitle: 'Проверка на штампы',
@@ -147,6 +149,10 @@ export const piecesCopy = {
     archive: 'В архив',
     archiveDone: 'Заготовка убрана в архив. Опубликованные посты остались на месте.',
     archiveRefused: 'Заготовка уже в архиве.',
+    // Удаление (`97dq.30`): взведённая кнопка сама называет, что произойдёт.
+    deletePiece: 'Удалить',
+    deletePieceArmed: 'Удалить насовсем?',
+    deletePieceDone: 'Заготовка удалена. Посты в каналах остались на месте.',
     ownNumberLabel: 'Можно добавить',
     ownNumberBody: 'В этой заготовке нет вашего числа.',
     ownNumberOptional:
@@ -306,6 +312,7 @@ export const piecesCopy = {
     originThought: 'from a thought',
     originLink: 'from a link',
     originForeign: 'from somebody else’s post',
+    originInstruction: 'from an instruction',
     originLead: 'from a lead',
     leadSourceLabel: 'source',
     originManual: 'by hand',
@@ -338,6 +345,7 @@ export const piecesCopy = {
     sentPersonTitle: 'Your text',
     sentSourceTitle: 'The post you are answering',
     sentLinkTitle: 'What you sent',
+    sentInstructionTitle: 'Your instruction',
     legacyWarning:
       'This is older material: the body is one channel’s text, not neutral substance. An adaptation will lean on it as it is.',
     slopTitle: 'Cliché check',
@@ -376,6 +384,9 @@ export const piecesCopy = {
     archive: 'Archive',
     archiveDone: 'The piece is put away. Published posts stay where they are.',
     archiveRefused: 'The piece is already archived.',
+    deletePiece: 'Delete',
+    deletePieceArmed: 'Delete for good?',
+    deletePieceDone: 'The piece is deleted. Posts in the channels stay where they are.',
     ownNumberLabel: 'You could add',
     ownNumberBody: 'This piece carries no figure of yours.',
     ownNumberOptional:

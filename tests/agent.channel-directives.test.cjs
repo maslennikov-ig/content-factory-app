@@ -217,6 +217,32 @@ describe('the rules the research measured', () => {
   });
 });
 
+/** Ссылки из задания (`97dq.29`): сильнее политики ссылок карточки. */
+describe('links the person asked to keep', () => {
+  const LINKS = ['https://vk.ru/radiosputnik_khv?w=wall-236404135_1466', 'https://t.me/radiosputnik_khv/20430'];
+
+  test('a line names every link verbatim and stands right after the link policy, overriding it', () => {
+    const profile = { ...defaultWritingProfileFor('telegram', 'ru'), linkPolicy: 'none' };
+    const lines = linesFor(profile, TELEGRAM, { keepLinks: LINKS });
+    const policyAt = lines.indexOf('No links in the post.');
+    const keepAt = lines.findIndex((line) => line.startsWith('The person asked to keep these links'));
+    expect(policyAt).toBeGreaterThanOrEqual(0);
+    expect(keepAt).toBe(policyAt + 1);
+    expect(lines[keepAt]).toContain('overrides the link rule above');
+    for (const link of LINKS) expect(lines[keepAt]).toContain(`<${link}>`);
+  });
+
+  test('without such links the line is absent', () => {
+    for (const options of [{}, { keepLinks: [] }, { keepLinks: null }]) {
+      expect(
+        linesFor(defaultWritingProfileFor('telegram', 'ru'), TELEGRAM, options).some((line) =>
+          line.startsWith('The person asked to keep these links')
+        )
+      ).toBe(false);
+    }
+  });
+});
+
 describe("the channel owner's own words are quoted, never obeyed as a line", () => {
   const withNotes = (notes) =>
     linesFor({ ...defaultWritingProfileFor('telegram', 'ru'), notes }).find(
