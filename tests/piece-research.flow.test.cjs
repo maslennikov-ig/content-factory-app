@@ -118,13 +118,13 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
-  expect(prompt).toContain('правило 4 здесь не действует');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
+  expect(prompt).toContain('Отдельное правило о дополнении');
   expect(prompt).toContain('получает в тексте своё предложение');
   expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
   expect(prompt).toContain('которая тезису не служит, в текст не входит вовсе');
   expect(prompt).toContain(
-    'новых чисел, примеров, советов и шагов в дополнении не бывает'
+    'Новых чисел, примеров, советов и шагов в дополнении не бывает'
   );
   // Правило 11 остаётся: дополнение не спорит с автором.
   expect(prompt).toContain('суть держит позицию человека и не спорит с ней');
@@ -162,7 +162,7 @@ test('a partly confirmed correction stands once, and never in the confirmed bloc
     questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
     foreignShingles: [] });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
   expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
     'взято из ресерча (не подтверждено): Эксперимент охватил около 2 500 человек',
   ]);
@@ -216,12 +216,12 @@ const personText = 'Исландский эксперимент охватил 2
 test('an own number the search did not confirm leaves the confirmed block and keeps its note', () => {
   const prompt = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
   expect(prompt.split('\n').filter((line) => line.includes('25 тысяч человек.'))).toEqual([
     'не подтвердилось поиском: Исландский эксперимент охватил 25 тысяч человек. — Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
   ]);
   // И модели сказано, что с этим числом делать, а не оставлено на догадку.
-  expect(prompt).toContain('исключение из правила 1');
+  expect(prompt).toContain('исключение из правила о дословных числах');
   expect(prompt).toContain('число не пиши вовсе, а мысль человека оставь без цифры');
 });
 
@@ -234,7 +234,7 @@ test('an own row the search confirmed still stands in the confirmed block', () =
   };
   const prompt = promptOf({ brief: icelandBrief([confirmedOwn]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
   expect(prompt).toContain('факты подтверждённые: Эксперимент шёл с 2015 по 2019 год.');
   expect(prompt).not.toContain('не подтвердилось поиском');
 });
@@ -249,8 +249,7 @@ test('an own row the search confirmed still stands in the confirmed block', () =
 test('the first core with research lifts the short-core rule; without research it does not', () => {
   const withResearch = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
 
-  expect(withResearch).toContain('это ПЕРВАЯ суть, и ресерч к ней уже принесён');
-  expect(withResearch).toContain('правило 4 здесь не действует');
+  expect(withResearch).toContain('Отдельное правило об опорах ресерча: это первая суть, и ресерч к ней уже принесён');
   expect(withResearch).toContain('получает в тексте своё предложение');
   expect(withResearch).toContain('которая тезису не служит, в текст не входит вовсе');
   // Правила дополнения сюда не приезжают: существующей сути нет.
@@ -260,7 +259,7 @@ test('the first core with research lifts the short-core rule; without research i
   const withoutResearch = promptOf({ brief: icelandBrief([ownUnverified]), personText });
 
   expect(withoutResearch).toContain('три предложения — нормальная суть');
-  expect(withoutResearch).not.toContain('правило 4 здесь не действует');
+  expect(withoutResearch).not.toContain('Отдельное правило об опорах ресерча');
   // Блок неподтверждённого от наличия ресерча не зависит.
   expect(withoutResearch).toContain('не подтвердилось поиском');
 });
@@ -280,10 +279,11 @@ test('a thought with no research keeps the v6 text word for word', () => {
     personText: 'Мы сократили неделю до четырёх дней.',
   });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
   expect(prompt).toContain('факты подтверждённые: Мы сократили неделю до четырёх дней.');
   expect(prompt).not.toContain('не подтвердилось поиском');
-  expect(prompt).not.toContain('правило 4 здесь не действует');
+  expect(prompt).not.toContain('Отдельное правило об опорах ресерча');
+  expect(prompt).not.toContain('Отдельное правило о дополнении');
   expect(prompt).toContain('три предложения — нормальная суть');
   expect(prompt).not.toContain('Отдельное правило о блоках исходного материала');
 });
@@ -315,10 +315,10 @@ test('a foreign post with claims or structure gets the named rule about its bloc
   };
   const prompt = promptOf({ brief, borrowed, personText: '' });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v8');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v9');
   expect(prompt).toContain('Отдельное правило о блоках исходного материала');
   expect(prompt).toContain('делает из него СВОЙ текст');
-  expect(prompt).toContain('Правило 4 здесь не действует');
+  expect(prompt).toContain('Материала хватает на несколько абзацев');
   expect(prompt).toContain('что происходит по исходному материалу (пересказ; числа отсюда не проверены): Маркетплейсы повысили комиссии для продавцов.');
   // Ни подпись блока, ни правило больше не зовут материал «чужим постом»:
   // модель повторяла подпись в сути («Чужой пост связывает…»).
@@ -328,6 +328,33 @@ test('a foreign post with claims or structure gets the named rule about its bloc
 
   const topicOnly = promptOf({ brief, borrowed: { ...borrowed, structure: [], claims: [] }, personText: '' });
   expect(topicOnly).not.toContain('Отдельное правило о блоках исходного материала');
+});
+
+/**
+ * Слова человека — материал, а не готовый текст (`content-factory-next-97dq.26`).
+ *
+ * Десятый заход 22.09.2026, `cnt-24`: надиктованный ответ уехал в суть
+ * почти дословно, с опечаткой, повтором и порядком слов устной речи. Правило
+ * стоит в базе и действует всегда; подписи блоков больше не говорят
+ * «дословно» — модель читала подпись как инструкцию вставить.
+ */
+test('the base names what is carried verbatim, what is corrected and what never changes', () => {
+  const brief = {
+    inputKind: 'thought', thesis: 'Мы сократили неделю.', position: null,
+    disagreement: null, audience: null, origins: {}, ungrounded: [], facts: [],
+  };
+  const prompt = promptOf({ brief, personText: 'Мы сократили неделю до четырёх дней.' });
+
+  expect(prompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
+  expect(prompt).toContain('Правится: опечатки и орфография');
+  expect(prompt).toContain('Не меняется: смысл, оценки и позиция');
+  expect(prompt).toContain('Ответ на вопрос не вставляй блоком и не переписывай предложение в предложение');
+  expect(prompt).toContain('СЛОВА ЧЕЛОВЕКА (как он их написал; материал, не готовый текст)');
+  expect(prompt).not.toContain('СЛОВА ЧЕЛОВЕКА (дословно)');
+  expect(prompt).not.toContain('характерные фразы человека переноси дословно');
+  // Одно правило длины: режимы его больше не отменяют.
+  expect(prompt).toContain('4) длина берётся из материала');
+  expect(prompt).not.toContain('правило 4 здесь не действует');
 });
 
 test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {

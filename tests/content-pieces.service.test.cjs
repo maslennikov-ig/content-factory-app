@@ -531,11 +531,11 @@ describe('дословность и граница чужого текста', (
     await drain(service.run('org-a', plan, 'user-1'));
 
     const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(corePrompt).toContain('СЛОВА ЧЕЛОВЕКА (дословно)');
+    expect(corePrompt).toContain('СЛОВА ЧЕЛОВЕКА (как он их написал; материал, не готовый текст)');
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
-    expect(corePrompt).toContain('характерные фразы человека переноси дословно');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v8');
+    expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v9');
     /*
       Первая суть судится теми же правилами, что и до волны `97dq`: правило 4
       («три предложения — нормальная суть») на месте, а правила дополнения не
@@ -543,7 +543,7 @@ describe('дословность и граница чужого текста', (
       написанной сути.
     */
     expect(corePrompt).toContain('три предложения — нормальная суть');
-    expect(corePrompt).not.toContain('правило 4 здесь не действует');
+    expect(corePrompt).not.toContain('Отдельное правило о дополнении');
     expect(corePrompt).not.toContain('Существующая суть');
     expect(corePrompt).toContain(
       'суть держит позицию человека и не спорит с ней'
@@ -746,7 +746,7 @@ describe('интервью заготовки', () => {
     expect(filled.brief.origins.position).toBe('person');
     // Ответ приехал в промпт сути парой «вопрос → ответ» как материал по смыслу.
     const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(corePrompt).toContain('ОТВЕТЫ НА ВОПРОСЫ (интерпретировать по смыслу)');
+    expect(corePrompt).toContain('ОТВЕТЫ НА ВОПРОСЫ (мысли человека; материал, не готовые предложения)');
     expect(corePrompt).toContain('сдивнулись пять');
   });
 

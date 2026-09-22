@@ -1,12 +1,12 @@
 import { contentFromIntent } from '../intake/intake-content';
 import {
-  CORE_WRITE_BLOCK_TITLES_V8,
-  CORE_WRITE_ENRICH_LEAD_V8,
+  CORE_WRITE_BLOCK_TITLES_V9,
+  CORE_WRITE_ENRICH_LEAD_V9,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V8,
-  coreWriteSystemV8,
-} from './core-write-prompt.v8';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v8';
+  CORE_WRITE_REPAIR_V9,
+  coreWriteSystemV9,
+} from './core-write-prompt.v9';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v9';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -197,7 +197,7 @@ const searchRefuted = (fact: BriefFilledV1['facts'][number]): boolean =>
   !fact.verified && Boolean(fact.status) && fact.status !== 'confirmed';
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V8[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V9[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -328,7 +328,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     confirmedFacts.some((fact) => fact.origin === 'search');
 
   return [
-    coreWriteSystemV8(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV9(input.language, forbiddenPhrasesRule(input.language), {
       enrichment,
       firstWithResearch: !enrichment && researchPresent,
       unconfirmed: unconfirmedOwnFacts.length > 0,
@@ -356,7 +356,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       .filter((line) => !line.endsWith('→ '))
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V8[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V9[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -475,7 +475,7 @@ export async function writeCore(
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const second = trimmed(
           ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V8[input.language]}${quoted}`
+            `${prompt}\n\n${CORE_WRITE_REPAIR_V9[input.language]}${quoted}`
           )) as any)?.text
         );
         return second || first;
