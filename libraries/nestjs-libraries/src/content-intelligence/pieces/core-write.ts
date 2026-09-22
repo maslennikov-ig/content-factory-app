@@ -1,12 +1,12 @@
 import { contentFromIntent } from '../intake/intake-content';
 import {
-  CORE_WRITE_BLOCK_TITLES_V6,
-  CORE_WRITE_ENRICH_LEAD_V6,
+  CORE_WRITE_BLOCK_TITLES_V7,
+  CORE_WRITE_ENRICH_LEAD_V7,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V6,
-  coreWriteSystemV6,
-} from './core-write-prompt.v6';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v6';
+  CORE_WRITE_REPAIR_V7,
+  coreWriteSystemV7,
+} from './core-write-prompt.v7';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v7';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -178,8 +178,26 @@ const fenced = (title: string, lines: string[]): string =>
     ? [title, START, ...lines.map((line) => oneLine(line)).filter(Boolean), END].join('\n')
     : '';
 
+/**
+ * Вынес ли поиск по строке вердикт и оказался ли он не «подтверждено».
+ *
+ * Единственный источник правды здесь — статус самой строки, а не список
+ * `brief.ungrounded`: `ungrounded` из этих же строк и считается
+ * (`ungroundedOf` через `selectedFactsBrief`), и сверяться с производным
+ * списком значило бы завести второй счёт того же самого — ровно тот способ,
+ * которым «25 тысяч» однажды уже уехали в суть подтверждёнными.
+ *
+ * Поле `status` спрашивается явно, без подстановки по `verified`: его ставит
+ * ресерч, и его отсутствие означает «поиска по этой строке не было». Мысль,
+ * к которой ничего не искали, от этой версии не меняется вовсе — иначе своё
+ * слово человека молча переехало бы в «не подтвердилось поиском», хотя
+ * проверять его никто не ходил.
+ */
+const searchRefuted = (fact: BriefFilledV1['facts'][number]): boolean =>
+  !fact.verified && Boolean(fact.status) && fact.status !== 'confirmed';
+
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V6[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V7[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -202,7 +220,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     подтверждённые», хотя квитанция в тот же миг называла её в `ungrounded`.
     Теперь она стоит один раз и там, где ей место: в блоке взятого из ресерча.
   */
-  const confirmedFacts = brief.facts.filter(
+  const ownOrConfirmed = brief.facts.filter(
     (fact) =>
       isOwnOrConfirmed(fact) &&
       !(fact.origin === 'person' && !fact.sourceUrl) &&
@@ -213,6 +231,20 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
         fact.origin !== 'person'
       )
   );
+  /*
+    Своё число, которое поиск опроверг или не нашёл
+    (`content-factory-next-97dq.22`, P1, версия промпта `core-write/v7`).
+
+    §9.5 карты раздела остаётся: своё утверждение подтверждено в момент, когда
+    человек его написал, — до тех пор, пока по нему не сходили в источник.
+    Сходили и не подтвердили — строка уходит из блока подтверждённого в свой
+    блок вместе с заметкой источника, и правило системы запрещает выдавать её
+    число за факт. Раньше обе строки исландской мысли («25 тысяч», «40%»)
+    стояли под «факты подтверждённые», хотя квитанция называла их в
+    `ungrounded`.
+  */
+  const confirmedFacts = ownOrConfirmed.filter((fact) => !searchRefuted(fact));
+  const unconfirmedOwnFacts = ownOrConfirmed.filter(searchRefuted);
   const selectedResearchFacts = brief.facts.filter(
     (fact) =>
       fact.selected === true &&
@@ -242,12 +274,25 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       : '',
     /**
      * Что считается подтверждённым для сути: сверенное поиском или памятью и
-     * слово самого человека (§9.5 карты раздела: своё утверждение подтверждено
-     * в момент, когда он его написал). Остальное — чужие числа без опоры — в
-     * промпт не кладётся вовсе, а не помечается: модели нечего унести из того,
-     * чего она не видела. Квитанция показывает их строкой `ungrounded`.
+     * слово самого человека, по которому поиск не выносил вердикта (§9.5 карты
+     * раздела: своё утверждение подтверждено в момент, когда он его написал).
+     * Своё, которое поиск опроверг или не нашёл, стоит ниже своим блоком.
+     * Остальное — чужие числа без опоры — в промпт не кладётся вовсе, а не
+     * помечается: модели нечего унести из того, чего она не видела. Квитанция
+     * показывает их строкой `ungrounded`.
      */
     ...confirmedFacts.map((fact) => `${words.confirmed}: ${fact.statement}`),
+    /**
+     * Заметка источника едет рядом со строкой: в ней написано, что источник
+     * сказал вместо этого числа, и только по ней модель может взять
+     * исправленное значение, не выдумывая его.
+     */
+    ...unconfirmedOwnFacts.map(
+      (fact) =>
+        `${words.unconfirmed}: ${fact.statement}${
+          trimmed(fact.note) ? ` — ${trimmed(fact.note)}` : ''
+        }`
+    ),
     ...selectedResearchFacts.map(
       (fact) => `${words.research}: ${fact.statement}`
     ),
@@ -269,12 +314,31 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       ].filter(Boolean)
     : [];
 
+  /*
+    Есть ли у этой сути ресерч (`content-factory-next-97dq.22`).
+
+    Считается по строкам брифа, а не по кнопке: находки приезжают и на входе,
+    до всякого «Дополнить ресерчем», и тогда суть пишется первый раз, а
+    материал для неё уже принесён и отмечен руками. Отмеченная находка и
+    подтверждённая поиском строка — это и есть ресерч; неподтверждённое своё
+    сюда не входит, опорой оно не работает.
+  */
+  const researchPresent =
+    selectedResearchFacts.length > 0 ||
+    confirmedFacts.some((fact) => fact.origin === 'search');
+
   return [
-    coreWriteSystemV6(
-      input.language,
-      forbiddenPhrasesRule(input.language),
-      { enrichment }
-    ),
+    coreWriteSystemV7(input.language, forbiddenPhrasesRule(input.language), {
+      enrichment,
+      firstWithResearch: !enrichment && researchPresent,
+      unconfirmed: unconfirmedOwnFacts.length > 0,
+      // Тема и угол есть у любого разбора; правило о чужом посте нужно тогда,
+      // когда есть что пересказывать — утверждения или строение.
+      foreign: Boolean(
+        input.borrowed &&
+          (input.borrowed.claims.length || input.borrowed.structure.length)
+      ),
+    }),
     '',
     `PROMPT VERSION: ${CORE_WRITE_PROMPT_VERSION}`,
     fenced(
@@ -292,7 +356,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       .filter((line) => !line.endsWith('→ '))
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V6[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V7[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -411,7 +475,7 @@ export async function writeCore(
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const second = trimmed(
           ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V6[input.language]}${quoted}`
+            `${prompt}\n\n${CORE_WRITE_REPAIR_V7[input.language]}${quoted}`
           )) as any)?.text
         );
         return second || first;

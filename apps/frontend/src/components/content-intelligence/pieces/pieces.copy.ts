@@ -158,10 +158,12 @@ export const piecesCopy = {
     answerYes: 'Так и есть',
     answerFix: 'Поправить',
     answerDecide: 'Решите за меня',
-    answerDecideAll: 'Реши всё сама',
+    answerDecideAll: 'Решите всё за меня',
     answerSkip: 'Пропустить',
     ownAnswerLabel: 'Ваш ответ',
     ownAnswerHint: 'Пойдёт в текст дословно.',
+    ownOptionPlaceholder:
+      'Напишите, с чем согласны, а с чем нет — одним-двумя предложениями',
     skipInterview: 'Пропустить интервью',
     interviewSend: 'Дальше',
     interviewExhausted:
@@ -381,10 +383,12 @@ export const piecesCopy = {
     answerYes: 'That is right',
     answerFix: 'Correct it',
     answerDecide: 'You decide',
-    answerDecideAll: 'Decide everything yourself',
+    answerDecideAll: 'You decide everything',
     answerSkip: 'Skip',
     ownAnswerLabel: 'Your answer',
     ownAnswerHint: 'It goes into the text word for word.',
+    ownOptionPlaceholder:
+      'Say what you agree with and what you do not — one or two sentences',
     skipInterview: 'Skip the interview',
     interviewSend: 'Next',
     interviewExhausted:

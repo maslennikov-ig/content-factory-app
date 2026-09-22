@@ -131,6 +131,16 @@ import {
   extractionSchemaV5 as extractionSchema,
   type IntakeExtractionV5 as IntakeExtractionV1,
 } from './intake.prompts.v5';
+/*
+  Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
+  что это», потому что решать нечего — галочку человека и страницу по ссылке
+  перепроверять не у кого. Классифицирующий v5 остаётся ровно на одном шве:
+  длинный текст, который никто не назвал.
+*/
+import {
+  extractionPromptV6 as extractionPromptKnownKind,
+  EXTRACT_PROMPT_VERSION_V6,
+} from './intake.prompts.v6';
 import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { oneLine } from './intake.prompts';
 
@@ -614,7 +624,9 @@ export class IntakeService {
       const classified = await this.extract(
         organizationId,
         plan.input.slice(0, BORROWED_TEXT_LIMIT),
-        language
+        language,
+        // Единственный шов, где вид материала неизвестен и ответ модели читают.
+        { knownKind: null }
       );
       plan.inputKind = this.settleKind(plan, classified);
       extraction = plan.inputKind === 'foreign_post' ? classified : null;
@@ -665,7 +677,16 @@ export class IntakeService {
 
     let foreignShingles: string[] = [];
     if (borrowedText && !extraction) {
-      const classified = await this.extract(organizationId, borrowedText, language);
+      /*
+        Сюда заходят только `link` и `foreign_post`: чужой текст собирается
+        лишь для них. Вид на этом шве уже решён — галочкой человека, ссылкой
+        или эвристикой, которую `settleKind` может только ПОВЫСИТЬ и никогда
+        не понижает. Значит, голос модели о виде здесь всё равно не читается,
+        и спрашивать его ценой пустого разбора незачем (`97dq.21`).
+      */
+      const knownKind = plan.inputKind === 'link' || plan.inputKind === 'foreign_post'
+        ? 'foreign_post' as const : null;
+      const classified = await this.extract(organizationId, borrowedText, language, { knownKind });
       if (plan.inputKind === 'link') {
         extraction = classified;
       } else {
@@ -1003,11 +1024,22 @@ export class IntakeService {
    * Разбор чужого текста
    * -------------------------------------------------------------------- */
 
+  /**
+   * `knownKind` — вид материала, который к этому моменту уже решён: названный
+   * человеком чужой пост или прочитанная страница по ссылке. Тогда разбор
+   * спрашивают промптом без классификации (`97dq.21`): ответ «мысль» вид всё
+   * равно не изменит, но по v5 он означает пустые `structure` и `claims`, а
+   * чужой текст в промпт сути не идёт ни одним полем — и писать становится не
+   * из чего. `null` — единственный неоднозначный шов, длинный неназванный
+   * текст, где догадку модели читают.
+   */
   private async extract(
     organizationId: string,
     text: string,
-    language: ContentLanguage
+    language: ContentLanguage,
+    options: { knownKind: 'foreign_post' | null } = { knownKind: null }
   ): Promise<IntakeExtractionV1> {
+    const known = options.knownKind === 'foreign_post';
     return this.aiUsage.executeAiOperation(
       organizationId,
       'intake',
@@ -1015,13 +1047,30 @@ export class IntakeService {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
         ).withStructuredOutput(extractionSchema);
-        const extracted = await model.invoke(extractionPrompt(text, language)) as IntakeExtractionV1;
+        const prompt = known ? extractionPromptKnownKind : extractionPrompt;
+        const extracted = await model.invoke(prompt(text, language)) as IntakeExtractionV1;
         for (const field of ['topic', 'angle'] as const) {
           const raw = extracted[field];
           extracted[field] = textOrNull(raw);
           if (!extracted[field] && trimmed(raw)) this.logger.warn(intakeDiscardDiagnostic('intake-extract', field, raw));
         }
         extracted.claims = (extracted.claims ?? []).filter((claim) => textOrNull(claim.text));
+        /*
+          Пол под чужим постом: утверждений и строения не бывает ноль сразу.
+          Придумывать их за модель нельзя — это чужой текст, и выдуманное
+          утверждение уйдёт в суть как пересказ. Поэтому одна строка в журнал,
+          чтобы следующий заход увидел пустой разбор, а не только его
+          последствия. Самого текста в строке нет: он чужой и неуместен в
+          журнале, считаются только длины.
+        */
+        if (known && !extracted.claims.length && !(extracted.structure ?? []).length) {
+          this.logger.warn(JSON.stringify({
+            operation: 'intake-extract',
+            field: 'borrowed.empty',
+            promptVersion: EXTRACT_PROMPT_VERSION_V6,
+            chars: text.length,
+          }));
+        }
         return extracted;
       },
       'extract'

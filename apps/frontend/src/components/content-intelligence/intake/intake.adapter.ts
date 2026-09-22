@@ -418,6 +418,14 @@ export const readQuestions = (value: unknown): IntakeQuestionV1[] =>
           typeof question.suggested === 'string' && question.suggested.trim()
             ? question.suggested
             : null,
+        // Вариант, просящий свои слова. Читается только когда он и правда
+        // стоит среди вариантов: пометка на строку, которой человек не видит,
+        // открыла бы поле неизвестно от чего.
+        ...(typeof question.ownOption === 'string' &&
+        question.ownOption.trim() &&
+        asArray(question.options).includes(question.ownOption)
+          ? { ownOption: question.ownOption }
+          : {}),
         ...(typeof question.why === 'string' ? { why: question.why } : {}),
       },
     ];

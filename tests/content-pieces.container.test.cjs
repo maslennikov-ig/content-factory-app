@@ -649,7 +649,7 @@ describe('уточнение стоит там, где стоит суть', () 
     await open();
     const card = document.querySelector('[data-piece-clarify="true"]');
     expect(within(card).getAllByRole('radio', { name: 'Решите за меня' })).toHaveLength(1);
-    expect(within(card).queryByRole('button', { name: 'Реши всё сама' })).toBeNull();
+    expect(within(card).queryByRole('button', { name: 'Решите всё за меня' })).toBeNull();
   });
 
   test('two questions delegate together through the answer door', async () => {
@@ -675,7 +675,7 @@ describe('уточнение стоит там, где стоит суть', () 
     serve(table({ detail: detailDoor(ok(detail)), answer: (call) => { requests.push(call.body); return streamed([{ name: 'done', pieceId: 'piece-12' }])(); } }));
     await open();
     const card = document.querySelector('[data-piece-clarify="true"]');
-    await click(within(card).getByRole('button', { name: 'Реши всё сама' }));
+    await click(within(card).getByRole('button', { name: 'Решите всё за меня' }));
     expect(requests).toHaveLength(1);
     expect(requests[0].decide).toEqual(['position', 'thesis']);
   });

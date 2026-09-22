@@ -36,10 +36,14 @@ const { WebSearchNotConfigured, usableHttpsUrl } = loadWithMocks(
   'libraries/nestjs-libraries/src/openai/web.research.service.ts'
 );
 
-const { extractionPromptV5, extractionSchemaV5, EXTRACT_PROMPT_VERSION_V5 } =
+const { extractionPromptV5, extractionSchemaV5 } =
   loadWithMocks(PROMPTS);
 const { extractionPromptV4 } = loadWithMocks(
   'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v4.ts'
+);
+/** Разбор при названном виде (`97dq.21`): промпт без шага классификации. */
+const { EXTRACT_PROMPT_VERSION_V6 } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/intake/intake.prompts.v6.ts'
 );
 
 const modelCalls = [];
@@ -303,7 +307,13 @@ describe('вид материала: сказанное человеком си�
     expect(questions.questions.map((row) => row.field)).toContain('position');
     // Разбор спрошен один раз, а не дважды (на бою было два вызова).
     expect(extractPrompts()).toHaveLength(1);
-    expect(modelCalls[0].prompt).toContain(`PROMPT VERSION: ${EXTRACT_PROMPT_VERSION_V5}`);
+    /*
+      И спрошен промптом без классификации (`97dq.21`, заход 22.09.2026):
+      названный вид не пересматривают, а записанный ответ «мысль» здесь стоит
+      как доказательство, что его никто не читает. Про сам промпт судит
+      `content-intake.extract-v6.test.cjs`.
+    */
+    expect(modelCalls[0].prompt).toContain(`PROMPT VERSION: ${EXTRACT_PROMPT_VERSION_V6}`);
     expect(calls.research).toEqual([]);
   });
 

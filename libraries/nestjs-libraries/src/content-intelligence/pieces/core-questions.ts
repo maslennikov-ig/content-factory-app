@@ -251,17 +251,25 @@ export const openQuestionsFor = (
     // «Дальше» adopted the foreign position — the defect the question exists
     // to prevent. Nothing is pre-filled either: the person has to choose.
     const foreign = brief.inputKind === 'foreign_post';
+    // The third stance is not an answer but a request for the person's own
+    // words, so it is named once and handed over as `ownOption`
+    // (`content-factory-next-97dq.23`). Without the marker it was saved
+    // verbatim as the position, and the core was written from a button label.
+    const clarifyStance =
+      language === 'ru'
+        ? 'Я согласен частично и хочу уточнить свою позицию'
+        : 'I partly agree and want to clarify my position';
     const positionOptions = foreign
       ? language === 'ru'
         ? [
             'Я согласен с позицией автора исходного поста',
             'Я не согласен с позицией автора исходного поста',
-            'Я согласен частично и хочу уточнить свою позицию',
+            clarifyStance,
           ]
         : [
             'I agree with the source author\'s position',
             'I disagree with the source author\'s position',
-            'I partly agree and want to clarify my position',
+            clarifyStance,
           ]
       : input.options.position?.length
         ? input.options.position
@@ -275,6 +283,7 @@ export const openQuestionsFor = (
       ...(positionOptions?.length
         ? { options: positionOptions }
         : {}),
+      ...(foreign ? { ownOption: clarifyStance } : {}),
     });
   }
 

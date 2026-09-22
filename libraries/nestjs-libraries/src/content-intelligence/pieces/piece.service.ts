@@ -1150,7 +1150,7 @@ export class PieceService {
     yield { name: 'answer-started', pieceId: plan.pieceId, round };
 
     const answeredAt = this.now().toISOString();
-    const given = this.fieldAnswers(plan.request);
+    const given = this.fieldAnswers(plan.request, before.items);
     const acceptedEvidence: AcceptedEvidence[] = [];
     if (this.intake) {
       const urls = [
@@ -1282,10 +1282,25 @@ export class PieceService {
     yield { name: 'done', pieceId: plan.pieceId };
   }
 
-  /** Ответы запроса: дословно, по одному на поле, пустые — не ответы. */
+  /**
+   * Ответы запроса: дословно, по одному на поле, пустые — не ответы.
+   *
+   * Подпись варианта, который просил слова человека (`ownOption`), ответом не
+   * считается и здесь: `content-factory-next-97dq.23` — на бою «Я согласен
+   * частично и хочу уточнить свою позицию» легло в бриф позицией человека, и
+   * суть написалась с фразы кнопки. Экран этого больше не присылает, а дверь
+   * не принимает — два замка на одну дверь, потому что клиент у двери может
+   * быть не только свой.
+   */
   private fieldAnswers(
-    request: PieceAnswerRequestV1
+    request: PieceAnswerRequestV1,
+    asked: readonly PieceOpenQuestionV1[] = []
   ): Array<{ field: BriefField; text: string }> {
+    const ownOptionOf = new Map<BriefField, string>();
+    for (const question of asked) {
+      const marker = trimmed(question?.ownOption);
+      if (marker) ownOptionOf.set(question.field, marker.toLowerCase());
+    }
     const byField = new Map<BriefField, string>();
     for (const answer of request.answers || []) {
       // Дословно: ни заглавной буквы, ни правки опечатки. Обрезаются только
@@ -1295,7 +1310,9 @@ export class PieceService {
         answer.field !== 'facts' &&
         trimmed(answer.text)
       ) {
-        byField.set(answer.field, answer.text.trim());
+        const text = answer.text.trim();
+        if (ownOptionOf.get(answer.field) === text.toLowerCase()) continue;
+        byField.set(answer.field, text);
       }
     }
     return [...byField].map(([field, text]) => ({ field, text }));

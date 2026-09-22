@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('характерные фразы человека переноси дословно');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v6');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v7');
     /*
       Первая суть судится теми же правилами, что и до волны `97dq`: правило 4
       («три предложения — нормальная суть») на месте, а правила дополнения не
@@ -1785,6 +1785,57 @@ describe('ответы на открытые вопросы заготовки',
     // И слова, с которых началась заготовка, в промпте тоже: суть
     // переписывается, а не пишется заново по одному брифу.
     expect(prompt).toContain('сдивнулся');
+  });
+
+  /*
+    `content-factory-next-97dq.23`. Третий вариант вопроса о позиции — не
+    ответ, а просьба сказать своими словами. На бою он лёг в бриф дословно, и
+    суть написалась с подписи кнопки. Экран его больше не шлёт; дверь его не
+    принимает и тогда, когда прислал не наш экран.
+  */
+  test('подпись варианта, просящего свои слова, позицией не становится', async () => {
+    const clarify = 'Я согласен частично и хочу уточнить свою позицию';
+    const { service, calls } = buildPieces({
+      piece: askedPiece({
+        round: 0,
+        items: [
+          {
+            field: 'position',
+            question: 'Где вы стоите в этом споре?',
+            suggested: null,
+            options: [
+              'Я согласен с позицией автора исходного поста',
+              'Я не согласен с позицией автора исходного поста',
+              clarify,
+            ],
+            ownOption: clarify,
+          },
+        ],
+        answered: [],
+      }),
+      models: [{ text: 'Суть, написанная без ответа человека.' }],
+    });
+
+    const events = await answerDrain(service, {
+      answers: [{ field: 'position', text: `  ${clarify}  ` }],
+    });
+
+    expect(events.map((event) => event.name)).toEqual([
+      'answer-started',
+      'piece',
+      'done',
+    ]);
+
+    const [, , saved] = calls.updateCore[0];
+    // Позиция осталась незаполненной, а поле закрыто моделью — ровно как
+    // после пустого «Поправить».
+    expect(saved.brief.brief.position).toBeNull();
+    expect(saved.brief.brief.origins.position).toBeUndefined();
+    expect(saved.brief.questions.answered).toEqual([
+      expect.objectContaining({ field: 'position', text: '', origin: 'model' }),
+    ]);
+    // Подписи кнопки нет ни в одном промпте: сути с неё не пишут.
+    for (const call of modelCalls) expect(call.prompt).not.toContain(clarify);
   });
 
   test('ссылка в ответе читается как внешняя опора и не становится подтверждённым фактом', async () => {

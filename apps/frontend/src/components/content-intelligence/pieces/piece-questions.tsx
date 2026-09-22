@@ -63,14 +63,18 @@ export function PieceQuestions({
           skip: t.answerSkip,
           ownAnswerLabel: t.ownAnswerLabel,
           ownAnswerHint: t.ownAnswerHint,
+          ownOptionPlaceholder: t.ownOptionPlaceholder,
           send: t.interviewSend,
           skipAll: t.answerDecideAll,
         }}
         questions={questions.map((question) => ({
           key: question.field,
           question: question.question,
-                    options: question.options,
+          options: question.options,
           suggested: question.suggested ?? null,
+          // Вариант, просящий свои слова, едет с сервера и здесь только
+          // передаётся дальше: узнавать его по тексту карточка не должна.
+          ...(question.ownOption ? { ownOption: question.ownOption } : {}),
           ...(question.why ? { why: question.why } : {}),
         }))}
         busy={busy}

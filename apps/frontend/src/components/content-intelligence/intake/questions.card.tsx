@@ -45,10 +45,17 @@ import type { BriefField, IntakeQuestionV1 } from './intake.adapter';
  * зависимостью.
  */
 
-/** Что человек выбрал по одному полю. */
+/**
+ * Что человек выбрал по одному полю.
+ *
+ * `via` у своего ответа — подпись варианта, который это поле открыл
+ * (`content-factory-next-97dq.23`). Нужна ровно для одного: показать выбранным
+ * тот вариант, который человек нажал, пока он пишет свои слова. В ответ она не
+ * уходит никогда — ответом остаётся написанное.
+ */
 export type QuestionAnswer =
   | { mode: 'option'; text: string }
-  | { mode: 'own'; text: string }
+  | { mode: 'own'; text: string; via?: string }
   | { mode: 'decide' };
 
 export type QuestionAnswers = Partial<Record<string, QuestionAnswer>>;
@@ -278,6 +285,13 @@ export type SuggestedQuestion = {
   question: string;
   suggested: string | null;
   options?: readonly string[];
+  /**
+   * Вариант, который просит слова человека, а не выбирается ответом: его
+   * нажатие открывает поле так же, как «Поправить», и подпись варианта в ответ
+   * не уходит. Приходит с сервера (`IntakeQuestionV1.ownOption`), а не
+   * угадывается здесь по тексту.
+   */
+  ownOption?: string;
   why?: string;
 };
 
@@ -299,6 +313,8 @@ export type SuggestedQuestionsWords = {
   skip: string;
   ownAnswerLabel: string;
   ownAnswerHint: string;
+  /** Подсказка в поле, открытом вариантом «хочу уточнить свою позицию». */
+  ownOptionPlaceholder: string;
   send: string;
   skipAll: string;
 };
@@ -326,12 +342,30 @@ export function SuggestedQuestionsCard({
 }) {
   const [answers, setAnswers] = useState<QuestionAnswers>({});
 
+  /**
+   * Геометрия чипа одна на оба ряда, краска — разная: варианты ответа несут
+   * рамку, служебные действия стоят тише (`content-factory-next-97dq.23`).
+   * Владелец на девятом заходе прочитал шесть одинаковых чипов как шесть
+   * равных вариантов ответа, и это ровно то, чем они выглядели.
+   */
+  const chipBase =
+    'max-w-full justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none';
+  const chosen = 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed';
+
   const optionClass = (active: boolean) =>
     clsx(
-      'max-w-full justify-start rounded-[8px] border px-[12px] py-[8px] text-start cf-body-sm transition-colors duration-state motion-reduce:transition-none',
+      chipBase,
       active
-        ? 'border-cf-accent bg-cf-accent-soft text-cf-ink cf-pressed'
+        ? chosen
         : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle cf-pressed'
+    );
+
+  const serviceClass = (active: boolean) =>
+    clsx(
+      chipBase,
+      active
+        ? chosen
+        : 'border-transparent text-cf-ink-muted hover:bg-cf-surface-subtle cf-pressed'
     );
 
   const submit = () => {
@@ -345,7 +379,10 @@ export function SuggestedQuestionsCard({
       }
       const text =
         answer.text.trim();
-      if (!text) {
+      // Пустое своё поле закрывается моделью — так же, как пустое «Поправить»
+      // до этой волны. Подпись варианта, просящего свои слова, ответом не
+      // становится ни при каком стечении обстоятельств.
+      if (!text || (question.ownOption && text === question.ownOption)) {
         decided.push(question.key);
         continue;
       }
@@ -385,10 +422,13 @@ export function SuggestedQuestionsCard({
             : answer?.mode === 'own'
             ? answer.text === SKIP
               ? SKIP
-              : FIX
+              : answer.via ?? FIX
             : answer?.mode === 'decide'
             ? DECIDE
             : null;
+        // Поле открыто своими словами, и видно, чем именно: «Поправить» или
+        // вариантом, который просит уточнения.
+        const writing = answer?.mode === 'own' && answer.text !== SKIP;
 
         return (
           <div
@@ -421,6 +461,12 @@ export function SuggestedQuestionsCard({
               </blockquote>
             ) : null}
 
+            {/*
+              Один `RadioGroup` и два ряда внутри него: выбор по-прежнему один
+              на вопрос и по-прежнему ходится стрелками — группа ищет варианты
+              в разметке, а не в списке регистраций, и слои ей не мешают. Ряды
+              нужны глазу: ответы отдельно, служебные действия отдельно.
+            */}
             <RadioGroup
               value={value}
               aria-label={question.question}
@@ -434,62 +480,98 @@ export function SuggestedQuestionsCard({
                       ? { mode: 'own', text: SKIP }
                       : next === FIX
                       ? { mode: 'own', text: question.suggested ?? '' }
+                      : next === question.ownOption
+                      ? // Вариант просит свои слова: поле открывается пустым,
+                        // и подпись варианта в него не подставляется.
+                        { mode: 'own', text: '', via: next }
                       : { mode: 'option', text: next },
                 }))
               }
-              className="flex flex-wrap gap-[4px]"
+              className="flex flex-col gap-[8px]"
             >
-              {(question.options ?? []).map((option) => (
-                <RadioOption key={option} value={option} disabled={busy} layout="content" className={optionClass(answer?.mode === 'option' && answer.text === option)}>
-                  {option}
-                </RadioOption>
-              ))}
-              {question.suggested && !question.options?.includes(question.suggested) ? (
+              {/*
+                Ряда вариантов нет вовсе, когда вариантов нет: пустой ряд —
+                это лишний отступ над служебными действиями и пустая группа
+                для читалки с экрана.
+              */}
+              {question.options?.length || question.suggested ? (
+                <div
+                  data-piece-answer-options="true"
+                  className="flex flex-wrap gap-[4px]"
+                >
+                  {(question.options ?? []).map((option) => (
+                    <RadioOption
+                      key={option}
+                      value={option}
+                      disabled={busy}
+                      layout="content"
+                      className={optionClass(
+                        option === question.ownOption
+                          ? writing &&
+                              answer?.mode === 'own' &&
+                              answer.via === option
+                          : answer?.mode === 'option' && answer.text === option
+                      )}
+                    >
+                      {option}
+                    </RadioOption>
+                  ))}
+                  {question.suggested &&
+                  !question.options?.includes(question.suggested) ? (
+                    <RadioOption
+                      disabled={busy}
+                      value={question.suggested}
+                      layout="content"
+                      className={optionClass(
+                        answer?.mode === 'option' &&
+                          answer.text === question.suggested
+                      )}
+                    >
+                      {words.yes}
+                    </RadioOption>
+                  ) : null}
+                </div>
+              ) : null}
+              <div
+                data-piece-service-actions="true"
+                className="flex flex-wrap gap-[4px]"
+              >
                 <RadioOption
                   disabled={busy}
-                  value={question.suggested}
+                  value={FIX}
                   layout="content"
-                  className={optionClass(answer?.mode === 'option' && answer.text === question.suggested)}
+                  className={serviceClass(
+                    writing && answer?.mode === 'own' && !answer.via
+                  )}
                 >
-                  {words.yes}
+                  {words.fix}
                 </RadioOption>
-              ) : null}
-              <RadioOption
-                disabled={busy}
-                value={FIX}
-                layout="content"
-                className={optionClass(
-                  answer?.mode === 'own' && answer.text !== SKIP
-                )}
-              >
-                {words.fix}
-              </RadioOption>
-              <RadioOption
-                disabled={busy}
-                value={DECIDE}
-                layout="content"
-                className={optionClass(answer?.mode === 'decide')}
-              >
-                {words.decide}
-              </RadioOption>
-              <RadioOption
-                disabled={busy}
-                value={SKIP}
-                layout="content"
-                className={optionClass(
-                  answer?.mode === 'own' && answer.text === SKIP
-                )}
-              >
-                {words.skip}
-              </RadioOption>
+                <RadioOption
+                  disabled={busy}
+                  value={DECIDE}
+                  layout="content"
+                  className={serviceClass(answer?.mode === 'decide')}
+                >
+                  {words.decide}
+                </RadioOption>
+                <RadioOption
+                  disabled={busy}
+                  value={SKIP}
+                  layout="content"
+                  className={serviceClass(
+                    answer?.mode === 'own' && answer.text === SKIP
+                  )}
+                >
+                  {words.skip}
+                </RadioOption>
+              </div>
             </RadioGroup>
 
             {/*
               Модель ответа не нашла — поле открыто сразу: вопрос, до поля
               которого надо ещё дожать кнопку, читается как необязательный.
             */}
-            {(answer?.mode === 'own' && answer.text !== SKIP) ||
-            (!question.suggested && !question.options?.length) ? (
+            {writing || (!question.suggested && !question.options?.length) ? (
               <div className="flex min-w-0 flex-col gap-[4px]">
                 <Input
                   disabled={busy}
@@ -497,12 +579,27 @@ export function SuggestedQuestionsCard({
                   removeError
                   name={`piece-answer-${question.key}`}
                   label={words.ownAnswerLabel}
+                  {...(answer?.mode === 'own' && answer.via
+                    ? { placeholder: words.ownOptionPlaceholder }
+                    : {})}
                   value={answer?.mode === 'own' && answer.text !== SKIP ? answer.text : ''}
                   onChange={(event) =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.key]: { mode: 'own', text: event.target.value },
-                    }))
+                    setAnswers((current) => {
+                      const previous = current[question.key];
+                      const via =
+                        previous?.mode === 'own' ? previous.via : undefined;
+                      return {
+                        ...current,
+                        [question.key]: {
+                          mode: 'own',
+                          text: event.target.value,
+                          // Вариант, открывший поле, остаётся выбранным, пока
+                          // человек пишет: иначе подсветка уезжает на первой
+                          // же букве.
+                          ...(via ? { via } : {}),
+                        },
+                      };
+                    })
                   }
                 />
                 <p className="cf-caption text-cf-ink-muted">

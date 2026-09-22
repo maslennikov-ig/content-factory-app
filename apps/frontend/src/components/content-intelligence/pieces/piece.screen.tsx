@@ -815,6 +815,7 @@ export function PieceScreen({
                   skip: t.answerSkip,
                   ownAnswerLabel: t.ownAnswerLabel,
                   ownAnswerHint: t.ownAnswerHint,
+                  ownOptionPlaceholder: t.ownOptionPlaceholder,
                   send: t.interviewSend,
                   skipAll: t.skipInterview,
                 }}

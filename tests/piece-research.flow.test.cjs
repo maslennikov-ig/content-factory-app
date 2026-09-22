@@ -118,7 +118,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v6');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
   expect(prompt).toContain('правило 4 здесь не действует');
   expect(prompt).toContain('получает в тексте своё предложение');
   expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
@@ -162,13 +162,160 @@ test('a partly confirmed correction stands once, and never in the confirmed bloc
     questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
     foreignShingles: [] });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v6');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
   expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
     'взято из ресерча (не подтверждено): Эксперимент охватил около 2 500 человек',
   ]);
   expect(prompt).toContain(
     'факты подтверждённые: Производительность сохранилась или выросла'
   );
+});
+
+/* -------------------------------------------------------------------------
+ * Первая суть с ресерчем (`content-factory-next-97dq.22`, версия `core-write/v7`)
+ * ---------------------------------------------------------------------- */
+
+const { corePrompt: buildCorePrompt } = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
+/** Промпт сути на одном брифе: сборщик чистый, модель здесь не нужна. */
+const promptOf = (input) =>
+  buildCorePrompt({
+    organizationId: 'org', language: 'ru', answers: [], questionTextByKey: {},
+    borrowed: null, foreignShingles: [], ...input,
+  });
+
+const icelandBrief = (facts) => ({
+  inputKind: 'thought',
+  thesis: 'Сокращение рабочего времени повышает производительность.',
+  position: 'Считаю это доказанным фактом.',
+  disagreement: null, audience: null, origins: {},
+  ungrounded: facts.filter((fact) => !fact.verified).map((fact) => fact.statement),
+  facts,
+});
+const ownUnverified = {
+  statement: 'Исландский эксперимент охватил 25 тысяч человек.',
+  sourceUrl: null, factId: null, evidenceId: null, origin: 'input', kind: 'own',
+  status: 'unverified', verified: false,
+  note: 'Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
+};
+const foundConfirmed = {
+  statement: 'В двух исследованиях участвовали более 2500 сотрудников.',
+  sourceUrl: url, factId: null, evidenceId: 'ev-study', origin: 'search', kind: 'found',
+  status: 'confirmed', verified: true, selected: true,
+};
+const personText = 'Исландский эксперимент охватил 25 тысяч человек, а производительность выросла на 40%.';
+
+/**
+ * Своё число, которое поиск опроверг, больше не «подтверждено»
+ * (`content-factory-next-97dq.22`, P1).
+ *
+ * Девятый заход 22.09.2026, мысль про исландскую четырёхдневку: строка
+ * приходила `origin: 'input'`, `status: 'unverified'`, с заметкой источника — и
+ * печаталась под «факты подтверждённые», хотя квитанция в тот же миг называла
+ * её в `ungrounded`.
+ */
+test('an own number the search did not confirm leaves the confirmed block and keeps its note', () => {
+  const prompt = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt.split('\n').filter((line) => line.includes('25 тысяч человек.'))).toEqual([
+    'не подтвердилось поиском: Исландский эксперимент охватил 25 тысяч человек. — Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
+  ]);
+  // И модели сказано, что с этим числом делать, а не оставлено на догадку.
+  expect(prompt).toContain('исключение из правила 1');
+  expect(prompt).toContain('число не пиши вовсе, а мысль человека оставь без цифры');
+});
+
+/** Подтверждённое своё остаётся подтверждённым: §9.5 карты раздела в силе. */
+test('an own row the search confirmed still stands in the confirmed block', () => {
+  const confirmedOwn = {
+    ...ownUnverified,
+    statement: 'Эксперимент шёл с 2015 по 2019 год.',
+    status: 'confirmed', verified: true, sourceUrl: url, note: null,
+  };
+  const prompt = promptOf({ brief: icelandBrief([confirmedOwn]), personText });
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('факты подтверждённые: Эксперимент шёл с 2015 по 2019 год.');
+  expect(prompt).not.toContain('не подтвердилось поиском');
+});
+
+/**
+ * Первая суть с ресерчем несёт свои опоры (`content-factory-next-97dq.22`).
+ *
+ * `core-write/v5` снял правило 4 только с дополнения, а находки приезжают и на
+ * входе: суть пишется первый раз, шестнадцать отмеченных опор стоят в брифе, и
+ * правило 4 («три предложения — нормальная суть») побеждало их все.
+ */
+test('the first core with research lifts the short-core rule; without research it does not', () => {
+  const withResearch = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
+
+  expect(withResearch).toContain('это ПЕРВАЯ суть, и ресерч к ней уже принесён');
+  expect(withResearch).toContain('правило 4 здесь не действует');
+  expect(withResearch).toContain('получает в тексте своё предложение');
+  expect(withResearch).toContain('которая тезису не служит, в текст не входит вовсе');
+  // Правила дополнения сюда не приезжают: существующей сути нет.
+  expect(withResearch).not.toContain('это ДОПОЛНЕНИЕ уже написанной сути');
+  expect(withResearch).not.toContain('Существующая суть');
+
+  const withoutResearch = promptOf({ brief: icelandBrief([ownUnverified]), personText });
+
+  expect(withoutResearch).toContain('три предложения — нормальная суть');
+  expect(withoutResearch).not.toContain('правило 4 здесь не действует');
+  // Блок неподтверждённого от наличия ресерча не зависит.
+  expect(withoutResearch).toContain('не подтвердилось поиском');
+});
+
+/**
+ * Мысль, к которой ничего не искали, судится ровно текстом `core-write/v6`.
+ *
+ * Своё слово без вердикта поиска — опора: `status` ставит ресерч, и его
+ * отсутствие значит «не ходили», а не «не подтвердилось».
+ */
+test('a thought with no research keeps the v6 text word for word', () => {
+  const prompt = promptOf({
+    brief: icelandBrief([
+      { statement: 'Мы сократили неделю до четырёх дней.', sourceUrl: null, factId: null,
+        evidenceId: null, origin: 'input', kind: 'own', verified: false },
+    ]),
+    personText: 'Мы сократили неделю до четырёх дней.',
+  });
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('факты подтверждённые: Мы сократили неделю до четырёх дней.');
+  expect(prompt).not.toContain('не подтвердилось поиском');
+  expect(prompt).not.toContain('правило 4 здесь не действует');
+  expect(prompt).toContain('три предложения — нормальная суть');
+  expect(prompt).not.toContain('Отдельное правило о блоках чужого поста');
+});
+
+/**
+ * Суть по чужому посту получает правило о его блоках (`content-factory-next-97dq.21`).
+ *
+ * Стенд 22.09.2026: с разбором v6 в бриф пришли пять утверждений и четыре шага
+ * строения, а модель вернула одну фразу — позицию человека, потому что ни одно
+ * правило не говорило, что с блоками чужого поста делать. Правило стоит только
+ * когда есть что пересказывать; тема и угол сами по себе его не включают.
+ */
+test('a foreign post with claims or structure gets the named rule about its blocks', () => {
+  const brief = {
+    inputKind: 'foreign_post', thesis: null,
+    position: 'Я не согласен: спорить с площадкой можно, если продавцов много.',
+    disagreement: null, audience: null, origins: { position: 'person' }, ungrounded: [], facts: [],
+  };
+  const borrowed = {
+    topic: 'Комиссии маркетплейсов', angle: 'Спорить с площадками бесполезно.',
+    structure: ['Открывается жалобой на рост комиссий.'],
+    claims: ['Маркетплейсы повысили комиссии для продавцов.'],
+  };
+  const prompt = promptOf({ brief, borrowed, personText: '' });
+
+  expect(prompt).toContain('PROMPT VERSION: core-write/v7');
+  expect(prompt).toContain('Отдельное правило о блоках чужого поста');
+  expect(prompt).toContain('Правило 4 здесь не действует');
+  expect(prompt).toContain('что чужой пост утверждает (пересказ, не его слова): Маркетплейсы повысили комиссии для продавцов.');
+
+  const topicOnly = promptOf({ brief, borrowed: { ...borrowed, structure: [], claims: [] }, personText: '' });
+  expect(topicOnly).not.toContain('Отдельное правило о блоках чужого поста');
 });
 
 test('a v1 research snapshot remains readable after v2 starts issuing previews', async () => {

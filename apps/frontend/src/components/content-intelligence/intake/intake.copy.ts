@@ -153,7 +153,7 @@ export const intakeCopy = {
     ownAnswer: 'Свой ответ',
     ownAnswerLabel: 'Ваш ответ',
     decideThis: 'Решите за меня',
-    decideAll: 'Реши всё сама',
+    decideAll: 'Решите всё за меня',
     manualForm: 'Заполнить бриф вручную',
     addFact: 'Добавить факт',
     blockedUnanswered: 'Ответьте или нажмите «Решите за меня»',
