@@ -1698,5 +1698,6 @@
   "intake_door_short": "素材",
   "help": "帮助",
   "uploading": "正在上传",
-  "importing": "正在导入"
+  "importing": "正在导入",
+  "pick_time": "时间"
 }

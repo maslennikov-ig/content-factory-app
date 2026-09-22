@@ -66,6 +66,7 @@ export function PieceQuestions({
           ownOptionPlaceholder: t.ownOptionPlaceholder,
           send: t.interviewSend,
           skipAll: t.answerDecideAll,
+          own: t.ownAnswer,
         }}
         questions={questions.map((question) => ({
           key: question.field,

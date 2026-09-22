@@ -62,20 +62,33 @@ export type ReviewPromptInput = {
  */
 export const reviewGroundedOf = (
   input: Pick<ReviewPromptInput, 'core' | 'personText' | 'facts'>
-): string[] => {
-  const statements = Array.isArray(input.facts)
+): string[] =>
+  [input.core ?? '', input.personText ?? '', ...reviewSupportedOf(input)]
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+/**
+ * Утверждения отмеченных фактов — и только они, без сути и слов человека.
+ *
+ * `content-factory-next-97dq.33`. Короткая находка каталога, пересказывающая
+ * такую опору, находкой не считается (`text-quality/supported-wording.ts`).
+ * Суть сюда не входит намеренно: её пишет модель, и штамп, перенесённый из
+ * сути в адаптацию, иначе стал бы невидимым. Собирается здесь же, рядом с
+ * `reviewGroundedOf`, по той же причине: «было» и «стало» обязаны стоять на
+ * одном материале.
+ */
+export const reviewSupportedOf = (
+  input: Pick<ReviewPromptInput, 'facts'>
+): string[] =>
+  Array.isArray(input.facts)
     ? input.facts
         .map((fact) =>
           typeof (fact as { statement?: unknown })?.statement === 'string'
-            ? ((fact as { statement: string }).statement as string)
+            ? ((fact as { statement: string }).statement as string).trim()
             : ''
         )
         .filter(Boolean)
     : [];
-  return [input.core ?? '', input.personText ?? '', ...statements]
-    .map((line) => line.trim())
-    .filter(Boolean);
-};
 
 /**
  * Находки каталога так, как их показывают: правило и отрывок.
@@ -98,9 +111,14 @@ export const catalogFindingsOf = (
    * «было N → стало M»: посчитанные по разным опорам числа сказали бы, что
    * правка убрала находку, которой не было.
    */
-  grounded?: readonly string[]
+  grounded?: readonly string[],
+  /**
+   * Утверждения отмеченных фактов (`reviewSupportedOf`, `97dq.33`). Правило
+   * то же, что у опор: обе стороны «было N → стало M» передают одно и то же.
+   */
+  supported?: readonly string[]
 ): Array<ReviewCatalogFinding & { start: number; end: number }> =>
-  slopCheck(text, { locale: language, platform, grounded }).findings.map(
+  slopCheck(text, { locale: language, platform, grounded, supported }).findings.map(
     ({ ruleId, excerpt, start, end }) => ({ ruleId, excerpt, start, end })
   );
 
@@ -155,7 +173,7 @@ const SLOP_LINES = [
   'Change no fact, number, date, name, quotation or the author position in this mode. A claim that looks wrong stays exactly as it is and gets no note: checking it is a different review the person did not ask for.',
 ];
 
-const FACTS_LINES = [
+export const FACTS_LINES = [
   'Mode "facts" — compare the text with the supplied core and facts ONLY. No web, no external knowledge, no tools. Remove or qualify every claim the core and the facts do not support, and say in why which supplied statement the wording contradicts or goes beyond. This is alignment with the piece, NOT verification of truth in the world; never call a claim confirmed.',
   'Change no style, cliche, tone, rhythm, word order or structure in this mode. A badly written passage that is factually right stays byte-for-byte as it is.',
 ];
@@ -166,32 +184,59 @@ const BOTH_LINES = [
   ...FACTS_LINES.slice(0, 1),
 ];
 
+/** Строки режима, общие для версий промпта: веб и перегенерация без режима. */
+export const WEB_MODE_LINES = [
+  'Web mode: correct only wording that contradicts the supplied source excerpts. Do not propose style, tone, cliche, structure or catalog edits. Attach only exact supplied URLs to every text correction. If no source supports a correction, keep the excerpt unchanged as a visible note.',
+];
+
+export const NO_MODE_LINES = [
+  'No review mode was selected: the requested passage is regenerated and nothing else is touched. Do not add facts beyond the supplied support and preserve personal examples, position and author voice.',
+];
+
 const modeLines = (mode: string | undefined, web: boolean): string[] => {
-  if (web)
-    return [
-      'Web mode: correct only wording that contradicts the supplied source excerpts. Do not propose style, tone, cliche, structure or catalog edits. Attach only exact supplied URLs to every text correction. If no source supports a correction, keep the excerpt unchanged as a visible note.',
-    ];
+  if (web) return WEB_MODE_LINES;
   if (mode === 'slop') return SLOP_LINES;
   if (mode === 'facts') return FACTS_LINES;
   if (mode === 'both') return BOTH_LINES;
   // Перегенерация по просьбе человека: режима нет, рамки задаёт сама просьба.
-  return [
-    'No review mode was selected: the requested passage is regenerated and nothing else is touched. Do not add facts beyond the supplied support and preserve personal examples, position and author voice.',
-  ];
+  return NO_MODE_LINES;
 };
 
-export function reviewPromptV5(input: ReviewPromptInput) {
+/**
+ * Что версия промпта решает сама, а что у версий общее.
+ *
+ * `content-factory-next-97dq.33`: у v6 другие строки режима «штампов» и
+ * другое решение, класть ли суть в этот режим. Всё прочее — договор ответа,
+ * корзины, звёздочки, язык пояснений — одно на обе версии и собирается одним
+ * местом, чтобы вторая копия не разошлась с первой молча. Текст v5 от этого
+ * не меняется ни на байт: версия в промпте говорит, какими указаниями получен
+ * записанный ответ.
+ */
+export type ReviewPromptShape = {
+  version: string;
+  modeLines: (mode: string | undefined, web: boolean) => string[];
+  /** Класть ли суть и факты в запрос этого режима. */
+  sendsCore: (mode: string | undefined, web: boolean) => boolean;
+  /** Утверждения отмеченных фактов для каталога; нет — каталог считает без них. */
+  supported?: readonly string[];
+};
+
+export function reviewPromptOf(
+  input: ReviewPromptInput,
+  shape: ReviewPromptShape
+) {
   const web = input.mode === 'web';
   // «Сверить с сутью» стиля не правит, и каталог в такой запрос не кладут:
   // присланная модели находка — это приглашение её исправить.
   const sendsCatalog = !web && input.mode !== 'facts';
-  const sendsCore = !web ? input.mode !== 'slop' : true;
+  const sendsCore = shape.sendsCore(input.mode, web);
   const findings = sendsCatalog
     ? catalogFindingsOf(
         input.text,
         input.language,
         input.platform,
-        reviewGroundedOf(input)
+        reviewGroundedOf(input),
+        shape.supported
       )
     : undefined;
   return {
@@ -199,9 +244,9 @@ export function reviewPromptV5(input: ReviewPromptInput) {
       web
         ? 'Evidence-only factual review. Preserve the author position and do not invent facts, dates, actors or examples. Missing support is a note, never a reason to rewrite.'
         : REVIEW_SEMANTIC_V4,
-      `PROMPT VERSION: ${REVIEW_PROMPT_VERSION_V5}`,
+      `PROMPT VERSION: ${shape.version}`,
       'Review contract adaptation-review/v3. Return JSON {changes:[{id,excerpt,replacement,ruleId?,sourceUrls?,why,basket:"silent|show|ask",target:"body|title",variants?}],verdict:"clean|review|rewrite",summary}. Excerpts must be exact unique non-overlapping substrings of the current body/title; leave all other text byte-for-byte unchanged. Never return a complete rewritten text outside changes.',
-      ...modeLines(input.mode, web),
+      ...shape.modeLines(input.mode, web),
       web
         ? 'Never use basket ask.'
         : 'Silent: unambiguous typos only. Show: everything the reader should see and decide. Never use basket ask.',
@@ -220,12 +265,19 @@ export function reviewPromptV5(input: ReviewPromptInput) {
       instruction: input.instruction ?? null,
       currentText: input.text,
       title: input.title,
-      ...(sendsCore
-        ? { core: input.core, facts: input.facts }
-        : {}),
+      ...(sendsCore ? { core: input.core, facts: input.facts } : {}),
       personText: input.personText,
       ...(findings ? { catalogFindings: findings } : {}),
       sources: input.sources ?? [],
     }),
   };
+}
+
+export function reviewPromptV5(input: ReviewPromptInput) {
+  return reviewPromptOf(input, {
+    version: REVIEW_PROMPT_VERSION_V5,
+    modeLines,
+    // В v5 суть и факты в режим «штампов» не кладутся вовсе.
+    sendsCore: (mode, web) => (!web ? mode !== 'slop' : true),
+  });
 }

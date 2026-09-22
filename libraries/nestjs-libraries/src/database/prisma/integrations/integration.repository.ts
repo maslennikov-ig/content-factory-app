@@ -19,7 +19,7 @@ const channelVisiblePostsWhere = (org: string): Prisma.PostWhereInput => ({
 export class IntegrationRepository {
   private storage = UploadFactory.createStorage();
   constructor(
-    private _integration: PrismaRepository<'integration'>,
+    private _integration: PrismaRepository<'integration' | 'projectBrandProfile'>,
     private _posts: PrismaRepository<'post'>,
     private _plugs: PrismaRepository<'plugs'>,
     private _exisingPlugData: PrismaRepository<'exisingPlugData'>,
@@ -150,6 +150,18 @@ export class IntegrationRepository {
         writingProfile: true,
       },
     });
+  }
+
+  /**
+   * Есть ли у области такой аватар (`content-factory-next-97dq.38`): карточка
+   * канала может назвать только свой, и удалённый уже не свой.
+   */
+  async hasAvatar(org: string, avatarId: string): Promise<boolean> {
+    const found = await this._integration.model.projectBrandProfile.findFirst({
+      where: { id: avatarId, organizationId: org, deletedAt: null },
+      select: { id: true },
+    });
+    return Boolean(found);
   }
 
   /**

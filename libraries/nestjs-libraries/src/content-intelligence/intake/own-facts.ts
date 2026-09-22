@@ -189,6 +189,11 @@ const isOwn = (fact: PieceFactV2): boolean =>
   fact.kind === 'own' ||
   (!fact.kind && fact.origin === 'input' && !fact.evidenceId && !fact.factId);
 
+/**
+ * «Не проверено» здесь — ещё не вердикт поиска: поиска по строке не было.
+ * Суть и квитанция читают «поиск ходил» по его следам на строке
+ * (`searchRuledOn`, `97dq.32`), а не по этому статусу.
+ */
 const ownRow = (statement: string): PieceFactV2 => ({
   statement,
   sourceUrl: null,

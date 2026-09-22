@@ -1698,5 +1698,6 @@
   "intake_door_short": "Rohentwurf",
   "help": "Hilfe",
   "uploading": "Wird hochgeladen",
-  "importing": "Wird importiert"
+  "importing": "Wird importiert",
+  "pick_time": "Uhrzeit"
 }

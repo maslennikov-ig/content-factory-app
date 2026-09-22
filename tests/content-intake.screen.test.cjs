@@ -147,24 +147,60 @@ describe('the door is one field, and its refusals are readable', () => {
     const options = within(group).getAllByRole('radio').map((el) => el.textContent);
     expect(options).toEqual(['Свой текст', 'Чужой пост', 'Задание']);
     expect(screen.queryByRole('checkbox', { name: 'Это чужой текст' })).toBeNull();
-    expect(document.querySelector('[data-intake-kind-hint="thought"]').textContent).toBe(
-      'Ваши мысли или набросок: поправим речь, слова и смысл останутся вашими'
-    );
     const field = document.getElementById('intake-input');
     expect(group.compareDocumentPosition(field) & 4).toBeTruthy(); // DOCUMENT_POSITION_FOLLOWING
     await click(within(group).getByRole('radio', { name: 'Задание' }));
     expect(seen).toEqual(['instruction']);
   });
 
-  test('each position of the switch reads back and explains itself', () => {
+  /*
+    `97dq.36`, владелец 22.09.2026: «у каждого как раз можно будет сделать
+    вопросик». У каждого положения свой «?» — тот же примитив, что у «Нужен
+    ресерч», — а строки под полосой больше нет: она повторяла бы подсказку
+    выбранного положения слово в слово.
+  */
+  test('each position of the switch carries its own «?», and no line repeats it', async () => {
     draw({ state: 'idle', materialKind: 'instruction' });
-    expect(document.querySelector('[data-intake-kind-hint="instruction"]').textContent).toBe(
-      'Опишите, какой пост нужен: напишем по описанию, ссылки сохраним как есть'
+    const group = screen.getByRole('radiogroup', { name: 'Что вы присылаете' });
+    const hints = [...group.querySelectorAll('[data-hint-trigger="true"]')].map(
+      (hint) => hint.getAttribute('aria-label')
     );
-    draw({ state: 'idle', materialKind: 'foreign_post' });
-    expect(document.querySelector('[data-intake-kind-hint="foreign_post"]').textContent).toBe(
-      'Чужой пост или статья: сделаем из него ваш пост и спросим вашу позицию'
-    );
+    expect(hints).toEqual([
+      'Подсказка: свой текст',
+      'Подсказка: чужой пост',
+      'Подсказка: задание',
+    ]);
+    // Подсказка — не положение: радио по-прежнему три.
+    expect(within(group).getAllByRole('radio')).toHaveLength(3);
+    expect(document.querySelector('[data-intake-kind-hint]')).toBeNull();
+
+    const texts = {
+      'Подсказка: свой текст':
+        'Ваши мысли, набросок или расшифровка голосового. Поправим речь, а слова и смысл останутся вашими.',
+      'Подсказка: чужой пост':
+        'Чужой пост, статья или ссылка на них. Сделаем из этого ваш собственный пост и спросим вашу позицию.',
+      'Подсказка: задание':
+        'Описание поста, который нужно написать. Напишем по нему, а ссылки из описания сохраним дословно.',
+    };
+    for (const [name, text] of Object.entries(texts)) {
+      const trigger = within(group).getByRole('button', { name });
+      fireEvent.focus(trigger);
+      expect(screen.getByRole('tooltip').textContent).toBe(text);
+      fireEvent.blur(trigger);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      // Объяснение живёт только в подсказке, не второй строкой на экране.
+      expect(document.body.textContent).not.toContain(text);
+    }
+  });
+
+  test('an arrow key on a «?» stays in the hint and does not pick a position', () => {
+    const seen = [];
+    draw({ state: 'idle', onMaterialKindChange: (value) => seen.push(value) });
+    const group = screen.getByRole('radiogroup', { name: 'Что вы присылаете' });
+    const trigger = within(group).getByRole('button', { name: 'Подсказка: задание' });
+    fireEvent.keyDown(trigger, { key: 'ArrowRight' });
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    expect(seen).toEqual([]);
   });
 
   test('the kind switch ignores clicks while the run is in flight', async () => {
@@ -352,7 +388,7 @@ describe('the questions left this screen with the wave', () => {
     единственное, что человек видит, пока экран ещё здесь.
   */
   test('no question card and no dead end are drawn at all', () => {
-    draw({ state: 'idle', blocked: null, onManual: noop });
+    draw({ state: 'idle', blocked: null });
 
     expect(document.querySelector('[data-intake-questions="true"]')).toBeNull();
     expect(document.querySelector('[data-piece-questions="true"]')).toBeNull();
@@ -398,16 +434,19 @@ describe('the questions left this screen with the wave', () => {
     expect(continued).toEqual([1]);
   });
 
-  test('a failed run offers the manual brief as the second way out', () => {
+  test('a failed run offers no manual brief any more', () => {
+    // Владелец 22.09.2026 убрал ручной режим целиком (`97dq.36`): у отказа
+    // остаются «Попробовать снова» и, когда отказал сайт, «Продолжить без ссылки».
     draw({
       state: 'error',
       blocked: null,
       errorMessage: 'Текст не собрался.',
-      onManual: noop,
     });
+    expect(screen.getByRole('button', { name: 'Попробовать снова' })).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: 'Заполнить бриф вручную' })
-    ).toBeTruthy();
+      screen.queryByRole('button', { name: 'Заполнить бриф вручную' })
+    ).toBeNull();
+    expect(document.body.textContent).not.toContain('вручную');
   });
 });
 

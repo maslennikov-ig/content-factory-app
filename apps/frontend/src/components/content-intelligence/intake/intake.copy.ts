@@ -79,18 +79,20 @@ export const intakeCopy = {
     // второе, что человек говорит о своём тексте, — а подсказка называет
     // последствие, а не свойство.
     // Переключатель вида входа над полем (владелец, 22.09.2026, `97dq.28`):
-    // три положения — три разных отношения к словам, и строка под полосой
-    // называет последствие выбранного, а не его свойство.
+    // три положения — три разных отношения к словам. С `97dq.36` у каждого
+    // положения свой «?», как у «Нужен ресерч», и строки под полосой больше
+    // нет: одно объяснение — одно место.
     kindLabel: 'Что вы присылаете',
     kindOwn: 'Свой текст',
     kindForeign: 'Чужой пост',
     kindInstruction: 'Задание',
+    kindHintLabel: (kind: string) => `Подсказка: ${kind.toLowerCase()}`,
     kindOwnHint:
-      'Ваши мысли или набросок: поправим речь, слова и смысл останутся вашими',
+      'Ваши мысли, набросок или расшифровка голосового. Поправим речь, а слова и смысл останутся вашими.',
     kindForeignHint:
-      'Чужой пост или статья: сделаем из него ваш пост и спросим вашу позицию',
+      'Чужой пост, статья или ссылка на них. Сделаем из этого ваш собственный пост и спросим вашу позицию.',
     kindInstructionHint:
-      'Опишите, какой пост нужен: напишем по описанию, ссылки сохраним как есть',
+      'Описание поста, который нужно написать. Напишем по нему, а ссылки из описания сохраним дословно.',
     researchLevelLabel: 'Глубина ресерча',
     researchQuick: 'Быстрый · до 8 источников',
     researchStandard: 'Стандартный · до 20 источников',
@@ -162,7 +164,6 @@ export const intakeCopy = {
     ownAnswerLabel: 'Ваш ответ',
     decideThis: 'Решите за меня',
     decideAll: 'Решите всё за меня',
-    manualForm: 'Заполнить бриф вручную',
     addFact: 'Добавить факт',
     blockedUnanswered: 'Ответьте или нажмите «Решите за меня»',
 
@@ -192,14 +193,6 @@ export const intakeCopy = {
     draftTitle: 'Черновик',
     openInEditor: 'Открыть в редакторе',
 
-    /*
-      «Повторить» — единственное, что осталось от кнопки «Проверить на
-      штампы». Сама кнопка и её вердикты удалены 07.09.2026 вместе с
-      `slop-findings.tsx`: готовый текст описывает строка качества, и
-      проверка приезжает вместе с ним, а не по нажатию. Слово читает карточка
-      канала — там это отказ загрузки, а не отказ проверки.
-    */
-    slopRetry: 'Повторить',
 
     /* --- Строка качества под текстом --------------------------------------- */
     /*
@@ -274,6 +267,36 @@ export const intakeCopy = {
     profileFailed: 'Карточка не загрузилась.',
     profileSaveFailed: 'Карточка не сохранилась. Попробуйте ещё раз.',
     profileLoading: 'Загружаем карточку',
+    profileEdit: 'Изменить',
+    profileFill: 'Заполнить',
+    profileDefaultsBody: (provider: string) =>
+      `Карточка не заполнена: пишем по умолчаниям для ${
+        provider || 'площадки'
+      }. Проверьте их — это три минуты, и каждая адаптация станет точнее.`,
+    profileNotSet: 'не указано',
+    profileHintFor: (label: string) => `Подсказка: ${label}`,
+    profileHintLength:
+      'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
+    profileHintEmoji: 'Без эмодзи, 1–3 или много. Можно отдать выбор нам.',
+    profileHintLink:
+      'Где размещать ссылки: рядом с фактом или в конце. Новые адреса мы не выдумываем.',
+    profileHintHashtag: 'Нужны ли метки темы и где они стоят.',
+    profileHintCta:
+      'Какого действия ждём от читателя после поста. Призыв может быть не нужен.',
+    profileHintFormat:
+      'Как построить текст: мнение, история, список или другой формат.',
+    /* Слои настроек (`97dq.38`): кто говорит в канале и как он обращается. */
+    profileSpeaker: 'Кто говорит здесь',
+    profileSpeakerDefault: 'По умолчанию',
+    profileSpeakerUnnamed: 'Без имени',
+    profileHintSpeaker:
+      'Аватар, от лица которого пишутся посты этого канала. «По умолчанию» — основной аватар пространства. Для одного поста его можно сменить на странице адаптации.',
+    profileAddress: 'Обращение',
+    profileAddressAvatar: 'как в аватаре',
+    profileAddressTy: 'на «ты»',
+    profileAddressVy: 'на «вы»',
+    profileHintAddress:
+      'Как текст обращается к читателю в этом канале. «Как в аватаре» — берём то, что задано у аватара.',
 
     /* --- Форматы ----------------------------------------------------------- */
     formatAuto: 'выберем сами',
@@ -325,12 +348,13 @@ export const intakeCopy = {
     kindOwn: 'My text',
     kindForeign: 'Someone’s post',
     kindInstruction: 'Instruction',
+    kindHintLabel: (kind: string) => `Hint: ${kind.toLowerCase()}`,
     kindOwnHint:
-      'Your thoughts or a draft: we tidy the wording, the words and meaning stay yours',
+      'Your thoughts, a draft or a transcribed voice note. We tidy the wording; the words and the meaning stay yours.',
     kindForeignHint:
-      'Someone else’s post or article: we make your post out of it and ask for your position',
+      'Someone else’s post, article or a link to one. We turn it into a post of your own and ask for your position.',
     kindInstructionHint:
-      'Describe the post you need: we write from the description and keep links as they are',
+      'A description of the post we should write. We write from it and keep the links in it verbatim.',
     researchLevelLabel: 'Research depth',
     researchQuick: 'Quick · up to 8 sources',
     researchStandard: 'Standard · up to 20 sources',
@@ -390,7 +414,6 @@ export const intakeCopy = {
     ownAnswerLabel: 'Your answer',
     decideThis: 'You decide',
     decideAll: 'You decide everything',
-    manualForm: 'Fill the brief by hand',
     addFact: 'Add a fact',
     blockedUnanswered: 'Answer, or press “You decide”',
 
@@ -414,7 +437,6 @@ export const intakeCopy = {
     draftTitle: 'Draft',
     openInEditor: 'Open in the editor',
 
-    slopRetry: 'Try again',
 
     qualitySlop: (count: number) => `Clichés: ${count}`,
     qualityAntiCopy: (count: number) => `Copied runs: ${count}`,
@@ -479,6 +501,34 @@ export const intakeCopy = {
     profileFailed: 'The card did not load.',
     profileSaveFailed: 'The card was not saved. Try again.',
     profileLoading: 'Loading the card',
+    profileEdit: 'Edit',
+    profileFill: 'Fill in',
+    profileDefaultsBody: (provider: string) =>
+      `This card is not filled in: we use the defaults for ${
+        provider || 'this platform'
+      }. Review them once so every adaptation is more accurate.`,
+    profileNotSet: 'not set',
+    profileHintFor: (label: string) => `Hint: ${label}`,
+    profileHintLength: 'Post length. We can choose within the platform limit.',
+    profileHintEmoji: 'No emoji, one to three, or many. Or let us choose.',
+    profileHintLink:
+      'Where links appear: inline or at the end. URLs are never invented.',
+    profileHintHashtag: 'Whether topic tags are useful and where they go.',
+    profileHintCta:
+      'What readers should do after reading. A call to action may be unnecessary.',
+    profileHintFormat:
+      'How to structure the text: opinion, story, list, or another format.',
+    profileSpeaker: 'Who speaks here',
+    profileSpeakerDefault: 'Default',
+    profileSpeakerUnnamed: 'Unnamed',
+    profileHintSpeaker:
+      'The avatar this channel’s posts are written as. “Default” is the workspace’s main avatar. You can change it for one post on the adaptation page.',
+    profileAddress: 'Addressing the reader',
+    profileAddressAvatar: 'as the avatar',
+    profileAddressTy: 'informal',
+    profileAddressVy: 'formal',
+    profileHintAddress:
+      'How the text addresses the reader in this channel. “As the avatar” uses what the avatar says.',
 
     formatAuto: 'we pick',
     formatOpinion: 'opinion',

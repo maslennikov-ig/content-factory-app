@@ -88,6 +88,14 @@ export const PIECE_ERROR_MESSAGES: Record<
     ru: 'Заготовку не удалось сохранить. Ничего не потеряно — попробуйте ещё раз.',
     en: 'The piece could not be saved. Nothing is lost — try again.',
   },
+  PIECE_AVATAR_UNKNOWN: {
+    ru: 'Такого аватара в рабочем пространстве нет. Выберите другой.',
+    en: 'This workspace has no such avatar. Choose another one.',
+  },
+  PIECE_AVATAR_NOT_READY: {
+    ru: 'У этого аватара ещё нет голоса: соберите его, чтобы писать от его имени.',
+    en: 'This avatar has no voice yet: build it before writing as it.',
+  },
 };
 
 export const pieceError = (

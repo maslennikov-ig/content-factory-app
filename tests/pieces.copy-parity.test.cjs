@@ -50,23 +50,19 @@ describe('the two languages carry the same keys', () => {
 });
 
 describe('the words the owner named are these words, not a paraphrase', () => {
-  test('the menu says what it will do to the text', () => {
+  /*
+    Десятый заход (`97dq.37`): меню «Ещё» ушло, действия стоят кнопками, и у
+    каждого одно имя везде (§4 спецификации). Описания пунктов меню ушли
+    вместе с ним.
+  */
+  test('the action row names each action once, the same everywhere', () => {
     expect(piecesCopy.ru.removeAiTells).toBe('Убрать следы ИИ');
-    expect(piecesCopy.ru.removeAiTellsDescription).toBe(
-      'Найдём обороты, по которым текст читается как написанный ИИ, и предложим правки. Штампы уберём заодно.'
-    );
-    expect(piecesCopy.ru.regenerateDescription).toBe(
-      'Скажете, что поменять: заголовок, абзац или весь текст.'
-    );
-    expect(piecesCopy.ru.compareCoreDescription).toBe(
-      'Проверим, что пост говорит то же, что заготовка, и ничего не добавил от себя.'
-    );
-    expect(piecesCopy.ru.reviewBothDescription).toBe(
-      'Следы ИИ и сверка с сутью за один проход.'
-    );
-    expect(piecesCopy.ru.checkFactsSearchDescription).toBe(
-      'Найдём источники по каждому числу и дате.'
-    );
+    expect(piecesCopy.ru.checkFacts).toBe('Проверить факты');
+    expect(piecesCopy.ru.rewriteOpen).toBe('Переписать…');
+    expect(piecesCopy.ru.answerDecideAll).toBe('Решите всё за меня');
+    expect(piecesCopy.ru.skipInterview).toBe('Решите всё за меня');
+    expect(piecesCopy.ru.cancel).toBe('Отменить');
+    expect(piecesCopy.ru.retry).toBe('Попробовать снова');
   });
 
   test('the spend sentence no longer promises the first 5000 characters', () => {
@@ -100,28 +96,18 @@ describe('the words the owner named are these words, not a paraphrase', () => {
     'reviewIncomplete',
     'researchIncomplete',
     'researchStale',
-    'publish',
-    'regenerate',
-    'regenerateDescription',
     'addResearch',
     'checkFacts',
-    'checkFactsSearch',
-    'checkFactsSearchDescription',
     'checkFactsSpendLabel',
     'checkFactsSpend',
-    'reviewMenu',
     'removeAiTells',
-    'removeAiTellsDescription',
-    'compareCore',
-    'compareCoreDescription',
-    'reviewBoth',
-    'reviewBothDescription',
-    'lastChoice',
     'rewritePrompt',
     'rewriteOnlyTitle',
     'rewriteWholeText',
+    'rewriteOpen',
+    'rewriteRun',
+    'actionsLabel',
     'regenerating',
-    'cancelAction',
     'findingSources',
     'runResearch',
     'researchDirection',
@@ -137,7 +123,8 @@ describe('the words the owner named are these words, not a paraphrase', () => {
     'searchSources',
     'showMarkup',
     'hideMarkup',
-    'textSourcesTitle',
+    'textSourcesCount',
+    'textSourcesLead',
     'textSourcesHintLabel',
     'textSourcesHint',
   ];

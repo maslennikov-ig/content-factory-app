@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
@@ -12,102 +12,67 @@ import {
 } from '../intake/writing-profile.adapter';
 import { intakeCopy, type IntakeLocale } from '../intake/intake.copy';
 
-/** Карточка выбранного канала рядом с адаптацией; правит существующий диалог. */
+/**
+ * Профиль письма канала, как его читает рабочее место заготовки.
+ *
+ * Одна дверь и один ключ SWR на три нужды вкладки канала: предел площадки
+ * для счётчика знаков, профиль для «Запомнить для канала» и сам диалог «Как
+ * пишем в «X»». Ключ — адрес двери, поэтому ссылка и контейнер читают
+ * профиль одним запросом, а сохранение в диалоге обновляет обоих.
+ */
+export function useChannelWritingProfile(integrationId: string | null) {
+  const request = useFetch();
+  const url = integrationId ? writingProfileUrl(integrationId) : null;
+  return useSWR(
+    url,
+    async () => {
+      const response = await request(url as string);
+      if (!response.ok) throw new Error('writing profile unavailable');
+      return readWritingProfileResponse(
+        await response.json(),
+        integrationId as string
+      );
+    },
+    { revalidateOnFocus: false }
+  );
+}
+
+/**
+ * Ссылка «Как пишем в «канал»» и её диалог.
+ *
+ * Одно имя на этот объект везде (`97dq.39`, B5): до волны тот же профиль
+ * звался «Настройки канала» здесь, «Как пишем» в разделе каналов и «Как пишем
+ * сюда» на странице канала — а «Настройки канала» к тому же называли
+ * совсем другое место в окне поста. Имя берётся из того же ключа, что и
+ * заголовок диалога.
+ */
 export function PieceChannelProfile({
   locale,
   id,
   name,
   canWrite,
-  children,
 }: {
   locale: IntakeLocale;
   id: string;
   name: string;
   canWrite: boolean;
-  children: ReactNode;
 }) {
-  const request = useFetch();
   const [open, setOpen] = useState(false);
   const t = intakeCopy[locale];
-  const url = writingProfileUrl(id);
-  const { data, error, mutate } = useSWR(
-    url,
-    async () => {
-      const response = await request(url);
-      if (!response.ok) throw new Error('writing profile unavailable');
-      return readWritingProfileResponse(await response.json(), id);
-    },
-    { revalidateOnFocus: false }
-  );
-  const profile = data?.profile;
-  const emoji =
-    profile?.emojiLevel === 'none'
-      ? t.profileEmojiNone
-      : profile?.emojiLevel === 'few'
-      ? t.profileEmojiFew
-      : profile?.emojiLevel === 'auto' ? t.profileAuto : t.profileEmojiFree;
-  const cta = profile
-    ? {
-        auto: t.profileAuto,
-        none: t.profileCtaNone,
-        question: t.profileCtaQuestion,
-        comment: t.profileCtaComment,
-        link: t.profileCtaLink,
-        subscribe: t.profileCtaSubscribe,
-        reply: t.profileCtaReply,
-      }[profile.ctaKind]
-    : '';
+  const { mutate } = useChannelWritingProfile(id);
   return (
-    <div className="flex min-w-0 items-center gap-[8px]">
-      <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
-        {children}
-        <span className="cf-caption text-cf-ink-muted">
-          {profile
-            ? `${
-                data?.stored
-                  ? ''
-                  : locale === 'ru'
-                  ? 'по умолчанию · '
-                  : 'defaults · '
-              }${
-                typeof profile.lengthPolicy === 'string'
-                  ? profile.lengthPolicy === 'auto' ? t.profileAuto : locale === 'ru'
-                    ? 'лимит площадки'
-                    : 'platform limit'
-                  : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax}`
-              } · ${emoji} · ${cta}`
-            : error
-            ? t.profileFailed
-            : t.profileLoading}
-        </span>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-[8px]">
-        <Button
-          type="button"
-          variant="secondary"
-          density="dense"
-          onClick={() => setOpen(true)}
-        >
-          {canWrite ? <DesignMediaIcon size={16} aria-hidden="true" /> : null}
-          {locale === 'ru'
-            ? canWrite
-              ? 'Настройки канала'
-              : 'Как пишем'
-            : canWrite
-              ? 'Channel settings'
-              : 'Writing settings'}
-        </Button>
-        {error ? (
-          <Button
-            type="button"
-            variant="quiet"
-            density="dense"
-            onClick={() => void mutate()}
-          >
-            {locale === 'ru' ? 'Повторить' : 'Retry'}
-          </Button>
-        ) : null}
-      </div>
+    <>
+      <Button
+        type="button"
+        variant="quiet"
+        density="dense"
+        className="self-start"
+        data-piece-channel-profile={id}
+        onClick={() => setOpen(true)}
+      >
+        <DesignMediaIcon size={16} aria-hidden="true" />
+        {t.profileTitle(name)}
+      </Button>
       {open ? (
         <WritingProfileCard
           locale={locale}
@@ -121,6 +86,8 @@ export function PieceChannelProfile({
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }
+
+export default PieceChannelProfile;

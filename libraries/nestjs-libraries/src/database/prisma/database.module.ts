@@ -82,6 +82,7 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice.service';
 import { DRAFT_VOICE_JUDGE } from '@contentfactory/nestjs-libraries/agent/draft-pick';
 import { VOICE_CHECK_PORT } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-check.port';
+import { PIECE_POSTS_PORT } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-posts.port';
 // Внутренний поиск области (`content-factory-next-m2eg.19`). Стоит в
 // глобальном `DatabaseModule`, потому что спрашивают его четверо из разных
 // модулей — архив, заготовки, факты и адаптация, — а читает он те же строки,
@@ -194,6 +195,10 @@ import { ContentLeadService } from '@contentfactory/nestjs-libraries/content-int
     // имя порта, а не голосовой сервис — иначе рядом с меркой отбора завелась
     // бы вторая мерка, считающая то же число по другим границам.
     { provide: VOICE_CHECK_PORT, useExisting: VoiceService },
+    // Экран адаптации выводит черновик в очередь тем же `PostsService`, что и
+    // окно поста (`content-factory-next-97dq.37`): заготовки знают имя порта,
+    // а не класс с Temporal и провайдерами за спиной.
+    { provide: PIECE_POSTS_PORT, useExisting: PostsService },
     TextSearchRepository,
     TextSearchService,
     ContentMaterialRepository,

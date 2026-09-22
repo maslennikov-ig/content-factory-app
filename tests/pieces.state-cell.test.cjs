@@ -175,7 +175,7 @@ describe('each state carries its own icon, its own tone and its own word', () =>
 
     expect(hint.startsWith('Telegram.')).toBe(true);
     expect(hint).toContain(`Выйдет ${day} в ${time}.`);
-    expect(hint).toContain('Нажмите, чтобы открыть пост.');
+    expect(hint).toContain('Нажмите, чтобы открыть адаптацию.');
     // Имени канала в ответе нет — и выдуманного имени в подсказке тоже.
     expect(hint).not.toContain('·');
   });
@@ -183,7 +183,7 @@ describe('each state carries its own icon, its own tone and its own word', () =>
   test('a datum that did not arrive leaves its sentence out', () => {
     draw({ rows: [rowWith({ state: 'draft', date: null })] });
     const hint = telegramCell().getAttribute('title');
-    expect(hint).toBe('Telegram. Нажмите, чтобы открыть пост.');
+    expect(hint).toBe('Telegram. Нажмите, чтобы открыть адаптацию.');
   });
 });
 

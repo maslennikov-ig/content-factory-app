@@ -60,6 +60,89 @@ export type ChannelDirectiveOptions = {
    * 22.09.2026 адаптация без этой строки оставила одну ссылку из трёх.
    */
   keepLinks?: string[] | null;
+  /**
+   * «Для этого поста» (`content-factory-next-97dq.38`): разовые настройки
+   * одной адаптации. Сильнее карточки канала и аватара, слабее запретов о
+   * фактах, копировании и голосе.
+   */
+  post?: ChannelPostOverrides | null;
+  /**
+   * Обращение, которое решил аватар (`voice.addressForm`) — последний слой
+   * перед поведением до волны. Разрешается здесь, вместе с двумя другими,
+   * чтобы строка об обращении писалась в одном месте.
+   */
+  avatarAddressForm?: 'ty' | 'vy' | null;
+};
+
+/** Разовые настройки поста, как их передаёт заготовка (`IntakePostOverridesV1`). */
+export type ChannelPostOverrides = {
+  length?: 'shorter' | 'longer' | null;
+  addressForm?: 'avatar' | 'ty' | 'vy' | null;
+  wish?: string | null;
+  takeaway?: string | null;
+};
+
+/** Во сколько раз «Короче» и «Длиннее» меняют диапазон канала. */
+export const POST_LENGTH_SCALE = { shorter: 0.6, longer: 1.5 } as const;
+
+/** Предел строки «Пожелание» и ответа «что унести» в промпте. */
+export const POST_WISH_LIMIT = 500;
+
+/**
+ * Обращение к читателю: этот пост → карточка канала → аватар → ничего.
+ *
+ * `avatar` на любом из двух верхних слоёв значит «как в аватаре»: пост,
+ * выбравший его, отменяет карточку канала на этот раз. `null` — никто не
+ * решал, и строки об обращении в промпте нет, ровно как до волны.
+ */
+export const resolveAddressForm = (
+  post: ChannelPostOverrides['addressForm'] | undefined,
+  channel: ChannelWritingProfileV1['addressForm'] | undefined,
+  avatar: 'ty' | 'vy' | null | undefined
+): 'ty' | 'vy' | null => {
+  if (post === 'ty' || post === 'vy') return post;
+  if (post !== 'avatar' && (channel === 'ty' || channel === 'vy')) return channel;
+  return avatar === 'ty' || avatar === 'vy' ? avatar : null;
+};
+
+/**
+ * Единственная формулировка обращения (`97dq.38`, владелец: «для этого поста
+ * не на ты, а на вы»). Английская, как весь промпт; само слово — русское,
+ * потому что различие живёт в русском, а для языков без него сказано, какой
+ * регистр ему соответствует.
+ */
+export const addressFormLine = (form: 'ty' | 'vy'): string =>
+  form === 'vy'
+    ? 'Address the reader with the formal «вы» throughout the post, including any question or call to action — never «ты». In a language without this distinction, keep the matching polite register.'
+    : 'Address the reader with the informal «ты» throughout the post, including any question or call to action — never «вы». In a language without this distinction, keep the matching casual register.';
+
+/**
+ * Диапазон канала под «Короче» / «Длиннее» — ×0,6 и ×1,5, не выше того,
+ * что примет площадка. Возвращает `null`, когда масштабировать нечего:
+ * карточка без диапазона («длину держит площадка» или «решает модель»).
+ */
+export const scaledLengthRange = (
+  policy: ChannelWritingProfileV1['lengthPolicy'],
+  length: 'shorter' | 'longer',
+  limit: number
+): { idealMin: number; idealMax: number; hardMax: number | null } | null => {
+  if (typeof policy !== 'object' || !policy) return null;
+  const factor = POST_LENGTH_SCALE[length];
+  const scale = (value: number) =>
+    Math.max(1, Math.min(limit, Math.round(value * factor)));
+  return {
+    idealMin: scale(policy.idealMin),
+    idealMax: scale(policy.idealMax),
+    hardMax: policy.hardMax ? scale(policy.hardMax) : null,
+  };
+};
+
+/** Слова человека в инструктивной части — с той же оградой, что заметка карточки. */
+const fenced = (value: string | null | undefined, limit: number): string | null => {
+  if (typeof value !== 'string') return null;
+  const clean = value.replace(/\s+/g, ' ').replace(/[«»]/g, '"').trim();
+  if (!clean) return null;
+  return clean.length <= limit ? clean : `${clean.slice(0, limit).trimEnd()}…`;
 };
 
 /**
@@ -191,6 +274,10 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
 export const NOTES_PRIORITY_LINE =
   "Where the owner's words above conflict with this channel's defaults for length, emoji, call to action or shape, follow the owner's words. They never lift the rules about facts, copying or the author's voice.";
 
+/** Пожелание к посту — самое частное слово того же человека, с той же оградой. */
+export const POST_WISH_PRIORITY_LINE =
+  "This wish is for this post only and outranks this channel's defaults and the owner's note above. It never lifts the rules about facts, copying or the author's voice.";
+
 const notesLine = (notes?: string | null): string | null => {
   if (typeof notes !== 'string') return null;
   const clean = notes.replace(/\s+/g, ' ').replace(/[«»]/g, '"').trim();
@@ -243,13 +330,32 @@ export function channelInstructionLines(
   );
 
   const length = resolved.lengthPolicy;
-  if (length === 'auto') lines.push('Choose the length that serves this material; the platform character limit still applies.');
-  if (typeof length === 'object') {
-    const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
+  const postLength = options.post?.length;
+  const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
+  if (scaled) {
+    /*
+      «Иногда пост побольше, иногда поменьше» (владелец, 22.09.2026): разовая
+      длина заменяет диапазон канала, а не встаёт рядом с ним — две длины
+      сразу модель усредняет в третью.
+    */
+    const hard = scaled.hardMax ? `, and never past ${scaled.hardMax}` : '';
     lines.push(
-      `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
-        'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
+      `For this post the author asked for a ${postLength} text than this channel usually gets: aim for ${scaled.idealMin} to ${scaled.idealMax} characters${hard}. ` +
+        'This outranks any other length given in this prompt.'
     );
+  } else {
+    if (length === 'auto') lines.push('Choose the length that serves this material; the platform character limit still applies.');
+    if (typeof length === 'object') {
+      const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
+      lines.push(
+        `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
+          'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
+      );
+    }
+    if (postLength === 'shorter')
+      lines.push('For this post the author asked for a noticeably shorter text than usual: keep only what carries the claim. This outranks any other length given in this prompt.');
+    if (postLength === 'longer')
+      lines.push('For this post the author asked for a noticeably longer text than usual: develop the material that is there, never pad it and never add facts. This outranks any other length given in this prompt.');
   }
 
   if (isTelegram) {
@@ -276,8 +382,23 @@ export function channelInstructionLines(
   if (resolved.ctaKind !== 'auto') lines.push(CTA_LINE[resolved.ctaKind]);
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
+  const address = resolveAddressForm(
+    options.post?.addressForm,
+    resolved.addressForm,
+    options.avatarAddressForm
+  );
+  if (address) lines.push(addressFormLine(address));
+
   const notes = notesLine(resolved.notes);
   if (notes) lines.push(notes, NOTES_PRIORITY_LINE);
+
+  const takeaway = fenced(options.post?.takeaway, POST_WISH_LIMIT);
+  if (takeaway)
+    lines.push(
+      `What the author wants readers to leave with after this post: «${takeaway}». Build the post so that this is what stays with the reader.`
+    );
+  const wish = fenced(options.post?.wish, POST_WISH_LIMIT);
+  if (wish) lines.push(`The author's wish for this post only: «${wish}»`, POST_WISH_PRIORITY_LINE);
 
   if (options.foreignShingles?.length) lines.push(ANTI_COPY_LINE);
 

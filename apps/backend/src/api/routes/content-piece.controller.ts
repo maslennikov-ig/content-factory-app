@@ -30,6 +30,8 @@ import {
   PieceAnswerDoorDto,
   PiecesQueryDto,
   ReadyAdaptationsQueryDto,
+  PieceAdaptationEditDto,
+  PieceAdaptationScheduleDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 
@@ -480,6 +482,105 @@ export class ContentPieceController {
     } finally {
       stopHeartbeat();
       response.end();
+    }
+  }
+
+  /**
+   * Ручная правка адаптации на экране адаптации (`content-factory-next-97dq.37`):
+   * тело и/или картинка черновика. Только пока пост — черновик; тело адаптации
+   * и HTML поста пишутся одной транзакцией. Путь несёт оба идентификатора, тело
+   * без полей — отказ `ADAPTATION_EDIT_EMPTY`, а не «ничего не менять».
+   */
+  @Patch('/:id/adaptations/:adaptationId')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  async editAdaptation(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Body() body: PieceAdaptationEditDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.editAdaptation(
+        organization.id,
+        id,
+        adaptationId,
+        body ?? {},
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Правку сохранить не удалось.'
+          : 'The edit could not be saved.'
+      );
+    }
+  }
+
+  /** «Снять с расписания»: запланированный пост адаптации снова черновик (`97dq.37`). */
+  @Post('/:id/adaptations/:adaptationId/unschedule')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  async unscheduleAdaptation(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.unscheduleAdaptation(
+        organization.id,
+        id,
+        adaptationId,
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Пост не удалось снять с расписания.'
+          : 'The post could not be taken off the schedule.'
+      );
+    }
+  }
+
+  /**
+   * «Запланировать» и «Опубликовать сейчас» с экрана адаптации (`97dq.37`).
+   *
+   * Политики те же две и в том же порядке, что у адаптации и у `POST /posts`:
+   * черновик, ушедший в очередь, считается в тарифный месяц, и предел
+   * называется первым; роль — второй.
+   */
+  @Post('/:id/adaptations/:adaptationId/schedule')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Update, Sections.EDITOR]
+  )
+  async scheduleAdaptation(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Body() body: PieceAdaptationScheduleDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.scheduleAdaptation(
+        organization.id,
+        id,
+        adaptationId,
+        body ?? {},
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Пост не удалось поставить в очередь.'
+          : 'The post could not be queued.'
+      );
     }
   }
 

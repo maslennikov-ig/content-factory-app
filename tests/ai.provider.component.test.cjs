@@ -720,7 +720,9 @@ describe('AI provider search settings component', () => {
         React.createElement(component.default)
       );
       const sentence =
-        'Press it and the field returns to the system key. Search is never left without a key.';
+        'Press × and the field returns to the system key. Search is never left without a key.';
+      const explain =
+        'The × at the right of the field removes your own Tavily key: the engine goes back to the system key, so there is always something to search with.';
 
       // Имя — короткое и называет движок: два одинаковых крестика на экране
       // различить было бы нечем.
@@ -731,7 +733,11 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain(
         'data-hint="Hint: Return Tavily to the system key"'
       );
-      expect(markup).toContain(sentence);
+      // Подсказка «?» называет сам крестик и не повторяет строку с него
+      // дословно: владелец 22.09.2026 прочёл «Нажмёте» как «нажмите
+      // вопросик» (`97dq.34`).
+      expect(markup).toContain(explain);
+      expect(markup.split(sentence).length - 1).toBe(1);
       // Крестика и подсказки нет там, где своего ключа нет.
       expect(markup).not.toContain('aria-label="Return Exa to the system key"');
       expect(markup).not.toContain(

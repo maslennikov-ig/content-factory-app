@@ -8,7 +8,10 @@ import { Dialog } from '../../ui/layers';
 import { ErrorState, SkeletonRows } from '../../ui/surface';
 import { ContentReadOnlyNote } from '../content-write-right';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
-import { WritingProfileFields } from './writing-profile.fields';
+import {
+  WritingProfileFields,
+  useWritingProfileAvatars,
+} from './writing-profile.fields';
 import {
   buildWritingProfilePayload,
   readWritingProfileResponse,
@@ -66,6 +69,7 @@ export function WritingProfileCard({
   const { data, error, isLoading, mutate } = useSWR(open ? url : null, load, {
     revalidateOnFocus: false,
   });
+  const avatars = useWritingProfileAvatars(open);
 
   const [draft, setDraft] = useState<ChannelWritingProfileV1 | null>(null);
   const [saving, setSaving] = useState(false);
@@ -142,10 +146,12 @@ export function WritingProfileCard({
               <Button
                 type="button"
                 variant="primary"
-                disabled={saving || !profile}
+                disabled={!profile}
+                loading={saving}
+                loadingLabel={t.profileSaving}
                 onClick={() => void save()}
               >
-                {saving ? t.profileSaving : t.profileSave}
+                {t.profileSave}
               </Button>
             </>
           )}
@@ -168,7 +174,7 @@ export function WritingProfileCard({
                 variant="secondary"
                 onClick={() => void mutate()}
               >
-                {t.slopRetry}
+                {t.retry}
               </Button>
             }
           />
@@ -192,6 +198,7 @@ export function WritingProfileCard({
               <WritingProfileFields
                 locale={locale}
                 profile={profile}
+                avatars={avatars}
                 disabled={!canWrite}
                 describedBy={canWrite ? undefined : readOnlyNoteId}
                 onChange={change}

@@ -293,3 +293,77 @@ describe('пометка приезжает с сервера, а не угад�
     );
   });
 });
+
+/**
+ * Вопрос по умолчанию (`content-factory-next-97dq.31`): варианты модели без
+ * предложения и без варианта «своими словами». Поправлять там нечего — чип
+ * зовётся своим ответом; «Пропустить» — решение модели, а не текст.
+ */
+describe('97dq.31: вопрос без предложения модели', () => {
+  const TAKEAWAY = {
+    key: 'takeaway',
+    question: 'Что читатели «Мой канал» должны унести из этого поста?',
+    suggested: null,
+    options: ['Срок держится, когда о нём знает клиент', 'Я перестал назначать себе сроки в одиночку'],
+  };
+
+  const drawTakeaway = (onSubmit, extraWords = {}) =>
+    render(
+      withLanguage(
+        React.createElement(SuggestedQuestionsCard, {
+          words: { ...words, ...extraWords },
+          questions: [TAKEAWAY],
+          onSubmit,
+        })
+      )
+    );
+
+  const send = () =>
+    fireEvent.click(
+      [...document.querySelectorAll('button')].find(
+        (node) => node.textContent.trim() === words.send
+      )
+    );
+
+  test('чип своих слов зовётся «Свой ответ», а не «Поправить»', () => {
+    drawTakeaway(jest.fn(), { own: piecesCopy.ru.ownAnswer });
+    expect(piecesCopy.ru.ownAnswer).toBe('Свой ответ');
+    expect(chip('Свой ответ')).toBeTruthy();
+    expect(chip(words.fix)).toBeUndefined();
+    // Ничего не выбрано заранее.
+    expect(
+      [...document.querySelectorAll('[role="radio"]')].some(
+        (node) => node.getAttribute('aria-checked') === 'true'
+      )
+    ).toBe(false);
+  });
+
+  test('без своего слова карточка берёт подпись поля ответа', () => {
+    drawTakeaway(jest.fn());
+    expect(chip(words.ownAnswerLabel)).toBeTruthy();
+  });
+
+  test('«Пропустить» уходит решением модели, а не служебной меткой', () => {
+    const onSubmit = jest.fn();
+    drawTakeaway(onSubmit);
+    fireEvent.click(chip(words.skip));
+    send();
+    expect(onSubmit).toHaveBeenCalledWith([], ['takeaway']);
+  });
+
+  test('выбранный вариант уходит подтверждённым словом', () => {
+    const onSubmit = jest.fn();
+    drawTakeaway(onSubmit);
+    fireEvent.click(chip(TAKEAWAY.options[1]));
+    send();
+    expect(onSubmit).toHaveBeenCalledWith(
+      [{ key: 'takeaway', text: TAKEAWAY.options[1], origin: 'confirmed' }],
+      []
+    );
+  });
+
+  test('пропуск адаптации называется одним именем: «Решите всё за меня»', () => {
+    expect(piecesCopy.ru.skipInterview).toBe('Решите всё за меня');
+    expect(piecesCopy.ru.skipInterview).toBe(piecesCopy.ru.answerDecideAll);
+  });
+});

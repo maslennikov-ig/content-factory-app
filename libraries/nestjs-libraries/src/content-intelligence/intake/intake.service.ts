@@ -1,4 +1,4 @@
-import { factKind, selectedFactsBrief, type PieceFactV2 } from '../pieces/piece-facts.v2';
+import { factKind, selectedFactsBrief, ungroundedStatements, type PieceFactV2 } from '../pieces/piece-facts.v2';
 import { randomUUID } from 'node:crypto';
 import {
   INTAKE_SNAPSHOT_STORE,
@@ -138,6 +138,17 @@ import {
   briefFillSchemaV7 as briefFillSchema,
 } from './intake.prompts.v7';
 /*
+  Один вопрос по умолчанию для своего текста и задания (`97dq.31`): v8 просит
+  у модели `defaultQuestion` — что подчеркнуть или для кого пост. Только для
+  `thought` и `instruction`; чужой пост и ссылка идут через v7 без правок, и
+  вопрос о позиции у чужого поста остаётся прежним.
+*/
+import {
+  briefFillPromptV8,
+  briefFillSchemaV8,
+  DEFAULT_QUESTION_FIELDS,
+} from './intake.prompts.v8';
+/*
   Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
   что это», потому что решать нечего — галочку человека и страницу по ссылке
   перепроверять не у кого. Классифицирующий v5 остаётся ровно на одном шве:
@@ -149,6 +160,7 @@ import {
 } from './intake.prompts.v6';
 import { settleOwnFacts, statementMatchKey } from './own-facts';
 import { oneLine } from './intake.prompts';
+import { stripCitationLabels } from '../text-quality/citation-labels';
 
 /** Факт, у которого отняли опору, фактом уже не является. */
 const UNUSABLE_FACT_STATUSES = ['TOMBSTONED', 'RETRACTED', 'SUPERSEDED'];
@@ -314,6 +326,11 @@ const defaultSlopCheck: SlopCheckPort = (text, platform, locale, grounded) =>
 
 type FilledBrief = {
   questions?: PieceOpenQuestionV1[];
+  /**
+   * Вопрос по умолчанию для своего текста и задания (`97dq.31`): задаётся,
+   * только когда вопросов о пробелах нет.
+   */
+  defaultQuestion?: PieceOpenQuestionV1 | null;
   brief: BriefFilledV1;
   /** Поля, которые модель честно оставила пустыми, и её варианты для них. */
   options: Partial<Record<BriefField, string[]>>;
@@ -881,6 +898,12 @@ export class IntakeService {
       },
       personText,
       ...(sourceText ? { sourceText } : {}),
+      /*
+        Что человек прислал — как прислал, для любого вида входа
+        (`97dq.41`): до разбора, до поправок и до вопросов. Только для
+        страницы «Что вы прислали»; в промпт не идёт ни одним полем.
+      */
+      ...(trimmed(plan.input) ? { inputText: trimmed(plan.input) } : {}),
       ...(instruction
         ? { instructionText: instruction.text, keepLinks: instruction.links }
         : {}),
@@ -1151,15 +1174,20 @@ export class IntakeService {
       ? ('instruction' as const)
       : ('thought' as const);
 
+    // Своё слово человека — мысль или задание — получает вопрос по умолчанию
+    // (`97dq.31`); всё остальное заполняется ровно тем же v7, что и раньше.
+    const ownWords =
+      !extraction &&
+      (plan.inputKind === 'thought' || plan.inputKind === 'instruction');
     const answer = await this.aiUsage.executeAiOperation(
       organizationId,
       'intake',
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
-        ).withStructuredOutput(briefFillSchema);
+        ).withStructuredOutput(ownWords ? briefFillSchemaV8 : briefFillSchema);
         return await model.invoke(
-          briefFillPrompt({
+          (ownWords ? briefFillPromptV8 : briefFillPrompt)({
             language: plan.language,
             material,
             materialKind,
@@ -1256,7 +1284,23 @@ export class IntakeService {
           question.field !== 'facts' && !settled.includes(question.field)
       )
       .slice(0, 2);
-    if (plan.inputKind !== 'foreign_post') return modelQuestions;
+    if (plan.inputKind !== 'foreign_post') {
+      /*
+        Бриф без пробелов у своей мысли и задания всё равно спрашивает одно:
+        что подчеркнуть или для кого пост (`97dq.31`). Один вопрос, и только
+        когда о пробелах спрашивать нечего; «Решите за меня» закрывает его
+        одним нажатием.
+      */
+      const fallback = filled.defaultQuestion;
+      if (
+        !modelQuestions.length &&
+        fallback &&
+        !settled.includes(fallback.field)
+      ) {
+        return [fallback];
+      }
+      return modelQuestions;
+    }
 
     const positionQuestion = openQuestionsFor({
       brief: filled.brief,
@@ -1508,7 +1552,9 @@ export class IntakeService {
 
     const facts: PieceFactV2[] = [];
     for (const fact of (answer?.facts || []).slice(0, MEMORY_FACTS_LIMIT)) {
-      const statement = textOrNull(fact?.statement);
+      // `[F:…]`/`[E:…]` — адрес строки промпта, его место в `factId` и
+      // `evidenceId`, а не в утверждении, которое увидит человек (`97dq.40`).
+      const statement = textOrNull(stripCitationLabels(fact?.statement));
       if (!statement && trimmed(fact?.statement)) this.logger.warn(intakeDiscardDiagnostic('intake', 'facts.statement', fact.statement));
       if (!statement) continue;
       const factId =
@@ -1575,10 +1621,11 @@ export class IntakeService {
       format: this.settleFormat(person['format'] || answer?.format, origins),
       facts,
       origins,
-      ungrounded: facts
-        .filter((fact) => !fact.verified)
-        .map((fact) => fact.statement),
+      ungrounded: [],
     };
+    // Та же квитанция, что после ресерча и выбора (`97dq.32`): своё слово без
+    // поиска — не «не подтвердилось».
+    brief.ungrounded = ungroundedStatements(brief);
 
     return {
       ...this.settled(brief),
@@ -1597,6 +1644,39 @@ export class IntakeService {
             .map(textOrNull).filter(Boolean).slice(0, 3),
           suggested: null as string | null,
         })),
+      defaultQuestion: this.defaultQuestionOf(plan, answer?.defaultQuestion),
+    };
+  }
+
+  /**
+   * Вопрос по умолчанию из ответа модели (`97dq.31`): что подчеркнуть или для
+   * кого пост. Только у своей мысли и задания, только с текстом вопроса;
+   * варианты — не больше трёх, без предложенного заранее.
+   */
+  private defaultQuestionOf(
+    plan: IntakePlanV1,
+    value: any
+  ): PieceOpenQuestionV1 | null {
+    if (plan.inputKind !== 'thought' && plan.inputKind !== 'instruction') {
+      return null;
+    }
+    const field = value?.field as BriefField;
+    const question = textOrNull(value?.question);
+    if (!question || !(DEFAULT_QUESTION_FIELDS as readonly string[]).includes(field)) {
+      return null;
+    }
+    const options: string[] = [];
+    for (const option of Array.isArray(value?.options) ? value.options : []) {
+      const text = textOrNull(option);
+      if (text && !options.some((other) => other.toLowerCase() === text.toLowerCase())) {
+        options.push(text);
+      }
+    }
+    return {
+      field,
+      question,
+      options: options.slice(0, 3),
+      suggested: null,
     };
   }
 
@@ -1800,12 +1880,11 @@ export class IntakeService {
    *
    * Одно место на обе дороги (пауза и выбор): второй список, посчитанный
    * иначе, и есть тот способ, которым «25 тысяч» уехали в суть как
-   * подтверждённые (`97dq.1`).
+   * подтверждённые (`97dq.1`). Правило живёт в `ungroundedStatements` и
+   * общее с ответами на вопросы сути (`97dq.32`).
    */
   private ungroundedOf(brief: BriefFilledV1): string[] {
-    return selectedFactsBrief(brief)
-      .facts.filter((fact) => !fact.verified)
-      .map((fact) => fact.statement);
+    return ungroundedStatements(brief);
   }
 
   private correctedInputOf(plan: IntakePlanV1, corrections: IntakeCorrectionV1[]): string {

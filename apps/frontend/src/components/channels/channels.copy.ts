@@ -1,3 +1,12 @@
+import { intakeCopy } from '../content-intelligence/intake/intake.copy';
+
+/*
+  Карточка канала называется одним ключом во всём продукте —
+  `intakeCopy.profileTitle`, «Как пишем в «X»» (аудит 97dq.39, B5). Здесь она
+  не переименовывается: `writing` берёт ту же функцию, а столбец таблицы, где
+  имени канала нет, — `writingColumn`. «Настройки канала» — это другой объект
+  (панель площадки в окне поста), и для карточки это имя не берётся.
+*/
 export const channelsCopy = {
   ru: {
     title: 'Каналы',
@@ -19,7 +28,8 @@ export const channelsCopy = {
     own: 'Свои каналы',
     connectNew: 'Подключить новый канал',
     connectHint: 'Выберите площадку и подключите канал.',
-    writing: 'Как пишем',
+    writing: intakeCopy.ru.profileTitle,
+    writingColumn: 'Как пишем',
     fill: 'Заполнить карточку',
     open: 'Открыть',
     defaults: 'умолчания',
@@ -37,14 +47,14 @@ export const channelsCopy = {
     emptyDescription:
       'Текст пишется под канал: его длину, эмодзи, призыв. Подключите хотя бы один — и заготовки будет куда адаптировать.',
     profileHint:
-      'Один канал — одна карточка «Как пишем сюда». Для Telegram доступны рекомендации, для остальных площадок — общие умолчания.',
+      'У каждого канала своя карточка «Как пишем в «канал»». Для Telegram доступны рекомендации, для остальных площадок — общие умолчания.',
     readOnly: 'Подключать каналы и менять их настройки может администратор.',
     noMatches: 'Каналы не найдены',
     noMatchesDescription: 'Измените имя или фильтр состояния.',
     clear: 'Сбросить фильтры',
     loading: 'Загружаем каналы',
     error: 'Не удалось загрузить каналы',
-    retry: 'Повторить',
+    retry: 'Попробовать снова',
     back: '← Все каналы',
     backMobile: '‹ Каналы',
     missing: 'Канал не найден',
@@ -104,7 +114,8 @@ export const channelsCopy = {
     own: 'Your channels',
     connectNew: 'Connect a new channel',
     connectHint: 'Choose a platform and connect a channel.',
-    writing: 'How we write',
+    writing: intakeCopy.en.profileTitle,
+    writingColumn: 'How we write',
     fill: 'Set up writing profile',
     open: 'Open',
     defaults: 'defaults',
@@ -130,7 +141,7 @@ export const channelsCopy = {
     clear: 'Clear filters',
     loading: 'Loading channels',
     error: 'Could not load channels',
-    retry: 'Retry',
+    retry: 'Try again',
     back: '← All channels',
     backMobile: '‹ Channels',
     missing: 'Channel not found',

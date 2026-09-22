@@ -392,7 +392,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
           <div className="relative">
             <SettingsIcon size={15} className="text-cf-accent-ink" />
           </div>
-          <div>Settings</div>
+          <div>{t('settings', 'Settings')}</div>
         </div>
       );
     }

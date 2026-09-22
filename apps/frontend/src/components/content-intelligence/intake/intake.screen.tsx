@@ -100,7 +100,6 @@ export function IntakeScreen({
   onWrite,
   onCancel,
   onOpenPiece,
-  onManual,
   onRetry,
   onContinueWithoutLink,
 }: {
@@ -141,7 +140,6 @@ export function IntakeScreen({
   onWrite: () => void;
   onCancel: () => void;
   onOpenPiece?: (pieceId: string) => void;
-  onManual?: () => void;
   onRetry: () => void;
   /** Сайт по ссылке отказал, а слова остались: идти дальше без неё (`75xn.38`). */
   onContinueWithoutLink?: () => void;
@@ -247,31 +245,43 @@ export function IntakeScreen({
                 своим, из чужого поста делается свой, задание описывает пост,
                 и его ссылки сохраняются как есть. Полоса стоит над полем:
                 выбор делается до того, как текст вставлен, а не ищется после.
+
+                Что станет со словами, объясняет «?» у каждого положения, как
+                у «Нужен ресерч» (`97dq.36`, владелец 22.09.2026: «у каждого
+                как раз можно будет сделать вопросик»). Строки под полосой
+                больше нет: она повторяла бы подсказку выбранного положения.
               */}
               <Segmented
                 label={t.kindLabel}
                 value={materialKind}
                 data-intake-material-kind={materialKind}
                 options={[
-                  { value: 'thought', label: t.kindOwn },
-                  { value: 'foreign_post', label: t.kindForeign },
-                  { value: 'instruction', label: t.kindInstruction },
+                  {
+                    value: 'thought',
+                    label: t.kindOwn,
+                    hint: { label: t.kindHintLabel(t.kindOwn), text: t.kindOwnHint },
+                  },
+                  {
+                    value: 'foreign_post',
+                    label: t.kindForeign,
+                    hint: {
+                      label: t.kindHintLabel(t.kindForeign),
+                      text: t.kindForeignHint,
+                    },
+                  },
+                  {
+                    value: 'instruction',
+                    label: t.kindInstruction,
+                    hint: {
+                      label: t.kindHintLabel(t.kindInstruction),
+                      text: t.kindInstructionHint,
+                    },
+                  },
                 ]}
                 onChange={(kind) => {
                   if (!busy) onMaterialKindChange(kind);
                 }}
               />
-              <p
-                role="status"
-                data-intake-kind-hint={materialKind}
-                className="max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]"
-              >
-                {materialKind === 'foreign_post'
-                  ? t.kindForeignHint
-                  : materialKind === 'instruction'
-                  ? t.kindInstructionHint
-                  : t.kindOwnHint}
-              </p>
               <label
                 htmlFor="intake-input"
                 className="cf-label-sm uppercase text-cf-ink-muted"
@@ -458,11 +468,9 @@ export function IntakeScreen({
               description={errorMessage ?? t.errorFallback}
               action={
                 /*
-                  Два выхода, и второй — не любезность. Ручная форма брифа
-                  живёт рядом с отказом, а не после расспросов: расспросов
-                  здесь больше нет вовсе (`content-factory-next-m2eg`), а
-                  вход, который не собрался, — это ровно тот случай, когда
-                  человеку нужен другой путь, а не третья попытка.
+                  Повторить — и, если отказал сайт по ссылке, идти без неё.
+                  Ручной формы брифа здесь больше нет: владелец 22.09.2026
+                  убрал ручной режим целиком (`content-factory-next-97dq.36`).
                 */
                 <span className="flex flex-wrap gap-[8px]">
                   {onContinueWithoutLink && (
@@ -473,11 +481,6 @@ export function IntakeScreen({
                   <Button type="button" variant="secondary" onClick={onRetry}>
                     {t.retry}
                   </Button>
-                  {onManual && (
-                    <Button type="button" variant="quiet" onClick={onManual}>
-                      {t.manualForm}
-                    </Button>
-                  )}
                 </span>
               }
             />

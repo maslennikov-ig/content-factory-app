@@ -1698,5 +1698,6 @@
   "intake_door_short": "초안 재료",
   "help": "도움말",
   "uploading": "업로드 중",
-  "importing": "가져오는 중"
+  "importing": "가져오는 중",
+  "pick_time": "시간"
 }

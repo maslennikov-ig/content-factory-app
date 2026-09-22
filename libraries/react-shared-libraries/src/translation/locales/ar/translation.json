@@ -1698,5 +1698,6 @@
   "intake_door_short": "مسودة",
   "help": "مساعدة",
   "uploading": "جارٍ الرفع",
-  "importing": "جارٍ الاستيراد"
+  "importing": "جارٍ الاستيراد",
+  "pick_time": "الوقت"
 }

@@ -1,5 +1,5 @@
 import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
-import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
+import { CHANNEL_ADDRESS_FORMS, CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
 export {
   CHANNEL_WRITING_PROFILE_VERSION,
@@ -224,7 +224,26 @@ export const parseWritingProfile = (
       defaults.formatPreference
     ),
     notes: parseNotes(stored.notes),
-    };
+    /*
+      Слои настроек (`content-factory-next-97dq.38`). Оба поля появляются в
+      ответе только когда записаны: карточка без них читается ровно как до
+      волны, и «аватар канала не выбран» не отличается от «поля ещё не было».
+      Чей это аватар, проверяет дверь при записи; здесь только форма.
+    */
+    ...(parseBrandProfileId(stored.brandProfileId)
+      ? { brandProfileId: parseBrandProfileId(stored.brandProfileId) }
+      : {}),
+    ...(CHANNEL_ADDRESS_FORMS.includes(stored.addressForm as never)
+      ? { addressForm: stored.addressForm as ChannelWritingProfileV1['addressForm'] }
+      : {}),
+  };
+};
+
+/** Идентификатор аватара — строка разумной длины, иначе его нет. */
+const parseBrandProfileId = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const id = value.trim();
+  return id && id.length <= 128 ? id : null;
 };
 
 const parseLengthPolicy = (

@@ -141,6 +141,15 @@ export const composeCopy = {
     postNowHint: 'в канал сразу, минуя расписание',
     keepScheduledAt: (time: string) => `оставить в расписании на ${time}`,
     addToCalendarHint: 'поставить в календарь на выбранное время',
+    /**
+     * Подсказки панели форматирования. До 22.09.2026 они были английскими
+     * литералами прямо в разметке (аудит 97dq.39, B1) — на русском экране
+     * «Bold Text» рядом с «Ж».
+     */
+    toolbarBold: 'Жирный',
+    toolbarUnderline: 'Подчёркнутый',
+    toolbarHeading: 'Заголовок',
+    toolbarBullets: 'Список',
   },
   en: {
     assembledFrom: (count: number) =>
@@ -186,5 +195,9 @@ export const composeCopy = {
     postNowHint: 'straight to the channel, skipping the schedule',
     keepScheduledAt: (time: string) => `keep it scheduled for ${time}`,
     addToCalendarHint: 'put it on the calendar at the chosen time',
+    toolbarBold: 'Bold',
+    toolbarUnderline: 'Underline',
+    toolbarHeading: 'Heading',
+    toolbarBullets: 'Bulleted list',
   },
 } satisfies Record<ComposeLocale, Record<string, unknown>>;

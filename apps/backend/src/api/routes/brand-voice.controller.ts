@@ -570,9 +570,12 @@ export class BrandVoiceController {
     @Query('avatar') avatar?: string
   ) {
     try {
+      // Два тела одной двери (`97dq.38`): строка паспорта или обращение.
       return await this._voice.setPassportField(
         this.actor(organization, user, avatar),
-        body
+        body.addressForm !== undefined
+          ? { addressForm: body.addressForm }
+          : { key: body.key!, text: body.text! }
       );
     } catch (error) {
       safeHttpError(error);

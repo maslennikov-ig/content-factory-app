@@ -9,7 +9,6 @@ import { useUser } from '../../layout/user.context';
 import { ContentReadOnlyNote, writeRightFromRole } from '../content-write-right';
 import { resolveContentLocale } from '../content-section.copy';
 import { useDebouncedValue } from '../content-search-words';
-import { useOpenPost } from '../shared/use-open-post';
 import { PiecesScreen, type PieceExpansion } from './pieces.screen';
 import { piecesCopy } from './pieces.copy';
 import {
@@ -18,6 +17,7 @@ import {
   emptyPiecesFilters,
   filterPieces,
   piecePath,
+  pieceTabPath,
   piecesListUrl,
   readPieceDetail,
   readPieceSort,
@@ -112,8 +112,6 @@ export function PiecesContainer() {
     },
     { revalidateOnFocus: false }
   );
-
-  const openPost = useOpenPost();
 
   const envelope = list.data;
   const failed = !!list.error && !envelope;
@@ -294,9 +292,18 @@ export function PiecesContainer() {
             : piecePath(id)
         )
       }
-      onOpenPost={(cell: PieceCellV1) => {
-        if (cell.postId) void openPost(cell.postId);
-      }}
+      /*
+        Клетка с адаптацией ведёт во вкладку её канала (`97dq.37`): окно
+        «Создать пост» из заготовки не открывается, всё до публикации живёт
+        на странице заготовки.
+      */
+      onOpenPost={(id: string, cell: PieceCellV1) =>
+        go(
+          cell.integrationId
+            ? pieceTabPath(id, cell.integrationId)
+            : `${piecePath(id)}?adapt=${encodeURIComponent(cell.platform)}`
+        )
+      }
       onDelete={(id) => void removePiece(id)}
       onNewPiece={() => go(NEW_PIECE_PATH)}
       onRetry={() => void list.mutate()}

@@ -14,6 +14,7 @@ import {
   Max,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { PROFILE_FIELDS, PROFILE_FIELDS_V2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
@@ -254,13 +255,25 @@ export class VoiceProposalManualFieldDto {
  * one. The bounds match the manual path because the field is the same field.
  */
 export class VoicePassportFieldDto {
+  /*
+    Два тела у одной двери (`content-factory-next-97dq.38`): строка паспорта
+    `{ key, text }` или обращение `{ addressForm }`. Пока `addressForm` не
+    прислан, дверь та же, что была: `key` и `text` обязательны.
+  */
+  @ValidateIf((body: VoicePassportFieldDto) => body.addressForm === undefined)
   @IsIn(PROFILE_FIELDS as unknown as string[])
-  key: (typeof PROFILE_FIELDS)[number];
+  key?: (typeof PROFILE_FIELDS)[number];
 
+  @ValidateIf((body: VoicePassportFieldDto) => body.addressForm === undefined)
   @IsString()
   @MinLength(1)
   @MaxLength(600)
-  text: string;
+  text?: string;
+
+  /** «ты», «вы» или `null` — «Не задано». */
+  @ValidateIf((body: VoicePassportFieldDto) => body.addressForm !== undefined && body.addressForm !== null)
+  @IsIn(['ty', 'vy'])
+  addressForm?: 'ty' | 'vy' | null;
 }
 
 export class VoiceProposalActivateDto {

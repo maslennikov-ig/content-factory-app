@@ -174,7 +174,7 @@ function ChannelCard({
           variant="secondary"
           density="dense"
         >
-          {row.writingProfileStored || !canWrite ? t.writing : t.fill}
+          {row.writingProfileStored || !canWrite ? t.writing(row.name) : t.fill}
         </ButtonLink>
         <ButtonLink href={href} variant="quiet" density="dense">
           {t.open}
@@ -356,7 +356,7 @@ export function ChannelsScreen() {
                               {[
                                 t.channel,
                                 t.state,
-                                t.writing,
+                                t.writingColumn,
                                 t.schedule,
                                 t.latest,
                                 '',

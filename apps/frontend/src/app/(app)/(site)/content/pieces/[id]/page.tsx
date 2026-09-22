@@ -8,8 +8,10 @@ import { PieceContainer } from '@contentfactory/frontend/components/content-inte
  * §11.8 карты раздела, решение владельца 06.09.2026. Заготовка — долгоживущий
  * объект, который правят, обсуждают и на который ссылаются, поэтому у неё есть
  * адрес, а не состояние компонента: тот же довод, по которому его получил
- * аватар. Таблица заготовок ведёт сюда, и пустая клетка — тоже, приводя с
- * собой площадку в `?adapt=`.
+ * аватар. Вкладка — тоже в адресе (`?tab=core|<integrationId>`, `97dq.37`):
+ * клетка таблицы заготовок и пост календаря ведут прямо во вкладку канала.
+ * Старый `?adapt=<площадка>` по-прежнему открывает вкладку первого канала
+ * площадки.
  *
  * Страница ничего не спрашивает сама: `PieceContainer` читает дверь заготовки
  * и ведёт стрим адаптации.
@@ -25,10 +27,14 @@ export default async function Page({
 }) {
   const { id } = await params;
   const query = (await searchParams) ?? {};
-  const asked = Array.isArray(query.adapt) ? query.adapt[0] : query.adapt;
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+  const asked = first(query.adapt);
+  const tab = first(query.tab);
   return (
     <PieceContainer
       pieceId={id}
+      {...(typeof tab === 'string' && tab ? { initialTab: tab } : {})}
       {...(typeof asked === 'string' && asked ? { adaptPlatform: asked } : {})}
     />
   );

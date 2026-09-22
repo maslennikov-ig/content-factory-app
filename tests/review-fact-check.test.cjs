@@ -964,7 +964,7 @@ test('web mode stays evidence-only and carries no style catalog', () => {
   expect(sent.sources).toHaveLength(1);
 });
 
-test('the v3 prompt stays frozen at v4 while the review sends v5', async () => {
+test('the v3 prompt stays frozen at v4 while the review sends v6', async () => {
   expect(REVIEW_PROMPT_VERSION).toBe('adaptation-review-prompt/v4');
   expect(
     reviewPromptV3({
@@ -992,8 +992,10 @@ test('the v3 prompt stays frozen at v4 while the review sends v5', async () => {
     },
     usage
   );
+  // С 22.09.2026 (`97dq.33`) проверка идёт преемником v6; v5 остаётся для
+  // записанных ответов и проверяется наборами выше.
   expect(reviewCalls()[0].body.messages[0].content).toContain(
-    'PROMPT VERSION: adaptation-review-prompt/v5'
+    'PROMPT VERSION: adaptation-review-prompt/v6'
   );
 });
 

@@ -1698,5 +1698,6 @@
   "intake_door_short": "Bozza",
   "help": "Aiuto",
   "uploading": "Caricamento in corso",
-  "importing": "Importazione in corso"
+  "importing": "Importazione in corso",
+  "pick_time": "Ora"
 }

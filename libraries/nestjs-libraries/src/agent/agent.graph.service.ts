@@ -1,5 +1,6 @@
 import { unavoidableQuestionSchemaV2, unavoidableQuestionV2, hasAutomaticChannelField, channelQuestionPromptV2, channelQuestionTemplateV2 } from '../content-intelligence/channels/channel-question.v2';
 import type { PieceQuestionV1 } from '../content-intelligence/brand-voice/voice-wiring.contract';
+import { takeawayHintLine } from '../content-intelligence/channels/channel-question.v3';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { END, START, StateGraph } from '@langchain/langgraph';
@@ -284,6 +285,15 @@ const contentZod = (
 const effectiveVoiceOf = (state: WorkflowChannelsState) =>
   state.resolvedBrandProfile?.effectiveVoice as EffectiveVoice | undefined;
 
+/** Обращение, которое решил аватар; всё, кроме «ты» и «вы», — молчание. */
+const avatarAddressFormOf = (
+  resolved: ResolvedBrandProfileContextV1 | undefined
+): 'ty' | 'vy' | null => {
+  const form = (resolved?.effectiveVoice as EffectiveVoice | undefined)
+    ?.addressForm;
+  return form === 'ty' || form === 'vy' ? form : null;
+};
+
 const voiceDirectives = (state: WorkflowChannelsState) => {
   const voice = effectiveVoiceOf(state);
   const channel = state.channelLines ?? [];
@@ -318,6 +328,7 @@ const briefBlock = (state: WorkflowChannelsState): string => {
   if (!brief) return '';
   const core = (state.intake?.core || '').trim();
   const answers = state.intake?.answers || [];
+  const takeaway = (state.intake?.takeaway || '').trim();
   const material = state.intake?.material || [];
   const checkedMaterial = material.filter((item) => item.checked === true);
   const uncheckedMaterial = material.filter((item) => item.checked !== true);
@@ -328,6 +339,7 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     `- Who would disagree and why: ${brief.disagreement ?? ''}`,
     `- Written for: ${brief.audience ?? ''}`,
     ...(brief.goal ? [`- What the post has to do: ${brief.goal}`] : []),
+    ...(takeaway ? [takeawayHintLine(takeaway)] : []),
     /*
       Суть заготовки — материал, а не запрос (`content-factory-next-tu3k.9`).
       Она уже написана и уже нейтральна; эта генерация делает из неё версию
@@ -1489,9 +1501,15 @@ export class AgentGraphService {
       // Второй проход 05.09 (`content-factory-next-ec48.5`): модель дважды
       // назвала ступени штрафа, которых не было ни в одной выдержке. Числа,
       // даты и нормы — только из блока и только со ссылкой.
+      //
+      // Ссылка — это `usedCitationIds`, а не слово текста
+      // (`content-factory-next-97dq.40`). Прежнее «carry its id» модель
+      // прочла как «допиши метку», и адаптация Telegram на десятом заходе
+      // закончила два абзаца «[E2]» и «[E5]». Метки из текста снимает и
+      // запись (`stripCitationLabels`), но правило говорит это прямо.
       ...(context.facts.length || context.evidence.length
         ? [
-            'Every number, date, name or legal reference in the draft must come from this block and carry its id; leave out what the block does not support.',
+            'Every number, date, name or legal reference in the draft must come from this block; leave out what the block does not support. List the ids you used in usedCitationIds only. Never write an id or a bracketed label such as [E1] or [F1] inside the post text: the reader must not see them.',
           ]
         : []),
       'Cite only ids present in this block.',
@@ -1817,6 +1835,10 @@ export class AgentGraphService {
             formatHint: hints?.formatHint,
             foreignShingles: hints?.foreignShingles,
             keepLinks: hints?.keepLinks,
+            // Слои обращения и разовые настройки поста (`97dq.38`): пост →
+            // карточка → аватар разрешаются в одном месте, строителе строк.
+            post: hints?.post,
+            avatarAddressForm: avatarAddressFormOf(resolvedBrandProfile),
           }
         )
       : undefined;

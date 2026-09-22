@@ -379,6 +379,7 @@ export function validateBrandProfileContent(
       'ctaStyle',
       'emojiPolicy',
       'hashtagPolicy',
+      'addressForm',
       'postLength',
       'bringsOwnMeasurements',
       'directions',
@@ -480,6 +481,12 @@ export function validateBrandProfileContent(
       !['none', 'restrained', 'allowed'].includes(voice.hashtagPolicy as string)
     )
       issues.push('voice.hashtagPolicy:invalid');
+    /** «ты» или «вы» (`97dq.38`); отсутствие — автор не решал. */
+    if (
+      voice.addressForm !== undefined &&
+      !['ty', 'vy'].includes(voice.addressForm as string)
+    )
+      issues.push('voice.addressForm:invalid');
     for (const key of ['sentenceStyle', 'ctaStyle']) {
       if (voice[key] !== undefined)
         stringWithin(issues, `voice.${key}`, voice[key], 1_000, false);

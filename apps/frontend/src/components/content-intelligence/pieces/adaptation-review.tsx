@@ -3,14 +3,8 @@ import { Textarea } from '@contentfactory/react/form/textarea';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { useEffect, useRef, useState } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { Button, buttonClassName } from '@contentfactory/react/form/button';
-import {
-  Menu,
-  MenuButton,
-  MenuList,
-} from '@contentfactory/react/choice/choice.menu';
+import { Button } from '@contentfactory/react/form/button';
 import { Hint } from '@contentfactory/react/layout/hint';
-import { DescribedMenuItem, Dialog } from '../../ui/layers';
 import { WorkingLine } from '../../ui/working-line';
 import { Disclosure } from '../../ui/disclosure';
 import { sentenceChanges } from './core-answer-diff';
@@ -43,18 +37,26 @@ const isEditableReviewChange = (change: ReviewChange): boolean =>
   (change.excerpt !== change.replacement ||
     Boolean(change.variants?.some((variant) => variant !== change.excerpt)));
 
-type ReviewMode = 'slop' | 'facts' | 'both' | 'web';
+/**
+ * Что умеет ряд действий над текстом.
+ *
+ * Один ряд на суть и на адаптацию (`97dq.39`, C5): до волны суть несла три
+ * видимые кнопки, а адаптация прятала свои за меню «Ещё», и «Убрать следы ИИ»
+ * у сути не было вовсе. Теперь ряд один, а различие — список возможностей,
+ * названный вызывающим: у сути — ресерч, у адаптации — следы ИИ.
+ */
+export type ReviewAction = 'research' | 'slop' | 'checkFacts' | 'rewrite';
 
-const reviewModes = new Set<ReviewMode>(['slop', 'facts', 'both', 'web']);
-
-const rememberedReviewMode = (workspaceId: string): ReviewMode | null => {
-  try {
-    const value = window.localStorage.getItem(reviewModeKey(workspaceId));
-    return reviewModes.has(value as ReviewMode) ? (value as ReviewMode) : null;
-  } catch {
-    return null;
-  }
-};
+export const CORE_REVIEW_ACTIONS: readonly ReviewAction[] = [
+  'research',
+  'checkFacts',
+  'rewrite',
+];
+export const ADAPTATION_REVIEW_ACTIONS: readonly ReviewAction[] = [
+  'slop',
+  'checkFacts',
+  'rewrite',
+];
 
 /** One source text, with local deletions/insertions; unchanged paragraphs occur once. */
 export function ReviewText({
@@ -102,6 +104,15 @@ export function ReviewText({
     </p>
   );
 }
+
+/**
+ * Ряд действий над текстом и то, что они вернули, — на месте, под рядом.
+ *
+ * Все действия видны кнопками, а не прячутся в меню: их три, и каждое
+ * называет, что станет с текстом. Результат — предложение с подписанными
+ * правками — рисуется здесь же, под рядом; ресерч тоже раскрывается на месте,
+ * а не окном, — одна поверхность на весь ряд (`97dq.39`, C5).
+ */
 export function AdaptationReview({
   pieceId,
   adaptationId,
@@ -109,8 +120,7 @@ export function AdaptationReview({
   locale,
   disabled,
   onAccepted,
-  onPublish,
-  canCheckFacts = false,
+  actions,
 }: {
   pieceId: string;
   adaptationId?: string;
@@ -123,14 +133,16 @@ export function AdaptationReview({
    * а перечитанная заготовка этих двух чисел уже не несёт.
    */
   onAccepted: (outcome?: { slopBefore: number; slopAfter: number }) => void;
-  onPublish?: () => void;
-  canCheckFacts?: boolean;
+  /** Какие кнопки стоят в ряду; по умолчанию — набор сути или адаптации. */
+  actions?: readonly ReviewAction[];
 }) {
   const t = piecesCopy[locale],
     request = useFetch();
-  const [open, setOpen] = useState(false),
-    [rewrite, setRewrite] = useState(false),
-    [researchDialog, setResearchDialog] = useState(false),
+  const can = new Set<ReviewAction>(
+    actions ?? (adaptationId ? ADAPTATION_REVIEW_ACTIONS : CORE_REVIEW_ACTIONS)
+  );
+  const [rewrite, setRewrite] = useState(false),
+    [researchOpen, setResearchOpen] = useState(false),
     [researchDirection, setResearchDirection] = useState(''),
     [researchLevel, setResearchLevel] = useState<ResearchLevel>('standard'),
     [instruction, setInstruction] = useState(''),
@@ -142,33 +154,21 @@ export function AdaptationReview({
     [variant, setVariant] = useState<string | undefined>(),
     [busy, setBusy] = useState<'run' | 'research' | 'accept' | null>(null),
     [error, setError] = useState<string | null>(null);
-  const [last, setLast] = useState<ReviewMode | null>(null),
-    [stale, setStale] = useState(false);
+  const [stale, setStale] = useState(false);
   const active = useRef<AbortController | null>(null);
-  const menuElement = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => {
-      if (!menuElement.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
   const base = `/content-intelligence/pieces/${encodeURIComponent(pieceId)}${
     adaptationId ? `/adaptations/${encodeURIComponent(adaptationId)}` : ''
   }`;
   useEffect(() => {
-    setLast(rememberedReviewMode(workspaceId));
     setStale(false);
     setResult(null);
     setResearchPreview(null);
     setResearchExpired(false);
     setError(null);
     setRewrite(false);
-    setResearchDialog(false);
+    setResearchOpen(false);
     setResearchDirection('');
     setResearchLevel('standard');
-    setOpen(false);
     setInstruction('');
     setBusy(null);
     return () => {
@@ -176,24 +176,18 @@ export function AdaptationReview({
       active.current = null;
     };
   }, [workspaceId, pieceId, adaptationId]);
-  async function run(mode?: ReviewMode, customInstruction?: string) {
+  async function run(mode?: 'slop' | 'web', customInstruction?: string) {
     const human = customInstruction ?? instruction;
     if (active.current || disabled || (!mode && !human.trim())) return;
     const abort = new AbortController();
     active.current = abort;
     setBusy('run');
     setStale(false);
-    if (mode) {
-      setLast(mode);
-      try {
-        window.localStorage.setItem(reviewModeKey(workspaceId), mode);
-      } catch {}
-    }
-    setOpen(false);
     setError(null);
     setResult(null);
     setResearchPreview(null);
     setResearchExpired(false);
+    setResearchOpen(false);
     try {
       const response = await request(
         `${base}/${mode ? 'review' : 'rewrite'}?language=${locale}`,
@@ -247,7 +241,6 @@ export function AdaptationReview({
     setResearchPreview(null);
     setResearchExpired(false);
     setRewrite(false);
-    setOpen(false);
     try {
       const response = await request(`${base}/research?language=${locale}`, {
         method: 'POST',
@@ -276,7 +269,7 @@ export function AdaptationReview({
         throw new Error(t.researchIncomplete);
       if (!abort.signal.aborted) {
         setResearchPreview(body);
-        setResearchDialog(false);
+        setResearchOpen(false);
       }
     } catch (e) {
       if (!abort.signal.aborted)
@@ -424,6 +417,7 @@ export function AdaptationReview({
       }
     }
   }
+
   const editable = result?.changes.filter(isEditableReviewChange) ?? [];
   const catalogGroups = [
     {
@@ -449,131 +443,84 @@ export function AdaptationReview({
     result?.changes.filter(
       (change) => change.basket !== 'ask' && !isEditableReviewChange(change)
     ) ?? [];
+  const idle = disabled || !!busy;
   return (
     <div
       className="flex w-full min-w-0 flex-col gap-[12px]"
       data-adaptation-review={adaptationId ?? 'core'}
     >
-      <div className="flex flex-wrap items-center gap-[8px]">
-        {onPublish ? (
+      <div
+        role="group"
+        aria-label={t.actionsLabel}
+        className="flex flex-wrap items-center gap-[8px]"
+      >
+        {can.has('research') ? (
           <Button
-            variant="primary"
+            variant="secondary"
             density="dense"
-            disabled={disabled || !!busy}
-            onClick={onPublish}
+            disabled={idle}
+            aria-expanded={researchOpen}
+            data-review-action="research"
+            onClick={() => {
+              setError(null);
+              setRewrite(false);
+              setResearchOpen((open) => !open);
+            }}
           >
-            {t.publish}
+            {t.addResearch}
           </Button>
         ) : null}
-        {!adaptationId ? (
-          <>
+        {can.has('slop') ? (
+          <Button
+            variant="secondary"
+            density="dense"
+            disabled={idle}
+            data-review-action="slop"
+            onClick={() => void run('slop')}
+          >
+            {t.removeAiTells}
+          </Button>
+        ) : null}
+        {can.has('checkFacts') ? (
+          /*
+            Проверка запускается нажатием, а не окном подтверждения: человек
+            выбрал действие словами. О расходе говорит подсказка рядом — её
+            читают до нажатия, а не после.
+          */
+          <span className="inline-flex items-center gap-[4px]">
             <Button
               variant="secondary"
               density="dense"
-              disabled={disabled || !!busy}
-              onClick={() => setRewrite((v) => !v)}
+              disabled={idle}
+              data-review-action="checkFacts"
+              onClick={() => void run('web')}
             >
-              {t.regenerate}
+              {t.checkFacts}
             </Button>
-            <Button
-              variant="secondary"
-              density="dense"
-              disabled={disabled || !!busy}
-              onClick={() => {
-                setError(null);
-                setResearchDialog(true);
-              }}
-            >
-              {t.addResearch}
-            </Button>
-            {canCheckFacts ? (
-              /*
-                Проверка запускается нажатием, а не окном подтверждения.
-                Окно спрашивало «вы уверены?» о действии, которое человек и
-                так выбрал словами, и ничего нового в нём не сообщалось —
-                предложение о расходе стоит рядом подсказкой и читается до
-                нажатия, а не после.
-              */
-              <span className="inline-flex items-center gap-[4px]">
-                <Button
-                  variant="quiet"
-                  density="dense"
-                  disabled={disabled || !!busy}
-                  loading={busy === 'run'}
-                  loadingLabel={t.reviewing}
-                  onClick={() => void run('web')}
-                >
-                  {t.checkFacts}
-                </Button>
-                <Hint label={t.checkFactsSpendLabel}>{t.checkFactsSpend}</Hint>
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <Menu open={open} onOpenChange={setOpen}>
-            <div className="relative" ref={menuElement}>
-              <MenuButton
-                disabled={disabled || !!busy}
-                className={buttonClassName({
-                  variant: 'secondary',
-                  density: 'dense',
-                })}
-              >
-                {t.reviewMenu}
-              </MenuButton>
-              {open ? (
-                /*
-                  Каждый пункт говорит, что произойдёт с текстом, а не во что
-                  это обойдётся: «один вызов модели» повторялось четырежды и
-                  не отвечало ни на один вопрос человека, который выбирает
-                  проверку. Расход проверки фактов сказан подсказкой у
-                  кнопки, где он и решается.
-                */
-                <MenuList className="absolute start-0 top-full z-20 mt-[4px] flex w-[320px] max-w-[calc(100vw-64px)] flex-col rounded-[8px] border border-cf-border-strong bg-cf-surface-raised p-[8px]">
-                  <DescribedMenuItem
-                    title={t.regenerate}
-                    description={t.regenerateDescription}
-                    onClick={() => {
-                      setOpen(false);
-                      setRewrite(true);
-                    }}
-                  />
-                  {(['slop', 'facts', 'both'] as const).map((mode) => (
-                    <DescribedMenuItem
-                      key={mode}
-                      title={
-                        {
-                          slop: t.removeAiTells,
-                          facts: t.compareCore,
-                          both: t.reviewBoth,
-                        }[mode]
-                      }
-                      description={
-                        {
-                          slop: t.removeAiTellsDescription,
-                          facts: t.compareCoreDescription,
-                          both: t.reviewBothDescription,
-                        }[mode] + (last === mode ? t.lastChoice : '')
-                      }
-                      onClick={() => void run(mode)}
-                    />
-                  ))}
-                  <DescribedMenuItem
-                    title={t.checkFactsSearch}
-                    description={
-                      t.checkFactsSearchDescription +
-                      (last === 'web' ? t.lastChoice : '')
-                    }
-                    onClick={() => void run('web')}
-                  />
-                </MenuList>
-              ) : null}
-            </div>
-          </Menu>
-        )}
+            <Hint label={t.checkFactsSpendLabel}>{t.checkFactsSpend}</Hint>
+          </span>
+        ) : null}
+        {can.has('rewrite') ? (
+          <Button
+            variant="secondary"
+            density="dense"
+            disabled={idle}
+            aria-expanded={rewrite}
+            data-review-action="rewrite"
+            onClick={() => {
+              setResearchOpen(false);
+              setRewrite((open) => !open);
+            }}
+          >
+            {t.rewriteOpen}
+          </Button>
+        ) : null}
       </div>
       {rewrite ? (
-        <section className="flex flex-col gap-[8px]">
+        <section
+          aria-label={t.rewriteOpen}
+          className="flex flex-col gap-[8px]"
+        >
           <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
             {t.rewritePrompt}
             <Textarea
@@ -597,45 +544,34 @@ export function AdaptationReview({
               </Button>
             ))}
           </div>
-          <Button
-            variant="primary"
-            density="dense"
-            disabled={disabled || !instruction.trim()}
-            loading={busy === 'run'}
-            loadingLabel={t.regenerating}
-            onClick={() => void run()}
-          >
-            {t.regenerate}
-          </Button>
-        </section>
-      ) : null}
-      <Dialog
-        open={researchDialog}
-        onClose={() => {
-          if (busy !== 'research') setResearchDialog(false);
-        }}
-        title={t.addResearch}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={busy === 'research'}
-              onClick={() => setResearchDialog(false)}
-            >
-              {t.cancelAction}
-            </Button>
+          <div className="flex flex-wrap gap-[8px]">
             <Button
               variant="primary"
-              loading={busy === 'research'}
-              loadingLabel={t.findingSources}
-              onClick={() => void startResearch()}
+              density="dense"
+              disabled={disabled || !instruction.trim()}
+              loading={busy === 'run'}
+              loadingLabel={t.regenerating}
+              onClick={() => void run()}
             >
-              {t.runResearch}
+              {t.rewriteRun}
             </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-[12px]">
+            <Button
+              variant="quiet"
+              density="dense"
+              disabled={busy === 'run'}
+              onClick={() => setRewrite(false)}
+            >
+              {t.cancel}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+      {researchOpen ? (
+        <section
+          aria-label={t.addResearch}
+          data-review-research="true"
+          className="flex flex-col gap-[12px] border-t border-cf-border pt-[12px]"
+        >
           <label className="flex flex-col gap-[8px] cf-label-md text-cf-ink">
             {t.researchDirection}
             <Textarea
@@ -661,8 +597,27 @@ export function AdaptationReview({
               {error}
             </p>
           ) : null}
-        </div>
-      </Dialog>
+          <div className="flex flex-wrap gap-[8px]">
+            <Button
+              variant="primary"
+              density="dense"
+              loading={busy === 'research'}
+              loadingLabel={t.findingSources}
+              onClick={() => void startResearch()}
+            >
+              {t.runResearch}
+            </Button>
+            <Button
+              variant="quiet"
+              density="dense"
+              disabled={busy === 'research'}
+              onClick={() => setResearchOpen(false)}
+            >
+              {t.cancel}
+            </Button>
+          </div>
+        </section>
+      ) : null}
       {researchPreview ? (
         <ResearchOutcome
           locale={locale}
@@ -690,7 +645,7 @@ export function AdaptationReview({
           }
         />
       ) : null}
-      {error && !researchDialog ? (
+      {error && !researchOpen ? (
         <p role="alert" className="cf-body-sm text-cf-danger">
           {error}
         </p>
@@ -880,5 +835,3 @@ export function AdaptationReview({
     </div>
   );
 }
-export const reviewModeKey = (workspaceId: string) =>
-  `cf:adaptation-review-mode:${workspaceId}`;

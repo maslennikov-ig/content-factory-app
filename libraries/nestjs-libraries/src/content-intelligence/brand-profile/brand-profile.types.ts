@@ -7,6 +7,7 @@ export type BrandLanguageV1 = 'ru' | 'en';
 export type BrandPointOfViewV1 = 'first_person' | 'company_we' | 'third_person';
 export type BrandFormalityV1 = 'conversational' | 'neutral' | 'formal';
 export type BrandUsagePolicyV1 = 'none' | 'restrained' | 'allowed';
+export type BrandAddressFormV1 = 'ty' | 'vy';
 
 export type BrandTermV1 = {
   term: string;
@@ -124,6 +125,13 @@ export type BrandProfileContentV1 = {
     ctaStyle?: string;
     emojiPolicy: BrandUsagePolicyV1;
     hashtagPolicy: BrandUsagePolicyV1;
+    /**
+     * How this author addresses the reader: «ты» or «вы»
+     * (`content-factory-next-97dq.38`). The last layer before today's
+     * behaviour: a post's own choice and the channel card both outrank it.
+     * Absent — the author never said, and the prompt carries no address line.
+     */
+    addressForm?: BrandAddressFormV1;
     /**
      * How long this author's posts actually are, in characters.
      *

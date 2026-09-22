@@ -288,6 +288,25 @@ describe('the table renders as a table, and the row says how to open it', () => 
     expect(arrow.closest('td').className).toContain('align-top');
   });
 
+  /**
+   * Владелец 22.09.2026 (`97dq.35`, скриншот E3): код, заголовок, формат и
+   * дата стояли по верху, а клетка площадки — по центру высоты строки. Все
+   * колонки кверху, и клетка сидит в блочной обёртке, а не на базовой линии.
+   */
+  test('every column of a row, platform cells included, is pinned to the top', () => {
+    drawTable();
+    const row = document.querySelector('[data-piece-table] [data-piece-row]');
+    const cells = [...row.querySelectorAll(':scope > td')];
+
+    expect(cells.length).toBeGreaterThan(5);
+    for (const cell of cells) {
+      expect(cell.className).toContain('align-top');
+      expect(cell.className).not.toContain('align-middle');
+    }
+    const platformCell = row.querySelector('[data-piece-cell]');
+    expect(platformCell.closest('[data-piece-cell-slot]')).not.toBeNull();
+  });
+
   test('the cell carries no empty platform badge any more', () => {
     drawTable();
     const cell = document

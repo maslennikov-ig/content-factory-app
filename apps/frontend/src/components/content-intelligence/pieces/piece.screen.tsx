@@ -1,279 +1,94 @@
 'use client';
 
-import { factKind, factStatus, type PieceFactV2 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece-facts.v2';
-import { CoreAnswerDiff, type CoreAnswerFeedback } from './core-answer-diff';
-import type { BriefFilledV2 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/intake-v2.contract';
-
-import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
-import { Select } from '@contentfactory/react/form/select';
-import { Panel } from '@contentfactory/react/layout';
-import { Hint } from '@contentfactory/react/layout/hint';
-import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
-import { Segmented } from '../../ui/segmented';
-import { PieceDeleteButton } from './piece-delete.button';
-import { Progress } from '../../ui/progress';
-import { Table, Td, Th, Tr } from '../../ui/table';
+import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
+import { PlusIcon } from '@contentfactory/frontend/components/ui/icons';
+import { ConfirmButton } from '../../ui/confirm-button';
 import {
   ErrorState,
   RestrictedState,
   SkeletonRows,
   Status,
 } from '../../ui/surface';
-import { SuggestedQuestionsCard } from '../intake/questions.card';
-import { intakeCopy } from '../intake/intake.copy';
-import {
-  ResearchEvidenceRows,
-  sourcedResearchFacts,
-  type ResearchOutcomeFact,
-} from '../intake/intake.research';
-import {
-  RECEIPT_FIELDS,
-  type BriefFieldOriginV1,
-  type QualityChecksV1,
-} from '../intake/intake.adapter';
-import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
-import { voiceCopy } from '../../brand-voice/voice-copy';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
-import { stateWord } from './adaptation.cell';
-import { AdaptationBody } from './adaptation-body';
-import { NEW_PIECE_PATH } from './pieces.adapter';
-import type {
-  AdaptationKindV1,
-  AdaptationV1,
-  PieceDetailV1,
-  PieceQuestionV1,
-  VoiceScreenStateV1,
+import { StateSquare, stateWord } from './adaptation.cell';
+import {
+  NEW_PIECE_PATH,
+  PIECE_TAB_CORE,
+  platformName,
+  workspaceTabs,
+  type PieceWorkspaceV1,
+  type VoiceScreenStateV1,
+  type WorkspaceChannel,
 } from './pieces.adapter';
+import { WorkspaceMenu } from './workspace-menu';
 
 /**
- * Страница заготовки: суть слева, квитанция справа, адаптации под ними.
+ * Страница заготовки — одно рабочее место с вкладками (`97dq.37`, вариант A).
  *
- * §11.8 карты раздела, решение владельца 06.09.2026. Экран рисует и ничего не
- * просит — весь стрим, все запросы и все отказы живут в
- * `piece.container.tsx`.
+ * Решение владельца 22.09.2026: «мне однозначно нравится вариант А». Первая
+ * вкладка — «Суть», дальше по вкладке на канал; значок вкладки — та же клетка
+ * состояния, что в таблице «Заготовки» (карандаш — черновик, часы —
+ * запланировано, галочка — опубликовано, пунктирный плюс — ещё нет). Вкладка
+ * живёт в адресе. Всё, что нужно довести адаптацию до публикации, — во
+ * вкладке её канала; окно «Создать пост» со страницы не открывается.
  *
- * Четыре места, где эту страницу легче всего сделать неправильно.
+ * Экран рисует и ничего не просит: вкладки собирает контейнер, здесь —
+ * шапка, полоса вкладок и состояния страницы (загрузка, ошибка, отказ).
  *
- * **Проверка на штампы уже считана.** Она снята при создании сути, а не по
- * кнопке, и лежит рядом с текстом. Вердикт `rewrite` ничего не запрещает:
- * страница говорит совет вслух и оставляет «Адаптировать» нажимаемым — это
- * совет, а не ворота.
- *
- * **Старый материал не притворяется сутью.** У материала до этой волны тело —
- * HTML одного канала, и над ним стоит предупреждение: адаптация будет
- * опираться на него как есть.
- *
- * **Площадка без канала выключена с причиной и ссылкой на каналы.** Отказ до
- * нажатия, а не ошибка после — то же правило, что у клетки таблицы.
- *
- * **Видео и аудио — строка «позже», а не выключенные кнопки.** Выключенная
- * кнопка обещает, что скоро включится; строка честно говорит, что этого
- * сейчас нет.
- *
- * **Вид адаптации выбирает человек, а не первая строка списка.** Пока
- * площадка умеет один вид, выбора нет и спрашивать нечего. Умеет несколько —
- * рядом с «Адаптировать» стоит полоса `Segmented`, и до запроса видно, что
- * именно сейчас напишется: подпись или статья — это два разных текста, и
- * «первый из списка» здесь был решением экрана за человека.
+ * На узком экране полоса вкладок прокручивается вбок, а не переносится:
+ * перенесённая полоса читается как два ряда разных вещей.
  */
-
 export function PieceScreen({
   locale,
   state,
   detail,
+  channels,
+  tab,
   canWrite,
   busy,
-  step,
-  questions,
-  draftText,
-  draftAdaptationId,
-  initialPlatform,
-  renderReview,
-  renderChannelProfile,
-  draftChecks,
-  draftGaps,
-  reviewedSlop,
-  adaptingChannel,
+  coreTab,
+  renderChannelTab,
   errorMessage,
   notice,
   restrictedReason,
   readOnlyNote,
-  questionsSlot,
-  coreAnswer,
-  coreRewriteSlot,
-  onAdapt,
+  onTabChange,
   onArchive,
-  onAnswer,
-  onSkipInterview,
-  onCancel,
-  onOpenPost,
-  onDeleteAdaptation,
   onDelete,
-  onOpenEditor,
   onRetry,
   onTitleSave,
-  onFactSelect,
 }: {
   locale: PiecesLocale;
   state: VoiceScreenStateV1;
-  detail: PieceDetailV1 | null;
+  detail: PieceWorkspaceV1 | null;
+  /** Каналы рабочего места (`workspaceChannels`). */
+  channels: readonly WorkspaceChannel[];
+  /** `core` или идентификатор канала. */
+  tab: string;
   canWrite: boolean;
   busy: boolean;
-  step: string | null;
-  questions: readonly PieceQuestionV1[];
-  draftText: string | null;
-  draftAdaptationId?: string | null;
-  initialPlatform?: string;
-  renderReview?: (adaptation: AdaptationV1 & { body: string }) => ReactNode;
-  renderChannelProfile?: (
-    channel: { id: string; name: string },
-    channelLabel: ReactNode
-  ) => ReactNode;
-  /** Проверки адаптации: приезжают событием стрима вместе с текстом. */
-  draftChecks?: QualityChecksV1 | null;
-  /** Чего в адаптации нет из привычек автора — тем же событием. */
-  draftGaps?: readonly unknown[] | null;
-  /**
-   * Счёт штампов до и после принятой правки, по адаптациям.
-   *
-   * Живёт у контейнера и до следующей перезагрузки страницы: перечитанная
-   * заготовка знает только нынешнее число находок, а человек только что
-   * нажал «Принять выбранные» и вправе увидеть, что изменилось.
-   */
-  reviewedSlop?: Record<
-    string,
-    { slopBefore: number; slopAfter: number }
-  > | null;
-  /** Канал, под который идёт адаптация прямо сейчас. */
-  adaptingChannel: string | null;
+  coreTab: ReactNode;
+  renderChannelTab: (channel: WorkspaceChannel) => ReactNode;
   errorMessage?: string;
   notice?: string | null;
   restrictedReason?: ReactNode;
   readOnlyNote?: ReactNode;
-  /**
-   * Уточнения заготовки — первым блоком после шапки
-   * (`content-factory-next-m2eg`). Слот, а не готовая карточка: вопросы зовут
-   * дверь, а этот файл рисует и ничего не просит.
-   */
-  questionsSlot?: ReactNode;
-  coreAnswer?: CoreAnswerFeedback | null;
-  coreRewriteSlot?: ReactNode;
-  onAdapt: (channelId: string, kind: AdaptationKindV1) => void;
+  onTabChange: (tab: string) => void;
   onArchive: () => void;
-  onAnswer: (
-    answers: readonly {
-      key: string;
-      text: string;
-      origin: 'person' | 'confirmed';
-    }[],
-    decideKeys: readonly string[]
-  ) => void;
-  onSkipInterview: () => void;
-  onCancel: () => void;
-  onOpenPost: (adaptation: AdaptationV1) => void;
-  onDeleteAdaptation: (adaptation: AdaptationV1) => void;
   /** Удалить заготовку насовсем (`97dq.30`); подтверждение — в самой кнопке. */
   onDelete: () => void;
-  onOpenEditor: () => void;
   onRetry: () => void;
   onTitleSave?: (title: string) => Promise<void>;
-  onFactSelect?: (factKey: string, selected: boolean) => Promise<void>;
 }) {
+  const t = piecesCopy[locale];
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [titleSaving, setTitleSaving] = useState(false);
-  const [factSaving, setFactSaving] = useState<string | null>(null);
-  const [factError, setFactError] = useState<{ key: string; message: string } | null>(null);
   const [titleError, setTitleError] = useState('');
-  const saveTitle = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!titleValue.trim() || !onTitleSave) return;
-    setTitleSaving(true);
-    setTitleError('');
-    try {
-      await onTitleSave(titleValue.trim());
-      setEditingTitle(false);
-    } catch {
-      setTitleError(locale === 'ru' ? 'Заголовок не сохранён. Попробуйте ещё раз.' : 'Title was not saved. Try again.');
-    } finally {
-      setTitleSaving(false);
-    }
-  };
-  const t = piecesCopy[locale];
-  const v = voiceCopy[locale];
-  const targetRef = useRef<HTMLDivElement>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState(initialPlatform);
-  const [chosenChannels, setChosenChannels] = useState<Record<string, string>>(
-    {}
-  );
-  const [expandedAdaptations, setExpandedAdaptations] = useState<
-    Record<string, boolean>
-  >({});
-  useEffect(() => {
-    if (draftAdaptationId)
-      setExpandedAdaptations((current) => ({
-        ...current,
-        [draftAdaptationId]: true,
-      }));
-  }, [draftAdaptationId]);
-  useEffect(() => {
-    if (initialPlatform && detail) {
-      targetRef.current?.scrollIntoView?.({ block: 'nearest' });
-      targetRef.current?.focus({ preventScroll: true });
-    }
-  }, [initialPlatform, detail?.piece.id]);
-
-  /*
-    Выбранный вид — по площадке, а не один на страницу: Instagram и сайт
-    отвечают на разные вопросы, и общий выбор перепрыгивал бы между ними.
-    Пусто — значит человек ещё не выбирал, и берётся первый вид площадки.
-  */
-  const [chosenKinds, setChosenKinds] = useState<
-    Readonly<Record<string, AdaptationKindV1>>
-  >({});
-
-  /*
-    Вопросы адаптации живут внутри панели «Куда адаптировать», под кнопкой,
-    которая их вызвала, — и экран доводит их до глаз сам. До 07.09.2026 они
-    рендерились в самом низу страницы: человек нажимал «Адаптировать»,
-    ничего видимого не происходило, и он нажимал ещё раз. Прокрутка `nearest`,
-    а не `center`: если карточка и так на экране, двигать ничего не надо.
-    `prefers-reduced-motion` снимает саму анимацию, а не переход.
-  */
-  const askRef = useRef<HTMLDivElement | null>(null);
-  const asked = questions.length;
-  useEffect(() => {
-    const card = askRef.current;
-    // jsdom не реализует прокрутку вовсе, и проверка здесь не про тесты: это
-    // тот же случай, что старый браузер без `scrollIntoView` — вопросы всё
-    // равно на экране, просто до них надо долистать самому.
-    if (asked === 0 || !card || typeof card.scrollIntoView !== 'function')
-      return;
-    const still =
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    card.scrollIntoView({
-      behavior: still ? 'auto' : 'smooth',
-      block: 'nearest',
-    });
-  }, [asked]);
-
-  const kindWord = (kind: AdaptationKindV1) =>
-    kind === 'caption'
-      ? t.kindCaption
-      : kind === 'article'
-      ? t.kindArticle
-      : kind === 'newsletter'
-      ? t.kindNewsletter
-      : kind === 'video'
-      ? t.kindVideo
-      : kind === 'audio'
-      ? t.kindAudio
-      : t.kindPost;
 
   if (state === 'restricted') {
     return (
@@ -309,7 +124,21 @@ export function PieceScreen({
 
   const piece = detail.piece;
   const core = detail.core;
-  const i = intakeCopy[locale];
+
+  const saveTitle = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!titleValue.trim() || !onTitleSave) return;
+    setTitleSaving(true);
+    setTitleError('');
+    try {
+      await onTitleSave(titleValue.trim());
+      setEditingTitle(false);
+    } catch {
+      setTitleError(t.titleFailed);
+    } finally {
+      setTitleSaving(false);
+    }
+  };
 
   const originWord =
     piece.origin === 'thought'
@@ -326,23 +155,9 @@ export function PieceScreen({
       ? t.originLegacy
       : t.originManual;
 
-  const originOfField = (origin: BriefFieldOriginV1) =>
-    origin === 'input'
-      ? i.originInput
-      : origin === 'person'
-      ? i.originPerson
-      : origin === 'avatar'
-      ? i.originAvatar
-      : origin === 'memory'
-      ? i.originMemory
-      : origin === 'search'
-      ? i.originSearch
-      : i.originModel;
-
   /*
-    Хост вместо полного адреса: в колонке 360px длинная ссылка переносится
-    посреди пути и перестаёт читаться как источник. Адрес, который не разбирается
-    в `URL`, показывается как есть — это чужая строка, и молча прятать её нельзя.
+    Хост вместо полного адреса: в строке крошек длинная ссылка переносится
+    посреди пути и перестаёт читаться как источник.
   */
   const hostOf = (url: string) => {
     try {
@@ -352,99 +167,38 @@ export function PieceScreen({
     }
   };
 
-  const briefLabel: Record<(typeof RECEIPT_FIELDS)[number], string> = {
-    thesis: v.briefThesis,
-    position: v.briefPosition,
-    disagreement: v.briefDisagreement,
-    audience: v.briefAudience,
-    goal: v.briefGoal,
-    format: v.briefFormat,
-  };
+  const { shown, more } = workspaceTabs(channels, tab);
+  const tabLabel = (channel: WorkspaceChannel) =>
+    `${platformName(channel.platform, locale, channel.platformName)} · ${
+      channel.name
+    }`;
+  const active =
+    tab === PIECE_TAB_CORE
+      ? PIECE_TAB_CORE
+      : channels.find((channel) => channel.id === tab)?.id ?? PIECE_TAB_CORE;
+  const activeChannel = channels.find((channel) => channel.id === active);
 
-  const facts = core?.brief.facts ?? [];
-  const researchFacts = sourcedResearchFacts(
-    facts.map((fact: PieceFactV2): ResearchOutcomeFact => {
-      const rich = fact as PieceFactV2 & {
-        factKey?: string;
-        quote?: string | null;
-        note?: string | null;
-        correction?: { original: string; replacement: string } | null;
-      };
-      return {
-        ...rich,
-        factKey: rich.factKey ?? fact.statement,
-        kind: factKind(fact, core?.brief.inputKind),
-        status: factStatus(fact),
-      };
-    })
-  );
-
-  const available = detail.targets.filter(
-    (target) => target.available && target.channels.length > 0
-  );
-  const unavailable = detail.targets.filter(
-    (target) => !target.available || target.channels.length === 0
-  );
-
-  const overviewState = (adaptation: AdaptationV1 | undefined) => {
-    if (!adaptation)
-      return {
-        label: t.stateNone,
-        tone: 'neutral' as const,
-      };
-    if (adaptation.state === 'published')
-      return { label: t.statePublished, tone: 'accent' as const };
-    if (adaptation.state === 'queued')
-      return { label: t.stateQueued, tone: 'info' as const };
-    if (adaptation.state === 'error')
-      return { label: t.stateError, tone: 'danger' as const };
-    return {
-      label: locale === 'ru' ? 'готово' : 'ready',
-      tone: 'neutral' as const,
-    };
-  };
-
-  const showAdaptation = (adaptationId: string) => {
-    setExpandedAdaptations((current) => ({
-      ...current,
-      [adaptationId]: true,
-    }));
-    window.requestAnimationFrame(() => {
-      document
-        .getElementById(`adaptation-${adaptationId}`)
-        ?.closest('[data-piece-adaptation]')
-        ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
-    });
-  };
+  const link =
+    'underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus';
 
   return (
     <section
       data-content-panel="piece"
       data-piece-state={state}
       data-piece-id={piece.id}
+      data-piece-tab={active}
       aria-busy={busy}
-      className="flex w-full min-w-0 flex-1 flex-col gap-[24px] p-[16px] md:p-[24px] lg:px-[32px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
+      className="flex w-full min-w-0 flex-1 flex-col gap-[20px] p-[16px] md:p-[24px] lg:px-[32px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
-      {/*
-        Хлебная крошка вместо строки метаданных: код, дата и происхождение
-        стоят там же, где ответ на «где я и как вернуться», и не спорят с
-        заголовком за первую строку страницы.
-      */}
       <nav
         aria-label={t.breadcrumbSection}
         className="flex min-w-0 flex-wrap items-center gap-[8px] cf-caption text-cf-ink-muted"
       >
-        <a
-          href="/content?tab=materials"
-          className="underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-        >
+        <a href="/content?tab=materials" className={link}>
           {t.breadcrumbSection}
         </a>
         <span aria-hidden="true">/</span>
-        <a
-          href="/content?tab=materials"
-          className="underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-        >
+        <a href="/content?tab=materials" className={link}>
           {t.title}
         </a>
         <span aria-hidden="true">/</span>
@@ -453,13 +207,6 @@ export function PieceScreen({
         <span className="tabular-nums">{piece.date}</span>
         <span aria-hidden="true">·</span>
         <span data-piece-origin={piece.origin}>{originWord}</span>
-        {/*
-          content-factory-next-75xn.8. Повод приводил в заготовку и терялся:
-          подпись «из повода» стояла, а материала за ней не было. Адрес —
-          хостом, как и у находок ниже: в строке заголовка полная ссылка
-          переносится посреди пути и перестаёт читаться как источник, а
-          заголовок повода остаётся во всплывающей подписи.
-        */}
         {core?.leadSource?.url ? (
           <>
             <span aria-hidden="true">·</span>
@@ -471,7 +218,7 @@ export function PieceScreen({
                 target="_blank"
                 rel="noreferrer noopener"
                 title={core.leadSource.title || core.leadSource.url}
-                className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                className={clsx('break-all', link)}
               >
                 {hostOf(core.leadSource.url)}
               </a>
@@ -481,50 +228,45 @@ export function PieceScreen({
         {piece.archivedAt ? <Status>{t.archived}</Status> : null}
       </nav>
 
-      <div className="flex min-w-0 flex-wrap items-start gap-[24px]">
+      <div className="flex min-w-0 flex-wrap items-start gap-[16px]">
         <h1 className="min-w-0 max-w-[60ch] flex-1 cf-heading-lg text-cf-ink [text-wrap:balance]">
           {canWrite && onTitleSave ? (
-            <Button variant="quiet" layout="content" className="min-w-0 justify-start px-0 text-left" disabled={busy || titleSaving}
-              onClick={() => { setTitleValue(piece.title); setEditingTitle(true); setTitleError(''); }}
-              aria-label={`${piece.title}. ${locale === 'ru' ? 'Изменить заголовок' : 'Edit title'}`}>
-              <span className="cf-heading-lg [text-wrap:balance]">{piece.title}</span>
+            <Button
+              variant="quiet"
+              layout="content"
+              className="min-w-0 justify-start px-0 text-start"
+              disabled={busy || titleSaving}
+              onClick={() => {
+                setTitleValue(piece.title);
+                setEditingTitle(true);
+                setTitleError('');
+              }}
+              aria-label={`${piece.title}. ${t.titleEdit}`}
+            >
+              <span className="cf-heading-lg [text-wrap:balance]">
+                {piece.title}
+              </span>
             </Button>
-          ) : piece.title}
+          ) : (
+            piece.title
+          )}
         </h1>
-        {editingTitle ? <form className="flex w-full flex-wrap items-start gap-[8px]" onSubmit={saveTitle}>
-          <Input autoFocus name="piece-title" label={locale === 'ru' ? 'Заголовок' : 'Title'} value={titleValue} maxLength={120} onChange={(event) => setTitleValue(event.target.value)} disabled={titleSaving} />
-          <Button type="submit" loading={titleSaving} disabled={!titleValue.trim()}>{locale === 'ru' ? 'Сохранить' : 'Save'}</Button>
-          <Button type="button" variant="secondary" disabled={titleSaving} onClick={() => setEditingTitle(false)}>{locale === 'ru' ? 'Отмена' : 'Cancel'}</Button>
-          {titleError ? <p role="alert" className="w-full cf-body-sm text-cf-ink">{titleError}</p> : null}
-        </form> : null}
         {/*
-          «В архив» — второстепенное действие в одной строке с заголовком, а не
-          главная кнопка страницы. Подтверждения нет намеренно: архив прячет
-          заготовку из списка и не трогает ни одного поста, в том числе
-          опубликованного, — спрашивать «вы уверены?» о том, что ничего не
-          ломает, значит обесценить вопрос там, где он нужен.
+          Выходы со страницы и «В архив» — тихий вес в одной строке с
+          заголовком: главное действие страницы живёт во вкладке.
         */}
-        <div className="flex shrink-0 flex-wrap items-center gap-[8px]">
+        <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-[8px]">
           <a
             href="/content?tab=materials"
-            className={buttonClassName({
-              variant: 'secondary',
-              density: 'dense',
-            })}
+            className={buttonClassName({ variant: 'quiet', density: 'dense' })}
           >
             {t.backToList}
           </a>
-          {/*
-            «Новая заготовка» — выход со страницы, а не действие над ней:
-            тихий вес, тот же якорь, что у «Все заготовки». Главное действие
-            страницы — «Адаптировать» выше, и соперничать с ним эта ссылка не
-            должна.
-          */}
           <a
             href={NEW_PIECE_PATH}
             data-piece-new="true"
             className={buttonClassName({
-              variant: 'quiet',
+              variant: 'secondary',
               density: 'dense',
             })}
           >
@@ -543,7 +285,7 @@ export function PieceScreen({
               {t.archive}
             </Button>
           ) : null}
-          <PieceDeleteButton
+          <ConfirmButton
             label={t.deletePiece}
             armedLabel={t.deletePieceArmed}
             disabled={!canWrite || busy}
@@ -551,6 +293,43 @@ export function PieceScreen({
             onConfirm={onDelete}
           />
         </div>
+        {editingTitle ? (
+          <form
+            className="flex w-full flex-wrap items-start gap-[8px]"
+            onSubmit={saveTitle}
+          >
+            <Input
+              autoFocus
+              standalone
+              name="piece-title"
+              label={t.titleLabel}
+              value={titleValue}
+              maxLength={120}
+              onChange={(event) => setTitleValue(event.target.value)}
+              disabled={titleSaving}
+            />
+            <Button
+              type="submit"
+              loading={titleSaving}
+              disabled={!titleValue.trim()}
+            >
+              {t.titleSave}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={titleSaving}
+              onClick={() => setEditingTitle(false)}
+            >
+              {t.cancel}
+            </Button>
+            {titleError ? (
+              <p role="alert" className="w-full cf-body-sm text-cf-danger">
+                {titleError}
+              </p>
+            ) : null}
+          </form>
+        ) : null}
       </div>
 
       {readOnlyNote}
@@ -561,557 +340,68 @@ export function PieceScreen({
         </p>
       ) : null}
 
-      {/*
-        Короткая карта работы стоит до текста заготовки: в ней одна строка на
-        площадку и выбранный канал. Состояние и счётчик не склеивают каналы
-        одной площадки: переключатель меняет ровно ту строку, с которой
-        человек затем запускает ещё один вариант.
-      */}
-      <div
-        ref={targetRef}
-        tabIndex={-1}
-        data-piece-adapt-focus={initialPlatform}
-        className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cf-focus"
-      >
-        <Panel
-          contentPadding="none"
-          contentClassName="flex min-w-0 flex-col gap-[16px] p-[20px]"
-        >
-          <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-[8px]">
-            <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-              {t.targetsTitle}
-            </h2>
-            {detail.later.length > 0 ? (
-              <span
-                data-piece-later="true"
-                className="cf-caption text-cf-ink-muted"
-              >
-                {t.laterShort}
-              </span>
-            ) : null}
-          </div>
-
-          <Table
-            caption={
-              locale === 'ru'
-                ? 'Адаптации по площадкам и каналам'
-                : 'Adaptations by platform and channel'
-            }
-            className="min-w-[760px]"
-          >
-            <thead>
-              <Tr>
-                <Th banded>{locale === 'ru' ? 'Площадка' : 'Platform'}</Th>
-                <Th banded>{locale === 'ru' ? 'Канал' : 'Channel'}</Th>
-                <Th banded>{t.kindLabel}</Th>
-                <Th banded>{locale === 'ru' ? 'Состояние' : 'State'}</Th>
-                <Th banded numeric>
-                  {locale === 'ru' ? 'Адаптаций' : 'Adaptations'}
-                </Th>
-                <Th banded>{locale === 'ru' ? 'Действия' : 'Actions'}</Th>
-              </Tr>
-            </thead>
-            <tbody>
-              {available.map((target) => {
-                const kind =
-                  chosenKinds[target.platform] ?? target.kinds[0] ?? 'post';
-                const channel =
-                  target.channels.find(
-                    (one) => one.id === chosenChannels[target.platform]
-                  ) ?? target.channels[0];
-                const channelAdaptations = detail.adaptations
-                  .filter(
-                    (adaptation) =>
-                      adaptation.platform === target.platform &&
-                      adaptation.integrationId === channel.id
-                  )
-                  .sort((left, right) =>
-                    right.createdAt.localeCompare(left.createdAt)
-                  );
-                const latest = channelAdaptations[0];
-                const status = overviewState(latest);
-                const channelLabel = target.channels.length > 1 ? (
-                  <Select
-                    standalone
-                    aria-label={`${t.targetsTitle} · ${target.name}`}
-                    value={channel.id}
-                    onChange={(event) =>
-                      setChosenChannels((current) => ({
-                        ...current,
-                        [target.platform]: event.target.value,
-                      }))
-                    }
-                    className="max-w-full"
-                  >
-                    {target.channels.map((one) => (
-                      <option key={one.id} value={one.id}>
-                        {one.name}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <span className="cf-body-sm text-cf-ink">
-                    {channel.name}
-                  </span>
-                );
-                return (
-                  <Tr
-                    key={target.platform}
-                    data-piece-target={target.platform}
-                    data-piece-target-available="true"
-                    data-piece-target-kind={kind}
-                    data-piece-target-selected={
-                      selectedPlatform === target.platform ? 'true' : undefined
-                    }
-                    selected={selectedPlatform === target.platform}
-                  >
-                    <Td>
-                      <span className="flex min-w-0 items-center gap-[8px]">
-                        <PlatformBadge
-                          identifier={channel.providerIdentifier}
-                          size={24}
-                        />
-                        <span className="min-w-0 truncate">{target.name}</span>
-                      </span>
-                    </Td>
-                    <Td>
-                      <div className="min-w-[180px]">
-                        {renderChannelProfile?.(channel, channelLabel) ??
-                          channelLabel}
-                      </div>
-                    </Td>
-                    <Td>
-                      {target.kinds.length > 1 ? (
-                        <Segmented<AdaptationKindV1>
-                          label={`${t.kindLabel} · ${target.name}`}
-                          value={kind}
-                          options={target.kinds.map((one) => ({
-                            value: one,
-                            label: kindWord(one),
-                          }))}
-                          onChange={(next) =>
-                            setChosenKinds((current) => ({
-                              ...current,
-                              [target.platform]: next,
-                            }))
-                          }
-                          data-piece-kind-choice={target.platform}
-                        />
-                      ) : (
-                        <span className="cf-body-sm text-cf-ink">
-                          {kindWord(kind)}
-                        </span>
-                      )}
-                    </Td>
-                    <Td>
-                      <Status tone={status.tone}>{status.label}</Status>
-                    </Td>
-                    <Td numeric>{channelAdaptations.length}</Td>
-                    <Td>
-                      <div className="flex min-w-[220px] flex-wrap items-center gap-[8px]">
-                        {latest ? (
-                          <Button
-                            type="button"
-                            variant="quiet"
-                            density="dense"
-                            data-piece-overview-view={latest.id}
-                            onClick={() => showAdaptation(latest.id)}
-                          >
-                            {locale === 'ru' ? 'Посмотреть' : 'View'}
-                          </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant={latest ? 'secondary' : 'primary'}
-                          loading={busy}
-                          loadingLabel={locale === 'ru' ? 'Адаптируем…' : 'Adapting…'}
-                          disabled={!canWrite || busy || Boolean(core && !core.text.trim())}
-                          aria-label={`${t.adapt} · ${target.name}`}
-                          onClick={() => {
-                            setSelectedPlatform(target.platform);
-                            onAdapt(channel.id, kind);
-                          }}
-                        >
-                          {latest
-                            ? locale === 'ru'
-                              ? 'Ещё вариант'
-                              : 'Another version'
-                            : t.adapt}
-                        </Button>
-                      </div>
-                    </Td>
-                  </Tr>
-                );
-              })}
-
-              {unavailable.map((target) => (
-                <Tr
-                  key={target.platform}
-                  data-piece-target={target.platform}
-                  data-piece-target-available="false"
-                >
-                  <Td>
-                    <span className="flex min-w-0 items-center gap-[8px]">
-                      <PlatformBadge identifier={target.platform} size={24} />
-                      <span className="min-w-0 truncate">{target.name}</span>
-                    </span>
-                  </Td>
-                  <Td>
-                    <span className="cf-body-sm text-cf-ink-muted">
-                      {t.stateNoChannel}
-                    </span>
-                  </Td>
-                  <Td>
-                    <span className="cf-body-sm text-cf-ink-muted">—</span>
-                  </Td>
-                  <Td>
-                    <Status tone="neutral">{t.stateNoChannel}</Status>
-                  </Td>
-                  <Td numeric>0</Td>
-                  <Td>
-                    <a
-                      href="/channels"
-                      aria-label={`${t.toChannels} — ${t.noChannelReason}`}
-                      className="cf-label-md text-cf-ink underline underline-offset-2 hover:text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                    >
-                      {t.toChannels}
-                    </a>
-                  </Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-
-          {/* Всё, что вызвано строкой, остаётся сразу под этой таблицей. */}
-          <div ref={askRef} className="flex min-w-0 flex-col gap-[12px]">
-            {busy ? (
-              <div className="flex flex-wrap items-center gap-[8px]">
-                <Progress
-                  mode="indeterminate"
-                  label={
-                    adaptingChannel
-                      ? `${t.adapting} ${adaptingChannel}`
-                      : t.adapting
-                  }
-                  className="w-[128px] shrink-0"
-                />
-                <p
-                  aria-live="polite"
-                  data-piece-step={step ?? 'started'}
-                  className="cf-body-sm text-cf-ink-muted"
-                >
-                  {adaptingChannel
-                    ? `${t.adapting} ${adaptingChannel}`
-                    : t.adapting}
-                </p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  density="dense"
-                  onClick={onCancel}
-                >
-                  {t.cancel}
-                </Button>
-              </div>
-            ) : null}
-
-            {questions.length > 0 ? (
-              <SuggestedQuestionsCard
-                words={{
-                  badge: t.interviewBadge,
-                  title: t.interviewTitle,
-                  lead: locale === 'ru' ? `Не хватает для канала «${adaptingChannel || ''}»` : `Missing for channel ${adaptingChannel || ''}`,
-                  suggestedLead: t.suggestedLead,
-                  yes: t.answerYes,
-                  fix: t.answerFix,
-                  decide: t.answerDecide,
-                  skip: t.answerSkip,
-                  ownAnswerLabel: t.ownAnswerLabel,
-                  ownAnswerHint: t.ownAnswerHint,
-                  ownOptionPlaceholder: t.ownOptionPlaceholder,
-                  send: t.interviewSend,
-                  skipAll: t.skipInterview,
-                }}
-                questions={questions.map((question) => ({
-                  key: question.key,
-                  question: question.question,
-                  options: question.options,
-                  suggested: question.suggested,
-                  ...(question.why ? { why: question.why } : {}),
-                }))}
-                busy={busy}
-                onSubmit={(answers, decideKeys) =>
-                  onAnswer(
-                    answers.map((answer) => ({
-                      key: answer.key,
-                      text: answer.text,
-                      origin: answer.origin,
-                    })),
-                    decideKeys
-                  )
-                }
-                onSkipAll={onSkipInterview}
-              />
-            ) : null}
-          </div>
-        </Panel>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-[24px]">
-        <div className="flex min-w-0 flex-col gap-[24px]">
-          <section className="flex min-w-0 flex-col gap-[12px]">
-            <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-              {core ? t.coreTitle : t.legacyTitle}
-            </h2>
-
-            {/*
-              Старый материал: тело — текст одного канала, а не нейтральная
-              суть. Предупреждение стоит над текстом, потому что оно про то,
-              что человек сейчас читает.
-            */}
-            {!core ? (
-              <p
-                role="status"
-                data-piece-legacy="true"
-                className="max-w-[72ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-              >
-                {t.legacyWarning}
-              </p>
-            ) : null}
-
-            {/*
-              Пока сути нет, на её месте стоит то, что человек прислал
-              (`content-factory-next-97dq.25`): вопросы ниже заданы по этому
-              тексту, и отвечать на них, не видя его, неудобно — десятый заход
-              22.09.2026. Стоит НАД вопросами: с двумя вопросами карточка
-              выше экрана, и текст под ней уходил за сгиб. Как только суть написана, её место занимает она сама,
-              и присланное больше не показывается: «если уже что-то писала,
-              то то, что уже написала».
-            */}
-            {core && !core.text && (core.sourceText || core.instructionText || core.personText) ? (
-              <div
-                data-piece-sent-text={core.sourceText ? 'source' : core.instructionText ? 'instruction' : 'person'}
-                className="flex min-w-0 max-w-[72ch] flex-col gap-[8px]"
-              >
-                <p className="cf-label-sm uppercase text-cf-ink-muted">
-                  {core.sourceText
-                    ? core.brief.inputKind === 'foreign_post'
-                      ? t.sentSourceTitle
-                      : t.sentLinkTitle
-                    : core.instructionText
-                    ? t.sentInstructionTitle
-                    : t.sentPersonTitle}
-                </p>
-                <blockquote className="whitespace-pre-wrap border-l border-cf-border pl-[12px] cf-body-md text-cf-ink [text-wrap:pretty]">
-                  {core.sourceText || core.instructionText || core.personText}
-                </blockquote>
-              </div>
-            ) : null}
-            {questionsSlot}
-            {core && !core.text ? <p className="cf-body-sm text-cf-ink-muted">{locale === 'ru' ? 'Суть появится после ответов. Можно нажать «Решите за меня».' : 'The core will appear after your answers. You can let us decide.'}</p> : null}
-            {core?.text && core.writtenBy === 'fallback' ? (
-              <p
-                role="status"
-                data-piece-core-fallback="true"
-                className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-              >
-                {t.coreFallback}
-              </p>
-            ) : null}
-
-            {/*
-              Суть — главный текст страницы, и она читается как текст: мера в
-              72 знака, `body-lg` и никакой рамки. Панель вокруг неё делала из
-              неё вложенную карточку среди трёх других и ровно ничем не
-              отличала главное от служебного.
-            */}
-            <article
-              data-piece-core={core ? 'core' : 'legacy'}
-              className={clsx(
-                'min-w-0 max-w-[72ch] cf-body-lg text-cf-ink [text-wrap:pretty]',
-                core && 'whitespace-pre-wrap'
-              )}
+      <Tabs value={active} onChange={onTabChange}>
+        <div className="flex min-w-0 items-end gap-[4px] border-b border-cf-border">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <TabList
+              aria-label={t.tabsLabel}
+              className="flex w-max min-w-full items-end gap-[4px]"
             >
-              {core ? (
-                coreAnswer && coreAnswer.body === core.text ? (
-                  <CoreAnswerDiff {...coreAnswer} locale={locale} />
-                ) : (
-                  core.text
-                )
-              ) : (
-                detail.legacyBody ?? ''
-              )}
-            </article>
-
-            {/*
-              Одна строка вместо вердикта и блока находок.
-              Решение владельца 07.09.2026 (`content-factory-next-fn33.28.4`).
-              До него строка печаталась всегда — и над чистой сутью говорила
-              «находок нет · своё число есть», то есть занимала место, чтобы
-              сообщить, что сообщать нечего. Теперь чистая суть не получает
-              ничего, а находки и своё число называются словом каждая и
-              раскрываются по нажатию.
-
-              Проверки считаны при создании сути, а не по кнопке. Вердикт
-              `rewrite` — совет, а не запрет: «Адаптировать» ниже остаётся
-              нажимаемым, и об этом сказано словами.
-            */}
-            {coreRewriteSlot}
-            {core?.text ? (
-              <div className="flex min-w-0 flex-col gap-[4px]">
-                <QualityLine
-                  locale={locale}
-                  slop={core.slop}
-                  draftGaps={core.authorNumbers ? null : OWN_NUMBERS_GAP}
-                />
-                {core.slop?.verdict === 'rewrite' ? (
-                  <p
-                    data-piece-slop-rewrite="true"
-                    className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-                  >
-                    {t.slopRewriteNote}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
-
-
-          {/* --- Адаптации ------------------------------------------------ */}
-
-          <section className="flex min-w-0 flex-col gap-[12px]">
-            <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-              {t.adaptationsLabel}
-            </h2>
-            {detail.adaptations.length === 0 ? (
-              <p className="cf-body-sm text-cf-ink-muted">
-                {t.adaptationsEmpty}
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-[8px]">
-                {detail.adaptations.map((adaptation) => {
-                  const currentDraft = draftAdaptationId === adaptation.id;
-                  const text = currentDraft ? draftText : adaptation.body;
-                  const checks = currentDraft ? draftChecks : adaptation.checks;
-                  const open = expandedAdaptations[adaptation.id] ?? false;
-                  return (
-                    <li
-                      key={adaptation.id}
-                      data-piece-adaptation={adaptation.id}
-                      className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface"
-                    >
-                      <div className="flex flex-wrap items-center gap-[12px] p-[12px]">
-                        <Button
-                          type="button"
-                          variant="quiet"
-                          density="dense"
-                          aria-expanded={open}
-                          aria-controls={`adaptation-${adaptation.id}`}
-                          onClick={() =>
-                            setExpandedAdaptations((current) => ({
-                              ...current,
-                              [adaptation.id]: !open,
-                            }))
-                          }
-                        >
-                          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
-                          {`${adaptation.platform} · ${kindWord(
-                            adaptation.kind
-                          )} · ${
-                            adaptation.integrationName ?? adaptation.platform
-                          }`}
-                        </Button>
-                        <Status
-                          tone={
-                            adaptation.state === 'published'
-                              ? 'accent'
-                              : adaptation.state === 'error'
-                              ? 'danger'
-                              : adaptation.state === 'queued'
-                              ? 'info'
-                              : 'neutral'
-                          }
-                        >
-                          {stateWord(adaptation.state, t)}
-                        </Status>
-                        <span className="flex-1" />
-                        {adaptation.postId && adaptation.state !== 'draft' ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            density="dense"
-                            onClick={() => onOpenPost(adaptation)}
-                          >
-                            {t.openPost}
-                          </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant="quiet"
-                          density="dense"
-                          data-piece-delete-adaptation={adaptation.id}
-                          disabled={!canWrite || busy}
-                          onClick={() => onDeleteAdaptation(adaptation)}
-                        >
-                          {t.deleteAdaptation}
-                        </Button>
-                      </div>
-                      <div
-                        id={`adaptation-${adaptation.id}`}
-                        hidden={!open}
-                        className="border-t border-cf-border p-[16px]"
-                      >
-                        {text ? (
-                          <AdaptationBody
-                            locale={locale}
-                            text={text}
-                            draftId={currentDraft ? adaptation.id : undefined}
-                          />
-                        ) : (
-                          <p className="cf-body-sm text-cf-ink-muted">
-                            {locale === 'ru'
-                              ? 'Текст доступен в посте.'
-                              : 'The text is available in the post.'}
-                          </p>
-                        )}
-                        <div className="flex min-w-0 flex-col gap-[4px]">
-                          <QualityLine
-                            locale={locale}
-                            slop={checks?.slop}
-                            antiCopy={checks?.antiCopy}
-                            voice={checks?.voice}
-                            draftGaps={currentDraft ? draftGaps : null}
-                          />
-                          {/*
-                            «Было N → стало M» знает только принятая правка:
-                            перечитанная заготовка несёт один счёт — нынешний.
-                            Поэтому строка живёт до следующей перезагрузки
-                            страницы и стоит рядом со строкой качества, а не
-                            вместо неё.
-                          */}
-                          {reviewedSlop?.[adaptation.id] ? (
-                            <p
-                              data-adaptation-slop-change={adaptation.id}
-                              className="cf-caption text-cf-ink-muted"
-                            >
-                              {t.slopBeforeAfter(
-                                reviewedSlop[adaptation.id].slopBefore,
-                                reviewedSlop[adaptation.id].slopAfter
-                              )}
-                            </p>
-                          ) : null}
-                        </div>
-                        {text
-                          ? renderReview?.({ ...adaptation, body: text })
-                          : null}
-                      </div>
-                    </li>
-                  );
+              <Tab
+                value={PIECE_TAB_CORE}
+                data-piece-tab-button={PIECE_TAB_CORE}
+                className={tabClass(active === PIECE_TAB_CORE)}
+              >
+                {t.tabCore}
+              </Tab>
+              {shown.map((channel) => (
+                <Tab
+                  key={channel.id}
+                  value={channel.id}
+                  data-piece-tab-button={channel.id}
+                  data-piece-tab-state={channel.state}
+                  aria-label={`${tabLabel(channel)}: ${stateWord(
+                    channel.state,
+                    t
+                  )}`}
+                  className={tabClass(active === channel.id)}
+                >
+                  <StateSquare state={channel.state} />
+                  <span>{tabLabel(channel)}</span>
+                </Tab>
+              ))}
+            </TabList>
+          </div>
+          {more.length > 0 ? (
+            <div className="shrink-0 pb-[4px]">
+              <WorkspaceMenu
+                dataName="more-channels"
+                align="end"
+                triggerClassName={buttonClassName({
+                  variant: 'quiet',
+                  density: 'dense',
                 })}
-              </ul>
-            )}
-          </section>
+                trigger={
+                  <>
+                    <PlusIcon aria-hidden="true" />
+                    {t.tabMoreChannels}
+                  </>
+                }
+                items={more.map((channel) => ({
+                  id: channel.id,
+                  title: tabLabel(channel),
+                  description: stateWord(channel.state, t),
+                  onSelect: () => onTabChange(channel.id),
+                }))}
+              />
+            </div>
+          ) : null}
+        </div>
 
+        <TabPanel
+          value={active}
+          className="flex min-w-0 flex-col gap-[24px] pt-[8px]"
+        >
           {state === 'error' && errorMessage ? (
             <ErrorState
               title={t.pieceErrorTitle}
@@ -1123,165 +413,25 @@ export function PieceScreen({
               }
             />
           ) : null}
-
           {notice ? (
             <p role="status" className="cf-body-sm text-cf-accent">
               {notice}
             </p>
           ) : null}
-        </div>
-
-        <aside className="flex min-w-0 flex-col gap-[24px]">
-          {/*
-            Квитанция здесь только на чтение: шесть строк «поле — значение —
-            откуда взято» в сетке. Она занимает всю рабочую ширину, а не
-            узкую правую колонку; мера ограничена только у читаемого текста.
-            Бриф на этой странице уже
-            израсходован, и кнопки «Поправить» на каждой строке обещали бы
-            пересборку, которой здесь нет. Правки брифа живут на входе.
-          */}
-          {core ? (
-            <Panel
-              contentPadding="none"
-              contentClassName="flex min-w-0 flex-col gap-[12px] p-[16px]"
-            >
-              <h2 className="cf-label-sm uppercase text-cf-ink-muted">
-                {i.receiptTitle}
-              </h2>
-              <dl
-                data-piece-receipt="true"
-                className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-x-[12px] gap-y-[8px]"
-              >
-                {(core.brief as BriefFilledV2).inputSources?.some(
-                  (source) => source?.kind === 'link'
-                ) && core.brief.inputKind === 'foreign_post' ? (
-                  <>
-                    <dt className="cf-caption text-cf-ink-muted">
-                      {locale === 'ru' ? 'Понято как' : 'Understood as'}
-                    </dt>
-                    <dd className="cf-body-sm text-cf-ink">
-                      {locale === 'ru'
-                        ? 'чужой пост + ссылка'
-                        : 'foreign post + link'}
-                    </dd>
-                  </>
-                ) : null}
-                {(core.brief as BriefFilledV2).inputSources?.some(
-                  (source) => source?.kind === 'link' && source.url
-                ) ? (
-                  <>
-                    <dt className="cf-caption text-cf-ink-muted">
-                      {locale === 'ru' ? 'Материал' : 'Material'}
-                    </dt>
-                    <dd className="flex min-w-0 flex-wrap gap-[8px] cf-body-sm text-cf-ink">
-                      {(core.brief as BriefFilledV2).inputSources
-                        ?.filter(
-                          (source) => source?.kind === 'link' && source.url
-                        )
-                        .map((source, index) => (
-                          <a
-                            key={`${source.evidenceId ?? source.url}-${index}`}
-                            data-piece-input-source="link"
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="break-all underline underline-offset-2 hover:text-cf-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                          >
-                            {hostOf(source.url)}
-                          </a>
-                        ))}
-                    </dd>
-                  </>
-                ) : null}
-                {RECEIPT_FIELDS.map((field) => {
-                  const value = core.brief[field];
-                  if (
-                    typeof value !== 'string' ||
-                    !value.trim() ||
-                    value.trim().toLowerCase() === 'null'
-                  )
-                    return null;
-                  const origin = core.brief.origins?.[field] ?? 'model';
-                  return (
-                    <Fragment key={field}>
-                      <dt className="cf-caption text-cf-ink-muted">
-                        {briefLabel[field]}
-                      </dt>
-                      <dd
-                        data-brief-origin={origin}
-                        className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]"
-                      >
-                        {field === 'format'
-                          ? (
-                              {
-                                auto: t.formatAutomatic,
-                                opinion: i.formatOpinion,
-                                announcement: i.formatAnnouncement,
-                                list: i.formatList,
-                                expert: i.formatExpert,
-                                case: i.formatCase,
-                                story: i.formatStory,
-                              } as Record<string, string>
-                            )[value] ?? value
-                          : value}{' '}
-                        <span className="cf-caption text-cf-ink-muted">
-                          {`· ${originOfField(origin)}`}
-                        </span>
-                      </dd>
-                    </Fragment>
-                  );
-                })}
-              </dl>
-            </Panel>
-          ) : null}
-
-          {/* Результат ресерча остаётся видимым только там, где есть адрес. */}
-          {core && researchFacts.length ? (
-            <details
-              id="piece-text-sources"
-              data-piece-sources="true"
-              className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
-            >
-              <summary className="cursor-pointer cf-label-sm uppercase text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus">
-                <span className="inline-flex items-center gap-[8px]">
-                  {t.textSourcesTitle}
-                  <Hint label={t.textSourcesHintLabel}>{t.textSourcesHint}</Hint>
-                </span>
-              </summary>
-
-              <div className="mt-[12px] flex min-w-0 flex-col gap-[12px]">
-                <div data-piece-facts="true">
-                  <ResearchEvidenceRows
-                    locale={locale}
-                    facts={researchFacts}
-                    editableFound={Boolean(onFactSelect)}
-                    busy={!canWrite || factSaving !== null}
-                    foundErrorKey={factError?.key}
-                    foundErrorMessage={factError?.message}
-                    onToggleFound={(factKey, selected) => {
-                      if (!onFactSelect) return;
-                      setFactSaving(factKey);
-                      setFactError(null);
-                      void onFactSelect(factKey, selected)
-                        .catch(() =>
-                          setFactError({
-                            key: factKey,
-                            message: locale === 'ru'
-                              ? 'Выбор не сохранён. Попробуйте ещё раз.'
-                              : 'Selection was not saved. Try again.',
-                          })
-                        )
-                        .finally(() => setFactSaving(null));
-                    }}
-                  />
-                </div>
-              </div>
-            </details>
-          ) : null}
-        </aside>
-      </div>
+          {activeChannel ? renderChannelTab(activeChannel) : coreTab}
+        </TabPanel>
+      </Tabs>
     </section>
   );
 }
+
+/** Вкладка: подчёркивание выбранной, тишина остальных — как у раздела. */
+const tabClass = (selected: boolean) =>
+  clsx(
+    'inline-flex items-center gap-[8px] whitespace-nowrap border-b-2 px-[12px] pb-[8px] pt-[4px] cf-label-md transition-colors duration-state motion-reduce:transition-none',
+    selected
+      ? 'border-cf-accent text-cf-ink'
+      : 'border-transparent text-cf-ink-muted hover:text-cf-ink'
+  );
 
 export default PieceScreen;

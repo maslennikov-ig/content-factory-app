@@ -14,6 +14,10 @@ import {
   CHANNEL_MIN_IDEAL_LENGTH,
   CHANNEL_NOTES_LIMIT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import {
+  CHANNEL_ADDRESS_FORMS,
+  type ChannelAddressFormV2,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
 /**
  * Карточка канала «Как пишем сюда», как она приходит с двери.
@@ -83,4 +87,19 @@ export class IntegrationWritingProfileDto {
   @IsString()
   @MaxLength(CHANNEL_NOTES_LIMIT)
   notes?: string;
+
+  /**
+   * Аватар канала (`content-factory-next-97dq.38`). Отсутствие поля — оставить
+   * записанный, `null` или пустая строка — снять (аватар области по
+   * умолчанию). Что аватар принадлежит этой области, проверяет сервис.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  brandProfileId?: string | null;
+
+  /** Обращение в канале. Отсутствие поля — оставить записанное. */
+  @IsOptional()
+  @IsIn(CHANNEL_ADDRESS_FORMS)
+  addressForm?: ChannelAddressFormV2;
 }

@@ -409,7 +409,7 @@ describe('the library is the workspace’s own material', () => {
 
     // The section-level empty state, reused rather than rewritten.
     expect(document.querySelector('[data-content-materials="empty"]')).toBeTruthy();
-    expect(screen.getByText(/Материалов пока нет/)).toBeTruthy();
+    expect(screen.getByText(/Заготовок пока нет/)).toBeTruthy();
     expect(document.querySelector('[role="alert"]')).toBeNull();
   });
 });

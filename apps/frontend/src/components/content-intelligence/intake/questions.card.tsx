@@ -67,7 +67,6 @@ export function QuestionsCard({
   questions,
   busy = false,
   onSubmit,
-  onManual,
 }: {
   locale: IntakeLocale;
   questions: readonly IntakeQuestionV1[];
@@ -77,7 +76,6 @@ export function QuestionsCard({
     answers: readonly { field: BriefField; text: string }[],
     decide: readonly BriefField[]
   ) => void;
-  onManual?: () => void;
 }) {
   const t = intakeCopy[locale];
   const [answers, setAnswers] = useState<QuestionAnswers>({});
@@ -244,16 +242,6 @@ export function QuestionsCard({
         >
           {t.decideAll}
         </Button>
-        {onManual && (
-          <Button
-            type="button"
-            variant="quiet"
-            disabled={busy}
-            onClick={onManual}
-          >
-            {t.manualForm}
-          </Button>
-        )}
         {!answered && (
           <p
             role="status"
@@ -315,6 +303,12 @@ export type SuggestedQuestionsWords = {
   ownAnswerHint: string;
   /** Подсказка в поле, открытом вариантом «хочу уточнить свою позицию». */
   ownOptionPlaceholder: string;
+  /**
+   * Подпись чипа «свои слова», когда у вопроса нет предложения модели
+   * (`content-factory-next-97dq.31`): «Поправить» там поправлять нечего.
+   * Без неё — `ownAnswerLabel`.
+   */
+  own?: string;
   send: string;
   skipAll: string;
 };
@@ -373,7 +367,9 @@ export function SuggestedQuestionsCard({
     const decided: string[] = [];
     for (const question of questions) {
       const answer = answers[question.key];
-      if (!answer || answer.mode === 'decide') {
+      // «Пропустить» — тоже решение модели, а не ответ: служебная метка чипа
+      // не должна уйти в бриф или в промпт словами человека.
+      if (!answer || answer.mode === 'decide' || answer.text === SKIP) {
         decided.push(question.key);
         continue;
       }
@@ -544,7 +540,14 @@ export function SuggestedQuestionsCard({
                     writing && answer?.mode === 'own' && !answer.via
                   )}
                 >
-                  {words.fix}
+                  {/*
+                    Без предложения модели и без варианта «своими словами» от
+                    сервера поправлять нечего: чип зовётся своим ответом
+                    (`content-factory-next-97dq.31`).
+                  */}
+                  {question.suggested || question.ownOption
+                    ? words.fix
+                    : words.own ?? words.ownAnswerLabel}
                 </RadioOption>
                 <RadioOption
                   disabled={busy}

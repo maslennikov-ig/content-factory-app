@@ -12,9 +12,10 @@ import {
   catalogDelta,
   catalogFindingsOf,
   reviewGroundedOf,
-  reviewPromptV5,
+  reviewSupportedOf,
   type ReviewPromptInput,
 } from './review-prompt.v5';
+import { reviewPromptV6 } from './review-prompt.v6';
 import { readReview as readReviewV2 } from './review.v2';
 import {
   applyReviewChanges,
@@ -28,7 +29,9 @@ import {
  *
  * С 18.09.2026 (`content-factory-next-97dq.3`) проверка идёт промптом
  * `adaptation-review-prompt/v5` из `review-prompt.v5.ts`, у которого режимы
- * различаются запретами, а не словом в строке. Здешние `REVIEW_PROMPT_VERSION`
+ * различаются запретами, а не словом в строке; с 22.09.2026
+ * (`content-factory-next-97dq.33`) — его преемником v6 из
+ * `review-prompt.v6.ts`, где след заменяют конкретным, а не вырезают. Здешние `REVIEW_PROMPT_VERSION`
  * и `reviewPromptV3` остаются такими, какими ушли в записанные ответы: версия
  * в промпте — единственное, что говорит, какими указаниями получен записанный
  * ответ, и переписать её задним числом значило бы стереть эту запись.
@@ -266,15 +269,18 @@ export async function reviewOnceV3(
   warn: Warn = () => undefined
 ) {
   secret();
-  const prompt = reviewPromptV5(input);
+  const prompt = reviewPromptV6(input);
   // Опоры считаются один раз на весь ход: «было» и «стало» обязаны стоять на
   // одном материале, иначе разница врёт (`content-factory-next-97dq.10`).
+  // Утверждения отмеченных фактов — туда же (`97dq.33`).
   const grounded = reviewGroundedOf(input);
+  const supported = reviewSupportedOf(input);
   const before = catalogFindingsOf(
     input.text,
     input.language,
     input.platform,
-    grounded
+    grounded,
+    supported
   );
   return usage.executeAiOperation(
     org,
@@ -328,7 +334,8 @@ export async function reviewOnceV3(
           text,
           input.language,
           input.platform,
-          grounded
+          grounded,
+          supported
         );
         return {
           changes,

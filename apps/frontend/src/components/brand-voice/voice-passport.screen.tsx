@@ -6,6 +6,8 @@ import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Hint } from '@contentfactory/react/layout/hint';
 import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
+import { Segmented } from '../ui/segmented';
+import { SectionLabel } from '../ui/section-label';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
 /**
@@ -46,6 +48,11 @@ export type PassportVoice = Readonly<{
   neverSay: readonly string[];
   /** The fifth line the wizard asks for, in the person's own words. */
   sentenceStyle?: string;
+  /**
+   * How this avatar addresses the reader by default (`97dq.38`). Absent is
+   * «не задано»: the model decides from the text, as it did before.
+   */
+  addressForm?: AvatarAddressForm;
   versionLabel: string;
   activeSince: string;
   /**
@@ -71,6 +78,11 @@ export type PassportVoice = Readonly<{
    */
   examples?: readonly { text: string }[];
 }>;
+
+/** The avatar layer of the address setting; a channel may override it. */
+export type AvatarAddressForm = 'ty' | 'vy';
+
+type AddressChoice = 'unset' | AvatarAddressForm;
 
 export type VoicePassportState =
   | 'default'
@@ -231,6 +243,7 @@ export function VoicePassportScreen({
   density = 'full',
   saved = false,
   onEditField,
+  onAddressForm,
   onAddExample,
   onRemoveExample,
   onRefreshExamples,
@@ -250,6 +263,11 @@ export function VoicePassportScreen({
    * be shown a button that will refuse them.
    */
   onEditField?: (key: ProfileField, text: string) => void;
+  /**
+   * «Обращение к читателю»: `null` is «Не задано». Saved at once — the choice
+   * is cheap, reversible and one of three, so it takes no «Сохранить».
+   */
+  onAddressForm?: (value: AvatarAddressForm | null) => void;
   onAddExample?: (text: string) => void;
   onRemoveExample?: (index: number) => void;
   onRefreshExamples?: () => void;
@@ -390,6 +408,41 @@ export function VoicePassportScreen({
               );
             })}
           </dl>
+
+          <div
+            data-voice-address={voice.addressForm ?? 'unset'}
+            className="mt-[16px] flex flex-wrap items-center gap-[8px]"
+          >
+            <SectionLabel as="span">{t.passportAddress}</SectionLabel>
+            <Hint label={t.hintFor(t.passportAddress)}>
+              {t.passportHintAddress}
+            </Hint>
+            {onAddressForm ? (
+              <Segmented<AddressChoice>
+                label={t.passportAddress}
+                value={voice.addressForm ?? 'unset'}
+                options={[
+                  { value: 'unset', label: t.passportAddressUnset },
+                  { value: 'ty', label: t.passportAddressTy },
+                  { value: 'vy', label: t.passportAddressVy },
+                ]}
+                aria-disabled={busy || undefined}
+                onChange={(next) => {
+                  if (busy) return;
+                  onAddressForm(next === 'unset' ? null : next);
+                }}
+                className="max-w-full flex-wrap"
+              />
+            ) : (
+              <span className="cf-body-sm text-cf-ink">
+                {voice.addressForm === 'ty'
+                  ? t.passportAddressTy
+                  : voice.addressForm === 'vy'
+                  ? t.passportAddressVy
+                  : t.passportAddressUnset}
+              </span>
+            )}
+          </div>
 
           {voice.sentenceLength || voice.dashShare ? (
             <div className="mt-[16px] flex flex-wrap gap-[24px] border-t border-cf-border pt-[16px]">

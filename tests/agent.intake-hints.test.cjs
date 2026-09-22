@@ -664,3 +664,27 @@ describe('third walk unavoidable adaptation question', () => {
     expect(chatModel.prompts[0]).not.toContain('Only if an automatic channel setting');
   });
 });
+
+describe('97dq.31 takeaway of the first adaptation reaches the prompt', () => {
+  test('the chosen takeaway is its own brief line, not a quoted answer', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+
+    await service.generateContent(
+      withHints({ intake: { takeaway: 'Я перестал назначать себе сроки в одиночку' } })
+    );
+    const prompt = chatModel.prompts[0];
+
+    expect(prompt).toContain(
+      '- What readers of this channel should take away from this post (the author chose it; build the post so this is what stays with the reader, without quoting this line): Я перестал назначать себе сроки в одиночку'
+    );
+    expect(prompt).not.toContain("The author's answers about this channel");
+  });
+
+  test('no takeaway, no line', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+    await service.generateContent(withHints());
+    expect(chatModel.prompts[0]).not.toContain('What readers of this channel should take away');
+  });
+});

@@ -171,17 +171,17 @@ const PROGRESS_SIZE_STYLE =
   /\b(?:width|minWidth|maxWidth|height|minHeight|maxHeight|inlineSize|blockSize)\s*:/;
 
 /**
- * The three screens that still size the bar themselves.
+ * The two screens that still size the bar themselves.
  *
- * Two are a 32px stub beside an upload row; the third is the running row the
- * owner photographed, written by hand at 128px before the shared row existed.
- * The intake screen was the fourth and left on 13.09.2026, which is what this
- * list is for: all three are debt to move onto `WorkingLine`, not permission to
- * add a fourth, and the guard fails on a file that leaves the list as well as on
+ * Both are a 32px stub beside an upload row. The intake screen was the fourth
+ * and left on 13.09.2026; the piece page's running row, written by hand at
+ * 128px before the shared row existed, was the third and left with the
+ * adaptation workspace (`97dq.37`) — it is a `WorkingLine` now. That is what
+ * this list is for: both are debt to move onto `WorkingLine`, not permission to
+ * add a third, and the guard fails on a file that leaves the list as well as on
  * one that joins it.
  */
 const PROGRESS_GEOMETRY_ALLOWED = [
-  'apps/frontend/src/components/content-intelligence/pieces/piece.screen.tsx',
   'apps/frontend/src/components/media/media.component.tsx',
   'apps/frontend/src/components/third-parties/third-party.media-library.tsx',
 ];
@@ -453,7 +453,6 @@ const CUSTOM_ALLOWED = [
   'apps/frontend/src/components/launches/bot.picture.tsx',
   'apps/frontend/src/components/launches/comments/comment.component.tsx',
   'apps/frontend/src/components/launches/general.preview.component.tsx',
-  'apps/frontend/src/components/launches/helpers/date.picker.tsx',
   'apps/frontend/src/components/layout/support.tsx',
   'apps/frontend/src/components/new-launch/dummy.code.component.tsx',
   'apps/frontend/src/components/new-launch/providers/reddit/reddit.provider.tsx',

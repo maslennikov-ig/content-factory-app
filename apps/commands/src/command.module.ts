@@ -6,6 +6,7 @@ import { RefreshTokens } from './tasks/refresh.tokens';
 import { ConfigurationTask } from './tasks/configuration';
 import { PruneProductEvents } from './tasks/prune.product.events';
 import { RerenderAdaptationBold } from './tasks/rerender.adaptation.bold';
+import { StripAdaptationCitationLabels } from './tasks/strip.adaptation.citation.labels';
 
 @Module({
   // `DatabaseModule` wires services that take a `TemporalService` — the
@@ -21,6 +22,7 @@ import { RerenderAdaptationBold } from './tasks/rerender.adaptation.bold';
     ConfigurationTask,
     PruneProductEvents,
     RerenderAdaptationBold,
+    StripAdaptationCitationLabels,
   ],
   get exports() {
     return [...this.imports, ...this.providers];

@@ -20,6 +20,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   Max,
@@ -34,6 +35,10 @@ import {
   READY_ADAPTATIONS_DEFAULT_LIMIT,
   READY_ADAPTATIONS_MAX_LIMIT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/ready-adaptations.contract';
+import { ADAPTATION_EDIT_BODY_MAX_CHARS } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
+
+/** «Пожелание» и «что унести» — одна строка, а не второй бриф. */
+export const PIECE_OVERRIDE_TEXT_MAX = 500;
 
 /** Bounded calendar chooser read; the organization always comes from session. */
 export class ReadyAdaptationsQueryDto {
@@ -83,7 +88,7 @@ export const PIECE_BRIEF_FIELDS = [
   'audience',
 ] as const;
 
-/** Ключи вопросов интервью — те же девять, что `PieceQuestionKeyV1`. */
+/** Ключи вопросов интервью — те же десять, что `PieceQuestionKeyV1`. */
 export const PIECE_QUESTION_KEYS = [
   'key_idea',
   'personal_detail',
@@ -94,6 +99,7 @@ export const PIECE_QUESTION_KEYS = [
   'own_number',
   'screenshot',
   'log',
+  'takeaway',
 ] as const;
 
 /** Состояния фильтра списка — те же четыре, что `AdaptationStateV1`. */
@@ -177,6 +183,39 @@ export class PieceAdaptOptionsDto {
   isPicture?: boolean;
 }
 
+/**
+ * «Для этого поста» (`content-factory-next-97dq.38`), форма —
+ * `PieceAdaptOverridesV1`. Сохраняется только в вышедшем варианте.
+ */
+export class PieceAdaptOverridesDto {
+  @IsOptional()
+  @IsIn(['shorter', 'channel', 'longer'])
+  length?: 'shorter' | 'channel' | 'longer';
+
+  @IsOptional()
+  @IsIn(['avatar', 'ty', 'vy'])
+  addressForm?: 'avatar' | 'ty' | 'vy';
+
+  /** Аватар области; чей он, проверяет сервис (`PIECE_AVATAR_UNKNOWN`). */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  brandProfileId?: string;
+
+  /** «Пожелание» — одна строка человека. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(PIECE_OVERRIDE_TEXT_MAX)
+  wish?: string;
+
+  /** Что читатели должны унести — ответ на вопрос перед первой адаптацией. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(PIECE_OVERRIDE_TEXT_MAX)
+  takeaway?: string;
+}
+
 export class PieceAdaptDto {
   /**
    * Канал обязателен: адаптация без площадки — это заготовка, которая уже
@@ -225,6 +264,48 @@ export class PieceAdaptDto {
   @ValidateNested()
   @Type(() => GeneratorBrandProfileSelectionDto)
   brandProfileSelection?: GeneratorBrandProfileSelectionDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PieceAdaptOverridesDto)
+  overrides?: PieceAdaptOverridesDto;
+}
+
+/** Картинка поста — одна, из медиатеки области; путь сервер берёт сам. */
+export class PieceAdaptationImageDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  id: string;
+}
+
+/**
+ * Ручная правка черновика (`97dq.37`), форма —
+ * `PieceAdaptationEditRequestV1`. Пустое тело — отказ сервиса
+ * `ADAPTATION_EDIT_EMPTY`, а не «ничего не менять молча».
+ */
+export class PieceAdaptationEditDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(ADAPTATION_EDIT_BODY_MAX_CHARS)
+  body?: string;
+
+  /** `null` снимает картинку; отсутствие поля — не трогать. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PieceAdaptationImageDto)
+  image?: PieceAdaptationImageDto | null;
+}
+
+/** Выход в календарь (`97dq.37`), форма — `PieceAdaptationScheduleRequestV1`. */
+export class PieceAdaptationScheduleDto {
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  date?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  now?: boolean;
 }
 
 /**

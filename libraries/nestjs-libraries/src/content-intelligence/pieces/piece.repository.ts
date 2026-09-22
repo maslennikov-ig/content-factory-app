@@ -66,6 +66,29 @@ export type PieceRow = {
   } | null;
 };
 
+/** Черновик адаптации, как его читает экран адаптации (`97dq.37`). */
+export type WorkspaceDraftRow = {
+  id: string;
+  body: string | null;
+  platform: string;
+  mediaId: string | null;
+  postId: string | null;
+  post: {
+    id: string;
+    state: string;
+    deletedAt: Date | null;
+    content: string;
+    image: string | null;
+    settings: string | null;
+    integration: {
+      id: string;
+      name: string;
+      providerIdentifier: string;
+      additionalSettings: string | null;
+    };
+  } | null;
+};
+
 export type ReadyAdaptationRow = {
   id: string;
   title: string | null;
@@ -349,6 +372,121 @@ export class PieceRepository {
       });
       if (post.count !== 1) throw reviewConflict();
       return { accepted: true as const };
+    });
+  }
+
+  /**
+   * Аватар области для «Кто говорит» (`content-factory-next-97dq.38`).
+   *
+   * Только живой и только свой: `organizationId` в том же `where`, так что
+   * чужой идентификатор читается как отсутствующий. Голос аватара — его
+   * `activeVersionId`; без него писать от имени аватара нечем.
+   */
+  findAvatar(
+    organizationId: string,
+    avatarId: string
+  ): Promise<{ id: string; activeVersionId: string | null } | null> {
+    return this.client().projectBrandProfile.findFirst({
+      where: { organizationId, id: avatarId, deletedAt: null },
+      select: { id: true, activeVersionId: true },
+    });
+  }
+
+  /**
+   * Черновик адаптации для экрана адаптации (`97dq.37`): строка, её пост и
+   * канал поста. Обе связи — через `organizationId`.
+   */
+  workspaceDraft(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string
+  ): Promise<WorkspaceDraftRow | null> {
+    return this.client().contentDerivation.findFirst({
+      where: { organizationId, contentPieceId: pieceId, id: adaptationId },
+      select: {
+        id: true,
+        body: true,
+        platform: true,
+        mediaId: true,
+        postId: true,
+        post: {
+          select: {
+            id: true,
+            state: true,
+            deletedAt: true,
+            content: true,
+            image: true,
+            settings: true,
+            integration: {
+              select: {
+                id: true,
+                name: true,
+                providerIdentifier: true,
+                additionalSettings: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /** Файл медиатеки этой области — тот, что человек выбрал в «картинке». */
+  findMedia(
+    organizationId: string,
+    mediaId: string
+  ): Promise<{
+    id: string;
+    path: string;
+    alt: string | null;
+    thumbnail: string | null;
+  } | null> {
+    return this.client().media.findFirst({
+      where: { organizationId, id: mediaId, deletedAt: null },
+      select: { id: true, path: true, alt: true, thumbnail: true },
+    });
+  }
+
+  /**
+   * Ручная правка: тело адаптации и её черновик одной транзакцией.
+   *
+   * Пост меняется только пока он `DRAFT` и не удалён: запись в очередь или
+   * в опубликованное — ровно то, чего экран адаптации не делает правкой. Любой
+   * из двух промахов бросает и откатывает первую запись; какой именно,
+   * говорит `reason`.
+   */
+  editAdaptation(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    postId: string,
+    change: {
+      body?: string;
+      content?: string;
+      image?: string;
+      mediaId?: string | null;
+    }
+  ) {
+    return this.client().$transaction(async (tx: PrismaClientLike) => {
+      const derivation = await tx.contentDerivation.updateMany({
+        where: { organizationId, contentPieceId: pieceId, id: adaptationId, postId },
+        data: {
+          ...(change.body !== undefined ? { body: change.body } : {}),
+          ...(change.mediaId !== undefined ? { mediaId: change.mediaId } : {}),
+        },
+      });
+      if (derivation.count !== 1)
+        throw Object.assign(new Error('adaptation moved'), { reason: 'ADAPTATION_NOT_FOUND' });
+      const post = await tx.post.updateMany({
+        where: { organizationId, id: postId, state: 'DRAFT', deletedAt: null },
+        data: {
+          ...(change.content !== undefined ? { content: change.content } : {}),
+          ...(change.image !== undefined ? { image: change.image } : {}),
+        },
+      });
+      if (post.count !== 1)
+        throw Object.assign(new Error('post is not a draft'), { reason: 'ADAPTATION_NOT_DRAFT' });
+      return { saved: true as const };
     });
   }
 

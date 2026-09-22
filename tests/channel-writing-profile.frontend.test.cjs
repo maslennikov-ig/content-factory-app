@@ -68,7 +68,9 @@ const response = (body, status = 200) =>
 
 let calls = [];
 
-const serve = ({ stored = true, failFirstGet = false } = {}) => {
+const AVATARS_URL = '/content-intelligence/voice/avatars';
+
+const serve = ({ stored = true, failFirstGet = false, avatars = [] } = {}) => {
   calls = [];
   let profile = DEFAULT_PROFILE;
   let isStored = stored;
@@ -78,6 +80,9 @@ const serve = ({ stored = true, failFirstGet = false } = {}) => {
     const body = init.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ url, method, body });
 
+    if (method === 'GET' && url === AVATARS_URL) {
+      return response({ state: 'default', avatars, canManage: true, limit: 8 });
+    }
     if (method === 'GET' && url === URL) {
       getCount += 1;
       if (failFirstGet && getCount === 1) return response({}, 500);
@@ -94,6 +99,10 @@ const serve = ({ stored = true, failFirstGet = false } = {}) => {
         ctaKind: body.ctaKind,
         formatPreference: body.formatPreference,
         notes: body.notes ?? null,
+        ...(body.brandProfileId !== undefined
+          ? { brandProfileId: body.brandProfileId }
+          : {}),
+        ...(body.addressForm ? { addressForm: body.addressForm } : {}),
       };
       isStored = true;
       return response(answer(profile, true));
@@ -147,14 +156,22 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
     )
   );
 
+  // Six policy rows plus «Обращение» (97dq.38). «Кто говорит здесь» is not
+  // drawn: this workspace has no second avatar to choose.
   await waitFor(() =>
-    expect(screen.getAllByRole('radiogroup')).toHaveLength(6)
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(7)
   );
+  expect(screen.queryByRole('combobox', { name: 'Кто говорит здесь' })).toBeNull();
+  expect(
+    screen.getByRole('dialog', { name: 'Как пишем в «Мастерская»' })
+  ).not.toBeNull();
   expect(
     screen.getByRole('textbox', { name: 'Что ещё важно про этот канал' })
   ).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Сохранить' })).not.toBeNull();
-  expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+  expect(
+    calls.filter((call) => call.method === 'GET' && call.url === URL)
+  ).toHaveLength(1);
 });
 
 test('inline editing sends one PUT and shows the normalized saved value', async () => {
@@ -194,7 +211,7 @@ test('Cancel restores the view without PUT or DELETE', async () => {
   await screen.findByRole('button', { name: 'Изменить' });
   fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
   fireEvent.click(screen.getByRole('radio', { name: 'без эмодзи' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
 
   expect(panel().dataset.channelWritingProfileState).toBe('view');
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
@@ -230,13 +247,17 @@ test('loading stays inside the panel', () => {
 test('an error is recoverable in place', async () => {
   serve({ failFirstGet: true });
   draw();
-  const retry = await screen.findByRole('button', { name: 'Повторить' });
+  const retry = await screen.findByRole('button', {
+    name: 'Попробовать снова',
+  });
   expect(panel().dataset.channelWritingProfileState).toBe('error');
   fireEvent.click(retry);
   await waitFor(() =>
     expect(panel().dataset.channelWritingProfileState).toBe('view')
   );
-  expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+  expect(
+    calls.filter((call) => call.method === 'GET' && call.url === URL)
+  ).toHaveLength(2);
 });
 
 test('read-only users see values and no editing action', async () => {
@@ -249,4 +270,92 @@ test('read-only users see values and no editing action', async () => {
   expect(screen.getByText('500–1000')).not.toBeNull();
   expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
+});
+
+test('the panel is named «Как пишем в «<канал>»», the one name of this object', async () => {
+  serve();
+  draw();
+  await waitFor(() =>
+    expect(panel().dataset.channelWritingProfileState).toBe('view')
+  );
+  expect(
+    screen.getByRole('heading', { name: 'Как пишем в «Мастерская»' })
+  ).not.toBeNull();
+  expect(screen.queryByText('Как пишем сюда')).toBeNull();
+  expect(screen.queryByText('Настройки канала')).toBeNull();
+});
+
+test('who speaks and the address form are saved with the channel card', async () => {
+  serve({
+    avatars: [
+      { id: 'av-1', name: 'Игорь', isDefault: true, analysed: true },
+      { id: 'av-2', name: 'Студия', kind: 'BRAND', analysed: true },
+    ],
+  });
+  draw({ initiallyEditing: true });
+
+  const speaker = await screen.findByRole('combobox', {
+    name: 'Кто говорит здесь',
+  });
+  expect(
+    [...speaker.querySelectorAll('option')].map((option) => option.textContent)
+  ).toEqual(['По умолчанию', 'Игорь', 'Студия']);
+  expect(speaker.value).toBe('');
+  fireEvent.change(speaker, { target: { value: 'av-2' } });
+  expect(
+    screen.getByRole('radio', { name: 'как в аватаре' }).getAttribute('aria-checked')
+  ).toBe('true');
+  fireEvent.click(screen.getByRole('radio', { name: 'на «вы»' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+  await waitFor(() =>
+    expect(panel().dataset.channelWritingProfileState).toBe('view')
+  );
+  expect(calls.find((call) => call.method === 'PUT').body).toMatchObject({
+    brandProfileId: 'av-2',
+    addressForm: 'vy',
+  });
+  expect(screen.getByText('Студия')).not.toBeNull();
+  expect(screen.getByText('на «вы»')).not.toBeNull();
+});
+
+test('«По умолчанию» is an explicit null, not a missing field', async () => {
+  serve({
+    avatars: [
+      { id: 'av-1', name: 'Игорь', isDefault: true },
+      { id: 'av-2', name: 'Студия' },
+    ],
+  });
+  draw({ initiallyEditing: true });
+  const speaker = await screen.findByRole('combobox', {
+    name: 'Кто говорит здесь',
+  });
+  fireEvent.change(speaker, { target: { value: 'av-1' } });
+  fireEvent.change(speaker, { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() =>
+    expect(calls.some((call) => call.method === 'PUT')).toBe(true)
+  );
+  expect(calls.find((call) => call.method === 'PUT').body.brandProfileId).toBe(
+    null
+  );
+});
+
+test('the busy save keeps its label and width through Button loading', async () => {
+  serve();
+  let release;
+  const base = global.fetch;
+  global.fetch = (url, init = {}) =>
+    String(init.method || 'GET').toUpperCase() === 'PUT'
+      ? new Promise((resolve) => {
+          release = () => resolve(base(url, init));
+        })
+      : base(url, init);
+  draw({ initiallyEditing: true });
+  const save = await screen.findByRole('button', { name: /Сохранить/ });
+  fireEvent.click(save);
+  await waitFor(() => expect(save.getAttribute('aria-busy')).toBe('true'));
+  expect(save.textContent).toContain('Сохранить');
+  expect(save.textContent).toContain('Сохраняем…');
+  await act(async () => release());
 });

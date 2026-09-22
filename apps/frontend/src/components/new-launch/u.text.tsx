@@ -1,5 +1,10 @@
 'use client';
 
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import {
+  composeCopy,
+  resolveComposeLocale,
+} from '@contentfactory/frontend/components/new-launch/compose.copy';
 import { FC, useCallback } from 'react';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
@@ -74,6 +79,8 @@ export const UText: FC<{
   editor: any;
   currentValue: string;
 }> = ({ editor }) => {
+  const { language } = useVariables();
+  const copy = composeCopy[resolveComposeLocale(language)];
   const mark = () => {
     editor?.commands?.unsetBold();
     editor?.commands?.toggleUnderline();
@@ -82,7 +89,7 @@ export const UText: FC<{
   return (
     <div
       data-tooltip-id="tooltip"
-      data-tooltip-content="Underline"
+      data-tooltip-content={copy.toolbarUnderline}
       onClick={mark}
       className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
     >

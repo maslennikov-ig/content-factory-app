@@ -359,3 +359,102 @@ describe('the card cannot promise more than the platform accepts', () => {
     });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Слои настроек (`content-factory-next-97dq.38`): аватар и обращение канала.
+ *
+ * Карточку сохраняют двое — диалог канала и «Запомнить для канала» на экране
+ * адаптации, — и первый не знает о полях второго. Поэтому отсутствующее поле
+ * оставляет записанное, а чужой аватар не проходит.
+ */
+describe('the card remembers the channel avatar and the address form', () => {
+  const layeredService = (row, saved, avatars = ['avatar-own']) =>
+    new IntegrationService(
+      {
+        getWritingProfile: async () => row,
+        hasAvatar: async (org, id) => org === 'org-1' && avatars.includes(id),
+        updateWritingProfile: async (org, id, profile) => {
+          saved.push({ org, id, profile });
+          return { ...row, writingProfile: profile };
+        },
+      },
+      {},
+      { getSocialIntegration: (identifier) => (identifier === 'telegram' ? telegram : null) },
+      {},
+      {},
+      {},
+      {}
+    );
+
+  test('an avatar of this space and an address form are stored and read back', async () => {
+    const saved = [];
+    const answer = await layeredService(channelRow(), saved).updateWritingProfile(
+      'org-1',
+      'channel-1',
+      cardBody({ brandProfileId: 'avatar-own', addressForm: 'vy' })
+    );
+
+    expect(saved[0].profile).toMatchObject({ brandProfileId: 'avatar-own', addressForm: 'vy' });
+    expect(answer.profile.brandProfileId).toBe('avatar-own');
+    expect(answer.profile.addressForm).toBe('vy');
+  });
+
+  test('an avatar of another space is refused like any other bad field', async () => {
+    const saved = [];
+    await expect(
+      layeredService(channelRow(), saved).updateWritingProfile(
+        'org-1',
+        'channel-1',
+        cardBody({ brandProfileId: 'avatar-of-org-2' })
+      )
+    ).rejects.toMatchObject({
+      response: { code: 'CHANNEL_WRITING_PROFILE_INVALID', reason: 'BRAND_PROFILE_UNKNOWN' },
+      status: 422,
+    });
+    expect(saved).toEqual([]);
+  });
+
+  test('a save that does not mention them keeps what was remembered', async () => {
+    const saved = [];
+    await layeredService(
+      channelRow({ brandProfileId: 'avatar-own', addressForm: 'ty' }),
+      saved
+    ).updateWritingProfile('org-1', 'channel-1', cardBody());
+
+    expect(saved[0].profile).toMatchObject({ brandProfileId: 'avatar-own', addressForm: 'ty' });
+  });
+
+  test('null takes the channel avatar off; «avatar» is stored as said', async () => {
+    const saved = [];
+    await layeredService(
+      channelRow({ brandProfileId: 'avatar-own', addressForm: 'ty' }),
+      saved
+    ).updateWritingProfile(
+      'org-1',
+      'channel-1',
+      cardBody({ brandProfileId: null, addressForm: 'avatar' })
+    );
+
+    expect(saved[0].profile).not.toHaveProperty('brandProfileId');
+    expect(saved[0].profile.addressForm).toBe('avatar');
+  });
+
+  test('the door body accepts both fields and refuses an unknown form', () => {
+    require('reflect-metadata');
+    const { plainToInstance } = require('class-transformer');
+    const { validateSync } = require('class-validator');
+    const { IntegrationWritingProfileDto } = require('./helpers/load-ts-module.cjs').loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/dtos/integrations/integration.writing.profile.dto.ts'
+    );
+    const refusals = (body) =>
+      validateSync(plainToInstance(IntegrationWritingProfileDto, body), {
+        whitelist: true,
+      }).map((failure) => failure.property);
+
+    expect(refusals(cardBody({ brandProfileId: 'avatar-own', addressForm: 'ty' }))).toEqual([]);
+    expect(refusals(cardBody({ brandProfileId: null }))).toEqual([]);
+    expect(refusals(cardBody({ addressForm: 'thou' }))).toEqual(['addressForm']);
+  });
+});

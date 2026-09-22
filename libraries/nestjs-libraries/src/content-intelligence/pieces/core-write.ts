@@ -53,6 +53,8 @@ import {
   antiCopyReport,
 } from '@contentfactory/nestjs-libraries/content-intelligence/text-quality/anti-copy';
 import { oneLine } from '../intake/intake.prompts';
+import { ownRefutedBySearch } from './piece-facts.v2';
+import { stripCitationLabels } from '../text-quality/citation-labels';
 
 /** По какой площадке считаются пороги штампов у нейтральной сути. */
 export const CORE_SLOP_PLATFORM = 'core';
@@ -185,22 +187,24 @@ const fenced = (title: string, lines: string[]): string =>
     : '';
 
 /**
- * Вынес ли поиск по строке вердикт и оказался ли он не «подтверждено».
+ * Своё слово, по которому поиск вынес вердикт, и вердикт не «подтверждено».
  *
- * Единственный источник правды здесь — статус самой строки, а не список
+ * Единственный источник правды здесь — сама строка, а не список
  * `brief.ungrounded`: `ungrounded` из этих же строк и считается
- * (`ungroundedOf` через `selectedFactsBrief`), и сверяться с производным
- * списком значило бы завести второй счёт того же самого — ровно тот способ,
- * которым «25 тысяч» однажды уже уехали в суть подтверждёнными.
+ * (`ungroundedStatements`), и сверяться с производным списком значило бы
+ * завести второй счёт того же самого — ровно тот способ, которым «25 тысяч»
+ * однажды уже уехали в суть подтверждёнными.
  *
- * Поле `status` спрашивается явно, без подстановки по `verified`: его ставит
- * ресерч, и его отсутствие означает «поиска по этой строке не было». Мысль,
- * к которой ничего не искали, от этой версии не меняется вовсе — иначе своё
- * слово человека молча переехало бы в «не подтвердилось поиском», хотя
- * проверять его никто не ходил.
+ * «Поиск ходил» читается по его следам на строке (`searchRuledOn`), а не по
+ * `status` (`content-factory-next-97dq.32`, P1). До этой правки здесь стояло
+ * «любой статус, кроме confirmed, — вердикт поиска», а вход ставит своим
+ * строкам «не проверено» сразу, без всякого поиска: мысль про Исландию без
+ * ресерча отправила все три своих числа в блок «не подтвердилось поиском»,
+ * правило системы запретило их печатать, и суть сжалась до одной фразы без
+ * единой цифры. Мысль, к которой ничего не искали, от ресерча не меняется
+ * вовсе: своё слово человека стоит под «факты подтверждённые» (§9.5).
  */
-const searchRefuted = (fact: BriefFilledV1['facts'][number]): boolean =>
-  !fact.verified && Boolean(fact.status) && fact.status !== 'confirmed';
+const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
   const words = CORE_WRITE_BLOCK_TITLES_V10[input.language];
@@ -405,7 +409,16 @@ export const fallbackCore = (
         said.find((answer) => answer.key === 'key_idea')?.text ?? ''
       ) ||
       editorialAnswerText(personText),
-    ...brief.facts.filter(isOwnOrConfirmed).map((fact) => fact.statement),
+    /*
+      Своё, которое поиск опроверг или не нашёл, в запасную суть не входит
+      (`content-factory-next-97dq.32`): у промпта для него свой блок с
+      запретом, а здесь блоков нет, и строка напечаталась бы как факт —
+      «выросла на 40%», которого ресерч не нашёл. Поправка источника
+      (`origin: 'search'`) — не слово человека и входит, как и прежде.
+    */
+    ...brief.facts
+      .filter((fact) => isOwnOrConfirmed(fact) && !ownRefutedBySearch(fact))
+      .map((fact) => fact.statement),
     ...said
       .filter((answer) => answer.key === 'personal_detail')
       .map((answer) => editorialAnswerText(answer.text)),
@@ -508,6 +521,11 @@ export async function writeCore(
     text = '';
   }
 
+  // Промпт сути меток не выдаёт, но опоры, из которых она пишется, приходят
+  // из ответов модели брифа и разбора ресерча, где метки есть
+  // (`content-factory-next-97dq.40`). Суть человек читает и правит — меток
+  // источника в ней не бывает ни при каком ответе.
+  text = trimmed(stripCitationLabels(text));
   if (text) return shaped(text, 'model');
   // Без модели ссылки из задания всё равно не теряются: последним абзацем.
   const keptLinks = input.instruction?.links ?? [];

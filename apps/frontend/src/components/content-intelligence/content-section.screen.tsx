@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import clsx from 'clsx';
-import { Segmented } from '../ui/segmented';
 import { ContentIntelligenceSettings } from './content-intelligence.settings';
 import {
   contentSectionCopy,
@@ -14,7 +13,6 @@ import { ContentMaterialsPlaceholder } from './content-materials.placeholder';
 import { ContentFactsShowcase } from './content-facts.showcase';
 import { ContentLeadsTab } from './content-leads.tab';
 import { VoiceTab } from '../brand-voice/voice-tab';
-import { VoiceBriefContainer } from '../brand-voice/voice-brief.container';
 import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
 import { PiecesContainer } from './pieces/pieces.container';
@@ -83,39 +81,6 @@ export type { ContentSectionLocale };
  */
 export { CONTENT_TABS } from './content-section.tabs';
 import { CONTENT_TABS } from './content-section.tabs';
-
-/** Вход одной мыслью и ручная форма — два способа начать заготовку. */
-export type BriefView = 'intake' | 'manual';
-
-const BRIEF_VIEWS: readonly BriefView[] = ['intake', 'manual'];
-
-export function BriefViewSwitch({
-  locale,
-  view,
-  onChange,
-}: {
-  locale: ContentSectionLocale;
-  view: BriefView;
-  onChange: (view: BriefView) => void;
-}) {
-  const words = contentSectionCopy[locale];
-  const label = {
-    intake: words.briefViewIntake,
-    manual: words.briefViewManual,
-  } as const;
-
-  return (
-    <Segmented<BriefView>
-      label={words.briefViewLabel}
-      value={view}
-      onChange={onChange}
-      options={BRIEF_VIEWS.map((option) => ({
-        value: option,
-        label: label[option],
-      }))}
-    />
-  );
-}
 
 /**
  * The frame: section context, five tabs and one panel.
@@ -247,8 +212,9 @@ export function ContentSectionScreen({
   useEffect(() => {
     setTab(initialTab === 'archive' ? 'materials' : initialTab);
   }, [initialTab]);
-  // Вкладка «Бриф» открывается входом одной мыслью; ручная форма — второй вид.
-  const [briefView, setBriefView] = useState<BriefView>('intake');
+  // Вкладка «Бриф» — только вход одной мыслью. Ручной бриф и переключатель
+  // «По мысли · Вручную» убраны решением владельца 22.09.2026
+  // (`content-factory-next-97dq.36`): ручным режимом не пользовались.
   /*
     Повод из «Откуда идеи», перенесённый во вход. До 06.09.2026 «Взять в
     работу» открывало вкладку «Бриф» и оставляло человека перед пустой формой
@@ -303,26 +269,12 @@ export function ContentSectionScreen({
         <ContentLeadsTab
           onNavigateToBrief={(lead) => {
             setIntakePrefill(leadToIntakePrefill(lead));
-            setBriefView('intake');
             changeTab('brief');
           }}
         />
       ) : tab === 'brief' ? (
         <div className="flex min-w-0 flex-col gap-[16px]">
-          <BriefViewSwitch
-            locale={locale}
-            view={briefView}
-            onChange={setBriefView}
-          />
-          {briefView === 'intake' ? (
-            <IntakeContainer
-              surface="brief"
-              prefill={intakePrefill}
-              onSwitchToManual={() => setBriefView('manual')}
-            />
-          ) : (
-            <VoiceBriefContainer />
-          )}
+          <IntakeContainer surface="brief" prefill={intakePrefill} />
         </div>
       ) : tab === 'materials' ? (
         <div className="flex min-w-0 flex-col gap-[16px]">

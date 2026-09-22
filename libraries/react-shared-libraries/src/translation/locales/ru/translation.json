@@ -1698,5 +1698,6 @@
   "intake_door_short": "Заготовка",
   "help": "Помощь",
   "uploading": "Загрузка",
-  "importing": "Импорт"
+  "importing": "Импорт",
+  "pick_time": "Время"
 }

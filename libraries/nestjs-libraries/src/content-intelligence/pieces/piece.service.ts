@@ -18,12 +18,13 @@ import {
   checkableClaims,
   claimQueries,
 } from './review-claims';
-import { catalogFindingsOf } from './review-prompt.v5';
+import { catalogFindingsOf, reviewSupportedOf } from './review-prompt.v5';
 import { reviewTextOf } from './review-input';
 import {
   factKind,
   factStatus,
   selectedFactsBrief,
+  ungroundedStatements,
   type PieceFactV2,
 } from './piece-facts.v2';
 import { briefForGate } from './core-questions';
@@ -68,6 +69,7 @@ import type {
   GeneratorRunInput,
   IntakeGenerationHintsV1,
   IntakeMaterialHintV1,
+  IntakePostOverridesV1,
 } from '@contentfactory/nestjs-libraries/agent/generator-run-input';
 import {
   INTAKE_HINTS_VERSION,
@@ -87,6 +89,7 @@ import type {
   PieceAnswerRequestV1,
   PieceAnswerV1,
   PieceCellV1,
+  PieceChannelTabV1,
   PieceDetailV1,
   PieceFieldAnswerV1,
   PieceLeadSourceV1,
@@ -147,8 +150,13 @@ import {
   type VoiceCheckPort,
 } from '../brand-voice/voice-check.port';
 import { adaptationChecksMany, adaptationChecksOf } from './adaptation-checks';
+import {
+  TAKEAWAY_QUESTION_KEY,
+  askTakeawayV3,
+} from '../channels/channel-question.v3';
 import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 import { editorHtml } from '../brief/editor-html';
+import { stripCitationLabels } from '../text-quality/citation-labels';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import { linksOf } from '../intake/intake-kind';
 import { oneLine } from '../intake/intake.prompts';
@@ -176,6 +184,18 @@ import {
   READY_ADAPTATIONS_VERSION,
   type ReadyAdaptationsResponseV1,
 } from './ready-adaptations.contract';
+import {
+  ADAPTATION_WORKSPACE_ERROR_CODES,
+  ADAPTATION_WORKSPACE_MESSAGES,
+  scheduleRefusalText,
+  type AdaptationWorkspaceErrorCodeV1,
+  type PieceAdaptationEditRequestV1,
+  type PieceAdaptationEditResponseV1,
+  type PieceAdaptationScheduleRequestV1,
+  type PieceAdaptationScheduleResponseV1,
+} from './adaptation-workspace.contract';
+import { PIECE_POSTS_PORT, type PiecePostsPort } from './piece-posts.port';
+import type { BrandProfileSelectionV1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
 
 /** Шов проверки на ИИ-штампы: в наборах подменяется, в продукте настоящий. */
 export type PieceSlopCheckPort = (
@@ -183,15 +203,19 @@ export type PieceSlopCheckPort = (
   platform: string,
   locale: 'ru' | 'en',
   /** Опоры заготовки: точное число из них размытым количеством не считается. */
-  grounded?: readonly string[]
+  grounded?: readonly string[],
+  /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
+  supported?: readonly string[]
 ) => SlopReportV1 | null;
 
 const defaultSlopCheck: PieceSlopCheckPort = (
   text,
   platform,
   locale,
-  grounded
-) => runSlopCheck(text, { platform, locale, html: false, grounded });
+  grounded,
+  supported
+) =>
+  runSlopCheck(text, { platform, locale, html: false, grounded, supported });
 
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
@@ -354,6 +378,11 @@ export type PieceAdaptPlanV1 = {
   kind: AdaptationKindV1;
   language: 'ru' | 'en';
   request: PieceAdaptRequestV1;
+  /**
+   * Кто говорит (`97dq.38`): аватар поста → явный выбор запроса → аватар
+   * канала → как было (граф берёт аватар области по умолчанию).
+   */
+  brandProfileSelection?: BrandProfileSelectionV1 | null;
   channel: {
     id: string;
     name: string;
@@ -370,6 +399,14 @@ export type PieceAdaptPlanV1 = {
   foreignShingles: string[];
   legacyBody: string | null;
   title: string;
+  /**
+   * На этом канале у заготовки ещё нет ни одной адаптации
+   * (`content-factory-next-97dq.31`). Только тогда адаптация спрашивает, что
+   * читатели канала должны унести из поста; «Ещё вариант» — это уже вторая
+   * строка канала, и человек через вопрос уже прошёл. Отсутствие поля — «не
+   * первая»: план, собранный не `prepareAdapt`, вопроса не задаёт.
+   */
+  firstOnChannel?: boolean;
 };
 
 /**
@@ -405,6 +442,72 @@ const keptInstruction = (core: ZagotovkaCoreV1) =>
   core.instructionText?.trim()
     ? { instructionText: core.instructionText, keepLinks: core.keepLinks ?? [] }
     : {};
+
+/**
+ * Присланное дословно (`97dq.41`) переживает любую перепись сути: оно
+ * записано входом один раз и больше не меняется.
+ */
+const keptInput = (core: ZagotovkaCoreV1) =>
+  core.inputText?.trim() ? { inputText: core.inputText } : {};
+
+/**
+ * «Что вы прислали» (`97dq.41`): сохранённый ввод, а у заготовок до него —
+ * то, что от ввода осталось, в порядке близости к присланному. Ничего не
+ * выдумывается: нет ни одного — `null`.
+ */
+export const sentTextOf = (core: ZagotovkaCoreV1 | null): string | null =>
+  [core?.inputText, core?.sourceText, core?.instructionText, core?.personText]
+    .map((value) => (typeof value === 'string' ? value : ''))
+    .find((value) => value.trim()) ?? null;
+
+/** Отказ экрана адаптации: код, статус из контракта, слова на языке экрана. */
+const workspaceError = (
+  code: Exclude<AdaptationWorkspaceErrorCodeV1, 'ADAPTATION_SCHEDULE_INVALID'>,
+  language: 'ru' | 'en'
+) =>
+  new AdaptationReviewError(
+    code,
+    ADAPTATION_WORKSPACE_ERROR_CODES[code].status,
+    ADAPTATION_WORKSPACE_MESSAGES[code][language]
+  );
+
+/** `Post.image` и `Post.settings` — строки JSON; мусор читается как пусто. */
+const jsonOf = <T>(value: string | null | undefined, fallback: T): T => {
+  try {
+    const parsed = JSON.parse(value || '');
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+/**
+ * Разовые настройки поста — подсказкой генератору (`97dq.38`).
+ *
+ * «Как в канале» ничего не меняет и не едет; аватар решён отдельно, в
+ * `brandProfileSelection`. Пустое — отсутствие, а не пустая строка в промпте.
+ */
+const postOverridesOf = (
+  request: PieceAdaptRequestV1 | undefined
+): IntakePostOverridesV1 | null => {
+  const overrides = request?.overrides;
+  if (!overrides) return null;
+  const wish = trimmed(overrides.wish);
+  const takeaway = trimmed(overrides.takeaway);
+  const post: IntakePostOverridesV1 = {
+    ...(overrides.length === 'shorter' || overrides.length === 'longer'
+      ? { length: overrides.length }
+      : {}),
+    ...(overrides.addressForm === 'avatar' ||
+    overrides.addressForm === 'ty' ||
+    overrides.addressForm === 'vy'
+      ? { addressForm: overrides.addressForm }
+      : {}),
+    ...(wish ? { wish } : {}),
+    ...(takeaway ? { takeaway } : {}),
+  };
+  return Object.keys(post).length ? post : null;
+};
 
 @Injectable()
 export class PieceService {
@@ -470,7 +573,16 @@ export class PieceService {
     private readonly intake: IntakeService | null = null,
     @Optional()
     @Inject(INTAKE_SNAPSHOT_STORE)
-    private readonly snapshots: IntakeSnapshotStore | null = null
+    private readonly snapshots: IntakeSnapshotStore | null = null,
+    /**
+     * Календарь для «Запланировать» и «Опубликовать сейчас» на экране
+     * адаптации (`97dq.37`). Последним и необязательным — порядок параметров
+     * здесь договор; без него дверь честно отвечает
+     * `ADAPTATION_SCHEDULE_UNAVAILABLE`.
+     */
+    @Optional()
+    @Inject(PIECE_POSTS_PORT)
+    private readonly posts: PiecePostsPort | null = null
   ) {
     this.now = now || (() => new Date());
     this.slopCheck = slopCheck || defaultSlopCheck;
@@ -661,6 +773,7 @@ export class PieceService {
         language,
         foreignShingles: this.foreignShinglesOf(piece),
         grounded: this.groundedOf(core),
+        supported: this.supportedOf(core),
       },
       scored.map((row) => ({
         text: row.body as string,
@@ -675,6 +788,8 @@ export class PieceService {
     return {
       state: 'default',
       piece: this.row(piece, index < 0 ? order.length : index, language, cells),
+      sentText: sentTextOf(core),
+      channels: this.channelTabsOf(integrations, adaptations),
       core,
       legacyBody: core ? null : piece.body,
       adaptations: adaptations.map((row) =>
@@ -744,22 +859,32 @@ export class PieceService {
 
     const core = this.coreOf(piece);
     if (core && !core.text.trim()) throw pieceError('PIECE_CORE_MISSING', language, pieceId);
+    const earlier = await this.pieces.adaptationsByPiece(organizationId, [pieceId]);
+    const profile = parseWritingProfile(
+      integration.writingProfile,
+      integration.providerIdentifier,
+      integration.contentLanguage
+    );
+    const brandProfileSelection = await this.speakerOf(
+      organizationId,
+      request,
+      profile,
+      language
+    );
     return {
       pieceId,
       integrationId,
+      firstOnChannel: !earlier.some((row) => row.integrationId === integration.id),
       kind: wanted || kinds[0],
       language,
       request,
+      ...(brandProfileSelection ? { brandProfileSelection } : {}),
       channel: {
         id: integration.id,
         name: integration.name,
         providerIdentifier: integration.providerIdentifier,
         contentLanguage: integration.contentLanguage ?? null,
-        profile: parseWritingProfile(
-          integration.writingProfile,
-          integration.providerIdentifier,
-          integration.contentLanguage
-        ),
+        profile,
         maxLength: this.providerMaxLength(provider, integration),
         maxCaptionLength: provider.maxCaptionLength?.() ?? null,
         editor: provider.editor,
@@ -769,6 +894,49 @@ export class PieceService {
       legacyBody: core ? null : piece.body,
       title: piece.title,
     };
+  }
+
+  /**
+   * Кто говорит в этой адаптации (`content-factory-next-97dq.38`).
+   *
+   * Порядок — от частного к общему: аватар, выбранный для этого поста;
+   * явный `brandProfileSelection` запроса (старые клиенты); аватар карточки
+   * канала; иначе ничего — граф возьмёт аватар области по умолчанию, как до
+   * волны. Аватар называется версией его голоса, потому что граф и строитель
+   * контекста понимают выбор версией (`{ mode: 'version' }`).
+   *
+   * Выбор человека на этот пост строг: чужой или удалённый аватар — отказ, и
+   * аватар без голоса — тоже отказ, а не тихая подмена другим. Карточка канала
+   * мягче: её аватар могли удалить после записи, и тогда адаптация пишется
+   * как до волны, а в журнал уходит строка.
+   */
+  private async speakerOf(
+    organizationId: string,
+    request: PieceAdaptRequestV1,
+    profile: ChannelWritingProfileV1,
+    language: 'ru' | 'en'
+  ): Promise<BrandProfileSelectionV1 | null> {
+    const chosen = trimmed(request?.overrides?.brandProfileId);
+    if (chosen) {
+      const avatar = await this.pieces.findAvatar(organizationId, chosen);
+      if (!avatar) throw pieceError('PIECE_AVATAR_UNKNOWN', language, chosen);
+      if (!avatar.activeVersionId)
+        throw pieceError('PIECE_AVATAR_NOT_READY', language, chosen);
+      return { mode: 'version', versionId: avatar.activeVersionId };
+    }
+    if (request?.brandProfileSelection) {
+      return request.brandProfileSelection as BrandProfileSelectionV1;
+    }
+    const channelAvatar = trimmed(profile.brandProfileId);
+    if (channelAvatar) {
+      const avatar = await this.pieces.findAvatar(organizationId, channelAvatar);
+      if (avatar?.activeVersionId)
+        return { mode: 'version', versionId: avatar.activeVersionId };
+      this.logger.warn(
+        `The channel avatar ${channelAvatar} is gone or has no voice; the adaptation uses the default avatar.`
+      );
+    }
+    return null;
   }
 
   /** Предел знаков берётся у провайдера, третьей таблицы у продукта нет. */
@@ -827,6 +995,29 @@ export class PieceService {
     // идентификаторами (в строитель контекста), и считать его дважды значило
     // бы завести два ответа на вопрос «на чём стоит эта заготовка».
     const brief = this.briefMaterial(plan);
+    /*
+      Первая адаптация заготовки на этом канале спрашивает, что читатели
+      должны унести из поста (`content-factory-next-97dq.31`), — до генерации
+      и вместо неё: вопрос терминален, клиент повторяет запрос с ответом, с
+      «Решите за меня» (`decideKeys`) или с «Решите всё за меня»
+      (`skipInterview`). На этом круге других вопросов нет — не больше одного
+      за круг.
+    */
+    if (this.asksTakeaway(plan, answers)) {
+      const question = await askTakeawayV3(
+        {
+          organizationId,
+          language,
+          channelName: plan.channel.name,
+          providerIdentifier: plan.channel.providerIdentifier,
+          core: plan.core?.text ?? '',
+          brief: plan.core?.brief ?? null,
+        },
+        { aiUsage: this.aiUsage, warn: (message) => this.logger.warn(message) }
+      );
+      yield { name: 'questions', questions: [question], round: 1 };
+      return;
+    }
     const hints = this.hintsOf(plan, answers, brief.material);
     hints.allowQuestion = !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
     /*
@@ -847,8 +1038,8 @@ export class PieceService {
       isPicture: plan.request?.options?.isPicture === true,
       format: 'one_long',
       language,
-      ...(plan.request?.brandProfileSelection
-        ? { brandProfileSelection: plan.request.brandProfileSelection as any }
+      ...(plan.brandProfileSelection
+        ? { brandProfileSelection: plan.brandProfileSelection as any }
         : {}),
       intake: hints,
       /*
@@ -955,14 +1146,21 @@ export class PieceService {
     output: any,
     answers: PieceAnswerV1[]
   ) {
+    /*
+      Метки строк блока материала («[E2]», «[F1]») — адрес для
+      `usedCitationIds`, а не слово текста (`content-factory-next-97dq.40`).
+      Промпт это запрещает, а здесь снимается то, что модель всё-таки
+      написала: до тела, до поста и до события, чтобы все три видели один
+      текст. Идентификаторы источников остаются в `usedCitationIds`.
+    */
     const content = (output.content as any[])
-      .filter((item) => trimmed(item?.content))
       .map((item) => ({
-        content: trimmed(item.content),
+        content: trimmed(stripCitationLabels(trimmed(item?.content))),
         usedCitationIds: Array.isArray(item?.usedCitationIds)
           ? item.usedCitationIds.filter((id: unknown) => trimmed(id))
           : [],
-      }));
+      }))
+      .filter((item) => item.content);
     if (!content.length) return null;
 
     const plain = content.map((item) => item.content).join('\n\n');
@@ -1024,6 +1222,7 @@ export class PieceService {
         // Тот же материал, из которого адаптация и написана: число из него
         // размытым количеством не считается (`97dq.10`).
         grounded: this.groundedOf(plan.core ?? null),
+        supported: this.supportedOf(plan.core ?? null),
       },
       { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
     );
@@ -1247,7 +1446,7 @@ export class PieceService {
           warn: (message) => this.logger.warn(message),
         }
       );
-      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core) };
+      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core) };
     }
 
     if (!core.text.trim()) {
@@ -1396,9 +1595,8 @@ export class PieceService {
       });
     }
     if (inputSources.length) withSources.inputSources = inputSources;
-    next.ungrounded = next.facts
-      .filter((fact) => !fact.verified && fact.origin !== 'person')
-      .map((fact) => fact.statement);
+    // Одно правило квитанции на все дороги (`97dq.32`, `ungroundedStatements`).
+    next.ungrounded = ungroundedStatements(next);
     return next;
   }
 
@@ -1473,6 +1671,308 @@ export class PieceService {
       throw pieceError('ADAPTATION_PUBLISHED', 'ru', adaptationId);
     }
     await this.pieces.deleteAdaptation(organizationId, pieceId, adaptationId);
+  }
+
+  /* -----------------------------------------------------------------------
+   * Экран адаптации (`content-factory-next-97dq.37`)
+   * -------------------------------------------------------------------- */
+
+  /**
+   * Черновик, который экран адаптации вправе менять: свой, живой и `DRAFT`.
+   * Возвращает строку вместе с постом, чтобы звавшему не читать её второй раз.
+   */
+  private async draftForWorkspace(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    language: 'ru' | 'en'
+  ) {
+    const draft = await this.pieces.workspaceDraft(
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    const post = draft.post;
+    if (
+      !post ||
+      post.deletedAt ||
+      String(post.state || '').toUpperCase() !== 'DRAFT'
+    ) {
+      throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+    }
+    return { draft, post };
+  }
+
+  /** Одна адаптация, как её показывает страница, — после записи. */
+  private async adaptationAfterWrite(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    language: 'ru' | 'en',
+    checks?: AdaptationChecksV1
+  ): Promise<AdaptationV1> {
+    const [integrations, rows] = await Promise.all([
+      this.pieces.listIntegrations(organizationId),
+      this.pieces.adaptationsByPiece(organizationId, [pieceId]),
+    ]);
+    const row = rows.find((one) => one.id === adaptationId);
+    if (!row) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    return this.adaptationOf(row, pieceId, integrations, checks);
+  }
+
+  /**
+   * Ручная правка адаптации: тело и/или картинка (спецификация §3.5).
+   *
+   * «Ручное редактирование поста — классная штука, оно точно должно быть»
+   * (владелец, 22.09.2026). Тело адаптации и HTML её черновика пишутся одной
+   * транзакцией тем же `editorHtml`, что и приёмка правок, — иначе страница и
+   * календарь показали бы два разных текста. Метки цитат снимаются тем же
+   * `stripCitationLabels`, что при генерации (`97dq.40`): человек мог вставить
+   * их обратно из старой копии. Квитанция проверок считается заново по
+   * новому телу и приходит в ответе.
+   *
+   * Картинка — одна, из медиатеки области, и путь к ней сервер берёт сам:
+   * принять путь из тела значило бы позволить приложить к посту что угодно.
+   */
+  async editAdaptation(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    input: PieceAdaptationEditRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PieceAdaptationEditResponseV1> {
+    if (input?.body === undefined && input?.image === undefined) {
+      throw workspaceError('ADAPTATION_EDIT_EMPTY', language);
+    }
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const { draft, post } = await this.draftForWorkspace(
+      organizationId,
+      pieceId,
+      adaptationId,
+      language
+    );
+
+    const change: Parameters<PieceRepository['editAdaptation']>[4] = {};
+    let text = draft.body ?? '';
+    if (input.body !== undefined) {
+      text = stripCitationLabels(String(input.body ?? '')).trim();
+      if (!text) throw workspaceError('ADAPTATION_EDIT_EMPTY', language);
+      const provider = this.integrationManager.getSocialIntegration(
+        post.integration.providerIdentifier
+      );
+      change.body = text;
+      change.content = renderedPost(text, provider?.editor ?? 'normal');
+    }
+    if (input.image !== undefined) {
+      if (input.image === null) {
+        change.image = '[]';
+        change.mediaId = null;
+      } else {
+        const media = await this.pieces.findMedia(
+          organizationId,
+          trimmed(input.image?.id)
+        );
+        if (!media) throw workspaceError('ADAPTATION_MEDIA_UNKNOWN', language);
+        change.image = JSON.stringify([
+          {
+            id: media.id,
+            path: media.path,
+            ...(media.alt ? { alt: media.alt } : {}),
+            ...(media.thumbnail ? { thumbnail: media.thumbnail } : {}),
+          },
+        ]);
+        change.mediaId = media.id;
+      }
+    }
+
+    try {
+      await this.pieces.editAdaptation(
+        organizationId,
+        pieceId,
+        adaptationId,
+        post.id,
+        change
+      );
+    } catch (error) {
+      const reason = (error as any)?.reason;
+      if (reason === 'ADAPTATION_NOT_DRAFT')
+        throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+      if (reason === 'ADAPTATION_NOT_FOUND')
+        throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+      throw error;
+    }
+    // Правленый текст ищется сразу, как и свежая адаптация (`m2eg.19`).
+    this.search?.invalidate(organizationId);
+
+    const core = this.coreOf(piece);
+    const checks = trimmed(text)
+      ? await adaptationChecksOf(
+          {
+            organizationId,
+            text,
+            platform: providerOfPlatform(draft.platform),
+            language,
+            foreignShingles: this.foreignShinglesOf(piece),
+            grounded: this.groundedOf(core),
+            supported: this.supportedOf(core),
+          },
+          { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
+        )
+      : undefined;
+    return {
+      adaptation: await this.adaptationAfterWrite(
+        organizationId,
+        pieceId,
+        adaptationId,
+        language,
+        checks
+      ),
+    };
+  }
+
+  /**
+   * «Запланировать» и «Опубликовать сейчас» с экрана адаптации (§3.5).
+   *
+   * Три шага, и все три — те же, что делало окно «Создать пост», а не их
+   * копия: проверка площадки (`validatePosts`, то есть `POST /posts/valid`),
+   * дата (`changeDate`, `update` — дата без смены состояния) и перевод
+   * черновика в очередь с запуском публикации (`changePostStatus`). `changeDate`
+   * с `schedule` здесь не подходит: у черновика он оставляет `DRAFT`. «Сейчас» —
+   * это очередь с текущим временем, ровно как `type: 'now'` у окна.
+   *
+   * Отказ площадки говорится словами на языке экрана, с именем канала; её
+   * собственное сообщение (по-английски) идёт хвостом как есть.
+   */
+  async scheduleAdaptation(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    input: PieceAdaptationScheduleRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PieceAdaptationScheduleResponseV1> {
+    const now = input?.now === true;
+    const wanted = trimmed(input?.date);
+    if (now === Boolean(wanted))
+      throw workspaceError('ADAPTATION_SCHEDULE_DATE_REQUIRED', language);
+    let when = this.now();
+    if (!now) {
+      when = new Date(wanted);
+      if (!Number.isFinite(when.getTime()))
+        throw workspaceError('ADAPTATION_SCHEDULE_DATE_INVALID', language);
+      // Минута запаса: время, выбранное в календаре, успевает «пройти», пока
+      // человек дочитывает строку.
+      if (when.getTime() < this.now().getTime() - 60_000)
+        throw workspaceError('ADAPTATION_SCHEDULE_DATE_PAST', language);
+    }
+    if (!this.posts)
+      throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const { post } = await this.draftForWorkspace(
+      organizationId,
+      pieceId,
+      adaptationId,
+      language
+    );
+
+    const settings = jsonOf<Record<string, unknown>>(post.settings, {});
+    const image = jsonOf<unknown>(post.image, []);
+    const [verdict] = await this.posts.validatePosts(organizationId, [
+      {
+        integration: { id: post.integration.id },
+        value: [
+          {
+            content: post.content,
+            image: Array.isArray(image) ? (image as any[]) : [],
+          },
+        ],
+        settings: {
+          ...settings,
+          __type: settings.__type ?? post.integration.providerIdentifier,
+        },
+      },
+    ]);
+    const channel = post.integration.name || post.integration.providerIdentifier;
+    const refuse = (
+      reason: Parameters<typeof scheduleRefusalText>[2]
+    ): never => {
+      throw Object.assign(
+        new AdaptationReviewError(
+          'ADAPTATION_SCHEDULE_INVALID',
+          ADAPTATION_WORKSPACE_ERROR_CODES.ADAPTATION_SCHEDULE_INVALID.status,
+          scheduleRefusalText(language, channel, reason)
+        ),
+        { subject: post.integration.providerIdentifier }
+      );
+    };
+    if (verdict) {
+      if (verdict.emptyContent) refuse({ kind: 'empty' });
+      if (!verdict.valid)
+        refuse({ kind: 'settings', detail: trimmed(verdict.settingsError) });
+      if (verdict.errors !== true)
+        refuse({ kind: 'media', detail: trimmed(verdict.errors) });
+      if (verdict.tooLong)
+        refuse({ kind: 'too_long', max: Number(verdict.maximumCharacters) || 0 });
+    }
+
+    await this.posts.changeDate(
+      organizationId,
+      post.id,
+      when.toISOString(),
+      'update'
+    );
+    await this.posts.changePostStatus(organizationId, post.id, 'schedule');
+
+    return {
+      adaptation: await this.adaptationAfterWrite(
+        organizationId,
+        pieceId,
+        adaptationId,
+        language
+      ),
+    };
+  }
+
+  /**
+   * «Снять с расписания» — пост из очереди обратно в черновик
+   * (`content-factory-next-97dq.37`, спецификация десятого захода §3.2).
+   *
+   * Правка текста разрешена только черновику, поэтому запланированный пост
+   * возвращается в черновик явным действием, а не молча при первой правке.
+   * Опубликованный пост назад не уходит: он уже в канале.
+   */
+  async unscheduleAdaptation(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PieceAdaptationScheduleResponseV1> {
+    if (!this.posts)
+      throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const draft = await this.pieces.workspaceDraft(
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    const post = draft.post;
+    const state = String(post?.state || '').toUpperCase();
+    if (!post || post.deletedAt || state !== 'QUEUE')
+      throw workspaceError('ADAPTATION_NOT_QUEUED', language);
+    await this.posts.changePostStatus(organizationId, post.id, 'draft');
+    return {
+      adaptation: await this.adaptationAfterWrite(
+        organizationId,
+        pieceId,
+        adaptationId,
+        language
+      ),
+    };
   }
 
   async researchCore(organizationId: string, pieceId: string, actorUserId: string,
@@ -1730,7 +2230,8 @@ export class PieceService {
           platform,
           // Те же опоры, что у обычного хода проверки (`97dq.10`): одно число
           // о тексте не должно зависеть от того, нашёлся ли запрос к поиску.
-          this.groundedOf(core ?? null)
+          this.groundedOf(core ?? null),
+          this.supportedOf(core ?? null)
         );
         const nothingFound = found.extracted === 0;
         return sign({
@@ -1976,6 +2477,10 @@ export class PieceService {
       ...(typeof stored.sourceText === 'string' && stored.sourceText.trim()
         ? { sourceText: stored.sourceText }
         : {}),
+      // Присланное дословно (`97dq.41`): только у заготовок после этой волны.
+      ...(typeof stored.inputText === 'string' && stored.inputText.trim()
+        ? { inputText: stored.inputText }
+        : {}),
       // Задание и ссылки из него (`97dq.29`): тоже только у новых заготовок.
       ...(typeof stored.instructionText === 'string' && stored.instructionText.trim()
         ? { instructionText: stored.instructionText }
@@ -2181,6 +2686,46 @@ export class PieceService {
     return [...platforms.values()];
   }
 
+  /**
+   * Вкладки каналов (`content-factory-next-97dq.37`): одна на подключённый
+   * канал, в порядке каналов области.
+   *
+   * Значок вкладки — та же клетка, что в таблице «Заготовки» (`bestCell`), но
+   * по адаптациям одного канала, а не площадки. Канал адаптации — её
+   * `integrationId`, а у строки без него — канал её поста; строки, у которых
+   * нет ни того, ни другого, во вкладки не попадают (они видны в
+   * `adaptations`). Версии идут от старой к новой: это «Вариант 1 … N».
+   */
+  private channelTabsOf(
+    integrations: PieceIntegrationRow[],
+    adaptations: AdaptationRow[]
+  ): PieceChannelTabV1[] {
+    return integrations.map((integration) => {
+      const mine = adaptations.filter(
+        (row) =>
+          (row.integrationId ?? row.post?.integration?.id ?? null) ===
+          integration.id
+      );
+      const provider = this.integrationManager.getSocialIntegration(
+        integration.providerIdentifier
+      );
+      let maxLength: number | null = null;
+      try {
+        maxLength = provider ? this.providerMaxLength(provider, integration) : null;
+      } catch {
+        maxLength = null;
+      }
+      return {
+        integrationId: integration.id,
+        name: integration.name,
+        providerIdentifier: integration.providerIdentifier,
+        maxLength: Number.isFinite(maxLength) ? maxLength : null,
+        cell: bestCell(integration.providerIdentifier, mine),
+        adaptationIds: mine.map((row) => row.id),
+      };
+    });
+  }
+
   /* -----------------------------------------------------------------------
    * Интервью под канал
    * -------------------------------------------------------------------- */
@@ -2198,6 +2743,26 @@ export class PieceService {
         answeredAt,
       }))
       .filter((answer) => answer.key && answer.text) as PieceAnswerV1[];
+  }
+
+  /**
+   * Спрашивать ли, что унести читателям канала.
+   *
+   * Только первая адаптация на канале, только у заготовки с сутью (у
+   * материала до волны предлагать не из чего) и только на первом круге: ответ,
+   * «Решите за меня» или «Решите всё за меня» — это уже второй круг.
+   */
+  private asksTakeaway(
+    plan: PieceAdaptPlanV1,
+    answers: readonly PieceAnswerV1[]
+  ): boolean {
+    return (
+      plan.firstOnChannel === true &&
+      Boolean(plan.core?.text?.trim()) &&
+      !answers.length &&
+      !plan.request?.skipInterview &&
+      !plan.request?.decideKeys?.length
+    );
   }
 
   /** Отданный модели вопрос не задаётся второй раз. */
@@ -2328,6 +2893,17 @@ export class PieceService {
     ].filter(Boolean);
   }
 
+  /**
+   * Утверждения отмеченных фактов — то же, что проверка адаптации получает
+   * как `facts` и читает `reviewSupportedOf` (`content-factory-next-97dq.33`).
+   * Строка качества на странице и «было N → стало M» в проверке обязаны
+   * освобождать одни и те же пересказы опор, поэтому сборщик один.
+   */
+  private supportedOf(core: ZagotovkaCoreV1 | null): string[] {
+    if (!core?.brief) return [];
+    return reviewSupportedOf({ facts: selectedFactsBrief(core.brief).facts });
+  }
+
   /** Подсказки генератору: канал, бриф заготовки, суть, опоры и ответы. */
   private hintsOf(
     plan: PieceAdaptPlanV1,
@@ -2339,6 +2915,14 @@ export class PieceService {
       channelFormatHint(
         answers.find((answer) => answer.key === 'format')?.text
       ) ?? channelFormatHint(brief?.format);
+    // Что унести — направление всего текста, а не слова для цитаты: своей
+    // строкой, а не среди ответов «цитировать дословно» (`97dq.31`).
+    // Ответ на вопрос и разовая правка поста — одно и то же «что унести»;
+    // правка поста главнее, и строка в промпте одна (`97dq.31` + `97dq.38`).
+    const takeaway = trimmed(plan.request?.overrides?.takeaway)
+      ? undefined
+      : answers.find((answer) => answer.key === TAKEAWAY_QUESTION_KEY)?.text;
+    const quoted = answers.filter((answer) => answer.key !== TAKEAWAY_QUESTION_KEY);
     return {
       version: INTAKE_HINTS_VERSION,
       brief: {
@@ -2350,11 +2934,13 @@ export class PieceService {
       },
       ...(plan.core ? { core: plan.core.text } : {}),
       ...(material.length ? { material } : {}),
-      ...(answers.length
-        ? { answers: answers.map((answer) => `${answer.key}: ${answer.text}`) }
+      ...(quoted.length
+        ? { answers: quoted.map((answer) => `${answer.key}: ${answer.text}`) }
         : {}),
+      ...(takeaway ? { takeaway } : {}),
       ...(formatHint ? { formatHint } : {}),
       ...(plan.core?.keepLinks?.length ? { keepLinks: [...plan.core.keepLinks] } : {}),
+      ...(postOverridesOf(plan.request) ? { post: postOverridesOf(plan.request)! } : {}),
       ...(plan.foreignShingles.length
         ? { foreignShingles: plan.foreignShingles }
         : {}),

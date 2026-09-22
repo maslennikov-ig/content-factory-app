@@ -846,6 +846,8 @@ export type VoicePassportV1 = {
    * `content.voice.sentenceStyle`; it was simply invisible to its author.
    */
   sentenceStyle?: string;
+  /** «ты» или «вы» (`97dq.38`); отсутствие — «Не задано». */
+  addressForm?: 'ty' | 'vy';
   versionLabel: string;
   activeSince: string;
   /**
@@ -906,6 +908,15 @@ export type VoiceExamplesRequestV1 = {
 export type VoicePassportFieldRequestV1 = {
   key: ProfileField;
   text: string;
+};
+
+/**
+ * «Обращение» в паспорте аватара (`content-factory-next-97dq.38`): та же
+ * дверь `POST …/passport/field`, другое тело. `null` — «Не задано»: поле
+ * снимается, и промпт больше не говорит об обращении от имени аватара.
+ */
+export type VoicePassportAddressFormRequestV1 = {
+  addressForm: 'ty' | 'vy' | null;
 };
 
 /**
@@ -2826,7 +2837,14 @@ export type PieceQuestionKeyV1 =
   | 'format'
   | 'own_number'
   | 'screenshot'
-  | 'log';
+  | 'log'
+  /**
+   * «Что читатели «<канал>» должны унести из этого поста?» — вопрос первой
+   * адаптации заготовки на канале (`content-factory-next-97dq.31`,
+   * `channels/channel-question.v3.ts`). Ответ едет в промпт адаптации строкой
+   * «что унести», а не цитатой.
+   */
+  | 'takeaway';
 
 export type PieceQuestionV1 = {
   key: PieceQuestionKeyV1;
@@ -2997,6 +3015,13 @@ export type ZagotovkaCoreV1 = {
    */
   keepLinks?: string[];
   /**
+   * Что человек прислал на вход — дословно, до разбора и до всех правок, для
+   * любого вида входа (`content-factory-next-97dq.41`). Пишется один раз при
+   * записи заготовки и больше не меняется; страница читает его через
+   * `PieceDetailV1.sentText`, у старых заготовок его нет.
+   */
+  inputText?: string;
+  /**
    * Источник повода, если заготовка выросла из «Откуда идеи»
    * (`content-factory-next-75xn.8`). Отсутствие — обычное состояние: заготовку
    * чаще начинают с собственной мысли, и тогда источника просто нет.
@@ -3053,9 +3078,36 @@ export type PieceTargetV1 = {
   available: boolean;
 };
 
+/**
+ * Вкладка канала на странице заготовки (`content-factory-next-97dq.37`).
+ *
+ * Одна на каждый подключённый канал области, в порядке каналов. `cell` — та
+ * же клетка состояния, что в таблице «Заготовки» (`bestCell` по адаптациям
+ * этого канала): она и есть значок вкладки. `adaptationIds` — версии этого
+ * канала от старой к новой, то есть «Вариант 1 … N»; выбранной по умолчанию
+ * экран делает последнюю. `maxLength` — предел площадки для счётчика
+ * «N из M знаков»; `null`, когда провайдер его не назвал.
+ */
+export type PieceChannelTabV1 = {
+  integrationId: string;
+  name: string;
+  providerIdentifier: string;
+  maxLength: number | null;
+  cell: PieceCellV1;
+  adaptationIds: string[];
+};
+
 export type PieceDetailV1 = {
   state: VoiceScreenStateV1;
   piece: PieceRowV1;
+  /**
+   * «Что вы прислали» (`content-factory-next-97dq.41`): `inputText`, а у
+   * заготовок до него — `sourceText` → `instructionText` → `personText`.
+   * `null` — показывать нечего (материал до волны заготовок).
+   */
+  sentText?: string | null;
+  /** Вкладки каналов (`97dq.37`); адаптации без канала в них не попадают. */
+  channels?: PieceChannelTabV1[];
   /** `null` — суть не выделена (материал до волны); тогда тело — в `legacyBody`. */
   core: ZagotovkaCoreV1 | null;
   /** HTML одного канала у старых материалов. Старая кнопка «Черновик» вставит его как есть — экран предупреждает. */
@@ -3085,8 +3137,30 @@ export type PieceCreateRequestV1 = Omit<IntakeRequestV1, 'integrationIds'> & {
   skipInterview?: boolean;
 };
 
+/**
+ * «Для этого поста» (`content-factory-next-97dq.38`): разовые настройки одной
+ * адаптации. Нигде не сохраняются, кроме вышедшего по ним варианта.
+ *
+ * Порядок решения: этот пост → карточка канала → аватар → как было до волны.
+ * `length` масштабирует диапазон канала (×0,6 / ×1,5, не выше предела
+ * площадки); `channel` — ничего не меняет. `addressForm: 'avatar'` — «как в
+ * аватаре», то есть карточка канала на этот пост не действует.
+ * `brandProfileId` — аватар этой области; чужой или несуществующий — отказ
+ * `PIECE_AVATAR_UNKNOWN`. `wish` — строка человека «Пожелание», `takeaway` —
+ * что читатели должны унести (ответ на вопрос перед первой адаптацией).
+ */
+export type PieceAdaptOverridesV1 = {
+  length?: 'shorter' | 'channel' | 'longer';
+  addressForm?: 'avatar' | 'ty' | 'vy';
+  brandProfileId?: string;
+  wish?: string;
+  takeaway?: string;
+};
+
 export type PieceAdaptRequestV1 = {
   integrationId: string;
+  /** Разовые настройки этого поста (`97dq.38`). */
+  overrides?: PieceAdaptOverridesV1;
   /** По умолчанию — первый из `KINDS_BY_PROVIDER` площадки. */
   kind?: AdaptationKindV1;
   answers?: PieceAnswerInputV1[];
@@ -3277,6 +3351,10 @@ export const PIECE_ERROR_CODES = {
    * черновики без заготовки, о чём никто ему не говорил.
    */
   PIECE_NOT_SAVED: { status: 500, screenState: 'error' },
+  /** `overrides.brandProfileId` не называет аватар этой области (`97dq.38`). */
+  PIECE_AVATAR_UNKNOWN: { status: 422, screenState: 'error' },
+  /** Аватар есть, но голоса у него ещё нет: писать от его имени нечем. */
+  PIECE_AVATAR_NOT_READY: { status: 409, screenState: 'error' },
 } as const satisfies Record<
   string,
   { status: number; screenState: VoiceScreenStateV1 }

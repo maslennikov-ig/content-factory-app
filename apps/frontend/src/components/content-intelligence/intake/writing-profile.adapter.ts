@@ -1,5 +1,5 @@
 /**
- * Карточка канала «Как пишем сюда» — со стороны экрана.
+ * Карточка канала «Как пишем в «X»» — со стороны экрана.
  *
  * `content-factory-next-tu3k.4`. Дверь и умолчания принадлежат серверу (поток
  * «канал и граф»), здесь только чтение ответа, сборка тела `PUT` и одно
@@ -16,14 +16,38 @@
  */
 
 import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
-import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
+import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileResponseV2 as ContractWritingProfileResponse, type ChannelWritingProfileV2 as ContractWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import { INTAKE_API } from './intake.adapter';
 
-export type {
-  ChannelLengthPolicyV1,
-  ChannelWritingProfileResponseV1,
-  ChannelWritingProfileV1,
+/**
+ * Как канал обращается к читателю (`content-factory-next-97dq.38`).
+ *
+ * `avatar` — «как в аватаре»: канал не решает сам и берёт обращение того, кто
+ * в нём говорит. Слой канала лежит между аватаром и разовой правкой поста.
+ */
+export const CHANNEL_ADDRESS_FORMS = ['avatar', 'ty', 'vy'] as const;
+export type ChannelAddressForm = (typeof CHANNEL_ADDRESS_FORMS)[number];
+
+/**
+ * Два поля слоя канала, которые сервер хранит в той же JSON-колонке.
+ *
+ * Оба необязательны: карточка, сохранённая до 22.09.2026, их не несёт, и
+ * отсутствие значит «как раньше» — аватар по умолчанию и его обращение.
+ * `brandProfileId: null` — это «По умолчанию», сказанное явно.
+ */
+export type ChannelWritingProfileLayer = {
+  brandProfileId?: string | null;
+  addressForm?: ChannelAddressForm;
 };
+
+export type ChannelWritingProfileV1 = ContractWritingProfile &
+  ChannelWritingProfileLayer;
+export type ChannelWritingProfileResponseV1 = Omit<
+  ContractWritingProfileResponse,
+  'profile'
+> & { profile: ChannelWritingProfileV1 };
+
+export type { ChannelLengthPolicyV1 };
 
 export const writingProfileUrl = (integrationId: string) =>
   INTAKE_API.writingProfile(integrationId);
@@ -152,6 +176,14 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
       typeof record.notes === 'string'
         ? record.notes.slice(0, PROFILE_NOTES_MAX)
         : null,
+    ...(typeof record.brandProfileId === 'string' && record.brandProfileId
+      ? { brandProfileId: record.brandProfileId }
+      : record.brandProfileId === null
+      ? { brandProfileId: null }
+      : {}),
+    ...(CHANNEL_ADDRESS_FORMS.includes(record.addressForm as ChannelAddressForm)
+      ? { addressForm: record.addressForm as ChannelAddressForm }
+      : {}),
   };
 }
 
@@ -222,6 +254,8 @@ export type WritingProfilePayload = {
   ctaKind: ChannelWritingProfileV1['ctaKind'];
   formatPreference: IntakeFormatV1;
   notes?: string;
+  brandProfileId?: string | null;
+  addressForm?: ChannelAddressForm;
 };
 
 export function buildWritingProfilePayload(
@@ -238,6 +272,13 @@ export function buildWritingProfilePayload(
     ctaKind: profile.ctaKind,
     formatPreference: profile.formatPreference,
     ...(notes ? { notes } : {}),
+    // Слой канала уходит только тогда, когда форма его знает: карточка, в
+    // которой никто не трогал «Кто говорит здесь», не должна от имени
+    // человека записать «По умолчанию».
+    ...(profile.brandProfileId !== undefined
+      ? { brandProfileId: profile.brandProfileId }
+      : {}),
+    ...(profile.addressForm ? { addressForm: profile.addressForm } : {}),
   };
 
   if (typeof profile.lengthPolicy === 'string') {

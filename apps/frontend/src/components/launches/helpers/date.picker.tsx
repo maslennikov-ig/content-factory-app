@@ -1,6 +1,8 @@
 import { FC, useCallback, useState } from 'react';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
+import 'dayjs/locale/ru';
+import i18next from 'i18next';
 import { Calendar, TimeInput } from '@mantine/dates';
 import { useClickOutside } from '@mantine/hooks';
 import { Button } from '@contentfactory/react/form/button';
@@ -73,12 +75,13 @@ export const DatePicker: FC<{
           className="animate-fadeIn absolute bottom-[100%] mb-[16px] start-[50%] -translate-x-[50%] bg-sixth border border-tableBorder text-textColor rounded-[16px] z-[300] p-[16px] flex flex-col"
         >
           <Calendar
+            // Язык и неделя читателя: месяц «сентябрь 2026», неделя с понедельника
+            // (десятый заход, 97dq.37 — выбор даты теперь стоит во вкладке канала).
+            locale={i18next.resolvedLanguage || 'en'}
+            firstDayOfWeek="monday"
             onChange={changeDate('date')}
             value={date.toDate()}
             dayClassName={(date, modifiers) => {
-              if (modifiers.weekend) {
-                return '!text-customColor28';
-              }
               if (modifiers.outside) {
                 return '!text-gray';
               }
@@ -95,7 +98,7 @@ export const DatePicker: FC<{
           />
           <TimeInput
             onChange={changeDate('time')}
-            label="Pick time"
+            label={t('pick_time', 'Pick time')}
             classNames={{
               label: 'text-textColor py-[12px]',
               input:

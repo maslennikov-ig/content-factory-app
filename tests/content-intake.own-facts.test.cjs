@@ -393,13 +393,23 @@ describe('заполнение брифа: одно число — одна ст
     const [filled] = named(events, 'brief-filled');
 
     expect(ownStatements(filled.brief)).toEqual(REBUILT);
-    // И они честно стоят без опоры: их никто не проверял.
-    expect(filled.brief.ungrounded).toEqual(REBUILT);
+    // Строки по-прежнему «не проверено»: поиска по ним не было…
     expect(
       filled.brief.facts.every(
         (fact) => fact.origin === 'input' && fact.status === 'unverified' && !fact.verified
       )
     ).toBe(true);
+    // …и потому это слова человека, а не «не подтвердилось и в текст не
+    // вошло» (`97dq.32`, §9.5 карты раздела). До правки квитанция называла
+    // все три, а суть их молча выбрасывала.
+    expect(filled.brief.ungrounded).toEqual([]);
+    const corePrompt = modelCalls.find((call) =>
+      call.prompt.includes('PROMPT VERSION: core-write/')
+    ).prompt;
+    for (const statement of REBUILT) {
+      expect(corePrompt).toContain(`факты подтверждённые: ${statement}`);
+    }
+    expect(corePrompt).not.toContain('не подтвердилось поиском');
   });
 
   test('прогон C: склеенная строка с припиской становится тремя строками', async () => {

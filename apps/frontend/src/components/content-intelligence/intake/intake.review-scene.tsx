@@ -93,7 +93,7 @@ const NOTES: Partial<Record<InterfaceReviewState, { ru: string; en: string }>> =
     en: 'Empty and ready. «Write» is off and the reason stands beside it in words.',
   },
   selected: {
-    ru: 'Ссылка распознана, канал выбран, у Telegram видна дверь в карточку «Как пишем сюда».',
+    ru: 'Ссылка распознана, канал выбран, у Telegram видна дверь в карточку «Как пишем в «канал»».',
     en: 'A link is recognised, a channel is picked, and Telegram shows its writing card door.',
   },
   success: {
@@ -176,7 +176,6 @@ export function Scene({ context }: { context: InterfaceReviewContext }) {
             onWrite={() => undefined}
             onCancel={() => undefined}
             onOpenPiece={() => undefined}
-            onManual={() => undefined}
             onRetry={() => undefined}
           />
           {note ? (

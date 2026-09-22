@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
 import { ErrorState, Panel, SkeletonRows } from '../ui/surface';
+import { SectionLabel } from '../ui/section-label';
 import {
   intakeCopy,
   type IntakeLocale,
@@ -17,6 +18,7 @@ import {
 } from '../content-intelligence/intake/writing-profile.adapter';
 import {
   WritingProfileFields,
+  useWritingProfileAvatars,
   writingProfileViewRows,
 } from '../content-intelligence/intake/writing-profile.fields';
 
@@ -29,31 +31,6 @@ export type ChannelWritingProfileProps = {
   onSaved?: () => void | Promise<void>;
 };
 
-const panelCopy = {
-  ru: {
-    title: 'Как пишем сюда',
-    change: 'Изменить',
-    fill: 'Заполнить',
-    cancel: 'Отмена',
-    retry: 'Повторить',
-    defaults: (provider: string) =>
-      `Карточка не заполнена: пишем по умолчаниям для ${
-        provider || 'площадки'
-      }. Проверьте их — это три минуты, и каждая адаптация станет точнее.`,
-  },
-  en: {
-    title: 'How we write here',
-    change: 'Edit',
-    fill: 'Fill in',
-    cancel: 'Cancel',
-    retry: 'Retry',
-    defaults: (provider: string) =>
-      `This card is not filled in: we use the defaults for ${
-        provider || 'this platform'
-      }. Review them once so every adaptation is more accurate.`,
-  },
-} as const;
-
 export function ChannelWritingProfile({
   integrationId,
   integrationName,
@@ -64,7 +41,6 @@ export function ChannelWritingProfile({
 }: ChannelWritingProfileProps) {
   const resolvedLocale: IntakeLocale = locale === 'en' ? 'en' : 'ru';
   const t = intakeCopy[resolvedLocale];
-  const copy = panelCopy[resolvedLocale];
   const request = useFetch();
   const url = writingProfileUrl(integrationId);
   const [editing, setEditing] = useState(canWrite && initiallyEditing);
@@ -83,6 +59,7 @@ export function ChannelWritingProfile({
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   });
+  const avatars = useWritingProfileAvatars();
 
   useEffect(() => {
     if (data) {
@@ -172,16 +149,18 @@ export function ChannelWritingProfile({
         disabled={saving}
         onClick={cancelEditing}
       >
-        {copy.cancel}
+        {t.cancel}
       </Button>
       <Button
         type="button"
         variant="primary"
         density="dense"
-        disabled={saving || !draft}
+        disabled={!draft}
+        loading={saving}
+        loadingLabel={t.profileSaving}
         onClick={() => void save()}
       >
-        {saving ? t.profileSaving : t.profileSave}
+        {t.profileSave}
       </Button>
     </>
   ) : canWrite && data ? (
@@ -191,13 +170,13 @@ export function ChannelWritingProfile({
       density="dense"
       onClick={beginEditing}
     >
-      {data.stored ? copy.change : copy.fill}
+      {data.stored ? t.profileEdit : t.profileFill}
     </Button>
   ) : undefined;
 
   return (
     <Panel
-      title={copy.title}
+      title={t.profileTitle(integrationName)}
       actions={actions}
       contentClassName="flex min-w-0 flex-col gap-[16px]"
     >
@@ -229,7 +208,7 @@ export function ChannelWritingProfile({
                 variant="secondary"
                 onClick={() => void mutate()}
               >
-                {copy.retry}
+                {t.retry}
               </Button>
             }
           />
@@ -238,7 +217,7 @@ export function ChannelWritingProfile({
             {!data.stored && !editing ? (
               <div className="flex flex-wrap items-center gap-[8px] rounded-[8px] border border-cf-warning bg-cf-warning-soft px-[12px] py-[12px]">
                 <p className="min-w-[220px] flex-1 cf-body-sm text-cf-ink [text-wrap:pretty]">
-                  {copy.defaults(data.provider.name)}
+                  {t.profileDefaultsBody(data.provider.name)}
                 </p>
                 {canWrite ? (
                   <Button
@@ -247,7 +226,7 @@ export function ChannelWritingProfile({
                     density="dense"
                     onClick={beginEditing}
                   >
-                    {copy.fill}
+                    {t.profileFill}
                   </Button>
                 ) : null}
               </div>
@@ -258,6 +237,7 @@ export function ChannelWritingProfile({
                 <WritingProfileFields
                   locale={resolvedLocale}
                   profile={draft}
+                  avatars={avatars}
                   onChange={change}
                 />
                 <div className="flex flex-wrap items-center gap-[8px]">
@@ -279,12 +259,10 @@ export function ChannelWritingProfile({
               </>
             ) : (
               <dl className="grid min-w-0 grid-cols-1 gap-x-[16px] gap-y-[12px] sm:grid-cols-[160px_minmax(0,1fr)]">
-                {writingProfileViewRows(resolvedLocale, data.profile).map(
+                {writingProfileViewRows(resolvedLocale, data.profile, avatars).map(
                   (row) => (
                     <div key={row.key} className="contents">
-                      <dt className="cf-label-sm uppercase text-cf-ink-muted">
-                        {row.key}
-                      </dt>
+                      <SectionLabel as="dt">{row.key}</SectionLabel>
                       <dd className="min-w-0 cf-body-sm text-cf-ink [overflow-wrap:anywhere]">
                         {row.value}
                       </dd>

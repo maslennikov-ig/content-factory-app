@@ -1698,5 +1698,6 @@
   "intake_door_short": "素材",
   "help": "ヘルプ",
   "uploading": "アップロード中",
-  "importing": "インポート中"
+  "importing": "インポート中",
+  "pick_time": "時刻"
 }

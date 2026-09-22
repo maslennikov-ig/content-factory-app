@@ -40,7 +40,7 @@ const mocks = {
     channelDate: value => value || '—',
   },
   './channel-menu': { ChannelMenu: ({ renderActions }) => renderActions ? renderActions(h('button', null, 'Меню канала'), role === 'ADMIN' ? { reconnect: action, schedule: action, group: action, changeBot: action, disable: action, remove: action } : {}) : h('button', null, 'Меню канала') },
-  './channel-writing-profile': { ChannelWritingProfile: ({ canWrite }) => h('section', null, h('h3', null, 'Как пишем сюда'), canWrite && h('button', null, 'Изменить карточку')) },
+  './channel-writing-profile': { ChannelWritingProfile: ({ canWrite }) => h('section', null, h('h3', null, 'Как пишем в «Канал»'), canWrite && h('button', null, 'Изменить карточку')) },
   swr: { __esModule: true, default: key => key === '/integrations' ? ({ data: { social: [{ name: 'Telegram', identifier: 'telegram' }], article: [] } }) : ({ data: { total: 0, posts: [] } }) },
 };
 const { ChannelsScreen } = loadWithMocks(path + 'channels-screen.tsx', mocks);
@@ -100,7 +100,7 @@ test('empty state renders real provider catalog flow; readers do not receive con
 
 test('detail has all four panels and expired access action; mobile tabs select the corresponding panel', () => {
   routeId = 'two'; let result = render(h(ChannelScreen));
-  for (const name of ['Как пишем сюда', 'Расписание', 'Что здесь выходило', 'Подключение']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+  for (const name of ['Как пишем в «Канал»', 'Расписание', 'Что здесь выходило', 'Подключение']) expect(screen.getByRole('heading', { name })).toBeTruthy();
   expect(screen.getByText('Доступ к площадке истёк. Переподключите канал, чтобы публикации продолжились.')).toBeTruthy();
   fireEvent.click(screen.getAllByRole('button', { name: 'Переподключить' })[0]);
   expect(action).toHaveBeenCalledTimes(1);
@@ -137,7 +137,7 @@ test('mobile list CSS always keeps cards, hides desktop switch/table at the name
   expect(screen.queryByText('Каналов пока нет')).toBeNull();
   result.unmount(); listLoading = false; listError = new Error('offline'); render(h(ChannelsScreen));
   expect(screen.getByRole('alert').textContent).toContain('Не удалось загрузить каналы');
-  fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Попробовать снова' }));
   expect(reload).toHaveBeenCalled();
   expect(screen.queryByText('Каналов пока нет')).toBeNull();
 });

@@ -38,8 +38,10 @@ import {
   type AdaptationV1,
   type PieceAdaptEventV1,
   type PieceAdaptRequestV1,
+  type PieceAdaptOverridesV1,
   type PieceAnswerInputV1,
   type PieceCellStateV1,
+  type PieceChannelTabV1,
   type PieceCellV1,
   type PieceColumnV1,
   type PieceDetailV1,
@@ -56,7 +58,21 @@ import {
   type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { PLATFORM_NAMES } from '@contentfactory/react/platform/platform.families';
+import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
+import {
+  PIECE_ADAPTATION_WORKSPACE_ROUTES,
+  type PieceAdaptationEditRequestV1,
+  type PieceAdaptationScheduleRequestV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 import { platformLabel } from '../../brand-voice/voice-copy';
+import {
+  LENGTH_PRESETS,
+  buildWritingProfilePayload,
+  lengthPresetOf,
+  type ChannelWritingProfileV1,
+  type LengthPreset,
+  type WritingProfilePayload,
+} from '../intake/writing-profile.adapter';
 import {
   readBrief,
   readQualityChecks,
@@ -134,11 +150,59 @@ export const PIECES_API = {
   archive: PIECE_ROUTES.archive.path,
   delete: PIECE_ROUTES.delete.path,
   deleteAdaptation: PIECE_ROUTES.deleteAdaptation.path,
+  /* Двери рабочего места (`97dq.37`, §3.5) — из их собственного контракта. */
+  /** `PATCH {body?, image?}` — ручная правка, пока пост в черновике. */
+  adaptation: PIECE_ADAPTATION_WORKSPACE_ROUTES.edit.path,
+  /** `POST {date} | {now: true}` — в расписание или сразу в канал. */
+  schedule: PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.path,
+  /** `POST` без тела — «Снять с расписания», обратно в черновик. */
+  unschedule: PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.path,
 } as const;
 
 /** Адрес страницы заготовки — один на весь фронтенд. */
 export const piecePath = (pieceId: string) =>
   `/content/pieces/${encodeURIComponent(pieceId)}`;
+
+/**
+ * Вкладка страницы заготовки (`97dq.37`): «Суть» или канал.
+ *
+ * Вкладка живёт в адресе (`?tab=core|<integrationId>`): ссылку на канал
+ * заготовки можно переслать, клетка списка и календарь ведут прямо в неё, а
+ * перезагрузка не возвращает человека на «Суть».
+ */
+export const PIECE_TAB_CORE = 'core';
+
+export const pieceTabPath = (pieceId: string, tab?: string | null) =>
+  tab && tab !== PIECE_TAB_CORE
+    ? `${piecePath(pieceId)}?tab=${encodeURIComponent(tab)}`
+    : piecePath(pieceId);
+
+/** Значение `tab` из адреса; пустое — это «Суть». */
+export const readPieceTab = (value: unknown): string =>
+  typeof value === 'string' && value.trim() ? value.trim() : PIECE_TAB_CORE;
+
+/**
+ * День поста в календаре, а не календарь «вообще»: человек, нажавший «Открыть
+ * в календаре», ищет именно этот пост, и неделя, в которой его нет, — это
+ * второй поиск.
+ */
+export function calendarPath(
+  iso: string | null | undefined,
+  integrationId?: string | null
+): string {
+  const at = iso ? new Date(iso) : null;
+  const parts: string[] = [];
+  if (integrationId)
+    parts.push(`integrationId=${encodeURIComponent(integrationId)}`);
+  if (at && !Number.isNaN(at.getTime())) {
+    const two = (value: number) => String(value).padStart(2, '0');
+    const day = `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(
+      at.getDate()
+    )}`;
+    parts.push(`startDate=${day}`, `endDate=${day}`, 'display=day');
+  }
+  return parts.length ? `/launches?${parts.join('&')}` : '/launches';
+}
 
 /** Где человек делает новую заготовку: вкладка «Бриф» открывается входом. */
 export const NEW_PIECE_PATH = '/content?tab=brief';
@@ -350,7 +414,9 @@ export function readPiecesResponse(value: unknown): PiecesResponseV1 {
   };
 }
 
-export const readAdaptation = (value: unknown): AdaptationV1 | null => {
+export const readAdaptation = (
+  value: unknown
+): WorkspaceAdaptationV1 | null => {
   const record = asRecord(value);
   if (!record || typeof record.id !== 'string') return null;
   return {
@@ -372,7 +438,30 @@ export const readAdaptation = (value: unknown): AdaptationV1 | null => {
       ? { voiceVersion: record.voiceVersion }
       : {}),
     checks: readQualityChecks(record.checks),
+    ...(readImage(record.image, record.mediaId)
+      ? { image: readImage(record.image, record.mediaId) }
+      : {}),
   };
+};
+
+/**
+ * Картинка поста: одна, из медиатеки.
+ *
+ * Дверь адаптации называет её идентификатором (`mediaId`); адрес для
+ * миниатюры знает только та страница, где её выбрали, и тогда он приезжает
+ * объектом `image`. Без адреса картинка всё равно есть — экран говорит это
+ * словами, а не пустой рамкой.
+ */
+const readImage = (
+  value: unknown,
+  mediaId: unknown
+): AdaptationImageV1 | null => {
+  const record = asRecord(value);
+  if (record && typeof record.id === 'string' && record.id)
+    return { id: record.id, path: asText(record.path) };
+  return typeof mediaId === 'string' && mediaId
+    ? { id: mediaId, path: '' }
+    : null;
 };
 
 const readTarget = (value: unknown): PieceTargetV1 | null => {
@@ -484,7 +573,80 @@ export const readOpenQuestions = (value: unknown): PieceQuestionsV1 | null => {
   };
 };
 
-export function readPieceDetail(value: unknown): PieceDetailV1 {
+/**
+ * «Что вы прислали» (`97dq.41`): вход дословно, до всех правок.
+ *
+ * Сервер отдаёт `sentText` строкой (новое поле `inputText`, у старых
+ * заготовок — первое непустое из присланного); объект `{text, kind, at}` тоже
+ * читается, чтобы поток бэкенда мог добавить вид входа, не ломая экрана.
+ * Пока сервер поля не шлёт, текст собирается из того, что уже есть в сути, в
+ * том же порядке: чужой текст, задание, свои слова.
+ */
+export function readSentText(
+  value: unknown,
+  core: ZagotovkaCoreV1 | null
+): SentTextV1 | null {
+  const kindOfCore = (): SentTextKindV1 =>
+    core?.brief.inputKind === 'foreign_post'
+      ? 'source'
+      : core?.brief.inputKind === 'link'
+      ? 'link'
+      : core?.brief.inputKind === 'instruction'
+      ? 'instruction'
+      : 'person';
+  const record = asRecord(value);
+  const direct = typeof value === 'string' ? value : asText(record?.text);
+  if (direct.trim()) {
+    const kind = asText(record?.kind);
+    return {
+      text: direct,
+      kind: SENT_KINDS.includes(kind as SentTextKindV1)
+        ? (kind as SentTextKindV1)
+        : kindOfCore(),
+      at: asNullableText(record?.at),
+    };
+  }
+  if (!core) return null;
+  if (core.sourceText?.trim())
+    return { text: core.sourceText, kind: kindOfCore(), at: null };
+  if (core.instructionText?.trim())
+    return { text: core.instructionText, kind: 'instruction', at: null };
+  if (core.personText?.trim())
+    return { text: core.personText, kind: 'person', at: null };
+  return null;
+}
+
+/** Вкладка канала из ответа двери (`PieceChannelTabV1`). */
+const readChannelTab = (value: unknown): PieceChannelTabV1 | null => {
+  const record = asRecord(value);
+  if (!record || typeof record.integrationId !== 'string') return null;
+  const cell = readCell(record.cell);
+  return {
+    integrationId: record.integrationId,
+    name: asText(record.name, record.integrationId),
+    providerIdentifier: asText(record.providerIdentifier),
+    maxLength:
+      typeof record.maxLength === 'number' && record.maxLength > 0
+        ? record.maxLength
+        : null,
+    cell: cell ?? {
+      platform: asText(record.providerIdentifier),
+      state: 'none',
+    },
+    adaptationIds: asArray(record.adaptationIds).filter(
+      (id): id is string => typeof id === 'string'
+    ),
+  };
+};
+
+const SENT_KINDS: readonly SentTextKindV1[] = [
+  'person',
+  'source',
+  'link',
+  'instruction',
+];
+
+export function readPieceDetail(value: unknown): PieceWorkspaceV1 {
   const record = asRecord(value);
   const piece = record ? readRow(record.piece) : null;
   if (!record || !piece) {
@@ -493,10 +655,16 @@ export function readPieceDetail(value: unknown): PieceDetailV1 {
       'The piece arrived unreadable.'
     );
   }
+  const core = readCore(record.core);
   return {
     state: readScreenState(record.state),
     piece,
-    core: readCore(record.core),
+    core,
+    sentText: readSentText(record.sentText, core),
+    channelTabs: asArray(record.channels).flatMap((entry) => {
+      const tab = readChannelTab(entry);
+      return tab ? [tab] : [];
+    }),
     legacyBody: asNullableText(record.legacyBody),
     adaptations: asArray(record.adaptations).flatMap((entry) => {
       const adaptation = readAdaptation(entry);
@@ -818,12 +986,17 @@ export const buildAdaptPayload = (input: {
   answers?: readonly PieceAnswerInputV1[];
   decideKeys?: readonly PieceQuestionKeyV1[];
   skipInterview?: boolean;
-}): PieceAdaptRequestV1 => ({
+  /** «Для этого поста» (§3.4): только отличное от канала и аватара. */
+  overrides?: AdaptOverridesV1;
+}): PieceAdaptRequestV1 & { overrides?: AdaptOverridesV1 } => ({
   integrationId: input.integrationId,
   ...(input.kind ? { kind: input.kind } : {}),
   ...(input.answers?.length ? { answers: [...input.answers] } : {}),
   ...(input.decideKeys?.length ? { decideKeys: [...input.decideKeys] } : {}),
   ...(input.skipInterview ? { skipInterview: true } : {}),
+  ...(input.overrides && Object.keys(input.overrides).length
+    ? { overrides: { ...input.overrides } }
+    : {}),
 });
 
 /* -------------------------------------------------------------------------
@@ -1042,4 +1215,504 @@ export function sortPieces(
       return compared === 0 ? left.index - right.index : compared * multiplier;
     })
     .map(({ row }) => row);
+}
+
+/* -------------------------------------------------------------------------
+ * Рабочее место заготовки (`97dq.37`, вариант A)
+ *
+ * Всё, что страница шлёт новым дверям и читает из них, собрано здесь, а не в
+ * контейнере: двери пишет параллельный поток бэкенда, и когда он назовёт поле
+ * иначе, выравнивание — это правка одного файла.
+ * ---------------------------------------------------------------------- */
+
+/** Откуда пришёл текст «Что вы прислали». */
+export type SentTextKindV1 = 'person' | 'source' | 'link' | 'instruction';
+
+export type SentTextV1 = {
+  text: string;
+  kind: SentTextKindV1;
+  /** ISO, когда прислано; у старых заготовок неизвестно. */
+  at: string | null;
+};
+
+/** Картинка поста; `path` пуст, когда дверь назвала только идентификатор. */
+export type AdaptationImageV1 = { id: string; path: string };
+
+/** Адаптация, как её читает рабочее место: плюс картинка поста. */
+export type WorkspaceAdaptationV1 = AdaptationV1 & {
+  image?: AdaptationImageV1 | null;
+};
+
+export type PieceWorkspaceV1 = Omit<
+  PieceDetailV1,
+  'adaptations' | 'sentText' | 'channels'
+> & {
+  adaptations: WorkspaceAdaptationV1[];
+  sentText: SentTextV1 | null;
+  /** Вкладки каналов из ответа двери; у старого сервера — пусто. */
+  channelTabs: PieceChannelTabV1[];
+};
+
+/** «Для этого поста» (§3.4): разово, ни канал, ни аватар не меняются. */
+export type PostLengthV1 = 'shorter' | 'channel' | 'longer';
+export type AddressFormV1 = 'avatar' | 'ty' | 'vy';
+
+export type PostOptionsV1 = {
+  length: PostLengthV1;
+  addressForm: AddressFormV1;
+  /** `null` — аватар канала, как решено в его настройках. */
+  brandProfileId: string | null;
+  wish: string;
+};
+
+export const DEFAULT_POST_OPTIONS: PostOptionsV1 = {
+  length: 'channel',
+  addressForm: 'avatar',
+  brandProfileId: null,
+  wish: '',
+};
+
+export type AdaptOverridesV1 = PieceAdaptOverridesV1;
+
+/** Предел «Пожелания» и «что унести» у двери адаптации. */
+export const POST_WISH_MAX = 500;
+
+/**
+ * Что решено для канала — от этого считается «для этого поста».
+ *
+ * Обращение и аватар по умолчанию берутся из карточки канала, а не
+ * выдумываются: «Как в аватаре», выбранное в полосе по умолчанию над каналом
+ * «на вы», было бы неправдой о том, как напишется пост.
+ */
+export type PostOptionsBaselineV1 = {
+  addressForm: AddressFormV1;
+  brandProfileId: string | null;
+};
+
+export const DEFAULT_POST_BASELINE: PostOptionsBaselineV1 = {
+  addressForm: 'avatar',
+  brandProfileId: null,
+};
+
+export const postBaselineOf = (
+  profile:
+    | { addressForm?: AddressFormV1; brandProfileId?: string | null }
+    | null
+    | undefined
+): PostOptionsBaselineV1 => ({
+  addressForm: profile?.addressForm ?? 'avatar',
+  brandProfileId: profile?.brandProfileId ?? null,
+});
+
+/** Настройки поста, с которых начинается вкладка: как решено для канала. */
+export const postOptionsFrom = (
+  baseline: PostOptionsBaselineV1
+): PostOptionsV1 => ({ ...DEFAULT_POST_OPTIONS, ...baseline });
+
+/**
+ * Что из «Для этого поста» уходит в `overrides`.
+ *
+ * Только отличное от умолчания: «как в канале» и «как в аватаре» — это не
+ * значение, а отсутствие переопределения, и сервер разрешает его сам по
+ * цепочке «пост → канал → аватар».
+ */
+export function adaptOverrides(
+  options: PostOptionsV1,
+  baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE,
+  takeaway?: string | null
+): AdaptOverridesV1 | undefined {
+  const wish = options.wish.trim().slice(0, POST_WISH_MAX);
+  const result: AdaptOverridesV1 = {
+    ...(options.length !== 'channel' ? { length: options.length } : {}),
+    ...(options.addressForm !== baseline.addressForm
+      ? { addressForm: options.addressForm }
+      : {}),
+    ...(options.brandProfileId &&
+    options.brandProfileId !== baseline.brandProfileId
+      ? { brandProfileId: options.brandProfileId }
+      : {}),
+    ...(wish ? { wish } : {}),
+    ...(takeaway?.trim()
+      ? { takeaway: takeaway.trim().slice(0, POST_WISH_MAX) }
+      : {}),
+  };
+  return Object.keys(result).length ? result : undefined;
+}
+
+export const postOptionsChanged = (
+  options: PostOptionsV1,
+  baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE
+): boolean => adaptOverrides(options, baseline) !== undefined;
+
+/** Тело `PATCH` ручной правки. Картинка `null` — убрать её с поста. */
+export function buildAdaptationPatch(input: {
+  body?: string;
+  image?: { id: string } | null;
+}): PieceAdaptationEditRequestV1 {
+  return {
+    ...(typeof input.body === 'string' ? { body: input.body } : {}),
+    // Путь картинки сервер берёт из медиатеки сам: уходит только её имя.
+    ...(input.image !== undefined
+      ? { image: input.image ? { id: input.image.id } : null }
+      : {}),
+  };
+}
+
+/** Ответ `PATCH`: обновлённая адаптация, обёрнутая или нет. */
+export function readAdaptationPatch(
+  value: unknown
+): WorkspaceAdaptationV1 | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  return readAdaptation(record.adaptation ?? record);
+}
+
+/** Тело `POST …/schedule`: либо момент, либо «сейчас» — не оба сразу. */
+export function buildSchedulePayload(
+  input: { now: true } | { date: Date | string }
+): PieceAdaptationScheduleRequestV1 {
+  if ('now' in input) return { now: true };
+  const at = typeof input.date === 'string' ? new Date(input.date) : input.date;
+  return { date: at.toISOString() };
+}
+
+/**
+ * Ответ `POST …/schedule` — новое состояние.
+ *
+ * Сервер может вернуть адаптацию целиком или только `state` и `date`; экран
+ * всё равно перечитывает заготовку, и отсюда ему нужно только слово о том,
+ * что случилось.
+ */
+export function readScheduleResult(value: unknown): {
+  state: AdaptationStateV1 | null;
+  date: string | null;
+  adaptation: WorkspaceAdaptationV1 | null;
+} {
+  const record = asRecord(value) ?? {};
+  const adaptation = readAdaptation(record.adaptation);
+  const stateSource =
+    typeof record.state === 'string' ? record.state : adaptation?.state;
+  return {
+    state: ADAPTATION_STATES.includes(stateSource as AdaptationStateV1)
+      ? (stateSource as AdaptationStateV1)
+      : null,
+    date: asNullableText(record.date) ?? adaptation?.date ?? null,
+    adaptation,
+  };
+}
+
+/** Слово отказа двери, если оно есть. */
+export const refusalMessage = (value: unknown): string | null => {
+  const record = asRecord(value);
+  const message = asText(record?.message);
+  return message.trim() ? message : null;
+};
+
+/** Сколько знаков увидит читатель: звёздочки выделения не в счёт. */
+export const visibleLength = (text: string): number =>
+  Array.from(stripBoldMarkers(text)).length;
+
+/* ---- Правка текста -------------------------------------------------------- */
+
+export type TextEdit = { text: string; start: number; end: number };
+
+/**
+ * «Ж» на выделенном: обернуть в `**…**` или снять обёртку, если она уже есть.
+ * Без выделения ставится пустая пара, и каретка встаёт внутрь неё.
+ */
+export function toggleBold(text: string, start: number, end: number): TextEdit {
+  const from = Math.max(0, Math.min(start, end));
+  const to = Math.min(text.length, Math.max(start, end));
+  const before = text.slice(0, from);
+  const chosen = text.slice(from, to);
+  const after = text.slice(to);
+  if (before.endsWith('**') && after.startsWith('**')) {
+    return {
+      text: `${before.slice(0, -2)}${chosen}${after.slice(2)}`,
+      start: from - 2,
+      end: to - 2,
+    };
+  }
+  if (chosen.length > 4 && chosen.startsWith('**') && chosen.endsWith('**')) {
+    const inner = chosen.slice(2, -2);
+    return {
+      text: `${before}${inner}${after}`,
+      start: from,
+      end: from + inner.length,
+    };
+  }
+  return {
+    text: `${before}**${chosen}**${after}`,
+    start: from + 2,
+    end: to + 2,
+  };
+}
+
+/** Вставить строку на место выделения (ссылка вставляется адресом). */
+export function insertText(
+  text: string,
+  start: number,
+  end: number,
+  insert: string
+): TextEdit {
+  const from = Math.max(0, Math.min(start, end));
+  const to = Math.min(text.length, Math.max(start, end));
+  const before = text.slice(0, from);
+  const after = text.slice(to);
+  const pad = before && !/\s$/.test(before) ? ' ' : '';
+  const tail = after && !/^\s/.test(after) ? ' ' : '';
+  const piece = `${pad}${insert}${tail}`;
+  const at = before.length + piece.length;
+  return { text: `${before}${piece}${after}`, start: at, end: at };
+}
+
+/** Адрес, который можно вставить: только http(s), без пробелов. */
+export const readLinkAddress = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  const candidate = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    return url.hostname.includes('.') ? candidate : null;
+  } catch {
+    return null;
+  }
+};
+
+/* ---- Каналы и вкладки ------------------------------------------------------ */
+
+export type WorkspaceChannel = {
+  id: string;
+  name: string;
+  platform: string;
+  /** Имя площадки из ответа сервера; переводит его экран. */
+  platformName: string;
+  providerIdentifier: string;
+  kinds: AdaptationKindV1[];
+  /** Версии этого канала, свежая первой. */
+  adaptations: WorkspaceAdaptationV1[];
+  /** Состояние свежей версии; без версий — «ещё нет». */
+  state: PieceCellStateV1;
+  /** Канал подключён сейчас. Адаптация отключённого канала остаётся видна. */
+  connected: boolean;
+  /** Предел площадки для счётчика; `null` — провайдер его не назвал. */
+  maxLength: number | null;
+};
+
+const newestFirst = (left: AdaptationV1, right: AdaptationV1) =>
+  right.createdAt.localeCompare(left.createdAt);
+
+/**
+ * Каналы рабочего места: по одному на каждый подключённый канал и на каждый
+ * канал, где адаптация уже есть.
+ *
+ * Порядок — порядок ответа: сервер уже поставил площадки по числу адаптаций.
+ * Адаптация канала, который с тех пор отключили, не пропадает: её
+ * происхождение и опубликованный текст остаются читаемыми.
+ */
+export function workspaceChannels(
+  detail: Pick<PieceWorkspaceV1, 'targets' | 'adaptations'> &
+    Partial<Pick<PieceWorkspaceV1, 'channelTabs'>>
+): WorkspaceChannel[] {
+  const byChannel = new Map<string, WorkspaceAdaptationV1[]>();
+  for (const adaptation of detail.adaptations) {
+    const key = adaptation.integrationId ?? `platform:${adaptation.platform}`;
+    byChannel.set(key, [...(byChannel.get(key) ?? []), adaptation]);
+  }
+  const stateOf = (list: readonly WorkspaceAdaptationV1[]): PieceCellStateV1 =>
+    list.length ? list[0].state : 'none';
+
+  const channels: WorkspaceChannel[] = [];
+  const seen = new Set<string>();
+
+  /*
+    Сервер, знающий вкладки (`PieceChannelTabV1`), решает их порядок, имя,
+    клетку и предел площадки сам. Версии — по `adaptationIds` от старой к
+    новой; свежая версия из стрима, которой дверь ещё не знает, встаёт
+    первой по времени создания.
+  */
+  if (detail.channelTabs?.length) {
+    for (const tab of detail.channelTabs) {
+      const target = detail.targets.find((one) =>
+        one.channels.some((channel) => channel.id === tab.integrationId)
+      );
+      const platform = target?.platform ?? tab.providerIdentifier;
+      const adaptations = [...(byChannel.get(tab.integrationId) ?? [])].sort(
+        newestFirst
+      );
+      seen.add(tab.integrationId);
+      channels.push({
+        id: tab.integrationId,
+        name: tab.name,
+        platform,
+        platformName: target?.name ?? platform,
+        providerIdentifier: tab.providerIdentifier || platform,
+        kinds: target?.kinds.length ? target.kinds : ['post'],
+        adaptations,
+        state: adaptations.length ? stateOf(adaptations) : tab.cell.state,
+        connected: true,
+        maxLength: tab.maxLength,
+      });
+    }
+  }
+
+  for (const target of detail.targets) {
+    if (!target.available) continue;
+    for (const channel of target.channels) {
+      if (seen.has(channel.id)) continue;
+      const adaptations = [...(byChannel.get(channel.id) ?? [])].sort(
+        newestFirst
+      );
+      seen.add(channel.id);
+      channels.push({
+        id: channel.id,
+        name: channel.name,
+        platform: target.platform,
+        platformName: target.name,
+        providerIdentifier: channel.providerIdentifier,
+        kinds: target.kinds.length ? target.kinds : ['post'],
+        adaptations,
+        state: stateOf(adaptations),
+        connected: true,
+        maxLength: null,
+      });
+    }
+  }
+  for (const [key, list] of byChannel) {
+    if (seen.has(key)) continue;
+    const adaptations = [...list].sort(newestFirst);
+    const first = adaptations[0];
+    channels.push({
+      id: key,
+      name: first.integrationName ?? first.platform,
+      platform: first.platform,
+      platformName: first.platform,
+      providerIdentifier: first.platform,
+      kinds: [first.kind],
+      adaptations,
+      state: stateOf(adaptations),
+      connected: false,
+      maxLength: null,
+    });
+  }
+  return channels;
+}
+
+/**
+ * Какие каналы стоят вкладками, а какие ждут в «Ещё канал».
+ *
+ * Вкладку получает канал, где уже есть текст, первый канал каждой площадки и
+ * тот, что открыт сейчас. Остальные каналы той же площадки — в меню: у
+ * человека с тремя Telegram-каналами иначе вкладок становится больше, чем
+ * слов на экране, а начать можно с любого.
+ */
+export function workspaceTabs(
+  channels: readonly WorkspaceChannel[],
+  active: string
+): { shown: WorkspaceChannel[]; more: WorkspaceChannel[] } {
+  const firstOfPlatform = new Set<string>();
+  const platforms = new Set<string>();
+  for (const channel of channels) {
+    if (!channel.connected || platforms.has(channel.platform)) continue;
+    platforms.add(channel.platform);
+    firstOfPlatform.add(channel.id);
+  }
+  const shown: WorkspaceChannel[] = [];
+  const more: WorkspaceChannel[] = [];
+  for (const channel of channels) {
+    if (
+      channel.adaptations.length > 0 ||
+      firstOfPlatform.has(channel.id) ||
+      channel.id === active
+    )
+      shown.push(channel);
+    else more.push(channel);
+  }
+  return { shown, more };
+}
+
+/** Канал из адреса, если такой есть в заготовке. */
+export const channelOfTab = (
+  channels: readonly WorkspaceChannel[],
+  tab: string
+): WorkspaceChannel | null =>
+  tab === PIECE_TAB_CORE
+    ? null
+    : channels.find((channel) => channel.id === tab) ?? null;
+
+/**
+ * Старый адрес `?adapt=<площадка>` — вкладка первого канала этой площадки.
+ * Клетки списка до этой волны вели сюда так, и ссылки живут дольше волн.
+ */
+export const tabOfPlatform = (
+  channels: readonly WorkspaceChannel[],
+  platform: string | null | undefined
+): string | null =>
+  platform
+    ? channels.find(
+        (channel) => channel.connected && channel.platform === platform
+      )?.id ?? null
+    : null;
+
+/* ---- «Запомнить для канала» ------------------------------------------------ */
+
+/**
+ * Профиль канала с тем, что человек выбрал для этого поста.
+ *
+ * Длина сдвигает пресет канала на шаг — «короче» и «длиннее» относительно
+ * того, как пишем сейчас; обращение и аватар пишутся новыми полями профиля
+ * (§3.4). Остальные поля уходят как были: запоминание не стирает того, чего
+ * человек в этой панели не видел.
+ */
+export function rememberedProfilePayload(
+  profile: ChannelWritingProfileV1,
+  options: PostOptionsV1
+): WritingProfilePayload {
+  let next = profile;
+  if (options.length !== 'channel') {
+    const order: readonly Exclude<LengthPreset, 'auto'>[] = [
+      'short',
+      'ideal',
+      'long',
+      'max',
+    ];
+    const current: Exclude<LengthPreset, 'auto'> =
+      typeof profile.lengthPolicy === 'string'
+        ? 'ideal'
+        : (lengthPresetOf(profile.lengthPolicy) as Exclude<
+            LengthPreset,
+            'auto'
+          >);
+    const at = Math.max(0, order.indexOf(current));
+    const step = options.length === 'shorter' ? -1 : 1;
+    const target = order[Math.min(order.length - 1, Math.max(0, at + step))];
+    next = { ...profile, lengthPolicy: { ...LENGTH_PRESETS[target] } };
+  }
+  return buildWritingProfilePayload({
+    ...next,
+    addressForm: options.addressForm,
+    brandProfileId: options.brandProfileId,
+  });
+}
+
+/* ---- «Когда» по умолчанию -------------------------------------------------- */
+
+/**
+ * Ближайшее свободное время канала — тот же ответ, по которому календарь
+ * ставит новый пост этого канала (`launches/menu/menu.tsx`).
+ */
+export const findSlotUrl = (integrationId: string) =>
+  `/posts/find-slot/${encodeURIComponent(integrationId)}`;
+
+/** Время из `find-slot`: сервер пишет его в UTC, иногда без знака зоны. */
+export function readSlotDate(value: unknown): Date | null {
+  const raw = asText(asRecord(value)?.date);
+  if (!raw.trim()) return null;
+  const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw.trim())
+    ? raw.trim()
+    : `${raw.trim().replace(' ', 'T')}Z`;
+  const at = new Date(zoned);
+  return Number.isNaN(at.getTime()) ? null : at;
 }

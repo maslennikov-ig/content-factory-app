@@ -68,13 +68,11 @@ export function IntakeContainer({
   surface,
   integrations: given,
   prefill,
-  onSwitchToManual,
 }: {
   surface: 'calendar' | 'brief';
   /** Список каналов, когда он уже есть у вызывающего (стенд, календарь). */
   integrations?: readonly Integrations[];
   prefill?: { input: string; sourceLeadId?: string } | null;
-  onSwitchToManual?: () => void;
 }) {
   const request = useFetch();
   const t = useT();
@@ -494,7 +492,6 @@ export function IntakeContainer({
           setResearchWorking(false);
         }}
         onOpenPiece={goToPiece}
-        onManual={onSwitchToManual}
         onRetry={retry}
       />
 

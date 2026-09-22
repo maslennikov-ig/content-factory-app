@@ -1246,8 +1246,9 @@ const AiProviderComponent = () => {
             helper={
               hasStoredSearchKey(engine) ? (
                 /*
-                  То же объяснение с клавиатуры: `title` мышиный, а подсказка —
-                  кнопка со своим именем. Живёт под полем, а не в нём: у рамки
+                  Объяснение с клавиатуры: `title` мышиный, а подсказка —
+                  кнопка со своим именем. Она называет сам крестик и не
+                  повторяет строку с него (`97dq.34`). Живёт под полем, а не в нём: у рамки
                   поля `overflow-hidden`, и пузырь внутри неё был бы обрезан.
                 */
                 <span className="flex flex-wrap items-center gap-[4px]">
@@ -1260,7 +1261,9 @@ const AiProviderComponent = () => {
                     )}
                     side="start"
                   >
-                    {words.search.returnToSystemHint}
+                    {words.search.returnToSystemExplain(
+                      words.search.engines[engine].name
+                    )}
                   </Hint>
                 </span>
               ) : (

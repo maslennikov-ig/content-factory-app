@@ -402,9 +402,9 @@ export const voiceCopy = {
     materialsTitle: 'Материалы',
     materialsSubtitle: (count: number) =>
       `${count} ${count === 1 ? 'материал' : 'материала'} · переиспользуются в публикациях`,
-    materialsEmptyTitle: 'Материалов пока нет',
+    materialsEmptyTitle: 'Заготовок пока нет',
     materialsEmptyBody:
-      'Материал — готовый текст, который живёт отдельно от публикации и перекраивается под площадку. Сохраните черновик как материал, и он появится здесь.',
+      'Заготовка — суть вашей мысли без площадки: из неё делаются адаптации под каналы. Соберите первую — и она появится здесь.',
     materialsColumnCode: 'Код',
     materialsColumnTitle: 'Название',
     materialsColumnFormat: 'Формат',
@@ -539,6 +539,12 @@ export const voiceCopy = {
     passportEditSave: 'Сохранить',
     passportEditCancel: 'Отмена',
     passportEditSaved: 'Сохранено. Создана новая версия аватара.',
+    passportAddress: 'Обращение к читателю',
+    passportAddressUnset: 'Не задано',
+    passportAddressTy: 'на «ты»',
+    passportAddressVy: 'на «вы»',
+    passportHintAddress:
+      'Как этот аватар обращается к читателю по умолчанию. Канал может задать своё, а для одного поста — сменить на странице адаптации. «Не задано» — модель решает по тексту.',
     passportEditNote:
       'Правка сразу создаёт новую версию: она появится в истории ниже, а старые публикации останутся привязаны к той версии, которой были написаны.',
     passportEditEmpty: 'Строка не может быть пустой.',
@@ -1118,9 +1124,9 @@ export const voiceCopy = {
     materialsTitle: 'Material',
     materialsSubtitle: (count: number) =>
       `${count} pieces · reused across posts`,
-    materialsEmptyTitle: 'No material yet',
+    materialsEmptyTitle: 'No pieces yet',
     materialsEmptyBody:
-      'A piece of material is a finished text that lives apart from any post and is recut for a platform. Save a draft as material and it appears here.',
+      'A piece is the core of your thought without a platform: channel adaptations are made from it. Build the first one and it appears here.',
     materialsColumnCode: 'Code',
     materialsColumnTitle: 'Title',
     materialsColumnFormat: 'Format',
@@ -1230,6 +1236,12 @@ export const voiceCopy = {
     passportEditSave: 'Save',
     passportEditCancel: 'Cancel',
     passportEditSaved: 'Saved. A new version of the avatar was created.',
+    passportAddress: 'Addressing the reader',
+    passportAddressUnset: 'Not set',
+    passportAddressTy: 'informal',
+    passportAddressVy: 'formal',
+    passportHintAddress:
+      'How this avatar addresses the reader by default. A channel can set its own, and one post can change it on the adaptation page. “Not set” lets the model decide from the text.',
     passportEditNote:
       'An edit creates a new version at once: it shows up in the history below, and posts already written stay attached to the version that wrote them.',
     passportEditEmpty: 'The line cannot be empty.',

@@ -50,7 +50,9 @@ export type AdaptationSlopCheck = (
   text: string,
   platform: string,
   locale: 'ru' | 'en',
-  grounded?: readonly string[]
+  grounded?: readonly string[],
+  /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
+  supported?: readonly string[]
 ) => SlopReportV1 | null;
 
 export type AdaptationChecksInput = {
@@ -74,6 +76,11 @@ export type AdaptationChecksInput = {
    * не штамп. Пусто — каталог считает как считал.
    */
   grounded?: readonly string[];
+  /**
+   * Утверждения отмеченных фактов брифа (`content-factory-next-97dq.33`):
+   * короткая находка, пересказывающая такую опору, штампом не считается.
+   */
+  supported?: readonly string[];
 };
 
 export type AdaptationChecksDeps = {
@@ -124,7 +131,8 @@ const offlineChecks = (
               text,
               input.platform,
               input.language,
-              input.grounded
+              input.grounded,
+              input.supported
             )
           )
         : null,
@@ -169,6 +177,7 @@ export async function adaptationChecksMany(
     foreignShingles?: readonly string[];
     /** Опоры заготовки: у всех её адаптаций они одни и те же. */
     grounded?: readonly string[];
+    supported?: readonly string[];
   },
   rows: ReadonlyArray<{ text: string; platform: string }>,
   deps: AdaptationChecksDeps
@@ -203,6 +212,7 @@ export async function adaptationChecksMany(
         language: common.language,
         foreignShingles: common.foreignShingles,
         grounded: common.grounded,
+        supported: common.supported,
       },
       deps
     ),

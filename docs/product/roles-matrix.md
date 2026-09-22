@@ -127,7 +127,9 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/rewrite/accept` | EDITOR | 1 | редактор; принятие подписанных правок сути |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/rewrite` | EDITOR | 1 | редактор; перегенерация адаптации |
 | `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
-| `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 | редактор |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 2 | редактор; удаление версии и ручная правка черновика |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId/schedule` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Запланировать» и «Опубликовать сейчас» с экрана адаптации |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId/unschedule` | EDITOR | 1 | редактор; «Снять с расписания» с экрана адаптации |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
@@ -268,7 +270,10 @@ if (!packageOptions) {
 (`POST …/review/accept`), изменение заголовка (`PATCH …/:id`) и выбора опор
 (`PATCH …/:id/facts`), перегенерация сути (`POST …/:id/rewrite`) и адаптации
 (`POST …/:id/adaptations/:adaptationId/rewrite`), принятие правок сути
-(`POST …/:id/rewrite/accept`). Выбор найденной опоры не подтверждает её
+(`POST …/:id/rewrite/accept`), ручная правка черновика адаптации
+(`PATCH …/:id/adaptations/:adaptationId`, `97dq.37`) и его выход в очередь
+(`POST …/:id/adaptations/:adaptationId/schedule` — черновик в очереди считается
+в тарифный месяц, поэтому предел тарифа первым, как у `POST /posts`). Выбор найденной опоры не подтверждает её
 истинность. Перегенерация и проверка дополнительно проходит допуск ИИ в сервисе;
 режим поиска требует явного подтверждения расходов. Принятие не вызывает
 модель и применяет только выбранные подписанные правки к актуальному снимку

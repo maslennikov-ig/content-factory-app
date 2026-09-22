@@ -157,7 +157,7 @@ const fakeGraph = (captured) => {
   return graph;
 };
 
-const run = async ({ requestBody, integration }) => {
+const run = async ({ requestBody, integration, context = envelope, voice = {} }) => {
   const calls = [];
   const captured = {};
   const previousState = AgentGraphService.state;
@@ -180,10 +180,10 @@ const run = async ({ requestBody, integration }) => {
     {
       build: async (organizationId, request) => {
         calls.push(['build', organizationId, request]);
-        return envelope;
+        return context;
       },
     },
-    { resolve: async () => ({ effectiveVoice: {} }) },
+    { resolve: async () => ({ effectiveVoice: voice }) },
     null,
     { acceptSearchResult: async () => ({ evidenceId: 'evidence-1' }) },
     integration,
@@ -248,6 +248,42 @@ describe('generator channel profile wiring', () => {
         foreignShingles: intake.foreignShingles,
       })
     );
+  });
+
+  test('this post and the avatar reach the same directive builder (`97dq.38`)', async () => {
+    const post = { length: 'shorter', addressForm: 'avatar', wish: 'Без эмодзи' };
+    const result = await run({
+      requestBody: baseBody({ intake: { ...intake, post } }),
+      integration: {
+        getWritingProfile: async () => {
+          throw new Error('intake must already contain the channel');
+        },
+      },
+      context: {
+        ...envelope,
+        profile: {
+          mode: 'resolved',
+          versionId: 'version-1',
+          versionNumber: 1,
+          contentDigest: 'digest-1',
+        },
+      },
+      voice: { addressForm: 'vy' },
+    });
+
+    expect(result.captured.input.channelLines).toEqual(
+      channelInstructionLines(profile, provider, {
+        withPicture: false,
+        formatHint: 'story',
+        foreignShingles: intake.foreignShingles,
+        post,
+        avatarAddressForm: 'vy',
+      })
+    );
+    const lines = result.captured.input.channelLines.join('\n');
+    expect(lines).toContain('«вы»');
+    expect(lines).toContain('360 to 540 characters');
+    expect(lines).toContain('Без эмодзи');
   });
 
   test.each([

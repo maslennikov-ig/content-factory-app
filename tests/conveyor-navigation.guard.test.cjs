@@ -18,7 +18,7 @@ test('Channels owns its directory while the calendar is full width', () => {
 });
 
 test('intake, piece and onboarding point to the channel list', () => {
-  for (const file of ['content-intelligence/intake/intake.screen.tsx', 'content-intelligence/pieces/piece.screen.tsx']) {
+  for (const file of ['content-intelligence/intake/intake.screen.tsx', 'content-intelligence/pieces/piece-core-tab.tsx']) {
     expect(read(base + file)).toContain('href="/channels"');
   }
   expect(read(base + 'onboarding/onboarding.adapter.ts')).toContain("channel: '/channels'");

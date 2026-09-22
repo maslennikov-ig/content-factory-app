@@ -240,6 +240,25 @@ const usePostActions = (onMutate?: () => void) => {
         publishDate: loadPost.actualDate || loadPost.publishDate,
       };
 
+      /*
+        Пост, пришедший из заготовки, правится во вкладке своего канала на
+        странице заготовки, а не в окне поста (`97dq.37`, §3.6): там его
+        текст, проверки, дата и отправка. Копия поста — новая запись, и она
+        по-прежнему открывается окном.
+      */
+      const pieceId: unknown = post.piece?.id;
+      const channelId: unknown = post.integration?.id;
+      if (!isDuplicate && typeof pieceId === 'string' && pieceId) {
+        const tab =
+          typeof channelId === 'string' && channelId
+            ? `?tab=${encodeURIComponent(channelId)}`
+            : '';
+        window.location.assign(
+          `/content/pieces/${encodeURIComponent(pieceId)}${tab}`
+        );
+        return;
+      }
+
       await openPostEditor({
         group: post.group,
         duplicate: isDuplicate,
@@ -1014,7 +1033,7 @@ export const CalendarColumn: FC<{
                   {integrations.slice(0, 4).map((selectedIntegrations) => (
                     <div
                       className="relative"
-                      key={selectedIntegrations.identifier}
+                      key={selectedIntegrations.id}
                     >
                       <div
                         className={clsx(

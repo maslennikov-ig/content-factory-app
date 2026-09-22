@@ -48,6 +48,15 @@ const contract = loadTypeScriptModule(`${BRAND_VOICE}/voice-wiring.contract.ts`)
 const readyContract = loadTypeScriptModule(
   `${PIECES}/ready-adaptations.contract.ts`
 );
+const workspaceContract = loadTypeScriptModule(
+  `${PIECES}/adaptation-workspace.contract.ts`,
+  {},
+  {
+    sources: {
+      '../brand-voice/voice-wiring.contract': `${BRAND_VOICE}/voice-wiring.contract.ts`,
+    },
+  }
+);
 const presentation = loadTypeScriptModule(
   `${MATERIALS}/material-presentation.ts`,
   {},
@@ -98,6 +107,8 @@ const controllerModule = loadTypeScriptModule(
         PieceArchiveDto: class {},
         PiecesQueryDto: class {},
         ReadyAdaptationsQueryDto: class {},
+        PieceAdaptationEditDto: class {},
+        PieceAdaptationScheduleDto: class {},
       },
   },
   {
@@ -212,6 +223,10 @@ describe('дверь отвечает ровно по тем адресам, ч�
     // The explicit review is a separate contract; the shipped voice contract stays immutable.
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review',
     'POST /content-intelligence/pieces/:id/adaptations/:adaptationId/review/accept',
+    // Экран адаптации (`97dq.37`): свой контракт, `adaptation-workspace.contract.ts`.
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.edit.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.edit.path(':id', ':adaptationId')}`,
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.path(':id', ':adaptationId')}`,
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.path(':id', ':adaptationId')}`,
   ];
 
   test.each(expected)('%s смонтирован', (route) => {
@@ -277,6 +292,13 @@ describe('чтение открыто области, запись — реда�
     ["@Post('/:id/answer')", ['POSTS_PER_MONTH', 'EDITOR']],
     ["@Delete('/:id/adaptations/:adaptationId')", ['EDITOR']],
     ["@Post('/:id/archive')", ['EDITOR']],
+    // Экран адаптации (`97dq.37`): правка — роль; выход в очередь считается в
+    // тарифный месяц, как `POST /posts`, и предел назван первым.
+    ["@Patch('/:id/adaptations/:adaptationId')", ['EDITOR']],
+    [
+      "@Post('/:id/adaptations/:adaptationId/schedule')",
+      ['POSTS_PER_MONTH', 'EDITOR'],
+    ],
   ])('%s несёт %s', (decorator, sections) => {
     const at = source.indexOf(decorator);
     expect(at).toBeGreaterThan(-1);
@@ -289,7 +311,8 @@ describe('чтение открыто области, запись — реда�
     const matrix = read(FILES.matrix);
     for (const row of [
       '| `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 |',
-      '| `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 1 |',
+      '| `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 2 |',
+      '| `/content-intelligence/pieces/:id/adaptations/:adaptationId/schedule` | POSTS_PER_MONTH, EDITOR | 1 |',
       '| `/content-intelligence/pieces/:id/archive` | EDITOR | 1 |',
     ]) {
       expect(matrix).toContain(row);
@@ -519,8 +542,14 @@ describe('удаление адаптации', () => {
     await controller.detail(organization, 'piece-a');
     await controller.deleteAdaptation(organization, 'piece-a', 'ad-1');
     await controller.archive(organization, 'piece-a', { archived: true });
+    await controller.editAdaptation(organization, 'piece-a', 'ad-1', {
+      body: 'текст',
+    });
+    await controller.scheduleAdaptation(organization, 'piece-a', 'ad-1', {
+      now: true,
+    });
 
-    expect(seen).toEqual(['org-a', 'org-a', 'org-a', 'org-a']);
+    expect(seen).toEqual(['org-a', 'org-a', 'org-a', 'org-a', 'org-a', 'org-a']);
   });
 });
 
@@ -726,4 +755,120 @@ test('research doors bind the tenant, actor, piece and selection to the service'
   const error = await failure(() => controller.acceptCoreResearch({ id: 'org' }, { id: 'actor' }, 'piece', selection));
   expect(error.getStatus()).toBe(409);
   expect(error.getResponse().code).toBe('PIECE_RESEARCH_STALE');
+});
+
+/* -------------------------------------------------------------------------
+ * Экран адаптации (`content-factory-next-97dq.37`, `.38`)
+ * ---------------------------------------------------------------------- */
+
+describe('двери экрана адаптации', () => {
+  const { plainToInstance } = require('class-transformer');
+  const { validate } = require('class-validator');
+  const dto = loadTypeScriptModule(FILES.dto, {}, { sources: {} });
+  const codes = async (Klass, plain) =>
+    (await validate(plainToInstance(Klass, plain))).map(
+      (failed) => failed.property
+    );
+
+  test('правка и выход передают оба идентификатора, тело и язык сервису', async () => {
+    const service = {
+      editAdaptation: jest.fn(async () => ({ adaptation: { id: 'ad-1' } })),
+      scheduleAdaptation: jest.fn(async () => ({ adaptation: { id: 'ad-1' } })),
+    };
+    const controller = new ContentPieceController(service);
+    const edit = { body: 'Новый текст', image: { id: 'media-1' } };
+    await controller.editAdaptation({ id: 'org-a' }, 'piece-a', 'ad-1', edit, 'en');
+    expect(service.editAdaptation).toHaveBeenCalledWith('org-a', 'piece-a', 'ad-1', edit, 'en');
+    const when = { date: '2026-10-01T09:00:00.000Z' };
+    await controller.scheduleAdaptation({ id: 'org-a' }, 'piece-a', 'ad-1', when);
+    expect(service.scheduleAdaptation).toHaveBeenCalledWith('org-a', 'piece-a', 'ad-1', when, 'ru');
+  });
+
+  test('отказ сервиса уходит кодом, статусом, словами и предметом', async () => {
+    const controller = new ContentPieceController({
+      editAdaptation: async () => {
+        throw refusal('ADAPTATION_NOT_DRAFT', 409, 'Этот пост уже не черновик.');
+      },
+      scheduleAdaptation: async () => {
+        throw Object.assign(
+          refusal('ADAPTATION_SCHEDULE_INVALID', 422, 'Текст длиннее, чем примет «Мой канал».'),
+          { subject: 'telegram' }
+        );
+      },
+    });
+    const edit = await failure(() =>
+      controller.editAdaptation({ id: 'org-a' }, 'piece-a', 'ad-1', { body: 'x' })
+    );
+    expect(edit.getStatus()).toBe(409);
+    expect(edit.getResponse()).toEqual({
+      code: 'ADAPTATION_NOT_DRAFT',
+      message: 'Этот пост уже не черновик.',
+    });
+    const scheduled = await failure(() =>
+      controller.scheduleAdaptation({ id: 'org-a' }, 'piece-a', 'ad-1', { now: true })
+    );
+    expect(scheduled.getStatus()).toBe(422);
+    expect(scheduled.getResponse()).toEqual({
+      code: 'ADAPTATION_SCHEDULE_INVALID',
+      message: 'Текст длиннее, чем примет «Мой канал».',
+      subject: 'telegram',
+    });
+  });
+
+  test('статусы отказов совпадают с контрактом экрана', () => {
+    const codesOf = workspaceContract.ADAPTATION_WORKSPACE_ERROR_CODES;
+    expect(codesOf.ADAPTATION_NOT_DRAFT.status).toBe(409);
+    expect(codesOf.ADAPTATION_SCHEDULE_INVALID.status).toBe(422);
+    // Каждому коду, кроме отказа площадки, есть слова на двух языках.
+    for (const code of Object.keys(codesOf)) {
+      if (code === 'ADAPTATION_SCHEDULE_INVALID') continue;
+      expect(workspaceContract.ADAPTATION_WORKSPACE_MESSAGES[code].ru).toBeTruthy();
+      expect(workspaceContract.ADAPTATION_WORKSPACE_MESSAGES[code].en).toBeTruthy();
+    }
+    expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_UNKNOWN.status).toBe(422);
+    expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_NOT_READY.status).toBe(409);
+  });
+
+  test('«Для этого поста» принимает объявленное и отказывает мусору', async () => {
+    expect(
+      await codes(dto.PieceAdaptDto, {
+        integrationId: 'ch-1',
+        overrides: {
+          length: 'shorter',
+          addressForm: 'vy',
+          brandProfileId: 'avatar-1',
+          wish: 'Без эмодзи',
+          takeaway: 'Сроки ставит клиент',
+        },
+      })
+    ).toEqual([]);
+    for (const overrides of [
+      { length: 'tiny' },
+      { addressForm: 'thou' },
+      { brandProfileId: '' },
+      { wish: 'а'.repeat(dto.PIECE_OVERRIDE_TEXT_MAX + 1) },
+      { takeaway: 42 },
+    ]) {
+      expect(
+        await codes(dto.PieceAdaptDto, { integrationId: 'ch-1', overrides })
+      ).toEqual(['overrides']);
+    }
+  });
+
+  test('правка: картинка — только идентификатор, `null` снимает её', async () => {
+    expect(await codes(dto.PieceAdaptationEditDto, { body: 'текст' })).toEqual([]);
+    expect(await codes(dto.PieceAdaptationEditDto, { image: null })).toEqual([]);
+    expect(await codes(dto.PieceAdaptationEditDto, { image: { id: 'm-1' } })).toEqual([]);
+    expect(await codes(dto.PieceAdaptationEditDto, { image: { path: '/x.png' } })).toEqual(['image']);
+    expect(await codes(dto.PieceAdaptationEditDto, { body: 7 })).toEqual(['body']);
+  });
+
+  test('выход: дата только ISO, «сейчас» только булево', async () => {
+    expect(await codes(dto.PieceAdaptationScheduleDto, { now: true })).toEqual([]);
+    expect(
+      await codes(dto.PieceAdaptationScheduleDto, { date: '2026-10-01T09:00:00.000Z' })
+    ).toEqual([]);
+    expect(await codes(dto.PieceAdaptationScheduleDto, { date: 'завтра' })).toEqual(['date']);
+    expect(await codes(dto.PieceAdaptationScheduleDto, { now: 'yes' })).toEqual(['now']);
+  });
 });

@@ -6,7 +6,10 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useUser } from '../layout/user.context';
 import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
-import { VoicePassportScreen } from './voice-passport.screen';
+import {
+  VoicePassportScreen,
+  type AvatarAddressForm,
+} from './voice-passport.screen';
 import { VoiceScalesScreen, type CorridorEdit } from './voice-scales.screen';
 import { VoiceRedactionsScreen } from './voice-redactions.screen';
 import { VoiceVersionsScreen } from './voice-versions.screen';
@@ -278,6 +281,29 @@ export function VoiceProfileContainer({
     [mutation, passportQuery, request, scalesQuery, scoped, versionsQuery]
   );
 
+  /**
+   * «Обращение к читателю» (`97dq.38`), the avatar layer of the address.
+   *
+   * Through the same passport door as the five lines, and for the same
+   * reason: it changes a voice in force, so it lands as a new version and the
+   * passport comes back in the answer. `null` is «Не задано».
+   */
+  const setAddressForm = useCallback(
+    (addressForm: AvatarAddressForm | null) =>
+      void mutation(async () => {
+        setPassportSaved(false);
+        const next = await readVoice(
+          request,
+          scoped(VOICE_ROUTES.passportField),
+          { method: 'POST', body: JSON.stringify({ addressForm }) }
+        );
+        await passportQuery.mutate(next, { revalidate: false });
+        await versionsQuery.mutate();
+        setPassportSaved(true);
+      }),
+    [mutation, passportQuery, request, scoped, versionsQuery]
+  );
+
   const saveCorridor = useCallback(
     (edit: CorridorEdit) =>
       void mutation(async () => {
@@ -434,6 +460,7 @@ export function VoiceProfileContainer({
         {...(canManage
           ? {
               onEditField: editField,
+              onAddressForm: setAddressForm,
               onAddExample: addExample,
               onRemoveExample: removeExample,
               onRefreshExamples: refreshExamples,

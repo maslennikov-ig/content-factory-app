@@ -115,11 +115,34 @@ export type IntakeGenerationHintsV1 = {
    * слова — это то же правило, по которому переносится суть.
    */
   answers?: string[];
+  /**
+   * Что читатели канала должны унести из поста — ответ человека на вопрос
+   * первой адаптации (`content-factory-next-97dq.31`,
+   * `channels/channel-question.v3.ts`). Направление всего текста, а не
+   * цитата, поэтому едет своей строкой, а не среди `answers`.
+   */
+  takeaway?: string | null;
   /** Выбранная форма текста; локализованный ответ уже разобран сервером. */
   formatHint?: IntakeFormatV1;
   /** Ссылки из задания, которые велено сохранить: в пост дословно (`97dq.29`). */
   keepLinks?: string[];
+  /**
+   * «Для этого поста» (`content-factory-next-97dq.38`): разовая длина,
+   * обращение, пожелание и то, что читатели должны унести. Строки из них
+   * собирает `channelInstructionLines` — там же, где карточка канала, которую
+   * они на этот раз перекрывают. Аватар сюда не едет: он уже решён в
+   * `brandProfileSelection` запроса.
+   */
+  post?: IntakePostOverridesV1;
   channel: IntakeChannelHintsV1;
+};
+
+export type IntakePostOverridesV1 = {
+  /** `channel` («как в канале») сюда не доезжает: он ничего не меняет. */
+  length?: 'shorter' | 'longer';
+  addressForm?: 'avatar' | 'ty' | 'vy';
+  wish?: string;
+  takeaway?: string;
 };
 
 /**

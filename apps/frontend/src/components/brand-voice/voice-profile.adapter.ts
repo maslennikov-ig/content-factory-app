@@ -273,6 +273,11 @@ export function mapPassport(response: unknown): {
       ...(typeof voice.sentenceStyle === 'string' && voice.sentenceStyle
         ? { sentenceStyle: voice.sentenceStyle }
         : {}),
+      // Absent means «не задано»: every voice saved before 22.09.2026 has none,
+      // and the passport must not claim a choice nobody made (97dq.38).
+      ...(voice.addressForm === 'ty' || voice.addressForm === 'vy'
+        ? { addressForm: voice.addressForm }
+        : {}),
       versionLabel: asString(voice.versionLabel),
       activeSince: asString(voice.activeSince),
       // Carried through only when the route actually sent a number: defaulting

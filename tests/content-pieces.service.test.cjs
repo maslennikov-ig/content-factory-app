@@ -1045,8 +1045,10 @@ describe('выбор опоры по устойчивому ключу', () => {
 });
 
 describe('адаптация под канал', () => {
+  // «Ещё вариант»: канал уже адаптирован, и вопроса о том, что унести, нет
+  // (`97dq.31`) — хук и формат анкетой тоже не спрашиваются.
   test('Telegram adapts without a prepared hook or format questionnaire', async () => {
-    const { service, calls } = buildPieces();
+    const { service, calls } = buildPieces({ adaptations: [{ id: 'adaptation-1', integrationId: 'int-tg' }] });
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
     expect(named(events, 'questions')).toEqual([]);
@@ -1238,6 +1240,38 @@ describe('адаптация под канал', () => {
     );
     expect(calls.createAdaptation[0][1].body).toBe(
       'Срок держится, когда **о нём знает клиент**.'
+    );
+  });
+
+  /**
+   * Метки строк блока материала — не слова текста
+   * (`content-factory-next-97dq.40`). Десятый заход 22.09.2026: Telegram
+   * закончил два абзаца «[E2]» и «[E5]». Форма ответа — как на боевой базе.
+   */
+  test('метки источников снимаются до тела, поста и события', async () => {
+    const { service, calls } = buildPieces({
+      generated:
+        'Wildberries увеличил срок уведомления с 7 до 45 дней. [E2]\n\n**Маркетплейс не должен быть единственным каналом продаж.**\n\nКомиссии Ozon выросли с 18,6% до 47,8%. [E5]',
+    });
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    const [written] = named(
+      await drain(service.adapt('org-a', plan)),
+      'adaptation'
+    );
+    const clean =
+      'Wildberries увеличил срок уведомления с 7 до 45 дней.\n\n**Маркетплейс не должен быть единственным каналом продаж.**\n\nКомиссии Ozon выросли с 18,6% до 47,8%.';
+
+    expect(calls.createAdaptation[0][1].body).toBe(clean);
+    expect(written.adaptation.body).toBe(clean);
+    expect(written.content.map((item) => item.content)).toEqual([clean]);
+    expect(calls.createDraft[0][1].content).not.toMatch(/\[[EF]\d\]/);
+    expect(calls.createDraft[0][1].content).toContain(
+      '<p>Комиссии Ozon выросли с 18,6% до 47,8%.</p>'
     );
   });
 
@@ -1645,12 +1679,12 @@ describe('адаптация под канал', () => {
         brief: { ...CORE_BRIEF, inputKind: 'instruction', instructionText: 'Пост о том, что я выступил на радио', keepLinks },
       }),
     });
-    const plan = await withTask.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const plan = await withTask.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, 'ru');
     await drain(withTask.service.adapt('org-a', plan));
     expect(withTask.calls.start[0][1].intake.keepLinks).toEqual(keepLinks);
 
     const plain = buildPieces();
-    const plan2 = await plain.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const plan2 = await plain.service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, 'ru');
     await drain(plain.service.adapt('org-a', plan2));
     expect(plain.calls.start[0][1].intake.keepLinks).toBeUndefined();
   });
@@ -1758,6 +1792,23 @@ const answerDrain = async (service, body) => {
 };
 
 describe('ответы на открытые вопросы заготовки', () => {
+  test('присланное дословно переживает перепись сути (`97dq.41`)', async () => {
+    const piece = askedPiece();
+    piece.brief.inputText = `${THOUGHT}\nХочу написать об этом пост.`;
+    const { service, calls } = buildPieces({
+      piece,
+      models: [{ text: 'Суть с ответом человека.' }],
+    });
+
+    await answerDrain(service, {
+      answers: [{ field: 'position', text: 'срок держится вдвоём' }],
+    });
+
+    const [, , saved] = calls.updateCore[0];
+    expect(saved.body).toBe('Суть с ответом человека.');
+    expect(saved.brief.inputText).toBe(`${THOUGHT}\nХочу написать об этом пост.`);
+  });
+
   test('ответ хранится дословно, а модель встраивает его в суть по смыслу', async () => {
     const { service, calls } = buildPieces({
       piece: askedPiece(),
@@ -2682,5 +2733,272 @@ describe('third walk first draft and editable title', () => {
   test('a pending core cannot be adapted before answers', async () => {
     const { service } = buildPieces({ piece: { ...askedPiece(), body: '' } });
     await expect(service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru')).rejects.toMatchObject({ code: 'PIECE_CORE_MISSING' });
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Интервью по умолчанию (`content-factory-next-97dq.31`)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Десятый заход 22.09.2026: «сделал адаптацию под Telegram, и ни одного
+ * вопроса модель не задала», и «я бы чаще задавал вопросы, чем нет, даже если
+ * это мой собственный пост». Ответы модели записаны; платных вызовов нет.
+ */
+describe('97dq.31: первая адаптация на канале спрашивает, что унести', () => {
+  const TAKEAWAY_OPTIONS = {
+    options: [
+      'Срок держится, когда о нём знает клиент',
+      'Я перестал назначать себе сроки в одиночку',
+      'Срок держится, когда о нём знает клиент!',
+      'Четвёртый вариант лишний',
+    ],
+  };
+
+  test('первая адаптация задаёт один вопрос с вариантами из сути и не пишет текст', async () => {
+    const { service, calls } = buildPieces({ models: [TAKEAWAY_OPTIONS] });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(events.map((event) => event.name)).toEqual(['adapt-started', 'questions']);
+    const [asked] = named(events, 'questions');
+    expect(asked.round).toBe(1);
+    expect(asked.questions).toEqual([
+      {
+        key: 'takeaway',
+        question: 'Что читатели «Мой канал» должны унести из этого поста?',
+        suggested: null,
+        // Пересказ того же варианта снят, и вариантов не больше трёх.
+        options: [
+          'Срок держится, когда о нём знает клиент',
+          'Я перестал назначать себе сроки в одиночку',
+          'Четвёртый вариант лишний',
+        ],
+      },
+    ]);
+    // Генерации на этом круге нет: вопрос стоит одного дешёвого вызова.
+    expect(calls.start).toHaveLength(0);
+    expect(calls.createDraft).toHaveLength(0);
+    expect(modelCalls).toHaveLength(1);
+    expect(modelCalls[0].role).toBe('extract');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: channel-question/v3');
+    expect(modelCalls[0].prompt).toContain('Срок держится, когда о нём знает кто-то ещё.');
+    expect(calls.usage).toEqual([['org-a', 'intake', 'extract']]);
+  });
+
+  test('адаптация другого канала не считается: спрашивают и здесь', async () => {
+    const { service } = buildPieces({
+      models: [TAKEAWAY_OPTIONS],
+      adaptations: [{ id: 'adaptation-1', integrationId: 'int-vk' }],
+    });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+    expect(named(events, 'questions')[0].questions[0].key).toBe('takeaway');
+  });
+
+  test('«Ещё вариант» не спрашивает и не зовёт модель ради вопроса', async () => {
+    const { service, calls } = buildPieces({
+      adaptations: [{ id: 'adaptation-1', integrationId: 'int-tg' }],
+    });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'adaptation')).toHaveLength(1);
+    expect(modelCalls).toHaveLength(0);
+    expect(calls.start).toHaveLength(1);
+    // Старый вопрос об автоматическом поле канала работает, как работал.
+    expect(calls.start[0][1].intake.allowQuestion).toBe(true);
+  });
+
+  test.each([
+    ['«Решите всё за меня»', { skipInterview: true }],
+    ['«Решите за меня»', { decideKeys: ['takeaway'] }],
+  ])('%s пишет сразу, модель решает сама', async (_label, extra) => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', ...extra }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'adaptation')).toHaveLength(1);
+    expect(modelCalls).toHaveLength(0);
+    const hints = calls.start[0][1].intake;
+    expect(hints.takeaway).toBeUndefined();
+    // Не больше одного вопроса за круг: второй круг вопроса не задаёт.
+    expect(hints.allowQuestion).toBe(false);
+  });
+
+  test('ответ доезжает до генерации строкой «что унести», а не цитатой', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      {
+        integrationId: 'int-tg',
+        answers: [{ key: 'takeaway', text: 'Я перестал назначать себе сроки в одиночку', origin: 'confirmed' }],
+      },
+      'ru'
+    );
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(named(events, 'questions')).toEqual([]);
+    const hints = calls.start[0][1].intake;
+    expect(hints.takeaway).toBe('Я перестал назначать себе сроки в одиночку');
+    expect(hints.answers).toBeUndefined();
+    expect(hints.allowQuestion).toBe(false);
+    const [written] = named(events, 'adaptation');
+    expect(written.adaptation.answers).toEqual([
+      expect.objectContaining({ key: 'takeaway', origin: 'confirmed', step: 'adaptation', platform: 'telegram' }),
+    ]);
+  });
+
+  test('модель не ответила — вопрос всё равно задан, без вариантов', async () => {
+    const { service, calls } = buildPieces({ models: [new Error('the model refused')] });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+
+    const [asked] = named(events, 'questions');
+    expect(asked.questions[0]).toMatchObject({ key: 'takeaway', options: [], suggested: null });
+    expect(calls.start).toHaveLength(0);
+  });
+
+  test('материал до волны без сути не спрашивает: предлагать не из чего', async () => {
+    const { service, calls } = buildPieces({
+      piece: pieceRow({ kind: null, brief: null, body: '<p>Старый пост</p>' }),
+    });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+    expect(named(events, 'questions')).toEqual([]);
+    expect(calls.start).toHaveLength(1);
+  });
+});
+
+describe('97dq.31: свой текст и задание без пробелов спрашивают одно', () => {
+  const DEFAULT_QUESTION = {
+    field: 'audience',
+    question: 'Для кого этот пост о сроках, назначенных себе?',
+    options: [
+      'Для владельцев студий, которые ведут канал сами',
+      'Для фрилансеров, у которых сроки плывут',
+      'для владельцев студий, которые ведут канал сами',
+    ],
+  };
+
+  test('мысль без пробелов: один вопрос о том, для кого, и суть ждёт ответа', async () => {
+    const { service, calls } = buildIntake({
+      models: [briefAnswer({ defaultQuestion: DEFAULT_QUESTION })],
+    });
+    const plan = await service.prepare('org-a', request({ skipInterview: false }));
+    const events = await drain(service.run('org-a', plan, 'user-1'));
+
+    const [asked] = named(events, 'questions');
+    expect(asked.questions).toEqual([
+      {
+        field: 'audience',
+        question: 'Для кого этот пост о сроках, назначенных себе?',
+        options: [
+          'Для владельцев студий, которые ведут канал сами',
+          'Для фрилансеров, у которых сроки плывут',
+        ],
+        suggested: null,
+      },
+    ]);
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v8');
+    // Как у вопросов о пробелах: суть пишется после ответа или «Решите за меня».
+    expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
+    expect(calls.recordCore).toHaveLength(1);
+    expect(calls.recordCore[0][1].brief.questions.items).toHaveLength(1);
+  });
+
+  test('задание без пробелов тоже спрашивает одно', async () => {
+    const { service } = buildIntake({
+      models: [
+        briefAnswer({
+          defaultQuestion: {
+            field: 'thesis',
+            question: 'Что в посте о выступлении на радио подчеркнуть?',
+            options: ['Что меня позвали как практика', 'Какие вопросы задали слушатели'],
+          },
+        }),
+      ],
+    });
+    const plan = await service.prepare(
+      'org-a',
+      request({
+        input: 'Напиши пост о том, что я выступил на радио и ответил на вопросы слушателей о сроках',
+        inputKind: 'instruction',
+        skipInterview: false,
+      })
+    );
+    const events = await drain(service.run('org-a', plan, 'user-1'));
+
+    const [asked] = named(events, 'questions');
+    expect(asked.questions.map((row) => row.field)).toEqual(['thesis']);
+    expect(asked.questions[0].options).toHaveLength(2);
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v8');
+  });
+
+  test('есть вопросы о пробелах — вопроса по умолчанию нет', async () => {
+    const { service } = buildIntake({
+      models: [
+        briefAnswer({
+          questions: [{ field: 'thesis', question: 'Почему внешний дедлайн надёжнее?', options: ['Клиент ждёт', 'Совместный план'] }],
+          defaultQuestion: DEFAULT_QUESTION,
+        }),
+      ],
+    });
+    const plan = await service.prepare('org-a', request({ skipInterview: false }));
+    const events = await drain(service.run('org-a', plan, 'user-1'));
+    expect(named(events, 'questions')[0].questions.map((row) => row.field)).toEqual(['thesis']);
+  });
+
+  test('«Решите всё за меня» на входе — вопросов нет, суть пишется сразу', async () => {
+    const { service } = buildIntake({
+      models: [briefAnswer({ defaultQuestion: DEFAULT_QUESTION }), { text: CORE_TEXT }],
+    });
+    const plan = await service.prepare('org-a', request({ skipInterview: true }));
+    const events = await drain(service.run('org-a', plan, 'user-1'));
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
+  });
+
+  test('чужой пост: прежний промпт и прежний вопрос о позиции, без вопроса по умолчанию', async () => {
+    const { service } = buildIntake({
+      models: [
+        extractionAnswer(),
+        briefAnswer({
+          origins: { ...briefAnswer().origins, position: 'model' },
+          defaultQuestion: DEFAULT_QUESTION,
+        }),
+      ],
+    });
+    const plan = await service.prepare(
+      'org-a',
+      request({ input: foreignPost, inputKind: 'foreign_post', skipInterview: false })
+    );
+    const events = await drain(service.run('org-a', plan, 'user-1'));
+
+    const briefPrompt = modelCalls[1].prompt;
+    expect(briefPrompt).not.toContain('intake-brief-fill/v8');
+    expect(briefPrompt).not.toContain('defaultQuestion');
+    const fields = named(events, 'questions')[0].questions.map((row) => row.field);
+    expect(fields).toContain('position');
+    expect(fields).not.toContain('audience');
+  });
+
+  test('ответ на вопрос «для кого» ложится в бриф словом человека и едет в суть', async () => {
+    const asked = [{ field: 'audience', question: DEFAULT_QUESTION.question, options: DEFAULT_QUESTION.options.slice(0, 2), suggested: null }];
+    const { service, calls } = buildPieces({
+      piece: { ...askedPiece({ round: 0, items: asked, answered: [] }), body: '' },
+      models: [{ text: 'Суть для фрилансеров.' }],
+    });
+    await answerDrain(service, { answers: [{ field: 'audience', text: 'Для фрилансеров, у которых сроки плывут' }] });
+
+    const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
+    expect(corePrompt).toContain('Для фрилансеров, у которых сроки плывут');
+    const stored = calls.updateCore[0][2].brief;
+    expect(stored.brief.audience).toBe('Для фрилансеров, у которых сроки плывут');
+    expect(stored.brief.origins.audience).toBe('person');
+    expect(stored.questions.items).toEqual([]);
   });
 });

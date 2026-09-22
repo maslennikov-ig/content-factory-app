@@ -32,7 +32,7 @@ import type { PieceQuestionKeyV1 } from '@contentfactory/nestjs-libraries/conten
 import type { BriefField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/brief-gate';
 
 /**
- * Ключи вопросов интервью — все девять из контракта.
+ * Ключи вопросов интервью — все десять из контракта.
  *
  * Общие ключи входа и двери адаптации. Канал выбирается на странице заготовки.
  */
@@ -46,6 +46,7 @@ export const PIECE_QUESTION_KEYS: PieceQuestionKeyV1[] = [
   'own_number',
   'screenshot',
   'log',
+  'takeaway',
 ];
 
 export class PieceInterviewAnswerDto {

@@ -3,7 +3,7 @@
 import { Fragment, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
-import { PieceDeleteButton } from './piece-delete.button';
+import { ConfirmButton } from '../../ui/confirm-button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -264,7 +264,8 @@ export function PiecesScreen({
   onAdapt: (id: string, platform?: string) => void;
   /** Удалить заготовку из раскрытой строки (`97dq.30`). */
   onDelete: (id: string) => void;
-  onOpenPost: (cell: PieceCellV1) => void;
+  /** Клетка с адаптацией ведёт во вкладку её канала на странице заготовки. */
+  onOpenPost: (pieceId: string, cell: PieceCellV1) => void;
   onNewPiece: () => void;
   onRetry: () => void;
 }) {
@@ -588,7 +589,7 @@ export function PiecesScreen({
             >
               {t.adapt}
             </Button>
-            <PieceDeleteButton
+            <ConfirmButton
               label={t.deletePiece}
               armedLabel={t.deletePieceArmed}
               disabled={!canWrite}
@@ -658,7 +659,7 @@ export function PiecesScreen({
               /* Колонок здесь нет — площадку называет сама клетка. */
               showPlatformName
               disabled={!canWrite}
-              onOpenPost={onOpenPost}
+              onOpenPost={(cell) => onOpenPost(row.id, cell)}
               onAdapt={(cell) => onAdapt(row.id, cell.platform)}
             />
           ))}
@@ -866,18 +867,32 @@ export function PiecesScreen({
                           {columns.map((column) => (
                             <Td
                               key={`${row.id}-${column.platform}`}
-                              className="py-[8px] text-center align-middle"
+                              className="py-[8px] align-top"
                             >
-                              <AdaptationCell
-                                locale={locale}
-                                cell={cellOf(row, column.platform)}
-                                platformName={columnName(column)}
-                                disabled={!canWrite}
-                                onOpenPost={onOpenPost}
-                                onAdapt={(cell) =>
-                                  onAdapt(row.id, cell.platform)
-                                }
-                              />
+                              {/*
+                                Все колонки прижаты кверху: строка многострочная,
+                                и начало строки читается по верху. Клетка по
+                                центру высоты стояла ниже кода и заголовка
+                                (`97dq.35`). Блочная обёртка, а не `text-center`:
+                                инлайновая клетка садилась бы на базовую линию
+                                строки ячейки и съезжала вниз на её выносной
+                                элемент.
+                              */}
+                              <span
+                                data-piece-cell-slot="true"
+                                className="flex justify-center"
+                              >
+                                <AdaptationCell
+                                  locale={locale}
+                                  cell={cellOf(row, column.platform)}
+                                  platformName={columnName(column)}
+                                  disabled={!canWrite}
+                                  onOpenPost={(cell) => onOpenPost(row.id, cell)}
+                                  onAdapt={(cell) =>
+                                    onAdapt(row.id, cell.platform)
+                                  }
+                                />
+                              </span>
                             </Td>
                           ))}
                           {restColumns.length > 0 ? (

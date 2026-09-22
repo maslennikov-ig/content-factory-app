@@ -1,11 +1,19 @@
 'use client';
 
 import { Hint } from '@contentfactory/react/layout/hint';
-import { useId } from 'react';
+import { useCallback, useId, type ReactNode } from 'react';
+import useSWR from 'swr';
+import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
+import { Select } from '@contentfactory/react/form/select';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Segmented, type SegmentedOption } from '../../ui/segmented';
+import {
+  AVATAR_ROUTES,
+  mapAvatars,
+} from '../../brand-voice/voice-avatars.adapter';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import {
+  CHANNEL_ADDRESS_FORMS,
   CTA_KINDS,
   EMOJI_LEVELS,
   FORMAT_PREFERENCES,
@@ -15,17 +23,75 @@ import {
   LINK_POLICIES,
   PROFILE_NOTES_MAX,
   lengthPresetOf,
+  type ChannelAddressForm,
   type ChannelWritingProfileV1,
   type LengthPreset,
 } from './writing-profile.adapter';
 
+/** Один аватар пространства, как его видит выбор «Кто говорит здесь». */
+export type WritingProfileAvatar = {
+  id: string;
+  name: string | null;
+};
+
+/**
+ * Аватары пространства для выбора «Кто говорит здесь».
+ *
+ * Та же дверь, что у экрана аватаров, и то же чтение `mapAvatars`: второй
+ * разбор одного ответа — это второе мнение о том, какие аватары есть. Пока
+ * ответа нет или дверь отказала, список пуст, и выбор просто не рисуется —
+ * карточка канала от этого не ломается, в ней остаётся «По умолчанию».
+ */
+export function useWritingProfileAvatars(
+  enabled = true
+): readonly WritingProfileAvatar[] {
+  const request = useFetch();
+  const load = useCallback(async () => {
+    const response = await request(AVATAR_ROUTES.list);
+    if (!response.ok) throw new Error('avatars unavailable');
+    return mapAvatars(await response.json()).avatars;
+  }, [request]);
+  const { data } = useSWR(
+    enabled ? `writing-profile:${AVATAR_ROUTES.list}` : null,
+    load,
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  return (data ?? [])
+    .filter((avatar) => avatar.id)
+    .map(({ id, name }) => ({ id, name }));
+}
+
 type WritingProfileFieldsProps = {
   locale: IntakeLocale;
   profile: ChannelWritingProfileV1;
+  /**
+   * Аватары пространства. Выбор «Кто говорит здесь» появляется только при
+   * двух и более: при одном выбирать не из чего (правило «решать за
+   * человека», PRODUCT §6).
+   */
+  avatars?: readonly WritingProfileAvatar[];
   disabled?: boolean;
   describedBy?: string;
   onChange: (patch: Partial<ChannelWritingProfileV1>) => void;
 };
+
+const addressLabels = (
+  t: (typeof intakeCopy)[IntakeLocale]
+): Record<ChannelAddressForm, string> => ({
+  avatar: t.profileAddressAvatar,
+  ty: t.profileAddressTy,
+  vy: t.profileAddressVy,
+});
+
+const speakerName = (
+  t: (typeof intakeCopy)[IntakeLocale],
+  avatars: readonly WritingProfileAvatar[],
+  id: string | null | undefined
+) =>
+  id
+    ? avatars.find((avatar) => avatar.id === id)?.name ??
+      t.profileSpeakerUnnamed
+    : t.profileSpeakerDefault;
 
 export type WritingProfileViewRow = {
   key: string;
@@ -41,7 +107,8 @@ const options = <Value extends string>(
 /** Human-readable field values shared by the inline view and the edit form. */
 export function writingProfileViewRows(
   locale: IntakeLocale,
-  profile: ChannelWritingProfileV1
+  profile: ChannelWritingProfileV1,
+  avatars: readonly WritingProfileAvatar[] = []
 ): readonly WritingProfileViewRow[] {
   const t = intakeCopy[locale];
   const lengthLabels: Record<LengthPreset, string> = {
@@ -89,6 +156,18 @@ export function writingProfileViewRows(
   } as const;
 
   return [
+    ...(avatars.length > 1
+      ? [
+          {
+            key: t.profileSpeaker,
+            value: speakerName(t, avatars, profile.brandProfileId),
+          },
+        ]
+      : []),
+    {
+      key: t.profileAddress,
+      value: addressLabels(t)[profile.addressForm ?? 'avatar'],
+    },
     {
       key: t.profileLength,
       value: lengthLabels[lengthPresetOf(profile.lengthPolicy)],
@@ -101,7 +180,7 @@ export function writingProfileViewRows(
     {
       key: t.profileNotes,
       value:
-        profile.notes?.trim() || (locale === 'ru' ? 'не указано' : 'not set'),
+        profile.notes?.trim() || t.profileNotSet,
     },
   ];
 }
@@ -110,6 +189,7 @@ export function writingProfileViewRows(
 export function WritingProfileFields({
   locale,
   profile,
+  avatars = [],
   disabled = false,
   describedBy,
   onChange,
@@ -117,6 +197,7 @@ export function WritingProfileFields({
   const t = intakeCopy[locale];
   const notes = profile.notes ?? '';
   const notesId = useId();
+  const speakerId = useId();
 
   const lengthOptions = options(LENGTH_PRESET_ORDER, {
     auto: t.profileAuto,
@@ -163,13 +244,22 @@ export function WritingProfileFields({
   });
 
   const hints: Record<string, string> = {
-    [t.profileLength]: locale === 'ru' ? 'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.' : 'Post length. We can choose within the platform limit.',
-    [t.profileEmoji]: locale === 'ru' ? 'Без эмодзи, 1–3 или много. Можно отдать выбор нам.' : 'No emoji, one to three, or many. Or let us choose.',
-    [t.profileLink]: locale === 'ru' ? 'Где размещать ссылки: рядом с фактом или в конце. Новые адреса мы не выдумываем.' : 'Where links appear: inline or at the end. URLs are never invented.',
-    [t.profileHashtag]: locale === 'ru' ? 'Нужны ли метки темы и где они стоят.' : 'Whether topic tags are useful and where they go.',
-    [t.profileCta]: locale === 'ru' ? 'Какого действия ждём от читателя после поста. Призыв может быть не нужен.' : 'What readers should do after reading. A call to action may be unnecessary.',
-    [t.profileFormat]: locale === 'ru' ? 'Как построить текст: мнение, история, список или другой формат.' : 'How to structure the text: opinion, story, list, or another format.',
+    [t.profileAddress]: t.profileHintAddress,
+    [t.profileLength]: t.profileHintLength,
+    [t.profileEmoji]: t.profileHintEmoji,
+    [t.profileLink]: t.profileHintLink,
+    [t.profileHashtag]: t.profileHintHashtag,
+    [t.profileCta]: t.profileHintCta,
+    [t.profileFormat]: t.profileHintFormat,
   };
+  const addressOptions = options(CHANNEL_ADDRESS_FORMS, addressLabels(t));
+  const labelClass = 'flex items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted';
+  const fieldLabel = (label: string, hint: ReactNode) => (
+    <>
+      {label}
+      <Hint label={t.profileHintFor(label)}>{hint}</Hint>
+    </>
+  );
   const row = <Value extends string>(
     label: string,
     value: Value,
@@ -177,7 +267,7 @@ export function WritingProfileFields({
     change: (value: Value) => void
   ) => (
     <>
-      <span className="flex items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted">{label}<Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${label}`}>{hints[label]}</Hint></span>
+      <span className={labelClass}>{fieldLabel(label, hints[label])}</span>
       <Segmented
         label={label}
         value={value}
@@ -194,6 +284,38 @@ export function WritingProfileFields({
       aria-describedby={describedBy}
       className="grid min-w-0 grid-cols-1 gap-x-[16px] gap-y-[12px] sm:grid-cols-[160px_minmax(0,1fr)] sm:items-start"
     >
+      {avatars.length > 1 ? (
+        <>
+          <label htmlFor={speakerId} className={labelClass}>
+            {fieldLabel(t.profileSpeaker, t.profileHintSpeaker)}
+          </label>
+          <Select
+            standalone
+            disableForm
+            id={speakerId}
+            name="writing-profile-speaker"
+            aria-label={t.profileSpeaker}
+            className="w-full max-w-[320px]"
+            value={profile.brandProfileId ?? ''}
+            onChange={(event) =>
+              onChange({ brandProfileId: event.target.value || null })
+            }
+          >
+            <option value="">{t.profileSpeakerDefault}</option>
+            {avatars.map((avatar) => (
+              <option key={avatar.id} value={avatar.id}>
+                {avatar.name ?? t.profileSpeakerUnnamed}
+              </option>
+            ))}
+          </Select>
+        </>
+      ) : null}
+      {row(
+        t.profileAddress,
+        profile.addressForm ?? 'avatar',
+        addressOptions,
+        (addressForm) => onChange({ addressForm })
+      )}
       {row(
         t.profileLength,
         lengthPresetOf(profile.lengthPolicy),
@@ -224,9 +346,9 @@ export function WritingProfileFields({
 
       <label
         htmlFor={notesId}
-        className="cf-label-sm uppercase text-cf-ink-muted"
+        className={labelClass}
       >
-        {t.profileNotes}<Hint label={`${locale === 'ru' ? 'Подсказка' : 'Hint'}: ${t.profileNotes}`}>{t.profileNotesHint}</Hint>
+        {fieldLabel(t.profileNotes, t.profileNotesHint)}
       </label>
       <div className="flex min-w-0 flex-col gap-[4px]">
         <Textarea

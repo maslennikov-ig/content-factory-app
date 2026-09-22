@@ -173,6 +173,7 @@ import {
   type VoiceVersionsQueryV1,
   type VoiceVersionsResponseV1,
   type VoicePassportFieldRequestV1,
+  type VoicePassportAddressFormRequestV1,
 } from './voice-wiring.contract';
 import { truncateChars } from './text-truncate';
 import {
@@ -2478,6 +2479,9 @@ export class VoiceService {
         ...(content.voice.sentenceStyle
           ? { sentenceStyle: content.voice.sentenceStyle }
           : {}),
+        ...(content.voice.addressForm === 'ty' || content.voice.addressForm === 'vy'
+          ? { addressForm: content.voice.addressForm }
+          : {}),
         versionLabel: activeVersion.label ?? `v${activeVersion.versionNumber}`,
         activeSince: formatDate(
           activeVersion.publishedAt ?? activeVersion.createdAt,
@@ -2603,8 +2607,12 @@ export class VoiceService {
    */
   async setPassportField(
     actor: VoiceActor,
-    body: VoicePassportFieldRequestV1
+    body: VoicePassportFieldRequestV1 | VoicePassportAddressFormRequestV1
   ): Promise<VoicePassportResponseV1> {
+    if ('addressForm' in body && body.addressForm !== undefined) {
+      return this.setPassportAddressForm(actor, body.addressForm);
+    }
+    body = body as VoicePassportFieldRequestV1;
     this.assertCanManage(actor);
     const text = (body.text ?? '').trim();
     if (!text) {
@@ -2640,6 +2648,52 @@ export class VoiceService {
         this.manualAsProposal(fields),
         activeVersion.content
       ),
+      activeVersion.label ?? undefined,
+      actor.avatarId
+    );
+    await this._profiles.activate(
+      actor.organizationId,
+      actor.userId,
+      draft.id
+    );
+    return this.passport(actor);
+  }
+
+  /**
+   * «Обращение» аватара (`content-factory-next-97dq.38`): «ты», «вы» или
+   * «Не задано».
+   *
+   * Той же дорогой, что строка паспорта и примеры: новая версия поверх
+   * действующей, с одним изменённым полем, включённая сразу. Всё остальное —
+   * черты, словарь, площадки, примеры — переносится как было. Совпадающее
+   * значение версии не плодит. Где обращение потом решается против канала и
+   * поста, сказано в `channel-directives.ts` (`resolveAddressForm`).
+   */
+  private async setPassportAddressForm(
+    actor: VoiceActor,
+    addressForm: 'ty' | 'vy' | null
+  ): Promise<VoicePassportResponseV1> {
+    this.assertCanManage(actor);
+    const { activeVersion } = await this._profiles.overview(
+      actor.organizationId,
+      actor.avatarId
+    );
+    if (!activeVersion) {
+      throw new VoiceError(
+        'VOICE_PROFILE_NOT_FOUND',
+        'Править нечего: голос ещё не включён. Соберите его в мастере.'
+      );
+    }
+    const current = activeVersion.content.voice.addressForm ?? null;
+    if (current === addressForm) return this.passport(actor);
+
+    const content = clone(activeVersion.content);
+    if (addressForm) content.voice.addressForm = addressForm;
+    else delete content.voice.addressForm;
+    const draft = await this._profiles.createDraft(
+      actor.organizationId,
+      actor.userId,
+      content,
       activeVersion.label ?? undefined,
       actor.avatarId
     );

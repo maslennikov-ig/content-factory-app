@@ -64,7 +64,7 @@ export function applyReviewChanges(
         throw new Error('Invalid title variant');
       return {
         start,
-        end: start + c.excerpt.length,
+        end: emojiTail(original, start + c.excerpt.length),
         text: target === 'title' && variant ? variant : c.replacement,
       };
     })
@@ -73,10 +73,97 @@ export function applyReviewChanges(
     throw new Error('Overlapping changes');
   let result = original;
   for (const edit of edits.reverse())
-    result = result.slice(0, edit.start) + edit.text + result.slice(edit.end);
+    result = spliceTidy(result, edit.start, edit.end, edit.text);
   if (!result.trim()) throw new Error('Empty result');
   return result;
 }
+
+/**
+ * Хвост эмодзи-последовательности, который отрывок не назвал.
+ *
+ * Каталог ловит эмодзи по `\p{Extended_Pictographic}` — одной кодовой
+ * точкой, а «⚙️» — это U+2699 и селектор U+FE0F. Правка, убравшая отрывок
+ * «⚙», оставляла в посте невидимый U+FE0F, и за ним прятался пробел, который
+ * `spliceTidy` уже не видел (живой стенд 22.09.2026, пятый проход). Если
+ * отрывок кончается эмодзи, правка забирает и её продолжение: селектор,
+ * модификатор тона кожи, знак клавиши и склейки ZWJ с следующим эмодзи.
+ */
+const EMOJI_END = /\p{Extended_Pictographic}[\uFE0F\u{1F3FB}-\u{1F3FF}\u20E3]*$/u;
+const EMOJI_CONTINUATION =
+  /^(?:[\uFE0F\u{1F3FB}-\u{1F3FF}\u20E3]|\u200D\p{Extended_Pictographic})+/u;
+const emojiTail = (text: string, end: number): number => {
+  if (!EMOJI_END.test(text.slice(Math.max(0, end - 4), end))) return end;
+  const tail = text.slice(end).match(EMOJI_CONTINUATION);
+  return tail ? end + tail[0].length : end;
+};
+
+/** Пробел внутри строки: обычный, неразрывный, узкий, табуляция. */
+const GAP = /^[ \t\u00A0\u202F\u2009]$/u;
+/** Знак, перед которым пробела не бывает. */
+const CLOSER = /^[,.;:!?…)\]»”]$/u;
+
+/**
+ * Какая сторона шва лишняя: `left` — пробел слева стоит перед пробелом,
+ * знаком, концом строки или текста; `right` — пробел справа открывает строку
+ * или текст. `null` — шов цел.
+ */
+const brokenSide = (
+  left: string | undefined,
+  right: string | undefined
+): 'left' | 'right' | null => {
+  if (
+    left !== undefined &&
+    GAP.test(left) &&
+    (right === undefined || right === '\n' || GAP.test(right) || CLOSER.test(right))
+  )
+    return 'left';
+  if (right !== undefined && GAP.test(right) && (left === undefined || left === '\n'))
+    return 'right';
+  return null;
+};
+
+/**
+ * Сшивает две части, снимая лишние пробелы на стыке — но только если стык
+ * был цел до правки (`wasWhole`): свой двойной пробел автор оставляет себе.
+ */
+const stitch = (left: string, right: string, wasWhole: boolean): string => {
+  if (!wasWhole) return left + right;
+  let side = brokenSide(left.at(-1), right[0]);
+  while (side) {
+    if (side === 'left') left = left.slice(0, -1);
+    else right = right.slice(1);
+    side = brokenSide(left.at(-1), right[0]);
+  }
+  return left + right;
+};
+
+/**
+ * Замена отрывка без следа на месте вырезанного слова.
+ *
+ * `content-factory-next-97dq.33`, десятый заход 22.09.2026: правка вырезала
+ * «эффективнее» из «сотрудники эффективнее делегировали», и в посте осталось
+ * «сотрудники  делегировали» — два пробела. Отрывок у модели — ровно слово,
+ * а пробелы по обе стороны остаются тексту.
+ *
+ * Чинится только стык самой правки и только если его сломала правка: двойной
+ * пробел, пробел перед знаком препинания, пробел в начале или в конце
+ * строки, которых на этом месте до правки не было. Всё остальное — в том
+ * числе двойной пробел, который автор поставил сам, — остаётся байт в байт.
+ */
+const spliceTidy = (
+  text: string,
+  start: number,
+  end: number,
+  replacement: string
+): string => {
+  const before = text.slice(0, start);
+  const after = text.slice(end);
+  const headWhole = brokenSide(before.at(-1), text[start]) === null;
+  const tailWhole = brokenSide(text[end - 1], after[0]) === null;
+  if (!replacement) return stitch(before, after, headWhole && tailWhole);
+  const joined = stitch(before, replacement, headWhole);
+  return stitch(joined, after, tailWhole);
+};
 
 /** A separate title must never overwrite the first paragraph. */
 export function syncEmbeddedTitle(text: string, previousTitle: string, title: string): string {

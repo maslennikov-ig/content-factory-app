@@ -137,6 +137,12 @@ type Words = {
      * системы, и это надо сказать до нажатия, а не в диалоге после.
      */
     returnToSystemHint: string;
+    /**
+     * Подсказка «?» под полем. Владелец 22.09.2026 (`97dq.34`): у «?» стояла
+     * та же строка, что у крестика, и «Нажмёте» читалось как «нажмите
+     * вопросик». Здесь крестик назван прямо и не повторяет строку с него.
+     */
+    returnToSystemExplain: (engine: string) => string;
     engines: {
       tavily: KeyedEngineWords;
       exa: KeyedEngineWords;
@@ -202,7 +208,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keySystem: 'На ключе системы',
       returnToSystem: (engine) => `Вернуть ${engine} на ключ системы`,
       returnToSystemHint:
-        'Нажмёте — поле вернётся на ключ системы. Поиск без ключа не остаётся.',
+        'Нажмите ×, и поле вернётся на ключ системы. Поиск без ключа не остаётся.',
+      returnToSystemExplain: (engine) =>
+        `Крестик × справа в поле убирает ваш ключ ${engine}: движок снова работает на ключе системы, так что искать всегда есть чем.`,
       engines: {
         tavily: {
           name: 'Tavily',
@@ -300,7 +308,9 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       keySystem: 'On the system key',
       returnToSystem: (engine) => `Return ${engine} to the system key`,
       returnToSystemHint:
-        'Press it and the field returns to the system key. Search is never left without a key.',
+        'Press × and the field returns to the system key. Search is never left without a key.',
+      returnToSystemExplain: (engine) =>
+        `The × at the right of the field removes your own ${engine} key: the engine goes back to the system key, so there is always something to search with.`,
       engines: {
         tavily: {
           name: 'Tavily',

@@ -45,21 +45,17 @@ export const contentSectionCopy = {
     // тестов и `ContentIntelligenceSection`), поменялась только подпись:
     // экран за ней теперь витрина фактов, а не проверка происхождения.
     provenance: 'Откуда факты',
-    materialsTitle: 'Материалов пока нет',
+    // Вкладка называется «Заготовки», и пустое состояние говорит тем же
+    // словом (аудит 97dq.39, B9): «материал» остался от первого поколения.
+    materialsTitle: 'Заготовок пока нет',
     materialsBody:
-      'Материал — готовый текст, который живёт отдельно от публикации и перекраивается под площадку. Материалы приходят сюда с вкладки «Новая заготовка»: собранный черновик остаётся здесь материалом, и его можно перекроить под другую площадку, не переписывая заново.',
+      'Заготовка — суть вашей мысли без площадки: из неё делаются адаптации под каналы. Первая появится здесь, когда вы соберёте её на вкладке «Новая заготовка».',
     // Not «Раздел готовится», which promised a tab under construction over a
     // library that already read and recut. It is simply empty until the brief
     // has been used once, and the body says where the first row comes from.
     materialsPending: 'Пока пусто',
-    // §9.4 (02.09.2026): «Материалы» и «Что уже написали» — одно место с
-    // двумя представлениями, не две вкладки. Подписи переключателя вида.
-    // `content-factory-next-tu3k.4` (06.09.2026): вкладка «Бриф» открывается
-    // входом одной мыслью, а прежняя ручная форма остаётся второй витриной —
-    // тот же приём «одно место, два вида», что у «Материалов».
-    briefViewLabel: 'Как начать',
-    briefViewIntake: 'По мысли',
-    briefViewManual: 'Вручную',
+    // Переключатель «По мысли · Вручную» и ручная форма брифа убраны
+    // решением владельца 22.09.2026 (`content-factory-next-97dq.36`).
     // Витрина «На что опираются» убрана решением владельца 06.09.2026 (§11.5):
     // внутри вкладки две витрины — заготовки и «Что уже написали».
     /* Зачем второй вид вообще нужен — одной строкой рядом с самой полосой. */
@@ -76,13 +72,10 @@ export const contentSectionCopy = {
     brief: 'New piece',
     materials: 'Pieces',
     provenance: 'Facts',
-    materialsTitle: 'No material yet',
+    materialsTitle: 'No pieces yet',
     materialsBody:
-      'A piece of material is a finished text that lives apart from any post and is recut for a platform. Material arrives from the New piece tab: a draft built there stays here as a piece, and it can be recut for another platform without being rewritten.',
+      'A piece is the core of your thought without a platform: channel adaptations are made from it. The first one appears here once you build it on the New piece tab.',
     materialsPending: 'Nothing here yet',
-    briefViewLabel: 'How to start',
-    briefViewIntake: 'From a thought',
-    briefViewManual: 'By hand',
   },
 } as const;
 

@@ -153,7 +153,10 @@ export class IntegrationService {
     }
 
     const stored = body
-      ? this.validatedWritingProfile(body, integration.providerIdentifier)
+      ? {
+          ...this.validatedWritingProfile(body, integration.providerIdentifier),
+          ...(await this.writingProfileLayers(org, body, integration.writingProfile)),
+        }
       : null;
     const saved = await this._integrationRepository.updateWritingProfile(
       org,
@@ -161,6 +164,52 @@ export class IntegrationService {
       stored
     );
     return this.writingProfileResponse(saved);
+  }
+
+  /**
+   * Аватар и обращение канала (`content-factory-next-97dq.38`).
+   *
+   * Отсутствующее в теле поле оставляет записанное: карточку «Как пишем»
+   * сохраняет и диалог канала, и «Запомнить для канала» на экране адаптации,
+   * и первый не должен молча стирать то, что запомнил второй. `null` или
+   * пустая строка снимают аватар канала. Чужой или удалённый аватар — отказ
+   * тем же кодом, что у остальных пунктов карточки.
+   */
+  private async writingProfileLayers(
+    org: string,
+    body: IntegrationWritingProfileDto,
+    previous: unknown
+  ): Promise<Pick<ChannelWritingProfileV1, 'brandProfileId' | 'addressForm'>> {
+    const before =
+      previous && typeof previous === 'object' && !Array.isArray(previous)
+        ? (previous as Record<string, unknown>)
+        : {};
+    const layers: Pick<ChannelWritingProfileV1, 'brandProfileId' | 'addressForm'> = {};
+
+    const avatarId =
+      body.brandProfileId === undefined
+        ? typeof before.brandProfileId === 'string'
+          ? before.brandProfileId
+          : ''
+        : (body.brandProfileId ?? '').trim();
+    if (avatarId) {
+      if (
+        body.brandProfileId !== undefined &&
+        !(await this._integrationRepository.hasAvatar(org, avatarId))
+      ) {
+        throw new HttpException(
+          { code: 'CHANNEL_WRITING_PROFILE_INVALID', reason: 'BRAND_PROFILE_UNKNOWN' },
+          HttpStatus.UNPROCESSABLE_ENTITY
+        );
+      }
+      layers.brandProfileId = avatarId;
+    }
+
+    const addressForm = body.addressForm ?? before.addressForm;
+    if (addressForm === 'avatar' || addressForm === 'ty' || addressForm === 'vy') {
+      layers.addressForm = addressForm;
+    }
+    return layers;
   }
 
   private providerLimits(providerIdentifier: string) {

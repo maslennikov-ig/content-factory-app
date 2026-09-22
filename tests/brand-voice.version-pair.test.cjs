@@ -413,3 +413,97 @@ describe('одна строка паспорта, переписанная та�
     ).rejects.toMatchObject({ code: 'VOICE_PROFILE_NOT_FOUND' });
   });
 });
+
+/* ------------------------------------------------------ passport address */
+
+/**
+ * «Обращение» аватара (`content-factory-next-97dq.38`): та же дверь
+ * `POST /passport/field`, тело `{ addressForm: 'ty' | 'vy' | null }`.
+ */
+describe('обращение аватара в паспорте', () => {
+  const setup = (activeVoice = {}) => {
+    const written = [];
+    const activated = [];
+    const active = {
+      ...VERSIONS[2],
+      content: {
+        ...VERSIONS[2].content,
+        voice: { ...VERSIONS[2].content.voice, ...activeVoice },
+      },
+    };
+    const profiles = profilesStub({
+      overview: async () => ({
+        versions: VERSIONS,
+        activeVersion: active,
+        profile: { activeVersionId: active.id },
+      }),
+      createDraft: async (organizationId, userId, content, label, avatarId) => {
+        written.push({ organizationId, content, avatarId });
+        return { id: 'ver-9' };
+      },
+      activate: async (organizationId, userId, versionId) => {
+        activated.push(versionId);
+      },
+    });
+    const service = serviceWith(profiles);
+    service.measurementForActiveVersion = async () => null;
+    return { service, written, activated };
+  };
+
+  it('«на вы» — новая версия с одним изменённым полем, включена сразу', async () => {
+    const { service, written, activated } = setup();
+
+    await service.setPassportField(actor(), { addressForm: 'vy' });
+
+    expect(written).toHaveLength(1);
+    expect(written[0].content.voice.addressForm).toBe('vy');
+    expect(written[0].content.voice.traits).toEqual(VERSIONS[2].content.voice.traits);
+    expect(written[0].content.project.name).toBe('Завод');
+    expect(activated).toEqual(['ver-9']);
+  });
+
+  it('`null` — «Не задано»: поле снято, а не записано пустым', async () => {
+    const { service, written } = setup({ addressForm: 'ty' });
+
+    await service.setPassportField(actor(), { addressForm: null });
+
+    expect(written).toHaveLength(1);
+    expect(written[0].content.voice).not.toHaveProperty('addressForm');
+  });
+
+  it('то же значение версии не плодит, а паспорт его показывает', async () => {
+    const { service, written } = setup({ addressForm: 'vy' });
+
+    const answer = await service.setPassportField(actor(), { addressForm: 'vy' });
+
+    expect(written).toHaveLength(0);
+    expect(answer.voice.addressForm).toBe('vy');
+    expect((await service.passport(actor())).voice.addressForm).toBe('vy');
+  });
+
+  it('без права править — отказ по имени', async () => {
+    const { service } = setup();
+
+    await expect(
+      service.setPassportField(actor({ canManage: false }), { addressForm: 'ty' })
+    ).rejects.toMatchObject({ code: 'VOICE_FORBIDDEN' });
+  });
+
+  it('тело двери: строка паспорта как была, обращение — только из трёх значений', () => {
+    const { plainToInstance } = require('class-transformer');
+    const { validateSync } = require('class-validator');
+    const { VoicePassportFieldDto } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/dtos/content-intelligence/brand-voice.dto.ts'
+    );
+    const refusals = (body) =>
+      validateSync(plainToInstance(VoicePassportFieldDto, body), {
+        whitelist: true,
+      }).map((failure) => failure.property);
+
+    expect(refusals({ key: 'TONE', text: 'Сухо' })).toEqual([]);
+    expect(refusals({ addressForm: 'vy' })).toEqual([]);
+    expect(refusals({ addressForm: null })).toEqual([]);
+    expect(refusals({ addressForm: 'thou' })).toEqual(['addressForm']);
+    expect(refusals({}).sort()).toEqual(['key', 'text']);
+  });
+});

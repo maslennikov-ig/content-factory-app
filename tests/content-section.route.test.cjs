@@ -206,7 +206,7 @@ describe('the Content screen', () => {
     expect(source('screen')).toContain('showHeader={false}');
   });
 
-  test('the Brief tab opens on the intake, with the manual form one press away', () => {
+  test('the Brief tab opens on the intake alone, with no manual brief behind a switch', () => {
     render(
       withLanguage(
         'ru',
@@ -217,51 +217,21 @@ describe('the Content screen', () => {
     );
 
     /*
-      `content-factory-next-tu3k.4`, решение владельца 06.09.2026: вкладка
-      открывается входом одной мыслью, а форма из восьми полей остаётся
-      вторым видом «Вручную». Проверяется и то и другое — переключатель,
-      который щёлкает, но открывает пустоту, прошёл бы проверку только на
-      подпись.
+      Владелец 22.09.2026 (`content-factory-next-97dq.36`): «предлагаю
+      полностью убрать режим вручную. Мы им всё равно не пользуемся». До этого
+      вкладка открывалась входом одной мыслью, а форма из восьми полей стояла
+      вторым видом «Вручную» за переключателем «По мысли · Вручную»
+      (`content-factory-next-tu3k.4`). Теперь вход — единственное, что здесь
+      есть: ни переключателя, ни ручной формы, ни её контейнера в исходнике.
     */
     const panel = screen.getByRole('tabpanel');
     expect(panel.querySelector('[data-content-panel="intake"]')).not.toBeNull();
-
-    const switchGroup = within(panel).getByRole('radiogroup');
-    const [intakeOption, manualOption] = within(switchGroup).getAllByRole('radio');
-    expect(intakeOption.textContent).toBe('По мысли');
-    expect(manualOption.textContent).toBe('Вручную');
-    expect(intakeOption.getAttribute('aria-checked')).toBe('true');
-    // Ручная форма не смонтирована, пока её вид не выбран.
+    expect(within(panel).queryByRole('radiogroup', { name: 'Как начать' })).toBeNull();
+    expect(panel.textContent).not.toContain('Вручную');
     expect(panel.querySelector('[data-voice-brief-form="true"]')).toBeNull();
-
-    fireEvent.click(manualOption);
-    expect(panel.querySelector('[data-content-panel="intake"]')).toBeNull();
     expect(source('screen')).toContain('IntakeContainer');
-  });
-
-  test('the manual view still mounts the live gate rather than the review fixture', () => {
-    render(
-      withLanguage(
-        'ru',
-        React.createElement(contentScreen.ContentSectionScreen, {
-          initialTab: 'brief',
-        })
-      )
-    );
-
-    fireEvent.click(
-      within(screen.getByRole('tabpanel')).getAllByRole('radio')[1]
-    );
-
-    // `content-factory-next-07h.4` built the screen, the gate and the radar and
-    // scoped the tab as routes only, so until this entry existed the brief was
-    // rendered by nothing but `/interface-review`. With no server behind it
-    // here, what the panel renders is its own failure state — which is the
-    // point: the tab is wired, not drawn.
-    const panel = screen.getByRole('tabpanel');
-    expect(panel.querySelector('[data-voice-surface="brief"]')).not.toBeNull();
-    expect(panel.querySelector('[data-voice-brief-form="true"]')).not.toBeNull();
-    expect(source('screen')).toContain('VoiceBriefContainer');
+    expect(source('screen')).not.toContain('VoiceBriefContainer');
+    expect(source('screen')).not.toContain('BriefViewSwitch');
   });
 
   test('the Material tab mounts the library rather than a placeholder', () => {
@@ -322,7 +292,7 @@ describe('the Content screen', () => {
     );
 
     // A workspace with no pieces sees this, and it must not read as a fault.
-    expect(screen.getByText(/No material yet/)).toBeTruthy();
+    expect(screen.getByText(/No pieces yet/)).toBeTruthy();
     expect(document.querySelector('[role="alert"]')).toBeNull();
   });
 

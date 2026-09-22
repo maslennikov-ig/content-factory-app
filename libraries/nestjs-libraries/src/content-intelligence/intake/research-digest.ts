@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { ContentLanguage } from '@contentfactory/nestjs-libraries/dtos/content.language';
 import { contentLanguageNames } from '@contentfactory/nestjs-libraries/dtos/content.language';
+import { stripCitationLabels } from '../text-quality/citation-labels';
 
 /**
  * Найденное поиском превращается в опоры, а вердикты ставит код
@@ -497,7 +498,8 @@ export const settleResearchDigest = (
     }
     if (seenClaims.has(claim.key)) continue;
     seenClaims.add(claim.key);
-    const note = oneLine(raw.note || '') || null;
+    // Адреса `[E:…]`/`[C:…]` промпта — не слова человека (`97dq.40`).
+    const note = oneLine(stripCitationLabels(raw.note || '')) || null;
     const sourceKey = bareKey(raw.evidenceId);
     const source = sourceOf(raw.evidenceId);
     if (sourceKey && !source) rejected.unknownSources += 1;
@@ -527,7 +529,7 @@ export const settleResearchDigest = (
       });
       continue;
     }
-    const replacement = oneLine(raw.replacement || '');
+    const replacement = oneLine(stripCitationLabels(raw.replacement || ''));
     const correction =
       claim.own && originalIsInClaim(raw.original, claim.statement) && replacement
         ? { original: oneLine(raw.original!), replacement }
@@ -560,7 +562,9 @@ export const settleResearchDigest = (
   const seenStatements = new Set<string>();
   for (const raw of answer?.findings || []) {
     const source = sourceOf(raw.evidenceId);
-    const statement = oneLine(raw.statement || '');
+    // Утверждение находки становится опорой, которую человек читает и
+    // которая едет в суть и адаптацию: адрес источника в нём не остаётся.
+    const statement = oneLine(stripCitationLabels(raw.statement || ''));
     if (!source) {
       rejected.unknownSources += 1;
       continue;

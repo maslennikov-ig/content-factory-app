@@ -1,11 +1,12 @@
 'use client';
 
-import type { HTMLAttributes } from 'react';
+import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import clsx from 'clsx';
 import {
   RadioGroup,
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
+import { Hint } from '@contentfactory/react/layout/hint';
 
 /**
  * Компактный переключатель: одна полоса, два-шесть слов, выбор виден целиком.
@@ -26,6 +27,26 @@ export type SegmentedOption<Value extends string> = {
   value: Value;
   /** Уже переведённое слово: полоса не знает ни одного языка. */
   label: string;
+  /**
+   * Подсказка «?» у положения — что станет со словами, если выбрать его
+   * (`content-factory-next-97dq.36`). Кружок стоит рядом с положением, а не
+   * внутри него: кнопка в кнопке недопустима. `label` — имя подсказки для
+   * скринридера («Подсказка: свой текст»), `text` — само объяснение.
+   */
+  hint?: { label: string; text: ReactNode };
+};
+
+/**
+ * Стрелки, Home и End внутри подсказки не уходят в полосу.
+ *
+ * Подсказка живёт внутри `radiogroup`, и группа слушает клавиши у всех своих
+ * потомков: стрелка на «?» перевела бы фокус на первое положение и заодно
+ * выбрала его. Escape сюда не входит — подсказка ловит его на документе, и
+ * остановленное событие туда бы не дошло.
+ */
+const HINT_KEEPS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+const keepKeysInHint = (event: KeyboardEvent<HTMLSpanElement>) => {
+  if (HINT_KEEPS.has(event.key)) event.stopPropagation();
 };
 
 export function Segmented<Value extends string>({
@@ -53,25 +74,43 @@ export function Segmented<Value extends string>({
       onChange={(next) => onChange(next as Value)}
       aria-label={label}
       className={clsx(
+        // С подсказками полоса шире на три кружка и на 390 px уже не
+        // помещается в строку — переносится, а не толкает страницу вбок.
         'inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]',
+        options.some((option) => option.hint) && 'flex-wrap',
         className
       )}
     >
-      {options.map((option) => (
-        <RadioOption
-          key={option.value}
-          value={option.value}
-          layout="content"
-          className={clsx(
-            'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
-            value === option.value
-              ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
-              : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
-          )}
-        >
-          {option.label}
-        </RadioOption>
-      ))}
+      {options.map((option) => {
+        const radio = (
+          <RadioOption
+            key={option.value}
+            value={option.value}
+            layout="content"
+            className={clsx(
+              'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+              value === option.value
+                ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
+                : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
+            )}
+          >
+            {option.label}
+          </RadioOption>
+        );
+        if (!option.hint) return radio;
+        return (
+          <span
+            key={option.value}
+            data-segmented-hint={option.value}
+            className="inline-flex items-center"
+          >
+            {radio}
+            <span className="inline-flex" onKeyDown={keepKeysInHint}>
+              <Hint label={option.hint.label}>{option.hint.text}</Hint>
+            </span>
+          </span>
+        );
+      })}
     </RadioGroup>
   );
 }

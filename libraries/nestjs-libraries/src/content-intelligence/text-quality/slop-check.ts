@@ -39,6 +39,11 @@ import type {
 import { maskCode, maskSkipZones } from './slop-skip-zones';
 import { numberAt, numberKeysOf } from './numbers';
 import {
+  restatesSupported,
+  supportedWordingOf,
+  type SupportedWordingV1,
+} from './supported-wording';
+import {
   maskSlopMetricStructures,
   slopPlatformKey,
   slopThresholds,
@@ -87,6 +92,17 @@ export type SlopCheckOptions = {
    * честнее, чем передать пустое и считать текст обоснованным.
    */
   grounded?: string | readonly string[];
+  /**
+   * Отмеченные факты брифа — ровно их утверждения, без сути и слов человека.
+   *
+   * `content-factory-next-97dq.33`. Короткая словесная находка, которая
+   * пересказывает такую опору, находкой не считается: «сотрудники эффективнее
+   * делегировали» при отмеченной опоре «Сотрудники стали эффективнее
+   * делегировать» — это факт человека, а не оценка на месте факта. Узость
+   * правила описана в `supported-wording.ts`. Правил по сырому тексту
+   * (метки чат-ботов, невидимые символы) и счётчиков это не касается.
+   */
+  supported?: readonly string[];
 };
 
 /**
@@ -293,6 +309,13 @@ export function slopCheck(
     return groundedKeys;
   };
 
+  let supportedWording: SupportedWordingV1 | null = null;
+  const supported = (): SupportedWordingV1 => {
+    if (!supportedWording)
+      supportedWording = supportedWordingOf(options.supported);
+    return supportedWording;
+  };
+
   const add = (
     rule: SlopRule,
     span: { start: number; end: number } | null,
@@ -332,6 +355,13 @@ export function slopCheck(
             if (groundedNumbers().has(number.key)) continue;
           }
         }
+        // Пересказ отмеченной опоры — факт человека, а не след (`97dq.33`).
+        if (
+          rule.scope !== 'raw' &&
+          options.supported?.length &&
+          restatesSupported(haystack, start, end, supported())
+        )
+          continue;
         // Отрывок берётся из исходной строки: `excerpt` — это ровно
         // `text.slice(start, end)`, чтобы подсветка совпала с текстом.
         add(rule, { start, end }, text.slice(start, end));

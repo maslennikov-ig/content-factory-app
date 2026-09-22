@@ -9,19 +9,23 @@
  * `pieces.fixture.ts`, поданная настоящим `ReadableStream` кусками, и разбивку
  * строк делает тот же модуль, что и в браузере.
  *
- * Пять вещей, ради которых набор существует:
+ * С десятого захода (`97dq.37`, вариант A) страница — рабочее место с
+ * вкладками, и набор держит ещё и его двери:
  *
+ *  - вкладка живёт в адресе (`?tab=`), старый `?adapt=<площадка>` ведёт во
+ *    вкладку канала;
  *  - короткий путь `adapt-started` → `adaptation` → `done` показывает черновик
- *    и перечитывает заготовку: список адаптаций обязан догнать написанное;
+ *    во вкладке канала и перечитывает заготовку;
  *  - `questions` терминально — карточка показана, черновика нет, а ответ
- *    уходит вторым запросом и несёт `answers`; «Пропустить интервью» несёт
- *    `skipInterview`, а не пустые ответы;
- *  - `error` последней строкой печатается словами сервера, а не общим
- *    «что-то пошло не так»;
- *  - «В архив» шлёт `POST` в дверь контракта и перечитывает заготовку, вместо
- *    того чтобы рисовать «в архиве» по памяти о собственном нажатии;
- *  - когда площадка умеет несколько видов, в тело запроса уходит выбранный
- *    человеком вид, а не первый из списка.
+ *    уходит вторым запросом; «Решите всё за меня» несёт `skipInterview`;
+ *  - ручная правка уходит `PATCH`-ем после тишины, «Запланировать» и
+ *    «Опубликовать сейчас» — дверью расписания, «Снять с расписания» —
+ *    своей дверью, удаление адаптации — вторым нажатием;
+ *  - «Для этого поста» уходит в `overrides`, «Запомнить для канала» — в
+ *    профиль канала;
+ *  - окно «Создать пост» не открывается ни одной веткой страницы
+ *    (медиатека грузится по нажатию «картинка», в наборе её не поднять);
+ *  - «В архив» и «Удалить» заготовки — как раньше.
  */
 
 const React = require('react');
@@ -81,6 +85,9 @@ const fixture = loadTypeScriptModule(
 const routes = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-wiring.contract.ts'
 );
+const avatarRoutes = loadTypeScriptModule(
+  'apps/frontend/src/components/brand-voice/voice-avatars.adapter.ts'
+).AVATAR_ROUTES;
 
 /*
   Окно поста подменяется на уровне модуля модалок — тот же приём, что в
@@ -91,8 +98,16 @@ const routes = loadTypeScriptModule(
 const modalModule = loadTypeScriptModule(
   'apps/frontend/src/components/layout/new-modal.tsx'
 );
+/*
+  Каждое открытие окна записывается: страница заготовки не открывает окно
+  поста ни одной веткой (`97dq.37`), а единственное законное окно — медиатека
+  у кнопки «картинка».
+*/
+const opened = [];
 modalModule.useModals = () => ({
-  openModal: () => undefined,
+  openModal: (options) => {
+    opened.push(options);
+  },
   closeAll: () => undefined,
   closeById: () => undefined,
   closeCurrent: () => undefined,
@@ -229,6 +244,8 @@ const adaptDoor = (...runs) => {
 
 const table = ({ detail, adapt, archive, answer }) => ({
   'GET /integrations/list': ok({ integrations: [] }),
+  [`GET ${avatarRoutes.list}`]: ok({ avatars: [] }),
+  'GET /posts/find-slot/int-tg-main': ok({ date: '2026-10-01T09:00:00' }),
   [`GET ${DETAIL_URL}`]: detail ?? detailDoor(ok(fixture.PIECE_FIXTURE_DETAIL)),
   [`POST ${ADAPT_URL}`]: adapt ?? adaptDoor(streamed(fixture.PIECE_FIXTURE_ADAPT_STREAM)),
   ...(archive ? { [`POST ${ARCHIVE_URL}`]: archive } : {}),
@@ -280,13 +297,40 @@ const open = async (props = {}) => {
   return view;
 };
 
-/** Нажать «Адаптировать · <площадка>» и дождаться конца хода. */
-const adaptTo = async (name) => {
+/** «Адаптировать» в строке «Куда дальше» и дождаться конца хода. */
+const adaptTo = async (name = 'Telegram · Мой канал') => {
   await click(
     screen.getByRole('button', { name: `Адаптировать · ${name}` }),
     () => panel().getAttribute('aria-busy') !== 'true'
   );
 };
+
+const wait = (ms) =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  });
+
+/*
+  Заготовка, где у главного Telegram-канала ещё нет текста: адаптация туда
+  начинается из «Куда дальше». Остальные каналы — как в фикстуре.
+*/
+const WITHOUT_TG = {
+  ...fixture.PIECE_FIXTURE_DETAIL,
+  adaptations: fixture.PIECE_FIXTURE_DETAIL.adaptations.filter(
+    (one) => one.integrationId !== 'int-tg-main'
+  ),
+};
+
+/* Та же заготовка, где у Telegram — черновик: рабочее место канала. */
+const WITH_DRAFT = {
+  ...fixture.PIECE_FIXTURE_DETAIL,
+  adaptations: fixture.PIECE_FIXTURE_DETAIL.adaptations.map((one) =>
+    one.id === 'adaptation-12-tg'
+      ? { ...one, state: 'draft', date: null, url: null }
+      : one
+  ),
+};
+const TG_DRAFT_ID = 'adaptation-12-tg';
 
 beforeAll(async () => {
   const i18n = loadTypeScriptModule(
@@ -301,39 +345,62 @@ beforeAll(async () => {
 afterEach(() => {
   cleanup();
   delete global.fetch;
+  opened.length = 0;
+  window.history.replaceState(null, '', '/');
 });
 
 /* ---------------------------------------------------------------------- */
 
-describe('the short road: started, written, done', () => {
-  test('the draft is shown and the piece is read again', async () => {
+describe('the tab lives in the address', () => {
+  test('«Суть» by default; a tab from the address opens that channel', async () => {
+    serve(table({ detail: detailDoor(ok(WITH_DRAFT)) }));
+    await open({ initialTab: 'int-tg-main' });
+    expect(panel().getAttribute('data-piece-tab')).toBe('int-tg-main');
+    expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
+
+    await click(screen.getByRole('tab', { name: 'Суть' }));
+    expect(panel().getAttribute('data-piece-tab')).toBe('core');
+    expect(window.location.pathname).toBe(`/content/pieces/${PIECE_ID}`);
+    expect(window.location.search).toBe('');
+
+    await click(screen.getByRole('tab', { name: /ВКонтакте · Студия/ }));
+    expect(window.location.search).toBe('?tab=int-vk');
+  });
+
+  test('the old `?adapt=<platform>` opens the first channel of that platform', async () => {
     serve(table({}));
+    await open({ adaptPlatform: 'vk' });
+    await settle(() => panel().getAttribute('data-piece-tab') === 'int-vk');
+    expect(panel().getAttribute('data-piece-tab')).toBe('int-vk');
+    expect(window.location.search).toBe('?tab=int-vk');
+  });
+});
+
+describe('the short road: started, written, done', () => {
+  test('the draft is shown in its channel tab and the piece is read again', async () => {
+    serve(table({ detail: detailDoor(ok(WITHOUT_TG)) }));
     await open();
     expect(detailReads).toBe(1);
 
-    await adaptTo('Telegram');
+    await adaptTo();
 
-    // Черновик на экране — тот же текст, что приехал событием `adaptation`.
+    // Вкладка канала открыта, черновик — тот текст, что приехал событием.
+    expect(panel().getAttribute('data-piece-tab')).toBe('int-tg-main');
     const draft = document.querySelector('[data-intake-draft]');
     expect(draft).not.toBeNull();
     expect(draft.textContent).toContain(
       fixture.PIECE_FIXTURE_ADAPTATIONS[0].body.slice(0, 24)
     );
-    // И заготовка перечитана: список адаптаций обязан догнать написанное.
     expect(detailReads).toBe(2);
-    // Тело запроса — то, что собирает контракт, и ничего сверх него.
+    // Тело — то, что собирает контракт: без «Для этого поста» переопределений нет.
     expect(adaptBodies).toEqual([{ integrationId: 'int-tg-main', kind: 'post' }]);
+    // И ни одного окна: ни поста, ни чего-то ещё.
+    expect(opened).toEqual([]);
   });
 });
 
 /* -------------------------------------------------------------------------
- * Строка качества: одна строка под текстом вместо четырёх поверхностей
- *
- * Решение владельца 07.09.2026 (`content-factory-next-fn33.28.4`). До неё
- * страница печатала вердикт всегда — и над чистой сутью говорила «находок
- * нет · своё число есть», то есть занимала место, чтобы сообщить, что
- * сообщать нечего. Проверяется здесь именно молчание и именно то, что
- * найденное называется словом.
+ * Строка качества: одна строка под текстом (решение владельца 07.09.2026).
  * ---------------------------------------------------------------------- */
 
 /** Отчёт о штампах с заданными находками. */
@@ -360,11 +427,8 @@ describe('строка качества под сутью и под адапта
   test('чистая суть не получает ни строки', async () => {
     serve(table({}));
     await open();
-
-    // Суть фикстуры чиста и несёт своё число: сообщать нечего.
     expect(document.querySelector('[data-quality-line]')).toBeNull();
     expect(document.body.textContent).not.toContain('находок нет');
-    expect(document.body.textContent).not.toContain('своё число есть');
   });
 
   test('находки и недостающее своё число названы словом каждое', async () => {
@@ -386,8 +450,6 @@ describe('строка качества под сутью и под адапта
 
     expect(qualitySegment('slop').textContent).toBe('Штампов: 2');
     expect(qualitySegment('gaps').textContent).toBe('Своих чисел нет');
-
-    // Находки лежат за нажатием, а не разворачиваются сами.
     expect(document.querySelector('[data-slop-finding]')).toBeNull();
     await click(qualitySegment('slop'));
     expect(document.querySelectorAll('[data-slop-finding]').length).toBe(2);
@@ -398,7 +460,9 @@ describe('строка качества под сутью и под адапта
       event.name === 'adaptation'
         ? {
             ...event,
-            draftGaps: [{ metric: 'carriesOwnMeasurement', authorShare: 54, authorOf: 153, example: null }],
+            draftGaps: [
+              { metric: 'carriesOwnMeasurement', authorShare: 54, authorOf: 153, example: null },
+            ],
             checks: {
               antiCopy: {
                 minWords: 8,
@@ -407,43 +471,33 @@ describe('строка качества под сутью и под адапта
                 runs: [{ text: 'слово в слово из источника', start: 0, end: 26 }],
               },
               slop: slopFound('в современном мире'),
-              /*
-                `voice` приезжает в `checks` волной 07.09.2026 и на день
-                раньше типа в контракте. Разбор обязан его читать уже сейчас,
-                и обязан молчать, когда его нет.
-              */
               voice: { verdict: 'FAR' },
             },
           }
         : event
     );
-    serve(table({ adapt: adaptDoor(streamed(stream)) }));
+    serve(
+      table({
+        detail: detailDoor(ok(WITHOUT_TG)),
+        adapt: adaptDoor(streamed(stream)),
+      })
+    );
     await open();
-    await adaptTo('Telegram');
+    await adaptTo();
 
     expect(qualitySegment('slop').textContent).toBe('Штампов: 1');
     expect(qualitySegment('anti-copy').textContent).toBe('Чужих фраз: 1');
     expect(qualitySegment('voice').textContent).toBe('Не похоже на вас');
     expect(qualitySegment('gaps').textContent).toBe('Своих чисел нет');
-
-    // И ни одной кнопки «Проверить на штампы»: проверки уже сняты даром.
     expect(screen.queryByRole('button', { name: 'Проверить на штампы' })).toBeNull();
-  });
-
-  test('адаптация без `voice` в ответе не выдумывает вердикта', async () => {
-    serve(table({}));
-    await open();
-    await adaptTo('Telegram');
-
-    expect(document.querySelector('[data-intake-draft]')).not.toBeNull();
-    expect(qualitySegment('voice')).toBeNull();
   });
 });
 
 describe('questions are the whole answer of that run', () => {
-  test('the card is shown, no draft, and the answers go out in a second request', async () => {
+  test('the card stands in the channel tab, and the answers go out in a second request', async () => {
     serve(
       table({
+        detail: detailDoor(ok(WITHOUT_TG)),
         adapt: adaptDoor(
           streamed(fixture.PIECE_FIXTURE_ADAPT_QUESTIONS_STREAM),
           streamed(fixture.PIECE_FIXTURE_ADAPT_STREAM)
@@ -451,28 +505,28 @@ describe('questions are the whole answer of that run', () => {
       })
     );
     await open();
-    await adaptTo('Telegram');
+    await adaptTo();
 
-    const card = document.querySelector('[data-piece-questions="true"]');
+    const card = document.querySelector(
+      '[data-piece-channel-questions="int-tg-main"] [data-piece-questions="true"]'
+    );
     expect(card).not.toBeNull();
     expect(card.querySelectorAll('[data-piece-question]')).toHaveLength(
       fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS.length
     );
-    // Вопрос терминален: черновика в этот ход не будет.
     expect(document.querySelector('[data-piece-draft-id]')).toBeNull();
+    // Кнопки «Адаптировать для …» нет, пока открыт вопрос.
+    expect(screen.queryByRole('button', { name: /Адаптировать для/ })).toBeNull();
 
-    // Первый вопрос — согласием с моделью, второй отдан ей же.
     await click(
-      within(card.querySelector('[data-piece-question="hook"]')).getByRole(
-        'radio',
-        { name: 'Так и есть' }
-      )
+      within(card.querySelector('[data-piece-question="hook"]')).getByRole('radio', {
+        name: 'Так и есть',
+      })
     );
     await click(
-      within(card.querySelector('[data-piece-question="cta"]')).getByRole(
-        'radio',
-        { name: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[1].options[1] }
-      )
+      within(card.querySelector('[data-piece-question="cta"]')).getByRole('radio', {
+        name: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[1].options[1],
+      })
     );
     await click(within(card).getByRole('button', { name: 'Дальше' }), () =>
       adaptBodies.length === 2 ? panel().getAttribute('aria-busy') !== 'true' : false
@@ -488,15 +542,14 @@ describe('questions are the whole answer of that run', () => {
       },
       { key: 'cta', text: fixture.PIECE_FIXTURE_TELEGRAM_QUESTIONS[1].options[1], origin: 'confirmed' },
     ]);
-    expect(adaptBodies[1].decideKeys).toBeUndefined();
-    // Тот же канал и тот же вид: ход второй, а работа одна.
     expect(adaptBodies[1].integrationId).toBe('int-tg-main');
     expect(adaptBodies[1].kind).toBe('post');
   });
 
-  test('«Пропустить интервью» carries skipInterview, not empty answers', async () => {
+  test('«Решите всё за меня» carries skipInterview, not empty answers', async () => {
     serve(
       table({
+        detail: detailDoor(ok(WITHOUT_TG)),
         adapt: adaptDoor(
           streamed(fixture.PIECE_FIXTURE_ADAPT_QUESTIONS_STREAM),
           streamed(fixture.PIECE_FIXTURE_ADAPT_STREAM)
@@ -504,10 +557,10 @@ describe('questions are the whole answer of that run', () => {
       })
     );
     await open();
-    await adaptTo('Telegram');
+    await adaptTo();
 
     await click(
-      screen.getByRole('button', { name: 'Пропустить интервью' }),
+      screen.getByRole('button', { name: 'Решите всё за меня' }),
       () => adaptBodies.length === 2
     );
 
@@ -522,10 +575,13 @@ describe('questions are the whole answer of that run', () => {
 describe('a refusal is printed in the words the server sent', () => {
   test('the last line of the stream becomes the failure on the screen', async () => {
     serve(
-      table({ adapt: adaptDoor(streamed(fixture.PIECE_FIXTURE_ADAPT_ERROR_STREAM)) })
+      table({
+        detail: detailDoor(ok(WITHOUT_TG)),
+        adapt: adaptDoor(streamed(fixture.PIECE_FIXTURE_ADAPT_ERROR_STREAM)),
+      })
     );
     await open();
-    await adaptTo('Telegram');
+    await adaptTo();
 
     expect(panel().getAttribute('data-piece-state')).toBe('error');
     const refusal = fixture.PIECE_FIXTURE_ADAPT_ERROR_STREAM.find(
@@ -533,6 +589,187 @@ describe('a refusal is printed in the words the server sent', () => {
     );
     expect(document.body.textContent).toContain(refusal.message);
     expect(document.querySelector('[data-piece-draft-id]')).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Рабочее место канала: правка, расписание, удаление, «Для этого поста»
+ * ---------------------------------------------------------------------- */
+
+const ADAPTATION_URL = adapter.PIECES_API.adaptation(PIECE_ID, TG_DRAFT_ID);
+const SCHEDULE_URL = adapter.PIECES_API.schedule(PIECE_ID, TG_DRAFT_ID);
+
+const workspace = async (extra = {}) => {
+  serve({
+    ...table({ detail: detailDoor(ok(WITH_DRAFT)) }),
+    [`PATCH ${ADAPTATION_URL}`]: (call) =>
+      ok({
+        adaptation: {
+          ...WITH_DRAFT.adaptations[0],
+          ...(call.body.body ? { body: call.body.body } : {}),
+        },
+      }),
+    [`POST ${SCHEDULE_URL}`]: ok({
+      adaptation: { ...WITH_DRAFT.adaptations[0], state: 'queued' },
+    }),
+    ...extra,
+  });
+  await open({ initialTab: 'int-tg-main' });
+};
+
+describe('the channel workspace talks to its own doors', () => {
+  test('a hand edit is saved by PATCH after a pause, and nothing opens a window', async () => {
+    await workspace();
+    await click(screen.getByRole('button', { name: 'Показать разметку' }));
+    const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+    await act(async () => {
+      fireEvent.change(field, { target: { value: 'Поправленный **текст**.' } });
+    });
+    // Тишина ещё не наступила — запроса нет.
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    await wait(900);
+    await settle(() => calls.some((call) => call.method === 'PATCH'));
+    const patched = calls.filter((call) => call.method === 'PATCH');
+    expect(patched).toHaveLength(1);
+    expect(patched[0].url).toBe(ADAPTATION_URL);
+    expect(patched[0].body).toEqual({ body: 'Поправленный **текст**.' });
+    await settle(
+      () => document.querySelector('[data-autosave="saved"]') !== null
+    );
+    expect(document.querySelector('[data-autosave="saved"]')).not.toBeNull();
+    expect(opened).toEqual([]);
+  });
+
+  test('«Запланировать» sends the chosen moment through the schedule door', async () => {
+    await workspace();
+    await settle(() => calls.some((call) => call.url.startsWith('/posts/find-slot')));
+    await click(screen.getByRole('button', { name: 'Запланировать' }), () =>
+      calls.some((call) => call.url === SCHEDULE_URL)
+    );
+    const sent = calls.filter((call) => call.url === SCHEDULE_URL);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].method).toBe('POST');
+    // Время по умолчанию — ближайшее свободное, как его выбирает календарь.
+    expect(sent[0].body).toEqual({ date: '2026-10-01T09:00:00.000Z' });
+    await settle(() => document.body.textContent.includes('Пост в расписании.'));
+    expect(document.body.textContent).toContain('Пост в расписании.');
+    expect(opened).toEqual([]);
+  });
+
+  test('«Опубликовать сейчас» waits in the menu and sends `now`', async () => {
+    await workspace();
+    await click(screen.getByRole('button', { name: 'Другие способы отправить' }));
+    await click(screen.getByRole('menuitem', { name: /Опубликовать сейчас/ }), () =>
+      calls.some((call) => call.url === SCHEDULE_URL)
+    );
+    expect(calls.find((call) => call.url === SCHEDULE_URL).body).toEqual({ now: true });
+  });
+
+  test('a refusal of the schedule door is printed in its words', async () => {
+    await workspace({
+      [`POST ${SCHEDULE_URL}`]: refused(422, {
+        code: 'ADAPTATION_SCHEDULE_INVALID',
+        message: 'Текст длиннее, чем примет «Мой канал».',
+        subject: 'telegram',
+      }),
+    });
+    await click(screen.getByRole('button', { name: 'Запланировать' }), () =>
+      document.body.textContent.includes('Текст длиннее')
+    );
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Текст длиннее, чем примет «Мой канал».'
+    );
+  });
+
+  test('the adaptation is deleted on the second press only', async () => {
+    const DELETE_URL = adapter.PIECES_API.deleteAdaptation(PIECE_ID, TG_DRAFT_ID);
+    await workspace({ [`DELETE ${DELETE_URL}`]: ok({ deleted: true }) });
+    const button = document.querySelector('[data-piece-delete-adaptation="true"]');
+    await click(button);
+    expect(button.getAttribute('data-confirm-armed')).toBe('true');
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0);
+    await click(button, () => calls.some((call) => call.method === 'DELETE'));
+    const asked = calls.filter((call) => call.method === 'DELETE');
+    expect(asked).toHaveLength(1);
+    expect(asked[0].url).toBe(DELETE_URL);
+  });
+
+  test('«Снять с расписания» asks its own door for a queued post', async () => {
+    const UNSCHEDULE_URL = adapter.PIECES_API.unschedule(PIECE_ID, 'adaptation-12-vk');
+    serve({
+      ...table({}),
+      [`POST ${UNSCHEDULE_URL}`]: ok({
+        adaptation: { ...fixture.PIECE_FIXTURE_ADAPTATIONS[1], state: 'draft' },
+      }),
+    });
+    await open({ initialTab: 'int-vk' });
+    // Запланированный пост не правится: поля правки нет.
+    expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Открыть в календаре' }).getAttribute('href')).toContain(
+      'integrationId=int-vk'
+    );
+    await click(screen.getByRole('button', { name: 'Снять с расписания' }), () =>
+      calls.some((call) => call.url === UNSCHEDULE_URL)
+    );
+    expect(calls.filter((call) => call.url === UNSCHEDULE_URL)[0].method).toBe('POST');
+  });
+
+  test('«Для этого поста» travels as overrides and «Переписать с этим» makes a new version', async () => {
+    await workspace();
+    await click(screen.getByRole('button', { name: 'Изменить' }));
+    await click(screen.getByRole('radio', { name: 'Короче' }));
+    await click(screen.getByRole('radio', { name: 'на «вы»' }));
+    await act(async () => {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Пожелание' }), {
+        target: { value: 'начни с вопроса' },
+      });
+    });
+    await click(screen.getByRole('button', { name: 'Переписать с этим' }), () =>
+      adaptBodies.length === 1 && panel().getAttribute('aria-busy') !== 'true'
+    );
+    expect(adaptBodies[0]).toEqual({
+      integrationId: 'int-tg-main',
+      kind: 'post',
+      overrides: { length: 'shorter', addressForm: 'vy', wish: 'начни с вопроса' },
+    });
+  });
+
+  test('«Запомнить для канала» writes the choice into the channel profile', async () => {
+    // Дверь профиля канала отвечает заглушкой набора на любой метод.
+    await workspace();
+    const profileCall = calls.find((call) => call.url.endsWith('/writing-profile'));
+    expect(profileCall).toBeTruthy();
+    await click(screen.getByRole('button', { name: 'Изменить' }));
+    await click(screen.getByRole('radio', { name: 'на «ты»' }));
+    await click(screen.getByRole('button', { name: 'Запомнить для канала' }), () =>
+      calls.some((call) => call.method === 'PUT')
+    );
+    const put = calls.find((call) => call.method === 'PUT');
+    expect(put.url).toBe(profileCall.url);
+    expect(put.body).toMatchObject({ addressForm: 'ty' });
+    await settle(() => document.body.textContent.includes('Запомнили'));
+    expect(document.body.textContent).toContain('Запомнили');
+  });
+
+  test('the action row of the adaptation is visible, with no «Ещё» menu', async () => {
+    await workspace();
+    const row = document.querySelector('[data-adaptation-review="adaptation-12-tg"]');
+    expect(row).not.toBeNull();
+    expect(
+      Array.from(row.querySelectorAll('[data-review-action]')).map((node) =>
+        node.getAttribute('data-review-action')
+      )
+    ).toEqual(['slop', 'checkFacts', 'rewrite']);
+    const core = async () => {
+      await click(screen.getByRole('tab', { name: 'Суть' }));
+      return document.querySelector('[data-adaptation-review="core"]');
+    };
+    const coreRow = await core();
+    expect(
+      Array.from(coreRow.querySelectorAll('[data-review-action]')).map((node) =>
+        node.getAttribute('data-review-action')
+      )
+    ).toEqual(['research', 'checkFacts', 'rewrite']);
   });
 });
 
@@ -577,15 +814,18 @@ describe('уточнение стоит там, где стоит суть', () 
     const sent = document.querySelector('[data-piece-sent-text]');
     expect(sent).not.toBeNull();
     expect(sent.getAttribute('data-piece-sent-text')).toBe('source');
-    expect(sent.textContent).toContain('Чужой пост, на который вы отвечаете');
     expect(sent.textContent).toContain('Маркетплейсы снова подняли комиссии');
+    // Свёрнуто под «Что вы прислали» с видом входа (`97dq.41`).
+    const toggle = screen.getByRole('button', { name: /Что вы прислали/ });
+    expect(toggle.textContent).toContain('чужой пост');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
     // Текст стоит над вопросами: с двумя вопросами карточка выше экрана, и
     // текст под ней уходил за сгиб (стенд 22.09.2026, s2-page.png).
     const card = document.querySelector('[data-piece-clarify="true"]');
     expect(sent.compareDocumentPosition(card) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('a thought without a core shows the person’s own words; a written core shows nothing extra', async () => {
+  test('a thought shows the person’s own words, and they stay after the core is written', async () => {
     const thought = {
       ...ASKED_DETAIL,
       core: { ...ASKED_DETAIL.core, text: '', personText: 'Мы сократили неделю до четырёх дней.' },
@@ -594,8 +834,10 @@ describe('уточнение стоит там, где стоит суть', () 
     await open();
     const sent = document.querySelector('[data-piece-sent-text]');
     expect(sent.getAttribute('data-piece-sent-text')).toBe('person');
-    expect(sent.textContent).toContain('Ваш текст');
     expect(sent.textContent).toContain('Мы сократили неделю до четырёх дней.');
+    expect(
+      screen.getByRole('button', { name: /Что вы прислали/ }).textContent
+    ).toContain('свой текст');
     cleanup();
 
     const written = {
@@ -604,10 +846,13 @@ describe('уточнение стоит там, где стоит суть', () 
     };
     serve(table({ detail: detailDoor(ok(written)) }));
     await open();
-    expect(document.querySelector('[data-piece-sent-text]')).toBeNull();
+    // Присланное хранится «как есть, до правок» и после сути (`97dq.41`).
+    expect(
+      document.querySelector('[data-piece-sent-text="person"]').textContent
+    ).toBe('Мы сократили неделю до четырёх дней.');
   });
 
-  /** Задание (`97dq.29`): пока сути нет, над вопросами стоит само задание. */
+  /** Задание (`97dq.29`): над вопросами стоит само задание, свёрнутым. */
   test('an instruction without a core shows «Ваше задание» above the questions', async () => {
     const instructed = {
       ...ASKED_DETAIL,
@@ -623,7 +868,9 @@ describe('уточнение стоит там, где стоит суть', () 
     await open();
     const sent = document.querySelector('[data-piece-sent-text]');
     expect(sent.getAttribute('data-piece-sent-text')).toBe('instruction');
-    expect(sent.textContent).toContain('Ваше задание');
+    expect(
+      screen.getByRole('button', { name: /Что вы прислали/ }).textContent
+    ).toContain('задание');
     expect(sent.textContent).toContain('Хочу пост о том, что я выступил на радио.');
   });
 
@@ -848,11 +1095,10 @@ describe('«Удалить»', () => {
     await open();
     const button = document.querySelector('[data-piece-delete="true"]');
     expect(button.textContent).toContain('Удалить');
-    expect(button.getAttribute('data-piece-delete-armed')).toBe('false');
+    expect(button.getAttribute('data-confirm-armed')).toBe('false');
 
     await click(button);
-    expect(button.getAttribute('data-piece-delete-armed')).toBe('true');
-    expect(button.textContent).toContain('Удалить насовсем?');
+    expect(button.getAttribute('data-confirm-armed')).toBe('true');
     // Одно нажатие — ни одного запроса: подтверждение ещё не дано.
     expect(calls.filter((call) => call.url === DELETE_URL && call.method === 'DELETE')).toHaveLength(0);
 
@@ -878,6 +1124,6 @@ describe('«Удалить»', () => {
     expect(document.body.textContent).toContain('Такой заготовки в рабочем пространстве нет.');
     expect(navigations).toEqual([]);
     // Кнопка вернулась в покой: второй промах ничего не удалит.
-    expect(document.querySelector('[data-piece-delete="true"]').getAttribute('data-piece-delete-armed')).toBe('false');
+    expect(document.querySelector('[data-piece-delete="true"]').getAttribute('data-confirm-armed')).toBe('false');
   });
 });

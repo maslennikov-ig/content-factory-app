@@ -446,6 +446,8 @@ describe('второй проход помнит, чей это был текс�
     // …но хранится дословно для страницы заготовки: вопрос о позиции задан по
     // нему, и он должен стоять перед глазами (`97dq.25`).
     expect(stored.brief.sourceText).toBe(MARKETPLACE_POST.trim());
+    // «Что вы прислали» (`97dq.41`) — то же самое, дословно.
+    expect(stored.brief.inputText).toBe(MARKETPLACE_POST.trim());
   });
 
   test('своя мысль хранит свои слова, а чужого текста у неё нет', async () => {
@@ -460,6 +462,7 @@ describe('второй проход помнит, чей это был текс�
     const [, stored] = calls.recordCore[0];
     expect(stored.brief.personText).toBe('Мы сократили неделю до четырёх дней.');
     expect(stored.brief.sourceText).toBeUndefined();
+    expect(stored.brief.inputText).toBe('Мы сократили неделю до четырёх дней.');
   });
 
   /** Снимок, записанный до этой волны: полей вида материала в нём нет. */
@@ -652,6 +655,8 @@ describe('задание: слова человека о посте — не м�
     expect(stored.brief.personText).toBe('');
     expect(stored.brief.sourceText).toBeUndefined();
     expect(stored.brief.instructionText).toBe(RADIO_INSTRUCTION);
+    // Весь ввод целиком, со ссылками и второй фразой (`97dq.41`, cnt-29).
+    expect(stored.brief.inputText).toBe(RADIO_INSTRUCTION.trim());
     expect(stored.brief.keepLinks).toEqual(RADIO_LINKS);
     expect(stored.body).toContain(RADIO_LINKS[0]);
   });
