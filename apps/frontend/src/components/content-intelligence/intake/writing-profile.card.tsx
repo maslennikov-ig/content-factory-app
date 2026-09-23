@@ -8,6 +8,7 @@ import { Dialog } from '../../ui/layers';
 import { ErrorState, SkeletonRows } from '../../ui/surface';
 import { ContentReadOnlyNote } from '../content-write-right';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
+import { ChannelPlanModeField } from './channel-plan-mode';
 import {
   WritingProfileFields,
   useWritingProfileAvatars,
@@ -204,6 +205,13 @@ export function WritingProfileCard({
                 onChange={change}
               />
             ) : null}
+
+            <ChannelPlanModeField
+              locale={locale}
+              integrationId={integrationId}
+              canWrite={canWrite}
+              open={open}
+            />
 
             {saveFailed && <ErrorState title={t.profileSaveFailed} />}
             {saved && !saveFailed && (

@@ -289,6 +289,13 @@ export function WritingProfileFields({
       {row(t.profileLink, profile.linkPolicy, linkOptions, (linkPolicy) =>
         onChange({ linkPolicy })
       )}
+      {/* Ссылки не выдумываются (`97dq.58`): подсказка видна всегда. */}
+      <p
+        data-writing-profile-note="links"
+        className="cf-caption text-cf-ink-muted sm:col-start-2 -mt-[8px]"
+      >
+        {t.profileLinkSource}
+      </p>
       {row(
         t.profileHashtag,
         profile.hashtagPolicy,

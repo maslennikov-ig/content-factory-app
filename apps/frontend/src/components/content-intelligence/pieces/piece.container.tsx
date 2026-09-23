@@ -29,6 +29,8 @@ import { AdaptationReview, CORE_REVIEW_ACTIONS } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceCoreTab } from './piece-core-tab';
 import { PieceChannelTab, type AutosaveState } from './piece-channel-tab';
+/** Тишина, после которой ручная правка уходит в дверь (общая с `useAutosave`). */
+import { AUTOSAVE_MS } from '../../ui/use-autosave';
 import { PieceQuestions, type PieceQuestionReply } from './piece-questions';
 import {
   PieceChannelProfile,
@@ -88,8 +90,15 @@ import {
   PIECE_ROUTES,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
-/** Тишина, после которой ручная правка уходит в дверь. */
-const AUTOSAVE_MS = 800;
+/** Время, которое версия держит в календаре канала: бронь или очередь. */
+function plannedDateOf(adaptation: {
+  plan?: { status: string; date: string | null; current: boolean };
+}): Date | null {
+  const plan = adaptation.plan;
+  if (!plan || !plan.date || !plan.current || plan.status === 'draft') return null;
+  const at = new Date(plan.date);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
 
 /**
  * Рабочее место заготовки: чтение двери, стрим адаптации, правка, расписание.
@@ -350,6 +359,7 @@ export function PieceContainer({
   const slotKey =
     activeChannel?.connected &&
     activeAdaptation &&
+    !plannedDateOf(activeAdaptation) &&
     (activeAdaptation.state === 'draft' || activeAdaptation.state === 'error')
       ? findSlotUrl(activeChannel.id)
       : null;
@@ -1090,8 +1100,11 @@ export function PieceContainer({
         }
       : null;
     const label = platformLabel(channel.platform, channel.platformName);
+    // «Когда» — время, которое версия уже держит (бронь или очередь,
+    // `97dq.57`), а не свободное время канала поверх него.
     const at =
       (adaptation && when[adaptation.id]) ??
+      (adaptation ? plannedDateOf(adaptation) : null) ??
       (channel.id === slotWhen.channel ? slotWhen.at : null) ??
       slot.data ??
       new Date();

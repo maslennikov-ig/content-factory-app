@@ -405,6 +405,43 @@ describe('«Суть»', () => {
     expect(within(row).getByRole('link').getAttribute('href')).toBe('/channels');
   });
 
+  test('«Что мы поняли» shows a handed-over decision marked «решили мы» (`97dq.56`)', () => {
+    const detail = detailOf([adaptation()], {
+      ...CORE,
+      brief: {
+        ...CORE.brief,
+        thesis: 'Общая доска снимает вопросы о статусе',
+        position: 'Текст держится на том, что доска видна всем',
+        origins: { thesis: 'input', position: 'model' },
+      },
+      questions: {
+        round: 1,
+        items: [],
+        answered: [
+          { field: 'position', text: 'Текст держится на том, что доска видна всем', origin: 'model', answeredAt: '2026-09-23T12:57:39.184Z' },
+          { field: 'facts', key: 'ask-1', question: 'Как выглядела конкретная ситуация?', text: 'Без конкретного эпизода: текст объясняет механизм.', origin: 'model', answeredAt: '2026-09-23T12:57:39.184Z' },
+          { field: 'facts', key: 'ask-2', question: 'Как было до доски?', text: 'У каждого был свой задачник.', origin: 'person', answeredAt: '2026-09-23T12:57:39.184Z' },
+          { field: 'facts', key: 'ask-3', question: 'Что вы изменили?', text: '', origin: 'model', answeredAt: '2026-09-23T12:57:39.184Z' },
+        ],
+      },
+    });
+    wrap(coreTab(detail));
+
+    const receipt = document.querySelector('[data-piece-receipt="true"]');
+    const position = receipt.querySelector('[data-brief-decision="model"]');
+    expect(position.textContent).toContain('Текст держится на том, что доска видна всем');
+    expect(position.textContent).toContain('· решили мы');
+    // Поле из текста человека подписано как прежде.
+    expect(receipt.textContent).toContain('· из вашего текста');
+
+    const decisions = document.querySelectorAll('[data-piece-decision]');
+    expect([...decisions].map((row) => row.getAttribute('data-piece-decision'))).toEqual(['ask-1']);
+    expect(decisions[0].textContent).toContain('Как выглядела конкретная ситуация?');
+    expect(decisions[0].textContent).toContain('Без конкретного эпизода: текст объясняет механизм.');
+    expect(decisions[0].textContent).toContain('· решили мы');
+    expect(document.querySelector('[data-piece-decisions="true"]').textContent).toContain('Решили за вас');
+  });
+
   test('«Опоры текста» sit in the right column, folded, and do not promise to change a text', () => {
     drawPage();
     const sources = document.querySelector('[data-piece-sources="true"]');
@@ -697,11 +734,11 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(shown('Длина')).toBe('500–1000');
     expect(shown('Эмодзи')).toBe('мало · 1–3');
     expect(shown('Хэштеги')).toBe('без хэштегов');
-    expect(shown('Ссылки')).toBe('одна в конце');
+    expect(shown('Ссылки')).toBe('не больше одной, в конце');
     expect(shown('Призыв')).toBe('вопрос читателю');
     for (const name of ['Длина', 'Эмодзи', 'Хэштеги', 'Ссылки', 'Призыв']) {
       const hint = document.getElementById(
-        select(name).getAttribute('aria-describedby')
+        select(name).getAttribute('aria-describedby').split(' ')[0]
       );
       expect(hint.textContent).toBe('как в канале');
     }
@@ -710,6 +747,18 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Сбросить' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Запомнить для канала' }).disabled).toBe(true);
+  });
+
+  test('«Ссылки» reads as in the channel card: a ceiling, and no invented URLs (97dq.58)', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop }));
+    expect(
+      Array.from(select('Ссылки').options).map((option) => option.textContent)
+    ).toEqual(['без ссылок', 'не больше одной, в конце', 'можно внутри текста', 'выберем сами']);
+    const note = document.querySelector('[data-post-option-note="links"]');
+    expect(note.textContent).toBe(
+      'Ссылку берём из вашего текста или найденных источников — новых адресов не придумываем.'
+    );
+    expect(select('Ссылки').getAttribute('aria-describedby')).toContain(note.id);
   });
 
   test('a change is marked, counted and rewrites; the channel value is not a change', () => {

@@ -535,14 +535,15 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v10');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v11');
     /*
-      Первая суть судится теми же правилами, что и до волны `97dq`: правило 4
-      («три предложения — нормальная суть») на месте, а правила дополнения не
-      приезжают вовсе — их отменяет не версия промпта, а наличие уже
-      написанной сути.
+      Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
+      сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
+      дополнения не приезжают вовсе — их отменяет не версия промпта, а наличие
+      уже написанной сути.
     */
-    expect(corePrompt).toContain('три предложения — нормальная суть');
+    expect(corePrompt).toContain('4) развивай сказанное, а не сжимай его');
+    expect(corePrompt).not.toContain('три предложения — нормальная суть');
     expect(corePrompt).not.toContain('Отдельное правило о дополнении');
     expect(corePrompt).not.toContain('Существующая суть');
     expect(corePrompt).toContain(
@@ -1993,28 +1994,60 @@ describe('ответы на открытые вопросы заготовки',
     );
   });
 
-  test('«Реши сама» закрывает вопрос и не зовёт модель', async () => {
-    const { service, calls } = buildPieces({ piece: askedPiece(), models: [] });
+  test('«Реши сама» по полю, у которого уже есть предложение, решено им и не зовёт модель', async () => {
+    const onlyThesis = { round: 0, items: [OPEN_QUESTIONS.items[0]], answered: [] };
+    const { service, calls } = buildPieces({ piece: askedPiece(onlyThesis), models: [] });
 
-    const events = await answerDrain(service, { decide: ['thesis', 'position'] });
+    const events = await answerDrain(service, { decide: ['thesis'] });
 
-    // Ни одного платного вызова: отданное поле снимает вопрос, а не добавляет
-    // слово, и платить за пересборку той же сути было бы платой за нажатие.
+    // Ни одного платного вызова: решение уже стоит в брифе, и платить за
+    // пересборку той же сути было бы платой за нажатие.
     expect(calls.usage).toEqual([]);
     expect(modelCalls).toEqual([]);
     expect(events.filter((event) => event.name === 'questions')).toEqual([]);
 
     const [, , saved] = calls.updateCore[0];
-    expect(
-      saved.brief.questions.answered.map((row) => [row.field, row.origin])
-    ).toEqual([
-      ['thesis', 'model'],
-      ['position', 'model'],
+    // `97dq.56`: отданное поле хранит решение, а не пустую строку.
+    expect(saved.brief.questions.answered).toEqual([
+      expect.objectContaining({
+        field: 'thesis',
+        origin: 'model',
+        text: 'Дедлайн, о котором знает другой, держится лучше',
+      }),
     ]);
     expect(saved.brief.questions.items).toEqual([]);
     const event = named(events, 'piece')[0];
     expect(event.previousBody).toBe(saved.body);
-    expect(event.core.text).toBe(event.previousBody);
+  });
+
+  test('«Решите за меня» без предложения — решение тем же одним вызовом, что пишет суть (`97dq.56`)', async () => {
+    const decision = 'Текст утверждает, что срок держится, когда о нём знает второй человек.';
+    const { service, calls } = buildPieces({
+      piece: askedPiece(),
+      models: [{ text: 'Суть с решением модели.', decisions: [{ key: 'position', text: decision }] }],
+    });
+
+    await answerDrain(service, { decide: ['thesis', 'position'] });
+
+    const drafts = modelCalls.filter((call) => call.role === 'draft');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v11');
+    expect(drafts[0].prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
+    expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
+    expect(drafts[0].prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+    // Поле с готовым предложением модели заново не решается.
+    expect(drafts[0].prompt).not.toContain('[thesis]');
+
+    const saved = calls.updateCore[0][2];
+    expect(saved.body).toBe('Суть с решением модели.');
+    expect(saved.brief.brief.position).toBe(decision);
+    expect(saved.brief.brief.origins.position).toBe('model');
+    expect(saved.brief.questions.answered).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'position', origin: 'model', text: decision }),
+        expect.objectContaining({ field: 'thesis', origin: 'model', text: 'Дедлайн, о котором знает другой, держится лучше' }),
+      ])
+    );
   });
 
   test('после двух кругов не спрашивают, а заготовка на месте', async () => {
@@ -2208,7 +2241,7 @@ describe('список и страница', () => {
     expect(items[0].firstLine).toBe('Комиссия выросла снова.');
   });
 
-  test('репозиторий просит только DRAFT текущей области с живым каналом', async () => {
+  test('репозиторий просит черновики и очередь текущей области с живым каналом (97dq.57)', async () => {
     let query;
     const repository = new PieceRepository(
       {
@@ -2232,7 +2265,7 @@ describe('список и страница', () => {
       post: {
         is: {
           organizationId: 'org-a',
-          state: 'DRAFT',
+          state: { in: ['DRAFT', 'QUEUE'] },
           deletedAt: null,
           integration: {
             is: { organizationId: 'org-a', deletedAt: null },
@@ -2848,6 +2881,13 @@ describe('97dq.44: перед первой адаптацией модель с�
     expect(hints.allowQuestion).toBe(false);
   });
 
+  test('происхождение полей брифа доезжает до генерации (`97dq.56`)', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', skipInterview: true }, 'ru');
+    await drain(service.adapt('org-a', plan));
+    expect(calls.start[0][1].intake.brief.origins).toEqual({ thesis: 'input' });
+  });
+
   test('ответы доезжают до генерации парой «вопрос → ответ», направлением, а не цитатой', async () => {
     const { service, calls } = buildPieces();
     const plan = await service.prepareAdapt(
@@ -2979,7 +3019,7 @@ describe('97dq.44: интервью заготовки — столько воп
       },
     ]);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
     expect(prompt).not.toContain('at most two questions');
     expect(prompt).not.toContain('defaultQuestion');
     expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
@@ -3002,7 +3042,7 @@ describe('97dq.44: интервью заготовки — столько воп
 
     expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
   });
 
   test('вопрос по умолчанию из v8 больше не задаётся', async () => {
@@ -3048,7 +3088,7 @@ describe('97dq.44: интервью заготовки — столько воп
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
+    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
     const questions = named(events, 'questions')[0].questions;
     expect(questions[0].field).toBe('position');
     expect(questions.map((row) => row.key).filter(Boolean)).toEqual(['ask-1']);
@@ -3068,6 +3108,63 @@ describe('97dq.44: интервью заготовки — столько воп
     expect(stored.brief.audience).toBe('Для фрилансеров, у которых сроки плывут');
     expect(stored.brief.origins.audience).toBe('person');
     expect(stored.questions.items).toEqual([]);
+  });
+
+  test('cnt-32: отданный вопрос о материале хранит решение-рамку, суть видит ответы и решения (`97dq.56`)', async () => {
+    const asked = [
+      { field: 'facts', key: 'ask-1', question: 'Как выглядела конкретная рабочая ситуация?', options: [], suggested: null },
+      { field: 'facts', key: 'ask-2', question: 'Как команда работала с задачами до доски?', options: [], suggested: null },
+      { field: 'facts', key: 'ask-3', question: 'Что именно вы изменили?', options: [], suggested: null },
+      { field: 'facts', key: 'ask-4', question: 'Что удивило сильнее всего?', options: [], suggested: null },
+    ];
+    const piece = { ...askedPiece({ round: 0, items: asked, answered: [] }), body: '' };
+    const frame1 = 'Без конкретного эпизода: текст объясняет, почему вопросы о статусе отпадают, когда задачи видны всем.';
+    const { service, calls } = buildPieces({
+      piece,
+      models: [{
+        text: 'Развитая суть.',
+        decisions: [
+          { key: 'ask-1', text: frame1 },
+          // Число, которого не было во входе, решение не несёт: выброшено.
+          { key: 'ask-3', text: 'Команда за 3 недели перешла на доску.' },
+        ],
+      }],
+    });
+
+    await answerDrain(service, {
+      answers: [
+        { field: 'facts', key: 'ask-2', text: 'У каждого был свой задачник, кто-то в общем пытался. Было неудобно.' },
+        { field: 'facts', key: 'ask-4', text: 'Выросший КПД.' },
+      ],
+    });
+
+    const drafts = modelCalls.filter((call) => call.role === 'draft');
+    expect(drafts).toHaveLength(1);
+    const prompt = drafts[0].prompt;
+    expect(prompt).toContain('Как команда работала с задачами до доски? → У каждого был свой задачник');
+    expect(prompt).toContain('Что удивило сильнее всего? → Выросший КПД.');
+    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (о материале автора: только рамка, без выдуманного случая)');
+    expect(prompt).toContain('[ask-3] Что именно вы изменили? (о материале автора: только рамка, без выдуманного случая)');
+    expect(prompt).toContain('4) развивай сказанное, а не сжимай его');
+
+    const stored = calls.updateCore[0][2].brief;
+    expect(stored.questions.answered).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'ask-1', origin: 'model', text: frame1 }),
+        expect.objectContaining({ key: 'ask-2', origin: 'person' }),
+        expect.objectContaining({ key: 'ask-3', origin: 'model', text: '' }),
+        expect.objectContaining({ key: 'ask-4', origin: 'person', text: 'Выросший КПД.' }),
+      ])
+    );
+    // Решение едет со сутью своим происхождением: следующая перепись видит
+    // его блоком решений, а не словами человека.
+    expect(stored.answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'ask-1', origin: 'model', text: frame1, step: 'core' }),
+      ])
+    );
+    expect(stored.answers.filter((answer) => answer.key === 'ask-3')).toEqual([]);
+    expect(stored.authorNumbers).toBe(false);
   });
 
   test('ответы на вопросы о материале едут в суть парой «вопрос → ответ», поля брифа не трогают', async () => {

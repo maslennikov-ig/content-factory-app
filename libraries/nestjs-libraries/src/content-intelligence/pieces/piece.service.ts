@@ -104,6 +104,7 @@ import type {
   PiecesQueryV1,
   PiecesResponseV1,
   AdaptationChecksV1,
+  AdaptationPlanV1,
   RelatedOwnPostV1,
   SlopReportV1,
   ZagotovkaCoreV1,
@@ -178,8 +179,31 @@ import {
   CORE_QUESTION_FIELDS,
   coreQuestionText,
 } from './core-questions';
-import { writeCore } from './core-write';
-import { PieceRepository, type PieceIntegrationRow, type PieceRow } from './piece.repository';
+import {
+  writeCore,
+  writeCoreWithDecisions,
+  type CoreDecisionV1,
+  type CoreDelegatedV1,
+} from './core-write';
+import {
+  PieceRepository,
+  type PieceIntegrationRow,
+  type PieceRow,
+  type PlanDb,
+  type PlanVariantRow,
+  type ReadyAdaptationRow,
+} from './piece.repository';
+import {
+  QUEUE_REPLACE_MARGIN_MS,
+  canReplaceQueued,
+  holderIds,
+  queueGate,
+  type QueueBlockV1,
+  nextFreeSlot,
+  planModeOf,
+  postingMinutesOf,
+  type PlanModeV1,
+} from './adaptation-plan';
 import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
 
 import { htmlToPlainText } from '../brand-voice/html-text';
@@ -192,6 +216,7 @@ import { AdaptationReviewError, reviewConflict,
   type AdaptationReviewAction, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import {
   READY_ADAPTATIONS_VERSION,
+  type ReadyAdaptationSlotV1,
   type ReadyAdaptationsResponseV1,
 } from './ready-adaptations.contract';
 import {
@@ -203,6 +228,8 @@ import {
   type PieceAdaptationEditResponseV1,
   type PieceAdaptationScheduleRequestV1,
   type PieceAdaptationScheduleResponseV1,
+  type PieceAdaptationPlaceRequestV1,
+  type PieceAdaptationPlaceResponseV1,
 } from './adaptation-workspace.contract';
 import { PIECE_POSTS_PORT, type PiecePostsPort } from './piece-posts.port';
 import type { BrandProfileSelectionV1 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
@@ -402,6 +429,10 @@ export type PieceAdaptPlanV1 = {
     maxLength: number;
     maxCaptionLength: number | null;
     editor: 'none' | 'normal' | 'markdown' | 'html';
+    /** Режим плана канала (`97dq.57`); нет — «Бронь». */
+    planMode?: PlanModeV1;
+    /** `Integration.postingTimes`: свои времена канала для брони. */
+    postingTimes?: string | null;
   };
   /** `null` — материал до волны: сути нет, есть только тело канала. */
   core: ZagotovkaCoreV1 | null;
@@ -491,6 +522,151 @@ const jsonOf = <T>(value: string | null | undefined, fallback: T): T => {
   }
 };
 
+/* ---- План канала (`content-factory-next-97dq.57`) ------------------------ */
+
+/** Версия, снятая с очереди под замком, — как её оставили (для возврата). */
+type ReleasedVariant = {
+  adaptationId: string;
+  postId: string;
+  planBefore: string | null;
+  planAfter: string | null;
+  /** `Post.updatedAt` сразу после снятия: возврат только если пост не трогали (N1). */
+  updatedAt: Date | null;
+};
+
+/**
+ * Что сделать в Temporal после фиксации замка (N2): остановить процессы
+ * снятых постов и (пере)запустить процесс поставленного.
+ */
+type QueueEffects = {
+  stop: string[];
+  start: { adaptationId: string; postId: string } | null;
+  released: ReleasedVariant[];
+};
+
+const NO_EFFECTS: QueueEffects = { stop: [], start: null, released: [] };
+
+/** Пост, как его проверяет площадка перед очередью. */
+type QueuePostLike = {
+  id: string;
+  content: string;
+  image: string | null;
+  settings: string | null;
+  integration: { id: string; name: string; providerIdentifier: string };
+};
+
+const PLAN_NOTES = {
+  noTimes: {
+    ru: 'У канала не задано время публикации, поэтому автопилот не поставил версию в очередь.',
+    en: 'The channel has no posting times, so the autopilot did not queue this version.',
+  },
+  tooLate: {
+    ru: 'Прежняя версия уже выходит, поэтому новая осталась в плане.',
+    en: 'The previous version is already going out, so the new one stays planned.',
+  },
+  keptQueued: {
+    ru: 'Прежняя версия уже стоит в очереди, поэтому новая осталась в плане.',
+    en: 'The previous version is already queued, so the new one stays planned.',
+  },
+  startFailed: {
+    ru: 'Календарь не принял публикацию в очередь, поэтому версия осталась в плане. Нажмите «Запланировать» ещё раз.',
+    en: 'The calendar did not accept the post into the queue, so the version stays planned. Press “Schedule” again.',
+  },
+  settleFailed: {
+    ru: 'Версия сохранена, но встать в план не смогла. Выберите время и нажмите «Запланировать».',
+    en: 'The version is saved but could not be planned. Pick a time and press “Schedule”.',
+  },
+  published: {
+    ru: 'Эта заготовка уже вышла в канале, поэтому автопилот не ставит новую версию в очередь — она осталась в плане.',
+    en: 'This piece already went out in the channel, so the autopilot does not queue the new version; it stays planned.',
+  },
+} as const;
+
+const upperState = (value: unknown) => String(value || '').toUpperCase();
+
+/** The post was set to QUEUE, but its publishing workflow did not start (F7). */
+class QueueStartFailed extends Error {
+  constructor(readonly postId: string) {
+    super(`Publishing workflow did not start for post ${postId}`);
+  }
+}
+
+const planVariantOf = (row: PlanVariantRow) => ({
+  id: row.id,
+  pieceId: row.contentPieceId,
+  integrationId: row.post?.integrationId ?? row.integrationId,
+  plannedAt: row.plannedAt,
+  createdAt: row.createdAt,
+  postId: row.postId,
+  postState: row.post?.state ?? null,
+  postDeleted: !row.post || !!row.post.deletedAt,
+});
+
+/**
+ * Место версии в календаре, как его видит экран. Опубликованная, ошибочная и
+ * удалённая версии плана не имеют.
+ */
+/** Держатели слота среди строк страницы заготовки (`97dq.57`). */
+const holdersOfRows = (rows: readonly AdaptationRow[]): Set<string> =>
+  holderIds(
+    rows.map((row) => ({
+      id: row.id,
+      pieceId: row.contentPieceId,
+      integrationId: row.post?.integration?.id ?? row.integrationId,
+      plannedAt: row.plannedAt ?? null,
+      createdAt: row.createdAt,
+      postId: row.postId,
+      postState: row.post?.state ?? null,
+      postDeleted: !row.post || !!row.post.deletedAt,
+    }))
+  );
+
+/**
+ * Где готовая адаптация стоит в календаре — для «Что публикуем» (`97dq.57`).
+ * В выборке только держатели слота, поэтому черновик с планом — бронь.
+ */
+const readySlotOf = (row: ReadyAdaptationRow): ReadyAdaptationSlotV1 => {
+  const state = upperState(row.post.state);
+  const date = isoOf(row.post.publishDate ?? null);
+  if (state === 'QUEUE')
+    return { status: 'queued', date, autopilot: row.plan === 'autopilot' };
+  if (row.plan === 'reserve' || row.plan === 'autopilot')
+    return { status: 'reserved', date, autopilot: false };
+  return { status: 'free', date: null, autopilot: false };
+};
+
+const adaptationPlanOf = (
+  row: {
+    plan?: string | null;
+    planNote?: string | null;
+    post: { state: string; publishDate?: Date | string | null; deletedAt: Date | null } | null;
+  },
+  current: boolean
+): AdaptationPlanV1 | undefined => {
+  const post = row.post;
+  if (!post || post.deletedAt) return undefined;
+  const state = upperState(post.state);
+  const date = isoOf(post.publishDate ?? null);
+  const note = trimmed(row.planNote) || null;
+  if (state === 'QUEUE' || state === 'QUEUED')
+    return {
+      status: 'queued',
+      date,
+      autopilot: row.plan === 'autopilot',
+      current,
+      ...(note ? { note } : {}),
+    };
+  if (state !== 'DRAFT') return undefined;
+  const reserved = current && (row.plan === 'reserve' || row.plan === 'autopilot');
+  return {
+    status: reserved ? 'reserved' : 'draft',
+    date: reserved ? date : null,
+    autopilot: false,
+    current,
+    ...(reserved && note ? { note } : {}),
+  };
+};
+
 /**
  * Разовые настройки поста — подсказкой генератору (`97dq.38`).
  *
@@ -538,6 +714,33 @@ const postLengthOf = (
   if (overrides.lengthPolicy !== 'range') return null;
   const range = parseLengthPolicy(overrides.lengthRange, 'provider_max');
   return typeof range === 'object' ? range : null;
+};
+
+/**
+ * Поля брифа, которые «Решите за меня» решает текстом (`97dq.56`). Опоры —
+ * не поле для решения: вопрос о них — вопрос о материале автора.
+ */
+const DECIDABLE_BRIEF_FIELDS: ReadonlySet<BriefField> = new Set<BriefField>([
+  'thesis',
+  'position',
+  'audience',
+  'disagreement',
+]);
+
+/** Вопрос о поле, когда его текста у заготовки нет. */
+const DECIDABLE_FIELD_QUESTION: Record<'ru' | 'en', Partial<Record<BriefField, string>>> = {
+  ru: {
+    thesis: 'Какая главная мысль этого текста?',
+    position: 'Какую позицию занимает текст?',
+    audience: 'Для кого этот текст?',
+    disagreement: 'Кто с этим не согласится и почему?',
+  },
+  en: {
+    thesis: 'What is the main claim of this text?',
+    position: 'What position does the text take?',
+    audience: 'Who is this text for?',
+    disagreement: 'Who would disagree with it, and why?',
+  },
 };
 
 @Injectable()
@@ -667,6 +870,9 @@ export class PieceService {
             integrationId: row.post.integrationId,
             postId: row.post.id,
             readyAt: row.updatedAt.toISOString(),
+            ...(row.post.state !== undefined
+              ? { slot: readySlotOf(row) }
+              : {}),
           },
         ];
       }),
@@ -812,6 +1018,7 @@ export class PieceService {
       })),
       { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
     );
+    const holders = holdersOfRows(adaptations);
     const checksById = new Map(
       scored.map((row, index) => [row.id, checks[index]])
     );
@@ -824,7 +1031,13 @@ export class PieceService {
       core,
       legacyBody: core ? null : piece.body,
       adaptations: adaptations.map((row) =>
-        this.adaptationOf(row, pieceId, integrations, checksById.get(row.id))
+        this.adaptationOf(
+          row,
+          pieceId,
+          integrations,
+          checksById.get(row.id),
+          holders
+        )
       ),
       targets: this.targetsOf(integrations, adaptations),
       later: ADAPTATION_KINDS_LATER,
@@ -919,6 +1132,8 @@ export class PieceService {
         maxLength: this.providerMaxLength(provider, integration),
         maxCaptionLength: provider.maxCaptionLength?.() ?? null,
         editor: provider.editor,
+        planMode: planModeOf(integration.planMode),
+        postingTimes: integration.postingTimes ?? null,
       },
       core,
       foreignShingles: this.foreignShinglesOf(piece),
@@ -1206,11 +1421,17 @@ export class PieceService {
     const snapshotId = trimmed(output.contentContextSnapshotId) || null;
     const versionId = trimmed(output.brandProfileVersionId) || null;
 
+    /*
+      Черновик и строка версии пишутся как до волны — на свободное время
+      области. Место в плане канала (`97dq.57`) решается следом, под коротким
+      замком канала и только записями в базу; Temporal — после фиксации (N2).
+    */
+    const draftDate = trimmed(output.date) || this.now().toISOString();
     const postId = await this.pieces.createDraft(organizationId, {
       channelId: plan.channel.id,
       providerIdentifier: plan.channel.providerIdentifier,
       content: html,
-      date: trimmed(output.date) || this.now().toISOString(),
+      date: draftDate,
       contentContextSnapshotId: snapshotId,
       brandProfileVersionId: versionId,
       usedCitationIds: [
@@ -1233,6 +1454,9 @@ export class PieceService {
       brandProfileVersionId: versionId,
     });
     if (!row) return null;
+    const planned = this.planStore()
+      ? await this.planNewVariantSafely(organizationId, plan, row.id, postId, html, draftDate)
+      : null;
     // Новая адаптация должна находиться сразу: следующий канал этой же
     // заготовки уже вправе на неё сослаться (`content-factory-next-m2eg.19`).
     this.search?.invalidate(organizationId);
@@ -1275,12 +1499,13 @@ export class PieceService {
       body: plain,
       postId,
       mediaId: null,
-      state: 'draft',
-      date: null,
+      state: planned?.status === 'queued' ? 'queued' : 'draft',
+      date: planned?.status === 'queued' ? planned.date : null,
       url: null,
       createdAt: isoOf(row.createdAt) || this.now().toISOString(),
       ...(answers.length ? { answers } : {}),
       checks,
+      ...(planned ? { plan: planned } : {}),
     };
 
     const event: PieceAdaptEventV1 = {
@@ -1299,6 +1524,465 @@ export class PieceService {
       checks,
     };
     return { adaptation, event };
+  }
+
+  /* -----------------------------------------------------------------------
+   * План канала (`content-factory-next-97dq.57`)
+   *
+   * Каждая постановка — два шага (review N2). Сначала под коротким замком
+   * канала (`withChannelLock`, 10 с) — только решение и записи в базу через
+   * транзакцию замка: правило одной очереди (`queueGate`), состояние и время
+   * постов, колонки плана. Потом, после фиксации, — Temporal: остановить
+   * процессы снятых постов и запустить процесс поставленного. Не
+   * запустился — пост возвращается в черновик с причиной, а снятые версии
+   * — в очередь, если их никто не тронул (`convergeFailedStart`).
+   * -------------------------------------------------------------------- */
+
+  /**
+   * Хранилище плана. Наборы, собранные без него, живут как до волны: каждая
+   * версия — черновик на свободном времени области.
+   */
+  private planStore(): Pick<
+    PieceRepository,
+    'channelVariants' | 'busySlots' | 'setPlan' | 'withChannelLock' | 'channelPlanMode'
+  > | null {
+    const repo = this.pieces as Partial<PieceRepository>;
+    return typeof repo.channelVariants === 'function' &&
+      typeof repo.busySlots === 'function' &&
+      typeof repo.setPlan === 'function' &&
+      typeof repo.withChannelLock === 'function' &&
+      typeof repo.channelPlanMode === 'function'
+      ? (this.pieces as PieceRepository)
+      : null;
+  }
+
+  private lockChannel<T>(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    work: (db: PlanDb) => Promise<T>
+  ): Promise<T> {
+    return this.planStore()!.withChannelLock(organizationId, pieceId, integrationId, work);
+  }
+
+  /** Держатель слота заготовки в канале, кроме `exclude`: правило `adaptation-plan.ts`. */
+  private holderOf(variants: PlanVariantRow[], exclude?: string): PlanVariantRow | null {
+    const others = variants.filter((one) => one.id !== exclude);
+    const holders = holderIds(others.map(planVariantOf));
+    return others.find((one) => holders.has(one.id)) ?? null;
+  }
+
+  /**
+   * Ближайшее свободное время САМОГО канала по его `postingTimes`. Занято то,
+   * что держит живой пост этого канала, кроме черновиков вытесненных версий и
+   * `exclude`. `null` — у канала нет своих времён.
+   */
+  private async freeSlotIn(
+    db: PlanDb,
+    organizationId: string,
+    integrationId: string,
+    postingTimes: string | null | undefined,
+    exclude: readonly string[] = []
+  ): Promise<Date | null> {
+    const times = postingMinutesOf(postingTimes);
+    if (!times.length) return null;
+    const now = this.now();
+    const busy = await db.busySlots(
+      organizationId,
+      integrationId,
+      now,
+      new Date(now.getTime() + 367 * 86_400_000),
+      exclude
+    );
+    return nextFreeSlot(
+      times,
+      new Set(busy.map((at) => new Date(at).getTime())),
+      now
+    );
+  }
+
+  /** Снять версии с очереди — только в базе, под замком (N2). */
+  private async releaseInDb(
+    db: PlanDb,
+    organizationId: string,
+    variants: readonly PlanVariantRow[]
+  ): Promise<ReleasedVariant[]> {
+    const released: ReleasedVariant[] = [];
+    for (const variant of variants) {
+      if (!variant.post) continue;
+      const saved = await db.setPostState(organizationId, variant.post.id, {
+        state: 'DRAFT',
+      });
+      if (variant.plan === 'autopilot')
+        await db.setPlan(organizationId, variant.id, { plan: 'reserve' }, 'autopilot');
+      released.push({
+        adaptationId: variant.id,
+        postId: variant.post.id,
+        planBefore: variant.plan,
+        planAfter: variant.plan === 'autopilot' ? 'reserve' : variant.plan,
+        updatedAt: saved?.updatedAt ?? null,
+      });
+    }
+    return released;
+  }
+
+  /** Temporal по состоянию поста в базе. Без календаря — «не запустилось». */
+  private async syncWorkflow(
+    organizationId: string,
+    postId: string
+  ): Promise<'started' | 'stopped' | 'failed'> {
+    if (!this.posts?.syncPostWorkflow) {
+      this.logger.error(`Post ${postId}: calendar port cannot sync workflows`);
+      return 'failed';
+    }
+    try {
+      return await this.posts.syncPostWorkflow(organizationId, postId);
+    } catch (error) {
+      this.logger.error(`Post ${postId} workflow sync failed: ${describeError(error)}`);
+      return 'failed';
+    }
+  }
+
+  /**
+   * После фиксации: остановить снятые, запустить поставленный. `false` —
+   * запуск не удался, и состояние уже сведено (`convergeFailedStart`).
+   */
+  private async applyQueueEffects(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    effects: QueueEffects,
+    language: 'ru' | 'en'
+  ): Promise<boolean> {
+    for (const postId of effects.stop) await this.syncWorkflow(organizationId, postId);
+    if (!effects.start) return true;
+    const result = await this.syncWorkflow(organizationId, effects.start.postId);
+    if (result !== 'failed') return true;
+    await this.convergeFailedStart(organizationId, pieceId, integrationId, effects, language);
+    return false;
+  }
+
+  /**
+   * Процесс публикации не запустился (F7, F13, N1, N3, N4). Под коротким
+   * замком: пост — в черновик с причиной; снятые версии — обратно в очередь,
+   * только если они ровно такие, какими их оставили (черновик, та же метка,
+   * тот же `updatedAt`, живые, выходят позже чем через две минуты). Если
+   * вернуть пост в черновик не удалось — прежняя очередь НЕ возвращается
+   * (иначе две очереди), и это громко пишется в журнал (N4).
+   */
+  private async convergeFailedStart(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    effects: QueueEffects,
+    language: 'ru' | 'en'
+  ) {
+    const start = effects.start!;
+    const note = PLAN_NOTES.startFailed[language];
+    let restored: ReleasedVariant[] = [];
+    try {
+      restored = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        const reverted = await db.setPostState(organizationId, start.postId, { state: 'DRAFT' });
+        if (!reverted) throw new Error(`post ${start.postId} was not returned to drafts`);
+        await db.setPlan(organizationId, start.adaptationId, { planNote: note });
+        await db.setPlan(organizationId, start.adaptationId, { plan: 'reserve' }, 'autopilot');
+        if (!effects.released.length) return [];
+        const fresh = await db.channelVariants(organizationId, pieceId, integrationId);
+        const now = this.now();
+        const back: ReleasedVariant[] = [];
+        for (const released of effects.released) {
+          const variant = fresh.find((one) => one.id === released.adaptationId);
+          const post = variant?.post;
+          const untouched =
+            !!post &&
+            post.id === released.postId &&
+            !post.deletedAt &&
+            upperState(post.state) === 'DRAFT' &&
+            variant!.plan === released.planAfter &&
+            !!released.updatedAt &&
+            !!post.updatedAt &&
+            new Date(post.updatedAt).getTime() === released.updatedAt.getTime() &&
+            new Date(post.publishDate).getTime() > now.getTime() + QUEUE_REPLACE_MARGIN_MS;
+          if (!untouched) continue;
+          // Одна очередь (I1): пока шёл старт, другую версию могли поставить
+          // (параллельная постановка) или заготовка могла выйти. Тогда не
+          // возвращается ничего — вторая очередь выпустила бы её дважды.
+          const gate = queueGate(fresh, released.adaptationId, now, {
+            releaseHuman: false,
+            blockPublished: true,
+          });
+          if (gate.block || gate.release.length || back.length) continue;
+          await db.setPostState(organizationId, released.postId, { state: 'QUEUE' });
+          if (released.planBefore !== released.planAfter)
+            await db.setPlan(organizationId, released.adaptationId, { plan: released.planBefore });
+          back.push(released);
+        }
+        return back;
+      });
+    } catch (error) {
+      this.logger.error(
+        `ALERT 97dq.57: post ${start.postId} is queued in the database but its publishing workflow did not start, and returning it to drafts failed (${describeError(error)}). The previous queue was NOT restored; check this post by hand.`
+      );
+      return;
+    }
+    await this.syncWorkflow(organizationId, start.postId);
+    for (const released of restored) {
+      if ((await this.syncWorkflow(organizationId, released.postId)) === 'failed')
+        await this.markStartFailed(organizationId, pieceId, integrationId, released.adaptationId, released.postId, language);
+    }
+  }
+
+  /**
+   * Возвращённая очередь тоже не запустилась (N3): пост — в черновик с
+   * причиной, без повторных попыток и без долгого замка.
+   */
+  private async markStartFailed(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    adaptationId: string,
+    postId: string,
+    language: 'ru' | 'en'
+  ) {
+    try {
+      await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        await db.setPostState(organizationId, postId, { state: 'DRAFT' });
+        await db.setPlan(organizationId, adaptationId, { planNote: PLAN_NOTES.startFailed[language] });
+        await db.setPlan(organizationId, adaptationId, { plan: 'reserve' }, 'autopilot');
+      });
+    } catch (error) {
+      this.logger.error(
+        `ALERT 97dq.57: post ${postId} is queued in the database without a publishing workflow and could not be returned to drafts (${describeError(error)}).`
+      );
+      return;
+    }
+    await this.syncWorkflow(organizationId, postId);
+  }
+
+  /**
+   * Версия и её черновой пост уже записаны, поэтому постановка не бросает
+   * (review F13): любой сбой оставляет новую версию бронью с причиной.
+   * Замок откатывает всё, что под ним было записано, — снятые очереди
+   * остаются на месте.
+   */
+  private async planNewVariantSafely(
+    organizationId: string,
+    plan: PieceAdaptPlanV1,
+    adaptationId: string,
+    postId: string,
+    html: string,
+    draftDate: string
+  ): Promise<AdaptationPlanV1> {
+    try {
+      return await this.planNewVariant(organizationId, plan, adaptationId, postId, html, draftDate);
+    } catch (error) {
+      this.logger.error(
+        `Adaptation ${adaptationId} was saved but not placed: ${describeError(error)}`
+      );
+      const note = PLAN_NOTES.settleFailed[plan.language];
+      try {
+        await this.planStore()?.setPlan(organizationId, adaptationId, {
+          plan: 'reserve',
+          planNote: note,
+        });
+      } catch (writeError) {
+        this.logger.error(
+          `Adaptation ${adaptationId} plan note not written: ${describeError(writeError)}`
+        );
+      }
+      return {
+        status: 'reserved',
+        date: isoOf(draftDate),
+        autopilot: false,
+        current: true,
+        note,
+      };
+    }
+  }
+
+  /**
+   * Новая версия записана — теперь её место (I1). Бронь прежней версии
+   * переходит к новой вместе со временем; очередь автопилота — тоже, по
+   * правилу одной очереди (`queueGate`: F1, F3, I4). Иначе — ближайшее
+   * свободное время канала. Режим читается заново под замком (F8); площадка
+   * проверяет пост до замка (I3), чтобы замок не ждал её.
+   */
+  private async planNewVariant(
+    organizationId: string,
+    plan: PieceAdaptPlanV1,
+    adaptationId: string,
+    postId: string,
+    html: string,
+    draftDate: string
+  ): Promise<AdaptationPlanV1> {
+    const store = this.planStore()!;
+    const language = plan.language;
+    const before = planModeOf(await store.channelPlanMode(organizationId, plan.channel.id));
+    let validated = false;
+    let refusal: string | null = null;
+    if (before === 'autopilot' && this.posts) {
+      refusal =
+        (
+          await this.queueRefusal(
+            organizationId,
+            {
+              id: postId,
+              content: html,
+              image: '[]',
+              settings: JSON.stringify({ __type: plan.channel.providerIdentifier }),
+              integration: {
+                id: plan.channel.id,
+                name: plan.channel.name,
+                providerIdentifier: plan.channel.providerIdentifier,
+              },
+            },
+            language
+          )
+        )?.text ?? null;
+      validated = true;
+    }
+
+    const decided = await this.lockChannel(
+      organizationId,
+      plan.pieceId,
+      plan.channel.id,
+      async (db): Promise<{ plan: AdaptationPlanV1; effects: QueueEffects }> => {
+        const mode = planModeOf(await db.channelPlanMode(organizationId, plan.channel.id));
+        if (mode === 'draft') {
+          await db.setPlan(organizationId, adaptationId, { plan: 'draft' });
+          return {
+            plan: { status: 'draft', date: null, autopilot: false, current: true },
+            effects: NO_EFFECTS,
+          };
+        }
+        const now = this.now();
+        const variants = await db.channelVariants(organizationId, plan.pieceId, plan.channel.id);
+        const holder = this.holderOf(variants, adaptationId);
+        const holderPost = holder?.post && !holder.post.deletedAt ? holder.post : null;
+        const holderState = upperState(holderPost?.state);
+        const holderAt = holderPost ? new Date(holderPost.publishDate).getTime() : NaN;
+        const free = await this.freeSlotIn(
+          db,
+          organizationId,
+          plan.channel.id,
+          plan.channel.postingTimes,
+          [postId, ...(holderPost && holderState === 'DRAFT' ? [holderPost.id] : [])]
+        );
+        let date: string | null = free ? free.toISOString() : null;
+        let fromQueue = false;
+        if (
+          holderPost &&
+          holderState === 'DRAFT' &&
+          (holder!.plan === 'reserve' || holder!.plan === 'autopilot') &&
+          holderAt > now.getTime() + QUEUE_REPLACE_MARGIN_MS
+        ) {
+          date = new Date(holderAt).toISOString();
+        } else if (
+          holderPost &&
+          mode === 'autopilot' &&
+          holder!.plan === 'autopilot' &&
+          canReplaceQueued(holderPost, now)
+        ) {
+          date = new Date(holderAt).toISOString();
+          fromQueue = true;
+        }
+
+        let note: string | null = null;
+        let effects = NO_EFFECTS;
+        if (mode === 'autopilot' && validated) {
+          note = !this.posts
+            ? ADAPTATION_WORKSPACE_MESSAGES.ADAPTATION_SCHEDULE_UNAVAILABLE[language]
+            : !date
+            ? PLAN_NOTES.noTimes[language]
+            : null;
+          if (!note) {
+            const gate = queueGate(variants, adaptationId, now, {
+              releaseHuman: false,
+              blockPublished: true,
+            });
+            if (gate.block) note = PLAN_NOTES[gate.block][language];
+            else if (refusal) note = refusal;
+            else {
+              const released = await this.releaseInDb(
+                db,
+                organizationId,
+                variants.filter((one) => gate.release.includes(one.id))
+              );
+              effects = {
+                stop: released.map((one) => one.postId),
+                start: { adaptationId, postId },
+                released,
+              };
+            }
+          }
+        }
+        const queued = !!effects.start;
+        // Не встала в очередь, а время было прежней очереди, — на своё
+        // свободное время, чтобы две версии не стояли на одной минуте.
+        if (!queued && fromQueue) date = free ? free.toISOString() : null;
+        await db.setPostState(organizationId, postId, {
+          ...(queued ? { state: 'QUEUE' as const } : {}),
+          ...(date ? { publishDate: new Date(date) } : {}),
+        });
+        await db.setPlan(organizationId, adaptationId, {
+          plan: queued ? 'autopilot' : 'reserve',
+          planNote: note,
+        });
+        return {
+          plan: {
+            status: queued ? 'queued' : 'reserved',
+            date: date ?? isoOf(draftDate),
+            autopilot: queued,
+            current: true,
+            ...(note ? { note } : {}),
+          },
+          effects,
+        };
+      }
+    );
+
+    if (
+      !(await this.applyQueueEffects(
+        organizationId,
+        plan.pieceId,
+        plan.channel.id,
+        decided.effects,
+        language
+      ))
+    ) {
+      return {
+        status: 'reserved',
+        date: decided.plan.date,
+        autopilot: false,
+        current: true,
+        note: PLAN_NOTES.startFailed[language],
+      };
+    }
+    return decided.plan;
+  }
+
+  /**
+   * Дата без смены состояния, затем очередь — те же два шага, что у окна.
+   * Путь наборов без плана канала. Если процесс публикации не запустился,
+   * пост возвращается в черновик и звавший получает `QueueStartFailed` (F7).
+   */
+  private async queuePost(organizationId: string, postId: string, iso: string) {
+    await this.posts!.changeDate(organizationId, postId, iso, 'update');
+    const result = (await this.posts!.changePostStatus(
+      organizationId,
+      postId,
+      'schedule'
+    )) as { workflow?: string } | undefined;
+    if (result?.workflow === 'failed') {
+      try {
+        await this.posts!.changePostStatus(organizationId, postId, 'draft');
+      } catch (error) {
+        this.logger.error(
+          `ALERT 97dq.57: post ${postId} is queued without a publishing workflow and was not returned to drafts: ${describeError(error)}`
+        );
+      }
+      throw new QueueStartFailed(postId);
+    }
   }
 
   /* -----------------------------------------------------------------------
@@ -1438,47 +2122,53 @@ export class PieceService {
         field !== 'facts' &&
         !given.some((answer) => answer.field === field)
     );
-    const fresh: PieceFieldAnswerV1[] = [
-      ...given.map((answer) => ({ ...answer, origin: 'person' as const, answeredAt })),
-      ...decided.map((field) => ({
-        field,
-        text: '',
-        origin: 'model' as const,
-        answeredAt,
-      })),
-      // Вопрос о материале без ответа отдан модели: так и записано.
+    /*
+      «Решите за меня» — решение, а не пустое место (`97dq.56`, решение
+      владельца 23.09.2026, `cnt-32`). Поле брифа, у которого предложение
+      модели уже есть, решено этим предложением. Поле без предложения и вопрос
+      о материале решаются тем же вызовом, что пишет суть: модель возвращает
+      решение рядом с сутью. Вопрос о материале — это то, что знает только
+      автор, и решение по нему — рамка, а не выдуманный случай.
+    */
+    const briefValue = (field: BriefField): string | null =>
+      textOrNull((plan.core.brief as any)?.[field]);
+    const decidedEarlier = (field: BriefField) =>
+      before.answered.some((answer) => !answer.key && answer.field === field);
+    const delegated: CoreDelegatedV1[] = [
+      ...decided
+        .filter(
+          (field) =>
+            DECIDABLE_BRIEF_FIELDS.has(field) &&
+            !decidedEarlier(field) &&
+            !briefValue(field)
+        )
+        .map((field) => ({
+          key: field,
+          question:
+            before.items.find((question) => !question.key && question.field === field)
+              ?.question || DECIDABLE_FIELD_QUESTION[language][field] || field,
+          authorMaterial: false,
+        })),
       ...before.items.flatMap((question) =>
-        question.key
-          ? [
-              {
-                field: question.field,
-                key: question.key,
-                question: question.question,
-                text: told.find((answer) => answer.key === question.key)?.text ?? '',
-                origin: told.some((answer) => answer.key === question.key)
-                  ? ('person' as const)
-                  : ('model' as const),
-                answeredAt,
-              },
-            ]
+        question.key && !told.some((answer) => answer.key === question.key)
+          ? [{ key: question.key, question: question.question, authorMaterial: true }]
           : []
       ),
     ];
 
-    const brief = given.length || acceptedEvidence.length
+    const answeredBrief = given.length || acceptedEvidence.length
       ? this.briefWithAnswers(plan.core.brief, given, acceptedEvidence)
       : plan.core.brief;
-    const answered = [...before.answered, ...fresh];
-    const settled = [...new Set(answered.map((answer) => answer.field))];
-    const items: PieceOpenQuestionV1[] = [];
-    const questions: PieceQuestionsV1 = { round, items, answered };
 
     /*
       После уточнений пишем первую суть. Для уже написанной сути делегирование
-      снимает вопрос без повторного платного вызова.
+      снимает вопрос без повторного платного вызова, если решать нечего: поле
+      уже несёт предложение модели. Отданный вопрос без решения — это материал
+      для сути, и он едет тем же одним вызовом.
     */
-    let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
-    if ((given.length || told.length || !plan.core.text.trim()) && this.aiUsage) {
+    let rewritten: ZagotovkaCoreV1 | null = null;
+    let decisions: CoreDecisionV1[] = [];
+    if ((given.length || told.length || delegated.length || !plan.core.text.trim()) && this.aiUsage) {
       const said = [
         ...this.promptAnswers(given, answeredAt),
         ...told.map((answer) => ({
@@ -1490,11 +2180,11 @@ export class PieceService {
           answeredAt,
         })),
       ];
-      const rewritten = await writeCore(
+      const written = await writeCoreWithDecisions(
         {
           organizationId,
           language,
-          brief: selectedFactsBrief(brief),
+          brief: selectedFactsBrief(answeredBrief),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
@@ -1509,6 +2199,7 @@ export class PieceService {
           instruction: instructionOf(plan.core),
           borrowed: plan.borrowed ?? null,
           foreignShingles: plan.foreignShingles,
+          ...(delegated.length ? { delegated } : {}),
         },
         {
           aiUsage: this.aiUsage,
@@ -1516,7 +2207,79 @@ export class PieceService {
           warn: (message) => this.logger.warn(message),
         }
       );
-      core = { ...rewritten, brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core) };
+      rewritten = written.core;
+      decisions = written.decisions;
+    }
+    const decisionOf = new Map(decisions.map((decision) => [decision.key, decision.text]));
+
+    // Решённое поле брифа ложится в бриф с происхождением «модель».
+    const brief: BriefFilledV1 = decisions.some((decision) =>
+      DECIDABLE_BRIEF_FIELDS.has(decision.key as BriefField)
+    )
+      ? { ...answeredBrief, origins: { ...answeredBrief.origins } }
+      : answeredBrief;
+    for (const decision of decisions) {
+      const field = decision.key as BriefField;
+      if (!DECIDABLE_BRIEF_FIELDS.has(field)) continue;
+      (brief as any)[field] = decision.text;
+      (brief.origins as any)[field] = 'model';
+    }
+
+    const fresh: PieceFieldAnswerV1[] = [
+      ...given.map((answer) => ({ ...answer, origin: 'person' as const, answeredAt })),
+      ...decided.map((field) => ({
+        field,
+        text: decisionOf.get(field) ?? briefValue(field) ?? '',
+        origin: 'model' as const,
+        answeredAt,
+      })),
+      // Вопрос о материале без ответа отдан модели: так и записано, с её
+      // решением-рамкой, если она его дала.
+      ...before.items.flatMap((question) =>
+        question.key
+          ? [
+              {
+                field: question.field,
+                key: question.key,
+                question: question.question,
+                text:
+                  told.find((answer) => answer.key === question.key)?.text ??
+                  decisionOf.get(question.key) ??
+                  '',
+                origin: told.some((answer) => answer.key === question.key)
+                  ? ('person' as const)
+                  : ('model' as const),
+                answeredAt,
+              },
+            ]
+          : []
+      ),
+    ];
+
+    const answered = [...before.answered, ...fresh];
+    const items: PieceOpenQuestionV1[] = [];
+    const questions: PieceQuestionsV1 = { round, items, answered };
+
+    // Решения по вопросам о материале едут со сутью: следующая перепись
+    // (ресерч, дополнение) видит их своим блоком, а не теряет.
+    const decisionAnswers: PieceAnswerV1[] = before.items.flatMap((question) =>
+      question.key && decisionOf.has(question.key)
+        ? [
+            {
+              key: question.key,
+              question: question.question,
+              text: decisionOf.get(question.key) as string,
+              origin: 'model' as const,
+              step: 'core' as const,
+              answeredAt,
+            },
+          ]
+        : []
+    );
+
+    let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
+    if (rewritten) {
+      core = { ...rewritten, answers: [...rewritten.answers, ...decisionAnswers], brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core) };
     }
 
     if (!core.text.trim()) {
@@ -1811,7 +2574,13 @@ export class PieceService {
     ]);
     const row = rows.find((one) => one.id === adaptationId);
     if (!row) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
-    return this.adaptationOf(row, pieceId, integrations, checks);
+    return this.adaptationOf(
+      row,
+      pieceId,
+      integrations,
+      checks,
+      holdersOfRows(rows)
+    );
   }
 
   /**
@@ -1926,6 +2695,49 @@ export class PieceService {
   }
 
   /**
+   * Почему площадка не примет пост в очередь — или `null`. Одна проверка
+   * для «Запланировать», «Поставить на …» и автопилота (`97dq.57`, I3): те же
+   * четыре ответа `validatePosts`, что проверяло окно «Создать пост».
+   */
+  private async queueRefusal(
+    organizationId: string,
+    post: QueuePostLike,
+    language: 'ru' | 'en'
+  ): Promise<{ text: string } | null> {
+    if (!this.posts) return null;
+    const settings = jsonOf<Record<string, unknown>>(post.settings, {});
+    const image = jsonOf<unknown>(post.image, []);
+    const [verdict] = await this.posts.validatePosts(organizationId, [
+      {
+        integration: { id: post.integration.id },
+        value: [
+          {
+            content: post.content,
+            image: Array.isArray(image) ? (image as any[]) : [],
+          },
+        ],
+        settings: {
+          ...settings,
+          __type: settings.__type ?? post.integration.providerIdentifier,
+        },
+      },
+    ]);
+    if (!verdict) return null;
+    const channel = post.integration.name || post.integration.providerIdentifier;
+    const text = (reason: Parameters<typeof scheduleRefusalText>[2]) => ({
+      text: scheduleRefusalText(language, channel, reason),
+    });
+    if (verdict.emptyContent) return text({ kind: 'empty' });
+    if (!verdict.valid)
+      return text({ kind: 'settings', detail: trimmed(verdict.settingsError) });
+    if (verdict.errors !== true)
+      return text({ kind: 'media', detail: trimmed(verdict.errors) });
+    if (verdict.tooLong)
+      return text({ kind: 'too_long', max: Number(verdict.maximumCharacters) || 0 });
+    return null;
+  }
+
+  /**
    * «Запланировать» и «Опубликовать сейчас» с экрана адаптации (§3.5).
    *
    * Три шага, и все три — те же, что делало окно «Создать пост», а не их
@@ -1971,53 +2783,60 @@ export class PieceService {
       language
     );
 
-    const settings = jsonOf<Record<string, unknown>>(post.settings, {});
-    const image = jsonOf<unknown>(post.image, []);
-    const [verdict] = await this.posts.validatePosts(organizationId, [
-      {
-        integration: { id: post.integration.id },
-        value: [
-          {
-            content: post.content,
-            image: Array.isArray(image) ? (image as any[]) : [],
-          },
-        ],
-        settings: {
-          ...settings,
-          __type: settings.__type ?? post.integration.providerIdentifier,
-        },
-      },
-    ]);
-    const channel = post.integration.name || post.integration.providerIdentifier;
-    const refuse = (
-      reason: Parameters<typeof scheduleRefusalText>[2]
-    ): never => {
+    // Площадка проверяет пост до замка (I3): замок не ждёт её.
+    const refusal = await this.queueRefusal(organizationId, post, language);
+    if (refusal) {
       throw Object.assign(
         new AdaptationReviewError(
           'ADAPTATION_SCHEDULE_INVALID',
           ADAPTATION_WORKSPACE_ERROR_CODES.ADAPTATION_SCHEDULE_INVALID.status,
-          scheduleRefusalText(language, channel, reason)
+          refusal.text
         ),
         { subject: post.integration.providerIdentifier }
       );
-    };
-    if (verdict) {
-      if (verdict.emptyContent) refuse({ kind: 'empty' });
-      if (!verdict.valid)
-        refuse({ kind: 'settings', detail: trimmed(verdict.settingsError) });
-      if (verdict.errors !== true)
-        refuse({ kind: 'media', detail: trimmed(verdict.errors) });
-      if (verdict.tooLong)
-        refuse({ kind: 'too_long', max: Number(verdict.maximumCharacters) || 0 });
     }
 
-    await this.posts.changeDate(
-      organizationId,
-      post.id,
-      when.toISOString(),
-      'update'
-    );
-    await this.posts.changePostStatus(organizationId, post.id, 'schedule');
+    if (!this.planStore()) {
+      // Наборы без плана канала: как до волны.
+      try {
+        await this.queuePost(organizationId, post.id, when.toISOString());
+      } catch (error) {
+        if (error instanceof QueueStartFailed)
+          throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+        throw error;
+      }
+    } else {
+      // Одна очередь на заготовку в канале (`97dq.57`, I1, review F5): выбор
+      // человека снимает другие версии с очереди, пока это безопасно, а
+      // версию, которая выходит через две минуты или раньше, не трогает — и
+      // тогда эта в очередь не встаёт. Под замком — только база (F4, N2).
+      const integrationId = post.integration.id;
+      const effects = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+        const mine = variants.find((one) => one.id === adaptationId);
+        if (!mine?.post || mine.post.deletedAt || upperState(mine.post.state) !== 'DRAFT')
+          throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+        const gate = queueGate(variants, adaptationId, this.now(), {
+          releaseHuman: true,
+          blockPublished: false,
+        });
+        if (gate.block) throw workspaceError('ADAPTATION_QUEUE_BUSY', language);
+        const released = await this.releaseInDb(
+          db,
+          organizationId,
+          variants.filter((one) => gate.release.includes(one.id))
+        );
+        await db.setPostState(organizationId, post.id, { state: 'QUEUE', publishDate: when });
+        await db.setPlan(organizationId, adaptationId, { plannedAt: this.now() });
+        return {
+          stop: released.map((one) => one.postId),
+          start: { adaptationId, postId: post.id },
+          released,
+        } as QueueEffects;
+      });
+      if (!(await this.applyQueueEffects(organizationId, pieceId, integrationId, effects, language)))
+        throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+    }
 
     return {
       adaptation: await this.adaptationAfterWrite(
@@ -2057,7 +2876,24 @@ export class PieceService {
     const state = String(post?.state || '').toUpperCase();
     if (!post || post.deletedAt || state !== 'QUEUE')
       throw workspaceError('ADAPTATION_NOT_QUEUED', language);
-    await this.posts.changePostStatus(organizationId, post.id, 'draft');
+    if (!this.planStore()) {
+      await this.posts.changePostStatus(organizationId, post.id, 'draft');
+    } else {
+      // Под тем же замком канала, что постановка и возврат очереди (N1):
+      // возврат не поставит обратно пост, который человек только что снял.
+      const integrationId = post.integration.id;
+      await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+        const mine = (await db.channelVariants(organizationId, pieceId, integrationId)).find(
+          (one) => one.id === adaptationId
+        );
+        if (!mine?.post || mine.post.deletedAt || upperState(mine.post.state) !== 'QUEUE')
+          throw workspaceError('ADAPTATION_NOT_QUEUED', language);
+        await db.setPostState(organizationId, mine.post.id, { state: 'DRAFT' });
+        // Снятый человеком пост — уже не очередь автопилота (метка I5 снята).
+        await db.setPlan(organizationId, adaptationId, { plan: 'reserve' }, 'autopilot');
+      });
+      await this.syncWorkflow(organizationId, post.id);
+    }
     return {
       adaptation: await this.adaptationAfterWrite(
         organizationId,
@@ -2065,6 +2901,168 @@ export class PieceService {
         adaptationId,
         language
       ),
+    };
+  }
+
+  /**
+   * «Поставить на ЧЧ:ММ» из календаря (`content-factory-next-97dq.57`).
+   *
+   * Выбранная версия становится держателем слота своей заготовки в канале
+   * (`plannedAt`), прочие версии уходят из очереди, пока это безопасно, и
+   * версия встаёт на время по режиму канала: «Бронь» — «в плане», «Автопилот»
+   * — в очередь через ту же проверку площадки, что у «Запланировать» (отказ
+   * оставляет бронь с причиной), «Без плана» — черновик с этим временем.
+   * Уже запланированная версия переносится и остаётся в очереди, если до её
+   * выхода больше двух минут. Ответ несёт итог — время, режим и состояние —
+   * для любого экрана подтверждения.
+   */
+  async placeAdaptation(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    input: PieceAdaptationPlaceRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PieceAdaptationPlaceResponseV1> {
+    const wanted = trimmed(input?.date);
+    if (!wanted) throw workspaceError('ADAPTATION_SCHEDULE_DATE_REQUIRED', language);
+    const when = new Date(wanted);
+    if (!Number.isFinite(when.getTime()))
+      throw workspaceError('ADAPTATION_SCHEDULE_DATE_INVALID', language);
+    if (when.getTime() < this.now().getTime() - 60_000)
+      throw workspaceError('ADAPTATION_SCHEDULE_DATE_PAST', language);
+    const store = this.planStore();
+    if (!this.posts || !store)
+      throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    const draft = await this.pieces.workspaceDraft(
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    const post = draft.post;
+    const state = upperState(post?.state);
+    const now = this.now();
+    if (
+      !post ||
+      post.deletedAt ||
+      (state !== 'DRAFT' &&
+        !(state === 'QUEUE' && canReplaceQueued(post, now)))
+    ) {
+      throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+    }
+
+    const iso = when.toISOString();
+    const integrationId = post.integration.id;
+    // Площадка проверяет черновик до замка (I3), если его может поставить
+    // в очередь автопилот; замок её не ждёт (N2).
+    let validated = false;
+    let refusal: string | null = null;
+    if (state === 'DRAFT' && planModeOf(post.integration.planMode) === 'autopilot') {
+      refusal = (await this.queueRefusal(organizationId, post, language))?.text ?? null;
+      validated = true;
+    }
+
+    // Под коротким замком — только решение и база (F4, N2). Другие версии
+    // снимаются с очереди только тогда, когда выбранная действительно встаёт
+    // в очередь (F9), и только по правилу одной очереди (`queueGate`, F1, F5).
+    const decided = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+      const mode = planModeOf(await db.channelPlanMode(organizationId, integrationId));
+      const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+      const mine = variants.find((one) => one.id === adaptationId);
+      const mineState = upperState(mine?.post?.state);
+      const nowInLock = this.now();
+      if (
+        !mine?.post ||
+        mine.post.deletedAt ||
+        (mineState !== 'DRAFT' &&
+          !(mineState === 'QUEUE' && canReplaceQueued(mine.post, nowInLock)))
+      ) {
+        throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+      }
+      let status: 'reserved' | 'queued' | 'draft' = 'reserved';
+      let plan: PlanModeV1 | undefined;
+      let note: string | null = null;
+      let autopilot = false;
+      let effects = NO_EFFECTS;
+      const release = async (ids: string[]) => {
+        const released = await this.releaseInDb(
+          db,
+          organizationId,
+          variants.filter((one) => ids.includes(one.id))
+        );
+        effects = {
+          stop: released.map((one) => one.postId),
+          start: { adaptationId, postId: mine.post!.id },
+          released,
+        };
+      };
+      if (mineState === 'QUEUE') {
+        // Подтверждённая очередь переносится и остаётся очередью; процесс
+        // публикации перезапускается на новое время после фиксации. Метка
+        // очереди (чья она — человека или автопилота) не меняется.
+        const gate = queueGate(variants, adaptationId, nowInLock, {
+          releaseHuman: true,
+          blockPublished: false,
+        });
+        if (gate.block) throw workspaceError('ADAPTATION_QUEUE_BUSY', language);
+        await release(gate.release);
+        await db.setPostState(organizationId, mine.post.id, { publishDate: when });
+        status = 'queued';
+      } else if (mode === 'autopilot') {
+        const gate = queueGate(variants, adaptationId, nowInLock, {
+          releaseHuman: true,
+          blockPublished: true,
+        });
+        note = gate.block ? PLAN_NOTES[gate.block][language] : validated ? refusal : null;
+        if (note || !validated) {
+          await db.setPostState(organizationId, mine.post.id, { publishDate: when });
+          plan = 'reserve';
+        } else {
+          await release(gate.release);
+          await db.setPostState(organizationId, mine.post.id, {
+            state: 'QUEUE',
+            publishDate: when,
+          });
+          status = 'queued';
+          plan = 'autopilot';
+          autopilot = true;
+        }
+      } else {
+        await db.setPostState(organizationId, mine.post.id, { publishDate: when });
+        status = mode === 'draft' ? 'draft' : 'reserved';
+        plan = mode;
+      }
+      await db.setPlan(organizationId, adaptationId, {
+        ...(plan ? { plan } : {}),
+        planNote: note,
+        plannedAt: this.now(),
+      });
+      return { mode, status, note, autopilot, effects, moved: mineState === 'QUEUE' };
+    });
+
+    const { mode } = decided;
+    let { status, note, autopilot } = decided;
+    if (
+      !(await this.applyQueueEffects(organizationId, pieceId, integrationId, decided.effects, language))
+    ) {
+      status = 'reserved';
+      note = PLAN_NOTES.startFailed[language];
+      autopilot = false;
+    }
+
+    const adaptation = await this.adaptationAfterWrite(
+      organizationId,
+      pieceId,
+      adaptationId,
+      language
+    );
+    if (decided.moved && status === 'queued') autopilot = adaptation.plan?.autopilot ?? false;
+    return {
+      adaptation,
+      placement: { mode, status, date: iso, autopilot, note },
     };
   }
 
@@ -2704,9 +3702,15 @@ export class PieceService {
     row: AdaptationRow,
     pieceId: string,
     integrations: PieceIntegrationRow[],
-    checks?: AdaptationChecksV1
+    checks?: AdaptationChecksV1,
+    holders?: ReadonlySet<string>
   ): AdaptationV1 {
     const state = adaptationState(row.post);
+    // Строка без полей плана — от старого сервера или набора: плана не знаем.
+    const plan =
+      row.plan !== undefined
+        ? adaptationPlanOf(row, holders ? holders.has(row.id) : true)
+        : undefined;
     const named =
       row.post?.integration ??
       integrations.find((one) => one.id === row.integrationId) ??
@@ -2735,6 +3739,7 @@ export class PieceService {
       // нет у строки без тела и у строки постарше последних
       // `PIECE_CHECKED_ADAPTATIONS`: считать нечего либо незачем.
       ...(checks ? { checks } : {}),
+      ...(plan ? { plan } : {}),
     };
   }
 
@@ -3044,6 +4049,7 @@ export class PieceService {
         disagreement: brief?.disagreement ?? null,
         audience: brief?.audience ?? null,
         goal: brief?.goal ?? null,
+        ...(brief?.origins ? { origins: { ...brief.origins } } : {}),
       },
       ...(plan.core ? { core: plan.core.text } : {}),
       ...(material.length ? { material } : {}),

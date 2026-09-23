@@ -18,6 +18,10 @@ import {
   roleForOperation,
 } from '@contentfactory/nestjs-libraries/openai/ai.roles';
 import { getActingUserId } from '@contentfactory/nestjs-libraries/user/acting.user';
+import {
+  TextUsageLedger,
+  runWithUsageLedger,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 export type AiOperation =
   | 'text_generation'
@@ -479,7 +483,22 @@ export class AiUsageService {
     }
   }
 
-  private async finishAdmission(id: string, succeeded: boolean) {
+  /**
+   * @param ledger what the shared transport heard from the provider during
+   * this operation (`content-factory-next-97dq.55`). Its columns are written
+   * only when a call was served. An operation that made no call keeps the row
+   * it had, and `model` stays the one admission recorded. When a call was
+   * served, `model` becomes the model that actually answered, which after a
+   * fallback is not the one admission named.
+   */
+  private async finishAdmission(
+    id: string,
+    succeeded: boolean,
+    ledger?: TextUsageLedger
+  ) {
+    // The status is written on its own first: it is what admission counts, and
+    // a usage-column failure (schema not applied yet, a value out of range)
+    // must not leave the row `admitted` (correctness review F16).
     try {
       await this.prisma.aiUsageRecord.update({
         where: { id },
@@ -490,6 +509,30 @@ export class AiUsageService {
       // transient final-status write must not turn a completed provider request
       // into a client-visible failure and invite a second paid call.
       console.error('Failed to finalize AI usage record status');
+    }
+    let usage: ReturnType<TextUsageLedger['columns']> | undefined;
+    try {
+      usage = ledger?.columns();
+    } catch {
+      usage = undefined;
+    }
+    if (!usage || !Object.keys(usage).length) return;
+    await this.recordUsageColumns(id, usage);
+  }
+
+  /**
+   * Token and cost columns, best effort: the call was already paid and its
+   * status is already written, so a failure here is logged, never thrown
+   * (correctness review F16).
+   */
+  private async recordUsageColumns(
+    id: string,
+    usage: NonNullable<ReturnType<TextUsageLedger['columns']>>
+  ) {
+    try {
+      await this.prisma.aiUsageRecord.update({ where: { id }, data: usage });
+    } catch {
+      console.error('Failed to record AI usage tokens and cost');
     }
   }
 
@@ -598,16 +641,19 @@ export class AiUsageService {
       roleOf(operation, role)
     );
     let closed = false;
+    const ledger = new TextUsageLedger();
     return {
       run: <T>(callback: () => T): T =>
-        withActiveAiConfig(organizationId, config, callback, role),
+        runWithUsageLedger(ledger, () =>
+          withActiveAiConfig(organizationId, config, callback, role)
+        ),
       finish: async (succeeded: boolean, error?: unknown) => {
         if (closed) return;
         closed = true;
         if (isConfigurationRefusal(error)) {
           await this.voidAdmission(organizationId, admission.id);
         } else {
-          await this.finishAdmission(admission.id, succeeded);
+          await this.finishAdmission(admission.id, succeeded, ledger);
         }
       },
     };
@@ -635,20 +681,18 @@ export class AiUsageService {
       config,
       chosen
     );
+    const ledger = new TextUsageLedger();
     try {
-      const result = await withActiveAiConfig(
-        organizationId,
-        config,
-        callback,
-        chosen
+      const result = await runWithUsageLedger(ledger, () =>
+        withActiveAiConfig(organizationId, config, callback, chosen)
       );
-      await this.finishAdmission(admission.id, true);
+      await this.finishAdmission(admission.id, true, ledger);
       return result;
     } catch (error) {
       if (isConfigurationRefusal(error)) {
         await this.voidAdmission(organizationId, admission.id);
       } else {
-        await this.finishAdmission(admission.id, false);
+        await this.finishAdmission(admission.id, false, ledger);
       }
       throw error;
     }
@@ -678,17 +722,17 @@ export class AiUsageService {
     );
     let succeeded = false;
     let iterator: AsyncIterator<T> | undefined;
+    // Every pull re-enters the ledger: the consumer drives this generator from
+    // its own context, where no ledger is set.
+    const ledger = new TextUsageLedger();
     try {
-      const iterable = await withActiveAiConfig(
-        organizationId,
-        config,
-        factory,
-        chosen
+      const iterable = await runWithUsageLedger(ledger, () =>
+        withActiveAiConfig(organizationId, config, factory, chosen)
       );
       iterator = iterable[Symbol.asyncIterator]();
       while (true) {
-        const item = await withActiveAiConfig(organizationId, config, () =>
-          iterator!.next()
+        const item = await runWithUsageLedger(ledger, () =>
+          withActiveAiConfig(organizationId, config, () => iterator!.next())
         );
         if (item.done) break;
         yield item.value;
@@ -701,7 +745,7 @@ export class AiUsageService {
           await withActiveAiConfig(organizationId, config, () => close());
         }
       } finally {
-        await this.finishAdmission(admission.id, succeeded);
+        await this.finishAdmission(admission.id, succeeded, ledger);
       }
     }
   }
@@ -818,15 +862,13 @@ export class AiUsageService {
       chosen
     );
     let result: T;
+    const ledger = new TextUsageLedger();
     try {
-      result = await withActiveAiConfig(
-        organizationId,
-        config,
-        factory,
-        chosen
+      result = await runWithUsageLedger(ledger, () =>
+        withActiveAiConfig(organizationId, config, factory, chosen)
       );
     } catch (error) {
-      await this.finishAdmission(admission.id, false);
+      await this.finishAdmission(admission.id, false, ledger);
       throw error;
     }
 
@@ -849,13 +891,13 @@ export class AiUsageService {
     const finish = async (succeeded: boolean) => {
       if (finished) return;
       finished = true;
-      await this.finishAdmission(admission.id, succeeded);
+      await this.finishAdmission(admission.id, succeeded, ledger);
     };
     const stream = new ReadableStream({
       pull: async (controller) => {
         try {
-          const item = await withActiveAiConfig(organizationId, config, () =>
-            reader.read()
+          const item = await runWithUsageLedger(ledger, () =>
+            withActiveAiConfig(organizationId, config, () => reader.read())
           );
           if (item.done) {
             await finish(true);

@@ -125,6 +125,11 @@ const { PostActivity } = loadTypeScriptModule(
       { SubscriptionService: class {} },
     '@contentfactory/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher':
       dispatcherModule,
+    // Publish-time guard (`97dq.57`, review F2); not what this suite checks.
+    '@contentfactory/nestjs-libraries/database/prisma/posts/post-fire-guard': {
+      isFireablePost: () => true,
+      mayWriteWorkflowState: () => true,
+    },
   }
 );
 

@@ -79,6 +79,14 @@ export type IntakeGenerationHintsV1 = {
     disagreement: string | null;
     audience: string | null;
     goal?: string | null;
+    /**
+     * Откуда каждое поле (`97dq.56`). `model` — предложение модели или её
+     * решение по «Решите за меня»: адаптация получает его подписанным как
+     * предложение, а не как слова автора.
+     */
+    origins?: Partial<
+      Record<'thesis' | 'position' | 'disagreement' | 'audience' | 'goal', string>
+    >;
   };
   /** Взятое из чужого текста: тема, угол, строение. Никогда — сам текст. */
   borrowed?: {

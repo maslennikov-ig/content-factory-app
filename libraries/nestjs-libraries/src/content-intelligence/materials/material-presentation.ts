@@ -166,6 +166,24 @@ export type AdaptationLike = {
   postId?: string | null;
   integrationId?: string | null;
   post?: AdaptationPostLike | null;
+  /** План версии (`97dq.57`) и то, что делает её держателем слота. */
+  plan?: string | null;
+  plannedAt?: Date | string | null;
+  createdAt?: Date | string | null;
+};
+
+/**
+ * Старшинство среди версий одного состояния (`97dq.57`): явный выбор
+ * человека (`plannedAt`) или рождение версии. То же правило, что у держателя
+ * слота в `pieces/adaptation-plan.ts`.
+ */
+const planRank = (row: AdaptationLike): number => {
+  for (const value of [row.plannedAt, row.createdAt]) {
+    if (!value) continue;
+    const at = new Date(value).getTime();
+    if (Number.isFinite(at)) return at;
+  }
+  return 0;
 };
 
 /**
@@ -317,7 +335,12 @@ export function bestCell(
   let winnerRank = stateRank(adaptationState(here[0].post));
   for (const candidate of here.slice(1)) {
     const rank = stateRank(adaptationState(candidate.post));
-    if (rank < winnerRank) {
+    // Две версии одного состояния: клетка говорит о той, что держит слот, —
+    // самой свежей по выбору человека или по рождению (`97dq.57`).
+    if (
+      rank < winnerRank ||
+      (rank === winnerRank && planRank(candidate) > planRank(winner))
+    ) {
       winner = candidate;
       winnerRank = rank;
     }
@@ -328,7 +351,13 @@ export function bestCell(
   // за столько каналов, сколько строк.
   const channels = new Set(here.map((one) => String(one.integrationId ?? '')));
   const state = ADAPTATION_STATE_ORDER[winnerRank];
-  const dated = state === 'published' || state === 'queued';
+  // Черновик «Брони» и отложенного автопилота держит время канала: клетка
+  // говорит «в плане» и называет время, а не «черновик» (`97dq.57`).
+  const planned =
+    state === 'draft' &&
+    (winner.plan === 'reserve' || winner.plan === 'autopilot') &&
+    !!winner.post?.publishDate;
+  const dated = state === 'published' || state === 'queued' || planned;
 
   return {
     platform: provider,
@@ -339,6 +368,7 @@ export function bestCell(
     adaptationId: winner.id,
     integrationId: winner.integrationId ?? null,
     more: Math.max(0, channels.size - 1),
+    ...(planned ? { planned: true } : {}),
   };
 }
 

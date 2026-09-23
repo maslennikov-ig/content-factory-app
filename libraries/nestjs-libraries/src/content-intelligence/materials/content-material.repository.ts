@@ -61,6 +61,10 @@ export type AdaptationRow = {
   mediaId: string | null;
   brandProfileVersionId: string | null;
   createdAt: Date;
+  /** План версии (`97dq.57`): `draft` | `reserve` | `autopilot`; `NULL` — до волны. */
+  plan?: string | null;
+  planNote?: string | null;
+  plannedAt?: Date | null;
   post: {
     state: string;
     releaseURL: string | null;
@@ -191,6 +195,9 @@ export class ContentMaterialRepository {
         mediaId: true,
         brandProfileVersionId: true,
         createdAt: true,
+        plan: true,
+        planNote: true,
+        plannedAt: true,
         post: {
           select: {
             state: true,

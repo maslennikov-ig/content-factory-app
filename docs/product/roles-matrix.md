@@ -130,6 +130,7 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId` | EDITOR | 2 | редактор; удаление версии и ручная правка черновика |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/schedule` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Запланировать» и «Опубликовать сейчас» с экрана адаптации |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/unschedule` | EDITOR | 1 | редактор; «Снять с расписания» с экрана адаптации |
+| `/content-intelligence/pieces/:id/adaptations/:adaptationId/place` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Поставить на ЧЧ:ММ» из календаря — по режиму канала, автопилот ставит в очередь |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
@@ -146,6 +147,7 @@ if (!packageOptions) {
 | `/integrations/social-connect/:integration` | CHANNEL | 1 | обратный вызов провайдера |
 | `/integrations/social/:integration` | CHANNEL, ADMIN | 1 | **администратор** |
 | `/integrations/:id/writing-profile` | EDITOR | 2 | редактор — правила письма в канал; чтение — любой участник |
+| `/integrations/:id/plan-mode` | EDITOR | 1 | редактор — режим плана канала («Без плана», «Бронь», «Автопилот»); чтение — любой участник |
 | `/media` | EDITOR | 10 | редактор — библиотека читается всеми, добавить, сгенерировать и удалить может редактор |
 | `/posts` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/posts/:group` | EDITOR | 1 | редактор |

@@ -137,11 +137,16 @@ import {
   (задание, `97dq.29`) и v5; вопроса по умолчанию из v8 (`97dq.31`) больше
   нет. Модули v7 и v8 остаются импортируемыми и нетронутыми для квитанций.
 */
+import { interviewQuestionsV9 } from './intake.prompts.v9';
+/*
+  «Решите за меня» — решение (`97dq.56`): v10 — это v9 плюс названные поля,
+  отданные модели, и правило, что по каждому пишется решение, а не опыт
+  человека. Модуль v9 остаётся импортируемым и нетронутым для квитанций.
+*/
 import {
-  briefFillPromptV9,
-  briefFillSchemaV9,
-  interviewQuestionsV9,
-} from './intake.prompts.v9';
+  briefFillPromptV10,
+  briefFillSchemaV10,
+} from './intake.prompts.v10';
 /*
   Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
   что это», потому что решать нечего — галочку человека и страницу по ссылке
@@ -883,7 +888,7 @@ export class IntakeService {
       questions: {
         round: 0,
         items: open,
-        answered: this.settledAnswers(plan),
+        answered: this.settledAnswers(plan, filled.brief),
       },
       personText,
       ...(sourceText ? { sourceText } : {}),
@@ -1169,9 +1174,9 @@ export class IntakeService {
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
-        ).withStructuredOutput(briefFillSchemaV9);
+        ).withStructuredOutput(briefFillSchemaV10);
         return await model.invoke(
-          briefFillPromptV9({
+          briefFillPromptV10({
             language: plan.language,
             material,
             materialKind,
@@ -1182,6 +1187,7 @@ export class IntakeService {
               field,
               text,
             })),
+            decided: this.handedFields(plan),
             avatar: avatar.lines,
             channel: [],
             facts: memory.map((fact) => `[F:${fact.id}] ${oneLine(fact.statement)}`),
@@ -1310,8 +1316,29 @@ export class IntakeService {
     return [...fields];
   }
 
-  /** Те же решения, записанные в бриф заготовки: ответы и «Реши сама». */
-  private settledAnswers(plan: IntakePlanV1): PieceFieldAnswerV1[] {
+  /** Поля, которые человек отдал модели и не ответил сам («Решите за меня»). */
+  private handedFields(plan: IntakePlanV1): BriefField[] {
+    const person = this.personFields(plan);
+    const decided = new Set<BriefField>(plan.decide);
+    for (const key of plan.decideKeys) {
+      const field = CORE_QUESTION_FIELDS[key];
+      if (field) decided.add(field);
+    }
+    return [...decided].filter((field) => !person[field]);
+  }
+
+  /**
+   * Те же решения, записанные в бриф заготовки: ответы и «Реши сама».
+   *
+   * Отданное поле хранит решение модели — то, что бриф записал в это поле
+   * (`97dq.56`), — а не пустую строку: «Что мы поняли» показывает его с
+   * пометкой «предложила модель». Пусто оно только тогда, когда модель поле
+   * так и не заполнила.
+   */
+  private settledAnswers(
+    plan: IntakePlanV1,
+    brief?: BriefFilledV1
+  ): PieceFieldAnswerV1[] {
     const answeredAt = this.now().toISOString();
     const person = this.personFields(plan);
     const answers: PieceFieldAnswerV1[] = Object.entries(person).map(
@@ -1322,14 +1349,17 @@ export class IntakeService {
         answeredAt,
       })
     );
-    const decided = new Set<BriefField>(plan.decide);
-    for (const key of plan.decideKeys) {
-      const field = CORE_QUESTION_FIELDS[key];
-      if (field) decided.add(field);
-    }
-    for (const field of decided) {
-      if (person[field]) continue;
-      answers.push({ field, text: '', origin: 'model', answeredAt });
+    for (const field of this.handedFields(plan)) {
+      const decision = (brief as Record<string, unknown> | undefined)?.[field];
+      answers.push({
+        field,
+        text:
+          field !== 'facts' && typeof decision === 'string'
+            ? trimmed(decision)
+            : '',
+        origin: 'model',
+        answeredAt,
+      });
     }
     return answers;
   }

@@ -33,6 +33,12 @@ import {
   writeContentContextDraftProvenance,
   type ContentContextDraftBindingV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize';
+/**
+ * Черновики вытесненных версий адаптации в календарь не попадают
+ * (`content-factory-next-97dq.57`, I1): у заготовки в канале один держатель
+ * слота. Строки не удаляются — их просто не показывают.
+ */
+import { supersededDraftPostIds } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -190,6 +196,7 @@ export class PostsRepository {
     // Use the provided start and end dates directly
     const startDate = dayjs.utc(query.startDate).toDate();
     const endDate = dayjs.utc(query.endDate).toDate();
+    const superseded = await supersededDraftPostIds(this._post.model, orgId);
 
     const [list, origins] = await Promise.all([
       this._post.model.post.findMany({
@@ -220,6 +227,7 @@ export class PostsRepository {
         ],
         deletedAt: null,
         parentPostId: null,
+        ...(superseded.length ? { id: { notIn: superseded } } : {}),
         integration: {
           deletedAt: null,
           organizationId: orgId,
@@ -315,6 +323,7 @@ export class PostsRepository {
 
     const orderDirection: 'asc' | 'desc' =
       stateFilter === 'published' ? 'desc' : 'asc';
+    const superseded = await supersededDraftPostIds(this._post.model, orgId);
 
     const where = {
       AND: [
@@ -335,6 +344,7 @@ export class PostsRepository {
       deletedAt: null as Date | null,
       parentPostId: null as string | null,
       intervalInDays: null as number | null,
+      ...(superseded.length ? { id: { notIn: superseded } } : {}),
       ...(query.editorialStage
         ? { editorialStage: query.editorialStage }
         : {}),

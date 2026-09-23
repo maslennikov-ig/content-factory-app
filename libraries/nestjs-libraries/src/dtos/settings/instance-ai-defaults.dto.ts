@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -65,4 +66,15 @@ export class InstanceAiDefaultsDto {
   @Min(0)
   @Max(1000000)
   monthlyOperations?: number;
+
+  /** Flex attempts in the text chain (`content-factory-next-97dq.55`). */
+  @IsOptional()
+  @IsBoolean()
+  textFlexEnabled?: boolean;
+
+  /** The chain's last model. Empty returns to `z-ai/glm-5.3`. */
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  textFallbackModel?: string;
 }

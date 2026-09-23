@@ -19,6 +19,15 @@ import {
   searchProviderNeedsKey,
   searchRouteFingerprint,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
+import {
+  STANDARD_ATTEMPT_TIMEOUT_MS,
+  TextChainSource,
+  createTextChainFetch,
+  registerChainClient,
+  textChainApplies,
+  textChainBudgetMs,
+  maxTextChainBudgetMs,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
  * Lazily built, cache-invalidated clients for every AI SDK in the repository.
@@ -44,8 +53,31 @@ import {
  * the deadline unset and retries six times by default, so a slow provider can
  * hold a request for as long as it likes.
  */
-const CHAT_TIMEOUT_MS = 60_000;
+const CHAT_TIMEOUT_MS = STANDARD_ATTEMPT_TIMEOUT_MS;
 const CHAT_MAX_RETRIES = 2;
+
+/**
+ * What the shared transport needs from a configuration
+ * (`content-factory-next-97dq.55`). The image model is named as a pass-through,
+ * so a chat completion asking for a picture never walks the text chain.
+ */
+const chainSourceOf = (config: AiConfig): TextChainSource => ({
+  usageMode: config.usageMode,
+  provider: config.provider,
+  textChain: config.textChain,
+  passthroughModels: [modelFor('image', config)],
+});
+
+/**
+ * Inside the chain the transport owns retries and deadlines. SDK retries would
+ * repeat a whole chain, up to four attempts each time. The SDK's own deadline
+ * has to cover every attempt, or it ends the chain in the middle of the first
+ * flex wait.
+ */
+const chainClientOptions = (config: AiConfig, model: string) =>
+  textChainApplies(chainSourceOf(config))
+    ? { timeout: textChainBudgetMs(model, chainSourceOf(config)), maxRetries: 0 }
+    : undefined;
 
 /** One research chain stays inside the existing 20-second budget. */
 export const WEB_SEARCH_TIMEOUT_MS = 20_000;
@@ -75,7 +107,9 @@ const identity = (
     config.search.provider
   }|${config.search.apiKey}|${searchRouteFingerprint(config.search)}|${
     config.search.topic
-  }|${config.search.depth}|${extra}`;
+  }|${config.search.depth}|${config.textChain?.flex ?? ''}|${
+    config.textChain?.fallbackModel ?? ''
+  }|${extra}`;
 
 /**
  * One entry per distinct configuration rather than a single slot. With one
@@ -133,14 +167,22 @@ export const getModelForRole = async (
 const openAiMemo = memo<OpenAI>();
 export const getOpenAiClient = async (organizationId: string) => {
   const config = await requireActiveAiConfig(organizationId);
-  return openAiMemo(
-    identity(organizationId, config),
-    () =>
-      new OpenAI({
-        apiKey: config.apiKey,
-        ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
-      })
-  );
+  return openAiMemo(identity(organizationId, config), () => {
+    // A direct client serves any role, so its budget covers the longest
+    // chain any role's model can walk — flex included — whatever the default
+    // role's model is (correctness review F14).
+    const chained = textChainApplies(chainSourceOf(config))
+      ? { timeout: maxTextChainBudgetMs(chainSourceOf(config)), maxRetries: 0 }
+      : undefined;
+    const client = new OpenAI({
+      apiKey: config.apiKey,
+      ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+      ...(chained ?? {}),
+      fetch: createTextChainFetch(chainSourceOf(config)),
+    });
+    if (chained) registerChainClient(client, chained.timeout);
+    return client;
+  });
 };
 
 const chatMemo = memo<ChatOpenAI>();
@@ -174,18 +216,24 @@ export const getChatModel = async (
       config,
       `${chosen}:${temperature}:${maxTokens ?? 'no-ceiling'}`
     ),
-    () =>
-      new ChatOpenAI({
+    () => {
+      const model = modelFor(chosen, config);
+      const chained = chainClientOptions(config, model);
+      return new ChatOpenAI({
         apiKey: config.apiKey,
-        model: modelFor(chosen, config),
+        model,
         temperature,
         ...(maxTokens ? { maxTokens } : {}),
-        timeout: CHAT_TIMEOUT_MS,
-        maxRetries: CHAT_MAX_RETRIES,
-        ...(config.baseUrl
-          ? { configuration: { baseURL: config.baseUrl } }
-          : {}),
-      })
+        timeout: chained?.timeout ?? CHAT_TIMEOUT_MS,
+        maxRetries: chained?.maxRetries ?? CHAT_MAX_RETRIES,
+        configuration: {
+          ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+          // Every text call leaves through the shared transport: the chain
+          // where it applies, a plain pass that reads usage everywhere else.
+          fetch: createTextChainFetch(chainSourceOf(config)),
+        },
+      });
+    }
   );
 };
 

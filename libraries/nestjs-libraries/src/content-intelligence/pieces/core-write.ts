@@ -1,12 +1,18 @@
 import { contentFromIntent } from '../intake/intake-content';
+/*
+  «Решите за меня» — решение, а не пустое место (`97dq.56`, `core-write/v11`):
+  отданные вопросы решаются тем же вызовом, что пишет суть, и возвращаются
+  рядом с ней в `decisions`. Модули v3–v10 остаются импортируемыми и
+  нетронутыми для квитанций.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V10,
-  CORE_WRITE_ENRICH_LEAD_V10,
+  CORE_WRITE_BLOCK_TITLES_V11,
+  CORE_WRITE_ENRICH_LEAD_V11,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V10,
-  coreWriteSystemV10,
-} from './core-write-prompt.v10';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v10';
+  CORE_WRITE_REPAIR_V11,
+  coreWriteSystemV11,
+} from './core-write-prompt.v11';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v11';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -98,6 +104,13 @@ export type CoreWriteInputV1 = {
   instruction?: { text: string; links: readonly string[] } | null;
   /** Existing core to enrich; never attributed as fresh author input. */
   existingCore?: string;
+  /**
+   * Вопросы, которые человек отдал модели и по которым решения ещё нет
+   * (`97dq.56`). Модель решает их тем же вызовом и возвращает в `decisions`.
+   * `authorMaterial` — вопрос о том, что знает только автор (его случай, что он
+   * сделал, его числа): решение по нему — рамка, а не выдуманный случай.
+   */
+  delegated?: readonly CoreDelegatedV1[];
   borrowed: CoreBorrowedV1 | null;
   /** Отпечатки чужого текста по восемь слов; только для сверки после ответа. */
   foreignShingles: readonly string[];
@@ -110,13 +123,73 @@ export type CoreWriteDepsV1 = {
   warn?: (message: string) => void;
 };
 
+export type CoreDelegatedV1 = {
+  /** Ключ вопроса о материале (`ask-<n>`) или поле брифа. */
+  key: string;
+  question: string;
+  authorMaterial: boolean;
+};
+
+/** Решение модели по отданному вопросу, уже проверенное здесь. */
+export type CoreDecisionV1 = { key: string; text: string };
+
 export const coreSchema = z.object({
   text: z
     .string()
     .describe(
       'The neutral core: plain text, paragraphs separated by a blank line'
     ),
+  decisions: z
+    .array(
+      z.object({
+        key: z.string().describe('The key of a question handed to the model'),
+        text: z
+          .string()
+          .describe(
+            'The editorial decision: angle, reader, conclusion, structure or reasoning; never an invented case, number or quote'
+          ),
+      })
+    )
+    .nullable()
+    .optional()
+    .describe('One decision per question handed to the model; empty when none was handed over'),
 });
+
+/** Сколько знаков решения храним: это одно-три предложения, а не текст. */
+export const CORE_DECISION_MAX_CHARS = 600;
+
+const DIGIT_RUN = /\p{Nd}+/gu;
+
+/**
+ * Решения модели, которые можно хранить (`97dq.56`).
+ *
+ * Только по отданным ключам, по одному на ключ, одной строкой. Решение с
+ * числом, которого нет во входе, выбрасывается целиком: число за человека —
+ * ровно та выдумка, которую решение нести не может, а честное «модель не
+ * решила» лучше подделанного факта в «Что мы поняли».
+ */
+export const coreDecisionsOf = (
+  value: unknown,
+  delegated: readonly CoreDelegatedV1[],
+  grounded: readonly string[]
+): CoreDecisionV1[] => {
+  const keys = new Set(delegated.map((item) => item.key));
+  const material = grounded.join('\n');
+  const known = new Set(material.match(DIGIT_RUN) ?? []);
+  const byKey = new Map<string, string>();
+  for (const raw of Array.isArray(value) ? value : []) {
+    const key = trimmed((raw as any)?.key);
+    if (!keys.has(key) || byKey.has(key)) continue;
+    const text = stripCitationLabels(oneLine(trimmed((raw as any)?.text)))
+      .trim()
+      .slice(0, CORE_DECISION_MAX_CHARS)
+      .trim();
+    if (!text) continue;
+    if ((text.match(DIGIT_RUN) ?? []).some((run) => !known.has(run))) continue;
+    byKey.set(key, text);
+  }
+  return [...byKey].map(([key, text]) => ({ key, text }));
+};
 
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
@@ -207,7 +280,7 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V10[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V11[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -217,6 +290,16 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const enrichment = Boolean(trimmed(input.existingCore));
   const brief = input.brief;
   const said = input.answers.filter((answer) => answer.origin !== 'model');
+  /*
+    Решения модели по отданным вопросам (`97dq.56`): своим блоком и с
+    подписью, а не среди ответов — это выбор редактора, а не слово человека.
+  */
+  const decisions = input.answers.filter(
+    (answer) => answer.origin === 'model' && editorialAnswerText(answer.text)
+  );
+  const delegated = input.delegated ?? [];
+  const proposal = (field: 'thesis' | 'position' | 'audience') =>
+    brief.origins?.[field] === 'model' ? ` (${words.modelProposal})` : '';
 
   /*
     Отмеченное человеком — ещё не подтверждённое (`content-factory-next-97dq.14`,
@@ -271,16 +354,16 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   );
   const briefLines = [
     editorialAnswerText(brief.thesis)
-      ? `${words.thesis}: ${editorialAnswerText(brief.thesis)}`
+      ? `${words.thesis}${proposal('thesis')}: ${editorialAnswerText(brief.thesis)}`
       : '',
     editorialAnswerText(brief.position)
-      ? `${words.position}: ${editorialAnswerText(brief.position)}`
+      ? `${words.position}${proposal('position')}: ${editorialAnswerText(brief.position)}`
       : '',
     editorialAnswerText(brief.disagreement)
       ? `${words.disagreement}: ${editorialAnswerText(brief.disagreement)}`
       : '',
     editorialAnswerText(brief.audience)
-      ? `${words.audience}: ${editorialAnswerText(brief.audience)}`
+      ? `${words.audience}${proposal('audience')}: ${editorialAnswerText(brief.audience)}`
       : '',
     /**
      * Что считается подтверждённым для сути: сверенное поиском или памятью и
@@ -340,7 +423,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV10(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV11(input.language, forbiddenPhrasesRule(input.language), {
+      delegated: delegated.length > 0,
       instruction: Boolean(instruction),
       enrichment,
       firstWithResearch: !enrichment && researchPresent,
@@ -373,8 +457,24 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       )
       .filter((line) => !line.endsWith('→ '))
     ),
+    fenced(
+      words.decisions,
+      decisions.map(
+        (answer) =>
+          `${input.questionTextByKey[answer.key] || answer.question || answer.key} → ${editorialAnswerText(answer.text)}`
+      )
+    ),
+    fenced(
+      words.delegated,
+      delegated.map(
+        (item) =>
+          `[${item.key}] ${item.question}${
+            item.authorMaterial ? ` (${words.authorMaterial})` : ''
+          }`
+      )
+    ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V10[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V11[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -468,7 +568,23 @@ export async function writeCore(
   input: CoreWriteInputV1,
   deps: CoreWriteDepsV1
 ): Promise<ZagotovkaCoreV1> {
+  return (await writeCoreWithDecisions(input, deps)).core;
+}
+
+/**
+ * Суть и решения по отданным вопросам — одним вызовом (`97dq.56`).
+ *
+ * Решения приходят тем же ответом модели, что и суть: второго похода к
+ * модели ради «Решите за меня» нет. Без модели решений нет вовсе — запасная
+ * суть собирается из слов человека, и решать за него ей нечем.
+ */
+export async function writeCoreWithDecisions(
+  input: CoreWriteInputV1,
+  deps: CoreWriteDepsV1
+): Promise<{ core: ZagotovkaCoreV1; decisions: CoreDecisionV1[] }> {
   const grounded = coreGrounded(input);
+  const delegated = input.delegated ?? [];
+  let decided: unknown = null;
   const slop = (text: string): SlopReportV1 | null =>
     text && deps.slopCheck
       ? deps.slopCheck(text, CORE_SLOP_PLATFORM, input.language, grounded)
@@ -494,7 +610,9 @@ export async function writeCore(
           await getChatModel(input.organizationId, 0, 2_048, 'draft')
         ).withStructuredOutput(coreSchema);
         const prompt = corePrompt(input);
-        const first = trimmed(((await model.invoke(prompt)) as any)?.text);
+        const answer = (await model.invoke(prompt)) as any;
+        decided = answer?.decisions ?? null;
+        const first = trimmed(answer?.text);
         if (!input.foreignShingles.length || !first) return first;
         // Антикопия ровно та же, что у графа: восемь слов подряд и один
         // повторный заход. Дальше находка остаётся находкой — переписывать
@@ -504,11 +622,13 @@ export async function writeCore(
         });
         if (report.clean) return first;
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
-        const second = trimmed(
-          ((await model.invoke(
-            `${prompt}\n\n${CORE_WRITE_REPAIR_V10[input.language]}${quoted}`
-          )) as any)?.text
-        );
+        const repaired = (await model.invoke(
+          `${prompt}\n\n${CORE_WRITE_REPAIR_V11[input.language]}${quoted}`
+        )) as any;
+        const second = trimmed(repaired?.text);
+        if (second && Array.isArray(repaired?.decisions)) {
+          decided = repaired.decisions;
+        }
         return second || first;
       },
       'draft'
@@ -527,16 +647,24 @@ export async function writeCore(
   // (`content-factory-next-97dq.40`). Суть человек читает и правит — меток
   // источника в ней не бывает ни при каком ответе.
   text = trimmed(stripCitationLabels(text));
-  if (text) return shaped(text, 'model');
+  if (text) {
+    return {
+      core: shaped(text, 'model'),
+      decisions: coreDecisionsOf(decided, delegated, grounded),
+    };
+  }
   // Без модели ссылки из задания всё равно не теряются: последним абзацем.
   const keptLinks = input.instruction?.links ?? [];
-  return shaped(
-    [
-      contentFromIntent(fallbackCore(input.brief, input.answers, input.personText)),
-      keptLinks.join('\n'),
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
-    'fallback'
-  );
+  return {
+    core: shaped(
+      [
+        contentFromIntent(fallbackCore(input.brief, input.answers, input.personText)),
+        keptLinks.join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+      'fallback'
+    ),
+    decisions: [],
+  };
 }

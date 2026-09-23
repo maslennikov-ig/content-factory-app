@@ -1,0 +1,76 @@
+-- content-factory-next-97dq.57 — channel plan mode and the one slot a piece
+-- holds per channel. Apply ONLY this text, verbatim.
+--
+-- NOT YET APPLIED to production. After applying, record the date, release and
+-- backup here and in production-deploy.md.
+--
+-- Why. The owner's decision of 23.09.2026: every connected channel has a plan
+-- mode «Без плана» / «Бронь» (default) / «Автопилот». Before this change every
+-- generated variant created its own DRAFT post at the next free slot of the
+-- whole organisation, so one piece filled the calendar with one «plan» per
+-- variant (walk C1).
+--
+-- Four columns, all nullable, no defaults, no indexes. No table is rewritten
+-- and no downtime window is needed.
+--
+--   1. `Integration.planMode` (Text) — `draft` | `reserve` | `autopilot`.
+--      NULL reads as `reserve` for every existing and new channel (I2). A
+--      CF-owned column on purpose: `Integration.additionalSettings` is rendered
+--      by the provider UI.
+--
+--   2. `ContentDerivation.plan` (Text) — the mode the variant entered the
+--      calendar with. `autopilot` together with a `QUEUE` post is the
+--      autopilot marker (I5).
+--
+--   3. `ContentDerivation.planNote` (Text) — why autopilot did not queue the
+--      variant; the variant stays a reservation and the screen shows the
+--      reason (I3).
+--
+--   4. `ContentDerivation.plannedAt` (Timestamp) — when the person chose this
+--      variant for the slot. The slot holder of a (piece, channel) is the live
+--      variant with the latest `plannedAt ?? createdAt`; the other variants'
+--      DRAFT posts are hidden from the calendar, the picker and the slot
+--      search (I1). Nothing is deleted.
+--
+-- Existing rows: every column is NULL. Old variants need no data step: with
+-- `plannedAt` NULL the newest variant of each (piece, channel) is the holder,
+-- so the superseded drafts already in production disappear from the calendar
+-- on the first read of the new image. No reverse step either: the old image
+-- ignores extra nullable columns and shows every draft again.
+--
+-- No indexes on purpose: the holder read is one `findMany` over the
+-- organisation's derivations, served by `ContentDerivation_organizationId_postId_idx`
+-- and the post relation.
+--
+-- Apply order:
+--   1. prisma migrate diff --from-url <DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table Integration --allow-table ContentDerivation
+--        --diff <step 1> --selected this_file
+--   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
+--   4. The second migrate diff must be empty.
+--
+-- Apply BEFORE switching to this wave's image. The new code selects
+-- `Integration.planMode` and the three derivation columns on every adaptation,
+-- every piece page and every calendar read, so without them the calendar and
+-- the pieces screens fail, not one rare screen.
+--
+-- Rollback listing (autopilot-queued posts, I5):
+--   SELECT p."id", p."publishDate", p."integrationId", d."contentPieceId"
+--     FROM "Post" p JOIN "ContentDerivation" d
+--       ON d."organizationId" = p."organizationId" AND d."postId" = p."id"
+--    WHERE d."plan" = 'autopilot' AND p."state" = 'QUEUE'
+--      AND p."deletedAt" IS NULL;
+-- Unschedule them through the UI («Снять с расписания»), not by SQL.
+--
+-- Do not run twice: ADD COLUMN without IF NOT EXISTS fails on an existing
+-- column.
+
+-- AlterTable
+ALTER TABLE "Integration" ADD COLUMN     "planMode" TEXT;
+
+-- AlterTable
+ALTER TABLE "ContentDerivation" ADD COLUMN     "plan" TEXT,
+ADD COLUMN     "planNote" TEXT,
+ADD COLUMN     "plannedAt" TIMESTAMP(3);

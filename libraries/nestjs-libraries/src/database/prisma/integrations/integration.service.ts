@@ -33,6 +33,11 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 import type { ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
+import {
+  isPlanMode,
+  planModeOf,
+  type PlanModeV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
 import { AnalyticsSnapshotService } from '@contentfactory/nestjs-libraries/integrations/analytics.snapshot.service';
 
 dayjs.extend(utc);
@@ -126,6 +131,47 @@ export class IntegrationService {
       );
     }
     return this.writingProfileResponse(integration);
+  }
+
+  /**
+   * Режим плана канала (`content-factory-next-97dq.57`): «Без плана»,
+   * «Бронь» (умолчание, в том числе для `NULL`) или «Автопилот». Своя колонка
+   * `Integration.planMode`, а не `additionalSettings` — те рисует экран
+   * провайдера.
+   */
+  async getPlanMode(
+    org: string,
+    id: string
+  ): Promise<{ integrationId: string; planMode: PlanModeV1 }> {
+    const integration = await this._integrationRepository.getPlanMode(org, id);
+    if (!integration) {
+      throw new HttpException(
+        { code: 'INTEGRATION_NOT_FOUND' },
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return { integrationId: integration.id, planMode: planModeOf(integration.planMode) };
+  }
+
+  async updatePlanMode(
+    org: string,
+    id: string,
+    planMode: string
+  ): Promise<{ integrationId: string; planMode: PlanModeV1 }> {
+    if (!isPlanMode(planMode)) {
+      throw new HttpException(
+        { code: 'CHANNEL_PLAN_MODE_INVALID' },
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    }
+    const saved = await this._integrationRepository.updatePlanMode(org, id, planMode);
+    if (!saved) {
+      throw new HttpException(
+        { code: 'INTEGRATION_NOT_FOUND' },
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return { integrationId: id, planMode };
   }
 
   /**

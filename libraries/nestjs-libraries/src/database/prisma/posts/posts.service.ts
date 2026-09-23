@@ -79,6 +79,13 @@ type PostWithConditionals = Post & {
   childrenPost: Post[];
 };
 
+/** A closed or never-started workflow: the expected answer when stopping one. */
+const isWorkflowNotFound = (err: unknown): boolean =>
+  (err as { name?: string } | null)?.name === 'WorkflowNotFoundError';
+
+const describeWorkflowError = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
+
 @Injectable()
 export class PostsService {
   private storage = UploadFactory.createStorage();
@@ -787,31 +794,11 @@ export class PostsService {
     postId: string,
     orgId: string,
     state: State
-  ) {
-    try {
-      const workflows = this._temporalService.client
-        .getRawClient()
-        ?.workflow.list({
-          query: `postId="${postId}" AND ExecutionStatus="Running"`,
-        });
-
-      for await (const executionInfo of workflows) {
-        try {
-          const workflow = await this._temporalService.client.getWorkflowHandle(
-            executionInfo.workflowId
-          );
-          if (
-            workflow &&
-            (await workflow.describe()).status.name !== 'TERMINATED'
-          ) {
-            await workflow.terminate();
-          }
-        } catch (err) {}
-      }
-    } catch (err) {}
+  ): Promise<boolean> {
+    await this.stopPostWorkflows(postId);
 
     if (state === 'DRAFT') {
-      return;
+      return true;
     }
 
     try {
@@ -839,7 +826,72 @@ export class PostsService {
             },
           ]),
         });
-    } catch (err) {}
+      return true;
+    } catch (err) {
+      console.error(
+        `Post workflow did not start for post ${postId}: ${describeWorkflowError(err)}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Stop every publishing workflow of this post (`97dq.57`, correctness
+   * review F2).
+   *
+   * First by its fixed id `post_<id>`: that does not depend on the visibility
+   * store, which lags right after a start, so a post taken off the queue a
+   * second after it was queued is still stopped. Then by the search attribute,
+   * which also finds the repeat-post children (`post_<id>_<suffix>`). A
+   * workflow that is already closed answers «not found» — the expected case,
+   * not logged. Every other failure is logged, never silently dropped; the
+   * publish activity re-checks the post's state at fire time anyway
+   * (`post-fire-guard.ts`).
+   */
+  private async stopPostWorkflows(postId: string) {
+    try {
+      await this._temporalService.client
+        .getRawClient()
+        ?.workflow.getHandle(`post_${postId}`)
+        .terminate('post left the queue');
+    } catch (err) {
+      if (!isWorkflowNotFound(err)) {
+        console.error(
+          `Post workflow post_${postId} was not terminated: ${describeWorkflowError(err)}`
+        );
+      }
+    }
+    try {
+      const workflows = this._temporalService.client
+        .getRawClient()
+        ?.workflow.list({
+          query: `postId="${postId}" AND ExecutionStatus="Running"`,
+        });
+      if (!workflows) return;
+      for await (const executionInfo of workflows) {
+        try {
+          const workflow = await this._temporalService.client.getWorkflowHandle(
+            executionInfo.workflowId
+          );
+          if (
+            workflow &&
+            (await workflow.describe()).status.name !== 'TERMINATED'
+          ) {
+            await workflow.terminate();
+          }
+        } catch (err) {
+          if (!isWorkflowNotFound(err)) {
+            console.error(
+              `Post workflow ${executionInfo.workflowId} was not terminated: ${describeWorkflowError(err)}`
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        `Post workflows of ${postId} could not be listed: ${describeWorkflowError(err)}`
+      );
+    }
   }
 
   /**
@@ -1063,6 +1115,57 @@ export class PostsService {
     return this._postRepository.changeState(id, state, err, body);
   }
 
+  /**
+   * Bring the publishing workflow in line with the post as the database has
+   * it now (`97dq.57`, review N2): a live `QUEUE` post gets its workflow
+   * (re)started under `post_<id>`, anything else has its workflows stopped.
+   * Callers write the state first — under their own short lock — and call
+   * this after committing, so no database lock is held across Temporal.
+   */
+  async syncPostWorkflow(
+    orgId: string,
+    id: string
+  ): Promise<'started' | 'stopped' | 'failed'> {
+    let result = await this.syncPostWorkflowOnce(orgId, id);
+    // The state may have changed while Temporal answered (a person unscheduled
+    // or queued the post). One more pass, bounded, brings the workflow in line
+    // with what the database says now.
+    const after = await this._postRepository.getPostById(id, orgId);
+    const queuedNow = !!after && !after.deletedAt && after.state === 'QUEUE';
+    if (queuedNow !== (result !== 'stopped')) {
+      result = await this.syncPostWorkflowOnce(orgId, id);
+    }
+    return result;
+  }
+
+  private async syncPostWorkflowOnce(
+    orgId: string,
+    id: string
+  ): Promise<'started' | 'stopped' | 'failed'> {
+    const post = await this._postRepository.getPostById(id, orgId);
+    const queued = !!post && !post.deletedAt && post.state === 'QUEUE';
+    try {
+      const ok = await this.startWorkflow(
+        (post?.integration?.providerIdentifier || '').split('-')[0].toLowerCase(),
+        id,
+        orgId,
+        queued ? 'QUEUE' : 'DRAFT'
+      );
+      return queued ? (ok ? 'started' : 'failed') : 'stopped';
+    } catch (err) {
+      console.error(
+        `Post ${id} workflow sync failed: ${describeWorkflowError(err)}`
+      );
+      return queued ? 'failed' : 'stopped';
+    }
+  }
+
+  /** The state a workflow activity reads before it writes its own (`97dq.57`). */
+  async getPostStateForWorkflow(id: string) {
+    const post = await this._postRepository.getPostById(id);
+    return post ? { state: post.state as string } : null;
+  }
+
   async changePostStatus(
     orgId: string,
     id: string,
@@ -1076,16 +1179,25 @@ export class PostsService {
     const state: State = status === 'draft' ? 'DRAFT' : 'QUEUE';
     await this._postRepository.changeState(id, state);
 
+    // Whether the publishing workflow really started: a queue the calendar
+    // shows but Temporal never runs would say «в очереди» and publish nothing
+    // (`97dq.57`, review F7). Callers that care read `workflow`.
+    let workflow: 'started' | 'stopped' | 'failed' = 'failed';
     try {
-      await this.startWorkflow(
+      const started = await this.startWorkflow(
         getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
         getPostById.id,
         orgId,
         state
       );
-    } catch (err) {}
+      workflow = state === 'DRAFT' ? 'stopped' : started ? 'started' : 'failed';
+    } catch (err) {
+      console.error(
+        `Post ${id} workflow update failed after state ${state}: ${describeWorkflowError(err)}`
+      );
+    }
 
-    return { id, state };
+    return { id, state, workflow };
   }
 
   async changeDate(

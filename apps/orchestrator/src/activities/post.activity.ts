@@ -24,6 +24,10 @@ import {
 } from '@contentfactory/nestjs-libraries/temporal/temporal.search.attribute';
 import { SubscriptionService } from '@contentfactory/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { getSsrfSafeDispatcher } from '@contentfactory/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import {
+  isFireablePost,
+  mayWriteWorkflowState,
+} from '@contentfactory/nestjs-libraries/database/prisma/posts/post-fire-guard';
 
 // Drops fields the workflow and downstream activities never read — biggest wins are `error` (grows per retry) and `childrenPost` (Prisma side-loads it on every recursive row).
 function slimPost(post: any) {
@@ -146,6 +150,15 @@ export class PostActivity {
       orgId
     );
     if (!getPosts || getPosts.length === 0 || getPosts[0].parentPostId) {
+      return [];
+    }
+    // Called after the workflow's sleep: a post that left the queue while it
+    // slept (unscheduled, replaced by a newer version) is not published, even
+    // if terminating its workflow failed (`97dq.57`, review F2).
+    if (!isFireablePost(getPosts[0] as any)) {
+      console.warn(
+        `Post ${postId} is no longer queued (${getPosts[0].state}); publishing skipped.`
+      );
       return [];
     }
 
@@ -301,6 +314,13 @@ export class PostActivity {
 
   @ActivityMethod()
   async changeState(id: string, state: State, err?: any, body?: any) {
+    // A stale workflow does not overwrite a post a person took back into
+    // drafts (`97dq.57`, review F2).
+    const current = await this._postService.getPostStateForWorkflow(id);
+    if (!mayWriteWorkflowState(current, state)) {
+      console.warn(`Post ${id} is a draft again; workflow state ${state} not written.`);
+      return;
+    }
     await this._postService.changeState(id, state, err, body);
   }
 

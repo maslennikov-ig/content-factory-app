@@ -175,6 +175,8 @@ export const intakeCopy = {
     originMemory: 'из памяти',
     originSearch: 'найдено поиском',
     originModel: 'предположение',
+    originModelDecision: 'решили мы',
+    receiptDecisions: 'Решили за вас',
     factsRestOn: 'На что это опирается',
     /* Заголовки колонок таблицы опор. Названия, а не значения ячеек:
        `content-factory-next-hh50` — в колонках «Состояние» и «Источник»
@@ -242,8 +244,12 @@ export const intakeCopy = {
     profileEmojiFree: 'много',
     profileLink: 'Ссылки',
     profileLinkNone: 'без ссылок',
-    profileLinkEnd: 'одна в конце',
-    profileLinkInline: 'внутри текста',
+    profileLinkEnd: 'не больше одной, в конце',
+    profileLinkInline: 'можно внутри текста',
+    /* Честная подсказка (`97dq.58`): адрес берётся только из текста человека,
+       его ответов или найденных источников — новых мы не придумываем. */
+    profileLinkSource:
+      'Ссылку берём из вашего текста или найденных источников — новых адресов не придумываем.',
     profileHashtag: 'Хэштеги',
     profileHashtagNone: 'без хэштегов',
     profileHashtagEnd: '1–3 в конце',
@@ -279,7 +285,7 @@ export const intakeCopy = {
       'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
     profileHintEmoji: 'Без эмодзи, 1–3 или много. Можно отдать выбор нам.',
     profileHintLink:
-      'Где размещать ссылки: рядом с фактом или в конце. Новые адреса мы не выдумываем.',
+      'Можно ли ставить ссылки и где: рядом с фактом или одну в конце.',
     profileHintHashtag: 'Нужны ли метки темы и где они стоят.',
     profileHintCta:
       'Какого действия ждём от читателя после поста. Призыв может быть не нужен.',
@@ -418,6 +424,8 @@ export const intakeCopy = {
     originMemory: 'from memory',
     originSearch: 'found by search',
     originModel: 'an assumption',
+    originModelDecision: 'our decision',
+    receiptDecisions: 'Decided for you',
     factsRestOn: 'What it rests on',
     researchTableTitle: 'What the text rests on',
     researchColumnStatus: 'State',
@@ -470,8 +478,10 @@ export const intakeCopy = {
     profileEmojiFree: 'many',
     profileLink: 'Links',
     profileLinkNone: 'none',
-    profileLinkEnd: 'one at the end',
-    profileLinkInline: 'inside the text',
+    profileLinkEnd: 'at most one, at the end',
+    profileLinkInline: 'may be inside the text',
+    profileLinkSource:
+      'Links come from your text or the sources we found — we never make up new addresses.',
     profileHashtag: 'Hashtags',
     profileHashtagNone: 'none',
     profileHashtagEnd: '1–3 at the end',
@@ -506,7 +516,7 @@ export const intakeCopy = {
     profileHintLength: 'Post length. We can choose within the platform limit.',
     profileHintEmoji: 'No emoji, one to three, or many. Or let us choose.',
     profileHintLink:
-      'Where links appear: inline or at the end. URLs are never invented.',
+      'Whether links may appear and where: next to a fact or one at the end.',
     profileHintHashtag: 'Whether topic tags are useful and where they go.',
     profileHintCta:
       'What readers should do after reading. A call to action may be unnecessary.',

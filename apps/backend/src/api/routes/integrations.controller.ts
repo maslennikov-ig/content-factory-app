@@ -38,6 +38,7 @@ import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@contentfactory/nestjs-libraries/integrations/refresh.integration.service';
 import { IntegrationContentLanguageDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.content.language.dto';
 import { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
+import { IntegrationPlanModeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.plan.mode.dto';
 import { ChannelPostsQueryDto } from '@contentfactory/nestjs-libraries/dtos/integrations/channel.posts.query.dto';
 import { resolveChannelWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 
@@ -222,6 +223,29 @@ export class IntegrationsController {
     @Body() body: IntegrationWritingProfileDto
   ) {
     return this._integrationService.updateWritingProfile(org.id, id, body);
+  }
+
+  /**
+   * Режим плана канала (`content-factory-next-97dq.57`): «Без плана» /
+   * «Бронь» / «Автопилот». Та же граница ролей, что у карточки «Как пишем»:
+   * это настройка письма в канал, её правит редактор.
+   */
+  @Get('/:id/plan-mode')
+  getPlanMode(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._integrationService.getPlanMode(org.id, id);
+  }
+
+  @Put('/:id/plan-mode')
+  @CheckPolicies([AuthorizationActions.Update, Sections.EDITOR])
+  updatePlanMode(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: IntegrationPlanModeDto
+  ) {
+    return this._integrationService.updatePlanMode(org.id, id, body.planMode);
   }
 
   /** Убрать карточку: канал возвращается к умолчаниям своей площадки. */

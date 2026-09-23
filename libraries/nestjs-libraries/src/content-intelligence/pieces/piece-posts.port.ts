@@ -18,4 +18,9 @@ export const PIECE_POSTS_PORT = 'PIECE_POSTS_PORT';
 export type PiecePostsPort = Pick<
   PostsService,
   'validatePosts' | 'changeDate' | 'changePostStatus'
->;
+> &
+  /**
+   * После записи состояния под замком канала — только Temporal (`97dq.57`,
+   * N2). Необязательно для наборов, собранных без плана канала.
+   */
+  Partial<Pick<PostsService, 'syncPostWorkflow'>>;

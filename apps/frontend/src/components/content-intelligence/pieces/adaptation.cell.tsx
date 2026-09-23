@@ -234,7 +234,9 @@ export function StateSquare({
  */
 export function cellDate(
   state: PieceCellStateV1,
-  iso: string | null | undefined
+  iso: string | null | undefined,
+  /** Черновик держит время канала «в плане» (`97dq.57`): день и время. */
+  planned = false
 ): string | null {
   if (!iso) return null;
   const at = new Date(iso);
@@ -242,7 +244,7 @@ export function cellDate(
   const two = (value: number) => String(value).padStart(2, '0');
   const day = `${two(at.getDate())}.${two(at.getMonth() + 1)}`;
   if (state === 'published') return `${day}.${two(at.getFullYear() % 100)}`;
-  if (state === 'queued')
+  if (state === 'queued' || (planned && state === 'draft'))
     return `${day} ${two(at.getHours())}:${two(at.getMinutes())}`;
   return null;
 }
@@ -260,7 +262,11 @@ export function cellHint(
   t: (typeof piecesCopy)[PiecesLocale]
 ): string {
   const parts = [`${platformName}.`];
-  const when = cellDate(cell.state, cell.date);
+  const when = cellDate(cell.state, cell.date, cell.planned);
+  if (when && cell.planned) {
+    const [day, time] = when.split(' ');
+    parts.push(t.cellWhenPlanned(day, time));
+  }
   if (when && cell.state === 'published') parts.push(t.cellWhenPublished(when));
   if (when && cell.state === 'queued') {
     // День и время клетка считает одной строкой; предлог между ними — слово, и
@@ -307,7 +313,7 @@ export function AdaptationCell({
   disabled?: boolean;
 }) {
   const t = piecesCopy[locale];
-  const word = stateWord(cell.state, t);
+  const word = cell.planned ? t.statePlanned : stateWord(cell.state, t);
   const action = cellAction(cell.state);
   const hint = cellHint(cell, platformName, t);
   const off = disabled || action === 'none';

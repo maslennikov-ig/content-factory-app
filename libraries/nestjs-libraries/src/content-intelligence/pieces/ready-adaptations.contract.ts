@@ -15,6 +15,20 @@ export type ReadyAdaptationV1 = {
   postId: string;
   /** ISO timestamp of the latest adaptation write. */
   readyAt: string;
+  /**
+   * Where the adaptation stands in its channel's calendar (`97dq.57`):
+   * `reserved` — holds a time «в плане»; `queued` — in the queue
+   * (`autopilot` when the autopilot put it there); `free` — a draft with no
+   * time held. `date` is ISO for `reserved` and `queued`, else `null`.
+   * Absent from an older server.
+   */
+  slot?: ReadyAdaptationSlotV1;
+};
+
+export type ReadyAdaptationSlotV1 = {
+  status: 'reserved' | 'queued' | 'free';
+  date: string | null;
+  autopilot: boolean;
 };
 
 export type ReadyAdaptationsResponseV1 = {

@@ -382,6 +382,10 @@ const ALLOWED = new Map([
     'libraries/nestjs-libraries/src/openai/ai.usage.service.ts aiUsageRecord.update in finishAdmission',
     'Closes the ledger row this very call opened, by the id it just received back.',
   ],
+  [
+    'libraries/nestjs-libraries/src/openai/ai.usage.service.ts aiUsageRecord.update in recordUsageColumns',
+    'Adds the token and cost columns to that same ledger row, by the same id; only `finishAdmission` calls it, after the status write (review F16).',
+  ],
 ]);
 
 /**

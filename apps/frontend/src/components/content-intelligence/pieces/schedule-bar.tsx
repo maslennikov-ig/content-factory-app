@@ -7,7 +7,7 @@ import { Status } from '../../ui/surface';
 import { ConfirmButton } from '../../ui/confirm-button';
 import { cellDate, stateTone, stateWord } from './adaptation.cell';
 import { WorkspaceMenu } from './workspace-menu';
-import type { AdaptationStateV1 } from './pieces.adapter';
+import type { AdaptationPlanV1, AdaptationStateV1 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 
 /**
@@ -32,6 +32,7 @@ export function ScheduleBar({
   locale,
   state,
   date,
+  plan,
   when,
   canWrite,
   busy,
@@ -46,6 +47,11 @@ export function ScheduleBar({
   state: AdaptationStateV1;
   /** ISO — дата поста у запланированного и опубликованного. */
   date: string | null;
+  /**
+   * Место версии в календаре канала (`97dq.57`): бронь «в плане на …»,
+   * метка автопилота у очереди и причина, если автопилот не поставил.
+   */
+  plan?: AdaptationPlanV1;
   /** Поле «Когда»: общий выбор даты продукта, его рисует контейнер. */
   when: ReactNode;
   canWrite: boolean;
@@ -65,6 +71,11 @@ export function ScheduleBar({
   const off = !canWrite || busy !== null;
   const moment = cellDate(state, date);
   const [armed, setArmed] = useState(false);
+  const planned =
+    plan?.status === 'reserved' && plan.current
+      ? cellDate('draft', plan.date, true)
+      : null;
+  const planNote = plan?.note || null;
 
   const remove =
     state !== 'published' ? (
@@ -96,6 +107,14 @@ export function ScheduleBar({
             data-schedule-send="true"
             className="flex min-w-0 flex-wrap items-center justify-end gap-x-[12px] gap-y-[8px]"
           >
+            {planned ? (
+              <span
+                data-schedule-plan="reserved"
+                className="cf-caption tabular-nums text-cf-accent"
+              >
+                {t.planAt(planned)}
+              </span>
+            ) : null}
             <span className="cf-caption text-cf-ink-muted">{t.whenLabel}</span>
             <div className="min-w-0">{when}</div>
             <div className="relative inline-flex">
@@ -148,6 +167,14 @@ export function ScheduleBar({
                 {moment}
               </span>
             ) : null}
+            {queued && plan?.autopilot ? (
+              <span
+                data-schedule-plan="autopilot"
+                className="cf-caption text-cf-ink-muted"
+              >
+                {t.planAutopilot}
+              </span>
+            ) : null}
             <a
               href={calendarHref}
               data-schedule-calendar="true"
@@ -175,6 +202,11 @@ export function ScheduleBar({
           </div>
         )}
       </div>
+      {planNote && sendable ? (
+        <p data-schedule-plan-note="true" className="cf-body-sm text-cf-ink-muted">
+          {planNote}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="cf-body-sm text-cf-danger">
           {error}

@@ -227,6 +227,8 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.edit.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.edit.path(':id', ':adaptationId')}`,
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.path(':id', ':adaptationId')}`,
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.path(':id', ':adaptationId')}`,
+    // «Поставить на ЧЧ:ММ» из календаря (`97dq.57`).
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.place.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.place.path(':id', ':adaptationId')}`,
   ];
 
   test.each(expected)('%s смонтирован', (route) => {

@@ -252,14 +252,14 @@ describe('the slot date reaches the piece channel tab', () => {
     expect(readPieceWhen(undefined, now)).toBeNull();
   });
 
-  test('the piece page passes `when` and the draft tab uses it before the free slot', () => {
+  test('the piece page passes `when` and the draft tab uses it before the free slot; a held time comes first (97dq.57)', () => {
     const page = read('apps/frontend/src/app/(app)/(site)/content/pieces/[id]/page.tsx');
     expect(page).toContain('initialWhen: when');
     const container = read(
       'apps/frontend/src/components/content-intelligence/pieces/piece.container.tsx'
     );
     expect(container).toMatch(
-      /when\[adaptation\.id\]\) \?\?\s*\(channel\.id === slotWhen\.channel \? slotWhen\.at : null\) \?\?\s*slot\.data/u
+      /when\[adaptation\.id\]\) \?\?\s*\(adaptation \? plannedDateOf\(adaptation\) : null\) \?\?\s*\(channel\.id === slotWhen\.channel \? slotWhen\.at : null\) \?\?\s*slot\.data/u
     );
   });
 });

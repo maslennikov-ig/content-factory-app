@@ -251,7 +251,10 @@ describe('per-organization AI clients', () => {
     await clients.getImageModel(organization);
 
     expect(built.openai[0]).not.toHaveProperty('baseURL');
-    expect(built.chat[0]).not.toHaveProperty('configuration');
+    // The configuration carries only the shared transport
+    // (`content-factory-next-97dq.55`), never a base URL.
+    expect(built.chat[0].configuration).not.toHaveProperty('baseURL');
+    expect(typeof built.chat[0].configuration.fetch).toBe('function');
     expect(built.dalle[0]).not.toHaveProperty('baseUrl');
     expect(built.chat[0].model).toBe('gpt-4.1');
   });

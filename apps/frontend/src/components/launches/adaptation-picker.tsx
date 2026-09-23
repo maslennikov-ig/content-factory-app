@@ -2,6 +2,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Dayjs } from 'dayjs';
 import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
+import { PIECE_ADAPTATION_WORKSPACE_ROUTES } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { Button } from '@contentfactory/react/form/button';
@@ -34,6 +36,12 @@ export type ReadyAdaptation = {
   integrationId: string;
   postId: string;
   readyAt: string;
+  /** Где адаптация стоит сейчас (`97dq.57`); нет у старого сервера. */
+  slot?: {
+    status: 'reserved' | 'queued' | 'free';
+    date: string | null;
+    autopilot: boolean;
+  };
 };
 export const READY_ADAPTATIONS_URL =
   '/content-intelligence/pieces/ready-adaptations?limit=50';
@@ -55,6 +63,13 @@ export const READY_ADAPTATIONS_URL =
  * обе черновики). Заголовок заготовки у них один, поэтому такие строки
  * называются началом своего текста — иначе список показывал две одинаковые
  * строки (двенадцатый заход, 10-picker-d).
+ *
+ * С `97dq.57` окно пишет: «Поставить на ЧЧ:ММ» ставит выбранную адаптацию на
+ * это время по режиму канала (`POST …/place`) и только потом ведёт во
+ * вкладку. Список показывает и забронированные, и стоящие в очереди — со
+ * временем («в плане · пт 25.09 09:20»), а черновик без времени — «свободна».
+ * Экран подтверждения после постановки рисуется отдельно; ответ двери несёт
+ * время и режим для любого из вариантов.
  */
 export function AdaptationPicker({
   integrations,
@@ -75,6 +90,9 @@ export function AdaptationPicker({
   const [query, setQuery] = useState('');
   const [channel, setChannel] = useState(initialChannel || '');
   const [selected, setSelected] = useState('');
+  const router = useRouter();
+  const [placing, setPlacing] = useState(false);
+  const [placeFailed, setPlaceFailed] = useState(false);
   const scopedUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set('integrationIds', integrations.map((item) => item.id).sort().join(','));
@@ -133,9 +151,58 @@ export function AdaptationPicker({
       new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit' }),
     [locale]
   );
+  const weekday = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: 'short' }),
+    [locale]
+  );
+  const slotLabel = (row: ReadyAdaptation): string | null => {
+    const slot = row.slot;
+    if (!slot) return null;
+    if (slot.status === 'free') return copy.slotFree;
+    const word = slot.status === 'queued' ? copy.slotQueued : copy.slotReserved;
+    const at = slot.date ? new Date(slot.date) : null;
+    if (!at || Number.isNaN(at.getTime())) return word;
+    const two = (value: number) => String(value).padStart(2, '0');
+    const moment = `${weekday.format(at).replace('.', '')} ${dayMonth.format(
+      at
+    )} ${two(at.getHours())}:${two(at.getMinutes())}`;
+    return `${word} · ${moment}${
+      slot.status === 'queued' && slot.autopilot ? ` · ${copy.slotAutopilot}` : ''
+    }`;
+  };
   const target = chosen
     ? pieceSlotPath(chosen.pieceId, chosen.integrationId, date?.toDate())
     : '';
+  /*
+    «Поставить на ЧЧ:ММ» пишет: адаптация встаёт на это время по режиму
+    своего канала, и только после ответа окно ведёт во вкладку канала с тем
+    же `?when=`. Отказ остаётся в окне словами — человек видит, что ничего не
+    поставлено.
+  */
+  const place = async () => {
+    if (!chosen || !date || placing) return;
+    setPlacing(true);
+    setPlaceFailed(false);
+    try {
+      const response = await request(
+        PIECE_ADAPTATION_WORKSPACE_ROUTES.place.path(
+          chosen.pieceId,
+          chosen.adaptationId
+        ) + `?language=${locale}`,
+        {
+          method: PIECE_ADAPTATION_WORKSPACE_ROUTES.place.method,
+          body: JSON.stringify({ date: date.toDate().toISOString() }),
+        }
+      );
+      if (!response.ok) throw new Error('adaptation not placed');
+      onClose();
+      router.push(target);
+    } catch {
+      setPlaceFailed(true);
+    } finally {
+      setPlacing(false);
+    }
+  };
   const dateCaption = date
     ? new Intl.DateTimeFormat(locale, {
         weekday: 'long',
@@ -264,7 +331,16 @@ export function AdaptationPicker({
                         {' · '}
                         {integration.name}
                         {' · '}
-                        {copy.readyAt} {dayMonth.format(new Date(row.readyAt))}
+                        {slotLabel(row) ? (
+                          <span data-picker-slot={row.slot?.status}>
+                            {slotLabel(row)}
+                          </span>
+                        ) : (
+                          <>
+                            {copy.readyAt}{' '}
+                            {dayMonth.format(new Date(row.readyAt))}
+                          </>
+                        )}
                       </span>
                     </span>
                   </RadioOption>
@@ -298,18 +374,35 @@ export function AdaptationPicker({
         <Button variant="secondary" onClick={onClose}>
           {copy.cancel}
         </Button>
-        {!!data?.length && (
-          <ButtonLink
-            href={target || '#'}
-            variant="primary"
-            disabled={!canWrite || !chosen}
-            data-picker-place="true"
-            onClick={onClose}
-          >
-            {time ? copy.placeAt(time) : copy.choose}
-          </ButtonLink>
-        )}
+        {!!data?.length &&
+          (date ? (
+            <Button
+              variant="primary"
+              disabled={!canWrite || !chosen}
+              loading={placing}
+              loadingLabel={copy.placing}
+              data-picker-place="true"
+              onClick={() => void place()}
+            >
+              {copy.placeAt(time)}
+            </Button>
+          ) : (
+            <ButtonLink
+              href={target || '#'}
+              variant="primary"
+              disabled={!canWrite || !chosen}
+              data-picker-place="true"
+              onClick={onClose}
+            >
+              {copy.choose}
+            </ButtonLink>
+          ))}
       </div>
+      {placeFailed ? (
+        <p role="alert" className="cf-body-sm text-cf-danger">
+          {copy.placeFailed}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -13,17 +13,23 @@ const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http:
 for (const key of ['window','document','navigator']) Object.defineProperty(global,key,{configurable:true,value:key==='window'?dom.window:dom.window[key]});
 global.self = dom.window;
 global.IS_REACT_ACT_ENVIRONMENT = true;
-const { render, screen, fireEvent, cleanup } = require('@testing-library/react');
+const { render, screen, fireEvent, cleanup, act } = require('@testing-library/react');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const dayjs = require('dayjs');
 const h = React.createElement;
-let role, mode, language, editorCalls, requests, closed, selectedDate;
+let role, mode, language, editorCalls, requests, closed, selectedDate, pushed, placeOk;
 const channels = ['tg','vk','other'].map(id => ({id,name:`Channel ${id}`,identifier:'telegram',picture:'',type:'social',editor:'normal',time:[]}));
 const rows = ['tg','vk'].map((id,i)=>({adaptationId:`a${i}`,pieceId:`piece${i}`,pieceCode:`cnt-0${i}`,title:`Title ${i}`,firstLine:'Text',integrationId:id,postId:`p${i}`,readyAt:'2026-09-08T10:00:00Z'}));
 const request = async (url, options) => {
  requests.push({url,options});
+ if (url.includes('/place')) return {ok:placeOk,json:async()=>({placement:{mode:'reserve',status:'reserved',date:'2030-09-11T15:00:00.000Z',autopilot:false,note:null}})};
  if (url.includes('ready-adaptations')) {
   if (mode==='error') return {ok:false};
+  if (mode==='slots') return {ok:true,json:async()=>({version:'ready-adaptations/v1',items:[
+   {...rows[0],slot:{status:'reserved',date:'2030-09-13T06:20:00Z',autopilot:false}},
+   {...rows[1],slot:{status:'queued',date:'2030-09-13T06:20:00Z',autopilot:true}},
+   {...rows[0],adaptationId:'a7',pieceId:'piece7',title:'Title 7',postId:'p7',slot:{status:'free',date:null,autopilot:false}},
+  ]})};
   return {ok:true,json:async()=>({version:'ready-adaptations/v1',items:mode==='empty'?[]:mode==='twins'?[...rows,{...rows[0],adaptationId:'a9',firstLine:'Second version text',postId:'p9'}]:rows})};
  }
  return {ok:true,json:async()=>({})};
@@ -33,6 +39,7 @@ const mocks = {
  '@contentfactory/react/translation/use-interface-language': {useInterfaceLanguage:()=>language},
  '../layout/user.context': {useUser:()=>({role})},
  '../layout/new-modal': {useModals:()=>({})},
+ 'next/navigation': {useRouter:()=>({push:href=>{pushed.push(href)}})},
  './calendar.context': {useCalendar:()=>({})},
  '../../launches/helpers/use.integration.list': {useIntegrationList:()=>({data:channels})},
  '../../new-launch/compose.modal': {useOpenPostEditor:()=>async input=>{editorCalls.push(input)}},
@@ -47,28 +54,53 @@ const mocks = {
  }},
 };
 const { AdaptationPicker }=loadWithMocks('apps/frontend/src/components/launches/adaptation-picker.tsx',mocks);
-beforeEach(()=>{role='ADMIN';mode='ready';language='ru';editorCalls=[];requests=[];closed=0;selectedDate=dayjs('2030-09-11T15:00:00');});
+beforeEach(()=>{role='ADMIN';mode='ready';language='ru';editorCalls=[];requests=[];closed=0;pushed=[];placeOk=true;selectedDate=dayjs('2030-09-11T15:00:00');});
 // jsdom cannot navigate; the href is what the test reads.
 document.addEventListener('click',event=>event.preventDefault());
 afterEach(cleanup);
 const mount=(extra={})=>render(h(AdaptationPicker,{integrations:channels,date:selectedDate,onClose:()=>{closed++},...extra}));
 
-test('«Поставить на HH:mm» leads to the piece channel tab with the slot date; nothing is written and no editor opens',async()=>{
+test('«Поставить на HH:mm» places the adaptation at the slot, then leads to the piece channel tab with the slot date (97dq.57)',async()=>{
  mount();
  await screen.findByText('Готовые адаптации · 2');
- const place=screen.getByRole('link',{name:'Поставить на 15:00'});
- expect(place.getAttribute('aria-disabled')).toBe('true');
+ expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(true);
  fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
- const href=screen.getByRole('link',{name:'Поставить на 15:00'}).getAttribute('href');
- const url=new URL(href,'http://localhost');
+ expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(false);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Поставить на 15:00'}));});
+ const write=requests.find(item=>item.options && item.options.method==='POST');
+ expect(write.url).toBe('/content-intelligence/pieces/piece0/adaptations/a0/place?language=ru');
+ expect(new Date(JSON.parse(write.options.body).date).getTime()).toBe(selectedDate.toDate().getTime());
+ expect(pushed).toHaveLength(1);
+ const url=new URL(pushed[0],'http://localhost');
  expect(url.pathname).toBe('/content/pieces/piece0');
  expect(url.searchParams.get('tab')).toBe('tg');
  expect(new Date(url.searchParams.get('when')).getTime()).toBe(selectedDate.toDate().getTime());
- expect(screen.getByRole('link',{name:'Поставить на 15:00'}).getAttribute('aria-disabled')).toBeNull();
- fireEvent.click(screen.getByRole('link',{name:'Поставить на 15:00'}));
  expect(closed).toBe(1);
  expect(editorCalls).toHaveLength(0);
- expect(requests.every(item=>!item.options || !item.options.method || item.options.method==='GET')).toBe(true);
+});
+
+test('a refused placement stays in the window with words and navigates nowhere',async()=>{
+ placeOk=false;mount();
+ await screen.findByText('Title 0');
+ fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Поставить на 15:00'}));});
+ expect(screen.getByRole('alert').textContent).toContain('Не удалось поставить адаптацию');
+ expect(pushed).toHaveLength(0);
+ expect(closed).toBe(0);
+});
+
+test('rows say where the adaptation stands: planned and queued with their time, a draft without one is free (97dq.57)',async()=>{
+ mode='slots';mount();
+ await screen.findByText('Title 0');
+ const slots=[...document.querySelectorAll('[data-picker-slot]')].map(el=>[el.getAttribute('data-picker-slot'),el.textContent]);
+ const at=new Date('2030-09-13T06:20:00Z');
+ const two=v=>String(v).padStart(2,'0');
+ const moment=`${new Intl.DateTimeFormat('ru',{weekday:'short'}).format(at).replace('.','')} ${two(at.getDate())}.${two(at.getMonth()+1)} ${two(at.getHours())}:${two(at.getMinutes())}`;
+ expect(slots).toEqual([
+  ['reserved',`в плане · ${moment}`],
+  ['queued',`в очереди · ${moment} · автопилот`],
+  ['free','свободна'],
+ ]);
 });
 
 test('rows: one-line title, caption «cnt-… · канал · готово DD.MM», and rows never shrink in the scrolling list',async()=>{
@@ -97,7 +129,7 @@ test('search and channel selection restrict rows and clear stale selection',asyn
  fireEvent.change(screen.getByLabelText('Поиск по заголовку и каналу'),{target:{value:'Channel vk'}});
  expect(screen.queryByText('Title 0')).toBeNull();
  expect(screen.getByText('Title 1')).toBeTruthy();
- expect(screen.getByRole('link',{name:'Поставить на 15:00'}).getAttribute('aria-disabled')).toBe('true');
+ expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(true);
  fireEvent.change(screen.getByLabelText('Поиск по заголовку и каналу'),{target:{value:''}});
  fireEvent.click(screen.getByRole('radio',{name:'Channel tg'}));
  expect(screen.queryByText('Title 1')).toBeNull();
@@ -131,7 +163,7 @@ test('loading and recoverable error states',async()=>{
 test('English labels are complete and mobile footer wraps',async()=>{
  language='en';const {container}=mount();await screen.findByText('Ready adaptations · 2');
  expect(screen.getByRole('link',{name:'New piece'})).toBeTruthy();
- expect(screen.getByRole('link',{name:'Place at 15:00'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Place at 15:00'})).toBeTruthy();
  expect(container.querySelector('.flex-wrap')).toBeTruthy();expect(container.querySelector('.overflow-x-auto')).toBeTruthy();
 });
 

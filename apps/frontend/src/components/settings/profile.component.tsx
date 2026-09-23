@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -42,6 +43,7 @@ import { getLanguageLabel } from '@contentfactory/frontend/components/layout/lan
 import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
 import { useOrganizationRoleName } from '@contentfactory/frontend/components/settings/teams.component';
 import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
+import { useAutosave } from '@contentfactory/frontend/components/ui/use-autosave';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -94,10 +96,12 @@ export const timezoneLabel = (
  * ссылкой во вкладку способов входа. Все поля уже жили у `User`, ни одно не
  * редактировалось.
  *
- * Сохранение — кнопкой, как было: общего помощника автосохранения в продукте
- * нет, а писать третий рукописный — значит завести ещё одно мнение о том, когда
- * поле «сохранено». Язык — исключение, и оно старше этой вкладки: смена языка
- * уходит своей дверью сразу (`useAccountLanguage`), как в меню языка.
+ * Профиль сохраняется сам (`content-factory-next-97dq.58`, обход D1): текст
+ * уходит через 800 мс после последней правки и при уходе из поля, фото и
+ * часовой пояс — сразу. Ритм и статус — общий `useAutosave`, то же мнение о
+ * «сохранено», что у правки адаптации. «Сохранить» остаётся для того, кто
+ * хочет нажать, и отвечает рядом с собой: «Сохранено · ЧЧ:ММ». Язык уходит
+ * своей дверью сразу (`useAccountLanguage`), как в меню языка.
  *
  * Часовой пояс действует там же, где действовал всегда, — в этом браузере
  * (`localStorage.timezone`, `set.timezone.tsx`), а в `User.timezone` ложится
@@ -122,6 +126,10 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
   const lastName: string = form.watch('lastName') || '';
 
   const [zone, setZone] = useState<string>(() => getTimezone());
+  // Пояс, выбранный только что, уходит тем же сохранением, что его выбрало:
+  // состояние к этому моменту ещё не перерисовано.
+  const zoneRef = useRef(zone);
+  zoneRef.current = zone;
   const { current: currentLanguage, change: changeLanguage } =
     useAccountLanguage();
   const [language, setLanguage] = useState<string>(currentLanguage);
@@ -167,6 +175,53 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
     { revalidateOnFocus: false }
   );
 
+  /**
+   * Одно сохранение на все пути. `auto` — автосохранение: ни тоста, ни
+   * закрытия окон. `button` — нажатие «Сохранить»: как раньше, тост и
+   * `modal.closeAll()` (в окне онбординга, `getRef`, — молча). Неверную форму
+   * не шлём: `null` — «не пробовали», статус остаётся прежним, ошибка стоит
+   * у поля.
+   */
+  const persist = useCallback(
+    async (mode: 'auto' | 'button'): Promise<boolean | null> => {
+      if (!(await form.trigger())) return null;
+      const chosenZone = zoneRef.current;
+      const offset = offsetMinutes(
+        timezones.find((entry) => entry.tzCode === chosenZone)?.utc
+      );
+      const response = await fetch('/user/personal', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form.getValues(),
+          ...(offset === undefined ? {} : { timezone: offset }),
+        }),
+      });
+      if (!response.ok) {
+        if (mode === 'button') toast.show(words.saveFailed, 'warning');
+        return false;
+      }
+      localStorage.setItem('timezone', chosenZone);
+      dayjs.tz.setDefault(chosenZone);
+      if (mode === 'button' && !getRef) {
+        toast.show(t('profile_updated', 'Profile updated'));
+        modal.closeAll();
+      }
+      return true;
+    },
+    [words, getRef, t]
+  );
+  const autosave = useAutosave<'auto' | 'button'>(persist);
+  const { schedule, flush, saveNow } = autosave;
+
+  // Только правка человека: `setValue` при загрузке профиля приходит без
+  // `type` и ничего не сохраняет.
+  useEffect(() => {
+    const subscription = form.watch((_values, { type }) => {
+      if (type === 'change') schedule('auto');
+    });
+    return () => subscription.unsubscribe();
+  }, [schedule]);
+
   const openMediaBox = useOpenMediaBox();
   // The library answers with everything that was selected; a profile picture
   // is one image, and the form field is one `MediaDto`. Handing it the whole
@@ -175,11 +230,13 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
     openMediaBox((values) => {
       if (!values?.length) return;
       form.setValue('picture', values[0]);
+      void saveNow('auto');
     });
-  }, [openMediaBox]);
+  }, [openMediaBox, saveNow]);
   const remove = useCallback(() => {
     form.setValue('picture', null);
-  }, []);
+    void saveNow('auto');
+  }, [saveNow]);
 
   const zoneOptions = useMemo(() => {
     const known = timezones.some((entry) => entry.tzCode === zone);
@@ -188,32 +245,18 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
       : [{ tzCode: zone, label: zone, name: zone, utc: '' }, ...timezones];
   }, [zone]);
 
-  const submit = useCallback(
-    async (values: any) => {
-      const offset = offsetMinutes(
-        timezones.find((entry) => entry.tzCode === zone)?.utc
-      );
-      const response = await fetch('/user/personal', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...values,
-          ...(offset === undefined ? {} : { timezone: offset }),
-        }),
-      });
-      if (!response.ok) {
-        toast.show(words.saveFailed, 'warning');
-        return;
-      }
-      localStorage.setItem('timezone', zone);
-      dayjs.tz.setDefault(zone);
-      if (getRef) {
-        return;
-      }
-      toast.show(t('profile_updated', 'Profile updated'));
-      modal.closeAll();
-    },
-    [zone, words, getRef, t]
-  );
+  const submit = useCallback(async () => {
+    await saveNow('button');
+  }, [saveNow]);
+
+  const status =
+    autosave.state === 'saving'
+      ? words.autosaveSaving
+      : autosave.state === 'saved' && autosave.savedAt
+      ? words.autosaveSaved(autosave.savedAt)
+      : autosave.state === 'failed'
+      ? words.autosaveFailed
+      : words.autosaveIdle;
 
   const fullName =
     [firstName.trim(), lastName.trim()].filter(Boolean).join(' ') ||
@@ -242,7 +285,10 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(submit)}>
+      <form
+        onSubmit={form.handleSubmit(submit)}
+        onBlur={() => void flush()}
+      >
         {!!getRef && <Button type="submit" className="hidden" ref={getRef} />}
         <section
           className="flex w-full max-w-[720px] flex-col gap-[20px]"
@@ -375,9 +421,11 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                   hideErrors={true}
                   value={zone}
                   aria-describedby={`${noteId}-timezone`}
-                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-                    setZone(event.target.value)
-                  }
+                  onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                    zoneRef.current = event.target.value;
+                    setZone(event.target.value);
+                    void saveNow('auto');
+                  }}
                 >
                   {zoneOptions.map((entry) => (
                     <option key={entry.tzCode} value={entry.tzCode}>
@@ -441,8 +489,8 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
             </Link>
           </Panel>
 
-          {!getRef && (
-            <div className="flex items-center gap-[12px]">
+          <div className="flex flex-wrap items-center gap-[12px]">
+            {!getRef && (
               <Button
                 type="submit"
                 loading={form.formState.isSubmitting}
@@ -450,8 +498,30 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
               >
                 {t('save', 'Save')}
               </Button>
-            </div>
-          )}
+            )}
+            <p
+              role={autosave.state === 'failed' ? 'alert' : 'status'}
+              data-profile-autosave={autosave.state}
+              className={
+                autosave.state === 'failed'
+                  ? 'cf-body-sm text-cf-danger'
+                  : 'cf-body-sm text-cf-ink-muted tabular-nums'
+              }
+            >
+              {status}
+            </p>
+            {autosave.state === 'failed' ? (
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                data-profile-autosave-retry="true"
+                onClick={() => void saveNow('auto')}
+              >
+                {words.retry}
+              </Button>
+            ) : null}
+          </div>
         </section>
       </form>
     </FormProvider>

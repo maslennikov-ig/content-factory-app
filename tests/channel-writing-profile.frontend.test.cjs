@@ -156,11 +156,17 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
     )
   );
 
-  // Six policy rows. «Обращение» left on 23.09.2026 (97dq.45). «Кто говорит
-  // здесь» is not drawn: this workspace has no second avatar to choose.
+  // Six policy rows and the channel plan (97dq.57). «Обращение» left on
+  // 23.09.2026 (97dq.45). «Кто говорит здесь» is not drawn: this workspace
+  // has no second avatar to choose.
   await waitFor(() =>
-    expect(screen.getAllByRole('radiogroup')).toHaveLength(6)
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(7)
   );
+  // The plan defaults to «Бронь» even when the server has nothing to say.
+  const planGroup = screen.getByRole('radiogroup', { name: 'План' });
+  expect(
+    planGroup.querySelector('[aria-checked="true"]').getAttribute('data-channel-plan-option')
+  ).toBe('reserve');
   expect(screen.queryByRole('radiogroup', { name: 'Обращение' })).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Кто говорит здесь' })).toBeNull();
   expect(
@@ -173,6 +179,16 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
   expect(
     calls.filter((call) => call.method === 'GET' && call.url === URL)
   ).toHaveLength(1);
+  // «Ссылки» is a ceiling, and URLs are never invented (97dq.58).
+  const links = screen.getByRole('radiogroup', { name: 'Ссылки' });
+  expect(
+    Array.from(links.querySelectorAll('[role="radio"]')).map((node) => node.textContent)
+  ).toEqual(['без ссылок', 'не больше одной, в конце', 'можно внутри текста', 'выберем сами']);
+  expect(
+    document.querySelector('[data-writing-profile-note="links"]').textContent
+  ).toBe(
+    'Ссылку берём из вашего текста или найденных источников — новых адресов не придумываем.'
+  );
 });
 
 test('inline editing sends one PUT and shows the normalized saved value', async () => {
@@ -355,4 +371,41 @@ test('the busy save keeps its label and width through Button loading', async () 
   expect(save.textContent).toContain('Сохранить');
   expect(save.textContent).toContain('Сохраняем…');
   await act(async () => release());
+});
+
+test('the channel plan saves on choice, apart from the card (97dq.57)', async () => {
+  serve();
+  const saved = [];
+  const base = global.fetch;
+  global.fetch = async (url, init = {}) => {
+    if (String(url).endsWith('/integrations/channel-1/plan-mode')) {
+      const method = String(init.method || 'GET').toUpperCase();
+      if (method === 'PUT') saved.push(JSON.parse(String(init.body)));
+      return response({ integrationId: 'channel-1', planMode: method === 'PUT' ? 'autopilot' : 'draft' });
+    }
+    return base(url, init);
+  };
+  render(
+    React.createElement(
+      SWRConfig,
+      { value: { provider: () => new Map(), dedupingInterval: 0 } },
+      React.createElement(WritingProfileCard, {
+        locale: 'ru',
+        integrationId: 'channel-1',
+        integrationName: 'Мастерская',
+        canWrite: true,
+        open: true,
+        onClose: () => undefined,
+      })
+    )
+  );
+  const group = await screen.findByRole('radiogroup', { name: 'План' });
+  await waitFor(() =>
+    expect(group.querySelector('[aria-checked="true"]').getAttribute('data-channel-plan-option')).toBe('draft')
+  );
+  expect(screen.getByText('Адаптация лежит черновиком. Время выбираете сами.')).toBeTruthy();
+  fireEvent.click(group.querySelector('[data-channel-plan-option="autopilot"]'));
+  await screen.findByText('Сохранено');
+  expect(saved).toEqual([{ planMode: 'autopilot' }]);
+  expect(group.querySelector('[aria-checked="true"]').getAttribute('data-channel-plan-option')).toBe('autopilot');
 });

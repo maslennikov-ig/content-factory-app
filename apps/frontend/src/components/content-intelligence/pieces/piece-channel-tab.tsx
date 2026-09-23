@@ -395,6 +395,7 @@ export function PieceChannelTab({
           locale={locale}
           state={adaptation.state}
           date={adaptation.date ?? null}
+          plan={adaptation.plan}
           when={when}
           canWrite={canWrite}
           busy={scheduleBusy}

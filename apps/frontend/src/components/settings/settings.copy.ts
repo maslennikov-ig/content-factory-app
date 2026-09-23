@@ -37,6 +37,16 @@ type SettingsWords = {
     saveFailed: string;
     /** Доступное имя занятой кнопки «Сохранить». */
     saving: string;
+    /**
+     * Статус автосохранения рядом с «Сохранить» (`97dq.58`): тот же ритм,
+     * что у правки адаптации, — «сохраняем… / сохранено · ЧЧ:ММ /
+     * не сохранилось · повторить».
+     */
+    autosaveIdle: string;
+    autosaveSaving: string;
+    autosaveSaved: (time: string) => string;
+    autosaveFailed: string;
+    retry: string;
   };
   signIn: {
     notConnected: string;
@@ -120,6 +130,11 @@ export const settingsCopy: Record<SettingsCopyLocale, SettingsWords> = {
       signInNone: 'Способов входа пока нет',
       saveFailed: 'Не удалось сохранить профиль',
       saving: 'Сохраняем профиль',
+      autosaveIdle: 'Изменения сохраняются сами',
+      autosaveSaving: 'Сохраняем…',
+      autosaveSaved: (time) => `Сохранено · ${time}`,
+      autosaveFailed: 'Не сохранилось',
+      retry: 'Повторить',
     },
     signIn: {
       notConnected: 'не подключён',
@@ -156,6 +171,11 @@ export const settingsCopy: Record<SettingsCopyLocale, SettingsWords> = {
       signInNone: 'No sign-in methods yet',
       saveFailed: 'Could not save the profile',
       saving: 'Saving the profile',
+      autosaveIdle: 'Changes save themselves',
+      autosaveSaving: 'Saving…',
+      autosaveSaved: (time) => `Saved · ${time}`,
+      autosaveFailed: 'Not saved',
+      retry: 'Retry',
     },
     signIn: {
       notConnected: 'not connected',

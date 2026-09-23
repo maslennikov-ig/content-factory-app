@@ -28,6 +28,11 @@ module.exports = {
     // loaded by most suites here. Same reason as above: the real module.
     '^@contentfactory/nestjs-libraries/openai/ai\\.search-tasks$':
       '<rootDir>/tests/helpers/ai-search-tasks.cjs',
+    // The shared text transport and usage ledger, imported by the client
+    // factories, the usage service and the review call sites. Same reason as
+    // above: the real module.
+    '^@contentfactory/nestjs-libraries/openai/ai\\.text-chain$':
+      '<rootDir>/tests/helpers/ai-text-chain.cjs',
     // The keyless encyclopedic lane, imported by the same service for the same
     // reason. Also the real module — see the helper.
     '^@contentfactory/nestjs-libraries/content-intelligence/research/encyclopedic-reference$':

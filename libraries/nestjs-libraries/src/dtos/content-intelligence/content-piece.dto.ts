@@ -363,6 +363,12 @@ export class PieceAdaptationEditDto {
   image?: PieceAdaptationImageDto | null;
 }
 
+/** «Поставить на ЧЧ:ММ» (`97dq.57`), форма — `PieceAdaptationPlaceRequestV1`. */
+export class PieceAdaptationPlaceDto {
+  @IsISO8601({ strict: true })
+  date: string;
+}
+
 /** Выход в календарь (`97dq.37`), форма — `PieceAdaptationScheduleRequestV1`. */
 export class PieceAdaptationScheduleDto {
   @IsOptional()

@@ -19,6 +19,10 @@ import {
   parseSearchKeys,
   parseSearchTaskProviders,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
+import {
+  DEFAULT_TEXT_FALLBACK_MODEL,
+  resolveTextChainSettings,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
  * The keys every workspace that has not brought its own spends, and the one
@@ -137,6 +141,17 @@ export class InstanceAiDefaultsService {
       roleModels: parseRoleModels(row?.roleModels),
       searchTaskProviders: parseSearchTaskProviders(row?.searchTaskProviders),
       monthlyOperations: row?.monthlyOperations ?? null,
+      /**
+       * The text chain (`content-factory-next-97dq.55`). The stored values,
+       * NULL where nothing was saved, and beside them what the chain actually
+       * uses, so the screen can print the default instead of an empty field.
+       */
+      textFlexEnabled: row?.textFlexEnabled ?? null,
+      textFallbackModel: row?.textFallbackModel ?? null,
+      textChain: {
+        ...resolveTextChainSettings(row),
+        defaultFallbackModel: DEFAULT_TEXT_FALLBACK_MODEL,
+      },
       hasKey: !!row?.apiKey,
       searchKeys: Object.fromEntries(
         SEARCH_PROVIDERS.map((engine) => [engine, !!storedSearchKeys[engine]])
@@ -171,6 +186,8 @@ export class InstanceAiDefaultsService {
       searchApiKeys?: Record<string, string>;
       searchTaskProviders?: Record<string, string>;
       monthlyOperations?: number;
+      textFlexEnabled?: boolean;
+      textFallbackModel?: string;
     }
   ) {
     const current = await this._prisma.instanceAiDefaults?.findUnique({
@@ -210,6 +227,13 @@ export class InstanceAiDefaultsService {
         : {}),
       ...(body.monthlyOperations !== undefined
         ? { monthlyOperations: Math.max(0, Math.floor(body.monthlyOperations)) }
+        : {}),
+      ...(typeof body.textFlexEnabled === 'boolean'
+        ? { textFlexEnabled: body.textFlexEnabled }
+        : {}),
+      // Emptied means «back to the default», on the same terms as the models.
+      ...(body.textFallbackModel !== undefined
+        ? { textFallbackModel: body.textFallbackModel.trim() || null }
         : {}),
       updatedByUserId: userId,
     };

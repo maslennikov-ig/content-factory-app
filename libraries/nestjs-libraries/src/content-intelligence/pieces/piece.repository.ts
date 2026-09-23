@@ -29,6 +29,7 @@ import { ContentBriefRepository } from '../brief/content-brief.repository';
 import type { ReviewSnapshotV2 } from './review.v2.contract';
 import { reviewConflict, type AdaptationReviewSnapshot } from './adaptation-review.contract';
 import { searchWords } from '../search-terms';
+import { supersededDraftPostIds } from './adaptation-plan';
 
 type PrismaClientLike = Record<string, any>;
 
@@ -47,6 +48,68 @@ export type PieceIntegrationRow = {
   contentLanguage: string | null;
   writingProfile: unknown;
   additionalSettings: string | null;
+  /** Режим плана канала (`97dq.57`); `NULL` и отсутствие — «Бронь». */
+  planMode?: string | null;
+  /** `Integration.postingTimes` — JSON минут от полуночи UTC. */
+  postingTimes?: string | null;
+};
+
+/** Окно замка канала: только решение и записи в базу, без Temporal (N2). */
+export const PLAN_LOCK_MS = 10_000;
+
+export type PlanWrite = {
+  plan?: string | null;
+  planNote?: string | null;
+  plannedAt?: Date | null;
+};
+
+/** Чтения и записи плана поверх одного клиента — базового или транзакции замка. */
+export type PlanDb = {
+  channelVariants(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string
+  ): Promise<PlanVariantRow[]>;
+  busySlots(
+    organizationId: string,
+    integrationId: string,
+    from: Date,
+    to: Date,
+    excludePostIds?: readonly string[]
+  ): Promise<Date[]>;
+  channelPlanMode(organizationId: string, integrationId: string): Promise<string | null>;
+  setPlan(
+    organizationId: string,
+    adaptationId: string,
+    data: PlanWrite,
+    onlyPlan?: string
+  ): Promise<{ count: number }>;
+  /** Состояние и/или время поста — только в базе; процесс публикации — после. */
+  setPostState(
+    organizationId: string,
+    postId: string,
+    data: { state?: 'DRAFT' | 'QUEUE'; publishDate?: Date }
+  ): Promise<{ updatedAt: Date } | null>;
+};
+
+/** Версия адаптации канала, как её читает правило держателя слота (`97dq.57`). */
+export type PlanVariantRow = {
+  id: string;
+  contentPieceId: string;
+  integrationId: string | null;
+  plan: string | null;
+  planNote: string | null;
+  plannedAt: Date | null;
+  createdAt: Date;
+  postId: string | null;
+  post: {
+    id: string;
+    state: string;
+    publishDate: Date;
+    deletedAt: Date | null;
+    integrationId: string;
+    updatedAt?: Date;
+  } | null;
 };
 
 /** Строка `ContentPiece`, как её читает список заготовок. */
@@ -77,6 +140,7 @@ export type WorkspaceDraftRow = {
     id: string;
     state: string;
     deletedAt: Date | null;
+    publishDate?: Date | null;
     content: string;
     image: string | null;
     settings: string | null;
@@ -85,6 +149,8 @@ export type WorkspaceDraftRow = {
       name: string;
       providerIdentifier: string;
       additionalSettings: string | null;
+      planMode?: string | null;
+      postingTimes?: string | null;
     };
   } | null;
 };
@@ -94,8 +160,16 @@ export type ReadyAdaptationRow = {
   title: string | null;
   body: string | null;
   updatedAt: Date;
+  plan?: string | null;
+  planNote?: string | null;
   piece: { id: string; title: string };
-  post: { id: string; integrationId: string; content: string };
+  post: {
+    id: string;
+    integrationId: string;
+    content: string;
+    state?: string;
+    publishDate?: Date | null;
+  };
 };
 
 @Injectable()
@@ -154,24 +228,30 @@ export class PieceRepository {
   }
 
   /**
-   * Draft adaptations that can still enter the calendar.
+   * Adaptations that can still enter or move in the calendar: drafts and
+   * queued posts (`97dq.57` — the picker shows the booked date instead of
+   * hiding queued ones).
    *
    * State and channel identity come from the linked post. The derivation's
-   * mirrored state and integrationId are intentionally not read.
+   * mirrored state and integrationId are intentionally not read. Superseded
+   * variant drafts (not the slot holder of their piece and channel) are not
+   * offered: one piece is one row per channel.
    */
-  listReadyAdaptations(
+  async listReadyAdaptations(
     organizationId: string,
     limit: number,
     integrationIds?: string[]
   ): Promise<ReadyAdaptationRow[]> {
+    const hidden = await supersededDraftPostIds(this.client(), organizationId);
     return this.client().contentDerivation.findMany({
       where: {
         organizationId,
         post: {
           is: {
             organizationId,
-            state: 'DRAFT',
+            state: { in: ['DRAFT', 'QUEUE'] },
             ...(integrationIds ? { integrationId: { in: integrationIds } } : {}),
+            ...(hidden.length ? { id: { notIn: hidden } } : {}),
             deletedAt: null,
             integration: {
               is: { organizationId, deletedAt: null },
@@ -187,9 +267,17 @@ export class PieceRepository {
         title: true,
         body: true,
         updatedAt: true,
+        plan: true,
+        planNote: true,
         piece: { select: { id: true, title: true } },
         post: {
-          select: { id: true, integrationId: true, content: true },
+          select: {
+            id: true,
+            integrationId: true,
+            content: true,
+            state: true,
+            publishDate: true,
+          },
         },
       },
     });
@@ -251,8 +339,171 @@ export class PieceRepository {
         contentLanguage: true,
         writingProfile: true,
         additionalSettings: true,
+        planMode: true,
+        postingTimes: true,
       },
     });
+  }
+
+  /* ---- План канала (`content-factory-next-97dq.57`) --------------------- */
+
+  /**
+   * Чтения и записи плана поверх данного клиента: базового или транзакции
+   * замка. Под замком всё идёт через `tx`, поэтому истёкший замок обрывает
+   * работу: следующая запись бросит, и транзакция откатится целиком (N2).
+   */
+  private planDb(client: PrismaClientLike): PlanDb {
+    return {
+      channelVariants: (organizationId, pieceId, integrationId) =>
+        client.contentDerivation.findMany({
+          where: {
+            organizationId,
+            contentPieceId: pieceId,
+            OR: [
+              { post: { is: { organizationId, integrationId } } },
+              { postId: null, integrationId },
+            ],
+          },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            contentPieceId: true,
+            integrationId: true,
+            plan: true,
+            planNote: true,
+            plannedAt: true,
+            createdAt: true,
+            postId: true,
+            post: {
+              select: {
+                id: true,
+                state: true,
+                publishDate: true,
+                deletedAt: true,
+                integrationId: true,
+                updatedAt: true,
+              },
+            },
+          },
+        }),
+      busySlots: async (organizationId, integrationId, from, to, excludePostIds = []) => {
+        const hidden = await supersededDraftPostIds(client, organizationId, integrationId);
+        const skip = [...new Set([...hidden, ...excludePostIds])];
+        const rows: Array<{ publishDate: Date }> = await client.post.findMany({
+          where: {
+            organizationId,
+            integrationId,
+            deletedAt: null,
+            parentPostId: null,
+            publishDate: { gte: from, lte: to },
+            ...(skip.length ? { id: { notIn: skip } } : {}),
+          },
+          select: { publishDate: true },
+        });
+        return rows.map((row) => row.publishDate);
+      },
+      channelPlanMode: async (organizationId, integrationId) => {
+        const row = await client.integration.findFirst({
+          where: { organizationId, id: integrationId, deletedAt: null },
+          select: { planMode: true },
+        });
+        return row?.planMode ?? null;
+      },
+      setPlan: (organizationId, adaptationId, data, onlyPlan) =>
+        client.contentDerivation.updateMany({
+          where: {
+            organizationId,
+            id: adaptationId,
+            ...(onlyPlan ? { plan: onlyPlan } : {}),
+          },
+          data,
+        }),
+      setPostState: async (organizationId, postId, data) => {
+        const saved = await client.post.updateMany({
+          where: { organizationId, id: postId, deletedAt: null },
+          data: {
+            ...(data.state ? { state: data.state } : {}),
+            ...(data.publishDate ? { publishDate: data.publishDate } : {}),
+          },
+        });
+        if (saved.count !== 1) return null;
+        const row = await client.post.findFirst({
+          where: { organizationId, id: postId },
+          select: { updatedAt: true },
+        });
+        return row ? { updatedAt: row.updatedAt } : null;
+      },
+    };
+  }
+
+  /** Все версии заготовки в этом канале — с постами, для правила держателя. */
+  channelVariants(organizationId: string, pieceId: string, integrationId: string) {
+    return this.planDb(this.client()).channelVariants(organizationId, pieceId, integrationId);
+  }
+
+  /**
+   * Времена, уже занятые ЭТИМ каналом в окне: живые посты канала, кроме
+   * черновиков вытесненных версий и явно исключённых постов (держатель,
+   * которого сейчас сменит новая версия).
+   */
+  busySlots(
+    organizationId: string,
+    integrationId: string,
+    from: Date,
+    to: Date,
+    excludePostIds: readonly string[] = []
+  ) {
+    return this.planDb(this.client()).busySlots(organizationId, integrationId, from, to, excludePostIds);
+  }
+
+  /**
+   * Режим плана канала, прочитанный заново (`97dq.57`, review F8): генерация
+   * идёт минуты, и режим, прочитанный в её начале, мог смениться.
+   */
+  channelPlanMode(organizationId: string, integrationId: string) {
+    return this.planDb(this.client()).channelPlanMode(organizationId, integrationId);
+  }
+
+  /**
+   * Отметка плана на версии. `onlyPlan` — запись только если версия ещё
+   * несёт этот план (снять метку автопилота, не трогая остальные).
+   */
+  setPlan(
+    organizationId: string,
+    adaptationId: string,
+    data: PlanWrite,
+    onlyPlan?: string
+  ) {
+    return this.planDb(this.client()).setPlan(organizationId, adaptationId, data, onlyPlan);
+  }
+
+  /**
+   * Один постановщик на (область, заготовка, канал) за раз (`97dq.57`,
+   * review F4, N2): два параллельных прогона одной заготовки в один канал
+   * иначе оба увидели бы «очереди нет» и оба поставили бы свою версию.
+   *
+   * Транзакционная рекомендательная блокировка Postgres
+   * (`pg_advisory_xact_lock`) держится, пока открыта транзакция, и снимается
+   * сама при её конце. Под замком — только решение и записи в базу через
+   * `db` этой же транзакции; Temporal вызывается после фиксации. Окно
+   * короткое (10 с): замок, который истёк, откатывает всё, что под ним было
+   * записано, и работа дальше не идёт. Ключ — `hashtext` строки:
+   * столкновение ключей лишь сериализует две постановки.
+   */
+  withChannelLock<T>(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    work: (db: PlanDb) => Promise<T>
+  ): Promise<T> {
+    const key = `cf-plan:${organizationId}:${pieceId}:${integrationId}`;
+    return this.client().$transaction(
+      async (tx: PrismaClientLike) => {
+        await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${key}))) AS held`;
+        return work(this.planDb(tx));
+      },
+      { maxWait: PLAN_LOCK_MS, timeout: PLAN_LOCK_MS }
+    );
   }
 
   /** Адаптации этих заготовок — вместе с постами, одним запросом. */
@@ -414,6 +665,7 @@ export class PieceRepository {
             id: true,
             state: true,
             deletedAt: true,
+            publishDate: true,
             content: true,
             image: true,
             settings: true,
@@ -423,6 +675,8 @@ export class PieceRepository {
                 name: true,
                 providerIdentifier: true,
                 additionalSettings: true,
+                planMode: true,
+                postingTimes: true,
               },
             },
           },

@@ -189,6 +189,22 @@ export class IntegrationRepository {
     });
   }
 
+  /** Режим плана канала (`97dq.57`); `NULL` читается как «Бронь». */
+  getPlanMode(org: string, id: string) {
+    return this._integration.model.integration.findFirst({
+      where: { id, organizationId: org, deletedAt: null },
+      select: { id: true, planMode: true },
+    });
+  }
+
+  async updatePlanMode(org: string, id: string, planMode: string) {
+    const saved = await this._integration.model.integration.updateMany({
+      where: { id, organizationId: org, deletedAt: null },
+      data: { planMode },
+    });
+    return saved.count;
+  }
+
   async setTimes(org: string, id: string, times: IntegrationTimeDto) {
     return this._integration.model.integration.update({
       select: {

@@ -87,6 +87,17 @@ type Words = {
     fromEnvironment: string;
     /** Подсказка про смену провайдера: идентификаторы моделей не переносятся. */
     providerHint: string;
+    /**
+     * Цепочка текстовых вызовов (`content-factory-next-97dq.55`): flex дважды,
+     * обычный уровень, запасная модель. Действует только на OpenRouter.
+     */
+    flexLabel: string;
+    /** Что даёт flex и чем платят за него — под флажком. */
+    flexWhat: string;
+    /** Подпись поля запасной модели. */
+    fallbackLabel: string;
+    /** Когда её зовут и что значит пустое поле. */
+    fallbackWhat: string;
   };
   allowance: {
     /** Название карточки. */
@@ -191,6 +202,12 @@ const ru: Words = {
       'В поле стоит значение из переменной окружения на сервере — инстанс работает на нём. Сохраните его, чтобы закрепить здесь, или замените своим.',
     providerHint:
       'Идентификаторы моделей принадлежат своему провайдеру: «gpt-4.1» ничего не значит для OpenRouter, «openai/gpt-4.1» — для OpenAI. После смены провайдера поля моделей стоит перебрать заново.',
+    flexLabel: 'Сначала дешёвый уровень flex',
+    flexWhat:
+      'Только OpenRouter. Текстовый вызов дважды пробует уровень flex — он вдвое дешевле, но может ответить «нет мощности», — потом обычный уровень той же модели, потом запасную модель. Выключено — сразу обычный уровень.',
+    fallbackLabel: 'Запасная модель',
+    fallbackWhat:
+      'Последняя попытка, когда текстовая модель не ответила. Пустое поле — модель по умолчанию, указанная в подсказке.',
   },
   allowance: {
     title: 'Включённый режим',
@@ -286,6 +303,12 @@ const en: Words = {
       'The field holds the value from an environment variable on the server — the instance runs on it. Save it to pin it here, or replace it with your own.',
     providerHint:
       'Model ids belong to their provider: «gpt-4.1» means nothing to OpenRouter, «openai/gpt-4.1» nothing to OpenAI. After switching the provider, go through the model fields again.',
+    flexLabel: 'Try the cheaper flex tier first',
+    flexWhat:
+      'OpenRouter only. A text call tries the flex tier twice — half the price, but it may answer «no capacity» — then the standard tier of the same model, then the fallback model. Off goes straight to the standard tier.',
+    fallbackLabel: 'Fallback model',
+    fallbackWhat:
+      'The last attempt, when the text model did not answer. An empty field uses the default shown as the placeholder.',
   },
   allowance: {
     title: 'Included mode',

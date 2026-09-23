@@ -41,11 +41,13 @@ describe('profile discovery', () => {
     expect(profile).toContain('href="/settings?tab=sign_in_methods"');
     expect(profile).toContain("t('sign_in_methods', 'Sign-in methods')");
     expect(profile).toContain('useAccountLanguage()');
-    // Saving stays a button: the product has no shared autosave helper, and
-    // a busy button keeps its width.
+    // The profile saves itself through the shared `useAutosave` (97dq.58);
+    // «Сохранить» stays for whoever wants to press it, and a busy button
+    // keeps its width.
     expect(profile).toMatch(
       /<Button\s+type="submit"\s+loading=\{form\.formState\.isSubmitting\}/
     );
+    expect(profile).toContain('useAutosave');
   });
 
   test('the profile header reads the person, the role and the workspace', () => {

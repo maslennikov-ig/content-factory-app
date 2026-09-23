@@ -108,6 +108,29 @@ export function PieceCoreTab({
       ? i.originSearch
       : i.originModel;
 
+  /*
+    «Решите за меня» в квитанции (`97dq.56`): поле брифа, отданное модели,
+    подписано «решили мы», а решения по вопросам о материале стоят
+    своими строками рядом с вопросом. Круги ответов могут повторять ключ —
+    остаётся последнее решение.
+  */
+  const handed = core?.questions?.answered ?? [];
+  const handedFields = new Set<string>(
+    handed
+      .filter((answer) => answer.origin === 'model' && !answer.key)
+      .map((answer) => answer.field)
+  );
+  const decisions = [
+    ...new Map(
+      handed
+        .filter(
+          (answer) =>
+            answer.origin === 'model' && answer.key && answer.text.trim()
+        )
+        .map((answer) => [answer.key as string, answer])
+    ).values(),
+  ];
+
   const briefLabel: Record<(typeof RECEIPT_FIELDS)[number], string> = {
     thesis: v.briefThesis,
     position: v.briefPosition,
@@ -421,6 +444,7 @@ export function PieceCoreTab({
                 )
                   return null;
                 const origin = core.brief.origins?.[field] ?? 'model';
+                const decided = origin === 'model' && handedFields.has(field);
                 return (
                   <Fragment key={field}>
                     <dt className="cf-caption text-cf-ink-muted">
@@ -428,6 +452,7 @@ export function PieceCoreTab({
                     </dt>
                     <dd
                       data-brief-origin={origin}
+                      {...(decided ? { 'data-brief-decision': 'model' } : {})}
                       className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]"
                     >
                       {field === 'format'
@@ -444,13 +469,47 @@ export function PieceCoreTab({
                           )[value] ?? value
                         : value}{' '}
                       <span className="cf-caption text-cf-ink-muted">
-                        {`· ${originOfField(origin)}`}
+                        {`· ${
+                          decided ? i.originModelDecision : originOfField(origin)
+                        }`}
                       </span>
                     </dd>
                   </Fragment>
                 );
               })}
             </dl>
+            {decisions.length ? (
+              <div
+                data-piece-decisions="true"
+                className="flex min-w-0 flex-col gap-[8px]"
+              >
+                <p className="cf-caption text-cf-ink-muted">
+                  {i.receiptDecisions}
+                </p>
+                <ul className="flex min-w-0 flex-col gap-[8px]">
+                  {decisions.map((decision) => (
+                    <li
+                      key={decision.key}
+                      data-piece-decision={decision.key}
+                      data-brief-origin="model"
+                      className="flex min-w-0 flex-col gap-y-[4px]"
+                    >
+                      {decision.question ? (
+                        <span className="cf-caption text-cf-ink-muted [overflow-wrap:anywhere]">
+                          {decision.question}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
+                        {decision.text}{' '}
+                        <span className="cf-caption text-cf-ink-muted">
+                          {`· ${i.originModelDecision}`}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </Panel>
         ) : null}
 

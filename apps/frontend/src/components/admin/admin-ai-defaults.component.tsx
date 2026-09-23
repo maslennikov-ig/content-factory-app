@@ -13,6 +13,7 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
+import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { PageHeader } from '@contentfactory/react/layout';
@@ -65,6 +66,18 @@ export interface AdminAiDefaults {
   roleModels: Record<string, string>;
   searchTaskProviders: Record<string, string>;
   monthlyOperations: number | null;
+  /**
+   * Цепочка текстовых вызовов (`content-factory-next-97dq.55`): сохранённое
+   * здесь и то, чем цепочка работает на самом деле. Ответ старого сервера их
+   * не содержит, поэтому поля необязательные.
+   */
+  textFlexEnabled?: boolean | null;
+  textFallbackModel?: string | null;
+  textChain?: {
+    flex: boolean;
+    fallbackModel: string;
+    defaultFallbackModel: string;
+  };
   hasKey: boolean;
   searchKeys: Partial<Record<'tavily' | 'openrouter' | 'exa', boolean>>;
   /**
@@ -304,6 +317,9 @@ export interface AdminAiDefaultsForm {
   imageModel: string;
   monthlyOperations: string;
   searchApiKeys: Partial<Record<KeyedSearchProvider, string>>;
+  /** Необязательные: форма, собранная до цепочки, её не трогает. */
+  textFlexEnabled?: boolean;
+  textFallbackModel?: string;
 }
 
 /**
@@ -330,6 +346,13 @@ export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
     ...(Object.keys(searchApiKeys).length ? { searchApiKeys } : {}),
     ...(operations && Number.isFinite(Number(operations))
       ? { monthlyOperations: Math.max(0, Math.floor(Number(operations))) }
+      : {}),
+    ...(typeof form.textFlexEnabled === 'boolean'
+      ? { textFlexEnabled: form.textFlexEnabled }
+      : {}),
+    // Пустое — «вернуть запасную модель по умолчанию», как у полей моделей.
+    ...(form.textFallbackModel !== undefined
+      ? { textFallbackModel: form.textFallbackModel.trim() }
       : {}),
   };
 };
@@ -647,6 +670,41 @@ export function AdminAiDefaultsView({
             onChange({ imageModel: event.target.value })
           }
         />
+
+        {/*
+          Цепочка текстовых вызовов (`content-factory-next-97dq.55`). Флажок
+          сохраняется сразу, поле — по уходу из него, как модели выше.
+        */}
+        <div data-admin-ai-text-chain="true" className="flex flex-col gap-[4px]">
+          <CheckboxField
+            name="admin-ai-text-flex"
+            label={words.models.flexLabel}
+            checked={form.textFlexEnabled ?? true}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              onCommit({ textFlexEnabled: event.target.checked })
+            }
+          />
+          <p className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
+            {words.models.flexWhat}
+          </p>
+        </div>
+
+        <Input
+          label={words.models.fallbackLabel}
+          name="admin-ai-text-fallback-model"
+          disableForm={true}
+          value={form.textFallbackModel ?? ''}
+          placeholder={data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3'}
+          helper={
+            <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {words.models.fallbackWhat}
+            </span>
+          }
+          onBlur={() => onCommit()}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+            onChange({ textFallbackModel: event.target.value })
+          }
+        />
       </SettingsSection>
 
       <SettingsSection
@@ -765,6 +823,8 @@ export const AdminAiDefaultsComponent = () => {
     imageModel: '',
     monthlyOperations: '',
     searchApiKeys: {},
+    textFlexEnabled: true,
+    textFallbackModel: '',
   });
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState<'model' | KeyedSearchProvider | null>(
@@ -793,6 +853,10 @@ export const AdminAiDefaultsComponent = () => {
       monthlyOperations: String(
         effective?.monthlyOperations ?? data.monthlyOperations ?? ''
       ),
+      textFlexEnabled: data.textChain?.flex ?? data.textFlexEnabled ?? true,
+      // Пустое поле показывает значение по умолчанию подсказкой, а не
+      // вписывает его: иначе следующее сохранение закрепило бы его здесь.
+      textFallbackModel: data.textFallbackModel ?? '',
     }));
   }, [data]);
 

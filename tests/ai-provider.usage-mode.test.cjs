@@ -394,5 +394,22 @@ test('schema adds a compatible mode, zero quota and privacy-safe ledger', () => 
   expect(ledger).toContain('organizationId');
   expect(ledger).toContain('operation');
   expect(ledger).toContain('status');
-  expect(ledger).not.toMatch(/prompt|output|error|payload|token|cost/i);
+  /**
+   * Privacy: the ledger holds counts, never content. Since
+   * `content-factory-next-97dq.55` it carries token counts and cost, so the
+   * names may mention them. A field named after a prompt, a token or a cost
+   * must still be a number, which cannot carry a prompt's text. Output, error
+   * and payload stay out entirely.
+   */
+  const fields = ledger
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('//') && !line.startsWith('@@'))
+    .map((line) => line.split(/\s+/));
+  for (const [name, type] of fields) {
+    expect(name).not.toMatch(/output|error|payload/i);
+    if (/prompt|token|cost/i.test(name)) {
+      expect(type).toMatch(/^(Int|Decimal)\?$/);
+    }
+  }
 });

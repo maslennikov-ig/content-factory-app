@@ -324,13 +324,31 @@ const briefBlock = (state: WorkflowChannelsState): string => {
   const material = state.intake?.material || [];
   const checkedMaterial = material.filter((item) => item.checked === true);
   const uncheckedMaterial = material.filter((item) => item.checked !== true);
+  /*
+    Предложение модели — не слово автора (`97dq.56`). Поле, которое модель
+    предложила сама или решила по «Решите за меня», подписано здесь как её
+    предложение: адаптация строит по нему угол, адресата и вывод, но не
+    цитирует его и не выдаёт за опыт автора. Без происхождений (подсказки до
+    этой волны) строки читаются ровно как прежде.
+  */
+  const origins = brief.origins ?? {};
+  const proposed = (field: keyof typeof origins) =>
+    origins[field] === 'model' ? " (the model's proposal, not the author's words)" : '';
+  const anyProposed = (
+    ['thesis', 'position', 'disagreement', 'audience', 'goal'] as const
+  ).some((field) => origins[field] === 'model' && Boolean(brief[field]));
   return [
     'Brief (from the author, follow it):',
-    `- Claim: ${brief.thesis ?? ''}`,
-    `- The author's position: ${brief.position ?? ''}`,
-    `- Who would disagree and why: ${brief.disagreement ?? ''}`,
-    `- Written for: ${brief.audience ?? ''}`,
-    ...(brief.goal ? [`- What the post has to do: ${brief.goal}`] : []),
+    `- Claim${proposed('thesis')}: ${brief.thesis ?? ''}`,
+    `- The author's position${proposed('position')}: ${brief.position ?? ''}`,
+    `- Who would disagree and why${proposed('disagreement')}: ${brief.disagreement ?? ''}`,
+    `- Written for${proposed('audience')}: ${brief.audience ?? ''}`,
+    ...(brief.goal ? [`- What the post has to do${proposed('goal')}: ${brief.goal}`] : []),
+    ...(anyProposed
+      ? [
+          "Lines marked «the model's proposal» are editorial decisions, not the author's words or experience: use them for the angle, the structure, the reader and the conclusion; never quote them as the author's, never write them as something the author lived, and never add a case, number or quote to them.",
+        ]
+      : []),
     ...(takeaway ? [takeawayHintLine(takeaway)] : []),
     // Ответы на вопросы модели перед адаптацией (`97dq.44`): направление.
     ...adaptationInterviewBlock(state.intake?.interview || []),

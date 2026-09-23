@@ -481,6 +481,11 @@ model Integration {
   /// провайдера. Это не то же самое, что сохранённая карточка с теми же
   /// значениями: дверь «Вернуть умолчания» возвращает именно `NULL`.
   writingProfile        Json?
+  /// Как адаптации этого канала встают в календарь (`content-factory-next-97dq.57`):
+  /// `draft` — «Без плана», `reserve` — «Бронь», `autopilot` — «Автопилот».
+  /// `NULL` читается как `reserve` — умолчание для всех каналов. Своя колонка,
+  /// а не `additionalSettings`: те рисует экран провайдера.
+  planMode              String?
   exisingPlugData       ExisingPlugData[]
   customer              Customer?                      @relation(fields: [customerId], references: [id])
   organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -702,6 +707,12 @@ model InstanceAiDefaults {
   /// Сколько операций в месяц получает область без строки подписки. NULL —
   /// брать из `AI_INCLUDED_MONTHLY_OPERATIONS`; ноль означает отказ.
   monthlyOperations   Int?
+  /// Цепочка текстовых вызовов (`content-factory-next-97dq.55`). NULL — flex
+  /// включён: flex → flex → обычный уровень → запасная модель.
+  textFlexEnabled     Boolean?
+  /// Запасная модель последней попытки. NULL или пусто — `z-ai/glm-5.3`
+  /// (`DEFAULT_TEXT_FALLBACK_MODEL`).
+  textFallbackModel   String?
   /// Кто менял последним — для чтения таблицы человеком во время разбора.
   updatedByUserId     String?
   createdAt           DateTime @default(now())
@@ -1631,6 +1642,17 @@ model ContentDerivation {
   /// `[organizationId, postId]`. Колонка оставлена, потому что снос колонки —
   /// отдельный план миграции, а лишний столбец никому не мешает.
   state                 String                      @default("DRAFT")
+  /// Режим канала, с которым эта версия встала в календарь (`97dq.57`):
+  /// `draft` | `reserve` | `autopilot`. `autopilot` вместе с постом в `QUEUE` —
+  /// метка «поставил автопилот» (для списка отката и подсказки на экране).
+  /// `NULL` — версия до волны.
+  plan                  String?
+  /// Почему автопилот не поставил версию в очередь: она осталась бронью.
+  planNote              String?
+  /// Когда человек выбрал эту версию для слота. Держатель слота канала —
+  /// живая версия с наибольшим `plannedAt ?? createdAt`; черновики остальных
+  /// версий календарь не показывает (`adaptation-plan.ts`).
+  plannedAt             DateTime?
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
   organization          Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -2063,8 +2085,29 @@ model AiUsageRecord {
   /// countable; a null reads as «recorded before roles», not as a role.
   role           String?
   provider       String
+  /// Admission writes the model the operation was routed to. Finishing
+  /// overwrites it with the model that actually answered, which after a
+  /// fallback is a different one (`content-factory-next-97dq.55`).
   model          String?
   status         AiUsageStatus @default(admitted)
+  /// What the provider reported for this operation
+  /// (`content-factory-next-97dq.55`). Summed over the operation's calls.
+  /// NULL when no call was served or the provider did not report the field;
+  /// rows written before the columns existed are NULL as well.
+  promptTokens     Int?
+  completionTokens Int?
+  /// Part of `completionTokens`, not added to it.
+  reasoningTokens  Int?
+  /// Part of `promptTokens`, not added to it.
+  cachedTokens     Int?
+  /// The tier that served the call furthest down the chain: `flex`,
+  /// `default`, … as the provider names it.
+  serviceTier      String?
+  /// 1-based attempt that answered, the highest among the operation's calls:
+  /// flex, flex, standard, fallback model when flex is on.
+  attempt          Int?
+  /// OpenRouter's `usage.cost`, in USD. Exact decimal, because it is money.
+  costUsd          Decimal?      @db.Decimal(14, 8)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

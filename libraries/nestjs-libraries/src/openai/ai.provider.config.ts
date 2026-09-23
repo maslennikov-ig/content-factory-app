@@ -17,6 +17,10 @@ import {
   parseSearchTaskProviders,
   readSearchProvider,
 } from '@contentfactory/nestjs-libraries/openai/ai.search-tasks';
+import {
+  TextChainSettings,
+  resolveTextChainSettings,
+} from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 
 /**
  * One place that decides which language-model provider an organization talks
@@ -28,7 +32,7 @@ import {
  *
  * OpenRouter is wire-compatible with the OpenAI API, so the same clients work
  * against it once the base URL and the model ids change; model ids there are
- * namespaced (`openai/gpt-5.6-luna` rather than `gpt-4.1`).
+ * namespaced (`openai/gpt-6-luna` rather than `gpt-4.1`).
  *
  * The explicit usage mode chooses exactly one source. `workspace_key` decrypts
  * only this organization's key; `included` reads only the server-managed
@@ -105,6 +109,13 @@ export interface AiConfig {
   workspaceSearchKeys: Partial<Record<SearchProvider, boolean>>;
   includedAvailable: boolean;
   search: WebSearchConfig;
+  /**
+   * The operator's text chain: flex on or off, and the fallback model
+   * (`content-factory-next-97dq.55`). It is read only where the chain
+   * applies — `included` on OpenRouter (`ai.text-chain.ts`). Optional so a
+   * configuration built without it reads as the defaults.
+   */
+  textChain?: TextChainSettings;
 }
 
 const readJson = (raw: string | undefined, name: string): unknown => {
@@ -229,7 +240,9 @@ const resolvedSearch = (
 
 const DEFAULT_MODELS: Record<AiProvider, { text: string; image: string }> = {
   openai: { text: 'gpt-4.1', image: 'chatgpt-image-latest' },
-  openrouter: { text: 'openai/gpt-5.6-luna', image: 'openai/gpt-5-image' },
+  // `content-factory-next-97dq.55`: Luna 6 on the text side. The image model
+  // is unchanged.
+  openrouter: { text: 'openai/gpt-6-luna', image: 'openai/gpt-5-image' },
 };
 
 /** Operator-level non-secret defaults for included mode. */
@@ -306,6 +319,10 @@ export interface StoredInstanceAiDefaults {
   searchApiKeys?: unknown;
   searchTaskProviders?: unknown;
   monthlyOperations?: number | null;
+  /** NULL — flex on (`DEFAULT_TEXT_FLEX_ENABLED`). */
+  textFlexEnabled?: boolean | null;
+  /** NULL or empty — `DEFAULT_TEXT_FALLBACK_MODEL`. */
+  textFallbackModel?: string | null;
 }
 
 /** The single row's primary key. A constant, so the table cannot hold two. */
@@ -464,6 +481,7 @@ const operatorDefaults = (instance: StoredInstanceAiDefaults | null) => {
         ? env.imageModel
         : DEFAULT_MODELS[provider].image),
     roleModels: Object.keys(storedRoles).length ? storedRoles : env.roleModels,
+    textChain: resolveTextChainSettings(instance),
   };
 };
 

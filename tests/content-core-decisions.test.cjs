@@ -1,0 +1,311 @@
+'use strict';
+
+/**
+ * «Решите за меня» — решение, а не факт (`content-factory-next-97dq.56`).
+ *
+ * Решение владельца 23.09.2026, двенадцатый заход, `cnt-32`: отданный модели
+ * вопрос получает решение — угол, адресат, вывод, строение, объяснение за
+ * утверждением человека — с пометкой «решили мы»; опыт, случаи, цитаты
+ * и числа автора модель не придумывает. Суть развивает сказанное, а не
+ * сжимается до минимума.
+ *
+ * Здесь чистые части: промпты `core-write/v11` и `intake-brief-fill/v10`,
+ * проверка решений и один ход `writeCoreWithDecisions` на подделанной модели.
+ * Поток двери ответов — в `content-pieces.service.test.cjs`. Платных вызовов нет.
+ */
+
+require('reflect-metadata');
+const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+
+const base = 'libraries/nestjs-libraries/src/content-intelligence';
+let responses = [];
+const modelCalls = [];
+const mocks = {
+  '@contentfactory/nestjs-libraries/openai/ai.clients': {
+    getChatModel: async (_org, _temp, _limit, role) => ({
+      withStructuredOutput: () => ({
+        invoke: async (prompt) => {
+          modelCalls.push({ role, prompt });
+          const value = responses.shift();
+          if (value instanceof Error) throw value;
+          if (!value) throw new Error('Unexpected model call');
+          return value;
+        },
+      }),
+    }),
+  },
+};
+
+const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
+const v11 = loadWithMocks(`${base}/pieces/core-write-prompt.v11.ts`);
+const v9 = loadWithMocks(`${base}/pieces/core-write-prompt.v9.ts`);
+const fill10 = loadWithMocks(`${base}/intake/intake.prompts.v10.ts`);
+const fill9 = loadWithMocks(`${base}/intake/intake.prompts.v9.ts`);
+
+/** Вход `cnt-32` дословно. */
+const CNT32_INPUT =
+  'Я заметил, что команда пишет в чат меньше, когда задачи лежат на общей доске.\n\nВопросов «кто это делает» почти не осталось, и созвонов по статусу стало вдвое меньше.\n\nХочу рассказать, как мы к этому пришли.';
+
+const cnt32Brief = (origins = { thesis: 'input', position: 'input', audience: 'avatar' }) => ({
+  inputKind: 'thought',
+  thesis: 'Общая доска задач помогает команде меньше писать в чат.',
+  position: 'Я заметил, что команда пишет в чат меньше, когда задачи лежат на общей доске.',
+  disagreement: 'С этим могут спорить руководители команд.',
+  audience: 'Подписчики автора, которые управляют командами.',
+  origins,
+  ungrounded: [],
+  facts: [
+    { statement: 'Созвонов по статусу стало вдвое меньше.', sourceUrl: null, factId: null,
+      evidenceId: null, origin: 'input', kind: 'own', verified: false, status: 'unverified' },
+  ],
+});
+
+const PERSON_ANSWERS = [
+  { key: 'ask-2', question: 'Как команда работала с задачами до того, как они оказались на общей доске?',
+    text: 'У каждого был свой задачник, кто-то в общем пытался. Было неудобно.',
+    origin: 'person', step: 'core', answeredAt: '2026-09-23T12:57:39.184Z' },
+  { key: 'ask-4', question: 'Что в результате этого изменения удивило вас сильнее всего?',
+    text: 'Выросший КПД.', origin: 'person', step: 'core', answeredAt: '2026-09-23T12:57:39.184Z' },
+];
+
+const DELEGATED = [
+  { key: 'ask-1', question: 'Как выглядела конкретная рабочая ситуация, в которой вы впервые заметили перемену?', authorMaterial: true },
+  { key: 'ask-3', question: 'Что именно вы изменили в работе с общей доской?', authorMaterial: true },
+];
+
+const input = (overrides = {}) => ({
+  organizationId: 'org',
+  language: 'ru',
+  brief: cnt32Brief(),
+  answers: PERSON_ANSWERS,
+  questionTextByKey: {},
+  personText: CNT32_INPUT,
+  borrowed: null,
+  foreignShingles: [],
+  ...overrides,
+});
+
+describe('core-write/v11', () => {
+  test('своя версия, v9 и v10 остаются для квитанций', () => {
+    const prompt = coreWrite.corePrompt(input());
+    expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
+    expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
+    expect(
+      loadWithMocks(`${base}/pieces/core-write-prompt.v10.ts`).CORE_WRITE_PROMPT_VERSION
+    ).toBe('core-write/v10');
+  });
+
+  test('правило короткой сути заменено на «развивай каждый ответ и цель»', () => {
+    const prompt = coreWrite.corePrompt(input());
+    expect(prompt).not.toContain('если слов человека мало — суть короткая');
+    expect(prompt).not.toContain('три предложения — нормальная суть');
+    expect(prompt).toContain('4) развивай сказанное, а не сжимай его');
+    expect(prompt).toContain('каждый ответ человека получает своё место в тексте');
+    expect(prompt).toContain('заявленная им цель задаёт строение');
+    expect(prompt).toContain('Длина следует за материалом и решениями');
+    // Цель «хочу рассказать, как…» — задача текста, а не служебное, которое выбрасывают.
+    expect(prompt).toContain('Заявленная цель («хочу рассказать, как мы к этому пришли») — не слова для текста, а то, что текст обязан сделать');
+  });
+
+  test('гарантии v9 о словах человека на месте, выдумка по-прежнему запрещена', () => {
+    const prompt = coreWrite.corePrompt(input());
+    expect(prompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
+    expect(prompt).toContain('Не меняется: смысл, оценки и позиция');
+    expect(prompt).toContain('числа, которого нет во входе, не пиши');
+    expect(prompt).toContain('случай, пример, цитату, источник и опыт, которых не было, не выдумывай');
+    expect(prompt).toContain('суть держит позицию человека и не спорит с ней');
+  });
+
+  test('ответы человека — материалом, решения модели — своим подписанным блоком', () => {
+    const decision = {
+      key: 'ask-1', question: DELEGATED[0].question, origin: 'model', step: 'core',
+      text: 'Без конкретного эпизода: текст объясняет, почему при общей доске вопросы о статусе отпадают.',
+      answeredAt: '2026-09-23T12:57:39.184Z',
+    };
+    const prompt = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, decision] }));
+    const words = v11.CORE_WRITE_BLOCK_TITLES_V11.ru;
+    const block = (title) => {
+      const start = prompt.indexOf(title);
+      return start < 0 ? '' : prompt.slice(start, prompt.indexOf('--- BLOCK END ---', start));
+    };
+    expect(block(words.answers)).toContain('У каждого был свой задачник');
+    expect(block(words.answers)).toContain('Выросший КПД.');
+    expect(block(words.answers)).not.toContain('Без конкретного эпизода');
+    expect(prompt).toContain('РЕШЕНИЯ МОДЕЛИ (человек отдал эти вопросы модели; редакторский выбор, не слова и не опыт человека)');
+    expect(block(words.decisions)).toContain(`${DELEGATED[0].question} → Без конкретного эпизода`);
+    // Пустое «Реши сама» (заготовки до v11) блока не заводит.
+    const empty = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, { ...decision, text: '' }] }));
+    expect(empty).not.toContain(words.decisions);
+  });
+
+  test('поле брифа, предложенное моделью, подписано как её предложение', () => {
+    const prompt = coreWrite.corePrompt(input({ brief: cnt32Brief({ thesis: 'input', position: 'model', audience: 'avatar' }) }));
+    expect(prompt).toContain('позиция (предложение модели): Я заметил');
+    expect(prompt).not.toContain('тезис (предложение модели)');
+    expect(prompt).not.toContain('адресат (предложение модели)');
+  });
+
+  test('отданные вопросы: блок с ключами и правило решения — только когда они есть', () => {
+    const without = coreWrite.corePrompt(input());
+    expect(without).not.toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
+    expect(without).not.toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+
+    const prompt = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    expect(prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ (реши сама; ответ — в decisions под тем же ключом)');
+    expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (о материале автора: только рамка, без выдуманного случая)`);
+    expect(prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+  });
+
+  test('вопрос о факте автора решается рамкой: правило запрещает выдумывать случай от первого лица', () => {
+    for (const language of ['ru', 'en']) {
+      const rule = v11.CORE_WRITE_DELEGATED_V11[language];
+      if (language === 'ru') {
+        expect(rule).toContain('Этого ты не знаешь и не придумываешь');
+        expect(rule).toContain('Решение по такому вопросу — рамка');
+        expect(rule).toContain('Ни одно решение не пишется от первого лица как пережитое');
+        expect(rule).toContain('не несёт чисел, имён, дат, цитат и источников, которых нет во входе');
+        // Пример в правиле — рамка, а не случай от первого лица.
+        expect(rule).toContain('«Без конкретного эпизода: текст объясняет');
+        expect(rule).not.toMatch(/«(?:Я|Мы|У нас)\s/u);
+        expect(rule).not.toMatch(/опиши (?:случай|эпизод)|придумай/iu);
+      } else {
+        expect(rule).toContain('You do not know it and you do not invent it');
+        expect(rule).toContain('The decision on such a question is a framing');
+        expect(rule).toContain('No decision is written in the first person as something lived');
+        expect(rule).not.toMatch(/«(?:I|We|Our)\s/u);
+      }
+    }
+    const base = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    expect(base).toContain('не пиши их от первого лица как пережитое');
+  });
+
+  test('английская сторона на месте', () => {
+    const prompt = coreWrite.corePrompt(input({ language: 'en', delegated: DELEGATED }));
+    expect(prompt).toContain('4) develop what was said instead of shrinking it');
+    expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL');
+    expect(prompt).toContain('about the author’s material: a framing only, never an invented case');
+    expect(prompt).not.toContain('if the person gave few words, the core is short');
+  });
+});
+
+describe('coreDecisionsOf', () => {
+  const grounded = [CNT32_INPUT, 'Выросший КПД.'];
+  test('только отданные ключи, по одному на ключ, одной строкой', () => {
+    expect(
+      coreWrite.coreDecisionsOf(
+        [
+          { key: 'ask-1', text: '  Рамка:\nтекст объясняет механизм.  ' },
+          { key: 'ask-1', text: 'второе решение по тому же ключу' },
+          { key: 'ask-9', text: 'не отдавали' },
+          { key: 'ask-3', text: '   ' },
+        ],
+        DELEGATED,
+        grounded
+      )
+    ).toEqual([{ key: 'ask-1', text: 'Рамка: текст объясняет механизм.' }]);
+  });
+
+  test('число, которого нет во входе, выбрасывает решение целиком', () => {
+    expect(
+      coreWrite.coreDecisionsOf(
+        [
+          { key: 'ask-1', text: 'Команда сократила переписку на 40 процентов.' },
+          { key: 'ask-3', text: 'Текст опирается на то, что созвонов стало вдвое меньше.' },
+        ],
+        DELEGATED,
+        grounded
+      )
+    ).toEqual([{ key: 'ask-3', text: 'Текст опирается на то, что созвонов стало вдвое меньше.' }]);
+    expect(coreWrite.coreDecisionsOf([{ key: 'ask-1', text: 'В 2024 году…' }], DELEGATED, ['Было в 2024 году.'])).toHaveLength(1);
+  });
+
+  test('не массив — решений нет', () => {
+    expect(coreWrite.coreDecisionsOf(null, DELEGATED, grounded)).toEqual([]);
+  });
+});
+
+describe('writeCoreWithDecisions', () => {
+  const deps = {
+    aiUsage: { executeAiOperation: async (_org, _op, run) => run() },
+    slopCheck: null,
+  };
+  beforeEach(() => {
+    responses = [];
+    modelCalls.length = 0;
+  });
+
+  test('решения приходят тем же вызовом, что и суть', async () => {
+    responses = [{
+      text: 'Суть по cnt-32.',
+      decisions: [
+        { key: 'ask-1', text: 'Без конкретного эпизода: текст объясняет, почему вопросы о статусе отпадают.' },
+        { key: 'ask-3', text: 'Текст показывает переход от личных задачников к одной доске.' },
+      ],
+    }];
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({ delegated: DELEGATED }), deps);
+    expect(modelCalls).toHaveLength(1);
+    expect(core.text).toBe('Суть по cnt-32.');
+    expect(core.writtenBy).toBe('model');
+    expect(decisions.map((decision) => decision.key)).toEqual(['ask-1', 'ask-3']);
+    // Решение модели числом автора не становится.
+    expect(core.authorNumbers).toBe(false);
+  });
+
+  test('без модели решений нет: запасная суть решать за человека не умеет', async () => {
+    responses = [new Error('provider down')];
+    const { core, decisions } = await coreWrite.writeCoreWithDecisions(input({ delegated: DELEGATED }), deps);
+    expect(core.writtenBy).toBe('fallback');
+    expect(decisions).toEqual([]);
+  });
+
+  test('writeCore по-прежнему возвращает только суть', async () => {
+    responses = [{ text: 'Суть.', decisions: [] }];
+    const core = await coreWrite.writeCore(input(), deps);
+    expect(core.text).toBe('Суть.');
+  });
+});
+
+describe('intake-brief-fill/v10', () => {
+  const promptInput = (overrides = {}) => ({
+    language: 'ru',
+    material: CNT32_INPUT,
+    materialKind: 'thought',
+    fixed: [],
+    avatar: [],
+    channel: [],
+    facts: [],
+    evidence: [],
+    ...overrides,
+  });
+
+  test('v9 целиком, со своей версией; без отданных полей блока нет', () => {
+    const prompt = fill10.briefFillPromptV10(promptInput());
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
+    expect(prompt).not.toContain('PROMPT VERSION: intake-brief-fill/v9');
+    expect(prompt.replace('intake-brief-fill/v10', 'intake-brief-fill/v9')).toBe(
+      fill9.briefFillPromptV9(promptInput())
+    );
+    expect(prompt).not.toContain('Handed to the model');
+    // Форма ответа — v9: ни нового разбора, ни второго вызова.
+    expect(Object.keys(fill10.briefFillSchemaV10.shape)).toEqual(
+      Object.keys(fill9.briefFillSchemaV9.shape)
+    );
+  });
+
+  test.each(['thought', 'borrowed', 'instruction'])(
+    '%s: отданные поля названы, решение — не опыт человека, и стоит до правил интервью',
+    (materialKind) => {
+      const prompt = fill10.briefFillPromptV10(
+        promptInput({ materialKind, decided: ['position', 'audience', 'position'] })
+      );
+      for (const rule of fill10.DECIDED_RULES_V10) expect(prompt).toContain(rule);
+      expect(prompt).toContain('Handed to the model («Decide for me»; decide these yourself):\n- position\n- audience\n');
+      expect(prompt).toContain('never leave a handed field null');
+      expect(prompt).toContain('Never write a decision in the first person as something the person lived');
+      expect(prompt.indexOf('Handed to you («Decide for me»)')).toBeLessThan(
+        prompt.indexOf('Interview (`questions`)')
+      );
+    }
+  );
+});

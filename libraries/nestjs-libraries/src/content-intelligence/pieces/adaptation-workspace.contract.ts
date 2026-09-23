@@ -14,6 +14,7 @@
 
 import type {
   AdaptationV1,
+  ChannelPlanModeV1,
   PieceAdaptOverridesV1,
 } from '../brand-voice/voice-wiring.contract';
 import { PIECES_API_BASE } from '../brand-voice/voice-wiring.contract';
@@ -38,6 +39,15 @@ export const PIECE_ADAPTATION_WORKSPACE_ROUTES = {
     method: 'POST',
     path: (pieceId: string, adaptationId: string) =>
       `${PIECES_API_BASE}/${pieceId}/adaptations/${adaptationId}/unschedule`,
+  },
+  /**
+   * `POST` — «Поставить на ЧЧ:ММ» из календаря (`97dq.57`): версия встаёт на
+   * время по режиму канала.
+   */
+  place: {
+    method: 'POST',
+    path: (pieceId: string, adaptationId: string) =>
+      `${PIECES_API_BASE}/${pieceId}/adaptations/${adaptationId}/place`,
   },
 } as const;
 
@@ -78,6 +88,33 @@ export type PieceAdaptationScheduleResponseV1 = {
 };
 
 /**
+ * «Поставить на ЧЧ:ММ» (`97dq.57`): `date` — ISO, не в прошлом. Версия
+ * становится держателем слота своей заготовки в канале и встаёт на время по
+ * режиму канала: «Бронь» — «в плане», «Автопилот» — в очередь (после той же
+ * проверки площадки, что у «Запланировать»), «Без плана» — черновик с этим
+ * временем. Уже запланированная версия переносится и остаётся в очереди.
+ */
+export type PieceAdaptationPlaceRequestV1 = {
+  date: string;
+};
+
+export type PieceAdaptationPlacementV1 = {
+  /** Режим канала на момент постановки. */
+  mode: ChannelPlanModeV1;
+  status: 'reserved' | 'queued' | 'draft';
+  /** ISO — время, на котором версия стоит теперь. */
+  date: string;
+  autopilot: boolean;
+  /** Почему автопилот не поставил в очередь (версия осталась бронью). */
+  note: string | null;
+};
+
+export type PieceAdaptationPlaceResponseV1 = {
+  adaptation: AdaptationV1;
+  placement: PieceAdaptationPlacementV1;
+};
+
+/**
  * Отказы двух дверей. Тело отказа — то же, что у остальных дверей заготовки:
  * `{ code, message, subject? }`, `message` — на языке `?language=`.
  */
@@ -98,6 +135,11 @@ export const ADAPTATION_WORKSPACE_ERROR_CODES = {
   ADAPTATION_SCHEDULE_INVALID: { status: 422 },
   /** Сервер собран без календаря (наборы, воркеры). */
   ADAPTATION_SCHEDULE_UNAVAILABLE: { status: 503 },
+  /**
+   * Другая версия этой заготовки в канале уже в очереди и выходит через две
+   * минуты или раньше: вторая очередь выпустила бы заготовку дважды (`97dq.57`).
+   */
+  ADAPTATION_QUEUE_BUSY: { status: 409 },
 } as const;
 
 export type AdaptationWorkspaceErrorCodeV1 =
@@ -140,6 +182,10 @@ export const ADAPTATION_WORKSPACE_MESSAGES: Record<
   ADAPTATION_SCHEDULE_UNAVAILABLE: {
     ru: 'Календарь сейчас недоступен. Черновик сохранён — попробуйте ещё раз.',
     en: 'The calendar is unavailable right now. The draft is saved — try again.',
+  },
+  ADAPTATION_QUEUE_BUSY: {
+    ru: 'Другая версия этой заготовки уже выходит в этом канале. Дождитесь её выхода или выберите время позже.',
+    en: 'Another version of this piece is about to go out in this channel. Wait for it, or pick a later time.',
   },
 };
 

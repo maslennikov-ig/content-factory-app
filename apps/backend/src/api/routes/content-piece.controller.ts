@@ -31,6 +31,7 @@ import {
   PiecesQueryDto,
   ReadyAdaptationsQueryDto,
   PieceAdaptationEditDto,
+  PieceAdaptationPlaceDto,
   PieceAdaptationScheduleDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
@@ -580,6 +581,42 @@ export class ContentPieceController {
         language === 'ru'
           ? 'Пост не удалось поставить в очередь.'
           : 'The post could not be queued.'
+      );
+    }
+  }
+
+  /**
+   * «Поставить на ЧЧ:ММ» из календаря (`97dq.57`): версия встаёт на время
+   * по режиму канала. Политики — как у «Запланировать»: автопилот ставит в
+   * очередь, а очередь считается в тарифный месяц.
+   */
+  @Post('/:id/adaptations/:adaptationId/place')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Update, Sections.EDITOR]
+  )
+  async placeAdaptation(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('adaptationId') adaptationId: string,
+    @Body() body: PieceAdaptationPlaceDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.placeAdaptation(
+        organization.id,
+        id,
+        adaptationId,
+        body ?? ({} as PieceAdaptationPlaceDto),
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Адаптацию не удалось поставить на это время.'
+          : 'The adaptation could not be placed at this time.'
       );
     }
   }

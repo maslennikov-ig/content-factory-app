@@ -245,6 +245,49 @@ describe('the brief and the channel reach the prompt', () => {
   });
 
   /**
+   * Предложение модели — не слово автора (`content-factory-next-97dq.56`):
+   * поле брифа, которое модель предложила или решила по «Решите за меня»,
+   * доезжает до адаптации подписанным как предложение.
+   */
+  test('a model-origin brief field is labelled as the model’s proposal, the author’s field is not', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+
+    await service.generateContent(
+      withHints({
+        intake: {
+          brief: {
+            ...hints().brief,
+            origins: { thesis: 'input', position: 'model', audience: 'avatar', disagreement: 'model' },
+          },
+        },
+      })
+    );
+    const prompt = chatModel.prompts[0];
+
+    expect(prompt).toContain('- Claim: Каналу нужен один пост в неделю, а не пять');
+    expect(prompt).toContain(
+      "- The author's position (the model's proposal, not the author's words): Частота без темы не удерживает читателя"
+    );
+    expect(prompt).toContain(
+      "- Who would disagree and why (the model's proposal, not the author's words): Маркетологи"
+    );
+    expect(prompt).toContain('- Written for: Владельцы небольших каналов');
+    expect(prompt).toContain(
+      "Lines marked «the model's proposal» are editorial decisions, not the author's words or experience"
+    );
+    expect(prompt).toContain('never write them as something the author lived');
+  });
+
+  test('without origins the brief reads exactly as before', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+
+    await service.generateContent(withHints());
+    expect(chatModel.prompts[0]).not.toContain("the model's proposal");
+  });
+
+  /**
    * «Свои тексты по теме» (`content-factory-next-m2eg.19`, решение владельца
    * 07.09.2026): «нам это нужно сразу сделать, чтобы модель научилась на них
    * ссылаться».

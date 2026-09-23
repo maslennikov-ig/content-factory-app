@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); } a:hover { color: var(--cf-accent-hover, #96C551); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: 'zero'; }
+    .cap { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; line-height: 1.35; letter-spacing: .02em; color: var(--cf-ink-muted); }
+    .lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .04em; color: var(--cf-ink-muted); text-transform: uppercase; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; cursor: pointer; white-space: nowrap; box-sizing: border-box; }
+    .btn.dense { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn.icon { width: 40px; padding: 0; }
+    .btn.icon.dense { width: 32px; }
+    .primary { background: var(--cf-accent); color: var(--cf-accent-ink); border: 1px solid transparent; }
+    .secondary { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); }
+    .quiet { background: transparent; color: var(--cf-ink); border: 1px solid transparent; }
+    .panel { background: var(--cf-surface); border: 1px solid var(--cf-border); border-radius: 8px; box-sizing: border-box; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--cf-border); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--cf-ink); background: var(--cf-surface-raised); }
+    .chip.new { border-color: var(--cf-signature); color: var(--cf-signature); background: transparent; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); }
+    .seg span { padding: 5px 12px; border-radius: 6px; font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border: 1px solid transparent; white-space: nowrap; }
+    .seg span.on { background: var(--cf-surface-raised); color: var(--cf-ink); border-color: var(--cf-border-strong); }
+    .input { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink-muted); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .input.val { color: var(--cf-ink); }
+    .h1 { font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -0.02em; }
+    .h2 { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .body { font-size: 16px; line-height: 1.55; }
+    .sm { font-size: 13px; line-height: 1.45; }
+    .muted { color: var(--cf-ink-muted); }
+    .cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; flex: none; }
+    .cell.draft { background: var(--cf-info-soft); color: var(--cf-info); border: 1px solid var(--cf-info); }
+    .cell.done { background: var(--cf-accent-soft); color: var(--cf-accent); border: 1px solid var(--cf-accent); }
+    .cell.none { color: var(--cf-ink-muted); border: 1px dashed var(--cf-border-strong); }
+    .tab { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border-bottom: 2px solid transparent; box-sizing: border-box; white-space: nowrap; }
+    .tab.on { color: var(--cf-ink); border-bottom-color: var(--cf-accent); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .sketch { border: 1.5px dashed var(--cf-border-strong); border-radius: 8px; box-sizing: border-box; }
+    .bar { height: 10px; border-radius: 4px; background: var(--cf-surface-subtle); }
+    ins { text-decoration: none; background: var(--cf-accent-soft); color: var(--cf-ink); border-bottom: 1px solid var(--cf-accent); padding: 0 2px; }
+    del { color: var(--cf-danger); text-decoration: line-through; }
+    ul.l { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .sel { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; white-space: nowrap; }
+    .sel .d { color: var(--cf-ink-muted); }
+    .sel.changed { border-color: var(--cf-signature); }
+    .danger-q { background: transparent; color: var(--cf-danger); border: 1px solid transparent; }
+    .dim { position: absolute; inset: 0; background: rgba(8,9,6,.62); }
+    .modal { position: absolute; background: var(--cf-surface); border: 1px solid var(--cf-border-strong); border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,.45); box-sizing: border-box; }
+    .slot-empty { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border: 1px dashed var(--cf-border-strong); border-radius: 8px; color: var(--cf-ink-muted); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .card { display: flex; flex-direction: column; border: 1px solid var(--cf-border); border-radius: 8px; background: var(--cf-surface-subtle); overflow: hidden; box-sizing: border-box; }
+    .band { height: 4px; }
+    .band.draft { background: var(--cf-info); }
+    .band.sched { background: var(--cf-accent); }
+    .band.pub { background: var(--cf-signature); }
+    .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 5px; font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .02em; }
+    .pill.draft { color: var(--cf-info); background: var(--cf-info-soft); }
+    .pill.sched { color: var(--cf-accent); background: var(--cf-accent-soft); }
+    .pill.pub { color: var(--cf-signature); background: var(--cf-warning-soft); }
+    .tg { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--cf-info); color: var(--cf-ink-inverse); flex: none; }
+    .nav a { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: var(--cf-ink-muted); text-decoration: none; font: 500 14px/1.3 Geologica, system-ui, sans-serif; }
+    .nav a.on { background: var(--cf-navigation-active); color: var(--cf-ink); }
+    .srow { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--cf-border); }
+    .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; font-size: 13px; }
+    .kv span:nth-child(2n) { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--cf-ink-muted); text-align: right; }
+    .ta { min-height: 88px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .pill.plan { color: var(--cf-info); background: transparent; border: 1px dashed var(--cf-info); }
+    .band.plan { background: repeating-linear-gradient(90deg, var(--cf-info) 0 6px, transparent 6px 10px); }
+    .av { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font: 600 10px/1 Geologica, system-ui, sans-serif; color: var(--cf-ink-inverse); flex: none; box-shadow: 0 0 0 2px var(--cf-surface); }
+    .note-box { padding: 12px 14px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); font-size: 13px; line-height: 1.5; color: var(--cf-ink-muted); }
+    .ok-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 8px; background: var(--cf-accent-soft); border: 1px solid var(--cf-accent); color: var(--cf-ink); font-size: 14px; }
+    .split { display: inline-flex; align-items: stretch; height: 40px; border-radius: 8px; overflow: hidden; background: var(--cf-accent); color: var(--cf-accent-ink); font: 500 14px/1.3 Geologica, system-ui, sans-serif; }
+    .split > span { display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; white-space: nowrap; }
+    .split > span + span { padding: 0 12px; border-inline-start: 1px solid color-mix(in oklab, var(--cf-accent-ink) 35%, transparent); }
+    .split.sec { background: var(--cf-surface); color: var(--cf-ink); box-shadow: inset 0 0 0 1px var(--cf-border-control); }
+    .split.sec > span + span { border-inline-start-color: var(--cf-border-control); }
+    .range { position: relative; height: 4px; border-radius: 2px; background: var(--cf-surface-subtle); }
+    .range i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 2px; background: var(--cf-accent); }
+    .range b { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--cf-surface-raised); border: 2px solid var(--cf-accent); box-sizing: border-box; }
+    .emo { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; font-size: 18px; }
+    .frame { border: 1px solid var(--cf-border); border-radius: 8px; background: var(--cf-surface); overflow: hidden; box-sizing: border-box; }
+  </style>
+</helmet>
+<div style="{{ themeVars }}">
+<div style="width:1440px;min-height:900px;background:var(--cf-canvas);padding:24px 32px;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+  <span class="h2">Эмодзи: сколько и как вставить</span>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px">
+   <div class="panel" style="padding:16px;display:flex;flex-direction:column;gap:14px"><span class="lab">A · бегунок с числом</span>
+     <div style="display:flex;align-items:center;gap:12px"><span class="cap" style="width:70px">Эмодзи</span><div class="range" style="flex:1"><i style="width:60%"></i><b style="left:60%"></b></div><span class="mono sm" style="width:110px;text-align:right">до 6</span></div>
+     <div style="display:flex;justify-content:space-between" class="cap"><span>нет</span><span>1</span><span>3</span><span>6</span><span>10</span><span>без предела</span></div>
+     <span class="sm muted">Модель получает точное «не больше 6». Отметка канала — серой рисочкой.</span></div>
+   <div class="panel" style="padding:16px;display:flex;flex-direction:column;gap:14px"><span class="lab">B · шаги с числами</span>
+     <div class="seg" style="align-self:flex-start"><span>нет</span><span>1–3</span><span class="on">4–6</span><span>7–10</span><span>сколько уместно</span></div>
+     <span class="sm muted">Те же пять значений в «Как пишем в канале» и «Для этого поста». «Много» исчезает — вместо него числа.</span></div>
+  </div>
+  <span class="lab">Редактор: кнопка эмодзи в панели</span>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start">
+   <div class="frame"><div style="display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--cf-border)"><span class="btn quiet dense icon" style="font-weight:650">Ж</span><span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 9.2a2.6 2.6 0 003.7 0l2-2a2.6 2.6 0 00-3.7-3.7l-.6.6"></path><path d="M9.2 6.8a2.6 2.6 0 00-3.7 0l-2 2a2.6 2.6 0 003.7 3.7l.6-.6"></path></svg></span><span class="btn quiet dense icon" style="background:var(--cf-surface-subtle)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"></circle><path d="M5.8 9.4a2.8 2.8 0 004.4 0M6 6.5h.01M10 6.5h.01"></path></svg></span><span style="width:1px;height:20px;background:var(--cf-border);margin:0 4px"></span><span class="cap">Telegram: жирный, ссылка, эмодзи</span><span style="flex:1"></span><span class="cap">618 из 4096</span><span class="btn secondary dense" style="margin-inline-start:8px">Готово</span></div><div style="padding:16px 18px" class="body">Когда задачи лежат на общей доске, команда меньше пишет в чат 📌 Вопросов «кто это делает» почти не осталось, а созвонов по статусу стало <b>вдвое</b> меньше.|</div></div>
+   <div class="panel" style="padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 12px 32px rgba(0,0,0,.35)"><span class="input" style="height:32px">Найти: доска, огонь…</span><span class="cap">недавние</span><div style="display:flex;gap:2px"><span class="emo">📌</span><span class="emo">🔥</span><span class="emo">✅</span><span class="emo">💡</span><span class="emo">🚀</span><span class="emo">🙌</span><span class="emo">👀</span><span class="emo">📈</span></div><span class="cap">все</span><div style="display:grid;grid-template-columns:repeat(8,32px);gap:2px"><span class="emo">😀</span><span class="emo">😅</span><span class="emo">🙂</span><span class="emo">😉</span><span class="emo">🤔</span><span class="emo">🙌</span><span class="emo">👏</span><span class="emo">🔥</span><span class="emo">💡</span><span class="emo">✅</span><span class="emo">⚡</span><span class="emo">📌</span><span class="emo">📈</span><span class="emo">🚀</span><span class="emo">🧩</span><span class="emo">🎯</span><span class="emo">👀</span><span class="emo">💬</span><span class="emo">📣</span><span class="emo">🛠️</span><span class="emo">📝</span><span class="emo">⏱️</span><span class="emo">🤝</span><span class="emo">❤️</span></div></div>
+  </div>
+  <div class="note-box">Кнопки панели зависят от формата канала: у Telegram — жирный, ссылка, эмодзи; у формата с заголовком добавится заголовок, у видео текстового редактора не будет. Эмодзи вставляются туда, где стоит курсор; поиск по-русски и по-английски; библиотека уже есть в проекте.</div>
+</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":true}}'>
+const DARK = "--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A";
+const LIGHT = "--cf-canvas:#EFE9DB;--cf-surface:#FBF8F0;--cf-surface-subtle:#E4DDCB;--cf-surface-raised:#FFFDF6;--cf-ink:#22231A;--cf-ink-muted:#5C5D4C;--cf-ink-inverse:#F4F1E4;--cf-border:#D3CAB3;--cf-border-strong:#B0A68A;--cf-border-control:#847B62;--cf-navigation:#E4DDCB;--cf-navigation-text:#22231A;--cf-navigation-muted:#5C5D4C;--cf-navigation-active:#FBF8F0;--cf-accent:#3F6B2E;--cf-accent-hover:#33581F;--cf-accent-soft:#E1EAD2;--cf-accent-ink:#FFFFFF;--cf-signature:#9C6A16;--cf-info:#2F5A82;--cf-info-soft:#E3EBF3;--cf-warning:#7A4D00;--cf-warning-soft:#F6E7C2;--cf-danger:#8E2B22;--cf-danger-soft:#F6E0DB;--cf-focus:#3F6B2E";
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? true;
+    return { themeVars: (dark ? DARK : LIGHT) + ";font-family:Geologica,system-ui,sans-serif;color:var(--cf-ink);background:var(--cf-canvas)" };
+  }
+}
+</script>
+</body>
+</html>

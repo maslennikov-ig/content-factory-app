@@ -5,6 +5,9 @@ import {
   getOpenAiClient,
   getModelForRole,
 } from '@contentfactory/nestjs-libraries/openai/ai.clients';
+// SDK retries stay off. The deadline is the text chain's when this client
+// walks one, and 60 s otherwise (`content-factory-next-97dq.55`).
+import { textRequestOptions } from '@contentfactory/nestjs-libraries/openai/ai.text-chain';
 import type { AiUsageService } from '../../openai/ai.usage.service';
 import { slopCheck } from '../text-quality/slop-check';
 import { reviewGroundedOf } from './review-prompt.v5';
@@ -118,7 +121,7 @@ export async function reviewOnceV2(
           response_format: { type: 'json_object' },
           max_tokens: 16384,
         },
-        { maxRetries: 0, timeout: 60000 }
+        textRequestOptions(client)
       );
       try {
         const parsed = output.parse(

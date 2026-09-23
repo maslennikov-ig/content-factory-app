@@ -34,6 +34,10 @@ const loadPostsRepository = () =>
   loadTypeScriptModule(
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
     {
+      // Правило держателя слота (`97dq.57`): без вытесненных версий.
+      '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan': {
+        supersededDraftPostIds: async () => [],
+      },
       '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize': {
         // Статический импорт с ff7cfe3c (fn33.28.7); этим тестам контекст не нужен.
         validateContentContextForDraft: async () => {

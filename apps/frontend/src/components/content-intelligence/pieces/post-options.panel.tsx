@@ -226,6 +226,7 @@ export function PostOptionsPanel({
               field={field}
               label={label}
               hint={inChannel ? t.asInChannel(null) : null}
+              note={field === 'links' ? ti.profileLinkSource : null}
               value={
                 inChannel && channelValue ? channelValue : options[field]
               }
@@ -328,6 +329,7 @@ function PostOptionRow({
   field,
   label,
   hint,
+  note = null,
   value,
   changed,
   muted,
@@ -340,6 +342,8 @@ function PostOptionRow({
   label: string;
   /** «как в канале» под названием, пока поле не менялось. */
   hint: string | null;
+  /** Постоянная подсказка под выбором — та же, что в карточке канала. */
+  note?: string | null;
   value: string;
   changed: boolean;
   muted: boolean;
@@ -372,7 +376,11 @@ function PostOptionRow({
         disabled={disabled}
         data-post-option={field}
         data-post-option-changed={changed ? 'true' : 'false'}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-describedby={
+          [hint ? `${id}-hint` : null, note ? `${id}-note` : null]
+            .filter(Boolean)
+            .join(' ') || undefined
+        }
         className={clsx(
           'w-full min-w-0 [&>option]:text-cf-ink',
           muted && 'text-cf-ink-muted',
@@ -382,6 +390,15 @@ function PostOptionRow({
       >
         {children}
       </Select>
+      {note ? (
+        <p
+          id={`${id}-note`}
+          data-post-option-note={field}
+          className="col-start-2 -mt-[4px] cf-caption text-cf-ink-muted"
+        >
+          {note}
+        </p>
+      ) : null}
     </>
   );
 }

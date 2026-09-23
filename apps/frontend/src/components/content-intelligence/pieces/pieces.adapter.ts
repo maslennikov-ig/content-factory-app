@@ -34,6 +34,7 @@ import {
   PIECE_TABLE_MIN_WIDTH,
   PIECES_API_BASE,
   type AdaptationKindV1,
+  type AdaptationPlanV1,
   type AdaptationStateV1,
   type AdaptationV1,
   type PieceAdaptEventV1,
@@ -92,6 +93,7 @@ export type PiecesResponseV1 = Omit<BasePiecesResponseV1, 'pieces'> & {
 
 export type {
   AdaptationKindV1,
+  AdaptationPlanV1,
   AdaptationStateV1,
   AdaptationV1,
   PieceAdaptEventV1,
@@ -378,6 +380,33 @@ export const readCell = (value: unknown): PieceCellV1 | null => {
     ...(typeof record.more === 'number' && record.more > 0
       ? { more: record.more }
       : {}),
+    ...(record.planned === true ? { planned: true } : {}),
+  };
+};
+
+/**
+ * Место версии в календаре канала (`97dq.57`). Нет у старого сервера, у
+ * опубликованной и ошибочной версии.
+ */
+export const readAdaptationPlan = (
+  value: unknown
+): AdaptationPlanV1 | undefined => {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const status =
+    record.status === 'reserved' ||
+    record.status === 'queued' ||
+    record.status === 'draft'
+      ? record.status
+      : null;
+  if (!status) return undefined;
+  const note = asNullableText(record.note);
+  return {
+    status,
+    date: asNullableText(record.date),
+    autopilot: record.autopilot === true,
+    current: record.current !== false,
+    ...(note ? { note } : {}),
   };
 };
 
@@ -470,6 +499,9 @@ export const readAdaptation = (
       ? { voiceVersion: record.voiceVersion }
       : {}),
     checks: readQualityChecks(record.checks),
+    ...(readAdaptationPlan(record.plan)
+      ? { plan: readAdaptationPlan(record.plan) }
+      : {}),
     ...(readImage(record.image, record.mediaId)
       ? { image: readImage(record.image, record.mediaId) }
       : {}),
@@ -596,6 +628,12 @@ export const readOpenQuestions = (value: unknown): PieceQuestionsV1 | null => {
       return [
         {
           field: answer.field as PieceQuestionsV1['answered'][number]['field'],
+          // Вопрос о материале и его текст (`97dq.56`): «Что мы поняли»
+          // показывает решение модели рядом с вопросом, на который оно.
+          ...(typeof answer.key === 'string' ? { key: answer.key } : {}),
+          ...(asText(answer.question).trim()
+            ? { question: asText(answer.question) }
+            : {}),
           text: asText(answer.text),
           origin: answer.origin === 'model' ? 'model' : 'person',
           answeredAt: asText(answer.answeredAt),
