@@ -1699,5 +1699,9 @@
   "help": "Hilfe",
   "uploading": "Wird hochgeladen",
   "importing": "Wird importiert",
-  "pick_time": "Uhrzeit"
+  "pick_time": "Uhrzeit",
+  "navigation_panel": "Navigationsleiste",
+  "navigation_resize": "Navigationsbreite: ziehen oder Pfeiltasten verwenden",
+  "text_ai": "KI für Text",
+  "image_ai": "KI für Bilder"
 }

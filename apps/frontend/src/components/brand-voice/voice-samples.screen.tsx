@@ -289,7 +289,7 @@ export function VoiceSamplesScreen({
 
       <div className="grid min-w-0 gap-[20px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="flex flex-col gap-[12px]">
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {t.samplesWhere}
           </h3>
           {ORIGIN_KEYS.map((key) => {
@@ -469,7 +469,7 @@ export function VoiceSamplesScreen({
 
         <div className="flex min-w-0 flex-col gap-[16px]">
           <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
-            <p className="cf-label-sm uppercase text-cf-ink-muted">
+            <p className="cf-label-sm text-cf-ink-muted">
               {t.collected}
             </p>
             <p
@@ -490,7 +490,7 @@ export function VoiceSamplesScreen({
                   confidenceReasons.length === 0 ? 'NORMAL' : 'LOW'
                 }
               >
-                <p className="cf-label-sm uppercase text-cf-ink-muted">
+                <p className="cf-label-sm text-cf-ink-muted">
                   {t.confidenceLabel}
                 </p>
                 {confidenceReasons.length === 0 ? (
@@ -518,7 +518,7 @@ export function VoiceSamplesScreen({
                 className="mt-[16px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px]"
                 data-voice-shortfall="true"
               >
-                <p className="cf-label-sm uppercase text-cf-ink">
+                <p className="cf-label-sm text-cf-ink">
                   {t.shortfall}
                 </p>
                 {missingChars > 0 ? (
@@ -537,7 +537,7 @@ export function VoiceSamplesScreen({
 
           <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
             <div className="flex flex-wrap items-center justify-between gap-[8px]">
-              <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+              <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.collectedSamples} · {samples.length}
               </h3>
               <Button
@@ -564,19 +564,19 @@ export function VoiceSamplesScreen({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-cf-border text-start">
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.columnCode}
                       </th>
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.columnWhat}
                       </th>
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.columnFrom}
                       </th>
-                      <th className="pb-[8px] pe-[8px] text-end cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-end cf-label-sm text-cf-ink-muted">
                         {t.columnChars}
                       </th>
-                      <th className="pb-[8px] text-end cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] text-end cf-label-sm text-cf-ink-muted">
                         {t.columnDate}
                       </th>
                     </tr>

@@ -191,16 +191,65 @@ test('without a date the primary reads «Выбрать» and leads to the tab w
  expect(href).toBe('/content/pieces/piece1?tab=vk');
 });
 
+const SEARCH='Поиск: заголовок, код cnt- или канал';
+const channelSelect=()=>screen.getByRole('combobox',{name:'Канал'});
+
 test('search and channel selection restrict rows and clear stale selection',async()=>{
  mount(); await screen.findByText('Title 0');
  fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
- fireEvent.change(screen.getByLabelText('Поиск по заголовку и каналу'),{target:{value:'Channel vk'}});
+ fireEvent.change(screen.getByLabelText(SEARCH),{target:{value:'Channel vk'}});
  expect(screen.queryByText('Title 0')).toBeNull();
  expect(screen.getByText('Title 1')).toBeTruthy();
  expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(true);
- fireEvent.change(screen.getByLabelText('Поиск по заголовку и каналу'),{target:{value:''}});
- fireEvent.click(screen.getByRole('radio',{name:'Channel tg'}));
+ fireEvent.change(screen.getByLabelText(SEARCH),{target:{value:''}});
+ fireEvent.change(channelSelect(),{target:{value:'tg'}});
  expect(screen.queryByText('Title 1')).toBeNull();
+});
+
+/* `97dq.72` (thirteenth walk B3). */
+test('search ignores case and spaces and matches the cnt- code and the channel name',async()=>{
+ mount(); await screen.findByText('Title 0');
+ for (const [needle,found,gone] of [['CNT 01','Title 1','Title 0'],['cnt-00','Title 0','Title 1'],['channel   TG','Title 0','Title 1'],['title1','Title 1','Title 0']]) {
+  fireEvent.change(screen.getByLabelText(SEARCH),{target:{value:needle}});
+  expect({needle,found:!!screen.queryByText(found),gone:!!screen.queryByText(gone)}).toEqual({needle,found:true,gone:false});
+ }
+});
+
+test('the state filter counts free, planned and queued rows and narrows the list',async()=>{
+ mode='slots';mount();
+ await screen.findByText('Title 7');
+ const names=screen.getAllByRole('radio').filter(el=>!el.textContent.includes('cnt-')).map(el=>el.textContent);
+ expect(names).toEqual(['Все · 3','Свободные · 1','В плане · 1','В очереди · 1']);
+ fireEvent.click(screen.getByRole('radio',{name:'В очереди · 1'}));
+ expect(screen.getByText('Готовые адаптации · 1')).toBeTruthy();
+ expect([...document.querySelectorAll('[data-picker-slot]')].map(el=>el.getAttribute('data-picker-slot'))).toEqual(['queued']);
+ // Counts follow the channel: «Channel vk» holds only the queued one.
+ fireEvent.change(channelSelect(),{target:{value:'vk'}});
+ expect(screen.getByRole('radio',{name:'Свободные · 0'})).toBeTruthy();
+ expect(screen.getByRole('radio',{name:'В очереди · 1'}).getAttribute('aria-checked')).toBe('true');
+ // Both filters carry their «?».
+ expect(screen.getByRole('button',{name:'Подсказка: канал'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Подсказка: состояние адаптации'})).toBeTruthy();
+});
+
+test('one channel handed in twice (a post and a slot at one time) is one option and one set of rows',async()=>{
+ mount({integrations:[channels[0],channels[0],channels[1]]});
+ await screen.findByText('Title 0');
+ const options=[...channelSelect().querySelectorAll('option')].map(el=>el.textContent);
+ expect(options).toEqual(['Все каналы','Channel tg','Channel vk']);
+ expect(screen.getAllByText('Title 0')).toHaveLength(1);
+});
+
+test('the channel name gives way, the state never does: truncated name, full on hover and focus',async()=>{
+ const long='Тестовая группа Content Factory с очень длинным названием канала';
+ mode='slots';mount({integrations:channels.map(one=>one.id==='tg'?{...one,name:long}:one)});
+ await screen.findByText('Title 0');
+ const name=document.querySelector('[data-picker-channel-name]');
+ expect(name.getAttribute('title')).toBe(long);
+ expect(name.className).toContain('truncate');
+ expect(name.className).toContain('group-focus-visible:whitespace-normal');
+ for (const slot of document.querySelectorAll('[data-picker-slot]')) expect(slot.className).toContain('whitespace-nowrap');
+ expect(document.querySelector('.overflow-x-auto')).toBeNull();
 });
 
 test('«+ Новая заготовка» replaces the blank page and links to the brief tab',async()=>{
@@ -232,7 +281,9 @@ test('English labels are complete and mobile footer wraps',async()=>{
  language='en';const {container}=mount();await screen.findByText('Ready adaptations · 2');
  expect(screen.getByRole('link',{name:'New piece'})).toBeTruthy();
  expect(screen.getByRole('button',{name:'Place at 15:00'})).toBeTruthy();
- expect(container.querySelector('.flex-wrap')).toBeTruthy();expect(container.querySelector('.overflow-x-auto')).toBeTruthy();
+ expect(container.querySelector('.flex-wrap')).toBeTruthy();expect(container.querySelector('.overflow-x-auto')).toBeNull();
+ expect(screen.getByRole('combobox',{name:'Channel'})).toBeTruthy();
+ expect(screen.getByRole('radio',{name:'Queued · 0'})).toBeTruthy();
 });
 
 test('preview shows only authenticated piece provenance and does not leak it into public request',async()=>{
@@ -258,12 +309,12 @@ test('the slot channel is preselected; a channel with nothing ready falls back t
  const view=mount({initialChannel:'vk'});
  await screen.findByText('Title 1');
  expect(screen.queryByText('Title 0')).toBeNull();
- expect(screen.getByRole('radio',{name:'Channel vk'}).getAttribute('aria-checked')).toBe('true');
+ expect(channelSelect().value).toBe('vk');
  view.unmount();
  mount({initialChannel:'other'});
  await screen.findByText('Title 0');
  expect(screen.getByText('Title 1')).toBeTruthy();
- expect(screen.getByRole('radio',{name:'Все каналы'}).getAttribute('aria-checked')).toBe('true');
+ expect(channelSelect().value).toBe('');
 });
 
 test('two adaptations of one piece to one channel are named by their own text',async()=>{

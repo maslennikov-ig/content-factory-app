@@ -10,20 +10,25 @@ import { Popover } from '@contentfactory/frontend/components/ui/layers';
 import { SectionLabel } from '@contentfactory/frontend/components/ui/section-label';
 import { calendarPlanningCopy } from './calendar-planning.copy';
 import { PLAN_STATES_IN_LEGEND } from './calendar-plan';
-import { PlanStatePill } from './post-card.parts';
+import { PLAN_STATE_CLASS, PlanStatePill } from './post-card.parts';
+import { Button } from '@contentfactory/react/form/button';
+import { ButtonLink } from '@contentfactory/react/form/button-link';
+import { EmptyState, ErrorState, SkeletonRows } from '../ui/surface';
+import { Table, Td, Th, Tr } from '../ui/table';
 
 /**
- * «Впереди N дней» (`content-factory-next-97dq.59`, owner pick 23.09.2026).
+ * The plan ahead (`content-factory-next-97dq.59`, counts since `97dq.73`).
  *
- * How many days in a row, starting today, each hold a post «в плане» or
- * «в очереди» in the selected channels. The number is counted on the server
- * (`GET /analytics/ahead`, `calculatePlanAhead`) in the reader's time zone:
- * the calendar only ever holds the range on screen, and a day view cannot
- * know about next Tuesday.
+ * The thirteenth walk (C3) could not read the streak: «0 дней впереди» and
+ * «14 дней закрашено» meant nothing. The owner asked how many posts are
+ * planned, how many are ahead, and how far the plan reaches. So both places
+ * now speak in counts, counted on the server (`GET /analytics/ahead`,
+ * `calculatePlanAhead`, `plan-ahead/v2`) in the reader's time zone:
  *
- * Two places read it: a chip in the calendar header on every view — hover
- * or focus lists the channels, «N дней · до DD.MM» or «пусто с DD.MM» — and a
- * card in «Аналитика → Производство» with the big number and a 14-day strip.
+ * - the calendar chip: «В плане 3 поста · до чт 24.09» or «План пуст»;
+ *   reserved and queued posts both count; hover or focus lists channels;
+ * - «Аналитика → Производство»: four numbers, the next 14 days with a count
+ *   per day, and a table per channel.
  */
 
 export type PlanAheadStreak = {
@@ -32,13 +37,33 @@ export type PlanAheadStreak = {
   emptyFrom: string;
 };
 
-export type PlanAhead = PlanAheadStreak & {
-  version: 'plan-ahead/v1';
-  today: string;
-  horizon: number;
-  strip: Array<{ date: string; filled: boolean }>;
-  channels: Array<PlanAheadStreak & { integrationId: string; name: string }>;
+export type PlanAheadCounts = {
+  reserved: number;
+  queued: number;
+  planned: number;
+  planUntil: string | null;
+  published7d: number;
 };
+
+export type PlanAheadDay = {
+  date: string;
+  filled: boolean;
+  reserved: number;
+  queued: number;
+  published: number;
+};
+
+export type PlanAhead = PlanAheadStreak &
+  PlanAheadCounts & {
+    version: 'plan-ahead/v2';
+    today: string;
+    horizon: number;
+    daysWithPosts: number;
+    strip: PlanAheadDay[];
+    channels: Array<
+      PlanAheadStreak & PlanAheadCounts & { integrationId: string; name: string }
+    >;
+  };
 
 type Locale = 'ru' | 'en';
 
@@ -68,29 +93,27 @@ export const aheadDay = (key: string, locale: Locale, weekday = false) => {
   return `${name} ${date}`;
 };
 
-/** The chip's words: «впереди 6 дней · до вт 29.09» or «впереди пусто». */
-export const aheadLabel = (ahead: PlanAheadStreak, locale: Locale) =>
-  calendarPlanningCopy[locale].ahead(
-    ahead.days,
-    ahead.until ? aheadDay(ahead.until, locale, true) : ''
+/** The chip's words: «В плане 3 поста · до чт 24.09» or «План пуст». */
+export const aheadLabel = (ahead: PlanAheadCounts, locale: Locale) =>
+  calendarPlanningCopy[locale].aheadChip(
+    ahead.planned,
+    ahead.planUntil ? aheadDay(ahead.planUntil, locale, true) : ''
   );
 
-/** One channel's line in the hover list. */
-export const aheadChannelLine = (channel: PlanAheadStreak, locale: Locale) =>
-  channel.days && channel.until
-    ? calendarPlanningCopy[locale].aheadChannel(
-        channel.days,
-        aheadDay(channel.until, locale)
-      )
-    : calendarPlanningCopy[locale].aheadEmptyFrom(
-        aheadDay(channel.emptyFrom, locale)
-      );
+/** One channel's line in the hover list: «2 поста · до 29.09» or «пусто». */
+export const aheadChannelLine = (channel: PlanAheadCounts, locale: Locale) =>
+  calendarPlanningCopy[locale].aheadChannel(
+    channel.planned,
+    channel.planUntil ? aheadDay(channel.planUntil, locale) : ''
+  );
 
 export function usePlanAhead(
   integrationIds: readonly string[],
   timeZone: string,
   /** Anything that changes when the calendar reloads: the count follows. */
-  revision?: unknown
+  revision?: unknown,
+  /** `false` asks nothing at all. */
+  enabled = true
 ) {
   const request = useFetch();
   const url = planAheadUrl(integrationIds, timeZone);
@@ -98,10 +121,10 @@ export function usePlanAhead(
     const response = await request(url);
     if (!response.ok) throw new Error('plan ahead unavailable');
     const body = await response.json();
-    if (body?.version !== 'plan-ahead/v1') throw new Error('unsupported');
+    if (body?.version !== 'plan-ahead/v2') throw new Error('unsupported');
     return body as PlanAhead;
   }, [request, url]);
-  const swr = useSWR(url, load, { revalidateOnFocus: false });
+  const swr = useSWR(enabled ? url : null, load, { revalidateOnFocus: false });
   const { mutate } = swr;
   // The first fingerprint is the load SWR already made; later ones refetch.
   const seen = useRef<unknown>(undefined);
@@ -130,10 +153,20 @@ const CalendarGlyph = () => (
   </svg>
 );
 
+/** What the chip shows when the calendar has no channel to count. */
+const NO_CHANNELS_AHEAD: PlanAheadCounts & Pick<PlanAhead, 'channels'> = {
+  reserved: 0,
+  queued: 0,
+  planned: 0,
+  planUntil: null,
+  published7d: 0,
+  channels: [],
+};
+
 /**
- * The header chip. Hover, focus or a press opens the channel list; Escape,
- * leaving it, or a press outside closes it. The «?» beside it says what the
- * number counts.
+ * The header chip, always on the calendar toolbar. Hover, focus or a press
+ * opens the channel list; Escape, leaving it, or a press outside closes it.
+ * The «?» beside it says what the number counts.
  */
 export const PlanAheadChip: FC<{
   locale: Locale;
@@ -142,7 +175,16 @@ export const PlanAheadChip: FC<{
   revision?: unknown;
 }> = ({ locale, integrationIds, timeZone, revision }) => {
   const copy = calendarPlanningCopy[locale];
-  const { data, error } = usePlanAhead(integrationIds, timeZone, revision);
+  /*
+    No channel in view (a customer with none, or every one disabled) is an
+    empty plan, not «the whole organisation»: an empty id list means the
+    latter to the server, so the chip asks nothing and says «План пуст»
+    (second review, item 4).
+  */
+  const noChannels = integrationIds.length === 0;
+  const ahead = usePlanAhead(integrationIds, timeZone, revision, !noChannels);
+  const data = noChannels ? NO_CHANNELS_AHEAD : ahead.data;
+  const error = noChannels ? undefined : ahead.error;
   const [open, setOpen] = useState(false);
   const holder = useRef<HTMLSpanElement | null>(null);
 
@@ -183,7 +225,7 @@ export const PlanAheadChip: FC<{
   return (
     <span
       ref={holder}
-      data-plan-ahead={data.days}
+      data-plan-ahead={data.planned}
       className="relative inline-flex h-[40px] items-center gap-[4px]"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -193,7 +235,7 @@ export const PlanAheadChip: FC<{
         aria-expanded={open}
         className={clsx(
           'inline-flex items-center gap-[8px] rounded-[8px] border px-[8px] cf-label-md tabular-nums whitespace-nowrap',
-          data.days
+          data.planned
             ? 'border-cf-border bg-cf-surface text-cf-ink'
             : 'border-dashed border-cf-border-strong bg-transparent text-cf-ink-muted'
         )}
@@ -225,7 +267,7 @@ export const PlanAheadChip: FC<{
                 <dd
                   className={clsx(
                     'tabular-nums whitespace-nowrap',
-                    channel.days ? 'text-cf-ink' : 'text-cf-ink-muted'
+                    channel.planned ? 'text-cf-ink' : 'text-cf-ink-muted'
                   )}
                 >
                   {aheadChannelLine(channel, locale)}
@@ -262,57 +304,257 @@ export const PlanLegend: FC<{ locale: Locale }> = ({ locale }) => {
   );
 };
 
-/** «Аналитика → Производство»: the number, big, and the next 14 days. */
-export const PlanAheadCard: FC<{
+/**
+ * One number with its name and its «?». `cf-display-num` is the measured
+ * number (`DESIGN.md`, «display-num»), one per card.
+ */
+const AheadMetric: FC<{
+  label: string;
+  hintLabel: string;
+  hint: string;
+  value: string;
+  note?: string;
+  metric: string;
+}> = ({ label, hintLabel, hint, value, note, metric }) => (
+  <article
+    data-plan-ahead-metric={metric}
+    className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+  >
+    <div className="flex min-w-0 items-center gap-[4px]">
+      <h4 className="cf-label-md min-w-0 text-cf-ink-muted [text-wrap:pretty]">
+        {label}
+      </h4>
+      <Hint label={hintLabel}>{hint}</Hint>
+    </div>
+    <p className="cf-display-num tabular-nums text-cf-ink">{value}</p>
+    {note ? <p className="cf-caption text-cf-ink-muted">{note}</p> : null}
+  </article>
+);
+
+/** A strip cell takes the tone of the calendar pill of its strongest state. */
+const dayTone = (day: PlanAheadDay) =>
+  day.queued
+    ? PLAN_STATE_CLASS.queued
+    : day.reserved
+    ? PLAN_STATE_CLASS.reserved
+    : day.published
+    ? PLAN_STATE_CLASS.published
+    : 'border-dashed border-cf-border text-cf-ink-muted bg-transparent';
+
+/**
+ * «Аналитика → Производство», the part about the days to come (`97dq.73`):
+ * four numbers, the next 14 days with a count per day, and one row per
+ * channel. It follows neither the period nor the channel filter of the
+ * section: the future is not a period of the past.
+ */
+export const PlanAheadOverview: FC<{
   locale: Locale;
   timeZone: string;
 }> = ({ locale, timeZone }) => {
   const copy = calendarPlanningCopy[locale];
-  const { data, error, isLoading } = usePlanAhead([], timeZone);
-  return (
-    <article
-      data-plan-ahead-card="true"
-      className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
-    >
+  const { data, error, isLoading, mutate } = usePlanAhead([], timeZone);
+  const hintFor = copy.aheadHintFor;
+  const heading = (
+    <div className="flex min-w-0 flex-col gap-[4px]">
       <div className="flex items-center gap-[4px]">
-        <SectionLabel as="h3">{copy.aheadCardTitle}</SectionLabel>
-        <Hint label={copy.aheadHintLabel}>{copy.aheadCardHint}</Hint>
+        <h3 className="cf-heading-md text-cf-ink">{copy.aheadTitle}</h3>
+        <Hint label={copy.aheadHintLabel}>{copy.aheadHint}</Hint>
       </div>
-      {isLoading ? (
-        <div className="h-[56px] rounded-[8px] bg-cf-surface-subtle" aria-busy="true" />
-      ) : error || !data ? (
-        <p role="alert" className="cf-body-sm text-cf-danger">
-          {copy.aheadError}
-        </p>
-      ) : (
-        <>
-          <div className="flex items-baseline gap-[8px]">
-            <span className="cf-heading-lg tabular-nums">{data.days}</span>
-            <span className="cf-body-sm text-cf-ink">
-              {copy.aheadCardDays(data.days)}
-              {data.until ? ` · ${aheadDay(data.until, locale, true)}` : ''}
-            </span>
-          </div>
-          <ol
-            data-plan-ahead-strip="true"
-            aria-label={copy.aheadCardStrip}
-            className="flex gap-[4px]"
-          >
-            {data.strip.map((day) => (
+      <p className="cf-body-sm max-w-[70ch] text-cf-ink-muted [text-wrap:pretty]">
+        {copy.aheadDescription}
+      </p>
+    </div>
+  );
+  if (isLoading) {
+    return (
+      <section data-plan-ahead-overview="loading" className="flex min-w-0 flex-col gap-[12px]">
+        {heading}
+        <SkeletonRows rows={3} label={copy.aheadLoading} />
+      </section>
+    );
+  }
+  if (error || !data) {
+    return (
+      <section data-plan-ahead-overview="error" className="flex min-w-0 flex-col gap-[12px]">
+        {heading}
+        <ErrorState
+          title={copy.aheadError}
+          action={
+            <Button variant="secondary" onClick={() => void mutate()}>
+              {copy.retry}
+            </Button>
+          }
+        />
+      </section>
+    );
+  }
+  const emptyDay =
+    data.emptyFrom === data.today
+      ? `${copy.today} · ${aheadDay(data.emptyFrom, locale, true)}`
+      : aheadDay(data.emptyFrom, locale, true);
+  const words = {
+    reserved: copy.slotReserved,
+    queued: copy.slotQueued,
+    published: copy.statePublished,
+  } as const;
+  return (
+    <section data-plan-ahead-overview="default" className="flex min-w-0 flex-col gap-[12px]">
+      {heading}
+      <div className="grid grid-cols-4 gap-[12px] tablet:grid-cols-2 mobile:grid-cols-1">
+        <AheadMetric
+          metric="planned"
+          label={copy.kpiAhead}
+          hintLabel={hintFor(copy.kpiAhead)}
+          hint={copy.kpiAheadHint}
+          value={String(data.planned)}
+          note={copy.kpiAheadSplit(data.reserved, data.queued)}
+        />
+        <AheadMetric
+          metric="days"
+          label={copy.kpiDays}
+          hintLabel={hintFor(copy.kpiDays)}
+          hint={copy.kpiDaysHint}
+          value={copy.kpiDaysValue(data.daysWithPosts, data.strip.length)}
+        />
+        <AheadMetric
+          metric="until"
+          label={copy.kpiUntil}
+          hintLabel={hintFor(copy.kpiUntil)}
+          hint={copy.kpiUntilHint}
+          value={data.planUntil ? aheadDay(data.planUntil, locale) : '—'}
+          note={
+            data.planUntil
+              ? aheadDay(data.planUntil, locale, true)
+              : copy.kpiUntilNone
+          }
+        />
+        <AheadMetric
+          metric="empty"
+          label={copy.kpiEmpty}
+          hintLabel={hintFor(copy.kpiEmpty)}
+          hint={copy.kpiEmptyHint}
+          value={aheadDay(data.emptyFrom, locale)}
+          note={emptyDay}
+        />
+      </div>
+
+      <article className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+        <div className="flex items-center gap-[4px]">
+          <h4 className="cf-label-md text-cf-ink">{copy.stripTitle}</h4>
+          <Hint label={hintFor(copy.stripTitle)}>{copy.stripHint}</Hint>
+        </div>
+        {data.planned === 0 && data.daysWithPosts === 0 ? (
+          <EmptyState
+            title={copy.aheadEmptyTitle}
+            description={copy.aheadEmptyBody}
+            action={
+              <ButtonLink href="/launches" variant="secondary">
+                {copy.aheadEmptyAction}
+              </ButtonLink>
+            }
+          />
+        ) : null}
+        <ol
+          data-plan-ahead-strip="true"
+          aria-label={copy.stripTitle}
+          className="grid grid-cols-7 gap-[4px] md:grid-cols-[repeat(14,minmax(0,1fr))]"
+        >
+          {data.strip.map((day) => {
+            const total = day.reserved + day.queued + day.published;
+            return (
               <li
                 key={day.date}
                 data-filled={day.filled}
-                title={aheadDay(day.date, locale, true)}
-                className={clsx(
-                  'h-[16px] flex-1 rounded-[4px]',
-                  day.filled ? 'bg-cf-accent' : 'bg-cf-surface-subtle'
+                data-count={total}
+                title={copy.stripDay(
+                  aheadDay(day.date, locale, true),
+                  day.reserved,
+                  day.queued,
+                  day.published
                 )}
-              />
-            ))}
-          </ol>
-          <p className="cf-caption text-cf-ink-muted">{copy.aheadCardStrip}</p>
-        </>
-      )}
-    </article>
+                className="flex min-w-0 flex-col items-center gap-[4px]"
+              >
+                <span className="cf-caption whitespace-nowrap text-cf-ink-muted">
+                  {aheadDay(day.date, locale, true)}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={clsx(
+                    'flex h-[40px] w-full items-center justify-center rounded-[4px] border cf-label-sm tabular-nums',
+                    dayTone(day)
+                  )}
+                >
+                  {total || '·'}
+                </span>
+                <span className="sr-only">
+                  {copy.stripDay('', day.reserved, day.queued, day.published)}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+        <p
+          data-plan-ahead-legend="true"
+          className="flex flex-wrap items-center gap-x-[16px] gap-y-[8px] cf-body-sm text-cf-ink-muted"
+        >
+          {(['queued', 'reserved', 'published'] as const).map((state) => (
+            <span key={state} className="inline-flex items-center gap-[8px]">
+              <PlanStatePill state={state} label={words[state]} />
+              {copy.stripLegend[state]}
+            </span>
+          ))}
+          <span className="inline-flex items-center gap-[8px]">
+            <span
+              aria-hidden="true"
+              className="inline-block h-[20px] w-[20px] rounded-[4px] border border-dashed border-cf-border"
+            />
+            {copy.stripLegend.empty}
+          </span>
+        </p>
+      </article>
+
+      <article className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+        <div className="flex items-center gap-[4px]">
+          <h4 className="cf-label-md text-cf-ink">{copy.tableTitle}</h4>
+          <Hint label={hintFor(copy.tableTitle)}>{copy.tableHint}</Hint>
+        </div>
+        {data.channels.length ? (
+          <div data-plan-ahead-table="true">
+            <Table caption={copy.tableTitle}>
+              <thead>
+                <tr>
+                  <Th banded>{copy.colChannel}</Th>
+                  <Th banded numeric>{copy.colReserved}</Th>
+                  <Th banded numeric>{copy.colQueued}</Th>
+                  <Th banded numeric>{copy.colPublished}</Th>
+                  <Th banded numeric>{copy.colUntil}</Th>
+                  <Th banded numeric>{copy.colEmpty}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.channels.map((channel) => (
+                  <Tr key={channel.integrationId}>
+                    <Td className="max-w-[320px] truncate" title={channel.name}>
+                      {channel.name}
+                    </Td>
+                    <Td numeric>{channel.reserved}</Td>
+                    <Td numeric>{channel.queued}</Td>
+                    <Td numeric>{channel.published7d}</Td>
+                    <Td numeric>
+                      {channel.planUntil
+                        ? aheadDay(channel.planUntil, locale, true)
+                        : '—'}
+                    </Td>
+                    <Td numeric>{aheadDay(channel.emptyFrom, locale, true)}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        ) : (
+          <EmptyState title={copy.tableEmpty} />
+        )}
+      </article>
+    </section>
   );
 };

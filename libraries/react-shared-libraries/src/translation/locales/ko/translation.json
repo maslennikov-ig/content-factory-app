@@ -1699,5 +1699,9 @@
   "help": "도움말",
   "uploading": "업로드 중",
   "importing": "가져오는 중",
-  "pick_time": "시간"
+  "pick_time": "시간",
+  "navigation_panel": "탐색 패널",
+  "navigation_resize": "탐색 너비: 드래그하거나 화살표 키를 사용하세요",
+  "text_ai": "텍스트용 AI",
+  "image_ai": "이미지용 AI"
 }

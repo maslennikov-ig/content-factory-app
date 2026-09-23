@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -33,6 +34,11 @@ import {
   PieceAdaptationEditDto,
   PieceAdaptationPlaceDto,
   PieceAdaptationScheduleDto,
+  PiecePostSettingsDto,
+  ChannelPlanApplyDto,
+  PiecePostLinkDto,
+  PieceCoreEditDto,
+  PieceMaterialAppendDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 
@@ -157,6 +163,74 @@ export class ContentPieceController {
   async updateTitle(@GetOrgFromRequest() organization: Organization, @Param('id') id: string, @Body() body: PieceTitleDto) {
     try { return await this.pieces.updateTitle(organization.id, id, body.title); }
     catch (error) { safeHttpError(error, 'Title update failed'); }
+  }
+
+  /** «Какую ссылку поставить в пост?» (`97dq.75`): ответ автора, `null` — без ссылки. */
+  @Put('/:id/post-link')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async savePostLink(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: PiecePostLinkDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.savePostLink(
+        organization.id,
+        id,
+        { url: body.url ?? null },
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Post link was not saved');
+    }
+  }
+
+  /** Правка сути руками (`97dq.75`): автосохранение, без вызова модели. */
+  @Put('/:id/core')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async editCore(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: PieceCoreEditDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.editCore(organization.id, id, body, languageOf(requested));
+    } catch (error) {
+      safeHttpError(error, 'Core edit was not saved');
+    }
+  }
+
+  /** «Дописать материал» (`97dq.75`): суть не меняется до «Пересобрать суть». */
+  @Post('/:id/material')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async appendMaterial(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: PieceMaterialAppendDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.appendMaterial(organization.id, id, body, languageOf(requested));
+    } catch (error) {
+      safeHttpError(error, 'Material was not added');
+    }
+  }
+
+  /** «Пересобрать суть» (`97dq.75`): явная перепись сути по всему материалу. */
+  @Post('/:id/core/rebuild')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async rebuildCore(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.rebuildCore(organization.id, id, languageOf(requested));
+    } catch (error) {
+      safeHttpError(error, 'Core rebuild failed');
+    }
   }
 
   @Post('/:id/rewrite')
@@ -581,6 +655,96 @@ export class ContentPieceController {
         language === 'ru'
           ? 'Пост не удалось поставить в очередь.'
           : 'The post could not be queued.'
+      );
+    }
+  }
+
+  /**
+   * Сколько уже написанных постов канала затронет его режим плана
+   * (`97dq.70`): вопрос «Только к новым / Ко всем N» после смены режима.
+   */
+  @Get('/channels/:integrationId/plan-impact')
+  async channelPlanImpact(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('integrationId') integrationId: string,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.channelPlanImpact(
+        organization.id,
+        integrationId,
+        languageOf(requested)
+      );
+    } catch (error) {
+      safeHttpError(error, 'Channel plan impact request failed');
+    }
+  }
+
+  /**
+   * «Ко всем N»: режим канала — к его невышедшим постам без своего режима
+   * (`97dq.70`). Политики — как у «Запланировать»: автопилот ставит в
+   * очередь, а очередь считается в тарифный месяц.
+   */
+  @Post('/channels/:integrationId/plan-apply')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Update, Sections.EDITOR]
+  )
+  async applyChannelPlanMode(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('integrationId') integrationId: string,
+    @Body() body: ChannelPlanApplyDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.applyChannelPlanMode(
+        organization.id,
+        integrationId,
+        body?.planMode,
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Режим канала не удалось применить к написанным постам.'
+          : 'The channel mode could not be applied to the written posts.'
+      );
+    }
+  }
+
+  /**
+   * Настройки поста (`97dq.70`): сохраняются сами как переопределение
+   * канала, а режим плана применяется к написанному посту сразу.
+   */
+  @Put('/:id/channels/:integrationId/settings')
+  @CheckPolicies(
+    [AuthorizationActions.Create, Sections.POSTS_PER_MONTH],
+    [AuthorizationActions.Update, Sections.EDITOR]
+  )
+  async savePostSettings(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('integrationId') integrationId: string,
+    @Body() body: PiecePostSettingsDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.savePostSettings(
+        organization.id,
+        id,
+        integrationId,
+        (body ?? {}) as any,
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Настройки поста не удалось сохранить.'
+          : 'The post settings could not be saved.'
       );
     }
   }

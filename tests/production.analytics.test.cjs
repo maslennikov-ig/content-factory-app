@@ -30,13 +30,19 @@ function loadTypeScriptModule(relativePath, mocks = {}) {
   return loaded.exports;
 }
 
+/** The holder rule as the repository sees it; each test sets its answer. */
+let supersededCalls = [];
+let supersededAnswer = [];
 const loadPostsRepository = () =>
   loadTypeScriptModule(
     'libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts',
     {
       // Правило держателя слота (`97dq.57`): без вытесненных версий.
       '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan': {
-        supersededDraftPostIds: async () => [],
+        supersededDraftPostIds: async (...args) => {
+          supersededCalls.push(args.slice(1));
+          return supersededAnswer;
+        },
       },
       '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize': {
         // Статический импорт с ff7cfe3c (fn33.28.7); этим тестам контекст не нужен.
@@ -272,21 +278,57 @@ describe('production analytics', () => {
       ],
     });
     expect(result).toMatchObject({
-      version: 'plan-ahead/v1',
+      version: 'plan-ahead/v2',
       today: '2026-09-24',
       timeZone: 'Europe/Moscow',
       days: 4,
       until: '2026-09-27',
       emptyFrom: '2026-09-28',
+      // `97dq.73`: the counts the owner asked for.
+      reserved: 3,
+      queued: 4,
+      planned: 7,
+      planUntil: '2026-09-29',
+      published7d: 0,
+      daysWithPosts: 5,
     });
+    const none = { published7d: 0 };
     expect(result.channels).toEqual([
-      { integrationId: 'tg', name: 'AiDevTeam', days: 4, until: '2026-09-27', emptyFrom: '2026-09-28' },
-      { integrationId: 'test', name: 'Тестовая группа', days: 2, until: '2026-09-25', emptyFrom: '2026-09-26' },
-      { integrationId: 'vk', name: 'Сообщество AiDev', days: 0, until: null, emptyFrom: '2026-09-24' },
+      { integrationId: 'tg', name: 'AiDevTeam', days: 4, until: '2026-09-27', emptyFrom: '2026-09-28', reserved: 2, queued: 3, planned: 5, planUntil: '2026-09-29', ...none },
+      { integrationId: 'test', name: 'Тестовая группа', days: 2, until: '2026-09-25', emptyFrom: '2026-09-26', reserved: 1, queued: 1, planned: 2, planUntil: '2026-09-25', ...none },
+      { integrationId: 'vk', name: 'Сообщество AiDev', days: 0, until: null, emptyFrom: '2026-09-24', reserved: 0, queued: 0, planned: 0, planUntil: null, ...none },
     ]);
+    expect(result.strip[0]).toEqual({ date: '2026-09-24', filled: true, reserved: 1, queued: 1, published: 0 });
+    expect(result.strip[3]).toEqual({ date: '2026-09-27', filled: true, reserved: 1, queued: 0, published: 0 });
+    expect(result.strip[4]).toEqual({ date: '2026-09-28', filled: false, reserved: 0, queued: 0, published: 0 });
     expect(result.strip).toHaveLength(14);
     expect(result.strip.slice(0, 6).map((day) => day.filled)).toEqual([
       true, true, true, true, false, true,
+    ]);
+  });
+
+  test('plan ahead: published in the last 7 days per channel; counts and «План до» are not capped by the streak horizon', () => {
+    const { calculatePlanAhead } = loadAhead();
+    const result = calculatePlanAhead({
+      now: new Date('2026-09-24T12:00:00.000Z'),
+      timeZone: 'UTC',
+      horizon: 10,
+      channels: [{ id: 'tg', name: 'A' }, { id: 'vk', name: 'B' }],
+      posts: [
+        planned('tg', '2026-09-24T09:00:00.000Z', 'PUBLISHED', null),
+        planned('tg', '2026-09-18T09:00:00.000Z', 'PUBLISHED', null),
+        // Eight days back is outside «за 7 дней».
+        planned('tg', '2026-09-16T09:00:00.000Z', 'PUBLISHED', null),
+        planned('vk', '2026-09-20T09:00:00.000Z', 'PUBLISHED', null),
+        planned('vk', '2026-10-30T09:00:00.000Z', 'QUEUE', null),
+      ],
+    });
+    // Second review, item 3: a queued post 36 days out, past a 10-day horizon, still counts.
+    expect(result).toMatchObject({ published7d: 3, planned: 1, queued: 1, planUntil: '2026-10-30', daysWithPosts: 1 });
+    expect(result.strip[0]).toMatchObject({ published: 1, filled: true });
+    expect(result.channels.map((one) => [one.integrationId, one.published7d, one.planUntil])).toEqual([
+      ['tg', 2, null],
+      ['vk', 1, '2026-10-30'],
     ]);
   });
 
@@ -319,13 +361,30 @@ describe('production analytics', () => {
     expect(planAheadTimeZone('Europe/Moscow')).toBe('Europe/Moscow');
   });
 
-  test('days ahead: the repository reads this tenant, live channels, the window, without superseded drafts', async () => {
+  test('days ahead: the repository reads this tenant, live enabled channels, the window, without superseded drafts', async () => {
+    supersededCalls = [];
+    supersededAnswer = ['p-old'];
     const findMany = jest.fn().mockResolvedValue([
       {
+        id: 'p-new',
         integrationId: 'int-a',
         publishDate: new Date('2026-09-25T09:00:00.000Z'),
         state: 'DRAFT',
         contentDerivations: [{ plan: 'reserve' }],
+      },
+      {
+        id: 'p-old',
+        integrationId: 'int-a',
+        publishDate: new Date('2026-09-26T09:00:00.000Z'),
+        state: 'DRAFT',
+        contentDerivations: [{ plan: 'reserve' }],
+      },
+      {
+        id: 'p-q',
+        integrationId: 'int-b',
+        publishDate: new Date('2026-09-26T09:00:00.000Z'),
+        state: 'QUEUE',
+        contentDerivations: [],
       },
     ]);
     const { PostsRepository } = loadPostsRepository();
@@ -339,7 +398,7 @@ describe('production analytics', () => {
     );
     const from = new Date('2026-09-23T00:00:00.000Z');
     const to = new Date('2026-11-25T00:00:00.000Z');
-    const rows = await repository.getPlanAheadPosts('org-a', from, to, ['int-a']);
+    const rows = await repository.getPlanAheadPosts('org-a', from, to, ['int-a', 'int-b']);
     const [[query]] = findMany.mock.calls;
     expect(query.where).toMatchObject({
       organizationId: 'org-a',
@@ -347,10 +406,13 @@ describe('production analytics', () => {
       parentPostId: null,
       publishDate: { gte: from, lte: to },
       state: { in: ['QUEUE', 'DRAFT', 'PUBLISHED'] },
-      integration: { deletedAt: null, organizationId: 'org-a', id: { in: ['int-a'] } },
+      // Second review, item 2: a disabled channel is in neither the table nor the totals.
+      integration: { deletedAt: null, disabled: false, organizationId: 'org-a', id: { in: ['int-a', 'int-b'] } },
     });
     expect(query.select.contentDerivations.where).toEqual({ organizationId: 'org-a' });
     expect(query.select).not.toHaveProperty('content');
+    // Item 11: the holder rule is asked once, only for the channels with drafts.
+    expect(supersededCalls).toEqual([['org-a', ['int-a']]]);
     expect(rows).toEqual([
       {
         integrationId: 'int-a',
@@ -358,7 +420,62 @@ describe('production analytics', () => {
         state: 'DRAFT',
         plan: 'reserve',
       },
+      {
+        integrationId: 'int-b',
+        publishDate: new Date('2026-09-26T09:00:00.000Z'),
+        state: 'QUEUE',
+        plan: null,
+      },
     ]);
+
+    // No drafts in the answer: no holder read. No end: the whole future.
+    supersededCalls = [];
+    findMany.mockClear();
+    findMany.mockResolvedValueOnce([
+      { id: 'p-q', integrationId: 'int-b', publishDate: new Date('2027-03-01T09:00:00.000Z'), state: 'QUEUE', contentDerivations: [] },
+    ]);
+    await repository.getPlanAheadPosts('org-a', from, null);
+    expect(findMany.mock.calls[0][0].where.publishDate).toEqual({ gte: from });
+    expect(supersededCalls).toEqual([]);
+  });
+
+  test('plan ahead: a disabled channel is out of the totals as well as the table, so they add up', async () => {
+    supersededCalls = [];
+    supersededAnswer = [];
+    const channels = [
+      { id: 'on', name: 'On', disabled: false },
+      { id: 'off', name: 'Off', disabled: true },
+    ];
+    const posts = [
+      { id: 'a', integrationId: 'on', publishDate: new Date('2026-09-25T09:00:00.000Z'), state: 'QUEUE', contentDerivations: [] },
+      { id: 'b', integrationId: 'off', publishDate: new Date('2026-09-26T09:00:00.000Z'), state: 'QUEUE', contentDerivations: [] },
+      { id: 'c', integrationId: 'off', publishDate: new Date('2026-09-27T09:00:00.000Z'), state: 'DRAFT', contentDerivations: [{ plan: 'reserve' }] },
+    ];
+    // A fake that honours the one filter this test is about.
+    const disabledOf = (id) => channels.find((one) => one.id === id).disabled;
+    const model = {
+      post: {
+        findMany: async ({ where }) =>
+          posts.filter((row) => where.integration.disabled === undefined || disabledOf(row.integrationId) === where.integration.disabled),
+      },
+      integration: {
+        findMany: async ({ where }) =>
+          channels.filter((one) => where.disabled === undefined || one.disabled === where.disabled).map(({ id, name }) => ({ id, name })),
+      },
+    };
+    const { PostsRepository } = loadPostsRepository();
+    const repository = new PostsRepository({ model }, {}, {}, {}, {}, {});
+    const { calculatePlanAhead } = loadAhead();
+    const result = calculatePlanAhead({
+      now: new Date('2026-09-24T09:00:00.000Z'),
+      timeZone: 'UTC',
+      posts: await repository.getPlanAheadPosts('org-a', new Date('2026-09-16T00:00:00.000Z'), null),
+      channels: await repository.getPlanAheadChannels('org-a'),
+    });
+    expect(result.channels.map((one) => one.integrationId)).toEqual(['on']);
+    expect(result.planned).toBe(1);
+    expect(result.planned).toBe(result.channels.reduce((sum, one) => sum + one.planned, 0));
+    expect(result.planUntil).toBe('2026-09-25');
   });
 
   test('days ahead: the door is read-only, sits before `/:integration`, and the matrix names it', () => {
@@ -378,17 +495,25 @@ describe('production analytics', () => {
     expect(matrix).toContain('`GET /analytics/ahead`');
   });
 
-  test('Производство carries the plan-ahead card: big number, 14-day strip, «?»', () => {
+  test('Производство carries the plan ahead (97dq.73): KPIs, 14-day strip, per-channel table', () => {
     const screen = fs.readFileSync(
       path.resolve(__dirname, '../apps/frontend/src/components/platform-analytics/production.analytics.tsx'),
       'utf8'
     );
-    expect(screen).toContain('<PlanAheadCard');
-    const card = fs.readFileSync(
+    expect(screen).toContain('<PlanAheadOverview');
+    // The reader's language, not a hard-coded English one (audit §9).
+    expect(screen).not.toMatch(/locale="en"/);
+    const overview = fs.readFileSync(
       path.resolve(__dirname, '../apps/frontend/src/components/launches/plan-ahead.tsx'),
       'utf8'
     );
-    expect(card).toContain('data-plan-ahead-strip');
-    expect(card).toContain('<Hint label={copy.aheadHintLabel}>{copy.aheadCardHint}</Hint>');
+    expect(overview).toContain('data-plan-ahead-strip');
+    expect(overview).toContain('data-plan-ahead-table');
+    // The streak wording is gone.
+    const copy = fs.readFileSync(
+      path.resolve(__dirname, '../apps/frontend/src/components/launches/calendar-planning.copy.ts'),
+      'utf8'
+    );
+    expect(copy).not.toMatch(/закрашено|дней впереди|впереди пусто/);
   });
 });

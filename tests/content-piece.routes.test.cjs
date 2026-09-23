@@ -212,6 +212,11 @@ describe('дверь отвечает ровно по тем адресам, ч�
     } ${contract.PIECE_ROUTES.deleteAdaptation.path(':id', ':adaptationId')}`,
     // Удаление заготовки (`97dq.30`): тоже только по идентификатору из пути.
     `${contract.PIECE_ROUTES.delete.method} ${contract.PIECE_ROUTES.delete.path(':id')}`,
+    // Ссылка для поста и правка заготовки (`97dq.75`).
+    ...['postLink', 'editCore', 'appendMaterial', 'rebuildCore'].map(
+      (name) =>
+        `${contract.PIECE_ROUTES[name].method} ${contract.PIECE_ROUTES[name].path(':id')}`
+    ),
     // Additive editing/rewrite doors do not mutate the shipped voice contract.
     'PATCH /content-intelligence/pieces/:id',
     'PATCH /content-intelligence/pieces/:id/facts',
@@ -229,6 +234,10 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.path(':id', ':adaptationId')}`,
     // «Поставить на ЧЧ:ММ» из календаря (`97dq.57`).
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.place.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.place.path(':id', ':adaptationId')}`,
+    // Настройки поста и режим канала к написанным постам (`97dq.70`).
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.postSettings.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.postSettings.path(':id', ':integrationId').replace('%3AintegrationId', ':integrationId')}`,
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.path(':integrationId').replace('%3AintegrationId', ':integrationId')}`,
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.path(':integrationId').replace('%3AintegrationId', ':integrationId')}`,
   ];
 
   test.each(expected)('%s смонтирован', (route) => {
@@ -297,6 +306,10 @@ describe('чтение открыто области, запись — реда�
     // Экран адаптации (`97dq.37`): правка — роль; выход в очередь считается в
     // тарифный месяц, как `POST /posts`, и предел назван первым.
     ["@Patch('/:id/adaptations/:adaptationId')", ['EDITOR']],
+    // Настройки поста применяют режим плана сразу, а «Ко всем N» ставит
+    // написанные посты в очередь: обе считаются в тарифный месяц (`97dq.70`).
+    ["@Put('/:id/channels/:integrationId/settings')", ['POSTS_PER_MONTH', 'EDITOR']],
+    ["@Post('/channels/:integrationId/plan-apply')", ['POSTS_PER_MONTH', 'EDITOR']],
     [
       "@Post('/:id/adaptations/:adaptationId/schedule')",
       ['POSTS_PER_MONTH', 'EDITOR'],
@@ -829,6 +842,15 @@ describe('двери экрана адаптации', () => {
     }
     expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_UNKNOWN.status).toBe(422);
     expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_NOT_READY.status).toBe(409);
+  });
+
+  test('настройки поста и «Ко всем N»: предел пожелания тот же, что у сервера, режим — объявленный (97dq.70)', async () => {
+    expect(await codes(dto.PiecePostSettingsDto, { options: { wish: 'а'.repeat(500) }, planMode: 'reserve' })).toEqual([]);
+    expect(await codes(dto.PiecePostSettingsDto, { options: { wish: 'а'.repeat(501) } })).toEqual(['options']);
+    expect(await codes(dto.PiecePostSettingsDto, { planMode: 'queue' })).toEqual(['planMode']);
+    expect(await codes(dto.ChannelPlanApplyDto, { planMode: 'autopilot' })).toEqual([]);
+    expect(await codes(dto.ChannelPlanApplyDto, {})).toEqual(['planMode']);
+    expect(workspaceContract.ADAPTATION_WORKSPACE_ERROR_CODES.CHANNEL_PLAN_MODE_CHANGED.status).toBe(409);
   });
 
   test('«Для этого поста» принимает объявленное и отказывает мусору', async () => {

@@ -220,7 +220,7 @@ export function VoiceMaterialsScreen({
                   <th
                     key={column || index}
                     className={clsx(
-                      'px-[12px] py-[8px] cf-label-sm uppercase text-cf-ink-muted',
+                      'px-[12px] py-[8px] cf-label-sm text-cf-ink-muted',
                       index >= 3 && index <= 5 ? 'text-end' : 'text-start'
                     )}
                   >
@@ -286,7 +286,7 @@ export function VoiceMaterialsScreen({
                         data-voice-material-origin={material.code}
                       >
                         <td colSpan={7} className="px-[12px] pb-[12px]">
-                          <p className="cf-label-sm uppercase text-cf-ink-muted">
+                          <p className="cf-label-sm text-cf-ink-muted">
                             {t.materialsDerived}
                           </p>
                           <ul className="mt-[8px] flex flex-wrap gap-[8px]">
@@ -387,7 +387,7 @@ export function VoiceMaterialsScreen({
             </p>
           ) : null}
 
-          <p className="mt-[16px] cf-label-sm uppercase text-cf-ink-muted">
+          <p className="mt-[16px] cf-label-sm text-cf-ink-muted">
             {t.recutWhatChanges}
           </p>
 

@@ -128,7 +128,7 @@ export function VoiceRedactionsScreen({
             <li
               key={step}
               className={clsx(
-                'cf-label-sm uppercase',
+                'cf-label-sm',
                 index === 2 ? 'text-cf-accent' : 'text-cf-ink-muted'
               )}
             >
@@ -242,7 +242,7 @@ export function VoiceRedactionsScreen({
 
       <div className="grid min-w-0 gap-[12px] sm:grid-cols-2">
         <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[12px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.keptTitle}
           </p>
           <dl className="mt-[8px] flex flex-wrap gap-x-[24px] gap-y-[8px]">
@@ -260,7 +260,7 @@ export function VoiceRedactionsScreen({
         </div>
 
         <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[12px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.similarityTitle}
           </p>
           <p className="mt-[8px] cf-body-sm text-cf-ink [text-wrap:pretty]">

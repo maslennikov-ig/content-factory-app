@@ -266,6 +266,12 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
             'max-w-[min(260px,calc(100vw-32px))]',
             'rounded-[8px] bg-cf-surface-raised p-[12px] shadow-menu',
             'cf-body-sm text-cf-ink [text-wrap:pretty]',
+            // The bubble renders inline, so it inherits the case of whatever
+            // label it sits in. An explanation is read, never shouted: reset
+            // it here once rather than at every call site (thirteenth walk
+            // B1, «подсказки капслоком»). Tracking needs no reset: `body-sm`
+            // declares its own, like every token.
+            'normal-case',
             (side === 'end') !== flipped ? 'start-0' : 'end-0'
           )}
         >

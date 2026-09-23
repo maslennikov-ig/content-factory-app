@@ -37,6 +37,8 @@ import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
 import type { BrandProfileSelectionV1 } from '../contracts';
 import type { EmojiLevel } from '../channels/emoji-ceiling';
+import type { PlanModeV1 } from '../pieces/adaptation-plan';
+import type { PiecePostSettingsV1 } from '../pieces/post-settings';
 import type { VoiceSampleFileIntakeResponseV2 as FileIntakeResponseV2 } from './voice-intake-v2.contract';
 
 /** Kept in this registry's exported type set while its implementation stays separate. */
@@ -3031,6 +3033,36 @@ export type PieceLeadSourceV1 = {
   title?: string;
 };
 
+/**
+ * The link the author gave for the post (`content-factory-next-97dq.75`).
+ *
+ * The answer to the deterministic question «Какую ссылку поставить в пост?»:
+ * `url` — an http(s) address, `null` — «Без ссылки». `origin` is always
+ * `author`: the product never writes this field from a model's output. An
+ * absent field means the question was not answered yet.
+ */
+export type PiecePostLinkV1 = {
+  url: string | null;
+  origin: 'author';
+  /** ISO. */
+  answeredAt: string;
+};
+
+/** A piece of material the author added after the piece was written (`97dq.75`). */
+export type PieceAddedMaterialV1 = {
+  text: string;
+  /** ISO. */
+  addedAt: string;
+};
+
+/** A core text the author replaced by editing it (`97dq.75`); newest last. */
+export type PieceCoreRevisionV1 = {
+  text: string;
+  writtenBy: 'model' | 'fallback' | 'person';
+  /** ISO — when it stopped being the current core. */
+  replacedAt: string;
+};
+
 export type ZagotovkaCoreV1 = {
   version: typeof PIECE_CORE_VERSION;
   text: string;
@@ -3097,6 +3129,22 @@ export type ZagotovkaCoreV1 = {
    * одним словом рядом друг с другом читались бы как одно.
    */
   leadSource?: PieceLeadSourceV1 | null;
+  /** The author's link for the post (`97dq.75`); absent — not asked yet. */
+  postLink?: PiecePostLinkV1 | null;
+  /**
+   * «Дописать материал» (`97dq.75`): what the author added later, in order.
+   * The same words are appended to `personText`, so every core rewrite path
+   * reads them; this list is the record of what was added and when.
+   */
+  addedMaterial?: PieceAddedMaterialV1[];
+  /** Material was added and the core has not been rebuilt from it yet. */
+  materialPending?: boolean;
+  /** The author edited the core by hand; the current text is theirs. */
+  editedBy?: 'person';
+  /** ISO — the last hand save; autosaves within one session are one revision. */
+  editedAt?: string;
+  /** Earlier core texts replaced by hand edits and rebuilds (bounded, newest last). */
+  revisions?: PieceCoreRevisionV1[];
 };
 
 export type AdaptationV1 = {
@@ -3188,6 +3236,38 @@ export type PieceChannelTabV1 = {
   maxLength: number | null;
   cell: PieceCellV1;
   adaptationIds: string[];
+  /** Режим плана канала (`97dq.57`); у старого сервера нет. */
+  planMode?: PlanModeV1;
+  /**
+   * Свои настройки поста в этом канале (`97dq.70`): поля «как в канале» или
+   * изменённые и свой режим плана. `null` — всё как в канале.
+   */
+  settings?: PiecePostSettingsV1 | null;
+};
+
+/** `PUT …/channels/:integrationId/settings` (`97dq.70`). */
+export type PiecePostSettingsRequestV1 = {
+  options?: Partial<PiecePostSettingsV1['options']>;
+  /** `null` — снова как в канале; отсутствие — не трогать. */
+  planMode?: PlanModeV1 | null;
+};
+
+export type PiecePostSettingsResponseV1 = {
+  settings: PiecePostSettingsV1 | null;
+  /** Держатель слота после немедленного применения режима, если он есть. */
+  adaptation: AdaptationV1 | null;
+};
+
+/** Сколько уже написанных постов канала затронет смена режима (`97dq.70`). */
+export type ChannelPlanImpactV1 = {
+  integrationId: string;
+  planMode: PlanModeV1;
+  /** Невышедшие посты канала без своего режима. */
+  count: number;
+};
+
+export type ChannelPlanApplyResponseV1 = ChannelPlanImpactV1 & {
+  applied: number;
 };
 
 export type PieceDetailV1 = {
@@ -3201,6 +3281,11 @@ export type PieceDetailV1 = {
   sentText?: string | null;
   /** Вкладки каналов (`97dq.37`); адаптации без канала в них не попадают. */
   channels?: PieceChannelTabV1[];
+  /**
+   * Ask «Какую ссылку поставить в пост?» (`97dq.75`): a channel the piece goes
+   * to allows links and the author has not answered yet.
+   */
+  linkQuestion?: boolean;
   /** `null` — суть не выделена (материал до волны); тогда тело — в `legacyBody`. */
   core: ZagotovkaCoreV1 | null;
   /** HTML одного канала у старых материалов. Старая кнопка «Черновик» вставит его как есть — экран предупреждает. */
@@ -3264,7 +3349,21 @@ export type PieceAdaptOverridesV1 = {
   linkPolicy?: 'none' | 'end' | 'inline' | 'auto';
   hashtagPolicy?: 'none' | 'end_1_3' | 'free' | 'auto';
   ctaKind?: 'auto' | 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';
+  /**
+   * «Ссылка для поста» (`97dq.75`): an http(s) address, or `none` — no link
+   * in this post. Absent — the piece's answer decides.
+   */
+  postLink?: string;
 };
+
+/** `PUT …/:id/post-link` (`97dq.75`): the answer; `null` — «Без ссылки». */
+export type PiecePostLinkRequestV1 = { url: string | null };
+
+/** `PUT …/:id/core` (`97dq.75`): the edited core and the text it replaces. */
+export type PieceCoreEditRequestV1 = { text: string; expected: string };
+
+/** `POST …/:id/material` (`97dq.75`): words to add to the piece's material. */
+export type PieceMaterialAppendRequestV1 = { text: string };
 
 export type PieceAdaptRequestV1 = {
   integrationId: string;
@@ -3520,5 +3619,25 @@ export const PIECE_ROUTES = {
     method: 'DELETE',
     path: (pieceId: string, adaptationId: string) =>
       `${PIECES_API_BASE}/${pieceId}/adaptations/${adaptationId}`,
+  },
+  /** «Какую ссылку поставить в пост?» (`97dq.75`): `PiecePostLinkRequestV1`. */
+  postLink: {
+    method: 'PUT',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/post-link`,
+  },
+  /** Правка сути руками (`97dq.75`): `PieceCoreEditRequestV1`. */
+  editCore: {
+    method: 'PUT',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/core`,
+  },
+  /** «Дописать материал» (`97dq.75`): `PieceMaterialAppendRequestV1`. */
+  appendMaterial: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/material`,
+  },
+  /** «Пересобрать суть» (`97dq.75`): один вызов записи сути. */
+  rebuildCore: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/core/rebuild`,
   },
 } as const;

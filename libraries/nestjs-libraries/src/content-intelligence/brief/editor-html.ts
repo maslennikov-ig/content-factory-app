@@ -13,6 +13,12 @@ import {
   stripBoldMarkers,
   stripStrayBoldMarkers,
 } from '@contentfactory/helpers/utils/bold-markers';
+import {
+  inlineHtml,
+  inlineMarkdown,
+  inlinePlain,
+  parseInline,
+} from '@contentfactory/helpers/utils/inline-marks';
 
 export { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 
@@ -69,22 +75,58 @@ export const boldToStrong = (escaped: string): string =>
  * которого страница не показывала. `none` не показывает ничего — остаётся
  * голый текст. Список редакторов — `SocialProvider.editor`, третьей таблицы у
  * продукта нет.
+ *
+ * Italic, underline and a link with its own words (`97dq.52`) are read by the
+ * same shared grammar (`inline-marks.ts`): `html` gets `<em>`, `<u>` and
+ * `<a href>`; `markdown` keeps `_italic_` and `[words](address)` and loses the
+ * underline signs it has no syntax for; `normal` and `none` get the words, and
+ * a link keeps its address after them so the reader can still follow it.
+ * A line with no mark but bold takes exactly the old road, byte for byte.
  */
+const hasNewMarks = (line: string): boolean =>
+  parseInline(line).some(function deep(node): boolean {
+    if (node.kind === 'link') return true;
+    if (node.kind === 'mark')
+      return node.mark !== 'bold' || node.children.some(deep);
+    return false;
+  });
+
 export const editorHtml = (
   text: string,
   editor: 'none' | 'normal' | 'markdown' | 'html'
 ): string => {
   const body = (text || '').replace(/\r\n?/gu, '\n').trim();
   if (!body) return '';
-  if (editor === 'markdown') return stripStrayBoldMarkers(body);
-  if (editor === 'none') return stripBoldMarkers(body);
-  const inline = editor === 'html' ? boldToStrong : stripBoldMarkers;
+  if (editor === 'markdown')
+    return body
+      .split('\n')
+      .map((line) =>
+        hasNewMarks(line)
+          ? inlineMarkdown(parseInline(line))
+          : stripStrayBoldMarkers(line)
+      )
+      .join('\n');
+  if (editor === 'none')
+    return body
+      .split('\n')
+      .map((line) =>
+        hasNewMarks(line) ? inlinePlain(parseInline(line)) : stripBoldMarkers(line)
+      )
+      .join('\n');
+  const inline = (line: string) =>
+    hasNewMarks(line)
+      ? editor === 'html'
+        ? inlineHtml(parseInline(line))
+        : escape(inlinePlain(parseInline(line)))
+      : editor === 'html'
+      ? boldToStrong(escape(line))
+      : stripBoldMarkers(escape(line));
   return body
     .split(/\n{2,}/u)
     .map((block) =>
       block
         .split('\n')
-        .map((line) => inline(escape(line)))
+        .map(inline)
         .join(' ')
         .trim()
     )

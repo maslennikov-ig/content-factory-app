@@ -101,46 +101,76 @@ const disclosureFiles = () =>
   );
 
 /* -------------------------------------------------------------------------
- * 2. Section label is a component
+ * 2. No capitals by CSS in product copy (`97dq.74`)
  * ---------------------------------------------------------------------- */
 
-const SECTION_LABEL_PATTERN = /cf-label-sm uppercase/;
-const SECTION_LABEL_OWNER = `${COMPONENTS}/ui/section-label.tsx`;
-
-/** Hand-typed `cf-label-sm uppercase` per file, 22.09.2026. Only decreases. */
-const SECTION_LABEL_LEDGER = {
-  'apps/frontend/src/app/(stand)/interface-review/page.tsx': 4,
-  'apps/frontend/src/components/brand-voice/draft-gap-note.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-analysis.screen.tsx': 7,
-  'apps/frontend/src/components/brand-voice/voice-avatar-create.dialog.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-avatars.screen.tsx': 4,
-  'apps/frontend/src/components/brand-voice/voice-brief.container.tsx': 4,
-  'apps/frontend/src/components/brand-voice/voice-brief.screen.tsx': 3,
-  'apps/frontend/src/components/brand-voice/voice-learning.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-materials.screen.tsx': 3,
-  'apps/frontend/src/components/brand-voice/voice-passport.screen.tsx': 5,
-  'apps/frontend/src/components/brand-voice/voice-paths.screen.tsx': 5,
-  'apps/frontend/src/components/brand-voice/voice-proposal.screen.tsx': 5,
-  'apps/frontend/src/components/brand-voice/voice-redactions.screen.tsx': 3,
-  'apps/frontend/src/components/brand-voice/voice-ribbon.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-samples.screen.tsx': 10,
-  'apps/frontend/src/components/brand-voice/voice-scales.screen.tsx': 4,
-  'apps/frontend/src/components/brand-voice/voice-versions.screen.tsx': 7,
-  'apps/frontend/src/components/brand-voice/voice-wizard.container.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-facts.container.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-facts.showcase.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-leads.tab.tsx': 4,
-  'apps/frontend/src/components/content-intelligence/content-materials.placeholder.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-search.container.tsx': 2,
-  'apps/frontend/src/components/content-intelligence/intake/intake.research.tsx': 2,
-  'apps/frontend/src/components/content-intelligence/intake/intake.screen.tsx': 2,
-  'apps/frontend/src/components/content-intelligence/intake/questions.card.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/intake/writing-profile.fields.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/pieces/pieces.screen.tsx': 2,
-  'apps/frontend/src/components/launches/post-card.parts.tsx': 1,
-  'apps/frontend/src/components/public-saas/home-shots.tsx': 1,
-  'apps/frontend/src/components/settings/ai-provider.component.tsx': 1,
+/**
+ * Until 24.09.2026 this section ratified caps: `SectionLabel` uppercased its
+ * text and a ledger counted the hand-typed `cf-label-sm uppercase` copies down
+ * towards it. The thirteenth walk (E3, B1) read the result as shouting, hint
+ * bubbles included, and `DESIGN.md` («Типографика») now keeps `uppercase` out
+ * of product copy altogether. So the guard flips: any `uppercase` class token
+ * (or `textTransform: 'uppercase'`) in a string of a product component fails,
+ * outside the short list below. An abbreviation that is capital by nature
+ * (a language code, initials) is written in capitals in the data instead.
+ *
+ * Each allowed file says why; the list is checked both ways.
+ */
+const UPPERCASE_ALLOWED = {
+  // The internal design stand: shows old and new side by side on purpose.
+  'apps/frontend/src/app/(stand)/interface-review/page.tsx': 'design stand',
+  // Superadmin error table; not product copy.
+  'apps/frontend/src/components/admin/admin-errors.component.tsx': 'superadmin',
+  // WEB/API/MCP badge, rendered only under impersonation (calendar.tsx).
+  'apps/frontend/src/components/launches/creation.method.badge.tsx': 'impersonation only',
 };
+
+const UPPERCASE_ROOTS = [APP, 'libraries/react-shared-libraries/src'];
+const UPPERCASE_TOKEN = /(^|[\s:])uppercase($|\s)/;
+const SECTION_LABEL_OWNER = `${COMPONENTS}/ui/section-label.tsx`;
+const HINT_OWNER = 'libraries/react-shared-libraries/src/layout/hint.tsx';
+
+/**
+ * Lines where a string in the source carries `uppercase` as a class token or
+ * as a whole value. Comments are not strings, so prose about the rule — and
+ * commented-out legacy markup — is not an offence.
+ */
+const findUppercase = (file, source) => {
+  const ast = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    /\.tsx$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+  const lines = [];
+  const visit = (node) => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      if (UPPERCASE_TOKEN.test(node.text)) {
+        lines.push(ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return lines;
+};
+
+const uppercaseOffenders = () =>
+  UPPERCASE_ROOTS.flatMap((root) => walk(root, isTsOrTsx)).filter(
+    (file) => findUppercase(file, read(file)).length > 0
+  );
+
+const cssUppercaseFiles = () =>
+  UPPERCASE_ROOTS.flatMap((root) =>
+    walk(root, (name) => /\.(s?css)$/.test(name))
+  ).filter((file) => /text-transform\s*:\s*uppercase/i.test(read(file)));
 
 /* -------------------------------------------------------------------------
  * 3. Copy lives in the copy file
@@ -330,7 +360,6 @@ const TOUCH_TARGET_LEDGER = {
   'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx': 1,
   'apps/frontend/src/components/content-intelligence/content-section.screen.tsx': 1,
   'apps/frontend/src/components/content-intelligence/intake/intake.screen.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/intake/writing-profile.card.tsx': 1,
   'apps/frontend/src/components/content-intelligence/pieces/piece.screen.tsx': 1,
   'apps/frontend/src/components/content-intelligence/pieces/pieces.screen.tsx': 1,
 };
@@ -425,14 +454,27 @@ describe('Content Factory coherence guard (97dq.39)', () => {
     }).toEqual({ added: [], stale: [], fix: expect.any(String) });
   });
 
-  test('section labels: hand-typed `cf-label-sm uppercase` only decreases', () => {
-    const files = walk(APP, isTsx).filter((file) => file !== SECTION_LABEL_OWNER);
+  test('no capitals by CSS: `uppercase` only in the documented allowlist', () => {
+    const fixture = [
+      "const a = 'cf-label-sm uppercase text-cf-ink-muted';",
+      'const b = <p className="md:uppercase">x</p>;',
+      "const c = { textTransform: 'uppercase' };",
+      '// prose about `uppercase` is fine',
+      "const d = 'normal-case';",
+      '{/* <div className="uppercase" /> */}',
+    ].join('\n');
+    expect(findUppercase('fixture.tsx', fixture)).toEqual([1, 2, 3]);
+
     expect({
-      ...countDrift(countPerFile(files, SECTION_LABEL_PATTERN), SECTION_LABEL_LEDGER),
-      fix: 'use `SectionLabel` (components/ui/section-label) or `Panel title`; lower SECTION_LABEL_LEDGER when a file gets cleaner',
-    }).toEqual({ grown: [], shrunk: [], fix: expect.any(String) });
-    // The owner is the one place the class pair is the rule, not the debt.
-    expect(read(SECTION_LABEL_OWNER)).toMatch(SECTION_LABEL_PATTERN);
+      ...listDrift(uppercaseOffenders(), Object.keys(UPPERCASE_ALLOWED).sort()),
+      css: cssUppercaseFiles(),
+      fix: 'write product copy in sentence case; an abbreviation is capital in the data, not by CSS',
+    }).toEqual({ added: [], stale: [], css: [], fix: expect.any(String) });
+
+    // The section label is the loudest place it came back from, and the hint
+    // bubble inherits whatever case its label has.
+    expect(findUppercase(SECTION_LABEL_OWNER, read(SECTION_LABEL_OWNER))).toEqual([]);
+    expect(read(HINT_OWNER)).toMatch(/'normal-case'/);
   });
 
   test('copy lives in the copy file: inline locale ternaries only decrease', () => {

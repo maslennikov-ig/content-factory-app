@@ -59,15 +59,20 @@ import {
   type ZagotovkaCoreV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { PLATFORM_NAMES } from '@contentfactory/react/platform/platform.families';
-import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
+import { stripInlineMarks } from '@contentfactory/helpers/utils/inline-marks';
 import {
   PIECE_ADAPTATION_WORKSPACE_ROUTES,
   type PieceAdaptationEditRequestV1,
   type PieceAdaptationScheduleRequestV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 import { platformLabel } from '../../brand-voice/voice-copy';
+import { EMOJI_LEVEL_VALUES } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import {
+  CTA_KINDS,
+  HASHTAG_POLICIES,
   LENGTH_PRESETS,
+  LENGTH_PRESET_ORDER,
+  LINK_POLICIES,
   buildWritingProfilePayload,
   lengthPresetOf,
   type ChannelWritingProfileV1,
@@ -159,6 +164,23 @@ export const PIECES_API = {
   schedule: PIECE_ADAPTATION_WORKSPACE_ROUTES.schedule.path,
   /** `POST` без тела — «Снять с расписания», обратно в черновик. */
   unschedule: PIECE_ADAPTATION_WORKSPACE_ROUTES.unschedule.path,
+  /** `POST {date}` — перенести запланированный пост на другое время (`97dq.57`). */
+  place: PIECE_ADAPTATION_WORKSPACE_ROUTES.place.path,
+  /** `PUT {options?, planMode?}` — настройки поста в канале (`97dq.70`). */
+  postSettings: PIECE_ADAPTATION_WORKSPACE_ROUTES.postSettings.path,
+  /** `GET` — сколько написанных постов канала затронет его режим (`97dq.70`). */
+  channelPlanImpact: PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.path,
+  /** `POST` — «Ко всем N» (`97dq.70`). */
+  channelPlanApply: PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.path,
+  /* Ссылка для поста и правка заготовки (`97dq.75`). */
+  /** `PUT {url}` — ответ на «Какую ссылку поставить в пост?»; `null` — без ссылки. */
+  postLink: PIECE_ROUTES.postLink.path,
+  /** `PUT {text, expected}` — правка сути руками. */
+  editCore: PIECE_ROUTES.editCore.path,
+  /** `POST {text}` — «Дописать материал». */
+  appendMaterial: PIECE_ROUTES.appendMaterial.path,
+  /** `POST` — «Пересобрать суть». */
+  rebuildCore: PIECE_ROUTES.rebuildCore.path,
 } as const;
 
 /** Адрес страницы заготовки — один на весь фронтенд. */
@@ -551,6 +573,19 @@ const readTarget = (value: unknown): PieceTargetV1 | null => {
   };
 };
 
+/** Ответ автора на вопрос о ссылке (`97dq.75`): адрес или «Без ссылки». */
+const readPostLinkField = (
+  value: unknown
+): Pick<ZagotovkaCoreV1, 'postLink'> => {
+  const record = asRecord(value);
+  if (!record || record.origin !== 'author') return {};
+  const answeredAt = asText(record.answeredAt);
+  if (record.url === null)
+    return { postLink: { url: null, origin: 'author', answeredAt } };
+  const url = readLinkAddress(asText(record.url));
+  return url ? { postLink: { url, origin: 'author', answeredAt } } : {};
+};
+
 export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
   const record = asRecord(value);
   if (!record) return null;
@@ -599,6 +634,20 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
     ...(asText(record.sourceText).trim()
       ? { sourceText: asText(record.sourceText) }
       : {}),
+    // Что автор дал заготовке потом (`97dq.75`).
+    ...readPostLinkField(record.postLink),
+    ...(asArray(record.addedMaterial).length
+      ? {
+          addedMaterial: asArray(record.addedMaterial).flatMap((entry) => {
+            const added = asRecord(entry);
+            return added && asText(added.text).trim()
+              ? [{ text: asText(added.text), addedAt: asText(added.addedAt) }]
+              : [];
+          }),
+        }
+      : {}),
+    ...(record.materialPending === true ? { materialPending: true } : {}),
+    ...(record.editedBy === 'person' ? { editedBy: 'person' as const } : {}),
     // Источник повода (`content-factory-next-75xn.8`). Без адреса записи нет:
     // строка на странице существует, чтобы человек мог открыть исходное.
     ...(asText(asRecord(record.leadSource)?.url)
@@ -706,6 +755,8 @@ const readChannelTab = (value: unknown): PieceChannelTabV1 | null => {
     adaptationIds: asArray(record.adaptationIds).filter(
       (id): id is string => typeof id === 'string'
     ),
+    ...(isPlanModeWord(record.planMode) ? { planMode: record.planMode } : {}),
+    settings: readPostSettings(record.settings),
   };
 };
 
@@ -745,6 +796,7 @@ export function readPieceDetail(value: unknown): PieceWorkspaceV1 {
       return target ? [target] : [];
     }),
     later: asArray(record.later).map(readKind),
+    ...(record.linkQuestion === true ? { linkQuestion: true } : {}),
     ...(typeof record.notice === 'string' ? { notice: record.notice } : {}),
   };
 }
@@ -1348,7 +1400,15 @@ export type PostOptionsV1 = {
   /** `null` — аватар канала, как решено в его настройках. */
   brandProfileId: string | null;
   wish: string;
+  /**
+   * «Ссылка для поста» (`97dq.75`): `''` — как в заготовке, `none` — без
+   * ссылки в этом посте, иначе адрес http(s).
+   */
+  link: string;
 };
+
+/** «Без ссылки» в «Ссылке для поста» (`97dq.75`). */
+export const POST_LINK_NONE = 'none';
 
 /** Пять полей карточки, которые пост может перекрыть, — в порядке панели. */
 export const POST_PROFILE_FIELDS = [
@@ -1368,6 +1428,7 @@ export const DEFAULT_POST_OPTIONS: PostOptionsV1 = {
   cta: 'channel',
   brandProfileId: null,
   wish: '',
+  link: '',
 };
 
 export type AdaptOverridesV1 = PieceAdaptOverridesV1;
@@ -1446,7 +1507,8 @@ export function postChangeCount(
     options.brandProfileId !== baseline.brandProfileId
       ? 1
       : 0) +
-    (options.wish.trim() ? 1 : 0)
+    (options.wish.trim() ? 1 : 0) +
+    (options.link ? 1 : 0)
   );
 }
 
@@ -1462,6 +1524,16 @@ const lengthOverride = (
   preset === 'auto'
     ? { lengthPolicy: 'auto' }
     : { lengthPolicy: 'range', lengthRange: { ...LENGTH_PRESETS[preset] } };
+
+/**
+ * «Ссылка для поста» как её хранит пост (`97dq.75`): `''` — как в заготовке,
+ * `none` — без ссылки, иначе адрес http(s). Не адрес — как в заготовке.
+ */
+export const postLinkOverride = (value: unknown): string => {
+  if (typeof value === 'string' && value.trim().toLowerCase() === POST_LINK_NONE)
+    return POST_LINK_NONE;
+  return typeof value === 'string' ? readLinkAddress(value) ?? '' : '';
+};
 
 /**
  * Что из «Для этого поста» уходит в `overrides`.
@@ -1497,6 +1569,9 @@ export function adaptOverrides(
       ? { brandProfileId: options.brandProfileId }
       : {}),
     ...(wish ? { wish } : {}),
+    ...(postLinkOverride(options.link)
+      ? { postLink: postLinkOverride(options.link)! }
+      : {}),
     ...(takeaway?.trim()
       ? { takeaway: takeaway.trim().slice(0, POST_WISH_MAX) }
       : {}),
@@ -1508,6 +1583,119 @@ export const postOptionsChanged = (
   options: PostOptionsV1,
   baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE
 ): boolean => adaptOverrides(options, baseline) !== undefined;
+
+/* ---- Настройки поста (`97dq.70`) ----------------------------------------- */
+
+/** Режим плана: «Без плана», «Бронь», «Автопилот». */
+export type PlanModeWordV1 = 'draft' | 'reserve' | 'autopilot';
+export const PLAN_MODE_WORDS: readonly PlanModeWordV1[] = [
+  'draft',
+  'reserve',
+  'autopilot',
+];
+export const isPlanModeWord = (value: unknown): value is PlanModeWordV1 =>
+  typeof value === 'string' &&
+  (PLAN_MODE_WORDS as readonly string[]).includes(value);
+
+/**
+ * Свои настройки поста в канале, как их хранит сервер
+ * (`ContentPiece.tags.postSettings`): поля панели, свой режим плана и когда
+ * их сохранили.
+ */
+export type PostSettingsV1 = {
+  options: PostOptionsV1;
+  /** `null` — режим как в канале. */
+  planMode: PlanModeWordV1 | null;
+  savedAt: string | null;
+  /** Когда менялось то, что меняет текст: «применится при переписывании». */
+  textChangedAt: string | null;
+};
+
+const choiceOf = <Value extends string>(
+  values: readonly Value[],
+  value: unknown
+): PostChoiceV1<Value> =>
+  typeof value === 'string' && (values as readonly string[]).includes(value)
+    ? (value as Value)
+    : 'channel';
+
+const settingsIsoOf = (value: unknown): string | null => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const at = new Date(value);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+};
+
+/** Поля поста из ответа; мусор — «как в канале». */
+export function readPostOptions(value: unknown): PostOptionsV1 {
+  const record = asRecord(value) ?? {};
+  return {
+    length: choiceOf(LENGTH_PRESET_ORDER, record.length),
+    emoji: choiceOf(EMOJI_LEVEL_VALUES, record.emoji),
+    hashtags: choiceOf(HASHTAG_POLICIES, record.hashtags),
+    links: choiceOf(LINK_POLICIES, record.links),
+    cta: choiceOf(CTA_KINDS, record.cta),
+    brandProfileId:
+      typeof record.brandProfileId === 'string' && record.brandProfileId
+        ? record.brandProfileId
+        : null,
+    wish:
+      typeof record.wish === 'string' ? record.wish.slice(0, POST_WISH_MAX) : '',
+    link: postLinkOverride(record.link),
+  };
+}
+
+export function readPostSettings(value: unknown): PostSettingsV1 | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  return {
+    options: readPostOptions(record.options),
+    planMode: isPlanModeWord(record.planMode) ? record.planMode : null,
+    savedAt: settingsIsoOf(record.savedAt),
+    textChangedAt: settingsIsoOf(record.textChangedAt),
+  };
+}
+
+/** Ответ `PUT …/settings`: настройки и держатель слота после применения режима. */
+export function readPostSettingsResponse(value: unknown): {
+  settings: PostSettingsV1 | null;
+  adaptation: WorkspaceAdaptationV1 | null;
+} {
+  const record = asRecord(value) ?? {};
+  return {
+    settings: readPostSettings(record.settings),
+    adaptation: record.adaptation ? readAdaptationPatch(record.adaptation) : null,
+  };
+}
+
+/** Тело `PUT …/settings`: поля поста и, если прислан, режим (`null` — как в канале). */
+export function buildPostSettingsPayload(input: {
+  options?: PostOptionsV1;
+  planMode?: PlanModeWordV1 | null;
+}): { options?: PostOptionsV1; planMode?: PlanModeWordV1 | null } {
+  return {
+    ...(input.options
+      ? {
+          options: {
+            ...input.options,
+            wish: input.options.wish.slice(0, POST_WISH_MAX),
+            link: postLinkOverride(input.options.link),
+          },
+        }
+      : {}),
+    ...(input.planMode !== undefined ? { planMode: input.planMode } : {}),
+  };
+}
+
+/** Ответ `GET …/plan-impact`: сколько написанных постов затронет режим. */
+export function readPlanImpact(value: unknown): { count: number } {
+  const record = asRecord(value) ?? {};
+  return {
+    count:
+      typeof record.count === 'number' && record.count > 0
+        ? Math.floor(record.count)
+        : 0,
+  };
+}
 
 /** Тело `PATCH` ручной правки. Картинка `null` — убрать её с поста. */
 export function buildAdaptationPatch(input: {
@@ -1575,7 +1763,7 @@ export const refusalMessage = (value: unknown): string | null => {
 
 /** Сколько знаков увидит читатель: звёздочки выделения не в счёт. */
 export const visibleLength = (text: string): number =>
-  Array.from(stripBoldMarkers(text)).length;
+  Array.from(stripInlineMarks(text)).length;
 
 /* ---- Правка текста -------------------------------------------------------- */
 
@@ -1635,12 +1823,21 @@ export function insertText(
 export const readLinkAddress = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed || /\s/.test(trimmed)) return null;
+  // Другая схема (`ftp:`, `mailto:`, `javascript:`) — не ссылка для поста.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^https?:\/\//i.test(trimmed))
+    return null;
   const candidate = /^https?:\/\//i.test(trimmed)
     ? trimmed
     : `https://${trimmed}`;
   try {
     const url = new URL(candidate);
-    return url.hostname.includes('.') ? candidate : null;
+    // Только http(s) с настоящим адресом: «mailto:a@b.c» с приставленным
+    // https:// разбирается как адрес с паролем — это не ссылка для поста.
+    // Разобранная форма (`url.href`) — та же, что хранит сервер
+    // (`post-link.ts`), иначе «как в заготовке» не совпало бы с ответом.
+    return url.hostname.includes('.') && !url.username && !url.password
+      ? url.href
+      : null;
   } catch {
     return null;
   }
@@ -1664,6 +1861,10 @@ export type WorkspaceChannel = {
   connected: boolean;
   /** Предел площадки для счётчика; `null` — провайдер его не назвал. */
   maxLength: number | null;
+  /** Режим плана канала (`97dq.57`); у старого сервера — «Бронь». */
+  planMode: PlanModeWordV1;
+  /** Свои настройки поста в канале (`97dq.70`); `null` — всё как в канале. */
+  settings: PostSettingsV1 | null;
 };
 
 const newestFirst = (left: AdaptationV1, right: AdaptationV1) =>
@@ -1719,6 +1920,8 @@ export function workspaceChannels(
         state: adaptations.length ? stateOf(adaptations) : tab.cell.state,
         connected: true,
         maxLength: tab.maxLength,
+        planMode: tab.planMode ?? 'reserve',
+        settings: tab.settings ?? null,
       });
     }
   }
@@ -1742,6 +1945,8 @@ export function workspaceChannels(
         state: stateOf(adaptations),
         connected: true,
         maxLength: null,
+        planMode: 'reserve',
+        settings: null,
       });
     }
   }
@@ -1760,6 +1965,8 @@ export function workspaceChannels(
       state: stateOf(adaptations),
       connected: false,
       maxLength: null,
+      planMode: 'reserve',
+      settings: null,
     });
   }
   return channels;
@@ -1856,6 +2063,52 @@ export function rememberedProfilePayload(
     ...(cta ? { ctaKind: cta } : {}),
     brandProfileId: options.brandProfileId,
   });
+}
+
+/**
+ * Поля карточки канала в форме панели (`97dq.70`): одна панель рисует и
+ * канал, и пост, поэтому канал читается теми же пятью полями и аватаром.
+ */
+export const postOptionsOfProfile = (
+  profile: ChannelWritingProfileV1
+): PostOptionsV1 => ({
+  length: lengthPresetOf(profile.lengthPolicy),
+  emoji: profile.emojiLevel,
+  hashtags: profile.hashtagPolicy,
+  links: profile.linkPolicy,
+  cta: profile.ctaKind,
+  brandProfileId: profile.brandProfileId ?? null,
+  wish: '',
+  // Ссылка — только у поста (`97dq.75`): у канала своей ссылки нет.
+  link: '',
+});
+
+/**
+ * Что изменить в карточке канала, когда панель в области канала сменила
+ * поле. Длина пишется пресетом только если её действительно сменили:
+ * своё число канала, не совпадающее с пресетом, не затирается правкой
+ * соседнего поля.
+ */
+export function profilePatchOfOptions(
+  profile: ChannelWritingProfileV1,
+  options: PostOptionsV1
+): Partial<ChannelWritingProfileV1> {
+  const before = postOptionsOfProfile(profile);
+  const patch: Partial<ChannelWritingProfileV1> = {};
+  if (options.length !== 'channel' && options.length !== before.length)
+    patch.lengthPolicy =
+      options.length === 'auto' ? 'auto' : { ...LENGTH_PRESETS[options.length] };
+  if (options.emoji !== 'channel' && options.emoji !== before.emoji)
+    patch.emojiLevel = options.emoji;
+  if (options.hashtags !== 'channel' && options.hashtags !== before.hashtags)
+    patch.hashtagPolicy = options.hashtags;
+  if (options.links !== 'channel' && options.links !== before.links)
+    patch.linkPolicy = options.links;
+  if (options.cta !== 'channel' && options.cta !== before.cta)
+    patch.ctaKind = options.cta;
+  if (options.brandProfileId !== before.brandProfileId)
+    patch.brandProfileId = options.brandProfileId;
+  return patch;
 }
 
 /* ---- «Когда» по умолчанию -------------------------------------------------- */

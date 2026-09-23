@@ -821,7 +821,7 @@ export function VoiceWizardContainer({
               }}
               className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
             >
-              <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+              <h3 className="cf-label-sm text-cf-ink-muted">
                 {w.intakeTitle}
               </h3>
               <Input

@@ -450,7 +450,7 @@ export function SuggestedQuestionsCard({
                 data-piece-suggested={question.key}
                 className="border-s-2 border-cf-border-strong ps-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
               >
-                <span className="block cf-label-sm uppercase text-cf-ink-muted">
+                <span className="block cf-label-sm text-cf-ink-muted">
                   {words.suggestedLead}
                 </span>
                 {question.suggested}

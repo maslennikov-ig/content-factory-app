@@ -17,6 +17,7 @@ import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { Wordmark } from '@contentfactory/frontend/components/ui/brand/wordmark';
 import { displayName } from '@contentfactory/react/helpers/display-name';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
+import { SidePanel } from '@contentfactory/frontend/components/ui/side-panel';
 
 const COLLAPSE_COOKIE = 'sidebar';
 
@@ -153,16 +154,14 @@ export const Sidebar: FC<{
     },
   ].filter((group) => group.items.length > 0);
 
-  const content = (isDrawer: boolean) => {
-    const isCollapsed = collapsed && !isDrawer;
+  const content = (isDrawer: boolean, isCollapsed = collapsed && !isDrawer) => {
     return (
       <div
         ref={isDrawer ? panelRef : undefined}
         className={clsx(
           'h-full flex flex-col bg-cf-navigation text-cf-navigation-text border-e border-cf-border-strong',
-          isDrawer
-            ? 'w-[288px] max-w-[85vw]'
-            : clsx('cf-sidebar', isCollapsed ? 'w-[72px]' : 'w-[248px]')
+          // On the desktop the width belongs to `SidePanel` (`97dq.71`).
+          isDrawer ? 'w-[288px] max-w-[85vw]' : 'w-full'
         )}
       >
         <div
@@ -318,7 +317,43 @@ export const Sidebar: FC<{
 
   return (
     <>
-      <div className="hidden md:block shrink-0">{content(false)}</div>
+      {/*
+        `97dq.71`: the rail is a `SidePanel`. Its inner border drags between
+        200 and 360px (248 by default), a drag past the minimum collapses it
+        to the 72px icon rail — the same state as the chevron below, kept in
+        the same cookie — and the labels live on in the rows' tooltips.
+      */}
+      <div className="hidden md:flex shrink-0">
+        <SidePanel
+          id="navigation"
+          side="start"
+          breakpoint="none"
+          label={t('navigation_panel', 'Navigation panel')}
+          copy={{
+            resize: t(
+              'navigation_resize',
+              'Navigation width: drag or use the arrow keys'
+            ),
+            hide: t('collapse_navigation', 'Collapse navigation'),
+            show: t('expand_navigation', 'Expand navigation'),
+          }}
+          defaultWidth={248}
+          minWidth={200}
+          maxWidth={360}
+          railWidth={72}
+          collapsed={collapsed}
+          onCollapsedChange={(hidden) =>
+            setCollapsedCookie(hidden ? 'collapsed' : 'open')
+          }
+          showHideButton={false}
+          unmountHidden
+          rail={content(false, true)}
+          className="cf-sidebar h-full"
+          bodyClassName="h-full"
+        >
+          {content(false, false)}
+        </SidePanel>
+      </div>
 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[900] flex">

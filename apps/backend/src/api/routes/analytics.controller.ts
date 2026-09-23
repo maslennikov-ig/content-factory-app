@@ -30,8 +30,8 @@ export class AnalyticsController {
   }
 
   /**
-   * «Впереди N дней» for the calendar header and Analytics → Производство
-   * (`97dq.59`). Read-only and without a policy, like `/production` beside
+   * The plan ahead for the calendar header and Analytics → Производство
+   * (`97dq.59`; counts in posts since `97dq.73`, `plan-ahead/v2`). Read-only and without a policy, like `/production` beside
    * it: any member of the workspace reads it; the organisation comes from the
    * request. Declared before `/:integration`, which would otherwise take it.
    */

@@ -313,7 +313,7 @@ export function VoiceBriefContainer() {
     <div className="min-w-0" key={key}>
       {long ? (
         <>
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {label}
             {optional ? ` · ${w.optional}` : ''}
           </p>
@@ -406,7 +406,7 @@ export function VoiceBriefContainer() {
           className="contents min-w-0"
         >
         <div>
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {w.formTitle}
           </h3>
           <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
@@ -426,7 +426,7 @@ export function VoiceBriefContainer() {
         </div>
 
         <div className="min-w-0">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.briefFacts}
           </p>
           <div className="mt-[8px] flex flex-col gap-[12px]">
@@ -580,7 +580,7 @@ export function VoiceBriefContainer() {
         screen's rows come from, not a second one guessing at the same DTO.
       */}
       <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
-        <h4 className="cf-label-sm uppercase text-cf-ink-muted">
+        <h4 className="cf-label-sm text-cf-ink-muted">
           {w.factsMemoryTitle}
         </h4>
         <p className="mt-[4px] max-w-[72ch] cf-caption text-cf-ink-muted [text-wrap:pretty]">

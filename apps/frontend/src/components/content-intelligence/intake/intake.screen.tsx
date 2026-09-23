@@ -284,7 +284,7 @@ export function IntakeScreen({
               />
               <label
                 htmlFor="intake-input"
-                className="cf-label-sm uppercase text-cf-ink-muted"
+                className="cf-label-sm text-cf-ink-muted"
               >
                 {t.inputLabel}
               </label>
@@ -341,7 +341,7 @@ export function IntakeScreen({
             <div className="flex min-w-0 flex-col gap-[4px] sm:max-w-[280px]">
               <label
                 htmlFor="intake-language"
-                className="cf-label-sm uppercase text-cf-ink-muted"
+                className="cf-label-sm text-cf-ink-muted"
               >
                 {t.languageLabel}
               </label>

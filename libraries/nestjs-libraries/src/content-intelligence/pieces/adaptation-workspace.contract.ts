@@ -49,6 +49,27 @@ export const PIECE_ADAPTATION_WORKSPACE_ROUTES = {
     path: (pieceId: string, adaptationId: string) =>
       `${PIECES_API_BASE}/${pieceId}/adaptations/${adaptationId}/place`,
   },
+  /**
+   * `PUT` — настройки поста (`97dq.70`): сохраняются сами, режим плана
+   * применяется к написанному посту сразу.
+   */
+  postSettings: {
+    method: 'PUT',
+    path: (pieceId: string, integrationId: string) =>
+      `${PIECES_API_BASE}/${pieceId}/channels/${encodeURIComponent(integrationId)}/settings`,
+  },
+  /** `GET` — сколько написанных постов затронет режим канала (`97dq.70`). */
+  channelPlanImpact: {
+    method: 'GET',
+    path: (integrationId: string) =>
+      `${PIECES_API_BASE}/channels/${encodeURIComponent(integrationId)}/plan-impact`,
+  },
+  /** `POST` — «Ко всем N»: режим канала к его написанным постам (`97dq.70`). */
+  channelPlanApply: {
+    method: 'POST',
+    path: (integrationId: string) =>
+      `${PIECES_API_BASE}/channels/${encodeURIComponent(integrationId)}/plan-apply`,
+  },
 } as const;
 
 /** Предел тела правки: больше не принимает ни одна площадка продукта. */
@@ -140,6 +161,11 @@ export const ADAPTATION_WORKSPACE_ERROR_CODES = {
    * минуты или раньше: вторая очередь выпустила бы заготовку дважды (`97dq.57`).
    */
   ADAPTATION_QUEUE_BUSY: { status: 409 },
+  /**
+   * «Ко всем N» ответили на режим канала, который с тех пор сменился
+   * (`97dq.70`): применять нечего, спросить заново.
+   */
+  CHANNEL_PLAN_MODE_CHANGED: { status: 409 },
 } as const;
 
 export type AdaptationWorkspaceErrorCodeV1 =
@@ -186,6 +212,10 @@ export const ADAPTATION_WORKSPACE_MESSAGES: Record<
   ADAPTATION_QUEUE_BUSY: {
     ru: 'Другая версия этой заготовки уже выходит в этом канале. Дождитесь её выхода или выберите время позже.',
     en: 'Another version of this piece is about to go out in this channel. Wait for it, or pick a later time.',
+  },
+  CHANNEL_PLAN_MODE_CHANGED: {
+    ru: 'Режим канала уже сменился. Написанные посты не тронуты — выберите, к каким применить новый режим.',
+    en: 'The channel mode has changed since. Written posts are untouched — choose again where the new mode applies.',
   },
 };
 

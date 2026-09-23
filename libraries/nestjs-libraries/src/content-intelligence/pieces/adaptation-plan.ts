@@ -172,8 +172,15 @@ type ClientLike = Record<string, any>;
 export async function supersededDraftPostIds(
   client: ClientLike,
   organizationId: string,
-  integrationId?: string | null
+  /** One channel, or several: supersession never crosses channels. */
+  integrationId?: string | readonly string[] | null
 ): Promise<string[]> {
+  const channelFilter =
+    typeof integrationId === 'string'
+      ? { integrationId }
+      : integrationId?.length
+      ? { integrationId: { in: [...integrationId] } }
+      : {};
   const rows: Array<{
     id: string;
     contentPieceId: string;
@@ -191,7 +198,7 @@ export async function supersededDraftPostIds(
           is: {
             organizationId,
             deletedAt: null,
-            ...(integrationId ? { integrationId } : {}),
+            ...channelFilter,
           },
         },
       },

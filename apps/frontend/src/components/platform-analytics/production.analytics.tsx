@@ -4,11 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Select } from '@contentfactory/react/form/select';
-import { LoadingComponent } from '@contentfactory/frontend/components/layout/loading';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
-import { PlanAheadCard } from '@contentfactory/frontend/components/launches/plan-ahead';
+import { PlanAheadOverview } from '@contentfactory/frontend/components/launches/plan-ahead';
 import {
   ProductionAnalyticsView,
   resolveProductionAnalyticsState,
@@ -60,7 +59,8 @@ export const ProductionAnalytics = () => {
     loadIntegrations,
     { revalidateOnFocus: false }
   );
-  const { data, error, isLoading } = useSWR(
+  const locale = language.startsWith('ru') ? 'ru' : 'en';
+  const { data, error, isLoading, mutate } = useSWR(
     ['production-analytics', days, integrationId],
     loadAnalytics,
     { revalidateOnFocus: false }
@@ -109,13 +109,11 @@ export const ProductionAnalytics = () => {
   return (
     <ProductionAnalyticsView
       state={state}
-      locale="en"
-      ahead={
-        <PlanAheadCard
-          locale={language.startsWith('ru') ? 'ru' : 'en'}
-          timeZone={getTimezone()}
-        />
-      }
+      // The reader's language (audit §9): with "en" here a Russian reader
+      // saw «0 hours» and an English retry under Russian labels.
+      locale={locale}
+      onRetry={() => void mutate()}
+      ahead={<PlanAheadOverview locale={locale} timeZone={getTimezone()} />}
       labels={{
         title: t('production_analytics_title', 'Publishing operations'),
         description: t(
@@ -154,7 +152,7 @@ export const ProductionAnalytics = () => {
         })),
       }}
       controls={
-        <div className="flex min-w-[390px] gap-[12px] mobile:min-w-0 mobile:flex-col">
+        <div className="flex min-w-0 flex-wrap gap-[12px] mobile:flex-col">
           <div className="min-w-[150px] flex-1">
             <Select
               label={t('production_analytics_period', 'Period')}

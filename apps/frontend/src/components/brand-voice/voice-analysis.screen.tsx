@@ -229,7 +229,7 @@ export function VoiceAnalysisScreen({
           role="alert"
           className="rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
         >
-          <span className="cf-label-sm uppercase text-cf-danger">
+          <span className="cf-label-sm text-cf-danger">
             {t.analysisErrorTitle}
           </span>{' '}
           {notice ?? t.analysisErrorFallback}
@@ -254,7 +254,7 @@ export function VoiceAnalysisScreen({
 
       <div className="grid min-w-0 gap-[20px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="flex flex-col gap-[12px]">
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {t.analysisProgressHeading}
           </h3>
           <div
@@ -291,7 +291,7 @@ export function VoiceAnalysisScreen({
         </div>
 
         <div className="flex min-w-0 flex-col gap-[12px]">
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {t.analysisMeasuredHeading}
           </h3>
 
@@ -315,7 +315,7 @@ export function VoiceAnalysisScreen({
             <>
               <div className="grid gap-[12px] sm:grid-cols-2">
                 <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
-                  <span className="cf-label-sm uppercase text-cf-ink-muted">
+                  <span className="cf-label-sm text-cf-ink-muted">
                     {t.analysisSentenceLength}
                   </span>
                   {avgSentenceLength ? (
@@ -345,7 +345,7 @@ export function VoiceAnalysisScreen({
                       : 'border-cf-border'
                   )}
                 >
-                  <span className="cf-label-sm uppercase text-cf-ink-muted">
+                  <span className="cf-label-sm text-cf-ink-muted">
                     {t.analysisLexicon}
                   </span>
                   {lexicon.length === 0 ? (
@@ -372,7 +372,7 @@ export function VoiceAnalysisScreen({
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px] sm:col-span-2">
-                  <span className="cf-label-sm uppercase text-cf-ink-muted">
+                  <span className="cf-label-sm text-cf-ink-muted">
                     {t.analysisPunctuation}
                   </span>
                   <div className="flex flex-col gap-[8px]">
@@ -419,7 +419,7 @@ export function VoiceAnalysisScreen({
                   className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px]"
                   data-voice-analysis-rejected="true"
                 >
-                  <p className="cf-label-sm uppercase text-cf-ink-muted">
+                  <p className="cf-label-sm text-cf-ink-muted">
                     {t.analysisRejectedTitle}
                   </p>
                   <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">

@@ -288,13 +288,20 @@ export function PieceScreen({
               {t.archive}
             </Button>
           ) : null}
-          <ConfirmButton
-            label={t.deletePiece}
-            armedLabel={t.deletePieceArmed}
-            disabled={!canWrite || busy}
-            data-piece-delete="true"
-            onConfirm={onDelete}
-          />
+          {/*
+            Одна кнопка удаления на виду (`97dq.70`): во вкладке канала это
+            «Удалить адаптацию» в её верхнем ряду, а заготовка целиком
+            удаляется со «Сути».
+          */}
+          {!activeChannel ? (
+            <ConfirmButton
+              label={t.deletePiece}
+              armedLabel={t.deletePieceArmed}
+              disabled={!canWrite || busy}
+              data-piece-delete="true"
+              onConfirm={onDelete}
+            />
+          ) : null}
         </div>
         {editingTitle ? (
           <form

@@ -22,6 +22,7 @@ import { useUser } from '../layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { EmptyState, ErrorState, SkeletonRows } from '../ui/surface';
 import { Segmented } from '../ui/segmented';
+import { Select } from '@contentfactory/react/form/select';
 import { ChannelAvatar } from '../channels/channel-parts';
 import { useCalendar, type Integrations } from './calendar.context';
 import {
@@ -75,6 +76,16 @@ export const READY_ADAPTATIONS_URL =
  * временем («в плане · пт 25.09 09:20»), а черновик без времени — «свободна».
  * Экран подтверждения после постановки рисуется отдельно; ответ двери несёт
  * время и режим для любого из вариантов.
+ *
+ * `97dq.72` (тринадцатый заход, B3): полоса вкладок по каналам ушла — на
+ * 400 px она давала горизонтальную прокрутку, а канал, у которого в дневном
+ * виде стоял и пост, и слот в одно время, приходил в список дважды. Теперь
+ * над списком один ряд фильтров: канал выбирается `Select` (каналы
+ * уникальны по id), состояние — полосой «Все · Свободные · В плане ·
+ * В очереди» со счётчиками. Поиск идёт по заголовку, коду `cnt-` и имени
+ * канала без учёта регистра и пробелов. В строке имя канала обрезается, а
+ * целиком видно по наведению и по фокусу; состояние с полной датой не
+ * обрезается никогда — при нехватке места оно уходит на вторую строку.
  */
 export function AdaptationPicker({
   integrations,
@@ -97,6 +108,7 @@ export function AdaptationPicker({
   const canWrite = isOrganizationEditor(useUser()?.role);
   const [query, setQuery] = useState('');
   const [channel, setChannel] = useState(initialChannel || '');
+  const [stateFilter, setStateFilter] = useState<PickerStateFilter>('all');
   const [selected, setSelected] = useState('');
   const router = useRouter();
   const [placing, setPlacing] = useState(false);
@@ -123,9 +135,15 @@ export function AdaptationPicker({
     canWrite ? scopedUrl : null,
     load
   );
+  /*
+    One entry per integration id. The day view hands in the channels of one
+    time row, and a channel with both a post and a slot at 09:20 arrived twice
+    («Тестовая группа Content Factory» ×2 on the owner's one channel).
+  */
+  const unique = useMemo(() => uniqueById(integrations), [integrations]);
   const channels = useMemo(
-    () => new Map(integrations.map((one) => [one.id, one])),
-    [integrations]
+    () => new Map(unique.map((one) => [one.id, one])),
+    [unique]
   );
   /*
     The slot's channel is preselected; a channel with nothing ready would
@@ -135,20 +153,51 @@ export function AdaptationPicker({
     channel && data?.some((row) => row.integrationId === channel)
       ? channel
       : '';
-  const rows = useMemo(
+  const needle = searchKey(query, locale);
+  /* Channel and search first: the state counts are counted inside them. */
+  const scoped = useMemo(
     () =>
       (data || []).filter((row) => {
         const integration = channels.get(row.integrationId);
         return (
           integration &&
           (!activeChannel || row.integrationId === activeChannel) &&
-          `${row.title} ${integration.name}`
-            .toLocaleLowerCase(locale)
-            .includes(query.trim().toLocaleLowerCase(locale))
+          (!needle ||
+            searchKey(
+              `${row.title} ${row.pieceCode} ${integration.name}`,
+              locale
+            ).includes(needle))
         );
       }),
-    [data, channels, activeChannel, query, locale]
+    [data, channels, activeChannel, needle, locale]
   );
+  const stateCounts = useMemo(() => {
+    const counts = { all: scoped.length, free: 0, reserved: 0, queued: 0 };
+    for (const row of scoped) counts[rowState(row)] += 1;
+    return counts;
+  }, [scoped]);
+  const rows = useMemo(
+    () =>
+      stateFilter === 'all'
+        ? scoped
+        : scoped.filter((row) => rowState(row) === stateFilter),
+    [scoped, stateFilter]
+  );
+  const channelOptions = useMemo(() => {
+    const present = unique.filter((one) =>
+      (data || []).some((row) => row.integrationId === one.id)
+    );
+    const names = new Map<string, number>();
+    for (const one of present) names.set(one.name, (names.get(one.name) || 0) + 1);
+    // Two different channels with one name are told apart by the platform.
+    return present.map((one) => ({
+      value: one.id,
+      label:
+        (names.get(one.name) || 0) > 1 && one.identifier
+          ? `${one.name} · ${one.identifier}`
+          : one.name,
+    }));
+  }, [unique, data]);
   const twins = useMemo(() => {
     const seen = new Map<string, number>();
     for (const row of data || []) {
@@ -389,33 +438,61 @@ export function AdaptationPicker({
               setSelected('');
             }}
           />
-          <div className="flex flex-wrap items-center gap-[8px]">
-            <p
-              className="cf-caption flex-1 whitespace-nowrap text-cf-ink-muted"
-              aria-live="polite"
-            >
-              {copy.ready} · {rows.length}
-            </p>
-            <div className="min-w-0 max-w-full overflow-x-auto">
-              <Segmented
-                label={copy.allChannels}
-                value={activeChannel}
+          <div
+            data-picker-filters="true"
+            className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]"
+          >
+            <span className="inline-flex min-w-0 max-w-full items-center gap-[4px]">
+              <span className="min-w-0 max-w-[280px]">
+                <Select
+                  standalone
+                  density="dense"
+                  aria-label={copy.channelFilter}
+                  data-picker-channel="true"
+                  value={activeChannel}
+                  onChange={(event) => {
+                    setChannel(event.target.value);
+                    setSelected('');
+                  }}
+                >
+                  <option value="">{copy.allChannels}</option>
+                  {channelOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </span>
+              <Hint label={copy.channelFilterHintLabel}>
+                {copy.channelFilterHint}
+              </Hint>
+            </span>
+            <span className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-[4px]">
+              <Segmented<PickerStateFilter>
+                label={copy.stateFilter}
+                value={stateFilter}
                 onChange={(value) => {
-                  setChannel(value);
+                  setStateFilter(value);
                   setSelected('');
                 }}
-                options={[
-                  { value: '', label: copy.allChannels },
-                  ...integrations
-                    .filter((one) =>
-                      data.some((row) => row.integrationId === one.id)
-                    )
-                    .map((one) => ({ value: one.id, label: one.name })),
-                ]}
-                className="whitespace-nowrap"
+                options={PICKER_STATE_FILTERS.map((value) => ({
+                  value,
+                  label: `${copy.stateFilterWords[value]} · ${stateCounts[value]}`,
+                }))}
+                data-picker-state-filter={stateFilter}
+                className="max-w-full flex-wrap"
               />
-            </div>
+              <Hint label={copy.stateFilterHintLabel}>
+                {copy.stateFilterHint}
+              </Hint>
+            </span>
           </div>
+          <p
+            className="cf-caption whitespace-nowrap text-cf-ink-muted"
+            aria-live="polite"
+          >
+            {copy.ready} · {rows.length}
+          </p>
           {!rows.length ? (
             <EmptyState
               title={copy.noMatches}
@@ -425,6 +502,7 @@ export function AdaptationPicker({
                   onClick={() => {
                     setQuery('');
                     setChannel('');
+                    setStateFilter('all');
                   }}
                 >
                   {copy.reset}
@@ -451,7 +529,7 @@ export function AdaptationPicker({
                     value={row.adaptationId}
                     layout="content"
                     data-picker-row="true"
-                    className={`flex w-full min-w-0 shrink-0 items-center gap-[12px] rounded-[8px] border px-[12px] py-[8px] text-start text-cf-ink transition-colors duration-state ${
+                    className={`group flex w-full min-w-0 shrink-0 items-center gap-[12px] rounded-[8px] border px-[12px] py-[8px] text-start text-cf-ink transition-colors duration-state motion-reduce:transition-none ${
                       picked
                         ? 'border-cf-accent bg-cf-accent-soft'
                         : 'border-transparent hover:bg-cf-surface-subtle'
@@ -465,20 +543,38 @@ export function AdaptationPicker({
                       >
                         {name}
                       </span>
-                      <span className="cf-caption block truncate text-cf-ink-muted">
-                        <span className="text-cf-signature">{row.pieceCode}</span>
-                        {' · '}
-                        {integration.name}
-                        {' · '}
+                      {/*
+                        Code and channel on one line, the state after them;
+                        when the row is narrow the state wraps whole rather
+                        than losing its date. The channel name is the one
+                        thing that gives way: truncated, full on hover
+                        (`title`) and on keyboard focus of the row.
+                      */}
+                      <span className="cf-caption flex min-w-0 flex-wrap items-baseline text-cf-ink-muted">
+                        <span className="shrink-0 text-cf-signature">
+                          {row.pieceCode}
+                        </span>
+                        <span className="shrink-0 whitespace-pre">{' · '}</span>
+                        <span
+                          data-picker-channel-name="true"
+                          title={integration.name}
+                          className="min-w-0 max-w-full truncate group-focus-visible:whitespace-normal group-focus-visible:[overflow-wrap:anywhere]"
+                        >
+                          {integration.name}
+                        </span>
+                        <span className="shrink-0 whitespace-pre">{' · '}</span>
                         {slotLabel(row) ? (
-                          <span data-picker-slot={row.slot?.status}>
+                          <span
+                            data-picker-slot={row.slot?.status}
+                            className="shrink-0 whitespace-nowrap"
+                          >
                             {slotLabel(row)}
                           </span>
                         ) : (
-                          <>
+                          <span className="shrink-0 whitespace-nowrap">
                             {copy.readyAt}{' '}
                             {dayMonth.format(new Date(row.readyAt))}
-                          </>
+                          </span>
                         )}
                       </span>
                     </span>
@@ -564,6 +660,35 @@ const PlacedGlyph = () => (
   </svg>
 );
 
+export type PickerStateFilter = 'all' | 'free' | 'reserved' | 'queued';
+export const PICKER_STATE_FILTERS: readonly PickerStateFilter[] = [
+  'all',
+  'free',
+  'reserved',
+  'queued',
+];
+
+/** Where a row stands; an old server without `slot` reads as free. */
+const rowState = (row: ReadyAdaptation): Exclude<PickerStateFilter, 'all'> =>
+  row.slot?.status === 'reserved' || row.slot?.status === 'queued'
+    ? row.slot.status
+    : 'free';
+
+/**
+ * The search key: lower case, without spaces, dashes or middle dots, so
+ * «CNT 24», «cnt-24» and «Тестовая  группа» all find what they mean.
+ */
+export const searchKey = (value: string, locale: string) =>
+  value.toLocaleLowerCase(locale).replace(/[\s\-‐-―·]+/g, '');
+
+/** First occurrence of each id, order kept. */
+export const uniqueById = <T extends { id: string }>(items: readonly T[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) =>
+    seen.has(item.id) ? false : (seen.add(item.id), true)
+  );
+};
+
 export function useAdaptationPicker() {
   const modal = useModals();
   const language = useInterfaceLanguage();
@@ -575,7 +700,9 @@ export function useAdaptationPicker() {
     (date?: Dayjs, channelId?: string) => {
       modal.openModal({
         title,
-        size: 600,
+        // 720 fits «в очереди · чт 24.09 09:20 · автопилот» beside a long
+        // channel name; the shell caps it at the screen minus 32px.
+        size: 720,
         closeOnEscape: true,
         closeOnClickOutside: true,
         withCloseButton: true,

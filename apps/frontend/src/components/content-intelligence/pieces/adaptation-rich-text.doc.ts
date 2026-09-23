@@ -1,5 +1,10 @@
 import type { JSONContent } from '@tiptap/core';
-import { boldPairs } from '@contentfactory/helpers/utils/bold-markers';
+import {
+  inlineRuns,
+  parseInline,
+  serializeInline,
+  type InlineRun,
+} from '@contentfactory/helpers/utils/inline-marks';
 
 /**
  * Хранимое тело адаптации ↔ документ редактора TipTap (`97dq.46`).
@@ -18,62 +23,24 @@ import { boldPairs } from '@contentfactory/helpers/utils/bold-markers';
  *    абзацами, и хвостовой перевод строки.
  *  - **Жирное — только пара из общей грамматики** (`bold-markers`). Одинокие
  *    `**` и `2 ** 3` остаются в редакторе текстом и возвращаются текстом.
- *  - **Ссылка хранится адресом.** Другой записи ссылки в теле нет, поэтому
- *    отметка ссылки в редакторе — только вид: обратно уходит сам текст.
- *    Адреса в тексте получают отметку при открытии, чтобы читались ссылкой.
+ *  - **Ссылка хранится адресом или парой «слова и адрес».** Адрес, записанный
+ *    сам собой, остаётся голым адресом, как и раньше; ссылка со своими словами
+ *    (`97dq.52`) хранится как `[слова](https://…)`. Курсив — `_курсив_`,
+ *    подчёркивание — `++подчёркнутое++`. Грамматика одна на поле, показ и
+ *    пост (`@contentfactory/helpers/utils/inline-marks`), поэтому здесь только
+ *    перевод отметок TipTap в прогоны и обратно.
  */
 
-/** Адрес в тексте: только http(s), до пробела; хвостовая пунктуация — не адрес. */
-const URL_SOURCE = 'https?:\\/\\/[^\\s<>"«»]+';
-const TRAILING_PUNCTUATION = /[.,;:!?'")\]]+$/u;
-
-type Piece = { text: string; bold: boolean };
-
-const urlPieces = (
-  text: string,
-  bold: boolean
-): Array<{ text: string; bold: boolean; href?: string }> => {
-  const out: Array<{ text: string; bold: boolean; href?: string }> = [];
-  let read = 0;
-  for (const match of text.matchAll(new RegExp(URL_SOURCE, 'giu'))) {
-    const start = match.index ?? 0;
-    let address = match[0];
-    const tail = address.match(TRAILING_PUNCTUATION)?.[0] ?? '';
-    // Закрывающая скобка остаётся частью адреса, если открывающая — в нём же.
-    const keepParen =
-      tail.startsWith(')') && address.includes('(') ? 1 : 0;
-    address = address.slice(0, address.length - tail.length + keepParen);
-    if (!address) continue;
-    if (start > read) out.push({ text: text.slice(read, start), bold });
-    out.push({ text: address, bold, href: address });
-    read = start + address.length;
-  }
-  if (read < text.length) out.push({ text: text.slice(read), bold });
-  return out;
-};
-
-const lineContent = (line: string): JSONContent[] => {
-  const pieces: Piece[] = [];
-  let read = 0;
-  for (const match of line.matchAll(boldPairs())) {
-    const start = match.index ?? 0;
-    if (start > read) pieces.push({ text: line.slice(read, start), bold: false });
-    pieces.push({ text: match[1], bold: true });
-    read = start + match[0].length;
-  }
-  if (read < line.length) pieces.push({ text: line.slice(read), bold: false });
-
-  return pieces
-    .flatMap((piece) => urlPieces(piece.text, piece.bold))
-    .filter((piece) => piece.text.length > 0)
-    .map((piece) => {
-      const marks: NonNullable<JSONContent['marks']> = [];
-      if (piece.bold) marks.push({ type: 'bold' });
-      if (piece.href) marks.push({ type: 'link', attrs: { href: piece.href } });
-      return marks.length
-        ? { type: 'text', text: piece.text, marks }
-        : { type: 'text', text: piece.text };
-    });
+/** Прогон грамматики → текстовый узел TipTap с его отметками. */
+const textNode = (run: InlineRun): JSONContent => {
+  const marks: NonNullable<JSONContent['marks']> = [];
+  if (run.bold) marks.push({ type: 'bold' });
+  if (run.italic) marks.push({ type: 'italic' });
+  if (run.underline) marks.push({ type: 'underline' });
+  if (run.href) marks.push({ type: 'link', attrs: { href: run.href } });
+  return marks.length
+    ? { type: 'text', text: run.text, marks }
+    : { type: 'text', text: run.text };
 };
 
 /** Хранимое тело → документ редактора. */
@@ -83,59 +50,44 @@ export const storedToDoc = (stored: string): JSONContent => ({
     .replace(/\r\n?/gu, '\n')
     .split('\n')
     .map((line) => {
-      const content = lineContent(line);
+      const content = inlineRuns(parseInline(line)).map(textNode);
       return content.length
         ? { type: 'paragraph', content }
         : { type: 'paragraph' };
     }),
 });
 
-/**
- * Жирный отрезок → пара из общей грамматики.
- *
- * Пробелы по краям выносятся за звёздочки: `** слово **` грамматика парой не
- * считает, и выделение, которое человек протянул на пробел, стало бы
- * звёздочками в посте. Отрезок со звёздочкой внутри пары не образует вовсе —
- * он уходит текстом, а не мусором.
- */
-const boldRun = (text: string): string => {
-  const lead = text.match(/^\s*/u)?.[0] ?? '';
-  const rest = text.slice(lead.length);
-  const trail = rest.match(/\s*$/u)?.[0] ?? '';
-  const inner = rest.slice(0, rest.length - trail.length);
-  if (!inner || inner.includes('*')) return text;
-  return `${lead}**${inner}**${trail}`;
+/** Текстовый узел TipTap → прогон грамматики. */
+const runOf = (node: JSONContent): InlineRun => {
+  const marks = node.marks ?? [];
+  const has = (type: string) => marks.some((mark) => mark.type === type);
+  const link = marks.find((mark) => mark.type === 'link');
+  const href =
+    link && typeof link.attrs?.href === 'string' ? link.attrs.href : undefined;
+  return {
+    text: node.text ?? '',
+    ...(has('bold') ? { bold: true } : {}),
+    ...(has('italic') ? { italic: true } : {}),
+    ...(has('underline') ? { underline: true } : {}),
+    ...(href ? { href } : {}),
+  };
 };
 
+/**
+ * Строчное содержимое абзаца → хранимые строки. Перенос внутри абзаца
+ * (`hardBreak`) — граница строки: отметка через перевод строки не пишется.
+ */
 const inlineText = (nodes: readonly JSONContent[] | undefined): string => {
-  const runs: Piece[] = [];
-  const push = (text: string, bold: boolean) => {
-    const last = runs[runs.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else runs.push({ text, bold });
-  };
-  for (const node of nodes ?? []) {
-    if (node.type === 'text') {
-      push(
-        node.text ?? '',
-        (node.marks ?? []).some((mark) => mark.type === 'bold')
-      );
-    } else if (node.type === 'hardBreak') {
-      push('\n', false);
-    } else if (node.content) {
-      push(inlineText(node.content), false);
+  const lines: InlineRun[][] = [[]];
+  const walk = (list: readonly JSONContent[] | undefined) => {
+    for (const node of list ?? []) {
+      if (node.type === 'text') lines[lines.length - 1].push(runOf(node));
+      else if (node.type === 'hardBreak') lines.push([]);
+      else if (node.content) walk(node.content);
     }
-  }
-  return runs
-    .map((run) =>
-      run.bold
-        ? run.text
-            .split('\n')
-            .map(boldRun)
-            .join('\n')
-        : run.text
-    )
-    .join('');
+  };
+  walk(nodes);
+  return lines.map((runs) => serializeInline(runs)).join('\n');
 };
 
 /** Документ редактора → хранимое тело. */

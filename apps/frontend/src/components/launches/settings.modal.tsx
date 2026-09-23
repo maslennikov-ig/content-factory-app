@@ -8,6 +8,10 @@ import { Slider } from '@contentfactory/react/form/slider';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Select } from '@contentfactory/react/form/select';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
+import { useUser } from '@contentfactory/frontend/components/layout/user.context';
+import { ChannelWritingProfile } from '@contentfactory/frontend/components/channels/channel-writing-profile';
 
 export const Element: FC<{
   setting: any;
@@ -45,6 +49,8 @@ export const SettingsModal: FC<{
   const toaster = useToaster();
   const { onClose, integration } = props;
   const modal = useModals();
+  const { language } = useVariables();
+  const user = useUser();
   const [values, setValues] = useState(
     JSON.parse(integration?.additionalSettings || '[]')
   );
@@ -133,6 +139,20 @@ export const SettingsModal: FC<{
         <Button onClick={save} loading={saving}>
           {t('save', 'Save')}
         </Button>
+      </div>
+
+      {/*
+        Как пишем в канал и его «План» (`97dq.70`): та же панель, что справа
+        во вкладке канала у поста, в области канала. Владелец искал режим
+        плана здесь, рядом с «Изменить расписание», и не находил.
+      */}
+      <div data-channel-settings-writing="true" className="mb-[16px] min-w-0">
+        <ChannelWritingProfile
+          integrationId={integration.id}
+          integrationName={integration.name}
+          locale={language?.startsWith('ru') ? 'ru' : 'en'}
+          canWrite={isOrganizationEditor(user?.role)}
+        />
       </div>
     </div>
   );

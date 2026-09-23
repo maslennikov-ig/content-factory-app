@@ -1699,5 +1699,9 @@
   "help": "Trợ giúp",
   "uploading": "Đang tải lên",
   "importing": "Đang nhập",
-  "pick_time": "Giờ"
+  "pick_time": "Giờ",
+  "navigation_panel": "Bảng điều hướng",
+  "navigation_resize": "Độ rộng điều hướng: kéo hoặc dùng phím mũi tên",
+  "text_ai": "AI cho văn bản",
+  "image_ai": "AI cho hình ảnh"
 }

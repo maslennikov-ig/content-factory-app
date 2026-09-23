@@ -42,7 +42,7 @@ import {
 } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { groupBy, random, sortBy } from 'lodash';
+import { groupBy, random, sortBy, uniqBy } from 'lodash';
 import { extend } from 'dayjs';
 import { isUSCitizen } from './helpers/isuscitizen.utils';
 import { useInterval } from '@mantine/hooks';
@@ -469,9 +469,12 @@ export const DayView = () => {
                   <CalendarContext.Provider
                     value={{
                       ...calendar,
-                      integrations: option
-                        .flatMap((p) => p.integration)
-                        .filter(Boolean),
+                      // A channel with a post and a slot at this time is in
+                      // `option` twice; downstream lists want it once (97dq.72).
+                      integrations: uniqBy(
+                        option.flatMap((p) => p.integration).filter(Boolean),
+                        'id'
+                      ),
                     }}
                   >
                     <CalendarColumn getDate={at} />

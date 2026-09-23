@@ -426,7 +426,7 @@ const BlockHeading = ({
   hintLabel?: string;
 }) => (
   <div className="flex flex-wrap items-center gap-[4px]">
-    <h5 className="cf-label-sm uppercase text-cf-ink-muted">{title}</h5>
+    <h5 className="cf-label-sm text-cf-ink-muted">{title}</h5>
     {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
   </div>
 );
@@ -1147,8 +1147,8 @@ const AiProviderComponent = () => {
 
               <ModelField
                 id="ai-text-model"
-                label={t('text_model', 'Text model')}
-                hintLabel={words.hintFor(t('text_model', 'Text model'))}
+                label={t('text_ai', 'AI for text')}
+                hintLabel={words.hintFor(t('text_ai', 'AI for text'))}
                 hint={
                   provider === 'openrouter'
                     ? `${words.fields.textModel} ${t(
@@ -1167,8 +1167,8 @@ const AiProviderComponent = () => {
 
               <ModelField
                 id="ai-image-model"
-                label={t('image_model', 'Image model')}
-                hintLabel={words.hintFor(t('image_model', 'Image model'))}
+                label={t('image_ai', 'AI for images')}
+                hintLabel={words.hintFor(t('image_ai', 'AI for images'))}
                 hint={
                   provider === 'openrouter'
                     ? `${words.fields.imageModel} ${t(
@@ -1290,8 +1290,8 @@ const AiProviderComponent = () => {
         layout="row"
         title={
           /*
-          The hint stands beside the name, not inside an uppercase block
-          heading: the row title is set in its own case, so the bubble reads
+          The hint stands beside the name, not inside a heading that sets its
+          own case: the row title keeps the case it was written in, so the bubble reads
           the way it was written (`97dq.6`).
         */
           <span className="inline-flex flex-wrap items-center gap-[4px]">

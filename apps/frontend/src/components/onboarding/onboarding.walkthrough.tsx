@@ -126,7 +126,7 @@ export function OnboardingWalkthrough({
         >
           <div className="px-[20px] pb-[16px]">
             <div className="flex items-baseline justify-between">
-              <span className="cf-caption uppercase text-cf-ink-muted">
+              <span className="cf-caption text-cf-ink-muted">
                 {t.progressLabel}
               </span>
               <span
@@ -225,7 +225,7 @@ export function OnboardingWalkthrough({
             </p>
           ) : step && active ? (
             <>
-              <p className="cf-caption uppercase text-cf-ink-muted">
+              <p className="cf-caption text-cf-ink-muted">
                 {t.stepOf(activeIndex + 1, total)}
               </p>
               <h2 className="mt-[8px] cf-heading-md text-cf-ink [text-wrap:balance]">
@@ -236,7 +236,7 @@ export function OnboardingWalkthrough({
               </p>
 
               <div className="mt-[20px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]">
-                <p className="cf-caption uppercase text-cf-ink-muted">
+                <p className="cf-caption text-cf-ink-muted">
                   {t.todoLabel}
                 </p>
                 <p className="mt-[4px] max-w-[62ch] cf-body-md text-cf-ink [text-wrap:pretty]">

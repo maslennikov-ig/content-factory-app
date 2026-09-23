@@ -392,35 +392,43 @@ module.exports = {
           lineHeight: '1.25',
           letterSpacing: '-0.015em',
         },
+        // Every token states its tracking, `normal` included (`97dq`, second
+        // review): a token that left it out inherited whatever its parent had,
+        // so a hint bubble inside a `label-sm` read at 0.04em.
         '.cf-heading-md': {
           fontFamily: sans,
           fontSize: '18px',
           fontWeight: '650',
           lineHeight: '1.35',
+          letterSpacing: 'normal',
         },
         '.cf-body-lg': {
           fontFamily: sans,
           fontSize: '16px',
           fontWeight: '400',
           lineHeight: '1.55',
+          letterSpacing: 'normal',
         },
         '.cf-body-md': {
           fontFamily: sans,
           fontSize: '14px',
           fontWeight: '400',
           lineHeight: '1.5',
+          letterSpacing: 'normal',
         },
         '.cf-body-sm': {
           fontFamily: sans,
           fontSize: '13px',
           fontWeight: '400',
           lineHeight: '1.45',
+          letterSpacing: 'normal',
         },
         '.cf-label-md': {
           fontFamily: sans,
           fontSize: '13px',
           fontWeight: '650',
           lineHeight: '1.3',
+          letterSpacing: 'normal',
         },
         '.cf-label-sm': {
           fontFamily: mono,
@@ -451,6 +459,7 @@ module.exports = {
           fontSize: '32px',
           fontWeight: '600',
           lineHeight: '1.1',
+          letterSpacing: 'normal',
           ...numerals,
         },
       });

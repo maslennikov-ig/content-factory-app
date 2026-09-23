@@ -363,8 +363,8 @@ describe('AI provider search settings component', () => {
       for (const name of [
         'Provider',
         'API key',
-        'Text model',
-        'Image model',
+        'AI for text',
+        'AI for images',
         'Translated AI usage mode',
         'Tavily key',
         'Exa key',
@@ -957,17 +957,17 @@ describe('AI provider search settings component', () => {
   /**
    * `content-factory-next-97dq.6`. Владелец 18.09.2026: «зачем подсказка вся
    * заглавными буквами?» Подсказка стояла ребёнком `<h5>` с `uppercase`, а он
-   * наследуется — пузырь кричал на всех трёх заголовках блоков. Заголовок
-   * остаётся заглавным, объяснение — нет, и проверяется это разметкой, а не
-   * снимком: подсказки внутри `<h5>` быть не должно.
+   * наследуется — пузырь кричал на всех трёх заголовках блоков. С `97dq.74`
+   * заглавных нет и у самого заголовка; подсказка по-прежнему стоит рядом,
+   * а не внутри `<h5>`, — проверяется разметкой, а не снимком.
    */
-  test('подсказка заголовка блока стоит рядом с ним, а не внутри верхнего регистра', () => {
+  test('подсказка заголовка блока стоит рядом с ним, и заголовок не кричит', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
 
     const headings = markup.match(/<h5[^>]*>[\s\S]*?<\/h5>/g) ?? [];
     expect(headings.length).toBeGreaterThan(0);
     for (const heading of headings) {
-      expect(heading).toContain('uppercase');
+      expect(heading).not.toContain('uppercase');
       expect(heading).not.toContain('data-hint');
     }
     // И при этом подсказки заголовков на экране есть — обе.

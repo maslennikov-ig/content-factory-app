@@ -330,10 +330,22 @@ export class ContentBriefRepository {
       title?: string;
       /** `ZagotovkaCoreV1` без `text`. */
       brief: unknown;
+      /**
+       * Строка, поверх которой пишется (`97dq.75`, ревью P1-1/P1-2): пока шёл
+       * вызов модели, автор мог дать ссылку или дописать материал. Не совпала —
+       * отказ, и вызывающий перечитывает и сливает, а не затирает.
+       */
+      expected?: { body: string; brief: unknown };
     }
   ): Promise<void> {
     const written = await this.client().contentPiece.updateMany({
-      where: { organizationId, id: pieceId },
+      where: {
+        organizationId,
+        id: pieceId,
+        ...(input.expected
+          ? { body: input.expected.body, brief: { equals: input.expected.brief as any } }
+          : {}),
+      },
       data: { body: input.body, brief: input.brief as any, ...(input.title ? { title: input.title } : {}) },
     });
     if (!written?.count) {

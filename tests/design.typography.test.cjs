@@ -376,6 +376,22 @@ describe('Content Factory measurement display token', () => {
   });
 });
 
+describe('Content Factory token tracking', () => {
+  /*
+    «Each carries family, size, weight, leading and tracking at once.» A token
+    without `letterSpacing` inherits its parent's, which is how a hint bubble
+    (`body-sm`) inside a `label-sm` label read at 0.04em — and why the bubble
+    once reached for a hand-typed `tracking-normal` this ledger refuses.
+  */
+  test('every product token declares its own tracking', () => {
+    const declared = declaredTypographyTokens();
+    const missing = PRODUCT_TOKENS.filter(
+      (name) => typeof declared[name]?.letterSpacing !== 'string'
+    );
+    expect(missing).toEqual([]);
+  });
+});
+
 describe('Content Factory marketing display token', () => {
   test('declares one named marketing size beside the ten product tokens', () => {
     const declared = declaredTypographyTokens();

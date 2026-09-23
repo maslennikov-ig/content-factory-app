@@ -61,6 +61,14 @@ export type ChannelDirectiveOptions = {
    */
   keepLinks?: string[] | null;
   /**
+   * The author's link for the post (`97dq.75`): the answer to «Какую ссылку
+   * поставить в пост?» or the post's own «Ссылка для поста». `url: null` —
+   * «Без ссылки». `forPost` — set on this post, which outranks a channel that
+   * says «no links»; the piece's answer does not. Absent — nobody answered,
+   * and only the general link rule applies.
+   */
+  authorLink?: { url: string | null; forPost?: boolean } | null;
+  /**
    * «Для этого поста» (`content-factory-next-97dq.38`): разовые настройки
    * одной адаптации. Сильнее карточки канала и аватара, слабее запретов о
    * фактах, копировании и голосе.
@@ -269,6 +277,17 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
  * action and shape. It never lifts the rules on facts, copying or voice: the
  * note is still a person's text inside the instruction block.
  */
+/**
+ * The author's link, in the writer's words (`97dq.75`). Exported for the
+ * suite, which pins both lines: the writer may use only this link, or links
+ * already in the author's material and sources — never one of its own.
+ */
+export const AUTHOR_LINK_LINE = (url: string): string =>
+  `The author chose this link for the post: <${url}>. It is the only link you may add: put it in exactly as written, character for character, once, where it fits by meaning. Links already in the author's material or sources may stay; never invent any other URL.`;
+
+export const AUTHOR_NO_LINK_LINE =
+  "The author chose no link for this post: add no URL of your own. Only a link already in the author's material or sources may appear; never invent one.";
+
 export const NOTES_PRIORITY_LINE =
   "Where the owner's words above conflict with this channel's defaults for length, emoji, call to action or shape, follow the owner's words. They never lift the rules about facts, copying or the author's voice.";
 
@@ -427,6 +446,23 @@ export function channelInstructionLines(
   lines.push(
     chose.link ? forPost(LINK_LINE[resolved.linkPolicy]) : LINK_LINE[resolved.linkPolicy]
   );
+  /*
+    The author's link (`97dq.75`). Where links are off, «Без ссылки» says
+    nothing the link rule has not said (review P2-5). A link set on this post
+    outranks the channel's «no links», but never the post's own «no links»:
+    two choices on the same post, and the stricter one stands (review P3-12).
+  */
+  const author = options.authorLink;
+  const linksOff = resolved.linkPolicy === 'none';
+  if (author) {
+    if (author.url === null) {
+      if (!linksOff || author.forPost) lines.push(AUTHOR_NO_LINK_LINE);
+    } else if (!linksOff) lines.push(AUTHOR_LINK_LINE(author.url));
+    else if (author.forPost && !chose.link)
+      lines.push(
+        forPost(`${AUTHOR_LINK_LINE(author.url)} This overrides the link rule above.`)
+      );
+  }
   if (options.keepLinks?.length) {
     lines.push(
       'The person asked to keep these links, and this overrides the link rule above: every one of them appears in the post exactly as written, character for character, once, where it belongs by meaning — none may be dropped, shortened or merged: ' +

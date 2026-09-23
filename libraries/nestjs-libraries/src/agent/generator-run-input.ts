@@ -21,7 +21,13 @@ import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generat
 import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
-export const INTAKE_HINTS_VERSION = 'intake-hints/v1' as const;
+/**
+ * `v2` (`97dq.75`) carries `authorLink`, the author's link for the post, into
+ * the channel lines. `v1` hints — recorded before it — never had the field
+ * and still read the same.
+ */
+export const INTAKE_HINTS_VERSION = 'intake-hints/v2' as const;
+export const INTAKE_HINTS_VERSION_V1 = 'intake-hints/v1' as const;
 
 /**
  * Опора заготовки словами: утверждение и адрес, по которому его проверяли.
@@ -72,7 +78,7 @@ export type IntakeChannelHintsV1 = {
 
 export type IntakeGenerationHintsV1 = {
   allowQuestion?: boolean;
-  version: typeof INTAKE_HINTS_VERSION;
+  version: typeof INTAKE_HINTS_VERSION | typeof INTAKE_HINTS_VERSION_V1;
   brief: {
     thesis: string | null;
     position: string | null;
@@ -141,6 +147,12 @@ export type IntakeGenerationHintsV1 = {
   formatHint?: IntakeFormatV1;
   /** Ссылки из задания, которые велено сохранить: в пост дословно (`97dq.29`). */
   keepLinks?: string[];
+  /**
+   * The author's link for this post (`97dq.75`, hints `v2`): the answer to
+   * «Какую ссылку поставить в пост?» or the post's own «Ссылка для поста».
+   * `url: null` — «Без ссылки»; `forPost` — set on this post.
+   */
+  authorLink?: { url: string | null; forPost?: boolean };
   /**
    * «Для этого поста» (`content-factory-next-97dq.38`): разовая длина,
    * пожелание и то, что читатели должны унести. Строки из них

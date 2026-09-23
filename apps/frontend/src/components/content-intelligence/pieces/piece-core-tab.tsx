@@ -25,6 +25,7 @@ import { intakeCopy } from '../intake/intake.copy';
 import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
 import { voiceCopy } from '../../brand-voice/voice-copy';
 import { CoreAnswerDiff, type CoreAnswerFeedback } from './core-answer-diff';
+import { AddMaterial, CoreTextEdit } from './core-edit';
 import { cellDate, StateSquare, stateWord } from './adaptation.cell';
 import {
   platformName,
@@ -55,12 +56,17 @@ export function PieceCoreTab({
   canWrite,
   busy,
   questionsSlot,
+  linkSlot,
   actionRow,
   coreAnswer,
   factSelectable,
   onFactSelect,
   onOpenChannel,
   onAdaptChannel,
+  onCoreSave,
+  onMaterialAdd,
+  onCoreRebuild,
+  onChangeLink,
 }: {
   locale: PiecesLocale;
   detail: PieceWorkspaceV1;
@@ -70,6 +76,8 @@ export function PieceCoreTab({
   canWrite: boolean;
   busy: boolean;
   questionsSlot?: ReactNode;
+  /** «Какую ссылку поставить в пост?» (`97dq.75`) — рядом с вопросами. */
+  linkSlot?: ReactNode;
   /** Ряд действий над сутью — `AdaptationReview` с набором сути. */
   actionRow?: ReactNode;
   coreAnswer?: CoreAnswerFeedback | null;
@@ -77,6 +85,12 @@ export function PieceCoreTab({
   onFactSelect?: (factKey: string, selected: boolean) => Promise<void>;
   onOpenChannel: (channelId: string) => void;
   onAdaptChannel: (channelId: string) => void;
+  /* Правка заготовки (`97dq.75`); без права писать их нет. */
+  onCoreSave?: (next: string, expected: string) => Promise<boolean>;
+  onMaterialAdd?: (text: string) => Promise<boolean>;
+  onCoreRebuild?: () => Promise<string | null>;
+  /** «Изменить» у ссылки в квитанции: снова открыть вопрос о ссылке. */
+  onChangeLink?: () => void;
 }) {
   const t = piecesCopy[locale];
   const i = intakeCopy[locale];
@@ -207,6 +221,8 @@ export function PieceCoreTab({
 
         {questionsSlot}
 
+        {linkSlot}
+
         <section className="flex min-w-0 flex-col gap-[12px]">
           <SectionLabel>{core ? t.coreTitle : t.legacyTitle}</SectionLabel>
 
@@ -239,23 +255,41 @@ export function PieceCoreTab({
             72 знака, `body-lg` и никакой рамки.
           */}
           {core?.text || !core ? (
-            <article
-              data-piece-core={core ? 'core' : 'legacy'}
-              className={clsx(
-                'min-w-0 max-w-[72ch] cf-body-lg text-cf-ink [text-wrap:pretty]',
-                core && 'whitespace-pre-wrap'
-              )}
-            >
-              {core ? (
-                coreAnswer && coreAnswer.body === core.text ? (
-                  <CoreAnswerDiff {...coreAnswer} locale={locale} />
-                ) : (
-                  core.text
-                )
+            (() => {
+              const article = (
+                <article
+                  data-piece-core={core ? 'core' : 'legacy'}
+                  className={clsx(
+                    'min-w-0 max-w-[72ch] cf-body-lg text-cf-ink [text-wrap:pretty]',
+                    core && 'whitespace-pre-wrap'
+                  )}
+                >
+                  {core ? (
+                    coreAnswer && coreAnswer.body === core.text ? (
+                      <CoreAnswerDiff {...coreAnswer} locale={locale} />
+                    ) : (
+                      core.text
+                    )
+                  ) : (
+                    detail.legacyBody ?? ''
+                  )}
+                </article>
+              );
+              // Суть правится на месте (`97dq.75`): поле встаёт вместо текста.
+              return core?.text && onCoreSave ? (
+                <CoreTextEdit
+                  locale={locale}
+                  text={core.text}
+                  editedByYou={core.editedBy === 'person'}
+                  disabled={!canWrite || busy}
+                  onSave={onCoreSave}
+                >
+                  {article}
+                </CoreTextEdit>
               ) : (
-                detail.legacyBody ?? ''
-              )}
-            </article>
+                article
+              );
+            })()
           ) : null}
 
           {core?.text ? (
@@ -277,6 +311,17 @@ export function PieceCoreTab({
           ) : null}
 
           {actionRow}
+
+          {core && onMaterialAdd && onCoreRebuild ? (
+            <AddMaterial
+              locale={locale}
+              disabled={!canWrite || busy}
+              addedCount={core.addedMaterial?.length ?? 0}
+              pending={core.materialPending === true}
+              onAdd={onMaterialAdd}
+              onRebuild={onCoreRebuild}
+            />
+          ) : null}
         </section>
 
         <Panel
@@ -432,6 +477,45 @@ export function PieceCoreTab({
                         {hostOf(source.url as string)}
                       </a>
                     ))}
+                  </dd>
+                </>
+              ) : null}
+              {core.postLink ? (
+                <>
+                  <dt className="cf-caption text-cf-ink-muted">
+                    {t.receiptPostLink}
+                  </dt>
+                  <dd
+                    data-piece-post-link={core.postLink.url ? 'url' : 'none'}
+                    data-brief-origin="person"
+                    className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] gap-y-[4px] cf-body-sm text-cf-ink"
+                  >
+                    {core.postLink.url ? (
+                      <a
+                        href={core.postLink.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="break-all underline underline-offset-2 hover:text-cf-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
+                      >
+                        {hostOf(core.postLink.url)}
+                      </a>
+                    ) : (
+                      <span>{t.receiptPostLinkNone}</span>
+                    )}
+                    <span className="cf-caption text-cf-ink-muted">
+                      {`· ${i.originPerson}`}
+                    </span>
+                    {onChangeLink ? (
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        density="dense"
+                        data-piece-post-link-change="true"
+                        onClick={onChangeLink}
+                      >
+                        {t.postLinkChange}
+                      </Button>
+                    ) : null}
                   </dd>
                 </>
               ) : null}

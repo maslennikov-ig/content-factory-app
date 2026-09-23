@@ -348,11 +348,33 @@ const stand = (options = {}) => {
       post: row.postId && posts.get(row.postId) ? { ...posts.get(row.postId) } : null,
     }));
 
+  // `ContentPiece.tags` заготовки: свои настройки постов (`97dq.70`).
+  let tags = options.tags ?? null;
   const repository = {
-    getPiece: async (org) => (org === 'org-a' ? pieceRow() : null),
+    getPiece: async (org, pieceId) =>
+      org === 'org-a'
+        ? { ...pieceRow(), id: pieceId, tags, archivedAt: options.archived ? NOW : null }
+        : null,
+    pieceTags: async () => tags,
+    // Строка заготовки под блокировкой: в стенде её держит тот же замок.
+    lockPieceTags: async () => {
+      if (options.onLockTags) options.onLockTags(channel);
+      calls.tagLocks = (calls.tagLocks || 0) + (calls.inLock ? 1 : 0);
+      return { tags };
+    },
+    writePieceTags: async (_org, _pieceId, next) => {
+      if (!calls.inLock) throw new Error('tags written outside the lock');
+      tags = next;
+      return true;
+    },
+    channelPieceVariants: async (_org, integrationId) =>
+      variantRows()
+        .filter((row) => row.post && row.post.integrationId === integrationId && !row.post.deletedAt)
+        .map((row) => ({ ...row, piece: { tags, archivedAt: null } })),
     listPieceIds: async () => [{ id: 'piece-1' }],
-    listIntegrations: async () => [channel],
-    findAvatar: async () => null,
+    listIntegrations: async () => [channel, ...(options.extraChannels || [])],
+    findAvatar: async (_org, id) =>
+      (options.avatars || []).includes(id) ? { id, activeVersionId: `${id}-v1` } : null,
     adaptationsByPiece: async () =>
       variantRows().map((row) => ({
         id: row.id,
@@ -381,6 +403,7 @@ const stand = (options = {}) => {
           : null,
       })),
     workspaceDraft: async (org, _piece, id) => {
+      if ((options.draftThrows || []).includes(id)) throw new Error(`draft ${id} unreadable`);
       const row = variantRows().find((one) => one.id === id);
       if (org !== 'org-a' || !row) return null;
       return {
@@ -496,6 +519,7 @@ const stand = (options = {}) => {
 
   const port = {
     validatePosts: async (...args) => {
+      if (options.onValidate) await options.onValidate();
       calls.validate.push(args);
       if (options.validateThrows) throw new Error('validator down');
       return [
@@ -582,7 +606,21 @@ const stand = (options = {}) => {
     clock = NOW.getTime() + ms;
   };
 
-  return { service, calls, posts, derivations, generate, queued, at, channel, options };
+  return {
+    service,
+    calls,
+    setTags: (next) => {
+      tags = next;
+    },
+    posts,
+    derivations,
+    generate,
+    queued,
+    at,
+    channel,
+    options,
+    tags: () => tags,
+  };
 };
 
 /* -------------------------------------------------------------------------
@@ -1136,5 +1174,372 @@ describe('возврат очереди при параллельной пост
     expect(queued().map((post) => post.id)).toEqual(['post-2']);
     expect(derivations[0].plan).toBe('reserve');
     expect(third.plan).toMatchObject({ status: 'reserved', autopilot: false });
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Настройки поста (`97dq.70`): свой режим поста — сразу, режим канала — по
+ * ответу «Только к новым / Ко всем N»
+ * ---------------------------------------------------------------------- */
+
+describe('свой режим поста применяется к написанному посту сразу (97dq.70)', () => {
+  const save = (service, body) =>
+    service.savePostSettings('org-a', 'piece-1', 'int-tg', body, 'ru');
+
+  test('«Бронь» → «Автопилот»: пост встаёт в очередь на своё время, через проверку площадки и одну очередь', async () => {
+    const { service, generate, calls, queued, derivations, tags } = stand();
+    await generate();
+    expect(queued()).toEqual([]);
+    const result = await save(service, { planMode: 'autopilot' });
+    expect(calls.validate).toHaveLength(1);
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    // Время брони остаётся за постом — 18:00 канала.
+    expect(queued()[0].publishDate.toISOString()).toBe('2026-09-22T18:00:00.000Z');
+    expect(derivations[0].plan).toBe('autopilot');
+    expect(calls.status).toEqual([['post-1', 'schedule']]);
+    expect(calls.temporalInLock).toEqual([]);
+    expect(result.adaptation.plan).toMatchObject({ status: 'queued', autopilot: true });
+    expect(result.settings.planMode).toBe('autopilot');
+    expect(tags().postSettings['int-tg'].planMode).toBe('autopilot');
+  });
+
+  test('«Автопилот» → «Бронь»: очередь автопилота снимается обратно в бронь', async () => {
+    const { service, generate, calls, queued, derivations } = stand({ planMode: 'autopilot' });
+    await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    const result = await save(service, { planMode: 'reserve' });
+    expect(queued()).toEqual([]);
+    expect(derivations[0].plan).toBe('reserve');
+    expect(calls.status).toEqual([
+      ['post-1', 'schedule'],
+      ['post-1', 'draft'],
+    ]);
+    expect(result.adaptation.plan).toMatchObject({ status: 'reserved', autopilot: false });
+  });
+
+  test('→ «Без плана»: бронь снята, остаётся черновик', async () => {
+    const { service, generate, queued, derivations } = stand();
+    await generate();
+    const result = await save(service, { planMode: 'draft' });
+    expect(queued()).toEqual([]);
+    expect(derivations[0].plan).toBe('draft');
+    expect(result.adaptation.plan).toMatchObject({ status: 'draft', date: null });
+  });
+
+  test('очередь, подтверждённую человеком, режим поста не трогает', async () => {
+    const { service, generate, queued } = stand();
+    await generate();
+    await service.scheduleAdaptation(
+      'org-a',
+      'piece-1',
+      'ad-1',
+      { date: '2026-09-23T09:00:00.000Z' },
+      'ru'
+    );
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    await save(service, { planMode: 'draft' });
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+  });
+
+  test('площадка не примет — пост остаётся бронью с причиной, очереди нет (I3)', async () => {
+    const { service, generate, queued, derivations } = stand({ verdict: { emptyContent: true } });
+    await generate();
+    await save(service, { planMode: 'autopilot' });
+    expect(queued()).toEqual([]);
+    expect(derivations[0].plan).toBe('reserve');
+    expect(derivations[0].planNote).toBeTruthy();
+  });
+
+  test('свой режим поста решает и за новую версию: канал «Бронь», пост «Автопилот»', async () => {
+    const { generate, queued } = stand({
+      tags: { archive: { origin: 'MADE_HERE' }, postSettings: { 'int-tg': { planMode: 'autopilot', options: {} } } },
+    });
+    const adaptation = await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    expect(adaptation.plan).toMatchObject({ status: 'queued', autopilot: true });
+  });
+
+  test('поля текста сохраняются без режима: план не трогается, чужие ключи тегов на месте', async () => {
+    const { service, generate, calls, tags } = stand({ tags: { archive: { origin: 'MADE_HERE' } } });
+    await generate();
+    const before = calls.setPlan.length;
+    const result = await save(service, { options: { length: 'short', wish: 'начни с вопроса' } });
+    expect(result.adaptation).toBeNull();
+    expect(calls.setPlan).toHaveLength(before);
+    expect(result.settings.options).toMatchObject({ length: 'short', wish: 'начни с вопроса', emoji: 'channel' });
+    expect(result.settings.textChangedAt).toBe(result.settings.savedAt);
+    expect(tags().archive).toEqual({ origin: 'MADE_HERE' });
+    expect(tags().postSettings['int-tg'].options.length).toBe('short');
+    // «Как в канале» во всём и без режима — запись уходит, а не копится.
+    await save(service, { options: { length: 'channel', wish: '' } });
+    expect(tags().postSettings).toBeUndefined();
+    expect(tags().archive).toEqual({ origin: 'MADE_HERE' });
+  });
+
+  test('страница заготовки отдаёт режим канала и настройки поста во вкладке', async () => {
+    const { service, generate } = stand({ planMode: 'autopilot' });
+    await generate();
+    await save(service, { planMode: 'reserve' });
+    const detail = await service.detail('org-a', 'piece-1', 'ru');
+    expect(detail.channels[0]).toMatchObject({
+      integrationId: 'int-tg',
+      planMode: 'autopilot',
+      settings: { planMode: 'reserve' },
+    });
+  });
+});
+
+describe('режим канала: «Только к новым» или «Ко всем N» (97dq.70)', () => {
+  test('«Только к новым» — написанный пост остаётся как был; «Ко всем N» ставит его в очередь', async () => {
+    const { service, generate, channel, queued, calls } = stand();
+    await generate();
+    channel.planMode = 'autopilot';
+    const impact = await service.channelPlanImpact('org-a', 'int-tg', 'ru');
+    expect(impact).toEqual({ integrationId: 'int-tg', planMode: 'autopilot', count: 1 });
+    // Ответ «Только к новым» — ничего не зовётся, пост остаётся бронью.
+    expect(queued()).toEqual([]);
+    const applied = await service.applyChannelPlanMode('org-a', 'int-tg', 'autopilot', 'ru');
+    expect(applied).toMatchObject({ count: 1, applied: 1, planMode: 'autopilot' });
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    expect(calls.validate).toHaveLength(1);
+  });
+
+  test('пост со своим режимом не трогается ни при каком ответе', async () => {
+    const { service, generate, channel, queued } = stand();
+    await generate();
+    await service.savePostSettings('org-a', 'piece-1', 'int-tg', { planMode: 'reserve' }, 'ru');
+    channel.planMode = 'autopilot';
+    expect((await service.channelPlanImpact('org-a', 'int-tg', 'ru')).count).toBe(0);
+    const applied = await service.applyChannelPlanMode('org-a', 'int-tg', 'autopilot', 'ru');
+    expect(applied).toMatchObject({ count: 0, applied: 0 });
+    expect(queued()).toEqual([]);
+  });
+
+  test('вышедшая в канале заготовка не считается и не трогается', async () => {
+    const { service, generate, channel, posts, queued } = stand();
+    await generate();
+    posts.get('post-1').state = 'PUBLISHED';
+    channel.planMode = 'autopilot';
+    expect((await service.channelPlanImpact('org-a', 'int-tg', 'ru')).count).toBe(0);
+    await service.applyChannelPlanMode('org-a', 'int-tg', 'autopilot', 'ru');
+    expect(queued()).toEqual([]);
+  });
+
+  test('чужой канал — отказ словами', async () => {
+    const { service } = stand();
+    await expect(service.channelPlanImpact('org-a', 'int-nope', 'ru')).rejects.toMatchObject({
+      code: 'PIECE_CHANNEL_UNKNOWN',
+    });
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Ревью 97dq.70: один замок, атомарные теги, ход «Ко всем N»
+ * ---------------------------------------------------------------------- */
+
+describe('ревью 97dq.70: режим поста пишется и применяется под одним замком', () => {
+  const save = (service, body, integrationId = 'int-tg') =>
+    service.savePostSettings('org-a', 'piece-1', integrationId, body, 'ru');
+  const own = (tags, id = 'int-tg') => tags()?.postSettings?.[id]?.planMode ?? null;
+
+  test('гонка «Автопилот» → «Бронь»: медленная проверка площадки не оставляет очередь при «Бронь» в тегах', async () => {
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const box = { hold: true };
+    const env = stand({
+      onValidate: async () => {
+        if (box.hold) await gate;
+      },
+    });
+    await env.generate();
+    // A: «Автопилот», проверка площадки висит до замка.
+    const first = save(env.service, { planMode: 'autopilot' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // B: «Бронь» проходит целиком, пока A ждёт.
+    box.hold = false;
+    await save(env.service, { planMode: 'reserve' });
+    expect(own(env.tags)).toBe('reserve');
+    expect(env.queued()).toEqual([]);
+    release();
+    await first;
+    // Кто записал последним, тот и решил: теги и пост согласованы.
+    const mode = own(env.tags);
+    const queuedIds = env.queued().map((post) => post.id);
+    expect(mode === 'autopilot' ? queuedIds : []).toEqual(queuedIds);
+    expect(mode).toBe('autopilot');
+    expect(queuedIds).toEqual(['post-1']);
+    expect(env.derivations[0].plan).toBe('autopilot');
+  });
+
+  test('режим решается по состоянию под замком: без проверки площадки в очередь не встаёт', async () => {
+    let flip = false;
+    const env = stand({
+      // Прогноз до замка — «Бронь», проверки площадки нет; под замком канал
+      // уже на «Автопилоте».
+      onLockTags: (channel) => {
+        if (flip) channel.planMode = 'autopilot';
+      },
+    });
+    await env.generate();
+    flip = true;
+    const result = await save(env.service, { planMode: null });
+    expect(env.calls.validate).toHaveLength(0);
+    expect(env.queued()).toEqual([]);
+    expect(env.derivations[0].plan).toBe('reserve');
+    expect(env.derivations[0].planNote).toBeTruthy();
+    expect(result.adaptation.plan.status).toBe('reserved');
+  });
+
+  test('теги пишутся только под замком и только присланными полями: параметры и режим не теряют друг друга', async () => {
+    const env = stand({ tags: { archive: { origin: 'MADE_HERE' } }, extraChannels: [{ id: 'int-vk', name: 'VK', providerIdentifier: 'vk', planMode: null, postingTimes: '[]' }] });
+    await env.generate();
+    await Promise.all([
+      save(env.service, { options: { length: 'short' } }),
+      save(env.service, { planMode: 'draft' }),
+      save(env.service, { options: { cta: 'none' } }, 'int-vk'),
+      // Устаревший автосейв параметров после режима не возвращает режим назад.
+      save(env.service, { options: { length: 'short', wish: 'коротко' } }),
+    ]);
+    const tags = env.tags();
+    expect(tags.archive).toEqual({ origin: 'MADE_HERE' });
+    expect(tags.postSettings['int-tg'].planMode).toBe('draft');
+    expect(tags.postSettings['int-tg'].options).toMatchObject({ length: 'short', wish: 'коротко' });
+    expect(tags.postSettings['int-vk'].options.cta).toBe('none');
+    expect(tags.postSettings['int-vk'].planMode).toBeNull();
+    expect(env.calls.tagLocks).toBe(4);
+  });
+
+  test('заготовка в архиве — отказ до записи', async () => {
+    const env = stand({ archived: true });
+    await expect(save(env.service, { planMode: 'autopilot' })).rejects.toMatchObject({
+      code: 'PIECE_ARCHIVED',
+    });
+    expect(env.tags()).toBeNull();
+  });
+
+  test('чужой аватар — отказ, свой — сохраняется', async () => {
+    const env = stand({ avatars: ['av-1'] });
+    await expect(
+      save(env.service, { options: { brandProfileId: 'av-other' } })
+    ).rejects.toMatchObject({ code: 'PIECE_AVATAR_UNKNOWN' });
+    const saved = await save(env.service, { options: { brandProfileId: 'av-1' } });
+    expect(saved.settings.options.brandProfileId).toBe('av-1');
+  });
+});
+
+describe('ревью 97dq.70: «Ко всем N»', () => {
+  const seeded = ({ posts = [], derivations = [], ...options } = {}) => {
+    const later = (hours) => new Date(NOW.getTime() + hours * 3_600_000);
+    return stand({
+      planMode: 'autopilot',
+      posts: [
+        { id: 'p1', state: 'DRAFT', publishDate: later(6), deletedAt: null, integrationId: 'int-tg' },
+        { id: 'p2', state: 'DRAFT', publishDate: later(30), deletedAt: null, integrationId: 'int-tg' },
+        ...posts,
+      ],
+      derivations: [
+        { id: 'd1', contentPieceId: 'piece-1', integrationId: 'int-tg', postId: 'p1', plan: 'reserve', planNote: null, plannedAt: null, createdAt: new Date('2026-09-21T09:00:00.000Z') },
+        { id: 'd2', contentPieceId: 'piece-2', integrationId: 'int-tg', postId: 'p2', plan: 'reserve', planNote: null, plannedAt: null, createdAt: new Date('2026-09-21T10:00:00.000Z') },
+        ...derivations,
+      ],
+      ...options,
+    });
+  };
+
+  test('ответ на устаревший режим — 409, ничего не тронуто', async () => {
+    const env = seeded();
+    const error = await env.service
+      .applyChannelPlanMode('org-a', 'int-tg', 'draft', 'ru')
+      .catch((caught) => caught);
+    expect(error).toMatchObject({ code: 'CHANNEL_PLAN_MODE_CHANGED', status: 409 });
+    expect(env.queued()).toEqual([]);
+    expect(env.calls.setPlan).toEqual([]);
+  });
+
+  test('свой режим поста, поставленный посреди хода, не перезаписывается', async () => {
+    let once = true;
+    const env = seeded({
+      onValidate: async () => {
+        if (!once) return;
+        once = false;
+        // Человек выбрал «Бронь» у поста, пока ход проверял площадку.
+        env.setTags({ postSettings: { 'int-tg': { planMode: 'reserve', options: {} } } });
+      },
+    });
+    const result = await env.service.applyChannelPlanMode('org-a', 'int-tg', 'autopilot', 'ru');
+    expect(result.count).toBe(2);
+    // Теги в стенде общие для обеих заготовок: после своей правки обе — «свои».
+    expect(result.applied).toBe(0);
+    expect(env.queued()).toEqual([]);
+  });
+
+  test('отказ одного поста не останавливает остальные', async () => {
+    const env = seeded({ draftThrows: ['d1'] });
+    const result = await env.service.applyChannelPlanMode('org-a', 'int-tg', 'autopilot', 'ru');
+    expect(result).toMatchObject({ count: 2, applied: 1 });
+    expect(env.queued().map((post) => post.id)).toEqual(['p2']);
+    expect(env.posts.get('p1').state).toBe('DRAFT');
+  });
+
+  test('счёт и ход — одно правило: очередь человека и пост уже в режиме не считаются', async () => {
+    const later = (hours) => new Date(NOW.getTime() + hours * 3_600_000);
+    const env = seeded({
+      posts: [
+        { id: 'p3', state: 'QUEUE', publishDate: later(50), deletedAt: null, integrationId: 'int-tg' },
+      ],
+      derivations: [
+        { id: 'd3', contentPieceId: 'piece-3', integrationId: 'int-tg', postId: 'p3', plan: 'reserve', planNote: null, plannedAt: null, createdAt: new Date('2026-09-21T11:00:00.000Z') },
+      ],
+    });
+    env.channel.planMode = 'reserve';
+    // d1, d2 уже в брони, d3 поставлен человеком — менять нечего.
+    expect((await env.service.channelPlanImpact('org-a', 'int-tg', 'ru')).count).toBe(0);
+    env.channel.planMode = 'draft';
+    expect((await env.service.channelPlanImpact('org-a', 'int-tg', 'ru')).count).toBe(2);
+    const result = await env.service.applyChannelPlanMode('org-a', 'int-tg', 'draft', 'ru');
+    expect(result).toMatchObject({ count: 2, applied: 2 });
+    expect(env.posts.get('p3').state).toBe('QUEUE');
+  });
+});
+
+describe('ревью 97dq.70: строка заготовки блокируется в транзакции замка', () => {
+  test('`tags` читаются `FOR UPDATE` и пишутся тем же `tx`', async () => {
+    const sql = [];
+    const repository = new PieceRepository(
+      {
+        model: {
+          $transaction: async (work) =>
+            work({
+              $queryRaw: async (strings, ...values) => {
+                sql.push([strings.join('?'), values]);
+                return strings.join('').includes('FOR UPDATE') ? [{ tags: { a: 1 } }] : [{ locked: 1 }];
+              },
+              contentPiece: {
+                updateMany: async (input) => {
+                  sql.push(['tx contentPiece.updateMany', input]);
+                  return { count: 1 };
+                },
+              },
+            }),
+        },
+      },
+      {},
+      {}
+    );
+    await repository.withChannelLock('org-a', 'piece-1', 'int-tg', async (db) => {
+      const locked = await db.lockPieceTags('org-a', 'piece-1');
+      expect(locked).toEqual({ tags: { a: 1 } });
+      await db.writePieceTags('org-a', 'piece-1', { a: 1, b: 2 });
+    });
+    expect(sql[1][0]).toBe(
+      'SELECT "tags" FROM "ContentPiece" WHERE "organizationId" = ? AND "id" = ? FOR UPDATE'
+    );
+    expect(sql[1][1]).toEqual(['org-a', 'piece-1']);
+    expect(sql[2]).toEqual([
+      'tx contentPiece.updateMany',
+      { where: { organizationId: 'org-a', id: 'piece-1' }, data: { tags: { a: 1, b: 2 } } },
+    ]);
   });
 });

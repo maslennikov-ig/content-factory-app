@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/react';
 import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { Hint } from '@contentfactory/react/layout/hint';
 import {
   CloseIcon,
   EmojiIcon,
@@ -133,6 +134,30 @@ export function AdaptationEditor({
     setEditing(false);
   };
 
+  /** Курсор стоит в ссылке: панель правит её, а не вставляет новую. */
+  const inLink = ready && editor.isActive('link');
+
+  /*
+    «Ссылка» открывает панель адреса. Стоит курсор в ссылке — в поле её адрес
+    и рядом «Убрать ссылку»; иначе поле пустое (`97dq.52`).
+  */
+  const toggleLinkPanel = () => {
+    if (linkOpen) {
+      closeLink();
+      return;
+    }
+    const current = inLink ? editor?.getAttributes('link')?.href : '';
+    setLink(typeof current === 'string' ? current : '');
+    setLinkError(false);
+    setLinkOpen(true);
+  };
+
+  const removeLink = () => {
+    editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+    setLink('');
+    closeLink();
+  };
+
   const insertLink = () => {
     const address = readLinkAddress(link);
     if (!address) {
@@ -140,9 +165,23 @@ export function AdaptationEditor({
       return;
     }
     if (editor) {
-      // Тело хранит ссылку адресом, поэтому выделенные слова остаются собой, а
-      // адрес встаёт после них — как вставлялся и в прежнее поле.
-      const { to } = editor.state.selection;
+      /*
+        Выделенные слова или ссылка под курсором становятся ссылкой на этот
+        адрес: тело хранит её парой «слова и адрес» (`97dq.52`). Без выделения
+        адрес встаёт после курсора самим собой — как вставлялся и раньше.
+      */
+      const { from, to } = editor.state.selection;
+      if (from !== to || editor.isActive('link')) {
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange('link')
+          .setLink({ href: address })
+          .run();
+        setLink('');
+        closeLink();
+        return;
+      }
       const doc = editor.state.doc;
       const before = doc.textBetween(Math.max(0, to - 1), to, '\n', '\n');
       const after = doc.textBetween(
@@ -176,6 +215,8 @@ export function AdaptationEditor({
 
   const tool = 'min-w-[32px]';
   const boldActive = ready && editor.isActive('bold');
+  const italicActive = ready && editor.isActive('italic');
+  const underlineActive = ready && editor.isActive('underline');
 
   return (
     <div
@@ -210,6 +251,49 @@ export function AdaptationEditor({
                   </span>
                 </Button>
               ) : null}
+              {tools.includes('italic') ? (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  className={tool}
+                  aria-label={t.toolItalic}
+                  title={t.toolItalic}
+                  aria-pressed={italicActive}
+                  disabled={!ready}
+                  data-editor-tool="italic"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => editor?.chain().focus().toggleItalic().run()}
+                >
+                  <span aria-hidden="true" className="cf-label-md italic">
+                    {t.toolItalicGlyph}
+                  </span>
+                </Button>
+              ) : null}
+              {tools.includes('underline') ? (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  className={tool}
+                  aria-label={t.toolUnderline}
+                  title={t.toolUnderline}
+                  aria-pressed={underlineActive}
+                  disabled={!ready}
+                  data-editor-tool="underline"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    editor?.chain().focus().toggleUnderline().run()
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className="cf-label-md underline underline-offset-2"
+                  >
+                    {t.toolUnderlineGlyph}
+                  </span>
+                </Button>
+              ) : null}
               {tools.includes('link') ? (
                 <Button
                   type="button"
@@ -219,10 +303,11 @@ export function AdaptationEditor({
                   aria-label={t.toolLink}
                   title={t.toolLink}
                   aria-expanded={linkOpen}
+                  aria-pressed={inLink}
                   disabled={!ready}
                   data-editor-tool="link"
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => setLinkOpen((open) => !open)}
+                  onClick={toggleLinkPanel}
                 >
                   <LinkGlyph />
                 </Button>
@@ -315,7 +400,10 @@ export function AdaptationEditor({
       ) : null}
 
       {linkOpen && inEdit ? (
-        <div className="flex min-w-0 flex-wrap items-end gap-[8px] border-b border-cf-border px-[12px] py-[8px]">
+        <div
+          data-editor-link-panel={inLink ? 'edit' : 'add'}
+          className="flex min-w-0 flex-wrap items-end gap-[8px] border-b border-cf-border px-[12px] py-[8px]"
+        >
           <Input
             standalone
             density="dense"
@@ -340,16 +428,29 @@ export function AdaptationEditor({
               }
             }}
           />
-          <div className="flex gap-[8px] pb-[4px]">
+          <div className="flex items-center gap-[8px] pb-[4px]">
+            <Hint label={t.linkHintLabel}>{t.linkHint}</Hint>
             <Button
               type="button"
               variant="secondary"
               density="dense"
               disabled={!link.trim()}
+              data-editor-link-save="true"
               onClick={insertLink}
             >
-              {t.linkInsert}
+              {inLink ? t.linkSave : t.linkInsert}
             </Button>
+            {inLink ? (
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                data-editor-link-remove="true"
+                onClick={removeLink}
+              >
+                {t.linkRemove}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="quiet"

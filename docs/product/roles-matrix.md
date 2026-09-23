@@ -124,6 +124,10 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/research/accept` | EDITOR | 1 | editor; apply selected findings from the actor-bound snapshot |
 | `/content-intelligence/pieces/:id/facts` | EDITOR | 1 | редактор; выбор найденной опоры без подтверждения её истинности |
 | `/content-intelligence/pieces/:id/rewrite` | EDITOR | 1 | редактор; перегенерация сути |
+| `/content-intelligence/pieces/:id/post-link` | EDITOR | 1 | редактор; ответ на «Какую ссылку поставить в пост?» — адрес или «Без ссылки» (`97dq.75`) |
+| `/content-intelligence/pieces/:id/core` | EDITOR | 1 | редактор; правка сути руками с автосохранением, прежний текст хранится (`97dq.75`) |
+| `/content-intelligence/pieces/:id/material` | EDITOR | 1 | редактор; «Дописать материал» — суть не меняется до явной пересборки (`97dq.75`) |
+| `/content-intelligence/pieces/:id/core/rebuild` | EDITOR | 1 | редактор; «Пересобрать суть» по всему материалу — один вызов записи сути (`97dq.75`) |
 | `/content-intelligence/pieces/:id/rewrite/accept` | EDITOR | 1 | редактор; принятие подписанных правок сути |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/rewrite` | EDITOR | 1 | редактор; перегенерация адаптации |
 | `/content-intelligence/pieces/:id/adapt` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
@@ -132,6 +136,8 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/unschedule` | EDITOR | 1 | редактор; «Снять с расписания» с экрана адаптации |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/place` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Поставить на ЧЧ:ММ» из календаря — по режиму канала, автопилот ставит в очередь |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
+| `/content-intelligence/pieces/:id/channels/:integrationId/settings` | POSTS_PER_MONTH, EDITOR | 1 | редактор; настройки поста в канале сохраняются сами, свой режим плана применяется к написанному посту сразу (`97dq.70`) |
+| `/content-intelligence/pieces/channels/:integrationId/plan-apply` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Ко всем N» — режим канала к его невышедшим постам без своего режима (`97dq.70`); сколько их — `GET …/plan-impact`, чтение любого участника |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |
 | `/content-intelligence/sources` | EDITOR | 6 | редактор |
@@ -701,10 +707,11 @@ Postgres — отдельная опасная операция (см. шаг в
 показывают разбивку по людям. Эта отдаёт только счётчики и дату обновления —
 ни ключа, ни имени, ни адреса. Организацию она, как и все, берёт из запроса.
 
-## «Впереди N дней» читает любой участник
+## «План впереди» читает любой участник
 
-С `content-factory-next-97dq.59` (23.09.2026) шапка календаря и карточка в
-«Аналитика → Производство» берут число «впереди N дней» из двери
+С `content-factory-next-97dq.59` (23.09.2026) шапка календаря и
+«Аналитика → Производство» берут план впереди (с `97dq.73` — в постах:
+«В плане 3 поста · до чт 24.09») из двери
 `GET /analytics/ahead`
 (`apps/backend/src/api/routes/analytics.controller.ts`). Как и соседняя
 `GET /analytics/production`, она только читает и политики не несёт, поэтому в
@@ -713,8 +720,9 @@ Postgres — отдельная опасная операция (см. шаг в
 помощь.
 
 Ответ — только даты и имена каналов этой организации (организация берётся из
-запроса): сколько дней подряд с сегодняшнего в каждом есть пост «в плане» или
-«в очереди», по каждому каналу и полоса на 14 дней. Ни текста постов, ни
+запроса): сколько постов «в плане» и «в очереди» впереди, до какого дня
+хватает плана, первый пустой день, сколько вышло за 7 дней, по каждому каналу
+и полоса на 14 дней со счётчиками (`plan-ahead/v2`). Ни текста постов, ни
 людей.
 
 ## `/copilot/research` — дверь без потребителя в интерфейсе

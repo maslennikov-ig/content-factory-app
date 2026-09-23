@@ -599,6 +599,7 @@ describe('a refusal is printed in the words the server sent', () => {
 
 const ADAPTATION_URL = adapter.PIECES_API.adaptation(PIECE_ID, TG_DRAFT_ID);
 const SCHEDULE_URL = adapter.PIECES_API.schedule(PIECE_ID, TG_DRAFT_ID);
+const SETTINGS_URL = adapter.PIECES_API.postSettings(PIECE_ID, 'int-tg-main');
 
 const workspace = async (extra = {}) => {
   serve({
@@ -613,6 +614,18 @@ const workspace = async (extra = {}) => {
     [`POST ${SCHEDULE_URL}`]: ok({
       adaptation: { ...WITH_DRAFT.adaptations[0], state: 'queued' },
     }),
+    // Настройки поста (`97dq.70`): дверь отвечает тем, что сохранила.
+    [`PUT ${SETTINGS_URL}`]: (call) =>
+      ok({
+        settings: {
+          options: { ...adapter.DEFAULT_POST_OPTIONS, ...(call.body.options ?? {}) },
+          planMode: call.body.planMode ?? null,
+          savedAt: '2026-09-24T07:05:00.000Z',
+          textChangedAt: null,
+        },
+        adaptation: null,
+      }),
+    'PUT /integrations/int-tg-main/plan-mode': ok({ planMode: 'reserve' }),
     ...extra,
   });
   await open({ initialTab: 'int-tg-main' });
@@ -712,10 +725,13 @@ describe('the channel workspace talks to its own doors', () => {
     await open({ initialTab: 'int-vk' });
     // Запланированный пост не правится: поля правки нет.
     expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Открыть в календаре' }).getAttribute('href')).toContain(
-      'integrationId=int-vk'
+    // В очереди — «Изменить время», остальное в меню (`97dq.70`).
+    expect(screen.getByRole('button', { name: 'Изменить время' })).toBeTruthy();
+    await click(
+      screen.getByRole('button', { name: 'Другие действия с постом в очереди' })
     );
-    await click(screen.getByRole('button', { name: 'Снять с расписания' }), () =>
+    expect(screen.getByRole('menuitem', { name: /Открыть в календаре/ })).toBeTruthy();
+    await click(screen.getByRole('menuitem', { name: /Снять с расписания/ }), () =>
       calls.some((call) => call.url === UNSCHEDULE_URL)
     );
     expect(calls.filter((call) => call.url === UNSCHEDULE_URL)[0].method).toBe('POST');
@@ -756,7 +772,7 @@ describe('the channel workspace talks to its own doors', () => {
     });
   });
 
-  test('«Запомнить для канала» writes the choice into the channel profile', async () => {
+  test('«Сохранить для канала» writes the choice into the channel profile', async () => {
     // Дверь профиля канала отвечает заглушкой набора на любой метод.
     await workspace();
     const profileCall = calls.find((call) => call.url.endsWith('/writing-profile'));
@@ -767,16 +783,145 @@ describe('the channel workspace talks to its own doors', () => {
         target: { value: '0' },
       });
     });
-    await click(screen.getByRole('button', { name: 'Запомнить для канала' }), () =>
-      calls.some((call) => call.method === 'PUT')
+    await click(screen.getByRole('button', { name: 'Где ещё сохранить' }));
+    await click(screen.getByRole('menuitem', { name: /Сохранить для канала/ }), () =>
+      calls.some((call) => call.method === 'PUT' && call.url === profileCall.url)
     );
-    const put = calls.find((call) => call.method === 'PUT');
-    expect(put.url).toBe(profileCall.url);
+    const put = calls.find((call) => call.method === 'PUT' && call.url === profileCall.url);
     expect(put.body.emojiLevel).toBe('none');
     // «на ты / на вы» ушло из продукта (97dq.45): в карточку оно не пишется.
     expect(put.body).not.toHaveProperty('addressForm');
-    await settle(() => document.body.textContent.includes('Запомнили'));
-    expect(document.body.textContent).toContain('Запомнили');
+    await settle(() => document.body.textContent.includes('Сохранено для канала'));
+    expect(document.body.textContent).toContain('Сохранено для канала');
+    // Пост снова «как в канале»: его переопределения ушли в канал.
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    expect(calls.find((call) => call.url === SETTINGS_URL).body.options.emoji).toBe('channel');
+  });
+
+  test('a post setting saves itself as the post override, «Сохранено · ЧЧ:ММ» (97dq.70)', async () => {
+    await workspace();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Длина'), { target: { value: 'short' } });
+    });
+    expect(calls.some((call) => call.url === SETTINGS_URL)).toBe(false);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    const put = calls.find((call) => call.url === SETTINGS_URL);
+    expect(put.method).toBe('PUT');
+    expect(put.body.options.length).toBe('short');
+    expect(put.body).not.toHaveProperty('planMode');
+    await settle(() =>
+      /Сохранено · \d\d:\d\d/.test(
+        document.querySelector('[data-post-options-saved]').textContent
+      )
+    );
+    // Текст написан раньше, чем поменялась длина.
+    expect(document.querySelector('[data-post-options-pending]').textContent).toBe(
+      'применится при переписывании'
+    );
+  });
+
+  test('a plan change takes the pending options with it, in one request (review 97dq.70)', async () => {
+    await workspace();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Длина'), { target: { value: 'short' } });
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'autopilot' } });
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    // Тишина автосейва прошла — второго запроса с полями нет.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    const puts = calls.filter((call) => call.url === SETTINGS_URL);
+    expect(puts).toHaveLength(1);
+    expect(puts[0].body.planMode).toBe('autopilot');
+    expect(puts[0].body.options.length).toBe('short');
+  });
+
+  test('the plan select waits for the answer before the next choice (review 97dq.70)', async () => {
+    let answer;
+    await workspace({
+      [`PUT ${SETTINGS_URL}`]: () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve(ok({ settings: null, adaptation: null }));
+        }),
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'autopilot' } });
+    });
+    await settle(() => typeof answer === 'function');
+    expect(screen.getByLabelText('План').disabled).toBe(true);
+    await act(async () => answer());
+    await settle(() => !screen.getByLabelText('План').disabled);
+    expect(screen.getByLabelText('План').disabled).toBe(false);
+  });
+
+  test('leaving the page sends the settings edit that was still waiting (review 97dq.70)', async () => {
+    await workspace();
+    const view = document.body;
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Призыв'), { target: { value: 'none' } });
+    });
+    expect(calls.some((call) => call.url === SETTINGS_URL)).toBe(false);
+    cleanup();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const put = calls.find((call) => call.url === SETTINGS_URL);
+    expect(put).toBeTruthy();
+    expect(put.method).toBe('PUT');
+    expect(put.body.options.cta).toBe('none');
+    expect(view.querySelector('[data-post-options]')).toBeNull();
+  });
+
+  test('a failed plan save keeps the options it carried: they go out on leaving (second review, item 6)', async () => {
+    await workspace({
+      [`PUT ${SETTINGS_URL}`]: (call) =>
+        call.body.planMode !== undefined
+          ? refused(500, { message: 'не сохранилось' })
+          : ok({ settings: null, adaptation: null }),
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Длина'), { target: { value: 'short' } });
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'autopilot' } });
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    const failed = calls.filter((call) => call.url === SETTINGS_URL);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].body).toMatchObject({ planMode: 'autopilot', options: { length: 'short' } });
+    await settle(() => !screen.getByLabelText('План').disabled);
+    // The length is still waiting, not dropped with the refused request.
+    cleanup();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const flushed = calls.filter((call) => call.url === SETTINGS_URL).slice(1);
+    expect(flushed).toHaveLength(1);
+    expect(flushed[0].body).not.toHaveProperty('planMode');
+    expect(flushed[0].body.options.length).toBe('short');
+  });
+
+  test('the post «План» goes to its door at once and the page is read again (97dq.70)', async () => {
+    await workspace();
+    const reads = detailReads;
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'autopilot' } });
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    expect(calls.find((call) => call.url === SETTINGS_URL).body).toEqual({
+      planMode: 'autopilot',
+    });
+    await settle(() => detailReads > reads);
+    expect(detailReads).toBeGreaterThan(reads);
+    // «Как пишем в …» со вкладки больше не открывается.
+    expect(document.querySelector('[data-piece-channel-profile]')).toBeNull();
   });
 
   test('the action row of the adaptation is visible, with no «Ещё» menu', async () => {

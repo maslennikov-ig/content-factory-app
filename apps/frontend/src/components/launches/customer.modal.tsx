@@ -66,7 +66,7 @@ export const CustomerModal: FC<{
       <div className="my-[16px] flex gap-[10px]">
         <Button onClick={() => saveCustomer()}>{t('save', 'Save')}</Button>
         {!!integration?.customer?.name && (
-          <Button className="bg-red-700" onClick={removeFromCustomer}>
+          <Button variant="destructive" onClick={removeFromCustomer}>
             {t('remove_from_customer', 'Remove from customer')}
           </Button>
         )}

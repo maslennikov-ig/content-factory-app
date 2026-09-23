@@ -85,18 +85,18 @@ function PathCard({
       )}
     >
       <div className="flex flex-wrap items-center gap-[8px]">
-        <span className="cf-label-sm uppercase text-cf-ink-muted">
+        <span className="cf-label-sm text-cf-ink-muted">
           {t.path} {index}
         </span>
         {recommended ? (
-          <span className="rounded-[4px] border border-cf-accent px-[8px] py-[4px] cf-label-sm uppercase text-cf-accent">
+          <span className="rounded-[4px] border border-cf-accent px-[8px] py-[4px] cf-label-sm text-cf-accent">
             {t.recommended}
           </span>
         ) : null}
         {selected ? (
           // Selection is a border, a fill and a word. Colour alone would leave
           // the choice invisible to a reader who cannot see the hue.
-          <span className="cf-label-sm uppercase text-cf-accent">✓</span>
+          <span className="cf-label-sm text-cf-accent">✓</span>
         ) : null}
       </div>
 
@@ -111,7 +111,7 @@ function PathCard({
         <dl className="mt-[16px] flex flex-wrap gap-x-[24px] gap-y-[8px]">
           {facts.map((fact) => (
             <div key={fact.label}>
-              <dt className="cf-label-sm uppercase text-cf-ink-muted">
+              <dt className="cf-label-sm text-cf-ink-muted">
                 {fact.label}
               </dt>
               <dd className="mt-[4px] cf-body-sm text-cf-ink">{fact.value}</dd>
@@ -130,7 +130,7 @@ function PathCard({
             >
               <p
                 className={clsx(
-                  'cf-label-sm uppercase',
+                  'cf-label-sm',
                   column.tone === 'take' ? 'text-cf-accent' : 'text-cf-ink-muted'
                 )}
               >

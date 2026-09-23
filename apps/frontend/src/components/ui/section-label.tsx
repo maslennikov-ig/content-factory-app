@@ -6,11 +6,12 @@ import clsx from 'clsx';
 /**
  * The small label above a section or a field group inside a panel.
  *
- * `cf-label-sm uppercase text-cf-ink-muted` was retyped 99 times in 33 files
- * by 22.09.2026 (audit 97dq.39, A5), while the authoring rule still said
- * uppercase belonged only inside a marker frame. Practice won, so the rule
- * now names this component, and `tests/design.coherence.guard.test.cjs`
- * counts the hand-typed copies per file: the number only goes down.
+ * Sentence case (`97dq.74`, thirteenth walk E3/B1). From 22.09 to 24.09.2026
+ * this component uppercased its text, ratifying the 99 hand-typed copies of
+ * `cf-label-sm uppercase` (audit 97dq.39, A5). The owner read the result as
+ * shouting, and `DESIGN.md` now keeps capitals out of product copy entirely;
+ * `tests/design.coherence.guard.test.cjs` rejects `uppercase` in product
+ * components outside a short allowlist.
  *
  * A section that is a panel takes `Panel title` instead. A heading inside the
  * section never outranks this label — `h3.cf-heading-md` under it reads as the
@@ -32,7 +33,7 @@ export function SectionLabel({
   return (
     <Tag
       id={id}
-      className={clsx('cf-label-sm uppercase text-cf-ink-muted', className)}
+      className={clsx('cf-label-sm text-cf-ink-muted', className)}
     >
       {children}
     </Tag>

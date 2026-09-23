@@ -168,7 +168,9 @@ describe('analytics and billing fixture contract', () => {
     expect(selected).toContain('12');
     expect(empty).toContain('No publishing attempts');
     expect(error).toContain('role="alert"');
-    expect(error).toContain('Повторить безопасно');
+    // `97dq.73`: the shared error state; «Повторить безопасно» was dead text.
+    expect(error).toContain('Не удалось загрузить производственную аналитику.');
+    expect(error).not.toContain('Повторить безопасно');
     expect(selected).not.toContain('followers');
   });
 

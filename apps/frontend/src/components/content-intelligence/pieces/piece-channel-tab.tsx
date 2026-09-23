@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Segmented } from '../../ui/segmented';
+import { ConfirmButton } from '../../ui/confirm-button';
 import { WorkingLine } from '../../ui/working-line';
 import type { QualityChecksV1 } from '../intake/intake.adapter';
 import { QualityLine } from '../shared/quality-line';
@@ -10,8 +11,10 @@ import { AdaptationBody } from './adaptation-body';
 import { AdaptationEditor } from './adaptation-editor';
 import { cellDate } from './adaptation.cell';
 import {
-  PostOptionsPanel,
+  WritingSettingsPanel,
+  type PlanFieldProps,
   type PostAvatarOption,
+  type SaveStateV1,
 } from './post-options.panel';
 import {
   type AdaptationKindV1,
@@ -23,8 +26,9 @@ import {
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { PostPreview } from './post-preview';
-import { ScheduleBar } from './schedule-bar';
+import { ScheduleBar, type ScheduleBusy } from './schedule-bar';
 import { SectionLabel } from '../../ui/section-label';
+import { SidePanel } from '../../ui/side-panel';
 
 export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -32,13 +36,14 @@ export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
  * Вкладка канала (`97dq.37`, §3.2–3.3): всё, что нужно довести адаптацию до
  * публикации, в одном месте.
  *
- * Слева — текст: варианты, переключатель «Текст · Как увидят в <площадке>»,
- * правка руками, строка качества и ряд действий. Предпросмотр встаёт на
- * место текста во всю ширину колонки (`97dq.48`, вариант A), а не ютится
- * окошком справа. Справа — «Для этого поста» и «Как пишем в «канал»».
- * Внизу — когда и отправить. Окно «Создать пост» отсюда не открывается никогда: всё,
- * что из него было нужно, переехало сюда, а остальное к одному посту из
- * заготовки не относится (`EditorFate`).
+ * Слева — текст: варианты, переключатель «Текст · Как увидят в <площадке>»
+ * и единственное «Удалить адаптацию» в том же верхнем ряду, правка руками,
+ * строка качества, ряд действий и сразу под ним строка плана (`97dq.70`):
+ * черновик, бронь или очередь — с действием по состоянию. Предпросмотр
+ * встаёт на место текста во всю ширину колонки (`97dq.48`, вариант A).
+ * Справа — одна панель настроек в области поста: те же поля, что у канала,
+ * и «План» (`97dq.70`); отдельного «Как пишем в «канал»» здесь больше нет.
+ * Окно «Создать пост» отсюда не открывается никогда (`EditorFate`).
  *
  * Без адаптации вкладка — это один вопрос перед текстом, если его задали, и
  * одна главная кнопка «Адаптировать для <площадки>».
@@ -70,11 +75,17 @@ export function PieceChannelTab({
   actionRow,
   postOptions,
   postBaseline,
+  pieceLink,
   avatars,
   onPostOptionsChange,
-  rememberState,
-  onRemember,
-  channelProfile,
+  postPlan,
+  rewritePending = false,
+  settingsSaveState = 'idle',
+  settingsSavedAt = null,
+  onSaveSettings,
+  channelSaveState = 'idle',
+  onSaveForChannel,
+  onRewriteAndRemember,
   when,
   scheduleBusy,
   scheduleError,
@@ -85,6 +96,9 @@ export function PieceChannelTab({
   onSchedule,
   onPublishNow,
   onUnschedule,
+  onDropPlan,
+  onMove,
+  onOpenCalendar,
   onDelete,
 }: {
   locale: PiecesLocale;
@@ -117,15 +131,26 @@ export function PieceChannelTab({
   actionRow?: ReactNode;
   postOptions: PostOptionsV1;
   postBaseline?: PostOptionsBaselineV1;
+  /** Ответ заготовки на вопрос о ссылке (`97dq.75`); нет ответа — `null`. */
+  pieceLink?: { url: string | null } | null;
   avatars: readonly PostAvatarOption[];
   onPostOptionsChange: (next: PostOptionsV1) => void;
-  rememberState: 'idle' | 'saving' | 'saved' | 'failed';
-  onRemember: () => void;
-  /** Ссылка «Как пишем в «канал»» с её диалогом. */
-  channelProfile?: ReactNode;
+  /** «План» поста: свой режим или «как в канале», применяется сразу. */
+  postPlan?: PlanFieldProps;
+  /** Текст старше настроек: «применится при переписывании». */
+  rewritePending?: boolean;
+  settingsSaveState?: SaveStateV1;
+  /** «ЧЧ:ММ» последнего сохранения настроек поста. */
+  settingsSavedAt?: string | null;
+  onSaveSettings?: () => void;
+  channelSaveState?: SaveStateV1;
+  /** «Сохранить для канала»: значения поста — умолчания канала. */
+  onSaveForChannel?: () => void;
+  /** «Переписать и запомнить для канала». */
+  onRewriteAndRemember?: () => void;
   /** Поле «Когда» — общий выбор даты продукта. */
   when: ReactNode;
-  scheduleBusy: 'schedule' | 'now' | 'unschedule' | 'delete' | null;
+  scheduleBusy: ScheduleBusy | null;
   scheduleError?: string | null;
   calendarHref: string;
   onSelectAdaptation: (adaptationId: string) => void;
@@ -134,6 +159,9 @@ export function PieceChannelTab({
   onSchedule: () => void;
   onPublishNow: () => void;
   onUnschedule: () => void;
+  onDropPlan?: () => void;
+  onMove?: () => void;
+  onOpenCalendar?: (href: string) => void;
   onDelete: () => void;
 }) {
   const t = piecesCopy[locale];
@@ -141,6 +169,7 @@ export function PieceChannelTab({
     channel.kinds[0] ?? 'post'
   );
   const [view, setView] = useState<'text' | 'preview'>('text');
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const kindWord = (value: AdaptationKindV1) =>
     ({
       post: t.kindPost,
@@ -159,6 +188,9 @@ export function PieceChannelTab({
     adaptation?.state === 'draft' || adaptation?.state === 'error';
   // Смотреть нечего, пока текста нет: тогда и переключателя нет.
   const previewing = view === 'preview' && Boolean(body);
+  // Настройки поста живут, пока пост не вышел: режим плана применяется и к
+  // очереди, переписать можно только черновик.
+  const settable = canWrite && (!adaptation || adaptation.state !== 'published');
 
   const autosave =
     saveState === 'saving'
@@ -189,8 +221,15 @@ export function PieceChannelTab({
 
   return (
     <div className="flex min-w-0 flex-col gap-[24px]">
-      <div className="grid min-w-0 gap-[32px] lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-[16px]">
+      {/*
+        Text on the left, one settings panel on the right (`97dq.70`). The
+        panel is a `SidePanel` (`97dq.71`): drag its inner border, hide it to
+        the right edge, and it remembers both. It starts at 400px — shorter
+        than the 360px column it replaced — and gives width back before the
+        text column goes under 560px.
+      */}
+      <div className="flex min-w-0 flex-col gap-[32px] lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-[16px]">
           {adaptation ? (
             <>
               <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
@@ -231,6 +270,28 @@ export function PieceChannelTab({
                   >
                     {autosave}
                   </span>
+                ) : null}
+                {/*
+                  Одна кнопка удаления на вкладке (`97dq.70`): здесь, в верхнем
+                  ряду. Вышедшую адаптацию сервер не удаляет — кнопки нет.
+                */}
+                {adaptation.state !== 'published' ? (
+                  <ConfirmButton
+                    label={t.deleteAdaptation}
+                    armedLabel={t.deletePieceArmed}
+                    disabled={
+                      !canWrite ||
+                      (scheduleBusy !== null && scheduleBusy !== 'delete')
+                    }
+                    loading={scheduleBusy === 'delete'}
+                    loadingLabel={t.deletingAdaptation}
+                    data-piece-delete-adaptation="true"
+                    onArmedChange={setDeleteArmed}
+                    className={
+                      deleteArmed ? 'ms-auto' : 'ms-auto text-cf-danger'
+                    }
+                    onConfirm={onDelete}
+                  />
                 ) : null}
               </div>
 
@@ -323,6 +384,23 @@ export function PieceChannelTab({
               </div>
 
               {editable ? actionRow : null}
+              <ScheduleBar
+                locale={locale}
+                state={adaptation.state}
+                date={adaptation.date ?? null}
+                plan={adaptation.plan}
+                when={when}
+                canWrite={canWrite}
+                busy={scheduleBusy}
+                error={scheduleError}
+                calendarHref={calendarHref}
+                onSchedule={onSchedule}
+                onPublishNow={onPublishNow}
+                onUnschedule={onUnschedule}
+                onDropPlan={onDropPlan}
+                onMove={onMove}
+                onOpenCalendar={onOpenCalendar}
+              />
               {working}
               {questionsSlot}
             </>
@@ -372,42 +450,49 @@ export function PieceChannelTab({
           )}
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-[16px]">
-          {canWrite && (!adaptation || sendable) ? (
-            <PostOptionsPanel
+        <SidePanel
+          id="piece-channel-settings"
+          side="end"
+          label={t.settingsPanelLabel}
+          copy={{
+            resize: t.settingsPanelResize,
+            hide: t.settingsPanelHide,
+            show: t.settingsPanelShow,
+          }}
+          defaultWidth={400}
+          reserveMain={592}
+          className={settable ? undefined : 'hidden'}
+          bodyClassName="gap-[16px]"
+        >
+          {settable ? (
+            <WritingSettingsPanel
+              scope="post"
               locale={locale}
               options={postOptions}
               baseline={postBaseline}
+              pieceLink={pieceLink ?? null}
               avatars={avatars}
               disabled={adapting}
+              plan={adaptation && channel.connected ? postPlan : undefined}
               onChange={onPostOptionsChange}
-              onRewrite={adaptation ? () => onAdapt(adaptation.kind) : undefined}
-              onRemember={channel.connected ? onRemember : undefined}
-              rememberState={rememberState}
+              onRewrite={
+                adaptation && sendable ? () => onAdapt(adaptation.kind) : undefined
+              }
+              onRewriteAndRemember={
+                adaptation && sendable && channel.connected
+                  ? onRewriteAndRemember
+                  : undefined
+              }
+              rewritePending={rewritePending}
+              saveState={settingsSaveState}
+              savedAt={settingsSavedAt}
+              onSaveForPost={channel.connected ? onSaveSettings : undefined}
+              onSaveForChannel={channel.connected ? onSaveForChannel : undefined}
+              channelSaveState={channelSaveState}
             />
           ) : null}
-
-          {channelProfile}
-        </aside>
+        </SidePanel>
       </div>
-
-      {adaptation ? (
-        <ScheduleBar
-          locale={locale}
-          state={adaptation.state}
-          date={adaptation.date ?? null}
-          plan={adaptation.plan}
-          when={when}
-          canWrite={canWrite}
-          busy={scheduleBusy}
-          error={scheduleError}
-          calendarHref={calendarHref}
-          onSchedule={onSchedule}
-          onPublishNow={onPublishNow}
-          onUnschedule={onUnschedule}
-          onDelete={onDelete}
-        />
-      ) : null}
     </div>
   );
 }

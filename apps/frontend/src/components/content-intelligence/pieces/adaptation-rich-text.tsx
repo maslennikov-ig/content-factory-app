@@ -6,6 +6,8 @@ import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import Bold from '@tiptap/extension-bold';
+import Italic from '@tiptap/extension-italic';
+import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { History } from '@tiptap/extension-history';
 import { docToStored, storedToDoc } from './adaptation-rich-text.doc';
@@ -15,16 +17,17 @@ import { docToStored, storedToDoc } from './adaptation-rich-text.doc';
  *
  * Библиотека та же, что у редактора поста (`new-launch/editor.tsx`), и те же
  * её расширения — но только те, которые хранимое тело умеет записать: абзац,
- * жирное и ссылка адресом. Курсива и подчёркивания здесь нет намеренно: в
- * теле для них нет знака, и выделение, которое не доживёт до канала, было бы
- * обещанием, которое продукт не сдержит.
+ * жирное, курсив, подчёркивание и ссылка (`97dq.52`). У каждой отметки есть
+ * знак в теле (`@contentfactory/helpers/utils/inline-marks`) и перевод в
+ * разметку канала (`brief/editor-html.ts`), поэтому выделение доживает до
+ * поста.
  *
  * Снаружи поле говорит только хранимой формой (`**жирный**`): перевод туда и
  * обратно живёт в `adaptation-rich-text.doc.ts`, и автосохранение, счётчик и
  * строка качества видят ровно то, что видели до редактора.
  *
  * Экземпляр редактора отдаётся наверх через `onEditor`, потому что кнопки
- * «Ж» и «Ссылка» стоят в общей полосе инструментов рамки, а не внутри поля.
+ * «Ж», «К», «Ч» и «Ссылка» стоят в общей полосе инструментов рамки, а не внутри поля.
  */
 export function AdaptationRichText({
   value,
@@ -48,6 +51,8 @@ export function AdaptationRichText({
       Paragraph,
       Text,
       Bold,
+      Italic,
+      Underline,
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -56,6 +61,10 @@ export function AdaptationRichText({
         linkOnPaste: false,
         defaultProtocol: 'https',
         protocols: ['http', 'https'],
+        // Только http(s): любой другой адрес (`javascript:`, `mailto:`) в пост
+        // не уходит, и поле не должно его принимать.
+        isAllowedUri: (url, { defaultValidate }) =>
+          /^https?:\/\//iu.test(url) && defaultValidate(url),
         HTMLAttributes: {
           class: 'text-cf-accent underline underline-offset-2',
           rel: 'noopener noreferrer nofollow',

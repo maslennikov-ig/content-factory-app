@@ -146,7 +146,12 @@ describe('what the editor writes back', () => {
     expect(docToStored(doc)).toBe('2*3');
   });
 
-  test('a link whose words differ from its address is stored as its words', () => {
+  /*
+    Until `97dq.52` the body had no way to hold a link with its own words, and
+    the words were kept alone. The owner asked for real links in the editor:
+    such a link is now stored as `[words](address)` and reaches the post.
+  */
+  test('a link whose words differ from its address is stored with both', () => {
     const doc = {
       type: 'doc',
       content: [
@@ -162,7 +167,7 @@ describe('what the editor writes back', () => {
         },
       ],
     };
-    expect(docToStored(doc)).toBe('сайт');
+    expect(docToStored(doc)).toBe('[сайт](https://example.com)');
   });
 });
 

@@ -19,7 +19,7 @@ export const MergePost: FC<{
     }
   }, [merge]);
   return (
-    <Button className="!text-sm !bg-red-800" onClick={notReversible}>
+    <Button variant="destructive" onClick={notReversible}>
       {t('merge_comments_into_one_post', 'Merge comments into one post')}
     </Button>
   );

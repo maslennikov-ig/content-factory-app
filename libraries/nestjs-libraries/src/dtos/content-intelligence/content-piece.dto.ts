@@ -23,6 +23,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -30,6 +31,15 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { POST_WISH_MAX } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/post-settings';
+import {
+  POST_LINK_MAX,
+  POST_LINK_PATTERN,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/post-link';
+import {
+  PIECE_CORE_EDIT_MAX,
+  PIECE_MATERIAL_APPEND_MAX,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/core-edit';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import {
   EMOJI_LEVEL_VALUES,
@@ -284,6 +294,41 @@ export class PieceAdaptOverridesDto {
     | 'link'
     | 'subscribe'
     | 'reply';
+
+  /** «Ссылка для поста» (`97dq.75`): `none` или адрес http(s). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_LINK_MAX)
+  @Matches(POST_LINK_PATTERN, { message: 'postLink must be none or an http(s) address' })
+  postLink?: string;
+}
+
+/** Ответ на вопрос «Какую ссылку поставить в пост?» (`97dq.75`); `null` — «Без ссылки». */
+export class PiecePostLinkDto {
+  @ValidateIf((dto: PiecePostLinkDto) => dto.url !== null)
+  @IsString()
+  @MaxLength(POST_LINK_MAX)
+  @Matches(POST_LINK_PATTERN, { message: 'url must be an http(s) address' })
+  url: string | null;
+}
+
+/** Правка сути руками (`97dq.75`): новый текст и тот, который он заменяет. */
+export class PieceCoreEditDto {
+  @IsString()
+  @MaxLength(PIECE_CORE_EDIT_MAX)
+  text: string;
+
+  @IsString()
+  @MaxLength(PIECE_CORE_EDIT_MAX)
+  expected: string;
+}
+
+/** «Дописать материал» (`97dq.75`). */
+export class PieceMaterialAppendDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(PIECE_MATERIAL_APPEND_MAX)
+  text: string;
 }
 
 export class PieceAdaptDto {
@@ -365,6 +410,72 @@ export class PieceAdaptationEditDto {
   @ValidateNested()
   @Type(() => PieceAdaptationImageDto)
   image?: PieceAdaptationImageDto | null;
+}
+
+/**
+ * Поля «Для этого поста» (`97dq.70`), форма — `PiecePostSettingsV1['options']`.
+ * `channel` — «как в канале»: не значение, а отсутствие переопределения.
+ */
+export class PiecePostSettingsOptionsDto {
+  @IsOptional()
+  @IsIn(['channel', 'auto', 'short', 'ideal', 'long', 'max'])
+  length?: string;
+
+  @IsOptional()
+  @IsIn(['channel', ...EMOJI_LEVEL_VALUES])
+  emoji?: string;
+
+  @IsOptional()
+  @IsIn(['channel', 'none', 'end_1_3', 'free', 'auto'])
+  hashtags?: string;
+
+  @IsOptional()
+  @IsIn(['channel', 'none', 'end', 'inline', 'auto'])
+  links?: string;
+
+  @IsOptional()
+  @IsIn(['channel', 'auto', 'none', 'question', 'comment', 'link', 'subscribe', 'reply'])
+  cta?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  brandProfileId?: string | null;
+
+  /** Тот же предел, что читает сервер (`POST_WISH_MAX`): длиннее — отказ, а не обрезка. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_WISH_MAX)
+  wish?: string;
+
+  /**
+   * «Ссылка для поста» (`97dq.75`): пусто — как в заготовке, `none` — без
+   * ссылки, иначе адрес http(s). Не адрес — отказ, а не молчаливая замена.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_LINK_MAX)
+  @Matches(POST_LINK_PATTERN, { message: 'link must be empty, none or an http(s) address' })
+  link?: string;
+}
+
+/** `POST …/channels/:integrationId/plan-apply` (`97dq.70`): режим, на который ответили. */
+export class ChannelPlanApplyDto {
+  @IsIn(['draft', 'reserve', 'autopilot'])
+  planMode: 'draft' | 'reserve' | 'autopilot';
+}
+
+/** `PUT …/channels/:integrationId/settings` (`97dq.70`). */
+export class PiecePostSettingsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PiecePostSettingsOptionsDto)
+  options?: PiecePostSettingsOptionsDto;
+
+  /** `null` — снова как в канале; отсутствие — не трогать. */
+  @IsOptional()
+  @IsIn(['draft', 'reserve', 'autopilot'])
+  planMode?: 'draft' | 'reserve' | 'autopilot' | null;
 }
 
 /** «Поставить на ЧЧ:ММ» (`97dq.57`), форма — `PieceAdaptationPlaceRequestV1`. */

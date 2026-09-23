@@ -68,7 +68,6 @@ import type { VoiceEditRepository } from '@contentfactory/nestjs-libraries/conte
 import {
   calculatePlanAhead,
   calculateProductionAnalytics,
-  PLAN_AHEAD_HORIZON_DAYS,
   planAheadTimeZone,
   productionAnalyticsWindow,
 } from '@contentfactory/nestjs-libraries/database/prisma/posts/production.analytics';
@@ -1459,9 +1458,11 @@ export class PostsService {
   }
 
   /**
-   * «Впереди N дней» (`97dq.59`): read-only, this organisation only. The
-   * window is a day wider on both sides than the horizon, so the reader's
-   * «today» is inside it whatever their zone.
+   * The plan ahead (`97dq.59`, counts since `97dq.73`): read-only, this
+   * organisation only. The window reaches 8 days back for «вышло за 7 дней»
+   * and has no end: «Постов впереди» and «План до» count the whole future,
+   * not the 60-day streak horizon (second review, item 3). The rows are four
+   * small columns of this organisation's live future posts.
    */
   async getPlanAhead(
     orgId: string,
@@ -1474,10 +1475,9 @@ export class PostsService {
       .filter(Boolean)
       .slice(0, 200);
     const day = 24 * 60 * 60 * 1000;
-    const from = new Date(now.getTime() - 1.5 * day);
-    const to = new Date(now.getTime() + (PLAN_AHEAD_HORIZON_DAYS + 2) * day);
+    const from = new Date(now.getTime() - 8 * day);
     const [posts, channels] = await Promise.all([
-      this._postRepository.getPlanAheadPosts(orgId, from, to, ids),
+      this._postRepository.getPlanAheadPosts(orgId, from, null, ids),
       this._postRepository.getPlanAheadChannels(orgId, ids),
     ]);
     return calculatePlanAhead({

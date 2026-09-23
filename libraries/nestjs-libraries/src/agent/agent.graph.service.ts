@@ -1847,6 +1847,8 @@ export class AgentGraphService {
             formatHint: hints?.formatHint,
             foreignShingles: hints?.foreignShingles,
             keepLinks: hints?.keepLinks,
+            // The author's link for the post (`97dq.75`).
+            authorLink: hints?.authorLink ?? null,
             // Разовые настройки поста (`97dq.38`) — в строителе строк,
             // рядом с карточкой канала, которую они на этот раз перекрывают.
             post: hints?.post,

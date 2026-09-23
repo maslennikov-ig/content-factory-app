@@ -462,7 +462,7 @@ export function ContentFactsContainer({
           data-content-facts-pending-evidence={pendingEvidence.evidenceId}
           className="mt-[16px] rounded-[8px] border border-cf-info bg-cf-info-soft p-[12px]"
         >
-          <h3 className="cf-label-sm uppercase text-cf-ink">
+          <h3 className="cf-label-sm text-cf-ink">
             {t.evidenceTitle}
           </h3>
           <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">

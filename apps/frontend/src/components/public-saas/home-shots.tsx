@@ -301,8 +301,8 @@ export const IdeaShot: FC = () => {
             key={source.origin}
             className="flex min-w-0 items-start gap-[12px] border-b border-cf-border px-[16px] py-[12px] md:px-[20px]"
           >
-            <span className="shrink-0 rounded-[4px] border border-cf-border-strong px-[4px] py-[4px] cf-label-sm uppercase text-cf-ink-muted">
-              {source.language}
+            <span className="shrink-0 rounded-[4px] border border-cf-border-strong px-[4px] py-[4px] cf-label-sm text-cf-ink-muted">
+              {source.language.toUpperCase()}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block cf-label-md text-cf-ink [overflow-wrap:anywhere]">

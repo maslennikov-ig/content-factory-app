@@ -515,7 +515,7 @@ export function PiecesScreen({
 
       <div className="grid min-w-0 gap-[24px] lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-[8px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.excerptLabel}
           </p>
           {row.excerpt.length > 0 ? (
@@ -539,7 +539,7 @@ export function PiecesScreen({
         </div>
 
         <div className="flex min-w-0 flex-col gap-[8px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.adaptationsLabel}
           </p>
           {expansion && expansion.adaptations.length > 0 ? (

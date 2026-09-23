@@ -91,6 +91,15 @@ import type {
   PieceCellV1,
   PieceChannelTabV1,
   PieceDetailV1,
+  PiecePostSettingsRequestV1,
+  PiecePostLinkRequestV1,
+  PiecePostLinkV1,
+  PieceCoreEditRequestV1,
+  PieceMaterialAppendRequestV1,
+  PieceAddedMaterialV1,
+  PiecePostSettingsResponseV1,
+  ChannelPlanImpactV1,
+  ChannelPlanApplyResponseV1,
   PieceFieldAnswerV1,
   InterviewAskKeyV1,
   PieceLeadSourceV1,
@@ -197,6 +206,7 @@ import {
   QUEUE_REPLACE_MARGIN_MS,
   canReplaceQueued,
   holderIds,
+  isPlanMode,
   queueGate,
   type QueueBlockV1,
   nextFreeSlot,
@@ -204,7 +214,34 @@ import {
   postingMinutesOf,
   type PlanModeV1,
 } from './adaptation-plan';
+import {
+  mergePostSettings,
+  planWouldChange,
+  postPlanModeOf,
+  postSettingsOf,
+  withPostSettings,
+  type PiecePostSettingsV1,
+  type PostSettingsPatchV1,
+} from './post-settings';
 import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
+import {
+  effectivePostLink,
+  linkQuestionOpen,
+  normalizePostLink,
+  postLinkAnswer,
+  readPostLink,
+} from './post-link';
+import {
+  PIECE_ADDED_MATERIAL_MAX,
+  PIECE_PERSON_TEXT_MAX,
+  appendedPersonText,
+  coreAuthorOf,
+  editStartsRevision,
+  editedCoreText,
+  readAddedMaterial,
+  readCoreRevisions,
+  withRevision,
+} from './core-edit';
 
 import { htmlToPlainText } from '../brand-voice/html-text';
 import {
@@ -491,6 +528,49 @@ const keptInstruction = (core: ZagotovkaCoreV1) =>
 const keptInput = (core: ZagotovkaCoreV1) =>
   core.inputText?.trim() ? { inputText: core.inputText } : {};
 
+/** Refusals of the piece's own edits (`97dq.75`), in both languages. */
+const CORE_EDIT_WORDS = {
+  changed: {
+    ru: 'Заготовка изменилась в другом окне. Обновите страницу — ваш текст не сохранён.',
+    en: 'The piece changed in another window. Reload the page — your text was not saved.',
+  },
+  empty: {
+    ru: 'Суть не может быть пустой. Верните текст или отмените правку.',
+    en: 'The core cannot be empty. Put the text back or undo the edit.',
+  },
+  materialEmpty: {
+    ru: 'Напишите, что добавить к материалу.',
+    en: 'Write what to add to the material.',
+  },
+  linkInvalid: {
+    ru: 'Это не похоже на адрес http или https. Проверьте его.',
+    en: 'This does not look like an http or https address. Check it.',
+  },
+  rebuildFailed: {
+    ru: 'Не удалось пересобрать суть. Прежний текст на месте — попробуйте ещё раз.',
+    en: 'The core could not be rebuilt. The previous text is still there — try again.',
+  },
+  rebuildRunning: {
+    ru: 'Суть уже пересобирается. Дождитесь, пока закончится.',
+    en: 'The core is already being rebuilt. Wait until it finishes.',
+  },
+  materialFull: {
+    ru: 'Материала уже слишком много, чтобы дописывать ещё. Пересоберите суть или начните новую заготовку.',
+    en: 'There is already too much material to add more. Rebuild the core or start a new piece.',
+  },
+} as const;
+
+/**
+ * What the author gave the piece after it was written (`97dq.75`): the link
+ * for the post, the added material and the replaced core texts. A core
+ * rewrite keeps them — they are the author's, not the model's.
+ */
+const keptAuthor = (core: ZagotovkaCoreV1) => ({
+  ...(core.postLink ? { postLink: core.postLink } : {}),
+  ...(core.addedMaterial?.length ? { addedMaterial: core.addedMaterial } : {}),
+  ...(core.revisions?.length ? { revisions: core.revisions } : {}),
+});
+
 /**
  * «Что вы прислали» (`97dq.41`): сохранённый ввод, а у заготовок до него —
  * то, что от ввода осталось, в порядке близости к присланному. Ничего не
@@ -748,6 +828,8 @@ export class PieceService {
   private readonly logger = new Logger(PieceService.name);
   private readonly now: () => Date;
   private readonly slopCheck: PieceSlopCheckPort | null;
+  /** Pieces whose core is being rebuilt now (`97dq.75` review P2-7). */
+  private readonly rebuilding = new Set<string>();
 
   constructor(
     private readonly pieces: PieceRepository,
@@ -1027,7 +1109,8 @@ export class PieceService {
       state: 'default',
       piece: this.row(piece, index < 0 ? order.length : index, language, cells),
       sentText: sentTextOf(core),
-      channels: this.channelTabsOf(integrations, adaptations),
+      channels: this.channelTabsOf(integrations, adaptations, piece.tags),
+      linkQuestion: this.linkQuestionOf(core, integrations, adaptations, piece.tags),
       core,
       legacyBody: core ? null : piece.body,
       adaptations: adaptations.map((row) =>
@@ -1565,6 +1648,23 @@ export class PieceService {
     return this.planStore()!.withChannelLock(organizationId, pieceId, integrationId, work);
   }
 
+  /**
+   * Режим, который решает за этот пост (`97dq.70`): свой режим поста, если
+   * человек его выбрал, иначе режим канала. Читается тем же `db`, что и всё
+   * остальное под замком (F8): режим мог смениться, пока шла генерация.
+   */
+  private async planModeFor(
+    db: Pick<PlanDb, 'channelPlanMode' | 'pieceTags'>,
+    organizationId: string,
+    pieceId: string,
+    integrationId: string
+  ): Promise<PlanModeV1> {
+    const own = db.pieceTags
+      ? postPlanModeOf(await db.pieceTags(organizationId, pieceId), integrationId)
+      : null;
+    return own ?? planModeOf(await db.channelPlanMode(organizationId, integrationId));
+  }
+
   /** Держатель слота заготовки в канале, кроме `exclude`: правило `adaptation-plan.ts`. */
   private holderOf(variants: PlanVariantRow[], exclude?: string): PlanVariantRow | null {
     const others = variants.filter((one) => one.id !== exclude);
@@ -1817,7 +1917,7 @@ export class PieceService {
   ): Promise<AdaptationPlanV1> {
     const store = this.planStore()!;
     const language = plan.language;
-    const before = planModeOf(await store.channelPlanMode(organizationId, plan.channel.id));
+    const before = await this.planModeFor(store, organizationId, plan.pieceId, plan.channel.id);
     let validated = false;
     let refusal: string | null = null;
     if (before === 'autopilot' && this.posts) {
@@ -1847,7 +1947,7 @@ export class PieceService {
       plan.pieceId,
       plan.channel.id,
       async (db): Promise<{ plan: AdaptationPlanV1; effects: QueueEffects }> => {
-        const mode = planModeOf(await db.channelPlanMode(organizationId, plan.channel.id));
+        const mode = await this.planModeFor(db, organizationId, plan.pieceId, plan.channel.id);
         if (mode === 'draft') {
           await db.setPlan(organizationId, adaptationId, { plan: 'draft' });
           return {
@@ -2025,6 +2125,276 @@ export class PieceService {
     return { title: title.trim() };
   }
 
+  /* -----------------------------------------------------------------------
+   * Ссылка для поста и правка заготовки (`content-factory-next-97dq.75`)
+   *
+   * Всё пишется в `ContentPiece.brief` рядом с сутью, с той же проверкой
+   * «строка не изменилась», что у выбора опоры и названия: две вкладки не
+   * затирают друг друга молча. Ничего здесь не зовёт модель, кроме явного
+   * «Пересобрать суть».
+   * -------------------------------------------------------------------- */
+
+  /** The piece and its core for a write, or the refusal the page shows. */
+  private async editablePiece(
+    organizationId: string,
+    pieceId: string,
+    language: 'ru' | 'en'
+  ): Promise<{ piece: PieceRow; core: ZagotovkaCoreV1 }> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', language, pieceId);
+    const core = this.coreOf(piece);
+    if (!core) throw pieceError('PIECE_CORE_MISSING', language, pieceId);
+    if (!this.briefs) throw new Error('Piece repository unavailable');
+    return { piece, core };
+  }
+
+  /** The row moved under the write: the page reloads rather than guesses. */
+  private coreChanged(language: 'ru' | 'en'): AdaptationReviewError {
+    return new AdaptationReviewError(
+      'PIECE_CORE_CHANGED',
+      409,
+      CORE_EDIT_WORDS.changed[language]
+    );
+  }
+
+  /**
+   * «Какую ссылку поставить в пост?» (`97dq.75`): the answer, as the author
+   * gave it — an http(s) address or `null` for «Без ссылки». Written with
+   * origin `author`; answering again replaces it («там же он может и
+   * передумать»). No model call.
+   */
+  async savePostLink(
+    organizationId: string,
+    pieceId: string,
+    input: PiecePostLinkRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<{ postLink: PiecePostLinkV1 }> {
+    const { piece } = await this.editablePiece(organizationId, pieceId, language);
+    const url = input?.url === null ? null : normalizePostLink(input?.url);
+    if (input?.url !== null && !url)
+      throw new AdaptationReviewError(
+        'PIECE_POST_LINK_INVALID',
+        400,
+        CORE_EDIT_WORDS.linkInvalid[language]
+      );
+    const postLink = postLinkAnswer(url, this.now().toISOString());
+    try {
+      await this.briefs!.updateCoreMetadata(organizationId, pieceId, {
+        expectedBody: piece.body || '',
+        expectedBrief: piece.brief,
+        brief: { ...((piece.brief as Record<string, unknown>) ?? {}), postLink },
+      });
+    } catch {
+      throw this.coreChanged(language);
+    }
+    return { postLink };
+  }
+
+  /**
+   * The core edited by hand (`97dq.75`): saved as the new core, the replaced
+   * text kept in `revisions`. `expected` is the text the author started
+   * from; if the core moved meanwhile, nothing is written. No model call —
+   * only the local check on stock phrases is recounted for the quality line.
+   */
+  async editCore(
+    organizationId: string,
+    pieceId: string,
+    input: PieceCoreEditRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<{ text: string; savedAt: string; revisions: number }> {
+    const { piece, core } = await this.editablePiece(organizationId, pieceId, language);
+    if (editedCoreText(input?.expected ?? '') !== editedCoreText(core.text))
+      throw this.coreChanged(language);
+    const text = editedCoreText(input?.text ?? '');
+    if (!text)
+      throw new AdaptationReviewError(
+        'PIECE_CORE_EMPTY',
+        400,
+        CORE_EDIT_WORDS.empty[language]
+      );
+    const savedAt = this.now().toISOString();
+    if (text === core.text)
+      return { text, savedAt, revisions: core.revisions?.length ?? 0 };
+    // Autosaves of one session are one revision (`97dq.75` review P2-4).
+    const revisions = editStartsRevision(core, this.now())
+      ? withRevision(
+          core.revisions,
+          { text: core.text, writtenBy: coreAuthorOf(core) },
+          savedAt
+        )
+      : core.revisions ?? [];
+    try {
+      await this.pieces.acceptCoreReview(
+        organizationId,
+        pieceId,
+        { body: piece.body, title: piece.title, brief: piece.brief },
+        text,
+        piece.title,
+        {
+          ...((piece.brief as Record<string, unknown>) ?? {}),
+          slop: runSlopCheck(text, { platform: 'core', locale: language }),
+          editedBy: 'person',
+          editedAt: savedAt,
+          revisions,
+        }
+      );
+    } catch {
+      throw this.coreChanged(language);
+    }
+    return { text, savedAt, revisions: revisions.length };
+  }
+
+  /**
+   * «Дописать материал» (`97dq.75`): the words join the author's material —
+   * appended to `personText`, which every core rewrite reads, and recorded in
+   * `addedMaterial`. The core itself does not change: the piece says
+   * «суть ещё не учитывает дописанное» until the author asks for a rebuild.
+   */
+  async appendMaterial(
+    organizationId: string,
+    pieceId: string,
+    input: PieceMaterialAppendRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<{ addedMaterial: PieceAddedMaterialV1[]; materialPending: true }> {
+    const { piece, core } = await this.editablePiece(organizationId, pieceId, language);
+    const text = (input?.text ?? '').replace(/\r\n?/gu, '\n').trim();
+    if (!text)
+      throw new AdaptationReviewError(
+        'PIECE_MATERIAL_EMPTY',
+        400,
+        CORE_EDIT_WORDS.materialEmpty[language]
+      );
+    const personText = appendedPersonText(core.personText, text);
+    if (
+      (core.addedMaterial?.length ?? 0) >= PIECE_ADDED_MATERIAL_MAX ||
+      personText.length > PIECE_PERSON_TEXT_MAX
+    )
+      throw new AdaptationReviewError(
+        'PIECE_MATERIAL_FULL',
+        400,
+        CORE_EDIT_WORDS.materialFull[language]
+      );
+    const addedMaterial = [
+      ...(core.addedMaterial ?? []),
+      { text, addedAt: this.now().toISOString() },
+    ];
+    try {
+      await this.briefs!.updateCoreMetadata(organizationId, pieceId, {
+        expectedBody: piece.body || '',
+        expectedBrief: piece.brief,
+        brief: {
+          ...((piece.brief as Record<string, unknown>) ?? {}),
+          personText,
+          addedMaterial,
+          materialPending: true,
+        },
+      });
+    } catch {
+      throw this.coreChanged(language);
+    }
+    return { addedMaterial, materialPending: true };
+  }
+
+  /**
+   * «Пересобрать суть» (`97dq.75`): the existing core-write path over the
+   * enlarged material — the brief, the answers and the author's words with
+   * what was added. A hand-edited core is handed over as the core to enrich,
+   * so the author's edit is built on rather than thrown away. The replaced
+   * text goes into `revisions`. If the model does not answer, nothing is
+   * written: the fallback core would be worse than the one on the page.
+   */
+  async rebuildCore(
+    organizationId: string,
+    pieceId: string,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<{ text: string; revisions: number }> {
+    // One rebuild per piece at a time (`97dq.75` review P2-7): a second press
+    // would pay for a second call whose answer loses the race anyway.
+    const key = `${organizationId}:${pieceId}`;
+    if (this.rebuilding.has(key))
+      throw new AdaptationReviewError(
+        'PIECE_REBUILD_RUNNING',
+        409,
+        CORE_EDIT_WORDS.rebuildRunning[language]
+      );
+    this.rebuilding.add(key);
+    try {
+      return await this.rebuildCoreOnce(organizationId, pieceId, language);
+    } finally {
+      this.rebuilding.delete(key);
+    }
+  }
+
+  private async rebuildCoreOnce(
+    organizationId: string,
+    pieceId: string,
+    language: 'ru' | 'en'
+  ): Promise<{ text: string; revisions: number }> {
+    const { piece, core } = await this.editablePiece(organizationId, pieceId, language);
+    if (!this.aiUsage)
+      throw new AdaptationReviewError(
+        'PIECE_REBUILD_FAILED',
+        503,
+        CORE_EDIT_WORDS.rebuildFailed[language]
+      );
+    const rewritten = await writeCore(
+      {
+        organizationId,
+        language,
+        brief: selectedFactsBrief(core.brief),
+        answers: core.answers,
+        questionTextByKey: {},
+        personText: core.personText ?? '',
+        instruction: instructionOf(core),
+        ...(core.editedBy === 'person' ? { existingCore: core.text } : {}),
+        borrowed: (piece.brief as any)?.borrowed ?? null,
+        foreignShingles: this.foreignShinglesOf(piece),
+      },
+      {
+        aiUsage: this.aiUsage,
+        slopCheck: this.slopCheck,
+        warn: (message) => this.logger.warn(message),
+      }
+    );
+    if (rewritten.writtenBy !== 'model' || !rewritten.text.trim())
+      throw new AdaptationReviewError(
+        'PIECE_REBUILD_FAILED',
+        503,
+        CORE_EDIT_WORDS.rebuildFailed[language]
+      );
+    const revisions = withRevision(
+      core.revisions,
+      { text: core.text, writtenBy: coreAuthorOf(core) },
+      this.now().toISOString()
+    );
+    try {
+      await this.pieces.acceptCoreReview(
+        organizationId,
+        pieceId,
+        { body: piece.body, title: piece.title, brief: piece.brief },
+        rewritten.text,
+        piece.title,
+        {
+          ...((piece.brief as Record<string, unknown>) ?? {}),
+          ...this.storedCore(rewritten),
+          brief: core.brief,
+          answers: core.answers,
+          authorNumbers: rewritten.authorNumbers || core.authorNumbers,
+          personText: core.personText ?? '',
+          questions: core.questions,
+          editedBy: undefined,
+          editedAt: undefined,
+          materialPending: undefined,
+          revisions,
+        }
+      );
+    } catch {
+      throw this.coreChanged(language);
+    }
+    return { text: rewritten.text, revisions: revisions.length };
+  }
+
   async prepareAnswer(
     organizationId: string,
     pieceId: string,
@@ -2197,6 +2567,10 @@ export class PieceService {
           // пересказанным блокам разбора, и антикопия держится на этом.
           personText: plan.core.personText ?? '',
           instruction: instructionOf(plan.core),
+          // A hand-edited core is built on, not replaced (`97dq.75` review P2-3).
+          ...(plan.core.editedBy === 'person' && plan.core.text.trim()
+            ? { existingCore: plan.core.text }
+            : {}),
           borrowed: plan.borrowed ?? null,
           foreignShingles: plan.foreignShingles,
           ...(delegated.length ? { delegated } : {}),
@@ -2279,7 +2653,7 @@ export class PieceService {
 
     let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
     if (rewritten) {
-      core = { ...rewritten, answers: [...rewritten.answers, ...decisionAnswers], brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core) };
+      core = { ...rewritten, answers: [...rewritten.answers, ...decisionAnswers], brief, questions, ...(plan.borrowed ? { borrowed: plan.borrowed } : {}), personText: plan.core.personText ?? '', ...(plan.core.sourceText ? { sourceText: plan.core.sourceText } : {}), ...keptInstruction(plan.core), ...keptInput(plan.core), ...keptAuthor(plan.core) };
     }
 
     if (!core.text.trim()) {
@@ -2291,17 +2665,38 @@ export class PieceService {
       if (!this.briefs) {
         throw new Error('The piece service was built without its repository');
       }
-      await this.briefs.updateCore(organizationId, plan.pieceId, {
-        body: core.text,
-        ...(!plan.titleEdited && (!plan.core.text || !textOrNull(plan.title) || plan.title === briefTitle(briefForGate(plan.core.brief), language) || ['Материал без названия', 'Untitled piece'].includes(plan.title)) ? { title: briefTitle({ thesis: textOrNull(brief.thesis) || core.text }, language) } : {}),
-        brief: {
-          ...this.storedCore(core),
-          ...(plan.titleEdited ? { titleEdited: true } : {}),
-          ...(plan.foreignShingles.length
-            ? { foreignShingles: plan.foreignShingles }
-            : {}),
-        },
-      });
+      const title = !plan.titleEdited && (!plan.core.text || !textOrNull(plan.title) || plan.title === briefTitle(briefForGate(plan.core.brief), language) || ['Материал без названия', 'Untitled piece'].includes(plan.title)) ? { title: briefTitle({ thesis: textOrNull(brief.thesis) || core.text }, language) } : {};
+      /*
+        The model call takes seconds, and meanwhile the author may answer the
+        link question, add material or edit the core (`97dq.75` review P1-2).
+        The row is read again right before the write, the author's fields are
+        taken from it, and the write only lands on that row; if it moved
+        again, it is read and merged once more.
+      */
+      let saved = false;
+      for (let attempt = 0; attempt < 3 && !saved; attempt += 1) {
+        const fresh = await this.pieces.getPiece(organizationId, plan.pieceId);
+        const freshCore = fresh ? this.coreOf(fresh) : null;
+        const merged = this.withAuthorFields(core, plan.core, freshCore, Boolean(rewritten));
+        try {
+          await this.briefs.updateCore(organizationId, plan.pieceId, {
+            body: merged.text,
+            ...title,
+            brief: {
+              ...this.storedCore(merged),
+              ...(plan.titleEdited ? { titleEdited: true } : {}),
+              ...(plan.foreignShingles.length
+                ? { foreignShingles: plan.foreignShingles }
+                : {}),
+            },
+            ...(fresh ? { expected: { body: fresh.body, brief: fresh.brief } } : {}),
+          });
+          core = merged;
+          saved = true;
+        } catch (error) {
+          if (attempt === 2) throw error;
+        }
+      }
     } catch (error) {
       this.logger.error(
         `The answered core could not be saved: ${describeError(error)}`
@@ -2481,6 +2876,61 @@ export class PieceService {
           ]
         : [];
     });
+  }
+
+  /**
+   * The answered core with what the author did while the model was writing
+   * (`97dq.75` review P1-2, P2-3): the link and the added material from the
+   * row as it is now; a hand edit made meanwhile is kept when nothing was
+   * rewritten and recorded as a revision when it is replaced; a hand-edited
+   * core the rewrite started from is recorded too.
+   */
+  private withAuthorFields(
+    core: ZagotovkaCoreV1,
+    before: ZagotovkaCoreV1,
+    fresh: ZagotovkaCoreV1 | null,
+    rewritten: boolean
+  ): ZagotovkaCoreV1 {
+    const now = this.now().toISOString();
+    const current = fresh ?? before;
+    const editedMeanwhile = editedCoreText(current.text) !== editedCoreText(before.text);
+    const materialMeanwhile = (current.personText ?? '') !== (before.personText ?? '');
+    let revisions = current.revisions;
+    if (rewritten && before.editedBy === 'person')
+      revisions = withRevision(revisions, { text: before.text, writtenBy: 'person' }, now);
+    if (rewritten && editedMeanwhile)
+      revisions = withRevision(revisions, { text: current.text, writtenBy: coreAuthorOf(current) }, now);
+    const merged: ZagotovkaCoreV1 = {
+      ...core,
+      ...(rewritten
+        ? {}
+        : {
+            text: current.text,
+            slop: current.slop,
+            writtenBy: current.writtenBy,
+            ...(current.editedBy ? { editedBy: current.editedBy } : {}),
+            ...(current.editedAt ? { editedAt: current.editedAt } : {}),
+          }),
+      ...(current.personText !== undefined ? { personText: current.personText } : {}),
+    };
+    delete merged.postLink;
+    delete merged.addedMaterial;
+    delete merged.revisions;
+    delete merged.materialPending;
+    if (rewritten) {
+      delete merged.editedBy;
+      delete merged.editedAt;
+    }
+    return {
+      ...merged,
+      ...(current.postLink ? { postLink: current.postLink } : {}),
+      ...(current.addedMaterial?.length ? { addedMaterial: current.addedMaterial } : {}),
+      ...(revisions?.length ? { revisions } : {}),
+      // The rewrite read the material it had; words added since still wait.
+      ...((rewritten ? materialMeanwhile : current.materialPending)
+        ? { materialPending: true as const }
+        : {}),
+    };
   }
 
   /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */
@@ -2904,6 +3354,380 @@ export class PieceService {
     };
   }
 
+  /* -----------------------------------------------------------------------
+   * Настройки поста (`content-factory-next-97dq.70`)
+   *
+   * Одна панель в двух местах: карточка канала и правая колонка вкладки
+   * канала. Изменение поста сохраняется само как его переопределение
+   * (`post-settings.ts`, `ContentPiece.tags.postSettings`). Режим плана
+   * поста применяется к написанному посту сразу — тем же замком канала и тем
+   * же правилом одной очереди (`queueGate`), что и остальные постановки.
+   * -------------------------------------------------------------------- */
+
+  /**
+   * Сохранить настройки поста и, если прислан режим плана, применить его к
+   * держателю слота заготовки в канале.
+   *
+   * Ревью `97dq.70` (P1): запись в `tags` и решение о посте — под одним
+   * замком канала и в одной транзакции. Строка заготовки блокируется
+   * (`lockPieceTags`), пишутся только присланные поля, и режим, по которому
+   * решается судьба поста, перечитывается под замком из только что
+   * записанного, а не берётся из запроса. Проверка площадки — до замка (I3);
+   * решение — по состоянию, прочитанному под ним.
+   */
+  async savePostSettings(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    input: PiecePostSettingsRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PiecePostSettingsResponseV1> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', language, pieceId);
+    const channel = (await this.pieces.listIntegrations(organizationId)).find(
+      (one) => one.id === integrationId
+    );
+    if (!channel) throw pieceError('PIECE_CHANNEL_UNKNOWN', language, integrationId);
+    const store = this.planStore();
+    if (!store) throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+
+    const patch: PostSettingsPatchV1 = {
+      ...(input?.options ? { options: input.options } : {}),
+      ...(input?.planMode !== undefined
+        ? { planMode: isPlanMode(input.planMode) ? input.planMode : null }
+        : {}),
+    };
+    // Аватар — только этой области, тем же чтением, что у адаптации.
+    const chosen = trimmed(patch.options?.brandProfileId ?? undefined);
+    if (chosen && !(await this.pieces.findAvatar(organizationId, chosen)))
+      throw pieceError('PIECE_AVATAR_UNKNOWN', language, chosen);
+
+    const decides = patch.planMode !== undefined;
+    const outcome = await this.planPostUnderLock(
+      organizationId,
+      pieceId,
+      channel,
+      {
+        patch,
+        decides,
+        // Прогноз режима только для проверки площадки до замка; решает
+        // режим, перечитанный под замком.
+        predicted: decides ? patch.planMode ?? planModeOf(channel.planMode) : null,
+      },
+      language
+    );
+    return { settings: outcome.settings, adaptation: outcome.adaptation };
+  }
+
+  /**
+   * Одна постановка плана поста (`97dq.70`): до замка — проверка площадки,
+   * если пост может встать в очередь; под замком — запись настроек (если
+   * есть), перечитанный режим и решение; после — Temporal.
+   *
+   * `expectedChannelMode` — ход «Ко всем N»: пост со своим режимом или канал,
+   * режим которого уже сменился, под замком пропускаются.
+   */
+  private async planPostUnderLock(
+    organizationId: string,
+    pieceId: string,
+    channel: PieceIntegrationRow,
+    work: {
+      patch?: PostSettingsPatchV1;
+      decides: boolean;
+      predicted: PlanModeV1 | null;
+      expectedChannelMode?: PlanModeV1;
+    },
+    language: 'ru' | 'en'
+  ): Promise<{
+    settings: PiecePostSettingsV1 | null;
+    adaptation: AdaptationV1 | null;
+    applied: boolean;
+  }> {
+    const store = this.planStore()!;
+    const integrationId = channel.id;
+
+    // Площадка проверяет черновик до замка (I3), если его может поставить
+    // автопилот. Проверка годится только для той версии, которую видели.
+    let refusal: string | null = null;
+    let validatedId: string | null = null;
+    if (work.decides && work.predicted === 'autopilot' && this.posts) {
+      const first = this.holderOf(
+        await store.channelVariants(organizationId, pieceId, integrationId)
+      );
+      if (first?.post && !first.post.deletedAt && upperState(first.post.state) === 'DRAFT') {
+        const draft = await this.pieces.workspaceDraft(organizationId, pieceId, first.id);
+        if (draft?.post) {
+          refusal = (await this.queueRefusal(organizationId, draft.post, language))?.text ?? null;
+          validatedId = first.id;
+        }
+      }
+    }
+
+    const decided = await this.lockChannel(
+      organizationId,
+      pieceId,
+      integrationId,
+      async (
+        db
+      ): Promise<{
+        settings: PiecePostSettingsV1 | null;
+        id: string | null;
+        effects: QueueEffects;
+        applied: boolean;
+      }> => {
+        const locked = db.lockPieceTags
+          ? await db.lockPieceTags(organizationId, pieceId)
+          : { tags: db.pieceTags ? await db.pieceTags(organizationId, pieceId) : null };
+        if (!locked) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+        let tags = locked.tags;
+        let settings = postSettingsOf(tags, integrationId);
+        if (work.patch) {
+          settings = mergePostSettings(settings, work.patch, this.now().toISOString());
+          tags = withPostSettings(tags, integrationId, settings);
+          if (db.writePieceTags) await db.writePieceTags(organizationId, pieceId, tags);
+        }
+        const none = { settings, id: null as string | null, effects: NO_EFFECTS, applied: false };
+        if (!work.decides) return none;
+
+        const own = postPlanModeOf(tags, integrationId);
+        const channelMode = planModeOf(await db.channelPlanMode(organizationId, integrationId));
+        if (work.expectedChannelMode) {
+          // «Ко всем N»: свой режим поста, поставленный между счётом и ходом,
+          // и сменившийся режим канала — не трогаются.
+          if (own || channelMode !== work.expectedChannelMode) return none;
+        }
+        const mode = own ?? channelMode;
+        const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+        const holder = this.holderOf(variants);
+        if (!holder?.post || holder.post.deletedAt) return none;
+        if (
+          work.expectedChannelMode &&
+          (variants.some((one) => upperState(one.post?.state) === 'PUBLISHED') ||
+            !planWouldChange(
+              { plan: holder.plan, state: holder.post.state },
+              mode
+            ))
+        )
+          return none;
+        const decision = await this.decideHolderPlan(
+          db,
+          organizationId,
+          channel,
+          variants,
+          holder,
+          mode,
+          validatedId,
+          refusal,
+          language
+        );
+        return { settings, ...decision, applied: decision.id !== null };
+      }
+    );
+
+    if (!decided.id) return { settings: decided.settings, adaptation: null, applied: false };
+    await this.applyQueueEffects(
+      organizationId,
+      pieceId,
+      integrationId,
+      decided.effects,
+      language
+    );
+    return {
+      settings: decided.settings,
+      adaptation: await this.adaptationAfterWrite(organizationId, pieceId, decided.id, language),
+      applied: decided.applied,
+    };
+  }
+
+  /**
+   * Режим — к держателю слота, под замком (`97dq.70`): «Автопилот» ставит
+   * его в очередь на его время, «Бронь» снимает очередь автопилота обратно
+   * в бронь, «Без плана» снимает бронь и оставляет черновик.
+   *
+   * Очередь, которую подтвердил человек («Запланировать», «Подтвердить»), —
+   * его решение, и режим её не трогает. Автопилот ставит в очередь только
+   * после проверки площадки этой же версии (I3) и по правилу одной очереди
+   * (`queueGate`, I1, I4); отказ оставляет бронь с причиной.
+   */
+  private async decideHolderPlan(
+    db: PlanDb,
+    organizationId: string,
+    channel: PieceIntegrationRow,
+    variants: PlanVariantRow[],
+    holder: PlanVariantRow,
+    mode: PlanModeV1,
+    validatedId: string | null,
+    refusal: string | null,
+    language: 'ru' | 'en'
+  ): Promise<{ id: string; effects: QueueEffects }> {
+    const post = holder.post!;
+    const state = upperState(post.state);
+    const now = this.now();
+
+    if (state === 'QUEUE') {
+      if (mode === 'autopilot' || holder.plan !== 'autopilot' || !canReplaceQueued(post, now))
+        return { id: holder.id, effects: NO_EFFECTS };
+      await db.setPostState(organizationId, post.id, { state: 'DRAFT' });
+      await db.setPlan(organizationId, holder.id, { plan: mode, planNote: null });
+      return { id: holder.id, effects: { stop: [post.id], start: null, released: [] } };
+    }
+    if (state !== 'DRAFT') return { id: holder.id, effects: NO_EFFECTS };
+
+    if (mode === 'draft') {
+      await db.setPlan(organizationId, holder.id, { plan: 'draft', planNote: null });
+      return { id: holder.id, effects: NO_EFFECTS };
+    }
+
+    // Время брони остаётся за постом, если оно ещё впереди; иначе —
+    // ближайшее свободное время САМОГО канала.
+    const at = new Date(post.publishDate).getTime();
+    const own =
+      (holder.plan === 'reserve' || holder.plan === 'autopilot') &&
+      at > now.getTime() + QUEUE_REPLACE_MARGIN_MS
+        ? new Date(at)
+        : null;
+    const date =
+      own ??
+      (await this.freeSlotIn(db, organizationId, channel.id, channel.postingTimes, [post.id]));
+
+    if (mode === 'reserve') {
+      if (date) await db.setPostState(organizationId, post.id, { publishDate: date });
+      await db.setPlan(organizationId, holder.id, { plan: 'reserve', planNote: null });
+      return { id: holder.id, effects: NO_EFFECTS };
+    }
+
+    let note: string | null = null;
+    let effects = NO_EFFECTS;
+    if (!this.posts)
+      note = ADAPTATION_WORKSPACE_MESSAGES.ADAPTATION_SCHEDULE_UNAVAILABLE[language];
+    else if (!date) note = PLAN_NOTES.noTimes[language];
+    else {
+      const gate = queueGate(variants, holder.id, now, {
+        releaseHuman: false,
+        blockPublished: true,
+      });
+      if (gate.block) note = PLAN_NOTES[gate.block][language];
+      // Площадка проверяла другую версию или не проверяла вовсе (режим
+      // сменился между проверкой и замком): без проверки в очередь не ставим.
+      else if (validatedId !== holder.id) note = PLAN_NOTES.settleFailed[language];
+      else if (refusal) note = refusal;
+      else {
+        const released = await this.releaseInDb(
+          db,
+          organizationId,
+          variants.filter((one) => gate.release.includes(one.id))
+        );
+        effects = {
+          stop: released.map((one) => one.postId),
+          start: { adaptationId: holder.id, postId: post.id },
+          released,
+        };
+      }
+    }
+    const queued = !!effects.start;
+    await db.setPostState(organizationId, post.id, {
+      ...(queued ? { state: 'QUEUE' as const } : {}),
+      ...(date ? { publishDate: date } : {}),
+    });
+    await db.setPlan(organizationId, holder.id, {
+      plan: queued ? 'autopilot' : 'reserve',
+      planNote: note,
+    });
+    return { id: holder.id, effects };
+  }
+
+  /**
+   * Посты канала, которые изменит его режим, — одним правилом для счёта и
+   * для хода «Ко всем N» (`planWouldChange`): невышедшие, без своего режима,
+   * не в архиве, и режим их действительно меняет. Очередь, подтверждённая
+   * человеком, сюда не входит.
+   */
+  private async piecesToApplyIn(
+    organizationId: string,
+    integrationId: string,
+    mode: PlanModeV1
+  ): Promise<string[]> {
+    const repo = this.pieces as Partial<PieceRepository>;
+    if (typeof repo.channelPieceVariants !== 'function') return [];
+    const rows = await repo.channelPieceVariants(organizationId, integrationId);
+    const byPiece = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const list = byPiece.get(row.contentPieceId) ?? [];
+      list.push(row);
+      byPiece.set(row.contentPieceId, list);
+    }
+    const result: string[] = [];
+    for (const [pieceId, variants] of byPiece) {
+      const piece = variants[0]?.piece;
+      if (!piece || piece.archivedAt) continue;
+      if (postPlanModeOf(piece.tags, integrationId)) continue;
+      if (variants.some((one) => upperState(one.post?.state) === 'PUBLISHED')) continue;
+      const holder = this.holderOf(variants);
+      if (holder?.post && planWouldChange({ plan: holder.plan, state: holder.post.state }, mode))
+        result.push(pieceId);
+    }
+    return result;
+  }
+
+  /** Сколько уже написанных постов изменит режим канала (`97dq.70`). */
+  async channelPlanImpact(
+    organizationId: string,
+    integrationId: string,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<ChannelPlanImpactV1> {
+    const channel = (await this.pieces.listIntegrations(organizationId)).find(
+      (one) => one.id === integrationId
+    );
+    if (!channel) throw pieceError('PIECE_CHANNEL_UNKNOWN', language, integrationId);
+    const mode = planModeOf(channel.planMode);
+    const pieces = await this.piecesToApplyIn(organizationId, integrationId, mode);
+    return { integrationId, planMode: mode, count: pieces.length };
+  }
+
+  /**
+   * «Ко всем N»: режим канала — к каждому посту из счёта, по одному, каждый
+   * под своим замком. `expected` — режим, на который человек ответил: если
+   * канал с тех пор сменил режим, ход не начинается (409). Под замком каждого
+   * поста режим канала и свой режим поста перечитываются: пост, получивший
+   * свой режим посреди хода, не трогается. Отказ одного поста не останавливает
+   * остальные.
+   */
+  async applyChannelPlanMode(
+    organizationId: string,
+    integrationId: string,
+    expected: PlanModeV1 | undefined,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<ChannelPlanApplyResponseV1> {
+    const channel = (await this.pieces.listIntegrations(organizationId)).find(
+      (one) => one.id === integrationId
+    );
+    if (!channel) throw pieceError('PIECE_CHANNEL_UNKNOWN', language, integrationId);
+    const mode = planModeOf(channel.planMode);
+    if (!isPlanMode(expected) || expected !== mode)
+      throw workspaceError('CHANNEL_PLAN_MODE_CHANGED', language);
+    if (!this.planStore()) throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+    const pieces = await this.piecesToApplyIn(organizationId, integrationId, mode);
+    let applied = 0;
+    for (const pieceId of pieces) {
+      try {
+        const outcome = await this.planPostUnderLock(
+          organizationId,
+          pieceId,
+          channel,
+          { decides: true, predicted: mode, expectedChannelMode: mode },
+          language
+        );
+        if (outcome.applied) applied += 1;
+      } catch (error) {
+        this.logger.error(
+          `Piece ${pieceId}: channel plan mode not applied: ${describeError(error)}`
+        );
+      }
+    }
+    return { integrationId, planMode: mode, count: pieces.length, applied };
+  }
+
   /**
    * «Поставить на ЧЧ:ММ» из календаря (`content-factory-next-97dq.57`).
    *
@@ -2960,7 +3784,10 @@ export class PieceService {
     // в очередь автопилот; замок её не ждёт (N2).
     let validated = false;
     let refusal: string | null = null;
-    if (state === 'DRAFT' && planModeOf(post.integration.planMode) === 'autopilot') {
+    if (
+      state === 'DRAFT' &&
+      (await this.planModeFor(store, organizationId, pieceId, integrationId)) === 'autopilot'
+    ) {
       refusal = (await this.queueRefusal(organizationId, post, language))?.text ?? null;
       validated = true;
     }
@@ -2969,7 +3796,7 @@ export class PieceService {
     // снимаются с очереди только тогда, когда выбранная действительно встаёт
     // в очередь (F9), и только по правилу одной очереди (`queueGate`, F1, F5).
     const decided = await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
-      const mode = planModeOf(await db.channelPlanMode(organizationId, integrationId));
+      const mode = await this.planModeFor(db, organizationId, pieceId, integrationId);
       const variants = await db.channelVariants(organizationId, pieceId, integrationId);
       const mine = variants.find((one) => one.id === adaptationId);
       const mineState = upperState(mine?.post?.state);
@@ -3143,7 +3970,10 @@ export class PieceService {
       { body: saved.body, title: saved.title, brief: saved.brief }, rewritten.text, saved.title,
       { ...(piece.brief as Record<string, unknown>), ...this.storedCore(rewritten),
         brief: state.filled.brief, authorNumbers: core.authorNumbers,
-        personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions });
+        personText: core.personText ?? '', ...(core.sourceText ? { sourceText: core.sourceText } : {}), ...keptInstruction(core), questions: core.questions,
+        // The model wrote this text from all the material (`97dq.75`): the
+        // hand edit is in the old one, and nothing added is waiting any more.
+        editedBy: undefined, materialPending: undefined });
     await this.snapshots.del(key);
     return accepted;
   }
@@ -3467,7 +4297,9 @@ export class PieceService {
     const stored = {
       ...brief,
       slop: runSlopCheck(text, { platform: 'core', locale: proposal.language }),
-      ...(text !== proposal.originalText ? { writtenBy: 'model' } : {}),
+      ...(text !== proposal.originalText
+        ? { writtenBy: 'model', editedBy: undefined }
+        : {}),
       ...(title !== proposal.title ? { titleEdited: true } : {}),
     };
     return this.pieces.acceptCoreReview(
@@ -3584,6 +4416,22 @@ export class PieceService {
       // это JSON, записанный прежними сборками.
       ...(leadSourceOf(stored.leadSource)
         ? { leadSource: leadSourceOf(stored.leadSource)! }
+        : {}),
+      // Что автор дал заготовке потом (`97dq.75`): ссылка для поста,
+      // дописанный материал, правка сути и её прежние тексты.
+      ...(readPostLink(stored.postLink)
+        ? { postLink: readPostLink(stored.postLink)! }
+        : {}),
+      ...(readAddedMaterial(stored.addedMaterial).length
+        ? { addedMaterial: readAddedMaterial(stored.addedMaterial) }
+        : {}),
+      ...(stored.materialPending === true ? { materialPending: true } : {}),
+      ...(stored.editedBy === 'person' ? { editedBy: 'person' as const } : {}),
+      ...(stored.editedBy === 'person' && typeof stored.editedAt === 'string'
+        ? { editedAt: stored.editedAt }
+        : {}),
+      ...(readCoreRevisions(stored.revisions).length
+        ? { revisions: readCoreRevisions(stored.revisions) }
         : {}),
     };
   }
@@ -3800,7 +4648,8 @@ export class PieceService {
    */
   private channelTabsOf(
     integrations: PieceIntegrationRow[],
-    adaptations: AdaptationRow[]
+    adaptations: AdaptationRow[],
+    tags: unknown = null
   ): PieceChannelTabV1[] {
     return integrations.map((integration) => {
       const mine = adaptations.filter(
@@ -3824,8 +4673,46 @@ export class PieceService {
         maxLength: Number.isFinite(maxLength) ? maxLength : null,
         cell: bestCell(integration.providerIdentifier, mine),
         adaptationIds: mine.map((row) => row.id),
+        // Режим канала и свои настройки поста (`97dq.70`): панель справа
+        // показывает «как в канале» с его значением и то, что изменено.
+        planMode: planModeOf(integration.planMode),
+        settings: postSettingsOf(tags, integration.id),
       };
     });
+  }
+
+  /**
+   * Ask «Какую ссылку поставить в пост?» (`97dq.75`): the piece's channels —
+   * those it already has an adaptation in, or every connected channel while
+   * it has none — and whether any of them lets a post carry a link, by the
+   * post's own setting first and the channel card second.
+   */
+  private linkQuestionOf(
+    core: ZagotovkaCoreV1 | null,
+    integrations: PieceIntegrationRow[],
+    adaptations: AdaptationRow[],
+    tags: unknown
+  ): boolean {
+    if (!core) return false;
+    const used = new Set(
+      adaptations
+        .map((row) => row.integrationId ?? row.post?.integration?.id ?? null)
+        .filter((id): id is string => Boolean(id))
+    );
+    const considered = used.size
+      ? integrations.filter((integration) => used.has(integration.id))
+      : integrations;
+    const policies = considered.map((integration) => {
+      const own = postSettingsOf(tags, integration.id)?.options.links;
+      return own && own !== 'channel'
+        ? own
+        : parseWritingProfile(
+            integration.writingProfile,
+            integration.providerIdentifier,
+            integration.contentLanguage
+          ).linkPolicy;
+    });
+    return linkQuestionOpen(core, policies);
   }
 
   /* -----------------------------------------------------------------------
@@ -4041,6 +4928,12 @@ export class PieceService {
       (answer) =>
         answer.key !== TAKEAWAY_QUESTION_KEY && !isInterviewAskKey(answer.key)
     );
+    // The author's link (`97dq.75`): the post's own «Ссылка для поста», else
+    // the piece's answer. Nobody answered — the writer keeps its general rule.
+    const link = effectivePostLink(plan.core, plan.request?.overrides?.postLink);
+    const authorLink = link
+      ? { url: link.url, ...(link.from === 'post' ? { forPost: true } : {}) }
+      : null;
     return {
       version: INTAKE_HINTS_VERSION,
       brief: {
@@ -4060,6 +4953,7 @@ export class PieceService {
       ...(interview.length ? { interview } : {}),
       ...(formatHint ? { formatHint } : {}),
       ...(plan.core?.keepLinks?.length ? { keepLinks: [...plan.core.keepLinks] } : {}),
+      ...(authorLink ? { authorLink } : {}),
       ...(postOverridesOf(plan.request) ? { post: postOverridesOf(plan.request)! } : {}),
       ...(plan.foreignShingles.length
         ? { foreignShingles: plan.foreignShingles }

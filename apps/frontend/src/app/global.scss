@@ -195,7 +195,8 @@ h3 {
     padding-inline: 0 !important;
   }
 
-  .cf-sidebar .cf-collapse-toggle {
+  .cf-sidebar .cf-collapse-toggle,
+  .cf-sidebar [data-side-panel-handle] {
     display: none !important;
   }
 }

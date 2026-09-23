@@ -1699,5 +1699,9 @@
   "help": "Yardım",
   "uploading": "Yükleniyor",
   "importing": "İçe aktarılıyor",
-  "pick_time": "Saat"
+  "pick_time": "Saat",
+  "navigation_panel": "Gezinme paneli",
+  "navigation_resize": "Gezinme genişliği: sürükleyin veya ok tuşlarını kullanın",
+  "text_ai": "Metin için yapay zekâ",
+  "image_ai": "Görseller için yapay zekâ"
 }

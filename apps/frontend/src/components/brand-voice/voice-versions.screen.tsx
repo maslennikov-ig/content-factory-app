@@ -190,7 +190,7 @@ export function VoiceVersionsScreen({
         </p>
       ) : null}
 
-      <p className="flex flex-wrap items-center gap-[8px] cf-label-sm uppercase text-cf-ink-muted">
+      <p className="flex flex-wrap items-center gap-[8px] cf-label-sm text-cf-ink-muted">
         {t.versionsPick}
         <Hint label={t.hintFor(t.versionsPick)}>{t.versionsPickHint}</Hint>
       </p>
@@ -230,7 +230,7 @@ export function VoiceVersionsScreen({
                     </span>
                     <span
                       className={clsx(
-                        'cf-label-sm uppercase',
+                        'cf-label-sm',
                         version.active ? 'text-cf-accent' : 'text-cf-ink-muted'
                       )}
                     >
@@ -284,7 +284,7 @@ export function VoiceVersionsScreen({
               className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
               data-voice-comparison="true"
             >
-              <p className="cf-label-sm uppercase text-cf-ink-muted">
+              <p className="cf-label-sm text-cf-ink-muted">
                 {t.comparisonTitle(comparison.from, comparison.to)} ·{' '}
                 {t.comparisonChanged(changedCount, comparison.fields.length)}
               </p>
@@ -292,19 +292,19 @@ export function VoiceVersionsScreen({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-cf-border">
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.comparisonField}
                       </th>
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.comparisonWas} · {comparison.from}
                       </th>
-                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] pe-[8px] text-start cf-label-sm text-cf-ink-muted">
                         {t.comparisonBecame} · {comparison.to}
                       </th>
                       {/* Своя колонка, а не вторая строка под названием поля:
                           «Никогда не говорим» и «БЕЗ ИЗМЕНЕНИЙ» друг под другом
                           читались как одна фраза. */}
-                      <th className="pb-[8px] text-end cf-label-sm uppercase text-cf-ink-muted">
+                      <th className="pb-[8px] text-end cf-label-sm text-cf-ink-muted">
                         {t.comparisonState}
                       </th>
                     </tr>

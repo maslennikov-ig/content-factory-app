@@ -104,7 +104,7 @@ const copy = {
     topicCheckDisabledBanner:
       'Проверка тем выключена оператором на этом сервере. Тему можно завести заранее — она заработает сама, как только проверку включат.',
     topicBadge: 'тема',
-    newSince: (count: number) => `НОВОЕ С ПРОШЛОГО РАЗА · ${count}`,
+    newSince: (count: number) => `Новое с прошлого раза · ${count}`,
     lastLookedAt: (date: string) => `заглядывали ${date}`,
     neverLookedYet: 'ещё не заглядывали',
     showDismissed: (count: number) => `Показать отклонённые (${count})`,
@@ -117,7 +117,7 @@ const copy = {
       `«${title}» взято в работу. Открываем «Новую заготовку» — тему и причину впишите туда сами.`,
     declineFailed: 'Повод не отклонился. Попробуйте ещё раз.',
     acceptFailed: 'Повод не взялся в работу. Попробуйте ещё раз.',
-    subscriptionsLabel: (count: number) => `ПОДПИСКИ · ${count}`,
+    subscriptionsLabel: (count: number) => `Подписки · ${count}`,
     subscriptionsHint: 'Продукт заглядывает сам, по расписанию строки. «Проверить сейчас» не ждёт расписания.',
     checkNow: 'Проверить сейчас',
     checking: 'Проверяем…',
@@ -162,7 +162,7 @@ const copy = {
     checkResultOk: (created: number) =>
       created > 0 ? `Готово: новых поводов — ${created}.` : 'Готово: новых поводов нет.',
     checkResultDisabled: 'Проверка выключена на этом сервере — адрес сохранён, проверить руками пока нельзя.',
-    emptyEyebrow: 'ПОДПИСОК ПОКА НЕТ',
+    emptyEyebrow: 'Подписок пока нет',
     emptyTitle: 'Продукт может читать чужие ленты за вас и приносить поводы написать',
     benefitChooseTitle: 'Вы выбираете, что читать',
     benefitChooseBody: 'Продукт не ищет ничего сам и не берёт ни одной ленты без вашего указания.',
@@ -170,7 +170,7 @@ const copy = {
     benefitLeadsBody: 'Тема, причина и фрагмент, из которого она взялась. Писать или нет — решаете вы.',
     benefitMemoryTitle: 'Отказ запоминается',
     benefitMemoryBody: 'Отклонённую тему продукт не предложит снова.',
-    startHere: 'С ЧЕГО НАЧАТЬ',
+    startHere: 'С чего начать',
     startFeedTitle: 'Лента сайта',
     startFeedRecommended: 'рекомендуем',
     startFeedBody: 'Адрес ленты блога или новостей. Один адрес приносит много материалов.',
@@ -216,7 +216,7 @@ const copy = {
     topicCheckDisabledBanner:
       'Topic checking is switched off by the operator on this server. You can still add a topic now — it starts working on its own once checking is turned on.',
     topicBadge: 'topic',
-    newSince: (count: number) => `NEW SINCE LAST TIME · ${count}`,
+    newSince: (count: number) => `New since last time · ${count}`,
     lastLookedAt: (date: string) => `last looked ${date}`,
     neverLookedYet: 'not checked yet',
     showDismissed: (count: number) => `Show declined (${count})`,
@@ -229,7 +229,7 @@ const copy = {
       `"${title}" was taken to work. Opening New piece — fill in the thesis and reason there yourself.`,
     declineFailed: 'The lead was not declined. Try again.',
     acceptFailed: 'The lead was not taken to work. Try again.',
-    subscriptionsLabel: (count: number) => `SUBSCRIPTIONS · ${count}`,
+    subscriptionsLabel: (count: number) => `Subscriptions · ${count}`,
     subscriptionsHint: 'The product checks on the row\'s own schedule. "Check now" does not wait for it.',
     checkNow: 'Check now',
     checking: 'Checking…',
@@ -260,7 +260,7 @@ const copy = {
     checkResultOk: (created: number) =>
       created > 0 ? `Done: ${created} new leads.` : 'Done: nothing new.',
     checkResultDisabled: 'Checking is off on this server — the address is saved; a manual check is not possible yet.',
-    emptyEyebrow: 'NO SUBSCRIPTIONS YET',
+    emptyEyebrow: 'No subscriptions yet',
     emptyTitle: 'The product can read other feeds for you and bring back reasons to write',
     benefitChooseTitle: 'You choose what it reads',
     benefitChooseBody: 'The product searches for nothing on its own and takes no feed without you naming it.',
@@ -268,7 +268,7 @@ const copy = {
     benefitLeadsBody: 'A topic, a reason, and the fragment it came from. Whether to write is your call.',
     benefitMemoryTitle: 'A decline is remembered',
     benefitMemoryBody: 'A declined topic is not offered again.',
-    startHere: 'WHERE TO START',
+    startHere: 'Where to start',
     startFeedTitle: 'Site feed',
     startFeedRecommended: 'recommended',
     startFeedBody: 'A blog or news feed address. One address brings many items.',
@@ -1005,7 +1005,7 @@ export function ContentLeadsTab({
       ) : subscriptionRows.length === 0 ? (
         <div className="flex flex-col gap-[24px]">
           <div className="flex flex-col gap-[8px] max-w-[72ch]">
-            <span className="cf-label-sm uppercase text-cf-ink-muted">{t.emptyEyebrow}</span>
+            <span className="cf-label-sm text-cf-ink-muted">{t.emptyEyebrow}</span>
             <span className="cf-heading-md text-cf-ink [text-wrap:balance]">{t.emptyTitle}</span>
           </div>
           <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3">
@@ -1023,7 +1023,7 @@ export function ContentLeadsTab({
             </div>
           </div>
           <div className="flex flex-col gap-[12px]">
-            <span className="cf-label-sm uppercase text-cf-ink-muted">{t.startHere}</span>
+            <span className="cf-label-sm text-cf-ink-muted">{t.startHere}</span>
             <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-accent bg-cf-surface p-[16px]">
                 <div className="flex flex-wrap items-center gap-[8px]">
@@ -1097,7 +1097,7 @@ export function ContentLeadsTab({
         <>
           <div className="flex flex-col gap-[12px]">
             <div className="flex flex-wrap items-baseline gap-[12px]">
-              <span className="cf-label-sm uppercase text-cf-ink">{t.newSince(newLeads.length)}</span>
+              <span className="cf-label-sm text-cf-ink">{t.newSince(newLeads.length)}</span>
               <div className="flex-1" />
               {(dismissedLeads.length > 0 || showDismissed) && (
                 <Button
@@ -1149,7 +1149,7 @@ export function ContentLeadsTab({
 
           <div className="flex flex-col gap-[12px]">
             <div className="flex flex-wrap items-baseline gap-[12px]">
-              <span className="cf-label-sm uppercase text-cf-ink">
+              <span className="cf-label-sm text-cf-ink">
                 {t.subscriptionsLabel(subscriptionRows.length)}
               </span>
               <Hint label={t.subscriptionsLabel(subscriptionRows.length)}>{t.subscriptionsHint}</Hint>

@@ -161,7 +161,7 @@ export function VoiceRibbon({
     >
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-[8px]">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] gap-y-[4px]">
-          <span className="cf-label-sm uppercase text-cf-ink-muted">
+          <span className="cf-label-sm text-cf-ink-muted">
             {t.ribbonLabel}
           </span>
           <span
@@ -173,7 +173,7 @@ export function VoiceRibbon({
             {summary}
           </span>
           {details.avatarKind ? (
-            <Status className="uppercase border-cf-border-strong">
+            <Status className="border-cf-border-strong">
               {details.avatarKind === 'BRAND'
                 ? t.avatarsKindBrand
                 : t.avatarsKindPerson}
@@ -214,7 +214,7 @@ export function VoiceRibbon({
                   style={{ boxShadow: 'var(--cf-overlay-shadow)' }}
                   className="absolute end-0 top-[100%] z-[300] mt-[8px] flex w-[320px] max-w-[90vw] flex-col rounded-[8px] border border-cf-border-strong bg-cf-surface-raised p-[8px]"
                 >
-                  <span className="px-[8px] pb-[8px] pt-[4px] cf-label-sm uppercase text-cf-ink-muted">
+                  <span className="px-[8px] pb-[8px] pt-[4px] cf-label-sm text-cf-ink-muted">
                     {t.ribbonWhoWrites}
                   </span>
                   {choosable.map((avatar) => (

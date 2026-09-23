@@ -1564,33 +1564,39 @@ export class PostsRepository {
   }
 
   /**
-   * Posts that can hold a day of the plan ahead (`97dq.59`): between `from`
-   * and `to`, live, top-level, in a live channel of this organisation.
+   * Posts that can hold a day of the plan ahead (`97dq.59`): from `from`
+   * (and up to `to` when given — `null` reads the whole future, so «План до»
+   * is not capped by the streak horizon), live, top-level, in a live and
+   * enabled channel of this organisation — the same channels the per-channel
+   * table lists, so the totals and the table agree (second review, item 2).
+   *
    * Superseded variant drafts are left out by the same holder rule the
-   * calendar uses, so the count never includes a draft nobody can see.
+   * calendar uses. The rule is asked only when a draft is in the answer, and
+   * only for the channels those drafts are in (item 11): the chip reloads on
+   * every calendar change, and an organisation-wide read each time was waste.
    */
   async getPlanAheadPosts(
     orgId: string,
     from: Date,
-    to: Date,
+    to: Date | null,
     integrationIds?: string[]
   ) {
-    const superseded = await supersededDraftPostIds(this._post.model, orgId);
     const rows = await this._post.model.post.findMany({
       where: {
         organizationId: orgId,
         deletedAt: null,
         parentPostId: null,
-        publishDate: { gte: from, lte: to },
+        publishDate: to ? { gte: from, lte: to } : { gte: from },
         state: { in: ['QUEUE', 'DRAFT', 'PUBLISHED'] },
-        ...(superseded.length ? { id: { notIn: superseded } } : {}),
         integration: {
           deletedAt: null,
+          disabled: false,
           organizationId: orgId,
           ...(integrationIds?.length ? { id: { in: integrationIds } } : {}),
         },
       },
       select: {
+        id: true,
         integrationId: true,
         publishDate: true,
         state: true,
@@ -1602,12 +1608,26 @@ export class PostsRepository {
         },
       },
     });
-    return rows.map((row) => ({
-      integrationId: row.integrationId,
-      publishDate: row.publishDate,
-      state: String(row.state),
-      plan: row.contentDerivations?.[0]?.plan ?? null,
-    }));
+    const draftChannels = [
+      ...new Set(
+        rows
+          .filter((row) => String(row.state) === 'DRAFT')
+          .map((row) => row.integrationId)
+      ),
+    ].sort();
+    const superseded = new Set(
+      draftChannels.length
+        ? await supersededDraftPostIds(this._post.model, orgId, draftChannels)
+        : []
+    );
+    return rows
+      .filter((row) => !superseded.has(row.id))
+      .map((row) => ({
+        integrationId: row.integrationId,
+        publishDate: row.publishDate,
+        state: String(row.state),
+        plan: row.contentDerivations?.[0]?.plan ?? null,
+      }));
   }
 
   /** The live channels the plan-ahead count is reported for, in menu order. */

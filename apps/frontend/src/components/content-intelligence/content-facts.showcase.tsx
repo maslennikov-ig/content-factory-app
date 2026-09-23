@@ -135,7 +135,7 @@ export const factsShowcaseCopy = {
     restoreFailed: 'Факт не вернулся. Попробуйте ещё раз.',
     confirmFailed: 'Не подтвердилось. Попробуйте ещё раз.',
     copyFailed: 'Копия не сохранилась. Ничего не потеряно, проверьте поля и попробуйте ещё раз.',
-    copyDialogEyebrow: (date: string) => `КОПИЯ УТВЕРЖДЕНИЯ ОТ ${date}`,
+    copyDialogEyebrow: (date: string) => `Копия утверждения от ${date}`,
     copyDialogTitle: 'Поправьте и сохраните как новое',
     statementLabel: 'Утверждение',
     warningBody:
@@ -194,7 +194,7 @@ export const factsShowcaseCopy = {
     restoreFailed: 'The fact was not restored. Try again.',
     confirmFailed: 'The confirmation did not go through. Try again.',
     copyFailed: 'The copy was not saved. Nothing is lost — check the fields and try again.',
-    copyDialogEyebrow: (date: string) => `COPY OF THE CLAIM FROM ${date}`,
+    copyDialogEyebrow: (date: string) => `Copy of the claim from ${date}`,
     copyDialogTitle: 'Fix it and save as new',
     statementLabel: 'Statement',
     warningBody:
@@ -782,7 +782,7 @@ export function ContentFactsShowcase() {
           >
             {copyFailure && <ErrorState title={failureNotice(copyFailure)} />}
             <div className="flex flex-col gap-[8px]">
-              <p className="cf-label-sm uppercase text-cf-ink-muted">
+              <p className="cf-label-sm text-cf-ink-muted">
                 {t.statementLabel}
               </p>
               <Textarea

@@ -22,7 +22,7 @@ export function ContentMaterialsPlaceholder({
       data-content-materials="empty"
       className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
     >
-      <p className="cf-label-sm uppercase text-cf-ink-muted">
+      <p className="cf-label-sm text-cf-ink-muted">
         {t.materialsPending}
       </p>
       <h2 className="mt-[8px] cf-heading-md text-cf-ink [text-wrap:balance]">

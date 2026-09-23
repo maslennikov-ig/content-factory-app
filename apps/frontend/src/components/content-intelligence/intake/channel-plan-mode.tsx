@@ -1,24 +1,15 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import useSWR from 'swr';
-import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import {
-  RadioGroup,
-  RadioOption,
-} from '@contentfactory/react/choice/radio.group';
-import { Hint } from '@contentfactory/react/layout/hint';
-import { SectionLabel } from '../../ui/section-label';
-import { intakeCopy, type IntakeLocale } from './intake.copy';
+import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/plural';
 
 /**
- * «План» на карточке канала «Как пишем в «X»» (`content-factory-next-97dq.57`,
- * решение владельца 23.09.2026).
+ * Режим плана канала и поста (`content-factory-next-97dq.57`, `97dq.70`).
  *
- * Три режима, как адаптации этого канала встают в календарь: «Без плана»,
- * «Бронь» (умолчание) и «Автопилот». Режим живёт в своей колонке канала, а не
- * в карточке письма, поэтому сохраняется сразу при выборе и не зависит от
- * кнопок «Сохранить» и «Вернуть умолчания» карточки.
+ * Три режима, как адаптация встаёт в календарь: «Без плана», «Бронь»
+ * (умолчание) и «Автопилот». Режим канала живёт в своей колонке
+ * `Integration.planMode`; свой режим поста — в его настройках. Поле рисует
+ * общая панель настроек (`pieces/post-options.panel.tsx`) в обеих областях;
+ * здесь — слова, адрес и чтение.
  */
 
 export type ChannelPlanMode = 'draft' | 'reserve' | 'autopilot';
@@ -44,8 +35,25 @@ export const channelPlanModeCopy = {
   ru: {
     label: 'План',
     hint: 'Как адаптации этого канала встают в календарь. Сохраняется сразу, без кнопки.',
+    postHint:
+      'Как этот пост встаёт в календарь. Применяется сразу, и к уже написанному посту тоже.',
     saved: 'Сохранено',
     failed: 'Не удалось сохранить режим. Попробуйте ещё раз.',
+    applyQuestion: (count: number) =>
+      `Применить к ${count} ${plural(count, [
+        'уже написанному посту',
+        'уже написанным постам',
+        'уже написанным постам',
+      ])} или только к новым?`,
+    applyNote: 'Посты, у которых свой режим, не меняются.',
+    applyNew: 'Только к новым',
+    applyAll: (count: number) => `Ко всем ${count}`,
+    applying: 'Применяем',
+    appliedNew: 'Режим канала — для новых постов. Написанные остались как были.',
+    appliedAll: (count: number) =>
+      `Режим применён к ${count} ${plural(count, ['посту', 'постам', 'постам'])}.`,
+    applyFailed: 'Не удалось применить режим к написанным постам. Попробуйте ещё раз.',
+    applyChanged: 'Режим канала уже сменился. Написанные посты не тронуты — выберите режим ещё раз.',
     options: {
       draft: {
         title: 'Без плана',
@@ -64,8 +72,21 @@ export const channelPlanModeCopy = {
   en: {
     label: 'Plan',
     hint: 'How this channel’s adaptations get into the calendar. Saves at once, no button.',
+    postHint:
+      'How this post gets into the calendar. Applies at once, to the post already written too.',
     saved: 'Saved',
     failed: 'The mode could not be saved. Try again.',
+    applyQuestion: (count: number) =>
+      `Apply to the ${count} ${count === 1 ? 'post' : 'posts'} already written, or to new ones only?`,
+    applyNote: 'Posts with a mode of their own stay as they are.',
+    applyNew: 'New ones only',
+    applyAll: (count: number) => `All ${count}`,
+    applying: 'Applying',
+    appliedNew: 'The channel mode is for new posts. Written ones stay as they were.',
+    appliedAll: (count: number) =>
+      `The mode was applied to ${count} ${count === 1 ? 'post' : 'posts'}.`,
+    applyFailed: 'The mode could not be applied to the written posts. Try again.',
+    applyChanged: 'The channel mode has changed since. Written posts are untouched — choose the mode again.',
     options: {
       draft: {
         title: 'No plan',
@@ -82,115 +103,3 @@ export const channelPlanModeCopy = {
     },
   },
 } as const;
-
-export function ChannelPlanModeField({
-  locale,
-  integrationId,
-  canWrite,
-  open,
-}: {
-  locale: IntakeLocale;
-  integrationId: string;
-  canWrite: boolean;
-  /** Пока карточка закрыта, режим не читается. */
-  open: boolean;
-}) {
-  const t = channelPlanModeCopy[locale];
-  const request = useFetch();
-  const url = channelPlanModeUrl(integrationId);
-  const load = useCallback(async () => {
-    const response = await request(url);
-    if (!response.ok) throw new Error('plan mode unavailable');
-    return readChannelPlanMode(await response.json());
-  }, [request, url]);
-  const { data, mutate } = useSWR(open ? url : null, load, {
-    revalidateOnFocus: false,
-  });
-  const [chosen, setChosen] = useState<ChannelPlanMode | null>(null);
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>(
-    'idle'
-  );
-  const value = chosen ?? data ?? 'reserve';
-  const labelId = `channel-plan-mode-${integrationId}`;
-
-  const change = useCallback(
-    async (next: string) => {
-      if (!canWrite) return;
-      const mode = next as ChannelPlanMode;
-      const before = value;
-      setChosen(mode);
-      setState('saving');
-      try {
-        const response = await request(url, {
-          method: 'PUT',
-          body: JSON.stringify({ planMode: mode }),
-        });
-        if (!response.ok) throw new Error('plan mode not saved');
-        setState('saved');
-        await mutate(mode, { revalidate: false });
-      } catch {
-        setChosen(before);
-        setState('failed');
-      }
-    },
-    [canWrite, mutate, request, url, value]
-  );
-
-  return (
-    <div
-      data-channel-plan-mode={value}
-      className="grid min-w-0 grid-cols-1 gap-x-[16px] gap-y-[12px] border-t border-cf-border pt-[12px] sm:grid-cols-[160px_minmax(0,1fr)] sm:items-start"
-    >
-      {/* «?» рядом, а не внутри: подпись раздела набрана заглавными. */}
-      <span className="flex min-w-0 items-center gap-[4px]">
-        <SectionLabel as="span" id={labelId}>
-          {t.label}
-        </SectionLabel>
-        <Hint label={intakeCopy[locale].profileHintFor(t.label)}>{t.hint}</Hint>
-      </span>
-      <div className="flex min-w-0 flex-col gap-[8px]">
-        <RadioGroup
-          aria-labelledby={labelId}
-          value={value}
-          onChange={(next) => void change(next)}
-          orientation="vertical"
-          className="flex min-w-0 flex-col gap-[4px]"
-        >
-          {CHANNEL_PLAN_MODES.map((mode) => {
-            const picked = value === mode;
-            return (
-              <RadioOption
-                key={mode}
-                value={mode}
-                layout="content"
-                disabled={!canWrite}
-                data-channel-plan-option={mode}
-                className={`flex w-full min-w-0 flex-col items-start gap-[4px] rounded-[8px] border px-[12px] py-[8px] text-start text-cf-ink transition-colors duration-state ${
-                  picked
-                    ? 'border-cf-accent bg-cf-accent-soft'
-                    : 'border-cf-border hover:bg-cf-surface-subtle'
-                }`}
-              >
-                <span className="cf-label-md">{t.options[mode].title}</span>
-                <span className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                  {t.options[mode].hint}
-                </span>
-              </RadioOption>
-            );
-          })}
-        </RadioGroup>
-        {state === 'saved' ? (
-          <p role="status" className="cf-caption text-cf-accent">
-            {t.saved}
-          </p>
-        ) : state === 'failed' ? (
-          <p role="alert" className="cf-caption text-cf-danger">
-            {t.failed}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-export default ChannelPlanModeField;

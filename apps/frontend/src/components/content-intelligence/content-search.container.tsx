@@ -303,7 +303,7 @@ export function ContentSearchContainer({
         <div className="mt-[20px] border-t border-cf-border pt-[16px]">
           {answer.summary && (
             <div className="mb-[16px]">
-              <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+              <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.summaryTitle}
               </h3>
               <p className="mt-[4px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">
@@ -318,7 +318,7 @@ export function ContentSearchContainer({
             </p>
           ) : (
             <>
-              <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+              <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.resultsTitle}
               </h3>
               <ul className="mt-[8px] divide-y divide-cf-border">

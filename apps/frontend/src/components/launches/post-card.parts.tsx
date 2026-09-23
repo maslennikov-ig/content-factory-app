@@ -301,7 +301,7 @@ export const StageBand: FC<{
       The pill keeps label-sm, because a pill has the width and every other
       status in the product is set that way.
     */}
-    <span className="cf-caption uppercase truncate" title={title || label}>
+    <span className="cf-caption truncate" title={title || label}>
       {label}
     </span>
   </div>
@@ -315,7 +315,7 @@ export const StagePill: FC<{
 }> = ({ tone, label, title }) => (
   <span
     className={clsx(
-      'inline-flex shrink-0 items-center h-[20px] px-[8px] rounded-[8px] border cf-label-sm uppercase whitespace-nowrap',
+      'inline-flex shrink-0 items-center h-[20px] px-[8px] rounded-[8px] border cf-label-sm whitespace-nowrap',
       STATUS_TONES[tone]
     )}
     title={title || label}

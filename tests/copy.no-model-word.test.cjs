@@ -41,26 +41,10 @@ const INLINE_FILES = [
 
 /**
  * Named exceptions, kept explicit so the list can only shrink. Matching is by
- * a distinctive fragment rather than a line number: a line moves with any edit
- * above it, and a stale number would quietly stop guarding anything.
- *
- * Only the help answer about the provider settings is here — it explains the
- * «модель на роль» field a person really fills in. The backend review files of
- * this wave (`pieces/review*.ts`, `pieces/adaptation-review.ts`,
- * `pieces/adaptation-web-review.ts`, `pieces/piece.service.ts`,
- * `openai/web.research.service.ts`) belong to another stream and are outside
- * this scan entirely.
+ * a distinctive fragment rather than a line number. Empty since 97dq.74: help
+ * now says «какой ИИ на задачу» instead of «модель на роль».
  */
-const ALLOWLIST = [
-  {
-    file: 'apps/frontend/src/components/help/help.copy.ts',
-    contains: 'Где ключи ИИ и что такое «модель на роль»?',
-  },
-  {
-    file: 'apps/frontend/src/components/help/help.copy.ts',
-    contains: '«Модель на роль» — какая модель отвечает за какой вид работы',
-  },
-];
+const ALLOWLIST = [];
 
 const allowed = (hit) =>
   ALLOWLIST.some(

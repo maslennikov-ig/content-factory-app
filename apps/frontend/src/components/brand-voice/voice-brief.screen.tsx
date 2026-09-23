@@ -155,7 +155,7 @@ export function VoiceBriefScreen({
                   {t.radarEvidence} {topic.evidenceCount}
                 </span>
               </div>
-              <p className="mt-[8px] cf-label-sm uppercase text-cf-ink-muted">
+              <p className="mt-[8px] cf-label-sm text-cf-ink-muted">
                 {t.radarWhy}
               </p>
               {/* The reason, not only the score. A ranking nobody can argue
@@ -204,7 +204,7 @@ export function VoiceBriefScreen({
             ].map(([key, label]) =>
               brief[key] ? (
                 <div key={key} className="min-w-0">
-                  <dt className="cf-label-sm uppercase text-cf-ink-muted">
+                  <dt className="cf-label-sm text-cf-ink-muted">
                     {label}
                   </dt>
                   <dd className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]">
@@ -221,7 +221,7 @@ export function VoiceBriefScreen({
             className="mt-[16px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[12px]"
             data-voice-brief-blocked="true"
           >
-            <p className="cf-label-sm uppercase text-cf-ink">
+            <p className="cf-label-sm text-cf-ink">
               {t.briefBlockedTitle}
             </p>
             <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink [text-wrap:pretty]">

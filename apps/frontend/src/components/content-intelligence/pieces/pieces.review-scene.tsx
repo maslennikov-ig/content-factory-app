@@ -200,8 +200,12 @@ function PieceScene({
         postOptions={DEFAULT_POST_OPTIONS}
         avatars={[]}
         onPostOptionsChange={noop}
-        rememberState="idle"
-        onRemember={noop}
+        postPlan={{ value: null, channel: channel.planMode, onChange: noop }}
+        settingsSaveState="saved"
+        settingsSavedAt="19:04"
+        onSaveSettings={noop}
+        onSaveForChannel={noop}
+        onRewriteAndRemember={noop}
         when={<span className="cf-body-sm text-cf-ink">19:30</span>}
         scheduleBusy={null}
         calendarHref="/launches"

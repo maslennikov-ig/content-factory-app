@@ -93,7 +93,7 @@ export const calculateProductionAnalytics = (
 };
 
 /* -------------------------------------------------------------------------
- * «Впереди N дней» (`content-factory-next-97dq.59`, owner pick 23.09.2026)
+ * The plan ahead (`content-factory-next-97dq.59`; counts since `97dq.73`)
  * ---------------------------------------------------------------------- */
 
 /**
@@ -119,17 +119,54 @@ export type PlanAheadStreak = {
   emptyFrom: string;
 };
 
-export type PlanAheadV1 = PlanAheadStreak & {
-  version: 'plan-ahead/v1';
-  /** `YYYY-MM-DD` in `timeZone`. */
-  today: string;
-  timeZone: string;
-  /** How far the count looks; a run this long is reported as this long. */
-  horizon: number;
-  /** The next `STRIP_DAYS` days, today first: does the day hold a post? */
-  strip: Array<{ date: string; filled: boolean }>;
-  channels: Array<PlanAheadStreak & { integrationId: string; name: string }>;
+/**
+ * Counts that sit beside the streak (`97dq.73`, thirteenth walk C3). The owner
+ * could not read «0 дней впереди»; he asked how many posts are planned and how
+ * far the plan reaches. `reserved` — a draft held in a slot («в плане»),
+ * `queued` — a post that goes out by itself («в очереди»), both from today on.
+ */
+export type PlanAheadCounts = {
+  reserved: number;
+  queued: number;
+  /** `reserved + queued`. */
+  planned: number;
+  /** `YYYY-MM-DD` of the last reserved or queued post; `null` when none. */
+  planUntil: string | null;
+  /** Published in the last 7 days, today included. */
+  published7d: number;
 };
+
+export type PlanAheadDay = {
+  date: string;
+  /** Holds a post (the streak rule): planned, queued, or published today. */
+  filled: boolean;
+  reserved: number;
+  queued: number;
+  /** Published that day; only today can have any. */
+  published: number;
+};
+
+/**
+ * `plan-ahead/v2`: v1 plus the counts. The v1 names keep their meaning —
+ * `emptyFrom` is the first empty day, `days`/`until` the unbroken run — so a
+ * reader of v1 fields reads the same numbers.
+ */
+export type PlanAheadV2 = PlanAheadStreak &
+  PlanAheadCounts & {
+    version: 'plan-ahead/v2';
+    /** `YYYY-MM-DD` in `timeZone`. */
+    today: string;
+    timeZone: string;
+    /** How far the count looks; a run this long is reported as this long. */
+    horizon: number;
+    /** How many of the `strip` days hold a post. */
+    daysWithPosts: number;
+    /** The next `STRIP_DAYS` days, today first. */
+    strip: PlanAheadDay[];
+    channels: Array<
+      PlanAheadStreak & PlanAheadCounts & { integrationId: string; name: string }
+    >;
+  };
 
 export const PLAN_AHEAD_HORIZON_DAYS = 60;
 export const PLAN_AHEAD_STRIP_DAYS = 14;
@@ -196,13 +233,52 @@ const streakOf = (
   };
 };
 
+/** Which count a post adds to, if any, on its day. */
+export const planAheadKind = (
+  post: PlanAheadPost
+): 'reserved' | 'queued' | 'published' | null => {
+  const state = String(post.state || '').toUpperCase();
+  if (state === 'QUEUE') return 'queued';
+  if (state === 'DRAFT')
+    return post.plan === 'reserve' || post.plan === 'autopilot' ? 'reserved' : null;
+  if (state === 'PUBLISHED') return 'published';
+  return null;
+};
+
+type Tally = {
+  filled: Set<string>;
+  reserved: number;
+  queued: number;
+  planUntil: string | null;
+  published7d: number;
+  perDay: Map<string, { reserved: number; queued: number; published: number }>;
+};
+
+const emptyTally = (): Tally => ({
+  filled: new Set(),
+  reserved: 0,
+  queued: 0,
+  planUntil: null,
+  published7d: 0,
+  perDay: new Map(),
+});
+
+const countsOf = (tally: Tally): PlanAheadCounts => ({
+  reserved: tally.reserved,
+  queued: tally.queued,
+  planned: tally.reserved + tally.queued,
+  planUntil: tally.planUntil,
+  published7d: tally.published7d,
+});
+
 /**
- * How many days ahead the plan is covered, without a gap, starting today.
+ * The plan ahead: how many posts are planned or queued, how far the plan
+ * reaches, the first empty day, and the unbroken run of covered days.
  *
  * Counted in the reader's zone: a 00:30 Moscow post is 21:30 UTC of the day
- * before, and a UTC count would move it. Per channel for the hover list, and
- * for the selection as a whole — a day is covered when any selected channel
- * holds a post on it.
+ * before, and a UTC count would move it. Per channel for the table and the
+ * hover list, and for the selection as a whole — a day is covered when any
+ * selected channel holds a post on it.
  */
 export const calculatePlanAhead = ({
   posts,
@@ -218,34 +294,68 @@ export const calculatePlanAhead = ({
   timeZone: string;
   horizon?: number;
   stripDays?: number;
-}): PlanAheadV1 => {
+}): PlanAheadV2 => {
   const zone = planAheadTimeZone(timeZone);
   const today = dayKeyIn(now, zone);
-  const all = new Set<string>();
-  const byChannel = new Map<string, Set<string>>();
+  const weekStart = addDayKey(today, -6);
+  const all = emptyTally();
+  const byChannel = new Map<string, Tally>();
   for (const post of posts) {
     const day = dayKeyIn(new Date(post.publishDate), zone);
-    if (day < today || !holdsPlanDay(post, today, day)) continue;
-    all.add(day);
+    const kind = planAheadKind(post);
+    if (!kind) continue;
+    const tallies = [all];
     if (!byChannel.has(post.integrationId)) {
-      byChannel.set(post.integrationId, new Set());
+      byChannel.set(post.integrationId, emptyTally());
     }
-    byChannel.get(post.integrationId)!.add(day);
+    tallies.push(byChannel.get(post.integrationId)!);
+    for (const tally of tallies) {
+      if (kind === 'published') {
+        if (day >= weekStart && day <= today) tally.published7d += 1;
+      } else if (day >= today) {
+        // Uncapped: the horizon bounds only the streak, not the counts.
+        tally[kind] += 1;
+        if (!tally.planUntil || day > tally.planUntil) tally.planUntil = day;
+      }
+      if (day < today || !holdsPlanDay(post, today, day)) continue;
+      tally.filled.add(day);
+      const counts = tally.perDay.get(day) ?? {
+        reserved: 0,
+        queued: 0,
+        published: 0,
+      };
+      counts[kind] += 1;
+      tally.perDay.set(day, counts);
+    }
   }
+  const strip = Array.from({ length: stripDays }, (_, index) => {
+    const date = addDayKey(today, index);
+    const counts = all.perDay.get(date);
+    return {
+      date,
+      filled: all.filled.has(date),
+      reserved: counts?.reserved ?? 0,
+      queued: counts?.queued ?? 0,
+      published: counts?.published ?? 0,
+    };
+  });
   return {
-    version: 'plan-ahead/v1',
+    version: 'plan-ahead/v2',
     today,
     timeZone: zone,
     horizon,
-    ...streakOf(all, today, horizon),
-    strip: Array.from({ length: stripDays }, (_, index) => {
-      const date = addDayKey(today, index);
-      return { date, filled: all.has(date) };
+    ...streakOf(all.filled, today, horizon),
+    ...countsOf(all),
+    daysWithPosts: strip.filter((day) => day.filled).length,
+    strip,
+    channels: channels.map((channel) => {
+      const tally = byChannel.get(channel.id) ?? emptyTally();
+      return {
+        integrationId: channel.id,
+        name: channel.name,
+        ...streakOf(tally.filled, today, horizon),
+        ...countsOf(tally),
+      };
     }),
-    channels: channels.map((channel) => ({
-      integrationId: channel.id,
-      name: channel.name,
-      ...streakOf(byChannel.get(channel.id) ?? new Set(), today, horizon),
-    })),
   };
 };

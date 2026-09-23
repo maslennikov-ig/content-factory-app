@@ -1699,5 +1699,9 @@
   "help": "Aide",
   "uploading": "Téléversement en cours",
   "importing": "Importation en cours",
-  "pick_time": "Heure"
+  "pick_time": "Heure",
+  "navigation_panel": "Panneau de navigation",
+  "navigation_resize": "Largeur de la navigation : faites glisser ou utilisez les flèches",
+  "text_ai": "IA pour le texte",
+  "image_ai": "IA pour les images"
 }

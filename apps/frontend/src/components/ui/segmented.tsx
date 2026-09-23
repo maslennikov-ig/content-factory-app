@@ -34,6 +34,12 @@ export type SegmentedOption<Value extends string> = {
    * скринридера («Подсказка: свой текст»), `text` — само объяснение.
    */
   hint?: { label: string; text: ReactNode };
+  /**
+   * Пиктограмма перед словом. С `iconOnly` у полосы слово уходит в имя
+   * кнопки и во всплывающую подпись, а видна только пиктограмма —
+   * переключатель «Календарь · Список» в шапке календаря (`97dq.74`).
+   */
+  icon?: ReactNode;
 };
 
 /**
@@ -55,6 +61,7 @@ export function Segmented<Value extends string>({
   options,
   onChange,
   className,
+  iconOnly = false,
   ...rest
 }: {
   /** Вопрос, на который отвечает полоса. Уходит в `aria-label` группы. */
@@ -63,6 +70,8 @@ export function Segmented<Value extends string>({
   options: readonly SegmentedOption<Value>[];
   onChange: (value: Value) => void;
   className?: string;
+  /** Показывать только пиктограммы; слово остаётся в имени и в подсказке. */
+  iconOnly?: boolean;
 } & Omit<
   HTMLAttributes<HTMLDivElement>,
   'onChange' | 'className' | 'children'
@@ -87,14 +96,23 @@ export function Segmented<Value extends string>({
             key={option.value}
             value={option.value}
             layout="content"
+            aria-label={iconOnly && option.icon ? option.label : undefined}
+            title={iconOnly && option.icon ? option.label : undefined}
             className={clsx(
-              'rounded-[4px] px-[16px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+              'rounded-[4px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+              iconOnly && option.icon ? 'px-[8px]' : 'px-[16px]',
+              option.icon && 'inline-flex items-center gap-[8px]',
               value === option.value
                 ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
                 : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
             )}
           >
-            {option.label}
+            {option.icon ? (
+              <span aria-hidden="true" className="inline-flex">
+                {option.icon}
+              </span>
+            ) : null}
+            {iconOnly && option.icon ? null : option.label}
           </RadioOption>
         );
         if (!option.hint) return radio;

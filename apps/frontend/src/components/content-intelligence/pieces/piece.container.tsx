@@ -32,10 +32,10 @@ import { PieceChannelTab, type AutosaveState } from './piece-channel-tab';
 /** Тишина, после которой ручная правка уходит в дверь (общая с `useAutosave`). */
 import { AUTOSAVE_MS } from '../../ui/use-autosave';
 import { PieceQuestions, type PieceQuestionReply } from './piece-questions';
-import {
-  PieceChannelProfile,
-  useChannelWritingProfile,
-} from './piece-channel-profile';
+import { PostLinkQuestion } from '../intake/post-link.question';
+import { useChannelWritingProfile } from './piece-channel-profile';
+import type { SaveStateV1 } from './post-options.panel';
+import type { ScheduleBusy } from './schedule-bar';
 import { piecesCopy } from './pieces.copy';
 import {
   DEFAULT_POST_BASELINE,
@@ -47,6 +47,7 @@ import {
   adaptOverrides,
   buildAdaptPayload,
   buildAdaptationPatch,
+  buildPostSettingsPayload,
   buildSchedulePayload,
   calendarPath,
   channelOfTab,
@@ -60,6 +61,7 @@ import {
   readPieceDetail,
   readPieceTab,
   readPieceWhen,
+  readPostSettingsResponse,
   readScheduleResult,
   readSlotDate,
   refusalMessage,
@@ -74,6 +76,7 @@ import {
   type PieceWorkspaceV1,
   type PostOptionsBaselineV1,
   type PostOptionsV1,
+  type PlanModeWordV1,
   type VoiceScreenStateV1,
   type WorkspaceAdaptationV1,
 } from './pieces.adapter';
@@ -85,6 +88,7 @@ import {
   type QualityChecksV1,
 } from '../intake/intake.adapter';
 import { writingProfileUrl } from '../intake/writing-profile.adapter';
+import { channelPlanModeUrl } from '../intake/channel-plan-mode';
 import {
   isInterviewAskKey,
   PIECE_ROUTES,
@@ -213,6 +217,8 @@ export function PieceContainer({
   const [answering, setAnswering] = useState(false);
   const [coreAnswer, setCoreAnswer] = useState<CoreAnswerFeedback | null>(null);
   const [asked, setAsked] = useState<readonly IntakeQuestionV1[] | null>(null);
+  /** «Изменить» у ссылки для поста: вопрос открыт снова (`97dq.75`). */
+  const [linkEditing, setLinkEditing] = useState(false);
 
   /* ---- Рабочее место канала ---------------------------------------------- */
 
@@ -234,7 +240,7 @@ export function PieceContainer({
   }));
   const [scheduleBusy, setScheduleBusy] = useState<{
     id: string;
-    kind: 'schedule' | 'now' | 'unschedule' | 'delete';
+    kind: ScheduleBusy;
   } | null>(null);
   /*
     Адрес картинки, выбранной в медиатеке: дверь адаптации возвращает только
@@ -265,9 +271,32 @@ export function PieceContainer({
   const [scheduleError, setScheduleError] = useState<Record<string, string>>(
     {}
   );
-  const [remember, setRemember] = useState<
-    Record<string, 'idle' | 'saving' | 'saved' | 'failed'>
+  const [remember, setRemember] = useState<Record<string, SaveStateV1>>({});
+  /*
+    Настройки поста (`97dq.70`): каждое изменение уходит само через ту же
+    тишину, что правка текста; режим плана — сразу. Своё значение режима
+    держится здесь до ответа двери, чтобы выбор не мигал назад.
+  */
+  const [settingsSaves, setSettingsSaves] = useState<
+    Record<string, { state: SaveStateV1; at: string | null }>
   >({});
+  const [planOverrides, setPlanOverrides] = useState<
+    Record<string, PlanModeWordV1 | null>
+  >({});
+  const [textChangedAt, setTextChangedAt] = useState<Record<string, string>>(
+    {}
+  );
+  const settingsTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {}
+  );
+  /*
+    Поля поста, ещё не ушедшие в дверь (ревью `97dq.70`, P2): смена режима
+    берёт их с собой, уход со страницы отправляет их сразу.
+  */
+  const pendingSettings = useRef<Record<string, PostOptionsV1>>({});
+  /** Режим плана в полёте: второй выбор ждёт ответа на первый. */
+  const [planBusy, setPlanBusy] = useState<Record<string, boolean>>({});
+  const planInFlight = useRef<Record<string, boolean>>({});
 
   const abort = useRef<AbortController | null>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -278,22 +307,43 @@ export function PieceContainer({
     () => () => {
       abort.current?.abort();
       abort.current = null;
+    },
+    []
+  );
+  /*
+    Ушли со страницы — или на другую заготовку в том же экране — раньше, чем
+    правка легла: несохранённое уходит сразу, без ответа, и уходит в ту
+    заготовку, где его написали (второе ревью, пункт 8): очистка держит свой
+    `pieceId`, а не первый, с которым экран открылся.
+  */
+  useEffect(() => {
+    const ownPiece = pieceId;
+    return () => {
       for (const timer of Object.values(timers.current)) clearTimeout(timer);
-      /*
-        Ушли со страницы раньше, чем правка легла: несохранённое уходит сразу,
-        без ответа — экрана, которому его показать, уже нет.
-      */
+      for (const timer of Object.values(settingsTimers.current))
+        clearTimeout(timer);
+      timers.current = {};
+      settingsTimers.current = {};
+      for (const [integrationId, options] of Object.entries(
+        pendingSettings.current
+      ))
+        void latestRequest
+          .current(PIECES_API.postSettings(ownPiece, integrationId), {
+            method: 'PUT',
+            body: JSON.stringify(buildPostSettingsPayload({ options })),
+          })
+          .catch(() => undefined);
       for (const [id, text] of Object.entries(pending.current))
         void latestRequest
-          .current(PIECES_API.adaptation(pieceId, id), {
+          .current(PIECES_API.adaptation(ownPiece, id), {
             method: 'PATCH',
             body: JSON.stringify(buildAdaptationPatch({ body: text })),
           })
           .catch(() => undefined);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+      pendingSettings.current = {};
+      pending.current = {};
+    };
+  }, [pieceId]);
 
   /*
     Свежая адаптация, которой перечитанная заготовка ещё не знает, стоит в
@@ -351,10 +401,21 @@ export function PieceContainer({
     [activeChannel?.id, profile.data]
   );
   const optionsOf = useCallback(
-    (integrationId: string): PostOptionsV1 =>
-      postOptions[integrationId] ??
-      postOptionsFrom(baselineOf(integrationId)),
-    [baselineOf, postOptions]
+    (integrationId: string): PostOptionsV1 => {
+      if (postOptions[integrationId]) return postOptions[integrationId];
+      // Сохранённые настройки поста (`97dq.70`) — с аватаром канала, если
+      // своего у поста нет.
+      const stored = channels.find((one) => one.id === integrationId)?.settings
+        ?.options;
+      const start = postOptionsFrom(baselineOf(integrationId));
+      return stored
+        ? {
+            ...stored,
+            brandProfileId: stored.brandProfileId ?? start.brandProfileId,
+          }
+        : start;
+    },
+    [baselineOf, channels, postOptions]
   );
   const slotKey =
     activeChannel?.connected &&
@@ -907,13 +968,147 @@ export function PieceContainer({
     [detail, pieceId, request, w]
   );
 
+  /** Настройки поста — в дверь (`97dq.70`); режим плана применяется сразу. */
+  const saveSettings = useCallback(
+    async (
+      integrationId: string,
+      sent: { options?: PostOptionsV1; planMode?: PlanModeWordV1 | null }
+    ): Promise<boolean> => {
+      clearTimeout(settingsTimers.current[integrationId]);
+      // То, что ждало тишины, уходит этим же запросом, а не пропадает.
+      const waiting = pendingSettings.current[integrationId];
+      delete pendingSettings.current[integrationId];
+      const input = !sent.options && waiting ? { ...sent, options: waiting } : sent;
+      setSettingsSaves((current) => ({
+        ...current,
+        [integrationId]: {
+          state: 'saving',
+          at: current[integrationId]?.at ?? null,
+        },
+      }));
+      try {
+        const response = await request(
+          PIECES_API.postSettings(pieceId, integrationId),
+          {
+            method: 'PUT',
+            body: JSON.stringify(buildPostSettingsPayload(input)),
+          }
+        );
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(refusalMessage(body) || 'not saved');
+        const saved = readPostSettingsResponse(body);
+        setSettingsSaves((current) => ({
+          ...current,
+          [integrationId]: { state: 'saved', at: dayjs().format('HH:mm') },
+        }));
+        if (saved.adaptation || input.planMode !== undefined)
+          void detail.mutate();
+        return true;
+      } catch {
+        setSettingsSaves((current) => ({
+          ...current,
+          [integrationId]: {
+            state: 'failed',
+            at: current[integrationId]?.at ?? null,
+          },
+        }));
+        /*
+          Поля, что ехали с этим запросом, не теряются (второе ревью, пункт
+          6): они снова ждут отправки — со следующей правкой, со следующим
+          режимом или при уходе со страницы. Более новая правка важнее.
+        */
+        if (input.options && !pendingSettings.current[integrationId])
+          pendingSettings.current[integrationId] = input.options;
+        // Сервер мог успеть часть: страница перечитывается, а не гадает.
+        if (input.planMode !== undefined) void detail.mutate();
+        return false;
+      }
+    },
+    [detail, pieceId, request]
+  );
+
+  /** Поля поста: сразу на экран, в дверь — после тишины. */
+  const changePostOptions = useCallback(
+    (integrationId: string, next: PostOptionsV1) => {
+      const before = optionsOf(integrationId);
+      setPostOptions((current) => ({ ...current, [integrationId]: next }));
+      const textChanged = (
+        ['length', 'emoji', 'hashtags', 'links', 'cta', 'brandProfileId', 'wish', 'link'] as const
+      ).some((field) => before[field] !== next[field]);
+      if (textChanged)
+        setTextChangedAt((current) => ({
+          ...current,
+          [integrationId]: new Date().toISOString(),
+        }));
+      clearTimeout(settingsTimers.current[integrationId]);
+      pendingSettings.current[integrationId] = next;
+      settingsTimers.current[integrationId] = setTimeout(() => {
+        void saveSettings(integrationId, { options: next });
+      }, AUTOSAVE_MS);
+    },
+    [optionsOf, saveSettings]
+  );
+
+  /** «План» поста: свой режим или снова как в канале — сразу. */
+  const changePostPlan = useCallback(
+    async (integrationId: string, next: PlanModeWordV1 | null) => {
+      if (planInFlight.current[integrationId]) return;
+      planInFlight.current[integrationId] = true;
+      setPlanBusy((current) => ({ ...current, [integrationId]: true }));
+      setPlanOverrides((current) => ({ ...current, [integrationId]: next }));
+      const ok = await saveSettings(integrationId, { planMode: next });
+      planInFlight.current[integrationId] = false;
+      setPlanBusy((current) => ({ ...current, [integrationId]: false }));
+      if (!ok)
+        setPlanOverrides((current) => {
+          const rest = { ...current };
+          delete rest[integrationId];
+          return rest;
+        });
+    },
+    [saveSettings]
+  );
+
+  /** «Перенести»: запланированный пост — на время из «Когда». */
+  const move = useCallback(
+    async (adaptation: WorkspaceAdaptationV1, at: Date) => {
+      setScheduleBusy({ id: adaptation.id, kind: 'move' });
+      try {
+        const response = await request(
+          PIECES_API.place(pieceId, adaptation.id),
+          {
+            method: 'POST',
+            body: JSON.stringify({ date: at.toISOString() }),
+          }
+        );
+        const body = await response.json().catch(() => null);
+        if (!response.ok) {
+          setScheduleError((current) => ({
+            ...current,
+            [adaptation.id]: refusalMessage(body) || w.planMoveFailed,
+          }));
+          return;
+        }
+        void detail.mutate();
+      } catch {
+        setScheduleError((current) => ({
+          ...current,
+          [adaptation.id]: w.planMoveFailed,
+        }));
+      } finally {
+        setScheduleBusy(null);
+      }
+    },
+    [detail, pieceId, request, w]
+  );
+
   const rememberForChannel = useCallback(
     async (integrationId: string) => {
       const current =
         activeChannel?.id === integrationId ? profile.data?.profile : null;
       if (!current) {
         setRemember((state) => ({ ...state, [integrationId]: 'failed' }));
-        return;
+        return false;
       }
       setRemember((state) => ({ ...state, [integrationId]: 'saving' }));
       const chosen = optionsOf(integrationId);
@@ -923,26 +1118,54 @@ export function PieceContainer({
           body: JSON.stringify(rememberedProfilePayload(current, chosen)),
         });
         if (!response.ok) throw new Error('not remembered');
+        // Свой режим поста — тоже умолчание канала (для новых постов).
+        const ownPlan =
+          planOverrides[integrationId] !== undefined
+            ? planOverrides[integrationId]
+            : channels.find((one) => one.id === integrationId)?.settings
+                ?.planMode ?? null;
+        if (ownPlan) {
+          const planned = await request(channelPlanModeUrl(integrationId), {
+            method: 'PUT',
+            body: JSON.stringify({ planMode: ownPlan }),
+          });
+          if (!planned.ok) throw new Error('plan mode not remembered');
+        }
         setRemember((state) => ({ ...state, [integrationId]: 'saved' }));
         /*
           Запомненное стало решением канала: поля панели возвращаются к «как
           в канале», и рамка «изменено» больше не стоит на том, что канал
           теперь делает сам. Пожелание — слово к этому посту — остаётся.
         */
-        setPostOptions((state) => ({
-          ...state,
-          [integrationId]: {
-            ...DEFAULT_POST_OPTIONS,
-            brandProfileId: chosen.brandProfileId,
-            wish: chosen.wish,
-          },
-        }));
+        const reset: PostOptionsV1 = {
+          ...DEFAULT_POST_OPTIONS,
+          brandProfileId: chosen.brandProfileId,
+          wish: chosen.wish,
+        };
+        setPostOptions((state) => ({ ...state, [integrationId]: reset }));
+        if (ownPlan)
+          setPlanOverrides((state) => ({ ...state, [integrationId]: null }));
+        // Пост снова «как в канале»: его переопределения ушли в канал.
+        await saveSettings(integrationId, {
+          options: reset,
+          ...(ownPlan ? { planMode: null } : {}),
+        });
         void profile.mutate();
+        return true;
       } catch {
         setRemember((state) => ({ ...state, [integrationId]: 'failed' }));
+        return false;
       }
     },
-    [activeChannel?.id, optionsOf, profile, request]
+    [
+      activeChannel?.id,
+      channels,
+      optionsOf,
+      planOverrides,
+      profile,
+      request,
+      saveSettings,
+    ]
   );
 
   /* ---- Что показать ------------------------------------------------------ */
@@ -1014,6 +1237,83 @@ export function PieceContainer({
       </div>
     ) : undefined;
 
+  /* ---- Ссылка для поста и правка заготовки (`97dq.75`) ------------------- */
+
+  /** Ответ на «Какую ссылку поставить в пост?»; `null` — «Без ссылки». */
+  const answerPostLink = useCallback(
+    async (link: string | null): Promise<boolean> => {
+      const response = await request(
+        `${PIECES_API.postLink(pieceId)}?language=${locale}`,
+        { method: 'PUT', body: JSON.stringify({ url: link }) }
+      );
+      if (!response.ok) return false;
+      setLinkEditing(false);
+      await detail.mutate();
+      return true;
+    },
+    [detail, locale, pieceId, request]
+  );
+
+  /** Правка сути руками: `expected` — текст, который она заменяет. */
+  const saveCore = useCallback(
+    async (next: string, expected: string): Promise<boolean> => {
+      const response = await request(
+        `${PIECES_API.editCore(pieceId)}?language=${locale}`,
+        { method: 'PUT', body: JSON.stringify({ text: next, expected }) }
+      );
+      if (!response.ok) {
+        // Суть сменилась в другом окне: страница перечитывается.
+        if (response.status === 409) void detail.mutate();
+        return false;
+      }
+      setCoreAnswer(null);
+      void detail.mutate();
+      return true;
+    },
+    [detail, locale, pieceId, request]
+  );
+
+  /** «Дописать материал»: суть не меняется до «Пересобрать суть». */
+  const addMaterial = useCallback(
+    async (text: string): Promise<boolean> => {
+      const response = await request(
+        `${PIECES_API.appendMaterial(pieceId)}?language=${locale}`,
+        { method: 'POST', body: JSON.stringify({ text }) }
+      );
+      if (!response.ok) return false;
+      await detail.mutate();
+      return true;
+    },
+    [detail, locale, pieceId, request]
+  );
+
+  /** «Пересобрать суть»: слово отказа или `null`, когда суть пересобрана. */
+  const rebuildCore = useCallback(async (): Promise<string | null> => {
+    const response = await request(
+      `${PIECES_API.rebuildCore(pieceId)}?language=${locale}`,
+      { method: 'POST' }
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      return refusalMessage(body) || w.coreRebuildFailed;
+    }
+    setCoreAnswer(null);
+    await detail.mutate();
+    return null;
+  }, [detail, locale, pieceId, request, w]);
+
+  const coreLink = data?.core?.postLink ?? null;
+  const linkSlot =
+    canWrite && data?.core && (data.linkQuestion || linkEditing) ? (
+      <PostLinkQuestion
+        key={coreLink ? `answered-${coreLink.url ?? 'none'}` : 'open'}
+        locale={locale}
+        initial={coreLink ? { url: coreLink.url } : null}
+        onAnswer={answerPostLink}
+        onKeep={coreLink ? () => setLinkEditing(false) : undefined}
+      />
+    ) : undefined;
+
   const coreTab = data ? (
     <PieceCoreTab
       locale={locale}
@@ -1069,6 +1369,11 @@ export function PieceContainer({
           />
         ) : null
       }
+      linkSlot={linkSlot}
+      onChangeLink={canWrite ? () => setLinkEditing(true) : undefined}
+      onCoreSave={canWrite ? saveCore : undefined}
+      onMaterialAdd={canWrite ? addMaterial : undefined}
+      onCoreRebuild={canWrite ? rebuildCore : undefined}
       onOpenChannel={changeTab}
       onAdaptChannel={(id) => {
         const channel = channels.find((one) => one.id === id);
@@ -1108,6 +1413,18 @@ export function PieceContainer({
       (channel.id === slotWhen.channel ? slotWhen.at : null) ??
       slot.data ??
       new Date();
+    const ownPlan =
+      planOverrides[channel.id] !== undefined
+        ? planOverrides[channel.id]
+        : channel.settings?.planMode ?? null;
+    // Текст старше настроек, меняющих текст: «применится при переписывании».
+    const changedAt =
+      textChangedAt[channel.id] ?? channel.settings?.textChangedAt ?? null;
+    const rewritePending = Boolean(
+      adaptation &&
+        changedAt &&
+        new Date(changedAt).getTime() > new Date(adaptation.createdAt).getTime()
+    );
     const maxLength =
       channel.maxLength ??
       (channel.id === activeChannel?.id
@@ -1175,21 +1492,34 @@ export function PieceContainer({
         }
         postOptions={options}
         postBaseline={baselineOf(channel.id)}
+        pieceLink={coreLink ? { url: coreLink.url } : null}
         avatars={avatars}
-        onPostOptionsChange={(next) =>
-          setPostOptions((current) => ({ ...current, [channel.id]: next }))
+        onPostOptionsChange={(next) => changePostOptions(channel.id, next)}
+        postPlan={{
+          value: ownPlan,
+          channel: channel.planMode,
+          disabled:
+            !canWrite || scheduleBusy !== null || Boolean(planBusy[channel.id]),
+          onChange: (next) => void changePostPlan(channel.id, next),
+        }}
+        rewritePending={rewritePending}
+        settingsSaveState={settingsSaves[channel.id]?.state ?? 'idle'}
+        settingsSavedAt={
+          settingsSaves[channel.id]?.at ??
+          (channel.settings?.savedAt
+            ? dayjs(channel.settings.savedAt).format('HH:mm')
+            : null)
         }
-        rememberState={remember[channel.id] ?? 'idle'}
-        onRemember={() => void rememberForChannel(channel.id)}
-        channelProfile={
-          channel.connected ? (
-            <PieceChannelProfile
-              locale={locale}
-              id={channel.id}
-              name={channel.name}
-              canWrite={canWrite}
-            />
-          ) : null
+        onSaveSettings={() =>
+          void saveSettings(channel.id, { options: optionsOf(channel.id) })
+        }
+        channelSaveState={remember[channel.id] ?? 'idle'}
+        onSaveForChannel={() => void rememberForChannel(channel.id)}
+        onRewriteAndRemember={() =>
+          adaptation &&
+          void rememberForChannel(channel.id).then(
+            (ok) => ok && adapt(channel.id, adaptation.kind)
+          )
         }
         when={
           adaptation ? (
@@ -1224,6 +1554,8 @@ export function PieceContainer({
         onSchedule={() => adaptation && void schedule(adaptation, false, at)}
         onPublishNow={() => adaptation && void schedule(adaptation, true, at)}
         onUnschedule={() => adaptation && void unschedule(adaptation)}
+        onDropPlan={() => void changePostPlan(channel.id, 'draft')}
+        onMove={() => adaptation && void move(adaptation, at)}
         onDelete={() => adaptation && void removeAdaptation(adaptation)}
       />
     );

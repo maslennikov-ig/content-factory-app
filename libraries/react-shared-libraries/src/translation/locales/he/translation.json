@@ -1699,5 +1699,9 @@
   "help": "עזרה",
   "uploading": "מעלה",
   "importing": "מייבא",
-  "pick_time": "שעה"
+  "pick_time": "שעה",
+  "navigation_panel": "חלונית ניווט",
+  "navigation_resize": "רוחב הניווט: גררו או השתמשו במקשי החצים",
+  "text_ai": "בינה מלאכותית לטקסט",
+  "image_ai": "בינה מלאכותית לתמונות"
 }

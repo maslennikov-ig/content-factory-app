@@ -344,23 +344,30 @@ export const DecisionModal: FC<{
   approveLabel: string;
   cancelLabel: string;
   onlyApprove: boolean;
+  /** `destructive` when the answer deletes something (second review, 10). */
+  approveVariant?: 'primary' | 'destructive';
   resolution: (value: boolean) => void;
-}> = ({ description, cancelLabel, approveLabel, resolution, onlyApprove }) => {
+}> = ({
+  description,
+  cancelLabel,
+  approveLabel,
+  resolution,
+  onlyApprove,
+  approveVariant = 'primary',
+}) => {
   const { closeCurrent } = useModals();
   return (
     <div className="flex flex-col">
       <div className="max-w-[600px]">{description}</div>
-      <div className="flex gap-[12px] mt-[16px]">
-        <Button
-          onClick={() => {
-            resolution(true);
-            closeCurrent();
-          }}
-        >
-          {approveLabel}
-        </Button>
+      {/*
+        The `Dialog` footer order (`97dq.74`, audit 3.1): on the right, the
+        way out first and quiet, the answer last and primary. Both used to be
+        primary and left-aligned — two green buttons in every «Вы уверены?».
+      */}
+      <div className="flex flex-wrap justify-end gap-[12px] mt-[16px]">
         {!onlyApprove && (
           <Button
+            variant="secondary"
             onClick={() => {
               resolution(false);
               closeCurrent();
@@ -369,6 +376,15 @@ export const DecisionModal: FC<{
             {cancelLabel}
           </Button>
         )}
+        <Button
+          variant={approveVariant}
+          onClick={() => {
+            resolution(true);
+            closeCurrent();
+          }}
+        >
+          {approveLabel}
+        </Button>
       </div>
     </div>
   );
@@ -385,6 +401,7 @@ export const areYouSure = ({
   // emitter never passed the flag through, so a dialog that states a fact
   // rather than asking a question had to show a pointless second button.
   onlyApprove = false,
+  approveVariant = 'primary' as 'primary' | 'destructive',
 } = {}): Promise<boolean> => {
   return new Promise<boolean>((newRes) => {
     decisionModalEmitter.emit('open', {
@@ -393,6 +410,7 @@ export const areYouSure = ({
       approveLabel,
       cancelLabel,
       onlyApprove,
+      approveVariant,
       newRes,
     });
   });
@@ -415,6 +433,7 @@ export const useDecisionModal = () => {
       onlyApprove = false,
       approveLabel = 'Yes',
       cancelLabel = 'No',
+      approveVariant = 'primary' as 'primary' | 'destructive',
       newRes = undefined as any,
     } = {}) => {
       return new Promise<boolean>((res) => {
@@ -425,6 +444,7 @@ export const useDecisionModal = () => {
           children: (
             <DecisionModal
               onlyApprove={onlyApprove}
+              approveVariant={approveVariant}
               resolution={(value) => (newRes ? newRes(value) : res(value))}
               description={description}
               approveLabel={approveLabel}

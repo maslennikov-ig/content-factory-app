@@ -178,7 +178,7 @@ export function VoiceLearningScreen({
         </div>
       ) : (
         <div className="flex min-w-0 flex-col gap-[8px]">
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {t.learnRulesTitle}
           </h3>
           <ul className="flex min-w-0 flex-col gap-[8px]">

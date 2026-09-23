@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Button } from '@contentfactory/react/form/button';
-import { ErrorState, Panel, SkeletonRows } from '../ui/surface';
-import { SectionLabel } from '../ui/section-label';
+import { ErrorState, SkeletonRows } from '../ui/surface';
 import {
   intakeCopy,
   type IntakeLocale,
@@ -16,38 +15,52 @@ import {
   writingProfileUrl,
   type ChannelWritingProfileV1,
 } from '../content-intelligence/intake/writing-profile.adapter';
-import {
-  WritingProfileFields,
-  useWritingProfileAvatars,
-  writingProfileViewRows,
-} from '../content-intelligence/intake/writing-profile.fields';
+import { useWritingProfileAvatars } from '../content-intelligence/intake/writing-profile.fields';
+import { useChannelPlanField } from '../content-intelligence/intake/channel-plan.field';
+import { WritingSettingsPanel } from '../content-intelligence/pieces/post-options.panel';
 
 export type ChannelWritingProfileProps = {
   integrationId: string;
   integrationName: string;
   locale: string;
   canWrite: boolean;
+  /** Прежний вход «сразу править»: панель теперь всегда открыта. */
   initiallyEditing?: boolean;
   onSaved?: () => void | Promise<void>;
 };
 
+const sameProfile = (
+  left: ChannelWritingProfileV1 | null,
+  right: ChannelWritingProfileV1 | null
+) => JSON.stringify(left) === JSON.stringify(right);
+
+/**
+ * «Как пишем в «X»» — настройки канала в той же панели, что и настройки
+ * поста (`97dq.70`, область `channel`).
+ *
+ * Панель всегда открыта (владелец на одиннадцатом заходе убрал «Изменить» у
+ * поста, на тринадцатом попросил один компонент для обоих): те же поля, тот
+ * же порядок, те же «?». Поля текста сохраняются кнопкой «Сохранить»;
+ * «План» — сразу при выборе, с вопросом «Только к новым / Ко всем N», если
+ * у канала есть написанные посты. Рисуется на странице канала и в окне
+ * «Настройки канала», где живёт и «Изменить расписание».
+ */
 export function ChannelWritingProfile({
   integrationId,
   integrationName,
   locale,
   canWrite,
-  initiallyEditing = false,
   onSaved,
 }: ChannelWritingProfileProps) {
   const resolvedLocale: IntakeLocale = locale === 'en' ? 'en' : 'ru';
   const t = intakeCopy[resolvedLocale];
   const request = useFetch();
   const url = writingProfileUrl(integrationId);
-  const [editing, setEditing] = useState(canWrite && initiallyEditing);
   const [draft, setDraft] = useState<ChannelWritingProfileV1 | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const readOnlyNoteId = `channel-writing-profile-read-only-${integrationId}`;
 
   const load = useCallback(async () => {
     const response = await request(url);
@@ -60,26 +73,26 @@ export function ChannelWritingProfile({
     shouldRetryOnError: false,
   });
   const avatars = useWritingProfileAvatars();
+  const avatarOptions = useMemo(
+    () =>
+      avatars.map((avatar) => ({
+        id: avatar.id,
+        label: avatar.name ?? t.profileSpeakerUnnamed,
+      })),
+    [avatars, t.profileSpeakerUnnamed]
+  );
+  const plan = useChannelPlanField({
+    integrationId,
+    locale: resolvedLocale,
+    canWrite,
+  });
 
   useEffect(() => {
-    if (data) {
-      setDraft((current) => (editing && current ? current : data.profile));
-    }
-  }, [data, editing]);
-
-  const beginEditing = useCallback(() => {
-    if (!canWrite || !data) return;
-    setDraft(data.profile);
-    setSaved(false);
-    setSaveFailed(false);
-    setEditing(true);
-  }, [canWrite, data]);
-
-  const cancelEditing = useCallback(() => {
-    setDraft(data?.profile ?? null);
-    setSaveFailed(false);
-    setEditing(false);
+    if (data) setDraft((current) => current ?? data.profile);
   }, [data]);
+
+  const profile = draft ?? data?.profile ?? null;
+  const dirty = Boolean(data && !sameProfile(profile, data.profile));
 
   const change = useCallback((patch: Partial<ChannelWritingProfileV1>) => {
     setSaved(false);
@@ -95,7 +108,6 @@ export function ChannelWritingProfile({
       );
       setDraft(next.profile);
       await mutate(next, { revalidate: false });
-      setEditing(false);
       setSaved(true);
       try {
         await onSaved?.();
@@ -108,13 +120,13 @@ export function ChannelWritingProfile({
   );
 
   const save = useCallback(async () => {
-    if (!canWrite || !draft || saving) return;
+    if (!canWrite || !profile || saving) return;
     setSaving(true);
     setSaveFailed(false);
     try {
       const response = await request(url, {
         method: 'PUT',
-        body: JSON.stringify(buildWritingProfilePayload(draft)),
+        body: JSON.stringify(buildWritingProfilePayload(profile)),
       });
       if (!response.ok) throw new Error('writing profile not saved');
       await acceptResponse(response);
@@ -123,7 +135,7 @@ export function ChannelWritingProfile({
     } finally {
       setSaving(false);
     }
-  }, [acceptResponse, canWrite, draft, request, saving, url]);
+  }, [acceptResponse, canWrite, profile, request, saving, url]);
 
   const reset = useCallback(async () => {
     if (!canWrite || saving) return;
@@ -140,107 +152,72 @@ export function ChannelWritingProfile({
     }
   }, [acceptResponse, canWrite, request, saving, url]);
 
-  const actions = editing ? (
-    <>
-      <Button
-        type="button"
-        variant="quiet"
-        density="dense"
-        disabled={saving}
-        onClick={cancelEditing}
-      >
-        {t.cancel}
-      </Button>
-      <Button
-        type="button"
-        variant="primary"
-        density="dense"
-        disabled={!draft}
-        loading={saving}
-        loadingLabel={t.profileSaving}
-        onClick={() => void save()}
-      >
-        {t.profileSave}
-      </Button>
-    </>
-  ) : canWrite && data ? (
-    <Button
-      type="button"
-      variant="secondary"
-      density="dense"
-      onClick={beginEditing}
-    >
-      {data.stored ? t.profileEdit : t.profileFill}
-    </Button>
-  ) : undefined;
-
   return (
-    <Panel
-      title={t.profileTitle(integrationName)}
-      actions={actions}
-      contentClassName="flex min-w-0 flex-col gap-[16px]"
+    <div
+      data-channel-writing-profile={integrationId}
+      data-channel-writing-profile-name={integrationName}
+      data-channel-writing-profile-state={
+        isLoading && !data
+          ? 'loading'
+          : error && !data
+          ? 'error'
+          : canWrite
+          ? 'editing'
+          : 'view'
+      }
+      data-channel-writing-profile-stored={String(data?.stored ?? false)}
+      className="min-w-0"
     >
-      <div
-        data-channel-writing-profile={integrationId}
-        data-channel-writing-profile-name={integrationName}
-        data-channel-writing-profile-state={
-          isLoading && !data
-            ? 'loading'
-            : error && !data
-            ? 'error'
-            : editing
-            ? 'editing'
-            : 'view'
-        }
-        data-channel-writing-profile-stored={String(data?.stored ?? false)}
-      >
-        {isLoading && !data ? (
-          <SkeletonRows
-            rows={4}
-            label={`${t.profileLoading}: ${integrationName}`}
-          />
-        ) : error && !data ? (
-          <ErrorState
-            title={t.profileFailed}
-            action={
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void mutate()}
-              >
-                {t.retry}
-              </Button>
-            }
-          />
-        ) : data ? (
-          <div className="flex min-w-0 flex-col gap-[16px]">
-            {!data.stored && !editing ? (
-              <div className="flex flex-wrap items-center gap-[8px] rounded-[8px] border border-cf-warning bg-cf-warning-soft px-[12px] py-[12px]">
-                <p className="min-w-[220px] flex-1 cf-body-sm text-cf-ink [text-wrap:pretty]">
+      {isLoading && !data ? (
+        <SkeletonRows
+          rows={4}
+          label={`${t.profileLoading}: ${integrationName}`}
+        />
+      ) : error && !data ? (
+        <ErrorState
+          title={t.profileFailed}
+          action={
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void mutate()}
+            >
+              {t.retry}
+            </Button>
+          }
+        />
+      ) : data && profile ? (
+        <WritingSettingsPanel
+          scope="channel"
+          locale={resolvedLocale}
+          title={t.profileTitle(integrationName)}
+          profile={profile}
+          avatars={avatarOptions}
+          disabled={!canWrite || saving}
+          describedBy={canWrite ? undefined : readOnlyNoteId}
+          onProfileChange={change}
+          plan={plan}
+          footer={
+            <div className="flex min-w-0 flex-col gap-[8px]">
+              {!data.stored ? (
+                <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
                   {t.profileDefaultsBody(data.provider.name)}
                 </p>
-                {canWrite ? (
+              ) : null}
+              {canWrite ? (
+                <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
                   <Button
                     type="button"
-                    variant="quiet"
+                    variant="primary"
                     density="dense"
-                    onClick={beginEditing}
+                    disabled={!dirty && data.stored}
+                    loading={saving}
+                    loadingLabel={t.profileSaving}
+                    data-channel-writing-profile-save="true"
+                    onClick={() => void save()}
                   >
-                    {t.profileFill}
+                    {t.profileSave}
                   </Button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {editing && draft ? (
-              <>
-                <WritingProfileFields
-                  locale={resolvedLocale}
-                  profile={draft}
-                  avatars={avatars}
-                  onChange={change}
-                />
-                <div className="flex flex-wrap items-center gap-[8px]">
                   <Button
                     type="button"
                     variant="quiet"
@@ -250,38 +227,26 @@ export function ChannelWritingProfile({
                   >
                     {t.profileReset}
                   </Button>
-                  {!data.stored ? (
-                    <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
-                      {t.profileDefaultsCaption}
-                    </p>
-                  ) : null}
                 </div>
-              </>
-            ) : (
-              <dl className="grid min-w-0 grid-cols-1 gap-x-[16px] gap-y-[12px] sm:grid-cols-[160px_minmax(0,1fr)]">
-                {writingProfileViewRows(resolvedLocale, data.profile, avatars).map(
-                  (row) => (
-                    <div key={row.key} className="contents">
-                      <SectionLabel as="dt">{row.key}</SectionLabel>
-                      <dd className="min-w-0 cf-body-sm text-cf-ink [overflow-wrap:anywhere]">
-                        {row.value}
-                      </dd>
-                    </div>
-                  )
-                )}
-              </dl>
-            )}
-
-            {saveFailed ? <ErrorState title={t.profileSaveFailed} /> : null}
-            {saved && !saveFailed ? (
-              <p role="status" className="cf-body-sm text-cf-accent">
-                {t.profileSaved}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </Panel>
+              ) : (
+                <p
+                  id={readOnlyNoteId}
+                  className="cf-caption text-cf-ink-muted [text-wrap:pretty]"
+                >
+                  {t.readOnlyBody}
+                </p>
+              )}
+              {saveFailed ? <ErrorState title={t.profileSaveFailed} /> : null}
+              {saved && !saveFailed ? (
+                <p role="status" className="cf-body-sm text-cf-accent">
+                  {t.profileSaved}
+                </p>
+              ) : null}
+            </div>
+          }
+        />
+      ) : null}
+    </div>
   );
 }
 

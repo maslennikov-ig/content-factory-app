@@ -1699,5 +1699,9 @@
   "help": "ヘルプ",
   "uploading": "アップロード中",
   "importing": "インポート中",
-  "pick_time": "時刻"
+  "pick_time": "時刻",
+  "navigation_panel": "ナビゲーションパネル",
+  "navigation_resize": "ナビゲーションの幅：ドラッグまたは矢印キーで調整",
+  "text_ai": "テキスト用AI",
+  "image_ai": "画像用AI"
 }

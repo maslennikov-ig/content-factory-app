@@ -78,6 +78,21 @@ export type PlanDb = {
     excludePostIds?: readonly string[]
   ): Promise<Date[]>;
   channelPlanMode(organizationId: string, integrationId: string): Promise<string | null>;
+  /**
+   * `ContentPiece.tags` — where a post's own plan mode lives (`97dq.70`,
+   * `post-settings.ts`). Optional: a store without it reads every post as
+   * «как в канале».
+   */
+  pieceTags?(organizationId: string, pieceId: string): Promise<unknown>;
+  /**
+   * `tags` заготовки под блокировкой строки (`SELECT … FOR UPDATE`) до конца
+   * транзакции замка (`97dq.70`, ревью P1): чтение-слияние-запись настроек
+   * поста не теряет параллельную запись другого канала той же заготовки.
+   * `null` — заготовки нет.
+   */
+  lockPieceTags?(organizationId: string, pieceId: string): Promise<{ tags: unknown } | null>;
+  /** Записать уже слитый мешок `tags` — только после `lockPieceTags`. */
+  writePieceTags?(organizationId: string, pieceId: string, tags: unknown): Promise<boolean>;
   setPlan(
     organizationId: string,
     adaptationId: string,
@@ -409,6 +424,24 @@ export class PieceRepository {
         });
         return row?.planMode ?? null;
       },
+      pieceTags: async (organizationId, pieceId) => {
+        const row = await client.contentPiece.findFirst({
+          where: { organizationId, id: pieceId },
+          select: { tags: true },
+        });
+        return row?.tags ?? null;
+      },
+      lockPieceTags: async (organizationId, pieceId) => {
+        const rows: Array<{ tags: unknown }> = await client.$queryRaw`SELECT "tags" FROM "ContentPiece" WHERE "organizationId" = ${organizationId} AND "id" = ${pieceId} FOR UPDATE`;
+        return rows?.[0] ? { tags: rows[0].tags ?? null } : null;
+      },
+      writePieceTags: async (organizationId, pieceId, tags) => {
+        const saved = await client.contentPiece.updateMany({
+          where: { organizationId, id: pieceId },
+          data: { tags: tags as any },
+        });
+        return saved.count === 1;
+      },
       setPlan: (organizationId, adaptationId, data, onlyPlan) =>
         client.contentDerivation.updateMany({
           where: {
@@ -462,6 +495,51 @@ export class PieceRepository {
    */
   channelPlanMode(organizationId: string, integrationId: string) {
     return this.planDb(this.client()).channelPlanMode(organizationId, integrationId);
+  }
+
+  /** `ContentPiece.tags` заготовки (`97dq.70`): там живут настройки постов. */
+  pieceTags(organizationId: string, pieceId: string) {
+    return this.planDb(this.client()).pieceTags!(organizationId, pieceId);
+  }
+
+  /**
+   * Заготовки, у которых в этом канале есть живой пост (`97dq.70`): для
+   * вопроса «применить к N уже написанным» при смене режима канала. Строки —
+   * версии с их постами и `tags` заготовки; держателя и «не вышло» решает
+   * сервис по правилу `adaptation-plan.ts`.
+   */
+  channelPieceVariants(organizationId: string, integrationId: string): Promise<
+    Array<PlanVariantRow & { piece: { tags: unknown; archivedAt: Date | null } | null }>
+  > {
+    return this.client().contentDerivation.findMany({
+      where: {
+        organizationId,
+        postId: { not: null },
+        post: { is: { organizationId, integrationId, deletedAt: null } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        contentPieceId: true,
+        integrationId: true,
+        plan: true,
+        planNote: true,
+        plannedAt: true,
+        createdAt: true,
+        postId: true,
+        post: {
+          select: {
+            id: true,
+            state: true,
+            publishDate: true,
+            deletedAt: true,
+            integrationId: true,
+            updatedAt: true,
+          },
+        },
+        piece: { select: { tags: true, archivedAt: true } },
+      },
+    });
   }
 
   /**

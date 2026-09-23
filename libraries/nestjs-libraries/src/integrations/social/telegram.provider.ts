@@ -25,6 +25,74 @@ const uploadDirectory = process.env.UPLOAD_DIRECTORY || '';
 // LocalStorage always publishes under this prefix, see local.storage.ts.
 const publicUploadPrefix = '/uploads/';
 
+/**
+ * A post's HTML as Telegram's `parse_mode: 'HTML'` accepts it.
+ *
+ * Telegram knows a handful of tags and refuses a message with any other, so
+ * everything else is stripped to its text. Bold arrives as `<strong>`,
+ * italic as `<em>` (`97dq.52`) — both renamed to Telegram's own `<b>` and
+ * `<i>`; underline is `<u>` already. A link keeps only its `href`, and only
+ * an http(s) one: the editors add `target` and `rel`, which Telegram does not
+ * take, and any other scheme becomes plain words.
+ */
+export const telegramHtml = (html: string): string => {
+  const kept = striptags(html || '', ['u', 'strong', 'b', 'em', 'i', 'a', 'p']);
+  /*
+    Every kept tag is rebuilt, never passed through (`97dq.75` review P2-6):
+    attributes on <b>/<i>/<u> go, a closing tag with nothing open goes, a link
+    inside a link loses its inner tags, and whatever is still open at the end
+    is closed — Telegram refuses a message that breaks any of these.
+  */
+  const NAME: Record<string, 'b' | 'i' | 'u' | 'a' | 'p'> = {
+    strong: 'b',
+    b: 'b',
+    em: 'i',
+    i: 'i',
+    u: 'u',
+    a: 'a',
+    p: 'p',
+  };
+  const open: Array<'b' | 'i' | 'u' | 'a' | 'drop-a'> = [];
+  const out = kept.replace(
+    /<(\/?)([a-z]+)\b([^>]*)>/gi,
+    (_tag, closing: string, raw: string, attrs: string) => {
+      const name = NAME[raw.toLowerCase()];
+      if (!name) return '';
+      if (name === 'p') return closing ? '\n' : '';
+      if (!closing) {
+        if (name === 'a') {
+          const href = /\bhref\s*=\s*"([^"]*)"/i.exec(attrs)?.[1] ?? '';
+          const inLink = open.includes('a') || open.includes('drop-a');
+          if (inLink || !/^https?:\/\/[^\s"<>]+$/i.test(href)) {
+            open.push('drop-a');
+            return '';
+          }
+          open.push('a');
+          return `<a href="${href}">`;
+        }
+        open.push(name);
+        return `<${name}>`;
+      }
+      const wanted = name === 'a' ? ['a', 'drop-a'] : [name];
+      const at = open.map((one) => wanted.includes(one)).lastIndexOf(true);
+      if (at < 0) return '';
+      // Close what was opened inside it first, so the tags stay nested.
+      const inner = open.splice(at);
+      return inner
+        .reverse()
+        .map((one) => (one === 'drop-a' ? '' : `</${one}>`))
+        .join('');
+    }
+  );
+  return (
+    out +
+    open
+      .reverse()
+      .map((one) => (one === 'drop-a' ? '' : `</${one}>`))
+      .join('')
+  );
+};
+
 export const telegramReleaseUrl = (
   internalId: string,
   accessToken: string,
@@ -221,10 +289,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
   ): Promise<number | null> {
     let messageId: number | null = null;
     const mediaFiles = message.media || [];
-    const text = striptags(message.message || '', ['u', 'strong', 'p'])
-      .replace(/<strong>/g, '<b>')
-      .replace(/<\/strong>/g, '</b>')
-      .replace(/<p>(.*?)<\/p>/g, '$1\n');
+    const text = telegramHtml(message.message || '');
 
     console.log(text);
     const processedMedia = this.processMedia(mediaFiles);

@@ -159,7 +159,7 @@ export function VoiceAvatarCreateDialog({
           <span className="flex items-center gap-[8px]">
             <label
               htmlFor="voice-avatar-create-name"
-              className="cf-label-sm uppercase text-cf-ink-muted"
+              className="cf-label-sm text-cf-ink-muted"
             >
               {t.name}
             </label>
@@ -195,7 +195,7 @@ export function VoiceAvatarCreateDialog({
           <span className="flex items-center gap-[8px]">
             <span
               id="voice-avatar-create-kind"
-              className="cf-label-sm uppercase text-cf-ink-muted"
+              className="cf-label-sm text-cf-ink-muted"
             >
               {t.kind}
             </span>

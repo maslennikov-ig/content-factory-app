@@ -189,7 +189,7 @@ function Monogram({ name }: { name: string | null }) {
     <span
       aria-hidden="true"
       className={clsx(
-        'flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[8px] border cf-label-sm uppercase',
+        'flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[8px] border cf-label-sm',
         initials
           ? 'border-cf-border-control text-cf-ink'
           : 'border-dashed border-cf-border-strong text-cf-ink-muted'
@@ -418,7 +418,7 @@ export function VoiceAvatarsScreen({
                       <span className="text-cf-accent">
                         <TickIcon />
                       </span>
-                      <span className="cf-label-sm uppercase text-cf-accent">
+                      <span className="cf-label-sm text-cf-accent">
                         {t.avatarsWritesByDefault}
                       </span>
                     </>
@@ -470,7 +470,7 @@ export function VoiceAvatarsScreen({
                     )}
 
                     <span className="flex flex-wrap items-center gap-[8px]">
-                      <Status className="uppercase border-cf-border-strong">
+                      <Status className="border-cf-border-strong">
                         {KIND_LABEL(locale, avatar.kind)}
                       </Status>
                       {avatar.analysed ? (
@@ -478,7 +478,6 @@ export function VoiceAvatarsScreen({
                           <Status
                             tone="accent"
                             icon={<TickIcon />}
-                            className="uppercase"
                           >
                             {t.avatarsReady}
                           </Status>
@@ -489,7 +488,7 @@ export function VoiceAvatarsScreen({
                           </span>
                         </>
                       ) : (
-                        <Status className="uppercase text-cf-ink-muted">
+                        <Status className="text-cf-ink-muted">
                           <InfoIcon />
                           {t.avatarsNotAnalysed}
                         </Status>
@@ -691,7 +690,7 @@ export function VoiceAvatarsScreen({
 
           {deleting.isDefault && successors.length ? (
             <div className="flex flex-col gap-[8px]">
-              <p className="cf-label-sm uppercase text-cf-ink-muted">
+              <p className="cf-label-sm text-cf-ink-muted">
                 {t.avatarsDeleteSuccessor}
               </p>
               {/*
@@ -751,7 +750,7 @@ export function VoiceAvatarsScreen({
             </div>
           ) : (
             <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px]">
-              <p className="cf-label-sm uppercase text-cf-ink-muted">
+              <p className="cf-label-sm text-cf-ink-muted">
                 {t.avatarsDeleteWhatGoes}
               </p>
               <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">

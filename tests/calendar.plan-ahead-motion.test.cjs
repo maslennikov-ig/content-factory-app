@@ -1,7 +1,8 @@
 'use strict';
 /**
- * «Впереди N дней» in the calendar header and the content transitions
- * (`content-factory-next-97dq.59`, owner pick 23.09.2026).
+ * The plan ahead in the calendar header and in «Производство», and the
+ * content transitions (`content-factory-next-97dq.59`; counts, not a streak,
+ * since `97dq.73` — the thirteenth walk could not read «0 дней впереди»).
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -27,22 +28,35 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 afterEach(cleanup);
 
 const AHEAD = {
-  version: 'plan-ahead/v1',
+  version: 'plan-ahead/v2',
   today: '2026-09-24',
   timeZone: 'Europe/Moscow',
   horizon: 60,
   days: 4,
   until: '2026-09-27',
   emptyFrom: '2026-09-28',
+  reserved: 2,
+  queued: 3,
+  planned: 5,
+  planUntil: '2026-09-29',
+  published7d: 6,
+  daysWithPosts: 5,
   strip: Array.from({ length: 14 }, (_, index) => ({
-    date: `2026-10-${String(index + 1).padStart(2, '0')}`,
-    filled: index < 4,
+    date: new Date(Date.UTC(2026, 8, 24 + index)).toISOString().slice(0, 10),
+    filled: index < 4 || index === 5,
+    reserved: index === 0 ? 1 : index === 5 ? 1 : 0,
+    queued: index > 0 && index < 4 ? 1 : 0,
+    published: index === 0 ? 1 : 0,
   })),
   channels: [
-    { integrationId: 'tg', name: 'AiDevTeam', days: 4, until: '2026-09-27', emptyFrom: '2026-09-28' },
-    { integrationId: 'vk', name: 'Сообщество AiDev', days: 0, until: null, emptyFrom: '2026-09-24' },
+    { integrationId: 'tg', name: 'AiDevTeam', days: 4, until: '2026-09-27', emptyFrom: '2026-09-28', reserved: 2, queued: 3, planned: 5, planUntil: '2026-09-29', published7d: 6 },
+    { integrationId: 'vk', name: 'Сообщество AiDev', days: 0, until: null, emptyFrom: '2026-09-24', reserved: 0, queued: 0, planned: 0, planUntil: null, published7d: 0 },
   ],
 };
+const weekdayOf = (y, m, d) =>
+  new Intl.DateTimeFormat('ru', { weekday: 'short', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(y, m - 1, d)))
+    .replace('.', '');
 
 let requests;
 let answer;
@@ -62,7 +76,8 @@ const mocks = {
           .then((data) => setState({ data, isLoading: false }))
           .catch((error) => setState({ error, isLoading: false }));
       React.useEffect(() => {
-        void reload();
+        // SWR asks nothing for a null key.
+        if (key) void reload();
       }, [key]);
       return { ...state, mutate: reload };
     },
@@ -83,19 +98,15 @@ describe('«впереди N дней» in the calendar header', () => {
     expect(ahead.planAheadUrl([], '')).toBe('/analytics/ahead');
   });
 
-  test('the words: «впереди 4 дня · до вс 27.09», per channel «N дней · до DD.MM» or «пусто с DD.MM»', () => {
-    const weekday = new Intl.DateTimeFormat('ru', { weekday: 'short', timeZone: 'UTC' })
-      .format(new Date(Date.UTC(2026, 8, 27)))
-      .replace('.', '');
-    expect(ahead.aheadLabel(AHEAD, 'ru')).toBe(`впереди 4 дня · до ${weekday} 27.09`);
-    expect(ahead.aheadLabel({ days: 0, until: null, emptyFrom: '2026-09-24' }, 'ru')).toBe(
-      'впереди пусто'
-    );
-    expect(ahead.aheadChannelLine(AHEAD.channels[0], 'ru')).toBe('4 дня · до 27.09');
-    expect(ahead.aheadChannelLine(AHEAD.channels[1], 'ru')).toBe('пусто с 24.09');
-    expect(ahead.aheadChannelLine({ days: 1, until: '2026-09-24', emptyFrom: '2026-09-25' }, 'en')).toBe(
-      '1 day · until 24.09'
-    );
+  test('the words count posts: «В плане 5 постов · до вт 29.09», per channel «N постов · до DD.MM» or «пусто»', () => {
+    expect(ahead.aheadLabel(AHEAD, 'ru')).toBe(`В плане 5 постов · до ${weekdayOf(2026, 9, 29)} 29.09`);
+    expect(ahead.aheadLabel({ ...AHEAD, planned: 3 }, 'ru')).toMatch(/^В плане 3 поста · до /);
+    expect(ahead.aheadLabel({ ...AHEAD, planned: 1 }, 'ru')).toMatch(/^В плане 1 пост · до /);
+    expect(ahead.aheadLabel({ planned: 0, planUntil: null }, 'ru')).toBe('План пуст');
+    expect(ahead.aheadLabel({ planned: 0, planUntil: null }, 'en')).toBe('Plan is empty');
+    expect(ahead.aheadChannelLine(AHEAD.channels[0], 'ru')).toBe('5 постов · до 29.09');
+    expect(ahead.aheadChannelLine(AHEAD.channels[1], 'ru')).toBe('пусто');
+    expect(ahead.aheadChannelLine({ planned: 1, planUntil: '2026-09-24' }, 'en')).toBe('1 post · until 24.09');
   });
 
   test('the chip opens the channel list on hover and closes on Escape; the «?» explains the count', async () => {
@@ -106,14 +117,14 @@ describe('«впереди N дней» in the calendar header', () => {
         timeZone: 'Europe/Moscow',
       })
     );
-    const chip = await screen.findByRole('button', { name: /впереди 4 дня/ });
+    const chip = await screen.findByRole('button', { name: /В плане 5 постов/ });
     expect(requests[0]).toContain('/analytics/ahead?integrationIds=tg%2Cvk');
-    expect(screen.getByRole('button', { name: 'Подсказка: впереди дней' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Подсказка: план впереди' })).toBeTruthy();
     expect(document.querySelector('[data-plan-ahead-channels]')).toBeNull();
     fireEvent.mouseEnter(chip.parentElement);
     const list = document.querySelector('[data-plan-ahead-channels]');
-    expect(list.textContent).toContain('AiDevTeam4 дня · до 27.09');
-    expect(list.textContent).toContain('Сообщество AiDevпусто с 24.09');
+    expect(list.textContent).toContain('AiDevTeam5 постов · до 29.09');
+    expect(list.textContent).toContain('Сообщество AiDevпусто');
     expect(chip.getAttribute('aria-expanded')).toBe('true');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(document.querySelector('[data-plan-ahead-channels]')).toBeNull();
@@ -124,19 +135,71 @@ describe('«впереди N дней» in the calendar header', () => {
 
   test('a failed count says so quietly and keeps its place', async () => {
     answer = { ok: false, json: async () => ({}) };
-    render(h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: [], timeZone: 'UTC' }));
-    await screen.findByText('Не удалось посчитать, на сколько дней вперёд есть план.');
+    render(h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: ['tg'], timeZone: 'UTC' }));
+    await screen.findByText('Не удалось посчитать план впереди.');
     expect(document.querySelector('[data-plan-ahead="error"]')).not.toBeNull();
   });
 
-  test('the analytics card: the number, «дня впереди», a 14-day strip', async () => {
-    render(h(ahead.PlanAheadCard, { locale: 'ru', timeZone: 'UTC' }));
-    await screen.findByText('4');
+  test('no channel in view asks nothing and reads «План пуст», not the whole organisation (second review, item 4)', async () => {
+    render(h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: [], timeZone: 'UTC' }));
+    await act(async () => {});
+    expect(requests).toEqual([]);
+    const chip = screen.getByRole('button', { name: 'План пуст' });
+    expect(chip.className).toContain('border-dashed');
+  });
+
+  test('an empty plan still shows the chip, dashed, with «План пуст»', async () => {
+    answer = { ok: true, json: async () => ({ ...AHEAD, planned: 0, reserved: 0, queued: 0, planUntil: null }) };
+    render(h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: ['tg'], timeZone: 'UTC' }));
+    const chip = await screen.findByRole('button', { name: 'План пуст' });
+    expect(chip.className).toContain('border-dashed');
+    expect(document.querySelector('[data-plan-ahead="0"]')).not.toBeNull();
+  });
+
+  test('Производство: four numbers, a 14-day strip with counts and a legend, a table per channel, every card with «?»', async () => {
+    render(h(ahead.PlanAheadOverview, { locale: 'ru', timeZone: 'UTC' }));
+    await screen.findByText('Постов впереди');
+    const metric = (name) => document.querySelector(`[data-plan-ahead-metric="${name}"]`).textContent;
+    expect(metric('planned')).toContain('5');
+    expect(metric('planned')).toContain('в плане 2 · в очереди 3');
+    expect(metric('days')).toContain('5 из 14');
+    expect(metric('until')).toContain('29.09');
+    expect(metric('empty')).toContain('28.09');
     const strip = document.querySelector('[data-plan-ahead-strip]');
     expect(strip.children).toHaveLength(14);
-    expect([...strip.children].filter((day) => day.getAttribute('data-filled') === 'true')).toHaveLength(4);
-    expect(document.body.textContent).toContain('дня впереди');
-    expect(screen.getByRole('button', { name: 'Подсказка: впереди дней' })).toBeTruthy();
+    expect([...strip.children].map((day) => day.getAttribute('data-count')).slice(0, 6)).toEqual(['2', '1', '1', '1', '0', '1']);
+    expect(strip.children[0].textContent).toContain('24.09');
+    expect(document.querySelector('[data-plan-ahead-legend]').textContent).toContain('пусто — постов нет');
+    const rows = [...document.querySelectorAll('[data-plan-ahead-table] tbody tr')].map((row) =>
+      [...row.children].map((cell) => cell.textContent)
+    );
+    expect(rows[0].slice(0, 4)).toEqual(['AiDevTeam', '2', '3', '6']);
+    expect(rows[1].slice(0, 5)).toEqual(['Сообщество AiDev', '0', '0', '0', '—']);
+    for (const name of [
+      'Подсказка: план впереди',
+      'Подсказка: постов впереди',
+      'Подсказка: дней с постами из ближайших 14',
+      'Подсказка: план до',
+      'Подсказка: первый пустой день',
+      'Подсказка: ближайшие 14 дней',
+      'Подсказка: по каналам',
+    ]) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+    }
+    // The streak words are gone.
+    expect(document.body.textContent).not.toMatch(/впереди \d+ д|закрашено/);
+  });
+
+  test('Производство: a failed count offers a working retry', async () => {
+    answer = { ok: false, json: async () => ({}) };
+    render(h(ahead.PlanAheadOverview, { locale: 'en', timeZone: 'UTC' }));
+    await screen.findByText('Could not count the plan ahead.');
+    answer = { ok: true, json: async () => AHEAD };
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    await screen.findByText('Posts ahead');
+    expect(requests).toHaveLength(2);
   });
 
   test('the legend shows the four states with a «?»', () => {

@@ -230,8 +230,6 @@ export const intakeCopy = {
 
     /* --- Карточка канала --------------------------------------------------- */
     profileTitle: (name: string) => `Как пишем в «${name}»`,
-    profileDefaultsCaption:
-      'Значения по умолчанию — из рекомендаций для Telegram; правьте под свой канал.',
     profileAuto: 'выберем сами',
     profileLength: 'Длина',
     profileLengthShort: 'до 500',
@@ -275,17 +273,13 @@ export const intakeCopy = {
     profileSaving: 'Сохраняем…',
     profileSaved: 'Карточка сохранена.',
     profileReset: 'Вернуть умолчания',
-    profileClose: 'Закрыть',
     profileFailed: 'Карточка не загрузилась.',
     profileSaveFailed: 'Карточка не сохранилась. Попробуйте ещё раз.',
     profileLoading: 'Загружаем карточку',
-    profileEdit: 'Изменить',
-    profileFill: 'Заполнить',
     profileDefaultsBody: (provider: string) =>
       `Карточка не заполнена: пишем по умолчаниям для ${
         provider || 'площадки'
       }. Проверьте их — это три минуты, и каждая адаптация станет точнее.`,
-    profileNotSet: 'не указано',
     profileHintFor: (label: string) => `Подсказка: ${label}`,
     profileHintLength:
       'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
@@ -299,7 +293,6 @@ export const intakeCopy = {
     profileHintFormat:
       'Как построить текст: мнение, история, список или другой формат.',
     /* Слои настроек (`97dq.38`): кто говорит в канале и как он обращается. */
-    profileSpeaker: 'Кто говорит здесь',
     profileSpeakerDefault: 'По умолчанию',
     profileSpeakerUnnamed: 'Без имени',
     profileHintSpeaker:
@@ -313,6 +306,23 @@ export const intakeCopy = {
     formatExpert: 'разбор',
     formatCase: 'случай из работы',
     formatStory: 'история',
+
+    /* --- Ссылка для поста (`97dq.75`) ---------------------------------------
+       Детерминированный вопрос, не от ИИ: задаётся, когда канал принимает
+       ссылки. Ответ — единственная ссылка, которую пост добавит сам. */
+    postLinkQuestion: 'Какую ссылку поставить в пост?',
+    postLinkQuestionHint:
+      'Спрашиваем, потому что канал принимает ссылки. Своих адресов мы не придумываем: в пост попадёт только эта ссылка и ссылки из вашего материала. Передумаете — поменяйте её в настройках поста, в поле «Ссылка для поста».',
+    postLinkChoice: 'Ссылка в посте',
+    postLinkNone: 'Без ссылки',
+    postLinkOwn: 'Вставить ссылку',
+    postLinkAddress: 'Адрес ссылки',
+    postLinkPlaceholder: 'https://…',
+    postLinkInvalid: 'Нужен адрес http или https, например https://example.com.',
+    postLinkSave: 'Сохранить ответ',
+    postLinkSaving: 'Сохраняем ответ',
+    postLinkFailed: 'Ответ не сохранился. Попробуйте ещё раз.',
+    postLinkKeep: 'Оставить как было',
   },
   en: {
     title: 'New piece',
@@ -471,8 +481,6 @@ export const intakeCopy = {
       'Writing texts belongs to an editor or an administrator of the workspace. Ask whoever runs it.',
 
     profileTitle: (name: string) => `How we write in “${name}”`,
-    profileDefaultsCaption:
-      'The defaults come from the Telegram guidance; adjust them for your own channel.',
     profileAuto: 'we decide',
     profileLength: 'Length',
     profileLengthShort: 'up to 500',
@@ -513,17 +521,13 @@ export const intakeCopy = {
     profileSaving: 'Saving…',
     profileSaved: 'The card is saved.',
     profileReset: 'Back to defaults',
-    profileClose: 'Close',
     profileFailed: 'The card did not load.',
     profileSaveFailed: 'The card was not saved. Try again.',
     profileLoading: 'Loading the card',
-    profileEdit: 'Edit',
-    profileFill: 'Fill in',
     profileDefaultsBody: (provider: string) =>
       `This card is not filled in: we use the defaults for ${
         provider || 'this platform'
       }. Review them once so every adaptation is more accurate.`,
-    profileNotSet: 'not set',
     profileHintFor: (label: string) => `Hint: ${label}`,
     profileHintLength: 'Post length. We can choose within the platform limit.',
     profileHintEmoji:
@@ -535,7 +539,6 @@ export const intakeCopy = {
       'What readers should do after reading. A call to action may be unnecessary.',
     profileHintFormat:
       'How to structure the text: opinion, story, list, or another format.',
-    profileSpeaker: 'Who speaks here',
     profileSpeakerDefault: 'Default',
     profileSpeakerUnnamed: 'Unnamed',
     profileHintSpeaker:
@@ -548,6 +551,21 @@ export const intakeCopy = {
     formatExpert: 'expert take',
     formatCase: 'case from work',
     formatStory: 'story',
+
+    /* --- Link for the post (`97dq.75`) ----------------------------------- */
+    postLinkQuestion: 'Which link goes into the post?',
+    postLinkQuestionHint:
+      'We ask because the channel takes links. We never invent addresses: the post gets only this link and the links in your material. Change your mind — change it in the post settings, in the «Link for the post» field.',
+    postLinkChoice: 'Link in the post',
+    postLinkNone: 'No link',
+    postLinkOwn: 'Add a link',
+    postLinkAddress: 'Link address',
+    postLinkPlaceholder: 'https://…',
+    postLinkInvalid: 'Needs an http or https address, like https://example.com.',
+    postLinkSave: 'Save the answer',
+    postLinkSaving: 'Saving the answer',
+    postLinkFailed: 'The answer was not saved. Try again.',
+    postLinkKeep: 'Keep it as it was',
   },
 } as const;
 

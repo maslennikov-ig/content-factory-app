@@ -157,9 +157,9 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'ai-keys',
-        question: 'Где ключи ИИ и что такое «модель на роль»?',
+        question: 'Где ключи ИИ и что такое «ИИ на роль»?',
         answer:
-          'В настройках, вкладка «ИИ». Переключатель «Ключи системы / Свой ключ» относится и к генерации, и к поиску. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, полей для своих ключей там нет, а уже сохранённые ключи никуда не деваются и снова вступают в работу, как только вы выберете «Свой ключ». На «Своём ключе» у каждого поискового движка своё поле: пустое использует ключ системы, а сохранённый ключ перекрывает системный только для этого движка и не расходует включённый лимит. Крестик у поля возвращает этот движок на ключ системы — без ключа поиск не остаётся. «Модель на роль» — какая модель отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает модель по умолчанию.',
+          'В настройках, вкладка «ИИ». Переключатель «Ключи системы / Свой ключ» относится и к генерации, и к поиску. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, полей для своих ключей там нет, а уже сохранённые ключи никуда не деваются и снова вступают в работу, как только вы выберете «Свой ключ». На «Своём ключе» у каждого поискового движка своё поле: пустое использует ключ системы, а сохранённый ключ перекрывает системный только для этого движка и не расходует включённый лимит. Крестик у поля возвращает этот движок на ключ системы — без ключа поиск не остаётся. «ИИ на роль» — какой ИИ отвечает за какой вид работы: черновик, разбор чужого текста, вопросы. Если оставить пустым, работает ИИ по умолчанию.',
       },
       {
         id: 'ai-usage',
@@ -262,9 +262,9 @@ export const helpCopy: { ru: Words; en: Words } = {
       },
       {
         id: 'ai-keys',
-        question: 'Where are the AI keys, and what is «a model per role»?',
+        question: 'Where are the AI keys, and what is «AI per role»?',
         answer:
-          'In settings, the «AI» tab. The «System keys / Own key» choice applies to generation and to search alike. On the system keys, search runs on them and spends the included allowance, there are no fields for own keys, and keys you have already saved stay where they are and come back into use the moment you choose «Own key». On your own key each search engine has its own field: blank uses the system key, while a saved key overrides the system key only for that engine and does not spend the included allowance. The cross beside a field returns that engine to the system key — search is never left without one. «A model per role» says which model handles each kind of work: drafting, reading someone else’s text, questions. Left empty, the default model works.',
+          'In settings, the «AI» tab. The «System keys / Own key» choice applies to generation and to search alike. On the system keys, search runs on them and spends the included allowance, there are no fields for own keys, and keys you have already saved stay where they are and come back into use the moment you choose «Own key». On your own key each search engine has its own field: blank uses the system key, while a saved key overrides the system key only for that engine and does not spend the included allowance. The cross beside a field returns that engine to the system key — search is never left without one. «AI per role» says which AI handles each kind of work: drafting, reading someone else’s text, questions. Left empty, the default AI works.',
       },
       {
         id: 'ai-usage',

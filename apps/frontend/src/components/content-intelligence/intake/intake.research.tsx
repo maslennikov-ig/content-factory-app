@@ -278,7 +278,7 @@ export function ResearchEvidenceRows({
           className="flex min-w-0 flex-col gap-[4px]"
           data-intake-research-found="true"
         >
-          <span className="cf-label-sm uppercase text-cf-ink-muted">
+          <span className="cf-label-sm text-cf-ink-muted">
             {t.researchFoundTitle}
           </span>
           {editableFound ? (
@@ -501,7 +501,7 @@ export function ResearchOutcome({
 
       {inputKind === 'thought' && corrections.length ? (
         <div className="flex min-w-0 flex-col gap-[4px]">
-          <span className="cf-label-sm uppercase text-cf-ink-muted">{t.researchThoughtTitle}</span>
+          <span className="cf-label-sm text-cf-ink-muted">{t.researchThoughtTitle}</span>
           <p className="cf-body-lg text-cf-ink [text-wrap:pretty]" data-intake-research-thought="true">
             {markedThought(input, corrections)}
           </p>

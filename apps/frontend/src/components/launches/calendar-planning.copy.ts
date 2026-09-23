@@ -11,8 +11,9 @@ import { plural } from '@contentfactory/nestjs-libraries/content-intelligence/br
 /** 1 слот, 2 слота, 5 слотов, 21 слот — общим `plural`. */
 const ruSlots = (count: number) =>
   `${count} ${plural(count, ['слот', 'слота', 'слотов'])}`;
-const ruDays = (count: number) => plural(count, ['день', 'дня', 'дней']);
-const enDays = (count: number) => (count === 1 ? 'day' : 'days');
+/** 1 пост, 3 поста, 5 постов. */
+const ruPosts = (count: number) => plural(count, ['пост', 'поста', 'постов']);
+const enPosts = (count: number) => (count === 1 ? 'post' : 'posts');
 
 export const calendarPlanningCopy = {
   ru: {
@@ -21,13 +22,36 @@ export const calendarPlanningCopy = {
     allChannels: 'Все каналы',
     channelsLink: 'Все каналы →',
     noDate: 'Дата не выбрана',
-    search: 'Поиск по заголовку и каналу',
+    search: 'Поиск: заголовок, код cnt- или канал',
+    // Фильтры «Что публикуем» (`97dq.72`).
+    channelFilter: 'Канал',
+    channelFilterHintLabel: 'Подсказка: канал',
+    channelFilterHint:
+      'Показывает адаптации одного канала. «Все каналы» — адаптации всех каналов этого слота.',
+    stateFilter: 'Состояние адаптации',
+    stateFilterWords: {
+      all: 'Все',
+      free: 'Свободные',
+      reserved: 'В плане',
+      queued: 'В очереди',
+    },
+    stateFilterHintLabel: 'Подсказка: состояние адаптации',
+    stateFilterHint:
+      '«Свободные» ещё без времени. «В плане» — время забронировано, пост ждёт подтверждения. «В очереди» — выйдет сам в своё время. Число — сколько таких сейчас в списке.',
     ready: 'Готовые адаптации',
     readyAt: 'готово',
     newPiece: 'Новая заготовка',
     cancel: 'Отмена',
     placeAt: (time: string) => `Поставить на ${time}`,
     choose: 'Выбрать',
+    // Шапка календаря (`97dq.74`): кнопки и полосы вместо кликабельных div.
+    toolbarPrevious: 'Назад',
+    toolbarNext: 'Вперёд',
+    toolbarListState: 'Какие посты показать',
+    toolbarPeriod: 'Период: день, неделя или месяц',
+    toolbarView: 'Вид: календарь или список',
+    toolbarViewCalendar: 'Календарь',
+    toolbarViewList: 'Список',
     // Где адаптация стоит сейчас (`97dq.57`).
     slotReserved: 'в плане',
     slotQueued: 'в очереди',
@@ -73,23 +97,65 @@ export const calendarPlanningCopy = {
     lessRows: 'свернуть',
     groupOpen: (time: string, count: number) =>
       `${time}: ${count} ${plural(count, ['канал', 'канала', 'каналов'])} — показать посты`,
-    // «Впереди N дней» (`97dq.59`).
-    ahead: (count: number, until: string) =>
-      count ? `впереди ${count} ${ruDays(count)} · до ${until}` : 'впереди пусто',
+    // План впереди (`97dq.59`, счётчики с `97dq.73`): в постах, не в днях подряд.
+    aheadChip: (count: number, until: string) =>
+      count
+        ? `В плане ${count} ${ruPosts(count)}${until ? ` · до ${until}` : ''}`
+        : 'План пуст',
     aheadChannel: (count: number, until: string) =>
-      `${count} ${ruDays(count)} · до ${until}`,
-    aheadEmptyFrom: (day: string) => `пусто с ${day}`,
+      count ? `${count} ${ruPosts(count)}${until ? ` · до ${until}` : ''}` : 'пусто',
     aheadByChannel: 'По каналам',
-    aheadHintLabel: 'Подсказка: впереди дней',
+    aheadHintLabel: 'Подсказка: план впереди',
     aheadHint:
-      'Сколько дней подряд, начиная с сегодня, в каждом есть пост «в плане» или «в очереди» в выбранных каналах.',
-    aheadCardTitle: 'План впереди',
-    aheadCardDays: (count: number) => `${ruDays(count)} впереди`,
-    aheadCardStrip:
-      'следующие 14 дней · закрашено — есть пост в плане или в очереди',
-    aheadCardHint:
-      'Дни подряд с сегодняшнего, в каждом из которых стоит пост «в плане» или «в очереди». Считается по всем каналам.',
-    aheadError: 'Не удалось посчитать, на сколько дней вперёд есть план.',
+      'Сколько постов стоит впереди, с сегодняшнего дня: и «в плане» (время забронировано, пост ждёт подтверждения), и «в очереди» (выйдет сам). «До» — последний день, на который что-то стоит. Наведите, чтобы увидеть по каналам.',
+    aheadError: 'Не удалось посчитать план впереди.',
+    aheadLoading: 'Считаем план впереди',
+    aheadHintFor: (subject: string) => `Подсказка: ${subject.toLocaleLowerCase('ru')}`,
+    aheadTitle: 'План впереди',
+    aheadDescription:
+      'Что уже стоит в календаре с сегодняшнего дня и где план кончается. Все каналы, ваш часовой пояс; период и канал выше сюда не относятся.',
+    today: 'сегодня',
+    kpiAhead: 'Постов впереди',
+    kpiAheadSplit: (reserved: number, queued: number) =>
+      `в плане ${reserved} · в очереди ${queued}`,
+    kpiAheadHint:
+      'Все посты с сегодняшнего дня, которые стоят в календаре. «В плане» ждут подтверждения, «в очереди» выйдут сами.',
+    kpiDays: 'Дней с постами из ближайших 14',
+    kpiDaysValue: (count: number, of: number) => `${count} из ${of}`,
+    kpiDaysHint:
+      'Сколько из ближайших 14 дней, считая сегодня, имеют хотя бы один пост — в плане, в очереди или уже вышедший сегодня.',
+    kpiUntil: 'План до',
+    kpiUntilNone: 'плана нет',
+    kpiUntilHint:
+      'Последний день, на который стоит пост в плане или в очереди. Дальше этого дня календарь пуст.',
+    kpiEmpty: 'Первый пустой день',
+    kpiEmptyHint:
+      'Ближайший день, начиная с сегодня, без единого поста. С него стоит продолжать план.',
+    stripTitle: 'Ближайшие 14 дней',
+    stripHint:
+      'Каждая клетка — день, число в ней — сколько постов в этот день. Цвет берётся у самого «сильного» поста дня: в очереди, потом в плане, потом вышедший.',
+    stripDay: (day: string, reserved: number, queued: number, published: number) =>
+      `${day ? `${day}: ` : ''}в плане ${reserved}, в очереди ${queued}, вышло ${published}`,
+    stripLegend: {
+      queued: 'выйдет сам',
+      reserved: 'ждёт подтверждения',
+      published: 'уже вышел сегодня',
+      empty: 'пусто — постов нет',
+    },
+    tableTitle: 'По каналам',
+    tableHint:
+      'Та же картина по каждому каналу: сколько постов впереди, сколько вышло за последние 7 дней, до какого дня хватает плана и где первый пустой день.',
+    tableEmpty: 'Подключённых каналов пока нет',
+    colChannel: 'Канал',
+    colReserved: 'В плане',
+    colQueued: 'В очереди',
+    colPublished: 'Вышло за 7 дней',
+    colUntil: 'План до',
+    colEmpty: 'Первый пустой день',
+    aheadEmptyTitle: 'Впереди ничего не стоит',
+    aheadEmptyBody:
+      'Поставьте готовую адаптацию на время в календаре — она появится здесь.',
+    aheadEmptyAction: 'Открыть календарь',
     // Окно после «Поставить на ЧЧ:ММ» (`97dq.59`, холст C3 A).
     placedReserved: 'Стоит в плане',
     placedQueued: 'Стоит в очереди',
@@ -115,13 +181,34 @@ export const calendarPlanningCopy = {
     allChannels: 'All channels',
     channelsLink: 'All channels →',
     noDate: 'Date not selected',
-    search: 'Search by title or channel',
+    search: 'Search: title, cnt- code or channel',
+    channelFilter: 'Channel',
+    channelFilterHintLabel: 'Hint: channel',
+    channelFilterHint:
+      'Shows one channel’s adaptations. “All channels” shows every channel of this slot.',
+    stateFilter: 'Adaptation state',
+    stateFilterWords: {
+      all: 'All',
+      free: 'Free',
+      reserved: 'Planned',
+      queued: 'Queued',
+    },
+    stateFilterHintLabel: 'Hint: adaptation state',
+    stateFilterHint:
+      '“Free” has no time yet. “Planned” holds a time and waits for confirmation. “Queued” goes out by itself on time. The number is how many are in the list now.',
     ready: 'Ready adaptations',
     readyAt: 'ready',
     newPiece: 'New piece',
     cancel: 'Cancel',
     placeAt: (time: string) => `Place at ${time}`,
     choose: 'Choose',
+    toolbarPrevious: 'Previous',
+    toolbarNext: 'Next',
+    toolbarListState: 'Which posts to show',
+    toolbarPeriod: 'Period: day, week or month',
+    toolbarView: 'View: calendar or list',
+    toolbarViewCalendar: 'Calendar',
+    toolbarViewList: 'List',
     slotReserved: 'planned',
     slotQueued: 'queued',
     slotFree: 'free',
@@ -165,21 +252,64 @@ export const calendarPlanningCopy = {
     lessRows: 'collapse',
     groupOpen: (time: string, count: number) =>
       `${time}: ${count} ${count === 1 ? 'channel' : 'channels'} — show posts`,
-    ahead: (count: number, until: string) =>
-      count ? `${count} ${enDays(count)} ahead · until ${until}` : 'nothing ahead',
+    aheadChip: (count: number, until: string) =>
+      count
+        ? `${count} ${enPosts(count)} planned${until ? ` · until ${until}` : ''}`
+        : 'Plan is empty',
     aheadChannel: (count: number, until: string) =>
-      `${count} ${enDays(count)} · until ${until}`,
-    aheadEmptyFrom: (day: string) => `empty from ${day}`,
+      count ? `${count} ${enPosts(count)}${until ? ` · until ${until}` : ''}` : 'empty',
     aheadByChannel: 'By channel',
-    aheadHintLabel: 'Hint: days ahead',
+    aheadHintLabel: 'Hint: plan ahead',
     aheadHint:
-      'How many days in a row, starting today, each hold a planned or queued post in the selected channels.',
-    aheadCardTitle: 'Plan ahead',
-    aheadCardDays: (count: number) => `${enDays(count)} ahead`,
-    aheadCardStrip: 'next 14 days · filled — a planned or queued post',
-    aheadCardHint:
-      'Days in a row from today that each hold a planned or queued post. Counted across all channels.',
-    aheadError: 'Could not count how many days ahead are planned.',
+      'How many posts stand ahead from today: both “planned” (the time is held, the post waits for confirmation) and “queued” (it goes out by itself). “Until” is the last day that holds anything. Hover to see each channel.',
+    aheadError: 'Could not count the plan ahead.',
+    aheadLoading: 'Counting the plan ahead',
+    aheadHintFor: (subject: string) => `Hint: ${subject.toLocaleLowerCase('en')}`,
+    aheadTitle: 'Plan ahead',
+    aheadDescription:
+      'What already stands on the calendar from today, and where the plan ends. All channels, your time zone; the period and channel above do not apply here.',
+    today: 'today',
+    kpiAhead: 'Posts ahead',
+    kpiAheadSplit: (reserved: number, queued: number) =>
+      `planned ${reserved} · queued ${queued}`,
+    kpiAheadHint:
+      'Every post from today on that stands on the calendar. “Planned” ones wait for confirmation, “queued” ones go out by themselves.',
+    kpiDays: 'Days with posts in the next 14',
+    kpiDaysValue: (count: number, of: number) => `${count} of ${of}`,
+    kpiDaysHint:
+      'How many of the next 14 days, today included, hold at least one post — planned, queued, or already out today.',
+    kpiUntil: 'Plan until',
+    kpiUntilNone: 'no plan',
+    kpiUntilHint:
+      'The last day with a planned or queued post. Past it the calendar is empty.',
+    kpiEmpty: 'First empty day',
+    kpiEmptyHint:
+      'The nearest day, from today on, without a single post. That is where the plan should continue.',
+    stripTitle: 'Next 14 days',
+    stripHint:
+      'Each cell is a day; its number is how many posts it holds. The colour is that of the day’s strongest post: queued, then planned, then already out.',
+    stripDay: (day: string, reserved: number, queued: number, published: number) =>
+      `${day ? `${day}: ` : ''}planned ${reserved}, queued ${queued}, out ${published}`,
+    stripLegend: {
+      queued: 'goes out by itself',
+      reserved: 'waits for confirmation',
+      published: 'already out today',
+      empty: 'empty — no posts',
+    },
+    tableTitle: 'By channel',
+    tableHint:
+      'The same picture per channel: posts ahead, posts out in the last 7 days, how far the plan reaches, and the first empty day.',
+    tableEmpty: 'No connected channels yet',
+    colChannel: 'Channel',
+    colReserved: 'Planned',
+    colQueued: 'Queued',
+    colPublished: 'Out in 7 days',
+    colUntil: 'Plan until',
+    colEmpty: 'First empty day',
+    aheadEmptyTitle: 'Nothing stands ahead',
+    aheadEmptyBody:
+      'Place a ready adaptation at a time on the calendar and it appears here.',
+    aheadEmptyAction: 'Open the calendar',
     placedReserved: 'Planned',
     placedQueued: 'Queued',
     placedDraft: 'On the calendar',

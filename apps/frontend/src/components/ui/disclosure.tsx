@@ -88,7 +88,12 @@ export function Disclosure({
         role="region"
         aria-labelledby={triggerId}
         hidden={!open}
-        className={contentClassName}
+        // `hidden` alone loses to a display utility: Tailwind's preflight
+        // hides with `[hidden]:where(…)` (0,1,0), and `.flex` in
+        // `contentClassName` has the same weight and comes later, so the
+        // region stayed open («Отдельный ИИ на задачу», walk F2). The
+        // important utility wins whatever the caller lays the region out with.
+        className={clsx(contentClassName, !open && '!hidden')}
       >
         {children}
       </div>

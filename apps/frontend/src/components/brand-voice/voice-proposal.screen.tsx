@@ -297,7 +297,7 @@ export function VoiceProposalScreen({
                 </div>
                 <span
                   className={clsx(
-                    'cf-label-sm uppercase',
+                    'cf-label-sm',
                     portrait.status === 'ACCEPTED'
                       ? 'text-cf-accent'
                       : 'text-cf-ink-muted'
@@ -359,7 +359,7 @@ export function VoiceProposalScreen({
             </article>
           ) : null}
 
-          <h3 className="cf-label-sm uppercase text-cf-ink-muted">
+          <h3 className="cf-label-sm text-cf-ink-muted">
             {manual ? t.manualProposalFields : t.proposalFields} ·{' '}
             {FIELD_ORDER.length}
           </h3>
@@ -415,7 +415,7 @@ export function VoiceProposalScreen({
                   </div>
                   <span
                     className={clsx(
-                      'cf-label-sm uppercase',
+                      'cf-label-sm',
                       field.status === 'ACCEPTED'
                         ? 'text-cf-accent'
                         : 'text-cf-ink-muted'
@@ -451,7 +451,7 @@ export function VoiceProposalScreen({
                   </p>
                 ) : (
                   <div className="mt-[8px]" data-voice-field-empty="true">
-                    <p className="cf-label-sm uppercase text-cf-ink-muted">
+                    <p className="cf-label-sm text-cf-ink-muted">
                       {t.proposalNoGround}
                     </p>
                     <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
@@ -505,7 +505,7 @@ export function VoiceProposalScreen({
                           data-voice-observation={observation.ref}
                           className="rounded-[8px] bg-cf-surface-subtle p-[12px]"
                         >
-                          <p className="cf-label-sm uppercase text-cf-ink-muted">
+                          <p className="cf-label-sm text-cf-ink-muted">
                             {t.proposalObservation} {observation.index}
                           </p>
                           <p className="mt-[4px] cf-body-sm text-cf-ink [text-wrap:pretty]">

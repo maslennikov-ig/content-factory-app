@@ -52,7 +52,7 @@ export const DraftGapNote: FC<{
       data-draft-gap={gap.metric}
       className="mt-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
     >
-      <div className="cf-label-sm uppercase text-cf-ink-muted">
+      <div className="cf-label-sm text-cf-ink-muted">
         {t.draftGapLabel}
       </div>
       <p className="cf-body-sm mt-[8px] text-cf-ink">
@@ -60,7 +60,7 @@ export const DraftGapNote: FC<{
       </p>
       {gap.example ? (
         <>
-          <div className="cf-label-sm mt-[12px] uppercase text-cf-ink-muted">
+          <div className="cf-label-sm mt-[12px] text-cf-ink-muted">
             {t.draftGapExampleLabel}
           </div>
           <blockquote className="cf-body-sm mt-[8px] border-s-2 border-cf-border-strong ps-[12px] text-cf-ink-muted">

@@ -1699,5 +1699,9 @@
   "help": "帮助",
   "uploading": "正在上传",
   "importing": "正在导入",
-  "pick_time": "时间"
+  "pick_time": "时间",
+  "navigation_panel": "导航面板",
+  "navigation_resize": "导航宽度：拖动或使用方向键",
+  "text_ai": "文本 AI",
+  "image_ai": "图片 AI"
 }

@@ -553,7 +553,7 @@ export function VoiceScalesScreen({
         </p>
       ) : null}
 
-      <p className="cf-label-sm uppercase text-cf-ink-muted">
+      <p className="cf-label-sm text-cf-ink-muted">
         {t.scalesSubtitle}
       </p>
 
@@ -597,7 +597,7 @@ export function VoiceScalesScreen({
           className="rounded-[8px] border border-cf-border bg-cf-surface p-[12px]"
           data-voice-last-check="true"
         >
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.scalesLastCheck}
           </p>
           <p className="mt-[8px] cf-body-sm text-cf-ink">
@@ -619,7 +619,7 @@ export function VoiceScalesScreen({
 
       <div className="grid gap-[12px] sm:grid-cols-2">
         <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[12px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.scalesHowToRead}
           </p>
           <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
@@ -630,7 +630,7 @@ export function VoiceScalesScreen({
           </p>
         </div>
         <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[12px]">
-          <p className="cf-label-sm uppercase text-cf-ink-muted">
+          <p className="cf-label-sm text-cf-ink-muted">
             {t.scalesNoRadarTitle}
           </p>
           <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">

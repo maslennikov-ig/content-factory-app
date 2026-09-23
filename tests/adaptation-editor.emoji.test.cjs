@@ -108,9 +108,12 @@ const tools = () =>
   );
 
 describe('the toolbar comes from one table of formats', () => {
-  test('Telegram: bold, link, emoji — and an unknown format gets the default', () => {
-    expect(toolbar.editorToolsFor('telegram')).toEqual(['bold', 'link', 'emoji']);
-    expect(toolbar.editorToolsFor('TELEGRAM')).toEqual(['bold', 'link', 'emoji']);
+  // Italic and underline joined in the thirteenth walk (`97dq.52`).
+  const TELEGRAM_TOOLS = ['bold', 'italic', 'underline', 'link', 'emoji'];
+
+  test('Telegram: bold, italic, underline, link, emoji — and an unknown format gets the default', () => {
+    expect(toolbar.editorToolsFor('telegram')).toEqual(TELEGRAM_TOOLS);
+    expect(toolbar.editorToolsFor('TELEGRAM')).toEqual(TELEGRAM_TOOLS);
     expect(toolbar.editorToolsFor('some-new-format')).toBe(
       toolbar.EDITOR_TOOLS_BY_FORMAT.default
     );
@@ -122,7 +125,7 @@ describe('the toolbar comes from one table of formats', () => {
 
   test('the editor draws exactly the set of its format, in order', async () => {
     await openEditor();
-    expect(tools()).toEqual(['bold', 'link', 'emoji']);
+    expect(tools()).toEqual(TELEGRAM_TOOLS);
   });
 
   test('a format with its own entry changes the toolbar and nothing else', async () => {
@@ -137,7 +140,7 @@ describe('the toolbar comes from one table of formats', () => {
 
   test('the image button stays with whoever can attach a picture', async () => {
     await openEditor({ onPickImage: () => undefined });
-    expect(tools()).toEqual(['bold', 'link', 'emoji', 'image']);
+    expect(tools()).toEqual([...TELEGRAM_TOOLS, 'image']);
   });
 
   test('the channel tab hands the editor its format', () => {

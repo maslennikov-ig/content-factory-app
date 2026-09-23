@@ -202,8 +202,10 @@ const channelTabProps = (channel, props = {}) => ({
   postOptions: adapter.DEFAULT_POST_OPTIONS,
   avatars: [],
   onPostOptionsChange: noop,
-  rememberState: 'idle',
-  onRemember: noop,
+  postPlan: { value: null, channel: 'reserve', onChange: noop },
+  onSaveSettings: noop,
+  onSaveForChannel: noop,
+  onRewriteAndRemember: noop,
   when: React.createElement('span', { 'data-when': 'true' }, '19:30'),
   scheduleBusy: null,
   calendarHref: '/launches',
@@ -574,10 +576,10 @@ describe('the channel tab with an adaptation', () => {
 
   test('with several avatars «Кто говорит» is a choice, and rewriting with the options makes a new version', () => {
     const onAdapt = jest.fn();
-    const onRemember = jest.fn();
+    const onRewriteAndRemember = jest.fn();
     drawChannel({
       onAdapt,
-      onRemember,
+      onRewriteAndRemember,
       postOptions: { ...adapter.DEFAULT_POST_OPTIONS, length: 'short' },
       avatars: [
         { id: 'a1', label: 'Игорь' },
@@ -585,10 +587,14 @@ describe('the channel tab with an adaptation', () => {
       ],
     });
     expect(screen.getByLabelText('Кто говорит').tagName).toBe('SELECT');
-    fireEvent.click(screen.getByRole('button', { name: 'Запомнить для канала' }));
     fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
     expect(onAdapt).toHaveBeenCalledWith('post');
-    expect(onRemember).toHaveBeenCalledTimes(1);
+    // «Переписать с этим» — одна кнопка с меню (`97dq.70`, B2).
+    fireEvent.click(screen.getByRole('button', { name: 'Другие способы переписать' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /Переписать и запомнить для канала/ })
+    );
+    expect(onRewriteAndRemember).toHaveBeenCalledTimes(1);
   });
 
   test('«Как увидят в Telegram» replaces the text with the full preview (97dq.48)', () => {
@@ -618,18 +624,83 @@ describe('the channel tab with an adaptation', () => {
     expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
   });
 
-  test('the bottom bar: «Удалить адаптацию» on the left, «Когда» and «Запланировать» together on the right (97dq.49)', () => {
-    drawChannel();
+  test('the plan row sits right under the text actions; the one delete is in the top row (97dq.70)', () => {
+    drawChannel({
+      actionRow: React.createElement('div', { 'data-action-row': 'true' }, 'Убрать следы'),
+    });
     const bar = document.querySelector('[data-schedule-bar]');
-    const row = bar.firstElementChild;
-    const remove = bar.querySelector('[data-piece-delete-adaptation]');
+    const actions = document.querySelector('[data-action-row]');
+    // Сразу под рядом «Убрать следы · Проверить факты · Переписать».
+    expect(actions.nextElementSibling).toBe(bar);
+    expect(bar.closest('aside')).toBeNull();
+    expect(bar.getAttribute('data-plan-row')).toBe('off');
+    expect(bar.textContent).toContain('Черновик');
     const send = bar.querySelector('[data-schedule-send]');
-    expect(row.firstElementChild).toBe(remove);
-    expect(remove.className).toContain('text-cf-danger');
-    expect(row.lastElementChild).toBe(send);
     expect(send.textContent).toContain('Когда');
     expect(send.querySelector('[data-when="true"]')).not.toBeNull();
     expect(send.querySelector('[data-schedule-action="schedule"]')).not.toBeNull();
+    // Одна кнопка удаления на вкладке, и она не в строке плана.
+    const removes = document.querySelectorAll('[data-piece-delete-adaptation]');
+    expect(removes).toHaveLength(1);
+    expect(bar.contains(removes[0])).toBe(false);
+    expect(removes[0].className).toContain('text-cf-danger');
+    // «Как пишем в …» больше не открывается со вкладки.
+    expect(document.querySelector('[data-piece-channel-profile]')).toBeNull();
+  });
+
+  test('a reserved post reads «В плане на … · бронь» and is confirmed, not scheduled again (97dq.70)', () => {
+    const onSchedule = jest.fn();
+    const onDropPlan = jest.fn();
+    drawChannel({ onSchedule, onDropPlan }, [
+      adaptation({
+        plan: {
+          status: 'reserved',
+          date: '2026-09-24T15:00:00.000Z',
+          autopilot: false,
+          current: true,
+        },
+      }),
+    ]);
+    const bar = document.querySelector('[data-schedule-bar]');
+    expect(bar.getAttribute('data-plan-row')).toBe('reserved');
+    expect(bar.querySelector('[data-plan-row-label]').textContent).toMatch(
+      /^В плане на 24\.09 \d\d:00 · бронь$/
+    );
+    expect(screen.queryByRole('button', { name: 'Запланировать' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
+    expect(onSchedule).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Другие действия с бронью' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Снять из плана/ }));
+    expect(onDropPlan).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Другие действия с бронью' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Сменить время/ }));
+    expect(bar.querySelector('[data-plan-row-edit] [data-when="true"]')).not.toBeNull();
+  });
+
+  test('an autopilot post reads as already queued, with «Изменить время» (97dq.70)', () => {
+    const onMove = jest.fn();
+    drawChannel({ onMove }, [
+      adaptation({
+        state: 'queued',
+        date: '2026-09-24T15:00:00.000Z',
+        plan: {
+          status: 'queued',
+          date: '2026-09-24T15:00:00.000Z',
+          autopilot: true,
+          current: true,
+        },
+      }),
+    ]);
+    const bar = document.querySelector('[data-schedule-bar]');
+    expect(bar.getAttribute('data-plan-row')).toBe('queued');
+    expect(bar.querySelector('[data-plan-row-label]').textContent).toMatch(
+      /^В очереди на 24\.09 \d\d:00$/
+    );
+    expect(bar.querySelector('[data-schedule-plan="autopilot"]').textContent).toBe('автопилот');
+    expect(screen.queryByRole('button', { name: 'Запланировать' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить время' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Перенести' }));
+    expect(onMove).toHaveBeenCalledTimes(1);
   });
 
   test('the adaptation is deleted only on the second press', () => {
@@ -661,16 +732,20 @@ describe('the channel tab with an adaptation', () => {
     expect(onPublishNow).toHaveBeenCalledTimes(1);
   });
 
-  test('a queued post is read-only and opens in the calendar', () => {
+  test('a queued post is read-only and opens in the calendar from its menu', () => {
+    const onOpenCalendar = jest.fn();
     drawChannel(
-      { calendarHref: '/launches?startDate=2026-09-23' },
+      { calendarHref: '/launches?startDate=2026-09-23', onOpenCalendar },
       [adaptation({ state: 'queued', date: '2026-09-23T07:00:00.000Z' })]
     );
     expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Запланировать' })).toBeNull();
-    const link = screen.getByRole('link', { name: 'Открыть в календаре' });
-    expect(link.getAttribute('href')).toBe('/launches?startDate=2026-09-23');
-    expect(document.body.textContent).toContain('запланировано');
+    expect(document.body.textContent).toContain('В очереди на 23.09');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Другие действия с постом в очереди' })
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: /Открыть в календаре/ }));
+    expect(onOpenCalendar).toHaveBeenCalledWith('/launches?startDate=2026-09-23');
   });
 
   test('a published post cannot be deleted from here', () => {
@@ -685,7 +760,10 @@ describe('the channel tab with an adaptation', () => {
     drawChannel({ onUnschedule }, [
       adaptation({ state: 'queued', date: '2026-09-23T07:00:00.000Z' }),
     ]);
-    fireEvent.click(screen.getByRole('button', { name: 'Снять с расписания' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Другие действия с постом в очереди' })
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: /Снять с расписания/ }));
     expect(onUnschedule).toHaveBeenCalledTimes(1);
   });
 });
@@ -710,7 +788,12 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     formatPreference: 'auto',
     notes: null,
   };
-  const Harness = ({ onRewrite, onRemember = noop, rememberState = 'idle' }) => {
+  const Harness = ({
+    onRewrite,
+    onSaveForChannel = noop,
+    channelSaveState = 'idle',
+    rewritePending = false,
+  }) => {
     const [options, setOptions] = React.useState(adapter.DEFAULT_POST_OPTIONS);
     return React.createElement(PostOptionsPanel, {
       locale: 'ru',
@@ -719,8 +802,13 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
       avatars: [],
       onChange: setOptions,
       onRewrite,
-      onRemember,
-      rememberState,
+      onRewriteAndRemember: noop,
+      rewritePending,
+      onSaveForPost: noop,
+      onSaveForChannel,
+      channelSaveState,
+      saveState: 'saved',
+      savedAt: '19:04',
     });
   };
   const select = (name) => screen.getByLabelText(name);
@@ -756,7 +844,10 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(counted()).toBeNull();
     expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Сбросить' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Запомнить для канала' }).disabled).toBe(true);
+    // Автосохранение поста говорит, когда легло (`97dq.70`).
+    expect(document.querySelector('[data-post-options-saved]').textContent).toBe(
+      'Сохранено · 19:04'
+    );
   });
 
   test('«Ссылки» reads as in the channel card: a ceiling, and no invented URLs (97dq.58)', () => {
@@ -837,28 +928,68 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(counted()).toBeNull();
   });
 
-  test('a wish alone rewrites but is not remembered for the channel', () => {
-    wrap(React.createElement(Harness, { onRewrite: noop }));
+  test('a wish alone rewrites; «применится при переписывании» stays beside the button while the text is older', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop, rewritePending: true }));
     fireEvent.change(screen.getByLabelText('Пожелание'), {
       target: { value: 'начни с вопроса' },
     });
     expect(counted()).toBe('1 изменение');
     expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(false);
-    expect(screen.getByRole('button', { name: 'Запомнить для канала' }).disabled).toBe(true);
+    expect(document.querySelector('[data-post-options-pending]').textContent).toBe(
+      'применится при переписывании'
+    );
   });
 
-  test('a remembered choice shows its note', () => {
-    const view = wrap(React.createElement(Harness, { onRewrite: noop }));
+  test('«Сохранить для поста» is the main half; «Сохранить для канала» waits in its menu and says so', () => {
+    const onSaveForChannel = jest.fn();
+    const view = wrap(React.createElement(Harness, { onRewrite: noop, onSaveForChannel }));
     fireEvent.change(select('Длина'), { target: { value: 'long' } });
     expect(shown('Длина')).toBe('длиннее · до 1500');
+    expect(screen.getByRole('button', { name: 'Сохранить для поста' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Где ещё сохранить' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Сохранить для канала/ }));
+    expect(onSaveForChannel).toHaveBeenCalledTimes(1);
     view.rerender(
       React.createElement(
         variables.VariableContextComponent,
         { language: 'ru' },
-        React.createElement(Harness, { onRewrite: noop, rememberState: 'saved' })
+        React.createElement(Harness, { onRewrite: noop, channelSaveState: 'saved' })
       )
     );
-    expect(screen.getByRole('status').textContent).toContain('Запомнили');
+    expect(screen.getByRole('status').textContent).toContain('Сохранено для канала');
+  });
+
+  test('«План» is the first field, starts «как в канале», and a change goes out at once (97dq.70)', () => {
+    const onPlan = jest.fn();
+    wrap(
+      React.createElement(PostOptionsPanel, {
+        locale: 'ru',
+        options: adapter.DEFAULT_POST_OPTIONS,
+        baseline: adapter.postBaselineOf(CHANNEL),
+        avatars: [],
+        onChange: noop,
+        plan: { value: null, channel: 'reserve', onChange: onPlan },
+      })
+    );
+    const plan = select('План');
+    const first = document.querySelector('[data-post-option]');
+    expect(first).toBe(plan);
+    expect(shown('План')).toBe('Бронь');
+    expect(plan.className).toContain('text-cf-ink-muted');
+    expect(
+      document.getElementById(plan.getAttribute('aria-describedby').split(' ')[0]).textContent
+    ).toBe('как в канале');
+    expect(document.querySelector('[data-post-option-note="plan"]').textContent).toContain(
+      'Подтвердить'
+    );
+    fireEvent.change(plan, { target: { value: 'autopilot' } });
+    expect(onPlan).toHaveBeenCalledWith('autopilot');
+    // Значение канала — это «как в канале», а не свой режим поста.
+    fireEvent.change(plan, { target: { value: 'reserve' } });
+    expect(onPlan).toHaveBeenLastCalledWith(null);
+    expect(
+      screen.getByRole('button', { name: 'Подсказка: План' }).getAttribute('data-hint-trigger')
+    ).toBe('true');
   });
 });
 

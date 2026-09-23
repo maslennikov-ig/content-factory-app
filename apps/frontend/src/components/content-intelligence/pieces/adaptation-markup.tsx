@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
+import { Fragment } from 'react';
 import {
-  boldPairs,
-  hasBoldPair,
-} from '@contentfactory/helpers/utils/bold-markers';
+  isHttpUrl,
+  parseInline,
+  type InlineNode,
+} from '@contentfactory/helpers/utils/inline-marks';
 
 /**
  * Сохранённая разметка адаптации, показанная как текст, а не как звёздочки.
@@ -14,9 +16,10 @@ import {
  *
  * Три решения, из-за которых здесь сорок строк, а не библиотека Markdown.
  *
- * **Узнаётся ровно один знак.** Всё остальное — `#`, `_`, списки, ссылки — в
- * теле адаптации не хранится, и разбирать его значило бы показывать человеку
- * то, чего в опубликованном тексте не будет.
+ * **Узнаются только знаки тела.** Жирное, курсив, подчёркивание и ссылка со
+ * своими словами (`97dq.52`) — по общей грамматике `inline-marks.ts`; всё
+ * остальное — `#`, списки — в теле не хранится, и разбирать его значило бы
+ * показывать человеку то, чего в опубликованном тексте не будет.
  *
  * **Разметка с ошибкой печатается буквально.** Незакрытая пара и пара,
  * разорванная переводом строки, — это не выделение, а звёздочки в тексте;
@@ -45,8 +48,46 @@ import {
  * переключатель.
  */
 
-/** Есть ли в тексте хотя бы одно закрытое выделение. */
-export const hasStoredMarkup = (text: string): boolean => hasBoldPair(text);
+/** Есть ли в тексте хотя бы одно закрытое выделение или ссылка со словами. */
+export const hasStoredMarkup = (text: string): boolean =>
+  (text || '')
+    .split('\n')
+    .some((line) =>
+      parseInline(line).some((node) => node.kind === 'mark' || node.kind === 'link')
+    );
+
+/** Один узел, когда он один: `<strong>` с текстом, а не со списком из одного. */
+const single = (nodes: ReactNode[]): ReactNode =>
+  nodes.length === 1 ? nodes[0] : nodes;
+
+const nodesOf = (list: readonly InlineNode[], key: string): ReactNode[] =>
+  list.map((node, index) => {
+    const at = `${key}-${index}`;
+    if (node.kind === 'text') return node.text;
+    if (node.kind === 'url') return node.href;
+    const inner = single(nodesOf(node.children, at));
+    if (node.kind === 'link')
+      return isHttpUrl(node.href) ? (
+        <a
+          key={at}
+          href={node.href}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="text-cf-accent underline underline-offset-2"
+        >
+          {inner}
+        </a>
+      ) : (
+        <Fragment key={at}>{inner}</Fragment>
+      );
+    if (node.mark === 'bold') return <strong key={at}>{inner}</strong>;
+    if (node.mark === 'italic') return <em key={at}>{inner}</em>;
+    return (
+      <u key={at} className="underline-offset-2">
+        {inner}
+      </u>
+    );
+  });
 
 /**
  * Текст с выделениями — набором узлов React.
@@ -55,15 +96,10 @@ export const hasStoredMarkup = (text: string): boolean => hasBoldPair(text);
  * здесь нет, иначе выделение стало бы одиннадцатым типографическим токеном.
  */
 export const formatStoredMarkup = (text: string): ReactNode => {
-  const nodes: ReactNode[] = [];
-  let read = 0;
-  for (const match of text.matchAll(boldPairs())) {
-    const start = match.index ?? 0;
-    if (start > read) nodes.push(text.slice(read, start));
-    nodes.push(<strong key={`bold-${start}`}>{match[1]}</strong>);
-    read = start + match[0].length;
-  }
-  if (read === 0) return text;
-  if (read < text.length) nodes.push(text.slice(read));
-  return nodes;
+  if (!hasStoredMarkup(text)) return text;
+  const lines = text.split('\n');
+  return lines.flatMap((line, index) => [
+    ...nodesOf(parseInline(line), `line-${index}`),
+    ...(index < lines.length - 1 ? ['\n'] : []),
+  ]);
 };

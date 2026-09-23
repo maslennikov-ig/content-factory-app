@@ -145,7 +145,7 @@ function Field({
   return (
     <div className="min-w-0">
       <dt className="flex flex-wrap items-center gap-[8px]">
-        <span className="cf-label-sm uppercase text-cf-ink-muted">{label}</span>
+        <span className="cf-label-sm text-cf-ink-muted">{label}</span>
         <Hint label={hintName}>{hint}</Hint>
         {action}
       </dt>
@@ -395,7 +395,7 @@ export function VoicePassportScreen({
             <div className="mt-[16px] flex flex-wrap gap-[24px] border-t border-cf-border pt-[16px]">
               {voice.sentenceLength ? (
                 <div>
-                  <p className="cf-label-sm uppercase text-cf-ink-muted">
+                  <p className="cf-label-sm text-cf-ink-muted">
                     {t.passportSentenceLength}
                   </p>
                   <p className="mt-[4px] cf-display-num text-cf-ink">
@@ -409,7 +409,7 @@ export function VoicePassportScreen({
               ) : null}
               {voice.dashShare ? (
                 <div>
-                  <p className="cf-label-sm uppercase text-cf-ink-muted">
+                  <p className="cf-label-sm text-cf-ink-muted">
                     {t.passportDash}
                   </p>
                   <p className="mt-[4px] cf-display-num text-cf-ink">
@@ -448,7 +448,7 @@ export function VoicePassportScreen({
             >
               <div className="flex flex-wrap items-center justify-between gap-[8px]">
                 <span className="flex items-center gap-[8px]">
-                  <span className="cf-label-sm uppercase text-cf-ink-muted">
+                  <span className="cf-label-sm text-cf-ink-muted">
                     {t.passportExamples}
                   </span>
                   <Hint label={t.hintFor(t.passportExamples)}>
@@ -507,7 +507,7 @@ export function VoicePassportScreen({
                   }}
                 >
                   <span className="flex items-center gap-[8px]">
-                    <span className="cf-label-sm uppercase text-cf-ink-muted">
+                    <span className="cf-label-sm text-cf-ink-muted">
                       {t.passportExampleAdd}
                     </span>
                     <Hint label={t.hintFor(t.passportExampleAdd)}>
