@@ -13,7 +13,8 @@ import clsx from 'clsx';
 import dynamic from 'next/dynamic';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useEnterMotion } from '@contentfactory/frontend/components/ui/enter-motion';
 import useSWR from 'swr';
 import { CheckPayment } from '@contentfactory/frontend/components/layout/check.payment';
 import { ToolTip } from '@contentfactory/frontend/components/layout/top.tip';
@@ -65,6 +66,9 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const { billingEnabled, isGeneral } = useVariables();
 
   const searchParams = useSearchParams();
+  // A route change fades the content in with a 4px rise, 180ms; the
+  // navigation and the header stay still (`97dq.59`).
+  const mainMotion = useEnterMotion<HTMLElement>(usePathname());
   const load = useCallback(async (path: string) => {
     return await (await fetch(path)).json();
   }, []);
@@ -173,6 +177,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                     {/* Row direction: working surfaces place their own
                           secondary rail beside the main content. */}
                     <main
+                      ref={mainMotion}
                       id="cf-main"
                       className="flex-1 min-w-0 min-h-0 flex flex-col md:flex-row overflow-x-hidden"
                     >

@@ -41,3 +41,15 @@ nearly every step and in the general note.
 1. S1 97dq.55 → S2 .56 → S3 .57 → S4 .58, one write worker at a time; canvas at root in parallel.
 2. Owner picks on canvas → one frontend worker.
 3. Focused tests, four `tsc --noEmit`, process verification, live stand; release on the owner's standing word (2026-09-23 «выкатывай сам»); thirteenth walk page.
+
+## Canvas pick (2026-09-23, chat)
+
+Owner: «Холст: A, A, A, A, B. Только не забудь, чтобы у каждого параметра были подсказки. Ну, вопросики с подсказками.»
+
+| Beads | Pick |
+|---|---|
+| 97dq.59 | C2 **A** — day: one time = a group of rows, one per channel, «N каналов» + avatars above; week: one card per time with channel avatars, click expands; month: channel avatars + times. C3 **A** — after «Поставить» the window stays and says «Стоит в плане» (card, mode word, «Готово» / «Открыть и поправить» / «Выбрать другую»). «впереди N дней» in the calendar header (hover: per channel) and a card in Analytics → Производство. Page transitions: content only, 150–180 ms ease-out, off under reduced motion. |
+| 97dq.60 | Split button **A** — one plate, divider before the chevron, one component everywhere (schedule bar, post modal, «Переписать с этим» if it gets a menu), one 14px chevron in all dropdowns. |
+| 97dq.61 | Emoji **A** — slider with an exact «до N» (нет · 1 · 3 · 6 · 10 · без предела), channel value as a grey tick; the prompt gets the exact ceiling. Editor: emoji button with search, toolbar set per channel format. |
+| 97dq.62 | Keys **B** — main fields in pairs (provider, key, text model, image model, mode, fallback), roles as a collapsed table. |
+| all | Every parameter on these screens has a «?» next to its label with a one-line hint (existing hint pattern), including «Для этого поста», «Как пишем в …», plan mode, AI settings (workspace and admin), profile. |

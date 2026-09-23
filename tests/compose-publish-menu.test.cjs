@@ -26,6 +26,8 @@ const MANAGE = 'apps/frontend/src/components/new-launch/manage.modal.tsx';
 const COPY = 'apps/frontend/src/components/new-launch/compose.copy.ts';
 const SCSS = 'apps/frontend/src/app/global.scss';
 const LAYERS = 'apps/frontend/src/components/ui/layers.tsx';
+/** С `97dq.60` стрелка и меню — общий `SplitButton`, одна плашка на продукт. */
+const SPLIT = 'apps/frontend/src/components/ui/split-button.tsx';
 
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
@@ -51,26 +53,33 @@ describe('the publishing menu replaces the hover flyout', () => {
 
   test('the arrow says it opens a menu, and the menu is the shared primitive', () => {
     const manage = code(MANAGE);
+    const split = code(SPLIT);
 
-    expect(manage).toMatch(/<MenuButton/);
-    expect(manage).toMatch(/<MenuList/);
-    expect(manage.match(/<DescribedMenuItem\b/g)).toHaveLength(2);
+    // Окно поста рисует общий `SplitButton`, а тот — общий `Menu`.
+    expect(manage).toMatch(/<SplitButton\b/);
+    expect(split).toMatch(/<MenuButton/);
+    expect(split).toMatch(/<MenuList/);
+    expect(split.match(/<DescribedMenuItem\b/g)).toHaveLength(1);
+    // Два пункта: «Опубликовать сейчас» и основное действие.
+    expect(manage.match(/\{ id: '(now|schedule)'/g)).toHaveLength(2);
     const describedItem = code(LAYERS).split('export function DescribedMenuItem')[1].split('export const Dialog')[0];
     expect(describedItem).toMatch(/<MenuCommand\b/);
     expect(describedItem).toMatch(/\{\.\.\.props\}/);
     expect(describedItem).toMatch(/layout="content"/);
     // `aria-haspopup`/`aria-expanded` пишет сам примитив; здесь важно, что
     // стрелка названа словами — иначе это кнопка без имени.
-    expect(manage).toMatch(/morePublishingActions/);
+    expect(manage).toMatch(/menuLabel=\{composeCopy\[voiceLocale\]\.morePublishingActions\}/);
     // И ни одной роли меню, написанной руками.
     expect(manage).not.toMatch(/role="menu/);
+    expect(split).not.toMatch(/role="menu/);
   });
 
   test('one refusal expression, not two lists of the same conditions', () => {
     const manage = code(MANAGE);
 
     expect(manage).toMatch(/const publishDisabled =/);
-    // Оба контрола отправки читают одно выражение.
+    // Оба контрола отправки — кнопка окна без меню и общая плашка с меню —
+    // читают одно выражение; внутри плашки обе половины берут его из пропса.
     expect(manage.match(/disabled=\{publishDisabled\}/g)).toHaveLength(2);
 
     /*
@@ -80,7 +89,7 @@ describe('the publishing menu replaces the hover flyout', () => {
       требуемые доказательства, — и сводить их в одно выражение значило бы
       склеить два разных запрета ради одинакового вида.
     */
-    const publishing = manage.slice(manage.indexOf('<Menu open={publishMenuOpen}'));
+    const publishing = manage.slice(manage.indexOf('{!addEditSets && dummy && ('));
     expect(publishing).not.toMatch(/contentIntelligenceLoadState/);
     expect(publishing).not.toMatch(/selectedIntegrations\.length === 0/);
   });
@@ -89,8 +98,10 @@ describe('the publishing menu replaces the hover flyout', () => {
     const manage = code(MANAGE);
 
     expect(manage).toMatch(/const mainActionLabel = useMemo\(/);
-    // Подпись стоит и на кнопке, и в пункте меню — и это одно значение.
+    // Подпись стоит и на кнопке, и в пункте меню — и это одно значение
+    // (кнопка окна без меню, плашка и её пункт).
     expect(manage.match(/\{mainActionLabel\}/g)).toHaveLength(2);
+    expect(manage).toMatch(/title: mainActionLabel/);
   });
 
   test('each item says what happens to the time of the post', () => {
@@ -107,9 +118,9 @@ describe('the publishing menu replaces the hover flyout', () => {
   test('each command stacks its label and explanation with real flex layout', () => {
     const manage = code(MANAGE);
 
-    expect(manage.match(/<DescribedMenuItem\b/g)).toHaveLength(2);
-    expect(manage).toMatch(/<DescribedMenuItem[^>]*onClick=\{schedule\('now'\)\}[^>]*description=\{composeCopy\[voiceLocale\]\.postNowHint\}/);
-    expect(manage).toMatch(/<DescribedMenuItem[^>]*onClick=\{schedule\('schedule'\)\}[^>]*description=\{mainActionHint\}/);
+    expect(manage).toMatch(/\{ id: 'now'[^}]*description: composeCopy\[voiceLocale\]\.postNowHint, onSelect: schedule\('now'\) \}/);
+    expect(manage).toMatch(/\{ id: 'schedule'[^}]*description: mainActionHint, onSelect: schedule\('schedule'\) \}/);
+    expect(code(SPLIT)).toMatch(/<DescribedMenuItem[^>]*title=\{item\.title\}[^>]*description=\{item\.description\}/);
     const describedItem = code(LAYERS).split('export function DescribedMenuItem')[1].split('export const Dialog')[0];
     expect(describedItem).toMatch(/flex flex-col items-start gap-\[4px\]/);
     expect(describedItem).toMatch(/<span[^>]*>\{title\}<\/span>/);

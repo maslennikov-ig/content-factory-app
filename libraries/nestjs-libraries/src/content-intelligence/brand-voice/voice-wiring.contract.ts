@@ -36,6 +36,7 @@ import type { SampleOrigin, SampleUsagePurpose } from './sample-intake';
 import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
 import type { BrandProfileSelectionV1 } from '../contracts';
+import type { EmojiLevel } from '../channels/emoji-ceiling';
 import type { VoiceSampleFileIntakeResponseV2 as FileIntakeResponseV2 } from './voice-intake-v2.contract';
 
 /** Kept in this registry's exported type set while its implementation stays separate. */
@@ -3258,7 +3259,8 @@ export type PieceAdaptOverridesV1 = {
   */
   lengthPolicy?: 'auto' | 'range';
   lengthRange?: { idealMin: number; idealMax: number; hardMax?: number };
-  emojiLevel?: 'none' | 'few' | 'many' | 'auto';
+  /** Old values and the exact stops of `97dq.61` — see `channels/emoji-ceiling.ts`. */
+  emojiLevel?: EmojiLevel;
   linkPolicy?: 'none' | 'end' | 'inline' | 'auto';
   hashtagPolicy?: 'none' | 'end_1_3' | 'free' | 'auto';
   ctaKind?: 'auto' | 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';

@@ -2,11 +2,10 @@
 
 import { useState, type ReactNode } from 'react';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
-import { DropdownArrowSmallIcon } from '@contentfactory/frontend/components/ui/icons';
 import { Status } from '../../ui/surface';
 import { ConfirmButton } from '../../ui/confirm-button';
 import { cellDate, stateTone, stateWord } from './adaptation.cell';
-import { WorkspaceMenu } from './workspace-menu';
+import { SplitButton } from '../../ui/split-button';
 import type { AdaptationPlanV1, AdaptationStateV1 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 
@@ -117,47 +116,33 @@ export function ScheduleBar({
             ) : null}
             <span className="cf-caption text-cf-ink-muted">{t.whenLabel}</span>
             <div className="min-w-0">{when}</div>
-            <div className="relative inline-flex">
-              <Button
-                type="button"
-                variant="primary"
-                disabled={off}
-                loading={busy === 'schedule' || busy === 'now'}
-                loadingLabel={busy === 'now' ? t.publishingNow : t.scheduling}
-                data-schedule-action="schedule"
-                className="rounded-e-none"
-                onClick={onSchedule}
-              >
-                {t.schedule}
-              </Button>
-              <WorkspaceMenu
-                dataName="schedule"
-                label={t.scheduleMore}
-                disabled={off}
-                placement="above"
-                align="end"
-                triggerClassName={buttonClassName({
-                  variant: 'primary',
-                  className:
-                    'w-[40px] rounded-s-none border-s border-cf-accent-ink px-0',
-                })}
-                trigger={<DropdownArrowSmallIcon aria-hidden="true" />}
-                items={[
-                  {
-                    id: 'now',
-                    title: t.publishNow,
-                    description: t.publishNowHint,
-                    onSelect: onPublishNow,
-                  },
-                  {
-                    id: 'schedule',
-                    title: t.schedule,
-                    description: t.scheduleHint,
-                    onSelect: onSchedule,
-                  },
-                ]}
-              />
-            </div>
+            <SplitButton
+              dataName="schedule"
+              disabled={off}
+              loading={busy === 'schedule' || busy === 'now'}
+              loadingLabel={busy === 'now' ? t.publishingNow : t.scheduling}
+              actionData={{ 'data-schedule-action': 'schedule' }}
+              menuLabel={t.scheduleMore}
+              placement="above"
+              align="end"
+              onClick={onSchedule}
+              items={[
+                {
+                  id: 'now',
+                  title: t.publishNow,
+                  description: t.publishNowHint,
+                  onSelect: onPublishNow,
+                },
+                {
+                  id: 'schedule',
+                  title: t.schedule,
+                  description: t.scheduleHint,
+                  onSelect: onSchedule,
+                },
+              ]}
+            >
+              {t.schedule}
+            </SplitButton>
           </div>
         ) : (
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-[8px]">

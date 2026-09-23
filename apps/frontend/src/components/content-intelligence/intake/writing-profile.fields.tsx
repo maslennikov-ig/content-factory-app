@@ -14,7 +14,6 @@ import {
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import {
   CTA_KINDS,
-  EMOJI_LEVELS,
   FORMAT_PREFERENCES,
   HASHTAG_POLICIES,
   LENGTH_PRESETS,
@@ -25,6 +24,9 @@ import {
   type ChannelWritingProfileV1,
   type LengthPreset,
 } from './writing-profile.adapter';
+import { EmojiCeilingSlider } from './emoji-ceiling.slider';
+import { emojiLevelWord } from './emoji-words';
+import { EMOJI_LEVEL_VALUES } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 
 /** Один аватар пространства, как его видит выбор «Кто говорит здесь». */
 export type WritingProfileAvatar = {
@@ -104,12 +106,13 @@ export function writingProfileLabels(locale: IntakeLocale) {
       long: t.profileLengthLong,
       max: t.profileLengthMax,
     } as Record<LengthPreset, string>,
-    emoji: {
-      none: t.profileEmojiNone,
-      few: t.profileEmojiFew,
-      many: t.profileEmojiFree,
-      auto: t.profileAuto,
-    } as Record<ChannelWritingProfileV1['emojiLevel'], string>,
+    /*
+      Старые значения читаются своими словами — промпт у них прежний; новые
+      деления бегунка (`97dq.61`) — точным «до N».
+    */
+    emoji: Object.fromEntries(
+      EMOJI_LEVEL_VALUES.map((level) => [level, emojiLevelWord(locale, level)])
+    ) as Record<ChannelWritingProfileV1['emojiLevel'], string>,
     link: {
       none: t.profileLinkNone,
       end: t.profileLinkEnd,
@@ -203,10 +206,10 @@ export function WritingProfileFields({
   const notes = profile.notes ?? '';
   const notesId = useId();
   const speakerId = useId();
+  const emojiId = useId();
 
   const labels = writingProfileLabels(locale);
   const lengthOptions = options(LENGTH_PRESET_ORDER, labels.length);
-  const emojiOptions = options(EMOJI_LEVELS, labels.emoji);
   const linkOptions = options(LINK_POLICIES, labels.link);
   const hashtagOptions = options(HASHTAG_POLICIES, labels.hashtag);
   const ctaOptions = options(CTA_KINDS, labels.cta);
@@ -283,9 +286,20 @@ export function WritingProfileFields({
         lengthOptions,
         (value) => onChange({ lengthPolicy: value === 'auto' ? 'auto' : LENGTH_PRESETS[value] })
       )}
-      {row(t.profileEmoji, profile.emojiLevel, emojiOptions, (emojiLevel) =>
-        onChange({ emojiLevel })
-      )}
+      {/* Эмодзи — бегунок с точным «до N» (`97dq.61`, вариант A). */}
+      <span className={labelClass}>
+        {fieldLabel(t.profileEmoji, hints[t.profileEmoji])}
+      </span>
+      <div className="min-w-0 max-w-[480px]">
+        <EmojiCeilingSlider
+          locale={locale}
+          id={emojiId}
+          value={profile.emojiLevel}
+          disabled={disabled}
+          dataName="writing-profile"
+          onChange={(emojiLevel) => onChange({ emojiLevel })}
+        />
+      </div>
       {row(t.profileLink, profile.linkPolicy, linkOptions, (linkPolicy) =>
         onChange({ linkPolicy })
       )}

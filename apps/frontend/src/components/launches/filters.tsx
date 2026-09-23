@@ -3,13 +3,16 @@
 import { useCalendar, ListStateFilter } from '@contentfactory/frontend/components/launches/calendar.context';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { SelectCustomer } from '@contentfactory/frontend/components/launches/select.customer';
 import { EditorialStageFilter } from '@contentfactory/frontend/components/launches/editorial-stage.filter';
 import type { EditorialStageValue } from '@contentfactory/frontend/components/launches/editorial-stage.copy';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import i18next from 'i18next';
-import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
+import {
+  getTimezone,
+  newDayjs,
+} from '@contentfactory/frontend/components/layout/set.timezone';
 
 import { Select } from '@contentfactory/react/form/select';
 import { Button } from '@contentfactory/react/form/button';
@@ -19,6 +22,7 @@ import { useUser } from '../layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { useAdaptationPicker } from './adaptation-picker';
 import { calendarPlanningCopy } from './calendar-planning.copy';
+import { PlanAheadChip, PlanLegend } from './plan-ahead';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -55,8 +59,37 @@ export const Filters = () => {
   const calendar = useCalendar();
   const t = useT();
   const language = useInterfaceLanguage();
-  const copy = calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
+  const locale = language.startsWith('ru') ? 'ru' : 'en';
+  const copy = calendarPlanningCopy[locale];
   const openPicker = useAdaptationPicker();
+  /*
+    «Впереди N дней» counts the channels the calendar shows: the one picked
+    in the channel filter, else every live channel of the chosen customer.
+  */
+  const aheadChannels = useMemo(
+    () =>
+      calendar.integrationId
+        ? [calendar.integrationId]
+        : calendar.integrations
+            .filter(
+              (one) =>
+                !one.disabled &&
+                (!calendar.customer || one.customer?.id === calendar.customer)
+            )
+            .map((one) => one.id),
+    [calendar.integrationId, calendar.integrations, calendar.customer]
+  );
+  // The count follows the calendar: a post placed, moved or deleted reloads
+  // the posts, and a changed fingerprint asks for the count again.
+  const aheadRevision = useMemo(
+    () =>
+      calendar.loading
+        ? undefined
+        : calendar.posts
+            .map((post: any) => `${post.id}:${post.state}:${post.publishDate}`)
+            .join('|'),
+    [calendar.loading, calendar.posts]
+  );
   const canWrite = isOrganizationEditor(useUser()?.role);
 
   // Set dayjs locale based on current language
@@ -466,6 +499,13 @@ export const Filters = () => {
           <div className="flex-1" />
         </div>
       )}
+      <PlanAheadChip
+        locale={locale}
+        integrationIds={aheadChannels}
+        timeZone={getTimezone()}
+        revision={aheadRevision}
+      />
+      {!isListView && <PlanLegend locale={locale} />}
       <SelectCustomer
         customer={calendar.customer as string}
         onChange={(customer: string) => setCustomer(customer)}

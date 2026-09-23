@@ -66,7 +66,10 @@ import { TelegramUpdatesService } from '@contentfactory/nestjs-libraries/integra
  */
 import type { VoiceEditRepository } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-edit.repository';
 import {
+  calculatePlanAhead,
   calculateProductionAnalytics,
+  PLAN_AHEAD_HORIZON_DAYS,
+  planAheadTimeZone,
   productionAnalyticsWindow,
 } from '@contentfactory/nestjs-libraries/database/prisma/posts/production.analytics';
 import {
@@ -1453,5 +1456,35 @@ export class PostsService {
       integrationId: integrationId || null,
       ...calculateProductionAnalytics(posts),
     };
+  }
+
+  /**
+   * «Впереди N дней» (`97dq.59`): read-only, this organisation only. The
+   * window is a day wider on both sides than the horizon, so the reader's
+   * «today» is inside it whatever their zone.
+   */
+  async getPlanAhead(
+    orgId: string,
+    query: { integrationIds?: string; timeZone?: string },
+    now = new Date()
+  ) {
+    const ids = (query.integrationIds || '')
+      .split(',')
+      .map((one) => one.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    const day = 24 * 60 * 60 * 1000;
+    const from = new Date(now.getTime() - 1.5 * day);
+    const to = new Date(now.getTime() + (PLAN_AHEAD_HORIZON_DAYS + 2) * day);
+    const [posts, channels] = await Promise.all([
+      this._postRepository.getPlanAheadPosts(orgId, from, to, ids),
+      this._postRepository.getPlanAheadChannels(orgId, ids),
+    ]);
+    return calculatePlanAhead({
+      posts,
+      channels,
+      now,
+      timeZone: planAheadTimeZone(query.timeZone),
+    });
   }
 }

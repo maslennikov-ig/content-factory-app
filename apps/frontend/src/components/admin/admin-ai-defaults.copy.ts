@@ -30,6 +30,8 @@ export type KeyOrigin = 'screen' | 'environment' | 'absent';
 type KeyFieldWords = {
   /** Подпись поля. */
   label: string;
+  /** Одна строка в «?» у подписи (`97dq.62`): за что этот ключ платит. */
+  hint: string;
   /** Строка состояния: ключ сохранён здесь. */
   storedHere: string;
   /** Строка состояния: ключа здесь нет, но сервер запущен с ним. */
@@ -98,6 +100,9 @@ type Words = {
     fallbackLabel: string;
     /** Когда её зовут и что значит пустое поле. */
     fallbackWhat: string;
+    /** Одна строка в «?» у полей текста и картинок (`97dq.62`). */
+    textHint: string;
+    imageHint: string;
   };
   allowance: {
     /** Название карточки. */
@@ -108,6 +113,8 @@ type Words = {
     what: string;
     /** Длинное — в подсказку: подписка сильнее этого числа. */
     hint: string;
+    /** Одна строка в «?» у самого поля. */
+    labelHint: string;
     /** Строка, когда число не задано здесь, но задано переменной окружения. */
     fromEnvironment: string;
     /** Строка, когда не задано нигде. */
@@ -151,6 +158,7 @@ const ru: Words = {
       'У OpenRouter своего поискового ключа нет: на поисковый запрос он отвечает ключом генерации — тем самым, что задан выше.',
     model: {
       label: 'Ключ генерации',
+      hint: 'Им инстанс платит за тексты и картинки областей на «Ключах системы».',
       storedHere:
         'Ключ сохранён на этом экране и сильнее переменной окружения. Введите новый, чтобы заменить его.',
       fromEnvironment:
@@ -165,6 +173,7 @@ const ru: Words = {
     },
     tavily: {
       label: 'Ключ Tavily',
+      hint: 'Платит за проверку фактов и поиск свежего по теме.',
       storedHere:
         'Ключ Tavily сохранён на этом экране и сильнее переменной окружения. Введите новый, чтобы заменить его.',
       fromEnvironment:
@@ -179,6 +188,7 @@ const ru: Words = {
     },
     exa: {
       label: 'Ключ Exa',
+      hint: 'Платит за ресерч: поиск материала к заготовке.',
       storedHere:
         'Ключ Exa сохранён на этом экране и сильнее переменной окружения. Введите новый, чтобы заменить его.',
       fromEnvironment:
@@ -206,12 +216,15 @@ const ru: Words = {
     flexWhat:
       'Только OpenRouter. Текстовый вызов дважды пробует уровень flex — он вдвое дешевле, но может ответить «нет мощности», — потом обычный уровень той же модели, потом запасную модель. Выключено — сразу обычный уровень.',
     fallbackLabel: 'Запасная модель',
+    textHint: 'Какой ИИ пишет тексты у областей на «Ключах системы».',
+    imageHint: 'Какой ИИ рисует картинки у областей на «Ключах системы».',
     fallbackWhat:
       'Последняя попытка, когда текстовая модель не ответила. Пустое поле — модель по умолчанию, указанная в подсказке.',
   },
   allowance: {
     title: 'Включённый режим',
     label: 'Включённых операций в месяц',
+    labelHint: 'Сколько обращений к ИИ в месяц получает область без подписки.',
     what:
       'Действует для области без подписки. Ноль означает, что включённый режим для такой области закрыт.',
     hint: 'Когда у области появится подписка, лимит подписки будет сильнее этого числа, и оно перестанет её касаться.',
@@ -252,6 +265,7 @@ const en: Words = {
       'OpenRouter has no search key of its own: it answers a search question with the generation key — the one above.',
     model: {
       label: 'Generation key',
+      hint: 'The instance pays with it for the texts and images of workspaces on «System keys».',
       storedHere:
         'A key is stored on this screen and overrides the environment variable. Type a new one to replace it.',
       fromEnvironment:
@@ -266,6 +280,7 @@ const en: Words = {
     },
     tavily: {
       label: 'Tavily key',
+      hint: 'Pays for fact checking and for finding fresh material on a topic.',
       storedHere:
         'A Tavily key is stored on this screen and overrides the environment variable. Type a new one to replace it.',
       fromEnvironment:
@@ -280,6 +295,7 @@ const en: Words = {
     },
     exa: {
       label: 'Exa key',
+      hint: 'Pays for research: finding material for a piece.',
       storedHere:
         'An Exa key is stored on this screen and overrides the environment variable. Type a new one to replace it.',
       fromEnvironment:
@@ -307,12 +323,15 @@ const en: Words = {
     flexWhat:
       'OpenRouter only. A text call tries the flex tier twice — half the price, but it may answer «no capacity» — then the standard tier of the same model, then the fallback model. Off goes straight to the standard tier.',
     fallbackLabel: 'Fallback model',
+    textHint: 'Which AI writes the texts of workspaces on «System keys».',
+    imageHint: 'Which AI draws the images of workspaces on «System keys».',
     fallbackWhat:
       'The last attempt, when the text model did not answer. An empty field uses the default shown as the placeholder.',
   },
   allowance: {
     title: 'Included mode',
     label: 'Included operations a month',
+    labelHint: 'How many AI calls a month a workspace without a subscription gets.',
     what:
       'Applies to a workspace with no subscription. Zero means included mode is closed for such a workspace.',
     hint: 'Once a workspace has a subscription, the subscription limit is stronger than this number and this number stops concerning it.',

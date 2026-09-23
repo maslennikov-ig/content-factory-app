@@ -114,12 +114,18 @@ export function ProductionAnalyticsView({
   model,
   controls,
   labels,
+  ahead,
 }: {
   state: AnalyticsSurfaceState;
   locale: 'en' | 'ru';
   model: ProductionAnalyticsModel;
   controls?: ReactNode;
   labels?: Partial<ProductionAnalyticsLabels>;
+  /**
+   * «План впереди» (`97dq.59`): about the days to come, so it stands above
+   * the period's numbers and does not follow the period or its emptiness.
+   */
+  ahead?: ReactNode;
 }) {
   const t = { ...copy[locale], ...labels };
   if (state === 'loading') return <Skeleton />;
@@ -161,6 +167,8 @@ export function ProductionAnalyticsView({
             </div>
           )}
         </div>
+
+        {ahead ? <div className="mt-[24px] max-w-[560px]">{ahead}</div> : null}
 
         {isEmpty ? (
           <div className="cf-body-md mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px] text-cf-ink-muted">

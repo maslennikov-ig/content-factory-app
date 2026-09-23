@@ -1,5 +1,5 @@
 'use client';
-import { DescribedMenuItem } from '../ui/layers';
+import { SplitButton } from '../ui/split-button';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -62,17 +62,11 @@ import {
   ChevronDownIcon,
   CloseIcon,
   TrashIcon,
-  DropdownArrowSmallIcon,
 } from '@contentfactory/frontend/components/ui/icons';
 import { useHasScroll } from '@contentfactory/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@contentfactory/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
-import { Button, buttonClassName } from '@contentfactory/react/form/button';
-import {
-  Menu,
-  MenuButton,
-  MenuList,
-} from '@contentfactory/react/choice/choice.menu';
+import { Button } from '@contentfactory/react/form/button';
 import { composeCopy } from '@contentfactory/frontend/components/new-launch/compose.copy';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
@@ -367,23 +361,6 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
     ? composeCopy[voiceLocale].keepScheduledAt(date.local().format('HH:mm'))
     : composeCopy[voiceLocale].addToCalendarHint;
 
-  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
-  const publishMenuRef = useRef<HTMLDivElement | null>(null);
-  /*
-    Щелчок мимо закрывает меню. `Menu` — это только состояние: где список
-    стоит и чем он закрывается, решает место вызова, и так и написано в самом
-    примитиве. Escape и Tab закрывает `MenuList` сам.
-  */
-  useEffect(() => {
-    if (!publishMenuOpen) return;
-    const close = (event: MouseEvent) => {
-      if (!publishMenuRef.current?.contains(event.target as Node)) {
-        setPublishMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [publishMenuOpen]);
 
   const currentIntegrationText = useMemo(() => {
     if (current === 'global') {
@@ -1214,55 +1191,47 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               * роль без кареточной навигации за ней это обещание, которого
               * клавиатура не получает.
               */}
-            {!addEditSets && (
-              <div className="relative flex" ref={publishMenuRef}>
-                <Menu open={publishMenuOpen} onOpenChange={setPublishMenuOpen}>
-                  <Button
-                    disabled={publishDisabled}
-                    aria-describedby={
-                      blockReason === 'none'
-                        ? undefined
-                        : COMPOSE_BLOCK_REASON_NOTE_ID
-                    }
-                    onClick={schedule('schedule')}
-                    loading={loading}
-                    className={clsx(
-                      'min-w-[180px] px-[20px]',
-                      // Половинки склеены в один контрол: скругления снаружи,
-                      // стык внутри. У окна без меню кнопка круглая с обеих
-                      // сторон, как была.
-                      dummy ? 'rounded-[8px]' : 'rounded-s-[8px] rounded-e-none'
-                    )}
-                  >
-                    {mainActionLabel}
-                  </Button>
-                  {!dummy && (
-                    <MenuButton
-                      aria-label={composeCopy[voiceLocale].morePublishingActions}
-                      disabled={publishDisabled}
-                      className={buttonClassName({
-                        variant: 'primary',
-                        className:
-                          'w-[40px] px-0 rounded-s-none rounded-e-[8px] border-s border-cf-accent-ink',
-                      })}
-                    >
-                      <DropdownArrowSmallIcon />
-                    </MenuButton>
-                  )}
-                  {publishMenuOpen && !dummy && (
-                    <MenuList className="menu-shadow absolute bottom-[calc(100%+8px)] end-0 z-[300] flex w-[280px] flex-col gap-[4px] border border-cf-border bg-cf-surface-raised p-[8px]">
-                      {/*
-                        «Опубликовать сейчас» стоит первым: меню открывают
-                        ради него, а второй пункт повторяет то, что уже
-                        написано на кнопке рядом, — он здесь для полноты
-                        списка, а не для нового действия.
-                      */}
-                      <DescribedMenuItem onClick={schedule('now')} title={t('post_now', 'Post Now')} description={composeCopy[voiceLocale].postNowHint} />
-                      <DescribedMenuItem onClick={schedule('schedule')} title={mainActionLabel} description={mainActionHint} />
-                    </MenuList>
-                  )}
-                </Menu>
-              </div>
+            {!addEditSets && dummy && (
+              <Button
+                disabled={publishDisabled}
+                aria-describedby={
+                  blockReason === 'none'
+                    ? undefined
+                    : COMPOSE_BLOCK_REASON_NOTE_ID
+                }
+                onClick={schedule('schedule')}
+                loading={loading}
+                className="min-w-[180px] px-[20px]"
+              >
+                {mainActionLabel}
+              </Button>
+            )}
+            {!addEditSets && !dummy && (
+              /*
+                Одна плашка с чертой перед стрелкой — общий `SplitButton`
+                (`97dq.60`). «Опубликовать сейчас» стоит первым: меню
+                открывают ради него, а второй пункт повторяет то, что уже
+                написано на кнопке рядом, — он здесь для полноты списка.
+              */
+              <SplitButton
+                disabled={publishDisabled}
+                loading={loading}
+                aria-describedby={
+                  blockReason === 'none'
+                    ? undefined
+                    : COMPOSE_BLOCK_REASON_NOTE_ID
+                }
+                menuLabel={composeCopy[voiceLocale].morePublishingActions}
+                actionClassName="min-w-[180px] px-[20px]"
+                dataName="publish"
+                onClick={schedule('schedule')}
+                items={[
+                  { id: 'now', title: t('post_now', 'Post Now'), description: composeCopy[voiceLocale].postNowHint, onSelect: schedule('now') },
+                  { id: 'schedule', title: mainActionLabel, description: mainActionHint, onSelect: schedule('schedule') },
+                ]}
+              >
+                {mainActionLabel}
+              </SplitButton>
             )}
           </div>
         </div>

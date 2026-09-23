@@ -44,6 +44,7 @@ import { getTimezone } from '@contentfactory/frontend/components/layout/set.time
 import { useOrganizationRoleName } from '@contentfactory/frontend/components/settings/teams.component';
 import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 import { useAutosave } from '@contentfactory/frontend/components/ui/use-autosave';
+import { FieldLabel } from '@contentfactory/frontend/components/ui/field-label';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -345,38 +346,65 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                   empty name used to answer «fullname must be longer than or
                   equal to 3 characters» — the property name out of the DTO,
                   in English, on a Russian screen. */}
-              <Input
-                label={t('name', 'Name')}
-                autoComplete="given-name"
-                maxLength={100}
-                {...form.register('fullname')}
-                error={fieldErrorMessage(
-                  'fullname',
-                  form.formState.errors.fullname?.message
-                )}
+              <div className="flex min-w-0 flex-col gap-[8px]">
+                <FieldLabel
+                  htmlFor="profile-first-name"
+                  label={t('name', 'Name')}
+                  hint={words.hints.name}
+                  hintLabel={words.hintFor(t('name', 'Name'))}
+                />
+                <Input
+                  id="profile-first-name"
+                  label=""
+                  autoComplete="given-name"
+                  maxLength={100}
+                  {...form.register('fullname')}
+                  error={fieldErrorMessage(
+                    'fullname',
+                    form.formState.errors.fullname?.message
+                  )}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-[8px]">
+                <FieldLabel
+                  htmlFor="profile-last-name"
+                  label={words.lastName}
+                  hint={words.hints.lastName}
+                  hintLabel={words.hintFor(words.lastName)}
+                />
+                <Input
+                  id="profile-last-name"
+                  label=""
+                  autoComplete="family-name"
+                  maxLength={100}
+                  {...form.register('lastName')}
+                  error={fieldErrorMessage(
+                    'lastName',
+                    form.formState.errors.lastName?.message
+                  )}
+                />
+              </div>
+            </div>
+            <div className="flex min-w-0 flex-col gap-[8px]">
+              <FieldLabel
+                htmlFor="profile-bio"
+                label={words.bio}
+                hint={words.hints.bio}
+                hintLabel={words.hintFor(words.bio)}
               />
-              <Input
-                label={words.lastName}
-                autoComplete="family-name"
-                maxLength={100}
-                {...form.register('lastName')}
+              <Textarea
+                id="profile-bio"
+                label=""
+                name="bio"
+                layout="content"
+                maxLength={500}
+                placeholder={words.bioPlaceholder}
                 error={fieldErrorMessage(
-                  'lastName',
-                  form.formState.errors.lastName?.message
+                  'bio',
+                  form.formState.errors.bio?.message as string | undefined
                 )}
               />
             </div>
-            <Textarea
-              label={words.bio}
-              name="bio"
-              layout="content"
-              maxLength={500}
-              placeholder={words.bioPlaceholder}
-              error={fieldErrorMessage(
-                'bio',
-                form.formState.errors.bio?.message as string | undefined
-              )}
-            />
           </Panel>
 
           <Panel as="section" contentClassName="flex flex-col gap-[16px]">
@@ -386,10 +414,16 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                 selects ran past the card at 390px (20-profile-m). */}
             <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-[8px]">
+                <FieldLabel
+                  htmlFor="profile-language"
+                  label={words.interfaceLanguage}
+                  hint={words.hints.language}
+                  hintLabel={words.hintFor(words.interfaceLanguage)}
+                />
                 <Select
                   id="profile-language"
                   name="profileLanguage"
-                  label={words.interfaceLanguage}
+                  label=""
                   disableForm={true}
                   hideErrors={true}
                   value={language}
@@ -413,10 +447,16 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                 </p>
               </div>
               <div className="flex min-w-0 flex-col gap-[8px]">
+                <FieldLabel
+                  htmlFor="profile-timezone"
+                  label={words.timezone}
+                  hint={words.hints.timezone}
+                  hintLabel={words.hintFor(words.timezone)}
+                />
                 <Select
                   id="profile-timezone"
                   name="profileTimezone"
-                  label={words.timezone}
+                  label=""
                   disableForm={true}
                   hideErrors={true}
                   value={zone}

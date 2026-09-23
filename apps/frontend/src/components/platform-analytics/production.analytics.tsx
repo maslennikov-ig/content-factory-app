@@ -6,6 +6,9 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Select } from '@contentfactory/react/form/select';
 import { LoadingComponent } from '@contentfactory/frontend/components/layout/loading';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
+import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
+import { PlanAheadCard } from '@contentfactory/frontend/components/launches/plan-ahead';
 import {
   ProductionAnalyticsView,
   resolveProductionAnalyticsState,
@@ -31,6 +34,7 @@ type ProductionAnalyticsResponse = {
 export const ProductionAnalytics = () => {
   const fetch = useFetch();
   const t = useT();
+  const language = useInterfaceLanguage();
   const [days, setDays] = useState(30);
   const [integrationId, setIntegrationId] = useState('all');
 
@@ -106,6 +110,12 @@ export const ProductionAnalytics = () => {
     <ProductionAnalyticsView
       state={state}
       locale="en"
+      ahead={
+        <PlanAheadCard
+          locale={language.startsWith('ru') ? 'ru' : 'en'}
+          timeZone={getTimezone()}
+        />
+      }
       labels={{
         title: t('production_analytics_title', 'Publishing operations'),
         description: t(

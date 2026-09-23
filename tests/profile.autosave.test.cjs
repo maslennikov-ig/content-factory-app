@@ -25,7 +25,13 @@ for (const key of ['window', 'document', 'navigator', 'localStorage']) {
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { act, cleanup, fireEvent, render } = require('@testing-library/react');
+const {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} = require('@testing-library/react');
 const { useFormContext } = require('react-hook-form');
 const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 const { loadTypeScriptModule: loadTsx } = require('./helpers/load-tsx.cjs');
@@ -137,6 +143,10 @@ const { ProfileSettings } = loadTypeScriptModule(
     '@contentfactory/frontend/components/settings/settings.copy': loadTsx(
       'apps/frontend/src/components/settings/settings.copy.ts'
     ),
+    // Подпись поля с «?» (`97dq.62`) — настоящая: набор ищет поля по подписи.
+    '@contentfactory/frontend/components/ui/field-label': loadTsx(
+      'apps/frontend/src/components/ui/field-label.tsx'
+    ),
   },
   {
     sources: {
@@ -199,6 +209,20 @@ describe('Профиль сохраняется сам', () => {
       });
     });
   };
+
+  test('every profile field has a «?» with one line, beside its label (twelfth-wave canvas)', async () => {
+    await mount();
+    for (const name of ['name', 'фамилия', 'коротко о себе', 'язык интерфейса', 'часовой пояс']) {
+      const hint = screen.getByRole('button', { name: `Подсказка: ${name}` });
+      expect(hint.getAttribute('data-hint-trigger')).toBe('true');
+      expect(hint.closest('label')).toBeNull();
+    }
+    // Поля по-прежнему названы своими подписями.
+    expect(document.querySelector('#profile-timezone').name).toBe('profileTimezone');
+    expect(
+      document.querySelector('label[for="profile-bio"]').textContent
+    ).toBe('Коротко о себе');
+  });
 
   test('loading the profile saves nothing', async () => {
     const { container } = await mount();

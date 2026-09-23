@@ -273,6 +273,7 @@ export function PieceChannelTab({
                   onPickImage={onPickImage}
                   onRemoveImage={onRemoveImage}
                   draftId={adaptation.id}
+                  format={channel.providerIdentifier || channel.platform}
                 />
               ) : body ? (
                 <div className="flex min-w-0 flex-col gap-[8px]">

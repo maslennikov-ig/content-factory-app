@@ -32,6 +32,10 @@ import {
 } from 'class-validator';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import {
+  EMOJI_LEVEL_VALUES,
+  type EmojiLevel,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import {
   READY_ADAPTATIONS_DEFAULT_LIMIT,
   READY_ADAPTATIONS_MAX_LIMIT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/ready-adaptations.contract';
@@ -259,8 +263,8 @@ export class PieceAdaptOverridesDto {
   lengthRange?: ChannelLengthRangeDto;
 
   @IsOptional()
-  @IsIn(['none', 'few', 'many', 'auto'])
-  emojiLevel?: 'none' | 'few' | 'many' | 'auto';
+  @IsIn([...EMOJI_LEVEL_VALUES])
+  emojiLevel?: EmojiLevel;
 
   @IsOptional()
   @IsIn(['none', 'end', 'inline', 'auto'])

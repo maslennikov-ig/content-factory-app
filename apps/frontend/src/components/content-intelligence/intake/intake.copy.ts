@@ -242,6 +242,12 @@ export const intakeCopy = {
     profileEmojiNone: 'без эмодзи',
     profileEmojiFew: 'мало · 1–3',
     profileEmojiFree: 'много',
+    /* Бегунок «до N» (`97dq.61`): подписи делений, число и отметка канала. */
+    profileEmojiStopNone: 'нет',
+    profileEmojiStopUnlimited: 'без предела',
+    profileEmojiUpTo: (count: number) => `до ${count}`,
+    profileEmojiInChannel: (value: string) => `в канале: ${value}`,
+    profileEmojiSlider: 'Сколько эмодзи можно в посте',
     profileLink: 'Ссылки',
     profileLinkNone: 'без ссылок',
     profileLinkEnd: 'не больше одной, в конце',
@@ -283,7 +289,8 @@ export const intakeCopy = {
     profileHintFor: (label: string) => `Подсказка: ${label}`,
     profileHintLength:
       'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
-    profileHintEmoji: 'Без эмодзи, 1–3 или много. Можно отдать выбор нам.',
+    profileHintEmoji:
+      'Сколько эмодзи можно в посте: не больше выбранного числа. «Без предела» — сколько уместно.',
     profileHintLink:
       'Можно ли ставить ссылки и где: рядом с фактом или одну в конце.',
     profileHintHashtag: 'Нужны ли метки темы и где они стоят.',
@@ -476,6 +483,11 @@ export const intakeCopy = {
     profileEmojiNone: 'none',
     profileEmojiFew: '1–3, at most two kinds',
     profileEmojiFree: 'many',
+    profileEmojiStopNone: 'none',
+    profileEmojiStopUnlimited: 'no limit',
+    profileEmojiUpTo: (count: number) => `up to ${count}`,
+    profileEmojiInChannel: (value: string) => `channel: ${value}`,
+    profileEmojiSlider: 'How many emoji a post may have',
     profileLink: 'Links',
     profileLinkNone: 'none',
     profileLinkEnd: 'at most one, at the end',
@@ -514,7 +526,8 @@ export const intakeCopy = {
     profileNotSet: 'not set',
     profileHintFor: (label: string) => `Hint: ${label}`,
     profileHintLength: 'Post length. We can choose within the platform limit.',
-    profileHintEmoji: 'No emoji, one to three, or many. Or let us choose.',
+    profileHintEmoji:
+      'How many emoji a post may have: never more than the number set. “No limit” means as many as fit.',
     profileHintLink:
       'Whether links may appear and where: next to a fact or one at the end.',
     profileHintHashtag: 'Whether topic tags are useful and where they go.',

@@ -233,4 +233,162 @@ describe('production analytics', () => {
     expect(shell).toContain('<TabList');
     expect(shell).toContain("t('analytics_sections', 'Analytics sections')");
   });
+
+  /* «Впереди N дней» (`97dq.59`). */
+  const loadAhead = () =>
+    loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/database/prisma/posts/production.analytics.ts'
+    );
+  const planned = (integrationId, iso, state = 'DRAFT', plan = 'reserve') => ({
+    integrationId,
+    publishDate: new Date(iso),
+    state,
+    plan,
+  });
+
+  test('days ahead: consecutive days from today holding a reserved or queued post, per channel and together', () => {
+    const { calculatePlanAhead } = loadAhead();
+    const now = new Date('2026-09-24T07:00:00.000Z'); // 10:00 in Moscow
+    const result = calculatePlanAhead({
+      now,
+      timeZone: 'Europe/Moscow',
+      channels: [
+        { id: 'tg', name: 'AiDevTeam' },
+        { id: 'test', name: 'Тестовая группа' },
+        { id: 'vk', name: 'Сообщество AiDev' },
+      ],
+      posts: [
+        planned('tg', '2026-09-24T06:20:00.000Z', 'DRAFT', 'reserve'),
+        planned('tg', '2026-09-25T06:20:00.000Z', 'QUEUE', 'autopilot'),
+        planned('tg', '2026-09-26T06:20:00.000Z', 'QUEUE', null),
+        // 00:30 Moscow on the 27th is 21:30 UTC on the 26th: the reader's day counts.
+        planned('tg', '2026-09-26T21:30:00.000Z', 'DRAFT', 'autopilot'),
+        planned('tg', '2026-09-29T06:20:00.000Z', 'QUEUE', null),
+        planned('test', '2026-09-24T11:00:00.000Z', 'QUEUE', null),
+        planned('test', '2026-09-25T11:00:00.000Z', 'DRAFT', 'reserve'),
+        // An unplanned draft and an error hold nothing.
+        planned('vk', '2026-09-24T11:00:00.000Z', 'DRAFT', 'draft'),
+        planned('vk', '2026-09-25T11:00:00.000Z', 'ERROR', null),
+      ],
+    });
+    expect(result).toMatchObject({
+      version: 'plan-ahead/v1',
+      today: '2026-09-24',
+      timeZone: 'Europe/Moscow',
+      days: 4,
+      until: '2026-09-27',
+      emptyFrom: '2026-09-28',
+    });
+    expect(result.channels).toEqual([
+      { integrationId: 'tg', name: 'AiDevTeam', days: 4, until: '2026-09-27', emptyFrom: '2026-09-28' },
+      { integrationId: 'test', name: 'Тестовая группа', days: 2, until: '2026-09-25', emptyFrom: '2026-09-26' },
+      { integrationId: 'vk', name: 'Сообщество AiDev', days: 0, until: null, emptyFrom: '2026-09-24' },
+    ]);
+    expect(result.strip).toHaveLength(14);
+    expect(result.strip.slice(0, 6).map((day) => day.filled)).toEqual([
+      true, true, true, true, false, true,
+    ]);
+  });
+
+  test('days ahead: today is covered by a post already out; a gap today is zero; a bad zone reads as UTC', () => {
+    const { calculatePlanAhead, planAheadTimeZone } = loadAhead();
+    const now = new Date('2026-09-24T18:00:00.000Z');
+    expect(
+      calculatePlanAhead({
+        now,
+        timeZone: 'UTC',
+        channels: [{ id: 'tg', name: 'A' }],
+        posts: [
+          planned('tg', '2026-09-24T09:00:00.000Z', 'PUBLISHED', null),
+          planned('tg', '2026-09-25T09:00:00.000Z', 'QUEUE', null),
+          // Published is not «ahead» on a later day.
+          planned('tg', '2026-09-26T09:00:00.000Z', 'PUBLISHED', null),
+        ],
+      }).days
+    ).toBe(2);
+    expect(
+      calculatePlanAhead({
+        now,
+        timeZone: 'UTC',
+        channels: [],
+        posts: [planned('tg', '2026-09-25T09:00:00.000Z', 'QUEUE', null)],
+      })
+    ).toMatchObject({ days: 0, until: null, emptyFrom: '2026-09-24' });
+    expect(planAheadTimeZone('Mars/Olympus')).toBe('UTC');
+    expect(planAheadTimeZone('')).toBe('UTC');
+    expect(planAheadTimeZone('Europe/Moscow')).toBe('Europe/Moscow');
+  });
+
+  test('days ahead: the repository reads this tenant, live channels, the window, without superseded drafts', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        integrationId: 'int-a',
+        publishDate: new Date('2026-09-25T09:00:00.000Z'),
+        state: 'DRAFT',
+        contentDerivations: [{ plan: 'reserve' }],
+      },
+    ]);
+    const { PostsRepository } = loadPostsRepository();
+    const repository = new PostsRepository(
+      { model: { post: { findMany } } },
+      {},
+      {},
+      {},
+      {},
+      {}
+    );
+    const from = new Date('2026-09-23T00:00:00.000Z');
+    const to = new Date('2026-11-25T00:00:00.000Z');
+    const rows = await repository.getPlanAheadPosts('org-a', from, to, ['int-a']);
+    const [[query]] = findMany.mock.calls;
+    expect(query.where).toMatchObject({
+      organizationId: 'org-a',
+      deletedAt: null,
+      parentPostId: null,
+      publishDate: { gte: from, lte: to },
+      state: { in: ['QUEUE', 'DRAFT', 'PUBLISHED'] },
+      integration: { deletedAt: null, organizationId: 'org-a', id: { in: ['int-a'] } },
+    });
+    expect(query.select.contentDerivations.where).toEqual({ organizationId: 'org-a' });
+    expect(query.select).not.toHaveProperty('content');
+    expect(rows).toEqual([
+      {
+        integrationId: 'int-a',
+        publishDate: new Date('2026-09-25T09:00:00.000Z'),
+        state: 'DRAFT',
+        plan: 'reserve',
+      },
+    ]);
+  });
+
+  test('days ahead: the door is read-only, sits before `/:integration`, and the matrix names it', () => {
+    const controller = fs.readFileSync(
+      path.resolve(__dirname, '../apps/backend/src/api/routes/analytics.controller.ts'),
+      'utf8'
+    );
+    expect(controller.indexOf("@Get('/ahead')")).toBeGreaterThan(-1);
+    expect(controller.indexOf("@Get('/ahead')")).toBeLessThan(
+      controller.indexOf("@Get('/:integration')")
+    );
+    expect(controller).not.toMatch(/@Post|@Put|@Delete/);
+    const matrix = fs.readFileSync(
+      path.resolve(__dirname, '../docs/product/roles-matrix.md'),
+      'utf8'
+    );
+    expect(matrix).toContain('`GET /analytics/ahead`');
+  });
+
+  test('Производство carries the plan-ahead card: big number, 14-day strip, «?»', () => {
+    const screen = fs.readFileSync(
+      path.resolve(__dirname, '../apps/frontend/src/components/platform-analytics/production.analytics.tsx'),
+      'utf8'
+    );
+    expect(screen).toContain('<PlanAheadCard');
+    const card = fs.readFileSync(
+      path.resolve(__dirname, '../apps/frontend/src/components/launches/plan-ahead.tsx'),
+      'utf8'
+    );
+    expect(card).toContain('data-plan-ahead-strip');
+    expect(card).toContain('<Hint label={copy.aheadHintLabel}>{copy.aheadCardHint}</Hint>');
+  });
 });

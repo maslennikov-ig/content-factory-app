@@ -2537,6 +2537,40 @@ docker compose exec -T cf-app sh -lc 'cd /app && node apps/commands/dist/apps/co
 используются. Инстанс, у которого оператор не задал `AI_INCLUDED_SEARCH_API_KEY_*`, теряет поиск у
 областей на ключах системы; на этом боевом оба ключа (Tavily, Exa) заданы, проверено 18.09.2026.
 
+### Схема волны 23.09: цепочка текста и режим плана канала
+
+**Выполнено на `factory.aidevteam.ru` 23.09.2026, выпуск `ae55c65be5ff`**
+(откат `6928b1f20c47`), разрешение владельца 23.09.2026 «Выкатывай сам».
+Тринадцать nullable-колонок без значений по умолчанию и без индексов, два
+файла: `docs/operations/ai-text-chain-usage-schema-apply.sql`
+(`InstanceAiDefaults.textFlexEnabled`, `textFallbackModel`; в `AiUsageRecord`
+токены, уровень, попытка, `costUsd`) и
+`docs/operations/channel-plan-mode-schema-apply.sql` (`Integration.planMode`,
+`ContentDerivation.plan`, `planNote`, `plannedAt`). Валидатор в режиме `update`
+требует все операторы диффа в одном файле, поэтому оба текста склеены дословно
+и применены одним `psql -v ON_ERROR_STOP=1 --single-transaction --file`
+(`--allow-table InstanceAiDefaults --allow-table AiUsageRecord --allow-table
+Integration --allow-table ContentDerivation`). Дифф после — пустой,
+`mastra_*` 0 → 0.
+
+Копия перед применением — по исключению для чисто добавляющего DDL от 24.08:
+`pg_dump -Fc` продуктовой базы и `pg_dumpall --globals-only` без остановки
+сервисов, `/var/backups/content-factory-next/postgres/20260923T154351Z-pre-textchain-planmode-product-only`,
+контрольные суммы сходятся, `pg_restore --list` — 704 записи.
+
+**До переключения образа, не после**: новый код читает колонки инстанса при
+каждом разрешении вызова ИИ и колонки плана при каждом чтении календаря.
+Шага данных нет: `NULL` в `planMode` читается как «Бронь», в колонках расхода —
+как «записано до волны». Откат — только образ.
+
+Вместе с выпуском сменена модель текста: строка `InstanceAiDefaults.textModel`
+`openai/gpt-5.6-luna` → `openai/gpt-6-luna` (`UPDATE … WHERE id='instance'`) и
+строка `AI_TEXT_MODEL` в `app.env` (копия
+`app.env.bak-before-gpt-6-luna-20260923`, режим 600). Новое значение окружения
+действует после пересоздания `cf-app`: второй `docker compose up -d cf-app`.
+Все процессы (backend, orchestrator, frontend) живут в одном `cf-app`, поэтому
+страж публикации в активности orchestrator приехал тем же образом.
+
 ### Почему переключение — скрипт, а не две строки `sed`
 
 Раньше здесь стояли ровно две команды: одна правила `CF_IMAGE` в `.env`, вторая

@@ -3,7 +3,11 @@ import { useCallback, useMemo, useState } from 'react';
 import type { Dayjs } from 'dayjs';
 import useSWR from 'swr';
 import { useRouter } from 'next/navigation';
-import { PIECE_ADAPTATION_WORKSPACE_ROUTES } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
+import {
+  PIECE_ADAPTATION_WORKSPACE_ROUTES,
+  type PieceAdaptationPlacementV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { Button } from '@contentfactory/react/form/button';
@@ -25,7 +29,8 @@ import {
   pieceSlotPath,
 } from '../content-intelligence/pieces/pieces.adapter';
 import { calendarPlanningCopy } from './calendar-planning.copy';
-import { PlusIcon } from './post-card.parts';
+import { PlanStatePill, PlusIcon } from './post-card.parts';
+import type { PlanState } from './calendar-plan';
 
 export type ReadyAdaptation = {
   adaptationId: string;
@@ -76,11 +81,14 @@ export function AdaptationPicker({
   date,
   initialChannel,
   onClose,
+  onPlaced,
 }: {
   integrations: Integrations[];
   date?: Dayjs;
   initialChannel?: string | null;
   onClose: () => void;
+  /** After a placement is written: the calendar behind reloads at once. */
+  onPlaced?: () => void;
 }) {
   const request = useFetch();
   const language = useInterfaceLanguage();
@@ -92,7 +100,12 @@ export function AdaptationPicker({
   const [selected, setSelected] = useState('');
   const router = useRouter();
   const [placing, setPlacing] = useState(false);
-  const [placeFailed, setPlaceFailed] = useState(false);
+  const [placeFailed, setPlaceFailed] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<{
+    row: ReadyAdaptation;
+    placement: PieceAdaptationPlacementV1;
+    target: string;
+  } | null>(null);
   const scopedUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set('integrationIds', integrations.map((item) => item.id).sort().join(','));
@@ -175,14 +188,16 @@ export function AdaptationPicker({
     : '';
   /*
     «Поставить на ЧЧ:ММ» пишет: адаптация встаёт на это время по режиму
-    своего канала, и только после ответа окно ведёт во вкладку канала с тем
-    же `?when=`. Отказ остаётся в окне словами — человек видит, что ничего не
-    поставлено.
+    своего канала. С `97dq.59` (холст C3 A) окно после ответа остаётся и
+    говорит, где она теперь: «Стоит в плане» / «Стоит в очереди», карточка,
+    слово режима и что будет дальше. Во вкладку канала с тем же `?when=`
+    ведёт «Открыть и поправить». Отказ остаётся в окне словами — человек
+    видит, что ничего не поставлено.
   */
   const place = async () => {
     if (!chosen || !date || placing) return;
     setPlacing(true);
-    setPlaceFailed(false);
+    setPlaceFailed(null);
     try {
       const response = await request(
         PIECE_ADAPTATION_WORKSPACE_ROUTES.place.path(
@@ -194,15 +209,139 @@ export function AdaptationPicker({
           body: JSON.stringify({ date: date.toDate().toISOString() }),
         }
       );
-      if (!response.ok) throw new Error('adaptation not placed');
-      onClose();
-      router.push(target);
-    } catch {
-      setPlaceFailed(true);
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        // The door answers `{ code, message }` in the reader's language.
+        throw new Error(
+          typeof body?.message === 'string' && body.message.trim()
+            ? body.message.trim()
+            : ''
+        );
+      }
+      const placement = body?.placement as PieceAdaptationPlacementV1 | undefined;
+      setPlaced({
+        row: chosen,
+        placement: placement ?? {
+          mode: 'reserve',
+          status: 'reserved',
+          date: date.toDate().toISOString(),
+          autopilot: false,
+          note: null,
+        },
+        target: pieceSlotPath(
+          chosen.pieceId,
+          chosen.integrationId,
+          placement?.date ? new Date(placement.date) : date.toDate()
+        ),
+      });
+      onPlaced?.();
+    } catch (failure) {
+      setPlaceFailed(
+        (failure instanceof Error && failure.message) || copy.placeFailed
+      );
     } finally {
       setPlacing(false);
     }
   };
+  if (placed) {
+    const { row, placement } = placed;
+    const integration = channels.get(row.integrationId);
+    const state: PlanState =
+      placement.status === 'queued'
+        ? 'queued'
+        : placement.status === 'reserved'
+        ? 'reserved'
+        : 'draft';
+    const words = {
+      queued: [copy.placedQueued, copy.modeAutopilot, copy.explainAutopilot],
+      reserved: [copy.placedReserved, copy.modeReserve, copy.explainReserve],
+      draft: [copy.placedDraft, copy.modeDraft, copy.explainDraft],
+    } as const;
+    const [title, modeWord, explain] =
+      words[state as 'queued' | 'reserved' | 'draft'];
+    const at = new Date(placement.date);
+    const two = (value: number) => String(value).padStart(2, '0');
+    const moment = Number.isNaN(at.getTime())
+      ? ''
+      : `${weekday.format(at).replace('.', '')} ${dayMonth.format(at)}, ${two(
+          at.getHours()
+        )}:${two(at.getMinutes())}`;
+    const name =
+      (twins.get(`${row.pieceId}:${row.integrationId}`) || 0) > 1
+        ? row.firstLine || row.title
+        : row.title || row.firstLine;
+    return (
+      <div
+        data-picker-placed={placement.status}
+        className="flex min-w-0 flex-col gap-[16px] text-cf-ink"
+      >
+        <div role="status" className="flex items-center gap-[8px]">
+          <span className="flex text-cf-accent">
+            <PlacedGlyph />
+          </span>
+          <h3 className="cf-heading-md">{title}</h3>
+        </div>
+        <div className="flex min-w-0 items-center gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[12px]">
+          {integration ? <ChannelAvatar row={integration} compact /> : null}
+          <span className="flex min-w-0 flex-1 flex-col gap-[4px]">
+            <span className="cf-body-md block truncate" title={name}>
+              {name}
+            </span>
+            <span className="cf-caption block truncate text-cf-ink-muted">
+              <span className="text-cf-signature">{row.pieceCode}</span>
+              {' · '}
+              {integration?.name}
+              {moment ? ` · ${moment}` : ''}
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center">
+            <PlanStatePill state={state} label={modeWord} />
+            <Hint label={copy.modeHintLabel} side="start">
+              {copy.modeHint}
+            </Hint>
+          </span>
+        </div>
+        {placement.note ? (
+          <p data-picker-plan-note="true" className="cf-body-sm text-cf-warning">
+            {placement.note}
+          </p>
+        ) : (
+          <p data-picker-explain={state} className="cf-body-sm text-cf-ink-muted">
+            {explain}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-[12px] border-t border-cf-border pt-[16px]">
+          <div className="flex-1">
+            <Button
+              variant="quiet"
+              data-picker-another="true"
+              onClick={() => {
+                setPlaced(null);
+                setSelected('');
+                void mutate();
+              }}
+            >
+              {copy.chooseAnother}
+            </Button>
+          </div>
+          <Button
+            variant="secondary"
+            data-picker-open="true"
+            onClick={() => {
+              onClose();
+              router.push(placed.target);
+            }}
+          >
+            {copy.openAndEdit}
+          </Button>
+          <Button variant="primary" data-picker-done="true" onClick={onClose}>
+            {copy.done}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const dateCaption = date
     ? new Intl.DateTimeFormat(locale, {
         weekday: 'long',
@@ -400,17 +539,35 @@ export function AdaptationPicker({
       </div>
       {placeFailed ? (
         <p role="alert" className="cf-body-sm text-cf-danger">
-          {copy.placeFailed}
+          {placeFailed}
         </p>
       ) : null}
     </div>
   );
 }
 
+/** The tick of «Стоит в плане», drawn in the card icons' own hand. */
+const PlacedGlyph = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12.5 2.7 2.7L16 9.8" />
+  </svg>
+);
+
 export function useAdaptationPicker() {
   const modal = useModals();
   const language = useInterfaceLanguage();
-  const { integrations, integrationId } = useCalendar();
+  const { integrations, integrationId, reloadCalendarView } = useCalendar();
   const title =
     calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'].title;
   return useCallback(
@@ -428,10 +585,11 @@ export function useAdaptationPicker() {
             date={date}
             initialChannel={channelId || integrationId}
             onClose={close}
+            onPlaced={reloadCalendarView}
           />
         ),
       });
     },
-    [modal, title, integrations, integrationId]
+    [modal, title, integrations, integrationId, reloadCalendarView]
   );
 }

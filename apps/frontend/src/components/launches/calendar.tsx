@@ -62,6 +62,18 @@ import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { calendarPlanningCopy } from './calendar-planning.copy';
 import { useAdaptationPicker } from './adaptation-picker';
 import { freeSlotsOn } from './calendar-slots';
+import {
+  channelsOf,
+  collapseRows,
+  freeChannelsAt,
+  groupRowsByTime,
+  isAutopilot,
+  PlanState,
+  planStateOf,
+  timesOf,
+} from './calendar-plan';
+import { Popover } from '@contentfactory/frontend/components/ui/layers';
+import { SectionLabel } from '@contentfactory/frontend/components/ui/section-label';
 import { PostPreviewDialog } from '@contentfactory/frontend/components/preview/post.preview.dialog';
 import { EDITORIAL_STAGE_TONES } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
 import {
@@ -78,6 +90,8 @@ import {
   EyeIcon,
   PostCardAction,
   PostCardActions,
+  PlanBand,
+  PlanStatePill,
   PlusIcon,
   postLine,
   SlotButton,
@@ -167,6 +181,18 @@ export function calendarErrorMessage(
     return looksUnsafe ? generic : trimmed;
   }
 }
+
+type PlanningCopy = (typeof calendarPlanningCopy)['ru' | 'en'];
+
+/** The word of a plan state, from the calendar's own copy (`97dq.59`). */
+export const planStateWord = (copy: PlanningCopy, state: PlanState): string =>
+  ({
+    reserved: copy.slotReserved,
+    queued: copy.slotQueued,
+    draft: copy.stateDraft,
+    published: copy.statePublished,
+    error: copy.stateError,
+  })[state];
 
 export const hours = Array.from(
   {
@@ -770,19 +796,17 @@ export const CalendarColumn: FC<{
       return check;
     }));
   }, [posts, display, getDate]);
-  const [showAll, setShowAll] = useState(false);
-  const showAllFunc = useCallback(() => {
-    setShowAll(true);
-  }, []);
-  const showLessFunc = useCallback(() => {
-    setShowAll(false);
-  }, []);
-  const list = useMemo(() => {
-    if (showAll) {
-      return postList;
-    }
-    return postList.slice(0, 3);
-  }, [postList, showAll]);
+  /*
+    One row per channel post (`97dq.59`, canvas C2 A). A post sent to three
+    channels is three rows in the day — each channel has its own state, its
+    own text and its own time to confirm — and one group card in the week.
+  */
+  const rows = useMemo(
+    () => postList.flatMap(({ members }) => members),
+    [postList]
+  );
+  const rowChannels = useMemo(() => channelsOf(rows), [rows]);
+  const [expanded, setExpanded] = useState(false);
 
   const isBeforeNow = useMemo(() => {
     const originalUtc = getDate.startOf('hour');
@@ -995,6 +1019,11 @@ export const CalendarColumn: FC<{
     () => Array.from(new Set(slotOwners.map((channel) => channel.name))),
     [slotOwners]
   );
+  /** Channels of this time that have no post at it yet. */
+  const freeOwners = useMemo(
+    () => freeChannelsAt(slotOwners, rows),
+    [slotOwners, rows]
+  );
 
   const time = getDate.format(isUSCitizen() ? 'hh:mm A' : 'HH:mm');
   const passedHint =
@@ -1013,41 +1042,58 @@ export const CalendarColumn: FC<{
     });
   }, [getDate, setFilters, customer, editorialStage]);
 
-  const cards = list.map(({ key, lead, members }) => (
-    <div key={key} className="relative w-full min-w-0">
-      <CalendarItem
-        display={display as 'day' | 'week' | 'month'}
-        isBeforeNow={isBeforeNow}
-        date={getDate}
-        state={lead.state}
-        statistics={openStatistics}
-        missingRelease={openMissingRelease}
-        editPost={editPost(lead, false)}
-        duplicatePost={editPost(lead, true)}
-        copyDebugJson={user?.isSuperAdmin ? copyDebugJson(lead) : undefined}
-        post={lead}
-        channels={members}
-        integrations={integrations}
-        deletePost={deletePost(lead)}
-        showTime
-      />
-    </div>
-  ));
+  const rowProps = (row: any) => ({
+    isBeforeNow,
+    date: getDate,
+    state: row.state as State,
+    statistics: openStatistics,
+    missingRelease: openMissingRelease,
+    editPost: editPost(row, false),
+    duplicatePost: editPost(row, true),
+    copyDebugJson: user?.isSuperAdmin ? copyDebugJson(row) : undefined,
+    post: row,
+    channels: [row],
+    integrations,
+    deletePost: deletePost(row),
+  });
 
-  const more =
-    postList.length > 3 ? (
-      <Button
-        type="button"
-        variant="quiet"
-        density="dense"
-        className="w-full"
-        onClick={showAll ? showLessFunc : showAllFunc}
-      >
-        {showAll
-          ? t('show_less', '- Show less')
-          : `${t('show_more', '+ Show more')} (${postList.length - 3})`}
-      </Button>
-    ) : null;
+  /** A row's own `HH:mm` — the key the week groups by. */
+  const rowTime = useCallback(
+    (row: any) => dayjs.utc(row.publishDate).local().format('HH:mm'),
+    []
+  );
+
+  /*
+    The week: one card per time. A time with one channel post keeps the
+    ordinary card; two and more become one group card with a band segment
+    per channel and the channel marks, which opens the list on click.
+  */
+  const weekCards =
+    display === 'week'
+      ? groupRowsByTime(rows, rowTime).map((group) =>
+          group.rows.length === 1 ? (
+            <div key={group.time} className="relative w-full min-w-0">
+              <CalendarItem
+                display="week"
+                {...rowProps(group.rows[0])}
+                showTime
+              />
+            </div>
+          ) : (
+            <WeekTimeGroup
+              key={group.time}
+              rows={group.rows}
+              time={dayjs
+                .utc(group.rows[0].publishDate)
+                .local()
+                .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
+              day={getDate}
+              planningCopy={planningCopy}
+              rowProps={rowProps}
+            />
+          )
+        )
+      : null;
 
   const loadingVeil = loading && (
     <div className="h-full w-full p-[4px] animate-pulse absolute start-0 top-0 z-[50]">
@@ -1056,12 +1102,15 @@ export const CalendarColumn: FC<{
   );
 
   /*
-    The day view: posts at this time, then one dashed row that says what it
-    adds. An empty future slot is «+ Добавить пост на 09:20» with the channels
-    of the slot as a caption; under posts it is the slimmer «Ещё пост на 14:10».
-    A past slot keeps the hatch and has no button.
+    The day view (`97dq.59`, canvas C2 A): a time is a group. Two posts and
+    more get a head — «N каналов» and their marks, «свободно: нет» when every
+    channel of the slot is taken — then one row per channel post. Past five
+    rows the rest folds into «ещё N». The dashed row under them adds a post
+    at this time and names the channels still free; with none free it is the
+    slimmer «Ещё пост на …». A past slot keeps the hatch and has no button.
   */
   if (display === 'day') {
+    const { shown, hidden, collapsible } = collapseRows(rows, expanded);
     return (
       <div
         ref={drop as any}
@@ -1073,18 +1122,68 @@ export const CalendarColumn: FC<{
         {...passedHint}
       >
         {loadingVeil}
-        {cards}
-        {more}
+        {rows.length > 1 && (
+          <div
+            data-calendar-group-head="true"
+            // Wraps on a phone: six marks and «свободно: нет» do not share
+            // 270px with the label, and overlapping them was the alternative.
+            className="flex min-w-0 flex-wrap items-center gap-x-[8px] gap-y-[4px] py-[4px]"
+          >
+            <SectionLabel as="span" className="whitespace-nowrap">
+              {planningCopy.channels(rowChannels.length)}
+            </SectionLabel>
+            <ChannelMarks channels={rowChannels} max={6} />
+            {!isBeforeNow && slotOwners.length > 0 && !freeOwners.length && (
+              <span className="ms-auto shrink-0 cf-caption text-cf-ink-muted">
+                {planningCopy.freeNone}
+              </span>
+            )}
+          </div>
+        )}
+        {shown.map((row) => (
+          <CalendarItem
+            key={row.id}
+            display="day"
+            channelRow
+            {...rowProps(row)}
+          />
+        ))}
+        {collapsible && (
+          <Button
+            type="button"
+            variant="quiet"
+            density="dense"
+            className="self-start"
+            aria-expanded={expanded}
+            data-calendar-more="true"
+            onClick={() => setExpanded((was) => !was)}
+          >
+            {expanded ? planningCopy.lessRows : planningCopy.moreRows(hidden)}
+          </Button>
+        )}
         {!isBeforeNow &&
           (postList.length ? (
-            <SlotButton
-              shape="slim"
-              label={planningCopy.morePostAt(time)}
-              onClick={addAt(
-                getDate,
-                slotOwners.map((channel) => channel.id)
-              )}
-            />
+            freeOwners.length ? (
+              <SlotButton
+                shape="row"
+                label={planningCopy.addPostAt(time)}
+                marks={<ChannelMarks channels={freeOwners} max={4} />}
+                caption={planningCopy.freeLeft(freeOwners.length)}
+                onClick={addAt(
+                  getDate,
+                  freeOwners.map((channel) => channel.id)
+                )}
+              />
+            ) : (
+              <SlotButton
+                shape="slim"
+                label={planningCopy.morePostAt(time)}
+                onClick={addAt(
+                  getDate,
+                  slotOwners.map((channel) => channel.id)
+                )}
+              />
+            )
           ) : (
             <SlotButton
               shape="row"
@@ -1129,8 +1228,35 @@ export const CalendarColumn: FC<{
         </div>
       )}
       {loadingVeil}
-      {cards}
-      {more}
+      {weekCards}
+      {display === 'month' && rows.length > 0 && (
+        /*
+          The month (`97dq.59`): the channel marks and the times, no text —
+          a month cell is 104px and a sentence there was three letters. The
+          summary opens the day, where every channel has its row.
+        */
+        <ControlButton
+          layout="content"
+          data-calendar-month-summary="true"
+          aria-label={`${getDate.format('DD.MM')}: ${planningCopy.channels(
+            rowChannels.length
+          )} · ${timesOf(rows, rowTime).join(', ')}`}
+          className="flex w-full min-w-0 flex-col items-start gap-[4px] rounded-[8px] px-[4px] py-[4px] text-start hover:bg-cf-surface-subtle"
+          onClick={openDay}
+        >
+          <span className="flex min-w-0 items-center gap-[4px]">
+            <ChannelMarks channels={rowChannels} max={4} />
+            {rowChannels.length > 1 && (
+              <span className="cf-caption tabular-nums text-cf-ink-muted">
+                {rowChannels.length}
+              </span>
+            )}
+          </span>
+          <span className="w-full min-w-0 truncate cf-caption tabular-nums text-cf-ink">
+            {timesOf(rows, rowTime).join(' · ')}
+          </span>
+        </ControlButton>
+      )}
       {!isBeforeNow &&
         (freeSlots.length ? (
           display === 'week' ? (
@@ -1172,6 +1298,89 @@ export const CalendarColumn: FC<{
   );
 });
 /**
+ * The week's card for one time with several channels (`97dq.59`, canvas
+ * C2 A): a band with one segment per channel post, the time, «N кан.» and the
+ * channel marks (+N past three). A click opens the group's rows in a popover
+ * — the same rows the day draws — and Escape or a click outside closes it.
+ */
+const WeekTimeGroup: FC<{
+  rows: any[];
+  /** The time as the reader writes it. */
+  time: string;
+  day: dayjs.Dayjs;
+  planningCopy: PlanningCopy;
+  rowProps: (row: any) => Record<string, any>;
+}> = ({ rows, time, day, planningCopy, rowProps }) => {
+  const [open, setOpen] = useState(false);
+  const holder = React.useRef<HTMLDivElement | null>(null);
+  const channels = useMemo(() => channelsOf(rows), [rows]);
+  const states = useMemo(() => rows.map((row) => planStateOf(row)), [rows]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!holder.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
+  // Friday to Sunday open towards the start, so the list stays on screen.
+  const towardsStart = day.day() === 0 || day.day() >= 5;
+  const heading = `${day.format('dd DD.MM')} · ${time}`;
+
+  return (
+    <div ref={holder} className="relative w-full min-w-0">
+      <ControlButton
+        layout="content"
+        aria-expanded={open}
+        aria-label={planningCopy.groupOpen(time, channels.length)}
+        data-calendar-week-group={rows.length}
+        className="flex w-full min-w-0 flex-col items-stretch rounded-[8px] border border-cf-border bg-cf-surface text-start hover:border-cf-border-strong"
+        onClick={() => setOpen((was) => !was)}
+      >
+        <PlanBand states={states} />
+        <span className="flex min-w-0 flex-col gap-[4px] px-[8px] py-[4px]">
+          <span className="flex min-w-0 items-center gap-[4px]">
+            <span className="cf-caption tabular-nums text-cf-ink">{time}</span>
+            <span className="ms-auto shrink-0 cf-caption text-cf-ink-muted">
+              {planningCopy.channelsShort(channels.length)}
+            </span>
+          </span>
+          <ChannelMarks channels={channels} max={3} />
+        </span>
+      </ControlButton>
+      {open && (
+        <Popover
+          role="dialog"
+          className={clsx(
+            'absolute top-[calc(100%+4px)] z-[60] flex w-[min(560px,calc(100vw-32px))] flex-col gap-[8px] p-[12px]',
+            towardsStart ? 'end-0' : 'start-0'
+          )}
+        >
+          <SectionLabel as="p">{heading}</SectionLabel>
+          {rows.map((row) => (
+            <CalendarItem
+              key={row.id}
+              display="day"
+              channelRow
+              {...(rowProps(row) as any)}
+            />
+          ))}
+        </Popover>
+      )}
+    </div>
+  );
+};
+
+/**
  * One card per post, whatever number of channels the post goes to.
  *
  * Direction A of the 02.09.2026 canvas, chosen by the owner on the same day.
@@ -1202,6 +1411,11 @@ const CalendarItem: FC<{
   display: 'day' | 'week' | 'month';
   /** The list view's single-line row; every calendar grid draws the card. */
   row?: boolean;
+  /**
+   * One channel post as a row of a time group (`97dq.59`): mark, name,
+   * state, the start of the text, the piece code.
+   */
+  channelRow?: boolean;
   showTime?: boolean;
   post: Post & {
     integration: Integration;
@@ -1243,7 +1457,11 @@ const CalendarItem: FC<{
     inline and four marks — and only the list view keeps the single-line row.
   */
   const wide = Boolean(props.row);
+  const channelRow = Boolean(props.channelRow);
   const roomy = wide || display === 'day';
+  const planningCopy =
+    calendarPlanningCopy[interfaceLanguage.startsWith('ru') ? 'ru' : 'en'];
+  const planState = planStateOf(post as any);
 
   const [previewId, setPreviewId] = useState<string | null>(null);
   const closePreview = useCallback(() => setPreviewId(null), []);
@@ -1418,14 +1636,17 @@ const CalendarItem: FC<{
     <PostCardActions
       actions={actions}
       extra={channelPreviews}
-      inline={roomy}
+      // A channel row is a line in a group of up to five: the actions float
+      // over its corner, so an invisible panel never takes the text's width.
+      inline={roomy && !channelRow}
       moreLabel={t('more_actions', 'More actions')}
       className={clsx(
         'opacity-0 pointer-events-none',
         'group-hover:opacity-100 group-hover:pointer-events-auto',
         'focus-within:opacity-100 focus-within:pointer-events-auto',
         'transition-opacity duration-state',
-        !wide && 'absolute -top-[12px] -end-[8px] z-30 shadow-menu'
+        (!wide || channelRow) &&
+          'absolute -top-[12px] -end-[8px] z-30 shadow-menu'
       )}
     />
   );
@@ -1434,12 +1655,15 @@ const CalendarItem: FC<{
     <div
       // @ts-ignore
       ref={dragRef}
+      data-calendar-row={channelRow ? 'channel' : undefined}
       className={clsx(
         'w-full flex flex-1 group relative',
-        wide ? 'items-center' : 'h-full flex-col',
-        'rounded-[8px] border bg-cf-surface-subtle',
+        wide || channelRow ? 'items-center' : 'h-full flex-col',
+        'rounded-[8px] border',
+        channelRow ? 'bg-cf-surface' : 'bg-cf-surface-subtle',
         state === 'ERROR' ? 'border-cf-danger' : 'border-cf-border',
         wide && 'min-h-[36px] gap-[10px] px-[10px] py-[4px]',
+        channelRow && 'min-w-0 min-h-[40px] gap-[12px] px-[12px] py-[4px]',
         isBeforeNow && '!grayscale'
       )}
       style={{
@@ -1464,7 +1688,52 @@ const CalendarItem: FC<{
         </div>
       )}
 
-      {wide ? (
+      {channelRow ? (
+        <>
+          <ChannelMarks
+            channels={[
+              {
+                id: post.id,
+                name: post.integration?.name || '',
+                picture: post.integration?.picture,
+              },
+            ]}
+            max={1}
+          />
+          <ControlButton
+            layout="content"
+            data-calendar-row-open="true"
+            className="flex flex-1 min-w-0 items-center gap-[12px] text-start"
+            onClick={editPost}
+          >
+            <span className="hidden w-[152px] shrink-0 truncate cf-body-sm text-cf-ink sm:block">
+              {post.integration?.name}
+            </span>
+            <PlanStatePill
+              state={planState}
+              label={planStateWord(planningCopy, planState)}
+              title={bandTitle || undefined}
+            />
+            {isAutopilot(post as any) && (
+              <span
+                data-calendar-autopilot="true"
+                className="hidden shrink-0 cf-caption text-cf-ink-muted md:inline"
+              >
+                {planningCopy.slotAutopilot}
+              </span>
+            )}
+            <span className="flex-1 min-w-0 truncate cf-body-sm text-cf-ink-muted">
+              {sentence}
+            </span>
+            {post.piece?.code && (
+              <span className="shrink-0 cf-caption tabular-nums text-cf-signature">
+                {post.piece.code}
+              </span>
+            )}
+          </ControlButton>
+          {actionsPanel}
+        </>
+      ) : wide ? (
         <>
           {bandLabel && (
             <StagePill tone={bandTone} label={bandLabel} title={bandTitle} />

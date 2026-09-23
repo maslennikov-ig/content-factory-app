@@ -17,6 +17,7 @@
 
 import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileResponseV2 as ContractWritingProfileResponse, type ChannelWritingProfileV2 as ContractWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
+import { readEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import { INTAKE_API } from './intake.adapter';
 
 /**
@@ -85,7 +86,20 @@ export function lengthPresetOf(policy: ChannelLengthPolicyV1): LengthPreset {
   return best;
 }
 
-export const EMOJI_LEVELS = ['none', 'few', 'many', 'auto'] as const;
+/**
+ * Эмодзи — бегунок «до N» (`97dq.61`): шкала, чтение старых значений и
+ * положение на бегунке живут в `emoji-ceiling.ts` рядом с контрактом, чтобы
+ * экран и промпт читали одну шкалу.
+ */
+export {
+  EMOJI_STOPS,
+  EMOJI_STOP_CEILING,
+  emojiStopAt,
+  emojiStopIndex,
+  emojiStopOf,
+  type EmojiLevel,
+  type EmojiStop,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 export const LINK_POLICIES = ['none', 'end', 'inline', 'auto'] as const;
 export const HASHTAG_POLICIES = ['none', 'end_1_3', 'free', 'auto'] as const;
 export const CTA_KINDS = [
@@ -160,7 +174,7 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
                 : null,
           }
         : DEFAULT_WRITING_PROFILE.lengthPolicy,
-    emojiLevel: oneOf(record.emojiLevel === 'free' ? 'many' : record.emojiLevel, EMOJI_LEVELS, 'few'),
+    emojiLevel: readEmojiLevel(record.emojiLevel, 'few'),
     linkPolicy: oneOf(record.linkPolicy, LINK_POLICIES, 'end'),
     hashtagPolicy: oneOf(record.hashtagPolicy, HASHTAG_POLICIES, 'none'),
     ctaKind: oneOf(record.ctaKind, CTA_KINDS, 'question'),

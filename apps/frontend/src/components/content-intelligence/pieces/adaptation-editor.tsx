@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import type { Editor } from '@tiptap/react';
+import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import {
   CloseIcon,
+  EmojiIcon,
   InsertMediaIcon,
 } from '@contentfactory/frontend/components/ui/icons';
+import { editorToolsFor } from './adaptation-toolbar';
 import { formatStoredMarkup } from './adaptation-markup';
 import { AdaptationRichText } from './adaptation-rich-text';
 import {
@@ -36,6 +39,12 @@ import { piecesCopy, type PiecesLocale } from './pieces.copy';
  * Счётчик считает то, что увидит читатель, — звёздочки выделения в него не
  * входят — и сравнивает с пределом площадки. Превышение сказано словами и
  * цветом: публикацию оно не запрещает здесь, это решает дверь расписания.
+ *
+ * Кнопки панели зависят от формата канала (`97dq.61`): набор берётся из
+ * таблицы `adaptation-toolbar.ts`, новый формат — это новая строка там.
+ * Эмодзи вставляются туда, где стоит курсор, из той же библиотеки, что в окне
+ * поста (`emoji-picker-react`), с поиском и системным шрифтом вместо картинок
+ * с CDN.
  */
 export function AdaptationEditor({
   locale,
@@ -48,6 +57,7 @@ export function AdaptationEditor({
   onPickImage,
   onRemoveImage,
   draftId,
+  format,
 }: {
   locale: PiecesLocale;
   /** Имя площадки для доступных имён: «Текст поста для Telegram». */
@@ -62,6 +72,8 @@ export function AdaptationEditor({
   onRemoveImage?: () => void;
   /** Метка для стенда и тестов: какая адаптация сейчас в поле. */
   draftId?: string;
+  /** Формат канала — идентификатор провайдера; решает набор кнопок панели. */
+  format?: string | null;
 }) {
   const t = piecesCopy[locale];
   const [editing, setEditing] = useState(false);
@@ -70,6 +82,39 @@ export function AdaptationEditor({
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
   const onEditor = useCallback((next: Editor | null) => setEditor(next), []);
+  const tools = editorToolsFor(format);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const emojiRoot = useRef<HTMLSpanElement | null>(null);
+
+  /*
+    Щелчок мимо и Escape закрывают выбор эмодзи — тем же порядком, что у
+    меню продукта. Фокус возвращается в поле, чтобы следующая буква шла
+    туда, где стоял курсор.
+  */
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!emojiRoot.current?.contains(event.target as Node))
+        setEmojiOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setEmojiOpen(false);
+      editor?.commands.focus();
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [emojiOpen, editor]);
+
+  /** Вставка в позицию курсора: TipTap помнит выделение, пока фокус в поиске. */
+  const insertEmoji = (emoji: string) => {
+    editor?.chain().focus().insertContent(emoji).run();
+    setEmojiOpen(false);
+  };
 
   const count = visibleLength(value);
   const over = maxLength !== null && maxLength > 0 && count > maxLength;
@@ -83,6 +128,7 @@ export function AdaptationEditor({
 
   const leave = () => {
     closeLink();
+    setEmojiOpen(false);
     setLink('');
     setEditing(false);
   };
@@ -145,38 +191,91 @@ export function AdaptationEditor({
         >
           {inEdit ? (
             <>
-              <Button
-                type="button"
-                variant="quiet"
-                density="dense"
-                className={tool}
-                aria-label={t.toolBold}
-                title={t.toolBold}
-                aria-pressed={boldActive}
-                disabled={!ready}
-                data-editor-tool="bold"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => editor?.chain().focus().toggleBold().run()}
-              >
-                <span aria-hidden="true" className="cf-label-md">
-                  {t.toolBoldGlyph}
+              {tools.includes('bold') ? (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  className={tool}
+                  aria-label={t.toolBold}
+                  title={t.toolBold}
+                  aria-pressed={boldActive}
+                  disabled={!ready}
+                  data-editor-tool="bold"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => editor?.chain().focus().toggleBold().run()}
+                >
+                  <span aria-hidden="true" className="cf-label-md">
+                    {t.toolBoldGlyph}
+                  </span>
+                </Button>
+              ) : null}
+              {tools.includes('link') ? (
+                <Button
+                  type="button"
+                  variant="quiet"
+                  density="dense"
+                  className={tool}
+                  aria-label={t.toolLink}
+                  title={t.toolLink}
+                  aria-expanded={linkOpen}
+                  disabled={!ready}
+                  data-editor-tool="link"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setLinkOpen((open) => !open)}
+                >
+                  <LinkGlyph />
+                </Button>
+              ) : null}
+              {tools.includes('emoji') ? (
+                <span ref={emojiRoot} className="relative inline-flex">
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    density="dense"
+                    className={tool}
+                    aria-label={t.toolEmoji}
+                    title={t.toolEmoji}
+                    aria-expanded={emojiOpen}
+                    aria-haspopup="dialog"
+                    disabled={!ready}
+                    data-editor-tool="emoji"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setEmojiOpen((open) => !open)}
+                  >
+                    <EmojiIcon aria-hidden="true" />
+                  </Button>
+                  {emojiOpen ? (
+                    <span
+                      role="dialog"
+                      aria-label={t.toolEmoji}
+                      data-editor-emoji-picker="true"
+                      className="absolute start-0 top-[calc(100%+4px)] z-[300] max-w-[calc(100vw-32px)] rounded-[8px] shadow-menu"
+                    >
+                      <EmojiPicker
+                        open
+                        width={320}
+                        height={360}
+                        // Системный шрифт, а не картинки с cdn.jsdelivr.net:
+                        // открытый выбор иначе сообщал бы CDN, кто пишет пост.
+                        emojiStyle={EmojiStyle.NATIVE}
+                        theme={
+                          typeof window !== 'undefined' &&
+                          window.localStorage?.getItem('mode') === 'light'
+                            ? Theme.LIGHT
+                            : Theme.DARK
+                        }
+                        searchPlaceholder={t.emojiSearch}
+                        autoFocusSearch
+                        skinTonesDisabled
+                        lazyLoadEmojis
+                        previewConfig={{ showPreview: false }}
+                        onEmojiClick={(data) => insertEmoji(data.emoji)}
+                      />
+                    </span>
+                  ) : null}
                 </span>
-              </Button>
-              <Button
-                type="button"
-                variant="quiet"
-                density="dense"
-                className={tool}
-                aria-label={t.toolLink}
-                title={t.toolLink}
-                aria-expanded={linkOpen}
-                disabled={!ready}
-                data-editor-tool="link"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => setLinkOpen((open) => !open)}
-              >
-                <LinkGlyph />
-              </Button>
+              ) : null}
             </>
           ) : null}
           {onPickImage ? (

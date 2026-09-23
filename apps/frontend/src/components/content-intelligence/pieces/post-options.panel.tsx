@@ -9,12 +9,15 @@ import { Panel } from '@contentfactory/react/layout';
 import { intakeCopy } from '../intake/intake.copy';
 import {
   CTA_KINDS,
-  EMOJI_LEVELS,
   HASHTAG_POLICIES,
   LENGTH_PRESET_ORDER,
   LINK_POLICIES,
+  emojiStopOf,
+  type EmojiLevel,
   type LengthPreset,
 } from '../intake/writing-profile.adapter';
+import { EmojiCeilingSlider } from '../intake/emoji-ceiling.slider';
+import { FieldLabel } from '../../ui/field-label';
 import { writingProfileLabels } from '../intake/writing-profile.fields';
 import {
   DEFAULT_POST_BASELINE,
@@ -103,38 +106,37 @@ export function PostOptionsPanel({
   };
 
   const fields: {
-    field: PostProfileField;
+    field: Exclude<PostProfileField, 'emoji'>;
     label: string;
+    help: string;
     values: readonly string[];
     word: (value: string) => string;
   }[] = [
     {
       field: 'length',
       label: ti.profileLength,
+      help: ti.profileHintLength,
       values: LENGTH_PRESET_ORDER,
       word: (value) => lengthWord(value as LengthPreset),
     },
     {
-      field: 'emoji',
-      label: ti.profileEmoji,
-      values: EMOJI_LEVELS,
-      word: (value) => labels.emoji[value as keyof typeof labels.emoji],
-    },
-    {
       field: 'hashtags',
       label: ti.profileHashtag,
+      help: ti.profileHintHashtag,
       values: HASHTAG_POLICIES,
       word: (value) => labels.hashtag[value as keyof typeof labels.hashtag],
     },
     {
       field: 'links',
       label: ti.profileLink,
+      help: ti.profileHintLink,
       values: LINK_POLICIES,
       word: (value) => labels.link[value as keyof typeof labels.link],
     },
     {
       field: 'cta',
       label: ti.profileCta,
+      help: ti.profileHintCta,
       values: CTA_KINDS,
       word: (value) => labels.cta[value as keyof typeof labels.cta],
     },
@@ -148,6 +150,26 @@ export function PostOptionsPanel({
     const same = value === channelValueOf(field, baseline.profile);
     onChange({ ...options, [field]: same ? 'channel' : value });
   };
+
+  /*
+    Эмодзи — бегунок «до N» (`97dq.61`). Деление, на котором стоит канал, —
+    это «как в канале», даже если канал хранит старое слово («мало» стоит на
+    «до 3»): иначе рамка «изменено» появлялась бы от того, что ручку
+    сдвинули и вернули.
+  */
+  const channelEmoji = channelValueOf('emoji', baseline.profile);
+  const emojiInChannel = options.emoji === 'channel';
+  const emojiValue: EmojiLevel =
+    options.emoji === 'channel' ? channelEmoji ?? 'few' : options.emoji;
+  const emojiChanged = changed.has('emoji');
+  const chooseEmoji = (stop: EmojiLevel) =>
+    onChange({
+      ...options,
+      emoji:
+        channelEmoji && emojiStopOf(channelEmoji) === emojiStopOf(stop)
+          ? 'channel'
+          : stop,
+    });
 
   return (
     <Panel
@@ -169,15 +191,16 @@ export function PostOptionsPanel({
         ) : null}
       </div>
 
-      <div className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[8px]">
+      <div className="grid min-w-0 grid-cols-[112px_minmax(0,1fr)] items-center gap-x-[12px] gap-y-[8px]">
         {choosesAvatar ? (
           <>
-            <label
+            <FieldLabel
               htmlFor={`${baseId}-speaker`}
-              className="cf-caption text-cf-ink-muted"
-            >
-              {t.whoSpeaks}
-            </label>
+              label={t.whoSpeaks}
+              hint={t.hintWhoSpeaks}
+              hintLabel={ti.profileHintFor(t.whoSpeaks)}
+              labelClassName="cf-caption text-cf-ink-muted"
+            />
             <Select
               standalone
               disableForm
@@ -207,7 +230,7 @@ export function PostOptionsPanel({
             </Select>
           </>
         ) : null}
-        {fields.map(({ field, label, values, word }) => {
+        {fields.map(({ field, label, help, values, word }) => {
           const channelValue = channelValueOf(field, baseline.profile);
           const isChanged = changed.has(field);
           const inChannel = options[field] === 'channel';
@@ -219,12 +242,14 @@ export function PostOptionsPanel({
             отдельный пункт «как в канале» остаётся, только когда значения
             у канала нет.
           */
-          return (
+          const row = (
             <PostOptionRow
               key={field}
               id={`${baseId}-${field}`}
               field={field}
               label={label}
+              help={help}
+              helpLabel={ti.profileHintFor(label)}
               hint={inChannel ? t.asInChannel(null) : null}
               note={field === 'links' ? ti.profileLinkSource : null}
               value={
@@ -245,19 +270,74 @@ export function PostOptionsPanel({
               ))}
             </PostOptionRow>
           );
+          if (field !== 'length') return row;
+          /*
+            Эмодзи идёт сразу за длиной, как в карточке канала, и занимает
+            всю ширину панели: шести делениям с «без предела» в колонке
+            значения тесно.
+          */
+          return [
+            row,
+            <div
+              key="emoji"
+              data-post-option="emoji"
+              data-post-option-changed={emojiChanged ? 'true' : 'false'}
+              className="col-span-2 flex min-w-0 flex-col gap-[4px] pt-[4px]"
+            >
+              <div className="flex min-w-0 flex-wrap items-center gap-x-[8px]">
+                <FieldLabel
+                  htmlFor={`${baseId}-emoji`}
+                  label={ti.profileEmoji}
+                  hint={ti.profileHintEmoji}
+                  hintLabel={ti.profileHintFor(ti.profileEmoji)}
+                  labelClassName="cf-caption text-cf-ink-muted"
+                />
+                {emojiInChannel ? (
+                  <span
+                    id={`${baseId}-emoji-hint`}
+                    data-post-option-hint="emoji"
+                    className="cf-caption text-cf-ink-muted"
+                  >
+                    {t.asInChannel(null)}
+                  </span>
+                ) : null}
+              </div>
+              <EmojiCeilingSlider
+                locale={locale}
+                id={`${baseId}-emoji`}
+                value={emojiValue}
+                channel={channelEmoji}
+                muted={emojiInChannel}
+                changed={emojiChanged}
+                disabled={disabled}
+                dataName="post"
+                describedBy={emojiInChannel ? `${baseId}-emoji-hint` : undefined}
+                onChange={chooseEmoji}
+              />
+            </div>,
+          ];
         })}
       </div>
 
-      <Input
-        standalone
-        density="dense"
-        label={t.wishLabel}
-        placeholder={t.wishPlaceholder}
-        maxLength={POST_WISH_MAX}
-        value={options.wish}
-        disabled={disabled}
-        onChange={(event) => onChange({ ...options, wish: event.target.value })}
-      />
+      <div className="flex min-w-0 flex-col gap-[4px]">
+        <FieldLabel
+          htmlFor={`${baseId}-wish`}
+          label={t.wishLabel}
+          hint={t.hintWish}
+          hintLabel={ti.profileHintFor(t.wishLabel)}
+          labelClassName="cf-caption text-cf-ink-muted"
+        />
+        <Input
+          standalone
+          density="dense"
+          id={`${baseId}-wish`}
+          placeholder={t.wishPlaceholder}
+          maxLength={POST_WISH_MAX}
+          value={options.wish}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...options, wish: event.target.value })}
+        />
+      </div>
 
       <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
         {onRewrite ? (
@@ -328,6 +408,8 @@ function PostOptionRow({
   id,
   field,
   label,
+  help,
+  helpLabel,
   hint,
   note = null,
   value,
@@ -340,6 +422,9 @@ function PostOptionRow({
   id: string;
   field: PostProfileField;
   label: string;
+  /** Одна строка в «?» рядом с названием. */
+  help: string;
+  helpLabel: string;
   /** «как в канале» под названием, пока поле не менялось. */
   hint: string | null;
   /** Постоянная подсказка под выбором — та же, что в карточке канала. */
@@ -354,9 +439,13 @@ function PostOptionRow({
   return (
     <>
       <div className="flex min-w-0 flex-col">
-        <label htmlFor={id} className="cf-caption text-cf-ink-muted">
-          {label}
-        </label>
+        <FieldLabel
+          htmlFor={id}
+          label={label}
+          hint={help}
+          hintLabel={helpLabel}
+          labelClassName="cf-caption text-cf-ink-muted"
+        />
         {hint ? (
           <span
             id={`${id}-hint`}

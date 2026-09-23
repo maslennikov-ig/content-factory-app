@@ -22,6 +22,7 @@ import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 import { Progress } from '../ui/progress';
+import { Disclosure } from '../ui/disclosure';
 import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 import {
   aiProviderCopy,
@@ -434,10 +435,16 @@ const BlockHeading = ({
  * A free-text field with a datalist rather than a plain select: OpenRouter
  * publishes hundreds of models, and a new one must be usable the day it
  * appears without waiting for this list to refresh.
+ *
+ * The sentence under the field moved into the «?» beside its name
+ * (`97dq.62`, variant B): with the fields in pairs, a helper line under one
+ * of them pushed its neighbour's row out of line.
  */
 const ModelField = ({
+  id,
   label,
   hint,
+  hintLabel,
   placeholder,
   value,
   options,
@@ -445,8 +452,10 @@ const ModelField = ({
   onChange,
   onCommit,
 }: {
+  id: string;
   label: string;
   hint: string;
+  hintLabel: string;
   placeholder: string;
   value: string;
   options: ModelOption[];
@@ -454,17 +463,15 @@ const ModelField = ({
   onChange: (value: string) => void;
   onCommit: () => void;
 }) => (
-  <>
+  <LabelledField id={id} label={label} hint={hint} hintLabel={hintLabel}>
     <Input
-      label={label}
+      id={id}
+      label=""
       name={listId}
       value={value}
       placeholder={placeholder}
       disableForm={true}
       list={listId}
-      // `helper` renders the hint and wires aria-describedby, so a screen
-      // reader announces it with the field instead of as loose text after it.
-      helper={hint}
       // A model id is typed a character at a time and none of the intermediate
       // ones is a model, so this field is saved when it is left rather than as
       // it is written. A key field has no such handler at all.
@@ -480,7 +487,7 @@ const ModelField = ({
         </option>
       ))}
     </datalist>
-  </>
+  </LabelledField>
 );
 
 const AiProviderComponent = () => {
@@ -716,6 +723,11 @@ const AiProviderComponent = () => {
 
   const textOptions = useMemo(() => models?.text || [], [models]);
   const imageOptions = useMemo(() => models?.image || [], [models]);
+
+  /** Сколько ролей идут не на ИИ для текста — строка свёрнутой таблицы. */
+  const routedRoles = AI_ROLES.filter((role) =>
+    (roleModels[role] || '').trim()
+  ).length;
 
   /**
    * The explicit save, which exists for exactly one reason: it is the only
@@ -1049,129 +1061,148 @@ const AiProviderComponent = () => {
 
         {ownKeys && (
           <>
-            <LabelledField
-              id="ai-provider-name"
-              label={t('provider', 'Provider')}
+            {/*
+              Главное — парами (`97dq.62`, вариант B): провайдер и ключ,
+              текст и картинки. Две колонки от 1024px, ниже — одна; порядок
+              чтения тот же, слева направо и сверху вниз.
+            */}
+            <div
+              data-ai-main-fields="true"
+              className="grid grid-cols-1 items-start gap-x-[16px] gap-y-[20px] lg:grid-cols-2"
             >
-              <Select
+              <LabelledField
                 id="ai-provider-name"
-                label=""
-                name="provider"
-                value={provider}
-                disableForm={true}
-                hideErrors={true}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  changeProvider(e.target.value as Provider)
-                }
+                label={t('provider', 'Provider')}
+                hintLabel={words.hintFor(t('provider', 'Provider'))}
+                hint={words.fields.provider}
               >
-                <option value="openai">OpenAI</option>
-                <option value="openrouter">OpenRouter</option>
-              </Select>
-            </LabelledField>
+                <Select
+                  id="ai-provider-name"
+                  label=""
+                  name="provider"
+                  value={provider}
+                  disableForm={true}
+                  hideErrors={true}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    changeProvider(e.target.value as Provider)
+                  }
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="openrouter">OpenRouter</option>
+                </Select>
+              </LabelledField>
 
-            <Input
-              label={t('api_key', 'API key')}
-              name="apiKey"
-              secret={true}
-              value={apiKey}
-              disableForm={true}
-              action={
-                data?.hasKey ? (
-                  <ClearStoredKeyButton
-                    label={t('remove_stored_key', 'Remove stored key')}
-                    busy={clearing}
-                    onClear={clearKey}
-                  />
-                ) : undefined
-              }
-              placeholder={
-                data?.hasKey
-                  ? t(
-                      'ai_key_set_placeholder',
-                      'A key is saved — type to replace it'
-                    )
-                  : t('ai_key_empty_placeholder', 'Paste your key')
-              }
-              /*
-              A key is a secret and has no autosave handler of any kind: this
-              field reaches the network only when «Сохранить» is pressed. The
-              line below is state — whether a key is stored — so it stays on
-              the surface rather than moving into a hint.
-            */
-              helper={
-                !data?.hasKey
-                  ? t(
-                      'ai_key_missing_org',
-                      'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
-                    )
-                  : t(
-                      'ai_key_from_settings',
-                      'A key is stored for this workspace. It is never shown again.'
-                    )
-              }
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setApiKey(e.target.value)
-              }
-            />
+              <LabelledField
+                id="ai-api-key"
+                label={t('api_key', 'API key')}
+                hintLabel={words.hintFor(t('api_key', 'API key'))}
+                hint={words.fields.key}
+              >
+                <Input
+                  id="ai-api-key"
+                  label=""
+                  name="apiKey"
+                  secret={true}
+                  value={apiKey}
+                  disableForm={true}
+                  action={
+                    data?.hasKey ? (
+                      <ClearStoredKeyButton
+                        label={t('remove_stored_key', 'Remove stored key')}
+                        busy={clearing}
+                        onClear={clearKey}
+                      />
+                    ) : undefined
+                  }
+                  placeholder={
+                    data?.hasKey
+                      ? t(
+                          'ai_key_set_placeholder',
+                          'A key is saved — type to replace it'
+                        )
+                      : t('ai_key_empty_placeholder', 'Paste your key')
+                  }
+                  /*
+                  A key is a secret and has no autosave handler of any kind: this
+                  field reaches the network only when «Сохранить» is pressed. The
+                  line below is state — whether a key is stored — so it stays on
+                  the surface rather than moving into a hint.
+                */
+                  helper={
+                    !data?.hasKey
+                      ? t(
+                          'ai_key_missing_org',
+                          'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
+                        )
+                      : t(
+                          'ai_key_from_settings',
+                          'A key is stored for this workspace. It is never shown again.'
+                        )
+                  }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setApiKey(e.target.value)
+                  }
+                />
+              </LabelledField>
 
-            <ModelField
-              label={t('text_model', 'Text model')}
-              hint={
-                provider === 'openrouter'
-                  ? t(
-                      'text_model_hint_openrouter',
-                      'Only models that support structured output and tools are listed — the generator depends on both.'
-                    )
-                  : t(
-                      'text_model_hint',
-                      'Leave empty to use the provider default.'
-                    )
-              }
-              placeholder={t('provider_default_model', 'Provider default')}
-              value={textModel}
-              options={textOptions}
-              listId="ai-text-models"
-              onChange={setTextModel}
-              onCommit={autosave}
-            />
+              <ModelField
+                id="ai-text-model"
+                label={t('text_model', 'Text model')}
+                hintLabel={words.hintFor(t('text_model', 'Text model'))}
+                hint={
+                  provider === 'openrouter'
+                    ? `${words.fields.textModel} ${t(
+                        'text_model_hint_openrouter',
+                        'Only models that support structured output and tools are listed — the generator depends on both.'
+                      )}`
+                    : words.fields.textModel
+                }
+                placeholder={t('provider_default_model', 'Provider default')}
+                value={textModel}
+                options={textOptions}
+                listId="ai-text-models"
+                onChange={setTextModel}
+                onCommit={autosave}
+              />
 
-            <ModelField
-              label={t('image_model', 'Image model')}
-              hint={
-                provider === 'openrouter'
-                  ? t(
-                      'image_model_hint_openrouter',
-                      'Only models that can return an image are listed.'
-                    )
-                  : t(
-                      'image_model_hint',
-                      'Leave empty to use the provider default.'
-                    )
-              }
-              placeholder={t('provider_default_model', 'Provider default')}
-              value={imageModel}
-              options={imageOptions}
-              listId="ai-image-models"
-              onChange={setImageModel}
-              onCommit={autosave}
-            />
+              <ModelField
+                id="ai-image-model"
+                label={t('image_model', 'Image model')}
+                hintLabel={words.hintFor(t('image_model', 'Image model'))}
+                hint={
+                  provider === 'openrouter'
+                    ? `${words.fields.imageModel} ${t(
+                        'image_model_hint_openrouter',
+                        'Only models that can return an image are listed.'
+                      )}`
+                    : words.fields.imageModel
+                }
+                placeholder={t('provider_default_model', 'Provider default')}
+                value={imageModel}
+                options={imageOptions}
+                listId="ai-image-models"
+                onChange={setImageModel}
+                onCommit={autosave}
+              />
+            </div>
 
             {/*
             One model for everything was the whole cost problem
             (`content-factory-next-x63z`): classifying a research subject — one
             sentence in, five short fields out — was billed at the price of
-            writing a draft. Six rows, each a plain model id, each empty by
+            writing a draft. Seven rows, each a plain model id, each empty by
             default and empty meaning «the text model above», so the screen
             adds a lever without adding a decision anybody has to make.
 
-            Три абзаца объяснения стояли здесь постоянно и занимали больше
-            места, чем шесть полей. Решающее — что пустое поле это нормально —
-            осталось строкой; что такое роль вызова и зачем её менять, уехало
-            в подсказку (`content-factory-next-75xn.13`).
+            Свёрнуто по умолчанию (`97dq.62`, вариант B): строка-открывашка
+            говорит, что внутри, — «у всех тот же, что для текста» или «свой у
+            N», — и таблица «роль · поле» раскрывается по нажатию. Что такое
+            роль, уехало в подсказку заголовка, что делает каждая — в «?» у
+            её строки.
           */}
             <div
               data-ai-roles-hint="true"
-              className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]"
+              className="flex flex-col gap-[8px] border-t border-cf-border pt-[16px]"
             >
               <BlockHeading
                 title={t('ai_role_models', 'Usage and call roles')}
@@ -1180,33 +1211,68 @@ const AiProviderComponent = () => {
                 )}
                 hint={words.rolesHint}
               />
-              <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                {words.rolesEmpty}
-              </p>
-            </div>
-
-            {AI_ROLES.map((role) => (
-              <Input
-                key={role}
-                label={t(`ai_role_${role}`, role)}
-                name={`ai-role-model-${role}`}
-                value={roleModels[role] || ''}
-                placeholder={t('provider_default_model', 'Provider default')}
-                disableForm={true}
-                // Одна строка про саму роль, рядом с её полем: список из шести
-                // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
-                // его впервые.
-                helper={words.roles[role].what}
-                list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
-                onBlur={() => autosave()}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setRoleModels((current) => ({
-                    ...current,
-                    [role]: event.target.value,
-                  }))
+              <Disclosure
+                className="flex flex-col"
+                triggerClassName="px-[8px]"
+                summary={
+                  <span data-ai-roles-summary="true" className="cf-body-sm">
+                    {routedRoles
+                      ? words.rolesSummarySome(routedRoles, AI_ROLES.length)
+                      : words.rolesSummaryAll}
+                  </span>
                 }
-              />
-            ))}
+                contentClassName="flex flex-col gap-[12px] pt-[8px]"
+              >
+                <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                  {words.rolesEmpty}
+                </p>
+                <div className="grid grid-cols-1 items-center gap-x-[16px] gap-y-[8px] sm:grid-cols-[200px_minmax(0,1fr)]">
+                  {AI_ROLES.map((role) => (
+                    <React.Fragment key={role}>
+                      <span className="flex min-w-0 flex-wrap items-center gap-[4px]">
+                        <label
+                          htmlFor={`ai-role-model-${role}`}
+                          className="cf-body-sm text-cf-ink"
+                        >
+                          {t(`ai_role_${role}`, role)}
+                        </label>
+                        {/* Одна строка про саму роль — в «?» рядом с её
+                            названием: «Разбор текста» ничего не объясняет
+                            тому, кто видит список впервые. */}
+                        <Hint label={words.hintFor(t(`ai_role_${role}`, role))}>
+                          {words.roles[role].what}
+                        </Hint>
+                      </span>
+                      <Input
+                        id={`ai-role-model-${role}`}
+                        label=""
+                        name={`ai-role-model-${role}`}
+                        value={roleModels[role] || ''}
+                        placeholder={t(
+                          'provider_default_model',
+                          'Provider default'
+                        )}
+                        disableForm={true}
+                        list={
+                          role === 'image'
+                            ? 'ai-image-models'
+                            : 'ai-text-models'
+                        }
+                        onBlur={() => autosave()}
+                        onChange={(
+                          event: React.ChangeEvent<HTMLInputElement>
+                        ) =>
+                          setRoleModels((current) => ({
+                            ...current,
+                            [role]: event.target.value,
+                          }))
+                        }
+                      />
+                    </React.Fragment>
+                  ))}
+                </div>
+              </Disclosure>
+            </div>
 
             {provider === 'openrouter' && models?.error && (
               <div className="cf-body-sm text-cf-danger">
@@ -1276,77 +1342,88 @@ const AiProviderComponent = () => {
         спрятать (`content-factory-next-97dq.6`).
       */}
         {ownKeys &&
-          KEYED_SEARCH_PROVIDERS.map((engine) => (
-            <Input
-              key={engine}
-              label={`${words.search.engines[engine].keyLabel} — ${
-                hasStoredSearchKey(engine)
-                  ? words.search.keyOwn
-                  : words.search.keySystem
-              }`}
-              name={`searchApiKey-${engine}`}
-              secret={true}
-              value={searchApiKeys[engine] || ''}
-              disableForm={true}
-              action={
-                hasStoredSearchKey(engine) ? (
-                  /*
+          KEYED_SEARCH_PROVIDERS.map((engine) => {
+            const keyLabel = `${words.search.engines[engine].keyLabel} — ${
+              hasStoredSearchKey(engine)
+                ? words.search.keyOwn
+                : words.search.keySystem
+            }`;
+            return (
+              <LabelledField
+                key={engine}
+                id={`ai-search-key-${engine}`}
+                label={keyLabel}
+                hintLabel={words.hintFor(words.search.engines[engine].keyLabel)}
+                hint={words.search.engines[engine].what}
+              >
+                <Input
+                  id={`ai-search-key-${engine}`}
+                  label=""
+                  name={`searchApiKey-${engine}`}
+                  secret={true}
+                  value={searchApiKeys[engine] || ''}
+                  disableForm={true}
+                  action={
+                    hasStoredSearchKey(engine) ? (
+                      /*
                   Крестик выглядит как удаление, а означает возврат на ключ
                   системы. Владелец 18.09.2026: «должно быть пояснение при
                   наведении на крестик… для обычного пользователя не должно
                   быть возможности работать без ключа». Имя кнопки называет
                   движок, всплывающая строка — что останется после нажатия.
                 */
-                  <ClearStoredKeyButton
-                    label={words.search.returnToSystem(
-                      words.search.engines[engine].name
-                    )}
-                    hint={words.search.returnToSystemHint}
-                    busy={clearingSearch === engine}
-                    onClear={() => clearSearchKey(engine)}
-                  />
-                ) : undefined
-              }
-              placeholder={
-                hasStoredSearchKey(engine)
-                  ? words.search.keySavedPlaceholder
-                  : words.search.keyEmptyPlaceholder
-              }
-              helper={
-                hasStoredSearchKey(engine) ? (
-                  /*
+                      <ClearStoredKeyButton
+                        label={words.search.returnToSystem(
+                          words.search.engines[engine].name
+                        )}
+                        hint={words.search.returnToSystemHint}
+                        busy={clearingSearch === engine}
+                        onClear={() => clearSearchKey(engine)}
+                      />
+                    ) : undefined
+                  }
+                  placeholder={
+                    hasStoredSearchKey(engine)
+                      ? words.search.keySavedPlaceholder
+                      : words.search.keyEmptyPlaceholder
+                  }
+                  helper={
+                    hasStoredSearchKey(engine) ? (
+                      /*
                   Объяснение с клавиатуры: `title` мышиный, а подсказка —
                   кнопка со своим именем. Она называет сам крестик и не
                   повторяет строку с него (`97dq.34`). Живёт под полем, а не в нём: у рамки
                   поля `overflow-hidden`, и пузырь внутри неё был бы обрезан.
                 */
-                  <span className="flex flex-wrap items-center gap-[4px]">
-                    {words.search.engines[engine].keyStored}
-                    <Hint
-                      label={words.hintFor(
-                        words.search.returnToSystem(
-                          words.search.engines[engine].name
-                        )
-                      )}
-                      side="start"
-                    >
-                      {words.search.returnToSystemExplain(
-                        words.search.engines[engine].name
-                      )}
-                    </Hint>
-                  </span>
-                ) : (
-                  words.search.engines[engine].keyMissing
-                )
-              }
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setSearchApiKeys((current) => ({
-                  ...current,
-                  [engine]: event.target.value,
-                }))
-              }
-            />
-          ))}
+                      <span className="flex flex-wrap items-center gap-[4px]">
+                        {words.search.engines[engine].keyStored}
+                        <Hint
+                          label={words.hintFor(
+                            words.search.returnToSystem(
+                              words.search.engines[engine].name
+                            )
+                          )}
+                          side="start"
+                        >
+                          {words.search.returnToSystemExplain(
+                            words.search.engines[engine].name
+                          )}
+                        </Hint>
+                      </span>
+                    ) : (
+                      words.search.engines[engine].keyMissing
+                    )
+                  }
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setSearchApiKeys((current) => ({
+                      ...current,
+                      [engine]: event.target.value,
+                    }))
+                  }
+                />
+              </LabelledField>
+            );
+          })}
 
         {/* Тематика и глубина — рядом, по 240, а не друг под другом во всю
           ширину (`97dq.51`). На узком экране — одна колонка. */}
@@ -1357,6 +1434,8 @@ const AiProviderComponent = () => {
           <LabelledField
             id="ai-search-topic"
             label={t('search_topic', 'Search topic')}
+            hintLabel={words.hintFor(t('search_topic', 'Search topic'))}
+            hint={words.fields.searchTopic}
           >
             <Select
               id="ai-search-topic"

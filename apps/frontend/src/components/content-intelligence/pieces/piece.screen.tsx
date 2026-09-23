@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
+import { useEnterMotion } from '../../ui/enter-motion';
 import { PlusIcon } from '@contentfactory/frontend/components/ui/icons';
 import { ConfirmButton } from '../../ui/confirm-button';
 import {
@@ -89,6 +90,8 @@ export function PieceScreen({
   const [titleValue, setTitleValue] = useState('');
   const [titleSaving, setTitleSaving] = useState(false);
   const [titleError, setTitleError] = useState('');
+  // A tab switch fades the panel in, 150ms (`97dq.59`); the tabs stay put.
+  const panelMotion = useEnterMotion<HTMLDivElement>(tab, 'cf-tab-enter');
 
   if (state === 'restricted') {
     return (
@@ -399,6 +402,7 @@ export function PieceScreen({
         </div>
 
         <TabPanel
+          ref={panelMotion}
           value={active}
           className="flex min-w-0 flex-col gap-[24px] pt-[8px]"
         >

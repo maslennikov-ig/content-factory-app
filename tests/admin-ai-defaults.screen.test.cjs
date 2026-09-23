@@ -194,13 +194,13 @@ describe('у поля ключа три состояния, и они видны
     // Убрать можно только то, что сохранено здесь: ключ сервера этой дверью не
     // убирается, и кнопки, которая обещала бы обратное, нет.
     expect(
-      field('admin-ai-api-key').querySelector('button[aria-label]')
+      field('admin-ai-api-key').querySelector('button[aria-label]:not([data-hint-trigger])')
     ).toBeTruthy();
     expect(
-      field('admin-ai-search-key-tavily').querySelector('button[aria-label]')
+      field('admin-ai-search-key-tavily').querySelector('button[aria-label]:not([data-hint-trigger])')
     ).toBeNull();
     expect(
-      field('admin-ai-search-key-exa').querySelector('button[aria-label]')
+      field('admin-ai-search-key-exa').querySelector('button[aria-label]:not([data-hint-trigger])')
     ).toBeNull();
   });
 
@@ -575,5 +575,59 @@ describe('экран сохраняет сам, а ключи — только �
       ''
     );
     expect(JSON.parse(fetchCalls[0].body).textModel).toBe('');
+  });
+});
+
+/**
+ * `content-factory-next-97dq.62`, вариант B холста: главное — парами на двух
+ * колонках от 1024px (провайдер · ключ, текст · картинки, режим · запасная),
+ * у каждого названия «?» с одной строкой, состояние значения — на поверхности.
+ */
+describe('ключи и ИИ по умолчанию: поля парами, у каждого «?»', () => {
+  it('шесть главных полей в одной сетке, две колонки от lg, в порядке пар', () => {
+    response = defaults();
+    draw();
+    const grid = document.querySelector('[data-admin-ai-main-fields="true"]');
+    expect(grid.className).toContain('grid-cols-1');
+    expect(grid.className).toContain('lg:grid-cols-2');
+    const cells = Array.from(grid.children).map(
+      (cell) =>
+        cell.getAttribute('data-key-field') ??
+        (cell.getAttribute('data-admin-ai-text-chain') ? 'flex' : null) ??
+        cell.querySelector('input, select')?.id
+    );
+    expect(cells).toEqual([
+      'admin-ai-provider',
+      'admin-ai-api-key',
+      'admin-ai-text-model',
+      'admin-ai-image-model',
+      'flex',
+      'admin-ai-text-fallback-model',
+    ]);
+  });
+
+  it('у каждого параметра экрана есть подсказка, а в имя поля она не входит', () => {
+    response = defaults();
+    draw();
+    // Подписи из i18next набор читает запасным английским словом.
+    for (const name of [
+      'provider',
+      'ключ генерации',
+      'text model',
+      'image model',
+      'сначала дешёвый уровень flex',
+      'запасная модель',
+      'ключ tavily',
+      'ключ exa',
+      'включённых операций в месяц',
+    ]) {
+      const hint = screen.getByRole('button', { name: `Подсказка: ${name}` });
+      expect(hint.getAttribute('data-hint-trigger')).toBe('true');
+      expect(hint.closest('label')).toBeNull();
+    }
+    // Поля по-прежнему названы своей подписью.
+    expect(screen.getByLabelText('Запасная модель').getAttribute('name')).toBe(
+      'admin-ai-text-fallback-model'
+    );
   });
 });

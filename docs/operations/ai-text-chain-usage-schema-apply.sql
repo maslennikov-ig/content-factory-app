@@ -1,8 +1,10 @@
 -- content-factory-next-97dq.55 — text chain and what each AI operation cost.
 -- Apply ONLY this text, verbatim.
 --
--- NOT YET APPLIED to production. After applying, record the date, release and
--- backup here and in production-deploy.md.
+-- APPLIED to production 23.09.2026, release `ae55c65be5ff` (rollback `6928b1f20c47`),
+-- together with the other wave file in one --single-transaction (the validator in
+-- update mode needs every diff statement in one file). Backup before:
+-- /var/backups/content-factory-next/postgres/20260923T154351Z-pre-textchain-planmode-product-only
 --
 -- Why. The owner's decision of 23.09.2026: text runs on `openai/gpt-6-luna`
 -- through flex → flex → standard tier → `z-ai/glm-5.3`, and every usage row

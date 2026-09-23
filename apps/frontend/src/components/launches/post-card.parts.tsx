@@ -11,6 +11,7 @@ import {
   STATUS_TONES,
   StatusTone,
 } from '@contentfactory/frontend/components/ui/surface';
+import type { PlanState } from './calendar-plan';
 
 /**
  * The calendar post card, taken apart.
@@ -129,9 +130,14 @@ export const SlotButton: FC<{
   ariaLabel?: string;
   /** Muted caption at the end of a `row` — the channels of the slot. */
   caption?: string;
+  /**
+   * Marks of the channels still free at this time, before the caption
+   * (`97dq.59`): «+ Добавить пост на 14:10 … [Т][Д] ещё свободно у 2 каналов».
+   */
+  marks?: ReactNode;
   onClick: () => void;
   className?: string;
-}> = ({ shape, label, ariaLabel, caption, onClick, className }) => (
+}> = ({ shape, label, ariaLabel, caption, marks, onClick, className }) => (
   <ControlButton
     layout={shape === 'row' ? 'content' : 'control'}
     density={shape === 'row' ? 'standard' : 'dense'}
@@ -160,8 +166,18 @@ export const SlotButton: FC<{
     <span className={clsx('truncate', caption ? 'shrink-0 max-w-full' : 'min-w-0')}>
       {label}
     </span>
+    {marks && (
+      <span className="ms-auto hidden shrink-0 items-center ps-[8px] sm:flex">
+        {marks}
+      </span>
+    )}
     {caption && (
-      <span className="ms-auto hidden min-w-0 truncate ps-[8px] cf-caption text-cf-ink-muted sm:block">
+      <span
+        className={clsx(
+          'hidden min-w-0 truncate ps-[8px] cf-caption text-cf-ink-muted sm:block',
+          !marks && 'ms-auto'
+        )}
+      >
         {caption}
       </span>
     )}
@@ -223,7 +239,9 @@ export const ChannelMarks: FC<{
           key={channel.id}
           className={clsx('shrink-0 flex', index > 0 && 'ms-[4px]')}
         >
-          {channel.picture ? (
+          {/* `/no-picture.jpg` is the server's blank white disc, not a
+              picture of the channel: the two-letter mark says more. */}
+          {channel.picture && !channel.picture.endsWith('/no-picture.jpg') ? (
             <img
               src={channel.picture}
               alt={channel.name}
@@ -444,3 +462,65 @@ export const PostCardActions: FC<{
     </div>
   );
 };
+
+/**
+ * The state of one channel post in the calendar (`97dq.59`): «в плане»,
+ * «в очереди», «черновик», «вышел», «не ушло».
+ *
+ * «в плане» is a held time that will not go out by itself, so it is drawn as
+ * the canvas drew it — a dashed info outline on no fill — and never as the
+ * filled info of «в очереди». Colour is not the only carrier: the word is
+ * always on the pill.
+ */
+export const PLAN_STATE_CLASS: Record<PlanState, string> = {
+  reserved: 'border-dashed border-cf-info text-cf-info bg-transparent',
+  queued: STATUS_TONES.info,
+  draft: STATUS_TONES.neutral,
+  published: STATUS_TONES.accent,
+  error: STATUS_TONES.danger,
+};
+
+/** One segment of the week card's band per channel post. */
+export const PLAN_BAND_CLASS: Record<PlanState, string> = {
+  reserved:
+    'bg-[repeating-linear-gradient(90deg,var(--cf-info)_0_4px,transparent_4px_8px)]',
+  queued: 'bg-cf-info',
+  draft: 'bg-cf-border-strong',
+  published: 'bg-cf-accent',
+  error: 'bg-cf-danger',
+};
+
+export const PlanStatePill: FC<{
+  state: PlanState;
+  label: string;
+  title?: string;
+  className?: string;
+}> = ({ state, label, title, className }) => (
+  <span
+    data-plan-state={state}
+    title={title}
+    className={clsx(
+      'inline-flex shrink-0 items-center h-[20px] px-[8px] rounded-[4px] border cf-label-sm whitespace-nowrap',
+      PLAN_STATE_CLASS[state],
+      className
+    )}
+  >
+    {label}
+  </span>
+);
+
+/**
+ * The week card's head: one segment per channel post, in row order, so five
+ * channels at 09:20 read as five states at a glance (canvas C2 A).
+ */
+export const PlanBand: FC<{ states: readonly PlanState[] }> = ({ states }) => (
+  <span aria-hidden className="flex h-[4px] w-full overflow-hidden rounded-t-[8px]">
+    {states.map((state, index) => (
+      <i
+        key={index}
+        data-plan-band={state}
+        className={clsx('flex-1 not-italic', PLAN_BAND_CLASS[state])}
+      />
+    ))}
+  </span>
+);

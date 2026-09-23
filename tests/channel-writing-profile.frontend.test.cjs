@@ -156,12 +156,15 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
     )
   );
 
-  // Six policy rows and the channel plan (97dq.57). «Обращение» left on
-  // 23.09.2026 (97dq.45). «Кто говорит здесь» is not drawn: this workspace
-  // has no second avatar to choose.
+  // Five policy rows and the channel plan (97dq.57); emoji is a slider «до N»
+  // since 97dq.61. «Обращение» left on 23.09.2026 (97dq.45). «Кто говорит
+  // здесь» is not drawn: this workspace has no second avatar to choose.
   await waitFor(() =>
-    expect(screen.getAllByRole('radiogroup')).toHaveLength(7)
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(6)
   );
+  expect(
+    screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' })
+  ).not.toBeNull();
   // The plan defaults to «Бронь» even when the server has nothing to say.
   const planGroup = screen.getByRole('radiogroup', { name: 'План' });
   expect(
@@ -191,6 +194,73 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
   );
 });
 
+test('«Как пишем в …»: every parameter and the plan carry a «?» (twelfth-wave canvas)', async () => {
+  serve();
+  render(
+    React.createElement(
+      SWRConfig,
+      { value: { provider: () => new Map(), dedupingInterval: 0 } },
+      React.createElement(WritingProfileCard, {
+        locale: 'ru',
+        integrationId: 'channel-1',
+        integrationName: 'Мастерская',
+        canWrite: true,
+        open: true,
+        onClose: () => undefined,
+      })
+    )
+  );
+  await waitFor(() =>
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(6)
+  );
+  for (const name of [
+    'Длина',
+    'Эмодзи',
+    'Ссылки',
+    'Хэштеги',
+    'Призыв',
+    'Формат по умолчанию',
+    'Что ещё важно про этот канал',
+    'План',
+  ]) {
+    const hint = screen.getByRole('button', { name: `Подсказка: ${name}` });
+    expect(hint.getAttribute('data-hint-trigger')).toBe('true');
+  }
+  // Подсказка плана стоит рядом с подписью набора заглавными, а не внутри.
+  const planHint = screen.getByRole('button', { name: 'Подсказка: План' });
+  expect(planHint.closest('[id^="channel-plan-mode-"]')).toBeNull();
+  // Эмодзи на карточке — бегунок: деления и точное «до N» у старого «мало».
+  const slider = screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' });
+  expect(slider.value).toBe('2');
+  expect(slider.getAttribute('aria-valuetext')).toBe('до 3');
+  expect(
+    Array.from(document.querySelectorAll('[data-emoji-divisions] > span')).map(
+      (node) => node.textContent
+    )
+  ).toEqual(['нет', '1', '3', '6', '10', 'без предела']);
+  // На карточке канала сравнивать не с чем — серой отметки нет.
+  expect(document.querySelector('[data-emoji-channel-mark]')).toBeNull();
+});
+
+test('the slider stores an exact stop and the card reads it back as «до N»', async () => {
+  serve({ stored: false });
+  draw();
+  await waitFor(() =>
+    expect(panel().dataset.channelWritingProfileState).toBe('view')
+  );
+  fireEvent.click(screen.getAllByRole('button', { name: 'Заполнить' })[0]);
+  fireEvent.change(
+    screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' }),
+    { target: { value: '3' } }
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() =>
+    expect(panel().dataset.channelWritingProfileState).toBe('view')
+  );
+  expect(calls.find((call) => call.method === 'PUT').body.emojiLevel).toBe('max6');
+  expect(screen.getByText('до 6')).not.toBeNull();
+});
+
 test('inline editing sends one PUT and shows the normalized saved value', async () => {
   serve({ stored: false });
   const onSaved = jest.fn();
@@ -200,7 +270,10 @@ test('inline editing sends one PUT and shows the normalized saved value', async 
     expect(panel().dataset.channelWritingProfileState).toBe('view')
   );
   fireEvent.click(screen.getAllByRole('button', { name: 'Заполнить' })[0]);
-  fireEvent.click(screen.getByRole('radio', { name: 'без эмодзи' }));
+  fireEvent.change(
+    screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' }),
+    { target: { value: '0' } }
+  );
   const notes = screen.getByRole('textbox', {
     name: 'Что ещё важно про этот канал',
   });
@@ -227,7 +300,10 @@ test('Cancel restores the view without PUT or DELETE', async () => {
 
   await screen.findByRole('button', { name: 'Изменить' });
   fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'без эмодзи' }));
+  fireEvent.change(
+    screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' }),
+    { target: { value: '0' } }
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
 
   expect(panel().dataset.channelWritingProfileState).toBe('view');

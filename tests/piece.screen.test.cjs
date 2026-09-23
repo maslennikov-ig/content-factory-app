@@ -550,8 +550,10 @@ describe('the channel tab with an adaptation', () => {
     expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull();
     expect(document.body.textContent).not.toContain('Кто говорит');
-    for (const name of ['Длина', 'Эмодзи', 'Хэштеги', 'Ссылки', 'Призыв'])
+    for (const name of ['Длина', 'Хэштеги', 'Ссылки', 'Призыв'])
       expect(screen.getByLabelText(name).tagName).toBe('SELECT');
+    // Эмодзи — бегунок «до N» (`97dq.61`), а не выбор из слов.
+    expect(screen.getByLabelText('Эмодзи').getAttribute('type')).toBe('range');
     fireEvent.change(screen.getByLabelText('Длина'), {
       target: { value: 'short' },
     });
@@ -728,11 +730,19 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
   };
   const counted = () =>
     document.querySelector('[data-post-options-count]')?.textContent ?? null;
+  const emojiRow = () => document.querySelector('[data-post-option="emoji"]');
+  const emojiReadout = () =>
+    emojiRow().querySelector('[data-emoji-readout]').textContent;
 
   test('every field starts «как в канале» with the channel value, muted, and nothing to rewrite', () => {
     wrap(React.createElement(Harness, { onRewrite: noop }));
     expect(shown('Длина')).toBe('500–1000');
-    expect(shown('Эмодзи')).toBe('мало · 1–3');
+    // Старое «мало» канала стоит на делении «до 3», и там же серая отметка.
+    expect(emojiReadout()).toBe('до 3');
+    expect(select('Эмодзи').value).toBe('2');
+    expect(
+      emojiRow().querySelector('[data-emoji-channel-mark]').getAttribute('data-emoji-channel-mark')
+    ).toBe('max3');
     expect(shown('Хэштеги')).toBe('без хэштегов');
     expect(shown('Ссылки')).toBe('не больше одной, в конце');
     expect(shown('Призыв')).toBe('вопрос читателю');
@@ -771,16 +781,46 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(select('Длина').className).toContain('border-cf-signature');
     expect(select('Длина').className).not.toContain('text-cf-ink-muted');
     expect(select('Длина').getAttribute('aria-describedby')).toBeNull();
-    expect(select('Эмодзи').getAttribute('data-post-option-changed')).toBe('false');
+    expect(emojiRow().getAttribute('data-post-option-changed')).toBe('false');
     expect(counted()).toBe('2 изменения');
     fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
     expect(onRewrite).toHaveBeenCalledTimes(1);
-    // Выбрать значение канала — вернуться к «как в канале».
-    fireEvent.change(select('Эмодзи'), { target: { value: 'few' } });
-    expect(select('Эмодзи').value).toBe('few');
-    expect(select('Эмодзи').getAttribute('data-post-option-changed')).toBe('false');
+    // Ручка на другом делении — изменение: число, рамка цветом, «в канале: до 3».
+    fireEvent.change(select('Эмодзи'), { target: { value: '4' } });
+    expect(emojiReadout()).toBe('до 10');
+    expect(emojiRow().getAttribute('data-post-option-changed')).toBe('true');
+    expect(emojiRow().querySelector('[data-emoji-channel-note]').textContent).toBe(
+      'в канале: до 3'
+    );
+    expect(counted()).toBe('3 изменения');
+    // Вернуть ручку на деление канала — вернуться к «как в канале», даже если
+    // канал хранит старое слово «мало».
+    fireEvent.change(select('Эмодзи'), { target: { value: '2' } });
+    expect(select('Эмодзи').value).toBe('2');
+    expect(emojiRow().getAttribute('data-post-option-changed')).toBe('false');
     expect(select('Эмодзи').getAttribute('aria-describedby')).not.toBeNull();
     expect(counted()).toBe('2 изменения');
+  });
+
+  test('every parameter has a «?» with one line of its own (twelfth-wave canvas)', () => {
+    wrap(
+      React.createElement(PostOptionsPanel, {
+        locale: 'ru',
+        options: adapter.DEFAULT_POST_OPTIONS,
+        baseline: adapter.postBaselineOf(CHANNEL),
+        avatars: [
+          { id: 'a1', label: 'Игорь' },
+          { id: 'a2', label: 'Команда' },
+        ],
+        onChange: noop,
+      })
+    );
+    for (const name of ['Кто говорит', 'Длина', 'Эмодзи', 'Хэштеги', 'Ссылки', 'Призыв', 'Пожелание']) {
+      const hint = screen.getByRole('button', { name: `Подсказка: ${name}` });
+      expect(hint.getAttribute('data-hint-trigger')).toBe('true');
+      // «?» стоит рядом с подписью, а не внутри неё: в имя поля он не входит.
+      expect(hint.closest('label')).toBeNull();
+    }
   });
 
   test('«Сбросить» returns every field to the channel', () => {

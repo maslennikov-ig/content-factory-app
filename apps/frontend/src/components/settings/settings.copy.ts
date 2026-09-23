@@ -27,6 +27,16 @@ type SettingsWords = {
     languageNote: string;
     timezone: string;
     timezoneNote: string;
+    /** «Подсказка: имя» — имя кнопки «?» для скринридера. */
+    hintFor: (label: string) => string;
+    /** Одна строка в «?» у каждого поля профиля. */
+    hints: {
+      name: string;
+      lastName: string;
+      bio: string;
+      language: string;
+      timezone: string;
+    };
     /**
      * Город пояса своими словами, где он не совпадает с английским именем
      * из IANA: «Москва, UTC+3», а не «Europe/Moscow (GMT+03:00)».
@@ -83,6 +93,14 @@ export const settingsCopy: Record<SettingsCopyLocale, SettingsWords> = {
       languageNote: 'Меняется сразу.',
       timezone: 'Часовой пояс',
       timezoneNote: 'В нём календарь и расписание показывают время.',
+      hintFor: (label) => `Подсказка: ${label.toLowerCase()}`,
+      hints: {
+        name: 'Так вас видят в команде, в приглашениях и письмах.',
+        lastName: 'Необязательно. Стоит рядом с именем в списке команды.',
+        bio: 'Пара предложений о вас. Помогает писать от вашего лица, пока аватара нет.',
+        language: 'На каком языке с вами говорит продукт. Язык постов это не меняет.',
+        timezone: 'По этому поясу календарь показывает время и ставит посты.',
+      },
       timezoneCities: {
         'Europe/Kaliningrad': 'Калининград',
         'Europe/Moscow': 'Москва',
@@ -166,6 +184,14 @@ export const settingsCopy: Record<SettingsCopyLocale, SettingsWords> = {
       languageNote: 'Applies at once.',
       timezone: 'Time zone',
       timezoneNote: 'The calendar and the schedule show times in this zone.',
+      hintFor: (label) => `Hint: ${label.toLowerCase()}`,
+      hints: {
+        name: 'How the team sees you, in invitations and in emails.',
+        lastName: 'Optional. Shown next to your name in the team list.',
+        bio: 'A couple of sentences about you. Helps write in your voice while there is no avatar.',
+        language: 'The language the product speaks to you. It does not change the language of posts.',
+        timezone: 'The calendar shows times and schedules posts in this zone.',
+      },
       timezoneCities: {},
       signInTitle: 'Sign-in and password',
       signInNone: 'No sign-in methods yet',

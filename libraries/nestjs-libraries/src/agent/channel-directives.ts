@@ -144,11 +144,26 @@ export const channelHardLimit = (
     ? provider.maxCaptionLength
     : provider.maxLength;
 
-const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
+/**
+ * The emoji rule, one line per stored value.
+ *
+ * The first four are the old words and keep their wording: a channel saved
+ * before `97dq.61` gets exactly the instruction it got yesterday. The stops of
+ * the slider give the exact ceiling the person set — «до 3» is «no more than
+ * 3», not «a few» for the generator to interpret — and «без предела» lifts the
+ * ceiling without asking for emoji. Exported for the suite, which pins every
+ * line.
+ */
+export const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
   auto: '',
   none: 'No emoji.',
   few: 'Use one to three emoji, of no more than two kinds, and never as list bullets.',
   many: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
+  max1: 'Use no more than 1 emoji in the whole post, and never as a list bullet.',
+  max3: 'Use no more than 3 emoji in the whole post, and never as list bullets.',
+  max6: 'Use no more than 6 emoji in the whole post, and never as list bullets.',
+  max10: 'Use no more than 10 emoji in the whole post, and never as list bullets.',
+  unlimited: 'There is no limit on emoji: use them freely wherever they fit the meaning.',
 };
 
 const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string> = {

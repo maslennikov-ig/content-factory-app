@@ -91,11 +91,18 @@ export class PostsRepository {
     preserveId = false
   ) {
     const { contentDerivations, ...rest } = post;
-    const contentPieceId = contentDerivations?.[0]?.contentPieceId ?? null;
+    const derivation = contentDerivations?.[0];
+    const contentPieceId = derivation?.contentPieceId ?? null;
     return {
       ...(preserveId ? { contentPieceId } : {}),
       ...rest,
       piece: (contentPieceId && origins.get(contentPieceId)) || null,
+      // The channel plan mode the version was placed with (`97dq.57`). The
+      // calendar reads a DRAFT with `reserve`/`autopilot` as «в плане»
+      // (`97dq.59`); only the reads that select it carry it.
+      ...(derivation && 'plan' in derivation
+        ? { plan: derivation.plan ?? null }
+        : {}),
     };
   }
 
@@ -251,7 +258,7 @@ export class PostsRepository {
         creationMethod: true,
         contentDerivations: {
           where: { organizationId: orgId },
-          select: { contentPieceId: true },
+          select: { contentPieceId: true, plan: true },
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
@@ -382,7 +389,7 @@ export class PostsRepository {
           creationMethod: true,
           contentDerivations: {
             where: { organizationId: orgId },
-            select: { contentPieceId: true },
+            select: { contentPieceId: true, plan: true },
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
@@ -1554,6 +1561,67 @@ export class PostsRepository {
         },
       },
     });
+  }
+
+  /**
+   * Posts that can hold a day of the plan ahead (`97dq.59`): between `from`
+   * and `to`, live, top-level, in a live channel of this organisation.
+   * Superseded variant drafts are left out by the same holder rule the
+   * calendar uses, so the count never includes a draft nobody can see.
+   */
+  async getPlanAheadPosts(
+    orgId: string,
+    from: Date,
+    to: Date,
+    integrationIds?: string[]
+  ) {
+    const superseded = await supersededDraftPostIds(this._post.model, orgId);
+    const rows = await this._post.model.post.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        parentPostId: null,
+        publishDate: { gte: from, lte: to },
+        state: { in: ['QUEUE', 'DRAFT', 'PUBLISHED'] },
+        ...(superseded.length ? { id: { notIn: superseded } } : {}),
+        integration: {
+          deletedAt: null,
+          organizationId: orgId,
+          ...(integrationIds?.length ? { id: { in: integrationIds } } : {}),
+        },
+      },
+      select: {
+        integrationId: true,
+        publishDate: true,
+        state: true,
+        contentDerivations: {
+          where: { organizationId: orgId },
+          select: { plan: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    return rows.map((row) => ({
+      integrationId: row.integrationId,
+      publishDate: row.publishDate,
+      state: String(row.state),
+      plan: row.contentDerivations?.[0]?.plan ?? null,
+    }));
+  }
+
+  /** The live channels the plan-ahead count is reported for, in menu order. */
+  getPlanAheadChannels(orgId: string, integrationIds?: string[]) {
+    return (this._post.model as any).integration.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        disabled: false,
+        ...(integrationIds?.length ? { id: { in: integrationIds } } : {}),
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true },
+    }) as Promise<Array<{ id: string; name: string }>>;
   }
 
   getProductionAnalyticsPosts(

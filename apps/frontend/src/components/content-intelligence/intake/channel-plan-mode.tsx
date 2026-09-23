@@ -7,8 +7,9 @@ import {
   RadioGroup,
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
+import { Hint } from '@contentfactory/react/layout/hint';
 import { SectionLabel } from '../../ui/section-label';
-import type { IntakeLocale } from './intake.copy';
+import { intakeCopy, type IntakeLocale } from './intake.copy';
 
 /**
  * «План» на карточке канала «Как пишем в «X»» (`content-factory-next-97dq.57`,
@@ -42,6 +43,7 @@ export function readChannelPlanMode(value: unknown): ChannelPlanMode {
 export const channelPlanModeCopy = {
   ru: {
     label: 'План',
+    hint: 'Как адаптации этого канала встают в календарь. Сохраняется сразу, без кнопки.',
     saved: 'Сохранено',
     failed: 'Не удалось сохранить режим. Попробуйте ещё раз.',
     options: {
@@ -61,6 +63,7 @@ export const channelPlanModeCopy = {
   },
   en: {
     label: 'Plan',
+    hint: 'How this channel’s adaptations get into the calendar. Saves at once, no button.',
     saved: 'Saved',
     failed: 'The mode could not be saved. Try again.',
     options: {
@@ -138,9 +141,13 @@ export function ChannelPlanModeField({
       data-channel-plan-mode={value}
       className="grid min-w-0 grid-cols-1 gap-x-[16px] gap-y-[12px] border-t border-cf-border pt-[12px] sm:grid-cols-[160px_minmax(0,1fr)] sm:items-start"
     >
-      <SectionLabel as="span" id={labelId} className="flex items-center gap-[4px]">
-        {t.label}
-      </SectionLabel>
+      {/* «?» рядом, а не внутри: подпись раздела набрана заглавными. */}
+      <span className="flex min-w-0 items-center gap-[4px]">
+        <SectionLabel as="span" id={labelId}>
+          {t.label}
+        </SectionLabel>
+        <Hint label={intakeCopy[locale].profileHintFor(t.label)}>{t.hint}</Hint>
+      </span>
       <div className="flex min-w-0 flex-col gap-[8px]">
         <RadioGroup
           aria-labelledby={labelId}

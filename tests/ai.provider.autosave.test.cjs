@@ -117,6 +117,11 @@ const component = loadTypeScriptModule(
         React.createElement('section', null, title, children),
     },
     '../ui/progress': { Progress: () => null },
+    // Таблица ролей свёрнута настоящим `Disclosure` (`97dq.62`): закрытый регион
+    // остаётся в разметке с `hidden`, поэтому поля ролей видны набору.
+    '../ui/disclosure': require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+      'apps/frontend/src/components/ui/disclosure.tsx'
+    ),
     '@contentfactory/frontend/components/settings/settings.copy':
       require('./helpers/load-tsx.cjs').loadTypeScriptModule(
         'apps/frontend/src/components/settings/settings.copy.ts'

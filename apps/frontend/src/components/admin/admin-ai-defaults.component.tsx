@@ -176,6 +176,8 @@ const ClearStoredKeyButton = ({
 const KeyField = ({
   name,
   label,
+  hint,
+  hintLabel,
   origin,
   originLabel,
   explanation,
@@ -188,6 +190,9 @@ const KeyField = ({
 }: {
   name: string;
   label: string;
+  /** Одна строка в «?» у подписи (`97dq.62`). */
+  hint: string;
+  hintLabel: string;
   origin: KeyOrigin;
   originLabel: string;
   explanation: string;
@@ -200,34 +205,37 @@ const KeyField = ({
   onClear?: () => void;
 }) => (
   <div data-key-field={name} data-key-origin={origin}>
-    <Input
-      label={label}
-      name={name}
-      secret={true}
-      disableForm={true}
-      value={value}
-      placeholder={placeholder}
-      action={
-        origin === 'screen' && onClear ? (
-          <ClearStoredKeyButton
-            label={removeLabel}
-            busy={busy}
-            onClear={onClear}
-          />
-        ) : undefined
-      }
-      helper={
-        <span className="flex flex-wrap items-center gap-[8px]">
-          <Status tone={ORIGIN_TONE[origin]}>{originLabel}</Status>
-          <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-            {explanation}
+    <LabelledField id={name} label={label} hint={hint} hintLabel={hintLabel}>
+      <Input
+        id={name}
+        label=""
+        name={name}
+        secret={true}
+        disableForm={true}
+        value={value}
+        placeholder={placeholder}
+        action={
+          origin === 'screen' && onClear ? (
+            <ClearStoredKeyButton
+              label={removeLabel}
+              busy={busy}
+              onClear={onClear}
+            />
+          ) : undefined
+        }
+        helper={
+          <span className="flex flex-wrap items-center gap-[8px]">
+            <Status tone={ORIGIN_TONE[origin]}>{originLabel}</Status>
+            <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              {explanation}
+            </span>
           </span>
-        </span>
-      }
-      onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-        onChange(event.target.value)
-      }
-    />
+        }
+        onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+          onChange(event.target.value)
+        }
+      />
+    </LabelledField>
   </div>
 );
 
@@ -458,6 +466,8 @@ export function AdminAiDefaultsView({
         key={engine}
         name={`admin-ai-search-key-${engine}`}
         label={field.label}
+        hint={field.hint}
+        hintLabel={words.hintFor(field.label)}
         origin={origin}
         originLabel={words.origins[origin]}
         explanation={
@@ -582,129 +592,175 @@ export function AdminAiDefaultsView({
           />
         }
       >
-        <LabelledField
-          id="admin-ai-provider"
-          label={t('provider', 'Provider')}
-          hintLabel={words.hintFor(t('provider', 'Provider'))}
-          hint={words.models.providerHint}
-        >
-          <Select
-            id="admin-ai-provider"
-            label=""
-            name="provider"
-            value={form.provider}
-            disableForm={true}
-            hideErrors={true}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-              onCommit({
-                provider:
-                  event.target.value === 'openrouter' ? 'openrouter' : 'openai',
-              })
-            }
-          >
-            <option value="openai">OpenAI</option>
-            <option value="openrouter">OpenRouter</option>
-          </Select>
-          {providerOrigin === 'environment' ? (
-            <ValueState
-              name="admin-ai-provider"
-              origin="environment"
-              originLabel={words.origins.environment}
-              explanation={words.models.fromEnvironment}
-            />
-          ) : null}
-        </LabelledField>
-
-        <KeyField
-          name="admin-ai-api-key"
-          label={words.keys.model.label}
-          origin={modelKeyOrigin}
-          originLabel={words.origins[modelKeyOrigin]}
-          explanation={
-            modelKeyOrigin === 'screen'
-              ? words.keys.model.storedHere
-              : modelKeyOrigin === 'environment'
-              ? words.keys.model.fromEnvironment
-              : words.keys.model.absent
-          }
-          value={form.apiKey}
-          placeholder={
-            modelKeyOrigin === 'absent'
-              ? words.keys.model.placeholderEmpty
-              : words.keys.model.placeholderReplace
-          }
-          removeLabel={words.keys.model.removeKey}
-          busy={clearing === 'model'}
-          onChange={(value) => onChange({ apiKey: value })}
-          onClear={onClearModelKey}
-        />
-
-        <Input
-          label={t('text_model', 'Text model')}
-          name="admin-ai-text-model"
-          disableForm={true}
-          value={form.textModel}
-          placeholder={t('provider_default_model', 'Provider default')}
-          helper={valueHelper(
-            keyOrigin(!!data?.textModel, !!data?.fromEnvironment?.textModel),
-            'admin-ai-text-model'
-          )}
-          onBlur={() => onCommit()}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ textModel: event.target.value })
-          }
-        />
-
-        <Input
-          label={t('image_model', 'Image model')}
-          name="admin-ai-image-model"
-          disableForm={true}
-          value={form.imageModel}
-          placeholder={t('provider_default_model', 'Provider default')}
-          helper={valueHelper(
-            keyOrigin(!!data?.imageModel, !!data?.fromEnvironment?.imageModel),
-            'admin-ai-image-model'
-          )}
-          onBlur={() => onCommit()}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ imageModel: event.target.value })
-          }
-        />
-
         {/*
-          Цепочка текстовых вызовов (`content-factory-next-97dq.55`). Флажок
-          сохраняется сразу, поле — по уходу из него, как модели выше.
+          Главное — парами (`97dq.62`, вариант B): провайдер и ключ, текст и
+          картинки, режим и запасная. Две колонки от 1024px, ниже — одна.
+          Объяснения ушли в «?» у названий; под полями осталось только
+          состояние — откуда значение, — потому что его в подсказку прятать
+          нельзя.
         */}
-        <div data-admin-ai-text-chain="true" className="flex flex-col gap-[4px]">
-          <CheckboxField
-            name="admin-ai-text-flex"
-            label={words.models.flexLabel}
-            checked={form.textFlexEnabled ?? true}
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              onCommit({ textFlexEnabled: event.target.checked })
-            }
-          />
-          <p className="cf-body-sm text-cf-ink-muted max-w-[70ch] [text-wrap:pretty]">
-            {words.models.flexWhat}
-          </p>
-        </div>
+        <div
+          data-admin-ai-main-fields="true"
+          className="grid grid-cols-1 items-start gap-x-[16px] gap-y-[20px] lg:grid-cols-2"
+        >
+          <LabelledField
+            id="admin-ai-provider"
+            label={t('provider', 'Provider')}
+            hintLabel={words.hintFor(t('provider', 'Provider'))}
+            hint={words.models.providerHint}
+          >
+            <Select
+              id="admin-ai-provider"
+              label=""
+              name="provider"
+              value={form.provider}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+                onCommit({
+                  provider:
+                    event.target.value === 'openrouter'
+                      ? 'openrouter'
+                      : 'openai',
+                })
+              }
+            >
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+            </Select>
+            {providerOrigin === 'environment' ? (
+              <ValueState
+                name="admin-ai-provider"
+                origin="environment"
+                originLabel={words.origins.environment}
+                explanation={words.models.fromEnvironment}
+              />
+            ) : null}
+          </LabelledField>
 
-        <Input
-          label={words.models.fallbackLabel}
-          name="admin-ai-text-fallback-model"
-          disableForm={true}
-          value={form.textFallbackModel ?? ''}
-          placeholder={data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3'}
-          helper={
-            <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {words.models.fallbackWhat}
-            </span>
-          }
-          onBlur={() => onCommit()}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ textFallbackModel: event.target.value })
-          }
-        />
+          <KeyField
+            name="admin-ai-api-key"
+            label={words.keys.model.label}
+            hint={words.keys.model.hint}
+            hintLabel={words.hintFor(words.keys.model.label)}
+            origin={modelKeyOrigin}
+            originLabel={words.origins[modelKeyOrigin]}
+            explanation={
+              modelKeyOrigin === 'screen'
+                ? words.keys.model.storedHere
+                : modelKeyOrigin === 'environment'
+                ? words.keys.model.fromEnvironment
+                : words.keys.model.absent
+            }
+            value={form.apiKey}
+            placeholder={
+              modelKeyOrigin === 'absent'
+                ? words.keys.model.placeholderEmpty
+                : words.keys.model.placeholderReplace
+            }
+            removeLabel={words.keys.model.removeKey}
+            busy={clearing === 'model'}
+            onChange={(value) => onChange({ apiKey: value })}
+            onClear={onClearModelKey}
+          />
+
+          <LabelledField
+            id="admin-ai-text-model"
+            label={t('text_model', 'Text model')}
+            hintLabel={words.hintFor(t('text_model', 'Text model'))}
+            hint={words.models.textHint}
+          >
+            <Input
+              id="admin-ai-text-model"
+              label=""
+              name="admin-ai-text-model"
+              disableForm={true}
+              value={form.textModel}
+              placeholder={t('provider_default_model', 'Provider default')}
+              helper={valueHelper(
+                keyOrigin(
+                  !!data?.textModel,
+                  !!data?.fromEnvironment?.textModel
+                ),
+                'admin-ai-text-model'
+              )}
+              onBlur={() => onCommit()}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                onChange({ textModel: event.target.value })
+              }
+            />
+          </LabelledField>
+
+          <LabelledField
+            id="admin-ai-image-model"
+            label={t('image_model', 'Image model')}
+            hintLabel={words.hintFor(t('image_model', 'Image model'))}
+            hint={words.models.imageHint}
+          >
+            <Input
+              id="admin-ai-image-model"
+              label=""
+              name="admin-ai-image-model"
+              disableForm={true}
+              value={form.imageModel}
+              placeholder={t('provider_default_model', 'Provider default')}
+              helper={valueHelper(
+                keyOrigin(
+                  !!data?.imageModel,
+                  !!data?.fromEnvironment?.imageModel
+                ),
+                'admin-ai-image-model'
+              )}
+              onBlur={() => onCommit()}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                onChange({ imageModel: event.target.value })
+              }
+            />
+          </LabelledField>
+
+          {/*
+            Цепочка текстовых вызовов (`content-factory-next-97dq.55`). Флажок
+            сохраняется сразу, поле — по уходу из него, как модели выше.
+          */}
+          <div
+            data-admin-ai-text-chain="true"
+            className="flex min-w-0 flex-wrap items-center gap-[4px] lg:min-h-[40px] lg:self-end"
+          >
+            <CheckboxField
+              name="admin-ai-text-flex"
+              label={words.models.flexLabel}
+              checked={form.textFlexEnabled ?? true}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                onCommit({ textFlexEnabled: event.target.checked })
+              }
+            />
+            <Hint label={words.hintFor(words.models.flexLabel)}>
+              {words.models.flexWhat}
+            </Hint>
+          </div>
+
+          <LabelledField
+            id="admin-ai-text-fallback-model"
+            label={words.models.fallbackLabel}
+            hintLabel={words.hintFor(words.models.fallbackLabel)}
+            hint={words.models.fallbackWhat}
+          >
+            <Input
+              id="admin-ai-text-fallback-model"
+              label=""
+              name="admin-ai-text-fallback-model"
+              disableForm={true}
+              value={form.textFallbackModel ?? ''}
+              placeholder={
+                data?.textChain?.defaultFallbackModel ?? 'z-ai/glm-5.3'
+              }
+              onBlur={() => onCommit()}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                onChange({ textFallbackModel: event.target.value })
+              }
+            />
+          </LabelledField>
+        </div>
       </SettingsSection>
 
       <SettingsSection
@@ -739,42 +795,50 @@ export function AdminAiDefaultsView({
           />
         }
       >
-        <Input
+        <LabelledField
+          id="admin-ai-monthly-operations"
           label={words.allowance.label}
-          name="admin-ai-monthly-operations"
-          type="number"
-          min={0}
-          step={1}
-          inputMode="numeric"
-          disableForm={true}
-          value={form.monthlyOperations}
-          helper={
-            <span className="flex flex-col gap-[4px]">
-              <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                {words.allowance.what}
+          hintLabel={words.hintFor(words.allowance.label)}
+          hint={words.allowance.labelHint}
+        >
+          <Input
+            id="admin-ai-monthly-operations"
+            label=""
+            name="admin-ai-monthly-operations"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            disableForm={true}
+            value={form.monthlyOperations}
+            helper={
+              <span className="flex flex-col gap-[4px]">
+                <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                  {words.allowance.what}
+                </span>
+                {allowanceOrigin === 'environment' ? (
+                  <ValueState
+                    name="admin-ai-monthly-operations"
+                    origin="environment"
+                    originLabel={words.origins.environment}
+                    explanation={words.allowance.fromEnvironment}
+                  />
+                ) : allowanceOrigin === 'absent' ? (
+                  <ValueState
+                    name="admin-ai-monthly-operations"
+                    origin="absent"
+                    originLabel={words.origins.absent}
+                    explanation={words.allowance.absent}
+                  />
+                ) : null}
               </span>
-              {allowanceOrigin === 'environment' ? (
-                <ValueState
-                  name="admin-ai-monthly-operations"
-                  origin="environment"
-                  originLabel={words.origins.environment}
-                  explanation={words.allowance.fromEnvironment}
-                />
-              ) : allowanceOrigin === 'absent' ? (
-                <ValueState
-                  name="admin-ai-monthly-operations"
-                  origin="absent"
-                  originLabel={words.origins.absent}
-                  explanation={words.allowance.absent}
-                />
-              ) : null}
-            </span>
-          }
-          onBlur={() => onCommit()}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ monthlyOperations: event.target.value })
-          }
-        />
+            }
+            onBlur={() => onCommit()}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+              onChange({ monthlyOperations: event.target.value })
+            }
+          />
+        </LabelledField>
       </SettingsSection>
 
       {/*

@@ -89,6 +89,20 @@ type Words = {
   usageModeHint: string;
   /** Что значит пустое поле. Решающее, поэтому остаётся строкой. */
   rolesEmpty: string;
+  /**
+   * Строка-открывашка свёрнутой таблицы ролей (`97dq.62`, вариант B): что в
+   * ней сейчас, без раскрытия.
+   */
+  rolesSummaryAll: string;
+  rolesSummarySome: (routed: number, total: number) => string;
+  /** Одна строка в «?» у каждого главного поля (`97dq.62`). */
+  fields: {
+    provider: string;
+    key: string;
+    textModel: string;
+    imageModel: string;
+    searchTopic: string;
+  };
   roles: {
     classify: RoleWords;
     extract: RoleWords;
@@ -170,6 +184,18 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       'Переключатель выбирает, на чьих ключах работает всё: и генерация, и поиск. На «Ключах системы» поиск идёт на ключах системы и расходует включённый лимит, а ваши сохранённые поисковые ключи ждут и возвращаются в работу, как только вы выберете «Свой ключ».',
     rolesEmpty:
       'Пустое поле означает «брать модель для текста, указанную выше». Заполнять здесь ничего не обязательно.',
+    rolesSummaryAll: 'Отдельный ИИ на задачу · у всех тот же, что для текста',
+    rolesSummarySome: (routed, total) =>
+      `Отдельный ИИ на задачу · свой у ${routed} из ${total}`,
+    fields: {
+      provider: 'Чей ИИ пишет тексты и рисует картинки: OpenAI или OpenRouter.',
+      key: 'Ключ вашего аккаунта у провайдера. Хранится только для этой области и больше не показывается.',
+      textModel:
+        'Какой ИИ пишет тексты. Пусто — берём то, что провайдер ставит по умолчанию.',
+      imageModel:
+        'Какой ИИ рисует картинки. Пусто — берём то, что провайдер ставит по умолчанию.',
+      searchTopic: 'Где искать: во всём интернете или только в свежих новостях.',
+    },
     roles: {
       classify: {
         what: 'Классификация — одно предложение на входе, несколько коротких полей на выходе: к чему относится тема, годится ли источник.',
@@ -267,6 +293,16 @@ export const aiProviderCopy: { ru: Words; en: Words } = {
       'This switch chooses whose keys everything runs on — generation and search alike. On the system keys, search runs on them and spends the included allowance, while your own saved search keys wait and come back into use the moment you choose your own key.',
     rolesEmpty:
       'An empty field means "use the text model above". Filling these in is optional.',
+    rolesSummaryAll: 'A separate AI per task · all use the text one',
+    rolesSummarySome: (routed, total) =>
+      `A separate AI per task · ${routed} of ${total} set`,
+    fields: {
+      provider: 'Whose AI writes the texts and draws the images: OpenAI or OpenRouter.',
+      key: 'Your account key at the provider. Kept for this workspace only and never shown again.',
+      textModel: 'Which AI writes the texts. Empty means the provider’s default.',
+      imageModel: 'Which AI draws the images. Empty means the provider’s default.',
+      searchTopic: 'Where to search: the whole web or fresh news only.',
+    },
     roles: {
       classify: {
         what: 'Classification — one sentence in, a few short fields out: what a subject belongs to, whether a source is usable.',

@@ -1,4 +1,5 @@
 import { type IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { readEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import { CHANNEL_ADDRESS_FORMS, CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelLengthPolicyV1, type ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 
 export {
@@ -123,7 +124,6 @@ export const defaultWritingProfileFor = (
   };
 };
 
-const EMOJI_LEVELS = ['none', 'few', 'many', 'auto'] as const;
 const LINK_POLICIES = ['none', 'end', 'inline', 'auto'] as const;
 const HASHTAG_POLICIES = ['none', 'end_1_3', 'free', 'auto'] as const;
 const CTA_KINDS = [
@@ -210,7 +210,7 @@ export const parseWritingProfile = (
   return {
     version: CHANNEL_WRITING_PROFILE_VERSION,
     lengthPolicy: parseLengthPolicy(stored.lengthPolicy, defaults.lengthPolicy),
-    emojiLevel: oneOf(EMOJI_LEVELS, stored.emojiLevel === 'free' ? 'many' : stored.emojiLevel, defaults.emojiLevel),
+    emojiLevel: readEmojiLevel(stored.emojiLevel, defaults.emojiLevel),
     linkPolicy: oneOf(LINK_POLICIES, stored.linkPolicy, defaults.linkPolicy),
     hashtagPolicy: oneOf(
       HASHTAG_POLICIES,

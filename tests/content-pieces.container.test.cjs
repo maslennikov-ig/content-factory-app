@@ -762,8 +762,9 @@ describe('the channel workspace talks to its own doors', () => {
     const profileCall = calls.find((call) => call.url.endsWith('/writing-profile'));
     expect(profileCall).toBeTruthy();
     await act(async () => {
+      // Бегунок «до N» (`97dq.61`): деление 0 — «нет».
       fireEvent.change(screen.getByLabelText('Эмодзи'), {
-        target: { value: 'none' },
+        target: { value: '0' },
       });
     });
     await click(screen.getByRole('button', { name: 'Запомнить для канала' }), () =>

@@ -794,7 +794,9 @@ describe('«Поставить на ЧЧ:ММ»', () => {
   test('без календаря — честный отказ', async () => {
     const service = new PieceService({ getPiece: async () => pieceRow() }, {}, {});
     await expect(
-      service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: SLOT }, 'ru')
+      // A date ahead of the real clock: this service has no stand clock, and a
+      // fixed SLOT turns into «date in the past» once the calendar passes it.
+      service.placeAdaptation('org-a', 'piece-1', 'ad-1', { date: new Date(Date.now() + 86_400_000).toISOString() }, 'ru')
     ).rejects.toMatchObject({ code: 'ADAPTATION_SCHEDULE_UNAVAILABLE' });
   });
 });

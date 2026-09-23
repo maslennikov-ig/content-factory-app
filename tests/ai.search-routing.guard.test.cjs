@@ -75,6 +75,11 @@ const screenModule = loadTypeScriptModule(
     },
     '@contentfactory/frontend/components/settings/ai-provider.copy': copy,
     '../ui/progress': { Progress: stub },
+    // Таблица ролей свёрнута настоящим `Disclosure` (`97dq.62`): закрытый регион
+    // остаётся в разметке с `hidden`, поэтому поля ролей видны набору.
+    '../ui/disclosure': require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+      'apps/frontend/src/components/ui/disclosure.tsx'
+    ),
     '@contentfactory/frontend/components/settings/settings.copy':
       require('./helpers/load-tsx.cjs').loadTypeScriptModule(
         'apps/frontend/src/components/settings/settings.copy.ts'
@@ -119,7 +124,7 @@ describe('списки задач и движков совпадают с сер
     expect(screen).toContain(
       'const KEYED_SEARCH_PROVIDERS = SEARCH_PROVIDERS.filter(searchProviderNeedsKey);'
     );
-    expect(screen).toContain('KEYED_SEARCH_PROVIDERS.map((engine) => (');
+    expect(screen).toMatch(/KEYED_SEARCH_PROVIDERS\.map\(\(engine\) =>/);
     // И у каждого такого движка есть подпись поля, а у беcключевого её нет.
     for (const engine of backend.SEARCH_PROVIDERS) {
       const engineWords = copy.aiProviderCopy.ru.search.engines[engine];

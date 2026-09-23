@@ -18,6 +18,10 @@ import {
   CHANNEL_ADDRESS_FORMS,
   type ChannelAddressFormV2,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
+import {
+  EMOJI_LEVEL_VALUES,
+  type EmojiLevel,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 
 /**
  * Карточка канала «Как пишем сюда», как она приходит с двери.
@@ -60,8 +64,10 @@ export class IntegrationWritingProfileDto {
   @Type(() => ChannelLengthRangeDto)
   length?: ChannelLengthRangeDto;
 
-  @IsIn(['none', 'few', 'free', 'many', 'auto'])
-  emojiLevel: 'none' | 'few' | 'free' | 'many' | 'auto';
+  // `free` — старейшее написание «много», читается как `many`; точные
+  // потолки `97dq.61` — из `emoji-ceiling.ts`.
+  @IsIn([...EMOJI_LEVEL_VALUES, 'free'])
+  emojiLevel: EmojiLevel | 'free';
 
   @IsIn(['none', 'end', 'inline', 'auto'])
   linkPolicy: 'none' | 'end' | 'inline' | 'auto';

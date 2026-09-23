@@ -17,12 +17,12 @@ const { render, screen, fireEvent, cleanup, act } = require('@testing-library/re
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
 const dayjs = require('dayjs');
 const h = React.createElement;
-let role, mode, language, editorCalls, requests, closed, selectedDate, pushed, placeOk;
+let role, mode, language, editorCalls, requests, closed, selectedDate, pushed, placeOk, placement, placeError, placedCalls;
 const channels = ['tg','vk','other'].map(id => ({id,name:`Channel ${id}`,identifier:'telegram',picture:'',type:'social',editor:'normal',time:[]}));
 const rows = ['tg','vk'].map((id,i)=>({adaptationId:`a${i}`,pieceId:`piece${i}`,pieceCode:`cnt-0${i}`,title:`Title ${i}`,firstLine:'Text',integrationId:id,postId:`p${i}`,readyAt:'2026-09-08T10:00:00Z'}));
 const request = async (url, options) => {
  requests.push({url,options});
- if (url.includes('/place')) return {ok:placeOk,json:async()=>({placement:{mode:'reserve',status:'reserved',date:'2030-09-11T15:00:00.000Z',autopilot:false,note:null}})};
+ if (url.includes('/place')) return {ok:placeOk,json:async()=>(placeOk?{placement}:placeError?{code:'ADAPTATION_SCHEDULE_INVALID',message:placeError}:{})};
  if (url.includes('ready-adaptations')) {
   if (mode==='error') return {ok:false};
   if (mode==='slots') return {ok:true,json:async()=>({version:'ready-adaptations/v1',items:[
@@ -54,13 +54,20 @@ const mocks = {
  }},
 };
 const { AdaptationPicker }=loadWithMocks('apps/frontend/src/components/launches/adaptation-picker.tsx',mocks);
-beforeEach(()=>{role='ADMIN';mode='ready';language='ru';editorCalls=[];requests=[];closed=0;pushed=[];placeOk=true;selectedDate=dayjs('2030-09-11T15:00:00');});
+beforeEach(()=>{role='ADMIN';mode='ready';language='ru';editorCalls=[];requests=[];closed=0;pushed=[];placeOk=true;placeError=null;placedCalls=0;placement={mode:'reserve',status:'reserved',date:selectedDate0().toISOString(),autopilot:false,note:null};selectedDate=dayjs('2030-09-11T15:00:00');});
+function selectedDate0(){return dayjs('2030-09-11T15:00:00').toDate();}
 // jsdom cannot navigate; the href is what the test reads.
 document.addEventListener('click',event=>event.preventDefault());
 afterEach(cleanup);
-const mount=(extra={})=>render(h(AdaptationPicker,{integrations:channels,date:selectedDate,onClose:()=>{closed++},...extra}));
+const mount=(extra={})=>render(h(AdaptationPicker,{integrations:channels,date:selectedDate,onClose:()=>{closed++},onPlaced:()=>{placedCalls++},...extra}));
 
-test('«Поставить на HH:mm» places the adaptation at the slot, then leads to the piece channel tab with the slot date (97dq.57)',async()=>{
+const placeTitle0=async()=>{
+ await screen.findByText('Title 0');
+ fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Поставить на 15:00'}));});
+};
+
+test('«Поставить на HH:mm» places the adaptation and the window stays with «Стоит в плане» (97dq.57, 97dq.59 C3 A)',async()=>{
  mount();
  await screen.findByText('Готовые адаптации · 2');
  expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(true);
@@ -70,6 +77,21 @@ test('«Поставить на HH:mm» places the adaptation at the slot, then 
  const write=requests.find(item=>item.options && item.options.method==='POST');
  expect(write.url).toBe('/content-intelligence/pieces/piece0/adaptations/a0/place?language=ru');
  expect(new Date(JSON.parse(write.options.body).date).getTime()).toBe(selectedDate.toDate().getTime());
+ // The window stays: nothing navigates, nothing closes, the calendar reloads behind it.
+ expect(pushed).toHaveLength(0);
+ expect(closed).toBe(0);
+ expect(placedCalls).toBe(1);
+ expect(document.querySelector('[data-picker-placed]').getAttribute('data-picker-placed')).toBe('reserved');
+ expect(screen.getByRole('heading',{name:'Стоит в плане'})).toBeTruthy();
+ const at=selectedDate.toDate();
+ const moment=`${new Intl.DateTimeFormat('ru',{weekday:'short'}).format(at).replace('.','')} 11.09, 15:00`;
+ expect(screen.getByText(/cnt-00/).parentElement.textContent).toBe(`cnt-00 · Channel tg · ${moment}`);
+ expect(document.querySelector('[data-plan-state]').textContent).toBe('бронь');
+ expect(document.querySelector('[data-plan-state]').getAttribute('data-plan-state')).toBe('reserved');
+ expect(screen.getByText('Сама не опубликуется: в канале режим «Бронь». Выйдет после «Запланировать».')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Подсказка: режим плана'})).toBeTruthy();
+ // «Открыть и поправить» leads to the channel tab with the slot date, as before.
+ fireEvent.click(screen.getByRole('button',{name:'Открыть и поправить'}));
  expect(pushed).toHaveLength(1);
  const url=new URL(pushed[0],'http://localhost');
  expect(url.pathname).toBe('/content/pieces/piece0');
@@ -77,6 +99,52 @@ test('«Поставить на HH:mm» places the adaptation at the slot, then 
  expect(new Date(url.searchParams.get('when')).getTime()).toBe(selectedDate.toDate().getTime());
  expect(closed).toBe(1);
  expect(editorCalls).toHaveLength(0);
+});
+
+test('autopilot: «Стоит в очереди», pill «автопилот», «Выйдет сама в это время.»; «Готово» closes',async()=>{
+ placement={...placement,mode:'autopilot',status:'queued',autopilot:true};
+ mount();await placeTitle0();
+ expect(screen.getByRole('heading',{name:'Стоит в очереди'})).toBeTruthy();
+ expect(document.querySelector('[data-plan-state]').textContent).toBe('автопилот');
+ expect(screen.getByText('Выйдет сама в это время.')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Готово'}));
+ expect(closed).toBe(1);expect(pushed).toHaveLength(0);
+});
+
+test('a refused autopilot stays a reserve and the window shows the plan note instead of the mode line',async()=>{
+ placement={...placement,mode:'autopilot',status:'reserved',note:'Площадка не приняла пост: нет картинки.'};
+ mount();await placeTitle0();
+ expect(screen.getByRole('heading',{name:'Стоит в плане'})).toBeTruthy();
+ expect(document.querySelector('[data-picker-plan-note]').textContent).toBe('Площадка не приняла пост: нет картинки.');
+ expect(document.querySelector('[data-picker-explain]')).toBeNull();
+});
+
+test('«Без плана»: a draft with this time, and «Выбрать другую» returns to the list',async()=>{
+ placement={...placement,mode:'draft',status:'draft'};
+ mount();await placeTitle0();
+ expect(screen.getByRole('heading',{name:'Стоит в календаре'})).toBeTruthy();
+ expect(document.querySelector('[data-plan-state]').textContent).toBe('без плана');
+ fireEvent.click(screen.getByRole('button',{name:'Выбрать другую'}));
+ await screen.findByText('Готовые адаптации · 2');
+ expect(screen.getByRole('button',{name:'Поставить на 15:00'}).disabled).toBe(true);
+ expect(closed).toBe(0);
+});
+
+test('a refusal with the server’s own words shows them inline',async()=>{
+ placeOk=false;placeError='Площадка не примет пост: слишком длинный текст.';
+ mount();await placeTitle0();
+ expect(screen.getByRole('alert').textContent).toBe('Площадка не примет пост: слишком длинный текст.');
+ expect(document.querySelector('[data-picker-placed]')).toBeNull();
+ expect(placedCalls).toBe(0);
+});
+
+test('English success words are complete',async()=>{
+ language='en';placement={...placement,mode:'autopilot',status:'queued',autopilot:true};
+ mount();await screen.findByText('Title 0');
+ fireEvent.click(screen.getByRole('radio',{name:/Title 0/}));
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Place at 15:00'}));});
+ expect(screen.getByRole('heading',{name:'Queued'})).toBeTruthy();
+ for (const name of ['Choose another','Open and edit','Done']) expect(screen.getByRole('button',{name})).toBeTruthy();
 });
 
 test('a refused placement stays in the window with words and navigates nowhere',async()=>{

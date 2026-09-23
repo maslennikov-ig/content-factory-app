@@ -1,5 +1,6 @@
 import type { Integrations } from '../launches/calendar.context';
 import { intakeCopy } from '../content-intelligence/intake/intake.copy';
+import { emojiLevelWord } from '../content-intelligence/intake/emoji-words';
 import { channelsCopy, type ChannelsLocale } from './channels.copy';
 
 export type ChannelRow = Integrations;
@@ -72,12 +73,7 @@ export function channelProfileSummary(row: ChannelRow, locale: ChannelsLocale) {
     typeof profile.lengthPolicy === 'string'
       ? profile.lengthPolicy === 'auto' ? t.profileAuto : c.providerLimit
       : `${profile.lengthPolicy.idealMin}–${profile.lengthPolicy.idealMax} ${c.chars}`;
-  const emoji = {
-    none: t.profileEmojiNone,
-    few: t.profileEmojiFew,
-    many: t.profileEmojiFree,
-    auto: t.profileAuto,
-  }[profile.emojiLevel];
+  const emoji = emojiLevelWord(locale, profile.emojiLevel);
   const link = {
     none: t.profileLinkNone,
     end: t.profileLinkEnd,

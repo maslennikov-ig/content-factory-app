@@ -301,7 +301,6 @@ const OVERLAY_ALLOWED = [
   'apps/frontend/src/components/launches/repeat.component.tsx',
   'apps/frontend/src/components/launches/tags.component.tsx',
   'apps/frontend/src/components/media/image-editor/image-editor-surface.tsx',
-  'apps/frontend/src/components/new-launch/manage.modal.tsx',
   'apps/frontend/src/components/new-launch/select.current.tsx',
 ];
 

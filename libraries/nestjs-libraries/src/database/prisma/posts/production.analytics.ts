@@ -91,3 +91,161 @@ export const calculateProductionAnalytics = (
       ),
   };
 };
+
+/* -------------------------------------------------------------------------
+ * «Впереди N дней» (`content-factory-next-97dq.59`, owner pick 23.09.2026)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * One post as the plan-ahead count reads it. `plan` is the channel plan mode
+ * the version was placed with (`97dq.57`): a DRAFT with `reserve` or
+ * `autopilot` is a held time — «в плане».
+ */
+export type PlanAheadPost = {
+  integrationId: string;
+  publishDate: Date;
+  state: string;
+  plan: string | null;
+};
+
+export type PlanAheadChannel = { id: string; name: string };
+
+export type PlanAheadStreak = {
+  /** Consecutive days from today, today included, each holding a post. */
+  days: number;
+  /** `YYYY-MM-DD` — the last day of the run; `null` when there is none. */
+  until: string | null;
+  /** `YYYY-MM-DD` — the first day without a post (today when `days` is 0). */
+  emptyFrom: string;
+};
+
+export type PlanAheadV1 = PlanAheadStreak & {
+  version: 'plan-ahead/v1';
+  /** `YYYY-MM-DD` in `timeZone`. */
+  today: string;
+  timeZone: string;
+  /** How far the count looks; a run this long is reported as this long. */
+  horizon: number;
+  /** The next `STRIP_DAYS` days, today first: does the day hold a post? */
+  strip: Array<{ date: string; filled: boolean }>;
+  channels: Array<PlanAheadStreak & { integrationId: string; name: string }>;
+};
+
+export const PLAN_AHEAD_HORIZON_DAYS = 60;
+export const PLAN_AHEAD_STRIP_DAYS = 14;
+
+/** An IANA zone the runtime knows, else UTC — a bad query is not a 500. */
+export const planAheadTimeZone = (value: unknown): string => {
+  if (typeof value !== 'string' || !value.trim() || value.length > 64) {
+    return 'UTC';
+  }
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: value.trim() });
+    return value.trim();
+  } catch {
+    return 'UTC';
+  }
+};
+
+/** `YYYY-MM-DD` of a moment in a zone. */
+export const dayKeyIn = (at: Date, timeZone: string): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(at);
+  const part = (type: string) =>
+    parts.find((one) => one.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+/** A calendar day `offset` days after `key`; calendar arithmetic, no zone. */
+export const addDayKey = (key: string, offset: number): string => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + offset))
+    .toISOString()
+    .slice(0, 10);
+};
+
+/**
+ * Does this post hold its day? A queued post or a reserved draft does. A
+ * published post holds only today — the day it covered is not «ahead», but
+ * the evening after this morning's post is not an empty day either. An error
+ * or an unplanned draft holds nothing: neither will go out by itself.
+ */
+export const holdsPlanDay = (post: PlanAheadPost, today: string, day: string) => {
+  const state = String(post.state || '').toUpperCase();
+  if (state === 'QUEUE') return true;
+  if (state === 'DRAFT') return post.plan === 'reserve' || post.plan === 'autopilot';
+  if (state === 'PUBLISHED') return day === today;
+  return false;
+};
+
+const streakOf = (
+  filled: ReadonlySet<string>,
+  today: string,
+  horizon: number
+): PlanAheadStreak => {
+  let days = 0;
+  while (days < horizon && filled.has(addDayKey(today, days))) days += 1;
+  return {
+    days,
+    until: days ? addDayKey(today, days - 1) : null,
+    emptyFrom: addDayKey(today, days),
+  };
+};
+
+/**
+ * How many days ahead the plan is covered, without a gap, starting today.
+ *
+ * Counted in the reader's zone: a 00:30 Moscow post is 21:30 UTC of the day
+ * before, and a UTC count would move it. Per channel for the hover list, and
+ * for the selection as a whole — a day is covered when any selected channel
+ * holds a post on it.
+ */
+export const calculatePlanAhead = ({
+  posts,
+  channels,
+  now,
+  timeZone,
+  horizon = PLAN_AHEAD_HORIZON_DAYS,
+  stripDays = PLAN_AHEAD_STRIP_DAYS,
+}: {
+  posts: readonly PlanAheadPost[];
+  channels: readonly PlanAheadChannel[];
+  now: Date;
+  timeZone: string;
+  horizon?: number;
+  stripDays?: number;
+}): PlanAheadV1 => {
+  const zone = planAheadTimeZone(timeZone);
+  const today = dayKeyIn(now, zone);
+  const all = new Set<string>();
+  const byChannel = new Map<string, Set<string>>();
+  for (const post of posts) {
+    const day = dayKeyIn(new Date(post.publishDate), zone);
+    if (day < today || !holdsPlanDay(post, today, day)) continue;
+    all.add(day);
+    if (!byChannel.has(post.integrationId)) {
+      byChannel.set(post.integrationId, new Set());
+    }
+    byChannel.get(post.integrationId)!.add(day);
+  }
+  return {
+    version: 'plan-ahead/v1',
+    today,
+    timeZone: zone,
+    horizon,
+    ...streakOf(all, today, horizon),
+    strip: Array.from({ length: stripDays }, (_, index) => {
+      const date = addDayKey(today, index);
+      return { date, filled: all.has(date) };
+    }),
+    channels: channels.map((channel) => ({
+      integrationId: channel.id,
+      name: channel.name,
+      ...streakOf(byChannel.get(channel.id) ?? new Set(), today, horizon),
+    })),
+  };
+};
