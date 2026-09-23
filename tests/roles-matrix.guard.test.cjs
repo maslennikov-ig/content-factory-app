@@ -356,7 +356,6 @@ describe('settings navigation follows the role matrix', () => {
     profile: 'Профиль',
     global_settings: 'Глобальные настройки',
     sign_in_methods: 'Способы входа',
-    content_intelligence: '«Знания о контенте»',
     teams: '[Команды]',
     webhooks: '[Вебхуки]',
     autopost: '(Автопостинг)',

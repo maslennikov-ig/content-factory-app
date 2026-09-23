@@ -58,6 +58,7 @@ for (const key of ['window', 'document', 'navigator']) {
   });
 }
 global.IS_REACT_ACT_ENVIRONMENT = true;
+require('./helpers/tiptap-jsdom.cjs').prepareTipTap(dom);
 
 const {
   act,
@@ -620,10 +621,16 @@ const workspace = async (extra = {}) => {
 describe('the channel workspace talks to its own doors', () => {
   test('a hand edit is saved by PATCH after a pause, and nothing opens a window', async () => {
     await workspace();
-    await click(screen.getByRole('button', { name: 'Показать разметку' }));
+    // `97dq.46`: правят в «Редактировать» — поле TipTap, а наверх и в PATCH
+    // уходит хранимая форма с `**жирным**`.
+    await click(screen.getByRole('button', { name: 'Редактировать' }), () =>
+      document.querySelector('[data-editor-field="true"]') !== null
+    );
     const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
     await act(async () => {
-      fireEvent.change(field, { target: { value: 'Поправленный **текст**.' } });
+      field.editor.commands.setContent(
+        '<p>Поправленный <strong>текст</strong>.</p>'
+      );
     });
     // Тишина ещё не наступила — запроса нет.
     expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
@@ -716,21 +723,36 @@ describe('the channel workspace talks to its own doors', () => {
 
   test('«Для этого поста» travels as overrides and «Переписать с этим» makes a new version', async () => {
     await workspace();
-    await click(screen.getByRole('button', { name: 'Изменить' }));
-    await click(screen.getByRole('radio', { name: 'Короче' }));
-    await click(screen.getByRole('radio', { name: 'на «вы»' }));
+    // Панель раскрыта всегда (97dq.48): «Изменить» больше нет.
+    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Переписать с этим' }).disabled
+    ).toBe(true);
     await act(async () => {
+      fireEvent.change(screen.getByLabelText('Длина'), {
+        target: { value: 'short' },
+      });
+      fireEvent.change(screen.getByLabelText('Призыв'), {
+        target: { value: 'none' },
+      });
       fireEvent.change(screen.getByRole('textbox', { name: 'Пожелание' }), {
         target: { value: 'начни с вопроса' },
       });
     });
+    expect(document.body.textContent).toContain('3 изменения');
     await click(screen.getByRole('button', { name: 'Переписать с этим' }), () =>
       adaptBodies.length === 1 && panel().getAttribute('aria-busy') !== 'true'
     );
+    // Длина — теми же числами, что пишет карточка канала.
     expect(adaptBodies[0]).toEqual({
       integrationId: 'int-tg-main',
       kind: 'post',
-      overrides: { length: 'shorter', addressForm: 'vy', wish: 'начни с вопроса' },
+      overrides: {
+        lengthPolicy: 'range',
+        lengthRange: { idealMin: 200, idealMax: 500, hardMax: 500 },
+        ctaKind: 'none',
+        wish: 'начни с вопроса',
+      },
     });
   });
 
@@ -739,14 +761,19 @@ describe('the channel workspace talks to its own doors', () => {
     await workspace();
     const profileCall = calls.find((call) => call.url.endsWith('/writing-profile'));
     expect(profileCall).toBeTruthy();
-    await click(screen.getByRole('button', { name: 'Изменить' }));
-    await click(screen.getByRole('radio', { name: 'на «ты»' }));
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Эмодзи'), {
+        target: { value: 'none' },
+      });
+    });
     await click(screen.getByRole('button', { name: 'Запомнить для канала' }), () =>
       calls.some((call) => call.method === 'PUT')
     );
     const put = calls.find((call) => call.method === 'PUT');
     expect(put.url).toBe(profileCall.url);
-    expect(put.body).toMatchObject({ addressForm: 'ty' });
+    expect(put.body.emojiLevel).toBe('none');
+    // «на ты / на вы» ушло из продукта (97dq.45): в карточку оно не пишется.
+    expect(put.body).not.toHaveProperty('addressForm');
     await settle(() => document.body.textContent.includes('Запомнили'));
     expect(document.body.textContent).toContain('Запомнили');
   });

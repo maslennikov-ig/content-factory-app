@@ -2,7 +2,9 @@
 
 import { FC, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { htmlToPlainText } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/html-text';
 import { Button } from '@contentfactory/react/form/button';
+import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { ChannelMark } from '@contentfactory/frontend/components/ui/brand/channel-mark';
 import { Popover, MenuItem } from '@contentfactory/frontend/components/ui/layers';
 import {
@@ -30,9 +32,9 @@ import {
  *     button background bleeds through the band any more. That was the piece
  *     that appeared to fall out of the strip under the cursor.
  *
- * The two shapes are one component with one vocabulary: a narrow card for the
- * week and month grids, a single 36px row for the day and list views where the
- * column is full width.
+ * The two shapes are one component with one vocabulary: the card for the day,
+ * week and month grids (the day draws it wider, `97dq.50`), and a single 36px
+ * row for the list view.
  */
 
 /** 16px on a 1.5px outline — one hand for every icon the card draws. */
@@ -88,11 +90,94 @@ export const BracketsIcon = () => (
   </svg>
 );
 
-export const DotsIcon = () => (
+/**
+ * A post body as the one line a card shows: paragraphs and line breaks
+ * become single spaces. Stripping the tags alone joined the last word of one
+ * paragraph to the first of the next («…ноу-хау.Для меня…»).
+ */
+export const postLine = (content?: string | null): string =>
+  htmlToPlainText(content || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export const PlusIcon = () => (
   <svg {...iconProps}>
-    <circle cx="5" cy="12" r="1.4" />
-    <circle cx="12" cy="12" r="1.4" />
-    <circle cx="19" cy="12" r="1.4" />
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </svg>
+);
+
+/**
+ * The empty slot — one look in the day, the week and the month.
+ *
+ * `97dq.50`, direction A of the 23.09.2026 canvas. The owner read the day
+ * view's grey avatar squares as «непонятно, что это за пустые квадратики»:
+ * they were add buttons, one per channel with that time in its schedule,
+ * drawn at 30% opacity in grayscale. The slot now says what it does, in
+ * words, on a dashed outline with a plus — never an avatar, never a filter
+ * trick to make a control look disabled until hovered.
+ *
+ *   • `row`  — the day view's empty slot: «+ Добавить пост на 09:20», and the
+ *     channels whose schedule holds that time as a muted caption on the right.
+ *   • `slim` — the day view under posts already at that time: «Ещё пост на …».
+ *   • `chip` — a week or month cell: «+ 09:20», or «+ 2 слота» in the month.
+ */
+export const SlotButton: FC<{
+  shape: 'row' | 'slim' | 'chip';
+  label: string;
+  /** Accessible name when the visible label is short («09:20»). */
+  ariaLabel?: string;
+  /** Muted caption at the end of a `row` — the channels of the slot. */
+  caption?: string;
+  onClick: () => void;
+  className?: string;
+}> = ({ shape, label, ariaLabel, caption, onClick, className }) => (
+  <ControlButton
+    layout={shape === 'row' ? 'content' : 'control'}
+    density={shape === 'row' ? 'standard' : 'dense'}
+    aria-label={ariaLabel}
+    data-calendar-slot={shape}
+    className={clsx(
+      'flex w-full min-w-0 items-center gap-[8px] rounded-[8px] border border-dashed text-start cf-body-sm',
+      'text-cf-ink-muted hover:text-cf-ink hover:border-cf-accent hover:bg-cf-surface-subtle active:bg-cf-surface-raised',
+      'transition-colors duration-state motion-reduce:transition-none',
+      shape === 'slim' ? 'border-cf-border px-[12px]' : 'border-cf-border-strong',
+      shape === 'row' && 'px-[16px] py-[8px]',
+      shape === 'chip' && 'px-[8px]',
+      className
+    )}
+    onClick={(event) => {
+      event.stopPropagation();
+      onClick();
+    }}
+  >
+    <span className="shrink-0 flex">
+      <PlusIcon />
+    </span>
+    {/* The action keeps its words; the caption yields. On a phone the row
+        has room for «+ Добавить пост на 09:20» or for the channels, not both
+        (twelfth stand walk, 12-day-m: «+ Добав…»). */}
+    <span className={clsx('truncate', caption ? 'shrink-0 max-w-full' : 'min-w-0')}>
+      {label}
+    </span>
+    {caption && (
+      <span className="ms-auto hidden min-w-0 truncate ps-[8px] cf-caption text-cf-ink-muted sm:block">
+        {caption}
+      </span>
+    )}
+  </ControlButton>
+);
+
+/*
+  Filled dots. Drawn as 1.4px outlines in the shared stroke they read as a
+  faint «‥» and the «⋯» trigger was near invisible (twelfth stand walk,
+  15-signin-d).
+*/
+export const DotsIcon = () => (
+  <svg {...iconProps} fill="currentColor" stroke="none">
+    <circle cx="5" cy="12" r="1.75" />
+    <circle cx="12" cy="12" r="1.75" />
+    <circle cx="19" cy="12" r="1.75" />
   </svg>
 );
 

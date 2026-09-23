@@ -182,6 +182,38 @@ export const readPieceTab = (value: unknown): string =>
   typeof value === 'string' && value.trim() ? value.trim() : PIECE_TAB_CORE;
 
 /**
+ * Вкладка канала с датой слота календаря (`97dq.50`): «Поставить на 19:00» в
+ * окне «Что публикуем» ведёт сюда, а «Когда» черновика встаёт на это время.
+ * Дата — ISO в `?when=`; пост по-прежнему уходит только кнопкой
+ * «Запланировать» на самой вкладке.
+ */
+export const pieceSlotPath = (
+  pieceId: string,
+  integrationId: string,
+  at?: Date | null
+) => {
+  const base = pieceTabPath(pieceId, integrationId);
+  if (!at || Number.isNaN(at.getTime())) return base;
+  const glue = base.includes('?') ? '&' : '?';
+  return `${base}${glue}when=${encodeURIComponent(at.toISOString())}`;
+};
+
+/**
+ * `?when=` из адреса. Прошедшее и нечитаемое — не дата: вкладка тогда берёт
+ * свободный слот канала, как без параметра.
+ */
+export const readPieceWhen = (
+  value: unknown,
+  now: Date = new Date()
+): Date | null => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const at = new Date(value.trim());
+  return Number.isNaN(at.getTime()) || at.getTime() <= now.getTime()
+    ? null
+    : at;
+};
+
+/**
  * День поста в календаре, а не календарь «вообще»: человек, нажавший «Открыть
  * в календаре», ищет именно этот пост, и неделя, в которой его нет, — это
  * второй поиск.
@@ -1253,21 +1285,49 @@ export type PieceWorkspaceV1 = Omit<
   channelTabs: PieceChannelTabV1[];
 };
 
-/** «Для этого поста» (§3.4): разово, ни канал, ни аватар не меняются. */
-export type PostLengthV1 = 'shorter' | 'channel' | 'longer';
-export type AddressFormV1 = 'avatar' | 'ty' | 'vy';
+/**
+ * «Для этого поста» (§3.4, вариант A двенадцатой волны, `97dq.48`): разово,
+ * ни канал, ни аватар не меняются.
+ *
+ * Поля — те же, что у карточки канала «Как пишем в «X»», и с теми же
+ * значениями: длина пресетом, эмодзи, хэштеги, ссылки, призыв. `channel` —
+ * «как в канале»: не значение, а отсутствие переопределения.
+ */
+export type PostChoiceV1<Value extends string> = 'channel' | Value;
+export type PostLengthV1 = PostChoiceV1<LengthPreset>;
 
+/*
+  Обращения («на ты / на вы») здесь нет с одиннадцатого захода
+  (`97dq.45`): опция специфична для языка, и кто её хочет, пишет её в
+  «Пожелании». Сохранённое раньше значение сервер просто не читает.
+*/
 export type PostOptionsV1 = {
   length: PostLengthV1;
-  addressForm: AddressFormV1;
+  emoji: PostChoiceV1<ChannelWritingProfileV1['emojiLevel']>;
+  hashtags: PostChoiceV1<ChannelWritingProfileV1['hashtagPolicy']>;
+  links: PostChoiceV1<ChannelWritingProfileV1['linkPolicy']>;
+  cta: PostChoiceV1<ChannelWritingProfileV1['ctaKind']>;
   /** `null` — аватар канала, как решено в его настройках. */
   brandProfileId: string | null;
   wish: string;
 };
 
+/** Пять полей карточки, которые пост может перекрыть, — в порядке панели. */
+export const POST_PROFILE_FIELDS = [
+  'length',
+  'emoji',
+  'hashtags',
+  'links',
+  'cta',
+] as const;
+export type PostProfileField = (typeof POST_PROFILE_FIELDS)[number];
+
 export const DEFAULT_POST_OPTIONS: PostOptionsV1 = {
   length: 'channel',
-  addressForm: 'avatar',
+  emoji: 'channel',
+  hashtags: 'channel',
+  links: 'channel',
+  cta: 'channel',
   brandProfileId: null,
   wish: '',
 };
@@ -1280,41 +1340,97 @@ export const POST_WISH_MAX = 500;
 /**
  * Что решено для канала — от этого считается «для этого поста».
  *
- * Обращение и аватар по умолчанию берутся из карточки канала, а не
- * выдумываются: «Как в аватаре», выбранное в полосе по умолчанию над каналом
- * «на вы», было бы неправдой о том, как напишется пост.
+ * Аватар по умолчанию берётся из карточки канала, а не выдумывается.
+ * `profile` — карточка канала, пока её ответ не пришёл — `null`: тогда
+ * «как в канале» рисуется без значения, а любой явный выбор считается
+ * изменением.
  */
 export type PostOptionsBaselineV1 = {
-  addressForm: AddressFormV1;
   brandProfileId: string | null;
+  profile?: ChannelWritingProfileV1 | null;
 };
 
 export const DEFAULT_POST_BASELINE: PostOptionsBaselineV1 = {
-  addressForm: 'avatar',
   brandProfileId: null,
+  profile: null,
 };
 
 export const postBaselineOf = (
-  profile:
-    | { addressForm?: AddressFormV1; brandProfileId?: string | null }
-    | null
-    | undefined
+  profile: ChannelWritingProfileV1 | null | undefined
 ): PostOptionsBaselineV1 => ({
-  addressForm: profile?.addressForm ?? 'avatar',
   brandProfileId: profile?.brandProfileId ?? null,
+  profile: profile ?? null,
 });
 
 /** Настройки поста, с которых начинается вкладка: как решено для канала. */
 export const postOptionsFrom = (
   baseline: PostOptionsBaselineV1
-): PostOptionsV1 => ({ ...DEFAULT_POST_OPTIONS, ...baseline });
+): PostOptionsV1 => ({
+  ...DEFAULT_POST_OPTIONS,
+  brandProfileId: baseline.brandProfileId,
+});
+
+/** Значение поля у канала — то, что значит «как в канале»; нет карточки — `null`. */
+export function channelValueOf<Field extends PostProfileField>(
+  field: Field,
+  profile: ChannelWritingProfileV1 | null | undefined
+): Exclude<PostOptionsV1[Field], 'channel'> | null {
+  if (!profile) return null;
+  const value = {
+    length: lengthPresetOf(profile.lengthPolicy),
+    emoji: profile.emojiLevel,
+    hashtags: profile.hashtagPolicy,
+    links: profile.linkPolicy,
+    cta: profile.ctaKind,
+  }[field];
+  return value as Exclude<PostOptionsV1[Field], 'channel'>;
+}
+
+/** Поля, которые пост действительно меняет: выбор, отличный от канала. */
+export function changedPostFields(
+  options: PostOptionsV1,
+  baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE
+): PostProfileField[] {
+  return POST_PROFILE_FIELDS.filter((field) => {
+    const value = options[field];
+    return value !== 'channel' && value !== channelValueOf(field, baseline.profile);
+  });
+}
+
+/** Сколько изменений у поста: поля карточки, аватар и пожелание. */
+export function postChangeCount(
+  options: PostOptionsV1,
+  baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE
+): number {
+  return (
+    changedPostFields(options, baseline).length +
+    (options.brandProfileId &&
+    options.brandProfileId !== baseline.brandProfileId
+      ? 1
+      : 0) +
+    (options.wish.trim() ? 1 : 0)
+  );
+}
+
+/**
+ * Длина пресетом — в форме двери карточки: дискриминатор и диапазон.
+ *
+ * Числа — те же `LENGTH_PRESETS`, что пишет карточка канала, поэтому «до
+ * 500» поста и «до 500» канала — один диапазон в промпте.
+ */
+const lengthOverride = (
+  preset: LengthPreset
+): Pick<AdaptOverridesV1, 'lengthPolicy' | 'lengthRange'> =>
+  preset === 'auto'
+    ? { lengthPolicy: 'auto' }
+    : { lengthPolicy: 'range', lengthRange: { ...LENGTH_PRESETS[preset] } };
 
 /**
  * Что из «Для этого поста» уходит в `overrides`.
  *
- * Только отличное от умолчания: «как в канале» и «как в аватаре» — это не
- * значение, а отсутствие переопределения, и сервер разрешает его сам по
- * цепочке «пост → канал → аватар».
+ * Только отличное от канала: «как в канале» — это не значение, а
+ * отсутствие переопределения, и сервер разрешает его сам по цепочке
+ * «пост → канал → аватар».
  */
 export function adaptOverrides(
   options: PostOptionsV1,
@@ -1322,11 +1438,22 @@ export function adaptOverrides(
   takeaway?: string | null
 ): AdaptOverridesV1 | undefined {
   const wish = options.wish.trim().slice(0, POST_WISH_MAX);
+  const changed = new Set(changedPostFields(options, baseline));
+  const pick = <Field extends PostProfileField>(field: Field) =>
+    changed.has(field)
+      ? (options[field] as Exclude<PostOptionsV1[Field], 'channel'>)
+      : null;
+  const length = pick('length');
+  const emoji = pick('emoji');
+  const hashtags = pick('hashtags');
+  const links = pick('links');
+  const cta = pick('cta');
   const result: AdaptOverridesV1 = {
-    ...(options.length !== 'channel' ? { length: options.length } : {}),
-    ...(options.addressForm !== baseline.addressForm
-      ? { addressForm: options.addressForm }
-      : {}),
+    ...(length ? lengthOverride(length) : {}),
+    ...(emoji ? { emojiLevel: emoji } : {}),
+    ...(hashtags ? { hashtagPolicy: hashtags } : {}),
+    ...(links ? { linkPolicy: links } : {}),
+    ...(cta ? { ctaKind: cta } : {}),
     ...(options.brandProfileId &&
     options.brandProfileId !== baseline.brandProfileId
       ? { brandProfileId: options.brandProfileId }
@@ -1661,38 +1788,34 @@ export const tabOfPlatform = (
 /**
  * Профиль канала с тем, что человек выбрал для этого поста.
  *
- * Длина сдвигает пресет канала на шаг — «короче» и «длиннее» относительно
- * того, как пишем сейчас; обращение и аватар пишутся новыми полями профиля
- * (§3.4). Остальные поля уходят как были: запоминание не стирает того, чего
- * человек в этой панели не видел.
+ * Поля панели — те же поля карточки, поэтому запоминание пишет их как есть:
+ * выбранный пресет длины, эмодзи, хэштеги, ссылки, призыв и аватар (§3.4).
+ * «Как в канале» и всё, чего в панели нет (формат, заметка), уходит как
+ * было: запоминание не стирает того, чего человек здесь не видел.
  */
 export function rememberedProfilePayload(
   profile: ChannelWritingProfileV1,
   options: PostOptionsV1
 ): WritingProfilePayload {
-  let next = profile;
-  if (options.length !== 'channel') {
-    const order: readonly Exclude<LengthPreset, 'auto'>[] = [
-      'short',
-      'ideal',
-      'long',
-      'max',
-    ];
-    const current: Exclude<LengthPreset, 'auto'> =
-      typeof profile.lengthPolicy === 'string'
-        ? 'ideal'
-        : (lengthPresetOf(profile.lengthPolicy) as Exclude<
-            LengthPreset,
-            'auto'
-          >);
-    const at = Math.max(0, order.indexOf(current));
-    const step = options.length === 'shorter' ? -1 : 1;
-    const target = order[Math.min(order.length - 1, Math.max(0, at + step))];
-    next = { ...profile, lengthPolicy: { ...LENGTH_PRESETS[target] } };
-  }
+  const chosen = <Value extends string>(value: PostChoiceV1<Value>) =>
+    value === 'channel' ? null : (value as Value);
+  const length = chosen(options.length);
+  const emoji = chosen(options.emoji);
+  const hashtags = chosen(options.hashtags);
+  const links = chosen(options.links);
+  const cta = chosen(options.cta);
   return buildWritingProfilePayload({
-    ...next,
-    addressForm: options.addressForm,
+    ...profile,
+    ...(length
+      ? {
+          lengthPolicy:
+            length === 'auto' ? ('auto' as const) : { ...LENGTH_PRESETS[length] },
+        }
+      : {}),
+    ...(emoji ? { emojiLevel: emoji } : {}),
+    ...(hashtags ? { hashtagPolicy: hashtags } : {}),
+    ...(links ? { linkPolicy: links } : {}),
+    ...(cta ? { ctaKind: cta } : {}),
     brandProfileId: options.brandProfileId,
   });
 }

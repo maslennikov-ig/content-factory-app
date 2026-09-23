@@ -6,24 +6,58 @@ import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { channelsCopy, type ChannelsLocale } from './channels.copy';
 import { channelState, type ChannelRow } from './channel-model';
 
-export function ChannelAvatar({ row }: { row: ChannelRow }) {
+/** `integrations.controller` answers `/no-picture.jpg` for a channel without one. */
+export const isPlaceholderPicture = (picture?: string | null) =>
+  !picture || picture.endsWith('/no-picture.jpg');
+
+/**
+ * The channel picture with its platform badge; a picture that is missing or
+ * fails to load becomes the two-letter `ChannelMark`, never the white
+ * `no-picture` circle. `compact` is the 28px list-row size (the calendar's
+ * «Что публикуем»).
+ */
+export function ChannelAvatar({
+  row,
+  compact = false,
+}: {
+  row: Pick<ChannelRow, 'picture' | 'name' | 'identifier'>;
+  compact?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
+  const size = compact ? 28 : 48;
+  // The integrations list fills a missing picture with the placeholder path;
+  // that placeholder is a blank white disc, not a picture of the channel.
+  const picture = isPlaceholderPicture(row.picture) ? null : row.picture;
   return (
-    <div className="relative h-12 w-12 shrink-0">
-      {row.picture && !failed ? (
+    <div
+      className={
+        compact
+          ? 'relative h-[28px] w-[28px] shrink-0'
+          : 'relative h-12 w-12 shrink-0'
+      }
+    >
+      {picture && !failed ? (
         <img
-          src={row.picture}
+          src={picture}
           alt=""
-          className="h-12 w-12 rounded-[8px] object-cover"
+          width={size}
+          height={size}
+          className={
+            compact
+              ? 'h-[28px] w-[28px] rounded-[4px] object-cover'
+              : 'h-12 w-12 rounded-[8px] object-cover'
+          }
           onError={() => setFailed(true)}
         />
       ) : (
-        <ChannelMark name={row.name} size={48} />
+        <ChannelMark name={row.name} size={size} />
       )}
       <PlatformBadge
         identifier={row.identifier}
-        size={24}
-        className="absolute -bottom-1 -end-1"
+        size={compact ? 16 : 24}
+        className={
+          compact ? 'absolute -bottom-[4px] -end-[4px]' : 'absolute -bottom-1 -end-1'
+        }
       />
     </div>
   );

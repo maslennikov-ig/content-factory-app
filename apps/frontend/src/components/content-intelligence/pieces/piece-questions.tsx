@@ -3,6 +3,7 @@
 import { SuggestedQuestionsCard } from '../intake/questions.card';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import type { BriefField, IntakeQuestionV1 } from '../intake/intake.adapter';
+import type { InterviewAskKeyV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
  * «Уточнение» на странице заготовки: вопросы там, где стоит суть.
@@ -25,7 +26,20 @@ import type { BriefField, IntakeQuestionV1 } from '../intake/intake.adapter';
  * `position`), потому что поле и есть то, что вопрос закрывает. Перевод
  * туда-обратно занимает две строки и держит обещание волны: один вопрос на
  * поле, и повтора «на что это опирается» больше не бывает.
+ *
+ * С `content-factory-next-97dq.44` вопросов столько, сколько решила модель, и
+ * вопрос о материале (эпизод, число, ставка) поля брифа не закрывает: он
+ * опознаётся своим ключом `ask-<n>`, а ответ уходит с этим ключом. «Решите за
+ * меня» у него не нужно называть: не отвеченный вопрос о материале сервер и
+ * так отдаёт модели.
  */
+
+/** Ответ на открытый вопрос: поле брифа и, у вопроса о материале, его ключ. */
+export type PieceQuestionReply = {
+  field: BriefField;
+  key?: InterviewAskKeyV1;
+  text: string;
+};
 
 export function PieceQuestions({
   locale,
@@ -40,7 +54,7 @@ export function PieceQuestions({
   busy?: boolean;
   /** Ответы уходят одним ходом: один запрос, а не по одному на вопрос. */
   onAnswer: (
-    answers: readonly { field: BriefField; text: string }[],
+    answers: readonly PieceQuestionReply[],
     decide: readonly BriefField[]
   ) => void;
   /** «Оставить как есть»: заготовка уже годится, и это законный исход. */
@@ -48,6 +62,9 @@ export function PieceQuestions({
 }) {
   const t = piecesCopy[locale];
   if (!questions.length) return null;
+  const idOf = (question: IntakeQuestionV1): string =>
+    question.key ?? question.field;
+  const byId = new Map(questions.map((question) => [idOf(question), question]));
 
   return (
     <div data-piece-clarify="true">
@@ -69,7 +86,7 @@ export function PieceQuestions({
           own: t.ownAnswer,
         }}
         questions={questions.map((question) => ({
-          key: question.field,
+          key: idOf(question),
           question: question.question,
           options: question.options,
           suggested: question.suggested ?? null,
@@ -81,14 +98,24 @@ export function PieceQuestions({
         busy={busy}
         onSubmit={(answers, decide) =>
           onAnswer(
-            answers.map((answer) => ({
-              field: answer.key as BriefField,
-              // Дословно, включая «Так и есть»: подтверждённое предложение
-              // модели становится словом человека ровно в тот момент, когда он
-              // под ним подписался.
-              text: answer.text,
-            })),
-            decide as readonly BriefField[]
+            answers.flatMap((answer) => {
+              const question = byId.get(answer.key);
+              if (!question) return [];
+              return [
+                {
+                  field: question.field,
+                  ...(question.key ? { key: question.key } : {}),
+                  // Дословно, включая «Так и есть»: подтверждённое предложение
+                  // модели становится словом человека ровно в тот момент,
+                  // когда он под ним подписался.
+                  text: answer.text,
+                },
+              ];
+            }),
+            decide.flatMap((id) => {
+              const question = byId.get(id);
+              return question && !question.key ? [question.field] : [];
+            })
           )
         }
         onSkipAll={questions.length >= 2 ? onSkip : undefined}

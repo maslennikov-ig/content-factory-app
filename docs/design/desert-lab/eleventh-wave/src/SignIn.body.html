@@ -1,0 +1,32 @@
+<div style="width:1440px;min-height:760px;background:var(--cf-canvas);display:flex;box-sizing:border-box">
+%%INC:_setnav_s.inc%%
+  <main style="flex:1;padding:32px 40px">
+    <div style="max-width:720px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;flex-direction:column;gap:6px"><span class="h1" style="font-size:26px">Способы входа</span><span class="sm muted">Входите любым подключённым способом. Один способ всегда остаётся — удалить последний нельзя.</span></div>
+      <section class="panel" style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--cf-border)">
+          <span class="cell done" style="width:36px;height:36px">%%check%%</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span class="sm" style="font-weight:650">Почта и пароль</span><span class="cap">maslennikov.ig@gmail.com</span></div>
+          <span class="btn secondary dense">Сменить пароль</span><span class="btn quiet dense icon">%%dots%%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--cf-border)">
+          <span class="cell done" style="width:36px;height:36px">%%check%%</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span class="sm" style="font-weight:650">Telegram</span><span class="cap">@username · подтверждённый аккаунт</span></div>
+          <span class="btn quiet dense icon">%%dots%%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 20px">
+          <span class="cell none" style="width:36px;height:36px">%%plus%%</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span class="sm" style="font-weight:650">Google</span><span class="cap">не подключён</span></div>
+          <span class="btn secondary dense">Подключить</span>
+        </div>
+      </section>
+      <section class="panel" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <span class="lab">Сменить пароль · раскрывается по кнопке</span>
+        <div class="field"><span class="cap">Текущий пароль</span><span class="input">••••••••</span></div>
+        <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px"><div class="field"><span class="cap">Новый пароль</span><span class="input"></span></div><div class="field"><span class="cap">Повторите</span><span class="input"></span></div></div>
+        <span class="cap">8–64 знака: буква, цифра и спецзнак.</span>
+        <div style="display:flex;gap:10px"><span class="btn primary dense">Сменить пароль</span><span class="btn quiet dense">Отмена</span></div>
+      </section>
+    </div>
+  </main>
+</div>

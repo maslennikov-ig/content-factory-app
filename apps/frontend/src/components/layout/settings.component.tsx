@@ -10,17 +10,10 @@ import React, {
   useState,
 } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { useOpenMediaBox } from '@contentfactory/frontend/components/media/media.component';
-import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
-import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
-import { useFieldErrorMessage } from '@contentfactory/frontend/components/auth/form.errors';
-import { useToaster } from '@contentfactory/react/toaster/toaster';
-import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
 import { TeamsComponent } from '@contentfactory/frontend/components/settings/teams.component';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
-import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
+import { ProfileSettings } from '@contentfactory/frontend/components/settings/profile.component';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -35,9 +28,6 @@ import { GlobalSettings } from '@contentfactory/frontend/components/settings/glo
 import { ApprovedAppsComponent } from '@contentfactory/frontend/components/approved-apps/approved-apps.component';
 import { AboutProjectComponent } from '@contentfactory/frontend/components/settings/about-project.component';
 import { OnboardingWalkthrough } from '@contentfactory/frontend/components/onboarding/onboarding.walkthrough';
-import { Button } from '@contentfactory/react/form/button';
-import { ButtonLink } from '@contentfactory/react/form/button-link';
-import { Input } from '@contentfactory/react/form/input';
 import {
   initialSettingsTab,
   SignInMethodsComponent,
@@ -59,7 +49,6 @@ export const SETTINGS_TABS = [
   'profile',
   'global_settings',
   'sign_in_methods',
-  'content_intelligence',
   'teams',
   'webhooks',
   'autopost',
@@ -95,21 +84,15 @@ export const SettingsPopup: FC<{
   const { language = '' } = useVariables();
   const isRussian = language.toLowerCase().startsWith('ru');
   const { getRef } = props;
-  const fetch = useFetch();
-  const toast = useToaster();
-  const swr = useSWRConfig();
   const user = useUser();
-  const resolver = useMemo(() => {
-    return classValidatorResolver(UserDetailDto);
-  }, []);
-  const form = useForm({
-    resolver,
-  });
-  const picture = form.watch('picture');
-  const modal = useModals();
-  const close = useCallback(() => {
-    return modal.closeAll();
-  }, []);
+  /**
+   * The form around the non-profile tabs is a context for the shared fields
+   * (`Select` and `Input` read `useFormContext`), not something to send. Until
+   * 23.09.2026 it was the profile form, loaded with the profile, so Enter in
+   * any field of «Глобальные настройки» re-posted the profile. The profile has
+   * its own form now (`ProfileSettings`), and this one submits nothing.
+   */
+  const form = useForm();
   const url = useSearchParams();
   const requestedTab = url.get('tab');
   const showLogout = !url.get('onboarding') || user?.tier?.current === 'FREE';
@@ -119,37 +102,6 @@ export const SettingsPopup: FC<{
   // ушли редактору (`content-factory-next-fn33.90`), а вебхуки — наоборот,
   // строго администратору.
   const isEditor = isOrganizationEditor(user?.role);
-  const loadProfile = useCallback(async () => {
-    const personal = await (await fetch('/user/personal')).json();
-    form.setValue('fullname', personal.name || '');
-    form.setValue('bio', personal.bio || '');
-    form.setValue('picture', personal.picture);
-  }, []);
-  const openMediaBox = useOpenMediaBox();
-  // The library answers with everything that was selected; a profile picture
-  // is one image, and the form field is one `MediaDto`. Handing it the whole
-  // array left the avatar with nothing to read (`content-factory-next-fn33.15`).
-  const openMedia = useCallback(() => {
-    openMediaBox((values) => {
-      if (!values?.length) return;
-      form.setValue('picture', values[0]);
-    });
-  }, [openMediaBox]);
-  const remove = useCallback(() => {
-    form.setValue('picture', null);
-  }, []);
-
-  const submit = useCallback(async (val: any) => {
-    await fetch('/user/personal', {
-      method: 'POST',
-      body: JSON.stringify(val),
-    });
-    if (getRef) {
-      return;
-    }
-    toast.show(t('profile_updated', 'Profile updated'));
-    close();
-  }, []);
 
   const [tab, setTab] = useState(() =>
     resolveSettingsTab(requestedTab ?? initialSettingsTab(url))
@@ -173,7 +125,6 @@ export const SettingsPopup: FC<{
   }, [requestedTab]);
 
   const t = useT();
-  const fieldErrorMessage = useFieldErrorMessage();
   const list = useMemo(() => {
     const arr = [];
     arr.push({ tab: 'profile', label: t('profile', 'Profile') });
@@ -185,12 +136,8 @@ export const SettingsPopup: FC<{
       tab: 'sign_in_methods',
       label: t('sign_in_methods', 'Sign-in methods'),
     });
-    // The surface moved to /content; the tab stays as the signpost for people
-    // who learned where it was. It is not a role question.
-    arr.push({
-      tab: 'content_intelligence',
-      label: isRussian ? 'Знания о контенте' : 'Content intelligence',
-    });
+    // «Знания о контенте» left this list on 23.09.2026 (97dq.51): the surface
+    // lives in /content, and the page redirects the old `?tab=` there.
     if (isAdmin) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
     }
@@ -241,10 +188,6 @@ export const SettingsPopup: FC<{
     ? 'editor'
     : null;
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
   return (
     <SettingsSurface
       tabs={list.map(({ tab: value, label }) => ({ value, label }))}
@@ -283,90 +226,7 @@ export const SettingsPopup: FC<{
       ) : tab === 'sign_in_methods' ? (
         <SignInMethodsComponent />
       ) : tab === 'profile' ? (
-        <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(submit)}>
-            {!!getRef && (
-              <Button type="submit" className="hidden" ref={getRef} />
-            )}
-            <section
-              className="flex flex-col gap-[16px]"
-              aria-labelledby="profile-heading"
-            >
-              <h2
-                id="profile-heading"
-                className="cf-heading-md text-cf-ink [text-wrap:balance]"
-              >
-                {t('profile', 'Profile')}
-              </h2>
-              <div className="flex flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
-                {/* `content-factory-next-fn33.73`: a profile saved with an
-                    empty name used to answer «fullname must be longer than or
-                    equal to 3 characters» — the property name out of the DTO,
-                    in English, on a Russian screen. */}
-                <Input
-                  label={t('name', 'Name')}
-                  {...form.register('fullname')}
-                  error={fieldErrorMessage(
-                    'fullname',
-                    form.formState.errors.fullname?.message
-                  )}
-                />
-                <div className="flex flex-wrap items-center gap-[12px]">
-                  {/* Was a «●» typed in place of a component. The same
-                      placeholder stood in the collapsed rail, and one decision
-                      written twice is a component that does not exist yet
-                      (`content-factory-next-fn33.10`). */}
-                  <Avatar
-                    size={48}
-                    src={picture?.path}
-                    name={user?.name}
-                    email={user?.email}
-                  />
-                  <Button type="button" variant="secondary" onClick={openMedia}>
-                    {t('picture', 'Picture')}
-                  </Button>
-                  {picture && (
-                    <Button type="button" variant="quiet" onClick={remove}>
-                      {t('remove', 'Remove')}
-                    </Button>
-                  )}
-                </div>
-                <Link
-                  href="/settings?tab=sign_in_methods"
-                  className="cf-label-md text-cf-accent underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus"
-                >
-                  {t('change_password', 'Change Password')}
-                </Link>
-                {!getRef && <Button type="submit">{t('save', 'Save')}</Button>}
-              </div>
-            </section>
-          </form>
-        </FormProvider>
-      ) : tab === 'content_intelligence' ? (
-        // The surface itself moved to the working menu, where the question it
-        // answers belongs. What stays here is the signpost: the tab existed
-        // for months and removing it outright would leave people looking for
-        // something that is now one click away.
-        <section
-          data-content-intelligence-moved="true"
-          className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
-        >
-          <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
-            {isRussian ? 'Раздел переехал' : 'This section has moved'}
-          </h2>
-          <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
-            {isRussian
-              ? 'Аватары, источники и происхождение теперь живут в рабочем меню — в разделе «Контент», рядом с созданием публикаций.'
-              : 'Avatars, sources and provenance now live in the working menu, in Content, next to where posts are made.'}
-          </p>
-          <ButtonLink
-            href="/content"
-            variant="primary"
-            className="mt-[16px] cf-control-h"
-          >
-            {isRussian ? 'Открыть раздел «Контент»' : 'Open Content'}
-          </ButtonLink>
-        </section>
+        <ProfileSettings getRef={getRef} />
       ) : tab === 'onboarding' ? (
         // Сами шаги, а не приглашение к ним. Владелец 07.09.2026: «я не вижу
         // смысла дополнительной кнопки в настройках… А так я попадаю как будто
@@ -381,10 +241,7 @@ export const SettingsPopup: FC<{
         </div>
       ) : (
         <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(submit)}>
-            {!!getRef && (
-              <Button type="submit" className="hidden" ref={getRef} />
-            )}
+          <form onSubmit={(event) => event.preventDefault()}>
             <div
               className={clsx(
                 'w-full mx-auto gap-[24px] flex flex-col relative',

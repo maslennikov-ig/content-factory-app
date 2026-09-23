@@ -92,6 +92,7 @@ import type {
   PieceChannelTabV1,
   PieceDetailV1,
   PieceFieldAnswerV1,
+  InterviewAskKeyV1,
   PieceLeadSourceV1,
   PieceOpenQuestionV1,
   PieceOriginV1,
@@ -109,6 +110,8 @@ import type {
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import {
   ADAPTATION_KINDS_LATER,
+  INTERVIEW_QUESTION_MAX_CHARS,
+  isInterviewAskKey,
   PIECE_CORE_VERSION,
   PIECE_EXCERPT_LINES,
   PIECE_MAX_INTERVIEW_ROUNDS,
@@ -138,6 +141,7 @@ import { matchedFormsOf, matchedSnippetOf } from '../search/text-search.index';
 import { TextSearchService } from '../search/text-search.service';
 import {
   channelFormatHint,
+  parseLengthPolicy,
   parseWritingProfile,
   type ChannelWritingProfileV1,
 } from '../channels/channel-writing-profile';
@@ -150,10 +154,16 @@ import {
   type VoiceCheckPort,
 } from '../brand-voice/voice-check.port';
 import { adaptationChecksMany, adaptationChecksOf } from './adaptation-checks';
+import { TAKEAWAY_QUESTION_KEY } from '../channels/channel-question.v3';
+/*
+  Интервью адаптации без шаблона и без счёта (`97dq.44`): v4 решает, нужно ли
+  спросить хоть что-то, и чаще всего не спрашивает. v3 с вопросом «что
+  унести» остаётся для квитанций; ответ `takeaway` старого клиента доходит.
+*/
 import {
-  TAKEAWAY_QUESTION_KEY,
-  askTakeawayV3,
-} from '../channels/channel-question.v3';
+  adaptationInterviewLines,
+  askAdaptationQuestionsV4,
+} from '../channels/channel-question.v4';
 import { stripBoldMarkers } from '@contentfactory/helpers/utils/bold-markers';
 import { editorHtml } from '../brief/editor-html';
 import { stripCitationLabels } from '../text-quality/citation-labels';
@@ -486,6 +496,7 @@ const jsonOf = <T>(value: string | null | undefined, fallback: T): T => {
  *
  * «Как в канале» ничего не меняет и не едет; аватар решён отдельно, в
  * `brandProfileSelection`. Пустое — отсутствие, а не пустая строка в промпте.
+ * Обращение, если его прислал старый клиент, не едет (`97dq.45`).
  */
 const postOverridesOf = (
   request: PieceAdaptRequestV1 | undefined
@@ -494,19 +505,39 @@ const postOverridesOf = (
   if (!overrides) return null;
   const wish = trimmed(overrides.wish);
   const takeaway = trimmed(overrides.takeaway);
+  const lengthPolicy = postLengthOf(overrides);
   const post: IntakePostOverridesV1 = {
-    ...(overrides.length === 'shorter' || overrides.length === 'longer'
+    // Длина карточкой главнее «Короче / Длиннее» старого клиента.
+    ...(lengthPolicy
+      ? { lengthPolicy }
+      : overrides.length === 'shorter' || overrides.length === 'longer'
       ? { length: overrides.length }
       : {}),
-    ...(overrides.addressForm === 'avatar' ||
-    overrides.addressForm === 'ty' ||
-    overrides.addressForm === 'vy'
-      ? { addressForm: overrides.addressForm }
+    ...(overrides.emojiLevel ? { emojiLevel: overrides.emojiLevel } : {}),
+    ...(overrides.linkPolicy ? { linkPolicy: overrides.linkPolicy } : {}),
+    ...(overrides.hashtagPolicy
+      ? { hashtagPolicy: overrides.hashtagPolicy }
       : {}),
+    ...(overrides.ctaKind ? { ctaKind: overrides.ctaKind } : {}),
     ...(wish ? { wish } : {}),
     ...(takeaway ? { takeaway } : {}),
   };
   return Object.keys(post).length ? post : null;
+};
+
+/**
+ * Разовая длина (`97dq.48`) тем же разбором, что длина карточки канала.
+ *
+ * Диапазон, который карточка бы не приняла (перевёрнутый, без границы),
+ * не едет вовсе — пост пишется «как в канале», а не по починенному числу.
+ */
+const postLengthOf = (
+  overrides: NonNullable<PieceAdaptRequestV1['overrides']>
+): IntakePostOverridesV1['lengthPolicy'] | null => {
+  if (overrides.lengthPolicy === 'auto') return 'auto';
+  if (overrides.lengthPolicy !== 'range') return null;
+  const range = parseLengthPolicy(overrides.lengthRange, 'provider_max');
+  return typeof range === 'object' ? range : null;
 };
 
 @Injectable()
@@ -996,30 +1027,37 @@ export class PieceService {
     // бы завести два ответа на вопрос «на чём стоит эта заготовка».
     const brief = this.briefMaterial(plan);
     /*
-      Первая адаптация заготовки на этом канале спрашивает, что читатели
-      должны унести из поста (`content-factory-next-97dq.31`), — до генерации
-      и вместо неё: вопрос терминален, клиент повторяет запрос с ответом, с
-      «Решите за меня» (`decideKeys`) или с «Решите всё за меня»
-      (`skipInterview`). На этом круге других вопросов нет — не больше одного
-      за круг.
+      Первая адаптация заготовки на этом канале даёт модели решить, нужно ли
+      о чём-то спросить (`content-factory-next-97dq.44`, до неё — один
+      шаблонный вопрос «что унести», `97dq.31`). Вопросы есть — круг
+      терминален, клиент повторяет запрос с ответами, с «Решите за меня»
+      (`decideKeys`) или с «Решите всё за меня» (`skipInterview`). Вопросов
+      нет — а это обычный исход — текст пишется в этом же запросе.
     */
-    if (this.asksTakeaway(plan, answers)) {
-      const question = await askTakeawayV3(
+    let interviewed = false;
+    if (this.asksBeforeAdapting(plan, answers)) {
+      const questions = await askAdaptationQuestionsV4(
         {
           organizationId,
           language,
           channelName: plan.channel.name,
           providerIdentifier: plan.channel.providerIdentifier,
+          maxLength: plan.channel.maxLength,
           core: plan.core?.text ?? '',
           brief: plan.core?.brief ?? null,
         },
         { aiUsage: this.aiUsage, warn: (message) => this.logger.warn(message) }
       );
-      yield { name: 'questions', questions: [question], round: 1 };
-      return;
+      if (questions.length) {
+        yield { name: 'questions', questions, round: 1 };
+        return;
+      }
+      interviewed = true;
     }
     const hints = this.hintsOf(plan, answers, brief.material);
-    hints.allowQuestion = !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
+    // Модель только что решила, что спрашивать не о чем: второй вопрос изнутри
+    // генерации (`channel-question/v2`) это решение не отменяет.
+    hints.allowQuestion = !interviewed && !answers.length && !plan.request?.skipInterview && !(plan.request?.decideKeys?.length);
     /*
       Свои прежние тексты по теме — до генерации и одним списком для экрана и
       для модели (`content-factory-next-m2eg.19`). Событие идёт только когда
@@ -1366,10 +1404,15 @@ export class PieceService {
 
     const answeredAt = this.now().toISOString();
     const given = this.fieldAnswers(plan.request, before.items);
+    // Ответы на вопросы о материале (`97dq.44`): поля брифа не закрывают и
+    // едут в суть парой «вопрос → ответ».
+    const told = this.materialAnswers(plan.request, before.items);
     const acceptedEvidence: AcceptedEvidence[] = [];
     if (this.intake) {
       const urls = [
-        ...new Set(given.flatMap((answer) => linksOf(answer.text))),
+        ...new Set(
+          [...given, ...told].flatMap((answer) => linksOf(answer.text))
+        ),
       ];
       for (const url of urls) {
         try {
@@ -1403,9 +1446,26 @@ export class PieceService {
         origin: 'model' as const,
         answeredAt,
       })),
+      // Вопрос о материале без ответа отдан модели: так и записано.
+      ...before.items.flatMap((question) =>
+        question.key
+          ? [
+              {
+                field: question.field,
+                key: question.key,
+                question: question.question,
+                text: told.find((answer) => answer.key === question.key)?.text ?? '',
+                origin: told.some((answer) => answer.key === question.key)
+                  ? ('person' as const)
+                  : ('model' as const),
+                answeredAt,
+              },
+            ]
+          : []
+      ),
     ];
 
-    const brief = given.length
+    const brief = given.length || acceptedEvidence.length
       ? this.briefWithAnswers(plan.core.brief, given, acceptedEvidence)
       : plan.core.brief;
     const answered = [...before.answered, ...fresh];
@@ -1418,8 +1478,18 @@ export class PieceService {
       снимает вопрос без повторного платного вызова.
     */
     let core: ZagotovkaCoreV1 = { ...plan.core, brief, questions };
-    if ((given.length || !plan.core.text.trim()) && this.aiUsage) {
-      const said = this.promptAnswers(given, answeredAt);
+    if ((given.length || told.length || !plan.core.text.trim()) && this.aiUsage) {
+      const said = [
+        ...this.promptAnswers(given, answeredAt),
+        ...told.map((answer) => ({
+          key: answer.key,
+          text: answer.text,
+          question: answer.question,
+          origin: 'person' as const,
+          step: 'core' as const,
+          answeredAt,
+        })),
+      ];
       const rewritten = await writeCore(
         {
           organizationId,
@@ -1429,7 +1499,7 @@ export class PieceService {
           questionTextByKey: Object.fromEntries(
             said.map((answer) => [
               answer.key,
-              before.items.find((question) => question.field === CORE_QUESTION_FIELDS[answer.key])?.question || coreQuestionText(answer.key, language),
+              answer.question || before.items.find((question) => !question.key && question.field === CORE_QUESTION_FIELDS[answer.key])?.question || coreQuestionText(answer.key, language),
             ])
           ),
           // Слова человека, с которых началась заготовка. Чужой текст
@@ -1500,6 +1570,28 @@ export class PieceService {
   }
 
   /**
+   * Ответы на вопросы о материале (`content-factory-next-97dq.44`): только на
+   * заданные в этом круге, дословно, пустые — не ответы. Текст вопроса берётся
+   * из заданного, а не из запроса: клиент у двери может быть не только свой.
+   */
+  private materialAnswers(
+    request: PieceAnswerRequestV1,
+    asked: readonly PieceOpenQuestionV1[] = []
+  ): Array<{ key: InterviewAskKeyV1; question: string; text: string }> {
+    const byKey = new Map<string, { key: InterviewAskKeyV1; question: string; text: string }>();
+    for (const answer of request.answers || []) {
+      const key = answer?.key;
+      if (!key || !trimmed(answer?.text)) continue;
+      const question = asked.find((one) => one.key === key);
+      if (!question?.key) continue;
+      const text = answer.text.trim();
+      if (question.ownOption && question.ownOption.toLowerCase() === text.toLowerCase()) continue;
+      byKey.set(key, { key: question.key, question: question.question, text });
+    }
+    return [...byKey.values()];
+  }
+
+  /**
    * Ответы запроса: дословно, по одному на поле, пустые — не ответы.
    *
    * Подпись варианта, который просил слова человека (`ownOption`), ответом не
@@ -1524,6 +1616,7 @@ export class PieceService {
       // пробелы по краям, потому что пустая строка — это не ответ.
       if (
         answer?.field &&
+        !answer.key &&
         answer.field !== 'facts' &&
         trimmed(answer.text)
       ) {
@@ -2516,10 +2609,14 @@ export class PieceService {
     if (!stored || typeof stored !== 'object') return null;
     const items = Array.isArray(stored.items) ? stored.items : [];
     const answered = Array.isArray(stored.answered) ? stored.answered : [];
-    const retiredFacts = items.some((question) => question.field === 'facts');
+    // Вопрос «на чём стоит» без ключа снят с волны m2eg; вопрос о материале
+    // с ключом (`97dq.44`) стоит на том же поле и остаётся.
+    const retired = (question: PieceOpenQuestionV1) =>
+      question.field === 'facts' && !question.key;
+    const retiredFacts = items.some(retired);
     return {
       round: Number(stored.round) || 0,
-      items: items.filter((question) => question.field !== 'facts'),
+      items: items.filter((question) => !retired(question)),
       answered:
         retiredFacts && !answered.some((answer) => answer.field === 'facts')
           ? [
@@ -2734,25 +2831,33 @@ export class PieceService {
   private channelAnswers(plan: PieceAdaptPlanV1): PieceAnswerV1[] {
     const answeredAt = this.now().toISOString();
     return (plan.request?.answers || [])
-      .map((answer) => ({
-        key: answer?.key,
-        text: trimmed(answer?.text),
-        origin: answer?.origin === 'confirmed' ? 'confirmed' : 'person',
-        step: 'adaptation' as const,
-        platform: plan.channel.providerIdentifier,
-        answeredAt,
-      }))
+      .map((answer) => {
+        // Вопрос словами модели едет с ответом (`97dq.44`): сервер круга не
+        // помнит. Только у её вопросов — у шаблонных текст известен и так.
+        const question = isInterviewAskKey(answer?.key)
+          ? oneLine(trimmed(answer?.question)).slice(0, INTERVIEW_QUESTION_MAX_CHARS)
+          : '';
+        return {
+          key: answer?.key,
+          text: trimmed(answer?.text),
+          ...(question ? { question } : {}),
+          origin: answer?.origin === 'confirmed' ? 'confirmed' : 'person',
+          step: 'adaptation' as const,
+          platform: plan.channel.providerIdentifier,
+          answeredAt,
+        };
+      })
       .filter((answer) => answer.key && answer.text) as PieceAnswerV1[];
   }
 
   /**
-   * Спрашивать ли, что унести читателям канала.
+   * Давать ли модели спросить перед адаптацией (`97dq.44`).
    *
    * Только первая адаптация на канале, только у заготовки с сутью (у
-   * материала до волны предлагать не из чего) и только на первом круге: ответ,
+   * материала до волны спрашивать не по чему) и только на первом круге: ответ,
    * «Решите за меня» или «Решите всё за меня» — это уже второй круг.
    */
-  private asksTakeaway(
+  private asksBeforeAdapting(
     plan: PieceAdaptPlanV1,
     answers: readonly PieceAnswerV1[]
   ): boolean {
@@ -2922,7 +3027,15 @@ export class PieceService {
     const takeaway = trimmed(plan.request?.overrides?.takeaway)
       ? undefined
       : answers.find((answer) => answer.key === TAKEAWAY_QUESTION_KEY)?.text;
-    const quoted = answers.filter((answer) => answer.key !== TAKEAWAY_QUESTION_KEY);
+    // Ответы на вопросы модели (`97dq.44`) — направление этой версии, а не
+    // цитата: своим блоком, парой «вопрос → ответ».
+    const interview = adaptationInterviewLines(
+      answers.filter((answer) => isInterviewAskKey(answer.key))
+    );
+    const quoted = answers.filter(
+      (answer) =>
+        answer.key !== TAKEAWAY_QUESTION_KEY && !isInterviewAskKey(answer.key)
+    );
     return {
       version: INTAKE_HINTS_VERSION,
       brief: {
@@ -2938,6 +3051,7 @@ export class PieceService {
         ? { answers: quoted.map((answer) => `${answer.key}: ${answer.text}`) }
         : {}),
       ...(takeaway ? { takeaway } : {}),
+      ...(interview.length ? { interview } : {}),
       ...(formatHint ? { formatHint } : {}),
       ...(plan.core?.keepLinks?.length ? { keepLinks: [...plan.core.keepLinks] } : {}),
       ...(postOverridesOf(plan.request) ? { post: postOverridesOf(plan.request)! } : {}),

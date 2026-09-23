@@ -8,6 +8,8 @@ import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { Progress } from '../ui/progress';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
+import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
 interface EmailNotifications {
   sendSuccessEmails: boolean;
@@ -34,6 +36,7 @@ export const useEmailNotifications = () => {
 
 const EmailNotificationsComponent = () => {
   const t = useT();
+  const words = settingsWordsFor(useVariables().language).global;
   const fetch = useFetch();
   const toaster = useToaster();
   const { data, isLoading } = useEmailNotifications();
@@ -100,14 +103,18 @@ const EmailNotificationsComponent = () => {
 
   if (isLoading) {
     return (
-      <SettingsSection>
+      <SettingsSection layout="row">
         <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
       </SettingsSection>
     );
   }
 
   return (
-    <SettingsSection title={t('email_notifications', 'Email Notifications')}>
+    <SettingsSection
+      layout="row"
+      title={t('email_notifications', 'Email Notifications')}
+      caption={words.email}
+    >
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
           <div className="cf-label-md text-cf-ink">

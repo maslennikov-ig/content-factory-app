@@ -222,7 +222,7 @@ describe('the screens that were printing raw answers', () => {
 
   test('the profile asks about the name field', () => {
     const source = read(
-      'apps/frontend/src/components/layout/settings.component.tsx'
+      'apps/frontend/src/components/settings/profile.component.tsx'
     );
     expect(source).toContain('useFieldErrorMessage');
     expect(source).toMatch(/fieldErrorMessage\(\s*'fullname'/);

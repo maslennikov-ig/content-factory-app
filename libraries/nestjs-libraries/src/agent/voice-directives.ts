@@ -59,12 +59,6 @@ export type EffectiveVoice = {
   ctaStyle?: string;
   emojiPolicy?: BrandUsagePolicyV1;
   hashtagPolicy?: BrandUsagePolicyV1;
-  /**
-   * «ты» or «вы» (`97dq.38`). Not phrased here: the channel lines resolve it
-   * against the post and the channel card and say it once
-   * (`channel-directives.ts`, `addressFormLine`).
-   */
-  addressForm?: 'ty' | 'vy';
   lexicon?: {
     preferred?: Array<{ term?: string; guidance?: string; replacement?: string }>;
     avoid?: Array<{ term?: string; guidance?: string; replacement?: string }>;

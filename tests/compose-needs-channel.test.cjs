@@ -158,12 +158,16 @@ describe('ячейка ведёт в выбор адаптации с безоп
   const source = read(CALENDAR);
   const picker = read('apps/frontend/src/components/launches/adaptation-picker.tsx');
   test('дата клетки передаётся выбору без подключения и без записи', () => {
-    expect(source).toContain('openPicker(getDate)');
+    expect(source).toContain('addAt(getDate)');
+    expect(source).toMatch(/canWritePosts\s*\?\s*openPicker\(at,[^)]*\)/u);
     expect(source).not.toContain('explainNoChannel');
     expect(source).not.toContain('useAddProvider');
   });
-  test('без канала чистый лист недоступен, ссылка ведёт в самостоятельный раздел', () => {
-    expect(picker).toContain('disabled={!canWrite || opening || !integrations.length}');
+  // «Чистый лист» ушёл из окна (`97dq.50`): новая мысль — заготовка, а пост
+  // без канала окно не собирает вовсе, оно только ведёт.
+  test('без канала окно ведёт в раздел каналов, а не в пустой пост', () => {
+    expect(picker).not.toContain('useOpenPostEditor');
+    expect(picker).toContain('href={NEW_PIECE_PATH}');
     expect(picker).toContain('href="/channels"');
     expect(picker).not.toContain('useAddProvider');
   });

@@ -246,7 +246,14 @@ const parseBrandProfileId = (value: unknown): string | null => {
   return id && id.length <= 128 ? id : null;
 };
 
-const parseLengthPolicy = (
+/**
+ * Длина карточки из того, что пришло, — или `fallback`.
+ *
+ * Читает её и «Для этого поста» (`97dq.48`): разовая длина — та же тройка
+ * чисел с теми же проверками, иначе один и тот же пресет значил бы в посте
+ * и в канале разное.
+ */
+export const parseLengthPolicy = (
   value: unknown,
   fallback: ChannelLengthPolicyV1
 ): ChannelLengthPolicyV1 => {

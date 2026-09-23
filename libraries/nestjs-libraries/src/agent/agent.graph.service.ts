@@ -1,6 +1,7 @@
 import { unavoidableQuestionSchemaV2, unavoidableQuestionV2, hasAutomaticChannelField, channelQuestionPromptV2, channelQuestionTemplateV2 } from '../content-intelligence/channels/channel-question.v2';
 import type { PieceQuestionV1 } from '../content-intelligence/brand-voice/voice-wiring.contract';
 import { takeawayHintLine } from '../content-intelligence/channels/channel-question.v3';
+import { adaptationInterviewBlock } from '../content-intelligence/channels/channel-question.v4';
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { END, START, StateGraph } from '@langchain/langgraph';
@@ -285,15 +286,6 @@ const contentZod = (
 const effectiveVoiceOf = (state: WorkflowChannelsState) =>
   state.resolvedBrandProfile?.effectiveVoice as EffectiveVoice | undefined;
 
-/** Обращение, которое решил аватар; всё, кроме «ты» и «вы», — молчание. */
-const avatarAddressFormOf = (
-  resolved: ResolvedBrandProfileContextV1 | undefined
-): 'ty' | 'vy' | null => {
-  const form = (resolved?.effectiveVoice as EffectiveVoice | undefined)
-    ?.addressForm;
-  return form === 'ty' || form === 'vy' ? form : null;
-};
-
 const voiceDirectives = (state: WorkflowChannelsState) => {
   const voice = effectiveVoiceOf(state);
   const channel = state.channelLines ?? [];
@@ -340,6 +332,8 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     `- Written for: ${brief.audience ?? ''}`,
     ...(brief.goal ? [`- What the post has to do: ${brief.goal}`] : []),
     ...(takeaway ? [takeawayHintLine(takeaway)] : []),
+    // Ответы на вопросы модели перед адаптацией (`97dq.44`): направление.
+    ...adaptationInterviewBlock(state.intake?.interview || []),
     /*
       Суть заготовки — материал, а не запрос (`content-factory-next-tu3k.9`).
       Она уже написана и уже нейтральна; эта генерация делает из неё версию
@@ -1835,10 +1829,9 @@ export class AgentGraphService {
             formatHint: hints?.formatHint,
             foreignShingles: hints?.foreignShingles,
             keepLinks: hints?.keepLinks,
-            // Слои обращения и разовые настройки поста (`97dq.38`): пост →
-            // карточка → аватар разрешаются в одном месте, строителе строк.
+            // Разовые настройки поста (`97dq.38`) — в строителе строк,
+            // рядом с карточкой канала, которую они на этот раз перекрывают.
             post: hints?.post,
-            avatarAddressForm: avatarAddressFormOf(resolvedBrandProfile),
           }
         )
       : undefined;

@@ -122,13 +122,20 @@ export type IntakeGenerationHintsV1 = {
    * цитата, поэтому едет своей строкой, а не среди `answers`.
    */
   takeaway?: string | null;
+  /**
+   * Ответы человека на вопросы модели перед адаптацией
+   * (`content-factory-next-97dq.44`, `channels/channel-question.v4.ts`):
+   * строки «вопрос → ответ». Направление этой версии, а не цитата, поэтому
+   * своим блоком, а не среди `answers`.
+   */
+  interview?: string[];
   /** Выбранная форма текста; локализованный ответ уже разобран сервером. */
   formatHint?: IntakeFormatV1;
   /** Ссылки из задания, которые велено сохранить: в пост дословно (`97dq.29`). */
   keepLinks?: string[];
   /**
    * «Для этого поста» (`content-factory-next-97dq.38`): разовая длина,
-   * обращение, пожелание и то, что читатели должны унести. Строки из них
+   * пожелание и то, что читатели должны унести. Строки из них
    * собирает `channelInstructionLines` — там же, где карточка канала, которую
    * они на этот раз перекрывают. Аватар сюда не едет: он уже решён в
    * `brandProfileSelection` запроса.
@@ -140,9 +147,23 @@ export type IntakeGenerationHintsV1 = {
 export type IntakePostOverridesV1 = {
   /** `channel` («как в канале») сюда не доезжает: он ничего не меняет. */
   length?: 'shorter' | 'longer';
-  addressForm?: 'avatar' | 'ty' | 'vy';
+  /*
+    Обращения («на ты / на вы») здесь нет с `97dq.45`: опция ушла из
+    продукта, и в промпт оно не едет ни с поста, ни с канала, ни с аватара.
+  */
   wish?: string;
   takeaway?: string;
+  /*
+    Поля карточки канала на одну адаптацию (`97dq.48`): уже разобранные
+    сервером, в форме самой карточки. Строки из них собирает тот же
+    `channelInstructionLines`, поэтому «мало эмодзи» поста и канала — одна
+    строка промпта. `lengthPolicy` главнее `length`.
+  */
+  lengthPolicy?: Exclude<ChannelWritingProfileV1['lengthPolicy'], 'provider_max'>;
+  emojiLevel?: ChannelWritingProfileV1['emojiLevel'];
+  linkPolicy?: ChannelWritingProfileV1['linkPolicy'];
+  hashtagPolicy?: ChannelWritingProfileV1['hashtagPolicy'];
+  ctaKind?: ChannelWritingProfileV1['ctaKind'];
 };
 
 /**

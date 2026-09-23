@@ -291,12 +291,6 @@ export const intakeCopy = {
     profileSpeakerUnnamed: 'Без имени',
     profileHintSpeaker:
       'Аватар, от лица которого пишутся посты этого канала. «По умолчанию» — основной аватар пространства. Для одного поста его можно сменить на странице адаптации.',
-    profileAddress: 'Обращение',
-    profileAddressAvatar: 'как в аватаре',
-    profileAddressTy: 'на «ты»',
-    profileAddressVy: 'на «вы»',
-    profileHintAddress:
-      'Как текст обращается к читателю в этом канале. «Как в аватаре» — берём то, что задано у аватара.',
 
     /* --- Форматы ----------------------------------------------------------- */
     formatAuto: 'выберем сами',
@@ -523,12 +517,6 @@ export const intakeCopy = {
     profileSpeakerUnnamed: 'Unnamed',
     profileHintSpeaker:
       'The avatar this channel’s posts are written as. “Default” is the workspace’s main avatar. You can change it for one post on the adaptation page.',
-    profileAddress: 'Addressing the reader',
-    profileAddressAvatar: 'as the avatar',
-    profileAddressTy: 'informal',
-    profileAddressVy: 'formal',
-    profileHintAddress:
-      'How the text addresses the reader in this channel. “As the avatar” uses what the avatar says.',
 
     formatAuto: 'we pick',
     formatOpinion: 'opinion',

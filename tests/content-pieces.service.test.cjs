@@ -2737,26 +2737,34 @@ describe('third walk first draft and editable title', () => {
 });
 
 /* -------------------------------------------------------------------------
- * Интервью по умолчанию (`content-factory-next-97dq.31`)
+ * Интервью без счёта (`content-factory-next-97dq.44`)
  * ---------------------------------------------------------------------- */
 
 /**
- * Десятый заход 22.09.2026: «сделал адаптацию под Telegram, и ни одного
- * вопроса модель не задала», и «я бы чаще задавал вопросы, чем нет, даже если
- * это мой собственный пост». Ответы модели записаны; платных вызовов нет.
+ * Одиннадцатый заход 23.09.2026: «Зачем нужно ограничивать модель? Пусть дают
+ * столько вопросов, сколько ей нужно … И тем более не создавать типовые
+ * вопросы». До этой волны первая адаптация на канале всегда задавала один
+ * шаблонный вопрос «что унести» (`97dq.31`), а вход — не больше двух вопросов
+ * и один «по умолчанию». Ответы модели записаны; платных вызовов нет.
  */
-describe('97dq.31: первая адаптация на канале спрашивает, что унести', () => {
-  const TAKEAWAY_OPTIONS = {
-    options: [
-      'Срок держится, когда о нём знает клиент',
-      'Я перестал назначать себе сроки в одиночку',
-      'Срок держится, когда о нём знает клиент!',
-      'Четвёртый вариант лишний',
+describe('97dq.44: перед первой адаптацией модель сама решает, о чём спросить', () => {
+  const ADAPT_QUESTIONS = {
+    questions: [
+      {
+        question: 'С чего начать для читателей «Мой канал»: с цифры о пяти сорванных сроках или с вывода?',
+        options: ['С цифры о пяти сорванных сроках', 'С вывода о клиенте', 'с цифры о пяти сорванных сроках'],
+      },
+      {
+        question: 'С чего начать для читателей «Мой канал»: с цифры о пяти сорванных сроках или с вывода?',
+        options: [],
+      },
+      { question: 'Что читатель канала должен сделать после поста?', options: [] },
+      { question: '   ', options: ['пусто'] },
     ],
   };
 
-  test('первая адаптация задаёт один вопрос с вариантами из сути и не пишет текст', async () => {
-    const { service, calls } = buildPieces({ models: [TAKEAWAY_OPTIONS] });
+  test('вопросы модели её словами: ключи ask-<n>, без повторов, генерации на этом круге нет', async () => {
+    const { service, calls } = buildPieces({ models: [ADAPT_QUESTIONS] });
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
 
@@ -2765,35 +2773,48 @@ describe('97dq.31: первая адаптация на канале спраш�
     expect(asked.round).toBe(1);
     expect(asked.questions).toEqual([
       {
-        key: 'takeaway',
-        question: 'Что читатели «Мой канал» должны унести из этого поста?',
+        key: 'ask-1',
+        question: 'С чего начать для читателей «Мой канал»: с цифры о пяти сорванных сроках или с вывода?',
         suggested: null,
-        // Пересказ того же варианта снят, и вариантов не больше трёх.
-        options: [
-          'Срок держится, когда о нём знает клиент',
-          'Я перестал назначать себе сроки в одиночку',
-          'Четвёртый вариант лишний',
-        ],
+        options: ['С цифры о пяти сорванных сроках', 'С вывода о клиенте'],
+      },
+      {
+        key: 'ask-2',
+        question: 'Что читатель канала должен сделать после поста?',
+        suggested: null,
+        options: [],
       },
     ]);
-    // Генерации на этом круге нет: вопрос стоит одного дешёвого вызова.
     expect(calls.start).toHaveLength(0);
-    expect(calls.createDraft).toHaveLength(0);
     expect(modelCalls).toHaveLength(1);
     expect(modelCalls[0].role).toBe('extract');
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: channel-question/v3');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: channel-question/v4');
+    expect(modelCalls[0].prompt).not.toContain('должны унести из этого поста');
     expect(modelCalls[0].prompt).toContain('Срок держится, когда о нём знает кто-то ещё.');
     expect(calls.usage).toEqual([['org-a', 'intake', 'extract']]);
   });
 
-  test('адаптация другого канала не считается: спрашивают и здесь', async () => {
+  test('модель не видит смысла спрашивать — текст пишется в этом же запросе', async () => {
+    const { service, calls } = buildPieces({ models: [{ questions: [] }] });
+    const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'adaptation')).toHaveLength(1);
+    expect(modelCalls).toHaveLength(1);
+    expect(calls.start).toHaveLength(1);
+    // Решение «не спрашивать» не отменяется вопросом изнутри генерации.
+    expect(calls.start[0][1].intake.allowQuestion).toBe(false);
+  });
+
+  test('адаптация другого канала не считается: модель решает и здесь', async () => {
     const { service } = buildPieces({
-      models: [TAKEAWAY_OPTIONS],
+      models: [ADAPT_QUESTIONS],
       adaptations: [{ id: 'adaptation-1', integrationId: 'int-vk' }],
     });
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
-    expect(named(events, 'questions')[0].questions[0].key).toBe('takeaway');
+    expect(named(events, 'questions')[0].questions[0].key).toBe('ask-1');
   });
 
   test('«Ещё вариант» не спрашивает и не зовёт модель ради вопроса', async () => {
@@ -2813,7 +2834,7 @@ describe('97dq.31: первая адаптация на канале спраш�
 
   test.each([
     ['«Решите всё за меня»', { skipInterview: true }],
-    ['«Решите за меня»', { decideKeys: ['takeaway'] }],
+    ['«Решите за меня»', { decideKeys: ['ask-1', 'ask-2'] }],
   ])('%s пишет сразу, модель решает сама', async (_label, extra) => {
     const { service, calls } = buildPieces();
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg', ...extra }, 'ru');
@@ -2823,12 +2844,52 @@ describe('97dq.31: первая адаптация на канале спраш�
     expect(named(events, 'adaptation')).toHaveLength(1);
     expect(modelCalls).toHaveLength(0);
     const hints = calls.start[0][1].intake;
-    expect(hints.takeaway).toBeUndefined();
-    // Не больше одного вопроса за круг: второй круг вопроса не задаёт.
+    expect(hints.interview).toBeUndefined();
     expect(hints.allowQuestion).toBe(false);
   });
 
-  test('ответ доезжает до генерации строкой «что унести», а не цитатой', async () => {
+  test('ответы доезжают до генерации парой «вопрос → ответ», направлением, а не цитатой', async () => {
+    const { service, calls } = buildPieces();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      {
+        integrationId: 'int-tg',
+        answers: [
+          {
+            key: 'ask-1',
+            question: 'С чего начать для читателей «Мой канал»?',
+            text: 'С цифры о пяти сорванных сроках',
+            origin: 'confirmed',
+          },
+          { key: 'ask-2', text: 'Написать мне в личку', origin: 'person' },
+        ],
+      },
+      'ru'
+    );
+    const events = await drain(service.adapt('org-a', plan));
+
+    expect(named(events, 'questions')).toEqual([]);
+    const hints = calls.start[0][1].intake;
+    expect(hints.interview).toEqual([
+      'С чего начать для читателей «Мой канал»? → С цифры о пяти сорванных сроках',
+      'ask-2: Написать мне в личку',
+    ]);
+    expect(hints.answers).toBeUndefined();
+    expect(hints.allowQuestion).toBe(false);
+    const [written] = named(events, 'adaptation');
+    expect(written.adaptation.answers[0]).toEqual(
+      expect.objectContaining({
+        key: 'ask-1',
+        question: 'С чего начать для читателей «Мой канал»?',
+        origin: 'confirmed',
+        step: 'adaptation',
+        platform: 'telegram',
+      })
+    );
+  });
+
+  test('ответ старого клиента на «что унести» по-прежнему доезжает своей строкой', async () => {
     const { service, calls } = buildPieces();
     const plan = await service.prepareAdapt(
       'org-a',
@@ -2839,60 +2900,67 @@ describe('97dq.31: первая адаптация на канале спраш�
       },
       'ru'
     );
-    const events = await drain(service.adapt('org-a', plan));
-
-    expect(named(events, 'questions')).toEqual([]);
+    await drain(service.adapt('org-a', plan));
     const hints = calls.start[0][1].intake;
     expect(hints.takeaway).toBe('Я перестал назначать себе сроки в одиночку');
     expect(hints.answers).toBeUndefined();
-    expect(hints.allowQuestion).toBe(false);
-    const [written] = named(events, 'adaptation');
-    expect(written.adaptation.answers).toEqual([
-      expect.objectContaining({ key: 'takeaway', origin: 'confirmed', step: 'adaptation', platform: 'telegram' }),
-    ]);
+    expect(hints.interview).toBeUndefined();
   });
 
-  test('модель не ответила — вопрос всё равно задан, без вариантов', async () => {
+  test('модель не ответила — ничего не спрашиваем и пишем текст', async () => {
     const { service, calls } = buildPieces({ models: [new Error('the model refused')] });
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
 
-    const [asked] = named(events, 'questions');
-    expect(asked.questions[0]).toMatchObject({ key: 'takeaway', options: [], suggested: null });
-    expect(calls.start).toHaveLength(0);
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'adaptation')).toHaveLength(1);
+    expect(calls.start).toHaveLength(1);
   });
 
-  test('материал до волны без сути не спрашивает: предлагать не из чего', async () => {
+  test('материал до волны без сути не спрашивает: спрашивать не по чему', async () => {
     const { service, calls } = buildPieces({
       piece: pieceRow({ kind: null, brief: null, body: '<p>Старый пост</p>' }),
     });
     const plan = await service.prepareAdapt('org-a', 'piece-12', { integrationId: 'int-tg' }, 'ru');
     const events = await drain(service.adapt('org-a', plan));
     expect(named(events, 'questions')).toEqual([]);
+    expect(modelCalls).toHaveLength(0);
     expect(calls.start).toHaveLength(1);
   });
 });
 
-describe('97dq.31: свой текст и задание без пробелов спрашивают одно', () => {
-  const DEFAULT_QUESTION = {
-    field: 'audience',
-    question: 'Для кого этот пост о сроках, назначенных себе?',
-    options: [
-      'Для владельцев студий, которые ведут канал сами',
-      'Для фрилансеров, у которых сроки плывут',
-      'для владельцев студий, которые ведут канал сами',
-    ],
-  };
+describe('97dq.44: интервью заготовки — столько вопросов, сколько нужно материалу', () => {
+  const INTERVIEW = [
+    { about: 'material', question: 'Когда срок, назначенный себе, сорвался в последний раз и чем это кончилось?', options: [] },
+    {
+      about: 'audience',
+      question: 'Для кого этот пост о сроках, назначенных себе?',
+      options: [
+        'Для владельцев студий, которые ведут канал сами',
+        'Для фрилансеров, у которых сроки плывут',
+        'для владельцев студий, которые ведут канал сами',
+      ],
+    },
+    { about: 'audience', question: 'Кто прочтёт пост о сроках?', options: [] },
+    { about: 'material', question: 'Сколько сроков с клиентом сорвалось за тот же год?', options: ['Ни одного', 'Один'] },
+  ];
 
-  test('мысль без пробелов: один вопрос о том, для кого, и суть ждёт ответа', async () => {
+  test('мысль: вопросы модели в её числе, о материале — с ключом, суть ждёт ответа', async () => {
     const { service, calls } = buildIntake({
-      models: [briefAnswer({ defaultQuestion: DEFAULT_QUESTION })],
+      models: [briefAnswer({ audience: null, origins: { ...briefAnswer().origins, audience: null }, questions: INTERVIEW })],
     });
     const plan = await service.prepare('org-a', request({ skipInterview: false }));
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
     const [asked] = named(events, 'questions');
     expect(asked.questions).toEqual([
+      {
+        field: 'facts',
+        key: 'ask-1',
+        question: 'Когда срок, назначенный себе, сорвался в последний раз и чем это кончилось?',
+        options: [],
+        suggested: null,
+      },
       {
         field: 'audience',
         question: 'Для кого этот пост о сроках, назначенных себе?',
@@ -2902,25 +2970,25 @@ describe('97dq.31: свой текст и задание без пробелов
         ],
         suggested: null,
       },
+      {
+        field: 'facts',
+        key: 'ask-2',
+        question: 'Сколько сроков с клиентом сорвалось за тот же год?',
+        options: ['Ни одного', 'Один'],
+        suggested: null,
+      },
     ]);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v8');
-    // Как у вопросов о пробелах: суть пишется после ответа или «Решите за меня».
+    const prompt = modelCalls[0].prompt;
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
+    expect(prompt).not.toContain('at most two questions');
+    expect(prompt).not.toContain('defaultQuestion');
     expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
-    expect(calls.recordCore).toHaveLength(1);
-    expect(calls.recordCore[0][1].brief.questions.items).toHaveLength(1);
+    expect(calls.recordCore[0][1].brief.questions.items).toHaveLength(3);
   });
 
-  test('задание без пробелов тоже спрашивает одно', async () => {
+  test('задание, где модели спрашивать не о чем, пишет суть сразу', async () => {
     const { service } = buildIntake({
-      models: [
-        briefAnswer({
-          defaultQuestion: {
-            field: 'thesis',
-            question: 'Что в посте о выступлении на радио подчеркнуть?',
-            options: ['Что меня позвали как практика', 'Какие вопросы задали слушатели'],
-          },
-        }),
-      ],
+      models: [briefAnswer({ questions: [] }), { text: CORE_TEXT }],
     });
     const plan = await service.prepare(
       'org-a',
@@ -2932,29 +3000,29 @@ describe('97dq.31: свой текст и задание без пробелов
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    const [asked] = named(events, 'questions');
-    expect(asked.questions.map((row) => row.field)).toEqual(['thesis']);
-    expect(asked.questions[0].options).toHaveLength(2);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v8');
+    expect(named(events, 'questions')).toEqual([]);
+    expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
   });
 
-  test('есть вопросы о пробелах — вопроса по умолчанию нет', async () => {
+  test('вопрос по умолчанию из v8 больше не задаётся', async () => {
     const { service } = buildIntake({
       models: [
         briefAnswer({
-          questions: [{ field: 'thesis', question: 'Почему внешний дедлайн надёжнее?', options: ['Клиент ждёт', 'Совместный план'] }],
-          defaultQuestion: DEFAULT_QUESTION,
+          questions: [],
+          defaultQuestion: { field: 'audience', question: 'Для кого?', options: ['Для всех'] },
         }),
+        { text: CORE_TEXT },
       ],
     });
     const plan = await service.prepare('org-a', request({ skipInterview: false }));
     const events = await drain(service.run('org-a', plan, 'user-1'));
-    expect(named(events, 'questions')[0].questions.map((row) => row.field)).toEqual(['thesis']);
+    expect(named(events, 'questions')).toEqual([]);
   });
 
   test('«Решите всё за меня» на входе — вопросов нет, суть пишется сразу', async () => {
     const { service } = buildIntake({
-      models: [briefAnswer({ defaultQuestion: DEFAULT_QUESTION }), { text: CORE_TEXT }],
+      models: [briefAnswer({ questions: INTERVIEW }), { text: CORE_TEXT }],
     });
     const plan = await service.prepare('org-a', request({ skipInterview: true }));
     const events = await drain(service.run('org-a', plan, 'user-1'));
@@ -2962,13 +3030,15 @@ describe('97dq.31: свой текст и задание без пробелов
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
   });
 
-  test('чужой пост: прежний промпт и прежний вопрос о позиции, без вопроса по умолчанию', async () => {
+  test('чужой пост: тот же v9, вопрос о позиции первым, вопросы модели следом', async () => {
     const { service } = buildIntake({
       models: [
         extractionAnswer(),
         briefAnswer({
           origins: { ...briefAnswer().origins, position: 'model' },
-          defaultQuestion: DEFAULT_QUESTION,
+          questions: [
+            { about: 'material', question: 'С чем из этого поста вы сталкивались сами?', options: [] },
+          ],
         }),
       ],
     });
@@ -2978,16 +3048,14 @@ describe('97dq.31: свой текст и задание без пробелов
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    const briefPrompt = modelCalls[1].prompt;
-    expect(briefPrompt).not.toContain('intake-brief-fill/v8');
-    expect(briefPrompt).not.toContain('defaultQuestion');
-    const fields = named(events, 'questions')[0].questions.map((row) => row.field);
-    expect(fields).toContain('position');
-    expect(fields).not.toContain('audience');
+    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
+    const questions = named(events, 'questions')[0].questions;
+    expect(questions[0].field).toBe('position');
+    expect(questions.map((row) => row.key).filter(Boolean)).toEqual(['ask-1']);
   });
 
   test('ответ на вопрос «для кого» ложится в бриф словом человека и едет в суть', async () => {
-    const asked = [{ field: 'audience', question: DEFAULT_QUESTION.question, options: DEFAULT_QUESTION.options.slice(0, 2), suggested: null }];
+    const asked = [{ field: 'audience', question: INTERVIEW[1].question, options: INTERVIEW[1].options.slice(0, 2), suggested: null }];
     const { service, calls } = buildPieces({
       piece: { ...askedPiece({ round: 0, items: asked, answered: [] }), body: '' },
       models: [{ text: 'Суть для фрилансеров.' }],
@@ -3000,5 +3068,43 @@ describe('97dq.31: свой текст и задание без пробелов
     expect(stored.brief.audience).toBe('Для фрилансеров, у которых сроки плывут');
     expect(stored.brief.origins.audience).toBe('person');
     expect(stored.questions.items).toEqual([]);
+  });
+
+  test('ответы на вопросы о материале едут в суть парой «вопрос → ответ», поля брифа не трогают', async () => {
+    const asked = [
+      { field: 'facts', key: 'ask-1', question: INTERVIEW[0].question, options: [], suggested: null },
+      { field: 'facts', key: 'ask-2', question: INTERVIEW[3].question, options: ['Ни одного', 'Один'], suggested: null },
+      { field: 'audience', question: INTERVIEW[1].question, options: [], suggested: null },
+    ];
+    const piece = { ...askedPiece({ round: 0, items: asked, answered: [] }), body: '' };
+    const { service, calls } = buildPieces({ piece, models: [{ text: 'Суть с мартовским случаем.' }] });
+    await answerDrain(service, {
+      answers: [
+        { field: 'facts', key: 'ask-1', text: 'В марте, сдача сайта сдвинулась на три недели' },
+        // Ключа, которого не спрашивали, дверь не принимает.
+        { field: 'facts', key: 'ask-7', text: 'чужой ответ' },
+      ],
+      decide: ['audience'],
+    });
+
+    const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
+    expect(corePrompt).toContain(`${INTERVIEW[0].question} → В марте, сдача сайта сдвинулась на три недели`);
+    expect(corePrompt).not.toContain('чужой ответ');
+    const stored = calls.updateCore[0][2].brief;
+    expect(stored.questions.items).toEqual([]);
+    expect(stored.questions.answered).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'facts', key: 'ask-1', question: INTERVIEW[0].question, origin: 'person', text: 'В марте, сдача сайта сдвинулась на три недели' }),
+        expect.objectContaining({ field: 'facts', key: 'ask-2', origin: 'model', text: '' }),
+        expect.objectContaining({ field: 'audience', origin: 'model' }),
+      ])
+    );
+    expect(stored.brief.facts).toEqual(piece.brief.brief.facts);
+    // Суть помнит вопрос рядом с ответом: следующая перепись не останется с «ask-1 → …».
+    expect(stored.answers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'ask-1', question: INTERVIEW[0].question, step: 'core' }),
+      ])
+    );
   });
 });

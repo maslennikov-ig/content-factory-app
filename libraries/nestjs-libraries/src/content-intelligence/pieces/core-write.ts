@@ -368,7 +368,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       words.answers,
       said.map(
         (answer) =>
-          `${input.questionTextByKey[answer.key] || answer.key} → ${editorialAnswerText(answer.text)}`
+          // Вопрос модели едет с ответом (`97dq.44`): у него нет шаблона.
+          `${input.questionTextByKey[answer.key] || answer.question || answer.key} → ${editorialAnswerText(answer.text)}`
       )
       .filter((line) => !line.endsWith('→ '))
     ),

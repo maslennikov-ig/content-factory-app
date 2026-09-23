@@ -146,8 +146,41 @@ const component = loadTypeScriptModule(
         'apps/frontend/src/components/auth/identity-link-return.ts'
       ),
     '@contentfactory/helpers/utils/custom.fetch': { useFetch: jest.fn() },
-    '@contentfactory/react/form/button': { Button },
+    '@contentfactory/react/form/button': {
+      Button,
+      buttonClassName: ({ className } = {}) => `button ${className ?? ''}`,
+    },
     '@contentfactory/react/form/input': { Input },
+    '@contentfactory/frontend/components/ui/icons': {
+      CheckmarkIcon: () => React.createElement('svg', { 'data-icon': 'check' }),
+      PlusIcon: () => React.createElement('svg', { 'data-icon': 'plus' }),
+    },
+    '@contentfactory/frontend/components/launches/post-card.parts': {
+      DotsIcon: () => React.createElement('svg', { 'data-icon': 'dots' }),
+    },
+    // The row menu, closed, with its commands written out so the suite can
+    // read what «⋯» holds without opening a popover in a static render. Its
+    // keyboard and dismissal belong to `WorkspaceMenu` and its own tests.
+    '@contentfactory/frontend/components/content-intelligence/pieces/workspace-menu':
+      {
+        WorkspaceMenu: ({ label, disabled, trigger, items, dataName }) =>
+          React.createElement(
+            'span',
+            { 'data-workspace-menu': dataName },
+            React.createElement(
+              'button',
+              { type: 'button', 'aria-label': label, disabled },
+              trigger
+            ),
+            items.map((item) =>
+              React.createElement(
+                'span',
+                { key: item.id, 'data-menu-item': item.id },
+                item.title
+              )
+            )
+          ),
+      },
     '@contentfactory/react/form/password-input': {
       PasswordInput: ({
         showPasswordLabel: _show,
@@ -156,7 +189,9 @@ const component = loadTypeScriptModule(
       }) => React.createElement(Input, props),
     },
     '@contentfactory/react/helpers/variable.context': {
-      useVariables: jest.fn(),
+      // English, so the settings copy file (`settings.copy.ts`) answers in the
+      // same language as the `t()` fallbacks the assertions read.
+      useVariables: jest.fn(() => ({ language: 'en' })),
     },
     '@contentfactory/react/translation/get.transation.service.client': {
       useT: () => (key, fallback, values) =>
@@ -314,6 +349,11 @@ test('SettingsPopup mounts the sign-in methods consumer for a provider callback'
         AboutProjectComponent: Empty,
       },
       '@contentfactory/react/form/button': { Button },
+      // The profile has its own file since 97dq.51; this suite is about the
+      // provider callback, so the profile is scenery here.
+      '@contentfactory/frontend/components/settings/profile.component': {
+        ProfileSettings: Empty,
+      },
       '@contentfactory/frontend/components/settings/sign-in-methods.component':
         {
           initialSettingsTab: component.initialSettingsTab,
@@ -387,6 +427,7 @@ test('all method states and controls use translated fallbacks', () => {
   const connected = renderView({
     identities: [identity('TELEGRAM')],
     availableProviders: ['LOCAL', 'TELEGRAM'],
+    addPasswordOpen: true,
   });
   expect(connected).toMatch(/translated:sign_in_methods_subtitle/);
   expect(connected).toMatch(/translated:sign_in_method_connected/);
@@ -431,7 +472,62 @@ test('shows connected state and explains why the last method cannot be removed',
 
   expect(markup).toMatch(/Connected/);
   expect(markup).toMatch(/Keep at least one sign-in method/);
-  expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/);
+  // «Удалить» lives in «⋯» since 97dq.51, and the keep-one rule closes the
+  // menu itself rather than leaving a live-looking command the server refuses.
+  expect(markup).toMatch(
+    /<button[^>]*aria-label="Actions: Telegram"[^>]*disabled=""/
+  );
+  expect(markup).toContain('data-menu-item="remove"');
+
+  const two = renderView({
+    identities: [identity('TELEGRAM'), identity('LOCAL', 'owner@example.test')],
+    availableProviders: ['LOCAL', 'TELEGRAM'],
+  });
+  expect(two).not.toMatch(/Keep at least one sign-in method/);
+  expect(two).not.toMatch(
+    /<button[^>]*aria-label="Actions: Telegram"[^>]*disabled=""/
+  );
+});
+
+/**
+ * `content-factory-next-97dq.51`: one list, one row per method, a state cell
+ * that carries a word as well as a mark, and «Подключить» where a method can
+ * still be added.
+ */
+test('every row carries its state cell, name, caption and action', () => {
+  const markup = renderView({
+    identities: [identity('LOCAL', 'owner@example.test')],
+    availableProviders: ['LOCAL', 'TELEGRAM'],
+  });
+
+  expect(markup.match(/data-sign-in-row="true"/g)).toHaveLength(2);
+  expect(markup).toContain('data-sign-in-state="connected"');
+  expect(markup).toContain('data-sign-in-state="available"');
+  expect(markup).toMatch(/<span class="sr-only">Connected<\/span>/);
+  expect(markup).toMatch(/<span class="sr-only">Available<\/span>/);
+  expect(markup).toMatch(/owner@example.test/);
+  expect(markup).toMatch(/not connected/);
+  expect(markup).toMatch(/>Connect<\/button>/);
+});
+
+test('«Подключить» on the password row opens the add-password pair', () => {
+  const closed = renderView({
+    identities: [identity('TELEGRAM')],
+    availableProviders: ['LOCAL', 'TELEGRAM'],
+  });
+  expect(closed).not.toContain('data-testid="add-password-form"');
+  expect(closed).toMatch(
+    /<button[^>]*aria-expanded="false"[^>]*>Connect<\/button>/
+  );
+
+  const open = renderView({
+    identities: [identity('TELEGRAM')],
+    availableProviders: ['LOCAL', 'TELEGRAM'],
+    addPasswordOpen: true,
+  });
+  expect(open).toContain('data-testid="add-password-form"');
+  expect(open).toMatch(/Add an email and password as a backup method/);
+  expect(open).toMatch(/>Add password<\/button>/);
 });
 
 test('LOCAL linking asks for a confirmation and connects nothing yet', async () => {
@@ -766,10 +862,39 @@ test.each([
  * never sends.
  */
 describe('changing a connected password', () => {
+  /**
+   * `content-factory-next-97dq.51`: the form no longer stands open. «Сменить
+   * пароль» on the password row opens it under that row and says so through
+   * `aria-expanded`/`aria-controls`.
+   */
+  test('the form opens from «Сменить пароль» on the password row', () => {
+    const closed = renderView({
+      identities: [identity('LOCAL', 'owner@example.test')],
+      availableProviders: ['LOCAL', 'TELEGRAM'],
+    });
+    expect(closed).not.toContain('data-testid="change-password-form"');
+    expect(closed).toMatch(
+      /<button[^>]*aria-expanded="false"[^>]*>Change Password<\/button>/
+    );
+
+    const open = renderView({
+      identities: [identity('LOCAL', 'owner@example.test')],
+      availableProviders: ['LOCAL', 'TELEGRAM'],
+      passwordFormOpen: true,
+    });
+    const controls = /aria-controls="([^"]+)"[^>]*>Change Password<\/button>/.exec(
+      open
+    );
+    expect(controls).not.toBeNull();
+    expect(open).toContain(`id="${controls[1]}"`);
+    expect(open).toMatch(/>Cancel<\/button>/);
+  });
+
   test('the form appears on the connected password row, and nowhere else', () => {
     const withPassword = renderView({
       identities: [identity('LOCAL', 'owner@example.test')],
       availableProviders: ['LOCAL', 'TELEGRAM'],
+      passwordFormOpen: true,
     });
     expect(withPassword).toContain('data-testid="change-password-form"');
     expect(withPassword).toMatch(/Current password/);
@@ -780,6 +905,7 @@ describe('changing a connected password', () => {
     const withoutPassword = renderView({
       identities: [identity('TELEGRAM')],
       availableProviders: ['TELEGRAM'],
+      passwordFormOpen: true,
     });
     expect(withoutPassword).not.toContain('data-testid="change-password-form"');
   });
@@ -789,9 +915,11 @@ describe('changing a connected password', () => {
     const markup = renderView({
       identities: [identity('LOCAL', 'owner@example.test')],
       availableProviders: ['LOCAL'],
+      passwordFormOpen: true,
     });
 
     expect(markup).toMatch(/translated:change_password/);
+    expect(markup).toMatch(/>Cancel<\/button>/);
     expect(markup).toMatch(/translated:current_password/);
     expect(markup).toMatch(/translated:new_password/);
     expect(markup).toMatch(/translated:repeat_new_password/);
@@ -877,6 +1005,7 @@ describe('changing a connected password', () => {
       identities: [identity('LOCAL', 'owner@example.test')],
       availableProviders: ['LOCAL'],
       changingPassword: true,
+      passwordFormOpen: true,
       passwordChange: {
         currentPassword: 'Current-1!',
         newPassword: 'Brand-new-2!',
@@ -885,7 +1014,10 @@ describe('changing a connected password', () => {
     });
 
     // Every control on the row is held while the request is in flight, the
-    // Remove button included.
+    // «⋯» holding «Удалить» included.
+    expect(busy).toMatch(
+      /<button[^>]*aria-label="Actions: Email and password"[^>]*disabled=""/
+    );
     expect(busy.match(/disabled=""/g).length).toBeGreaterThan(1);
     expect(busy).toContain('cf-control-h');
   });

@@ -73,15 +73,23 @@ export class AiProviderService {
     const users = userIds.length
       ? await this._prisma.user.findMany({
           where: { id: { in: userIds } },
-          select: { id: true, email: true },
+          select: { id: true, email: true, name: true, lastName: true },
         })
       : [];
-    const emailOf = new Map(users.map((user) => [user.id, user.email]));
+    const byId = new Map(users.map((user) => [user.id, user]));
+    // The screen names a member by name and falls back to the email: a list
+    // of addresses is a list of logins, not of people.
+    const nameOf = (user?: { name: string | null; lastName: string | null }) =>
+      [user?.name, user?.lastName]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ') || null;
 
     return grouped
       .map((row) => ({
         userId: row.userId,
-        email: row.userId ? emailOf.get(row.userId) ?? null : null,
+        email: row.userId ? byId.get(row.userId)?.email ?? null : null,
+        name: row.userId ? nameOf(byId.get(row.userId)) : null,
         operations: row._count._all,
       }))
       .sort((a, b) => b.operations - a.operations);

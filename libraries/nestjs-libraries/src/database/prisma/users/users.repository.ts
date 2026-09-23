@@ -1331,7 +1331,9 @@ export class UsersRepository {
       select: {
         id: true,
         name: true,
+        lastName: true,
         bio: true,
+        timezone: true,
         picture: {
           select: {
             id: true,
@@ -1353,7 +1355,13 @@ export class UsersRepository {
         // Пустое имя — не имя из пробелов и не «undefined»: колонка
         // очищается, и подпись берётся из адреса (fn33.96).
         name: body.fullname?.trim() || null,
+        // Фамилия ведёт себя как имя: пустая строка очищает колонку, а
+        // отсутствующее поле (старый клиент) её не трогает (97dq.51).
+        ...(body.lastName !== undefined
+          ? { lastName: body.lastName.trim() || null }
+          : {}),
         bio: body.bio,
+        ...(body.timezone !== undefined ? { timezone: body.timezone } : {}),
         picture: body.picture
           ? {
               connect: {

@@ -227,10 +227,10 @@ describe('content-factory-next-fn33.67 — an empty calendar cell does not reach
   test('the empty cell cannot connect channels around the administrator door', () => {
     expect(source).not.toContain('useAddProvider');
     expect(source).not.toContain('explainNoChannel');
-    expect(source).toContain('openPicker(getDate)');
+    expect(source).toContain('addAt(getDate)');
     const picker = fs.readFileSync(path.join(root, 'apps/frontend/src/components/launches/adaptation-picker.tsx'), 'utf8');
     expect(picker).toContain('href="/channels"');
-    expect(picker).toContain('disabled={!canWrite || opening || !integrations.length}');
+    expect(picker).not.toContain('useOpenPostEditor');
   });
 
   /**
@@ -245,8 +245,10 @@ describe('content-factory-next-fn33.67 — an empty calendar cell does not reach
     expect(source).toMatch(
       /canWritePosts\s*=\s*isOrganizationEditor\(user\?\.role\)/u
     );
+    // Every add in the grid — the day row, the week chip, the hover plus —
+    // goes through `addAt`, which refuses before it opens (`97dq.50`).
     expect(source).toMatch(
-      /!canWritePosts[\s\S]{0,40}refuseWritePost[\s\S]{0,40}addModal/u
+      /canWritePosts\s*\?\s*openPicker\(\s*at\b[^)]*\)\s*:\s*refuseWritePost\(\)/u
     );
     expect(source).toContain('create_post_editor_only');
   });

@@ -539,12 +539,6 @@ export const voiceCopy = {
     passportEditSave: 'Сохранить',
     passportEditCancel: 'Отмена',
     passportEditSaved: 'Сохранено. Создана новая версия аватара.',
-    passportAddress: 'Обращение к читателю',
-    passportAddressUnset: 'Не задано',
-    passportAddressTy: 'на «ты»',
-    passportAddressVy: 'на «вы»',
-    passportHintAddress:
-      'Как этот аватар обращается к читателю по умолчанию. Канал может задать своё, а для одного поста — сменить на странице адаптации. «Не задано» — модель решает по тексту.',
     passportEditNote:
       'Правка сразу создаёт новую версию: она появится в истории ниже, а старые публикации останутся привязаны к той версии, которой были написаны.',
     passportEditEmpty: 'Строка не может быть пустой.',
@@ -1236,12 +1230,6 @@ export const voiceCopy = {
     passportEditSave: 'Save',
     passportEditCancel: 'Cancel',
     passportEditSaved: 'Saved. A new version of the avatar was created.',
-    passportAddress: 'Addressing the reader',
-    passportAddressUnset: 'Not set',
-    passportAddressTy: 'informal',
-    passportAddressVy: 'formal',
-    passportHintAddress:
-      'How this avatar addresses the reader by default. A channel can set its own, and one post can change it on the adaptation page. “Not set” lets the model decide from the text.',
     passportEditNote:
       'An edit creates a new version at once: it shows up in the history below, and posts already written stay attached to the version that wrote them.',
     passportEditEmpty: 'The line cannot be empty.',

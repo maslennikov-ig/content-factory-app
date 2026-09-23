@@ -1,11 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import clsx from 'clsx';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
-import { Button } from '@contentfactory/react/form/button';
+import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { Input } from '@contentfactory/react/form/input';
 import { PasswordInput } from '@contentfactory/react/form/password-input';
@@ -14,7 +22,17 @@ import {
   PASSWORD_POLICY_RANGE,
 } from '@contentfactory/nestjs-libraries/dtos/auth/password.policy';
 import { IDENTITY_LINK_INTENT_KEY } from '@contentfactory/frontend/components/auth/identity-link-return';
-import { Status } from '../ui/surface';
+import { STATUS_TONES } from '@contentfactory/frontend/components/ui/surface';
+import {
+  CheckmarkIcon,
+  PlusIcon,
+} from '@contentfactory/frontend/components/ui/icons';
+// The row menu is the workspace's own: `Menu` + `DescribedMenuItem` in a
+// `Popover`, closed by a press outside. Its third place (97dq.51) — the
+// inventory names it as the candidate for a shared layer menu.
+import { WorkspaceMenu } from '@contentfactory/frontend/components/content-intelligence/pieces/workspace-menu';
+import { DotsIcon } from '@contentfactory/frontend/components/launches/post-card.parts';
+import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 
 // The provider enum and its human names live beside the other shared display
 // helpers: the administrator's account list needs exactly the same reading,
@@ -436,26 +454,33 @@ export async function completeExternalIdentityLink({
   }
 }
 
-const StatusMark = ({ connected = true }: { connected?: boolean }) => (
-  <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
-    {connected ? (
-      <path
-        d="m5 8 2 2 4-4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ) : (
-      <path
-        d="M5.5 8h5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
+/**
+ * The state cell at the start of a row: ✓ for a connected method, + for one
+ * that can be added. Colour, glyph and a spoken word together — the colour is
+ * never the only carrier, and the word is what a screen reader hears.
+ */
+const StateCell = ({
+  connected,
+  label,
+}: {
+  connected: boolean;
+  label: string;
+}) => (
+  <span
+    data-sign-in-state={connected ? 'connected' : 'available'}
+    title={label}
+    className={clsx(
+      'inline-flex size-[36px] shrink-0 items-center justify-center rounded-[8px] border',
+      connected ? STATUS_TONES.accent : STATUS_TONES.neutral
     )}
-  </svg>
+  >
+    {connected ? (
+      <CheckmarkIcon aria-hidden="true" />
+    ) : (
+      <PlusIcon aria-hidden="true" />
+    )}
+    <span className="sr-only">{label}</span>
+  </span>
 );
 
 export type PasswordChangeFields = {
@@ -485,49 +510,61 @@ export function passwordChangeProblem(
   return null;
 }
 
+/**
+ * The area a row opens under itself. A section of the list, not a card inside
+ * it: the list is already the panel, and a bordered box in it would be the
+ * nested card the rules forbid.
+ */
+const ROW_REGION =
+  'grid gap-[12px] border-t border-cf-border bg-cf-surface-subtle px-[16px] py-[16px] sm:grid-cols-2 sm:px-[20px]';
+
 function ChangePasswordForm({
+  id,
   values,
   error,
   busy,
   disabled,
   onFieldChange,
   onSubmit,
+  onCancel,
 }: {
+  id: string;
   values: PasswordChangeFields;
   error?: string;
   busy: boolean;
   disabled: boolean;
   onFieldChange: (field: keyof PasswordChangeFields, value: string) => void;
   onSubmit: () => void;
+  onCancel: () => void;
 }) {
   const t = useT();
   const showLabel = t('show_password', 'Show password');
   const hideLabel = t('hide_password', 'Hide password');
+  const words = settingsWordsFor(useVariables()?.language).signIn;
   const locked = disabled || busy;
 
   return (
-    <div
-      data-testid="change-password-form"
-      className="grid gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] sm:grid-cols-2"
-    >
+    <div id={id} data-testid="change-password-form" className={ROW_REGION}>
       <h4 className="cf-label-md text-cf-ink sm:col-span-2">
         {t('change_password', 'Change Password')}
       </h4>
-      <PasswordInput
-        disableForm
-        id="change-password-current"
-        name="change-password-current"
-        label={t('current_password', 'Current password')}
-        autoComplete="current-password"
-        value={values.currentPassword}
-        disabled={locked}
-        className="cf-control-h"
-        onChange={(event) =>
-          onFieldChange('currentPassword', event.target.value)
-        }
-        showPasswordLabel={showLabel}
-        hidePasswordLabel={hideLabel}
-      />
+      <div className="sm:col-span-2">
+        <PasswordInput
+          disableForm
+          id="change-password-current"
+          name="change-password-current"
+          label={t('current_password', 'Current password')}
+          autoComplete="current-password"
+          value={values.currentPassword}
+          disabled={locked}
+          className="cf-control-h"
+          onChange={(event) =>
+            onFieldChange('currentPassword', event.target.value)
+          }
+          showPasswordLabel={showLabel}
+          hidePasswordLabel={hideLabel}
+        />
+      </div>
       <PasswordInput
         disableForm
         id="change-password-new"
@@ -562,7 +599,7 @@ function ChangePasswordForm({
         showPasswordLabel={showLabel}
         hidePasswordLabel={hideLabel}
       />
-      <div className="sm:col-span-2 sm:justify-self-end">
+      <div className="flex flex-wrap items-center gap-[8px] sm:col-span-2">
         <Button
           variant="primary"
           className="cf-control-h"
@@ -573,11 +610,48 @@ function ChangePasswordForm({
         >
           {t('change_password', 'Change Password')}
         </Button>
+        <Button
+          variant="quiet"
+          className="cf-control-h"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          {words.cancel}
+        </Button>
       </div>
     </div>
   );
 }
 
+/** One row of the list: state cell, name and caption, actions on the end. */
+const MethodRow = ({
+  children,
+  below,
+}: {
+  children: ReactNode;
+  below?: ReactNode;
+}) => (
+  <div
+    data-sign-in-row="true"
+    className="border-b border-cf-border last:border-b-0"
+  >
+    <div className="flex flex-wrap items-center gap-[12px] px-[16px] py-[16px] sm:flex-nowrap sm:gap-[16px] sm:px-[20px]">
+      {children}
+    </div>
+    {below}
+  </div>
+);
+
+/**
+ * `content-factory-next-97dq.51`, the canvas of 23.09.2026. Owner: «доработай
+ * раздел «Способы входа». Он выглядит не очень». One list, one row per
+ * method: the state cell, the provider's name with one line under it, and the
+ * actions at the end. The forms that used to stand open on two rows at once —
+ * the password change and the add-password pair — open under their own row
+ * from the button that names them, and «Удалить» moved into «⋯», where the
+ * keep-one rule disables it rather than leaving a live-looking button that
+ * the server would refuse.
+ */
 export function SignInMethodsView({
   identities,
   availableProviders,
@@ -594,11 +668,15 @@ export function SignInMethodsView({
   passwordChange = EMPTY_PASSWORD_CHANGE,
   passwordChangeError,
   changingPassword = false,
+  passwordFormOpen = false,
+  addPasswordOpen = false,
   onRetry,
   onEmailChange,
   onPasswordChange,
   onPasswordFieldChange = () => undefined,
   onChangePassword = () => undefined,
+  onPasswordFormOpenChange = () => undefined,
+  onAddPasswordOpenChange = () => undefined,
   onLinkLocal,
   onLinkExternal,
   onUnlink,
@@ -618,6 +696,10 @@ export function SignInMethodsView({
   passwordChange?: PasswordChangeFields;
   passwordChangeError?: string;
   changingPassword?: boolean;
+  /** Whether «Сменить пароль» has opened its form under the password row. */
+  passwordFormOpen?: boolean;
+  /** Whether «Подключить» has opened the add-password pair under its row. */
+  addPasswordOpen?: boolean;
   onRetry: () => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
@@ -626,11 +708,15 @@ export function SignInMethodsView({
     value: string
   ) => void;
   onChangePassword?: () => void;
+  onPasswordFormOpenChange?: (open: boolean) => void;
+  onAddPasswordOpenChange?: (open: boolean) => void;
   onLinkLocal: () => void;
   onLinkExternal: (provider: ExternalIdentityProvider) => void;
   onUnlink: (identity: UserIdentity) => void;
 }) {
   const t = useT();
+  const words = settingsWordsFor(useVariables()?.language).signIn;
+  const regionId = useId();
   const connectedProviders = new Set(
     identities.map(({ provider }) => provider)
   );
@@ -638,6 +724,8 @@ export function SignInMethodsView({
     (provider) => !connectedProviders.has(provider)
   );
   const allActionsDisabled = Boolean(busyProvider) || changingPassword;
+  const connectedLabel = t('sign_in_method_connected', 'Connected');
+  const availableLabel = t('available', 'Available');
 
   if (loading) {
     return (
@@ -661,8 +749,9 @@ export function SignInMethodsView({
             <div
               key={row}
               data-testid="sign-in-method-skeleton-row"
-              className="flex min-h-[72px] items-center justify-between gap-[16px] border-b border-cf-border p-[16px] last:border-b-0"
+              className="flex min-h-[72px] items-center gap-[16px] border-b border-cf-border px-[20px] py-[16px] last:border-b-0"
             >
+              <span className="size-[36px] shrink-0 rounded-[8px] bg-cf-surface-subtle" />
               <div className="flex flex-1 flex-col gap-[8px]">
                 <span className="h-[16px] w-[144px] max-w-full rounded-[4px] bg-cf-surface-subtle motion-safe:animate-pulse" />
                 <span className="h-[12px] w-[220px] max-w-[75%] rounded-[4px] bg-cf-surface-subtle motion-safe:animate-pulse" />
@@ -697,6 +786,9 @@ export function SignInMethodsView({
       </section>
     );
   }
+
+  const passwordRegionId = `${regionId}-change-password`;
+  const addPasswordRegionId = `${regionId}-add-password`;
 
   return (
     <section className="flex w-full max-w-[720px] flex-col gap-[20px]">
@@ -735,208 +827,276 @@ export function SignInMethodsView({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-[8px] border border-cf-border bg-cf-surface">
+      <div
+        data-sign-in-list="true"
+        className="overflow-hidden rounded-[8px] border border-cf-border bg-cf-surface"
+      >
         {identities.map((identity) => {
           const protectedRemoval = identities.length <= 1;
-          const loadingThis = busyProvider === identity.provider;
+          const removingThis = busyProvider === identity.provider;
+          const name = providerLabel(identity.provider, genericName, t);
+          const isPassword = identity.provider === 'LOCAL';
           return (
-            <div
+            <MethodRow
               key={`${identity.provider}:${identity.providerIdentifier}`}
-              className="flex min-h-[72px] flex-col gap-[12px] border-b border-cf-border p-[16px] last:border-b-0"
+              below={
+                /*
+                  The change-password form, on the row of the method it
+                  belongs to (`content-factory-next-fn33.41`). Until this
+                  existed the only way to replace a password was the emailed
+                  reset link, which a deployment with no email provider never
+                  sends — so on such an instance a password could not be
+                  changed at all. Since 97dq.51 it opens from «Сменить
+                  пароль» instead of standing open.
+                */
+                isPassword && passwordFormOpen ? (
+                  <ChangePasswordForm
+                    id={passwordRegionId}
+                    values={passwordChange}
+                    error={passwordChangeError}
+                    busy={Boolean(changingPassword)}
+                    disabled={allActionsDisabled}
+                    onFieldChange={onPasswordFieldChange}
+                    onSubmit={onChangePassword}
+                    onCancel={() => onPasswordFormOpenChange(false)}
+                  />
+                ) : null
+              }
             >
-              <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-[8px]">
-                    <h3 className="cf-label-md text-cf-ink">
-                      {providerLabel(identity.provider, genericName, t)}
-                    </h3>
-                    <Status tone="accent" icon={<StatusMark />}>
-                      {t('sign_in_method_connected', 'Connected')}
-                    </Status>
-                  </div>
-                  <p className="mt-[4px] cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
-                    {identity.provider === 'LOCAL'
-                      ? identity.providerIdentifier
-                      : t(
-                          'verified_provider_account',
-                          'Verified provider account'
-                        )}
-                  </p>
-                  {protectedRemoval && (
-                    <p className="mt-[4px] cf-body-sm text-cf-warning [text-wrap:pretty]">
-                      {t(
-                        'keep_one_sign_in_method',
-                        'Keep at least one sign-in method connected to avoid losing access.'
+              <StateCell connected={true} label={connectedLabel} />
+              <div className="flex min-w-0 flex-1 basis-[160px] flex-col gap-[4px]">
+                <h3 className="cf-label-md text-cf-ink">{name}</h3>
+                <p className="cf-body-sm text-cf-ink-muted [overflow-wrap:anywhere] [text-wrap:pretty]">
+                  {isPassword
+                    ? identity.providerIdentifier
+                    : t(
+                        'verified_provider_account',
+                        'Verified provider account'
                       )}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="quiet"
-                  className="cf-control-h"
-                  disabled={protectedRemoval || allActionsDisabled}
-                  loading={loadingThis}
-                  loadingLabel={t(
-                    'removing_sign_in_method',
-                    'Removing sign-in method'
-                  )}
-                  onClick={() => onUnlink(identity)}
-                >
-                  {t('remove', 'Remove')}
-                </Button>
+                </p>
+                {protectedRemoval && (
+                  <p className="cf-body-sm text-cf-warning [text-wrap:pretty]">
+                    {t(
+                      'keep_one_sign_in_method',
+                      'Keep at least one sign-in method connected to avoid losing access.'
+                    )}
+                  </p>
+                )}
+                {removingThis && (
+                  <p role="status" className="cf-body-sm text-cf-ink-muted">
+                    {t('removing_sign_in_method', 'Removing sign-in method')}
+                  </p>
+                )}
               </div>
-
-              {/*
-              The change-password form, on the row of the method it belongs to
-              (`content-factory-next-fn33.41`). Until this existed the only way
-              to replace a password was the emailed reset link, which a
-              deployment with no email provider never sends — so on such an
-              instance a password could not be changed at all.
-            */}
-              {identity.provider === 'LOCAL' && (
-                <ChangePasswordForm
-                  values={passwordChange}
-                  error={passwordChangeError}
-                  busy={Boolean(changingPassword)}
-                  disabled={allActionsDisabled}
-                  onFieldChange={onPasswordFieldChange}
-                  onSubmit={onChangePassword}
+              <div className="flex shrink-0 items-center gap-[8px]">
+                {isPassword && (
+                  <Button
+                    variant="secondary"
+                    className="cf-control-h"
+                    aria-expanded={passwordFormOpen}
+                    aria-controls={
+                      passwordFormOpen ? passwordRegionId : undefined
+                    }
+                    disabled={allActionsDisabled && !passwordFormOpen}
+                    onClick={() => onPasswordFormOpenChange(!passwordFormOpen)}
+                  >
+                    {t('change_password', 'Change Password')}
+                  </Button>
+                )}
+                <WorkspaceMenu
+                  dataName={`sign-in-${identity.provider.toLowerCase()}`}
+                  label={words.moreActions(name)}
+                  align="end"
+                  disabled={protectedRemoval || allActionsDisabled}
+                  triggerClassName={buttonClassName({
+                    variant: 'quiet',
+                    className:
+                      'cf-control-h w-[44px] px-0 disabled:cursor-not-allowed disabled:opacity-50 md:w-[40px]',
+                  })}
+                  trigger={<DotsIcon />}
+                  items={[
+                    {
+                      id: 'remove',
+                      title: t('remove', 'Remove'),
+                      description: words.removeDescription,
+                      onSelect: () => onUnlink(identity),
+                    },
+                  ]}
                 />
-              )}
-            </div>
+              </div>
+            </MethodRow>
           );
         })}
 
-        {available.map((provider) => (
-          <div
-            key={provider}
-            className="flex min-h-[72px] flex-col gap-[12px] border-b border-cf-border p-[16px] last:border-b-0"
-          >
-            <div className="flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-[8px]">
-                  <h3 className="cf-label-md text-cf-ink">
-                    {providerLabel(provider, genericName, t)}
-                  </h3>
-                  <Status icon={<StatusMark connected={false} />}>
-                    {t('available', 'Available')}
-                  </Status>
-                </div>
-                <p className="mt-[4px] cf-body-sm text-cf-ink-muted">
-                  {provider === 'LOCAL'
-                    ? t(
-                        'add_password_backup_method',
-                        'Add an email and password as a backup method.'
-                      )
-                    : t(
-                        'connect_provider_sign_in',
-                        'Connect this provider to use it on the sign-in screen.'
-                      )}
+        {available.map((provider) => {
+          const name = providerLabel(provider, genericName, t);
+          const isPassword = provider === 'LOCAL';
+          return (
+            <MethodRow
+              key={provider}
+              below={
+                isPassword ? (
+                  <>
+                    {pendingConfirmation && (
+                      <div className="border-t border-cf-border px-[16px] py-[12px] sm:px-[20px]">
+                        <p
+                          data-testid="identity-confirmation-pending"
+                          role="status"
+                          className="rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-accent [overflow-wrap:anywhere] [text-wrap:pretty]"
+                        >
+                          {t(
+                            'email_confirmation_sent',
+                            'Confirmation sent to {{email}}. Open the link within {{minutes}} minutes to finish adding this method.',
+                            {
+                              email: pendingConfirmation.email,
+                              minutes: String(
+                                pendingConfirmation.expiresInMinutes
+                              ),
+                            }
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    {addPasswordOpen && (
+                      <div
+                        id={addPasswordRegionId}
+                        data-testid="add-password-form"
+                        className={ROW_REGION}
+                      >
+                        <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty] sm:col-span-2">
+                          {t(
+                            'add_password_backup_method',
+                            'Add an email and password as a backup method.'
+                          )}{' '}
+                          {t(
+                            'add_password_confirmation_note',
+                            'We send a confirmation link to that address. The method is added once you open it.'
+                          )}
+                        </p>
+                        {/*
+                          `disableForm` rather than `standalone`: this pair is
+                          not inside a react-hook-form provider, but the message
+                          row still has to be reserved. A standalone field only
+                          draws the row when it has something to say, and the
+                          two fields sit in one grid row — the moment one of
+                          them found an error, the other would jump.
+                        */}
+                        <Input
+                          disableForm
+                          id="sign-in-method-email"
+                          name="sign-in-method-email"
+                          label={t('email', 'Email')}
+                          error={fieldError}
+                          type="email"
+                          autoComplete="email"
+                          value={email}
+                          disabled={allActionsDisabled}
+                          className="cf-control-h"
+                          onChange={(event) =>
+                            onEmailChange(event.target.value)
+                          }
+                        />
+                        <PasswordInput
+                          disableForm
+                          id="sign-in-method-password"
+                          name="sign-in-method-password"
+                          label={t('password', 'Password')}
+                          helper={t(
+                            'password_policy_hint',
+                            'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
+                            PASSWORD_POLICY_RANGE
+                          )}
+                          autoComplete="new-password"
+                          value={password}
+                          disabled={allActionsDisabled}
+                          className="cf-control-h"
+                          onChange={(event) =>
+                            onPasswordChange(event.target.value)
+                          }
+                          showPasswordLabel={t(
+                            'show_password',
+                            'Show password'
+                          )}
+                          hidePasswordLabel={t(
+                            'hide_password',
+                            'Hide password'
+                          )}
+                        />
+                        <div className="flex flex-wrap items-center gap-[8px] sm:col-span-2">
+                          <Button
+                            variant="primary"
+                            className="cf-control-h"
+                            disabled={
+                              allActionsDisabled ||
+                              !email ||
+                              !isPasswordPolicyCompliant(password)
+                            }
+                            loading={busyProvider === 'LOCAL'}
+                            loadingLabel={t(
+                              'adding_email_and_password',
+                              'Adding email and password'
+                            )}
+                            onClick={onLinkLocal}
+                          >
+                            {t('add_password', 'Add password')}
+                          </Button>
+                          <Button
+                            variant="quiet"
+                            className="cf-control-h"
+                            disabled={busyProvider === 'LOCAL'}
+                            onClick={() => onAddPasswordOpenChange(false)}
+                          >
+                            {words.cancel}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null
+              }
+            >
+              <StateCell connected={false} label={availableLabel} />
+              <div className="flex min-w-0 flex-1 basis-[160px] flex-col gap-[4px]">
+                <h3 className="cf-label-md text-cf-ink">{name}</h3>
+                <p className="cf-body-sm text-cf-ink-muted">
+                  {words.notConnected}
                 </p>
-                {provider === 'LOCAL' && (
-                  <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-                    {t(
-                      'add_password_confirmation_note',
-                      'We send a confirmation link to that address. The method is added once you open it.'
-                    )}
-                  </p>
-                )}
               </div>
-              {provider !== 'LOCAL' && (
-                <Button
-                  variant="secondary"
-                  className="cf-control-h"
-                  disabled={allActionsDisabled}
-                  loading={busyProvider === provider}
-                  loadingLabel={t('connecting_provider', 'Connecting provider')}
-                  onClick={() => onLinkExternal(provider)}
-                >
-                  {t('connect', 'Connect')}
-                </Button>
-              )}
-            </div>
-
-            {provider === 'LOCAL' && pendingConfirmation && (
-              <p
-                data-testid="identity-confirmation-pending"
-                role="status"
-                className="rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-accent [overflow-wrap:anywhere] [text-wrap:pretty]"
-              >
-                {t(
-                  'email_confirmation_sent',
-                  'Confirmation sent to {{email}}. Open the link within {{minutes}} minutes to finish adding this method.',
-                  {
-                    email: pendingConfirmation.email,
-                    minutes: String(pendingConfirmation.expiresInMinutes),
-                  }
-                )}
-              </p>
-            )}
-
-            {provider === 'LOCAL' && (
-              <div className="grid gap-[12px] border-t border-cf-border bg-cf-surface-subtle p-[12px] sm:grid-cols-2">
-                {/*
-                  `disableForm` rather than `standalone`: this pair is not
-                  inside a react-hook-form provider, but the message row still
-                  has to be reserved. A standalone field only draws the row when
-                  it has something to say, and the two fields sit in one grid
-                  row — the moment one of them found an error, the other would
-                  jump.
-                */}
-                <Input
-                  disableForm
-                  id="sign-in-method-email"
-                  name="sign-in-method-email"
-                  label={t('email', 'Email')}
-                  error={fieldError}
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  disabled={allActionsDisabled}
-                  className="cf-control-h"
-                  onChange={(event) => onEmailChange(event.target.value)}
-                />
-                <PasswordInput
-                  disableForm
-                  id="sign-in-method-password"
-                  name="sign-in-method-password"
-                  label={t('password', 'Password')}
-                  helper={t(
-                    'password_policy_hint',
-                    'Use {{min}}–{{max}} characters with a letter, a number, and a special character.',
-                    PASSWORD_POLICY_RANGE
-                  )}
-                  autoComplete="new-password"
-                  value={password}
-                  disabled={allActionsDisabled}
-                  className="cf-control-h"
-                  onChange={(event) => onPasswordChange(event.target.value)}
-                  showPasswordLabel={t('show_password', 'Show password')}
-                  hidePasswordLabel={t('hide_password', 'Hide password')}
-                />
-                <div className="sm:col-span-2 sm:justify-self-end">
+              <div className="flex shrink-0 items-center gap-[8px]">
+                {isPassword ? (
                   <Button
-                    variant="primary"
+                    variant="secondary"
                     className="cf-control-h"
-                    disabled={
-                      allActionsDisabled ||
-                      !email ||
-                      !isPasswordPolicyCompliant(password)
+                    aria-expanded={addPasswordOpen}
+                    aria-controls={
+                      addPasswordOpen ? addPasswordRegionId : undefined
                     }
-                    loading={busyProvider === 'LOCAL'}
-                    loadingLabel={t(
-                      'adding_email_and_password',
-                      'Adding email and password'
-                    )}
-                    onClick={onLinkLocal}
+                    disabled={allActionsDisabled && !addPasswordOpen}
+                    onClick={() => onAddPasswordOpenChange(!addPasswordOpen)}
                   >
-                    {t('add_password', 'Add password')}
+                    {t('connect', 'Connect')}
                   </Button>
-                </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    className="cf-control-h"
+                    disabled={allActionsDisabled}
+                    loading={busyProvider === provider}
+                    loadingLabel={t(
+                      'connecting_provider',
+                      'Connecting provider'
+                    )}
+                    onClick={() =>
+                      onLinkExternal(provider as ExternalIdentityProvider)
+                    }
+                  >
+                    {t('connect', 'Connect')}
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+            </MethodRow>
+          );
+        })}
       </div>
     </section>
   );
@@ -964,6 +1124,8 @@ export const SignInMethodsComponent = () => {
   );
   const [passwordChangeError, setPasswordChangeError] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordFormOpen, setPasswordFormOpen] = useState(false);
+  const [addPasswordOpen, setAddPasswordOpen] = useState(false);
 
   const load = useCallback(async () => {
     const response = await requireOk(
@@ -1130,6 +1292,9 @@ export const SignInMethodsComponent = () => {
       });
       setPassword('');
       setPendingConfirmation(pending);
+      // The pair has done its work; the confirmation note under the row
+      // stays, and says what happens next.
+      setAddPasswordOpen(false);
       setStatusMessage(
         t(
           'email_confirmation_sent',
@@ -1185,6 +1350,7 @@ export const SignInMethodsComponent = () => {
           request,
         });
         setPasswordChange(EMPTY_PASSWORD_CHANGE);
+        setPasswordFormOpen(false);
         toast.show(t('password_changed', 'Password changed'), 'success');
       } catch (caught) {
         setPasswordChangeError(
@@ -1237,6 +1403,23 @@ export const SignInMethodsComponent = () => {
       passwordChange={passwordChange}
       passwordChangeError={passwordChangeError}
       changingPassword={changingPassword}
+      passwordFormOpen={passwordFormOpen}
+      addPasswordOpen={addPasswordOpen}
+      onPasswordFormOpenChange={(open) => {
+        setPasswordFormOpen(open);
+        if (!open) {
+          // Closing is «Отмена»: nothing typed there survives it.
+          setPasswordChange(EMPTY_PASSWORD_CHANGE);
+          setPasswordChangeError('');
+        }
+      }}
+      onAddPasswordOpenChange={(open) => {
+        setAddPasswordOpen(open);
+        if (!open) {
+          setPassword('');
+          setFieldError('');
+        }
+      }}
       onPasswordFieldChange={(field, value) => {
         setPasswordChange((current) => ({ ...current, [field]: value }));
         setPasswordChangeError('');

@@ -24,11 +24,13 @@ export const GlobalSettings = () => {
   // both requests on open and answered a role refusal, so the refusal was the
   // first thing Settings did. The gate is the one Teams and Billing use.
   const isAdmin = isOrganizationAdmin(user?.role);
+  // Не шире 960: подпись раздела слева, поля справа (`97dq.51`). Владелец
+  // 23.09.2026: «в глобальных настройках тоже всё очень растянуто».
   return (
-    <div className="flex flex-col">
-      <h3 className="cf-heading-md text-cf-ink">
+    <div className="flex w-full max-w-[960px] flex-col">
+      <h2 className="pb-[8px] cf-heading-md text-cf-ink [text-wrap:balance]">
         {t('global_settings', 'Global Settings')}
-      </h3>
+      </h2>
       <MetricComponent />
       <EmailNotificationsComponent />
       {isAdmin && <ShortlinkPreferenceComponent />}

@@ -26,7 +26,7 @@ for (const key of ['window', 'document', 'navigator'])
   });
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const { cleanup, fireEvent, render, screen } = require('@testing-library/react');
+const { cleanup, render, screen } = require('@testing-library/react');
 const { loadTypeScriptModule } = require('./helpers/load-tsx.cjs');
 
 const base = 'apps/frontend/src/components/content-intelligence/pieces';
@@ -107,37 +107,22 @@ describe('the formatter reads one mark and invents nothing', () => {
   });
 });
 
-describe('the body shows the text, and the markup on request', () => {
-  test('the toggle is a pressed-state button and swaps the two views', () => {
+describe('the body shows the text, and never the markup', () => {
+  // `97dq.46`: «Показать разметку» ушла — править текст можно в
+  // «Редактировать» у черновика, а звёздочки смотреть незачем.
+  test('bold reads bold and no button offers the raw markup', () => {
     draw('Строка с **выделением** внутри.');
-    const toggle = screen.getByRole('button', { name: 'Показать разметку' });
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(document.querySelector('strong')).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(document.querySelector('strong').textContent).toBe('выделением');
     expect(document.body.textContent).not.toContain('**');
-
-    fireEvent.click(toggle);
-
-    const pressed = screen.getByRole('button', { name: 'Скрыть разметку' });
-    expect(pressed.getAttribute('aria-pressed')).toBe('true');
-    expect(document.querySelector('strong')).toBeNull();
-    expect(document.querySelector('article').textContent).toBe(
-      'Строка с **выделением** внутри.'
-    );
   });
 
-  test('nothing to toggle, no toggle: a text without markup offers no button', () => {
+  test('a text without markup reads as it is', () => {
     draw('Обычный текст без выделений.');
     expect(screen.queryByRole('button')).toBeNull();
     expect(document.querySelector('article').textContent).toBe(
       'Обычный текст без выделений.'
     );
-  });
-
-  test('the English label is the English label', () => {
-    draw('A line with **emphasis** in it.', { locale: 'en' });
-    expect(screen.getByRole('button', { name: 'Show markup' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Show markup' }));
-    expect(screen.getByRole('button', { name: 'Hide markup' })).toBeTruthy();
   });
 
   test('the streaming draft keeps the marks the page finds it by', () => {

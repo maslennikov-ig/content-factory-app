@@ -72,8 +72,14 @@ const PRESSED_ON_FILL = 'cf-pressed-fill';
 const PRESSED_ON_SURFACE = 'cf-pressed';
 
 const VARIANTS: Record<ButtonVariant, string> = {
+  // Disabled on the dark ground: half the opacity of a green fill is still a
+  // green fill, and «Переписать с этим» read as the live main action while it
+  // was off (twelfth stand walk, 01-channel-top-d). There the plate goes
+  // neutral; on the light ground the faded green already reads as off.
   primary:
     'bg-cf-accent text-cf-accent-ink border border-transparent hover:bg-cf-accent-hover ' +
+    'dark:disabled:bg-cf-surface-subtle dark:disabled:text-cf-ink-muted dark:disabled:border-cf-border-control dark:disabled:hover:bg-cf-surface-subtle ' +
+    'dark:aria-disabled:bg-cf-surface-subtle dark:aria-disabled:text-cf-ink-muted dark:aria-disabled:border-cf-border-control ' +
     PRESSED_ON_FILL,
   secondary:
     'bg-cf-surface text-cf-ink border border-cf-border-control hover:bg-cf-surface-subtle ' +

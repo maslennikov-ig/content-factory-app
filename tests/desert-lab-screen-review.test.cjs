@@ -8,7 +8,6 @@ const channelSurfaces = [
   'apps/frontend/src/components/channels/channel-parts.tsx',
   'apps/frontend/src/components/launches/adaptation-picker.tsx',
   'apps/frontend/src/components/launches/add.provider.component.tsx',
-  'apps/frontend/src/components/launches/calendar.tsx',
   'apps/frontend/src/components/launches/helpers/pick.platform.component.tsx',
   'apps/frontend/src/components/launches/import-debug-post.modal.tsx',
   'apps/frontend/src/components/launches/information.component.tsx',
@@ -29,12 +28,19 @@ const PLATFORM_ASSET =
   'libraries/react-shared-libraries/src/platform/platform.asset.ts';
 
 describe('desert-lab screen review regressions', () => {
-  test('calendar keeps the dense channel row legible after four marks', () => {
+  /**
+   * The day view used to draw each empty slot as the first four channel
+   * avatars with platform badges, greyed until hovered, plus «+N» — the grey
+   * squares the owner could not read on 23.09.2026 (`97dq.50`). The slot now
+   * names its channels in words, so the calendar holds no platform logo of its
+   * own and is no longer a channel surface above.
+   */
+  test('calendar day slot names its channels instead of drawing avatars', () => {
     const source = read('apps/frontend/src/components/launches/calendar.tsx');
 
-    expect(source).toContain('integrations.slice(0, 4).map');
-    expect(source).toContain('integrations.length > 4');
-    expect(source).toContain('+{integrations.length - 4}');
+    expect(source).not.toContain('integrations.slice(0, 4).map');
+    expect(source).not.toMatch(/opacity-30 grayscale/);
+    expect(source).toContain('<SlotButton');
   });
 
   /**
@@ -52,8 +58,11 @@ describe('desert-lab screen review regressions', () => {
     // import line, so a screen that swapped the mark for a glyph of ours and
     // left the import behind would have satisfied this fence while carrying
     // exactly the regression it exists to stop.
+    // `<ChannelAvatar` (channel-parts.tsx, itself on this list) is the
+    // picture-plus-badge primitive the calendar picker renders since the
+    // twelfth stand walk.
     expect(read(file)).toMatch(
-      /\/icons\/platforms\/|<PlatformBadge|<PlatformCardLogo/
+      /\/icons\/platforms\/|<PlatformBadge|<PlatformCardLogo|<ChannelAvatar/
     );
   });
 
@@ -118,7 +127,7 @@ describe('desert-lab screen review regressions', () => {
     'apps/frontend/src/components/new-launch/picks.socials.component.tsx',
     'apps/frontend/src/components/new-launch/select.current.tsx',
   ])('%s handles an avatar URL that fails to load', (file) => {
-    expect(read(file)).toMatch(/ImageWithFallback|onError=/);
+    expect(read(file)).toMatch(/ImageWithFallback|onError=|<ChannelAvatar/);
   });
 
   /*

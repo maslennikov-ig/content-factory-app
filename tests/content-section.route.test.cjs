@@ -43,6 +43,7 @@ const FILES = {
     'apps/frontend/src/components/content-intelligence/content-section.screen.tsx',
   menu: 'apps/frontend/src/components/layout/top.menu.tsx',
   settings: 'apps/frontend/src/components/layout/settings.component.tsx',
+  settingsRoute: 'apps/frontend/src/app/(app)/(site)/settings/page.tsx',
   container:
     'apps/frontend/src/components/content-intelligence/content-intelligence.settings.tsx',
   view: 'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx',
@@ -315,23 +316,21 @@ describe('the Content screen', () => {
 });
 
 describe('the old place points at the new one', () => {
-  test('the settings tab links to the route instead of mounting the surface', () => {
+  test('the settings menu no longer offers «Знания о контенте» (97dq.51)', () => {
+    // The signpost tab stood for months after the surface moved; on the
+    // eleventh walk (23.09.2026) the owner asked for it to leave the menu.
     const settings = source('settings');
-
-    expect(settings).toContain('href="/content"');
-    expect(settings).toContain('data-content-intelligence-moved="true"');
+    expect(settings).not.toContain("tab: 'content_intelligence'");
+    expect(settings).not.toContain("'content_intelligence',");
+    expect(settings).not.toContain('data-content-intelligence-moved');
   });
 
-  test('the signpost tab is still offered in the tab list, to every role', () => {
-    // The 03.09 role gating removed it from the list by accident: the signpost
-    // rendered, but only for someone who already knew the ?tab= value.
-    const settings = source('settings');
-    const list = settings.slice(
-      settings.indexOf('const list = useMemo('),
-      settings.indexOf('return arr;')
+  test('the old address redirects to /content instead of a dead tab', () => {
+    const route = source('settingsRoute');
+    expect(route).toContain("from 'next/navigation'");
+    expect(route).toMatch(
+      /tab === 'content_intelligence'\) \{\s+redirect\('\/content'\);/
     );
-    expect(list).toContain("tab: 'content_intelligence'");
-    expect(list).not.toMatch(/if \(isAdmin\) \{[^}]*content_intelligence/);
   });
 
   test('settings no longer loads the content-intelligence container', () => {

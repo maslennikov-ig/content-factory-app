@@ -74,6 +74,11 @@ const screenModule = loadTypeScriptModule(
       SettingsSection: stub,
     },
     '@contentfactory/frontend/components/settings/ai-provider.copy': copy,
+    '../ui/progress': { Progress: stub },
+    '@contentfactory/frontend/components/settings/settings.copy':
+      require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+        'apps/frontend/src/components/settings/settings.copy.ts'
+      ),
   }
 );
 
@@ -321,7 +326,9 @@ describe('экран не выбирает движок и не трогает �
    * системы своих полей нет вовсе — они там ни на что не влияют.
    */
   test('поля движков рисуются только на своём ключе, и OpenRouter не обещан как fallback', () => {
-    expect(screen).toContain('{ownKeys &&\n        KEYED_SEARCH_PROVIDERS.map');
+    // Any indentation: the section became two rows on 23.09.2026 (97dq.51)
+    // and the block moved one level in without changing what it says.
+    expect(screen).toMatch(/\{ownKeys &&\s+KEYED_SEARCH_PROVIDERS\.map/);
     expect(screen).toContain('words.search.returnToSystem(');
     expect(screen).toContain('words.search.returnToSystemHint');
     expect(screen).toContain('words.search.systemKeys');

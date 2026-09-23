@@ -839,11 +839,30 @@ describe('двери экрана адаптации', () => {
           brandProfileId: 'avatar-1',
           wish: 'Без эмодзи',
           takeaway: 'Сроки ставит клиент',
+          // Поля карточки канала на этот пост (97dq.48).
+          lengthPolicy: 'range',
+          lengthRange: { idealMin: 200, idealMax: 500, hardMax: 500 },
+          emojiLevel: 'none',
+          linkPolicy: 'end',
+          hashtagPolicy: 'end_1_3',
+          ctaKind: 'reply',
         },
+      })
+    ).toEqual([]);
+    expect(
+      await codes(dto.PieceAdaptDto, {
+        integrationId: 'ch-1',
+        overrides: { lengthPolicy: 'auto' },
       })
     ).toEqual([]);
     for (const overrides of [
       { length: 'tiny' },
+      { lengthPolicy: 'provider_max' },
+      { lengthPolicy: 'range', lengthRange: { idealMin: 10, idealMax: 500 } },
+      { emojiLevel: 'lots' },
+      { linkPolicy: 'everywhere' },
+      { hashtagPolicy: 'end' },
+      { ctaKind: 'buy' },
       { addressForm: 'thou' },
       { brandProfileId: '' },
       { wish: 'а'.repeat(dto.PIECE_OVERRIDE_TEXT_MAX + 1) },

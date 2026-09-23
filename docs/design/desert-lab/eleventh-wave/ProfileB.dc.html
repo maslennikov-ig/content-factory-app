@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); } a:hover { color: var(--cf-accent-hover, #96C551); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: 'zero'; }
+    .cap { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; line-height: 1.35; letter-spacing: .02em; color: var(--cf-ink-muted); }
+    .lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .04em; color: var(--cf-ink-muted); text-transform: uppercase; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; cursor: pointer; white-space: nowrap; box-sizing: border-box; }
+    .btn.dense { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn.icon { width: 40px; padding: 0; }
+    .btn.icon.dense { width: 32px; }
+    .primary { background: var(--cf-accent); color: var(--cf-accent-ink); border: 1px solid transparent; }
+    .secondary { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); }
+    .quiet { background: transparent; color: var(--cf-ink); border: 1px solid transparent; }
+    .panel { background: var(--cf-surface); border: 1px solid var(--cf-border); border-radius: 8px; box-sizing: border-box; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--cf-border); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--cf-ink); background: var(--cf-surface-raised); }
+    .chip.new { border-color: var(--cf-signature); color: var(--cf-signature); background: transparent; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); }
+    .seg span { padding: 5px 12px; border-radius: 6px; font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border: 1px solid transparent; white-space: nowrap; }
+    .seg span.on { background: var(--cf-surface-raised); color: var(--cf-ink); border-color: var(--cf-border-strong); }
+    .input { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink-muted); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .input.val { color: var(--cf-ink); }
+    .h1 { font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -0.02em; }
+    .h2 { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .body { font-size: 16px; line-height: 1.55; }
+    .sm { font-size: 13px; line-height: 1.45; }
+    .muted { color: var(--cf-ink-muted); }
+    .cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; flex: none; }
+    .cell.draft { background: var(--cf-info-soft); color: var(--cf-info); border: 1px solid var(--cf-info); }
+    .cell.done { background: var(--cf-accent-soft); color: var(--cf-accent); border: 1px solid var(--cf-accent); }
+    .cell.none { color: var(--cf-ink-muted); border: 1px dashed var(--cf-border-strong); }
+    .tab { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border-bottom: 2px solid transparent; box-sizing: border-box; white-space: nowrap; }
+    .tab.on { color: var(--cf-ink); border-bottom-color: var(--cf-accent); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .sketch { border: 1.5px dashed var(--cf-border-strong); border-radius: 8px; box-sizing: border-box; }
+    .bar { height: 10px; border-radius: 4px; background: var(--cf-surface-subtle); }
+    ins { text-decoration: none; background: var(--cf-accent-soft); color: var(--cf-ink); border-bottom: 1px solid var(--cf-accent); padding: 0 2px; }
+    del { color: var(--cf-danger); text-decoration: line-through; }
+    ul.l { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .sel { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; white-space: nowrap; }
+    .sel .d { color: var(--cf-ink-muted); }
+    .sel.changed { border-color: var(--cf-signature); }
+    .danger-q { background: transparent; color: var(--cf-danger); border: 1px solid transparent; }
+    .dim { position: absolute; inset: 0; background: rgba(8,9,6,.62); }
+    .modal { position: absolute; background: var(--cf-surface); border: 1px solid var(--cf-border-strong); border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,.45); box-sizing: border-box; }
+    .slot-empty { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border: 1px dashed var(--cf-border-strong); border-radius: 8px; color: var(--cf-ink-muted); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .card { display: flex; flex-direction: column; border: 1px solid var(--cf-border); border-radius: 8px; background: var(--cf-surface-subtle); overflow: hidden; box-sizing: border-box; }
+    .band { height: 4px; }
+    .band.draft { background: var(--cf-info); }
+    .band.sched { background: var(--cf-accent); }
+    .band.pub { background: var(--cf-signature); }
+    .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 5px; font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .02em; }
+    .pill.draft { color: var(--cf-info); background: var(--cf-info-soft); }
+    .pill.sched { color: var(--cf-accent); background: var(--cf-accent-soft); }
+    .pill.pub { color: var(--cf-signature); background: var(--cf-warning-soft); }
+    .tg { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--cf-info); color: var(--cf-ink-inverse); flex: none; }
+    .nav a { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: var(--cf-ink-muted); text-decoration: none; font: 500 14px/1.3 Geologica, system-ui, sans-serif; }
+    .nav a.on { background: var(--cf-navigation-active); color: var(--cf-ink); }
+    .srow { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--cf-border); }
+    .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; font-size: 13px; }
+    .kv span:nth-child(2n) { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--cf-ink-muted); text-align: right; }
+    .ta { min-height: 88px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+  </style>
+</helmet>
+<div style="{{ themeVars }}">
+<div style="width:1440px;min-height:760px;background:var(--cf-canvas);display:flex;box-sizing:border-box">
+  <nav class="nav" style="width:240px;padding:16px;border-inline-end:1px solid var(--cf-border);display:flex;flex-direction:column;gap:2px;box-sizing:border-box;flex:none">
+    <span class="lab" style="padding:4px 12px 10px">Настройки</span>
+    <a href="#" class="on">Профиль</a><a href="#" class="">Способы входа</a><a href="#" class="">Глобальные настройки</a>
+    <a href="#">Команды</a><a href="#">Вебхуки</a><a href="#">Автопостинг</a><a href="#">Наборы</a><a href="#">Подписи</a><a href="#">Разработчики</a><a href="#">Одобренные приложения</a><a href="#">С чего начать</a><a href="#">О проекте</a>
+  </nav>
+
+  <main style="flex:1;padding:32px 40px">
+    <div style="max-width:960px;display:grid;grid-template-columns:280px minmax(0, 1fr);gap:24px;align-items:start">
+      <section class="panel" style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">
+        <div style="width:96px;height:96px;border-radius:50%;background:var(--cf-surface-subtle);border:1px solid var(--cf-border-strong);display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--cf-ink-muted)">И</div>
+        <span class="h2">Игорь Масленников</span>
+        <span class="cap">maslennikov.ig@gmail.com</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center"><span class="chip">владелец</span><span class="chip">AiDevTeam</span></div>
+        <span class="btn secondary dense" style="align-self:stretch">Сменить фото</span>
+        <div class="kv" style="align-self:stretch;border-top:1px solid var(--cf-border);padding-top:12px"><span>Аватаров</span><span>1</span><span>Каналов</span><span>1</span><span>Заготовок</span><span>31</span><span>С нами с</span><span>21.08.26</span></div>
+      </section>
+      <section class="panel" style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px">
+          <div class="field"><span class="cap">Имя</span><span class="input val">Игорь</span></div>
+          <div class="field"><span class="cap">Фамилия</span><span class="input val">Масленников</span></div>
+          <div class="field"><span class="cap">Язык интерфейса</span><span class="input val">Русский<span style="flex:1"></span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"></path></svg></span></div>
+          <div class="field"><span class="cap">Часовой пояс</span><span class="input val">Москва, UTC+3<span style="flex:1"></span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"></path></svg></span></div>
+        </div>
+        <div class="field"><span class="cap">Коротко о себе</span><span class="ta muted">Кто вы и о чём пишете — 2–3 предложения.</span></div>
+        <div style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--cf-border);padding-top:14px"><a class="sm" href="#">Способы входа и пароль →</a><span style="flex:1"></span><span class="cap">сохраняется само</span></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":true}}'>
+const DARK = "--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A";
+const LIGHT = "--cf-canvas:#EFE9DB;--cf-surface:#FBF8F0;--cf-surface-subtle:#E4DDCB;--cf-surface-raised:#FFFDF6;--cf-ink:#22231A;--cf-ink-muted:#5C5D4C;--cf-ink-inverse:#F4F1E4;--cf-border:#D3CAB3;--cf-border-strong:#B0A68A;--cf-border-control:#847B62;--cf-navigation:#E4DDCB;--cf-navigation-text:#22231A;--cf-navigation-muted:#5C5D4C;--cf-navigation-active:#FBF8F0;--cf-accent:#3F6B2E;--cf-accent-hover:#33581F;--cf-accent-soft:#E1EAD2;--cf-accent-ink:#FFFFFF;--cf-signature:#9C6A16;--cf-info:#2F5A82;--cf-info-soft:#E3EBF3;--cf-warning:#7A4D00;--cf-warning-soft:#F6E7C2;--cf-danger:#8E2B22;--cf-danger-soft:#F6E0DB;--cf-focus:#3F6B2E";
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? true;
+    return { themeVars: (dark ? DARK : LIGHT) + ";font-family:Geologica,system-ui,sans-serif;color:var(--cf-ink);background:var(--cf-canvas)" };
+  }
+}
+</script>
+</body>
+</html>

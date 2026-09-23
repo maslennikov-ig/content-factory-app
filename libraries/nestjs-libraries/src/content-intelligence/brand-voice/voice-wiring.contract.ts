@@ -2326,7 +2326,18 @@ export type IntakeClaimV1 = {
 };
 
 export type IntakeQuestionV1 = {
+  /**
+   * Поле брифа, которое ответ закрывает. У вопроса о материале
+   * (`content-factory-next-97dq.44`: эпизод, число, ставка) своего поля нет —
+   * он стоит на `facts`, то есть «на чём пост стоит», и опознаётся `key`.
+   */
   field: BriefField;
+  /**
+   * Ключ вопроса о материале (`97dq.44`): `ask-1` … Есть — вопрос опознаётся
+   * им, а не полем, и таких вопросов в круге может быть несколько. Нет — это
+   * вопрос о поле брифа, один на поле, как до этой волны.
+   */
+  key?: InterviewAskKeyV1;
   question: string;
   /** Готовые варианты ответа; человек может выбрать свой или отдать решение модели. */
   options?: string[];
@@ -2684,6 +2695,37 @@ export const PIECE_CORE_VERSION = 'piece-core/v1' as const;
 export const PIECE_MAX_QUESTIONS = 3 as const;
 /** Кругов уточнений на шаг; граница из `pl1.10`: продукт предлагает, а не спрашивает вместо текста. */
 export const PIECE_MAX_INTERVIEW_ROUNDS = 2 as const;
+/**
+ * Техническая страховка интервью, а не правило (`content-factory-next-97dq.44`).
+ *
+ * Владелец на одиннадцатом заходе 23.09.2026: «Зачем нужно ограничивать
+ * модель? Пусть дают столько вопросов, сколько ей нужно». Сколько спросить,
+ * решает модель по материалу — ноль тоже честный ответ. Это число только
+ * ловит сбой: восемь вопросов за круг — уже анкета, а не интервью, и дальше
+ * список обрезается молча. `PIECE_MAX_QUESTIONS` остаётся для читателей
+ * старого контракта.
+ */
+export const PIECE_INTERVIEW_MAX_QUESTIONS = 8 as const;
+/**
+ * Ключи вопросов, которые пишет модель (`97dq.44`): `ask-1` … `ask-8`.
+ *
+ * Шаблонных вопросов у интервью больше нет, и вопрос без своего поля брифа
+ * (эпизод, число, ставка, что сказать именно этой аудитории) опознаётся
+ * номером в круге. Номер — не смысл: смысл едет текстом вопроса рядом с
+ * ответом (`question`), потому что круги адаптации сервер между запросами не
+ * помнит.
+ */
+export const INTERVIEW_ASK_KEYS: readonly InterviewAskKeyV1[] = Array.from(
+  { length: PIECE_INTERVIEW_MAX_QUESTIONS },
+  (_, index) => `ask-${index + 1}` as InterviewAskKeyV1
+);
+export const interviewAskKey = (index: number): InterviewAskKeyV1 =>
+  `ask-${index + 1}` as InterviewAskKeyV1;
+export const isInterviewAskKey = (value: unknown): value is InterviewAskKeyV1 =>
+  typeof value === 'string' &&
+  (INTERVIEW_ASK_KEYS as readonly string[]).includes(value);
+/** Сколько знаков текста вопроса дверь принимает рядом с ответом. */
+export const INTERVIEW_QUESTION_MAX_CHARS = 400 as const;
 /** Столько колонок площадок показывается без выбора человека; дальше — «Площадки ▾». */
 export const PIECE_DEFAULT_COLUMNS = 6 as const;
 /** Сколько первых строк сути несёт строка списка. */
@@ -2844,7 +2886,11 @@ export type PieceQuestionKeyV1 =
    * `channels/channel-question.v3.ts`). Ответ едет в промпт адаптации строкой
    * «что унести», а не цитатой.
    */
-  | 'takeaway';
+  | 'takeaway'
+  /** Вопрос, написанный моделью (`97dq.44`, `INTERVIEW_ASK_KEYS`). */
+  | InterviewAskKeyV1;
+
+export type InterviewAskKeyV1 = `ask-${number}`;
 
 export type PieceQuestionV1 = {
   key: PieceQuestionKeyV1;
@@ -2873,6 +2919,11 @@ export type PieceAnswerOriginV1 = 'person' | 'confirmed' | 'model';
 export type PieceAnswerV1 = {
   key: PieceQuestionKeyV1;
   text: string;
+  /**
+   * Вопрос словами модели (`97dq.44`). Шаблона у вопроса больше нет, и без
+   * его текста ответ в промпте остался бы парой «ask-2 → …».
+   */
+  question?: string;
   origin: PieceAnswerOriginV1;
   step: 'core' | 'adaptation';
   /** Для шага `adaptation` — площадка, под которую спрашивали. */
@@ -2885,6 +2936,8 @@ export type PieceAnswerV1 = {
 export type PieceAnswerInputV1 = {
   key: PieceQuestionKeyV1;
   text: string;
+  /** Текст вопроса, на который это ответ (`97dq.44`); сервер кругов не помнит. */
+  question?: string;
   origin: Exclude<PieceAnswerOriginV1, 'model'>;
 };
 
@@ -2912,6 +2965,9 @@ export type PieceOpenQuestionV1 = IntakeQuestionV1 & {
 /** Ответ человека на открытый вопрос; `answeredAt` ставит сервер. */
 export type PieceFieldAnswerV1 = {
   field: BriefField;
+  /** Ответ на вопрос о материале (`97dq.44`): его ключ и сам вопрос. */
+  key?: InterviewAskKeyV1;
+  question?: string;
   /** Дословно, как написал человек. Пусто у `origin: 'model'`. */
   text: string;
   /** `person` — свои слова или «Так и есть»; `model` — «Реши сама». */
@@ -3143,8 +3199,9 @@ export type PieceCreateRequestV1 = Omit<IntakeRequestV1, 'integrationIds'> & {
  *
  * Порядок решения: этот пост → карточка канала → аватар → как было до волны.
  * `length` масштабирует диапазон канала (×0,6 / ×1,5, не выше предела
- * площадки); `channel` — ничего не меняет. `addressForm: 'avatar'` — «как в
- * аватаре», то есть карточка канала на этот пост не действует.
+ * площадки); `channel` — ничего не меняет. `addressForm` дверь ещё
+ * принимает ради старых клиентов, но с `97dq.45` оно ни на что не влияет:
+ * обращение ушло из продукта и в промпт не едет.
  * `brandProfileId` — аватар этой области; чужой или несуществующий — отказ
  * `PIECE_AVATAR_UNKNOWN`. `wish` — строка человека «Пожелание», `takeaway` —
  * что читатели должны унести (ответ на вопрос перед первой адаптацией).
@@ -3155,6 +3212,20 @@ export type PieceAdaptOverridesV1 = {
   brandProfileId?: string;
   wish?: string;
   takeaway?: string;
+  /*
+    Двенадцатая волна (`97dq.48`, вариант A): «Для этого поста» держит те же
+    поля, что карточка канала, и в той же форме, что её дверь
+    (`IntegrationWritingProfileDto`): длина — дискриминатор и диапазон, а не
+    союз строки и объекта. Каждое поле перекрывает карточку на одну
+    адаптацию; отсутствие — «как в канале». `lengthPolicy` главнее
+    `length`: старый клиент шлёт только второе.
+  */
+  lengthPolicy?: 'auto' | 'range';
+  lengthRange?: { idealMin: number; idealMax: number; hardMax?: number };
+  emojiLevel?: 'none' | 'few' | 'many' | 'auto';
+  linkPolicy?: 'none' | 'end' | 'inline' | 'auto';
+  hashtagPolicy?: 'none' | 'end_1_3' | 'free' | 'auto';
+  ctaKind?: 'auto' | 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';
 };
 
 export type PieceAdaptRequestV1 = {
@@ -3179,7 +3250,8 @@ export type PieceAdaptRequestV1 = {
  * «суть стоит на словах человека», а не «опоры нет».
  */
 export type PieceAnswerRequestV1 = {
-  answers?: Array<{ field: BriefField; text: string }>;
+  /** `key` — у ответа на вопрос о материале (`97dq.44`). */
+  answers?: Array<{ field: BriefField; text: string; key?: InterviewAskKeyV1 }>;
   decide?: BriefField[];
 };
 

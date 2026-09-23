@@ -56,14 +56,12 @@ import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import copy from 'copy-to-clipboard';
-import { stripHtmlValidation } from '@contentfactory/helpers/utils/strip.html.validation';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import { Button } from '@contentfactory/react/form/button';
-import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
-import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
 import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { calendarPlanningCopy } from './calendar-planning.copy';
 import { useAdaptationPicker } from './adaptation-picker';
+import { freeSlotsOn } from './calendar-slots';
 import { PostPreviewDialog } from '@contentfactory/frontend/components/preview/post.preview.dialog';
 import { EDITORIAL_STAGE_TONES } from '@contentfactory/frontend/components/launches/editorial-stage.badge';
 import {
@@ -80,6 +78,9 @@ import {
   EyeIcon,
   PostCardAction,
   PostCardActions,
+  PlusIcon,
+  postLine,
+  SlotButton,
   StageBand,
   StagePill,
   TrashIcon,
@@ -365,6 +366,9 @@ export const DayView = () => {
   dayjs.locale(currentLanguage);
 
   const currentDay = dayjs.utc(startDate);
+  const language = useInterfaceLanguage();
+  const planningCopy =
+    calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
 
   const options = useMemo(() => {
     const createdPosts = posts.map((post) => ({
@@ -400,47 +404,63 @@ export const DayView = () => {
     );
   }, [integrations, posts]);
 
+  /*
+    Direction A of the 23.09.2026 canvas (`97dq.50`): the time stands in a
+    72px column on the left and the slot takes the rest of the row, so the
+    day reads as a schedule rather than as centred captions over boxes.
+  */
   return (
-    <div className="flex flex-col gap-[10px] flex-1 relative">
-      <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-        {options.map((option) => (
-          <Fragment key={option[0].time}>
-            <div className="text-center text-[14px] min-h-[21px] shrink-0">
-              {newDayjs()
-                .utc()
-                .startOf('day')
-                .add(option[0].time, 'minute')
-                .local()
-                .format(isUSCitizen() ? 'hh:mm A' : 'LT')}
-            </div>
-            {/*
-              `shrink-0` is what keeps a time slot as tall as the card inside
-              it. The scroller above is a flex column, so every slot was a flex
-              item free to shrink to its `min-h-[60px]` floor — and it did, so
-              a 116px card was drawn over the slot below it. The taller the
-              card, the further it reached: with the stage badge on the card,
-              the sentence landed under the next post's coloured strip.
-            */}
-            <div
-              key={option[0].time}
-              className="min-h-[60px] shrink-0 rounded-[10px] flex justify-center items-center gap-[10px] mb-[20px]"
-            >
-              <CalendarContext.Provider
-                value={{
-                  ...calendar,
-                  integrations: option.flatMap((p) => p.integration),
-                }}
-              >
-                <CalendarColumn
-                  getDate={currentDay
-                    .startOf('day')
-                    .add(option[0].time, 'minute')
-                    .local()}
-                />
-              </CalendarContext.Provider>
-            </div>
-          </Fragment>
-        ))}
+    <div className="flex flex-col flex-1 relative">
+      <div className="absolute start-0 top-0 w-full h-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+        {/*
+          `shrink-0` keeps the grid as tall as the cards inside it. The slots
+          used to be flex items of this scroller, free to shrink to their
+          floor — and they did, so a 116px card was drawn over the slot below.
+          Rows of a grid do not shrink; the grid itself is the one flex-free
+          block, and it says so.
+        */}
+        <div
+          data-calendar-day="true"
+          className="grid shrink-0 [grid-template-columns:72px_minmax(0,1fr)] gap-x-[16px]"
+        >
+          {options.map((option) => {
+            const at = currentDay
+              .startOf('day')
+              .add(option[0].time, 'minute')
+              .local();
+            const passed = at.isBefore(newDayjs());
+            return (
+              <Fragment key={option[0].time}>
+                <div
+                  className={clsx(
+                    'pt-[12px] cf-caption tabular-nums',
+                    passed ? 'text-cf-ink-muted' : 'text-cf-ink'
+                  )}
+                >
+                  {at.format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
+                </div>
+                <div className="min-w-0 py-[8px] border-b border-cf-border">
+                  <CalendarContext.Provider
+                    value={{
+                      ...calendar,
+                      integrations: option
+                        .flatMap((p) => p.integration)
+                        .filter(Boolean),
+                    }}
+                  >
+                    <CalendarColumn getDate={at} />
+                  </CalendarContext.Provider>
+                </div>
+              </Fragment>
+            );
+          })}
+          <div className="pt-[12px] cf-caption text-cf-ink-muted" aria-hidden>
+            —
+          </div>
+          <p className="py-[12px] cf-body-sm text-cf-ink-muted text-pretty">
+            {planningCopy.dayOtherTime}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -664,6 +684,7 @@ export const ListView = () => {
                 <CalendarItem
                   key={key}
                   display="day"
+                  row
                   isBeforeNow={false}
                   date={newDayjs(lead.publishDate)}
                   state={lead.state}
@@ -720,6 +741,9 @@ export const CalendarColumn: FC<{
     display,
     reloadCalendarView,
     loading,
+    setFilters,
+    customer,
+    editorialStage,
   } = useCalendar();
   const modal = useModals();
   const fetch = useFetch();
@@ -893,7 +917,6 @@ export const CalendarColumn: FC<{
   );
 
   const openPicker = useAdaptationPicker();
-  const addModal = useCallback(() => openPicker(getDate), [openPicker, getDate]);
 
   const toaster = useToaster();
   const canWritePosts = isOrganizationEditor(user?.role);
@@ -910,175 +933,241 @@ export const CalendarColumn: FC<{
     );
   }, [t, toaster]);
 
+  /*
+    A slot that belongs to exactly one channel opens the picker on that
+    channel; a shared slot or a bare cell opens on «Все каналы».
+  */
+  const addAt = useCallback(
+    (at: dayjs.Dayjs, channelIds: string[] = []) => () =>
+      canWritePosts
+        ? openPicker(at, channelIds.length === 1 ? channelIds[0] : undefined)
+        : refuseWritePost(),
+    [canWritePosts, openPicker, refuseWritePost]
+  );
+
+  /*
+    The channel schedule, read in local time. The day view has always drawn
+    its rows from it; the week and month now use it too, so an empty cell
+    offers the time a channel is waiting for («+ 09:20») instead of a bare
+    plus (`97dq.50`).
+  */
+  const toLocalMinute = useCallback((minute: number) => {
+    const local = newDayjs().utc().startOf('day').add(minute, 'minute').local();
+    return local.hour() * 60 + local.minute();
+  }, []);
+
+  const taken = useMemo(
+    () =>
+      postList.map(({ lead }) =>
+        dayjs.utc(lead.publishDate).local().format('HH:mm')
+      ),
+    [postList]
+  );
+
+  const freeSlots = useMemo(
+    () =>
+      display === 'day' || isBeforeNow
+        ? []
+        : freeSlotsOn({
+            channels: integrations,
+            day: getDate,
+            now: newDayjs(),
+            toLocalMinute,
+            taken,
+            ...(display === 'week' ? { hour: getDate.hour() } : {}),
+          }),
+    // `num` ticks every two minutes, so a slot that has just passed goes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [display, isBeforeNow, integrations, getDate, toLocalMinute, taken, num]
+  );
+
+  /** Channels whose schedule holds this exact time — the day row's caption. */
+  const slotOwners = useMemo(() => {
+    if (display !== 'day') return [];
+    const minute = getDate.hour() * 60 + getDate.minute();
+    return integrations.filter(
+      (channel) =>
+        !channel.disabled &&
+        channel.time?.some((slot) => toLocalMinute(slot.time) === minute)
+    );
+  }, [display, integrations, getDate, toLocalMinute]);
+  const slotChannels = useMemo(
+    () => Array.from(new Set(slotOwners.map((channel) => channel.name))),
+    [slotOwners]
+  );
+
+  const time = getDate.format(isUSCitizen() ? 'hh:mm A' : 'HH:mm');
+  const passedHint =
+    isBeforeNow && postList.length === 0
+      ? { 'data-date-passed': t('date_passed', 'Date passed') }
+      : {};
+
+  const openDay = useCallback(() => {
+    const day = getDate.format('YYYY-MM-DD');
+    setFilters({
+      startDate: day,
+      endDate: day,
+      display: 'day',
+      customer,
+      editorialStage,
+    });
+  }, [getDate, setFilters, customer, editorialStage]);
+
+  const cards = list.map(({ key, lead, members }) => (
+    <div key={key} className="relative w-full min-w-0">
+      <CalendarItem
+        display={display as 'day' | 'week' | 'month'}
+        isBeforeNow={isBeforeNow}
+        date={getDate}
+        state={lead.state}
+        statistics={openStatistics}
+        missingRelease={openMissingRelease}
+        editPost={editPost(lead, false)}
+        duplicatePost={editPost(lead, true)}
+        copyDebugJson={user?.isSuperAdmin ? copyDebugJson(lead) : undefined}
+        post={lead}
+        channels={members}
+        integrations={integrations}
+        deletePost={deletePost(lead)}
+        showTime
+      />
+    </div>
+  ));
+
+  const more =
+    postList.length > 3 ? (
+      <Button
+        type="button"
+        variant="quiet"
+        density="dense"
+        className="w-full"
+        onClick={showAll ? showLessFunc : showAllFunc}
+      >
+        {showAll
+          ? t('show_less', '- Show less')
+          : `${t('show_more', '+ Show more')} (${postList.length - 3})`}
+      </Button>
+    ) : null;
+
+  const loadingVeil = loading && (
+    <div className="h-full w-full p-[4px] animate-pulse absolute start-0 top-0 z-[50]">
+      <div className="h-full w-full bg-cf-surface-subtle rounded-[8px]" />
+    </div>
+  );
+
+  /*
+    The day view: posts at this time, then one dashed row that says what it
+    adds. An empty future slot is «+ Добавить пост на 09:20» with the channels
+    of the slot as a caption; under posts it is the slimmer «Ещё пост на 14:10».
+    A past slot keeps the hatch and has no button.
+  */
+  if (display === 'day') {
+    return (
+      <div
+        ref={drop as any}
+        className={clsx(
+          'relative flex flex-col gap-[8px] w-full rounded-[8px]',
+          isBeforeNow && postList.length === 0 && 'min-h-[40px] repeated-strip col-calendar cursor-not-allowed',
+          canDrop && 'outline outline-2 outline-offset-2 outline-cf-accent'
+        )}
+        {...passedHint}
+      >
+        {loadingVeil}
+        {cards}
+        {more}
+        {!isBeforeNow &&
+          (postList.length ? (
+            <SlotButton
+              shape="slim"
+              label={planningCopy.morePostAt(time)}
+              onClick={addAt(
+                getDate,
+                slotOwners.map((channel) => channel.id)
+              )}
+            />
+          ) : (
+            <SlotButton
+              shape="row"
+              label={planningCopy.addPostAt(time)}
+              caption={
+                slotChannels.length
+                  ? `${planningCopy.slotOf(slotChannels.length)} · ${slotChannels.join(', ')}`
+                  : undefined
+              }
+              onClick={addAt(
+                getDate,
+                slotOwners.map((channel) => channel.id)
+              )}
+            />
+          ))}
+      </div>
+    );
+  }
+
+  /*
+    Week and month: the same card, then the same dashed slot. A configured
+    channel time is a «+ 09:20» chip in the week; the month counts them
+    («+ 2 слота») and opens the day, where every slot has its own row. A cell
+    with no channel time keeps the quiet «+» that appears under the pointer.
+  */
   return (
     <div
-      className={clsx(
-        'flex flex-col w-full min-h-full relative',
-        isBeforeNow && 'repeated-strip',
-        loading && 'animate-pulse',
-        isBeforeNow
-          ? 'cursor-not-allowed'
-          : 'border border-newTextColor/5 rounded-[8px]'
-      )}
       ref={drop as any}
+      className={clsx(
+        'relative flex flex-col gap-[4px] w-full min-h-full p-[4px] rounded-[8px]',
+        isBeforeNow
+          ? 'repeated-strip cursor-not-allowed'
+          : 'border border-cf-border',
+        isBeforeNow && postList.length === 0 && 'col-calendar',
+        canDrop && 'outline outline-2 outline-offset-2 outline-cf-accent'
+      )}
+      {...passedHint}
     >
       {display === 'month' && (
-        <div className={clsx('pt-[6px] text-[14px]')}>{getDate.date()}</div>
-      )}
-      <div
-        className={clsx(
-          'relative flex flex-col flex-1 text-white rounded-[8px] min-h-[70px]',
-          canDrop && 'border border-cf-accent'
-        )}
-      >
-        <div
-          className={clsx(
-            'flex-col text-[12px] pointer w-full flex scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary',
-            isBeforeNow ? 'flex-1' : 'cursor-pointer',
-            isBeforeNow && postList.length === 0 && 'col-calendar'
-          )}
-          // The hover caption on a cell whose time has gone. Kept as an
-          // attribute so the words come out of the dictionary rather than out
-          // of `global.scss` (`content-factory-next-fn33.79`).
-          {...(isBeforeNow && postList.length === 0
-            ? { 'data-date-passed': t('date_passed', 'Date passed') }
-            : {})}
-        >
-          {loading && (
-            <div className="h-full w-full p-[5px] animate-pulse absolute left-0 top-0 z-[50]">
-              <div className="h-full w-full bg-newSettings rounded-[10px]" />
-            </div>
-          )}
-          {list.map(({ key, lead, members }) => (
-            <div
-              key={key}
-              className={clsx(
-                'text-textColor p-[2.5px] relative flex flex-col justify-center items-center'
-              )}
-            >
-              <div className="relative w-full flex flex-col items-center p-[2.5px]">
-                <CalendarItem
-                  display={display as 'day' | 'week' | 'month'}
-                  isBeforeNow={isBeforeNow}
-                  date={getDate}
-                  state={lead.state}
-                  statistics={openStatistics}
-                  missingRelease={openMissingRelease}
-                  editPost={editPost(lead, false)}
-                  duplicatePost={editPost(lead, true)}
-                  copyDebugJson={
-                    user?.isSuperAdmin ? copyDebugJson(lead) : undefined
-                  }
-                  post={lead}
-                  channels={members}
-                  integrations={integrations}
-                  deletePost={deletePost(lead)}
-                />
-              </div>
-            </div>
-          ))}
-          {!showAll && postList.length > 3 && (
-            <div
-              className="text-center hover:underline py-[5px] text-textColor"
-              onClick={showAllFunc}
-            >
-              {t('show_more', '+ Show more')} ({postList.length - 3})
-            </div>
-          )}
-          {showAll && postList.length > 3 && (
-            <div
-              className="text-center hover:underline py-[5px]"
-              onClick={showLessFunc}
-            >
-              {t('show_less', '- Show less')}
-            </div>
-          )}
+        <div className="px-[4px] cf-caption tabular-nums text-cf-ink-muted">
+          {getDate.date()}
         </div>
-        {!isBeforeNow && (
+      )}
+      {loadingVeil}
+      {cards}
+      {more}
+      {!isBeforeNow &&
+        (freeSlots.length ? (
+          display === 'week' ? (
+            freeSlots.map((slot) => (
+              <SlotButton
+                key={slot.key}
+                shape="chip"
+                label={slot.at.format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
+                ariaLabel={`${planningCopy.addPostAt(
+                  slot.at.format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')
+                )} · ${slot.channels.join(', ')}`}
+                onClick={addAt(slot.at, slot.channelIds)}
+              />
+            ))
+          ) : (
+            <SlotButton
+              shape="chip"
+              label={planningCopy.slots(freeSlots.length)}
+              ariaLabel={planningCopy.slotsOpenDay(
+                freeSlots.length,
+                getDate.format('DD.MM')
+              )}
+              onClick={openDay}
+            />
+          )
+        ) : (
           <ControlButton
             layout="content"
             aria-label={`${planningCopy.schedule} · ${getDate.format('DD.MM.YYYY HH:mm')}`}
-            className="pb-[2.5px] px-[5px] flex-1 flex"
-            onClick={
-              !canWritePosts
-                ? refuseWritePost
-                : addModal
-            }
+            className="group flex flex-1 w-full items-center justify-center rounded-[8px] text-cf-ink-muted hover:text-cf-ink"
+            onClick={addAt(getDate)}
           >
-            <div
-              className={clsx(
-                display === ('month' as any)
-                  ? 'flex-1 min-h-[40px] w-full'
-                  : !postList.length
-                  ? 'min-h-full w-full p-[5px]'
-                  : 'min-h-[40px] w-full',
-                'flex items-center justify-center cursor-pointer pb-[2.5px]'
-              )}
-            >
-              {display !== 'day' && (
-                <div
-                  className={clsx(
-                    'group hover:before:h-[30px] w-full h-full rounded-[10px] flex justify-center items-center text-white'
-                  )}
-                >
-                  <div
-                    className={`group-hover:before:content-["+"] pb-[5px] flex justify-center items-center rounded-[8px] transition-all group-hover:bg-btnPrimary w-full h-full max-w-[40px] max-h-[40px]`}
-                  />
-                </div>
-              )}
-              {display === 'day' && (
-                <div
-                  className={`w-full h-full rounded-[10px] py-[10px] flex-wrap hover:border hover:border-seventh flex justify-center items-center gap-[20px] opacity-30 grayscale hover:grayscale-0 hover:opacity-100`}
-                >
-                  {integrations.slice(0, 4).map((selectedIntegrations) => (
-                    <div
-                      className="relative"
-                      key={selectedIntegrations.id}
-                    >
-                      <div
-                        className={clsx(
-                          'relative w-[34px] h-[34px] rounded-[8px] flex justify-center items-center filter transition-all duration-500'
-                        )}
-                      >
-                        {selectedIntegrations.picture ? (
-                          <img
-                            src={selectedIntegrations.picture}
-                            className="h-[32px] w-[32px] rounded-[8px]"
-                            alt={selectedIntegrations.name}
-                          />
-                        ) : (
-                          <PlatformSymbol
-                            identifier={selectedIntegrations.identifier}
-                            size={32}
-                            decorative={false}
-                            name={selectedIntegrations.name}
-                          />
-                        )}
-                        <PlatformBadge
-                          identifier={selectedIntegrations.identifier}
-                          size={16}
-                          className="absolute z-10 -bottom-[4px] -end-[4px]"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  {integrations.length > 4 && (
-                    <span
-                      className="cf-label-sm text-cf-ink"
-                      role="img"
-                      aria-label={t('more_connected_channels', '{{count}} more channels', {
-                        count: integrations.length - 4,
-                      })}
-                    >
-                      +{integrations.length - 4}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            <span className="flex items-center justify-center w-[32px] h-[32px] rounded-[8px] border border-dashed border-cf-border-strong opacity-0 transition-opacity duration-state group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none">
+              <PlusIcon />
+            </span>
           </ControlButton>
-        )}
-      </div>
+        ))}
     </div>
   );
 });
@@ -1092,10 +1181,11 @@ export const CalendarColumn: FC<{
  * person typed on a tag, and the actions arrive on their own surface instead
  * of inside the band.
  *
- * Two shapes, one vocabulary. The week and month grids get the narrow card
- * (band, sentence, channel marks); the day and list views, where the column is
- * the full width of the screen, get a single 36px row with the stage as a pill
- * at the head of the line.
+ * Two shapes, one vocabulary. The day, week and month grids get the card
+ * (band, sentence, channel marks, time) — the day the same card, only wider
+ * (`97dq.50`, 23.09.2026: «должна быть консистентность дизайна на день,
+ * неделю или месяц»). The list view keeps a single 36px row with the stage as a
+ * pill at the head of the line.
  */
 const CalendarItem: FC<{
   date: dayjs.Dayjs;
@@ -1110,6 +1200,8 @@ const CalendarItem: FC<{
   integrations: Integrations[];
   state: State;
   display: 'day' | 'week' | 'month';
+  /** The list view's single-line row; every calendar grid draws the card. */
+  row?: boolean;
   showTime?: boolean;
   post: Post & {
     integration: Integration;
@@ -1145,7 +1237,13 @@ const CalendarItem: FC<{
     post.creationMethod !== 'UNKNOWN';
 
   const members: any[] = props.channels?.length ? props.channels : [post];
-  const wide = display === 'day';
+  /*
+    One card in the day, the week and the month (`97dq.50`): band, sentence,
+    channel marks, time. The day draws it wider — with room for every action
+    inline and four marks — and only the list view keeps the single-line row.
+  */
+  const wide = Boolean(props.row);
+  const roomy = wide || display === 'day';
 
   const [previewId, setPreviewId] = useState<string | null>(null);
   const closePreview = useCallback(() => setPreviewId(null), []);
@@ -1179,7 +1277,7 @@ const CalendarItem: FC<{
     : 'neutral';
   const bandLabel = post.editorialStage
     ? editorialStageLabel(locale, post.editorialStage as EditorialStageValue)
-    : tagNames;
+    : tagNames || (state === 'DRAFT' ? t('draft', 'Draft') : '');
   const bandTitle = [bandLabel, tagNames && tagNames !== bandLabel ? tagNames : '']
     .filter(Boolean)
     .join(' · ');
@@ -1283,7 +1381,9 @@ const CalendarItem: FC<{
         name: member.integration?.name || '',
         picture: member.integration?.picture,
       }))}
-      max={wide ? 4 : 3}
+      // A week card is 94px: one mark and the time fit, two do not. The month
+      // card is 110px and holds two; the day holds four.
+      max={roomy ? 4 : display === 'month' ? 2 : 1}
     />
   );
 
@@ -1291,11 +1391,19 @@ const CalendarItem: FC<{
     .local()
     .format(isUSCitizen() ? 'hh:mm A' : 'HH:mm');
 
+  /*
+    The line is the start of the post. The state word used to lead it
+    («Черновик: …») and on a 94px week card it was all the card said; the
+    band carries the stage now, and the word stays for a screen reader. The
+    body flattens to one line with a space between its paragraphs — striping
+    the tags alone glued «…ноу-хау.Для меня…» together.
+  */
   const sentence = (
     <>
-      {state === 'DRAFT' ? `${t('draft', 'Draft')}: ` : ''}
-      {stripHtmlValidation('none', post.content, false, true, false) ||
-        t('no_content', 'no content')}
+      {state === 'DRAFT' ? (
+        <span className="sr-only">{`${t('draft', 'Draft')}: `}</span>
+      ) : null}
+      {postLine(post.content) || t('no_content', 'no content')}
     </>
   );
 
@@ -1310,7 +1418,7 @@ const CalendarItem: FC<{
     <PostCardActions
       actions={actions}
       extra={channelPreviews}
-      inline={wide}
+      inline={roomy}
       moreLabel={t('more_actions', 'More actions')}
       className={clsx(
         'opacity-0 pointer-events-none',

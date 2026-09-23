@@ -419,7 +419,6 @@ const HEX_ALLOWED = [
  * new components take their text colour from a token.
  */
 const WHITE_ALLOWED = [
-  'apps/frontend/src/components/launches/calendar.tsx',
   'apps/frontend/src/components/launches/creation.method.badge.tsx',
   'apps/frontend/src/components/launches/customer.modal.tsx',
   'apps/frontend/src/components/launches/helpers/top.title.component.tsx',
@@ -481,7 +480,6 @@ const LEGACY_WORD_ALIAS_ALLOWED = [
   'apps/frontend/src/components/launches/add.provider.component.tsx',
   'apps/frontend/src/components/launches/ai.image.tsx',
   'apps/frontend/src/components/launches/bot.picture.tsx',
-  'apps/frontend/src/components/launches/calendar.tsx',
   'apps/frontend/src/components/launches/comments/comment.component.tsx',
   'apps/frontend/src/components/launches/helpers/date.picker.tsx',
   'apps/frontend/src/components/launches/helpers/linkedin.component.tsx',
@@ -881,7 +879,7 @@ const LOADING_ANIMATION_ALLOWED = {
   'apps/frontend/src/components/admin/admin-users.component.tsx': 1,
   'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx': 1,
   'apps/frontend/src/components/developer/developer.surface.tsx': 1,
-  'apps/frontend/src/components/launches/calendar.tsx': 2,
+  'apps/frontend/src/components/launches/calendar.tsx': 1,
   'apps/frontend/src/components/media/media.component.tsx': 1,
   'apps/frontend/src/components/public-api/public-api.surface.tsx': 1,
   'apps/frontend/src/components/settings/sign-in-methods.component.tsx': 3,

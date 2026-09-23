@@ -1,0 +1,51 @@
+<div style="position:relative;width:1440px;min-height:1180px;background:var(--cf-canvas);padding:32px 40px 0;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+%%INC:_piecehead.inc%%
+  <div style="display:grid;grid-template-columns:minmax(0, 1fr) 472px;gap:32px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="seg"><span class="on">Вариант 1</span><span>Вариант 2</span></div>
+        <span style="flex:1"></span>
+        <span class="btn quiet dense icon" title="Удалить адаптацию">%%dots%%</span>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column">
+%%INC:_toolbar.inc%%
+%%INC:_text.inc%%
+      </div>
+      <div class="cap" style="display:flex;gap:8px;flex-wrap:wrap"><span>Штампов по каталогу: 0</span><span>·</span><span>числа из опор: 3</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="btn secondary dense">Для этого поста…<span class="chip new" style="height:20px">2</span></span>
+        <span class="btn secondary dense">Убрать следы ИИ</span>
+        <span class="btn secondary dense">Проверить факты</span>
+        <span class="btn secondary dense">Переписать…</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 0 24px;margin-top:12px;border-top:1px solid var(--cf-border-strong)">
+        <span class="cap">Когда</span>
+        <span class="input val" style="width:220px">%%clock%%Чт, 24.09 · 19:30<span style="flex:1"></span>%%chev%%</span>
+        <span style="display:inline-flex"><span class="btn primary" style="border-radius:8px 0 0 8px">Запланировать</span><span class="btn primary icon" style="border-radius:0 8px 8px 0;border-left:1px solid var(--cf-accent-ink);width:36px">%%chev%%</span></span>
+      </div>
+    </div>
+    <aside style="display:flex;flex-direction:column;gap:10px;position:sticky;top:0">
+      <span class="lab">Как увидят в Telegram</span>
+      <div style="padding:16px;border-radius:8px;background:var(--cf-surface-subtle);display:flex;justify-content:center">
+%%INC:_tgbubble.inc%%
+      </div>
+      <a class="sm" href="#">Как пишем в «AiDevTeam» — настройки канала</a>
+    </aside>
+  </div>
+
+  <div class="dim"></div>
+  <div class="modal" style="left:430px;top:170px;width:580px;padding:24px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;gap:4px;flex:1"><span class="h2">Для этого поста</span><span class="cap">разово; канал «AiDevTeam» и аватар не меняются</span></div><span class="btn quiet dense icon">%%x%%</span></div>
+    <div class="field"><span class="cap">Длина</span><div class="seg"><span class="on">до 500</span><span>500–1000</span><span>до 1500</span><span>как в канале</span></div></div>
+    <div class="field"><span class="cap">Эмодзи</span><div class="seg"><span>без</span><span>мало · 1–3</span><span>много</span><span class="on">как в канале</span></div></div>
+    <div class="field"><span class="cap">Хэштеги</span><div class="seg"><span>без</span><span>1–3 в конце</span><span class="on">как в канале</span></div></div>
+    <div class="field"><span class="cap">Призыв</span><span class="input val" style="width:280px">вопрос читателю<span style="flex:1"></span>%%chev%%</span></div>
+    <div class="field"><span class="cap">Пожелание</span><span class="ta" style="min-height:64px;color:var(--cf-ink-muted)">Например: начни с вопроса</span></div>
+    <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--cf-border);padding-top:16px">
+      <a class="sm" href="#">Запомнить для канала</a>
+      <span style="flex:1"></span>
+      <span class="btn secondary">Закрыть</span>
+      <span class="btn primary">Переписать с этим</span>
+    </div>
+  </div>
+</div>

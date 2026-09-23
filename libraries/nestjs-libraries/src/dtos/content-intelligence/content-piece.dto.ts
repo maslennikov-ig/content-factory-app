@@ -36,6 +36,13 @@ import {
   READY_ADAPTATIONS_MAX_LIMIT,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/ready-adaptations.contract';
 import { ADAPTATION_EDIT_BODY_MAX_CHARS } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
+import {
+  INTERVIEW_ASK_KEYS,
+  INTERVIEW_QUESTION_MAX_CHARS,
+  PIECE_INTERVIEW_MAX_QUESTIONS,
+  type InterviewAskKeyV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { ChannelLengthRangeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
 
 /** «Пожелание» и «что унести» — одна строка, а не второй бриф. */
 export const PIECE_OVERRIDE_TEXT_MAX = 500;
@@ -102,6 +109,16 @@ export const PIECE_QUESTION_KEYS = [
   'takeaway',
 ] as const;
 
+/**
+ * Ключи, которые дверь адаптации принимает: шаблонные и вопросы модели
+ * (`content-factory-next-97dq.44`, `ask-1` … `ask-8`). Список вопросов модели
+ * берётся из контракта, а не пишется здесь второй раз.
+ */
+export const PIECE_ANSWER_KEYS: readonly string[] = [
+  ...PIECE_QUESTION_KEYS,
+  ...INTERVIEW_ASK_KEYS,
+];
+
 /** Состояния фильтра списка — те же четыре, что `AdaptationStateV1`. */
 export const PIECE_FILTER_STATES = [
   'published',
@@ -154,8 +171,17 @@ export class PiecesQueryDto {
  * имени автора.
  */
 export class PieceAnswerDto {
-  @IsIn(PIECE_QUESTION_KEYS)
-  key: (typeof PIECE_QUESTION_KEYS)[number];
+  @IsIn(PIECE_ANSWER_KEYS)
+  key: (typeof PIECE_QUESTION_KEYS)[number] | InterviewAskKeyV1;
+
+  /**
+   * Текст вопроса модели, на который это ответ (`97dq.44`): круг адаптации
+   * сервер не помнит, а ответ без вопроса — это «ask-2: да».
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(INTERVIEW_QUESTION_MAX_CHARS)
+  question?: string;
 
   /**
    * Дословно, без нижней границы: короткий ответ — это ответ, а не ошибка
@@ -192,6 +218,7 @@ export class PieceAdaptOverridesDto {
   @IsIn(['shorter', 'channel', 'longer'])
   length?: 'shorter' | 'channel' | 'longer';
 
+  /** Принимается ради старых клиентов и ни на что не влияет (`97dq.45`). */
   @IsOptional()
   @IsIn(['avatar', 'ty', 'vy'])
   addressForm?: 'avatar' | 'ty' | 'vy';
@@ -214,6 +241,45 @@ export class PieceAdaptOverridesDto {
   @IsString()
   @MaxLength(PIECE_OVERRIDE_TEXT_MAX)
   takeaway?: string;
+
+  /*
+    Поля карточки канала на одну адаптацию (`97dq.48`). Значения и форма
+    длины — те же, что у двери карточки (`IntegrationWritingProfileDto`):
+    дискриминатор и диапазон тем же `ChannelLengthRangeDto`, поэтому «до
+    500» поста и «до 500» канала значат одно. `provider_max` сюда не
+    входит: предел площадки и так действует всегда.
+  */
+  @IsOptional()
+  @IsIn(['auto', 'range'])
+  lengthPolicy?: 'auto' | 'range';
+
+  @ValidateIf((dto: PieceAdaptOverridesDto) => dto.lengthPolicy === 'range')
+  @ValidateNested()
+  @Type(() => ChannelLengthRangeDto)
+  lengthRange?: ChannelLengthRangeDto;
+
+  @IsOptional()
+  @IsIn(['none', 'few', 'many', 'auto'])
+  emojiLevel?: 'none' | 'few' | 'many' | 'auto';
+
+  @IsOptional()
+  @IsIn(['none', 'end', 'inline', 'auto'])
+  linkPolicy?: 'none' | 'end' | 'inline' | 'auto';
+
+  @IsOptional()
+  @IsIn(['none', 'end_1_3', 'free', 'auto'])
+  hashtagPolicy?: 'none' | 'end_1_3' | 'free' | 'auto';
+
+  @IsOptional()
+  @IsIn(['auto', 'none', 'question', 'comment', 'link', 'subscribe', 'reply'])
+  ctaKind?:
+    | 'auto'
+    | 'none'
+    | 'question'
+    | 'comment'
+    | 'link'
+    | 'subscribe'
+    | 'reply';
 }
 
 export class PieceAdaptDto {
@@ -234,7 +300,7 @@ export class PieceAdaptDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(PIECE_QUESTION_KEYS.length)
+  @ArrayMaxSize(PIECE_ANSWER_KEYS.length)
   @Type(() => PieceAnswerDto)
   @ValidateNested({ each: true })
   answers?: PieceAnswerDto[];
@@ -242,9 +308,9 @@ export class PieceAdaptDto {
   /** Ключи, которые человек отдал модели («Реши сама»). */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(PIECE_QUESTION_KEYS.length)
-  @IsIn(PIECE_QUESTION_KEYS, { each: true })
-  decideKeys?: (typeof PIECE_QUESTION_KEYS)[number][];
+  @ArrayMaxSize(PIECE_ANSWER_KEYS.length)
+  @IsIn(PIECE_ANSWER_KEYS, { each: true })
+  decideKeys?: Array<(typeof PIECE_QUESTION_KEYS)[number] | InterviewAskKeyV1>;
 
   /** Пропустить интервью целиком одной кнопкой. */
   @IsOptional()
@@ -321,6 +387,14 @@ export class PieceFieldAnswerDto {
   field: (typeof PIECE_BRIEF_FIELDS)[number];
 
   /**
+   * Ключ вопроса о материале (`97dq.44`): таких вопросов на поле `facts`
+   * может быть несколько, и поле их не различает.
+   */
+  @IsOptional()
+  @IsIn(INTERVIEW_ASK_KEYS)
+  key?: InterviewAskKeyV1;
+
+  /**
    * Дословно, без нижней границы: короткий ответ — это ответ, а не ошибка
    * ввода. Пустой отбрасывает сервис — «не знаю» говорится кнопкой «Реши
    * сама», а не пустым полем.
@@ -333,7 +407,7 @@ export class PieceFieldAnswerDto {
 export class PieceAnswerDoorDto {
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(PIECE_BRIEF_FIELDS.length)
+  @ArrayMaxSize(PIECE_BRIEF_FIELDS.length + PIECE_INTERVIEW_MAX_QUESTIONS)
   @Type(() => PieceFieldAnswerDto)
   @ValidateNested({ each: true })
   answers?: PieceFieldAnswerDto[];

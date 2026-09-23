@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); } a:hover { color: var(--cf-accent-hover, #96C551); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: 'zero'; }
+    .cap { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; line-height: 1.35; letter-spacing: .02em; color: var(--cf-ink-muted); }
+    .lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .04em; color: var(--cf-ink-muted); text-transform: uppercase; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; cursor: pointer; white-space: nowrap; box-sizing: border-box; }
+    .btn.dense { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn.icon { width: 40px; padding: 0; }
+    .btn.icon.dense { width: 32px; }
+    .primary { background: var(--cf-accent); color: var(--cf-accent-ink); border: 1px solid transparent; }
+    .secondary { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); }
+    .quiet { background: transparent; color: var(--cf-ink); border: 1px solid transparent; }
+    .panel { background: var(--cf-surface); border: 1px solid var(--cf-border); border-radius: 8px; box-sizing: border-box; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--cf-border); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--cf-ink); background: var(--cf-surface-raised); }
+    .chip.new { border-color: var(--cf-signature); color: var(--cf-signature); background: transparent; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); }
+    .seg span { padding: 5px 12px; border-radius: 6px; font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border: 1px solid transparent; white-space: nowrap; }
+    .seg span.on { background: var(--cf-surface-raised); color: var(--cf-ink); border-color: var(--cf-border-strong); }
+    .input { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink-muted); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .input.val { color: var(--cf-ink); }
+    .h1 { font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -0.02em; }
+    .h2 { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .body { font-size: 16px; line-height: 1.55; }
+    .sm { font-size: 13px; line-height: 1.45; }
+    .muted { color: var(--cf-ink-muted); }
+    .cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; flex: none; }
+    .cell.draft { background: var(--cf-info-soft); color: var(--cf-info); border: 1px solid var(--cf-info); }
+    .cell.done { background: var(--cf-accent-soft); color: var(--cf-accent); border: 1px solid var(--cf-accent); }
+    .cell.none { color: var(--cf-ink-muted); border: 1px dashed var(--cf-border-strong); }
+    .tab { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border-bottom: 2px solid transparent; box-sizing: border-box; white-space: nowrap; }
+    .tab.on { color: var(--cf-ink); border-bottom-color: var(--cf-accent); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .sketch { border: 1.5px dashed var(--cf-border-strong); border-radius: 8px; box-sizing: border-box; }
+    .bar { height: 10px; border-radius: 4px; background: var(--cf-surface-subtle); }
+    ins { text-decoration: none; background: var(--cf-accent-soft); color: var(--cf-ink); border-bottom: 1px solid var(--cf-accent); padding: 0 2px; }
+    del { color: var(--cf-danger); text-decoration: line-through; }
+    ul.l { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .sel { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; white-space: nowrap; }
+    .sel .d { color: var(--cf-ink-muted); }
+    .sel.changed { border-color: var(--cf-signature); }
+    .danger-q { background: transparent; color: var(--cf-danger); border: 1px solid transparent; }
+    .dim { position: absolute; inset: 0; background: rgba(8,9,6,.62); }
+    .modal { position: absolute; background: var(--cf-surface); border: 1px solid var(--cf-border-strong); border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,.45); box-sizing: border-box; }
+    .slot-empty { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border: 1px dashed var(--cf-border-strong); border-radius: 8px; color: var(--cf-ink-muted); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .card { display: flex; flex-direction: column; border: 1px solid var(--cf-border); border-radius: 8px; background: var(--cf-surface-subtle); overflow: hidden; box-sizing: border-box; }
+    .band { height: 4px; }
+    .band.draft { background: var(--cf-info); }
+    .band.sched { background: var(--cf-accent); }
+    .band.pub { background: var(--cf-signature); }
+    .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 5px; font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .02em; }
+    .pill.draft { color: var(--cf-info); background: var(--cf-info-soft); }
+    .pill.sched { color: var(--cf-accent); background: var(--cf-accent-soft); }
+    .pill.pub { color: var(--cf-signature); background: var(--cf-warning-soft); }
+    .tg { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--cf-info); color: var(--cf-ink-inverse); flex: none; }
+    .nav a { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: var(--cf-ink-muted); text-decoration: none; font: 500 14px/1.3 Geologica, system-ui, sans-serif; }
+    .nav a.on { background: var(--cf-navigation-active); color: var(--cf-ink); }
+    .srow { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--cf-border); }
+    .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; font-size: 13px; }
+    .kv span:nth-child(2n) { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--cf-ink-muted); text-align: right; }
+    .ta { min-height: 88px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+  </style>
+</helmet>
+<div style="{{ themeVars }}">
+<div style="position:relative;width:1440px;height:900px;background:var(--cf-canvas);box-sizing:border-box">
+  <div class="dim"></div>
+  <div class="modal" style="left:420px;top:60px;width:600px;padding:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;gap:4px;flex:1"><span class="h2" style="font-size:22px">Что публикуем</span><span class="cap">четверг, 24 сентября · 19:00</span></div><span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"></path></svg></span></div>
+    <span class="input">Поиск по заголовку и каналу</span>
+    <div style="display:flex;align-items:center;gap:8px"><span class="cap" style="flex:1">Готовые адаптации · 7</span><div class="seg"><span>Все каналы</span><span class="on">AiDevTeam</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:2px;max-height:420px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:8px;background:var(--cf-accent-soft);border:1px solid var(--cf-accent);flex-shrink:0"><span class="tg" style="width:28px;height:28px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 2.5 1.8 7.2c-.8.3-.8.8 0 1l3 .9 1.2 3.7c.2.5.3.6.7.6.3 0 .5-.1.7-.3l1.5-1.4 3.1 2.3c.6.3 1 .2 1.1-.5l2-9.4c.2-.9-.3-1.2-.9-.9z"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span class="sm" style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Исландский эксперимент: меньше часов — та же производительность</span><span class="cap"><span style="color:var(--cf-signature)">cnt-31</span> · AiDevTeam · готово 23.09</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:8px;flex-shrink:0"><span class="tg" style="width:28px;height:28px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 2.5 1.8 7.2c-.8.3-.8.8 0 1l3 .9 1.2 3.7c.2.5.3.6.7.6.3 0 .5-.1.7-.3l1.5-1.4 3.1 2.3c.6.3 1 .2 1.1-.5l2-9.4c.2-.9-.3-1.2-.9-.9z"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span class="sm" style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Я считаю, что продавцам бессмысленно каждый раз спорить с маркетплейсами о комиссиях</span><span class="cap"><span style="color:var(--cf-signature)">cnt-24</span> · AiDevTeam · готово 22.09</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:8px;flex-shrink:0"><span class="tg" style="width:28px;height:28px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 2.5 1.8 7.2c-.8.3-.8.8 0 1l3 .9 1.2 3.7c.2.5.3.6.7.6.3 0 .5-.1.7-.3l1.5-1.4 3.1 2.3c.6.3 1 .2 1.1-.5l2-9.4c.2-.9-.3-1.2-.9-.9z"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span class="sm" style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Я выступил на радио и отвечал на вопросы о рисках использования ИИ в бизнесе</span><span class="cap"><span style="color:var(--cf-signature)">cnt-27</span> · AiDevTeam · готово 22.09</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:8px;flex-shrink:0"><span class="tg" style="width:28px;height:28px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 2.5 1.8 7.2c-.8.3-.8.8 0 1l3 .9 1.2 3.7c.2.5.3.6.7.6.3 0 .5-.1.7-.3l1.5-1.4 3.1 2.3c.6.3 1 .2 1.1-.5l2-9.4c.2-.9-.3-1.2-.9-.9z"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span class="sm" style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Спор об опасности искусственного интеллекта пока сводится к двум полярным позициям</span><span class="cap"><span style="color:var(--cf-signature)">cnt-17</span> · AiDevTeam · готово 18.09</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;border-radius:8px;flex-shrink:0"><span class="tg" style="width:28px;height:28px"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M14 2.5 1.8 7.2c-.8.3-.8.8 0 1l3 .9 1.2 3.7c.2.5.3.6.7.6.3 0 .5-.1.7-.3l1.5-1.4 3.1 2.3c.6.3 1 .2 1.1-.5l2-9.4c.2-.9-.3-1.2-.9-.9z"></path></svg></span><div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span class="sm" style="font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Стремительное развитие искусственного интеллекта опасно, потому что люди не успевают</span><span class="cap"><span style="color:var(--cf-signature)">cnt-15</span> · AiDevTeam · готово 10.09</span></div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--cf-border);padding-top:16px">
+      <span class="btn quiet dense"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4v8M4 8h8"></path></svg>Новая заготовка</span>
+      <span style="flex:1"></span>
+      <span class="btn secondary">Отмена</span>
+      <span class="btn primary">Поставить на 19:00</span>
+    </div>
+    <span class="cap">После «Поставить» открывается вкладка канала этой заготовки с датой 24.09 · 19:00 — там «Запланировать». Старого окна поста нет.</span>
+  </div>
+</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":true}}'>
+const DARK = "--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A";
+const LIGHT = "--cf-canvas:#EFE9DB;--cf-surface:#FBF8F0;--cf-surface-subtle:#E4DDCB;--cf-surface-raised:#FFFDF6;--cf-ink:#22231A;--cf-ink-muted:#5C5D4C;--cf-ink-inverse:#F4F1E4;--cf-border:#D3CAB3;--cf-border-strong:#B0A68A;--cf-border-control:#847B62;--cf-navigation:#E4DDCB;--cf-navigation-text:#22231A;--cf-navigation-muted:#5C5D4C;--cf-navigation-active:#FBF8F0;--cf-accent:#3F6B2E;--cf-accent-hover:#33581F;--cf-accent-soft:#E1EAD2;--cf-accent-ink:#FFFFFF;--cf-signature:#9C6A16;--cf-info:#2F5A82;--cf-info-soft:#E3EBF3;--cf-warning:#7A4D00;--cf-warning-soft:#F6E7C2;--cf-danger:#8E2B22;--cf-danger-soft:#F6E0DB;--cf-focus:#3F6B2E";
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? true;
+    return { themeVars: (dark ? DARK : LIGHT) + ";font-family:Geologica,system-ui,sans-serif;color:var(--cf-ink);background:var(--cf-canvas)" };
+  }
+}
+</script>
+</body>
+</html>

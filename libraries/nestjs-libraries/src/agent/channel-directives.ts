@@ -66,20 +66,31 @@ export type ChannelDirectiveOptions = {
    * фактах, копировании и голосе.
    */
   post?: ChannelPostOverrides | null;
-  /**
-   * Обращение, которое решил аватар (`voice.addressForm`) — последний слой
-   * перед поведением до волны. Разрешается здесь, вместе с двумя другими,
-   * чтобы строка об обращении писалась в одном месте.
-   */
-  avatarAddressForm?: 'ty' | 'vy' | null;
 };
 
-/** Разовые настройки поста, как их передаёт заготовка (`IntakePostOverridesV1`). */
+/**
+ * Разовые настройки поста, как их передаёт заготовка (`IntakePostOverridesV1`).
+ *
+ * Обращения («на ты / на вы») здесь нет с одиннадцатого захода (`97dq.45`):
+ * владелец убрал опцию из продукта — она специфична для языка, и кто её
+ * хочет, пишет её в «Пожелании». Сохранённое раньше у аватара, канала или
+ * поста значение в промпт больше не попадает.
+ */
 export type ChannelPostOverrides = {
   length?: 'shorter' | 'longer' | null;
-  addressForm?: 'avatar' | 'ty' | 'vy' | null;
   wish?: string | null;
   takeaway?: string | null;
+  /*
+    Поля карточки канала на одну адаптацию (`97dq.48`, вариант A). Значат
+    ровно то же, что в карточке, — строки берутся из тех же таблиц ниже, —
+    но помечены «только для этого поста» и стоят над заметкой владельца.
+    `lengthPolicy` главнее `length`.
+  */
+  lengthPolicy?: Exclude<ChannelWritingProfileV1['lengthPolicy'], 'provider_max'> | null;
+  emojiLevel?: ChannelWritingProfileV1['emojiLevel'] | null;
+  linkPolicy?: ChannelWritingProfileV1['linkPolicy'] | null;
+  hashtagPolicy?: ChannelWritingProfileV1['hashtagPolicy'] | null;
+  ctaKind?: ChannelWritingProfileV1['ctaKind'] | null;
 };
 
 /** Во сколько раз «Короче» и «Длиннее» меняют диапазон канала. */
@@ -87,34 +98,6 @@ export const POST_LENGTH_SCALE = { shorter: 0.6, longer: 1.5 } as const;
 
 /** Предел строки «Пожелание» и ответа «что унести» в промпте. */
 export const POST_WISH_LIMIT = 500;
-
-/**
- * Обращение к читателю: этот пост → карточка канала → аватар → ничего.
- *
- * `avatar` на любом из двух верхних слоёв значит «как в аватаре»: пост,
- * выбравший его, отменяет карточку канала на этот раз. `null` — никто не
- * решал, и строки об обращении в промпте нет, ровно как до волны.
- */
-export const resolveAddressForm = (
-  post: ChannelPostOverrides['addressForm'] | undefined,
-  channel: ChannelWritingProfileV1['addressForm'] | undefined,
-  avatar: 'ty' | 'vy' | null | undefined
-): 'ty' | 'vy' | null => {
-  if (post === 'ty' || post === 'vy') return post;
-  if (post !== 'avatar' && (channel === 'ty' || channel === 'vy')) return channel;
-  return avatar === 'ty' || avatar === 'vy' ? avatar : null;
-};
-
-/**
- * Единственная формулировка обращения (`97dq.38`, владелец: «для этого поста
- * не на ты, а на вы»). Английская, как весь промпт; само слово — русское,
- * потому что различие живёт в русском, а для языков без него сказано, какой
- * регистр ему соответствует.
- */
-export const addressFormLine = (form: 'ty' | 'vy'): string =>
-  form === 'vy'
-    ? 'Address the reader with the formal «вы» throughout the post, including any question or call to action — never «ты». In a language without this distinction, keep the matching polite register.'
-    : 'Address the reader with the informal «ты» throughout the post, including any question or call to action — never «вы». In a language without this distinction, keep the matching casual register.';
 
 /**
  * Диапазон канала под «Короче» / «Длиннее» — ×0,6 и ×1,5, не выше того,
@@ -274,6 +257,16 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
 export const NOTES_PRIORITY_LINE =
   "Where the owner's words above conflict with this channel's defaults for length, emoji, call to action or shape, follow the owner's words. They never lift the rules about facts, copying or the author's voice.";
 
+/**
+ * Настройки «Для этого поста» — выбор того же человека на один пост.
+ *
+ * Строка ставится, только когда пост что-то перекрыл: без неё заметка
+ * владельца («следуй моим словам, а не умолчаниям канала») спорила бы с
+ * разовым выбором на равных, а он — более частное и более позднее слово.
+ */
+export const POST_CHOICES_PRIORITY_LINE =
+  "The settings marked «for this post only» outrank this channel's defaults and the owner's note above. They never lift the rules about facts, copying or the author's voice.";
+
 /** Пожелание к посту — самое частное слово того же человека, с той же оградой. */
 export const POST_WISH_PRIORITY_LINE =
   "This wish is for this post only and outranks this channel's defaults and the owner's note above. It never lifts the rules about facts, copying or the author's voice.";
@@ -317,9 +310,31 @@ export function channelInstructionLines(
   options: ChannelDirectiveOptions = {}
 ): string[] {
   const lines: string[] = [];
-  const resolved =
+  const channel =
     profile ??
     defaultWritingProfileFor(provider.identifier, provider.contentLanguage);
+  /*
+    «Для этого поста» (`97dq.48`) перекрывает карточку поле за полем, а не
+    встаёт рядом: две политики эмодзи сразу модель усредняет в третью. Строку
+    берёт та же таблица, что у карточки, и помечает её разовой.
+  */
+  const post = options.post ?? null;
+  const chose = {
+    length: Boolean(post?.lengthPolicy),
+    emoji: Boolean(post?.emojiLevel),
+    link: Boolean(post?.linkPolicy),
+    hashtag: Boolean(post?.hashtagPolicy),
+    cta: Boolean(post?.ctaKind),
+  };
+  const resolved: ChannelWritingProfileV1 = {
+    ...channel,
+    ...(post?.lengthPolicy ? { lengthPolicy: post.lengthPolicy } : {}),
+    ...(post?.emojiLevel ? { emojiLevel: post.emojiLevel } : {}),
+    ...(post?.linkPolicy ? { linkPolicy: post.linkPolicy } : {}),
+    ...(post?.hashtagPolicy ? { hashtagPolicy: post.hashtagPolicy } : {}),
+    ...(post?.ctaKind ? { ctaKind: post.ctaKind } : {}),
+  };
+  const forPost = (line: string) => `For this post only: ${line}`;
   const isTelegram = provider.identifier === TELEGRAM_PROVIDER_IDENTIFIER;
   const limit = channelHardLimit(provider, options.withPicture);
 
@@ -330,9 +345,27 @@ export function channelInstructionLines(
   );
 
   const length = resolved.lengthPolicy;
-  const postLength = options.post?.length;
+  // Длина карточкой (`97dq.48`) снимает «Короче / Длиннее» старого клиента.
+  const postLength = chose.length ? null : options.post?.length;
   const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
-  if (scaled) {
+  if (chose.length) {
+    if (typeof length === 'object') {
+      const hard = length.hardMax
+        ? `, and never past ${Math.min(limit, length.hardMax)}`
+        : '';
+      lines.push(
+        forPost(
+          `aim for ${Math.min(limit, length.idealMin)} to ${Math.min(limit, length.idealMax)} characters${hard}. This outranks any other length given in this prompt.`
+        )
+      );
+    } else {
+      lines.push(
+        forPost(
+          'choose the length that serves this material; the platform character limit still applies. This outranks any other length given in this prompt.'
+        )
+      );
+    }
+  } else if (scaled) {
     /*
       «Иногда пост побольше, иногда поменьше» (владелец, 22.09.2026): разовая
       длина заменяет диапазон канала, а не встаёт рядом с ним — две длины
@@ -370,27 +403,35 @@ export function channelInstructionLines(
     lines.push(EDITOR_LINE.none);
   }
 
-  if (resolved.emojiLevel !== 'auto') lines.push('For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]);
-  lines.push(LINK_LINE[resolved.linkPolicy]);
+  if (resolved.emojiLevel !== 'auto')
+    lines.push(
+      chose.emoji
+        ? forPost('for emoji, this setting overrides the channel, the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel])
+        : 'For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]
+    );
+  lines.push(
+    chose.link ? forPost(LINK_LINE[resolved.linkPolicy]) : LINK_LINE[resolved.linkPolicy]
+  );
   if (options.keepLinks?.length) {
     lines.push(
       'The person asked to keep these links, and this overrides the link rule above: every one of them appears in the post exactly as written, character for character, once, where it belongs by meaning — none may be dropped, shortened or merged: ' +
         options.keepLinks.map((link) => `<${link}>`).join(', ')
     );
   }
-  lines.push(HASHTAG_LINE[resolved.hashtagPolicy]);
-  if (resolved.ctaKind !== 'auto') lines.push(CTA_LINE[resolved.ctaKind]);
-  lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
-
-  const address = resolveAddressForm(
-    options.post?.addressForm,
-    resolved.addressForm,
-    options.avatarAddressForm
+  lines.push(
+    chose.hashtag
+      ? forPost(HASHTAG_LINE[resolved.hashtagPolicy])
+      : HASHTAG_LINE[resolved.hashtagPolicy]
   );
-  if (address) lines.push(addressFormLine(address));
+  if (resolved.ctaKind !== 'auto')
+    lines.push(
+      chose.cta ? forPost(CTA_LINE[resolved.ctaKind]) : CTA_LINE[resolved.ctaKind]
+    );
+  lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
   const notes = notesLine(resolved.notes);
   if (notes) lines.push(notes, NOTES_PRIORITY_LINE);
+  if (Object.values(chose).some(Boolean)) lines.push(POST_CHOICES_PRIORITY_LINE);
 
   const takeaway = fenced(options.post?.takeaway, POST_WISH_LIMIT);
   if (takeaway)

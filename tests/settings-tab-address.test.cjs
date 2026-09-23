@@ -192,6 +192,11 @@ const settings = loadTypeScriptModule(
       Input: ({ label, error: _error, ...props }) =>
         h('label', null, label, h('input', props)),
     },
+    // The profile has its own file since 97dq.51. Here it is a panel by name,
+    // like the other tabs: this suite is about the address bar.
+    '@contentfactory/frontend/components/settings/profile.component': {
+      ProfileSettings: Panel('profile'),
+    },
     '@contentfactory/frontend/components/settings/sign-in-methods.component': {
       initialSettingsTab: (params) =>
         params.has('code') || params.has('identity_confirmation')

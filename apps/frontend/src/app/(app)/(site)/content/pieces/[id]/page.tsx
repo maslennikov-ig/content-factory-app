@@ -11,7 +11,8 @@ import { PieceContainer } from '@contentfactory/frontend/components/content-inte
  * аватар. Вкладка — тоже в адресе (`?tab=core|<integrationId>`, `97dq.37`):
  * клетка таблицы заготовок и пост календаря ведут прямо во вкладку канала.
  * Старый `?adapt=<площадка>` по-прежнему открывает вкладку первого канала
- * площадки.
+ * площадки. `?when=<ISO>` приходит из окна «Что публикуем» календаря и ставит
+ * «Когда» черновика этой вкладки на выбранный слот (`97dq.50`).
  *
  * Страница ничего не спрашивает сама: `PieceContainer` читает дверь заготовки
  * и ведёт стрим адаптации.
@@ -31,11 +32,13 @@ export default async function Page({
     Array.isArray(value) ? value[0] : value;
   const asked = first(query.adapt);
   const tab = first(query.tab);
+  const when = first(query.when);
   return (
     <PieceContainer
       pieceId={id}
       {...(typeof tab === 'string' && tab ? { initialTab: tab } : {})}
       {...(typeof asked === 'string' && asked ? { adaptPlatform: asked } : {})}
+      {...(typeof when === 'string' && when ? { initialWhen: when } : {})}
     />
   );
 }

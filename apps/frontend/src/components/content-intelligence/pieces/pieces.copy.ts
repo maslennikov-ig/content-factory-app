@@ -188,8 +188,13 @@ export const piecesCopy = {
     /* --- Тело адаптации ----------------------------------------------------- */
     // `content-factory-next-97dq.4`: тело хранится с `**жирным**`, и до этой
     // волны человек читал свой будущий пост со звёздочками посреди фразы.
-    showMarkup: 'Показать разметку',
-    hideMarkup: 'Скрыть разметку',
+    // `97dq.46`, одиннадцатый заход: «Показать разметку» ушла — правят текст
+    // в режиме «Редактировать», жирное видно жирным и там.
+    editText: 'Редактировать',
+    editDone: 'Готово',
+    editOpening: 'Открываем редактор…',
+    editLockedQueued:
+      'Пост стоит в расписании. Чтобы править текст, снимите его с расписания.',
 
     /* --- Опоры текста ------------------------------------------------------- */
     textSourcesHintLabel: 'Подсказка: опоры текста',
@@ -241,7 +246,13 @@ export const piecesCopy = {
     adaptingFor: (channel: string) => `Адаптируем для «${channel}»…`,
     interviewTakeawayLead:
       'Один вопрос перед текстом — ответ пойдёт в текст по смыслу. Не хотите отвечать — «Решите всё за меня».',
+    interviewAdaptLead: (count: number) =>
+      count === 1
+        ? 'Вопрос под этот канал — ответ пойдёт в текст по смыслу. Не хотите отвечать — «Решите всё за меня».'
+        : 'Вопросы под этот канал — ответы пойдут в текст по смыслу. Не хотите отвечать — «Решите всё за меня».',
     previewTitle: (platform: string) => `Как увидят в ${platform}`,
+    previewSwitch: 'Текст или как увидят',
+    previewText: 'Текст',
     toolbarLabel: 'Оформление текста',
     toolBold: 'Жирный',
     toolBoldGlyph: 'Ж',
@@ -265,18 +276,15 @@ export const piecesCopy = {
     imageRemove: 'Убрать картинку',
     imageAlt: 'Картинка к посту',
     postOptionsTitle: 'Для этого поста',
-    postOptionsLead: 'разово; канал и аватар не меняются',
-    postOptionsChange: 'Изменить',
+    postOptionsChanges: (count: number) =>
+      `${count} ${plural(count, ['изменение', 'изменения', 'изменений'])}`,
+    postOptionsReset: 'Сбросить',
+    asInChannel: (value: string | null) =>
+      value ? `как в канале · ${value}` : 'как в канале',
     whoSpeaks: 'Кто говорит',
     speakerChannel: 'Как в канале',
-    lengthLabel: 'Длина',
-    lengthShorter: 'Короче',
-    lengthChannel: 'Как в канале',
-    lengthLonger: 'Длиннее',
-    addressLabel: 'Обращение',
-    addressAvatar: 'Как в аватаре',
-    addressTy: 'на «ты»',
-    addressVy: 'на «вы»',
+    lengthShorter: 'короче',
+    lengthLonger: 'длиннее',
     wishLabel: 'Пожелание',
     wishPlaceholder: 'Например: начни с вопроса',
     rewriteWithThis: 'Переписать с этим',
@@ -504,8 +512,11 @@ export const piecesCopy = {
     clarifyDone: 'The substance is rewritten with your words.',
     clarifyFailed: 'The answer was not saved. Try again.',
 
-    showMarkup: 'Show markup',
-    hideMarkup: 'Hide markup',
+    editText: 'Edit',
+    editDone: 'Done',
+    editOpening: 'Opening the editor…',
+    editLockedQueued:
+      'The post is scheduled. To edit the text, take it off the schedule.',
 
     textSourcesHintLabel: 'Hint: text sources',
     textSourcesHint:
@@ -555,7 +566,13 @@ export const piecesCopy = {
     adaptingFor: (channel: string) => `Adapting for “${channel}”…`,
     interviewTakeawayLead:
       'One question before the text — the answer goes into it by meaning. Rather not answer? “You decide everything”.',
+    interviewAdaptLead: (count: number) =>
+      count === 1
+        ? 'A question for this channel — the answer goes into the text by meaning. Rather not answer? “You decide everything”.'
+        : 'Questions for this channel — the answers go into the text by meaning. Rather not answer? “You decide everything”.',
     previewTitle: (platform: string) => `How it looks in ${platform}`,
+    previewSwitch: 'Text or how it looks',
+    previewText: 'Text',
     toolbarLabel: 'Text formatting',
     toolBold: 'Bold',
     toolBoldGlyph: 'B',
@@ -578,18 +595,15 @@ export const piecesCopy = {
     imageRemove: 'Remove the image',
     imageAlt: 'Post image',
     postOptionsTitle: 'For this post',
-    postOptionsLead: 'one-off; the channel and the avatar stay as they are',
-    postOptionsChange: 'Change',
+    postOptionsChanges: (count: number) =>
+      `${count} ${count === 1 ? 'change' : 'changes'}`,
+    postOptionsReset: 'Reset',
+    asInChannel: (value: string | null) =>
+      value ? `as in the channel · ${value}` : 'as in the channel',
     whoSpeaks: 'Who speaks',
     speakerChannel: 'As in the channel',
-    lengthLabel: 'Length',
-    lengthShorter: 'Shorter',
-    lengthChannel: 'As in the channel',
-    lengthLonger: 'Longer',
-    addressLabel: 'Addressing',
-    addressAvatar: 'As in the avatar',
-    addressTy: 'informal',
-    addressVy: 'formal',
+    lengthShorter: 'shorter',
+    lengthLonger: 'longer',
     wishLabel: 'Wish',
     wishPlaceholder: 'For example: start with a question',
     rewriteWithThis: 'Rewrite with this',

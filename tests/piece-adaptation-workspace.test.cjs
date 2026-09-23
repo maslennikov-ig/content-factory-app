@@ -10,8 +10,8 @@
  *  - **кто говорит**: аватар поста → явный выбор запроса → аватар канала →
  *    как было; чужой аватар на этот пост — отказ, пропавший аватар канала —
  *    тихий откат к умолчанию;
- *  - **обращение** решается в одном месте (строки канала) и одной фразой:
- *    пост → карточка → аватар → ничего; длина поста масштабирует диапазон
+ *  - **обращения** в промпте нет с `97dq.45`, откуда бы оно ни пришло:
+ *    пост, карточка или аватар; длина поста масштабирует диапазон
  *    канала и не выходит за площадку; пожелание и «что унести» доезжают
  *    словами человека за оградой;
  *  - **правка** — только черновик, одной записью тела и поста, метки цитат
@@ -65,25 +65,11 @@ const TELEGRAM = {
 };
 
 /* -------------------------------------------------------------------------
- * Строки канала: обращение, длина, пожелание, «что унести»
+ * Строки канала: без обращения, длина, пожелание, «что унести»
  * ---------------------------------------------------------------------- */
 
-describe('обращение решается в одном месте и говорится одной фразой', () => {
-  test.each([
-    // [пост, канал, аватар, итог]
-    ['vy', 'ty', 'ty', 'vy'],
-    ['ty', undefined, 'vy', 'ty'],
-    ['avatar', 'ty', 'vy', 'vy'],
-    ['avatar', 'ty', null, null],
-    [undefined, 'ty', 'vy', 'ty'],
-    [undefined, 'avatar', 'vy', 'vy'],
-    [undefined, undefined, 'ty', 'ty'],
-    [undefined, undefined, null, null],
-  ])('пост %s, канал %s, аватар %s → %s', (post, channel, avatar, expected) => {
-    expect(directives.resolveAddressForm(post, channel, avatar)).toBe(expected);
-  });
-
-  test('строка обращения появляется ровно один раз и именно та', () => {
+describe('обращения («на ты / на вы») в промпте нет (97dq.45)', () => {
+  test('ни пост, ни карточка канала, ни аватар строки обращения не дают', () => {
     const profile = {
       ...profiles.defaultWritingProfileFor('telegram', 'ru'),
       addressForm: 'ty',
@@ -92,17 +78,12 @@ describe('обращение решается в одном месте и гов
       post: { addressForm: 'vy' },
       avatarAddressForm: 'ty',
     });
-    const address = lines.filter((line) => line.includes('Address the reader'));
-    expect(address).toEqual([directives.addressFormLine('vy')]);
-    expect(address[0]).toContain('«вы»');
-  });
-
-  test('когда никто не решал, строки обращения нет — как до волны', () => {
-    const before = directives.channelInstructionLines(
-      profiles.defaultWritingProfileFor('telegram', 'ru'),
-      TELEGRAM
-    );
-    expect(before.join('\n')).not.toContain('Address the reader');
+    const text = lines.join('\n');
+    expect(text).not.toContain('Address the reader');
+    expect(text).not.toContain('«вы»');
+    expect(text).not.toContain('«ты»');
+    expect(directives).not.toHaveProperty('resolveAddressForm');
+    expect(directives).not.toHaveProperty('addressFormLine');
   });
 });
 
@@ -138,6 +119,62 @@ describe('«Короче» и «Длиннее» масштабируют диа
     );
     expect(lines.join('\n')).toContain('noticeably shorter');
     expect(directives.scaledLengthRange('provider_max', 'shorter', 4096)).toBeNull();
+  });
+});
+
+describe('поля карточки канала на один пост (97dq.48)', () => {
+  const telegram = profiles.defaultWritingProfileFor('telegram', 'ru');
+
+  test('каждое поле заменяет строку канала той же строкой, помеченной разовой', () => {
+    const lines = directives.channelInstructionLines(telegram, TELEGRAM, {
+      post: {
+        lengthPolicy: { idealMin: 200, idealMax: 500, hardMax: 500 },
+        emojiLevel: 'none',
+        linkPolicy: 'none',
+        hashtagPolicy: 'end_1_3',
+        ctaKind: 'reply',
+        // Старый клиент: длина карточкой главнее «Короче».
+        length: 'longer',
+      },
+    });
+    const text = lines.join('\n');
+    expect(lines).toContain(
+      'For this post only: aim for 200 to 500 characters, and never past 500. This outranks any other length given in this prompt.'
+    );
+    expect(text).not.toContain('Readers of this channel expect');
+    expect(text).not.toContain('For this post the author asked');
+    expect(text).toContain('For this post only: for emoji, this setting overrides the channel, the voice and neutral core: No emoji.');
+    expect(text).not.toContain('Use one to three emoji');
+    expect(lines).toContain('For this post only: No links in the post.');
+    expect(text).not.toContain('At most one link');
+    expect(lines).toContain('For this post only: One to three hashtags, all of them at the very end.');
+    expect(lines).not.toContain('No hashtags.');
+    expect(lines).toContain('For this post only: End by asking the reader to reply, once.');
+    expect(text).not.toContain('End with exactly one open question');
+    expect(lines).toContain(directives.POST_CHOICES_PRIORITY_LINE);
+  });
+
+  test('«решает модель» снимает строку канала, а без разовых полей приоритета нет', () => {
+    const chosen = directives.channelInstructionLines(telegram, TELEGRAM, {
+      post: { lengthPolicy: 'auto', emojiLevel: 'auto', ctaKind: 'auto' },
+    });
+    const text = chosen.join('\n');
+    expect(text).toContain('For this post only: choose the length that serves this material');
+    expect(text).not.toContain('Readers of this channel expect');
+    expect(text).not.toContain('For emoji');
+    expect(text).not.toContain('End with exactly one open question');
+    const plain = directives.channelInstructionLines(telegram, TELEGRAM, {
+      post: { wish: 'начни с вопроса' },
+    });
+    expect(plain).not.toContain(directives.POST_CHOICES_PRIORITY_LINE);
+  });
+
+  test('разовая длина не выше того, что примет площадка', () => {
+    const lines = directives.channelInstructionLines(telegram, TELEGRAM, {
+      withPicture: true,
+      post: { lengthPolicy: { idealMin: 1200, idealMax: 2500, hardMax: 2500 } },
+    });
+    expect(lines.join('\n')).toContain('aim for 1024 to 1024 characters, and never past 1024');
   });
 });
 
@@ -525,6 +562,7 @@ describe('кто говорит: пост → запрос → канал → к
         overrides: {
           brandProfileId: 'avatar-1',
           length: 'shorter',
+          // Старый клиент ещё может прислать обращение; дальше оно не едет.
           addressForm: 'vy',
           wish: '  Без эмодзи  ',
           takeaway: 'Срок держится вдвоём',
@@ -537,10 +575,59 @@ describe('кто говорит: пост → запрос → канал → к
     expect(body.brandProfileSelection).toEqual({ mode: 'version', versionId: 'version-1' });
     expect(body.intake.post).toEqual({
       length: 'shorter',
-      addressForm: 'vy',
       wish: 'Без эмодзи',
       takeaway: 'Срок держится вдвоём',
     });
+  });
+
+  test('поля карточки на этот пост едут разобранными, как длина карточки (97dq.48)', async () => {
+    const { service, calls } = build();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-1',
+      {
+        integrationId: 'int-tg',
+        skipInterview: true,
+        overrides: {
+          length: 'shorter',
+          lengthPolicy: 'range',
+          lengthRange: { idealMin: 200, idealMax: 500, hardMax: 500 },
+          emojiLevel: 'none',
+          linkPolicy: 'inline',
+          hashtagPolicy: 'free',
+          ctaKind: 'subscribe',
+        },
+      },
+      'ru'
+    );
+    for await (const event of service.adapt('org-a', plan)) void event;
+    expect(calls.start[0][1].intake.post).toEqual({
+      lengthPolicy: { idealMin: 200, idealMax: 500, hardMax: 500 },
+      emojiLevel: 'none',
+      linkPolicy: 'inline',
+      hashtagPolicy: 'free',
+      ctaKind: 'subscribe',
+    });
+  });
+
+  test('перевёрнутый диапазон не едет, и остаётся «Короче» старого клиента', async () => {
+    const { service, calls } = build();
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-1',
+      {
+        integrationId: 'int-tg',
+        skipInterview: true,
+        overrides: {
+          length: 'shorter',
+          lengthPolicy: 'range',
+          lengthRange: { idealMin: 900, idealMax: 500 },
+        },
+      },
+      'ru'
+    );
+    for await (const event of service.adapt('org-a', plan)) void event;
+    expect(calls.start[0][1].intake.post).toEqual({ length: 'shorter' });
   });
 
   test('«как в канале» и пустые строки не едут вовсе', async () => {

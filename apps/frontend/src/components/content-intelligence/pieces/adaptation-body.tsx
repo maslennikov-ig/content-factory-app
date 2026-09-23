@@ -1,51 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useId } from 'react';
 import { Button } from '@contentfactory/react/form/button';
-import { formatStoredMarkup, hasStoredMarkup } from './adaptation-markup';
+import { formatStoredMarkup } from './adaptation-markup';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 
 /**
- * Тело адаптации, каким оно уйдёт в канал.
+ * Тело адаптации, каким оно уйдёт в канал, — там, где править его нельзя.
  *
- * По умолчанию показан текст, а не хранимая запись: `**жирный**` читается
- * жирным. Переключатель «Показать разметку» возвращает исходные знаки — он
- * нужен тому, кто правит текст руками и должен видеть, где стоит выделение.
+ * Текст показан так, как его прочтут: `**жирный**` читается жирным. До
+ * `97dq.46` рядом стоял переключатель «Показать разметку», и владелец на
+ * одиннадцатом заходе назвал его нелогичным: смотреть на звёздочки незачем,
+ * править текст можно в «Редактировать» у черновика.
  *
- * Переключателя нет там, где нечего переключать: в тексте без единого
- * выделения обе стороны одинаковы, и кнопка обещала бы разницу, которой нет.
- *
- * Состояние местное и живёт на одну строку адаптаций: соседние адаптации
- * читаются независимо, и общий переключатель менял бы текст, на который
- * человек в этот момент не смотрит.
+ * Если правка закрыта обратимо — пост стоит в расписании, — на месте
+ * «Редактировать» стоит та же кнопка выключенной и строка, почему и как её
+ * открыть. Без причины кнопки нет: у опубликованного поста и у того, кто
+ * только смотрит, открывать нечего.
  */
 export function AdaptationBody({
   locale,
   text,
   draftId,
+  lockedReason,
 }: {
   locale: PiecesLocale;
   text: string;
   /** Идёт ли текст стримом прямо сейчас — этим помечен черновик на странице. */
   draftId?: string;
+  /** Почему «Редактировать» сейчас закрыто; без неё кнопки нет вовсе. */
+  lockedReason?: string | null;
 }) {
   const t = piecesCopy[locale];
-  const [raw, setRaw] = useState(false);
-  const markup = hasStoredMarkup(text);
+  const reasonId = useId();
 
   return (
     <div className="flex min-w-0 flex-col gap-[8px]">
-      {markup ? (
-        <div className="flex min-w-0 justify-end">
+      {lockedReason ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-[12px] gap-y-[4px]">
+          <span id={reasonId} className="cf-caption text-cf-ink-muted">
+            {lockedReason}
+          </span>
           <Button
             type="button"
             variant="quiet"
             density="dense"
-            aria-pressed={raw}
-            data-adaptation-markup={raw ? 'raw' : 'formatted'}
-            onClick={() => setRaw((shown) => !shown)}
+            disabled
+            aria-describedby={reasonId}
+            data-adaptation-edit="locked"
           >
-            {raw ? t.hideMarkup : t.showMarkup}
+            {t.editText}
           </Button>
         </div>
       ) : null}
@@ -54,7 +58,7 @@ export function AdaptationBody({
         data-piece-draft-id={draftId}
         className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink [overflow-wrap:anywhere]"
       >
-        {raw ? text : formatStoredMarkup(text)}
+        {formatStoredMarkup(text)}
       </article>
     </div>
   );

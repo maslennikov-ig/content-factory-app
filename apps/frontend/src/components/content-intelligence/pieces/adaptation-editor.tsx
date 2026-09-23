@@ -1,38 +1,37 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import clsx from 'clsx';
+import type { Editor } from '@tiptap/react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
-import { Textarea } from '@contentfactory/react/form/textarea';
 import {
   CloseIcon,
   InsertMediaIcon,
 } from '@contentfactory/frontend/components/ui/icons';
 import { formatStoredMarkup } from './adaptation-markup';
+import { AdaptationRichText } from './adaptation-rich-text';
 import {
-  insertText,
   readLinkAddress,
-  toggleBold,
   visibleLength,
   type AdaptationImageV1,
-  type TextEdit,
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 
 /**
- * Текст адаптации, который правят руками (`97dq.37`, §3.2).
- *
- * Хранится текст с одним знаком выделения — `**жирный**`, — и правится он
- * же: панель «Ж / ссылка / картинка» пишет в ту же разметку, которую сервер
- * превращает в `<strong>` перед публикацией. Своего редактора с HTML здесь
- * нет намеренно: второе представление текста разошлось бы с тем, что уйдёт в
- * канал.
+ * Текст адаптации, который правят руками (`97dq.37`, §3.2; `97dq.46`).
  *
  * По умолчанию текст показан так, как его прочтут, — жирным, без звёздочек.
- * «Показать разметку» открывает поле правки с исходными знаками; «Ж» и
- * «ссылка», нажатые на показанном тексте, сами открывают поле, потому что
- * выделять им больше нечего.
+ * «Редактировать» открывает поле TipTap на том же месте и с тем же видом:
+ * жирное остаётся жирным, адрес — ссылкой. «Готово» возвращает показ.
+ * До 23.09.2026 здесь была «Показать разметку» — поле с сырыми `**`, и
+ * владелец на одиннадцатом заходе назвал её нелогичной: править хотят текст,
+ * а не разметку.
+ *
+ * Хранится по-прежнему текст с одним знаком выделения — `**жирный**`: его
+ * читает сервер, превращая в `<strong>` перед публикацией, и черновик поста.
+ * Поле говорит наружу только этой формой (`adaptation-rich-text.doc.ts`),
+ * поэтому автосохранение, счётчик и строка качества не заметили замены.
  *
  * Счётчик считает то, что увидит читатель, — звёздочки выделения в него не
  * входят — и сравнивает с пределом площадки. Превышение сказано словами и
@@ -65,49 +64,27 @@ export function AdaptationEditor({
   draftId?: string;
 }) {
   const t = piecesCopy[locale];
-  const [raw, setRaw] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
-  const field = useRef<HTMLTextAreaElement | null>(null);
-  const selection = useRef<{ start: number; end: number }>({
-    start: value.length,
-    end: value.length,
-  });
+  const onEditor = useCallback((next: Editor | null) => setEditor(next), []);
 
   const count = visibleLength(value);
   const over = maxLength !== null && maxLength > 0 && count > maxLength;
+  const inEdit = editing && !readOnly;
+  const ready = inEdit && editor !== null;
 
-  const remember = () => {
-    const node = field.current;
-    if (node)
-      selection.current = {
-        start: node.selectionStart ?? value.length,
-        end: node.selectionEnd ?? value.length,
-      };
+  const closeLink = () => {
+    setLinkOpen(false);
+    setLinkError(false);
   };
 
-  const apply = (edit: TextEdit) => {
-    onChange(edit.text);
-    selection.current = { start: edit.start, end: edit.end };
-    window.setTimeout(() => {
-      const node = field.current;
-      if (!node) return;
-      node.focus();
-      node.setSelectionRange(edit.start, edit.end);
-    });
-  };
-
-  const bold = () => {
-    if (!raw) {
-      // На показанном тексте выделять нечего: открываем поле, и следующее
-      // нажатие «Ж» обернёт то, что человек выделит в нём.
-      setRaw(true);
-      window.setTimeout(() => field.current?.focus());
-      return;
-    }
-    remember();
-    apply(toggleBold(value, selection.current.start, selection.current.end));
+  const leave = () => {
+    closeLink();
+    setLink('');
+    setEditing(false);
   };
 
   const insertLink = () => {
@@ -116,19 +93,48 @@ export function AdaptationEditor({
       setLinkError(true);
       return;
     }
-    apply(
-      insertText(value, selection.current.start, selection.current.end, address)
-    );
+    if (editor) {
+      // Тело хранит ссылку адресом, поэтому выделенные слова остаются собой, а
+      // адрес встаёт после них — как вставлялся и в прежнее поле.
+      const { to } = editor.state.selection;
+      const doc = editor.state.doc;
+      const before = doc.textBetween(Math.max(0, to - 1), to, '\n', '\n');
+      const after = doc.textBetween(
+        to,
+        Math.min(doc.content.size, to + 1),
+        '\n',
+        '\n'
+      );
+      const pad = before && !/\s/u.test(before) ? ' ' : '';
+      const tail = after && !/\s/u.test(after) ? ' ' : '';
+      const nodes = [
+        ...(pad ? [{ type: 'text', text: pad }] : []),
+        {
+          type: 'text',
+          text: address,
+          marks: [{ type: 'link', attrs: { href: address } }],
+        },
+        ...(tail ? [{ type: 'text', text: tail }] : []),
+      ];
+      editor
+        .chain()
+        .focus()
+        .setTextSelection(to)
+        .insertContent(nodes)
+        .unsetMark('link')
+        .run();
+    }
     setLink('');
-    setLinkError(false);
-    setLinkOpen(false);
+    closeLink();
   };
 
   const tool = 'min-w-[32px]';
+  const boldActive = ready && editor.isActive('bold');
 
   return (
     <div
       data-adaptation-editor={draftId ?? 'text'}
+      data-adaptation-mode={inEdit ? 'edit' : 'read'}
       className="flex min-w-0 flex-col rounded-[8px] border border-cf-border bg-cf-surface"
     >
       {!readOnly ? (
@@ -137,39 +143,42 @@ export function AdaptationEditor({
           aria-label={t.toolbarLabel}
           className="flex min-w-0 flex-wrap items-center gap-[4px] border-b border-cf-border px-[8px] py-[4px]"
         >
-          <Button
-            type="button"
-            variant="quiet"
-            density="dense"
-            className={tool}
-            aria-label={t.toolBold}
-            title={t.toolBold}
-            data-editor-tool="bold"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={bold}
-          >
-            <span aria-hidden="true" className="cf-label-md">
-              {t.toolBoldGlyph}
-            </span>
-          </Button>
-          <Button
-            type="button"
-            variant="quiet"
-            density="dense"
-            className={tool}
-            aria-label={t.toolLink}
-            title={t.toolLink}
-            aria-expanded={linkOpen}
-            data-editor-tool="link"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              remember();
-              if (!raw) setRaw(true);
-              setLinkOpen((open) => !open);
-            }}
-          >
-            <LinkGlyph />
-          </Button>
+          {inEdit ? (
+            <>
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                className={tool}
+                aria-label={t.toolBold}
+                title={t.toolBold}
+                aria-pressed={boldActive}
+                disabled={!ready}
+                data-editor-tool="bold"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+              >
+                <span aria-hidden="true" className="cf-label-md">
+                  {t.toolBoldGlyph}
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant="quiet"
+                density="dense"
+                className={tool}
+                aria-label={t.toolLink}
+                title={t.toolLink}
+                aria-expanded={linkOpen}
+                disabled={!ready}
+                data-editor-tool="link"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setLinkOpen((open) => !open)}
+              >
+                <LinkGlyph />
+              </Button>
+            </>
+          ) : null}
           {onPickImage ? (
             <Button
               type="button"
@@ -196,18 +205,17 @@ export function AdaptationEditor({
           </span>
           <Button
             type="button"
-            variant="quiet"
+            variant={inEdit ? 'secondary' : 'quiet'}
             density="dense"
-            aria-pressed={raw}
-            data-adaptation-markup={raw ? 'raw' : 'formatted'}
-            onClick={() => setRaw((shown) => !shown)}
+            data-adaptation-edit={inEdit ? 'done' : 'edit'}
+            onClick={() => (inEdit ? leave() : setEditing(true))}
           >
-            {raw ? t.hideMarkup : t.showMarkup}
+            {inEdit ? t.editDone : t.editText}
           </Button>
         </div>
       ) : null}
 
-      {linkOpen && !readOnly ? (
+      {linkOpen && inEdit ? (
         <div className="flex min-w-0 flex-wrap items-end gap-[8px] border-b border-cf-border px-[12px] py-[8px]">
           <Input
             standalone
@@ -226,6 +234,11 @@ export function AdaptationEditor({
                 event.preventDefault();
                 insertLink();
               }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                closeLink();
+                editor?.commands.focus();
+              }
             }}
           />
           <div className="flex gap-[8px] pb-[4px]">
@@ -242,10 +255,7 @@ export function AdaptationEditor({
               type="button"
               variant="quiet"
               density="dense"
-              onClick={() => {
-                setLinkOpen(false);
-                setLinkError(false);
-              }}
+              onClick={closeLink}
             >
               {t.cancel}
             </Button>
@@ -254,21 +264,26 @@ export function AdaptationEditor({
       ) : null}
 
       <div className="flex min-w-0 flex-col gap-[12px] p-[16px]">
-        {raw && !readOnly ? (
-          <Textarea
-            ref={field}
-            standalone
-            layout="composer"
-            aria-label={t.editorLabel(platformLabel)}
-            value={value}
-            data-editor-field="true"
-            fieldClassName="w-full"
-            className="w-full cf-body-md [overflow-wrap:anywhere]"
-            onChange={(event) => onChange(event.target.value)}
-            onSelect={remember}
-            onKeyUp={remember}
-            onClick={remember}
-          />
+        {inEdit ? (
+          <div data-piece-draft-id={draftId} className="min-w-0">
+            {!ready ? (
+              <p
+                role="status"
+                aria-busy="true"
+                className="max-w-[72ch] whitespace-pre-wrap cf-body-lg text-cf-ink-muted [overflow-wrap:anywhere]"
+              >
+                <span className="sr-only">{t.editOpening}</span>
+                {formatStoredMarkup(value)}
+              </p>
+            ) : null}
+            <AdaptationRichText
+              value={value}
+              onChange={onChange}
+              ariaLabel={t.editorLabel(platformLabel)}
+              onEditor={onEditor}
+              autoFocus
+            />
+          </div>
         ) : (
           <article
             data-intake-draft="true"

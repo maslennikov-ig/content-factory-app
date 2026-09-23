@@ -26,7 +26,8 @@ const {
  */
 
 const mediaComponentPath = 'apps/frontend/src/components/media/media.component.tsx';
-const settingsPath = 'apps/frontend/src/components/layout/settings.component.tsx';
+// The profile form left `settings.component.tsx` for its own file on 23.09.2026 (97dq.51).
+const settingsPath = 'apps/frontend/src/components/settings/profile.component.tsx';
 const botPicturePath = 'apps/frontend/src/components/launches/bot.picture.tsx';
 const layoutPath = 'apps/frontend/src/components/new-layout/layout.component.tsx';
 

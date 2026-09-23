@@ -156,11 +156,12 @@ test('the existing piece dialog uses the shared segmented fields', async () => {
     )
   );
 
-  // Six policy rows plus «Обращение» (97dq.38). «Кто говорит здесь» is not
-  // drawn: this workspace has no second avatar to choose.
+  // Six policy rows. «Обращение» left on 23.09.2026 (97dq.45). «Кто говорит
+  // здесь» is not drawn: this workspace has no second avatar to choose.
   await waitFor(() =>
-    expect(screen.getAllByRole('radiogroup')).toHaveLength(7)
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(6)
   );
+  expect(screen.queryByRole('radiogroup', { name: 'Обращение' })).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Кто говорит здесь' })).toBeNull();
   expect(
     screen.getByRole('dialog', { name: 'Как пишем в «Мастерская»' })
@@ -285,7 +286,7 @@ test('the panel is named «Как пишем в «<канал>»», the one name
   expect(screen.queryByText('Настройки канала')).toBeNull();
 });
 
-test('who speaks and the address form are saved with the channel card', async () => {
+test('who speaks is saved with the channel card, and no address form goes with it', async () => {
   serve({
     avatars: [
       { id: 'av-1', name: 'Игорь', isDefault: true, analysed: true },
@@ -302,21 +303,17 @@ test('who speaks and the address form are saved with the channel card', async ()
   ).toEqual(['По умолчанию', 'Игорь', 'Студия']);
   expect(speaker.value).toBe('');
   fireEvent.change(speaker, { target: { value: 'av-2' } });
-  expect(
-    screen.getByRole('radio', { name: 'как в аватаре' }).getAttribute('aria-checked')
-  ).toBe('true');
-  fireEvent.click(screen.getByRole('radio', { name: 'на «вы»' }));
+  expect(screen.queryByRole('radio', { name: 'на «вы»' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
   await waitFor(() =>
     expect(panel().dataset.channelWritingProfileState).toBe('view')
   );
-  expect(calls.find((call) => call.method === 'PUT').body).toMatchObject({
-    brandProfileId: 'av-2',
-    addressForm: 'vy',
-  });
+  const put = calls.find((call) => call.method === 'PUT').body;
+  expect(put).toMatchObject({ brandProfileId: 'av-2' });
+  expect(put).not.toHaveProperty('addressForm');
   expect(screen.getByText('Студия')).not.toBeNull();
-  expect(screen.getByText('на «вы»')).not.toBeNull();
+  expect(screen.queryByText('Обращение')).toBeNull();
 });
 
 test('«По умолчанию» is an explicit null, not a missing field', async () => {

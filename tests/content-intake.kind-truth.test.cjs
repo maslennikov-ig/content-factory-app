@@ -606,8 +606,9 @@ describe('задание: слова человека о посте — не м�
     const { service, calls } = build({
       models: [
         (prompt) => {
-          // Бриф по заданию заполняет промпт v7, и ссылки в нём — адреса, а не источники.
-          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v7');
+          // Бриф по заданию заполняет v9 на правилах задания из v7 (одна строка
+          // версии, `97dq.44`), и ссылки в нём — адреса, а не источники.
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v9');
           expect(prompt).toContain('person’s INSTRUCTION: they describe the post they want written');
           expect(prompt).toContain('Links the person told us to keep (addresses only, not sources):');
           for (const link of RADIO_LINKS) expect(prompt).toContain(`- ${link}`);

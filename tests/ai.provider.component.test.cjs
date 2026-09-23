@@ -129,6 +129,21 @@ const component = loadTypeScriptModule(
     '@contentfactory/frontend/components/ui/icons': {
       CloseIconSmall: () => React.createElement('svg'),
     },
+    // Полоса остатка (`97dq.51`): рисуется, чтобы набор видел, когда она есть.
+    '../ui/progress': {
+      Progress: ({ label, value, valueText }) =>
+        React.createElement('div', {
+          role: 'progressbar',
+          'aria-label': label,
+          'aria-valuenow': value,
+          'aria-valuetext': valueText,
+        }),
+    },
+    // Подписи строк «Глобальных настроек» — настоящий файл слов.
+    '@contentfactory/frontend/components/settings/settings.copy':
+      require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+        'apps/frontend/src/components/settings/settings.copy.ts'
+      ),
     '@contentfactory/react/form/button': {
       Button: ({ children, secondary: _secondary, ...props }) =>
         React.createElement('button', props, children),
@@ -249,6 +264,23 @@ describe('AI provider search settings component', () => {
       expect(markup).toContain('writer@example.com');
       expect(markup).toContain('Scheduled and API work');
       expect(markup).not.toContain('Nothing yet');
+    });
+
+    test('участник назван по имени, почта — только когда имени нет', () => {
+      settings = {
+        ...settings,
+        usageByMember: [
+          { userId: 'u-1', email: 'igor@example.com', name: 'Игорь Масленников', operations: 7 },
+          { userId: 'u-2', email: 'nameless@example.com', name: null, operations: 2 },
+        ],
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('>Игорь Масленников<');
+      expect(markup).not.toContain('>igor@example.com<');
+      expect(markup).toContain('>nameless@example.com<');
     });
 
     test('роли вызова объяснены словами, а не одним заголовком', () => {
@@ -514,6 +546,63 @@ describe('AI provider search settings component', () => {
     const markup = renderToStaticMarkup(React.createElement(component.default));
     expect(markup).toContain('Translated exhausted allowance');
     expect(markup).not.toContain('3 included AI operations are available');
+  });
+
+  /**
+   * `content-factory-next-97dq.51`. Владелец 23.09.2026: «в глобальных
+   * настройках тоже всё очень растянуто». Раздел стал двумя строками —
+   * «ИИ» и «Веб-исследование», — остаток включённого лимита рисуется полосой
+   * рядом с теми же цифрами, а тематика и глубина поиска стоят рядом.
+   */
+  describe('строки «Глобальных настроек»', () => {
+    test('живой лимит — полоса остатка и те же цифры строкой', () => {
+      settings = {
+        ...settings,
+        usageMode: 'included',
+        includedMonthlyOperations: 200,
+        includedRemainingOperations: 150,
+        includedUsedOperations: 50,
+        includedRestrictionReason: null,
+      };
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('data-ai-allowance="true"');
+      expect(markup).toContain('role="progressbar"');
+      expect(markup).toContain('aria-label="Left this period"');
+      expect(markup).toContain('aria-valuenow="75"');
+      expect(markup).toContain('150 / 200 · Billing period');
+    });
+
+    test('без живого лимита полосы нет, строка остаётся', () => {
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+
+      expect(markup).toContain('data-ai-allowance="true"');
+      expect(markup).not.toContain('role="progressbar"');
+      expect(markup).toContain('Translated workspace mode');
+    });
+
+    test('две строки раздела и выборы поиска рядом', () => {
+      const source = fs.readFileSync(
+        path.resolve(
+          __dirname,
+          '..',
+          'apps/frontend/src/components/settings/ai-provider.component.tsx'
+        ),
+        'utf8'
+      );
+      expect(source.match(/<SettingsSection\s+layout="row"/g)).toHaveLength(2);
+
+      const markup = renderToStaticMarkup(
+        React.createElement(component.default)
+      );
+      expect(markup).toContain('data-search-selects="true"');
+      expect(markup).toContain('sm:grid-cols-[repeat(2,240px)]');
+      expect(markup).toContain('sm:grid-cols-2');
+    });
   });
 
   test('does not promise OpenRouter as an automatic search fallback', () => {

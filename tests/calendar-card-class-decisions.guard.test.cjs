@@ -44,9 +44,10 @@ const root = path.resolve(__dirname, '..');
  *   • The sentence was drawn in an absolutely positioned overlay, so it had no
  *     height: the card measured 106px and painted to 127px, over the card
  *     below it.
- *   • The day view's time slots are flex items in a scrolling column with
+ *   • The day view's time slots were flex items in a scrolling column with
  *     `min-h-[60px]`. Free to shrink, they shrank to 60px and the 116px cards
- *     inside them were drawn across each other.
+ *     inside them were drawn across each other. (Since 23.09.2026 the day is
+ *     a grid; the rule moved with it.)
  *
  * Same day, the owner's own four, answered by direction A of the design canvas:
  *
@@ -106,16 +107,20 @@ describe('the classes that keep a card inside its own box', () => {
     }).toEqual({ overlay: false, hint: 'in step' });
   });
 
-  test('the day-view time slot class list declares shrink-0', () => {
+  test('the day-view grid class list declares shrink-0', () => {
     const source = read(CALENDAR);
-    const slot = source.match(/className="min-h-\[60px\]([^"]*)"/);
+    // Since 23.09.2026 (`97dq.50`) the day is a two-column grid — time on the
+    // left, slot on the right — inside the scroller. Grid rows do not shrink;
+    // the grid itself is the one block in the scroller, and it must not
+    // either.
+    const grid = source.match(/className="(grid [^"]*72px[^"]*)"/);
 
     expect({
-      found: Boolean(slot),
-      declares: slot ? slot[1].includes('shrink-0') : false,
-      hint: slot?.[1].includes('shrink-0')
+      found: Boolean(grid),
+      declares: grid ? grid[1].includes('shrink-0') : false,
+      hint: grid?.[1].includes('shrink-0')
         ? 'in step'
-        : `The day-view time slot in ${CALENDAR} needs "shrink-0". It is a flex item in a scrolling column, so without it the slot shrinks to its 60px floor and the taller card inside is drawn across the slot below.`,
+        : `The day-view grid in ${CALENDAR} needs "shrink-0". Free to shrink, a slot drops to its floor and the taller card inside is drawn across the slot below.`,
     }).toEqual({ found: true, declares: true, hint: 'in step' });
   });
 });

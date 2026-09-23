@@ -25,6 +25,7 @@ for (const key of ['window', 'document', 'navigator'])
     value: key === 'window' ? dom.window : dom.window[key],
   });
 global.IS_REACT_ACT_ENVIRONMENT = true;
+require('./helpers/tiptap-jsdom.cjs').prepareTipTap(dom);
 
 const {
   act,
@@ -43,6 +44,9 @@ const { PieceCoreTab } = loadTypeScriptModule(
 );
 const { PieceChannelTab } = loadTypeScriptModule(
   `${base}/pieces/piece-channel-tab.tsx`
+);
+const { PostOptionsPanel } = loadTypeScriptModule(
+  `${base}/pieces/post-options.panel.tsx`
 );
 const adapter = loadTypeScriptModule(`${base}/pieces/pieces.adapter.ts`);
 const variables = loadTypeScriptModule(
@@ -416,21 +420,33 @@ describe('«Суть»', () => {
 });
 
 describe('the channel tab with an adaptation', () => {
-  test('the text reads as it will be published, and the markup is one press away', () => {
+  // `97dq.46`: «Показать разметку» ушла, правят текст в «Редактировать» —
+  // поле TipTap, где жирное остаётся жирным, а наверх уходит хранимая форма.
+  const openEditor = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+  };
+
+  test('the text reads as it will be published, and editing keeps it that way', async () => {
     drawChannel();
     const article = document.querySelector('[data-intake-draft="true"]');
     expect(article.querySelector('strong').textContent).toBe(
       'Я не занимаю сторону'
     );
     expect(article.textContent).not.toContain('**');
-    fireEvent.click(screen.getByRole('button', { name: 'Показать разметку' }));
-    const field = screen.getByRole('textbox', {
-      name: 'Текст поста для Telegram',
-    });
-    expect(field.value).toContain('**Я не занимаю сторону**');
+    expect(screen.queryByRole('button', { name: /разметк/i })).toBeNull();
+    const field = await openEditor();
+    expect(field.getAttribute('contenteditable')).toBe('true');
+    expect(field.querySelector('strong').textContent).toBe(
+      'Я не занимаю сторону'
+    );
+    expect(field.textContent).not.toContain('**');
   });
 
-  test('a hand edit goes up, and the counter counts what the reader sees', () => {
+  test('a hand edit goes up, and the counter counts what the reader sees', async () => {
     const onBodyChange = jest.fn();
     drawChannel({ onBodyChange });
     const counter = document.querySelector('[data-editor-counter]');
@@ -439,25 +455,26 @@ describe('the channel tab with an adaptation', () => {
       'Сейчас спор начинается с вывода.\n\nЯ не занимаю сторону и хочу разобраться.'
         .length;
     expect(counter.textContent).toBe(`${visible} из 4096 знаков`);
-    fireEvent.click(screen.getByRole('button', { name: 'Показать разметку' }));
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'Текст поста для Telegram' }),
-      { target: { value: 'Новый текст' } }
-    );
-    expect(onBodyChange).toHaveBeenCalledWith('Новый текст');
+    const field = await openEditor();
+    await act(async () => {
+      field.editor.commands.setContent('<p>Новый текст</p>');
+    });
+    expect(onBodyChange).toHaveBeenLastCalledWith('Новый текст');
   });
 
-  test('«Ж» wraps the selection in the stored bold marker', () => {
+  test('«Ж» wraps the selection in the stored bold marker', async () => {
     const onBodyChange = jest.fn();
     drawChannel({ onBodyChange, body: 'один два три' });
-    fireEvent.click(screen.getByRole('button', { name: 'Показать разметку' }));
-    const field = screen.getByRole('textbox', {
-      name: 'Текст поста для Telegram',
+    const field = await openEditor();
+    await act(async () => {
+      field.editor.commands.setTextSelection({ from: 6, to: 9 });
     });
-    field.setSelectionRange(5, 8);
-    fireEvent.select(field);
     fireEvent.click(screen.getByRole('button', { name: 'Жирный' }));
-    expect(onBodyChange).toHaveBeenCalledWith('один **два** три');
+    expect(onBodyChange).toHaveBeenLastCalledWith('один **два** три');
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
+    expect(
+      screen.queryByRole('textbox', { name: 'Текст поста для Telegram' })
+    ).toBeNull();
   });
 
   test('versions are a segmented choice, newest selected', () => {
@@ -485,21 +502,35 @@ describe('the channel tab with an adaptation', () => {
     ).toBe('Штампов по каталогу: было 2 → стало 0');
   });
 
-  test('«Для этого поста» is a summary until changed, and hides the avatar with one avatar', () => {
+  test('«Для этого поста» is always open, with the channel card fields, and hides the avatar with one avatar', () => {
     const onPostOptionsChange = jest.fn();
     drawChannel({
       onPostOptionsChange,
       avatars: [{ id: 'a1', label: 'Игорь' }],
     });
     const panel = document.querySelector('[data-post-options]');
-    expect(panel.getAttribute('data-post-options')).toBe('summary');
+    expect(panel.getAttribute('data-post-options')).toBe('panel');
+    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull();
     expect(document.body.textContent).not.toContain('Кто говорит');
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'на «вы»' }));
+    for (const name of ['Длина', 'Эмодзи', 'Хэштеги', 'Ссылки', 'Призыв'])
+      expect(screen.getByLabelText(name).tagName).toBe('SELECT');
+    fireEvent.change(screen.getByLabelText('Длина'), {
+      target: { value: 'short' },
+    });
     expect(onPostOptionsChange).toHaveBeenCalledWith({
       ...adapter.DEFAULT_POST_OPTIONS,
-      addressForm: 'vy',
+      length: 'short',
     });
+  });
+
+  test('«на ты / на вы» is gone from «Для этого поста» (97dq.45)', () => {
+    drawChannel();
+    expect(document.body.textContent).not.toContain('Обращение');
+    expect(screen.queryByRole('radiogroup', { name: 'Обращение' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'на «вы»' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Как в аватаре' })).toBeNull();
+    expect(adapter.DEFAULT_POST_OPTIONS).not.toHaveProperty('addressForm');
   });
 
   test('with several avatars «Кто говорит» is a choice, and rewriting with the options makes a new version', () => {
@@ -508,17 +539,58 @@ describe('the channel tab with an adaptation', () => {
     drawChannel({
       onAdapt,
       onRemember,
-      postOptions: { ...adapter.DEFAULT_POST_OPTIONS, length: 'shorter' },
+      postOptions: { ...adapter.DEFAULT_POST_OPTIONS, length: 'short' },
       avatars: [
         { id: 'a1', label: 'Игорь' },
         { id: 'a2', label: 'Студия' },
       ],
     });
-    expect(screen.getByRole('combobox')).toBeTruthy();
+    expect(screen.getByLabelText('Кто говорит').tagName).toBe('SELECT');
+    fireEvent.click(screen.getByRole('button', { name: 'Запомнить для канала' }));
     fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
     expect(onAdapt).toHaveBeenCalledWith('post');
-    fireEvent.click(screen.getByRole('button', { name: 'Запомнить для канала' }));
     expect(onRemember).toHaveBeenCalledTimes(1);
+  });
+
+  test('«Как увидят в Telegram» replaces the text with the full preview (97dq.48)', () => {
+    drawChannel(
+      { image: { id: 'm1', path: '/media/one.png' } },
+      [adaptation({ body: 'Первый абзац.\n\n'.repeat(12) + '**Жирное** в конце.' })]
+    );
+    // Окошка предпросмотра в боковой колонке больше нет.
+    expect(document.querySelector('[data-piece-preview]')).toBeNull();
+    expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
+    const view = screen.getByRole('radiogroup', { name: 'Текст или как увидят' });
+    fireEvent.click(
+      within(view).getByRole('radio', { name: 'Как увидят в Telegram' })
+    );
+    const preview = document.querySelector('[data-piece-preview="adaptation-1"]');
+    expect(preview).not.toBeNull();
+    expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
+    // Текст целиком и картинка без обрезки.
+    expect(preview.innerHTML).not.toContain('line-clamp');
+    expect(preview.textContent).toContain('Жирное в конце.');
+    expect(preview.querySelector('strong, b')).not.toBeNull();
+    const image = preview.querySelector('[data-piece-preview-image]');
+    expect(image.getAttribute('src')).toBe('/media/one.png');
+    expect(image.className).not.toContain('object-cover');
+    expect(preview.closest('aside')).toBeNull();
+    fireEvent.click(within(view).getByRole('radio', { name: 'Текст' }));
+    expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
+  });
+
+  test('the bottom bar: «Удалить адаптацию» on the left, «Когда» and «Запланировать» together on the right (97dq.49)', () => {
+    drawChannel();
+    const bar = document.querySelector('[data-schedule-bar]');
+    const row = bar.firstElementChild;
+    const remove = bar.querySelector('[data-piece-delete-adaptation]');
+    const send = bar.querySelector('[data-schedule-send]');
+    expect(row.firstElementChild).toBe(remove);
+    expect(remove.className).toContain('text-cf-danger');
+    expect(row.lastElementChild).toBe(send);
+    expect(send.textContent).toContain('Когда');
+    expect(send.querySelector('[data-when="true"]')).not.toBeNull();
+    expect(send.querySelector('[data-schedule-action="schedule"]')).not.toBeNull();
   });
 
   test('the adaptation is deleted only on the second press', () => {
@@ -579,6 +651,128 @@ describe('the channel tab with an adaptation', () => {
   });
 });
 
+describe('«Для этого поста» is always open and compact (97dq.48)', () => {
+  /*
+    Одиннадцатый заход: «кнопка „Изменить“ — зачем она нужна… хотелось бы
+    какой-то компактности». Вариант A: те же поля, что в карточке канала,
+    значение канала приглушённым с подписью «как в канале» под названием
+    поля (двенадцатый заход: «как в канале · …» в выборе обрезалось),
+    изменённое — рамкой, сверху
+    счёт изменений. Панель управляемая, поэтому здесь она живёт со своим
+    состоянием, как в контейнере.
+  */
+  const CHANNEL = {
+    version: 'channel-writing-profile/v2',
+    lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
+    emojiLevel: 'few',
+    linkPolicy: 'end',
+    hashtagPolicy: 'none',
+    ctaKind: 'question',
+    formatPreference: 'auto',
+    notes: null,
+  };
+  const Harness = ({ onRewrite, onRemember = noop, rememberState = 'idle' }) => {
+    const [options, setOptions] = React.useState(adapter.DEFAULT_POST_OPTIONS);
+    return React.createElement(PostOptionsPanel, {
+      locale: 'ru',
+      options,
+      baseline: adapter.postBaselineOf(CHANNEL),
+      avatars: [],
+      onChange: setOptions,
+      onRewrite,
+      onRemember,
+      rememberState,
+    });
+  };
+  const select = (name) => screen.getByLabelText(name);
+  const shown = (name) => {
+    const node = select(name);
+    return node.options[node.selectedIndex].textContent;
+  };
+  const counted = () =>
+    document.querySelector('[data-post-options-count]')?.textContent ?? null;
+
+  test('every field starts «как в канале» with the channel value, muted, and nothing to rewrite', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop }));
+    expect(shown('Длина')).toBe('500–1000');
+    expect(shown('Эмодзи')).toBe('мало · 1–3');
+    expect(shown('Хэштеги')).toBe('без хэштегов');
+    expect(shown('Ссылки')).toBe('одна в конце');
+    expect(shown('Призыв')).toBe('вопрос читателю');
+    for (const name of ['Длина', 'Эмодзи', 'Хэштеги', 'Ссылки', 'Призыв']) {
+      const hint = document.getElementById(
+        select(name).getAttribute('aria-describedby')
+      );
+      expect(hint.textContent).toBe('как в канале');
+    }
+    expect(select('Длина').className).toContain('text-cf-ink-muted');
+    expect(counted()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Сбросить' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Запомнить для канала' }).disabled).toBe(true);
+  });
+
+  test('a change is marked, counted and rewrites; the channel value is not a change', () => {
+    const onRewrite = jest.fn();
+    wrap(React.createElement(Harness, { onRewrite }));
+    fireEvent.change(select('Длина'), { target: { value: 'short' } });
+    fireEvent.change(select('Призыв'), { target: { value: 'none' } });
+    expect(shown('Длина')).toBe('короче · до 500');
+    expect(select('Длина').getAttribute('data-post-option-changed')).toBe('true');
+    expect(select('Длина').className).toContain('border-cf-signature');
+    expect(select('Длина').className).not.toContain('text-cf-ink-muted');
+    expect(select('Длина').getAttribute('aria-describedby')).toBeNull();
+    expect(select('Эмодзи').getAttribute('data-post-option-changed')).toBe('false');
+    expect(counted()).toBe('2 изменения');
+    fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
+    expect(onRewrite).toHaveBeenCalledTimes(1);
+    // Выбрать значение канала — вернуться к «как в канале».
+    fireEvent.change(select('Эмодзи'), { target: { value: 'few' } });
+    expect(select('Эмодзи').value).toBe('few');
+    expect(select('Эмодзи').getAttribute('data-post-option-changed')).toBe('false');
+    expect(select('Эмодзи').getAttribute('aria-describedby')).not.toBeNull();
+    expect(counted()).toBe('2 изменения');
+  });
+
+  test('«Сбросить» returns every field to the channel', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop }));
+    fireEvent.change(select('Ссылки'), { target: { value: 'none' } });
+    fireEvent.change(screen.getByLabelText('Пожелание'), {
+      target: { value: 'начни с вопроса' },
+    });
+    expect(counted()).toBe('2 изменения');
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+    expect(select('Ссылки').value).toBe('end');
+    expect(select('Ссылки').getAttribute('data-post-option-changed')).toBe('false');
+    expect(screen.getByLabelText('Пожелание').value).toBe('');
+    expect(counted()).toBeNull();
+  });
+
+  test('a wish alone rewrites but is not remembered for the channel', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop }));
+    fireEvent.change(screen.getByLabelText('Пожелание'), {
+      target: { value: 'начни с вопроса' },
+    });
+    expect(counted()).toBe('1 изменение');
+    expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Запомнить для канала' }).disabled).toBe(true);
+  });
+
+  test('a remembered choice shows its note', () => {
+    const view = wrap(React.createElement(Harness, { onRewrite: noop }));
+    fireEvent.change(select('Длина'), { target: { value: 'long' } });
+    expect(shown('Длина')).toBe('длиннее · до 1500');
+    view.rerender(
+      React.createElement(
+        variables.VariableContextComponent,
+        { language: 'ru' },
+        React.createElement(Harness, { onRewrite: noop, rememberState: 'saved' })
+      )
+    );
+    expect(screen.getByRole('status').textContent).toContain('Запомнили');
+  });
+});
+
 describe('the channel tab without an adaptation', () => {
   const emptyChannel = () => {
     const detail = detailOf([]);
@@ -633,24 +827,55 @@ describe('the wire the workspace shapes (pieces.adapter)', () => {
     expect(adapter.adaptOverrides(adapter.DEFAULT_POST_OPTIONS)).toBeUndefined();
     expect(
       adapter.adaptOverrides({
-        length: 'longer',
-        addressForm: 'vy',
+        ...adapter.DEFAULT_POST_OPTIONS,
+        length: 'long',
+        emoji: 'none',
+        hashtags: 'end_1_3',
+        links: 'inline',
+        cta: 'subscribe',
         brandProfileId: 'a2',
         wish: '  начни с вопроса ',
       })
     ).toEqual({
-      length: 'longer',
-      addressForm: 'vy',
+      lengthPolicy: 'range',
+      lengthRange: { idealMin: 800, idealMax: 1500, hardMax: 1500 },
+      emojiLevel: 'none',
+      hashtagPolicy: 'end_1_3',
+      linkPolicy: 'inline',
+      ctaKind: 'subscribe',
       brandProfileId: 'a2',
       wish: 'начни с вопроса',
     });
+    // Значение канала — не переопределение; «решает модель» — `auto`.
+    const baseline = adapter.postBaselineOf({
+      version: 'channel-writing-profile/v2',
+      lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
+      emojiLevel: 'few',
+      linkPolicy: 'end',
+      hashtagPolicy: 'none',
+      ctaKind: 'question',
+      formatPreference: 'auto',
+      notes: null,
+    });
+    expect(
+      adapter.adaptOverrides(
+        { ...adapter.DEFAULT_POST_OPTIONS, length: 'ideal', emoji: 'few' },
+        baseline
+      )
+    ).toBeUndefined();
+    expect(
+      adapter.adaptOverrides(
+        { ...adapter.DEFAULT_POST_OPTIONS, length: 'auto' },
+        baseline
+      )
+    ).toEqual({ lengthPolicy: 'auto' });
     expect(
       adapter.buildAdaptPayload({
         integrationId: 'tg-main',
         kind: 'post',
-        overrides: { addressForm: 'ty' },
+        overrides: { length: 'shorter' },
       })
-    ).toEqual({ integrationId: 'tg-main', kind: 'post', overrides: { addressForm: 'ty' } });
+    ).toEqual({ integrationId: 'tg-main', kind: 'post', overrides: { length: 'shorter' } });
   });
 
   test('schedule, patch and remember bodies', () => {
@@ -671,15 +896,23 @@ describe('the wire the workspace shapes (pieces.adapter)', () => {
         formatPreference: 'auto',
         notes: null,
       },
-      { length: 'shorter', addressForm: 'vy', brandProfileId: 'a1', wish: '' }
+      {
+        ...adapter.DEFAULT_POST_OPTIONS,
+        length: 'short',
+        cta: 'none',
+        brandProfileId: 'a1',
+      }
     );
     expect(remembered).toMatchObject({
       lengthPolicy: 'range',
       length: { idealMin: 200, idealMax: 500, hardMax: 500 },
-      addressForm: 'vy',
       brandProfileId: 'a1',
+      // «Как в канале» уходит как было, выбранное — как выбрано.
       emojiLevel: 'few',
+      ctaKind: 'none',
     });
+    // Сохранённое раньше обращение карточки назад не уходит (97dq.45).
+    expect(remembered).not.toHaveProperty('addressForm');
   });
 
   test('«Что вы прислали» reads the server field and falls back to the core', () => {

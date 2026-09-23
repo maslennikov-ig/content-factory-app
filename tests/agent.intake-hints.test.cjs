@@ -688,3 +688,32 @@ describe('97dq.31 takeaway of the first adaptation reaches the prompt', () => {
     expect(chatModel.prompts[0]).not.toContain('What readers of this channel should take away');
   });
 });
+
+describe('97dq.44 answers to the adaptation interview reach the prompt as directions', () => {
+  test('question → answer lines under their own heading, not among quoted answers', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+
+    await service.generateContent(
+      withHints({
+        intake: {
+          interview: ['С чего начать для читателей канала? → С цифры о пяти сорванных сроках'],
+        },
+      })
+    );
+    const prompt = chatModel.prompts[0];
+
+    expect(prompt).toContain(
+      'The author’s answers to questions about adapting this post for this channel (directions for this version: follow them by meaning, do not quote them):'
+    );
+    expect(prompt).toContain('- С чего начать для читателей канала? → С цифры о пяти сорванных сроках');
+    expect(prompt).not.toContain("The author's answers about this channel");
+  });
+
+  test('no answers, no block', async () => {
+    const chatModel = capturingModel([draft('Текст поста')]);
+    const { service } = loadAgentGraph({ chatModel });
+    await service.generateContent(withHints());
+    expect(chatModel.prompts[0]).not.toContain('questions about adapting this post');
+  });
+});

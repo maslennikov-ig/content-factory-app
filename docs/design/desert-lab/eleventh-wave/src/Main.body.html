@@ -1,0 +1,58 @@
+<div style="width:1440px;min-height:1720px;background:var(--cf-canvas);padding:32px 40px 0;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+%%INC:_piecehead.inc%%
+  <div style="display:grid;grid-template-columns:minmax(0, 1fr) 360px;gap:32px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="seg"><span class="on">Вариант 1</span><span>Вариант 2</span></div>
+        <div class="seg"><span class="on">Текст</span><span>Как увидят в Telegram</span></div>
+        <span style="flex:1"></span>
+        <span class="btn quiet dense">%%pen%%Редактировать</span>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column">
+%%INC:_text.inc%%
+      </div>
+      <div class="cap" style="display:flex;gap:8px;flex-wrap:wrap"><span>612 из 4096 знаков</span><span>·</span><span>Штампов по каталогу: 0</span><span>·</span><span>числа из опор: 3</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="btn secondary dense">Убрать следы ИИ</span>
+        <span class="btn secondary dense">Проверить факты</span>
+        <span class="btn secondary dense">Переписать…</span>
+      </div>
+    </div>
+
+    <aside style="display:flex;flex-direction:column;gap:12px">
+      <section class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;gap:8px"><span class="lab">Для этого поста</span><span class="cap" style="margin-inline-start:auto">2 изменения</span></div>
+        <div style="display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px 10px;align-items:center">
+          <span class="cap">Длина</span><span class="sel changed">короче · до 500<span style="flex:1"></span>%%chev%%</span>
+          <span class="cap">Эмодзи</span><span class="sel"><span class="d">как в канале · мало</span><span style="flex:1"></span>%%chev%%</span>
+          <span class="cap">Хэштеги</span><span class="sel"><span class="d">как в канале · без</span><span style="flex:1"></span>%%chev%%</span>
+          <span class="cap">Ссылки</span><span class="sel"><span class="d">как в канале · одна в конце</span><span style="flex:1"></span>%%chev%%</span>
+          <span class="cap">Призыв</span><span class="sel changed">вопрос читателю<span style="flex:1"></span>%%chev%%</span>
+        </div>
+        <div class="field"><span class="cap">Пожелание</span><span class="input" style="height:36px;font-size:13px">Например: начни с вопроса</span></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="btn primary dense">Переписать с этим</span>
+          <span class="btn quiet dense">Сбросить</span>
+        </div>
+        <a class="sm" href="#">Запомнить для канала</a>
+      </section>
+      <a class="sm" href="#">Как пишем в «AiDevTeam» — настройки канала</a>
+    </aside>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 0 20px;border-top:1px solid var(--cf-border-strong)">
+    <span class="btn danger-q dense">Удалить адаптацию</span>
+    <span style="flex:1"></span>
+    <span class="cap">Когда</span>
+    <span class="input val" style="width:220px">%%clock%%Чт, 24.09 · 19:30<span style="flex:1"></span>%%chev%%</span>
+    <span style="display:inline-flex"><span class="btn primary" style="border-radius:8px 0 0 8px">Запланировать</span><span class="btn primary icon" style="border-radius:0 8px 8px 0;border-left:1px solid var(--cf-accent-ink);width:36px">%%chev%%</span></span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;padding:28px 0 40px;border-top:1px dashed var(--cf-border-strong)">
+    <span class="lab">То же место после «Как увидят в Telegram» · превью во всю ширину колонки</span>
+    <div style="display:flex;align-items:center;gap:12px"><div class="seg"><span class="on">Вариант 1</span><span>Вариант 2</span></div><div class="seg"><span>Текст</span><span class="on">Как увидят в Telegram</span></div></div>
+    <div style="display:flex;justify-content:center;padding:28px;border-radius:8px;background:var(--cf-surface-subtle);width:976px;box-sizing:border-box">
+%%INC:_tgbubble.inc%%
+    </div>
+  </div>
+</div>

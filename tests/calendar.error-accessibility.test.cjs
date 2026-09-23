@@ -33,12 +33,12 @@ function loadExportedFunction(name) {
 }
 
 describe('calendar error and accessibility boundary', () => {
-  test('gives the translated +N remainder an image role and accessible name', () => {
-    const remainder = source.match(
-      /\{integrations\.length > 4 && \([\s\S]*?\n\s*\)\}/
-    )?.[0];
-    expect(remainder).toContain('role="img"');
-    expect(remainder).toContain('aria-label={t(');
+  // The «+N» remainder of the day slot's channel avatars left with the
+  // avatars themselves (`97dq.50`): the slot names its channels in text now,
+  // which a screen reader reads without an image role.
+  test('the day slot carries its channels as text, not as a +N image', () => {
+    expect(source).not.toMatch(/\{integrations\.length > 4 && \(/);
+    expect(source).toContain('planningCopy.slotOf(slotChannels.length)');
   });
 
   test('shows a safe normalized publishing message instead of serialized JSON', () => {

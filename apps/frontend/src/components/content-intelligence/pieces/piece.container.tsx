@@ -29,7 +29,7 @@ import { AdaptationReview, CORE_REVIEW_ACTIONS } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceCoreTab } from './piece-core-tab';
 import { PieceChannelTab, type AutosaveState } from './piece-channel-tab';
-import { PieceQuestions } from './piece-questions';
+import { PieceQuestions, type PieceQuestionReply } from './piece-questions';
 import {
   PieceChannelProfile,
   useChannelWritingProfile,
@@ -37,6 +37,7 @@ import {
 import { piecesCopy } from './pieces.copy';
 import {
   DEFAULT_POST_BASELINE,
+  DEFAULT_POST_OPTIONS,
   PIECES_API,
   PIECE_MAX_INTERVIEW_ROUNDS,
   PIECE_TAB_CORE,
@@ -56,6 +57,7 @@ import {
   readAdaptationPatch,
   readPieceDetail,
   readPieceTab,
+  readPieceWhen,
   readScheduleResult,
   readSlotDate,
   refusalMessage,
@@ -81,7 +83,10 @@ import {
   type QualityChecksV1,
 } from '../intake/intake.adapter';
 import { writingProfileUrl } from '../intake/writing-profile.adapter';
-import { PIECE_ROUTES } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import {
+  isInterviewAskKey,
+  PIECE_ROUTES,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /** Тишина, после которой ручная правка уходит в дверь. */
 const AUTOSAVE_MS = 800;
@@ -118,10 +123,13 @@ export function PieceContainer({
   initialTab,
   /** Площадка из старого адреса `?adapt=`. */
   adaptPlatform,
+  /** `?when=` — дата слота календаря для черновика вкладки `initialTab` (`97dq.50`). */
+  initialWhen,
 }: {
   pieceId: string;
   initialTab?: string;
   adaptPlatform?: string;
+  initialWhen?: string;
 }) {
   const request = useFetch();
   const t = useT();
@@ -210,6 +218,11 @@ export function PieceContainer({
     Record<string, { state: AutosaveState; at: string | null }>
   >({});
   const [when, setWhen] = useState<Record<string, Date>>({});
+  // Слот, выбранный в календаре: только для канала, во вкладку которого вели.
+  const [slotWhen] = useState(() => ({
+    channel: readPieceTab(initialTab),
+    at: readPieceWhen(initialWhen),
+  }));
   const [scheduleBusy, setScheduleBusy] = useState<{
     id: string;
     kind: 'schedule' | 'now' | 'unschedule' | 'delete';
@@ -483,15 +496,22 @@ export function PieceContainer({
       void run({
         integrationId: channelId,
         kind,
-        answers: answers.map((one) => ({
-          key: one.key as PieceQuestionKeyV1,
-          text: one.text,
-          origin: one.origin,
-        })),
+        answers: answers.map((one) => {
+          // Вопрос модели едет с ответом (`97dq.44`): круга сервер не помнит.
+          const asked = questions.find((question) => question.key === one.key);
+          return {
+            key: one.key as PieceQuestionKeyV1,
+            text: one.text,
+            origin: one.origin,
+            ...(asked && isInterviewAskKey(asked.key)
+              ? { question: asked.question }
+              : {}),
+          };
+        }),
         decideKeys: decideKeys as PieceQuestionKeyV1[],
       });
     },
-    [channelId, kind, rounds, run, w]
+    [channelId, kind, questions, rounds, run, w]
   );
 
   const skipInterview = useCallback(() => {
@@ -508,7 +528,7 @@ export function PieceContainer({
    */
   const answerQuestions = useCallback(
     async (
-      given: readonly { field: BriefField; text: string }[],
+      given: readonly PieceQuestionReply[],
       decide: readonly BriefField[]
     ) => {
       abort.current?.abort();
@@ -886,15 +906,27 @@ export function PieceContainer({
         return;
       }
       setRemember((state) => ({ ...state, [integrationId]: 'saving' }));
+      const chosen = optionsOf(integrationId);
       try {
         const response = await request(writingProfileUrl(integrationId), {
           method: 'PUT',
-          body: JSON.stringify(
-            rememberedProfilePayload(current, optionsOf(integrationId))
-          ),
+          body: JSON.stringify(rememberedProfilePayload(current, chosen)),
         });
         if (!response.ok) throw new Error('not remembered');
         setRemember((state) => ({ ...state, [integrationId]: 'saved' }));
+        /*
+          Запомненное стало решением канала: поля панели возвращаются к «как
+          в канале», и рамка «изменено» больше не стоит на том, что канал
+          теперь делает сам. Пожелание — слово к этому посту — остаётся.
+        */
+        setPostOptions((state) => ({
+          ...state,
+          [integrationId]: {
+            ...DEFAULT_POST_OPTIONS,
+            brandProfileId: chosen.brandProfileId,
+            wish: chosen.wish,
+          },
+        }));
         void profile.mutate();
       } catch {
         setRemember((state) => ({ ...state, [integrationId]: 'failed' }));
@@ -930,9 +962,11 @@ export function PieceContainer({
           words={{
             badge: w.interviewBadge,
             title: w.interviewTitle,
-            lead: questions.some(
-              (question) => (question.key as string) === 'takeaway'
-            )
+            lead: questions.some((question) => isInterviewAskKey(question.key))
+              ? w.interviewAdaptLead(questions.length)
+              : questions.some(
+                  (question) => (question.key as string) === 'takeaway'
+                )
               ? w.interviewTakeawayLead
               : w.interviewChannelLead(adaptingName),
             suggestedLead: w.suggestedLead,
@@ -1000,7 +1034,10 @@ export function PieceContainer({
             onSkip={() =>
               void answerQuestions(
                 [],
-                openQuestions.map((question) => question.field)
+                // Вопрос о материале без ответа сервер отдаёт модели сам.
+                openQuestions
+                  .filter((question) => !question.key)
+                  .map((question) => question.field)
               )
             }
           />
@@ -1054,7 +1091,10 @@ export function PieceContainer({
       : null;
     const label = platformLabel(channel.platform, channel.platformName);
     const at =
-      (adaptation && when[adaptation.id]) ?? slot.data ?? new Date();
+      (adaptation && when[adaptation.id]) ??
+      (channel.id === slotWhen.channel ? slotWhen.at : null) ??
+      slot.data ??
+      new Date();
     const maxLength =
       channel.maxLength ??
       (channel.id === activeChannel?.id

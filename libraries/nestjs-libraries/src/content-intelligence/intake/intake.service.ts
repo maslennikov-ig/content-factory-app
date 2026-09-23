@@ -25,6 +25,7 @@ import type {
   IntakeCorrectionV1,
   IntakeResearchSummaryV1,
 } from '../brand-voice/voice-wiring.contract';
+import { PIECE_INTERVIEW_MAX_QUESTIONS } from '../brand-voice/voice-wiring.contract';
 export { textOrNull } from './intake-content';
 import { contentFromIntent, intakeDiscardDiagnostic, textOrNull } from './intake-content';
 import type { IntakeEventV2, BriefFilledV2 } from '../brand-voice/intake-v2.contract';
@@ -130,24 +131,17 @@ import {
   type IntakeExtractionV5 as IntakeExtractionV1,
 } from './intake.prompts.v5';
 /*
-  Бриф по заданию (`97dq.29`): v7 знает третий вид материала — описание поста,
-  который человек хочет, — и для двух прежних видов отдаёт слово v5 без правок.
+  Интервью без счёта (`97dq.44`): v9 для любого вида материала — модель сама
+  решает, сколько спросить (ноль — честный ответ), и спрашивает о насыщении
+  поста и подаче автора, а не по шаблону. Правила брифа — те же, что у v7
+  (задание, `97dq.29`) и v5; вопроса по умолчанию из v8 (`97dq.31`) больше
+  нет. Модули v7 и v8 остаются импортируемыми и нетронутыми для квитанций.
 */
 import {
-  briefFillPromptV7 as briefFillPrompt,
-  briefFillSchemaV7 as briefFillSchema,
-} from './intake.prompts.v7';
-/*
-  Один вопрос по умолчанию для своего текста и задания (`97dq.31`): v8 просит
-  у модели `defaultQuestion` — что подчеркнуть или для кого пост. Только для
-  `thought` и `instruction`; чужой пост и ссылка идут через v7 без правок, и
-  вопрос о позиции у чужого поста остаётся прежним.
-*/
-import {
-  briefFillPromptV8,
-  briefFillSchemaV8,
-  DEFAULT_QUESTION_FIELDS,
-} from './intake.prompts.v8';
+  briefFillPromptV9,
+  briefFillSchemaV9,
+  interviewQuestionsV9,
+} from './intake.prompts.v9';
 /*
   Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
   что это», потому что решать нечего — галочку человека и страницу по ссылке
@@ -326,11 +320,6 @@ const defaultSlopCheck: SlopCheckPort = (text, platform, locale, grounded) =>
 
 type FilledBrief = {
   questions?: PieceOpenQuestionV1[];
-  /**
-   * Вопрос по умолчанию для своего текста и задания (`97dq.31`): задаётся,
-   * только когда вопросов о пробелах нет.
-   */
-  defaultQuestion?: PieceOpenQuestionV1 | null;
   brief: BriefFilledV1;
   /** Поля, которые модель честно оставила пустыми, и её варианты для них. */
   options: Partial<Record<BriefField, string[]>>;
@@ -1174,20 +1163,15 @@ export class IntakeService {
       ? ('instruction' as const)
       : ('thought' as const);
 
-    // Своё слово человека — мысль или задание — получает вопрос по умолчанию
-    // (`97dq.31`); всё остальное заполняется ровно тем же v7, что и раньше.
-    const ownWords =
-      !extraction &&
-      (plan.inputKind === 'thought' || plan.inputKind === 'instruction');
     const answer = await this.aiUsage.executeAiOperation(
       organizationId,
       'intake',
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
-        ).withStructuredOutput(ownWords ? briefFillSchemaV8 : briefFillSchema);
+        ).withStructuredOutput(briefFillSchemaV9);
         return await model.invoke(
-          (ownWords ? briefFillPromptV8 : briefFillPrompt)({
+          briefFillPromptV9({
             language: plan.language,
             material,
             materialKind,
@@ -1278,28 +1262,19 @@ export class IntakeService {
   ): PieceOpenQuestionV1[] {
     if (plan.skipInterview) return [];
     const settled = this.settledFields(plan);
-    const modelQuestions = (filled.questions ?? [])
-      .filter(
-        (question) =>
-          question.field !== 'facts' && !settled.includes(question.field)
-      )
-      .slice(0, 2);
+    /*
+      Сколько спросить, решает модель (`97dq.44`): ноль, один или несколько —
+      по материалу. Вопрос о материале (`key`) поля брифа не закрывает и
+      решённым полем не гасится; вопрос о поле — гасится, как раньше.
+      `PIECE_INTERVIEW_MAX_QUESTIONS` — страховка от сбоя, а не норма.
+    */
+    const modelQuestions = (filled.questions ?? []).filter((question) =>
+      question.key
+        ? true
+        : question.field !== 'facts' && !settled.includes(question.field)
+    );
     if (plan.inputKind !== 'foreign_post') {
-      /*
-        Бриф без пробелов у своей мысли и задания всё равно спрашивает одно:
-        что подчеркнуть или для кого пост (`97dq.31`). Один вопрос, и только
-        когда о пробелах спрашивать нечего; «Решите за меня» закрывает его
-        одним нажатием.
-      */
-      const fallback = filled.defaultQuestion;
-      if (
-        !modelQuestions.length &&
-        fallback &&
-        !settled.includes(fallback.field)
-      ) {
-        return [fallback];
-      }
-      return modelQuestions;
+      return modelQuestions.slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
     }
 
     const positionQuestion = openQuestionsFor({
@@ -1308,11 +1283,15 @@ export class IntakeService {
       language: plan.language,
       settled: [...settled],
     }).find((question) => question.field === 'position');
-    if (!positionQuestion) return modelQuestions;
+    if (!positionQuestion) {
+      return modelQuestions.slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
+    }
     return [
       positionQuestion,
-      ...modelQuestions.filter((question) => question.field !== 'position'),
-    ].slice(0, 2);
+      ...modelQuestions.filter(
+        (question) => question.key || question.field !== 'position'
+      ),
+    ].slice(0, PIECE_INTERVIEW_MAX_QUESTIONS);
   }
 
   /**
@@ -1630,53 +1609,8 @@ export class IntakeService {
     return {
       ...this.settled(brief),
       options,
-      questions: (Array.isArray(answer?.questions) ? answer.questions : [])
-        .filter((question: any, index: number, all: any[]) =>
-          ['thesis', 'position'].includes(question?.field) &&
-          textOrNull(question?.question) &&
-          all.findIndex((other: any) => other?.field === question.field) === index
-        )
-        .slice(0, 2)
-        .map((question: any) => ({
-          field: question.field,
-          question: textOrNull(question.question)!,
-          options: (Array.isArray(question.options) ? question.options : [])
-            .map(textOrNull).filter(Boolean).slice(0, 3),
-          suggested: null as string | null,
-        })),
-      defaultQuestion: this.defaultQuestionOf(plan, answer?.defaultQuestion),
-    };
-  }
-
-  /**
-   * Вопрос по умолчанию из ответа модели (`97dq.31`): что подчеркнуть или для
-   * кого пост. Только у своей мысли и задания, только с текстом вопроса;
-   * варианты — не больше трёх, без предложенного заранее.
-   */
-  private defaultQuestionOf(
-    plan: IntakePlanV1,
-    value: any
-  ): PieceOpenQuestionV1 | null {
-    if (plan.inputKind !== 'thought' && plan.inputKind !== 'instruction') {
-      return null;
-    }
-    const field = value?.field as BriefField;
-    const question = textOrNull(value?.question);
-    if (!question || !(DEFAULT_QUESTION_FIELDS as readonly string[]).includes(field)) {
-      return null;
-    }
-    const options: string[] = [];
-    for (const option of Array.isArray(value?.options) ? value.options : []) {
-      const text = textOrNull(option);
-      if (text && !options.some((other) => other.toLowerCase() === text.toLowerCase())) {
-        options.push(text);
-      }
-    }
-    return {
-      field,
-      question,
-      options: options.slice(0, 3),
-      suggested: null,
+      // Вопросы модели в её порядке и её числе (`97dq.44`).
+      questions: interviewQuestionsV9(answer?.questions),
     };
   }
 

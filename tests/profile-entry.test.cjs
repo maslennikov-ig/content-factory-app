@@ -21,16 +21,82 @@ describe('profile discovery', () => {
     const settings = read(
       'apps/frontend/src/components/layout/settings.component.tsx'
     );
-
     expect(settings).toContain("tab: 'profile'");
-    expect(settings).toContain('aria-labelledby="profile-heading"');
-    expect(settings).toContain("form.register('fullname')");
-    expect(settings).toContain('picture?.path');
-    expect(settings).toContain('href="/settings?tab=sign_in_methods"');
-    expect(settings).toContain("t('change_password', 'Change Password')");
-    expect(settings).toContain(
-      "<Button type=\"submit\">{t('save', 'Save')}</Button>"
+    expect(settings).toContain('<ProfileSettings getRef={getRef} />');
+
+    // The tab itself lives in its own file since 23.09.2026 (97dq.51): one
+    // column, the header, «О вас», «Язык и время», «Вход и пароль».
+    const profile = read(
+      'apps/frontend/src/components/settings/profile.component.tsx'
     );
+    expect(profile).toContain('aria-labelledby="profile-heading"');
+    expect(profile).toContain('max-w-[720px]');
+    expect(profile).toContain("form.register('fullname')");
+    expect(profile).toContain("form.register('lastName')");
+    expect(profile).toContain('name="bio"');
+    expect(profile).toContain('picture?.path');
+    expect(profile).toContain('size={72}');
+    // The row that replaced the bare «Сменить пароль» link names the methods
+    // and leads to the tab that owns them.
+    expect(profile).toContain('href="/settings?tab=sign_in_methods"');
+    expect(profile).toContain("t('sign_in_methods', 'Sign-in methods')");
+    expect(profile).toContain('useAccountLanguage()');
+    // Saving stays a button: the product has no shared autosave helper, and
+    // a busy button keeps its width.
+    expect(profile).toMatch(
+      /<Button\s+type="submit"\s+loading=\{form\.formState\.isSubmitting\}/
+    );
+  });
+
+  test('the profile header reads the person, the role and the workspace', () => {
+    const profile = read(
+      'apps/frontend/src/components/settings/profile.component.tsx'
+    );
+    expect(profile).toContain('useOrganizationRoleName()');
+    expect(profile).toContain("'organizations'");
+    expect(profile).toContain('words.memberSince(since)');
+    expect(profile).toContain('formatLocalizedDate(user.createdAt');
+  });
+
+  test('the time zone goes to User.timezone as its offset in minutes', () => {
+    const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
+    const { offsetMinutes, timezoneLabel } = loadTypeScriptModule(
+      'apps/frontend/src/components/settings/profile.component.tsx',
+      {},
+      {
+        // Only the pure helper is under test; everything the screen draws
+        // with is scenery.
+        resolve: (request) =>
+          request === 'dayjs' ||
+          request.startsWith('dayjs/') ||
+          request === 'timezones-list'
+            ? undefined
+            : {},
+      }
+    );
+
+    expect(offsetMinutes('+03:00')).toBe(180);
+    expect(offsetMinutes('+05:30')).toBe(330);
+    expect(offsetMinutes('-09:30')).toBe(-570);
+    expect(offsetMinutes('+00:00')).toBe(0);
+    expect(offsetMinutes('')).toBeUndefined();
+    expect(offsetMinutes(undefined)).toBeUndefined();
+
+    // Twelfth stand walk: the select showed «Europe/Moscow (GMT+03:00)».
+    const cities = { 'Europe/Moscow': 'Москва' };
+    expect(timezoneLabel('Europe/Moscow', '+03:00', cities)).toBe('Москва, UTC+3');
+    expect(timezoneLabel('Asia/Kolkata', '+05:30', cities)).toBe('Kolkata, UTC+5:30');
+    expect(timezoneLabel('America/New_York', '-05:00', {})).toBe('New York, UTC−5');
+    expect(timezoneLabel('Etc/Unknown', '', {})).toBe('Unknown');
+  });
+
+  test('the language and time selects stay inside the card at 390px', () => {
+    const profile = read(
+      'apps/frontend/src/components/settings/profile.component.tsx'
+    );
+    expect(profile).not.toContain('className="grid gap-[16px] sm:grid-cols-2"');
+    expect(profile).toContain('grid grid-cols-1 gap-[16px] sm:grid-cols-2');
+    expect(profile).toContain('timezoneLabel(');
   });
 
   test('Profile is translated in every shipped locale', () => {

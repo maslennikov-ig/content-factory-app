@@ -367,3 +367,51 @@ describe('97dq.31: вопрос без предложения модели', () 
     expect(piecesCopy.ru.skipInterview).toBe(piecesCopy.ru.answerDecideAll);
   });
 });
+
+/**
+ * Интервью без счёта (`content-factory-next-97dq.44`): несколько вопросов о
+ * материале на одном поле `facts` различаются ключом, ответ уходит с ключом,
+ * а «Решите за меня» у такого вопроса не называет поля.
+ */
+describe('97dq.44: несколько вопросов о материале на странице заготовки', () => {
+  test('каждый вопрос отвечается отдельно и уходит со своим ключом', () => {
+    const onAnswer = jest.fn();
+    render(
+      withLanguage(
+        React.createElement(PieceQuestions, {
+          locale: 'ru',
+          questions: [
+            { field: 'facts', key: 'ask-1', question: 'Когда это было в последний раз?', suggested: null, options: [] },
+            { field: 'facts', key: 'ask-2', question: 'Сколько сроков сорвалось?', suggested: null, options: ['Пять из шести', 'Ни одного'] },
+            { field: 'audience', question: 'Для кого пост?', suggested: null, options: ['Фрилансеры'] },
+          ],
+          onAnswer,
+          onSkip: jest.fn(),
+        })
+      )
+    );
+
+    const first = document.querySelector('input[name="piece-answer-ask-1"]');
+    expect(first).not.toBeNull();
+    fireEvent.change(first, { target: { value: 'В марте, с клиентом' } });
+    fireEvent.click(chip('Пять из шести'));
+    fireEvent.click(
+      [...document.querySelectorAll('[data-piece-question="audience"] [role="radio"]')].find(
+        (node) => node.textContent.trim() === piecesCopy.ru.answerDecide
+      )
+    );
+    fireEvent.click(
+      [...document.querySelectorAll('button')].find(
+        (node) => node.textContent.trim() === piecesCopy.ru.interviewSend
+      )
+    );
+
+    expect(onAnswer).toHaveBeenCalledWith(
+      [
+        { field: 'facts', key: 'ask-1', text: 'В марте, с клиентом' },
+        { field: 'facts', key: 'ask-2', text: 'Пять из шести' },
+      ],
+      ['audience']
+    );
+  });
+});

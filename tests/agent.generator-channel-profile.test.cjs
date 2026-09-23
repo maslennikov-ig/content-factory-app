@@ -250,8 +250,8 @@ describe('generator channel profile wiring', () => {
     );
   });
 
-  test('this post and the avatar reach the same directive builder (`97dq.38`)', async () => {
-    const post = { length: 'shorter', addressForm: 'avatar', wish: 'Без эмодзи' };
+  test('this post reaches the directive builder, and no address form does (`97dq.38`, `97dq.45`)', async () => {
+    const post = { length: 'shorter', wish: 'Без эмодзи' };
     const result = await run({
       requestBody: baseBody({ intake: { ...intake, post } }),
       integration: {
@@ -277,11 +277,12 @@ describe('generator channel profile wiring', () => {
         formatHint: 'story',
         foreignShingles: intake.foreignShingles,
         post,
-        avatarAddressForm: 'vy',
       })
     );
     const lines = result.captured.input.channelLines.join('\n');
-    expect(lines).toContain('«вы»');
+    // The avatar still carries a stored «вы»; the prompt no longer hears it.
+    expect(lines).not.toContain('«вы»');
+    expect(lines).not.toContain('Address the reader');
     expect(lines).toContain('360 to 540 characters');
     expect(lines).toContain('Без эмодзи');
   });

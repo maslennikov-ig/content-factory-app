@@ -66,6 +66,29 @@ const useRoles = () => {
 };
 
 /**
+ * The visible name of a workspace role.
+ *
+ * A lookup, not a ternary chain. The chain this replaced ended in «Super
+ * Admin», so any role it did not name — `EDITOR`, the day it was added —
+ * rendered as the highest authority in the product. Exported since
+ * `97dq.51`: the profile header names the same role, and a second copy of
+ * this lookup is how the two screens would start disagreeing.
+ */
+export const useOrganizationRoleName = () => {
+  const t = useT();
+  const roles = useRoles();
+  return useCallback(
+    (role: OrganizationRole | string | null | undefined) =>
+      !role
+        ? ''
+        : role === 'SUPERADMIN'
+        ? t('super_admin', 'Super Admin')
+        : roles.find((known) => known.value === role)?.name ?? role,
+    [roles, t]
+  );
+};
+
+/**
  * What the invitation door hands back once the link is signed.
  */
 type IssuedInvitation = {
@@ -300,18 +323,7 @@ export const TeamsComponent = () => {
     },
     [iAdminister, myLevel, user?.id]
   );
-  /**
-   * A lookup, not a ternary chain. The chain this replaced ended in «Super
-   * Admin», so any role it did not name — `EDITOR`, the day it was added —
-   * rendered as the highest authority in the product.
-   */
-  const roleName = useCallback(
-    (role: OrganizationRole) =>
-      role === 'SUPERADMIN'
-        ? t('super_admin', 'Super Admin')
-        : roles.find((known) => known.value === role)?.name ?? role,
-    [roles, t]
-  );
+  const roleName = useOrganizationRoleName();
   const loadTeam = useCallback(async () => {
     return (await (await fetch('/settings/team')).json()).users as Array<{
       id: string;

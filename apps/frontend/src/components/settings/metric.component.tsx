@@ -6,6 +6,8 @@ import { isUSCitizen } from '@contentfactory/frontend/components/launches/helper
 import timezones from 'timezones-list';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
+import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
 // The two option labels are wording, not data: they have to travel through the
 // catalogue like every other visible string, so the pair keeps its fallback
@@ -21,6 +23,7 @@ dayjs.extend(timezone);
 
 const MetricComponent = () => {
   const t = useT();
+  const words = settingsWordsFor(useVariables().language).global;
   const [currentMetric, setCurrentMetric] = useState(isUSCitizen());
   const [timezone, setTimezone] = useState(
     localStorage.getItem('timezone') || dayjs.tz.guess()
@@ -38,11 +41,17 @@ const MetricComponent = () => {
     dayjs.tz.setDefault(value);
   };
   return (
-    <SettingsSection title={t('date_format', 'Date format')}>
+    <SettingsSection
+      layout="row"
+      title={t('date_format', 'Date format')}
+      caption={words.dateFormat}
+    >
       <Select
         name="metric"
         disableForm={true}
         label=""
+        aria-label={t('date_format', 'Date format')}
+        fieldClassName="w-full sm:w-[240px]"
         onChange={changeMetric}
         value={currentMetric ? 'US' : 'GLOBAL'}
       >

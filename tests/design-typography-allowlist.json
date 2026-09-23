@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 713,
+  "total": 710,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 687,
+      "total": 684,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -192,8 +192,7 @@
           "font-[500]": 2,
           "font-[600]": 1,
           "font-medium": 2,
-          "text-[12px]": 1,
-          "text-[14px]": 7,
+          "text-[14px]": 5,
           "text-[16px]": 1,
           "text-[20px]": 1,
           "text-lg": 1,

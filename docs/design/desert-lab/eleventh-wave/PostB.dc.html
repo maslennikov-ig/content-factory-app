@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; }
+    a { color: var(--cf-accent, #7FB03A); } a:hover { color: var(--cf-accent-hover, #96C551); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-feature-settings: 'zero'; }
+    .cap { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; line-height: 1.35; letter-spacing: .02em; color: var(--cf-ink-muted); }
+    .lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .04em; color: var(--cf-ink-muted); text-transform: uppercase; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; cursor: pointer; white-space: nowrap; box-sizing: border-box; }
+    .btn.dense { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn.icon { width: 40px; padding: 0; }
+    .btn.icon.dense { width: 32px; }
+    .primary { background: var(--cf-accent); color: var(--cf-accent-ink); border: 1px solid transparent; }
+    .secondary { background: var(--cf-surface); color: var(--cf-ink); border: 1px solid var(--cf-border-control); }
+    .quiet { background: transparent; color: var(--cf-ink); border: 1px solid transparent; }
+    .panel { background: var(--cf-surface); border: 1px solid var(--cf-border); border-radius: 8px; box-sizing: border-box; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--cf-border); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--cf-ink); background: var(--cf-surface-raised); }
+    .chip.new { border-color: var(--cf-signature); color: var(--cf-signature); background: transparent; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--cf-surface-subtle); border: 1px solid var(--cf-border); }
+    .seg span { padding: 5px 12px; border-radius: 6px; font: 500 13px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border: 1px solid transparent; white-space: nowrap; }
+    .seg span.on { background: var(--cf-surface-raised); color: var(--cf-ink); border-color: var(--cf-border-strong); }
+    .input { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink-muted); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .input.val { color: var(--cf-ink); }
+    .h1 { font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -0.02em; }
+    .h2 { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .body { font-size: 16px; line-height: 1.55; }
+    .sm { font-size: 13px; line-height: 1.45; }
+    .muted { color: var(--cf-ink-muted); }
+    .cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; box-sizing: border-box; flex: none; }
+    .cell.draft { background: var(--cf-info-soft); color: var(--cf-info); border: 1px solid var(--cf-info); }
+    .cell.done { background: var(--cf-accent-soft); color: var(--cf-accent); border: 1px solid var(--cf-accent); }
+    .cell.none { color: var(--cf-ink-muted); border: 1px dashed var(--cf-border-strong); }
+    .tab { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; font: 500 14px/1.3 Geologica, system-ui, sans-serif; color: var(--cf-ink-muted); border-bottom: 2px solid transparent; box-sizing: border-box; white-space: nowrap; }
+    .tab.on { color: var(--cf-ink); border-bottom-color: var(--cf-accent); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .sketch { border: 1.5px dashed var(--cf-border-strong); border-radius: 8px; box-sizing: border-box; }
+    .bar { height: 10px; border-radius: 4px; background: var(--cf-surface-subtle); }
+    ins { text-decoration: none; background: var(--cf-accent-soft); color: var(--cf-ink); border-bottom: 1px solid var(--cf-accent); padding: 0 2px; }
+    del { color: var(--cf-danger); text-decoration: line-through; }
+    ul.l { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .sel { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; white-space: nowrap; }
+    .sel .d { color: var(--cf-ink-muted); }
+    .sel.changed { border-color: var(--cf-signature); }
+    .danger-q { background: transparent; color: var(--cf-danger); border: 1px solid transparent; }
+    .dim { position: absolute; inset: 0; background: rgba(8,9,6,.62); }
+    .modal { position: absolute; background: var(--cf-surface); border: 1px solid var(--cf-border-strong); border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,.45); box-sizing: border-box; }
+    .slot-empty { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border: 1px dashed var(--cf-border-strong); border-radius: 8px; color: var(--cf-ink-muted); font: 400 13px/1.4 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+    .card { display: flex; flex-direction: column; border: 1px solid var(--cf-border); border-radius: 8px; background: var(--cf-surface-subtle); overflow: hidden; box-sizing: border-box; }
+    .band { height: 4px; }
+    .band.draft { background: var(--cf-info); }
+    .band.sched { background: var(--cf-accent); }
+    .band.pub { background: var(--cf-signature); }
+    .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 5px; font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .02em; }
+    .pill.draft { color: var(--cf-info); background: var(--cf-info-soft); }
+    .pill.sched { color: var(--cf-accent); background: var(--cf-accent-soft); }
+    .pill.pub { color: var(--cf-signature); background: var(--cf-warning-soft); }
+    .tg { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--cf-info); color: var(--cf-ink-inverse); flex: none; }
+    .nav a { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: var(--cf-ink-muted); text-decoration: none; font: 500 14px/1.3 Geologica, system-ui, sans-serif; }
+    .nav a.on { background: var(--cf-navigation-active); color: var(--cf-ink); }
+    .srow { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; padding: 24px 0; border-bottom: 1px solid var(--cf-border); }
+    .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; font-size: 13px; }
+    .kv span:nth-child(2n) { font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--cf-ink-muted); text-align: right; }
+    .ta { min-height: 88px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--cf-border-control); background: var(--cf-surface-raised); color: var(--cf-ink); font: 400 14px/1.5 Geologica, system-ui, sans-serif; box-sizing: border-box; }
+  </style>
+</helmet>
+<div style="{{ themeVars }}">
+<div style="position:relative;width:1440px;min-height:1180px;background:var(--cf-canvas);padding:32px 40px 0;display:flex;flex-direction:column;gap:20px;box-sizing:border-box">
+  <div style="display:flex;align-items:center;gap:8px" class="cap">
+    <span>Контент</span><span>/</span><span>Заготовки</span><span>/</span><span class="mono" style="color:var(--cf-signature)">cnt-31</span><span>·</span><span>23.09.26</span><span>·</span><span>свой текст</span>
+  </div>
+  <div style="display:flex;align-items:flex-start;gap:16px">
+    <h1 class="h1" style="margin:0;max-width:60ch;text-wrap:balance;flex:1">Исландский эксперимент: меньше часов — та же производительность</h1>
+    <div style="display:flex;gap:8px;flex:none">
+      <span class="btn secondary dense">Новая заготовка</span>
+      <span class="btn quiet dense">В архив</span>
+      <span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h.01M8 8h.01M12 8h.01"></path></svg></span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid var(--cf-border-strong)">
+    <span class="tab">Суть</span><span class="tab on"><span class="cell draft"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l.6-2.6L10.8 3.2a1.2 1.2 0 011.7 0l.3.3a1.2 1.2 0 010 1.7L5.6 12.4 3 13z"></path></svg></span>Telegram · AiDevTeam</span>
+    <span class="tab"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4v8M4 8h8"></path></svg>Ещё канал</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0, 1fr) 472px;gap:32px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="seg"><span class="on">Вариант 1</span><span>Вариант 2</span></div>
+        <span style="flex:1"></span>
+        <span class="btn quiet dense icon" title="Удалить адаптацию"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h.01M8 8h.01M12 8h.01"></path></svg></span>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--cf-border)">
+          <span class="btn quiet dense icon" style="font-weight:650">Ж</span>
+          <span class="btn quiet dense icon" style="font-style:italic;font-family:Georgia,serif">К</span>
+          <span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.8 9.2a2.6 2.6 0 003.7 0l2-2a2.6 2.6 0 00-3.7-3.7l-.6.6"></path><path d="M9.2 6.8a2.6 2.6 0 00-3.7 0l-2 2a2.6 2.6 0 003.7 3.7l.6-.6"></path></svg></span>
+          <span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4.5h7M6 8h7M6 11.5h7M3 4.5h.01M3 8h.01M3 11.5h.01"></path></svg></span>
+          <span style="width:1px;height:20px;background:var(--cf-border);margin:0 4px"></span>
+          <span class="cap">режим правки · сохраняется само · 19:04</span>
+          <span style="flex:1"></span>
+          <span class="cap">612 из 4096 знаков</span>
+          <span class="btn secondary dense" style="margin-inline-start:8px">Готово</span>
+        </div>
+
+        <article class="body" style="padding:16px 20px 20px;max-width:72ch;display:flex;flex-direction:column;gap:12px">
+          <p style="margin:0">Для меня исландский эксперимент — сильный довод: <b>сокращение рабочего времени может сохранять производительность</b>, а где-то — повышать её.</p>
+          <p style="margin:0">С 2015 по 2019 год более 2500 сотрудников из 100 организаций перешли с 40-часовой недели на 35- или 36-часовую без снижения зарплаты.</p>
+          <p style="margin:0">Что изменилось в работе:<br>• задачи стали быстрее передавать друг другу;<br>• отказались от лишних встреч;<br>• короче стали перерывы.</p>
+          <p style="margin:0">Проверили бы вы такой режим в своей компании?</p>
+        </article>
+
+      </div>
+      <div class="cap" style="display:flex;gap:8px;flex-wrap:wrap"><span>Штампов по каталогу: 0</span><span>·</span><span>числа из опор: 3</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="btn secondary dense">Для этого поста…<span class="chip new" style="height:20px">2</span></span>
+        <span class="btn secondary dense">Убрать следы ИИ</span>
+        <span class="btn secondary dense">Проверить факты</span>
+        <span class="btn secondary dense">Переписать…</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 0 24px;margin-top:12px;border-top:1px solid var(--cf-border-strong)">
+        <span class="cap">Когда</span>
+        <span class="input val" style="width:220px"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"></circle><path d="M8 5v3.2l2.2 1.3"></path></svg>Чт, 24.09 · 19:30<span style="flex:1"></span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"></path></svg></span>
+        <span style="display:inline-flex"><span class="btn primary" style="border-radius:8px 0 0 8px">Запланировать</span><span class="btn primary icon" style="border-radius:0 8px 8px 0;border-left:1px solid var(--cf-accent-ink);width:36px"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"></path></svg></span></span>
+      </div>
+    </div>
+    <aside style="display:flex;flex-direction:column;gap:10px;position:sticky;top:0">
+      <span class="lab">Как увидят в Telegram</span>
+      <div style="padding:16px;border-radius:8px;background:var(--cf-surface-subtle);display:flex;justify-content:center">
+<div style="width:440px;padding:10px 12px 8px;border-radius:14px 14px 14px 4px;background:var(--cf-surface-raised);border:1px solid var(--cf-border);display:flex;flex-direction:column;gap:8px;box-sizing:border-box">
+  <span class="sm" style="font-weight:650;color:var(--cf-accent)">AiDevTeam</span>
+  <div style="aspect-ratio:16/9;border-radius:8px;background:linear-gradient(135deg,var(--cf-surface-subtle),var(--cf-border));display:flex;align-items:center;justify-content:center;color:var(--cf-ink-muted);gap:8px" class="sm"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10" rx="1.5"></rect><circle cx="6" cy="6.5" r="1"></circle><path d="M13.5 10.5 10.5 7.5 4 13"></path></svg> картинка поста — целиком, без обрезки</div>
+  <span class="sm">Для меня исландский эксперимент — сильный довод: <b>сокращение рабочего времени может сохранять производительность</b>, а где-то — повышать её.</span>
+  <span class="sm">С 2015 по 2019 год более 2500 сотрудников из 100 организаций перешли с 40-часовой недели на 35- или 36-часовую без снижения зарплаты.</span>
+  <span class="sm">Что изменилось в работе:<br>• задачи стали быстрее передавать друг другу;<br>• отказались от лишних встреч;<br>• короче стали перерывы.</span>
+  <span class="sm">Проверили бы вы такой режим в своей компании?</span>
+  <span class="cap" style="align-self:flex-end">19:30</span>
+</div>
+
+      </div>
+      <a class="sm" href="#">Как пишем в «AiDevTeam» — настройки канала</a>
+    </aside>
+  </div>
+
+  <div class="dim"></div>
+  <div class="modal" style="left:430px;top:170px;width:580px;padding:24px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:flex-start;gap:12px"><div style="display:flex;flex-direction:column;gap:4px;flex:1"><span class="h2">Для этого поста</span><span class="cap">разово; канал «AiDevTeam» и аватар не меняются</span></div><span class="btn quiet dense icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"></path></svg></span></div>
+    <div class="field"><span class="cap">Длина</span><div class="seg"><span class="on">до 500</span><span>500–1000</span><span>до 1500</span><span>как в канале</span></div></div>
+    <div class="field"><span class="cap">Эмодзи</span><div class="seg"><span>без</span><span>мало · 1–3</span><span>много</span><span class="on">как в канале</span></div></div>
+    <div class="field"><span class="cap">Хэштеги</span><div class="seg"><span>без</span><span>1–3 в конце</span><span class="on">как в канале</span></div></div>
+    <div class="field"><span class="cap">Призыв</span><span class="input val" style="width:280px">вопрос читателю<span style="flex:1"></span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5"></path></svg></span></div>
+    <div class="field"><span class="cap">Пожелание</span><span class="ta" style="min-height:64px;color:var(--cf-ink-muted)">Например: начни с вопроса</span></div>
+    <div style="display:flex;align-items:center;gap:10px;border-top:1px solid var(--cf-border);padding-top:16px">
+      <a class="sm" href="#">Запомнить для канала</a>
+      <span style="flex:1"></span>
+      <span class="btn secondary">Закрыть</span>
+      <span class="btn primary">Переписать с этим</span>
+    </div>
+  </div>
+</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":true}}'>
+const DARK = "--cf-canvas:#14150F;--cf-surface:#1C1E16;--cf-surface-subtle:#22241B;--cf-surface-raised:#272A1F;--cf-ink:#ECEBDF;--cf-ink-muted:#A6A794;--cf-ink-inverse:#14150F;--cf-border:#33362A;--cf-border-strong:#4B4F3E;--cf-border-control:#7E826D;--cf-navigation:#0E0F0A;--cf-navigation-text:#ECEBDF;--cf-navigation-muted:#A6A794;--cf-navigation-active:#22241B;--cf-accent:#7FB03A;--cf-accent-hover:#96C551;--cf-accent-soft:#1F2915;--cf-accent-ink:#0F1409;--cf-signature:#C8922A;--cf-info:#7FA6C8;--cf-info-soft:#161F28;--cf-warning:#D9A02B;--cf-warning-soft:#2A2010;--cf-danger:#D2705C;--cf-danger-soft:#2C1512;--cf-focus:#7FB03A";
+const LIGHT = "--cf-canvas:#EFE9DB;--cf-surface:#FBF8F0;--cf-surface-subtle:#E4DDCB;--cf-surface-raised:#FFFDF6;--cf-ink:#22231A;--cf-ink-muted:#5C5D4C;--cf-ink-inverse:#F4F1E4;--cf-border:#D3CAB3;--cf-border-strong:#B0A68A;--cf-border-control:#847B62;--cf-navigation:#E4DDCB;--cf-navigation-text:#22231A;--cf-navigation-muted:#5C5D4C;--cf-navigation-active:#FBF8F0;--cf-accent:#3F6B2E;--cf-accent-hover:#33581F;--cf-accent-soft:#E1EAD2;--cf-accent-ink:#FFFFFF;--cf-signature:#9C6A16;--cf-info:#2F5A82;--cf-info-soft:#E3EBF3;--cf-warning:#7A4D00;--cf-warning-soft:#F6E7C2;--cf-danger:#8E2B22;--cf-danger-soft:#F6E0DB;--cf-focus:#3F6B2E";
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? true;
+    return { themeVars: (dark ? DARK : LIGHT) + ";font-family:Geologica,system-ui,sans-serif;color:var(--cf-ink);background:var(--cf-canvas)" };
+  }
+}
+</script>
+</body>
+</html>

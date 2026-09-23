@@ -20,24 +20,17 @@ import { CHANNEL_WRITING_PROFILE_VERSION, type ChannelLengthPolicyV2 as ChannelL
 import { INTAKE_API } from './intake.adapter';
 
 /**
- * Как канал обращается к читателю (`content-factory-next-97dq.38`).
+ * Поле слоя канала, которое сервер хранит в той же JSON-колонке.
  *
- * `avatar` — «как в аватаре»: канал не решает сам и берёт обращение того, кто
- * в нём говорит. Слой канала лежит между аватаром и разовой правкой поста.
- */
-export const CHANNEL_ADDRESS_FORMS = ['avatar', 'ty', 'vy'] as const;
-export type ChannelAddressForm = (typeof CHANNEL_ADDRESS_FORMS)[number];
-
-/**
- * Два поля слоя канала, которые сервер хранит в той же JSON-колонке.
- *
- * Оба необязательны: карточка, сохранённая до 22.09.2026, их не несёт, и
- * отсутствие значит «как раньше» — аватар по умолчанию и его обращение.
+ * Необязательно: карточка, сохранённая до 22.09.2026, его не несёт, и
+ * отсутствие значит «как раньше» — аватар по умолчанию.
  * `brandProfileId: null` — это «По умолчанию», сказанное явно.
+ *
+ * Обращения («на ты / на вы») экран не читает и не пишет с `97dq.45`:
+ * сохранённое раньше значение остаётся в колонке и ни на что не влияет.
  */
 export type ChannelWritingProfileLayer = {
   brandProfileId?: string | null;
-  addressForm?: ChannelAddressForm;
 };
 
 export type ChannelWritingProfileV1 = ContractWritingProfile &
@@ -181,9 +174,6 @@ export function readWritingProfile(value: unknown): ChannelWritingProfileV1 {
       : record.brandProfileId === null
       ? { brandProfileId: null }
       : {}),
-    ...(CHANNEL_ADDRESS_FORMS.includes(record.addressForm as ChannelAddressForm)
-      ? { addressForm: record.addressForm as ChannelAddressForm }
-      : {}),
   };
 }
 
@@ -255,7 +245,6 @@ export type WritingProfilePayload = {
   formatPreference: IntakeFormatV1;
   notes?: string;
   brandProfileId?: string | null;
-  addressForm?: ChannelAddressForm;
 };
 
 export function buildWritingProfilePayload(
@@ -278,7 +267,6 @@ export function buildWritingProfilePayload(
     ...(profile.brandProfileId !== undefined
       ? { brandProfileId: profile.brandProfileId }
       : {}),
-    ...(profile.addressForm ? { addressForm: profile.addressForm } : {}),
   };
 
   if (typeof profile.lengthPolicy === 'string') {

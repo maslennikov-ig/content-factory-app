@@ -2,14 +2,12 @@
 
 import { useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
-import { Panel } from '@contentfactory/react/layout';
 import { Segmented } from '../../ui/segmented';
 import { WorkingLine } from '../../ui/working-line';
 import type { QualityChecksV1 } from '../intake/intake.adapter';
 import { QualityLine } from '../shared/quality-line';
 import { AdaptationBody } from './adaptation-body';
 import { AdaptationEditor } from './adaptation-editor';
-import { formatStoredMarkup } from './adaptation-markup';
 import { cellDate } from './adaptation.cell';
 import {
   PostOptionsPanel,
@@ -24,6 +22,7 @@ import {
   type WorkspaceChannel,
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
+import { PostPreview } from './post-preview';
 import { ScheduleBar } from './schedule-bar';
 import { SectionLabel } from '../../ui/section-label';
 
@@ -33,9 +32,11 @@ export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
  * Вкладка канала (`97dq.37`, §3.2–3.3): всё, что нужно довести адаптацию до
  * публикации, в одном месте.
  *
- * Слева — текст: варианты, правка руками, строка качества и ряд действий.
- * Справа — «Для этого поста», предпросмотр и «Как пишем в «канал»». Внизу —
- * когда и отправить. Окно «Создать пост» отсюда не открывается никогда: всё,
+ * Слева — текст: варианты, переключатель «Текст · Как увидят в <площадке>»,
+ * правка руками, строка качества и ряд действий. Предпросмотр встаёт на
+ * место текста во всю ширину колонки (`97dq.48`, вариант A), а не ютится
+ * окошком справа. Справа — «Для этого поста» и «Как пишем в «канал»».
+ * Внизу — когда и отправить. Окно «Создать пост» отсюда не открывается никогда: всё,
  * что из него было нужно, переехало сюда, а остальное к одному посту из
  * заготовки не относится (`EditorFate`).
  *
@@ -139,6 +140,7 @@ export function PieceChannelTab({
   const [kind, setKind] = useState<AdaptationKindV1>(
     channel.kinds[0] ?? 'post'
   );
+  const [view, setView] = useState<'text' | 'preview'>('text');
   const kindWord = (value: AdaptationKindV1) =>
     ({
       post: t.kindPost,
@@ -151,8 +153,12 @@ export function PieceChannelTab({
 
   const versions = channel.adaptations;
   const editable = canWrite && adaptation?.state === 'draft';
+  // Правку закрывает расписание, и это обратимо: «Снять с расписания».
+  const editLocked = canWrite && adaptation?.state === 'queued';
   const sendable =
     adaptation?.state === 'draft' || adaptation?.state === 'error';
+  // Смотреть нечего, пока текста нет: тогда и переключателя нет.
+  const previewing = view === 'preview' && Boolean(body);
 
   const autosave =
     saveState === 'saving'
@@ -205,6 +211,19 @@ export function PieceChannelTab({
                     className="max-w-full flex-wrap"
                   />
                 ) : null}
+                {body ? (
+                  <Segmented<'text' | 'preview'>
+                    label={t.previewSwitch}
+                    value={previewing ? 'preview' : 'text'}
+                    options={[
+                      { value: 'text', label: t.previewText },
+                      { value: 'preview', label: t.previewTitle(platformLabel) },
+                    ]}
+                    onChange={setView}
+                    data-piece-view={previewing ? 'preview' : 'text'}
+                    className="max-w-full flex-wrap"
+                  />
+                ) : null}
                 {editable ? (
                   <span
                     data-autosave={saveState}
@@ -234,7 +253,16 @@ export function PieceChannelTab({
                 </div>
               ) : null}
 
-              {editable ? (
+              {previewing ? (
+                <PostPreview
+                  locale={locale}
+                  channelName={channel.name}
+                  text={body}
+                  image={image}
+                  time={cellDate('queued', adaptation.date)}
+                  draftId={adaptation.id}
+                />
+              ) : editable ? (
                 <AdaptationEditor
                   locale={locale}
                   platformLabel={platformLabel}
@@ -252,6 +280,7 @@ export function PieceChannelTab({
                     locale={locale}
                     text={body}
                     draftId={adaptation.id}
+                    lockedReason={editLocked ? t.editLockedQueued : null}
                   />
                   {image?.path ? (
                     <img
@@ -355,38 +384,6 @@ export function PieceChannelTab({
               onRemember={channel.connected ? onRemember : undefined}
               rememberState={rememberState}
             />
-          ) : null}
-
-          {adaptation && body ? (
-            <Panel
-              className="min-w-0"
-              contentClassName="flex min-w-0 flex-col gap-[8px]"
-            >
-              <SectionLabel as="h3">
-                {t.previewTitle(platformLabel)}
-              </SectionLabel>
-              <div
-                data-piece-preview={adaptation.id}
-                className="flex min-w-0 flex-col gap-[8px] rounded-[8px] bg-cf-surface-subtle p-[12px]"
-              >
-                <span className="cf-label-md text-cf-ink">{channel.name}</span>
-                {image?.path ? (
-                  <img
-                    src={image.path}
-                    alt={t.imageAlt}
-                    className="max-h-[160px] w-full rounded-[8px] object-cover"
-                  />
-                ) : null}
-                <p className="line-clamp-6 whitespace-pre-wrap cf-body-sm text-cf-ink [overflow-wrap:anywhere]">
-                  {formatStoredMarkup(body)}
-                </p>
-                {cellDate('queued', adaptation.date) ? (
-                  <span className="self-end cf-caption tabular-nums text-cf-ink-muted">
-                    {cellDate('queued', adaptation.date)}
-                  </span>
-                ) : null}
-              </div>
-            </Panel>
           ) : null}
 
           {channelProfile}

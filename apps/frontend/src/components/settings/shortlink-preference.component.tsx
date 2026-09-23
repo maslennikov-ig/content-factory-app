@@ -10,6 +10,8 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { Progress } from '../ui/progress';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
+import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
+import { useVariables } from '@contentfactory/react/helpers/variable.context';
 
 type ShortLinkPreference = 'ASK' | 'YES' | 'NO';
 
@@ -36,6 +38,7 @@ export const useShortlinkPreference = () => {
 
 const ShortlinkPreferenceComponent = () => {
   const t = useT();
+  const words = settingsWordsFor(useVariables().language).global;
   const fetch = useFetch();
   const toaster = useToaster();
   const user = useUser();
@@ -77,16 +80,20 @@ const ShortlinkPreferenceComponent = () => {
 
   if (isLoading) {
     return (
-      <SettingsSection>
+      <SettingsSection layout="row">
         <Progress mode="indeterminate" label={t('loading', 'Loading...')} />
       </SettingsSection>
     );
   }
 
   return (
-    <SettingsSection title={t('shortlink_settings', 'Shortlink Settings')}>
-      <div className="flex items-center justify-between gap-[24px]">
-        <div className="flex flex-col flex-1">
+    <SettingsSection
+      layout="row"
+      title={t('shortlink_settings', 'Shortlink Settings')}
+      caption={words.shortlink}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-[24px] gap-y-[12px]">
+        <div className="flex min-w-[200px] flex-col flex-1">
           <div className="cf-label-md text-cf-ink">
             {t('shortlink_preference', 'Shortlink Preference')}
           </div>
@@ -105,7 +112,9 @@ const ShortlinkPreferenceComponent = () => {
             </div>
           )}
         </div>
-        <div className="w-[200px]">
+        {/* 200px cut «Спрашивать каждый раз» to «Спрашивать каждый р»
+            (twelfth stand walk, 14-global-full-d). */}
+        <div className="w-full sm:w-[260px]">
           <Select
             name="shortlink"
             label=""

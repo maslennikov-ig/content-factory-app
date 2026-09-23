@@ -851,112 +851,27 @@ describe('a voice line is edited where it is read', () => {
   });
 });
 
-describe('«Обращение к читателю» — the avatar layer of the address (97dq.38)', () => {
-  const ru = () => copy.voiceCopy.ru;
-
-  test('the passport reads the stored choice, and absence is «Не задано»', () => {
-    expect(adapter.mapPassport(PASSPORT).voice.addressForm).toBeUndefined();
+describe('«Обращение к читателю» is gone from the avatar (97dq.45)', () => {
+  // Eleventh walk, 23.09.2026: the option is language-specific and the owner
+  // took it out of the product; whoever wants it writes it in the wish.
+  test('a stored choice is not read, and the passport shows no control or word', async () => {
     expect(
       adapter.mapPassport({
         ...PASSPORT,
         voice: { ...PASSPORT.voice, addressForm: 'vy' },
-      }).voice.addressForm
-    ).toBe('vy');
-    // A value the contract does not know is not a choice somebody made.
-    expect(
-      adapter.mapPassport({
-        ...PASSPORT,
-        voice: { ...PASSPORT.voice, addressForm: 'maybe' },
-      }).voice.addressForm
-    ).toBeUndefined();
-  });
-
-  test('one segmented control, three words, saved through the passport door', async () => {
-    routes[adapter.VOICE_ROUTES.passportField] = answer({
-      ...PASSPORT,
-      voice: { ...PASSPORT.voice, addressForm: 'vy', versionLabel: 'v4' },
-    });
-    renderTab();
-    await screen.findByText(PASSPORT.voice.whoSpeaks);
-
-    const group = screen.getByRole('radiogroup', { name: ru().passportAddress });
-    expect(
-      [...group.querySelectorAll('[role="radio"]')].map((one) => one.textContent)
-    ).toEqual([
-      ru().passportAddressUnset,
-      ru().passportAddressTy,
-      ru().passportAddressVy,
-    ]);
-    expect(
-      screen
-        .getByRole('radio', { name: ru().passportAddressUnset })
-        .getAttribute('aria-checked')
-    ).toBe('true');
-
-    fireEvent.click(screen.getByRole('radio', { name: ru().passportAddressVy }));
-
-    await waitFor(() =>
-      expect(
-        calls.find(
-          (call) =>
-            call.path === adapter.VOICE_ROUTES.passportField &&
-            call.method === 'POST'
-        )
-      ).toMatchObject({ body: { addressForm: 'vy' } })
-    );
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole('radio', { name: ru().passportAddressVy })
-          .getAttribute('aria-checked')
-      ).toBe('true')
-    );
-  });
-
-  test('«Не задано» is sent as null, not as a missing field', async () => {
+      }).voice
+    ).not.toHaveProperty('addressForm');
     routes[adapter.VOICE_ROUTES.passport] = answer({
       ...PASSPORT,
       voice: { ...PASSPORT.voice, addressForm: 'ty' },
     });
-    routes[adapter.VOICE_ROUTES.passportField] = answer(PASSPORT);
     renderTab();
     await screen.findByText(PASSPORT.voice.whoSpeaks);
 
-    fireEvent.click(
-      screen.getByRole('radio', { name: ru().passportAddressUnset })
-    );
-    await waitFor(() =>
-      expect(
-        calls.find(
-          (call) =>
-            call.path === adapter.VOICE_ROUTES.passportField &&
-            call.method === 'POST'
-        )?.body
-      ).toEqual({ addressForm: null })
-    );
-  });
-
-  test('a reader who may not change the voice sees the word, not the control', async () => {
-    routes[adapter.VOICE_ROUTES.passport] = answer({
-      ...PASSPORT,
-      voice: { ...PASSPORT.voice, addressForm: 'ty' },
-    });
-    routes[adapter.VOICE_ROUTES.scales] = answer({
-      ...SCALES,
-      state: 'restricted',
-      canEditCorridors: false,
-    });
-    renderTab();
-    await screen.findByText(PASSPORT.voice.whoSpeaks);
-
-    expect(
-      screen.queryByRole('radiogroup', { name: ru().passportAddress })
-    ).toBeNull();
-    expect(
-      document
-        .querySelector('[data-voice-address]')
-        .getAttribute('data-voice-address')
-    ).toBe('ty');
-    expect(screen.getByText(ru().passportAddressTy)).toBeTruthy();
+    expect(document.querySelector('[data-voice-address]')).toBeNull();
+    expect(screen.queryByText('Обращение к читателю')).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'на «ты»' })).toBeNull();
+    expect(copy.voiceCopy.ru).not.toHaveProperty('passportAddress');
+    expect(copy.voiceCopy.en).not.toHaveProperty('passportAddress');
   });
 });

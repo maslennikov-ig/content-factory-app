@@ -16,6 +16,7 @@ test('channel selection is persisted and sent before pagination', () => {
 });
 test('both planning doors open the picker and the cell preserves its exact date', () => {
   expect(read('filters.tsx')).toContain('onClick={() => openPicker()}');
-  expect(read('calendar.tsx')).toContain('openPicker(getDate)');
+  expect(read('calendar.tsx')).toContain('addAt(getDate)');
+  expect(read('calendar.tsx')).toMatch(/canWritePosts\s*\?\s*openPicker\(at,[^)]*\)\s*:\s*refuseWritePost\(\)/);
   expect(read('calendar.tsx')).not.toContain('Math.random() * 24');
 });

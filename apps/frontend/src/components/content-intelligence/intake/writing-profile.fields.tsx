@@ -13,7 +13,6 @@ import {
 } from '../../brand-voice/voice-avatars.adapter';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import {
-  CHANNEL_ADDRESS_FORMS,
   CTA_KINDS,
   EMOJI_LEVELS,
   FORMAT_PREFERENCES,
@@ -23,7 +22,6 @@ import {
   LINK_POLICIES,
   PROFILE_NOTES_MAX,
   lengthPresetOf,
-  type ChannelAddressForm,
   type ChannelWritingProfileV1,
   type LengthPreset,
 } from './writing-profile.adapter';
@@ -75,14 +73,6 @@ type WritingProfileFieldsProps = {
   onChange: (patch: Partial<ChannelWritingProfileV1>) => void;
 };
 
-const addressLabels = (
-  t: (typeof intakeCopy)[IntakeLocale]
-): Record<ChannelAddressForm, string> => ({
-  avatar: t.profileAddressAvatar,
-  ty: t.profileAddressTy,
-  vy: t.profileAddressVy,
-});
-
 const speakerName = (
   t: (typeof intakeCopy)[IntakeLocale],
   avatars: readonly WritingProfileAvatar[],
@@ -98,6 +88,61 @@ export type WritingProfileViewRow = {
   value: string;
 };
 
+/**
+ * Слова значений карточки — одни для карточки канала и для «Для этого
+ * поста» (`97dq.48`): пост выбирает из тех же значений, что канал, и
+ * называть их по-другому значило бы завести второе мнение о том, что такое
+ * «мало эмодзи».
+ */
+export function writingProfileLabels(locale: IntakeLocale) {
+  const t = intakeCopy[locale];
+  return {
+    length: {
+      auto: t.profileAuto,
+      short: t.profileLengthShort,
+      ideal: t.profileLengthIdeal,
+      long: t.profileLengthLong,
+      max: t.profileLengthMax,
+    } as Record<LengthPreset, string>,
+    emoji: {
+      none: t.profileEmojiNone,
+      few: t.profileEmojiFew,
+      many: t.profileEmojiFree,
+      auto: t.profileAuto,
+    } as Record<ChannelWritingProfileV1['emojiLevel'], string>,
+    link: {
+      none: t.profileLinkNone,
+      end: t.profileLinkEnd,
+      inline: t.profileLinkInline,
+      auto: t.profileAuto,
+    } as Record<ChannelWritingProfileV1['linkPolicy'], string>,
+    hashtag: {
+      none: t.profileHashtagNone,
+      end_1_3: t.profileHashtagEnd,
+      free: t.profileHashtagFree,
+      auto: t.profileAuto,
+    } as Record<ChannelWritingProfileV1['hashtagPolicy'], string>,
+    cta: {
+      none: t.profileCtaNone,
+      question: t.profileCtaQuestion,
+      comment: t.profileCtaComment,
+      link: t.profileCtaLink,
+      subscribe: t.profileCtaSubscribe,
+      reply: t.profileCtaReply,
+      auto: t.profileAuto,
+    } as Record<ChannelWritingProfileV1['ctaKind'], string>,
+    format: {
+      auto: t.profileAuto,
+      opinion: t.formatOpinion,
+      announcement: t.formatAnnouncement,
+      list: t.formatList,
+      expert: t.formatExpert,
+      case: t.formatCase,
+      story: t.formatStory,
+    } as Record<ChannelWritingProfileV1['formatPreference'], string>,
+  };
+}
+
 const options = <Value extends string>(
   values: readonly Value[],
   labels: Record<Value, string>
@@ -111,49 +156,13 @@ export function writingProfileViewRows(
   avatars: readonly WritingProfileAvatar[] = []
 ): readonly WritingProfileViewRow[] {
   const t = intakeCopy[locale];
-  const lengthLabels: Record<LengthPreset, string> = {
-    auto: t.profileAuto,
-    short: t.profileLengthShort,
-    ideal: t.profileLengthIdeal,
-    long: t.profileLengthLong,
-    max: t.profileLengthMax,
-  };
-  const emojiLabels = {
-    none: t.profileEmojiNone,
-    few: t.profileEmojiFew,
-    many: t.profileEmojiFree,
-    auto: t.profileAuto,
-  } as const;
-  const linkLabels = {
-    none: t.profileLinkNone,
-    end: t.profileLinkEnd,
-    inline: t.profileLinkInline,
-    auto: t.profileAuto,
-  } as const;
-  const hashtagLabels = {
-    none: t.profileHashtagNone,
-    end_1_3: t.profileHashtagEnd,
-    free: t.profileHashtagFree,
-    auto: t.profileAuto,
-  } as const;
-  const ctaLabels = {
-    none: t.profileCtaNone,
-    question: t.profileCtaQuestion,
-    comment: t.profileCtaComment,
-    link: t.profileCtaLink,
-    subscribe: t.profileCtaSubscribe,
-    reply: t.profileCtaReply,
-    auto: t.profileAuto,
-  } as const;
-  const formatLabels = {
-    auto: t.profileAuto,
-    opinion: t.formatOpinion,
-    announcement: t.formatAnnouncement,
-    list: t.formatList,
-    expert: t.formatExpert,
-    case: t.formatCase,
-    story: t.formatStory,
-  } as const;
+  const labels = writingProfileLabels(locale);
+  const lengthLabels = labels.length;
+  const emojiLabels = labels.emoji;
+  const linkLabels = labels.link;
+  const hashtagLabels = labels.hashtag;
+  const ctaLabels = labels.cta;
+  const formatLabels = labels.format;
 
   return [
     ...(avatars.length > 1
@@ -164,10 +173,6 @@ export function writingProfileViewRows(
           },
         ]
       : []),
-    {
-      key: t.profileAddress,
-      value: addressLabels(t)[profile.addressForm ?? 'avatar'],
-    },
     {
       key: t.profileLength,
       value: lengthLabels[lengthPresetOf(profile.lengthPolicy)],
@@ -199,52 +204,15 @@ export function WritingProfileFields({
   const notesId = useId();
   const speakerId = useId();
 
-  const lengthOptions = options(LENGTH_PRESET_ORDER, {
-    auto: t.profileAuto,
-    short: t.profileLengthShort,
-    ideal: t.profileLengthIdeal,
-    long: t.profileLengthLong,
-    max: t.profileLengthMax,
-  });
-  const emojiOptions = options(EMOJI_LEVELS, {
-    none: t.profileEmojiNone,
-    few: t.profileEmojiFew,
-    many: t.profileEmojiFree,
-    auto: t.profileAuto,
-  });
-  const linkOptions = options(LINK_POLICIES, {
-    none: t.profileLinkNone,
-    end: t.profileLinkEnd,
-    inline: t.profileLinkInline,
-    auto: t.profileAuto,
-  });
-  const hashtagOptions = options(HASHTAG_POLICIES, {
-    none: t.profileHashtagNone,
-    end_1_3: t.profileHashtagEnd,
-    free: t.profileHashtagFree,
-    auto: t.profileAuto,
-  });
-  const ctaOptions = options(CTA_KINDS, {
-    none: t.profileCtaNone,
-    question: t.profileCtaQuestion,
-    comment: t.profileCtaComment,
-    link: t.profileCtaLink,
-    subscribe: t.profileCtaSubscribe,
-    reply: t.profileCtaReply,
-    auto: t.profileAuto,
-  });
-  const formatOptions = options(FORMAT_PREFERENCES, {
-    auto: t.profileAuto,
-    opinion: t.formatOpinion,
-    announcement: t.formatAnnouncement,
-    list: t.formatList,
-    expert: t.formatExpert,
-    case: t.formatCase,
-    story: t.formatStory,
-  });
+  const labels = writingProfileLabels(locale);
+  const lengthOptions = options(LENGTH_PRESET_ORDER, labels.length);
+  const emojiOptions = options(EMOJI_LEVELS, labels.emoji);
+  const linkOptions = options(LINK_POLICIES, labels.link);
+  const hashtagOptions = options(HASHTAG_POLICIES, labels.hashtag);
+  const ctaOptions = options(CTA_KINDS, labels.cta);
+  const formatOptions = options(FORMAT_PREFERENCES, labels.format);
 
   const hints: Record<string, string> = {
-    [t.profileAddress]: t.profileHintAddress,
     [t.profileLength]: t.profileHintLength,
     [t.profileEmoji]: t.profileHintEmoji,
     [t.profileLink]: t.profileHintLink,
@@ -252,7 +220,6 @@ export function WritingProfileFields({
     [t.profileCta]: t.profileHintCta,
     [t.profileFormat]: t.profileHintFormat,
   };
-  const addressOptions = options(CHANNEL_ADDRESS_FORMS, addressLabels(t));
   const labelClass = 'flex items-center gap-[4px] cf-label-sm uppercase text-cf-ink-muted';
   const fieldLabel = (label: string, hint: ReactNode) => (
     <>
@@ -310,12 +277,6 @@ export function WritingProfileFields({
           </Select>
         </>
       ) : null}
-      {row(
-        t.profileAddress,
-        profile.addressForm ?? 'avatar',
-        addressOptions,
-        (addressForm) => onChange({ addressForm })
-      )}
       {row(
         t.profileLength,
         lengthPresetOf(profile.lengthPolicy),

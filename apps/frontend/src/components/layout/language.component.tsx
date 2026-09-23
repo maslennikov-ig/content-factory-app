@@ -42,31 +42,50 @@ const applyLanguage = (language: string) => {
  * is no account to save to at all. There `useUser()` has no provider above it
  * and answers nothing, which is exactly the signal to skip the door.
  */
-export const ChangeLanguageComponent = () => {
+/**
+ * The whole language change — cookie, page, account — as one call, so the
+ * modal picker and the profile's «Язык интерфейса» (`97dq.51`) are two views
+ * of one decision rather than two copies of it.
+ */
+export const useAccountLanguage = () => {
   const currentLanguage = i18next.resolvedLanguage || fallbackLng;
-  const availableLanguages = languages;
   const [_, setCookie] = useCookie(cookieName, currentLanguage || fallbackLng);
-  const modals = useModals();
-  const t = useT();
   const fetch = useFetch();
   const user = useUser();
 
+  const change = useCallback(
+    (language: string) => {
+      setCookie(language);
+      applyLanguage(language);
+
+      if (!user?.id) {
+        return;
+      }
+
+      fetch('/user/language', {
+        method: 'POST',
+        body: JSON.stringify({ language }),
+      }).catch(() => {
+        // The page has already changed language. A failed save is worth no
+        // interruption: the next change tries again, and the cookie still
+        // holds.
+      });
+    },
+    [fetch, setCookie, user?.id]
+  );
+
+  return { current: currentLanguage, change };
+};
+
+export const ChangeLanguageComponent = () => {
+  const { current: currentLanguage, change } = useAccountLanguage();
+  const availableLanguages = languages;
+  const modals = useModals();
+  const t = useT();
+
   const handleLanguageChange = (language: string) => {
-    setCookie(language);
-    applyLanguage(language);
+    change(language);
     modals.closeCurrent();
-
-    if (!user?.id) {
-      return;
-    }
-
-    fetch('/user/language', {
-      method: 'POST',
-      body: JSON.stringify({ language }),
-    }).catch(() => {
-      // The page has already changed language. A failed save is worth no
-      // interruption: the next change tries again, and the cookie still holds.
-    });
   };
 
   return (

@@ -22,9 +22,18 @@ import { Panel } from '@contentfactory/frontend/components/ui/surface';
  * `Panel`'s own table, the tab's outer spacing here — and in none of the
  * components that use it. `tests/component-geometry.guard.test.cjs` keeps a
  * sixth hand-written copy from appearing.
+ *
+ * `layout="row"` (`content-factory-next-97dq.51`, 23.09.2026). Owner: «в
+ * глобальных настройках тоже всё очень растянуто». On «Глобальные настройки»
+ * each section is a row: its name and one line of what it is for on the left
+ * in 260px, its controls on the right no wider than 560px, a rule between
+ * rows. Below `md` the two columns stack. The card stays the default for the
+ * superadmin screen, which borrows this component for a different page.
  */
 export const SettingsSection = ({
   title,
+  caption,
+  layout = 'card',
   children,
 }: {
   /**
@@ -33,17 +42,38 @@ export const SettingsSection = ({
    * arrived would move the rest of the tab under the pointer.
    */
   title?: ReactNode;
+  /** One line under the name, in the row layout only. */
+  caption?: ReactNode;
+  layout?: 'card' | 'row';
   children: ReactNode;
-}) => (
-  <Panel
-    as="section"
-    className="my-[16px]"
-    contentPadding="roomy"
-    contentClassName="flex flex-col gap-[24px]"
-  >
-    {title ? <h4 className="cf-label-md text-cf-ink">{title}</h4> : null}
-    {children}
-  </Panel>
-);
+}) =>
+  layout === 'row' ? (
+    <section
+      data-settings-row="true"
+      className="grid gap-[12px] border-b border-cf-border py-[24px] last:border-b-0 md:grid-cols-[260px_minmax(0,1fr)] md:gap-[32px]"
+    >
+      <div className="flex min-w-0 flex-col gap-[4px]">
+        {title ? <h3 className="cf-label-md text-cf-ink">{title}</h3> : null}
+        {caption ? (
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {caption}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex min-w-0 max-w-[560px] flex-col gap-[16px]">
+        {children}
+      </div>
+    </section>
+  ) : (
+    <Panel
+      as="section"
+      className="my-[16px]"
+      contentPadding="roomy"
+      contentClassName="flex flex-col gap-[24px]"
+    >
+      {title ? <h4 className="cf-label-md text-cf-ink">{title}</h4> : null}
+      {children}
+    </Panel>
+  );
 
 export default SettingsSection;

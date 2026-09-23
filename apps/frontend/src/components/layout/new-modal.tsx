@@ -205,7 +205,15 @@ export const Component: FC<{
                 style: {
                   ...(modal.size ? { width: modal.size } : {}),
                   ...(modal.height ? { height: modal.height } : {}),
-                  ...(modal.maxSize ? { maxWidth: modal.maxSize } : {}),
+                  // A fixed width is a desktop width: on a 390px phone a
+                  // 600px dialog pushed its own primary button off-screen
+                  // (twelfth stand walk, 12-picker-m). The screen minus the
+                  // 16px gutter is the ceiling unless the caller set one.
+                  ...(modal.maxSize
+                    ? { maxWidth: modal.maxSize }
+                    : modal.size
+                    ? { maxWidth: 'calc(100vw - 32px)' }
+                    : {}),
                 },
               })}
               onClick={(e) => e.stopPropagation()}

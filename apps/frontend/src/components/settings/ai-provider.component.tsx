@@ -21,6 +21,8 @@ import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { deleteDialog } from '@contentfactory/react/helpers/delete.dialog';
 import { CloseIconSmall } from '@contentfactory/frontend/components/ui/icons';
 import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
+import { Progress } from '../ui/progress';
+import { settingsWordsFor } from '@contentfactory/frontend/components/settings/settings.copy';
 import {
   aiProviderCopy,
   resolveAiProviderLocale,
@@ -180,6 +182,8 @@ interface AiSettings {
   usageByMember: Array<{
     userId: string | null;
     email: string | null;
+    /** First and last name when the member has one. */
+    name?: string | null;
     operations: number;
   }>;
   usageByRole: Array<{ role: string | null; operations: number }>;
@@ -483,6 +487,7 @@ const AiProviderComponent = () => {
   const t = useT();
   const { language } = useVariables();
   const words = aiProviderCopy[resolveAiProviderLocale(language)];
+  const rowWords = settingsWordsFor(language).global;
   const fetch = useFetch();
   const toaster = useToaster();
 
@@ -848,55 +853,99 @@ const AiProviderComponent = () => {
    */
   const ownKeys = usageMode === 'workspace_key';
 
+  const allowanceLine =
+    usageMode === 'included'
+      ? data?.includedRestrictionReason === 'managed_unavailable'
+        ? t('ai_usage_managed_unavailable')
+        : data?.includedRestrictionReason === 'quota_exhausted'
+        ? t('ai_usage_exhausted')
+        : data?.includedRestrictionReason === null
+        ? `${data.includedRemainingOperations} / ${
+            data.includedMonthlyOperations
+          } · ${t('billing_period', 'Billing period')}`
+        : t('ai_usage_zero_quota')
+      : t('ai_usage_workspace_mode');
+  /**
+   * The allowance as a gauge, where there is one to draw: the included mode
+   * with a live monthly quota. The bar is the share still left — the same
+   * reading as the numbers under it, «remaining / monthly» — so the two never
+   * disagree about which way is full (`97dq.51`, «расход — полоской»).
+   */
+  const allowanceShare =
+    usageMode === 'included' &&
+    data?.includedRestrictionReason === null &&
+    data.includedMonthlyOperations > 0
+      ? (data.includedRemainingOperations / data.includedMonthlyOperations) *
+        100
+      : null;
+
+  /*
+    Two rows of «Глобальные настройки» rather than one card
+    (`content-factory-next-97dq.51`): «ИИ» — whose keys and what was spent —
+    and «Веб-исследование». Every control, gate and handler is the one that
+    was here; only where each one stands has changed.
+  */
   return (
-    <SettingsSection title={t('ai_provider', 'AI provider')}>
-      <LabelledField
-        id="ai-usage-mode"
-        label={t('ai_usage_mode')}
-        hintLabel={words.hintFor(t('ai_usage_mode'))}
-        hint={words.usageModeHint}
+    <>
+      <SettingsSection
+        layout="row"
+        title={rowWords.aiTitle}
+        caption={rowWords.ai}
       >
-        <Select
+        <LabelledField
           id="ai-usage-mode"
-          label=""
-          name="usageMode"
-          value={usageMode}
-          disableForm={true}
-          hideErrors={true}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-            const next =
-              event.target.value === 'included' ? 'included' : 'workspace_key';
-            setUsageMode(next);
-            autosave({ usageMode: next });
-          }}
+          label={t('ai_usage_mode')}
+          hintLabel={words.hintFor(t('ai_usage_mode'))}
+          hint={words.usageModeHint}
         >
-          <option value="included">{t('ai_usage_included')}</option>
-          <option value="workspace_key">{t('ai_usage_workspace_key')}</option>
-        </Select>
-      </LabelledField>
+          <div className="w-full sm:w-[280px]">
+            <Select
+              id="ai-usage-mode"
+              label=""
+              name="usageMode"
+              value={usageMode}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                const next =
+                  event.target.value === 'included'
+                    ? 'included'
+                    : 'workspace_key';
+                setUsageMode(next);
+                autosave({ usageMode: next });
+              }}
+            >
+              <option value="included">{t('ai_usage_included')}</option>
+              <option value="workspace_key">
+                {t('ai_usage_workspace_key')}
+              </option>
+            </Select>
+          </div>
+        </LabelledField>
 
-      <div className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-        {usageMode === 'included'
-          ? data?.includedRestrictionReason === 'managed_unavailable'
-            ? t('ai_usage_managed_unavailable')
-            : data?.includedRestrictionReason === 'quota_exhausted'
-            ? t('ai_usage_exhausted')
-            : data?.includedRestrictionReason === null
-            ? `${data.includedRemainingOperations} / ${
-                data.includedMonthlyOperations
-              } · ${t('billing_period', 'Billing period')}`
-            : t('ai_usage_zero_quota')
-          : t('ai_usage_workspace_mode')}
-      </div>
+        <div data-ai-allowance="true" className="flex flex-col gap-[8px]">
+          {allowanceShare !== null ? (
+            <Progress
+              mode="percent"
+              value={allowanceShare}
+              label={rowWords.allowanceBar}
+              valueText={allowanceLine}
+            />
+          ) : null}
+          <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+            {allowanceLine}
+          </p>
+        </div>
 
-      {/*
+        <div className="grid gap-[20px] sm:grid-cols-2">
+          {/*
         Who spent it. The ledger carried an organization and no person until
         `saas.2.1`, so this list is the first answer the product has ever had
         to «who is using the AI budget». Operations nobody asked for — the
         schedule, the API key — are shown as their own row rather than
         dropped, so the rows still add up to the total above.
       */}
-      {/*
+          {/*
         Рисуется всегда, а не только при непустом списке
         (`content-factory-next-m2eg.24`). Владелец 07.09.2026: «расходы по
         участнику… не понимаю, где смотреть, потому что там же их нет». Их и
@@ -904,203 +953,210 @@ const AiProviderComponent = () => {
         исчезал и заголовок — человек искал раздел, которого в этот момент не
         существовало на странице. Ноль — это ответ, и он печатается.
       */}
-      <div data-ai-usage="member" className="flex flex-col gap-[8px]">
-        <BlockHeading
-          title={t('ai_usage_by_member', 'AI usage by member, this period')}
-          hintLabel={words.hintFor(
-            t('ai_usage_by_member', 'AI usage by member, this period')
-          )}
-          hint={words.usageNoneHint}
-        />
-        {data?.usageByMember?.length ? (
-          <div className="flex flex-col gap-[4px]">
-            {data.usageByMember.map((member) => (
-              <div
-                key={member.userId ?? 'unattributed'}
-                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
-              >
-                <span className="truncate">
-                  {member.email ??
-                    t('ai_usage_scheduled_work', 'Scheduled and API work')}
-                </span>
-                <span className="cf-caption text-cf-ink-muted">
-                  {member.operations}
-                </span>
+          <div data-ai-usage="member" className="flex flex-col gap-[8px]">
+            <BlockHeading
+              title={t('ai_usage_by_member', 'AI usage by member, this period')}
+              hintLabel={words.hintFor(
+                t('ai_usage_by_member', 'AI usage by member, this period')
+              )}
+              hint={words.usageNoneHint}
+            />
+            {data?.usageByMember?.length ? (
+              <div className="flex flex-col gap-[4px]">
+                {data.usageByMember.map((member) => (
+                  <div
+                    key={member.userId ?? 'unattributed'}
+                    className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+                  >
+                    <span
+                      className="truncate"
+                      title={member.name ? member.email ?? undefined : undefined}
+                    >
+                      {member.name ||
+                        member.email ||
+                        t('ai_usage_scheduled_work', 'Scheduled and API work')}
+                    </span>
+                    <span className="cf-caption text-cf-ink-muted">
+                      {member.operations}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink">
+                <span className="truncate">{words.usageNone}</span>
+                <span className="cf-caption text-cf-ink-muted">0</span>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink">
-            <span className="truncate">{words.usageNone}</span>
-            <span className="cf-caption text-cf-ink-muted">0</span>
-          </div>
-        )}
-      </div>
 
-      {/*
+          {/*
         The same period, read along the other axis. Routing is configured per
         role below, so it can only be judged per role: without this list
         «classification now runs on a small model» is a claim nobody in the
         product can check. Rows written before the ledger carried a role keep
         their own line rather than being dropped, so the parts still add up.
       */}
-      <div data-ai-usage="role" className="flex flex-col gap-[8px]">
-        <BlockHeading
-          title={t('ai_usage_by_role', 'AI usage by role, this period')}
-          hintLabel={words.hintFor(
-            t('ai_usage_by_role', 'AI usage by role, this period')
-          )}
-          hint={words.usageNoneHint}
-        />
-        {data?.usageByRole?.length ? (
-          <div className="flex flex-col gap-[4px]">
-            {data.usageByRole.map((row) => (
-              <div
-                key={row.role ?? 'unrecorded'}
-                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
-              >
-                <span className="truncate">
-                  {row.role
-                    ? t(`ai_role_${row.role}`, row.role)
-                    : t('ai_usage_role_unknown', 'Recorded before roles')}
-                </span>
-                <span className="cf-caption text-cf-ink-muted">
-                  {row.operations}
-                </span>
+          <div data-ai-usage="role" className="flex flex-col gap-[8px]">
+            <BlockHeading
+              title={t('ai_usage_by_role', 'AI usage by role, this period')}
+              hintLabel={words.hintFor(
+                t('ai_usage_by_role', 'AI usage by role, this period')
+              )}
+              hint={words.usageNoneHint}
+            />
+            {data?.usageByRole?.length ? (
+              <div className="flex flex-col gap-[4px]">
+                {data.usageByRole.map((row) => (
+                  <div
+                    key={row.role ?? 'unrecorded'}
+                    className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+                  >
+                    <span className="truncate">
+                      {row.role
+                        ? t(`ai_role_${row.role}`, row.role)
+                        : t('ai_usage_role_unknown', 'Recorded before roles')}
+                    </span>
+                    <span className="cf-caption text-cf-ink-muted">
+                      {row.operations}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          /*
+            ) : (
+              /*
             Шесть нулей, а не одна строка «пусто»: роли известны заранее
             (`AI_ROLES`), и напечатанный ноль напротив каждой — это и есть
             ответ на вопрос «а где смотреть». Заодно список ролей виден
             раньше, чем человек доходит до полей ниже.
           */
-          <div className="flex flex-col gap-[4px]">
-            {AI_ROLES.map((role) => (
-              <div
-                key={role}
-                className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
-              >
-                <span className="truncate">{t(`ai_role_${role}`, role)}</span>
-                <span className="cf-caption text-cf-ink-muted">0</span>
+              <div className="flex flex-col gap-[4px]">
+                {AI_ROLES.map((role) => (
+                  <div
+                    key={role}
+                    className="flex items-baseline justify-between gap-[16px] cf-body-sm text-cf-ink"
+                  >
+                    <span className="truncate">
+                      {t(`ai_role_${role}`, role)}
+                    </span>
+                    <span className="cf-caption text-cf-ink-muted">0</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {ownKeys && (
-        <>
-          <LabelledField
-            id="ai-provider-name"
-            label={t('provider', 'Provider')}
-          >
-            <Select
+        {ownKeys && (
+          <>
+            <LabelledField
               id="ai-provider-name"
-              label=""
-              name="provider"
-              value={provider}
-              disableForm={true}
-              hideErrors={true}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                changeProvider(e.target.value as Provider)
-              }
+              label={t('provider', 'Provider')}
             >
-              <option value="openai">OpenAI</option>
-              <option value="openrouter">OpenRouter</option>
-            </Select>
-          </LabelledField>
+              <Select
+                id="ai-provider-name"
+                label=""
+                name="provider"
+                value={provider}
+                disableForm={true}
+                hideErrors={true}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  changeProvider(e.target.value as Provider)
+                }
+              >
+                <option value="openai">OpenAI</option>
+                <option value="openrouter">OpenRouter</option>
+              </Select>
+            </LabelledField>
 
-          <Input
-            label={t('api_key', 'API key')}
-            name="apiKey"
-            secret={true}
-            value={apiKey}
-            disableForm={true}
-            action={
-              data?.hasKey ? (
-                <ClearStoredKeyButton
-                  label={t('remove_stored_key', 'Remove stored key')}
-                  busy={clearing}
-                  onClear={clearKey}
-                />
-              ) : undefined
-            }
-            placeholder={
-              data?.hasKey
-                ? t(
-                    'ai_key_set_placeholder',
-                    'A key is saved — type to replace it'
-                  )
-                : t('ai_key_empty_placeholder', 'Paste your key')
-            }
-            /*
+            <Input
+              label={t('api_key', 'API key')}
+              name="apiKey"
+              secret={true}
+              value={apiKey}
+              disableForm={true}
+              action={
+                data?.hasKey ? (
+                  <ClearStoredKeyButton
+                    label={t('remove_stored_key', 'Remove stored key')}
+                    busy={clearing}
+                    onClear={clearKey}
+                  />
+                ) : undefined
+              }
+              placeholder={
+                data?.hasKey
+                  ? t(
+                      'ai_key_set_placeholder',
+                      'A key is saved — type to replace it'
+                    )
+                  : t('ai_key_empty_placeholder', 'Paste your key')
+              }
+              /*
               A key is a secret and has no autosave handler of any kind: this
               field reaches the network only when «Сохранить» is pressed. The
               line below is state — whether a key is stored — so it stays on
               the surface rather than moving into a hint.
             */
-            helper={
-              !data?.hasKey
-                ? t(
-                    'ai_key_missing_org',
-                    'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
-                  )
-                : t(
-                    'ai_key_from_settings',
-                    'A key is stored for this workspace. It is never shown again.'
-                  )
-            }
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setApiKey(e.target.value)
-            }
-          />
+              helper={
+                !data?.hasKey
+                  ? t(
+                      'ai_key_missing_org',
+                      'This workspace has no key, so generation is off. Keys are per workspace: yours is never shown to anyone else, and no other workspace can spend it.'
+                    )
+                  : t(
+                      'ai_key_from_settings',
+                      'A key is stored for this workspace. It is never shown again.'
+                    )
+              }
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setApiKey(e.target.value)
+              }
+            />
 
-          <ModelField
-            label={t('text_model', 'Text model')}
-            hint={
-              provider === 'openrouter'
-                ? t(
-                    'text_model_hint_openrouter',
-                    'Only models that support structured output and tools are listed — the generator depends on both.'
-                  )
-                : t(
-                    'text_model_hint',
-                    'Leave empty to use the provider default.'
-                  )
-            }
-            placeholder={t('provider_default_model', 'Provider default')}
-            value={textModel}
-            options={textOptions}
-            listId="ai-text-models"
-            onChange={setTextModel}
-            onCommit={autosave}
-          />
+            <ModelField
+              label={t('text_model', 'Text model')}
+              hint={
+                provider === 'openrouter'
+                  ? t(
+                      'text_model_hint_openrouter',
+                      'Only models that support structured output and tools are listed — the generator depends on both.'
+                    )
+                  : t(
+                      'text_model_hint',
+                      'Leave empty to use the provider default.'
+                    )
+              }
+              placeholder={t('provider_default_model', 'Provider default')}
+              value={textModel}
+              options={textOptions}
+              listId="ai-text-models"
+              onChange={setTextModel}
+              onCommit={autosave}
+            />
 
-          <ModelField
-            label={t('image_model', 'Image model')}
-            hint={
-              provider === 'openrouter'
-                ? t(
-                    'image_model_hint_openrouter',
-                    'Only models that can return an image are listed.'
-                  )
-                : t(
-                    'image_model_hint',
-                    'Leave empty to use the provider default.'
-                  )
-            }
-            placeholder={t('provider_default_model', 'Provider default')}
-            value={imageModel}
-            options={imageOptions}
-            listId="ai-image-models"
-            onChange={setImageModel}
-            onCommit={autosave}
-          />
+            <ModelField
+              label={t('image_model', 'Image model')}
+              hint={
+                provider === 'openrouter'
+                  ? t(
+                      'image_model_hint_openrouter',
+                      'Only models that can return an image are listed.'
+                    )
+                  : t(
+                      'image_model_hint',
+                      'Leave empty to use the provider default.'
+                    )
+              }
+              placeholder={t('provider_default_model', 'Provider default')}
+              value={imageModel}
+              options={imageOptions}
+              listId="ai-image-models"
+              onChange={setImageModel}
+              onCommit={autosave}
+            />
 
-          {/*
+            {/*
             One model for everything was the whole cost problem
             (`content-factory-next-x63z`): classifying a research subject — one
             sentence in, five short fields out — was billed at the price of
@@ -1113,241 +1169,262 @@ const AiProviderComponent = () => {
             осталось строкой; что такое роль вызова и зачем её менять, уехало
             в подсказку (`content-factory-next-75xn.13`).
           */}
-          <div
-            data-ai-roles-hint="true"
-            className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]"
-          >
-            <BlockHeading
-              title={t('ai_role_models', 'Usage and call roles')}
-              hintLabel={words.hintFor(
-                t('ai_role_models', 'Usage and call roles')
-              )}
-              hint={words.rolesHint}
-            />
-            <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
-              {words.rolesEmpty}
-            </p>
-          </div>
-
-          {AI_ROLES.map((role) => (
-            <Input
-              key={role}
-              label={t(`ai_role_${role}`, role)}
-              name={`ai-role-model-${role}`}
-              value={roleModels[role] || ''}
-              placeholder={t('provider_default_model', 'Provider default')}
-              disableForm={true}
-              // Одна строка про саму роль, рядом с её полем: список из шести
-              // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
-              // его впервые.
-              helper={words.roles[role].what}
-              list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
-              onBlur={() => autosave()}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                setRoleModels((current) => ({
-                  ...current,
-                  [role]: event.target.value,
-                }))
-              }
-            />
-          ))}
-
-          {provider === 'openrouter' && models?.error && (
-            <div className="cf-body-sm text-cf-danger">
-              {t(
-                'ai_models_unavailable',
-                'Could not reach the OpenRouter catalogue. You can still type a model id.'
-              )}
+            <div
+              data-ai-roles-hint="true"
+              className="flex flex-col gap-[4px] border-t border-cf-border pt-[16px]"
+            >
+              <BlockHeading
+                title={t('ai_role_models', 'Usage and call roles')}
+                hintLabel={words.hintFor(
+                  t('ai_role_models', 'Usage and call roles')
+                )}
+                hint={words.rolesHint}
+              />
+              <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+                {words.rolesEmpty}
+              </p>
             </div>
-          )}
-        </>
-      )}
 
-      <div className="flex flex-col gap-[8px] border-t border-cf-border pt-[16px]">
-        <BlockHeading
-          title={t('web_search', 'Web research')}
-          hintLabel={words.hintFor(t('web_search', 'Web research'))}
-          hint={words.search.what}
-        />
-        {ownKeys ? (
+            {AI_ROLES.map((role) => (
+              <Input
+                key={role}
+                label={t(`ai_role_${role}`, role)}
+                name={`ai-role-model-${role}`}
+                value={roleModels[role] || ''}
+                placeholder={t('provider_default_model', 'Provider default')}
+                disableForm={true}
+                // Одна строка про саму роль, рядом с её полем: список из шести
+                // названий вроде «Разбор текста» ничего не объясняет тому, кто видит
+                // его впервые.
+                helper={words.roles[role].what}
+                list={role === 'image' ? 'ai-image-models' : 'ai-text-models'}
+                onBlur={() => autosave()}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setRoleModels((current) => ({
+                    ...current,
+                    [role]: event.target.value,
+                  }))
+                }
+              />
+            ))}
+
+            {provider === 'openrouter' && models?.error && (
+              <div className="cf-body-sm text-cf-danger">
+                {t(
+                  'ai_models_unavailable',
+                  'Could not reach the OpenRouter catalogue. You can still type a model id.'
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </SettingsSection>
+
+      <SettingsSection
+        layout="row"
+        title={
           /*
+          The hint stands beside the name, not inside an uppercase block
+          heading: the row title is set in its own case, so the bubble reads
+          the way it was written (`97dq.6`).
+        */
+          <span className="inline-flex flex-wrap items-center gap-[4px]">
+            {t('web_search', 'Web research')}
+            <Hint label={words.hintFor(t('web_search', 'Web research'))}>
+              {words.search.what}
+            </Hint>
+          </span>
+        }
+        caption={rowWords.search}
+      >
+        <div className="flex flex-col gap-[8px]">
+          {ownKeys ? (
+            /*
             Одна строка вместо четырёх селекторов и абзаца объяснения. Она
             называет то, что происходит на самом деле: какой движок обслуживает
             ресерч, какой — проверку фактов, и что это следует из сохранённых
             ключей (`content-factory-next-75xn.10`).
           */
-          <p
-            data-search-routing="true"
-            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {routing.line}
-          </p>
-        ) : (
-          /*
+            <p
+              data-search-routing="true"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {routing.line}
+            </p>
+          ) : (
+            /*
             На «Ключах системы» говорить о движках и ключах не о чем: их
             заводит суперадмин, и выбирать тут человеку нечего. Владелец
             18.09.2026: «если выбрана глобальная настройка, что ключи системы,
             то зачем это все показывать… всё это нужно прятать». Остаётся одна
             строка — что поиск работает и на чей счёт.
           */
-          <p
-            data-search-system-keys="true"
-            className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
-          >
-            {words.search.systemKeys}
-          </p>
-        )}
-      </div>
+            <p
+              data-search-system-keys="true"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {words.search.systemKeys}
+            </p>
+          )}
+        </div>
 
-      {/*
+        {/*
         Поле на движок — и только там, где оно задаёт вопрос. Пустое поле
         означает ключ системы, сохранённое перекрывает его для своего движка.
         На «Ключах системы» полей нет вовсе: свой ключ там спит, а форма,
         которая ни на что не влияет, — это и есть то, что владелец просил
         спрятать (`content-factory-next-97dq.6`).
       */}
-      {ownKeys &&
-        KEYED_SEARCH_PROVIDERS.map((engine) => (
-          <Input
-            key={engine}
-            label={`${words.search.engines[engine].keyLabel} — ${
-              hasStoredSearchKey(engine)
-                ? words.search.keyOwn
-                : words.search.keySystem
-            }`}
-            name={`searchApiKey-${engine}`}
-            secret={true}
-            value={searchApiKeys[engine] || ''}
-            disableForm={true}
-            action={
-              hasStoredSearchKey(engine) ? (
-                /*
+        {ownKeys &&
+          KEYED_SEARCH_PROVIDERS.map((engine) => (
+            <Input
+              key={engine}
+              label={`${words.search.engines[engine].keyLabel} — ${
+                hasStoredSearchKey(engine)
+                  ? words.search.keyOwn
+                  : words.search.keySystem
+              }`}
+              name={`searchApiKey-${engine}`}
+              secret={true}
+              value={searchApiKeys[engine] || ''}
+              disableForm={true}
+              action={
+                hasStoredSearchKey(engine) ? (
+                  /*
                   Крестик выглядит как удаление, а означает возврат на ключ
                   системы. Владелец 18.09.2026: «должно быть пояснение при
                   наведении на крестик… для обычного пользователя не должно
                   быть возможности работать без ключа». Имя кнопки называет
                   движок, всплывающая строка — что останется после нажатия.
                 */
-                <ClearStoredKeyButton
-                  label={words.search.returnToSystem(
-                    words.search.engines[engine].name
-                  )}
-                  hint={words.search.returnToSystemHint}
-                  busy={clearingSearch === engine}
-                  onClear={() => clearSearchKey(engine)}
-                />
-              ) : undefined
-            }
-            placeholder={
-              hasStoredSearchKey(engine)
-                ? words.search.keySavedPlaceholder
-                : words.search.keyEmptyPlaceholder
-            }
-            helper={
-              hasStoredSearchKey(engine) ? (
-                /*
+                  <ClearStoredKeyButton
+                    label={words.search.returnToSystem(
+                      words.search.engines[engine].name
+                    )}
+                    hint={words.search.returnToSystemHint}
+                    busy={clearingSearch === engine}
+                    onClear={() => clearSearchKey(engine)}
+                  />
+                ) : undefined
+              }
+              placeholder={
+                hasStoredSearchKey(engine)
+                  ? words.search.keySavedPlaceholder
+                  : words.search.keyEmptyPlaceholder
+              }
+              helper={
+                hasStoredSearchKey(engine) ? (
+                  /*
                   Объяснение с клавиатуры: `title` мышиный, а подсказка —
                   кнопка со своим именем. Она называет сам крестик и не
                   повторяет строку с него (`97dq.34`). Живёт под полем, а не в нём: у рамки
                   поля `overflow-hidden`, и пузырь внутри неё был бы обрезан.
                 */
-                <span className="flex flex-wrap items-center gap-[4px]">
-                  {words.search.engines[engine].keyStored}
-                  <Hint
-                    label={words.hintFor(
-                      words.search.returnToSystem(
+                  <span className="flex flex-wrap items-center gap-[4px]">
+                    {words.search.engines[engine].keyStored}
+                    <Hint
+                      label={words.hintFor(
+                        words.search.returnToSystem(
+                          words.search.engines[engine].name
+                        )
+                      )}
+                      side="start"
+                    >
+                      {words.search.returnToSystemExplain(
                         words.search.engines[engine].name
-                      )
-                    )}
-                    side="start"
-                  >
-                    {words.search.returnToSystemExplain(
-                      words.search.engines[engine].name
-                    )}
-                  </Hint>
-                </span>
-              ) : (
-                words.search.engines[engine].keyMissing
-              )
-            }
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchApiKeys((current) => ({
-                ...current,
-                [engine]: event.target.value,
-              }))
-            }
-          />
-        ))}
+                      )}
+                    </Hint>
+                  </span>
+                ) : (
+                  words.search.engines[engine].keyMissing
+                )
+              }
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                setSearchApiKeys((current) => ({
+                  ...current,
+                  [engine]: event.target.value,
+                }))
+              }
+            />
+          ))}
 
-      <LabelledField
-        id="ai-search-topic"
-        label={t('search_topic', 'Search topic')}
-      >
-        <Select
-          id="ai-search-topic"
-          label=""
-          name="searchTopic"
-          value={searchTopic}
-          disableForm={true}
-          hideErrors={true}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-            const next = event.target.value === 'news' ? 'news' : 'general';
-            setSearchTopic(next);
-            autosave({ searchTopic: next });
-          }}
+        {/* Тематика и глубина — рядом, по 240, а не друг под другом во всю
+          ширину (`97dq.51`). На узком экране — одна колонка. */}
+        <div
+          data-search-selects="true"
+          className="grid gap-[16px] sm:grid-cols-[repeat(2,240px)]"
         >
-          <option value="general">
-            {t('search_topic_general', 'General')}
-          </option>
-          <option value="news">{t('search_topic_news', 'News')}</option>
-        </Select>
-      </LabelledField>
+          <LabelledField
+            id="ai-search-topic"
+            label={t('search_topic', 'Search topic')}
+          >
+            <Select
+              id="ai-search-topic"
+              label=""
+              name="searchTopic"
+              value={searchTopic}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                const next = event.target.value === 'news' ? 'news' : 'general';
+                setSearchTopic(next);
+                autosave({ searchTopic: next });
+              }}
+            >
+              <option value="general">
+                {t('search_topic_general', 'General')}
+              </option>
+              <option value="news">{t('search_topic_news', 'News')}</option>
+            </Select>
+          </LabelledField>
 
-      <LabelledField
-        id="ai-search-depth"
-        label={t('search_depth', 'Search depth')}
-        hintLabel={words.hintFor(t('search_depth', 'Search depth'))}
-        hint={t(
-          'tavily_search_mode',
-          'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
-        )}
-      >
-        <Select
-          id="ai-search-depth"
-          label=""
-          name="searchDepth"
-          value={searchDepth}
-          disableForm={true}
-          hideErrors={true}
-          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-            const next =
-              event.target.value === 'advanced' ? 'advanced' : 'basic';
-            setSearchDepth(next);
-            autosave({ searchDepth: next });
-          }}
-        >
-          <option value="basic">{t('search_depth_basic', 'Basic')}</option>
-          <option value="advanced">
-            {t('search_depth_advanced', 'Advanced')}
-          </option>
-        </Select>
-      </LabelledField>
+          <LabelledField
+            id="ai-search-depth"
+            label={t('search_depth', 'Search depth')}
+            hintLabel={words.hintFor(t('search_depth', 'Search depth'))}
+            hint={t(
+              'tavily_search_mode',
+              'Tavily uses the selected search depth with full page content. Fresh requests use news results from the past week.'
+            )}
+          >
+            <Select
+              id="ai-search-depth"
+              label=""
+              name="searchDepth"
+              value={searchDepth}
+              disableForm={true}
+              hideErrors={true}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                const next =
+                  event.target.value === 'advanced' ? 'advanced' : 'basic';
+                setSearchDepth(next);
+                autosave({ searchDepth: next });
+              }}
+            >
+              <option value="basic">{t('search_depth_basic', 'Basic')}</option>
+              <option value="advanced">
+                {t('search_depth_advanced', 'Advanced')}
+              </option>
+            </Select>
+          </LabelledField>
+        </div>
 
-      {/*
+        {/*
         Кнопка осталась, хотя всё остальное сохраняется само. Владелец
         13.09.2026: «я бы использовал автосохранение, и если человек очень
         хочет, он может нажать и сохранить». И у неё есть работа, которой нет
         ни у кого другого: ключи уходят только отсюда.
       */}
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <Button onClick={save} disabled={saving || !data}>
-          {t('save', 'Save')}
-        </Button>
-        <span className="cf-body-sm text-cf-ink-muted">
-          {words.autosaveNote}
-        </span>
-      </div>
-    </SettingsSection>
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <Button onClick={save} disabled={saving || !data}>
+            {t('save', 'Save')}
+          </Button>
+          <span className="cf-body-sm text-cf-ink-muted">
+            {words.autosaveNote}
+          </span>
+        </div>
+      </SettingsSection>
+    </>
   );
 };
 

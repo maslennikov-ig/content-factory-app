@@ -318,6 +318,14 @@ function renderShortlinkPreference(role) {
         useUser: () => (role ? { role } : undefined),
       },
       '../ui/progress': { Progress: () => null },
+      // Подпись строки «Глобальных настроек» (`97dq.51`) — слова, не права.
+      '@contentfactory/react/helpers/variable.context': {
+        useVariables: () => ({ language: 'en' }),
+      },
+      '@contentfactory/frontend/components/settings/settings.copy':
+        require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+          'apps/frontend/src/components/settings/settings.copy.ts'
+        ),
       // Общая карточка вкладки настроек: рисует рамку и отступ, к правам
       // отношения не имеет (`content-factory-next-75xn.12`).
       '@contentfactory/frontend/components/settings/settings-section': {

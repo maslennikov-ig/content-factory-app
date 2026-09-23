@@ -116,6 +116,11 @@ const component = loadTypeScriptModule(
       SettingsSection: ({ title, children }) =>
         React.createElement('section', null, title, children),
     },
+    '../ui/progress': { Progress: () => null },
+    '@contentfactory/frontend/components/settings/settings.copy':
+      require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+        'apps/frontend/src/components/settings/settings.copy.ts'
+      ),
     // Настоящий файл слов: строки раздела проверяются вместе с поведением.
     '@contentfactory/frontend/components/settings/ai-provider.copy':
       require('./helpers/load-tsx.cjs').loadTypeScriptModule(
