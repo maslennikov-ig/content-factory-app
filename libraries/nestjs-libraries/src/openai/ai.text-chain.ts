@@ -203,8 +203,21 @@ export const buildAttemptBody = (
   ) {
     body.reasoning = { effort: 'medium' };
   }
+  if (body.reasoning !== undefined || body.reasoning_effort !== undefined) {
+    // Reasoning tokens are spent out of the same output ceiling. A caller's
+    // cap was sized for the answer alone; without headroom a 2 048 cap left
+    // 111 tokens for the answer and the intake parse failed on «length»
+    // (production, 23.09.2026).
+    for (const key of ['max_tokens', 'max_completion_tokens'] as const) {
+      const cap = original[key];
+      if (typeof cap === 'number') body[key] = cap + REASONING_HEADROOM_TOKENS;
+    }
+  }
   return body;
 };
+
+/** Output tokens added to a caller's cap when the attempt reasons. */
+export const REASONING_HEADROOM_TOKENS = 8_192;
 
 /* ------------------------------------------------------------------------ */
 /* Usage ledger                                                             */

@@ -558,3 +558,23 @@ describe('skipped attempts are logged (stand finding)', () => {
     );
   });
 });
+
+describe('reasoning headroom (production 23.09: intake parse cut on «length»)', () => {
+  const attempt = (model) => ({ model, flex: true });
+
+  it('adds headroom to a caller cap when the attempt reasons', () => {
+    const body = chain.buildAttemptBody({ model: LUNA, max_tokens: 2048 }, attempt(LUNA));
+    expect(body.reasoning).toEqual({ effort: 'medium' });
+    expect(body.max_tokens).toBe(2048 + chain.REASONING_HEADROOM_TOKENS);
+    const alt = chain.buildAttemptBody({ model: LUNA, max_completion_tokens: 2048 }, attempt(LUNA));
+    expect(alt.max_completion_tokens).toBe(2048 + chain.REASONING_HEADROOM_TOKENS);
+  });
+
+  it('leaves a non-reasoning fallback and an uncapped call alone', () => {
+    const glm = chain.buildAttemptBody({ model: LUNA, max_tokens: 2048 }, attempt('z-ai/glm-5.3'));
+    expect(glm.reasoning).toBeUndefined();
+    expect(glm.max_tokens).toBe(2048);
+    const open = chain.buildAttemptBody({ model: LUNA }, attempt(LUNA));
+    expect(open.max_tokens).toBeUndefined();
+  });
+});
