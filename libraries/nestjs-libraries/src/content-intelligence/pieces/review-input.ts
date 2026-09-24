@@ -17,16 +17,16 @@
  * подсунуть проверке старое тело значило бы молча откатить его правку. Тогда
  * выделение возвращают из `<strong>`/`<b>` обратно в `**`.
  *
- * Круговой эта дорога только для выделения, и только про него здесь речь.
+ * Круговой эта дорога для выделения и ссылок (ссылки — `97dq.77`).
  * Правленый руками пост читается через `htmlToPlainText`, а он снимает теги:
- * ссылка теряет адрес и остаётся словами, список — маркеры, заголовок — свой
- * уровень. Принятая правка запишет в пост то, что `editorHtml` соберёт из этих
+ * список теряет маркеры, заголовок — свой уровень. Принятая правка запишет в пост то, что `editorHtml` соберёт из этих
  * слов, то есть абзацы. Это поведение было здесь до `97dq.3` и этой волной не
  * чинится — сказано, чтобы никто не прочитал «круг» шире, чем он есть
  * (`content-factory-next-97dq.3`, P2-15).
  */
+import { isHttpUrl } from '@contentfactory/helpers/utils/inline-marks';
 import { editorHtml } from '../brief/editor-html';
-import { htmlToPlainText } from '../brand-voice/html-text';
+import { decodeEntities, htmlToPlainText } from '../brand-voice/html-text';
 
 export type EditorKind = 'none' | 'normal' | 'markdown' | 'html';
 
@@ -59,10 +59,55 @@ export const strongToBold = (html: string): string =>
     return `${lead}**${core}**${trail}`;
   });
 
-/** Пост как текст для проверки: теги сняты, выделение осталось звёздочками. */
+/**
+ * `<a href>` обратно в `[слова](адрес)`, до снятия тегов
+ * (`content-factory-next-97dq.77`, review-97dq75 P3-15).
+ *
+ * Пост, поправленный вне редактора адаптации, читался через
+ * `htmlToPlainText`, и ссылка оставалась одними словами: принятая правка
+ * записывала пост уже без адреса. Теперь ссылка возвращается в ту форму, в
+ * которой её хранит тело (`inline-marks.ts`): голым адресом, если слова и
+ * есть адрес, иначе токеном со словами. Адрес не http(s) не переносится —
+ * остаются слова, как и в редакторе. Сущности в адресе не раскрываются
+ * здесь: `htmlToPlainText` раскроет их один раз для всего текста.
+ */
+// The address quoted or bare (`href=https://…`, review F5 of the fourteenth walk).
+const ANCHOR =
+  /<a\b[^>]*?\bhref\s*=\s*(?:(["'])(.*?)\1|([^\s"'>]+))[^>]*>([\s\S]*?)<\/a\s*>/giu;
+
+export const anchorsToLinks = (html: string): string =>
+  html.replace(
+    ANCHOR,
+    (
+      _match,
+      _quote: string | undefined,
+      quotedHref: string | undefined,
+      bareHref: string | undefined,
+      inner: string
+    ) => {
+      const rawHref = quotedHref ?? bareHref ?? '';
+      const href = decodeEntities(rawHref.trim());
+      const words = inner.replace(/<br\s*\/?>/giu, ' ');
+      if (!isHttpUrl(href)) return words;
+      const plainWords = decodeEntities(words.replace(/<[^>]*>/gu, '')).trim();
+      if (!plainWords) return '';
+      if (plainWords === href) return rawHref.trim();
+      const tokenHref = rawHref
+        .trim()
+        .replace(/[\s()"<>«»]/gu, (char) => encodeURIComponent(char));
+      // A link token's words hold no line break: a raw newline becomes a
+      // space like `<br>`, or the token reads back as text (review F5).
+      const tokenWords = words
+        .replace(/\r?\n/gu, ' ')
+        .replace(/[[\]]|\\(?=[\\[\]*_+])/gu, (char) => `\\${char}`);
+      return `[${tokenWords}](${tokenHref})`;
+    }
+  );
+
+/** Пост как текст для проверки: теги сняты, выделение и ссылки остались знаками тела. */
 export const postAsReviewText = (content: string, editor: EditorKind): string =>
   editor === 'html' || editor === 'normal'
-    ? htmlToPlainText(strongToBold(content))
+    ? htmlToPlainText(anchorsToLinks(strongToBold(content)))
     : content;
 
 /**

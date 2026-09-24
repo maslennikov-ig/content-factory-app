@@ -41,6 +41,16 @@ const BACKEND_REFUSALS: Record<string, { key: string; fallback: string }> = {
   },
 };
 /**
+ * The server's refusal sentence for each role section, keyed the way the bare
+ * refusal body names it. Read only when a 403 arrives without its text.
+ */
+const ROLE_SECTION_REFUSALS: Record<string, string> = {
+  admin:
+    'This action is available to organization administrators only. Ask an administrator of your organization to do it for you.',
+  editor:
+    'This action is available to organization editors and administrators only. Ask an editor or administrator of your organization to do it for you.',
+};
+/**
  * Пределы тарифа, которые тот же фильтр присылает с 402, и ключ, под которым
  * человек читает каждый на своём языке.
  *
@@ -193,9 +203,22 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (response.status === 403) {
         const body = await response
           .json()
-          .then((parsed: { message?: string; code?: string }) => parsed)
+          .then(
+            (parsed: {
+              message?: string;
+              code?: string;
+              section?: string;
+            }) => parsed
+          )
           .catch(() => undefined);
-        const refusal = body?.message;
+        // The bare `{ section, action }` of a role refusal that bypassed the
+        // server's filter (`content-factory-next-fn33.149`) still names who
+        // may act, so it gets that sentence rather than silence.
+        const refusal =
+          body?.message ??
+          (typeof body?.section === 'string'
+            ? ROLE_SECTION_REFUSALS[body.section]
+            : undefined);
         // A refusal that names itself belongs to the surface that asked. The
         // Content section draws `restricted` as a state — the passport stays
         // readable and the buttons go — and a modal over a blank panel would

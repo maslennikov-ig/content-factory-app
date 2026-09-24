@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 696,
+  "total": 681,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 670,
+      "total": 655,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -215,10 +215,6 @@
           "font-[700]": 1,
           "text-[15px]": 3
         },
-        "apps/frontend/src/components/launches/helpers/date.picker.tsx": {
-          "font-[600]": 1,
-          "text-[15px]": 1
-        },
         "apps/frontend/src/components/launches/helpers/media.settings.component.tsx": {
           "text-sm": 2
         },
@@ -268,12 +264,6 @@
         "apps/frontend/src/components/launches/tags.component.tsx": {
           "text-[12px]": 2,
           "text-[14px]": 1
-        },
-        "apps/frontend/src/components/launches/time.table.tsx": {
-          "font-medium": 2,
-          "font-semibold": 1,
-          "text-[14px]": 3,
-          "text-[15px]": 2
         },
         "apps/frontend/src/components/launches/web3/providers/moltbook.provider.tsx": {
           "text-sm": 1
@@ -446,10 +436,7 @@
         },
         "apps/frontend/src/components/new-layout/layout.component.tsx": {
           "font-[600]": 1,
-          "font-[650]": 1,
-          "text-[14px]": 1,
-          "text-[18px]": 1,
-          "tracking-[-0.015em]": 1
+          "text-[14px]": 1
         },
         "apps/frontend/src/components/new-layout/menu-item.tsx": {
           "font-[600]": 1,
@@ -467,10 +454,6 @@
           "text-[13px]": 1,
           "text-[14px]": 9,
           "text-[24px]": 1
-        },
-        "apps/frontend/src/components/platform-analytics/analytics.screen.tsx": {
-          "font-[600]": 1,
-          "text-[14px]": 1
         },
         "apps/frontend/src/components/platform-analytics/render.analytics.tsx": {
           "font-medium": 3,

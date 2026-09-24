@@ -213,7 +213,8 @@ describe('дверь отвечает ровно по тем адресам, ч�
     // Удаление заготовки (`97dq.30`): тоже только по идентификатору из пути.
     `${contract.PIECE_ROUTES.delete.method} ${contract.PIECE_ROUTES.delete.path(':id')}`,
     // Ссылка для поста и правка заготовки (`97dq.75`).
-    ...['postLink', 'editCore', 'appendMaterial', 'rebuildCore'].map(
+    // «Вернуть эту версию» (`97dq.85`).
+    ...['postLink', 'editCore', 'appendMaterial', 'rebuildCore', 'restoreCore'].map(
       (name) =>
         `${contract.PIECE_ROUTES[name].method} ${contract.PIECE_ROUTES[name].path(':id')}`
     ),
@@ -842,6 +843,17 @@ describe('двери экрана адаптации', () => {
     }
     expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_UNKNOWN.status).toBe(422);
     expect(contract.PIECE_ERROR_CODES.PIECE_AVATAR_NOT_READY.status).toBe(409);
+  });
+
+  test('«Текст ссылки» длиннее 80 знаков обрезается после очистки, а не отказывается (ревью 97dq.79, P3-8)', async () => {
+    const long = '[' + 'слово '.repeat(20) + ']';
+    const answer = plainToInstance(dto.PiecePostLinkDto, { url: 'https://a.example', text: long });
+    expect(await validate(answer)).toEqual([]);
+    expect(answer.text.length).toBeLessThanOrEqual(80);
+    expect(answer.text).not.toContain('[');
+    const options = plainToInstance(dto.PiecePostSettingsOptionsDto, { linkText: 'а'.repeat(120) });
+    expect((await validate(options)).map((one) => one.property)).not.toContain('linkText');
+    expect(options.linkText).toHaveLength(80);
   });
 
   test('настройки поста и «Ко всем N»: предел пожелания тот же, что у сервера, режим — объявленный (97dq.70)', async () => {

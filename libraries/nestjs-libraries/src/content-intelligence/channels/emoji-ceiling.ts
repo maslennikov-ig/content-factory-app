@@ -107,3 +107,25 @@ export function readEmojiLevel(
   const candidate = value === 'free' ? 'many' : value;
   return isEmojiLevel(candidate) ? candidate : fallback;
 }
+
+/**
+ * The ceiling the text checks honour (`content-factory-next-97dq.83`).
+ *
+ * «До 3» is a count the person chose, so a post with three kinds of emoji is
+ * within it and the stock-phrase catalogue must not call it decoration. A stop
+ * or an old word gives its number (`few` was «one to three», `many` «3–6»);
+ * «без предела» is `null` — no cap; `auto` and anything unknown are
+ * `undefined` — nothing chosen, the platform's own threshold stands.
+ *
+ * «Нет» is `0` (review of 97dq.81-85, P3-7): the person chose zero, so any
+ * emoji in the post is over the ceiling. The kinds threshold treats `0` as
+ * «nothing to widen», so only the count check reads it.
+ */
+export function emojiCeilingOf(level: unknown): number | null | undefined {
+  const read = readEmojiLevel(level, 'auto');
+  if (read === 'auto') return undefined;
+  if (read === 'none') return 0;
+  if (read === 'few') return 3;
+  if (read === 'many') return 6;
+  return EMOJI_STOP_CEILING[read as EmojiStop];
+}

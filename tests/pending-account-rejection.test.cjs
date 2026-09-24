@@ -132,6 +132,9 @@ function rejectionRepository(
   const tx = {
     user: {
       findUnique: async () => user,
+      // `keepSurvivingAvatars` (r82e): a pending account's empty workspace
+      // lent nobody an avatar.
+      findMany: async () => [],
       deleteMany: async ({ where }) => {
         mutations.push(['user.deleteMany', where]);
         return { count: 1 };

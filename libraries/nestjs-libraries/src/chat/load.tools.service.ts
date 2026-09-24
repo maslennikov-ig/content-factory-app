@@ -242,13 +242,20 @@ export class LoadToolsService {
         return this.aiUsage.prepareModelExecution(
           organizationId,
           'copilot_chat',
+          // The chat model, not the provider's default Responses model: the
+          // shared transport runs the flex chain and reads usage on chat
+          // completions (`content-factory-next-97dq.63`).
           async () =>
-            (await getAiSdkProvider(organizationId))(
+            (await getAiSdkProvider(organizationId)).chat(
               (await requireActiveAiConfig(organizationId)).textModel
             )
         );
       },
       tools,
+      // The transport's chain owns retries (`ai.text-chain.ts`); a model
+      // retry here would walk the whole chain again (review F8). Mastra's
+      // default is 0 too, and saying it keeps a later default from changing it.
+      maxRetries: 0,
       memory: new Memory({
         storage: pStore,
         options: {

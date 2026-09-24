@@ -6,6 +6,7 @@ import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 import { Hint } from '@contentfactory/react/layout/hint';
 import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
+import { FieldLabel } from '../ui/field-label';
 
 /**
  * Versions, and what actually changed between two of them.
@@ -145,7 +146,7 @@ export function VoiceVersionsScreen({
             <Hint label={t.hintFor(t.versionsTitle)}>{t.versionsTitleHint}</Hint>
           </h2>
           <p className="mt-[4px] cf-caption text-cf-ink-muted">
-            {[profileLabel, `${versions.length} ${locale === 'ru' ? 'версии' : 'versions'}`]
+            {[profileLabel, t.versionsCount(versions.length)]
               .filter(Boolean)
               .join(' · ')}
           </p>
@@ -190,10 +191,13 @@ export function VoiceVersionsScreen({
         </p>
       ) : null}
 
-      <p className="flex flex-wrap items-center gap-[8px] cf-label-sm text-cf-ink-muted">
-        {t.versionsPick}
-        <Hint label={t.hintFor(t.versionsPick)}>{t.versionsPickHint}</Hint>
-      </p>
+      {/* The hint beside the words, not inside them (`97dq.76`, audit §4.5). */}
+      <FieldLabel
+        label={t.versionsPick}
+        hint={t.versionsPickHint}
+        hintLabel={t.hintFor(t.versionsPick)}
+        labelClassName="cf-label-sm text-cf-ink-muted"
+      />
 
       {versions.length === 0 ? (
         <p className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">

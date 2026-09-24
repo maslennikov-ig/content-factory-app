@@ -71,7 +71,7 @@ export const NotificationOpenComponent = () => {
         {t('notifications', 'Notifications')}
       </div>
 
-      <div className="flex flex-col max-h-[400px] overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div className="flex flex-col max-h-[400px] overflow-y-auto">
         {isLoading && (
           <div className="flex-1 flex justify-center pt-12">
             <ReactLoading type="spin" color="#fff" width={36} height={36} />

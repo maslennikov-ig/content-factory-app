@@ -37,7 +37,8 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { useOpenMediaBox } from '@contentfactory/frontend/components/media/media.component';
 import { Avatar } from '@contentfactory/frontend/components/ui/avatar';
 import { Panel } from '@contentfactory/frontend/components/ui/surface';
-import { SectionLabel } from '@contentfactory/frontend/components/ui/section-label';
+// The same section system as «Глобальные настройки» (`97dq.76`, audit §6.2).
+import { SettingsSection } from '@contentfactory/frontend/components/settings/settings-section';
 import { useAccountLanguage } from '@contentfactory/frontend/components/layout/language.component';
 import { getLanguageLabel } from '@contentfactory/frontend/components/layout/language.presentation';
 import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
@@ -292,7 +293,7 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
       >
         {!!getRef && <Button type="submit" className="hidden" ref={getRef} />}
         <section
-          className="flex w-full max-w-[720px] flex-col gap-[20px]"
+          className="flex w-full max-w-[960px] flex-col gap-[20px]"
           aria-labelledby="profile-heading"
         >
           <h2 id="profile-heading" className="sr-only">
@@ -339,8 +340,7 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
             </div>
           </div>
 
-          <Panel as="section" contentClassName="flex flex-col gap-[16px]">
-            <SectionLabel as="h3">{words.aboutTitle}</SectionLabel>
+          <SettingsSection layout="row" title={words.aboutTitle}>
             <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-2">
               {/* `content-factory-next-fn33.73`: a profile saved with an
                   empty name used to answer «fullname must be longer than or
@@ -405,10 +405,9 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                 )}
               />
             </div>
-          </Panel>
+          </SettingsSection>
 
-          <Panel as="section" contentClassName="flex flex-col gap-[16px]">
-            <SectionLabel as="h3">{words.languageTimeTitle}</SectionLabel>
+          <SettingsSection layout="row" title={words.languageTimeTitle}>
             {/* `grid-cols-1` is `minmax(0, 1fr)`: without it the column
                 took the width of the longest time-zone option and both
                 selects ran past the card at 390px (20-profile-m). */}
@@ -485,7 +484,7 @@ export const ProfileSettings: FC<{ getRef?: Ref<any> }> = ({ getRef }) => {
                 </p>
               </div>
             </div>
-          </Panel>
+          </SettingsSection>
 
           <Panel
             as="section"

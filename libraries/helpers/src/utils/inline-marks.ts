@@ -20,6 +20,14 @@
  * (`https://a.com/_x_`) never becomes a mark. Every regular expression is
  * built per call, for the reason `bold-markers.ts` gives: a shared `g` regexp
  * keeps `lastIndex` between callers.
+ *
+ * Escapes (`content-factory-next-97dq.77`): a backslash before one of
+ * `\ * _ + [ ]` makes that character text. The editor writes them only
+ * where a person's own characters would otherwise read back as a mark or a
+ * link — `**x**`, `_x_`, `++x++` or `[a](https://…)` typed as text — and
+ * inside link words, which may now hold square brackets. A body that reads
+ * back as it was written gets no escapes, so opening and closing the editor
+ * still changes nothing.
  */
 
 import { BOLD_PAIR_SOURCE, STRAY_BOLD_MARKER_SOURCE } from './bold-markers';
@@ -27,7 +35,8 @@ import { BOLD_PAIR_SOURCE, STRAY_BOLD_MARKER_SOURCE } from './bold-markers';
 export type InlineMarkName = 'bold' | 'italic' | 'underline';
 
 export type InlineNode =
-  | { kind: 'text'; text: string }
+  /** `literal` — escaped signs (`97dq.77`): text as written, never markup. */
+  | { kind: 'text'; text: string; literal?: true }
   | { kind: 'mark'; mark: InlineMarkName; children: InlineNode[] }
   | { kind: 'link'; href: string; children: InlineNode[] }
   | { kind: 'url'; href: string };
@@ -44,7 +53,11 @@ export type InlineRun = {
 /** A bare address: http(s) only, up to whitespace; trailing punctuation is not the address. */
 export const INLINE_URL_SOURCE = 'https?:\\/\\/[^\\s<>"«»]+';
 const LINK_TOKEN_SOURCE =
-  '\\[([^\\[\\]\\n]+)\\]\\((https?:\\/\\/[^\\s()<>"«»]+)\\)';
+  '\\[((?:\\\\[\\\\\\[\\]*_+]|[^\\[\\]\\n\\\\]|\\\\(?![\\\\\\[\\]*_+]))+)\\]\\((https?:\\/\\/[^\\s()<>"«»]+)\\)';
+/** A backslash and the character it makes text. */
+const ESCAPE_SOURCE = '\\\\([\\\\\\[\\]*_+])';
+/** The characters an escape may stand before. */
+const ESCAPABLE = /[\\[\]*_+]/gu;
 /*
   Trailing punctuation is not the address, and neither is a closing mark
   (`97dq.75` review P1-1): `**see https://a.com**` must close its bold, not
@@ -95,21 +108,39 @@ export function isHttpUrl(value: string | null | undefined): boolean {
 
 type Atom =
   | { kind: 'link'; text: string; href: string }
-  | { kind: 'url'; href: string };
+  | { kind: 'url'; href: string }
+  | { kind: 'escape'; char: string };
 
-/** Addresses and link tokens of one line, with the line where each stood masked. */
-function maskAtoms(line: string): { masked: string; atoms: Atom[]; atom: string } {
+/**
+ * Addresses and link tokens of one line, with the line where each stood
+ * masked. With `escapes` off a backslash is plain text: the capture group of
+ * the escape alternative stays, so the groups keep their numbers, but it can
+ * never match.
+ */
+function maskAtoms(
+  line: string,
+  escapes: boolean
+): { masked: string; atoms: Atom[]; atom: string } {
   const atoms: Atom[] = [];
   const ATOM = atomFor(line);
   let masked = '';
   let read = 0;
-  const pattern = new RegExp(`${LINK_TOKEN_SOURCE}|${INLINE_URL_SOURCE}`, 'giu');
+  const pattern = new RegExp(
+    `${escapes ? ESCAPE_SOURCE : '((?!))'}|${LINK_TOKEN_SOURCE}|${INLINE_URL_SOURCE}`,
+    'giu'
+  );
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(line))) {
     const start = match.index;
-    if (match[1] !== undefined && match[2] !== undefined) {
+    if (match[1] !== undefined) {
       masked += line.slice(read, start) + ATOM;
-      atoms.push({ kind: 'link', text: match[1], href: match[2] });
+      atoms.push({ kind: 'escape', char: match[1] });
+      read = start + match[0].length;
+      continue;
+    }
+    if (match[2] !== undefined && match[3] !== undefined) {
+      masked += line.slice(read, start) + ATOM;
+      atoms.push({ kind: 'link', text: match[2], href: match[3] });
       read = start + match[0].length;
       continue;
     }
@@ -153,19 +184,28 @@ function parseMasked(
   ATOM: string
 ): InlineNode[] {
   const nodes: InlineNode[] = [];
+  // Text next to text is one node; escaped characters are their own
+  // `literal` nodes, so no later rule (a stray `**`) reads them as markup.
+  const addText = (text: string, literal = false) => {
+    if (!text) return;
+    const last = nodes[nodes.length - 1];
+    if (last?.kind === 'text' && Boolean(last.literal) === literal) last.text += text;
+    else nodes.push(literal ? { kind: 'text', text, literal: true } : { kind: 'text', text });
+  };
   const pushText = (value: string) => {
     let read = 0;
     for (let index = 0; index < value.length; index += 1) {
       if (value[index] !== ATOM) continue;
-      if (index > read) nodes.push({ kind: 'text', text: value.slice(read, index) });
+      if (index > read) addText(value.slice(read, index));
       const atom = atoms[next.at];
       next.at += 1;
-      if (atom?.kind === 'link')
-        nodes.push({ kind: 'link', href: atom.href, children: parseInline(atom.text) });
+      if (atom?.kind === 'escape') addText(atom.char, true);
+      else if (atom?.kind === 'link')
+        nodes.push({ kind: 'link', href: atom.href, children: parseLinkWords(atom.text) });
       else if (atom?.kind === 'url') nodes.push({ kind: 'url', href: atom.href });
       read = index + 1;
     }
-    if (read < value.length) nodes.push({ kind: 'text', text: value.slice(read) });
+    if (read < value.length) addText(value.slice(read));
   };
   let rest = text;
   while (rest) {
@@ -185,10 +225,55 @@ function parseMasked(
   return nodes;
 }
 
+function parseLine(line: string, escapes: boolean): InlineNode[] {
+  const { masked, atoms, atom } = maskAtoms(line, escapes);
+  return parseMasked(masked, atoms, { at: 0 }, atom);
+}
+
+/** Every escape of a line replaced by the character it stands before. */
+const unescapeOf = (line: string): string =>
+  line.replace(new RegExp(ESCAPE_SOURCE, 'gu'), '$1');
+
+/** What a reader sees of a line read with backslashes as plain text. */
+const plainWithoutEscapes = (line: string): string =>
+  plainOf(inlineRuns(parseLine(line, false)));
+
+/**
+ * Whether the escapes of a line are the editor's (`97dq.77`) or a person's
+ * own backslashes written before this wave (review F4 of the fourteenth walk).
+ *
+ * The editor escapes a line only when its signs would otherwise read back as
+ * a mark or a link, so its escapes always matter: take them away and the line
+ * reads differently. A body stored before the wave — `2\*3`, `snake\_case`,
+ * `\\server\share`, `a \[b\] c` — reads the same with or without them, and
+ * then every backslash of the line is the person's own text and stays, which
+ * is how such a body rendered and round-tripped before. Inside link words an
+ * escaped square bracket is always the editor's: the token cannot hold a bare one.
+ *
+ * The boundary this leaves: a person's own backslash-sign pairs on a line that
+ * also has to be escaped by the editor (`\*\*x\*\*` typed as text, meant as
+ * text) have no stored form that reads back exactly; they read as `**x**`.
+ */
+function escapesHonoured(line: string, linkWords: boolean): boolean {
+  const escapes = [...line.matchAll(new RegExp(ESCAPE_SOURCE, 'gu'))];
+  if (!escapes.length) return false;
+  if (linkWords && escapes.some((match) => match[1] === '[' || match[1] === ']'))
+    return true;
+  return (
+    unescapeOf(plainWithoutEscapes(line)) !==
+    plainWithoutEscapes(unescapeOf(line))
+  );
+}
+
 /** One line of a stored body as a tree. Line breaks are the caller's business. */
 export function parseInline(line: string): InlineNode[] {
-  const { masked, atoms, atom } = maskAtoms(line || '');
-  return parseMasked(masked, atoms, { at: 0 }, atom);
+  const text = line || '';
+  return parseLine(text, escapesHonoured(text, false));
+}
+
+/** The words of a link token as a tree (`[words](https://…)`). */
+function parseLinkWords(words: string): InlineNode[] {
+  return parseLine(words, escapesHonoured(words, true));
 }
 
 /** The tree flattened into runs, each with the marks and the link over it. */
@@ -203,7 +288,23 @@ export function inlineRuns(nodes: readonly InlineNode[]): InlineRun[] {
     }
   };
   walk(nodes, {});
-  return out.filter((run) => run.text.length > 0);
+  // Neighbours with the same marks and link are one run (an escaped sign is
+  // its own node, not its own run).
+  const merged: InlineRun[] = [];
+  for (const run of out) {
+    if (!run.text) continue;
+    const last = merged[merged.length - 1];
+    if (
+      last &&
+      Boolean(last.bold) === Boolean(run.bold) &&
+      Boolean(last.italic) === Boolean(run.italic) &&
+      Boolean(last.underline) === Boolean(run.underline) &&
+      (last.href ?? '') === (run.href ?? '')
+    )
+      last.text += run.text;
+    else merged.push({ ...run });
+  }
+  return merged;
 }
 
 /* ---- Runs → stored text --------------------------------------------------- */
@@ -267,22 +368,72 @@ const bareSurvives = (href: string, following: string): boolean => {
 };
 
 /**
+ * How much of a person's own text is written with escapes (`97dq.77`):
+ *
+ *  - `none` — as it is; what a body read from storage gets when it reads
+ *    back the same, so a no-op trip through the editor changes nothing;
+ *  - `brackets` — inside link words: `[` and `]` (the token's own signs),
+ *    and a backslash that would otherwise start an escape;
+ *  - `all` — every sign of the grammar, for a line whose text would
+ *    otherwise read back as a mark or a link. Addresses are left whole.
+ */
+type EscapeMode = 'none' | 'brackets' | 'all';
+
+const escapeText = (text: string, mode: EscapeMode): string => {
+  if (mode === 'none' || !text) return text;
+  if (mode === 'brackets')
+    return text.replace(/[[\]]|\\(?=[\\[\]*_+])/gu, (char) => `\\${char}`);
+  const address = new RegExp(INLINE_URL_SOURCE, 'giu');
+  let out = '';
+  let read = 0;
+  let match: RegExpExecArray | null;
+  while ((match = address.exec(text))) {
+    out += text.slice(read, match.index).replace(ESCAPABLE, (char) => `\\${char}`);
+    out += match[0];
+    read = match.index + match[0].length;
+  }
+  return out + text.slice(read).replace(ESCAPABLE, (char) => `\\${char}`);
+};
+
+type SerializeContext = { before: string; after: string; escape: EscapeMode };
+
+/**
  * Runs with the marks from `level` on, as stored text. The masked twin is
  * what the parser will see: an address inside counts as one neutral sign.
+ *
+ * A link whose words carry this mark only in part is kept whole
+ * (`97dq.77`): `[a **b**](u)` used to come back as `[a ](u)**[b](u)**`, the
+ * link cut in two around the bold. Such a link is written as one token with
+ * the mark inside its words.
  */
 function serializeMarks(
   runs: readonly InlineRun[],
   level: number,
-  context: { before: string; after: string }
+  context: SerializeContext
 ): Piece {
-  if (level >= MARK_ORDER.length) return serializeLinks(runs, context.after);
+  if (level >= MARK_ORDER.length)
+    return serializeLinks(runs, context.after, context.escape);
   const mark = MARK_ORDER[level];
+  const onAt = runs.map((run) => Boolean(run[mark]));
+  for (let start = 0; start < runs.length; ) {
+    if (!runs[start].href) {
+      start += 1;
+      continue;
+    }
+    let stop = start;
+    while (stop < runs.length && runs[stop].href && sameLink(runs[stop], runs[start]))
+      stop += 1;
+    const values = onAt.slice(start, stop);
+    if (values.some(Boolean) && !values.every(Boolean))
+      for (let at = start; at < stop; at += 1) onAt[at] = false;
+    start = stop;
+  }
   const pieces: Piece[] = [];
   let index = 0;
   while (index < runs.length) {
-    const on = Boolean(runs[index][mark]);
+    const on = onAt[index];
     let end = index;
-    while (end < runs.length && Boolean(runs[end][mark]) === on) end += 1;
+    while (end < runs.length && onAt[end] === on) end += 1;
     const group = runs.slice(index, end);
     const before =
       index === 0 ? context.before : plainOf(runs.slice(0, index)).slice(-1);
@@ -290,8 +441,8 @@ function serializeMarks(
       end < runs.length ? restOf(runs.slice(end)) + context.after : context.after;
     pieces.push(
       on
-        ? wrapMark(mark, group, level, { before, after })
-        : serializeMarks(group, level + 1, { before, after })
+        ? wrapMark(mark, group, level, { before, after, escape: context.escape })
+        : serializeMarks(group, level + 1, { before, after, escape: context.escape })
     );
     index = end;
   }
@@ -305,7 +456,7 @@ function wrapMark(
   mark: InlineMarkName,
   group: readonly InlineRun[],
   level: number,
-  context: { before: string; after: string }
+  context: SerializeContext
 ): Piece {
   const text = plainOf(group);
   const lead = text.match(/^\s*/u)?.[0] ?? '';
@@ -314,6 +465,7 @@ function wrapMark(
   const inner = serializeMarks(innerRuns, level + 1, {
     before: lead ? ' ' : context.before,
     after: trail ? ' ' : context.after,
+    escape: context.escape,
   });
   const boundary = MARK_BOUNDARY[mark];
   const masked = innerRuns
@@ -324,7 +476,7 @@ function wrapMark(
     inner.stored.length > 0 &&
     !/^\s|\s$/u.test(inner.plain) &&
     !/\n/u.test(inner.stored) &&
-    !MARK_FORBIDDEN[mark].test(masked) &&
+    (context.escape === 'all' || !MARK_FORBIDDEN[mark].test(masked)) &&
     (!boundary ||
       ((!lead ? !boundary.test(context.before) : true) &&
         (!trail ? !boundary.test(context.after.slice(0, 1)) : true)));
@@ -370,26 +522,31 @@ function trimRuns(
 }
 
 /** Runs without marks at this level: links become tokens, the rest is text. */
-function serializeLinks(runs: readonly InlineRun[], after = ''): Piece {
+function serializeLinks(
+  runs: readonly InlineRun[],
+  after = '',
+  escape: EscapeMode = 'none'
+): Piece {
   let stored = '';
   let plain = '';
   let index = 0;
   while (index < runs.length) {
     const run = runs[index];
     if (!run.href) {
-      stored += run.text;
+      stored += escapeText(run.text, escape);
       plain += run.text;
       index += 1;
       continue;
     }
     let end = index;
     while (end < runs.length && sameLink(runs[end], run)) end += 1;
-    const text = plainOf(runs.slice(index, end));
+    const group = runs.slice(index, end);
+    const text = plainOf(group);
     const following = restOf(runs.slice(end)) + after;
     stored +=
       text === run.href && isHttpUrl(run.href) && !bareSurvives(run.href, following)
-        ? `[${text.replace(/\[/gu, '(').replace(/\]/gu, ')')}](${tokenHref(run.href)})`
-        : linkToken(text, run.href);
+        ? `[${escapeText(text, 'brackets')}](${tokenHref(run.href)})`
+        : linkToken(group, text, run.href, escape);
     plain += text;
     index = end;
   }
@@ -401,23 +558,48 @@ function serializeLinks(runs: readonly InlineRun[], after = ''): Piece {
  * was; so does a bare host the editor autolinked (`example.com`). Anything
  * else is a token; an address that is not http(s) is dropped and the words
  * stay.
+ *
+ * Link words keep their square brackets, escaped (`97dq.77`: they used to
+ * become round ones), and a mark over part of the words is written inside
+ * the token.
  */
-function linkToken(text: string, href: string): string {
-  if (!isHttpUrl(href)) return text;
-  if (text === href) return text;
-  if (/^https?:\/\//iu.test(href) && href.replace(/^https?:\/\//iu, '') === text)
-    return text;
-  const words = text.replace(/\[/gu, '(').replace(/\]/gu, ')').replace(/\n/gu, ' ');
+function linkToken(
+  group: readonly InlineRun[],
+  text: string,
+  href: string,
+  escape: EscapeMode
+): string {
+  if (!isHttpUrl(href)) return escapeText(text, escape);
+  const mixed = MARK_ORDER.filter(
+    (mark) => group.some((run) => run[mark]) && !group.every((run) => run[mark])
+  );
+  if (!mixed.length) {
+    if (text === href) return text;
+    if (/^https?:\/\//iu.test(href) && href.replace(/^https?:\/\//iu, '') === text)
+      return text;
+  }
+  const words = mixed.length
+    ? serializeLine(
+        group.map((run) => {
+          const inner: InlineRun = { text: run.text.replace(/\n/gu, ' ') };
+          for (const mark of mixed) if (run[mark]) inner[mark] = true;
+          return inner;
+        }),
+        'brackets'
+      )
+    : escapeText(text.replace(/\n/gu, ' '), escape === 'all' ? 'all' : 'brackets');
   if (!words.trim()) return '';
   return `[${words}](${tokenHref(href)})`;
 }
 
 /**
- * Runs of one line back into stored text. A mark that cannot be written
- * without changing the words (italic glued to a letter, bold over a `*`) is
- * dropped rather than published as signs.
+ * One line of runs as stored text, with the fewest escapes that read back
+ * the same words (`97dq.77`). Written plainly first; if the stored text then
+ * reads back with other words — a person's `**x**`, `_x_`, `++x++` or
+ * `[a](https://…)` turned into a mark or a link — the line is written again
+ * with its signs escaped.
  */
-export function serializeInline(runs: readonly InlineRun[]): string {
+function serializeLine(runs: readonly InlineRun[], base: 'none' | 'brackets'): string {
   const merged: InlineRun[] = [];
   for (const run of runs) {
     if (!run.text) continue;
@@ -432,7 +614,24 @@ export function serializeInline(runs: readonly InlineRun[]): string {
       last.text += run.text;
     else merged.push({ ...run });
   }
-  return serializeMarks(merged, 0, { before: '', after: '' }).stored;
+  const write = (escape: EscapeMode) =>
+    serializeMarks(merged, 0, { before: '', after: '', escape }).stored;
+  const plain = write(base);
+  const wanted = plainOf(merged);
+  const readBack = (stored: string) =>
+    plainOf(inlineRuns(parseInline(base === 'brackets' ? `[${stored}](https://x.invalid)` : stored)));
+  if (readBack(plain) === wanted) return plain;
+  return write('all');
+}
+
+/**
+ * Runs of one line back into stored text. A mark that cannot be written
+ * without changing the words (italic glued to a letter, bold over a `*`) is
+ * dropped rather than published as signs; a person's own signs that would
+ * read back as a mark are escaped (`97dq.77`).
+ */
+export function serializeInline(runs: readonly InlineRun[]): string {
+  return serializeLine(runs, 'none');
 }
 
 /* ---- Tree → what a channel shows ------------------------------------------ */
@@ -458,7 +657,8 @@ const HTML_TAG: Record<InlineMarkName, string> = {
 export function inlineHtml(nodes: readonly InlineNode[]): string {
   return nodes
     .map((node) => {
-      if (node.kind === 'text') return escapeHtml(withoutStrayBold(node.text));
+      if (node.kind === 'text')
+        return escapeHtml(node.literal ? node.text : withoutStrayBold(node.text));
       if (node.kind === 'url') return escapeHtml(node.href);
       if (node.kind === 'link') {
         const inner = inlineHtml(node.children);
@@ -479,7 +679,8 @@ export function inlineHtml(nodes: readonly InlineNode[]): string {
 export function inlinePlain(nodes: readonly InlineNode[]): string {
   return nodes
     .map((node) => {
-      if (node.kind === 'text') return withoutStrayBold(node.text);
+      if (node.kind === 'text')
+        return node.literal ? node.text : withoutStrayBold(node.text);
       if (node.kind === 'url') return node.href;
       if (node.kind === 'link') {
         const words = inlinePlain(node.children);
@@ -492,6 +693,17 @@ export function inlinePlain(nodes: readonly InlineNode[]): string {
     .join('');
 }
 
+/** Text that would read as a mark or a link, with its signs escaped. */
+const markdownText = (text: string): string =>
+  plainOf(inlineRuns(parseInline(text))) === text ? text : escapeText(text, 'all');
+
+/**
+ * Whether a stored line holds an escape the editor wrote (`97dq.77`). A
+ * backslash stored before the wave is text, and its line keeps the old path.
+ */
+export const hasInlineEscape = (line: string): boolean =>
+  escapesHonoured(line || '', false);
+
 /**
  * One line for a Markdown channel: bold and italic stay its own syntax, a
  * link stays `[words](address)`, underline has no Markdown and loses its signs.
@@ -499,7 +711,12 @@ export function inlinePlain(nodes: readonly InlineNode[]): string {
 export function inlineMarkdown(nodes: readonly InlineNode[]): string {
   return nodes
     .map((node) => {
-      if (node.kind === 'text') return withoutStrayBold(node.text);
+      // A person's own signs (`97dq.77`) stay text in Markdown too: escaped
+      // only where the channel would otherwise read them as a mark or a link.
+      if (node.kind === 'text')
+        return node.literal
+          ? escapeText(node.text, 'all')
+          : markdownText(withoutStrayBold(node.text));
       if (node.kind === 'url') return node.href;
       if (node.kind === 'link')
         return `[${inlineMarkdown(node.children)}](${tokenHref(node.href)})`;
@@ -520,7 +737,9 @@ export const stripInlineMarks = (text: string): string =>
         list
           .map((node) =>
             node.kind === 'text'
-              ? withoutStrayBold(node.text)
+              ? node.literal
+                ? node.text
+                : withoutStrayBold(node.text)
               : node.kind === 'url'
               ? node.href
               : plain(node.children)

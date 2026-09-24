@@ -369,6 +369,64 @@ export const numberMarksIn = (value: string | null | undefined): string[] =>
     .filter(Boolean);
 
 /**
+ * A brief field (thesis, position) after the accepted corrections
+ * (`content-factory-next-97dq.42`).
+ *
+ * The live stand of 22.09.2026 (run16, and run11 before it): the core came
+ * out clean, but the thesis still read «…способен повысить
+ * производительность на 40%». The correction's original was «Производительность
+ * выросла на 40%», the thesis paraphrased it, so `applyCorrection` found
+ * nothing to replace — and the adaptation took the thesis as its topic.
+ *
+ * So: apply the corrections as before; if the field still carries a number
+ * a correction took away (the number with its mark, `numberMarksIn`: «40%»,
+ * not «40-часовой»), rebuild it from the person's corrected words — the
+ * sentence of `correctedInput` that shares the most words with the field
+ * and carries no refuted number. Without corrected words to take it from,
+ * the field is left as the corrections made it; there is nothing honest to
+ * write in its place.
+ */
+export const correctedBriefField = (
+  field: string | null | undefined,
+  corrections: ReadonlyArray<{ original: string; replacement: string; accepted?: boolean }>,
+  correctedInput: string
+): string | null | undefined => {
+  if (!field) return field;
+  const accepted = corrections.filter((correction) => correction.accepted !== false);
+  let text = field;
+  for (const correction of accepted) {
+    const applied = applyCorrection(text, correction);
+    if (applied.applied) text = applied.text;
+  }
+  const refuted = new Set(
+    accepted.flatMap((correction) => {
+      const kept = new Set(numberMarksIn(correction.replacement));
+      return numberMarksIn(correction.original).filter((mark) => !kept.has(mark));
+    })
+  );
+  const carriesRefuted = (value: string) =>
+    numberMarksIn(value).some((mark) => refuted.has(mark));
+  if (!refuted.size || !carriesRefuted(text)) return text;
+
+  const sentences = (correctedInput || '')
+    .split(/(?<=[.!?…])\s+|\n+/u)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => /\p{L}/u.test(sentence) && !carriesRefuted(sentence));
+  if (!sentences.length) return text;
+  const stems = (value: string) =>
+    new Set(
+      (value.toLowerCase().match(/\p{L}{4,}/gu) ?? []).map((word) => word.slice(0, 5))
+    );
+  const wanted = stems(field);
+  const score = (sentence: string) =>
+    [...stems(sentence)].filter((stem) => wanted.has(stem)).length;
+  const best = sentences.reduce((top, sentence) =>
+    score(sentence) > score(top) ? sentence : top
+  );
+  return best;
+};
+
+/**
  * Поправка подтверждает только свой отрезок (`content-factory-next-97dq.1`).
  *
  * Восьмой заход (`B1 8cc5a492`): одно утверждение автора несло три числа — «25
@@ -530,8 +588,16 @@ export const settleResearchDigest = (
       continue;
     }
     const replacement = oneLine(stripCitationLabels(raw.replacement || ''));
+    /*
+      A «correction» that changes nothing is none (`97dq.19`, second-release
+      review P2-4): its twin would carry the same statement as the person's
+      own row, the two would share a match key, and both would be ticked.
+    */
     const correction =
-      claim.own && originalIsInClaim(raw.original, claim.statement) && replacement
+      claim.own &&
+      originalIsInClaim(raw.original, claim.statement) &&
+      replacement &&
+      normalizeForMatch(raw.original || '') !== normalizeForMatch(replacement)
         ? { original: oneLine(raw.original!), replacement }
         : null;
     verdicts.push({

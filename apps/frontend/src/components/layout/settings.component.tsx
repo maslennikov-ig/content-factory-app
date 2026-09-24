@@ -16,13 +16,13 @@ import { useUser } from '@contentfactory/frontend/components/layout/user.context
 import { ProfileSettings } from '@contentfactory/frontend/components/settings/profile.component';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { PublicComponent } from '@contentfactory/frontend/components/public-api/public.component';
 import Link from 'next/link';
 import { Webhooks } from '@contentfactory/frontend/components/webhooks/webhooks';
 import { Sets } from '@contentfactory/frontend/components/sets/sets';
 import { SignaturesComponent } from '@contentfactory/frontend/components/settings/signatures.component';
 import { Autopost } from '@contentfactory/frontend/components/autopost/autopost';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { GlobalSettings } from '@contentfactory/frontend/components/settings/global.settings';
 import { ApprovedAppsComponent } from '@contentfactory/frontend/components/approved-apps/approved-apps.component';
@@ -81,7 +81,9 @@ export function resolveSettingsTab(
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
-  const { language = '' } = useVariables();
+  // The one language hook (`97dq.76`, audit §9): follows a switch in the
+  // header without a reload, which the request variable does not.
+  const language = useInterfaceLanguage();
   const isRussian = language.toLowerCase().startsWith('ru');
   const { getRef } = props;
   const user = useUser();

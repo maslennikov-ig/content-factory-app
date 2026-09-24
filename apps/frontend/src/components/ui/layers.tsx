@@ -1,5 +1,6 @@
 'use client';
 
+import { useFocusTrap } from './use-focus-trap';
 import { FC, ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
@@ -58,7 +59,6 @@ export const Dialog: FC<{
   className?: string;
 }> = ({ open, onClose, title, children, footer, className }) => {
   const panel = useRef<HTMLDivElement>(null);
-  const restoreTo = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
   // Callers routinely pass an inline arrow. Holding it in a ref keeps the
@@ -67,38 +67,17 @@ export const Dialog: FC<{
   const close = useRef(onClose);
   close.current = onClose;
 
+  // Tab stays inside while open; focus goes back on close (shared with the
+  // legacy `openModal` shell, `use-focus-trap.ts`).
+  useFocusTrap(panel, open);
+
   useEffect(() => {
     if (!open) return;
-
-    // Remember what had focus so it can be handed back on close.
-    restoreTo.current = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
-
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close.current();
-      if (event.key !== 'Tab' || !panel.current) return;
-
-      // Keep Tab inside the dialog while it is open.
-      const focusable = panel.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
     };
-
     document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      restoreTo.current?.focus?.();
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
   if (!open) return null;

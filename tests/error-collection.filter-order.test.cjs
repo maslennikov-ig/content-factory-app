@@ -1,20 +1,24 @@
 /**
- * Global exception filters are dispatched in the order they were registered.
- * `ApplicationConfig.getGlobalFilters()` hands the array back unreversed, and
- * `selectExceptionFilterMetadata` takes the first filter whose `@Catch()` list
- * matches — a filter declared `@Catch()` with no types matches everything and
- * nothing is tried after it.
+ * Global exception filters are dispatched in the reverse of the order they
+ * were registered. `RouterExceptionFilters.create` builds each route's list
+ * as `[...global, ...class, ...method]` and hands it to the handler through
+ * `filters.reverse()`; `selectExceptionFilterMetadata` then takes the first
+ * filter whose `@Catch()` list matches — a filter declared `@Catch()` with no
+ * types matches everything and nothing is tried after it.
  *
- * The error collector's `SentryGlobalFilter` is exactly that filter. Registered
+ * The error collector's `SentryGlobalFilter` is exactly that filter. Tried
  * before the product's three, it answers for all of them, and three responses
  * change without a single error being logged: the 401 that clears the auth
- * cookie becomes a bare 403, the upgrade dialog loses the text it renders, and
- * a post validation failure loses its message. All of it switches on the day
- * the two collector variables are set, which is why it is guarded here rather
- * than left to be noticed in production.
+ * cookie becomes a bare 403, a role refusal loses the text its dialog renders
+ * and goes out as `{"section":"editor","action":"create"}`
+ * (`content-factory-next-fn33.149`), and a post validation failure loses its
+ * message. All of it switches on the day the two collector variables are set.
  *
- * This runs Nest's own selection over the real filter instances, in the order
- * read out of `apps/backend/src/main.ts`.
+ * This file once modelled the dispatch without the reverse and so guarded
+ * the wrong order: it asked for the collector to be registered last, which is
+ * the one position that swallows everything. The table below is now built by
+ * Nest's own `RouterExceptionFilters`, over the real filter instances, in the
+ * order read out of `apps/backend/src/main.ts`.
  */
 require('reflect-metadata');
 
@@ -22,6 +26,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const { ApplicationConfig } = require('@nestjs/core');
+const {
+  RouterExceptionFilters,
+} = require('@nestjs/core/router/router-exception-filters');
 const { FILTER_CATCH_EXCEPTIONS } = require('@nestjs/common/constants');
 const {
   selectExceptionFilterMetadata,
@@ -100,8 +107,10 @@ const { HttpExceptionFilter, HttpForbiddenException } = loadModule(
   'libraries/nestjs-libraries/src/services/exception.filter.ts'
 );
 
+// What the collector's `BaseExceptionFilter` hands to the HTTP adapter.
+const replies = [];
 const httpAdapter = {
-  reply: () => undefined,
+  reply: (response, body, status) => replies.push({ response, body, status }),
   isHeadersSent: () => false,
   end: () => undefined,
 };
@@ -128,17 +137,42 @@ function registrationOrderFromMain() {
   return order;
 }
 
-/** What Nest builds internally out of a list of global filter instances. */
+/**
+ * What Nest builds for one route out of a list of global filter instances —
+ * through `RouterExceptionFilters.create` itself, so the order is Nest's and
+ * not this file's belief about it.
+ */
 function dispatchTable(order, instances) {
   const config = new ApplicationConfig();
-  for (const name of order) config.useGlobalFilters(instances[name]);
+  const registered = order.map((name) => instances[name]);
+  for (const instance of registered) config.useGlobalFilters(instance);
 
-  return config.getGlobalFilters().map((instance) => ({
-    name: instance.constructor.name,
-    instance,
-    exceptionMetatypes:
-      Reflect.getMetadata(FILTER_CATCH_EXCEPTIONS, instance.constructor) || [],
-  }));
+  const routeFilters = new RouterExceptionFilters(
+    { getModules: () => new Map() },
+    config,
+    httpAdapter
+  );
+  const handler = routeFilters.create(
+    new (class Controller {})(),
+    function route() {},
+    undefined
+  );
+  // Nest keeps `{ func: instance.catch.bind(instance), exceptionMetatypes }`,
+  // where the metatypes array is the one `@Catch()` stored on the class. That
+  // array is how each entry is traced back to the instance it came from.
+  return handler.filters.map((filter) => {
+    const instance = registered.find(
+      (candidate) =>
+        Reflect.getMetadata(FILTER_CATCH_EXCEPTIONS, candidate.constructor) ===
+        filter.exceptionMetatypes
+    );
+    return {
+      name: instance.constructor.name,
+      instance,
+      exceptionMetatypes: filter.exceptionMetatypes,
+      func: filter.func,
+    };
+  });
 }
 
 function makeResponse() {
@@ -189,12 +223,23 @@ const postValidation = () =>
     error: 'A post on X cannot be longer than 280 characters.',
   });
 
-describe('the collector filter is registered last and answers only what nothing else claims', () => {
-  test('main.ts registers the three product filters before the collector', () => {
+describe('the collector filter is tried last and answers only what nothing else claims', () => {
+  test('main.ts registers the collector before the three product filters', () => {
     expect(registrationOrderFromMain()).toEqual([
+      'SentryGlobalFilter',
       'SubscriptionExceptionFilter',
       'PostValidationExceptionFilter',
       'HttpExceptionFilter',
+    ]);
+  });
+
+  test('Nest tries the filter registered last first', () => {
+    const table = dispatchTable(
+      ['SentryGlobalFilter', 'SubscriptionExceptionFilter'],
+      filterByName()
+    );
+    expect(table.map((entry) => entry.name)).toEqual([
+      'SubscriptionExceptionFilter',
       'SentryGlobalFilter',
     ]);
   });
@@ -264,6 +309,26 @@ describe('the collector filter is registered last and answers only what nothing 
     }
   });
 
+  test('a role refusal answers 403 with the sentence its dialog renders (fn33.149)', () => {
+    const refusal = () =>
+      new SubscriptionException({
+        section: Sections.EDITOR,
+        action: AuthorizationActions.Create,
+      });
+    const { selected, response, recorded } = answerFor(
+      registrationOrderFromMain(),
+      refusal()
+    );
+    expect(selected.name).toBe('SubscriptionExceptionFilter');
+    selected.instance.catch(refusal(), hostFor(response));
+
+    expect(recorded.status).toBe(HttpStatus.FORBIDDEN);
+    expect(recorded.body).toEqual({
+      statusCode: HttpStatus.FORBIDDEN,
+      message: expect.stringContaining('editors and administrators'),
+    });
+  });
+
   test('a rejected post answers 400 carrying the validation message', () => {
     const { selected, response, recorded } = answerFor(
       registrationOrderFromMain(),
@@ -281,15 +346,46 @@ describe('the collector filter is registered last and answers only what nothing 
   });
 
   /**
+   * Part of the owner-facing check after `fn33.149`: the global validation
+   * pipe's 400 (every DTO door, `fn33.90.13` included) is claimed by none of
+   * the product filters, so with collection on it reaches the collector. The
+   * collector answers an `HttpException` through Nest's base filter, and the
+   * messages the form shows must arrive unchanged.
+   */
+  test('a validation-pipe 400 reaching the collector keeps its messages', () => {
+    const { BadRequestException } = require('@nestjs/common');
+    const refusal = () =>
+      new BadRequestException(['id must be a string', 'id should not be empty']);
+    const { selected, response } = answerFor(registrationOrderFromMain(), refusal());
+    expect(selected.name).toBe('SentryGlobalFilter');
+    replies.length = 0;
+    selected.instance.catch(refusal(), {
+      ...hostFor(response),
+      getArgByIndex: (index) => (index === 1 ? response : undefined),
+    });
+    expect(replies).toEqual([
+      {
+        response,
+        status: HttpStatus.BAD_REQUEST,
+        body: {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'Bad Request',
+          message: ['id must be a string', 'id should not be empty'],
+        },
+      },
+    ]);
+  });
+
+  /**
    * The control. Without it the four tests above would keep passing if the
    * dispatch model here were wrong, and would prove nothing about the order.
    */
-  test('registering the collector first would swallow all three', () => {
+  test('registering the collector last would swallow all three', () => {
     const swallowed = [
-      'SentryGlobalFilter',
       'SubscriptionExceptionFilter',
       'PostValidationExceptionFilter',
       'HttpExceptionFilter',
+      'SentryGlobalFilter',
     ];
     for (const exception of [
       new HttpForbiddenException(),

@@ -290,6 +290,27 @@ describe('content-factory-next-fn33.52 — a refused check does not stamp a last
     });
   });
 
+  test('content-factory-next-0k0m: repeated manual clicks while checking is off write the refusal once', async () => {
+    const row = { ...ACTIVE_ROW };
+    const repository = makeRepository(row);
+    const recorded = repository.recordCheckResult;
+    repository.recordCheckResult = async (organizationId, id, data) => {
+      Object.assign(row, data);
+      return recorded(organizationId, id, data);
+    };
+    const gateway = makeGateway();
+    gateway.capabilityEnabled = false;
+    const service = new ContentLeadService(repository, gateway, undefined, () => new Date());
+
+    for (let click = 0; click < 3; click += 1) {
+      await expect(
+        service.checkSubscription('org-a', 'sub-1', { manual: true })
+      ).resolves.toEqual({ checked: false, reason: 'CHECK_DISABLED', created: 0 });
+    }
+    expect(repository.recordCheckResultCalls).toHaveLength(1);
+    expect(gateway.check).not.toHaveBeenCalled();
+  });
+
   test('the gateway refuses this one feed (result.disabled): same rule, no last-read date', async () => {
     const repository = makeRepository(ACTIVE_ROW);
     const gateway = {

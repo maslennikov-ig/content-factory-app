@@ -9,6 +9,7 @@ import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/s
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 const postUrlEmitter = new EventEmitter();
 
 export const MediaSettingsLayout = () => {
@@ -102,6 +103,7 @@ export const CreateThumbnail: FC<{
   onAltTextChange?: (altText: string) => void;
 }> = (props) => {
   const { onSelect, media } = props;
+  const t = useT();
   const { backendUrl } = useVariables();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -196,12 +198,15 @@ export const CreateThumbnail: FC<{
       } catch (fallbackError) {
         console.error('Fallback capture also failed:', fallbackError);
         alert(
-          'Unable to capture frame. This might be due to CORS restrictions on the video source.'
+          t(
+            'media_frame_capture_failed',
+            'The frame could not be captured. The video source may not allow it.'
+          )
         );
         setIsCapturing(false);
       }
     }
-  }, [onSelect, currentTime]);
+  }, [onSelect, currentTime, t]);
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -256,9 +261,10 @@ export const CreateThumbnail: FC<{
             <Button
               onClick={captureFrame}
               disabled={isCapturing}
-              className="px-6 py-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isCapturing ? 'Capturing...' : 'Select This Frame'}
+              {isCapturing
+                ? t('media_frame_capturing', 'Capturing…')
+                : t('media_frame_select', 'Use this frame')}
             </Button>
           </div>
         </>
@@ -311,6 +317,7 @@ export const MediaComponentInner: FC<{
     | undefined;
 }> = (props) => {
   const { onClose, onSelect, media } = props;
+  const t = useT();
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   const newFetch = useFetch();
   const [newThumbnail, setNewThumbnail] = useState<string | null>(null);
@@ -369,10 +376,13 @@ export const MediaComponentInner: FC<{
       <div className="flex flex-col space-y-2">
         <Input
           standalone
-          label="Alt Text (for accessibility)"
+          label={t('media_alt_text_label', 'Alt text (for accessibility)')}
           value={altText}
           onChange={(e) => setAltText(e.target.value)}
-          placeholder="Describe the image/video content..."
+          placeholder={t(
+            'media_alt_text_placeholder',
+            'Describe what the image or video shows…'
+          )}
           className="w-full"
         />
       </div>
@@ -386,11 +396,11 @@ export const MediaComponentInner: FC<{
                 {(newThumbnail || thumbnail) && (
                   <div className="flex flex-col space-y-2">
                     <span className="text-sm text-textColor">
-                      Current Thumbnail:
+                      {t('media_thumbnail_current', 'Current thumbnail:')}
                     </span>
                     <img
                       src={newThumbnail || thumbnail}
-                      alt="Current thumbnail"
+                      alt={t('media_thumbnail_current_alt', 'Current thumbnail')}
                       className="max-w-full max-h-[500px] object-contain rounded-lg border border-tableBorder"
                     />
                   </div>
@@ -401,11 +411,11 @@ export const MediaComponentInner: FC<{
                   <Button variant="secondary"
                     disabled={loading}
                     onClick={() => setIsEditingThumbnail(true)}
-                    className="px-6 py-2 rounded-lg transition-all flex-1"
+                    className="flex-1"
                   >
                     {media.thumbnail || newThumbnail
-                      ? 'Edit Thumbnail'
-                      : 'Create Thumbnail'}
+                      ? t('media_thumbnail_edit', 'Edit thumbnail')
+                      : t('media_thumbnail_create', 'Create thumbnail')}
                   </Button>
                   {(thumbnail || newThumbnail) && (
                     <Button variant="destructive"
@@ -414,9 +424,9 @@ export const MediaComponentInner: FC<{
                         setNewThumbnail(null);
                         setThumbnail(null);
                       }}
-                      className="px-6 py-2 rounded-lg transition-all flex-1"
+                      className="flex-1"
                     >
-                      Clear Thumbnail
+                      {t('media_thumbnail_clear', 'Remove thumbnail')}
                     </Button>
                   )}
                 </div>
@@ -427,7 +437,7 @@ export const MediaComponentInner: FC<{
                 <div className="flex justify-start">
                   <Button variant="quiet"
                     onClick={() => setIsEditingThumbnail(false)}
-                    className="transition-colors flex items-center space-x-2"
+                    className="transition-colors duration-state motion-reduce:transition-none flex items-center space-x-2"
                   >
                     <svg
                       width="16"
@@ -444,7 +454,7 @@ export const MediaComponentInner: FC<{
                         strokeLinejoin="round"
                       />
                     </svg>
-                    <span>Back</span>
+                    <span>{t('back', 'Back')}</span>
                   </Button>
                 </div>
 
@@ -477,15 +487,15 @@ export const MediaComponentInner: FC<{
           <Button variant="secondary"
             disabled={loading}
             onClick={onClose}
-            className="flex-1 px-6 py-2 rounded-lg transition-colors duration-state"
+            className="flex-1"
           >
-            Cancel
+            {t('cancel', 'Cancel')}
           </Button>
           <Button
             onClick={save}
-            className="flex-1 px-6 py-2 rounded-lg transition-all"
+            className="flex-1"
           >
-            Save Changes
+            {t('save_changes', 'Save Changes')}
           </Button>
         </div>
       )}

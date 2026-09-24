@@ -382,7 +382,6 @@ const HEX_ALLOWED = [
   'apps/frontend/src/components/launches/ai.image.tsx',
   'apps/frontend/src/components/launches/ai.video.tsx',
   'apps/frontend/src/components/launches/comments/comment.component.tsx',
-  'apps/frontend/src/components/launches/creation.method.badge.tsx',
   'apps/frontend/src/components/launches/helpers/media.settings.component.tsx',
   'apps/frontend/src/components/launches/information.component.tsx',
   'apps/frontend/src/components/launches/layout.standalone.tsx',
@@ -418,7 +417,6 @@ const HEX_ALLOWED = [
  * new components take their text colour from a token.
  */
 const WHITE_ALLOWED = [
-  'apps/frontend/src/components/launches/creation.method.badge.tsx',
   'apps/frontend/src/components/launches/customer.modal.tsx',
   'apps/frontend/src/components/launches/helpers/top.title.component.tsx',
   'apps/frontend/src/components/launches/information.component.tsx',

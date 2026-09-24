@@ -77,6 +77,11 @@ export const POST_SAVE_REFUSAL_COPY: Record<
     key: 'post_not_found_refusal',
     fallback: 'This post was not found. It may have already been deleted.',
   },
+  CF_QUEUE_BUSY: {
+    key: 'cf_queue_busy_refusal',
+    fallback:
+      'Another version of this post is already scheduled in this channel. Unschedule it first.',
+  },
   AUTOPOST_V2_CONFLICT: {
     key: 'autopost_rule_changed',
     fallback:

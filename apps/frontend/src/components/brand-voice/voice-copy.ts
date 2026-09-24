@@ -12,7 +12,11 @@
  * two-language surface would promise a translation the screen cannot keep.
  */
 
-import { VOICE_SAMPLE_PASTE_LIMITS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import {
+  MIN_CORPUS_CHARS as CORPUS_FLOOR_CHARS,
+  MIN_CORPUS_SAMPLES as CORPUS_FLOOR_SAMPLES,
+  VOICE_SAMPLE_PASTE_LIMITS,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 export type VoiceLocale = 'ru' | 'en';
 
@@ -25,6 +29,12 @@ export type VoiceLocale = 'ru' | 'en';
  * at was 100 KB, not the 200,000 characters the card promised, and nothing
  * near the field said either number.
  */
+/** The corpus volume floor, formatted where the path card names it. */
+const corpusFloorChars = (locale: VoiceLocale): string =>
+  new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(
+    CORPUS_FLOOR_CHARS
+  );
+
 const pasteCharLimitLabel = (locale: VoiceLocale): string =>
   new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(
     VOICE_SAMPLE_PASTE_LIMITS.maxCharsPerSample
@@ -76,6 +86,11 @@ export const voiceCopy = {
         'знаков',
       ])}. Образцы сохранены.`,
     emptyContinue: 'Продолжить сбор',
+    // A hand-filled draft left mid-way (`content-factory-next-fn33.150`):
+    // its lines are saved one by one and survive a reload, so the tab says so.
+    emptyManualDraft: (filled: number, total: number) =>
+      `Начат черновик «Заполнить вручную»: заполнено ${filled} из ${total}. Строки сохранены.`,
+    emptyContinueManual: 'Продолжить черновик',
 
     // Screen 02 — three ways in.
     pathsTitle: 'Как соберём аватар',
@@ -100,8 +115,10 @@ export const voiceCopy = {
     ownBody:
       'Читаем то, что вы уже написали, и показываем вашу собственную манеру числами. Вы соглашаетесь или правите.',
     ownTime: '5 мин + разбор',
-    ownNeeds: 'от 15 000',
-    ownSources: '5',
+    // Read off the corpus floor the collecting screen enforces: the card said
+    // «5» while the next screen asked for eight (fn33.138).
+    ownNeeds: `от ${corpusFloorChars('ru')}`,
+    ownSources: `от ${CORPUS_FLOOR_SAMPLES}`,
     referenceTitle: 'Взять манеру у автора, который нравится',
     referenceBody:
       'Берём манеру письма, а не личность. Из референса извлекается ритм и устройство фраз — и ничего из содержания.',
@@ -633,6 +650,9 @@ export const voiceCopy = {
 
     // Screen 09 — versions and comparison.
     versionsTitle: 'Версии аватара',
+    // Counted, not glued: «1 версии» and «5 версии» (fn33.151).
+    versionsCount: (count: number) =>
+      `${count} ${plural(count, ['версия', 'версии', 'версий'])}`,
     versionsPick: 'Выберите две версии для сравнения',
     versionsTitleHint:
       'Каждый раз, когда голос включают заново или правят его строки, сохраняется новая версия. Старые остаются: публикация помнит, какой версией она написана, и её текст от новой версии не меняется.',
@@ -827,6 +847,9 @@ export const voiceCopy = {
         samples === 1 ? 'sample' : 'samples'
       } · ${characters.toLocaleString('en-US')} characters. They are kept.`,
     emptyContinue: 'Continue collecting',
+    emptyManualDraft: (filled: number, total: number) =>
+      `A «Fill it in by hand» draft is under way: ${filled} of ${total} filled. The lines are kept.`,
+    emptyContinueManual: 'Continue the draft',
 
     pathsTitle: 'How we will build the avatar',
     pathsStep: 'step 1 of 4 · you can change path at any point',
@@ -847,8 +870,8 @@ export const voiceCopy = {
     ownBody:
       'We read what you have already written and show your own manner as numbers. You accept it or edit it.',
     ownTime: '5 min + analysis',
-    ownNeeds: 'from 15,000',
-    ownSources: '5',
+    ownNeeds: `from ${corpusFloorChars('en')}`,
+    ownSources: `from ${CORPUS_FLOOR_SAMPLES}`,
     referenceTitle: 'Take the manner of an author you like',
     referenceBody:
       'We take the manner of writing, not the person. Rhythm and phrase construction are extracted from the reference — and nothing of its content.',
@@ -1315,6 +1338,8 @@ export const voiceCopy = {
     scalesDisabled: 'the generator does not check it',
 
     versionsTitle: 'Avatar versions',
+    versionsCount: (count: number) =>
+      `${count} ${count === 1 ? 'version' : 'versions'}`,
     versionsPick: 'Pick two versions to compare',
     versionsTitleHint:
       'Every time the voice is activated again, or one of its lines is edited, a new version is saved. The old ones stay: a post remembers which version wrote it, and its text does not change when a new one arrives.',

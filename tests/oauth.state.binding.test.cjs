@@ -178,9 +178,11 @@ describe('OAuth state is bound to the browser that asked for the link', () => {
 
     await controller.oauthExists(
       { cookies: { oauth_state: 'abc123' } },
-      'the-code',
-      'https://app.example/auth?provider=TELEGRAM',
-      'abc123',
+      {
+        code: 'the-code',
+        redirect_uri: 'https://app.example/auth?provider=TELEGRAM',
+        state: 'abc123',
+      },
       'TELEGRAM',
       response
     );
@@ -202,9 +204,7 @@ describe('OAuth state is bound to the browser that asked for the link', () => {
 
     await controller.oauthExists(
       { cookies: {} },
-      'the-code',
-      undefined,
-      'abc123',
+      { code: 'the-code', redirect_uri: undefined, state: 'abc123' },
       'TELEGRAM',
       fakeResponse()
     );

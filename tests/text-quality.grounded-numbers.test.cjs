@@ -373,6 +373,25 @@ describe('опоры доезжают до каталога через швы', 
     ]);
   });
 
+  test('потолок эмодзи строки доезжает до каталога (`97dq.83`)', async () => {
+    const seen = [];
+    await adaptationChecksMany(
+      { organizationId: 'org', language: 'ru' },
+      [
+        { text: NINETY, platform: 'telegram', emojiCeiling: 3 },
+        { text: BUSINESSES, platform: 'telegram' },
+      ],
+      {
+        slopCheck: (text, platform, locale, grounded, supported, emojiCeiling) => {
+          seen.push(emojiCeiling);
+          return null;
+        },
+        voiceCheck: null,
+      }
+    );
+    expect(seen).toEqual([3, undefined]);
+  });
+
   test('порт старой формы продолжает работать: опоры — последний довод', async () => {
     const seen = [];
     const checks = await adaptationChecksOf(

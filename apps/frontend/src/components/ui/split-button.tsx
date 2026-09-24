@@ -13,6 +13,7 @@ import {
   type ButtonDensity,
 } from '@contentfactory/react/form/button';
 import { DescribedMenuItem } from './layers';
+import { containsIncludingHints } from '@contentfactory/react/layout/hint-portal';
 
 /**
  * The one chevron every dropdown in a split button draws (`97dq.60`).
@@ -124,7 +125,7 @@ export function SplitButton({
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent | MouseEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (!containsIncludingHints(root.current, event.target)) setOpen(false);
     };
     document.addEventListener('pointerdown', close);
     document.addEventListener('mousedown', close);

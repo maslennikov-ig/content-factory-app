@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 import { ControlButton } from '../choice/control.button';
 
@@ -80,6 +81,13 @@ const QuestionGlyph = () => (
   </svg>
 );
 
+/** Whether `target` is `container` or inside it. */
+const inside = (container: Element | null, target: EventTarget | null) =>
+  !!container &&
+  !!target &&
+  typeof (target as Node).nodeType === 'number' &&
+  container.contains(target as Node);
+
 export function Hint({ children, label, side = 'end', className }: HintProps) {
   const bubbleId = useId();
   const [open, setOpen] = useState(false);
@@ -90,6 +98,10 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
   const pointerKind = useRef('');
   /** Set when the preferred side would put the bubble outside the viewport. */
   const [flipped, setFlipped] = useState(false);
+  /** Where the portalled bubble sits in the viewport. */
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
+    null
+  );
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -111,9 +123,22 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
     const room = document.documentElement.clientWidth;
     const width = node.getBoundingClientRect().width;
     const box = anchor.getBoundingClientRect();
-    setFlipped(
-      side === 'end' ? box.left + width > room - 8 : box.right - width < 8
-    );
+    const flip =
+      side === 'end' ? box.left + width > room - 8 : box.right - width < 8;
+    setFlipped(flip);
+    // The bubble lives in a portal now (`97dq.76`, `DESIGN.md` «layers render
+    // through a portal»), so it is placed in the viewport rather than inside
+    // the label: under the anchor, its start edge on the anchor's start or
+    // its end edge on the anchor's end, whichever the flip chose.
+    const alignStart = (side === 'end') !== flip;
+    const rtl =
+      (anchor.closest('[dir]')?.getAttribute('dir') ??
+        document.documentElement.dir) === 'rtl';
+    const leftEdge = alignStart !== rtl;
+    setCoords({
+      top: box.bottom + 8,
+      left: leftEdge ? box.left : box.right - width,
+    });
   }, [side]);
 
   /**
@@ -128,11 +153,17 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
   useLayoutEffect(() => {
     if (!open) {
       setFlipped(false);
+      setCoords(null);
       return undefined;
     }
     place();
     window.addEventListener('resize', place);
-    return () => window.removeEventListener('resize', place);
+    // A scrolling ancestor moves the anchor under a fixed bubble.
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
   }, [open, place]);
 
   /**
@@ -150,7 +181,12 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
       if (event.key === 'Escape') close();
     };
     const onPointerDown = (event: MouseEvent) => {
-      if (!wrapper.current?.contains(event.target as Node)) close();
+      const target = event.target as Node;
+      if (
+        !wrapper.current?.contains(target) &&
+        !bubble.current?.contains(target)
+      )
+        close();
     };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onPointerDown);
@@ -163,9 +199,14 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
   return (
     <span
       ref={wrapper}
+      data-hint-anchor={bubbleId}
       className={clsx('relative inline-flex align-middle', className)}
       onMouseEnter={() => setOpen(true)}
-      onMouseLeave={close}
+      // Moving onto the bubble keeps it up — it is hoverable content
+      // (WCAG 1.4.13), and it no longer sits inside this wrapper.
+      onMouseLeave={(event) => {
+        if (!inside(bubble.current, event.relatedTarget)) close();
+      }}
     >
       {/*
         The box and the mark are two different sizes on purpose.
@@ -251,33 +292,47 @@ export function Hint({ children, label, side = 'end', className }: HintProps) {
         </span>
       </ControlButton>
 
-      {open ? (
-        <span
-          ref={bubble}
-          id={bubbleId}
-          role="tooltip"
-          className={clsx(
-            // A layer above the content: shadow, no border. `DESIGN.md` keeps
-            // the two apart so a floating thing never reads as a panel.
-            'absolute top-[calc(100%+8px)] z-[300] w-max',
-            // Two ceilings, and the narrow one wins. 260px is the reading
-            // measure; on a 320px screen it is the viewport that decides, and
-            // a bubble wider than the screen cannot be rescued by flipping.
-            'max-w-[min(260px,calc(100vw-32px))]',
-            'rounded-[8px] bg-cf-surface-raised p-[12px] shadow-menu',
-            'cf-body-sm text-cf-ink [text-wrap:pretty]',
-            // The bubble renders inline, so it inherits the case of whatever
-            // label it sits in. An explanation is read, never shouted: reset
-            // it here once rather than at every call site (thirteenth walk
-            // B1, «подсказки капслоком»). Tracking needs no reset: `body-sm`
-            // declares its own, like every token.
-            'normal-case',
-            (side === 'end') !== flipped ? 'start-0' : 'end-0'
-          )}
-        >
-          {children}
-        </span>
-      ) : null}
+      {open && typeof document !== 'undefined'
+        ? createPortal(
+            <span
+              ref={bubble}
+              id={bubbleId}
+              role="tooltip"
+              // Lets outside-press handlers of the holders around the anchor
+              // count a press here as inside (`hint-portal.ts`).
+              data-hint-portal={bubbleId}
+              data-hint-align={(side === 'end') !== flipped ? 'start' : 'end'}
+              onMouseLeave={(event) => {
+                if (!inside(wrapper.current, event.relatedTarget)) close();
+              }}
+              style={
+                coords
+                  ? { top: coords.top, left: coords.left }
+                  : { top: 0, left: 0, visibility: 'hidden' }
+              }
+              className={clsx(
+                // A layer above the content: shadow, no border. `DESIGN.md`
+                // keeps the two apart so a floating thing never reads as a
+                // panel. Fixed and portalled, so no ancestor's `overflow`
+                // clips it and no ancestor's case or tracking reaches it.
+                'fixed z-[300] w-max',
+                // Two ceilings, and the narrow one wins. 260px is the reading
+                // measure; on a 320px screen it is the viewport that decides,
+                // and a bubble wider than the screen cannot be rescued by
+                // flipping.
+                'max-w-[min(260px,calc(100vw-32px))]',
+                'rounded-[8px] bg-cf-surface-raised p-[12px] shadow-menu',
+                'cf-body-sm text-cf-ink [text-wrap:pretty]',
+                // Outside the label now, but a portal still inherits from
+                // `body`; an explanation is read, never shouted.
+                'normal-case'
+              )}
+            >
+              {children}
+            </span>,
+            document.body
+          )
+        : null}
     </span>
   );
 }

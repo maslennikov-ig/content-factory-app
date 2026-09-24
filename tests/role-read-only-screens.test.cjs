@@ -205,13 +205,13 @@ const MEDIA_ITEM = {
   alt: null,
 };
 
-const loadMediaBox = (role) =>
+const loadMediaBox = (role, results = [MEDIA_ITEM]) =>
   loadWithMocks(MEDIA, {
     react: React,
     swr: {
       __esModule: true,
       default: () => ({
-        data: { results: [MEDIA_ITEM], pages: 1 },
+        data: { results, pages: 1 },
         mutate: () => {},
         isLoading: false,
       }),
@@ -222,7 +222,10 @@ const loadMediaBox = (role) =>
     'use-debounce': { useDebounce: (value) => [value] },
     'zustand/react/shallow': { useShallow: (fn) => fn },
     '@prisma/client': {},
-    '@uppy/react': stub,
+    '@uppy/react': {
+      ...stub,
+      Dashboard: () => h('div', { 'data-uppy-dashboard': 'true' }),
+    },
     ...translation,
     '@contentfactory/react/form/input': stub,
     '@contentfactory/react/toaster/toaster': {
@@ -280,8 +283,8 @@ const loadMediaBox = (role) =>
     },
   });
 
-const renderMediaBox = async (role) => {
-  const { MediaBox } = loadMediaBox(role);
+const renderMediaBox = async (role, results) => {
+  const { MediaBox } = loadMediaBox(role, results);
   await act(async () => {
     render(
       h(MediaBox, {
@@ -309,6 +312,25 @@ describe('fn33.90.9 и .90.12 — библиотека медиа читаетс
     expect(document.body.innerHTML).not.toContain('DeleteCircleIcon');
     // Список остаётся читаемым — чтение библиотеки роли не несёт.
     expect(document.body.textContent).toContain('probe.png');
+  });
+
+  test('fn33.158: в пустой библиотеке подпись одна, и выбора файла нет', async () => {
+    await renderMediaBox('USER', []);
+
+    const notes = document.querySelectorAll('[data-media-read-only="library"]');
+    expect(notes).toHaveLength(1);
+    expect(document.querySelectorAll(`[id="${notes[0].id}"]`)).toHaveLength(1);
+    // Полоса Uppy с «выберите на устройстве» не рисуется роли без записи.
+    expect(document.querySelector('[data-uppy-dashboard]')).toBeNull();
+    for (const upload of screen.getAllByRole('button', { name: /Upload/ })) {
+      expect(upload.disabled).toBe(true);
+      expect(upload.getAttribute('aria-describedby')).toBe(notes[0].id);
+    }
+  });
+
+  test('fn33.158: редактору полоса загрузчика остаётся', async () => {
+    await renderMediaBox('EDITOR', []);
+    expect(document.querySelector('[data-uppy-dashboard]')).not.toBeNull();
   });
 
   test.each([['EDITOR'], ['ADMIN']])(

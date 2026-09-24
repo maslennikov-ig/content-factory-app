@@ -283,7 +283,8 @@ export async function reviewOnceV3(
     input.language,
     input.platform,
     grounded,
-    supported
+    supported,
+    input.emojiCeiling
   );
   return usage.executeAiOperation(
     org,
@@ -338,7 +339,8 @@ export async function reviewOnceV3(
           input.language,
           input.platform,
           grounded,
-          supported
+          supported,
+          input.emojiCeiling
         );
         return {
           changes,

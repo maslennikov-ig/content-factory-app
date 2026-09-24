@@ -30,6 +30,11 @@ import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.fa
 import { SaveMediaInformationDto } from '@contentfactory/nestjs-libraries/dtos/media/save.media.information.dto';
 import { VideoDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@contentfactory/nestjs-libraries/dtos/videos/video.function.dto';
+import {
+  ImagePromptBodyDto,
+  SaveMediaBodyDto,
+  UploadSimpleBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('Media')
 @Controller('/media')
@@ -70,7 +75,15 @@ export class MediaController {
   async generateImage(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
-    @Body('prompt') prompt: string,
+    @Body() { prompt }: ImagePromptBodyDto
+  ) {
+    return this.imageFromPrompt(org, prompt);
+  }
+
+  /** The image itself, shared by both doors; `isPicturePrompt` only from the second. */
+  private async imageFromPrompt(
+    org: Organization,
+    prompt: string,
     isPicturePrompt = false
   ) {
     const total = await this._subscriptionService.checkCredits(org);
@@ -90,9 +103,9 @@ export class MediaController {
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
-    @Body('prompt') prompt: string
+    @Body() { prompt }: ImagePromptBodyDto
   ) {
-    const image = await this.generateImage(org, req, prompt, true);
+    const image = await this.imageFromPrompt(org, prompt, true);
     if (!image) {
       return false;
     }
@@ -125,8 +138,7 @@ export class MediaController {
   async saveMedia(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
-    @Body('name') name: string,
-    @Body('originalName') originalName: string
+    @Body() { name, originalName }: SaveMediaBodyDto
   ) {
     if (!name) {
       return false;
@@ -155,7 +167,7 @@ export class MediaController {
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
     @UploadedFile('file') file: Express.Multer.File,
-    @Body('preventSave') preventSave: string = 'false'
+    @Body() { preventSave = 'false' }: UploadSimpleBodyDto
   ) {
     const originalName = file.originalname;
     const getFile = await this.storage.uploadFile(file);

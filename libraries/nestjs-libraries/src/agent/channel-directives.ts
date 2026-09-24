@@ -4,6 +4,7 @@ import {
   defaultWritingProfileFor,
   type ChannelWritingProfileV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import { emojiCeilingOf } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
@@ -67,7 +68,7 @@ export type ChannelDirectiveOptions = {
    * says «no links»; the piece's answer does not. Absent — nobody answered,
    * and only the general link rule applies.
    */
-  authorLink?: { url: string | null; forPost?: boolean } | null;
+  authorLink?: { url: string | null; forPost?: boolean; text?: string } | null;
   /**
    * «Для этого поста» (`content-factory-next-97dq.38`): разовые настройки
    * одной адаптации. Сильнее карточки канала и аватара, слабее запретов о
@@ -161,17 +162,53 @@ export const channelHardLimit = (
  * 3», not «a few» for the generator to interpret — and «без предела» lifts the
  * ceiling without asking for emoji. Exported for the suite, which pins every
  * line.
+ *
+ * `97dq.83` (fourteenth walk, A4): «до 3» came out with none, because the
+ * core has no emoji and the writer carries the core verbatim, so
+ * `EMOJI_CORE_LINE` says the core's «no emoji» is not this post's rule. The
+ * review of that fix (P3-7) found that «about N» pushes a short post towards
+ * emoji stuffing at «до 10», so a stop asks for emoji where they fit, up to N,
+ * and says fewer is fine; the count past N is a text finding
+ * (`emoji-over-ceiling`).
  */
 export const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
   auto: '',
   none: 'No emoji.',
   few: 'Use one to three emoji, of no more than two kinds, and never as list bullets.',
   many: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
-  max1: 'Use no more than 1 emoji in the whole post, and never as a list bullet.',
-  max3: 'Use no more than 3 emoji in the whole post, and never as list bullets.',
-  max6: 'Use no more than 6 emoji in the whole post, and never as list bullets.',
-  max10: 'Use no more than 10 emoji in the whole post, and never as list bullets.',
+  max1: 'Use one emoji where it fits the meaning, never more than 1 in the whole post, and never as a list bullet.',
+  max3: 'Use emoji where they fit the meaning, up to 3 in the whole post (never more than 3; fewer is fine), and never as list bullets.',
+  max6: 'Use emoji where they fit the meaning, up to 6 in the whole post (never more than 6; fewer is fine), and never as list bullets.',
+  max10: 'Use emoji where they fit the meaning, up to 10 in the whole post (never more than 10; fewer is fine), and never as list bullets.',
   unlimited: 'There is no limit on emoji: use them freely wherever they fit the meaning.',
+};
+
+/**
+ * The core is written for no platform and without emoji (`core-write`); the
+ * writer is told to carry it verbatim. With a setting that asks for emoji this
+ * line says which rule wins (`97dq.83`).
+ *
+ * Review of 97dq.81-85, P2-1: the rule is keyed off the ceiling, not a list of
+ * the new stops. An untouched Telegram channel stores the legacy `few` (shown
+ * as «до 3»), and without this line the writer copied the emoji-free core
+ * verbatim — the same A4 the stops were fixed for. `few` and `many` ask for
+ * emoji as much as `max3` and `max6` do.
+ */
+export const EMOJI_CORE_LINE =
+  "The neutral core has no emoji only because it is written for no platform; that is not this post's rule. Adding emoji as the emoji setting says is a change this platform requires, not a departure from the core.";
+
+/**
+ * «Без предела» lifts the ceiling without asking for emoji (P3-7): the core's
+ * «no emoji» still is not this post's rule, but nothing is required.
+ */
+export const EMOJI_CORE_OPTIONAL_LINE =
+  "The neutral core has no emoji only because it is written for no platform; that is not this post's rule. Emoji may be added where they fit the meaning, and none are required.";
+
+/** The line about the core's missing emoji for a stored level, or none. */
+export const emojiCoreLineOf = (level: unknown): string | null => {
+  const ceiling = emojiCeilingOf(level);
+  if (ceiling === null) return EMOJI_CORE_OPTIONAL_LINE;
+  return typeof ceiling === 'number' && ceiling > 0 ? EMOJI_CORE_LINE : null;
 };
 
 const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string> = {
@@ -284,6 +321,37 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
  */
 export const AUTHOR_LINK_LINE = (url: string): string =>
   `The author chose this link for the post: <${url}>. It is the only link you may add: put it in exactly as written, character for character, once, where it fits by meaning. Links already in the author's material or sources may stay; never invent any other URL.`;
+
+/**
+ * The author's link on words (`97dq.79`, fourteenth walk, B2). Owner: «ссылка
+ * вставилась топорно… в Telegram можно прям вставлять ссылку… чтобы она была
+ * кликабельная, какой-то текст для нее делать». A channel whose editor shows
+ * links on words (`html`, `markdown`) gets the link as `[words](url)` — the
+ * same grammar `brief/editor-html.ts` turns into `<a href>` — and never as a
+ * bare address. With «Текст ссылки» filled, exactly those words carry it;
+ * without, the writer picks 2–5 meaningful words of its own sentence. Plain
+ * editors keep `AUTHOR_LINK_LINE`: there a link is only its address.
+ */
+export const AUTHOR_LINK_WORDS_LINE = (url: string, text?: string | null): string => {
+  const words = fenced(text, 80);
+  return words
+    ? `The author chose this link for the post: <${url}>. It is the only link you may add. Put it on exactly these words, once: «${words}» — write them in the text as [${words}](${url}), the address inside the parentheses character for character. Never show the bare address. Links already in the author's material or sources may stay; never invent any other URL.`
+    : `The author chose this link for the post: <${url}>. It is the only link you may add. Put it once on 2 to 5 meaningful words of your own sentence that say where it leads, written as [those words](${url}), the address inside the parentheses character for character — never on «here» or «link», never as a bare address. Links already in the author's material or sources may stay; never invent any other URL.`;
+};
+
+/** Editors that show a link on words: `[words](url)` becomes a clickable phrase. */
+export const showsLinkOnWords = (editor: ChannelProviderLimits['editor']): boolean =>
+  editor === 'html' || editor === 'markdown';
+
+/**
+ * Where the author's link on words meets a channel that wants its link at the
+ * end (`linkPolicy: 'end'`) or ends on a link to follow (CTA `link`) — review
+ * of `97dq.79`, P3-7. The author's link on words wins; the end-of-post rule
+ * then means «the linked words sit in the last sentence», and no second, bare
+ * address follows them.
+ */
+export const AUTHOR_LINK_WORDS_AT_END_LINE =
+  "The author's link on words outranks the rules above about a link at the end of the post or ending with a link to follow: put the linked words in the last sentence, and that linked phrase is the link the ending asks for. Never add the address again as a bare URL.";
 
 export const AUTHOR_NO_LINK_LINE =
   "The author chose no link for this post: add no URL of your own. Only a link already in the author's material or sources may appear; never invent one.";
@@ -443,6 +511,8 @@ export function channelInstructionLines(
         ? forPost('for emoji, this setting overrides the channel, the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel])
         : 'For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]
     );
+  const emojiCore = emojiCoreLineOf(resolved.emojiLevel);
+  if (emojiCore) lines.push(emojiCore);
   lines.push(
     chose.link ? forPost(LINK_LINE[resolved.linkPolicy]) : LINK_LINE[resolved.linkPolicy]
   );
@@ -454,14 +524,24 @@ export function channelInstructionLines(
   */
   const author = options.authorLink;
   const linksOff = resolved.linkPolicy === 'none';
+  // On words where the channel shows them (`97dq.79`); a bare address elsewhere.
+  const authorLine = (url: string) =>
+    showsLinkOnWords(provider.editor)
+      ? AUTHOR_LINK_WORDS_LINE(url, author?.text)
+      : AUTHOR_LINK_LINE(url);
+  let linkOnWords = false;
   if (author) {
     if (author.url === null) {
       if (!linksOff || author.forPost) lines.push(AUTHOR_NO_LINK_LINE);
-    } else if (!linksOff) lines.push(AUTHOR_LINK_LINE(author.url));
-    else if (author.forPost && !chose.link)
+    } else if (!linksOff) {
+      lines.push(authorLine(author.url));
+      linkOnWords = showsLinkOnWords(provider.editor);
+    } else if (author.forPost && !chose.link) {
       lines.push(
-        forPost(`${AUTHOR_LINK_LINE(author.url)} This overrides the link rule above.`)
+        forPost(`${authorLine(author.url)} This overrides the link rule above.`)
       );
+      linkOnWords = showsLinkOnWords(provider.editor);
+    }
   }
   if (options.keepLinks?.length) {
     lines.push(
@@ -478,6 +558,8 @@ export function channelInstructionLines(
     lines.push(
       chose.cta ? forPost(CTA_LINE[resolved.ctaKind]) : CTA_LINE[resolved.ctaKind]
     );
+  if (linkOnWords && (resolved.linkPolicy === 'end' || resolved.ctaKind === 'link'))
+    lines.push(AUTHOR_LINK_WORDS_AT_END_LINE);
   lines.push(FORMAT_LINE[options.formatHint || resolved.formatPreference]);
 
   const notes = notesLine(resolved.notes);

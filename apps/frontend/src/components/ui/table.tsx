@@ -31,8 +31,11 @@ export const Table: FC<{
   /** Description announced instead of leaving the table unlabelled. */
   caption?: ReactNode;
 }> = ({ children, className, caption }) => (
-  // The wrapper is what scrolls, so a wide table never widens the page.
-  <div className="w-full overflow-x-auto">
+  // The wrapper is what scrolls, so a wide table never widens the page. Only
+  // sideways: `overflow-x: auto` turns the other axis into `auto` too, and the
+  // mobile hit area of a button in the last row (`Button`, 11qv) reaches a
+  // few pixels past the table — a stray vertical scroll nobody asked for.
+  <div className="w-full overflow-x-auto overflow-y-hidden">
     <table className={clsx('w-full border-collapse text-left', className)}>
       {caption && <caption className="sr-only">{caption}</caption>}
       {children}

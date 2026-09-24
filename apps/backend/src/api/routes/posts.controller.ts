@@ -29,6 +29,10 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { PostValidationException } from '@contentfactory/backend/api/routes/posts.validation.exception';
+import {
+  ChangeDateBodyDto,
+  ReleaseIdBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 /**
  * Same reading as `safeHttpError` in `content-lead.controller.ts`: a refusal
@@ -92,7 +96,7 @@ export class PostsController {
   async updateReleaseId(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
-    @Body('releaseId') releaseId: string
+    @Body() { releaseId }: ReleaseIdBodyDto
   ) {
     return this._postsService.updateReleaseId(org.id, id, releaseId);
   }
@@ -362,10 +366,12 @@ export class PostsController {
   changeDate(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
-    @Body('date') date: string,
-    @Body('action') action: 'schedule' | 'update' = 'schedule'
+    @Body() { date, action = 'schedule' }: ChangeDateBodyDto
   ) {
-    return this._postsService.changeDate(org.id, id, date, action);
+    // `CF_QUEUE_BUSY` (409, `97dq.67`) reaches the calendar as itself.
+    return this._postsService
+      .changeDate(org.id, id, date, action)
+      .catch((error) => safeHttpError(error));
   }
 
   @Post('/separate-posts')

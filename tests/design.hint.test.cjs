@@ -221,7 +221,7 @@ describe('the bubble obeys the design rules for a floating layer', () => {
       renderHint();
       fireEvent.focus(screen.getByRole('button'));
       // `end` is the default: a hint follows the label it explains.
-      expect(screen.getByRole('tooltip').className).toMatch(/start-0/);
+      expect(screen.getByRole('tooltip').getAttribute('data-hint-align')).toBe('start');
     });
   });
 
@@ -232,7 +232,7 @@ describe('the bubble obeys the design rules for a floating layer', () => {
       // A bubble hanging past the edge makes the whole document scroll
       // horizontally — the reflow failure WCAG 1.4.10 is about, and what this
       // component was doing at 320px before it measured anything.
-      expect(screen.getByRole('tooltip').className).toMatch(/end-0/);
+      expect(screen.getByRole('tooltip').getAttribute('data-hint-align')).toBe('end');
     });
   });
 
@@ -240,14 +240,14 @@ describe('the bubble obeys the design rules for a floating layer', () => {
     withGeometry({ anchorLeft: 40, bubbleWidth: 260, viewport: 1440 }, () => {
       renderHint();
       fireEvent.focus(screen.getByRole('button'));
-      expect(screen.getByRole('tooltip').className).toMatch(/start-0/);
+      expect(screen.getByRole('tooltip').getAttribute('data-hint-align')).toBe('start');
     });
 
     // A phone rotating, or a window dragged narrower, used to leave the bubble
     // hanging past the edge with the document scrolling sideways behind it.
     withGeometry({ anchorLeft: 120, bubbleWidth: 260, viewport: 320 }, () => {
       fireEvent(window, new dom.window.Event('resize'));
-      expect(screen.getByRole('tooltip').className).toMatch(/end-0/);
+      expect(screen.getByRole('tooltip').getAttribute('data-hint-align')).toBe('end');
     });
   });
 
@@ -262,4 +262,44 @@ describe('the bubble obeys the design rules for a floating layer', () => {
     );
   });
 
+
+  /*
+    `97dq.76` (audit tail, `DESIGN.md` «layers render through a portal»): the
+    bubble was drawn inside its label, so a parent with `overflow: hidden`
+    clipped it and an uppercase parent shouted it.
+  */
+  test('the bubble renders in a portal, outside any clipping parent', () => {
+    const clip = document.createElement('div');
+    clip.style.overflow = 'hidden';
+    document.body.appendChild(clip);
+    try {
+      const { container } = render(
+        React.createElement(
+          Hint,
+          { label: 'Подсказка: коридор' },
+          'В него попадают восемь из десяти.'
+        ),
+        { container: clip }
+      );
+      fireEvent.focus(screen.getByRole('button'));
+      const tip = screen.getByRole('tooltip');
+      expect(container.contains(tip)).toBe(false);
+      expect(tip.parentElement).toBe(document.body);
+      expect(tip.className).toMatch(/\bfixed\b/);
+    } finally {
+      cleanup();
+      clip.remove();
+    }
+  });
+
+  test('moving from the mark onto the bubble keeps it open', () => {
+    const { container } = renderHint();
+    const wrapper = container.firstChild;
+    fireEvent.mouseEnter(wrapper);
+    const tip = screen.getByRole('tooltip');
+    fireEvent.mouseLeave(wrapper, { relatedTarget: tip });
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    fireEvent.mouseLeave(tip, { relatedTarget: document.body });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
 });

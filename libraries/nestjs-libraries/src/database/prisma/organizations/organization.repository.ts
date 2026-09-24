@@ -11,6 +11,7 @@ import {
   CreateOrgUserDto,
 } from '@contentfactory/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { CONTENT_WORKFLOW_TAG_KEYS } from '@contentfactory/nestjs-libraries/dtos/auth/starter-template';
+import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import type { AssignableOrganizationRole } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
@@ -848,31 +849,21 @@ export class OrganizationRepository {
    * One serializable transaction with a bounded retry, for the writes that
    * have to read the workspace before they are allowed to happen.
    *
-   * The same shape as `UsersRepository.serializableWithRetry`, and the second
-   * copy of it in this package — see the note on
-   * `keepingAnAdministrator` below. `P2034` is Postgres refusing a write
+   * The shared helper (`serializable.transaction.ts`, `qicl`) that
+   * `UsersRepository` uses too. `P2034` is Postgres refusing a write
    * conflict, which is an instruction to retry rather than a failure to
    * report; three attempts and then a plain «busy», so a person waiting on a
    * button never waits forever.
    */
-  private async serializableWithRetry<T>(
+  private serializableWithRetry<T>(
     run: (tx: Prisma.TransactionClient) => Promise<T>,
     busyMessage: string
   ): Promise<T> {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        return await this._transaction.model.$transaction(run, {
-          isolationLevel: 'Serializable',
-        });
-      } catch (error: any) {
-        if (error?.code !== 'P2034') throw error;
-        if (attempt === 2) {
-          throw new HttpException(busyMessage, 503);
-        }
-      }
-    }
-
-    throw new Error('Unreachable serializable retry state');
+    return serializableWithRetry(
+      this._transaction.model as any,
+      run,
+      busyMessage
+    );
   }
 
   /**

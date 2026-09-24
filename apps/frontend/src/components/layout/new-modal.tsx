@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import { useShallow } from 'zustand/react/shallow';
 import React, {
+  useId,
+  useRef,
   createContext,
   FC,
   memo,
@@ -13,11 +15,19 @@ import React, {
 } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useFocusTrap } from '@contentfactory/frontend/components/ui/use-focus-trap';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import clsx from 'clsx';
 import { EventEmitter } from 'events';
 
 interface OpenModalInterface {
   title?: any;
+  /**
+   * The dialog's name when it has no visible `title`. Without either, a
+   * generic «Dialog» is announced rather than nothing (fourteenth walk
+   * review, P3-2).
+   */
+  ariaLabel?: string;
   closeOnClickOutside?: boolean;
   removeLayout?: boolean;
   fullScreen?: boolean;
@@ -113,6 +123,15 @@ export const Component: FC<{
     closeModal(modal.id);
   }, [modal.id, closeModal]);
 
+  // One modal shell for the keyboard (`content-factory-next-97dq.76`, audit
+  // §0.4): named, modal, Tab kept inside the top layer, focus handed back.
+  const t = useT();
+  const panel = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(panel, !modal.removeLayout, isLast);
+  const hasCloseButton =
+    typeof modal.withCloseButton === 'undefined' || !!modal.withCloseButton;
+
   const RenderComponent = useMemo(() => {
     return typeof modal.children === 'function'
       ? modal.children(closeModalFunction)
@@ -137,7 +156,7 @@ export const Component: FC<{
           !modal.fullScreen
             ? 'pb-[50px] min-w-full min-h-full'
             : 'w-full h-full',
-          'fixed flex left-0 top-0 bg-popup transition-all animate-fadeIn overflow-y-auto text-newTextColor',
+          'fixed flex left-0 top-0 bg-popup transition-all duration-state motion-reduce:transition-none animate-fadeIn overflow-y-auto text-newTextColor',
           !isLast && '!overflow-hidden'
         )}
       >
@@ -171,7 +190,7 @@ export const Component: FC<{
         onClick={closeModalFunction}
         style={{ zIndex }}
         className={clsx(
-          'fixed flex left-0 top-0 min-w-full min-h-full bg-popup transition-all animate-fadeIn overflow-y-auto text-newTextColor',
+          'fixed flex left-0 top-0 min-w-full min-h-full bg-popup transition-all duration-state motion-reduce:transition-none animate-fadeIn overflow-y-auto text-newTextColor',
           !modal.fullScreen && 'pb-[50px]'
         )}
       >
@@ -195,9 +214,19 @@ export const Component: FC<{
             )}
           >
             <div
+              ref={panel}
+              role="dialog"
+              aria-modal="true"
+              {...(modal.title
+                ? { 'aria-labelledby': titleId }
+                : { 'aria-label': modal.ariaLabel || t('dialog_untitled', 'Dialog') })}
+              tabIndex={-1}
               className={clsx(
-                !modal.removeLayout && 'gap-[40px] p-[32px]',
-                'bg-newBgColorInner mx-auto flex flex-col w-fit rounded-[12px] relative',
+                // The `Dialog` rhythm: 20px inside, 20px between title and
+                // body (audit §0.4 — a fixed 32/40px made every legacy window
+                // a different product from the ones on `Dialog`).
+                !modal.removeLayout && 'gap-[20px] p-[20px]',
+                'bg-newBgColorInner mx-auto flex flex-col w-fit rounded-[12px] relative outline-none',
                 modal.size ? '' : 'min-w-[600px]',
                 modal.fullScreen && 'h-full'
               )}
@@ -218,36 +247,50 @@ export const Component: FC<{
               })}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center">
-                <div className="cf-heading-lg flex-1">
-                  {modal.title}
-                </div>
-                {typeof modal.withCloseButton === 'undefined' ||
-                modal.withCloseButton ? (
-                  <div className="cursor-pointer">
-                    <button
-                      className="outline-none absolute end-[20px] top-[20px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa"
-                      type="button"
-                      onClick={closeModalFunction}
-                    >
-                      <svg
-                        viewBox="0 0 15 15"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
+              {/*
+                No title, no heading: an empty `h2` announced nothing and
+                took no height, so the content rose under the close button.
+                An untitled window with a close button keeps the header's
+                height as an empty row instead (fourteenth walk review, P3-2);
+                the dialog is named through `aria-label` above.
+              */}
+              {modal.title || hasCloseButton ? (
+                <div
+                  className={clsx('flex items-center', !modal.title && 'min-h-[32px]')}
+                  data-modal-header={modal.title ? 'title' : 'spacer'}
+                >
+                  {modal.title ? (
+                    <h2 id={titleId} className="cf-heading-md flex-1 pe-[40px]">
+                      {modal.title}
+                    </h2>
+                  ) : null}
+                  {hasCloseButton ? (
+                    <div className="absolute end-[12px] top-[12px]">
+                      <Button
+                        iconOnly
+                        variant="quiet"
+                        aria-label={t('close', 'Close')}
+                        onClick={closeModalFunction}
                       >
-                        <path
-                          d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
-                          fill="currentColor"
-                          fillRule="evenodd"
-                          clipRule="evenodd"
-                        ></path>
-                      </svg>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+                        <svg
+                          viewBox="0 0 15 15"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                        >
+                          <path
+                            d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+                            fill="currentColor"
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                          ></path>
+                        </svg>
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div
                 className={clsx(
                   'whitespace-pre-line',
@@ -310,7 +353,7 @@ export const ModalManager: FC<{ children: ReactNode }> = ({ children }) => {
     <div>
       <ModalManagerEmitter />
       <ModalManagerInner />
-      <div className="transition-all w-full">{children}</div>
+      <div className="transition-all duration-state motion-reduce:transition-none w-full">{children}</div>
     </div>
   );
 };

@@ -176,7 +176,7 @@ export function QualityLine({
                     current === segment.id ? null : segment.id
                   )
                 }
-                className="rounded-[4px] underline decoration-dotted underline-offset-2 transition-colors duration-150 ease-out hover:text-cf-ink active:text-cf-ink"
+                className="rounded-[4px] underline decoration-dotted underline-offset-2 transition-colors duration-state motion-reduce:transition-none ease-out hover:text-cf-ink active:text-cf-ink"
               >
                 {segment.word}
               </ControlButton>

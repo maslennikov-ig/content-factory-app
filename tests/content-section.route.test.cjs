@@ -73,12 +73,17 @@ const placeholder = loadTypeScriptModule(
   'apps/frontend/src/components/content-intelligence/content-materials.placeholder.tsx'
 );
 
-const withLanguage = (language, element) =>
-  React.createElement(
+// The screen reads the language through `useInterfaceLanguage` since 97dq.76,
+// which in a browser follows i18next rather than the request variable — so
+// both are set to the language the case is about.
+const withLanguage = (language, element) => {
+  if (i18n && i18n.language !== language) void i18n.changeLanguage(language);
+  return React.createElement(
     variables.VariableContextComponent,
     { language },
     element
   );
+};
 
 let i18n;
 const menuFor = async (language) => {
@@ -386,9 +391,20 @@ describe('the Content frame is reviewable without a network', () => {
     // `DESIGN.md`: colour is never the only carrier of meaning. The mark is an
     // underline the other tabs do not carry — the same strip analytics uses,
     // so the two sections are navigated the same way.
-    expect(source('screen')).toContain('border-b-2');
-    expect(source('screen')).toContain('border-cf-accent');
-    expect(source('screen')).toContain('border-transparent');
+    // The strip lives in `ui/section-tabs` since 97dq.76, shared with
+    // analytics, the piece page and the channel page.
+    expect(source('screen')).toContain('sectionTabClass(tab === value)');
+    const strip = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        '..',
+        'apps/frontend/src/components/ui/section-tabs.tsx'
+      ),
+      'utf8'
+    );
+    expect(strip).toContain('border-b-2');
+    expect(strip).toContain('border-cf-accent');
+    expect(strip).toContain('border-transparent');
   });
 
   test('the section runs the full width the shell gives it', () => {
@@ -412,6 +428,7 @@ describe('the Content frame is reviewable without a network', () => {
    const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
    const { ContentSectionScreen } = loadWithMocks(FILES.screen, {
      '@contentfactory/react/helpers/variable.context': {useVariables: () => ({language: 'ru'})},
+     '@contentfactory/react/translation/use-interface-language': {useInterfaceLanguage: () => 'ru'},
      '../brand-voice/voice-tab': {VoiceTab: () => React.createElement('div', null, 'voice content')},
      './pieces/pieces.container': {PiecesContainer: () => React.createElement('div', null, 'pieces content')},
    });

@@ -304,7 +304,7 @@ test('an email-bound invitation rejects another signed-in address without spendi
   await expect(
     controller.joinOrg(
       { id: 'wrong-user', email: 'WRONG@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('wrong-user')
     )
@@ -324,7 +324,7 @@ test('an accepted invitation is single-use', async () => {
 
   await controller.joinOrg(
     { id: 'right-user', email: 'Guest@Example.COM' },
-    'signed-invitation',
+    { org: 'signed-invitation' },
     response,
     mutationRequest('right-user')
   );
@@ -341,7 +341,7 @@ test('an accepted invitation is single-use', async () => {
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -359,7 +359,7 @@ test('a refused membership write reports failure after burning the invitation', 
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -377,7 +377,7 @@ test('a copied invitation link is unbound but still requires explicit acceptance
 
   await controller.joinOrg(
     { id: 'link-holder', email: 'anyone@example.com' },
-    'signed-invitation',
+    { org: 'signed-invitation' },
     responseRecorder(),
     mutationRequest('link-holder')
   );
@@ -392,13 +392,13 @@ test('two concurrent accepts permit exactly one membership write', async () => {
   const attempts = await Promise.allSettled([
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     ),
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     ),
@@ -422,7 +422,7 @@ test('a failed membership write burns the invitation and requires a new invite',
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -431,7 +431,7 @@ test('a failed membership write burns the invitation and requires a new invite',
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -456,7 +456,7 @@ test.each([
     await expect(
       controller.joinOrg(
         { id: 'right-user', email: 'guest@example.com' },
-        'signed-invitation',
+        { org: 'signed-invitation' },
         responseRecorder(),
         mutationRequest('right-user', headers)
       )
@@ -480,7 +480,7 @@ test('accepting into a workspace the account is already in keeps the invitation'
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -507,7 +507,7 @@ test('declining spends the invitation, so accepting afterwards is refused', asyn
   await expect(
     controller.declineJoinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       mutationRequest('right-user')
     )
   ).resolves.toEqual({ declined: true });
@@ -516,7 +516,7 @@ test('declining spends the invitation, so accepting afterwards is refused', asyn
   await expect(
     controller.joinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       responseRecorder(),
       mutationRequest('right-user')
     )
@@ -529,14 +529,14 @@ test('declining twice reports the invitation as already spent', async () => {
 
   await controller.declineJoinOrg(
     { id: 'right-user', email: 'guest@example.com' },
-    'signed-invitation',
+    { org: 'signed-invitation' },
     mutationRequest('right-user')
   );
 
   await expect(
     controller.declineJoinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       mutationRequest('right-user')
     )
   ).rejects.toMatchObject({ status: 410, body: { code: 'invite_used' } });
@@ -553,7 +553,7 @@ test('an email-bound invitation cannot be declined by another address', async ()
   await expect(
     controller.declineJoinOrg(
       { id: 'wrong-user', email: 'wrong@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       mutationRequest('wrong-user')
     )
   ).rejects.toMatchObject({
@@ -574,7 +574,7 @@ test.each([
   await expect(
     controller.declineJoinOrg(
       { id: 'right-user', email: 'guest@example.com' },
-      'signed-invitation',
+      { org: 'signed-invitation' },
       mutationRequest('right-user', headers)
     )
   ).rejects.toMatchObject({ status: 403 });

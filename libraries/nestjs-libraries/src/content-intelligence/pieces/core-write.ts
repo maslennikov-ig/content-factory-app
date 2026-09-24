@@ -5,14 +5,20 @@ import { contentFromIntent } from '../intake/intake-content';
   рядом с ней в `decisions`. Модули v3–v10 остаются импортируемыми и
   нетронутыми для квитанций.
 */
+/*
+  «Пересобрать суть» (`97dq.85`, `core-write/v12`): пересборка видит
+  предыдущую суть и дописанный материал своими блоками. Модули v3–v11
+  остаются импортируемыми и нетронутыми для квитанций.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V11,
-  CORE_WRITE_ENRICH_LEAD_V11,
+  CORE_WRITE_BLOCK_TITLES_V12,
+  CORE_WRITE_ENRICH_LEAD_V12,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V11,
-  coreWriteSystemV11,
-} from './core-write-prompt.v11';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v11';
+  CORE_WRITE_REPAIR_V12,
+  coreWriteSystemV12,
+} from './core-write-prompt.v12';
+import { personTextWithoutAdded } from './core-edit';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v12';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -104,6 +110,19 @@ export type CoreWriteInputV1 = {
   instruction?: { text: string; links: readonly string[] } | null;
   /** Existing core to enrich; never attributed as fresh author input. */
   existingCore?: string;
+  /**
+   * «Пересобрать суть» (`97dq.85`): the core on the page now. Written from
+   * the same input, so the rebuild keeps what it carried from it; `byPerson`
+   * — the author edited it by hand and its words are theirs. Replaces
+   * `existingCore` when both are given.
+   */
+  rebuildFrom?: { text: string; byPerson: boolean } | null;
+  /**
+   * What the author added after the first core (`97dq.75`), oldest first. The
+   * same words are the tail of `personText`; in the prompt they get their own
+   * block so a rebuild can weave them in.
+   */
+  addedMaterial?: readonly string[];
   /**
    * Вопросы, которые человек отдал модели и по которым решения ещё нет
    * (`97dq.56`). Модель решает их тем же вызовом и возвращает в `decisions`.
@@ -280,14 +299,25 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V11[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V12[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
     человек нажал «Дополнить ресерчем». От него зависят и правила системы, и
     блоки ниже, поэтому спрашивается он один раз.
   */
-  const enrichment = Boolean(trimmed(input.existingCore));
+  const rebuild = trimmed(input.rebuildFrom?.text) ? input.rebuildFrom! : null;
+  const enrichment = !rebuild && Boolean(trimmed(input.existingCore));
+  const added = (input.addedMaterial ?? [])
+    .map((text) => editorialAnswerText(text))
+    .filter(Boolean);
+  // Дописанное едет своим блоком; в «словах человека» остаётся то, с чего
+  // заготовка началась, чтобы одно и то же не стояло дважды.
+  const personWords = editorialAnswerText(
+    added.length
+      ? personTextWithoutAdded(input.personText, input.addedMaterial ?? [])
+      : input.personText
+  );
   const brief = input.brief;
   const said = input.answers.filter((answer) => answer.origin !== 'model');
   /*
@@ -313,8 +343,20 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     подтверждённые», хотя квитанция в тот же миг называла её в `ungrounded`.
     Теперь она стоит один раз и там, где ей место: в блоке взятого из ресерча.
   */
+  /*
+    Чужое утверждение со ссылкой и без подтверждения — «заимствованное», чья
+    бы рука его ни принесла (`97dq.19`): человек, давший чужое число со
+    ссылкой, печатался и под «подтверждёнными», и под «заимствованными».
+  */
+  const borrowedFacts = brief.facts.filter(
+    (fact) =>
+      fact.kind === 'external' &&
+      Boolean(fact.sourceUrl) &&
+      !fact.verified
+  );
   const ownOrConfirmed = brief.facts.filter(
     (fact) =>
+      !borrowedFacts.includes(fact) &&
       isOwnOrConfirmed(fact) &&
       !(fact.origin === 'person' && !fact.sourceUrl) &&
       !(
@@ -338,19 +380,24 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   */
   const confirmedFacts = ownOrConfirmed.filter((fact) => !searchRefuted(fact));
   const unconfirmedOwnFacts = ownOrConfirmed.filter(searchRefuted);
+  /*
+    Отмеченное, но не подтверждённое — дополнение к двум блокам выше, а не
+    второй положительный признак (`content-factory-next-97dq.19`, рецензия
+    второго выпуска, P2-3). Прежний фильтр требовал `kind: 'found'` или
+    `origin: 'search'`, и отмеченная строка с `origin` `memory`, `avatar` или
+    `model` без подтверждения не попадала ни в один блок — пропадала из
+    промпта молча. Сегодня такой строки не пишет ни один производитель, но
+    бриф хранится без миграции. Теперь у «отмечено, не подтверждено» всегда
+    есть место, и ни одна строка не стоит в двух блоках.
+  */
   const selectedResearchFacts = brief.facts.filter(
     (fact) =>
       fact.selected === true &&
-      (fact.kind === 'found' || fact.origin === 'search') &&
       !fact.verified &&
       fact.origin !== 'input' &&
-      fact.origin !== 'person'
-  );
-  const borrowedFacts = brief.facts.filter(
-    (fact) =>
-      fact.kind === 'external' &&
-      Boolean(fact.sourceUrl) &&
-      !fact.verified
+      fact.origin !== 'person' &&
+      !ownOrConfirmed.includes(fact) &&
+      !borrowedFacts.includes(fact)
   );
   const briefLines = [
     editorialAnswerText(brief.thesis)
@@ -423,7 +470,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV11(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV12(input.language, forbiddenPhrasesRule(input.language), {
+      rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
       instruction: Boolean(instruction),
       enrichment,
@@ -442,12 +490,8 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
     instruction && instruction.links.length
       ? fenced(words.links, [...instruction.links])
       : '',
-    fenced(
-      words.person,
-      editorialAnswerText(input.personText)
-        ? [editorialAnswerText(input.personText)]
-        : []
-    ),
+    fenced(words.person, personWords ? [personWords] : []),
+    fenced(words.added, added),
     fenced(
       words.answers,
       said.map(
@@ -474,7 +518,14 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
       )
     ),
     fenced(words.brief, [...briefLines, ...borrowedLines]),
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V11[input.language] : '',
+    rebuild
+      ? fenced(
+          rebuild.byPerson ? words.previousByPerson : words.previous,
+          // По абзацу на строку: блок сводит каждую строку к одной.
+          rebuild.text.split(/\n\s*\n/u)
+        )
+      : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V12[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -547,6 +598,13 @@ export const fallbackCore = (
 export const coreGrounded = (input: CoreWriteInputV1): string[] =>
   [
     input.personText,
+    /*
+      The author's hand-edited core is their words too (review of 97dq.81-85,
+      P3-1): the rebuild is told to keep the numbers of that edit, and the
+      check on the rebuilt core must not call those same numbers vague or
+      ungrounded. A model-written previous core grounds nothing.
+    */
+    input.rebuildFrom?.byPerson ? input.rebuildFrom.text : '',
     // Задание и его ссылки — тоже опора (`97dq.29`): число из задания и адрес,
     // который велено сохранить, стоят в сути по слову человека.
     input.instruction?.text ?? '',
@@ -597,7 +655,12 @@ export async function writeCoreWithDecisions(
     answers: input.answers,
     slop: slop(text),
     writtenBy,
-    authorNumbers: authorNumbersIn(input.personText, input.answers),
+    authorNumbers:
+      authorNumbersIn(input.personText, input.answers) ||
+      Boolean(
+        input.rebuildFrom?.byPerson &&
+          authorNumbersIn(input.rebuildFrom.text, [])
+      ),
   });
 
   let text = '';
@@ -623,7 +686,7 @@ export async function writeCoreWithDecisions(
         if (report.clean) return first;
         const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
         const repaired = (await model.invoke(
-          `${prompt}\n\n${CORE_WRITE_REPAIR_V11[input.language]}${quoted}`
+          `${prompt}\n\n${CORE_WRITE_REPAIR_V12[input.language]}${quoted}`
         )) as any;
         const second = trimmed(repaired?.text);
         if (second && Array.isArray(repaired?.decisions)) {

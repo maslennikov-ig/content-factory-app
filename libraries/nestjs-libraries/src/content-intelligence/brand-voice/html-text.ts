@@ -48,7 +48,7 @@ const ENTITIES = [
   ['&ndash;', '–'],
 ] as const;
 
-const decodeEntities = createEntityDecoder(ENTITIES);
+export const decodeEntities = createEntityDecoder(ENTITIES);
 
 /**
  * True when the value carries markup worth removing.

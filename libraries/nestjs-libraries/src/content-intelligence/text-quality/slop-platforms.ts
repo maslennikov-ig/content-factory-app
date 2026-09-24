@@ -131,6 +131,23 @@ export function maskSlopMetricStructures(
   return lines.join('');
 }
 
+/**
+ * How many kinds of emoji the check lets through when the person chose a
+ * ceiling (`content-factory-next-97dq.83`): never fewer than the platform's
+ * own threshold, and never fewer than the chosen «до N» — a count within the
+ * ceiling is the person's choice, not decoration. `null` («без предела»)
+ * lifts the cap; `undefined` or `0` leaves the platform's threshold.
+ */
+export const emojiKindsWithin = (
+  platformKinds: number,
+  ceiling: number | null | undefined
+): number =>
+  ceiling === null
+    ? Number.POSITIVE_INFINITY
+    : typeof ceiling === 'number' && Number.isFinite(ceiling) && ceiling > 0
+    ? Math.max(platformKinds, Math.floor(ceiling))
+    : platformKinds;
+
 export function slopThresholds(
   platform: string | null | undefined,
   words: number

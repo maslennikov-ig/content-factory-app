@@ -21,7 +21,7 @@ import { useUser } from '../layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { useAdaptationPicker } from './adaptation-picker';
 import { calendarPlanningCopy } from './calendar-planning.copy';
-import { PlanAheadChip, PlanLegend } from './plan-ahead';
+import { PlanAheadChip } from './plan-ahead';
 import { Segmented } from '../ui/segmented';
 
 // Helper function to get start and end dates based on display type
@@ -387,103 +387,167 @@ export const Filters = () => {
     </Button>
   );
 
+  /*
+    `97dq.82`, direction A of the header canvas (owner pick 24.09.2026): two
+    rows by meaning. Row 1 — where I am in time and how I look at it: ‹ range
+    › «Сегодня» (the list keeps its page group and state strip here), then
+    the period and the calendar/list switch at the end. A 1px `--cf-border`
+    divider. Row 2 — what is shown and the main action: channel, stage,
+    customer when there is one, a quiet «Каналы» with a gear to `/channels`,
+    then the plan chip (its «?» also explains the state pills, the legend row
+    is gone) and «+ Запланировать» for editors. Both rows wrap, down to 400px.
+  */
   return (
-    <div className="text-cf-ink flex flex-wrap gap-[8px] items-center select-none">
-      {!isListView && (
-        <div className="flex flex-grow flex-wrap flex-row items-center gap-[8px]">
-          <div className="flex items-center gap-[4px]">
-            {step('previous', previous)}
-            <span
-              aria-live="polite"
-              className="min-w-[200px] px-[8px] text-center cf-label-md tabular-nums"
-            >
-              {getDisplayText()}
-            </span>
-            {step('next', next)}
-          </div>
-          <Button variant="secondary" onClick={setToday}>
-            {t('today', 'Today')}
-          </Button>
-        </div>
-      )}
-      {isListView && (
-        <div className="flex flex-grow flex-wrap flex-row items-center gap-[8px]">
-          <div className="flex items-center gap-[4px]">
-            {step('previous', previousPage, calendar.listPage <= 0)}
-            <span
-              aria-live="polite"
-              className="min-w-[200px] px-[8px] text-center cf-label-md tabular-nums"
-            >
-              {t('page', 'Page')} {calendar.listPage + 1} {t('of', 'of')}{' '}
-              {Math.max(1, calendar.listTotalPages)}
-            </span>
-            {step(
-              'next',
-              nextPage,
-              calendar.listPage >= calendar.listTotalPages - 1
-            )}
-          </div>
-          <Segmented<ListStateFilter>
-            label={copy.toolbarListState}
-            value={calendar.listState}
-            options={listStateOptions}
-            onChange={(next) => {
-              if (calendar.listState !== next) calendar.setListState(next);
-            }}
+    <div
+      data-calendar-header="true"
+      className="text-cf-ink flex min-w-0 flex-col gap-[12px] select-none"
+    >
+      <div
+        data-calendar-header-row="time"
+        className="flex min-w-0 flex-wrap items-center gap-[8px]"
+      >
+        {!isListView ? (
+          <>
+            <div className="flex items-center gap-[4px]">
+              {step('previous', previous)}
+              <span
+                aria-live="polite"
+                className="min-w-[160px] px-[8px] text-center cf-label-md tabular-nums sm:min-w-[200px]"
+              >
+                {getDisplayText()}
+              </span>
+              {step('next', next)}
+            </div>
+            <Button variant="secondary" onClick={setToday}>
+              {t('today', 'Today')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-[4px]">
+              {step('previous', previousPage, calendar.listPage <= 0)}
+              <span
+                aria-live="polite"
+                className="min-w-[160px] px-[8px] text-center cf-label-md tabular-nums sm:min-w-[200px]"
+              >
+                {t('page', 'Page')} {calendar.listPage + 1} {t('of', 'of')}{' '}
+                {Math.max(1, calendar.listTotalPages)}
+              </span>
+              {step(
+                'next',
+                nextPage,
+                calendar.listPage >= calendar.listTotalPages - 1
+              )}
+            </div>
+            <Segmented<ListStateFilter>
+              label={copy.toolbarListState}
+              value={calendar.listState}
+              options={listStateOptions}
+              onChange={(next) => {
+                if (calendar.listState !== next) calendar.setListState(next);
+              }}
+              className="max-w-full flex-wrap"
+            />
+          </>
+        )}
+        <div className="min-w-0 flex-1" />
+        {!isListView && (
+          <Segmented<'day' | 'week' | 'month'>
+            label={copy.toolbarPeriod}
+            value={calendar.display as 'day' | 'week' | 'month'}
+            options={[
+              { value: 'day', label: t('day', 'Day') },
+              { value: 'week', label: t('week', 'Week') },
+              { value: 'month', label: t('month', 'Month') },
+            ]}
+            onChange={(next) => setCurrent(next)()}
           />
-          <div className="flex-1" />
-        </div>
-      )}
-      <PlanAheadChip
-        locale={locale}
-        integrationIds={aheadChannels}
-        timeZone={getTimezone()}
-        revision={aheadRevision}
-      />
-      {!isListView && <PlanLegend locale={locale} />}
-      <SelectCustomer
-        customer={calendar.customer as string}
-        onChange={(customer: string) => setCustomer(customer)}
-        integrations={calendar.integrations}
-      />
-      <Select standalone aria-label={copy.allChannels} value={calendar.integrationId || ''}
-        onChange={event => calendar.setFilters({ startDate: calendar.startDate, endDate: calendar.endDate,
-          display: calendar.display as 'day' | 'week' | 'month' | 'list', customer: calendar.customer,
-          editorialStage: calendar.editorialStage, integrationId: event.target.value || null })}>
-        <option value="">{copy.allChannels}</option>
-        {calendar.integrations.map(one => <option key={one.id} value={one.id}>{one.name}</option>)}
-      </Select>
-      <ButtonLink href="/channels" variant="quiet">{copy.channelsLink}</ButtonLink>
-      {canWrite && <Button onClick={() => openPicker()}>{copy.schedule}</Button>}
-      <EditorialStageFilter
-        value={calendar.editorialStage}
-        onChange={setStage}
-      />
-      {!isListView && (
-        <Segmented<'day' | 'week' | 'month'>
-          label={copy.toolbarPeriod}
-          value={calendar.display as 'day' | 'week' | 'month'}
+        )}
+        <Segmented<'calendar' | 'list'>
+          label={copy.toolbarView}
+          iconOnly
+          value={isListView ? 'list' : 'calendar'}
           options={[
-            { value: 'day', label: t('day', 'Day') },
-            { value: 'week', label: t('week', 'Week') },
-            { value: 'month', label: t('month', 'Month') },
+            { value: 'calendar', label: copy.toolbarViewCalendar, icon: <CalendarViewIcon /> },
+            { value: 'list', label: copy.toolbarViewList, icon: <ListViewIcon /> },
           ]}
-          onChange={(next) => setCurrent(next)()}
+          onChange={(next) => (next === 'list' ? setList() : setCalendarView())}
         />
-      )}
-      <Segmented<'calendar' | 'list'>
-        label={copy.toolbarView}
-        iconOnly
-        value={isListView ? 'list' : 'calendar'}
-        options={[
-          { value: 'calendar', label: copy.toolbarViewCalendar, icon: <CalendarViewIcon /> },
-          { value: 'list', label: copy.toolbarViewList, icon: <ListViewIcon /> },
-        ]}
-        onChange={(next) => (next === 'list' ? setList() : setCalendarView())}
-      />
+      </div>
+      <div aria-hidden="true" data-calendar-header-divider="true" className="h-px bg-cf-border" />
+      <div
+        data-calendar-header-row="filters"
+        className="flex min-w-0 flex-wrap items-center gap-[8px]"
+      >
+        <Select
+          standalone
+          aria-label={copy.allChannels}
+          value={calendar.integrationId || ''}
+          className="w-[220px] max-w-full"
+          onChange={(event) =>
+            calendar.setFilters({
+              startDate: calendar.startDate,
+              endDate: calendar.endDate,
+              display: calendar.display as 'day' | 'week' | 'month' | 'list',
+              customer: calendar.customer,
+              editorialStage: calendar.editorialStage,
+              integrationId: event.target.value || null,
+            })
+          }
+        >
+          <option value="">{copy.allChannels}</option>
+          {calendar.integrations.map((one) => (
+            <option key={one.id} value={one.id}>
+              {one.name}
+            </option>
+          ))}
+        </Select>
+        <EditorialStageFilter value={calendar.editorialStage} onChange={setStage} />
+        <SelectCustomer
+          customer={calendar.customer as string}
+          onChange={(customer: string) => setCustomer(customer)}
+          integrations={calendar.integrations}
+        />
+        <ButtonLink
+          href="/channels"
+          variant="quiet"
+          data-calendar-channels-link="true"
+          className="gap-[8px]"
+          title={copy.channelsSettingsTitle}
+        >
+          <GearIcon />
+          {copy.channelsButton}
+        </ButtonLink>
+        <div className="min-w-0 flex-1" />
+        <PlanAheadChip
+          locale={locale}
+          integrationIds={aheadChannels}
+          timeZone={getTimezone()}
+          revision={aheadRevision}
+          withLegend
+        />
+        {canWrite && (
+          <Button variant="primary" onClick={() => openPicker()}>
+            {copy.schedule}
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
+
+/** The gear of the quiet «Каналы» link: channels and their settings. */
+const GearIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.5" />
+    <path
+      d="M8 1.5V3.2M8 12.8V14.5M1.5 8H3.2M12.8 8H14.5M3.4 3.4L4.6 4.6M11.4 11.4L12.6 12.6M3.4 12.6L4.6 11.4M11.4 4.6L12.6 3.4"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
 
 const CalendarViewIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="17" height="19" viewBox="0 0 17 19" fill="none">

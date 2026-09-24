@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { postSaveErrorMessage } from '@contentfactory/frontend/components/new-launch/post-save-error';
 import {
   CalendarContext,
   Integrations,
@@ -99,6 +100,7 @@ import {
   StagePill,
   TrashIcon,
 } from '@contentfactory/frontend/components/launches/post-card.parts';
+import { usePopoverTrigger } from '@contentfactory/frontend/components/ui/use-popover-trigger';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -437,7 +439,7 @@ export const DayView = () => {
   */
   return (
     <div className="flex flex-col flex-1 relative">
-      <div className="absolute start-0 top-0 w-full h-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div className="absolute start-0 top-0 w-full h-full overflow-auto">
         {/*
           `shrink-0` keeps the grid as tall as the cards inside it. The slots
           used to be flex items of this scroller, free to shrink to their
@@ -700,7 +702,7 @@ export const ListView = () => {
 
   return (
     <div className="flex flex-col gap-[10px] flex-1 relative">
-      <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto">
         {groupedPosts.map(([dateKey, datePosts]) => (
           <Fragment key={dateKey}>
             <div className="text-center text-[14px] min-h-[21px] text-textColor font-[500] mt-[10px]">
@@ -913,18 +915,27 @@ export const CalendarColumn: FC<{
         if (!item.interval) {
           ids.forEach((id) => changeDate(id, getDate));
         }
-        const statuses = await Promise.all(
-          ids.map(async (id) => {
-            const { status } = await fetch(`/posts/${id}/date`, {
+        const responses = await Promise.all(
+          ids.map(async (id) =>
+            fetch(`/posts/${id}/date`, {
               method: 'PUT',
               body: JSON.stringify({
                 date: getDate.utc().format('YYYY-MM-DDTHH:mm:ss'),
                 action,
               }),
-            });
-            return status;
-          })
+            })
+          )
         );
+        const statuses = responses.map((response) => response.status);
+        // Another version of a Content Factory post is already queued in this
+        // channel (`CF_QUEUE_BUSY`, `97dq.67`): say so and redraw the truth.
+        const refused = responses.find((response) => response.status === 409);
+        if (refused) {
+          const refusal = await postSaveErrorMessage(refused, t);
+          if (refusal) toaster.show(refusal, 'warning');
+          reloadCalendarView();
+          return;
+        }
         const status = statuses.some((code) => code === 500) ? 500 : 200;
         if (status !== 500) {
           if (item.interval || action === 'schedule') {
@@ -1314,26 +1325,9 @@ const WeekTimeGroup: FC<{
   planningCopy: PlanningCopy;
   rowProps: (row: any) => Record<string, any>;
 }> = ({ rows, time, day, planningCopy, rowProps }) => {
-  const [open, setOpen] = useState(false);
-  const holder = React.useRef<HTMLDivElement | null>(null);
+  const { open, setOpen, holder } = usePopoverTrigger<HTMLDivElement>();
   const channels = useMemo(() => channelsOf(rows), [rows]);
   const states = useMemo(() => rows.map((row) => planStateOf(row)), [rows]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!holder.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [open]);
 
   // Friday to Sunday open towards the start, so the list stays on screen.
   const towardsStart = day.day() === 0 || day.day() >= 5;
@@ -1648,8 +1642,13 @@ const CalendarItem: FC<{
         'group-hover:opacity-100 group-hover:pointer-events-auto',
         'focus-within:opacity-100 focus-within:pointer-events-auto',
         'transition-opacity duration-state',
-        (!wide || channelRow) &&
-          'absolute -top-[12px] -end-[8px] z-30 shadow-menu'
+        channelRow && 'absolute -top-[12px] -end-[8px] z-30 shadow-menu',
+        // The narrow card of the week and month grid: above the card, not on
+        // it (`content-factory-next-97dq.43`, item 4). Laid over the corner of
+        // a 104px column it covered the card's middle, and a click meant to
+        // open the post landed on «Предпросмотр». Flush with the card's top
+        // edge, so the pointer never crosses a gap that drops the hover.
+        !wide && !channelRow && 'absolute bottom-full end-0 z-30 shadow-menu'
       )}
     />
   );
@@ -1866,7 +1865,7 @@ export const SetSelectionModal: FC<{
           <div
             key={set.id}
             onClick={() => onSelect(set)}
-            className="p-3 border border-tableBorder rounded-lg cursor-pointer hover:transition-colors"
+            className="p-3 border border-tableBorder rounded-lg cursor-pointer hover:transition-colors duration-state motion-reduce:transition-none"
           >
             <div className="font-medium">{set.name}</div>
             {set.description && (
@@ -1882,7 +1881,7 @@ export const SetSelectionModal: FC<{
         <Button
           variant="secondary"
           onClick={onContinueWithoutSet}
-          className="flex-1 px-4 py-2 rounded-lg hover:transition-colors"
+          className="flex-1"
         >
           {t('continue_without_set', 'Continue without set')}
         </Button>

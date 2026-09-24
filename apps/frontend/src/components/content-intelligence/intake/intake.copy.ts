@@ -323,6 +323,11 @@ export const intakeCopy = {
     postLinkSaving: 'Сохраняем ответ',
     postLinkFailed: 'Ответ не сохранился. Попробуйте ещё раз.',
     postLinkKeep: 'Оставить как было',
+    /* --- Текст ссылки (`97dq.79`) --------------------------------------- */
+    postLinkText: 'Текст ссылки',
+    postLinkTextHint:
+      'Слова, на которых будет стоять ссылка, — в каналах, где ссылка ставится на слова, как в Telegram. Оставьте пустым — подберём 2–5 слов по смыслу сами. Где так нельзя, в пост встанет сам адрес.',
+    postLinkTextPlaceholder: 'пусто — подберём слова сами',
   },
   en: {
     title: 'New piece',
@@ -566,6 +571,11 @@ export const intakeCopy = {
     postLinkSaving: 'Saving the answer',
     postLinkFailed: 'The answer was not saved. Try again.',
     postLinkKeep: 'Keep it as it was',
+    /* --- Link text (`97dq.79`) ------------------------------------------- */
+    postLinkText: 'Link text',
+    postLinkTextHint:
+      'The words that carry the link, in channels that put links on words, like Telegram. Leave it empty — we pick 2–5 meaningful words ourselves. Where that is not possible, the post gets the address itself.',
+    postLinkTextPlaceholder: 'empty — we pick the words',
   },
 } as const;
 

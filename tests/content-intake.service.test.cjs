@@ -351,7 +351,7 @@ const build = (options = {}) => {
         effectiveVoice: {
           persona: { portrait: 'Ведёт студию, пишет сам, не любит общих слов.' },
           project: {
-            audiences: [
+            audiences: options.audiences ?? [
               {
                 name: 'владельцы небольших студий',
                 need: 'которые ведут канал сами',
@@ -470,6 +470,28 @@ describe('тонкий вход отвечает заготовкой, а воп
       'владельцы небольших студий — которые ведут канал сами'
     );
     expect(filled.brief.origins.audience).toBe('avatar');
+  });
+
+  /*
+    `content-factory-next-97dq.54`, live stand 23.09.2026: the avatar's first
+    audience was the voice calibration's AUDIENCE line — how the author
+    addresses readers — split into a cut label and the full sentence, and the
+    brief read «name — need», the same sentence twice. Such an item is not a
+    reader: the field stays open, and the interview asks.
+  */
+  test('the avatar’s description of how the author addresses readers never becomes the brief’s audience', async () => {
+    const voiceLine =
+      'Автор обращается к подписчикам напрямую, преимущественно на «вы»: «Друзья, привет!», «Только для вас, моих дорогих искателей бизнес-сокровищ». В отдельных призывах использует «ты».';
+    const { service } = build({
+      models: [thinBriefAnswer(), { text: 'Суть из тонкого ввода.' }],
+      audiences: [{ name: voiceLine.slice(0, 120), need: voiceLine }],
+    });
+    const plan = await service.prepare('org-a', request());
+    const events = await drain(service, 'org-a', plan);
+    const [filled] = named(events, 'brief-filled');
+    expect(filled.brief.audience ?? null).toBeNull();
+    expect(filled.brief.origins.audience).not.toBe('avatar');
+    expect(JSON.stringify(events)).not.toContain('Автор обращается к подписчикам');
   });
 
   test('до ответов оплачен только разбор материала, без черновика', async () => {

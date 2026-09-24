@@ -49,6 +49,11 @@ export type ReviewPromptInput = {
    * одном тексте считались бы по разным правилам.
    */
   platform?: string | null;
+  /**
+   * Потолок эмодзи поста или канала (`97dq.83`): в его пределах каталог не
+   * называет эмодзи украшением, и проверка их не убирает. Нет — порог площадки.
+   */
+  emojiCeiling?: number | null;
 };
 
 /**
@@ -116,9 +121,17 @@ export const catalogFindingsOf = (
    * Утверждения отмеченных фактов (`reviewSupportedOf`, `97dq.33`). Правило
    * то же, что у опор: обе стороны «было N → стало M» передают одно и то же.
    */
-  supported?: readonly string[]
+  supported?: readonly string[],
+  /** Потолок эмодзи (`97dq.83`); обе стороны «было → стало» передают один. */
+  emojiCeiling?: number | null
 ): Array<ReviewCatalogFinding & { start: number; end: number }> =>
-  slopCheck(text, { locale: language, platform, grounded, supported }).findings.map(
+  slopCheck(text, {
+    locale: language,
+    platform,
+    grounded,
+    supported,
+    ...(emojiCeiling !== undefined ? { emojiCeiling } : {}),
+  }).findings.map(
     ({ ruleId, excerpt, start, end }) => ({ ruleId, excerpt, start, end })
   );
 
@@ -236,7 +249,8 @@ export function reviewPromptOf(
         input.language,
         input.platform,
         reviewGroundedOf(input),
-        shape.supported
+        shape.supported,
+        input.emojiCeiling
       )
     : undefined;
   return {

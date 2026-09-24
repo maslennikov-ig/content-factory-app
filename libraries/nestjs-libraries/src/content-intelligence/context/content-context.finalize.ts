@@ -289,13 +289,6 @@ export async function writeContentContextDraftProvenance(
   }
 ) {
   const outputHash = createHash('sha256').update(input.content).digest('hex');
-  const unique = {
-    organizationId_postId_contentContextSnapshotId: {
-      organizationId: input.organizationId,
-      postId: input.postId,
-      contentContextSnapshotId: input.binding.contentContextSnapshotId,
-    },
-  };
   /**
    * След происхождения у поста один, потому что снимок у поста один.
    *
@@ -327,7 +320,15 @@ export async function writeContentContextDraftProvenance(
     },
   });
   await client.contentOutputContext.upsert({
-    where: unique,
+    // The composite key written out in the call itself, so the tenant guard
+    // reads the organisation in it (`content-factory-next-bw8h`).
+    where: {
+      organizationId_postId_contentContextSnapshotId: {
+        organizationId: input.organizationId,
+        postId: input.postId,
+        contentContextSnapshotId: input.binding.contentContextSnapshotId,
+      },
+    },
     create: {
       organizationId: input.organizationId,
       postId: input.postId,

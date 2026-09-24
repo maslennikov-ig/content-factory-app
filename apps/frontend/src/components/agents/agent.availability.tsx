@@ -53,7 +53,7 @@ export const AgentAvailabilityGate: FC<{ children: ReactNode }> = ({
           title={t('agent_ai_unavailable_title', 'The agent cannot answer yet')}
           reason={t(
             'ai_allowance_unavailable',
-            'AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → AI.'
+            'AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → Global Settings.'
           )}
         />
       </div>

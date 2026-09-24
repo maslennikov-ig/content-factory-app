@@ -3,12 +3,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { orderBy } from 'lodash';
-import i18next from 'i18next';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Select } from '@contentfactory/react/form/select';
 import { Button } from '@contentfactory/react/form/button';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import {
   AudienceAnalyticsView,
   resolveAudienceAnalyticsState,
@@ -67,6 +67,7 @@ export const PlatformAnalytics = () => {
     data: integrations,
     error: integrationsError,
     isLoading: integrationsLoading,
+    mutate: reloadIntegrations,
   } = useSWR('analytics-list', loadIntegrations, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -117,6 +118,7 @@ export const PlatformAnalytics = () => {
     data: metrics,
     error: metricsError,
     isLoading: metricsLoading,
+    mutate: reloadMetrics,
   } = useSWR(
     currentIntegration
       ? ['platform-analytics', currentIntegration.id, selectedDays]
@@ -125,7 +127,10 @@ export const PlatformAnalytics = () => {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   );
 
-  const locale = i18next.resolvedLanguage?.startsWith('ru') ? 'ru' : 'en';
+  // One way to read the language (`97dq.76`, audit §9): the hook every
+  // section uses, which follows a switch without a reload.
+  const language = useInterfaceLanguage();
+  const locale = language.startsWith('ru') ? 'ru' : 'en';
   const state = integrationsLoading
     ? 'loading'
     : integrationsError
@@ -144,6 +149,9 @@ export const PlatformAnalytics = () => {
     <AudienceAnalyticsView
       state={state}
       locale={locale}
+      onRetry={() =>
+        void (integrationsError ? reloadIntegrations() : reloadMetrics())
+      }
       channels={sortedIntegrations}
       selectedChannelId={currentIntegration?.id ?? ''}
       metrics={metrics ?? null}

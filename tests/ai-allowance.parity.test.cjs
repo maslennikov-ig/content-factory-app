@@ -124,6 +124,7 @@ const providerModule = loadTypeScriptModule(
       // Тот же предел, что читает допуск: одна квота — одна функция, как и
       // один предикат ниже (`content-factory-next-75xn.5`).
       includedMonthlyOperations: usageModule.includedMonthlyOperations,
+      isUnlimitedOperations: usageModule.isUnlimitedOperations,
       includedUsageFilter: usageModule.includedUsageFilter,
     },
   }

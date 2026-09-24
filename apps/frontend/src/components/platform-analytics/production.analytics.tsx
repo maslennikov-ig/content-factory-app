@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Select } from '@contentfactory/react/form/select';
+import { FiltersRow } from '@contentfactory/frontend/components/ui/filters-row';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { getTimezone } from '@contentfactory/frontend/components/layout/set.timezone';
@@ -152,41 +153,41 @@ export const ProductionAnalytics = () => {
         })),
       }}
       controls={
-        <div className="flex min-w-0 flex-wrap gap-[12px] mobile:flex-col">
-          <div className="min-w-[150px] flex-1">
-            <Select
-              label={t('production_analytics_period', 'Period')}
-              name="production-days"
-              disableForm={true}
-              hideErrors={true}
-              value={days}
-              onChange={(event) => setDays(Number(event.target.value))}
-            >
-              <option value={7}>{t('7_days', '7 Days')}</option>
-              <option value={30}>{t('30_days', '30 Days')}</option>
-              <option value={90}>{t('90_days', '90 Days')}</option>
-            </Select>
-          </div>
-          <div className="min-w-[220px] flex-[1.4]">
-            <Select
-              label={t('production_analytics_channel', 'Channel')}
-              name="production-channel"
-              disableForm={true}
-              hideErrors={true}
-              value={integrationId}
-              onChange={(event) => setIntegrationId(event.target.value)}
-            >
-              <option value="all">
-                {t('production_analytics_all_channels', 'All channels')}
+        // One toolbar row, labels as accessible names (`97dq.76`, audit §4.6):
+        // the calendar and the pieces list read their filters this way.
+        <FiltersRow
+          aria-label={t('filter', 'Filter')}
+        >
+          <Select
+            standalone
+            aria-label={t('production_analytics_period', 'Period')}
+            name="production-days"
+            density="dense"
+            value={days}
+            onChange={(event) => setDays(Number(event.target.value))}
+          >
+            <option value={7}>{t('7_days', '7 Days')}</option>
+            <option value={30}>{t('30_days', '30 Days')}</option>
+            <option value={90}>{t('90_days', '90 Days')}</option>
+          </Select>
+          <Select
+            standalone
+            aria-label={t('production_analytics_channel', 'Channel')}
+            name="production-channel"
+            density="dense"
+            value={integrationId}
+            onChange={(event) => setIntegrationId(event.target.value)}
+          >
+            <option value="all">
+              {t('production_analytics_all_channels', 'All channels')}
+            </option>
+            {integrations.map((integration) => (
+              <option key={integration.id} value={integration.id}>
+                {integration.name}
               </option>
-              {integrations.map((integration) => (
-                <option key={integration.id} value={integration.id}>
-                  {integration.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+            ))}
+          </Select>
+        </FiltersRow>
       }
     />
   );

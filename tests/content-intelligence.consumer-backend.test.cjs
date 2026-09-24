@@ -48,7 +48,7 @@ const context = (overrides = {}) => ({
   ...overrides,
 });
 
-function loadSchedulePostTool() {
+function loadSchedulePostTool(createError) {
   const created = [];
   const integration = {
     id: 'integration-internal-1',
@@ -108,6 +108,7 @@ function loadSchedulePostTool() {
       ],
       createPost: async (organizationId, body, creationMethod) => {
         created.push({ organizationId, body, creationMethod });
+        if (createError) throw createError;
         return [{ postId: 'post-1', integration: 'linkedin' }];
       },
     },
@@ -166,6 +167,18 @@ test('generic schedule tool keeps schedule/now behavior without a content contex
     Object.hasOwn(created[0].body.posts[0].value[0], 'usedCitationIds'),
     false
   );
+});
+
+test('schedule tool turns the one-queue refusal (CF_QUEUE_BUSY) into a readable error', async () => {
+  const { tool } = loadSchedulePostTool(
+    Object.assign(new Error('busy'), { code: 'CF_QUEUE_BUSY', status: 409 })
+  );
+  const input = tool.inputSchema.parse(schedulePostInput('schedule'));
+  const result = await tool.execute(input, {
+    requestContext: toolRequestContext({}),
+  });
+  assert.match(result.errors, /already scheduled in this channel/);
+  assert.match(result.errors, /unschedule that version first/);
 });
 
 test('content-intelligence schedule tool explicitly rejects non-draft actions', async () => {

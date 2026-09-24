@@ -42,7 +42,7 @@ const { PieceScreen } = loadTypeScriptModule(`${base}/pieces/piece.screen.tsx`);
 const { PieceCoreTab } = loadTypeScriptModule(
   `${base}/pieces/piece-core-tab.tsx`
 );
-const { PieceChannelTab } = loadTypeScriptModule(
+const { PieceChannelTab, deadlineWords } = loadTypeScriptModule(
   `${base}/pieces/piece-channel-tab.tsx`
 );
 const { PostOptionsPanel } = loadTypeScriptModule(
@@ -215,7 +215,6 @@ const channelTabProps = (channel, props = {}) => ({
   onSchedule: noop,
   onPublishNow: noop,
   onUnschedule: noop,
-  onDelete: noop,
   ...props,
 });
 
@@ -587,9 +586,9 @@ describe('the channel tab with an adaptation', () => {
       ],
     });
     expect(screen.getByLabelText('Кто говорит').tagName).toBe('SELECT');
-    fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Переписать по настройкам' }));
     expect(onAdapt).toHaveBeenCalledWith('post');
-    // «Переписать с этим» — одна кнопка с меню (`97dq.70`, B2).
+    // «Переписать по настройкам» — одна кнопка с меню (`97dq.70`, B2).
     fireEvent.click(screen.getByRole('button', { name: 'Другие способы переписать' }));
     fireEvent.click(
       screen.getByRole('menuitem', { name: /Переписать и запомнить для канала/ })
@@ -624,7 +623,7 @@ describe('the channel tab with an adaptation', () => {
     expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
   });
 
-  test('the plan row sits right under the text actions; the one delete is in the top row (97dq.70)', () => {
+  test('the plan row sits right under the text actions; the text column has no delete (97dq.78)', () => {
     drawChannel({
       actionRow: React.createElement('div', { 'data-action-row': 'true' }, 'Убрать следы'),
     });
@@ -639,11 +638,8 @@ describe('the channel tab with an adaptation', () => {
     expect(send.textContent).toContain('Когда');
     expect(send.querySelector('[data-when="true"]')).not.toBeNull();
     expect(send.querySelector('[data-schedule-action="schedule"]')).not.toBeNull();
-    // Одна кнопка удаления на вкладке, и она не в строке плана.
-    const removes = document.querySelectorAll('[data-piece-delete-adaptation]');
-    expect(removes).toHaveLength(1);
-    expect(bar.contains(removes[0])).toBe(false);
-    expect(removes[0].className).toContain('text-cf-danger');
+    // Удаление ушло в строку заголовка страницы (`97dq.78`).
+    expect(document.querySelectorAll('[data-piece-delete-adaptation]')).toHaveLength(0);
     // «Как пишем в …» больше не открывается со вкладки.
     expect(document.querySelector('[data-piece-channel-profile]')).toBeNull();
   });
@@ -703,19 +699,74 @@ describe('the channel tab with an adaptation', () => {
     expect(onMove).toHaveBeenCalledTimes(1);
   });
 
-  test('the adaptation is deleted only on the second press', () => {
+  test('one «Удалить» in the page title row, right of «В архив»: the adaptation on a channel tab (97dq.78)', () => {
+    const onConfirm = jest.fn();
     const onDelete = jest.fn();
-    drawChannel({ onDelete });
+    drawPage({ tab: 'tg-main', onDelete, channelDelete: { onConfirm } });
+    const archive = document.querySelector('[data-piece-archive="true"]');
     const button = document.querySelector('[data-piece-delete-adaptation="true"]');
+    expect(document.querySelectorAll('[data-piece-delete-adaptation]')).toHaveLength(1);
+    expect(document.querySelector('[data-piece-delete]')).toBeNull();
+    // Та же строка, справа от «В архив».
+    expect(button.parentElement).toBe(archive.parentElement);
+    expect(archive.compareDocumentPosition(button) & 4).toBe(4);
     // Общий `ConfirmButton` (`97dq.39`): обе подписи в одной клетке, видна одна.
-    expect(button.textContent).toContain('Удалить адаптацию');
+    expect(button.textContent).toContain('Удалить');
     expect(button.getAttribute('data-confirm-armed')).toBe('false');
     fireEvent.click(button);
-    expect(onDelete).not.toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
     expect(button.getAttribute('data-confirm-armed')).toBe('true');
-    expect(button.textContent).toContain('Удалить насовсем?');
+    expect(button.textContent).toContain('Удалить эту адаптацию?');
     fireEvent.click(button);
-    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  test('an armed delete does not travel to another tab, and each names what it deletes (review 97dq.78, P3-5)', () => {
+    const onDelete = jest.fn();
+    const onConfirm = jest.fn();
+    const view = drawPage({ tab: 'tg-main', onDelete, channelDelete: { id: 'adaptation-1', onConfirm } });
+    const armed = document.querySelector('[data-piece-delete-adaptation="true"]');
+    fireEvent.click(armed);
+    expect(armed.textContent).toContain('Удалить эту адаптацию?');
+    const detail = detailOf();
+    view.rerender(
+      React.createElement(
+        variables.VariableContextComponent,
+        { language: 'ru' },
+        React.createElement(PieceScreen, {
+          locale: 'ru',
+          state: 'default',
+          detail,
+          channels: adapter.workspaceChannels(detail),
+          tab: 'core',
+          canWrite: true,
+          busy: false,
+          coreTab: coreTab(detail),
+          renderChannelTab: () => null,
+          onTabChange: noop,
+          onArchive: noop,
+          onDelete,
+          onRetry: noop,
+          channelDelete: { id: 'adaptation-1', onConfirm },
+        })
+      )
+    );
+    const piece = document.querySelector('[data-piece-delete="true"]');
+    expect(piece.getAttribute('data-confirm-armed')).toBe('false');
+    fireEvent.click(piece);
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(piece.textContent).toContain('Удалить всю заготовку?');
+  });
+
+  test('on «Суть» the same place deletes the piece; a channel tab with nothing to delete has no button', () => {
+    drawPage({ tab: 'core', channelDelete: { onConfirm: noop } });
+    expect(document.querySelector('[data-piece-delete="true"]')).not.toBeNull();
+    expect(document.querySelector('[data-piece-delete-adaptation]')).toBeNull();
+    cleanup();
+    drawPage({ tab: 'tg-main', channelDelete: null });
+    expect(document.querySelector('[data-piece-delete]')).toBeNull();
+    expect(document.querySelector('[data-piece-delete-adaptation]')).toBeNull();
   });
 
   test('«Запланировать» is the primary action and «Опубликовать сейчас» waits in its menu', () => {
@@ -732,7 +783,119 @@ describe('the channel tab with an adaptation', () => {
     expect(onPublishNow).toHaveBeenCalledTimes(1);
   });
 
-  test('a queued post is read-only and opens in the calendar from its menu', () => {
+  test('a queued post with its slot ahead is editable, with the deadline under the editor (97dq.80)', () => {
+    const slot = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    slot.setSeconds(0, 0);
+    drawChannel({ actionRow: React.createElement('div', { 'data-action-row': 'true' }) }, [
+      adaptation({ state: 'queued', date: slot.toISOString() }),
+    ]);
+    expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
+    const until = document.querySelector('[data-queued-edit-until]');
+    const deadline = new Date(slot.getTime() - 60_000);
+    expect(until.textContent).toBe(
+      `Правки уйдут в пост, если сохранить до ${deadlineWords(deadline, 'ru')}`
+    );
+    // Проверки и перепись — у черновика; очередь правится руками.
+    expect(document.querySelector('[data-action-row]')).toBeNull();
+    // Время не тронуто: пост остаётся в очереди.
+    expect(document.querySelector('[data-schedule-bar]').getAttribute('data-plan-row')).not.toBe('off');
+  });
+
+  test('a refused save says the server’s words, not a generic retry (97dq.80)', () => {
+    drawChannel({ saveState: 'failed', saveError: 'Пост уже уходит в канал или вышел — эту правку сохранить нельзя.' });
+    expect(screen.getByRole('alert').textContent).toContain('Пост уже уходит в канал или вышел');
+  });
+
+  test('a queued post has «Сохранить в пост», enabled only with unsaved edits (review 97dq.80, P2-2)', () => {
+    const slot = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+    const onSaveQueued = jest.fn();
+    drawChannel({ onSaveQueued }, [adaptation({ state: 'queued', date: slot })]);
+    const save = () => document.querySelector('[data-queued-save]');
+    expect(save().textContent).toBe('Сохранить в пост');
+    expect(save().disabled).toBe(true);
+    // Автосохранения нет, поэтому и «Черновик сохраняется сам» не пишется.
+    expect(document.body.textContent).not.toContain('сохраняется сам');
+    cleanup();
+    drawChannel({ onSaveQueued, unsaved: true, body: 'Новый текст.' }, [
+      adaptation({ state: 'queued', date: slot }),
+    ]);
+    expect(document.querySelector('[data-autosave]').textContent).toBe(
+      'Правки ещё не в посте: они уйдут в канал только после «Сохранить в пост».'
+    );
+    fireEvent.click(save());
+    expect(onSaveQueued).toHaveBeenCalledTimes(1);
+  });
+
+  test('the open tab locks itself when the deadline passes and shows what is in the post (review 97dq.80, P3-2, P2-4)', () => {
+    jest.useFakeTimers();
+    try {
+      const slot = new Date(Date.now() + 61_000 + 2_000).toISOString();
+      drawChannel({ unsaved: true, body: 'Несохранённая правка.' }, [
+        adaptation({ state: 'queued', date: slot, body: 'Текст в посте.' }),
+      ]);
+      expect(document.querySelector('[data-adaptation-editor]')).not.toBeNull();
+      act(() => {
+        jest.advanceTimersByTime(3_100);
+      });
+      expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
+      expect(document.querySelector('[data-queued-save]')).toBeNull();
+      expect(document.querySelector('[data-queued-edit-missed]').textContent).toBe(
+        'Правки не успели в пост: он уже уходит в канал с прежним текстом.'
+      );
+      expect(document.body.textContent).toContain('Текст в посте.');
+      expect(document.body.textContent).not.toContain('Несохранённая правка.');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('the deadline names the day when it is not today (review 97dq.80, P3-2)', () => {
+    const now = new Date(2026, 8, 24, 12, 0);
+    expect(deadlineWords(new Date(2026, 8, 24, 18, 59), 'ru', now)).toBe('18:59');
+    expect(deadlineWords(new Date(2026, 8, 25, 9, 5), 'ru', now)).toBe('пт 25.09 09:05');
+    expect(deadlineWords(new Date(2026, 8, 25, 9, 5), 'en', now)).toBe('Fri 25.09 09:05');
+  });
+
+  test('a closing refusal offers no retry; a queued post never gets «Попробовать снова» (review 97dq.80, P2-4)', () => {
+    drawChannel({ saveState: 'failed', saveError: 'Пост уже уходит.', canRetrySave: false });
+    expect(screen.queryByRole('button', { name: 'Попробовать снова' })).toBeNull();
+    cleanup();
+    drawChannel({ saveState: 'failed', saveError: 'Сеть.' });
+    expect(screen.getByRole('button', { name: 'Попробовать снова' })).toBeTruthy();
+    cleanup();
+    drawChannel({ saveState: 'failed', saveError: 'Длинно.' }, [
+      adaptation({ state: 'queued', date: new Date(Date.now() + 3 * 3600_000).toISOString() }),
+    ]);
+    expect(screen.queryByRole('button', { name: 'Попробовать снова' })).toBeNull();
+  });
+
+  test('the settings panel header holds the title, the saved stamp and the hide button (97dq.78)', () => {
+    drawChannel({ settingsSaveState: 'saved', settingsSavedAt: '19:04' });
+    const header = document.querySelector('[data-post-options="panel"]');
+    expect(header.textContent).toContain('Настройки поста');
+    expect(header.querySelector('[data-post-options-saved]').textContent).toBe('Сохранено · 19:04');
+    const hide = header.querySelector('[data-side-panel-hide="true"]');
+    expect(hide).not.toBeNull();
+    expect(hide.getAttribute('aria-label')).toBe('Скрыть настройки');
+    // Одна кнопка «Скрыть», и она в шапке, а не отдельной строкой над карточкой.
+    expect(document.querySelectorAll('[data-side-panel-hide]')).toHaveLength(1);
+    fireEvent.click(hide);
+    expect(
+      document.querySelector('[data-side-panel="piece-channel-settings"]').getAttribute('data-side-panel-hidden')
+    ).toBe('true');
+  });
+
+  test('a channel tab without a text: settings open, their primary is «Адаптировать» (97dq.78)', () => {
+    const onAdapt = jest.fn();
+    drawChannel({ onAdapt }, []);
+    const primary = document.querySelector('[data-post-options-rewrite="adapt"]');
+    expect(primary.textContent).toBe('Адаптировать');
+    fireEvent.click(primary);
+    expect(onAdapt).toHaveBeenCalledWith('post');
+    expect(screen.getByLabelText('Длина').tagName).toBe('SELECT');
+  });
+
+  test('a queued post whose slot is near or past is read-only and opens in the calendar from its menu', () => {
     const onOpenCalendar = jest.fn();
     drawChannel(
       { calendarHref: '/launches?startDate=2026-09-23', onOpenCalendar },
@@ -827,6 +990,11 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(shown('Длина')).toBe('500–1000');
     // Старое «мало» канала стоит на делении «до 3», и там же серая отметка.
     expect(emojiReadout()).toBe('до 3');
+    // «до 3» стоит в строке подписи, а не своей строкой под ней (`97dq.83`).
+    const labelRow = emojiRow().querySelector('[data-emoji-label-row]');
+    expect(labelRow.contains(emojiRow().querySelector('[data-emoji-readout]'))).toBe(true);
+    expect(labelRow.textContent).toContain('Эмодзи');
+    expect(labelRow.querySelector('[data-post-option-hint="emoji"]').textContent).toBe('как в канале');
     expect(select('Эмодзи').value).toBe('2');
     expect(
       emojiRow().querySelector('[data-emoji-channel-mark]').getAttribute('data-emoji-channel-mark')
@@ -842,12 +1010,14 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     }
     expect(select('Длина').className).toContain('text-cf-ink-muted');
     expect(counted()).toBeNull();
-    expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Сбросить' }).disabled).toBe(true);
-    // Автосохранение поста говорит, когда легло (`97dq.70`).
-    expect(document.querySelector('[data-post-options-saved]').textContent).toBe(
-      'Сохранено · 19:04'
-    );
+    expect(screen.getByRole('button', { name: 'Переписать по настройкам' }).disabled).toBe(true);
+    // «Сбросить» внизу больше нет: «Вернуть как в канале» — в меню (`97dq.78`).
+    expect(screen.queryByRole('button', { name: 'Сбросить' })).toBeNull();
+    // Автосохранение поста говорит, когда легло (`97dq.70`), — в шапке панели.
+    const saved = document.querySelector('[data-post-options-saved]');
+    expect(saved.textContent).toBe('Сохранено · 19:04');
+    expect(saved.parentElement.getAttribute('data-post-options')).toBe('panel');
+    expect(screen.getByRole('heading', { name: 'Настройки поста' })).toBeTruthy();
   });
 
   test('«Ссылки» reads as in the channel card: a ceiling, and no invented URLs (97dq.58)', () => {
@@ -874,7 +1044,7 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(select('Длина').getAttribute('aria-describedby')).toBeNull();
     expect(emojiRow().getAttribute('data-post-option-changed')).toBe('false');
     expect(counted()).toBe('2 изменения');
-    fireEvent.click(screen.getByRole('button', { name: 'Переписать с этим' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Переписать по настройкам' }));
     expect(onRewrite).toHaveBeenCalledTimes(1);
     // Ручка на другом делении — изменение: число, рамка цветом, «в канале: до 3».
     fireEvent.change(select('Эмодзи'), { target: { value: '4' } });
@@ -914,18 +1084,50 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     }
   });
 
-  test('«Сбросить» returns every field to the channel', () => {
+  test('«Вернуть как в канале» in the rewrite menu returns every field to the channel (97dq.78)', () => {
     wrap(React.createElement(Harness, { onRewrite: noop }));
     fireEvent.change(select('Ссылки'), { target: { value: 'none' } });
     fireEvent.change(screen.getByLabelText('Пожелание'), {
       target: { value: 'начни с вопроса' },
     });
     expect(counted()).toBe('2 изменения');
-    fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Другие способы переписать' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Вернуть как в канале/ }));
     expect(select('Ссылки').value).toBe('end');
     expect(select('Ссылки').getAttribute('data-post-option-changed')).toBe('false');
     expect(screen.getByLabelText('Пожелание').value).toBe('');
     expect(counted()).toBeNull();
+  });
+
+  test('the one rewrite button stands above the fields and is on while the text is older than the settings (97dq.78)', () => {
+    wrap(React.createElement(Harness, { onRewrite: noop, rewritePending: true }));
+    const rewrite = screen.getByRole('button', { name: 'Переписать по настройкам' });
+    // Настройки новее текста — переписать можно и без счёта изменений.
+    expect(counted()).toBeNull();
+    expect(rewrite.disabled).toBe(false);
+    const fields = document.querySelector('fieldset');
+    expect(rewrite.compareDocumentPosition(fields) & 4).toBe(4);
+  });
+
+  test('before the first text the primary is «Адаптировать» (97dq.78)', () => {
+    const onRewrite = jest.fn();
+    wrap(
+      React.createElement(PostOptionsPanel, {
+        locale: 'ru',
+        options: adapter.DEFAULT_POST_OPTIONS,
+        baseline: adapter.postBaselineOf(CHANNEL),
+        avatars: [],
+        onChange: noop,
+        primary: 'adapt',
+        onRewrite,
+        onRewriteAndRemember: noop,
+      })
+    );
+    expect(screen.queryByRole('button', { name: 'Переписать по настройкам' })).toBeNull();
+    const adapt = screen.getByRole('button', { name: 'Адаптировать' });
+    expect(adapt.disabled).toBe(false);
+    fireEvent.click(adapt);
+    expect(onRewrite).toHaveBeenCalledTimes(1);
   });
 
   test('a wish alone rewrites; «применится при переписывании» stays beside the button while the text is older', () => {
@@ -934,7 +1136,7 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
       target: { value: 'начни с вопроса' },
     });
     expect(counted()).toBe('1 изменение');
-    expect(screen.getByRole('button', { name: 'Переписать с этим' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Переписать по настройкам' }).disabled).toBe(false);
     expect(document.querySelector('[data-post-options-pending]').textContent).toBe(
       'применится при переписывании'
     );

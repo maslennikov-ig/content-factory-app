@@ -27,3 +27,13 @@ The available methods are:
 
 The client connects to the `/public/v1` API on the Content Factory instance
 passed to its constructor.
+
+## Errors
+
+`post()` and `PUT /public/v1/posts/:id/status` answer `409` with
+`{ "code": "CF_QUEUE_BUSY", "message": "..." }` when the post is a Content
+Factory variant and another variant of the same piece is already scheduled in
+that channel. Only one version of a piece may wait in a channel's queue.
+Nothing is written. Unschedule the other version (set it back to `draft`) and
+retry. Plain posts that did not come from a Content Factory piece never get
+this answer.

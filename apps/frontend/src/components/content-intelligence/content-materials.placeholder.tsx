@@ -1,6 +1,7 @@
 'use client';
 
 import { contentSectionCopy, type ContentSectionLocale } from './content-section.copy';
+import { EmptyState } from '../ui/surface';
 
 /**
  * The Material tab.
@@ -17,20 +18,14 @@ export function ContentMaterialsPlaceholder({
 }) {
   const t = contentSectionCopy[locale];
 
+  // The shared empty state (`97dq.76`, audit §7.6): a title and what a piece
+  // is, without a caption over it.
   return (
     <section
       data-content-materials="empty"
-      className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+      className="rounded-[8px] border border-cf-border bg-cf-surface"
     >
-      <p className="cf-label-sm text-cf-ink-muted">
-        {t.materialsPending}
-      </p>
-      <h2 className="mt-[8px] cf-heading-md text-cf-ink [text-wrap:balance]">
-        {t.materialsTitle}
-      </h2>
-      <p className="mt-[8px] max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
-        {t.materialsBody}
-      </p>
+      <EmptyState title={t.materialsTitle} description={t.materialsBody} />
     </section>
   );
 }

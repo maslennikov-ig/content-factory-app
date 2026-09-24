@@ -88,7 +88,7 @@ export const MissingReleaseModal: FC<{
           'Select the content that matches this post:'
         )}
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-[10px] max-h-[400px] overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor p-[4px]">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-[10px] max-h-[400px] overflow-y-auto p-[4px]">
         {data.map((item: { id: string; url: string }) => (
           <div
             key={item.id}

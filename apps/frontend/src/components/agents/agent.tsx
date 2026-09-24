@@ -115,7 +115,7 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
         collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
       )}
     >
-      <div className="absolute top-0 start-0 w-full h-full px-[20px] pb-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div className="absolute top-0 start-0 w-full h-full px-[20px] pb-[20px] overflow-auto">
         <OpeningBand>
           <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
             {t('select_channels', 'Select Channels')}
@@ -276,7 +276,7 @@ const Threads: FC = () => {
         'w-[260px]'
       )}
     >
-      <div className="absolute top-0 start-0 w-full h-full px-[20px] pb-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div className="absolute top-0 start-0 w-full h-full px-[20px] pb-[20px] overflow-auto">
         <OpeningBand className="justify-center group-[.sidebar]:pb-[15px]">
           <Link
             href={`/agents`}

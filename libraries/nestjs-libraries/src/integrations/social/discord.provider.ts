@@ -5,10 +5,26 @@ import {
   SocialProvider,
 } from '@contentfactory/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
+import { decodeTextEntities } from '@contentfactory/helpers/utils/strip.html.validation';
 import { SocialAbstract } from '@contentfactory/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
 import { DiscordDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/discord.dto';
 import { Tool } from '@contentfactory/nestjs-libraries/integrations/tool.decorator';
+
+/**
+ * The body as Discord reads it (`content-factory-next-97dq.17`).
+ *
+ * The shared helper keeps entities for markdown recipients, because the
+ * article platforms render them. Discord has no HTML layer — `&lt;` prints as
+ * five characters — so the entities come off here, in one pass, before the
+ * `[[[@id]]]` placeholders become `<@id>`. One pass matters: `&amp;lt;` is a
+ * person writing the letters «&lt;», and it stays that.
+ */
+export const discordContent = (message: string) =>
+  decodeTextEntities(message).replace(
+    /\[\[\[(@.*?)]]]/g,
+    (_match, id) => `<${id}>`
+  );
 
 export class DiscordProvider extends SocialAbstract implements SocialProvider {
   override maxConcurrentJob = 5; // Discord has generous rate limits for webhook posting
@@ -147,9 +163,7 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
     form.append(
       'payload_json',
       JSON.stringify({
-        content: firstPost.message.replace(/\[\[\[(@.*?)]]]/g, (match, p1) => {
-          return `<${p1}>`;
-        }),
+        content: discordContent(firstPost.message),
         attachments: firstPost.media?.map((p, index) => ({
           id: index,
           description: `Picture ${index}`,
@@ -230,9 +244,7 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
     form.append(
       'payload_json',
       JSON.stringify({
-        content: commentPost.message.replace(/\[\[\[(@.*?)]]]/g, (match, p1) => {
-            return `<${p1}>`;
-        }),
+        content: discordContent(commentPost.message),
         attachments: commentPost.media?.map((p, index) => ({
           id: index,
           description: `Picture ${index}`,

@@ -148,6 +148,10 @@ const settings = loadTypeScriptModule(
     '@contentfactory/react/helpers/variable.context': {
       useVariables: () => ({ isGeneral: true, language: 'en' }),
     },
+    // The shell reads the language through the one hook since 97dq.76.
+    '@contentfactory/react/translation/use-interface-language': {
+      useInterfaceLanguage: () => 'en',
+    },
     '@contentfactory/frontend/components/public-api/public.component': {
       PublicComponent: Empty,
     },

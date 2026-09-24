@@ -82,6 +82,9 @@ export function readCoreRevisions(value: unknown): PieceCoreRevisionV1[] {
         text: record.text,
         writtenBy,
         replacedAt: isoOr(record.replacedAt, new Date(0).toISOString()),
+        ...(typeof record.materialPending === 'boolean'
+          ? { materialPending: record.materialPending }
+          : {}),
       },
     ];
   });
@@ -96,15 +99,62 @@ export const coreAuthorOf = (
 /** `revisions` with the replaced text added, the oldest dropped past the bound. */
 export function withRevision(
   revisions: readonly PieceCoreRevisionV1[] | undefined,
-  replaced: { text: string; writtenBy: PieceCoreRevisionV1['writtenBy'] },
+  replaced: {
+    text: string;
+    writtenBy: PieceCoreRevisionV1['writtenBy'];
+    materialPending?: boolean;
+  },
   at: string
 ): PieceCoreRevisionV1[] {
   const list = [...(revisions ?? [])];
   if (replaced.text.trim())
-    list.push({ text: replaced.text, writtenBy: replaced.writtenBy, replacedAt: at });
+    list.push({
+      text: replaced.text,
+      writtenBy: replaced.writtenBy,
+      replacedAt: at,
+      ...(typeof replaced.materialPending === 'boolean'
+        ? { materialPending: replaced.materialPending }
+        : {}),
+    });
   if (list.length <= PIECE_CORE_REVISIONS_MAX) return list;
   // The first text is the one the piece was born with: it is never evicted.
   return [list[0], ...list.slice(-(PIECE_CORE_REVISIONS_MAX - 1))];
+}
+
+/**
+ * Whether the added material is still waiting once a stored text is the core
+ * again (review of 97dq.81-85, P2-2).
+ *
+ * The cnt-35 flow: material added, the core rebuilt, the author disliked the
+ * result and restored the text from before. That text never read the added
+ * words, so «суть ещё не учитывает дописанное» must come back.
+ *
+ * - The wait the text had when it was replaced comes back with it.
+ * - Material added after it was replaced is not in it either.
+ * - A revision stored before `materialPending` was recorded is judged by
+ *   when it became the core: the `replacedAt` of the revision before it (the
+ *   first text is older than any material). With a gap in the history (older
+ *   revisions evicted, one editing session saved as one revision) that
+ *   moment reads earlier than it was, so the answer errs towards «still
+ *   waiting» — it only invites a rebuild the author may skip.
+ */
+export function restoredMaterialPending(
+  revisions: readonly PieceCoreRevisionV1[],
+  index: number,
+  added: readonly PieceAddedMaterialV1[]
+): boolean {
+  const chosen = revisions[index];
+  if (!chosen || !added.length) return false;
+  const time = (iso: string): number => {
+    const at = new Date(iso).getTime();
+    return Number.isFinite(at) ? at : 0;
+  };
+  const addedAfter = (moment: number) =>
+    added.some((entry) => time(entry.addedAt) > moment);
+  if (typeof chosen.materialPending === 'boolean')
+    return chosen.materialPending || addedAfter(time(chosen.replacedAt));
+  const became = index > 0 ? time(revisions[index - 1].replacedAt) : 0;
+  return addedAfter(became);
 }
 
 /**
@@ -128,6 +178,36 @@ export function appendedPersonText(
   const before = (personText ?? '').trimEnd();
   const text = added.trim();
   return before ? `${before}\n\n${text}` : text;
+}
+
+/**
+ * The author's words as they were before any «Дописать материал»
+ * (`97dq.85`): `appendedPersonText` put each added piece after a blank line,
+ * so the tail is peeled off newest first. A tail that does not match (the
+ * words were stored before the record) is left in place.
+ */
+export function personTextWithoutAdded(
+  personText: string | undefined,
+  added: readonly string[]
+): string {
+  let rest = (personText ?? '').trimEnd();
+  for (const piece of [...added].reverse()) {
+    const text = piece.trim();
+    if (!text) break;
+    /*
+      Review of 97dq.81-85, P3-5: `appendedPersonText` always puts a blank
+      line before the added words, so a tail is peeled only on that
+      boundary (or when it is all there is). A tail that merely ends the same
+      way — «…да» with an added «да» — is the author's own text and stays.
+    */
+    if (rest === text) {
+      rest = '';
+      continue;
+    }
+    if (!rest.endsWith(`\n\n${text}`)) break;
+    rest = rest.slice(0, rest.length - text.length).trimEnd();
+  }
+  return rest;
 }
 
 /** The edited core as the author typed it: line ends normalised, outer blanks dropped. */

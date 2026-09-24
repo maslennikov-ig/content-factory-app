@@ -4,7 +4,7 @@ import { MediaBox } from '@contentfactory/frontend/components/media/media.compon
 
 export const MediaLayoutComponent = () => {
   return (
-    <div className="bg-newBgColorInner p-[20px] flex flex-1 flex-col gap-[15px] transition-all">
+    <div className="bg-newBgColorInner p-[20px] flex flex-1 flex-col gap-[15px] transition-all duration-state motion-reduce:transition-none">
       <MediaBox setMedia={() => {}} closeModal={() => {}} standalone={true} />
     </div>
   );

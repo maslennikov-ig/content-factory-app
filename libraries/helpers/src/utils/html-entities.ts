@@ -24,24 +24,27 @@ export type HtmlEntityTable = ReadonlyArray<readonly [string, string]>;
  * Собирает разэкранировщик по таблице.
  *
  * Выражение собирается один раз на таблицу, а не на вызов. Каждая
- * альтернатива берётся в свою группу: по номеру заполненной группы и
- * находится замена, поэтому `&#0?39;` и другие записи с необязательной частью
- * работают наравне с буквальными.
+ * альтернатива берётся в свою именованную группу `e<номер строки>`, и замена
+ * находится по имени заполненной группы, поэтому `&#0?39;` и другие записи с
+ * необязательной частью работают наравне с буквальными.
+ *
+ * `content-factory-next-97dq.19` (рецензия второго выпуска, P2-5): замена
+ * искалась по номеру группы, и запись со своей группой внутри — например
+ * `&(apos|#39);` — сдвинула бы нумерацию всех следующих, и они молча
+ * разэкранировались бы не в те знаки. Имя от чужих групп не сдвигается.
  */
 export const createEntityDecoder = (
   table: HtmlEntityTable
 ): ((value: string) => string) => {
   const pattern = new RegExp(
-    table.map(([source]) => `(${source})`).join('|'),
+    table.map(([source], index) => `(?<e${index}>${source})`).join('|'),
     'gi'
   );
 
   return (value: string): string =>
     (value || '').replace(pattern, (...args: unknown[]) => {
-      const groups = args.slice(1, 1 + table.length) as Array<
-        string | undefined
-      >;
-      const index = groups.findIndex((group) => group !== undefined);
+      const named = args[args.length - 1] as Record<string, string | undefined>;
+      const index = table.findIndex((_, row) => named[`e${row}`] !== undefined);
       return index === -1 ? (args[0] as string) : table[index][1];
     });
 };

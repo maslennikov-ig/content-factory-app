@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
-import { useVariables } from '@contentfactory/react/helpers/variable.context';
+import { Tab, TabList, Tabs } from '@contentfactory/react/choice/tabs';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import clsx from 'clsx';
 import { ContentIntelligenceSettings } from './content-intelligence.settings';
 import {
@@ -17,6 +17,11 @@ import { IntakeContainer } from './intake/intake.container';
 import { leadToIntakePrefill } from './intake/intake.adapter';
 import { PiecesContainer } from './pieces/pieces.container';
 import type { ContentIntelligenceSection } from './content-intelligence.view';
+import {
+  SECTION_TAB_LIST_CLASS,
+  SectionTabPanel,
+  sectionTabClass,
+} from '../ui/section-tabs';
 
 /**
  * Content creation, in the working menu instead of inside a settings modal.
@@ -128,12 +133,12 @@ export function ContentSectionShell({
         data-content-tab={tab}
         className="flex min-w-0 flex-1 flex-col bg-cf-canvas text-cf-ink"
       >
-        <header className="border-b border-cf-border bg-cf-surface p-[20px] md:p-[24px]">
+        <header className="border-b border-cf-border bg-cf-surface cf-page-pad">
           <p className="max-w-[72ch] cf-body-md text-cf-ink-muted [text-wrap:pretty]">
             {t.avatarDescription}
           </p>
         </header>
-        <div className="flex min-w-0 flex-col p-[20px] md:p-[24px]">
+        <div className="flex min-w-0 flex-col cf-page-pad">
           {children}
         </div>
       </div>
@@ -159,21 +164,17 @@ export function ContentSectionShell({
             aria-label={t.tabs}
             // Width is the other half of a touch target, and a two-syllable
             // label like «Бриф» is narrower than a fingertip on its own.
-            className="mt-[16px] flex flex-wrap gap-x-[24px] gap-y-[4px] [&_button]:min-w-[44px] sm:[&_button]:min-w-0"
+            className={clsx(
+              'mt-[16px] [&_button]:min-w-[44px] sm:[&_button]:min-w-0',
+              SECTION_TAB_LIST_CLASS
+            )}
           >
             {tabs.map((value) => (
               <Tab
                 key={value}
                 value={value}
-                className={clsx(
-                  // The height belongs to `ControlButton`, which strips any the
-                  // caller passes. The mobile hit area is the wrapper's job, the
-                  // same way `content-intelligence.view.tsx` does it.
-                  'inline-flex items-center border-b-2 pb-[12px] cf-label-md transition-colors duration-state motion-reduce:transition-none',
-                  tab === value
-                    ? 'border-cf-accent text-cf-accent'
-                    : 'border-transparent text-cf-ink-muted hover:text-cf-ink'
-                )}
+                // The shared strip (`ui/section-tabs`, `97dq.76`).
+                className={sectionTabClass(tab === value)}
               >
                 {t[value]}
               </Tab>
@@ -181,12 +182,12 @@ export function ContentSectionShell({
           </TabList>
         </header>
 
-        <TabPanel
+        <SectionTabPanel
           value={tab}
-          className="flex min-w-0 flex-col p-[20px] md:p-[24px]"
+          className="flex min-w-0 flex-col cf-page-pad"
         >
           {children}
-        </TabPanel>
+        </SectionTabPanel>
       </div>
     </Tabs>
   );
@@ -204,7 +205,8 @@ export function ContentSectionScreen({
   // and `ContentSectionShell` never see the value, only this prop does.
   initialTab?: ContentTab | 'archive';
 } = {}) {
-  const { language } = useVariables();
+  // The one language hook (`97dq.76`, audit §9).
+  const language = useInterfaceLanguage();
   const locale: ContentSectionLocale = resolveContentLocale(language);
   const [tab, setTab] = useState<ContentTab>(
     initialTab === 'archive' ? 'materials' : initialTab

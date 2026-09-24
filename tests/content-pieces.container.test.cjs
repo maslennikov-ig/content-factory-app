@@ -299,9 +299,18 @@ const open = async (props = {}) => {
 };
 
 /** «Адаптировать» в строке «Куда дальше» и дождаться конца хода. */
+/*
+  «Адаптировать · …» в «Куда дальше» открывает вкладку и ничего не пишет
+  (`97dq.78`); текст пишет главная кнопка вкладки.
+*/
+const openAdaptTab = async (name = 'Telegram · Мой канал') => {
+  await click(screen.getByRole('button', { name: `Адаптировать · ${name}` }));
+};
+
 const adaptTo = async (name = 'Telegram · Мой канал') => {
+  await openAdaptTab(name);
   await click(
-    screen.getByRole('button', { name: `Адаптировать · ${name}` }),
+    document.querySelector('[data-piece-adapt]'),
     () => panel().getAttribute('aria-busy') !== 'true'
   );
 };
@@ -378,6 +387,20 @@ describe('the tab lives in the address', () => {
 });
 
 describe('the short road: started, written, done', () => {
+  test('the «Адаптировать · …» cell opens the tab and writes nothing; the post settings are open (97dq.78)', async () => {
+    serve(table({ detail: detailDoor(ok(WITHOUT_TG)) }));
+    await open();
+    await openAdaptTab();
+    expect(panel().getAttribute('data-piece-tab')).toBe('int-tg-main');
+    expect(adaptBodies).toEqual([]);
+    const primary = document.querySelector('[data-post-options-rewrite="adapt"]');
+    expect(primary).not.toBeNull();
+    expect(primary.textContent).toBe('Адаптировать');
+    expect(primary.disabled).toBe(false);
+    await click(primary, () => panel().getAttribute('aria-busy') !== 'true');
+    expect(adaptBodies).toEqual([{ integrationId: 'int-tg-main', kind: 'post' }]);
+  });
+
   test('the draft is shown in its channel tab and the piece is read again', async () => {
     serve(table({ detail: detailDoor(ok(WITHOUT_TG)) }));
     await open();
@@ -723,7 +746,7 @@ describe('the channel workspace talks to its own doors', () => {
       }),
     });
     await open({ initialTab: 'int-vk' });
-    // Запланированный пост не правится: поля правки нет.
+    // Слот этого поста уже прошёл (`97dq.80`): поля правки нет.
     expect(document.querySelector('[data-adaptation-editor]')).toBeNull();
     // В очереди — «Изменить время», остальное в меню (`97dq.70`).
     expect(screen.getByRole('button', { name: 'Изменить время' })).toBeTruthy();
@@ -737,12 +760,12 @@ describe('the channel workspace talks to its own doors', () => {
     expect(calls.filter((call) => call.url === UNSCHEDULE_URL)[0].method).toBe('POST');
   });
 
-  test('«Для этого поста» travels as overrides and «Переписать с этим» makes a new version', async () => {
+  test('«Для этого поста» travels as overrides and «Переписать по настройкам» makes a new version', async () => {
     await workspace();
     // Панель раскрыта всегда (97dq.48): «Изменить» больше нет.
     expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
     expect(
-      screen.getByRole('button', { name: 'Переписать с этим' }).disabled
+      screen.getByRole('button', { name: 'Переписать по настройкам' }).disabled
     ).toBe(true);
     await act(async () => {
       fireEvent.change(screen.getByLabelText('Длина'), {
@@ -756,7 +779,7 @@ describe('the channel workspace talks to its own doors', () => {
       });
     });
     expect(document.body.textContent).toContain('3 изменения');
-    await click(screen.getByRole('button', { name: 'Переписать с этим' }), () =>
+    await click(screen.getByRole('button', { name: 'Переписать по настройкам' }), () =>
       adaptBodies.length === 1 && panel().getAttribute('aria-busy') !== 'true'
     );
     // Длина — теми же числами, что пишет карточка канала.
@@ -1298,5 +1321,104 @@ describe('«Удалить»', () => {
     expect(navigations).toEqual([]);
     // Кнопка вернулась в покой: второй промах ничего не удалит.
     expect(document.querySelector('[data-piece-delete="true"]').getAttribute('data-confirm-armed')).toBe('false');
+  });
+});
+
+/* ---- Review of 97dq.78–80: a queued post is saved on purpose -------------- */
+
+describe('a queued post is saved only by «Сохранить в пост» (review 97dq.80)', () => {
+  const slot = () => new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+  const withQueued = () => ({
+    ...fixture.PIECE_FIXTURE_DETAIL,
+    adaptations: fixture.PIECE_FIXTURE_DETAIL.adaptations.map((one) =>
+      one.id === TG_DRAFT_ID ? { ...one, state: 'queued', date: slot(), url: null } : one
+    ),
+  });
+  const queuedWorkspace = async (patch) => {
+    const detail = withQueued();
+    serve({
+      ...table({ detail: detailDoor(ok(detail)) }),
+      [`PATCH ${ADAPTATION_URL}`]: patch,
+    });
+    await open({ initialTab: 'int-tg-main' });
+    await click(screen.getByRole('button', { name: 'Редактировать' }), () =>
+      document.querySelector('[data-editor-field="true"]') !== null
+    );
+    const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+    await act(async () => {
+      field.editor.commands.setContent('<p>Мы запуска</p>');
+    });
+  };
+  const saveButton = () => document.querySelector('[data-queued-save]');
+
+  test('no autosave into the live post: the PATCH goes only on the button (P2-2)', async () => {
+    await queuedWorkspace((call) =>
+      ok({ adaptation: { ...withQueued().adaptations[0], body: call.body.body } })
+    );
+    await wait(900);
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    expect(saveButton().textContent).toBe('Сохранить в пост');
+    expect(saveButton().disabled).toBe(false);
+    await click(saveButton(), () => calls.some((call) => call.method === 'PATCH'));
+    const patched = calls.filter((call) => call.method === 'PATCH');
+    expect(patched).toHaveLength(1);
+    expect(patched[0].body).toEqual({ body: 'Мы запуска' });
+  });
+
+  test('a closing refusal forgets the refused text and offers no retry (P2-4)', async () => {
+    await queuedWorkspace(() =>
+      refused(409, {
+        code: 'ADAPTATION_EDIT_CLOSED',
+        message:
+          'Пост уже уходит в канал или вышел — эту правку сохранить нельзя. В канале остаётся прежний текст.',
+      })
+    );
+    await click(saveButton(), () => screen.queryByRole('alert') !== null);
+    expect(screen.getByRole('alert').textContent).toContain('В канале остаётся прежний текст');
+    expect(screen.queryByRole('button', { name: 'Попробовать снова' })).toBeNull();
+    // Нечего сохранять: поле снова показывает то, что в посте.
+    await settle(() => saveButton()?.disabled === true);
+    expect(saveButton().disabled).toBe(true);
+  });
+});
+
+describe('one save in flight per adaptation (review 97dq.80, P2-2)', () => {
+  test('the second autosave waits for the first, so the server gets them in order', async () => {
+    const releases = [];
+    await workspace({
+      [`PATCH ${ADAPTATION_URL}`]: (call) =>
+        new Promise((resolve) => {
+          releases.push(() =>
+            resolve(ok({ adaptation: { ...WITH_DRAFT.adaptations[0], body: call.body.body } }))
+          );
+        }),
+    });
+    await click(screen.getByRole('button', { name: 'Редактировать' }), () =>
+      document.querySelector('[data-editor-field="true"]') !== null
+    );
+    const field = screen.getByRole('textbox', { name: 'Текст поста для Telegram' });
+    await act(async () => {
+      field.editor.commands.setContent('<p>Первая правка.</p>');
+    });
+    await wait(900);
+    await settle(() => calls.some((call) => call.method === 'PATCH'));
+    await act(async () => {
+      field.editor.commands.setContent('<p>Вторая правка.</p>');
+    });
+    await wait(900);
+    await settle();
+    // Первая ещё в полёте — вторая не ушла.
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+    await act(async () => {
+      releases[0]();
+    });
+    await settle(() => calls.filter((call) => call.method === 'PATCH').length === 2);
+    const patched = calls.filter((call) => call.method === 'PATCH');
+    expect(patched.map((call) => call.body.body)).toEqual(['Первая правка.', 'Вторая правка.']);
+    await act(async () => {
+      releases[1]();
+    });
+    await settle(() => document.querySelector('[data-autosave="saved"]') !== null);
+    expect(document.querySelector('[data-autosave="saved"]')).not.toBeNull();
   });
 });

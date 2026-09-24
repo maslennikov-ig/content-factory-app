@@ -118,7 +118,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt).toContain('Отдельное правило о дополнении');
   expect(prompt).toContain('получает в тексте своё предложение');
   expect(prompt).toContain('её число, дату, имя и единицу переноси дословно');
@@ -162,7 +162,7 @@ test('a partly confirmed correction stands once, and never in the confirmed bloc
     questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
     foreignShingles: [] });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
     'взято из ресерча (не подтверждено): Эксперимент охватил около 2 500 человек',
   ]);
@@ -216,7 +216,7 @@ const personText = 'Исландский эксперимент охватил 2
 test('an own number the search did not confirm leaves the confirmed block and keeps its note', () => {
   const prompt = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt.split('\n').filter((line) => line.includes('25 тысяч человек.'))).toEqual([
     'не подтвердилось поиском: Исландский эксперимент охватил 25 тысяч человек. — Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
   ]);
@@ -234,7 +234,7 @@ test('an own row the search confirmed still stands in the confirmed block', () =
   };
   const prompt = promptOf({ brief: icelandBrief([confirmedOwn]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt).toContain('факты подтверждённые: Эксперимент шёл с 2015 по 2019 год.');
   expect(prompt).not.toContain('не подтвердилось поиском');
 });
@@ -282,7 +282,7 @@ test('a thought with no research keeps the v6 text word for word', () => {
     personText: 'Мы сократили неделю до четырёх дней.',
   });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt).toContain('факты подтверждённые: Мы сократили неделю до четырёх дней.');
   expect(prompt).not.toContain('не подтвердилось поиском');
   expect(prompt).not.toContain('Отдельное правило об опорах ресерча');
@@ -318,7 +318,7 @@ test('a foreign post with claims or structure gets the named rule about its bloc
   };
   const prompt = promptOf({ brief, borrowed, personText: '' });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v12');
   expect(prompt).toContain('Отдельное правило о блоках исходного материала');
   expect(prompt).toContain('делает из него СВОЙ текст');
   expect(prompt).toContain('Материала хватает на несколько абзацев');
@@ -506,4 +506,195 @@ test('research DTOs require explicit intent and reject invalid snapshot IDs', as
   expect(await validate(Object.assign(new PieceResearchDto(), { confirmWebSpend: true }))).toHaveLength(0);
   expect(await validate(new PieceResearchDto())).not.toHaveLength(0);
   expect(await validate(Object.assign(new PieceResearchAcceptDto(), { snapshotKey: '../other', selectedKeys: [] }))).not.toHaveLength(0);
+});
+
+/*
+  `content-factory-next-97dq.19` (second-release review, P2-4): the text
+  fallback strips «Автор утверждает, что…» from both sides, so a person's own
+  row and someone else's row with that prefix shared one key and were both
+  ticked when an old tab named one of them. One sent text is one row now.
+*/
+test('one text from an old tab ticks one row, the one that matches it as written', () => {
+  const own = {
+    statement: 'Команда выросла вдвое',
+    factKey: 'own:team',
+    origin: 'input',
+    kind: 'own',
+    status: 'conflicting',
+    verified: false,
+    selected: false,
+    evidenceId: 'ev-team',
+    correction: { original: 'вдвое', replacement: 'на треть' },
+  };
+  const found = {
+    statement: 'Автор утверждает, что команда выросла вдвое',
+    factKey: 'ev-other:found',
+    origin: 'search',
+    kind: 'found',
+    status: 'unverified',
+    verified: false,
+    selected: true,
+    evidenceId: 'ev-other',
+  };
+  const state = {
+    filled: {
+      brief: {
+        inputKind: 'thought',
+        thesis: 'Команда выросла вдвое',
+        position: null,
+        goal: null,
+        disagreement: null,
+        audience: null,
+        origins: { thesis: 'input' },
+        ungrounded: [],
+        facts: [own, found],
+      },
+      options: {},
+    },
+    evidence: [],
+    extraction: null,
+    urls: [],
+    foreignShingles: [],
+    level: 'standard',
+    corrections: [],
+    summary: null,
+    correctedInput: '',
+  };
+  const picked = intake.selectCoreResearch(state, 'Команда выросла вдвое.', 'ru', [
+    'Команда выросла вдвое.',
+  ]);
+  const byKey = Object.fromEntries(picked.filled.brief.facts.map((fact) => [fact.factKey, fact]));
+  expect(byKey['own:team'].selected).toBe(true);
+  expect(byKey['ev-other:found'].selected).toBe(false);
+
+  // Naming the prefixed row as it was printed ticks that row only.
+  const other = intake.selectCoreResearch(state, 'Команда выросла вдвое.', 'ru', [
+    'Автор утверждает, что команда выросла вдвое',
+  ]);
+  const otherByKey = Object.fromEntries(other.filled.brief.facts.map((fact) => [fact.factKey, fact]));
+  expect(otherByKey['ev-other:found'].selected).toBe(true);
+  expect(otherByKey['own:team'].selected).toBe(false);
+});
+
+/*
+  `content-factory-next-97dq.42`, live stand 22.09.2026 run16: the core came
+  out clean, but the thesis kept «…повысить производительность на 40%» — the
+  correction's original («Производительность выросла на 40%») is not in the
+  paraphrase, so it was never applied, and the adaptation took the thesis as
+  its topic. The thesis is rebuilt from the person's corrected words.
+*/
+describe('the brief after accepted corrections carries no refuted number (97dq.42)', () => {
+  const INPUT =
+    'Исландский эксперимент с четырёхдневной рабочей неделей охватил 25 тысяч человек, длился десять лет, а производительность выросла на 40%. Я хочу представить его как доказательство.';
+  const corrections = [
+    { factKey: 'ev:fix:a', original: '25 тысяч человек', replacement: '2500 сотрудников', accepted: true },
+    { factKey: 'ev:fix:b', original: 'десять лет', replacement: 'с 2015 года до 2019 года, около пяти лет', accepted: true },
+    {
+      factKey: 'ev:fix:c',
+      original: 'производительность выросла на 40%',
+      replacement: 'сокращение рабочих часов не привело к потере производительности',
+      accepted: true,
+    },
+  ].map((correction) => ({ ...correction, sourceUrl: 'https://www.bbc.com/russian/news-57734712', quote: 'q', note: 'n' }));
+  const twin = (correction) => ({
+    statement: correction.replacement,
+    factKey: correction.factKey,
+    origin: 'search',
+    kind: 'external',
+    status: 'confirmed',
+    verified: true,
+    selected: true,
+    evidenceId: 'ev',
+    correction: { original: correction.original, replacement: correction.replacement },
+  });
+  const own = (correction) => ({
+    statement: `Своё: ${correction.original}`,
+    factKey: correction.factKey.replace('ev:fix:', 'own:'),
+    origin: 'input',
+    kind: 'own',
+    status: 'conflicting',
+    verified: false,
+    selected: false,
+    evidenceId: 'ev',
+    correction: { original: correction.original, replacement: correction.replacement },
+  });
+  const state = (thesis, position) => ({
+    filled: {
+      brief: {
+        inputKind: 'thought',
+        thesis,
+        position,
+        goal: null,
+        disagreement: null,
+        audience: null,
+        origins: { thesis: 'input', position: 'input' },
+        ungrounded: [],
+        facts: corrections.flatMap((correction) => [own(correction), twin(correction)]),
+      },
+      options: {},
+    },
+    evidence: [],
+    extraction: null,
+    urls: [],
+    foreignShingles: [],
+    level: 'standard',
+    corrections,
+    summary: null,
+    correctedInput: '',
+  });
+  const keys = corrections.map((correction) => correction.factKey);
+
+  test('a paraphrased thesis is rebuilt from the corrected words; the refuted «40%» is gone', () => {
+    const run16 =
+      'Исландский эксперимент с четырёхдневной рабочей неделей доказал, что такой формат способен повысить производительность на 40%.';
+    const next = intake.selectCoreResearch(state(run16, null), INPUT, 'ru', keys);
+    expect(next.correctedInput).toContain('2500 сотрудников');
+    expect(next.filled.brief.thesis).not.toMatch(/40\s*%/u);
+    expect(next.filled.brief.thesis).toContain('Исландский эксперимент');
+    expect(next.filled.brief.thesis).toContain('не привело к потере производительности');
+    // The origin stays the person's: these are their corrected words.
+    expect(next.filled.brief.origins.thesis).toBe('input');
+  });
+
+  test('a field the corrections reach is corrected in place; a field without refuted numbers is left alone', () => {
+    const next = intake.selectCoreResearch(
+      state('Эксперимент длился десять лет.', 'Я считаю эксперимент доказательством.'),
+      INPUT,
+      'ru',
+      keys
+    );
+    expect(next.filled.brief.thesis).toBe('Эксперимент длился с 2015 года до 2019 года, около пяти лет.');
+    expect(next.filled.brief.position).toBe('Я считаю эксперимент доказательством.');
+  });
+
+  test('the position is held to the same rule', () => {
+    const next = intake.selectCoreResearch(
+      state('Короткая неделя работает.', 'Рост на 40% — главное доказательство.'),
+      INPUT,
+      'ru',
+      keys
+    );
+    expect(next.filled.brief.position).not.toMatch(/40\s*%/u);
+  });
+
+  test('«40-часовая неделя» is not the refuted «40%»', () => {
+    const next = intake.selectCoreResearch(
+      state('Участников перевели с 40-часовой недели на 36-часовую.', null),
+      INPUT,
+      'ru',
+      keys
+    );
+    expect(next.filled.brief.thesis).toBe('Участников перевели с 40-часовой недели на 36-часовую.');
+  });
+
+  test('a declined correction leaves the person’s number in the thesis', () => {
+    const next = intake.selectCoreResearch(
+      state('Производительность выросла на 40%.', null),
+      INPUT,
+      'ru',
+      [...keys.slice(0, 2), 'own:c']
+    );
+    expect(next.corrections.find((correction) => correction.factKey === 'ev:fix:c').accepted).toBe(false);
+    expect(next.filled.brief.thesis).toContain('40%');
+  });
 });

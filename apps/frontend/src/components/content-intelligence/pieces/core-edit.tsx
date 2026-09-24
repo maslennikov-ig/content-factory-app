@@ -11,6 +11,8 @@ import {
 import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Hint } from '@contentfactory/react/layout/hint';
+import type { PieceCoreRevisionV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import { Disclosure } from '../../ui/disclosure';
 import { FieldLabel } from '../../ui/field-label';
 import { useAutosave } from '../../ui/use-autosave';
 import { intakeCopy } from '../intake/intake.copy';
@@ -40,6 +42,7 @@ export function CoreTextEdit({
   editedByYou,
   disabled,
   onSave,
+  onEditingChange,
   children,
 }: {
   locale: PiecesLocale;
@@ -49,6 +52,12 @@ export function CoreTextEdit({
   disabled: boolean;
   /** Saves `next` in place of `expected`; `false` — not saved. */
   onSave: (next: string, expected: string) => Promise<boolean>;
+  /**
+   * The field is open (review of 97dq.81-85, P3-4): the tab keeps a restore
+   * or a rebuild from moving the core under the draft, which would refuse
+   * every autosave that follows.
+   */
+  onEditingChange?: (editing: boolean) => void;
   /** The read view, shown while the core is not being edited. */
   children: ReactNode;
 }) {
@@ -58,6 +67,11 @@ export function CoreTextEdit({
   const [draft, setDraft] = useState(text);
   /** The text the server holds now: what the next save replaces. */
   const saved = useRef(text);
+
+  useEffect(() => {
+    onEditingChange?.(editing);
+  }, [editing, onEditingChange]);
+  useEffect(() => () => onEditingChange?.(false), [onEditingChange]);
 
   // The core changed on the server (rebuild, answer): the field follows it
   // unless the author is typing.
@@ -159,6 +173,7 @@ export function AddMaterial({
   pending,
   onAdd,
   onRebuild,
+  onRebuildingChange,
 }: {
   locale: PiecesLocale;
   disabled: boolean;
@@ -169,6 +184,11 @@ export function AddMaterial({
   onAdd: (text: string) => Promise<boolean>;
   /** Rebuilds the core; resolves to an error sentence, or `null` on success. */
   onRebuild: () => Promise<string | null>;
+  /**
+   * A rebuild is running (review of 97dq.81-85, P3-4): the tab turns the
+   * versions and the hand edit off meanwhile — the server would refuse them.
+   */
+  onRebuildingChange?: (running: boolean) => void;
 }) {
   const t = piecesCopy[locale];
   const fieldId = useId();
@@ -190,9 +210,11 @@ export function AddMaterial({
 
   const rebuild = async () => {
     setRebuilding(true);
+    onRebuildingChange?.(true);
     setRebuildError(null);
     const error = await onRebuild().catch(() => t.coreRebuildFailed);
     setRebuilding(false);
+    onRebuildingChange?.(false);
     setRebuildError(error);
   };
 
@@ -275,6 +297,176 @@ export function AddMaterial({
           {rebuildError}
         </p>
       ) : null}
+    </section>
+  );
+}
+
+/** «ДД.ММ ЧЧ:ММ» in the reader's time zone; nothing for a broken stamp. */
+const versionTime = (iso: string): string | null => {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return null;
+  const two = (value: number) => String(value).padStart(2, '0');
+  return `${two(at.getDate())}.${two(at.getMonth() + 1)} ${two(
+    at.getHours()
+  )}:${two(at.getMinutes())}`;
+};
+
+/**
+ * «Версии сути» (`content-factory-next-97dq.85`, fourteenth walk, B3): the
+ * core texts the piece replaced — by a hand edit, a rebuild or a restore —
+ * newest first, with who wrote each and until when it was the core. Any of
+ * them can be read and restored; restoring is itself a new version, so the
+ * current core is never lost.
+ */
+export function CoreVersions({
+  locale,
+  current,
+  revisions,
+  disabled,
+  onRestore,
+}: {
+  locale: PiecesLocale;
+  /** The core on the page: what a restore replaces. */
+  current: string;
+  /** Stored oldest first, as the server keeps them. */
+  revisions: readonly PieceCoreRevisionV1[];
+  disabled: boolean;
+  /** Resolves to an error sentence, or `null` when the version is back. */
+  onRestore?: (
+    index: number,
+    replacedAt: string,
+    expected: string
+  ) => Promise<string | null>;
+}) {
+  const t = piecesCopy[locale];
+  const [open, setOpen] = useState<number | null>(null);
+  const [restoring, setRestoring] = useState<number | null>(null);
+  const [error, setError] = useState<{ index: number; text: string } | null>(
+    null
+  );
+  const restore = async (index: number) => {
+    if (!onRestore) return;
+    setRestoring(index);
+    setError(null);
+    const failed = await onRestore(
+      index,
+      revisions[index].replacedAt,
+      current
+    ).catch(() => t.coreVersionRestoreFailed);
+    setRestoring(null);
+    if (failed) setError({ index, text: failed });
+    else setOpen(null);
+  };
+
+  const newestFirst = revisions
+    .map((revision, index) => ({ revision, index }))
+    .filter(({ revision }) => revision.text.trim())
+    .reverse();
+  if (!newestFirst.length) return null;
+
+  return (
+    <section
+      data-piece-core-versions="true"
+      className="flex min-w-0 max-w-[72ch] items-start gap-[4px]"
+    >
+      <Disclosure
+        className="min-w-0 flex-1"
+        summary={
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-[12px] gap-y-[4px]">
+            <span className="cf-label-md text-cf-ink">{t.coreVersionsTitle}</span>
+            <span className="cf-caption tabular-nums text-cf-ink-muted">
+              {t.coreVersionsCount(newestFirst.length)}
+            </span>
+          </span>
+        }
+        triggerProps={{ 'data-piece-core-versions-toggle': 'true' } as never}
+        contentClassName="flex min-w-0 flex-col gap-[8px] pb-[8px] pt-[4px]"
+      >
+        <ol className="flex min-w-0 flex-col gap-[8px]">
+          {newestFirst.map(({ revision, index }) => {
+            const shown = open === index;
+            const time = versionTime(revision.replacedAt);
+            return (
+              <li
+                key={`${index}-${revision.replacedAt}`}
+                data-piece-core-version={index}
+                className="flex min-w-0 flex-col gap-[8px] border-s border-cf-border ps-[12px]"
+              >
+                <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[4px]">
+                  <span className="cf-body-sm text-cf-ink">
+                    {revision.writtenBy === 'person'
+                      ? t.coreVersionByYou
+                      : t.coreVersionByAi}
+                  </span>
+                  {time ? (
+                    <span className="cf-caption tabular-nums text-cf-ink-muted">
+                      {t.coreVersionUntil(time)}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    density="dense"
+                    aria-expanded={shown}
+                    data-piece-core-version-show={index}
+                    onClick={() => setOpen(shown ? null : index)}
+                  >
+                    {shown ? t.coreVersionHide : t.coreVersionShow}
+                  </Button>
+                </div>
+                {shown ? (
+                  <>
+                    <blockquote
+                      data-piece-core-version-text={index}
+                      className="min-w-0 whitespace-pre-wrap cf-body-md text-cf-ink [overflow-wrap:anywhere] [text-wrap:pretty]"
+                    >
+                      {revision.text}
+                    </blockquote>
+                    {onRestore ? (
+                      <span className="inline-flex items-center gap-[4px]">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          density="dense"
+                          loading={restoring === index}
+                          loadingLabel={t.coreVersionRestoring}
+                          disabled={
+                            disabled ||
+                            restoring !== null ||
+                            revision.text === current
+                          }
+                          data-piece-core-version-restore={index}
+                          onClick={() => void restore(index)}
+                        >
+                          {t.coreVersionRestore}
+                        </Button>
+                        <Hint
+                          label={intakeCopy[locale].profileHintFor(
+                            t.coreVersionRestore
+                          )}
+                        >
+                          {t.coreVersionRestoreHint}
+                        </Hint>
+                      </span>
+                    ) : null}
+                    {error?.index === index ? (
+                      <p role="alert" className="cf-body-sm text-cf-danger">
+                        {error.text}
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      </Disclosure>
+      {/* The «?» sits beside the trigger, never inside the button. */}
+      <span className="flex shrink-0 items-center pt-[8px]">
+        <Hint label={intakeCopy[locale].profileHintFor(t.coreVersionsTitle)}>
+          {t.coreVersionsHint}
+        </Hint>
+      </span>
     </section>
   );
 }

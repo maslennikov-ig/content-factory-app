@@ -80,6 +80,7 @@ describe('onboarding progress follows the current piece fact store', () => {
       model: {
         integration: { count: jest.fn().mockResolvedValue(1) },
         brandVoiceSample: { count: jest.fn().mockResolvedValue(2) },
+        projectBrandProfile: { count: jest.fn().mockResolvedValue(1) },
         contentFact: { count: jest.fn().mockResolvedValue(0) },
         contentPiece: {
           count: jest.fn().mockResolvedValue(6),
@@ -103,15 +104,32 @@ describe('onboarding progress follows the current piece fact store', () => {
       },
       select: { brief: true },
     });
+    expect(prisma.model.projectBrandProfile.count).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'workspace-1',
+        deletedAt: null,
+        activeVersionId: { not: null },
+      },
+    });
     expect(result).toEqual({
       channels: 1,
       voiceSamples: 2,
+      avatars: 1,
       facts: 0,
       pieceFacts: 3,
       pieces: 6,
       drafts: 1,
       scheduled: 1,
     });
+  });
+
+  test('an avatar filled in by hand closes the voice step without samples (fn33.157)', () => {
+    const handFilled = { ...adapter.EMPTY_PROGRESS, avatars: 1 };
+    expect(adapter.stepIsDone('voice', handFilled)).toBe(true);
+    expect(adapter.stepIsDone('fact', handFilled)).toBe(false);
+    expect(adapter.readProgress({ avatars: 1 }).avatars).toBe(1);
+    // An older answer without the field reads as zero, never as done.
+    expect(adapter.stepIsDone('voice', adapter.readProgress({}))).toBe(false);
   });
 
   test('a selected piece fact closes only the fact step', () => {

@@ -18,7 +18,7 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 
 const active = new AsyncLocalStorage();
 
-const loadUsage = ({ config, subscription, organization, count }) => {
+const loadUsage = ({ config, subscription, organization, count, instance }) => {
   const counts = [];
   const loaded = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/ai.usage.service.ts',
@@ -52,6 +52,7 @@ const loadUsage = ({ config, subscription, organization, count }) => {
   );
 
   const service = new loaded.AiUsageService({
+    instanceAiDefaults: { findUnique: async () => instance ?? null },
     subscription: { findUnique: async () => subscription ?? null },
     organization: { findUnique: async () => organization ?? null },
     aiUsageRecord: {
@@ -82,6 +83,21 @@ const workspaceConfig = {
 };
 
 describe('reading the AI allowance', () => {
+  test('«без предела» answers as a state, with no counters (97dq.27)', async () => {
+    const probe = loadUsage({ config: includedConfig });
+    const { service, counts } = loadUsage({
+      config: includedConfig,
+      organization: { createdAt: new Date('2026-01-04T09:00:00.000Z') },
+      instance: {
+        monthlyOperations: probe.module.UNLIMITED_MONTHLY_OPERATIONS,
+      },
+    });
+    await expect(service.readAllowance('org-a')).resolves.toEqual({
+      mode: 'unlimited',
+    });
+    expect(counts).toEqual([]);
+  });
+
   test('an included allowance answers with what is used, the ceiling and the reset', async () => {
     const { service, counts } = loadUsage({
       config: includedConfig,

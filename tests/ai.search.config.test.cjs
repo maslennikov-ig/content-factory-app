@@ -316,6 +316,8 @@ const { AiProviderService } = loadTypeScriptModule(
       aiBillingPeriodStart: () => new Date('2026-08-01T00:00:00.000Z'),
       includedMonthlyOperations: (subscription) =>
         subscription?.includedAiMonthlyOperations ?? 0,
+      // «Без предела» (`97dq.27`): not the case under test here.
+      isUnlimitedOperations: () => false,
       includedUsageFilter: () => ({}),
     },
   }

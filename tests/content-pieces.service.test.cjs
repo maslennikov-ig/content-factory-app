@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v11');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v12');
     /*
       Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
       сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
@@ -1055,6 +1055,30 @@ describe('адаптация под канал', () => {
     expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'adaptation')).toHaveLength(1);
     expect(calls.start).toHaveLength(1);
+  });
+
+  // Review P3-6 (`97dq.83`): one server resolver for the emoji level — the
+  // request override, else the stored «Для этого поста», else the channel.
+  test('stored post emoji level reaches the directive when the request sends none', async () => {
+    const tags = { postSettings: { 'int-tg': { options: { emoji: 'max3' } } } };
+    const { service, calls } = buildPieces({ piece: pieceRow({ tags }) });
+    const plan = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true },
+      'ru'
+    );
+    expect(plan.postEmojiLevel).toBe('max3');
+    await drain(service.adapt('org-a', plan));
+    expect(calls.start[0][1].intake.post.emojiLevel).toBe('max3');
+
+    const explicit = await service.prepareAdapt(
+      'org-a',
+      'piece-12',
+      { integrationId: 'int-tg', skipInterview: true, overrides: { emojiLevel: 'max1' } },
+      'ru'
+    );
+    expect(explicit.postEmojiLevel).toBe('max1');
   });
 
   test('с «пропустить» приходит адаптация и done', async () => {
@@ -2031,7 +2055,7 @@ describe('ответы на открытые вопросы заготовки',
 
     const drafts = modelCalls.filter((call) => call.role === 'draft');
     expect(drafts).toHaveLength(1);
-    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v11');
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v12');
     expect(drafts[0].prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
     expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
     expect(drafts[0].prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
@@ -2278,10 +2302,14 @@ describe('список и страница', () => {
       { updatedAt: 'desc' },
       { id: 'asc' },
     ]);
-    expect(query.take).toBe(23);
+    // Pages of at least 50: superseded drafts are dropped per page (97dq.65).
+    expect(query.skip).toBe(0);
+    expect(query.take).toBe(50);
     await repository.listReadyAdaptations('org-a', 23, ['channel-visible']);
     expect(query.where.post.is.integrationId).toEqual({ in: ['channel-visible'] });
-    expect(query.take).toBe(23);
+    expect(query.take).toBe(50);
+    await repository.listReadyAdaptations('org-a', 80);
+    expect(query.take).toBe(80);
     await repository.listReadyAdaptations('org-a', 23, []);
     expect(query.where.post.is.integrationId).toEqual({ in: [] });
     expect(query.select).not.toHaveProperty('state');
@@ -2338,6 +2366,9 @@ describe('список и страница', () => {
       'none',
     ]);
     expect(row.cells[0].url).toBe('https://t.me/example/412');
+    // Имя канала рядом с его id (`97dq.20`): подсказка клетки его называет.
+    expect(row.cells[0].channelName).toBe('Мой канал');
+    expect(row.cells[1]).not.toHaveProperty('channelName');
   });
 
   /*

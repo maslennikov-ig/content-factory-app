@@ -201,6 +201,21 @@ export function VoiceWizardContainer({
     { revalidateOnFocus: false }
   );
 
+  // A hand-filled draft left mid-way (`content-factory-next-fn33.150`). Read
+  // only on screen 01, where it decides whether the screen offers to carry on.
+  const manualDraftQuery = useSWR(
+    step === 'empty' ? scoped(VOICE_ROUTES.proposalManual) : null,
+    () => read(scoped(VOICE_ROUTES.proposalManual)),
+    { revalidateOnFocus: false }
+  );
+  const manualDraft = useMemo(() => {
+    if (!manualDraftQuery.data) return undefined;
+    const reading = readProposal(manualDraftQuery.data);
+    if (reading.outcome !== 'ready' || reading.mode !== 'manual') return undefined;
+    const filled = reading.fields.filter((field) => field.text).length;
+    return filled > 0 ? { filled, total: reading.fields.length } : undefined;
+  }, [manualDraftQuery.data]);
+
   const overview = useMemo(
     () => readOverview(overviewQuery.data),
     [overviewQuery.data]
@@ -736,6 +751,8 @@ export function VoiceWizardContainer({
             setChosenPath((current) => current ?? 'own');
             goTo('samples');
           }}
+          {...(manualDraft ? { manualDraft } : {})}
+          onContinueManual={() => choosePath('manual')}
           onCreate={() => goTo('paths')}
         />
       ) : null}

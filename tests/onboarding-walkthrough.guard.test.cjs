@@ -210,6 +210,7 @@ describe('the voice step counts the corpus the screens show', () => {
       model: {
         integration: counter('integration'),
         brandVoiceSample: counter('brandVoiceSample'),
+        projectBrandProfile: counter('projectBrandProfile'),
         contentFact: counter('contentFact'),
         contentPiece: counter('contentPiece'),
         post: counter('post'),

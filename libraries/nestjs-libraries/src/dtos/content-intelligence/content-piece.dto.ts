@@ -35,9 +35,20 @@ import { POST_WISH_MAX } from '@contentfactory/nestjs-libraries/content-intellig
 import {
   POST_LINK_MAX,
   POST_LINK_PATTERN,
+  POST_LINK_TEXT_MAX,
+  normalizePostLinkText,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/post-link';
+
+/**
+ * «Текст ссылки» is cleaned before its length is checked (`97dq.79` review
+ * P3-8): the product keeps the first 80 characters, so a longer phrase is cut,
+ * not refused with a 400.
+ */
+const asLinkText = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? normalizePostLinkText(value) : value;
 import {
   PIECE_CORE_EDIT_MAX,
+  PIECE_CORE_REVISIONS_MAX,
   PIECE_MATERIAL_APPEND_MAX,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/core-edit';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
@@ -301,6 +312,13 @@ export class PieceAdaptOverridesDto {
   @MaxLength(POST_LINK_MAX)
   @Matches(POST_LINK_PATTERN, { message: 'postLink must be none or an http(s) address' })
   postLink?: string;
+
+  /** «Текст ссылки» (`97dq.79`): слова, на которых стоит ссылка. */
+  @Transform(asLinkText)
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_LINK_TEXT_MAX)
+  postLinkText?: string;
 }
 
 /** Ответ на вопрос «Какую ссылку поставить в пост?» (`97dq.75`); `null` — «Без ссылки». */
@@ -310,6 +328,13 @@ export class PiecePostLinkDto {
   @MaxLength(POST_LINK_MAX)
   @Matches(POST_LINK_PATTERN, { message: 'url must be an http(s) address' })
   url: string | null;
+
+  /** «Текст ссылки» (`97dq.79`): слова для ссылки; пусто — выберем сами. */
+  @Transform(asLinkText)
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_LINK_TEXT_MAX)
+  text?: string | null;
 }
 
 /** Правка сути руками (`97dq.75`): новый текст и тот, который он заменяет. */
@@ -317,6 +342,25 @@ export class PieceCoreEditDto {
   @IsString()
   @MaxLength(PIECE_CORE_EDIT_MAX)
   text: string;
+
+  @IsString()
+  @MaxLength(PIECE_CORE_EDIT_MAX)
+  expected: string;
+}
+
+/**
+ * «Вернуть эту версию» (`97dq.85`): which stored version, stamped by its
+ * `replacedAt`, and the core it replaces — a moved core refuses the write.
+ */
+export class PieceCoreRestoreDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(PIECE_CORE_REVISIONS_MAX - 1)
+  index: number;
+
+  @IsISO8601()
+  replacedAt: string;
 
   @IsString()
   @MaxLength(PIECE_CORE_EDIT_MAX)
@@ -457,6 +501,13 @@ export class PiecePostSettingsOptionsDto {
   @MaxLength(POST_LINK_MAX)
   @Matches(POST_LINK_PATTERN, { message: 'link must be empty, none or an http(s) address' })
   link?: string;
+
+  /** «Текст ссылки» поста (`97dq.79`): пусто — как в заготовке или выберем сами. */
+  @Transform(asLinkText)
+  @IsOptional()
+  @IsString()
+  @MaxLength(POST_LINK_TEXT_MAX)
+  linkText?: string;
 }
 
 /** `POST …/channels/:integrationId/plan-apply` (`97dq.70`): режим, на который ответили. */

@@ -229,6 +229,14 @@ describe('Corresponding Source offer', () => {
       expect(page).toContain(manifest.sha256);
       expect(page).toContain('AGPL');
 
+      // The About panel's version, when the image carries no stamp
+      // (`content-factory-next-fn33.155`): the commit, and nothing private.
+      expect(controllerInstance.version()).toEqual({
+        commit: manifest.commit,
+        shortCommit: manifest.shortCommit,
+        builtAt: manifest.builtAt,
+      });
+
       const file = controllerInstance.archive();
       expect(file.options).toMatchObject({
         type: 'application/gzip',
@@ -280,9 +288,14 @@ describe('Corresponding Source offer', () => {
     );
     expect(settings).toContain("tab: 'about'");
     expect(settings).toContain('<AboutProjectComponent />');
-    expect(
-      read('apps/frontend/src/components/settings/about-project.component.tsx')
-    ).toMatch(/<SourceLink\b/);
+    const about = read(
+      'apps/frontend/src/components/settings/about-project.component.tsx'
+    );
+    expect(about).toMatch(/<SourceLink\b/);
+    // Without the build stamp the panel reads the release off the source
+    // manifest rather than printing «—» (`content-factory-next-fn33.155`).
+    expect(about).toContain("fetch('/public/source/version')");
+    expect(about).toMatch(/stamped \? null :/u);
 
     // And nowhere it was shouting. The persistent rail put a licence errand
     // beside the product's own navigation on every signed-in screen, and the

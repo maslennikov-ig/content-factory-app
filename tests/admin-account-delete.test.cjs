@@ -157,6 +157,7 @@ function deletionRepository({
   userHasOwnRows = false,
   marketplaceOrgs = [],
   counts = {},
+  avatarHolders = [],
 }) {
   const mutations = [];
   const countFor = (model, organizationId) =>
@@ -178,6 +179,19 @@ function deletionRepository({
       deleteMany: async ({ where }) => {
         mutations.push(['user.deleteMany', where]);
         return { count: 1 };
+      },
+      // `keepSurvivingAvatars` (r82e): who holds an avatar from this workspace.
+      findMany: async ({ where }) =>
+        avatarHolders.filter(
+          (holder) => holder.pictureOrg === where.picture.is.organizationId
+        ),
+      update: async ({ where, data }) =>
+        mutations.push(['user.update', where, data]),
+    },
+    media: {
+      create: async ({ data }) => {
+        mutations.push(['media.create', { ...data, deletedAt: !!data.deletedAt }]);
+        return { id: 'media-copy' };
       },
     },
     userOrganization: {
@@ -769,5 +783,57 @@ test('the Organization relations carry the delete rule the second press needs', 
     'MessagesGroup.buyerOrganization',
     // A post belongs to its own workspace and is only offered to this one.
     'Post.submittedForOrganization',
+  ]);
+});
+
+/*
+  `content-factory-next-r82e`: the avatar of somebody who stays in another
+  workspace is a `Media` row of the workspace that goes. It is copied into
+  their other workspace, hidden from that library, and the avatar follows it.
+*/
+test('a sole workspace goes, and a former member keeps the avatar picked there', async () => {
+  const { repository, mutations } = deletionRepository({
+    user: member,
+    members: [{ userId: 'member-1', organizationId: 'own-org' }],
+    emptyOrgs: ['own-org'],
+    avatarHolders: [
+      {
+        id: 'former-member',
+        pictureOrg: 'own-org',
+        picture: {
+          name: 'me.png',
+          originalName: 'me.png',
+          path: '/uploads/me.png',
+          fileSize: 10,
+          type: 'image',
+          thumbnail: null,
+          alt: null,
+        },
+        organizations: [{ organizationId: 'other-org' }],
+      },
+      { id: 'nowhere-else', pictureOrg: 'own-org', picture: { path: '/x' }, organizations: [] },
+    ],
+  });
+
+  await repository.deleteAccount('member-1');
+  expect(mutations).toEqual([
+    ['userOrganization.deleteMany', { userId: 'member-1' }],
+    ['user.deleteMany', { id: 'member-1', isSuperAdmin: false }],
+    [
+      'media.create',
+      {
+        name: 'me.png',
+        originalName: 'me.png',
+        path: '/uploads/me.png',
+        fileSize: 10,
+        type: 'image',
+        thumbnail: null,
+        alt: null,
+        organizationId: 'other-org',
+        deletedAt: true,
+      },
+    ],
+    ['user.update', { id: 'former-member' }, { pictureId: 'media-copy' }],
+    ['organization.delete', { id: 'own-org' }],
   ]);
 });

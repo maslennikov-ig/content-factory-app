@@ -16,9 +16,9 @@
  * of an override. The plan-mode override is `null` in the same sense.
  */
 
-import { isPlanMode, planModeOf, type PlanModeV1 } from './adaptation-plan';
+import { isPlanMode, planModeOf, tagPlanModeOf, type PlanModeV1 } from './adaptation-plan';
 import { isEmojiLevel, type EmojiLevel } from '../channels/emoji-ceiling';
-import { readPostLinkOverride } from './post-link';
+import { normalizePostLinkText, readPostLinkOverride } from './post-link';
 
 export const POST_SETTINGS_TAG = 'postSettings';
 
@@ -52,6 +52,12 @@ export type PostSettingsOptionsV1 = {
    * link in this post, otherwise an http(s) address (`post-link.ts`).
    */
   link: string;
+  /**
+   * «Текст ссылки» (`97dq.79`): the words that carry the link; `''` — the
+   * piece's words, else the writer picks them. Settings saved before the
+   * field read as `''`.
+   */
+  linkText: string;
 };
 
 export type PiecePostSettingsV1 = {
@@ -76,6 +82,7 @@ export const DEFAULT_POST_SETTINGS_OPTIONS: PostSettingsOptionsV1 = {
   brandProfileId: null,
   wish: '',
   link: '',
+  linkText: '',
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -113,6 +120,7 @@ export function readPostSettingsOptions(value: unknown): PostSettingsOptionsV1 {
     brandProfileId: brand,
     wish: typeof record.wish === 'string' ? record.wish.slice(0, POST_WISH_MAX) : '',
     link: readPostLinkOverride(record.link),
+    linkText: normalizePostLinkText(record.linkText),
   };
 }
 
@@ -132,9 +140,12 @@ export function postSettingsOf(
   };
 }
 
-/** The post's own plan mode, if it has one. */
-export const postPlanModeOf = (tags: unknown, integrationId: string): PlanModeV1 | null =>
-  postSettingsOf(tags, integrationId)?.planMode ?? null;
+/**
+ * The post's own plan mode, if it has one: the same reader the calendar
+ * filter uses (`tagPlanModeOf`), so the pieces page and the calendar agree.
+ */
+export const postPlanModeOf: (tags: unknown, integrationId: string) => PlanModeV1 | null =
+  tagPlanModeOf;
 
 /** The mode that decides for this post: its own, else the channel's (I2 default). */
 export const effectivePlanMode = (
@@ -142,6 +153,32 @@ export const effectivePlanMode = (
   tags: unknown,
   integrationId: string
 ): PlanModeV1 => postPlanModeOf(tags, integrationId) ?? planModeOf(channelMode);
+
+/**
+ * The post's own emoji level, when it has one (review P3-6 of `97dq.83`): the
+ * adapt request's override, else the stored «Для этого поста», else nothing
+ * (the channel card decides). The write path's directive and checks and the
+ * detail/edit/review checks all read the level through this one function, so
+ * a text is judged against the same ceiling it was written to.
+ */
+export const postEmojiLevelOf = (
+  override: unknown,
+  tags: unknown,
+  integrationId: string
+): EmojiLevel | undefined => {
+  if (isEmojiLevel(override)) return override;
+  const own = postSettingsOf(tags, integrationId)?.options.emoji;
+  return own && own !== 'channel' ? own : undefined;
+};
+
+/** The level that decides for this post: its own, else the channel card's. */
+export const effectiveEmojiLevel = (
+  override: unknown,
+  tags: unknown,
+  integrationId: string,
+  channelLevel: string | null | undefined
+): string | undefined =>
+  postEmojiLevelOf(override, tags, integrationId) ?? (channelLevel || undefined);
 
 /** Fields whose change needs a rewrite to show in the text. */
 const TEXT_FIELDS: readonly (keyof PostSettingsOptionsV1)[] = [
@@ -153,6 +190,7 @@ const TEXT_FIELDS: readonly (keyof PostSettingsOptionsV1)[] = [
   'brandProfileId',
   'wish',
   'link',
+  'linkText',
 ];
 
 export const textSettingsDiffer = (

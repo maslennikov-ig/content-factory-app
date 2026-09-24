@@ -7,9 +7,10 @@
  * `voice-wiring.contract.ts`, по которому уже живёт экран, не переписывается.
  * Экран импортирует типы отсюда, как импортирует их оттуда.
  *
- * Обе двери работают только с черновиком (`DRAFT`): запланированный пост
- * возвращается в черновик явным «Снять с расписания», а не правкой поверх
- * очереди. Организация — только из сессии.
+ * Выход в календарь работает только с черновиком (`DRAFT`). Правка — с
+ * черновиком и, с `97dq.80`, с постом в очереди, пока до его слота больше
+ * `QUEUED_EDIT_MARGIN_MS`: меняется только текст и картинка, дата и состояние
+ * остаются, публикация не перезапускается. Организация — только из сессии.
  */
 
 import type {
@@ -22,7 +23,7 @@ import { PIECES_API_BASE } from '../brand-voice/voice-wiring.contract';
 export type { PieceAdaptOverridesV1 };
 
 export const PIECE_ADAPTATION_WORKSPACE_ROUTES = {
-  /** `PATCH` — ручная правка тела и/или картинки черновика. */
+  /** `PATCH` — ручная правка тела и/или картинки черновика или поста в очереди до слота. */
   edit: {
     method: 'PATCH',
     path: (pieceId: string, adaptationId: string) =>
@@ -136,6 +137,20 @@ export type PieceAdaptationPlaceResponseV1 = {
 };
 
 /**
+ * Пост в очереди правится, пока до его слота больше минуты (`97dq.80`,
+ * четырнадцатый заход, B2: «человек отредактировал, сохранил, отправился
+ * отредактированный. Не успел — отправился тот, что был»). Публикация читает
+ * текст поста из базы в момент выхода (`post.workflow.v1.0.5.ts`), поэтому
+ * правка до слота уходит в пост без перезапуска публикации; минута — запас
+ * на то, чтобы запись не встретилась с уже начатой отправкой.
+ */
+export const QUEUED_EDIT_MARGIN_MS = 60_000;
+
+/** Последний момент, когда правка поста в очереди ещё уйдёт в пост. */
+export const queuedEditDeadline = (publishDate: Date | string): Date =>
+  new Date(new Date(publishDate).getTime() - QUEUED_EDIT_MARGIN_MS);
+
+/**
  * Отказы двух дверей. Тело отказа — то же, что у остальных дверей заготовки:
  * `{ code, message, subject? }`, `message` — на языке `?language=`.
  */
@@ -144,6 +159,18 @@ export const ADAPTATION_WORKSPACE_ERROR_CODES = {
   ADAPTATION_NOT_DRAFT: { status: 409 },
   /** «Снять с расписания» у поста, который не в очереди (черновик, опубликован, удалён). */
   ADAPTATION_NOT_QUEUED: { status: 409 },
+  /**
+   * Правка поста в очереди, когда публикация уже началась или прошла
+   * (`97dq.80`): до слота меньше `QUEUED_EDIT_MARGIN_MS` или пост вышел.
+   */
+  ADAPTATION_EDIT_CLOSED: { status: 409 },
+  /**
+   * Правка, а поста уже нет: его удалили или заменили новой версией
+   * (например, автопилот) между открытием страницы и сохранением.
+   */
+  ADAPTATION_POST_GONE: { status: 409 },
+  /** Правка поста, публикация которого закончилась ошибкой. */
+  ADAPTATION_POST_FAILED: { status: 409 },
   /** Тело правки пустое: ни `body`, ни `image`, или текст пуст после очистки. */
   ADAPTATION_EDIT_EMPTY: { status: 400 },
   /** `image.id` не называет медиафайл этой области. */
@@ -180,6 +207,18 @@ export const ADAPTATION_WORKSPACE_MESSAGES: Record<
   ADAPTATION_NOT_DRAFT: {
     ru: 'Этот пост уже не черновик. Чтобы править его, сначала снимите его с расписания.',
     en: 'This post is no longer a draft. Take it off the schedule before editing it.',
+  },
+  ADAPTATION_EDIT_CLOSED: {
+    ru: 'Пост уже уходит в канал или вышел — эту правку сохранить нельзя. В канале остаётся прежний текст.',
+    en: 'This post is already going out or has been published, so this edit cannot be saved. The channel keeps the previous text.',
+  },
+  ADAPTATION_POST_GONE: {
+    ru: 'Этого поста больше нет: его удалили или заменили новой версией, например автопилот. Правка не сохранена — обновите страницу.',
+    en: 'This post no longer exists: it was deleted or replaced by a newer version, for example by the autopilot. The edit was not saved — reload the page.',
+  },
+  ADAPTATION_POST_FAILED: {
+    ru: 'Публикация этого поста не удалась, поэтому править его здесь нельзя. Правка не сохранена.',
+    en: 'Publishing this post failed, so it cannot be edited here. The edit was not saved.',
   },
   ADAPTATION_NOT_QUEUED: {
     ru: 'Этот пост не стоит в расписании: снимать нечего.',
@@ -224,6 +263,15 @@ export const ADAPTATION_WORKSPACE_MESSAGES: Record<
  * возвращает `validatePosts`. Сообщение провайдера (оно по-английски) идёт в
  * конце как есть: переводить его значило бы потерять точность.
  */
+/**
+ * Хвост отказа площадки на правку поста в очереди (`97dq.80`, ревью P2-1):
+ * пост в очереди остался прежним, правка не записана.
+ */
+export const QUEUED_EDIT_REFUSAL_TAIL: Words = {
+  ru: 'Правка не сохранена: в очереди остаётся прежний текст.',
+  en: 'The edit was not saved: the queue keeps the previous text.',
+};
+
 export const scheduleRefusalText = (
   language: 'ru' | 'en',
   channel: string,

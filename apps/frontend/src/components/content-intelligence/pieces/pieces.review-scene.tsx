@@ -215,7 +215,6 @@ function PieceScene({
         onSchedule={noop}
         onPublishNow={noop}
         onUnschedule={noop}
-        onDelete={noop}
       />
     );
   };

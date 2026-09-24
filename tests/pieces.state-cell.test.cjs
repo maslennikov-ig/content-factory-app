@@ -187,6 +187,43 @@ describe('each state carries its own icon, its own tone and its own word', () =>
   });
 });
 
+describe('the hint names the channel when the answer does (97dq.20)', () => {
+  test('«Telegram · AiDevTeam» leads the hint', () => {
+    const hint = cellModule.cellHint(
+      {
+        platform: 'telegram',
+        state: 'draft',
+        integrationId: 'int-tg',
+        channelName: 'AiDevTeam',
+      },
+      'Telegram',
+      piecesCopy.ru
+    );
+    expect(hint.startsWith('Telegram · AiDevTeam.')).toBe(true);
+  });
+
+  test('the adapter keeps the name the server sent', () => {
+    const adapter = loadTypeScriptModule(`${base}/pieces/pieces.adapter.ts`);
+    expect(
+      adapter.readCell({ platform: 'telegram', state: 'draft', channelName: 'AiDevTeam' })
+        .channelName
+    ).toBe('AiDevTeam');
+    expect(
+      adapter.readCell({ platform: 'telegram', state: 'draft' })
+    ).not.toHaveProperty('channelName');
+  });
+
+  test('without a name the hint names the platform alone', () => {
+    const hint = cellModule.cellHint(
+      { platform: 'telegram', state: 'none' },
+      'Telegram',
+      piecesCopy.ru
+    );
+    expect(hint.startsWith('Telegram.')).toBe(true);
+    expect(hint).not.toContain(' · ');
+  });
+});
+
 describe('the corner digit counts channels, and only when there are several', () => {
   test('one channel leaves the square empty of text', () => {
     draw({ rows: [rowWith({ state: 'published', more: 0 })] });

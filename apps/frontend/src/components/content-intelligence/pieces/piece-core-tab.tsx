@@ -25,7 +25,7 @@ import { intakeCopy } from '../intake/intake.copy';
 import { OWN_NUMBERS_GAP, QualityLine } from '../shared/quality-line';
 import { voiceCopy } from '../../brand-voice/voice-copy';
 import { CoreAnswerDiff, type CoreAnswerFeedback } from './core-answer-diff';
-import { AddMaterial, CoreTextEdit } from './core-edit';
+import { AddMaterial, CoreTextEdit, CoreVersions } from './core-edit';
 import { cellDate, StateSquare, stateWord } from './adaptation.cell';
 import {
   platformName,
@@ -66,6 +66,7 @@ export function PieceCoreTab({
   onCoreSave,
   onMaterialAdd,
   onCoreRebuild,
+  onCoreRestore,
   onChangeLink,
 }: {
   locale: PiecesLocale;
@@ -89,6 +90,12 @@ export function PieceCoreTab({
   onCoreSave?: (next: string, expected: string) => Promise<boolean>;
   onMaterialAdd?: (text: string) => Promise<boolean>;
   onCoreRebuild?: () => Promise<string | null>;
+  /** «Вернуть эту версию» (`97dq.85`): слово отказа или `null`. */
+  onCoreRestore?: (
+    index: number,
+    replacedAt: string,
+    expected: string
+  ) => Promise<string | null>;
   /** «Изменить» у ссылки в квитанции: снова открыть вопрос о ссылке. */
   onChangeLink?: () => void;
 }) {
@@ -97,6 +104,14 @@ export function PieceCoreTab({
   const v = voiceCopy[locale];
   const core = detail.core;
   const [factSaving, setFactSaving] = useState<string | null>(null);
+  /*
+    Review of 97dq.81-85, P3-4: a rebuild, a restore and an open hand edit
+    each move the core. While one runs, the others are off — the server would
+    refuse them with «уже пересобирается», or refuse every autosave of a
+    draft started from the text a restore replaced.
+  */
+  const [coreRebuilding, setCoreRebuilding] = useState(false);
+  const [coreEditing, setCoreEditing] = useState(false);
   const [factError, setFactError] = useState<{
     key: string;
     message: string;
@@ -281,8 +296,9 @@ export function PieceCoreTab({
                   locale={locale}
                   text={core.text}
                   editedByYou={core.editedBy === 'person'}
-                  disabled={!canWrite || busy}
+                  disabled={!canWrite || busy || coreRebuilding}
                   onSave={onCoreSave}
+                  onEditingChange={setCoreEditing}
                 >
                   {article}
                 </CoreTextEdit>
@@ -312,10 +328,21 @@ export function PieceCoreTab({
 
           {actionRow}
 
+          {core?.text && core.revisions?.length ? (
+            <CoreVersions
+              locale={locale}
+              current={core.text}
+              revisions={core.revisions}
+              disabled={!canWrite || busy || coreRebuilding || coreEditing}
+              onRestore={onCoreRestore}
+            />
+          ) : null}
+
           {core && onMaterialAdd && onCoreRebuild ? (
             <AddMaterial
               locale={locale}
-              disabled={!canWrite || busy}
+              disabled={!canWrite || busy || coreEditing}
+              onRebuildingChange={setCoreRebuilding}
               addedCount={core.addedMaterial?.length ?? 0}
               pending={core.materialPending === true}
               onAdd={onMaterialAdd}
@@ -502,6 +529,11 @@ export function PieceCoreTab({
                     ) : (
                       <span>{t.receiptPostLinkNone}</span>
                     )}
+                    {core.postLink.url && core.postLink.text ? (
+                      <span data-piece-post-link-text="true">
+                        {t.quoted(core.postLink.text)}
+                      </span>
+                    ) : null}
                     <span className="cf-caption text-cf-ink-muted">
                       {`· ${i.originPerson}`}
                     </span>

@@ -93,3 +93,19 @@ test.each(LOCALES)('%s carries every key the dialog reads', (locale) => {
     expect(bundle[key].trim()).not.toBe('');
   }
 });
+
+/**
+ * `content-factory-next-fn33.149`: a role refusal that reached the browser as
+ * the bare `{"section":"editor","action":"create"}` — no `message`, no `code`
+ * — was swallowed without a word. The body's section now picks the sentence,
+ * and that sentence is one the table above translates.
+ */
+test('a bare role refusal body still gets its sentence', () => {
+  const table = screen.slice(
+    screen.indexOf('const ROLE_SECTION_REFUSALS'),
+    screen.indexOf('};', screen.indexOf('const ROLE_SECTION_REFUSALS'))
+  );
+  expect(table).toContain(`admin:\n    '${ROLE_REFUSALS[0]}'`);
+  expect(table).toContain(`editor:\n    '${ROLE_REFUSALS[1]}'`);
+  expect(screen).toMatch(/ROLE_SECTION_REFUSALS\[body\.section\]/u);
+});

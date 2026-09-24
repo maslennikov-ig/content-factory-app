@@ -27,6 +27,8 @@ export const ONBOARDING_PROGRESS_API = '/onboarding/progress';
 export type OnboardingProgress = {
   channels: number;
   voiceSamples: number;
+  /** Avatars with an active version, however they were made (fn33.157). */
+  avatars: number;
   facts: number;
   /** Chosen facts stored with current CORE pieces, outside `ContentFact`. */
   pieceFacts: number;
@@ -39,6 +41,7 @@ export type OnboardingProgress = {
 export const EMPTY_PROGRESS: OnboardingProgress = {
   channels: 0,
   voiceSamples: 0,
+  avatars: 0,
   facts: 0,
   pieceFacts: 0,
   pieces: 0,
@@ -61,6 +64,7 @@ export function readProgress(body: unknown): OnboardingProgress {
   return {
     channels: count(record.channels),
     voiceSamples: count(record.voiceSamples),
+    avatars: count(record.avatars),
     facts: count(record.facts),
     pieceFacts: count(record.pieceFacts),
     pieces: count(record.pieces),
@@ -133,7 +137,9 @@ export function stepIsDone(
     case 'channel':
       return progress.channels > 0;
     case 'voice':
-      return progress.voiceSamples > 0;
+      // An avatar in use is the voice set, whichever path built it: the
+      // hand-filled one collects no samples at all (fn33.157).
+      return progress.avatars > 0 || progress.voiceSamples > 0;
     case 'fact':
       return progress.facts > 0 || progress.pieceFacts > 0;
     case 'brief':

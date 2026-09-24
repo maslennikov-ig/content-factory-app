@@ -29,6 +29,12 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export const FLEX_ATTEMPT_TIMEOUT_MS = 180_000;
 /** The deadline a standard call has had since `ai.clients.ts` gained one. */
 export const STANDARD_ATTEMPT_TIMEOUT_MS = 60_000;
+/**
+ * An interactive chat waits on flex for its first token at most this long
+ * (review F8 of the fourteenth walk). For a stream the deadline ends at the
+ * first event, so this is time to first token, not the length of the answer.
+ */
+export const INTERACTIVE_FLEX_TIMEOUT_MS = 25_000;
 /** Time the SDK allows beyond the attempts themselves, for reading the body. */
 const CHAIN_BUDGET_MARGIN_MS = 5_000;
 
@@ -79,6 +85,13 @@ export interface TextChainSource {
    * picture to GLM would return text where an image was expected.
    */
   passthroughModels?: readonly string[];
+  /**
+   * `interactive` — a person is waiting on the screen (the copilot chat,
+   * `97dq.63`): one flex attempt with a short time-to-first-token deadline,
+   * then standard, then the fallback model. Background text keeps the
+   * default: two long flex attempts before standard.
+   */
+  profile?: 'background' | 'interactive';
 }
 
 export interface TextAttempt {
@@ -128,10 +141,14 @@ export const planTextAttempts = (
   const settings = source.textChain ?? defaultTextChainSettings();
   const steps: Array<Omit<TextAttempt, 'number'>> = [];
   if (settings.flex && flexCapable(model)) {
-    steps.push(
-      { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS },
-      { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS }
-    );
+    if (source.profile === 'interactive') {
+      steps.push({ model, flex: true, timeoutMs: INTERACTIVE_FLEX_TIMEOUT_MS });
+    } else {
+      steps.push(
+        { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS },
+        { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS }
+      );
+    }
   }
   steps.push({ model, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS });
   const fallback = settings.fallbackModel.trim();
@@ -233,6 +250,23 @@ export interface TextCallUsage {
   reasoningTokens?: number;
   cachedTokens?: number;
   costUsd?: number;
+  /**
+   * An attempt that did not serve the call (correctness review F15,
+   * `97dq.66`): refused, failed in transport or out of time. It carries no
+   * tokens and no cost, because the provider never reported any to us.
+   */
+  failed?: boolean;
+  /**
+   * The request left and no answer came back in time (a deadline or a
+   * transport failure after sending). The provider may still have billed it,
+   * so the operation's `costUsd` is a lower bound when any call has this.
+   *
+   * In memory only (review F7 of the fourteenth walk): `AiUsageRecord` has
+   * no column and no JSON field for it, and this wave changes no schema, so
+   * `columns()` does not carry it and a stored `costUsd` never says it is a
+   * lower bound. Persisting it needs a schema change of its own.
+   */
+  possiblyBilled?: boolean;
 }
 
 /** The additive `AiUsageRecord` columns, for one operation. */
@@ -271,10 +305,18 @@ export class TextUsageLedger {
     this.calls.push(call);
   }
 
+  /**
+   * Failed attempts are kept too (review F15): an operation that never got an
+   * answer still says how far down the chain it went. Model, tier and attempt
+   * come from the served calls when there are any — the model column means
+   * «the model that answered» — else from the furthest failed attempt.
+   */
   columns(): TextUsageColumns | undefined {
     if (!this.calls.length) return undefined;
-    let deciding = this.calls[0];
-    for (const call of this.calls) {
+    const served = this.calls.filter((call) => !call.failed);
+    const pool = served.length ? served : this.calls;
+    let deciding = pool[0];
+    for (const call of pool) {
       if (call.attempt >= deciding.attempt) deciding = call;
     }
     return {
@@ -354,8 +396,28 @@ export const isRetryableFailure = (
   if (attempt.flex && status === 404 && /no endpoints/i.test(message)) {
     return true;
   }
+  if (isFlexRefusal(status, message, attempt)) return true;
   return false;
 };
+
+/**
+ * A flex attempt refused for the tier itself (review F18, `97dq.66`): a 4xx
+ * whose message names `service_tier` or flex, as a model without flex support
+ * would answer. The standard attempt can serve it; another flex attempt
+ * cannot, so the chain skips the rest of flex.
+ */
+export const isFlexRefusal = (
+  status: number | undefined,
+  message: string,
+  attempt: TextAttempt
+): boolean =>
+  attempt.flex &&
+  // A refusal of the request, not a wait: 408/425/429 and «no endpoints» are
+  // flex capacity, which a second flex attempt may still find.
+  (status === 400 || status === 403 || status === 404 || status === 422) &&
+  /service[_ ]?tier|\bflex\b/i.test(message) &&
+  !/no endpoints/i.test(message) &&
+  !RETRYABLE_MESSAGE.test(message);
 
 /** OpenRouter's error envelope: `{error: {code, message}}`. */
 const errorOf = (
@@ -505,7 +567,22 @@ class SseObserver {
 
 /** A failed attempt that the next one may repair. */
 /** Why an attempt was skipped: an HTTP status, or the class of the transport error. */
-type SkipReason = { status?: number; errorClass?: string; message: string };
+type SkipReason = {
+  status?: number;
+  errorClass?: string;
+  message: string;
+  /** The request left and no answer came back (deadline or transport). */
+  possiblyBilled?: boolean;
+};
+
+/** A failed attempt in the ledger: attempt, model and tier, no tokens, no cost. */
+const failedCall = (attempt: TextAttempt, possiblyBilled: boolean): TextCallUsage => ({
+  attempt: attempt.number,
+  model: attempt.model,
+  ...(attempt.flex ? { serviceTier: 'flex' } : {}),
+  failed: true,
+  ...(possiblyBilled ? { possiblyBilled: true } : {}),
+});
 
 class RetryableAttempt extends Error {
   constructor(readonly reason: SkipReason) {
@@ -582,13 +659,19 @@ export const createTextChainFetch = (
     }
     const ledger = currentUsageLedger();
     const streaming = original.stream === true;
+    // An image is decided by the model or the modalities only (review F17):
+    // a text call that carries the web plugin is text, and it is metered.
     const imageRequest =
       (source.passthroughModels ?? []).includes(original.model) ||
       (Array.isArray(original.modalities) &&
-        original.modalities.includes('image')) ||
-      Array.isArray(original.plugins);
+        original.modalities.includes('image'));
+    // A plugin call goes out once, as the SDK built it, and its usage is read.
+    // It does not walk the chain: its caller (the web research fallback) holds
+    // a 20-second budget and a fallback engine of its own, and flex attempts of
+    // three minutes would outlive that budget and bill in the background.
+    const pluginCall = Array.isArray(original.plugins);
 
-    if (!textChainApplies(source) || imageRequest) {
+    if (!textChainApplies(source) || imageRequest || pluginCall) {
       const attempt: TextAttempt = {
         number: 1,
         model: original.model,
@@ -600,7 +683,10 @@ export const createTextChainFetch = (
     }
 
     const attempts = planTextAttempts(original.model, source);
+    let flexRefused = false;
     for (const attempt of attempts) {
+      // A tier refusal will not change on the second flex attempt (F18).
+      if (flexRefused && attempt.flex) continue;
       const startedAt = Date.now();
       try {
         return await runAttempt(
@@ -619,6 +705,12 @@ export const createTextChainFetch = (
           console.warn(
             textChainSkipLine(attempt, attempts.length, error.reason, Date.now() - startedAt)
           );
+          ledger?.record(failedCall(attempt, !!error.reason.possiblyBilled));
+          if (
+            isFlexRefusal(error.reason.status, error.reason.message, attempt)
+          ) {
+            flexRefused = true;
+          }
           continue;
         }
         throw error;
@@ -696,8 +788,12 @@ const runAttempt = async (
   const failure = (error: unknown): never => {
     if (outer?.aborted) throw error;
     const surfaced = deadline.state.timedOut ? new AttemptTimeout() : error;
-    if (last) throw surfaced;
+    if (last) {
+      ledger?.record(failedCall(attempt, true));
+      throw surfaced;
+    }
     throw new RetryableAttempt({
+      possiblyBilled: true,
       errorClass: deadline.state.timedOut
         ? 'AttemptTimeout'
         : (error as { name?: string } | null)?.name || 'Error',
@@ -745,6 +841,7 @@ const runAttempt = async (
       }
       if (retry(response.status, message))
         throw new RetryableAttempt({ status: response.status, message });
+      ledger?.record(failedCall(attempt, false));
       return rebuild(text);
     }
 
@@ -770,6 +867,7 @@ const runAttempt = async (
             status: error.status ?? response.status,
             message: `error in a ${response.status} body: ${error.message}`,
           });
+        ledger?.record(failedCall(attempt, false));
         return rebuild(text);
       }
       ledger?.record(readUsage(payload, attempt));
@@ -807,6 +905,13 @@ const runAttempt = async (
         message: `stream error before the first token: ${early.message}`,
       });
     }
+    // The last attempt's own error event: handed on as it always was, and
+    // kept in the ledger as a failed attempt rather than a served call (F15).
+    const failedEarly = !!early;
+    if (failedEarly) ledger?.record(failedCall(attempt, false));
+    const served = () => {
+      if (!failedEarly) ledger?.record(readUsage(observer.result(), attempt));
+    };
     // Delivered. From here the deadline no longer applies; the caller's own
     // signal still does, through the same controller.
     handedOff = true;
@@ -816,7 +921,7 @@ const runAttempt = async (
         start: (controller) => {
           for (const bytes of held) controller.enqueue(bytes);
           if (ended) {
-            ledger?.record(readUsage(observer.result(), attempt));
+            served();
             controller.close();
           }
         },
@@ -825,7 +930,7 @@ const runAttempt = async (
           const { done, value } = await reader.read();
           if (done) {
             ended = true;
-            ledger?.record(readUsage(observer.result(), attempt));
+            served();
             controller.close();
             return;
           }

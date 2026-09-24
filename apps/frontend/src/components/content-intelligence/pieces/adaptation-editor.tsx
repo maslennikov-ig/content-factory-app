@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import type { Editor } from '@tiptap/react';
 import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react';
+import { documentThemeMode } from '@contentfactory/frontend/components/layout/document-theme';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Hint } from '@contentfactory/react/layout/hint';
@@ -344,9 +345,10 @@ export function AdaptationEditor({
                         // Системный шрифт, а не картинки с cdn.jsdelivr.net:
                         // открытый выбор иначе сообщал бы CDN, кто пишет пост.
                         emojiStyle={EmojiStyle.NATIVE}
+                        // The page's own theme (`document-theme.ts`), not a
+                        // storage key nothing writes.
                         theme={
-                          typeof window !== 'undefined' &&
-                          window.localStorage?.getItem('mode') === 'light'
+                          documentThemeMode() === 'light'
                             ? Theme.LIGHT
                             : Theme.DARK
                         }

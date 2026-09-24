@@ -252,12 +252,34 @@ export const getImageModel = async (organizationId: string) => {
 };
 
 const aiSdkMemo = memo<ReturnType<typeof createOpenAI>>();
+/**
+ * The AI SDK provider behind the copilot chat (`content-factory-next-97dq.63`).
+ *
+ * Its calls leave through the same shared transport as every other text call:
+ * the flex chain where it applies, and usage read into the operation's ledger
+ * everywhere. The transport serves `/chat/completions`, so callers take the
+ * chat model (`provider.chat(model)`); the provider's default call in
+ * `@ai-sdk/openai` 2.x goes to the Responses API, which the chain and the
+ * ledger do not read. The AI SDK sets no request deadline of its own, so the
+ * chain's per-attempt deadlines are the only ones, and the Mastra agent sets
+ * model retries to 0 (`load.tools.service.ts`), so a chain is never repeated
+ * on top of itself.
+ *
+ * A person waits on the chat, so its chain is the interactive one (review F8
+ * of the fourteenth walk): one flex attempt with a 25-second time to first
+ * token, then standard, then the fallback model — never two three-minute
+ * flex waits before the first word.
+ */
 export const getAiSdkProvider = async (organizationId: string) => {
   const config = await requireActiveAiConfig(organizationId);
   return aiSdkMemo(identity(organizationId, config), () =>
     createOpenAI({
       apiKey: config.apiKey,
       ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+      fetch: createTextChainFetch({
+        ...chainSourceOf(config),
+        profile: 'interactive',
+      }),
     })
   );
 };
@@ -703,10 +725,19 @@ export const getWebSearchClient = async (
 
       // The fallback both searches and answers, so it is the `research` role
       // rather than whatever the surrounding operation is drafting with.
+      //
+      // Its web-plugin call is text, and it is metered like every other text
+      // call (review F17, `97dq.66`): the shared transport reads its usage and
+      // sends it once, outside the flex chain, because this caller abandons
+      // the search after its research budget. The SDK gets that budget and no
+      // retries of its own, so an abandoned request is not paid for again.
       return new OpenRouterWebSearch(
         new OpenAI({
           apiKey: config.apiKey,
           baseURL: config.baseUrl,
+          timeout: WEB_SEARCH_TIMEOUT_MS,
+          maxRetries: 0,
+          fetch: createTextChainFetch(chainSourceOf(config)),
         }),
         modelFor('research', config),
         options.maxResults ?? 5

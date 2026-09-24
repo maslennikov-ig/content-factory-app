@@ -267,58 +267,72 @@ If the tools return errors, you would need to rerun it with the right parameters
             serverContext.profile?.mode === 'resolved'
               ? serverContext.profile.versionId
               : undefined;
-          const output = await this._postsService.createPost(
-            organizationId,
-            {
-              date: post.date,
-              type: post.type,
-              shortLink: post.shortLink,
-              tags: [],
-              posts: [
-                {
-                  integration,
-                  group: contentIntelligenceMode
-                    ? (undefined as any)
-                    : makeId(10),
-                  ...(contentIntelligenceMode
-                    ? {
-                        contentContextSnapshotId:
-                          serverContext.contentContextSnapshotId,
-                        brandProfileVersionId,
-                      }
-                    : {}),
-                  settings: post.settings.reduce(
-                    (
-                      acc: AllProvidersSettings,
-                      s: { key: string; value: any }
-                    ) => ({
-                      ...acc,
-                      [s.key]: s.value,
-                    }),
-                    {
-                      __type: integration.providerIdentifier,
-                    } as AllProvidersSettings
-                  ),
-                  value: post.postsAndComments.map((p: any) => ({
-                    content: p.content,
+          let output: any[];
+          try {
+            output = await this._postsService.createPost(
+              organizationId,
+              {
+                date: post.date,
+                type: post.type,
+                shortLink: post.shortLink,
+                tags: [],
+                posts: [
+                  {
+                    integration,
+                    group: contentIntelligenceMode
+                      ? (undefined as any)
+                      : makeId(10),
                     ...(contentIntelligenceMode
                       ? {
-                          usedCitationIds: [
-                            ...new Set<string>(p.citationIds || []),
-                          ],
+                          contentContextSnapshotId:
+                            serverContext.contentContextSnapshotId,
+                          brandProfileVersionId,
                         }
-                      : { id: makeId(10) }),
-                    delay: 0,
-                    image: p.attachments.map((p: any) => ({
-                      id: makeId(10),
-                      path: p,
+                      : {}),
+                    settings: post.settings.reduce(
+                      (
+                        acc: AllProvidersSettings,
+                        s: { key: string; value: any }
+                      ) => ({
+                        ...acc,
+                        [s.key]: s.value,
+                      }),
+                      {
+                        __type: integration.providerIdentifier,
+                      } as AllProvidersSettings
+                    ),
+                    value: post.postsAndComments.map((p: any) => ({
+                      content: p.content,
+                      ...(contentIntelligenceMode
+                        ? {
+                            usedCitationIds: [
+                              ...new Set<string>(p.citationIds || []),
+                            ],
+                          }
+                        : { id: makeId(10) }),
+                      delay: 0,
+                      image: p.attachments.map((p: any) => ({
+                        id: makeId(10),
+                        path: p,
+                      })),
                     })),
-                  })),
-                },
-              ],
-            },
-            'MCP'
-          );
+                  },
+                ],
+              },
+              'MCP'
+            );
+          } catch (error: any) {
+            // The one-queue rule of a Content Factory piece (`97dq.67`): the
+            // chat gets a refusal it can read out, not a raw failure.
+            if (error?.code === 'CF_QUEUE_BUSY') {
+              return {
+                errors: `${
+                  integration.name || integration.providerIdentifier
+                }: another version of this post is already scheduled in this channel. Tell the person to unschedule that version first; nothing was scheduled.`,
+              };
+            }
+            throw error;
+          }
           finalOutput.push(...output);
         }
 

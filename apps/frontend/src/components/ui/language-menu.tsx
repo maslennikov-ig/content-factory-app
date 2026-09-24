@@ -21,6 +21,7 @@ import {
   getLanguageLabel,
   localeParts,
 } from '@contentfactory/frontend/components/layout/language.presentation';
+import { containsIncludingHints } from '@contentfactory/react/layout/hint-portal';
 
 /**
  * Changing the language before there is an account to remember it in.
@@ -118,7 +119,7 @@ export const LanguageMenu: FC<{
   useEffect(() => {
     if (!open) return;
     const dismiss = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (!containsIncludingHints(root.current, event.target)) setOpen(false);
     };
     document.addEventListener('pointerdown', dismiss);
     return () => document.removeEventListener('pointerdown', dismiss);

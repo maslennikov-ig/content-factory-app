@@ -53,10 +53,38 @@ export function normalizePostLink(value: unknown): string | null {
     if (!url.hostname.includes('.')) return null;
     // The parsed form (`97dq.75` review P3-9): what the browser and the
     // channel will actually open, with spaces and quotes encoded.
-    return url.href.length <= POST_LINK_MAX ? url.href : null;
+    // Parentheses too (`97dq.79` review P2-3): `Foo_(bar)` would end
+    // `[words](url)` early and lose its `)` as trailing punctuation of a bare
+    // address; `%28`/`%29` open the same page and stay one clickable link in
+    // every editor.
+    const href = url.href.replace(/\(/gu, '%28').replace(/\)/gu, '%29');
+    return href.length <= POST_LINK_MAX ? href : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * «Текст ссылки» (`97dq.79`, fourteenth walk, B2): the words that carry the
+ * link in a channel that shows links on words. Empty — the writer picks 2–5
+ * meaningful words itself. The longest phrase the product keeps; longer is
+ * not an anchor but a sentence.
+ */
+export const POST_LINK_TEXT_MAX = 80;
+
+/**
+ * The anchor words as the product stores them: one line, spaces collapsed,
+ * no characters that would break `[words](url)` or the prompt's «» fence.
+ * Nothing left — `''`.
+ */
+export function normalizePostLinkText(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/[\[\]()<>«»"`*_]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, POST_LINK_TEXT_MAX)
+    .trim();
 }
 
 /** The stored answer, read defensively: `brief` is JSON of older builds. */
@@ -70,12 +98,23 @@ export function readPostLink(value: unknown): PiecePostLinkV1 | null {
       : new Date(0).toISOString();
   if (record.url === null) return { url: null, origin: 'author', answeredAt };
   const url = normalizePostLink(record.url);
-  return url ? { url, origin: 'author', answeredAt } : null;
+  if (!url) return null;
+  // Answers before `97dq.79` have no `text`: they read as before.
+  const text = normalizePostLinkText(record.text);
+  return { url, origin: 'author', answeredAt, ...(text ? { text } : {}) };
 }
 
-/** The answer to write: an address, or `null` for «Без ссылки». */
-export function postLinkAnswer(url: string | null, answeredAt: string): PiecePostLinkV1 {
-  return { url, origin: 'author', answeredAt };
+/**
+ * The answer to write: an address, or `null` for «Без ссылки». The anchor
+ * words (`97dq.79`) ride only with an address.
+ */
+export function postLinkAnswer(
+  url: string | null,
+  answeredAt: string,
+  text?: unknown
+): PiecePostLinkV1 {
+  const words = url ? normalizePostLinkText(text) : '';
+  return { url, origin: 'author', answeredAt, ...(words ? { text: words } : {}) };
 }
 
 /**
@@ -92,17 +131,25 @@ export function readPostLinkOverride(value: unknown): string {
  * The link that decides for this post: the post's own, else the piece's
  * answer. `undefined` — nobody said anything, and the writer keeps its
  * general rule; `{ url: null }` — no link of its own; `{ url }` — this one.
+ *
+ * `text` (`97dq.79`) — the words that carry it: the post's own «Текст
+ * ссылки» first, else the piece's — but the piece's words only with the
+ * piece's address, never glued to an address the post chose itself.
  */
 export function effectivePostLink(
   core: Pick<ZagotovkaCoreV1, 'postLink'> | null | undefined,
-  override: unknown
-): { url: string | null; from: 'post' | 'piece' } | undefined {
+  override: unknown,
+  overrideText?: unknown
+): { url: string | null; from: 'post' | 'piece'; text?: string } | undefined {
   if (isPostLinkNone(override)) return { url: null, from: 'post' };
+  const ownText = normalizePostLinkText(overrideText);
   const own = normalizePostLink(override);
-  if (own) return { url: own, from: 'post' };
+  if (own) return { url: own, from: 'post', ...(ownText ? { text: ownText } : {}) };
   const answer = core?.postLink;
   if (!answer) return undefined;
-  return { url: answer.url, from: 'piece' };
+  if (!answer.url) return { url: null, from: 'piece' };
+  const text = ownText || normalizePostLinkText(answer.text);
+  return { url: answer.url, from: 'piece', ...(text ? { text } : {}) };
 }
 
 /** Whether a link policy lets a post carry a link at all. */

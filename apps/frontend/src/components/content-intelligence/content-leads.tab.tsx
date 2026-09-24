@@ -1004,9 +1004,13 @@ export function ContentLeadsTab({
         <SkeletonRows rows={3} label={t.loading} className="[&>*]:h-[56px]" />
       ) : subscriptionRows.length === 0 ? (
         <div className="flex flex-col gap-[24px]">
-          <div className="flex flex-col gap-[8px] max-w-[72ch]">
-            <span className="cf-label-sm text-cf-ink-muted">{t.emptyEyebrow}</span>
-            <span className="cf-heading-md text-cf-ink [text-wrap:balance]">{t.emptyTitle}</span>
+          {/*
+            The shared empty state (`97dq.76`, audit §7.5): what is missing
+            as its title, what a subscription would do as its line — no
+            caption over a heading.
+          */}
+          <div className="rounded-[8px] border border-cf-border bg-cf-surface">
+            <EmptyState title={t.emptyEyebrow} description={t.emptyTitle} />
           </div>
           <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3">
             <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">

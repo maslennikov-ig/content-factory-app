@@ -144,6 +144,21 @@ const component = loadTypeScriptModule(
     '../ui/disclosure': require('./helpers/load-tsx.cjs').loadTypeScriptModule(
       'apps/frontend/src/components/ui/disclosure.tsx'
     ),
+    // The shared field name and «?» (`97dq.76`): the real file, with the
+    // same inline `Hint` stand-in the rest of this suite reads.
+    '../ui/field-label': loadTypeScriptModule(
+      'apps/frontend/src/components/ui/field-label.tsx',
+      {
+        '@contentfactory/react/layout/hint': {
+          Hint: ({ children, label }) =>
+            React.createElement(
+              'button',
+              { type: 'button', 'data-hint': label },
+              children
+            ),
+        },
+      }
+    ),
     // Подписи строк «Глобальных настроек» — настоящий файл слов.
     '@contentfactory/frontend/components/settings/settings.copy':
       require('./helpers/load-tsx.cjs').loadTypeScriptModule(

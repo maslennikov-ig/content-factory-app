@@ -182,6 +182,20 @@ export class SourceController {
     return renderSourcePage(this.manifest(), `${publicSourceUrl()}/archive`);
   }
 
+  /**
+   * The release this deployment runs, for «Настройки → О проекте».
+   *
+   * The About panel printed «Версия —» while this page named the commit: the
+   * image is not stamped with `NEXT_PUBLIC_VERSION`, but it does carry the
+   * manifest of its own source (`content-factory-next-fn33.155`). The commit
+   * and build time only — the same facts the public page already shows.
+   */
+  @Get('/version')
+  version(): Pick<SourceManifest, 'commit' | 'shortCommit' | 'builtAt'> {
+    const { commit, shortCommit, builtAt } = this.manifest();
+    return { commit, shortCommit, builtAt };
+  }
+
   @Get('/archive')
   archive(): StreamableFile {
     const manifest = this.manifest();

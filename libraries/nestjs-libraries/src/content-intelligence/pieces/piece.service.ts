@@ -19,6 +19,7 @@ import {
   claimQueries,
 } from './review-claims';
 import { catalogFindingsOf, reviewSupportedOf } from './review-prompt.v5';
+import { emojiCeilingOf } from '../channels/emoji-ceiling';
 import { reviewTextOf } from './review-input';
 import {
   factKind,
@@ -95,6 +96,7 @@ import type {
   PiecePostLinkRequestV1,
   PiecePostLinkV1,
   PieceCoreEditRequestV1,
+  PieceCoreRestoreRequestV1,
   PieceMaterialAppendRequestV1,
   PieceAddedMaterialV1,
   PiecePostSettingsResponseV1,
@@ -136,6 +138,7 @@ import { AiUsageService } from '@contentfactory/nestjs-libraries/openai/ai.usage
 import {
   adaptationState,
   bestCell,
+  withChannelName,
   columnsOf,
   promoteNoChannel,
   kindsOfProvider,
@@ -219,6 +222,8 @@ import {
   planWouldChange,
   postPlanModeOf,
   postSettingsOf,
+  postEmojiLevelOf,
+  effectiveEmojiLevel,
   withPostSettings,
   type PiecePostSettingsV1,
   type PostSettingsPatchV1,
@@ -240,6 +245,7 @@ import {
   editedCoreText,
   readAddedMaterial,
   readCoreRevisions,
+  restoredMaterialPending,
   withRevision,
 } from './core-edit';
 
@@ -250,7 +256,7 @@ import {
   type ResearchLevel,
 } from '@contentfactory/nestjs-libraries/openai/web.research.service';
 import { AdaptationReviewError, reviewConflict,
-  type AdaptationReviewAction, type AdaptationReviewSnapshot } from './adaptation-review.contract';
+  type AdaptationReviewAction } from './adaptation-review.contract';
 import {
   READY_ADAPTATIONS_VERSION,
   type ReadyAdaptationSlotV1,
@@ -259,7 +265,9 @@ import {
 import {
   ADAPTATION_WORKSPACE_ERROR_CODES,
   ADAPTATION_WORKSPACE_MESSAGES,
+  QUEUED_EDIT_MARGIN_MS,
   scheduleRefusalText,
+  QUEUED_EDIT_REFUSAL_TAIL,
   type AdaptationWorkspaceErrorCodeV1,
   type PieceAdaptationEditRequestV1,
   type PieceAdaptationEditResponseV1,
@@ -279,7 +287,9 @@ export type PieceSlopCheckPort = (
   /** Опоры заготовки: точное число из них размытым количеством не считается. */
   grounded?: readonly string[],
   /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
-  supported?: readonly string[]
+  supported?: readonly string[],
+  /** Выбранный потолок эмодзи (`97dq.83`); нет — порог площадки. */
+  emojiCeiling?: number | null
 ) => SlopReportV1 | null;
 
 const defaultSlopCheck: PieceSlopCheckPort = (
@@ -287,9 +297,17 @@ const defaultSlopCheck: PieceSlopCheckPort = (
   platform,
   locale,
   grounded,
-  supported
+  supported,
+  emojiCeiling
 ) =>
-  runSlopCheck(text, { platform, locale, html: false, grounded, supported });
+  runSlopCheck(text, {
+    platform,
+    locale,
+    html: false,
+    grounded,
+    supported,
+    ...(emojiCeiling !== undefined ? { emojiCeiling } : {}),
+  });
 
 const trimmed = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
@@ -485,6 +503,14 @@ export type PieceAdaptPlanV1 = {
    * первая»: план, собранный не `prepareAdapt`, вопроса не задаёт.
    */
   firstOnChannel?: boolean;
+  /**
+   * The post's own emoji level (review P3-6 of `97dq.83`): the request's
+   * override, else the stored «Для этого поста»; absent — the channel card.
+   * Resolved once in `prepareAdapt` by `postEmojiLevelOf`, the same function
+   * the detail/edit/review checks read, so the directive, the write-time
+   * checks and the later checks share one ceiling.
+   */
+  postEmojiLevel?: string;
 };
 
 /**
@@ -553,6 +579,10 @@ const CORE_EDIT_WORDS = {
   rebuildRunning: {
     ru: 'Суть уже пересобирается. Дождитесь, пока закончится.',
     en: 'The core is already being rebuilt. Wait until it finishes.',
+  },
+  revisionMissing: {
+    ru: 'Этой версии больше нет в истории. Обновите страницу.',
+    en: 'This version is no longer in the history. Reload the page.',
   },
   materialFull: {
     ru: 'Материала уже слишком много, чтобы дописывать ещё. Пересоберите суть или начните новую заготовку.',
@@ -686,10 +716,29 @@ const planVariantOf = (row: PlanVariantRow) => ({
  * Место версии в календаре, как его видит экран. Опубликованная, ошибочная и
  * удалённая версии плана не имеют.
  */
-/** Держатели слота среди строк страницы заготовки (`97dq.57`). */
-const holdersOfRows = (rows: readonly AdaptationRow[]): Set<string> =>
-  holderIds(
-    rows.map((row) => ({
+/**
+ * Держатели слота среди строк страницы заготовки (`97dq.57`).
+ *
+ * Режим решает так же, как в календаре (`supersededPostIdsOf`, ревью F6
+ * четырнадцатого захода): под «Без плана» у пары (заготовка, канал) нет слота,
+ * и каждая её версия — текущая, со своей датой. Иначе страница прятала бы дату
+ * у черновика, который календарь показывает.
+ */
+const holdersOfRows = (
+  rows: readonly AdaptationRow[],
+  tags?: unknown,
+  integrations: readonly PieceIntegrationRow[] = []
+): Set<string> => {
+  const free = (row: AdaptationRow) => {
+    const channel = row.post?.integration?.id ?? row.integrationId;
+    if (!channel) return false;
+    const mode =
+      postPlanModeOf(tags, channel) ??
+      planModeOf(integrations.find((one) => one.id === channel)?.planMode);
+    return mode === 'draft';
+  };
+  const holders = holderIds(
+    rows.filter((row) => !free(row)).map((row) => ({
       id: row.id,
       pieceId: row.contentPieceId,
       integrationId: row.post?.integration?.id ?? row.integrationId,
@@ -700,6 +749,9 @@ const holdersOfRows = (rows: readonly AdaptationRow[]): Set<string> =>
       postDeleted: !row.post || !!row.post.deletedAt,
     }))
   );
+  for (const row of rows) if (free(row)) holders.add(row.id);
+  return holders;
+};
 
 /**
  * Где готовая адаптация стоит в календаре — для «Что публикуем» (`97dq.57`).
@@ -755,10 +807,15 @@ const adaptationPlanOf = (
  * Обращение, если его прислал старый клиент, не едет (`97dq.45`).
  */
 const postOverridesOf = (
-  request: PieceAdaptRequestV1 | undefined
+  request: PieceAdaptRequestV1 | undefined,
+  /** The post's own emoji level resolved once (`postEmojiLevelOf`, P3-6). */
+  postEmojiLevel?: string
 ): IntakePostOverridesV1 | null => {
-  const overrides = request?.overrides;
-  if (!overrides) return null;
+  const overrides = {
+    ...(request?.overrides ?? {}),
+    ...(postEmojiLevel ? { emojiLevel: postEmojiLevel } : {}),
+  } as NonNullable<PieceAdaptRequestV1['overrides']>;
+  if (!request?.overrides && !postEmojiLevel) return null;
   const wish = trimmed(overrides.wish);
   const takeaway = trimmed(overrides.takeaway);
   const lengthPolicy = postLengthOf(overrides);
@@ -984,6 +1041,7 @@ export class PieceService {
     );
     const byPiece = this.group(adaptations);
     const columns = columnsOf(integrations, adaptations);
+    const channelNames = new Map(integrations.map((one) => [one.id, one.name]));
     /*
       Сначала внутренний индекс, потом поиск по словам через базу
       (`content-factory-next-m2eg.19`). Индекс знает стемминг — «сроки»
@@ -1015,7 +1073,10 @@ export class PieceService {
         появлялось ни разу.
       */
       const cells = columns.map((column) =>
-        promoteNoChannel(bestCell(column.platform, mine), column)
+        withChannelName(
+          promoteNoChannel(bestCell(column.platform, mine), column),
+          channelNames
+        )
       );
       if (piece.archivedAt && !query.includeArchived) continue;
       if (matched && !matched.has(piece.id)) continue;
@@ -1063,8 +1124,12 @@ export class PieceService {
     ]);
     const index = order.findIndex((row) => row.id === pieceId);
     const columns = columnsOf(integrations, adaptations);
+    const channelNames = new Map(integrations.map((one) => [one.id, one.name]));
     const cells = columns.map((column) =>
-      promoteNoChannel(bestCell(column.platform, adaptations), column)
+      withChannelName(
+        promoteNoChannel(bestCell(column.platform, adaptations), column),
+        channelNames
+      )
     );
     const core = this.coreOf(piece);
 
@@ -1097,10 +1162,14 @@ export class PieceService {
       scored.map((row) => ({
         text: row.body as string,
         platform: providerOfPlatform(row.platform),
+        emojiCeiling: this.emojiCeilingFor(
+          piece.tags,
+          integrations.find((integration) => integration.id === row.integrationId)
+        ),
       })),
       { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
     );
-    const holders = holdersOfRows(adaptations);
+    const holders = holdersOfRows(adaptations, piece.tags, integrations);
     const checksById = new Map(
       scored.map((row, index) => [row.id, checks[index]])
     );
@@ -1198,10 +1267,16 @@ export class PieceService {
       profile,
       language
     );
+    const postEmojiLevel = postEmojiLevelOf(
+      request?.overrides?.emojiLevel,
+      piece.tags,
+      integration.id
+    );
     return {
       pieceId,
       integrationId,
       firstOnChannel: !earlier.some((row) => row.integrationId === integration.id),
+      ...(postEmojiLevel ? { postEmojiLevel } : {}),
       kind: wanted || kinds[0],
       language,
       request,
@@ -1568,6 +1643,15 @@ export class PieceService {
         // размытым количеством не считается (`97dq.10`).
         grounded: this.groundedOf(plan.core ?? null),
         supported: this.supportedOf(plan.core ?? null),
+        // «До N» этого поста или канала (`97dq.83`).
+        emojiCeiling: emojiCeilingOf(
+          effectiveEmojiLevel(
+            plan.postEmojiLevel || plan.request?.overrides?.emojiLevel,
+            null,
+            plan.channel.id,
+            plan.channel.profile.emojiLevel
+          )
+        ),
       },
       { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
     );
@@ -2178,7 +2262,7 @@ export class PieceService {
         400,
         CORE_EDIT_WORDS.linkInvalid[language]
       );
-    const postLink = postLinkAnswer(url, this.now().toISOString());
+    const postLink = postLinkAnswer(url, this.now().toISOString(), input?.text);
     try {
       await this.briefs!.updateCoreMetadata(organizationId, pieceId, {
         expectedBody: piece.body || '',
@@ -2220,7 +2304,11 @@ export class PieceService {
     const revisions = editStartsRevision(core, this.now())
       ? withRevision(
           core.revisions,
-          { text: core.text, writtenBy: coreAuthorOf(core) },
+          {
+            text: core.text,
+            writtenBy: coreAuthorOf(core),
+            materialPending: core.materialPending === true,
+          },
           savedAt
         )
       : core.revisions ?? [];
@@ -2344,10 +2432,20 @@ export class PieceService {
         language,
         brief: selectedFactsBrief(core.brief),
         answers: core.answers,
-        questionTextByKey: {},
+        // Every answer goes with its question, the model's decisions included.
+        questionTextByKey: Object.fromEntries(
+          core.answers.map((answer) => [
+            answer.key,
+            answer.question || coreQuestionText(answer.key, language),
+          ])
+        ),
         personText: core.personText ?? '',
         instruction: instructionOf(core),
-        ...(core.editedBy === 'person' ? { existingCore: core.text } : {}),
+        // `97dq.85`: the core on the page always goes along — the rebuild
+        // keeps what it carried from the decisions and the author's words,
+        // and the added material gets its own block to be woven in.
+        rebuildFrom: { text: core.text, byPerson: core.editedBy === 'person' },
+        addedMaterial: (core.addedMaterial ?? []).map((entry) => entry.text),
         borrowed: (piece.brief as any)?.borrowed ?? null,
         foreignShingles: this.foreignShinglesOf(piece),
       },
@@ -2365,7 +2463,11 @@ export class PieceService {
       );
     const revisions = withRevision(
       core.revisions,
-      { text: core.text, writtenBy: coreAuthorOf(core) },
+      {
+        text: core.text,
+        writtenBy: coreAuthorOf(core),
+        materialPending: core.materialPending === true,
+      },
       this.now().toISOString()
     );
     try {
@@ -2393,6 +2495,89 @@ export class PieceService {
       throw this.coreChanged(language);
     }
     return { text: rewritten.text, revisions: revisions.length };
+  }
+
+  /**
+   * «Вернуть эту версию» (`97dq.85`): a stored core text becomes the core
+   * again, and the text it replaces joins `revisions` — restoring is itself a
+   * new revision, so nothing is lost either way. The same guards as a hand
+   * edit: `expected` must be the core on the page, the row must not move
+   * under the write, and a running rebuild wins. No model call.
+   *
+   * What changes with the text (review of 97dq.81-85, P3-2): who wrote it,
+   * the stock-phrase check, and whether added material is waiting
+   * (`restoredMaterialPending`). What stays is the piece's material — the
+   * brief, the answers and the model's decisions the receipt shows. They
+   * describe what the piece knows, not one text: restoring an older text does
+   * not un-answer a question or un-decide a field, exactly as a hand edit
+   * does not, and the next rebuild reads them again. `authorNumbers` is read
+   * from the author's words and answers, so it stays true for any text.
+   */
+  async restoreCore(
+    organizationId: string,
+    pieceId: string,
+    input: PieceCoreRestoreRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<{ text: string; revisions: number }> {
+    if (this.rebuilding.has(`${organizationId}:${pieceId}`))
+      throw new AdaptationReviewError(
+        'PIECE_REBUILD_RUNNING',
+        409,
+        CORE_EDIT_WORDS.rebuildRunning[language]
+      );
+    const { piece, core } = await this.editablePiece(organizationId, pieceId, language);
+    if (editedCoreText(input?.expected ?? '') !== editedCoreText(core.text))
+      throw this.coreChanged(language);
+    const chosen = Number.isInteger(input?.index)
+      ? core.revisions?.[input.index]
+      : undefined;
+    if (!chosen || chosen.replacedAt !== input?.replacedAt || !chosen.text.trim())
+      throw new AdaptationReviewError(
+        'PIECE_CORE_CHANGED',
+        409,
+        CORE_EDIT_WORDS.revisionMissing[language]
+      );
+    const at = this.now().toISOString();
+    if (chosen.text === core.text)
+      return { text: core.text, revisions: core.revisions?.length ?? 0 };
+    const revisions = withRevision(
+      core.revisions,
+      {
+        text: core.text,
+        writtenBy: coreAuthorOf(core),
+        materialPending: core.materialPending === true,
+      },
+      at
+    );
+    const byPerson = chosen.writtenBy === 'person';
+    // The restored text did not read material added after it (P2-2).
+    const materialPending = restoredMaterialPending(
+      core.revisions ?? [],
+      input.index,
+      core.addedMaterial ?? []
+    );
+    try {
+      await this.pieces.acceptCoreReview(
+        organizationId,
+        pieceId,
+        { body: piece.body, title: piece.title, brief: piece.brief },
+        chosen.text,
+        piece.title,
+        {
+          ...((piece.brief as Record<string, unknown>) ?? {}),
+          slop: runSlopCheck(chosen.text, { platform: 'core', locale: language }),
+          ...(byPerson ? {} : { writtenBy: chosen.writtenBy }),
+          editedBy: byPerson ? 'person' : undefined,
+          // No edit session carries over: the next hand edit keeps this text.
+          editedAt: undefined,
+          materialPending: materialPending ? true : undefined,
+          revisions,
+        }
+      );
+    } catch {
+      throw this.coreChanged(language);
+    }
+    return { text: chosen.text, revisions: revisions.length };
   }
 
   async prepareAnswer(
@@ -2897,9 +3082,9 @@ export class PieceService {
     const materialMeanwhile = (current.personText ?? '') !== (before.personText ?? '');
     let revisions = current.revisions;
     if (rewritten && before.editedBy === 'person')
-      revisions = withRevision(revisions, { text: before.text, writtenBy: 'person' }, now);
+      revisions = withRevision(revisions, { text: before.text, writtenBy: 'person', materialPending: before.materialPending === true }, now);
     if (rewritten && editedMeanwhile)
-      revisions = withRevision(revisions, { text: current.text, writtenBy: coreAuthorOf(current) }, now);
+      revisions = withRevision(revisions, { text: current.text, writtenBy: coreAuthorOf(current), materialPending: current.materialPending === true }, now);
     const merged: ZagotovkaCoreV1 = {
       ...core,
       ...(rewritten
@@ -2934,6 +3119,49 @@ export class PieceService {
   }
 
   /** `ZagotovkaCoreV1` без `text`: текст живёт в колонке `body`. */
+  /**
+   * The emoji ceiling a channel's post is written to (`97dq.83`): the post's
+   * own «Эмодзи» from the piece's settings, else the channel card. The text
+   * checks honour it, so «до 3» with three kinds is not «decoration».
+   */
+  private emojiCeilingFor(
+    tags: unknown,
+    integration: PieceIntegrationRow | undefined
+  ): number | null | undefined {
+    if (!integration) return undefined;
+    return emojiCeilingOf(
+      effectiveEmojiLevel(
+        undefined,
+        tags,
+        integration.id,
+        parseWritingProfile(
+          integration.writingProfile,
+          integration.providerIdentifier,
+          integration.contentLanguage
+        ).emojiLevel
+      )
+    );
+  }
+
+  /** The same ceiling for a row whose channel is known only by its id. */
+  private async emojiCeilingById(
+    organizationId: string,
+    tags: unknown,
+    integrationId: string | null | undefined
+  ): Promise<number | null | undefined> {
+    if (!integrationId) return undefined;
+    try {
+      const integrations = await this.pieces.listIntegrations(organizationId);
+      return this.emojiCeilingFor(
+        tags,
+        integrations.find((integration) => integration.id === integrationId)
+      );
+    } catch {
+      // The ceiling only widens a warning; without it the platform's stands.
+      return undefined;
+    }
+  }
+
   private storedCore(core: ZagotovkaCoreV1): Record<string, unknown> {
     const { text, ...stored } = core;
     void text;
@@ -3010,6 +3238,48 @@ export class PieceService {
     return { draft, post };
   }
 
+  /**
+   * Версия, которую можно править руками (`97dq.80`): черновик — как
+   * раньше, и пост в очереди, пока до его слота больше
+   * `QUEUED_EDIT_MARGIN_MS`. Публикация читает текст поста из базы в момент
+   * выхода, поэтому правка меняет только текст и картинку: дата, состояние
+   * и начатая публикация остаются как были — ни перезапуска, ни второй
+   * очереди. Пост, который уже уходит или вышел, — отказ
+   * `ADAPTATION_EDIT_CLOSED` простыми словами. Удалённый или заменённый
+   * пост — `ADAPTATION_POST_GONE`, ошибка публикации — `ADAPTATION_POST_FAILED`
+   * (ревью P3-3: не «снимите с расписания» там, где снимать нечего).
+   */
+  private async editableForWorkspace(
+    organizationId: string,
+    pieceId: string,
+    adaptationId: string,
+    language: 'ru' | 'en'
+  ) {
+    const draft = await this.pieces.workspaceDraft(
+      organizationId,
+      pieceId,
+      adaptationId
+    );
+    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
+    const post = draft.post;
+    const state = String(post?.state || '').toUpperCase();
+    if (!post || post.deletedAt) throw workspaceError('ADAPTATION_POST_GONE', language);
+    if (state === 'DRAFT') return { draft, post };
+    if (state === 'ERROR') throw workspaceError('ADAPTATION_POST_FAILED', language);
+    if (state === 'QUEUE') {
+      const at = post.publishDate ? new Date(post.publishDate as any) : null;
+      if (
+        at &&
+        !Number.isNaN(at.getTime()) &&
+        at.getTime() > this.now().getTime() + QUEUED_EDIT_MARGIN_MS
+      )
+        return { draft, post };
+      throw workspaceError('ADAPTATION_EDIT_CLOSED', language);
+    }
+    if (state === 'PUBLISHED') throw workspaceError('ADAPTATION_EDIT_CLOSED', language);
+    throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+  }
+
   /** Одна адаптация, как её показывает страница, — после записи. */
   private async adaptationAfterWrite(
     organizationId: string,
@@ -3018,9 +3288,13 @@ export class PieceService {
     language: 'ru' | 'en',
     checks?: AdaptationChecksV1
   ): Promise<AdaptationV1> {
-    const [integrations, rows] = await Promise.all([
+    const [integrations, rows, piece] = await Promise.all([
       this.pieces.listIntegrations(organizationId),
       this.pieces.adaptationsByPiece(organizationId, [pieceId]),
+      // The post's own plan mode lives in the piece's tags (F6).
+      Promise.resolve()
+        .then(() => this.pieces.getPiece(organizationId, pieceId))
+        .catch(() => null),
     ]);
     const row = rows.find((one) => one.id === adaptationId);
     if (!row) throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
@@ -3029,12 +3303,13 @@ export class PieceService {
       pieceId,
       integrations,
       checks,
-      holdersOfRows(rows)
+      holdersOfRows(rows, piece?.tags, integrations)
     );
   }
 
   /**
    * Ручная правка адаптации: тело и/или картинка (спецификация §3.5).
+   * Черновик и, с `97dq.80`, пост в очереди до слота (`editableForWorkspace`).
    *
    * «Ручное редактирование поста — классная штука, оно точно должно быть»
    * (владелец, 22.09.2026). Тело адаптации и HTML её черновика пишутся одной
@@ -3059,7 +3334,7 @@ export class PieceService {
     }
     const piece = await this.pieces.getPiece(organizationId, pieceId);
     if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
-    const { draft, post } = await this.draftForWorkspace(
+    const { draft, post } = await this.editableForWorkspace(
       organizationId,
       pieceId,
       adaptationId,
@@ -3099,18 +3374,52 @@ export class PieceService {
       }
     }
 
+    // Пост в очереди уйдёт в канал как есть, поэтому правка проходит ту же
+    // проверку площадки, что и «Запланировать» (ревью P2-1): длина, вложение,
+    // настройки. Отказ — словами площадки, запись не делается.
+    if (String(post.state || '').toUpperCase() === 'QUEUE') {
+      const refusal = await this.queueRefusal(
+        organizationId,
+        {
+          ...post,
+          content: change.content ?? post.content,
+          image: change.image ?? post.image,
+        },
+        language
+      );
+      if (refusal) {
+        throw Object.assign(
+          new AdaptationReviewError(
+            'ADAPTATION_SCHEDULE_INVALID',
+            ADAPTATION_WORKSPACE_ERROR_CODES.ADAPTATION_SCHEDULE_INVALID.status,
+            `${refusal.text} ${QUEUED_EDIT_REFUSAL_TAIL[language]}`
+          ),
+          { subject: post.integration.providerIdentifier }
+        );
+      }
+    }
+
     try {
       await this.pieces.editAdaptation(
         organizationId,
         pieceId,
         adaptationId,
         post.id,
-        change
+        change,
+        // Пост в очереди — только пока до слота больше минуты (`97dq.80`):
+        // то же условие ещё раз в самой записи, против гонки с отправкой.
+        new Date(this.now().getTime() + QUEUED_EDIT_MARGIN_MS)
       );
     } catch (error) {
       const reason = (error as any)?.reason;
       if (reason === 'ADAPTATION_NOT_DRAFT')
         throw workspaceError('ADAPTATION_NOT_DRAFT', language);
+      if (reason === 'ADAPTATION_EDIT_CLOSED')
+        throw workspaceError('ADAPTATION_EDIT_CLOSED', language);
+      if (reason === 'ADAPTATION_POST_GONE')
+        throw workspaceError('ADAPTATION_POST_GONE', language);
+      if (reason === 'ADAPTATION_POST_FAILED')
+        throw workspaceError('ADAPTATION_POST_FAILED', language);
       if (reason === 'ADAPTATION_NOT_FOUND')
         throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId);
       throw error;
@@ -3129,6 +3438,11 @@ export class PieceService {
             foreignShingles: this.foreignShinglesOf(piece),
             grounded: this.groundedOf(core),
             supported: this.supportedOf(core),
+            emojiCeiling: await this.emojiCeilingById(
+              organizationId,
+              piece.tags,
+              post.integration?.id
+            ),
           },
           { slopCheck: this.slopCheck, voiceCheck: this.voiceCheck }
         )
@@ -3253,6 +3567,10 @@ export class PieceService {
       } catch (error) {
         if (error instanceof QueueStartFailed)
           throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+        // `changePostStatus` goes through the Postiz-side queue gate
+        // (`97dq.67`); its refusal speaks this workspace's language here.
+        if ((error as { code?: string })?.code === 'CF_QUEUE_BUSY')
+          throw workspaceError('ADAPTATION_QUEUE_BUSY', language);
         throw error;
       }
     } else {
@@ -3333,12 +3651,28 @@ export class PieceService {
       // возврат не поставит обратно пост, который человек только что снял.
       const integrationId = post.integration.id;
       await this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
-        const mine = (await db.channelVariants(organizationId, pieceId, integrationId)).find(
-          (one) => one.id === adaptationId
-        );
+        const variants = await db.channelVariants(organizationId, pieceId, integrationId);
+        const mine = variants.find((one) => one.id === adaptationId);
         if (!mine?.post || mine.post.deletedAt || upperState(mine.post.state) !== 'QUEUE')
           throw workspaceError('ADAPTATION_NOT_QUEUED', language);
         await db.setPostState(organizationId, mine.post.id, { state: 'DRAFT' });
+        // Review F10 (`97dq.64`): a queued variant that was not the slot
+        // holder would turn into a superseded draft and vanish from the
+        // calendar the moment the person unscheduled it, so it takes the
+        // slot — but only from a holder that has no draft on the calendar
+        // (review F6 of the fourteenth walk). A holder's live draft is the
+        // version the person last chose or wrote; unscheduling another one
+        // must not hide it. Then the unscheduled version goes back to the
+        // drafts of the piece page, which is what «снять» asks for.
+        const holder = this.holderOf(variants);
+        const holderDraftShown =
+          !!holder &&
+          holder.id !== adaptationId &&
+          !!holder.post &&
+          !holder.post.deletedAt &&
+          upperState(holder.post.state) === 'DRAFT';
+        if (holder?.id !== adaptationId && !holderDraftShown)
+          await db.setPlan(organizationId, adaptationId, { plannedAt: this.now() });
         // Снятый человеком пост — уже не очередь автопилота (метка I5 снята).
         await db.setPlan(organizationId, adaptationId, { plan: 'reserve' }, 'autopilot');
       });
@@ -4025,6 +4359,8 @@ export class PieceService {
      * считаться одними порогами (`content-factory-next-97dq.3`, P2-17).
      */
     let platform = 'core';
+    // «До N» поста или канала (`97dq.83`): у сути потолка нет.
+    let emojiCeiling: number | null | undefined;
     if (adaptationId) {
       const draft = await this.pieces.reviewDraft(
         organizationId,
@@ -4039,6 +4375,11 @@ export class PieceService {
         draft.post.integration.providerIdentifier
       );
       platform = providerOfPlatform(draft.post.integration.providerIdentifier);
+      emojiCeiling = await this.emojiCeilingById(
+        organizationId,
+        piece.tags,
+        draft.post.integration.id
+      );
       text = reviewTextOf(draft, provider.editor);
       snapshot = {
         adaptationTitle: draft.title ?? null,
@@ -4152,7 +4493,8 @@ export class PieceService {
           // Те же опоры, что у обычного хода проверки (`97dq.10`): одно число
           // о тексте не должно зависеть от того, нашёлся ли запрос к поиску.
           this.groundedOf(core ?? null),
-          this.supportedOf(core ?? null)
+          this.supportedOf(core ?? null),
+          emojiCeiling
         );
         const nothingFound = found.extracted === 0;
         return sign({
@@ -4219,6 +4561,7 @@ export class PieceService {
         facts: core ? selectedFactsBrief(core.brief).facts : [],
         language,
         platform,
+        ...(emojiCeiling !== undefined ? { emojiCeiling } : {}),
         sources,
       },
       this.aiUsage,
@@ -4310,16 +4653,6 @@ export class PieceService {
       title,
       stored
     );
-  }
-  async acceptAdaptationReview(organizationId: string, pieceId: string, adaptationId: string,
-    input: { text: string; snapshot: AdaptationReviewSnapshot }) {
-    const draft = await this.pieces.reviewDraft(organizationId, pieceId, adaptationId);
-    if (!draft) throw pieceError('ADAPTATION_NOT_FOUND', 'ru', adaptationId);
-    if (!draft.post || draft.post.state !== 'DRAFT' || draft.post.deletedAt) throw reviewConflict();
-    if (!input.text.trim()) throw new AdaptationReviewError('ADAPTATION_REVIEW_EMPTY', 400, 'Исправленный текст пуст.');
-    const provider = this.integrationManager.getSocialIntegration(draft.post.integration.providerIdentifier);
-    return this.pieces.acceptReview(organizationId, pieceId, adaptationId, input.snapshot,
-      input.text, renderedPost(input.text, provider.editor));
   }
 
   async archive(
@@ -4930,9 +5263,18 @@ export class PieceService {
     );
     // The author's link (`97dq.75`): the post's own «Ссылка для поста», else
     // the piece's answer. Nobody answered — the writer keeps its general rule.
-    const link = effectivePostLink(plan.core, plan.request?.overrides?.postLink);
+    const link = effectivePostLink(
+      plan.core,
+      plan.request?.overrides?.postLink,
+      plan.request?.overrides?.postLinkText
+    );
+    // «Текст ссылки» (`97dq.79`, hints `v3`): the words that carry the link.
     const authorLink = link
-      ? { url: link.url, ...(link.from === 'post' ? { forPost: true } : {}) }
+      ? {
+          url: link.url,
+          ...(link.from === 'post' ? { forPost: true } : {}),
+          ...(link.url && link.text ? { text: link.text } : {}),
+        }
       : null;
     return {
       version: INTAKE_HINTS_VERSION,
@@ -4954,7 +5296,9 @@ export class PieceService {
       ...(formatHint ? { formatHint } : {}),
       ...(plan.core?.keepLinks?.length ? { keepLinks: [...plan.core.keepLinks] } : {}),
       ...(authorLink ? { authorLink } : {}),
-      ...(postOverridesOf(plan.request) ? { post: postOverridesOf(plan.request)! } : {}),
+      ...(postOverridesOf(plan.request, plan.postEmojiLevel)
+        ? { post: postOverridesOf(plan.request, plan.postEmojiLevel)! }
+        : {}),
       ...(plan.foreignShingles.length
         ? { foreignShingles: plan.foreignShingles }
         : {}),

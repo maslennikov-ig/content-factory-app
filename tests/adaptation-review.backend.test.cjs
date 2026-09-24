@@ -109,7 +109,6 @@ beforeEach(() => {
   repository = {
     getPiece: jest.fn(async () => piece),
     reviewDraft: jest.fn(async () => draft()),
-    acceptReview: jest.fn(async () => ({ accepted: true })),
     acceptReviewV2: jest.fn(async () => ({ accepted: true })),
   };
   usage = {
@@ -165,27 +164,50 @@ test('research mode, missing tenant piece, missing adaptation and published draf
   expect(usage.executeAiOperation).not.toHaveBeenCalled();
   expect(calls).toHaveLength(0);
 });
+/*
+  `content-factory-next-97dq.18`: the accept door is `acceptReviewV2`; the old
+  `acceptAdaptationReview` took client text and no route reached it. Its
+  checks live here, through the signed review the page actually accepts.
+*/
 test('accept writes escaped editor content, no model, preserves snapshot', async () => {
-  const snapshot = {
-    postId: 'post',
-    postUpdatedAt: stamp.toISOString(),
-    postContent: 'old',
-    adaptationUpdatedAt: stamp.toISOString(),
-    adaptationBody: 'old',
+  process.env.JWT_SECRET = 'test-review-key';
+  output = {
+    changes: [
+      {
+        id: 'u',
+        excerpt: 'Новый ручной текст',
+        replacement: '<unsafe> & text',
+        why: 'Проверка',
+        basket: 'show',
+      },
+    ],
+    verdict: 'review',
+    summary: '',
   };
-  await service.acceptAdaptationReview('org', 'piece', 'adaptation', {
-    text: '<unsafe> & text',
-    snapshot,
+  const result = await service.reviewV2('org', 'piece', 'adaptation', { mode: 'slop' });
+  const spent = calls.length;
+  const aiOperations = usage.executeAiOperation.mock.calls.length;
+  await service.acceptReviewV2('org', 'piece', 'adaptation', {
+    token: result.token,
+    selectedIds: ['u'],
   });
-  expect(repository.acceptReview).toHaveBeenCalledWith(
-    'org',
-    'piece',
-    'adaptation',
-    snapshot,
-    '<unsafe> & text',
-    '<p>&lt;unsafe&gt; &amp; text</p>'
-  );
-  expect(calls).toHaveLength(0);
+  const [org, pieceId, adaptationId, snapshot, body, content] =
+    repository.acceptReviewV2.mock.calls[0];
+  expect([org, pieceId, adaptationId]).toEqual(['org', 'piece', 'adaptation']);
+  expect(body).toBe('<unsafe> & text');
+  expect(content).toBe('<p>&lt;unsafe&gt; &amp; text</p>');
+  // The snapshot is the one the review read, not a fresh read at accept time.
+  expect(snapshot).toMatchObject({
+    postId: 'post',
+    postContent: '<p>Новый ручной текст</p>',
+    adaptationBody: 'Старый текст',
+  });
+  expect(calls).toHaveLength(spent);
+  expect(usage.executeAiOperation).toHaveBeenCalledTimes(aiOperations);
+});
+test('the dead accept door is gone (97dq.18)', () => {
+  expect(PieceService.prototype.acceptAdaptationReview).toBeUndefined();
+  expect(PieceRepository.prototype.acceptReview).toBeUndefined();
 });
 function database() {
   let state = {
@@ -195,6 +217,7 @@ function database() {
       id: 'a',
       postId: 'post',
       body: 'old',
+      title: 'Заголовок',
       updatedAt: stamp,
     },
     post: {
@@ -241,10 +264,12 @@ const snapshot = {
   postContent: 'old post',
   adaptationUpdatedAt: stamp.toISOString(),
   adaptationBody: 'old',
+  adaptationTitle: 'Заголовок',
 };
+// Through `acceptReviewV2`, the one accept the service calls (`97dq.18`).
 test('transaction updates both draft and derivation', async () => {
   const db = database();
-  await db.repo.acceptReview('org', 'piece', 'a', snapshot, 'new', 'new post');
+  await db.repo.acceptReviewV2('org', 'piece', 'a', snapshot, 'new', 'new post', 'Заголовок');
   expect(db.get().adaptation.body).toBe('new');
   expect(db.get().post.content).toBe('new post');
 });
@@ -256,6 +281,7 @@ test.each([
   'postId',
   'tenant',
   'adaptation',
+  'title',
 ])('changed %s rejects and rolls back the entire acceptance', async (field) => {
   const db = database();
   if (field === 'content') db.get().post.content = 'human edit';
@@ -264,15 +290,17 @@ test.each([
   if (field === 'deletedAt') db.get().post.deletedAt = stamp;
   if (field === 'postId') db.get().adaptation.postId = 'replacement';
   if (field === 'adaptation') db.get().adaptation.body = 'newer';
+  if (field === 'title') db.get().adaptation.title = 'Чужой заголовок';
   const before = structuredClone(db.get());
   await expect(
-    db.repo.acceptReview(
+    db.repo.acceptReviewV2(
       field === 'tenant' ? 'other' : 'org',
       'piece',
       'a',
       snapshot,
       'new',
-      'new post'
+      'new post',
+      'Заголовок'
     )
   ).rejects.toMatchObject({ code: 'ADAPTATION_REVIEW_STALE' });
   expect(db.get()).toEqual(before);
@@ -478,7 +506,7 @@ test('a search that returned no usable excerpt refuses instead of reviewing with
     )
   ).rejects.toMatchObject({ code: 'REVIEW_WEB_EMPTY', status: 422 });
   expect(reviewCalls()).toHaveLength(0);
-  expect(repository.acceptReview).not.toHaveBeenCalled();
+  expect(repository.acceptReviewV2).not.toHaveBeenCalled();
 });
 
 test('web DTO requires true confirmation; controller forwards it together with request organization', async () => {

@@ -80,6 +80,10 @@ const screenModule = loadTypeScriptModule(
     '../ui/disclosure': require('./helpers/load-tsx.cjs').loadTypeScriptModule(
       'apps/frontend/src/components/ui/disclosure.tsx'
     ),
+    // The shared field name and «?» (`97dq.76`).
+    '../ui/field-label': require('./helpers/load-tsx.cjs').loadTypeScriptModule(
+      'apps/frontend/src/components/ui/field-label.tsx'
+    ),
     '@contentfactory/frontend/components/settings/settings.copy':
       require('./helpers/load-tsx.cjs').loadTypeScriptModule(
         'apps/frontend/src/components/settings/settings.copy.ts'

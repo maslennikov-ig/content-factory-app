@@ -27,24 +27,37 @@ export function FieldLabel({
   className,
   labelClassName = 'cf-label-md text-cf-ink',
   hintSide,
+  headingLevel,
 }: {
   /** The control the label names. Absent — the label is plain text. */
   htmlFor?: string;
   id?: string;
   label: ReactNode;
-  hint: ReactNode;
+  /** Absent — a name with no «?» (a field whose name says it all). */
+  hint?: ReactNode;
   /** «Подсказка: …» — what a screen reader says for the «?». */
-  hintLabel: string;
+  hintLabel?: string;
   className?: string;
   labelClassName?: string;
   hintSide?: 'start' | 'end';
+  /**
+   * The name is a block's heading rather than a field's: it becomes `h3`–`h5`
+   * and the pair a `div` (a heading inside a `span` is not valid HTML).
+   */
+  headingLevel?: 3 | 4 | 5;
 }) {
+  const Wrapper = headingLevel ? 'div' : 'span';
+  const Heading = headingLevel ? (`h${headingLevel}` as const) : null;
   return (
-    <span
+    <Wrapper
       data-field-label="true"
       className={clsx('flex min-w-0 flex-wrap items-center gap-[4px]', className)}
     >
-      {htmlFor ? (
+      {Heading ? (
+        <Heading id={id} className={labelClassName}>
+          {label}
+        </Heading>
+      ) : htmlFor ? (
         <label id={id} htmlFor={htmlFor} className={labelClassName}>
           {label}
         </label>
@@ -53,11 +66,43 @@ export function FieldLabel({
           {label}
         </span>
       )}
-      <Hint label={hintLabel} side={hintSide}>
-        {hint}
-      </Hint>
-    </span>
+      {hint && hintLabel ? (
+        <Hint label={hintLabel} side={hintSide}>
+          {hint}
+        </Hint>
+      ) : null}
+    </Wrapper>
   );
 }
 
 export default FieldLabel;
+
+/**
+ * A field with its name above it: `FieldLabel` and the control, 8px apart.
+ *
+ * Settings and the superadmin AI screen each carried a private copy of this
+ * pair — 6px and 4px apart (`content-factory-next-97dq.76`, audit §4.3).
+ * The control brings its own `id`; the label points at it.
+ */
+export function LabelledField({
+  id,
+  label,
+  hint,
+  hintLabel,
+  className,
+  children,
+}: {
+  id: string;
+  label: ReactNode;
+  hint?: ReactNode;
+  hintLabel?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={clsx('flex min-w-0 flex-col gap-[8px]', className)}>
+      <FieldLabel htmlFor={id} label={label} hint={hint} hintLabel={hintLabel} />
+      {children}
+    </div>
+  );
+}

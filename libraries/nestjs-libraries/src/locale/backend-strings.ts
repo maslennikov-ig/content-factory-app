@@ -934,7 +934,7 @@ const CATALOG = {
   workspace_default_name: {
     en: 'Workspace',
     he: 'סביבת עבודה',
-    ru: 'Рабочая область',
+    ru: 'Рабочее пространство',
     zh: '工作区',
     fr: 'Espace de travail',
     es: 'Espacio de trabajo',

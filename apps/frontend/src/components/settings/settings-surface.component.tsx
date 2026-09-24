@@ -60,7 +60,7 @@ export function SettingsSurface({
         </nav>
         <TabPanel
           value={value}
-          className="flex min-w-0 flex-1 flex-col gap-[16px] overflow-auto bg-cf-canvas p-[20px]"
+          className="flex min-w-0 flex-1 flex-col gap-[16px] overflow-auto bg-cf-canvas cf-page-pad"
         >
           {children}
         </TabPanel>

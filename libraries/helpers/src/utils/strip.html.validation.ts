@@ -34,6 +34,16 @@ const TEXT_ENTITIES = [
 const decodeForText = createEntityDecoder(TEXT_ENTITIES);
 
 /**
+ * The plain-text decode, for a recipient that decides for itself.
+ *
+ * `content-factory-next-97dq.17`: the markdown branch below keeps entities
+ * now, because the article platforms render them. Discord is the one
+ * markdown recipient with no HTML layer at all — `&lt;` prints there as five
+ * characters — so its provider applies this, once, to what the helper gave it.
+ */
+export const decodeTextEntities = decodeForText;
+
+/**
  * Единственная сущность, которую снимают и получателю разметки.
  *
  * Разбор корректности второго выпуска, P1-1. Первое, что делает помощник, —
@@ -236,17 +246,22 @@ export const stripHtmlValidation = (
     );
   }
 
-  // Markdown остаётся как был, с одной правкой: сущности снимаются после
-  // `striptags` и одним проходом. Раньше `&amp;` снимался до него, и пара
-  // проходов делала из написанного буквами `&amp;lt;` знак «меньше».
+  // Markdown: сущности снимаются одним проходом после `striptags`, но только
+  // `&nbsp;` — ровно как у получателя разметки (`content-factory-next-97dq.17`).
   //
-  // Почему для markdown экранирование всё же снимается, в отличие от `html`:
-  // получатели тут разные. Discord и Lemmy напечатают `&lt;` пятью знаками,
-  // а Medium и dev.to прочитают его как разметку. Одного верного ответа на
-  // оба у общего помощника нет, и выбор в пользу одного из них — это решение
-  // о продукте, а не о защите; поведение здесь не меняется.
+  // Получатели markdown рендерят сущности сами. dev.to (Redcarpet), Hashnode
+  // (marked) и любой конвертер семейства CommonMark — Medium, Whop — печатают
+  // `&lt;` знаком «<», а голый `<b>` исполняют как HTML: dev.to и Hashnode
+  // даже пропускают его в статью жирным. Снятое здесь экранирование делало из
+  // написанного буквами `<b>` живую разметку, из строки с `>` в начале —
+  // цитату, а из `&amp;lt;` — знак «меньше». Оставленное, оно печатается ровно
+  // тем, что человек написал.
+  //
+  // Discord — единственный markdown-получатель без слоя HTML: у него `&lt;`
+  // так и останется пятью знаками. Он снимает сущности сам, в провайдере, до
+  // подстановки упоминаний (`decodeTextEntities`). Lemmy идёт веткой `normal`.
   if (type === 'markdown') {
-    return decodeForText(
+    return decodeForMarkup(
       striptags(
         convertMention(
           value

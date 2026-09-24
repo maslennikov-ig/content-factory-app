@@ -125,6 +125,11 @@ const { ProfileSettings } = loadTypeScriptModule(
     '@contentfactory/frontend/components/ui/surface': {
       Panel: ({ children }) => React.createElement('section', null, children),
     },
+    // Profile sections ride on the settings rows since 97dq.76 (audit §6.2).
+    '@contentfactory/frontend/components/settings/settings-section': {
+      SettingsSection: ({ title, children }) =>
+        React.createElement('section', null, React.createElement('h3', null, title), children),
+    },
     '@contentfactory/frontend/components/ui/section-label': {
       SectionLabel: ({ children }) => React.createElement('h3', null, children),
     },

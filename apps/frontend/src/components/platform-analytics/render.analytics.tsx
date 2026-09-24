@@ -159,7 +159,7 @@ const EmptyState: FC<{ onRefresh?: () => void }> = ({ onRefresh }) => {
         <Button
           onClick={onRefresh}
           variant="primary"
-   className="inline-flex items-center px-[16px] py-[8px] text-[14px] font-medium rounded-[8px] transition-colors"
+   className="inline-flex items-center px-[16px] py-[8px] text-[14px] font-medium rounded-[8px] transition-colors duration-state motion-reduce:transition-none"
         >
           <svg
             width="16"

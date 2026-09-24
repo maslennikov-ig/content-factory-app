@@ -4,6 +4,7 @@ import React, {
   FC,
   MouseEventHandler,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -31,6 +32,11 @@ import { useOpenPostEditor } from '@contentfactory/frontend/components/new-launc
 import dayjs from 'dayjs';
 import { ModalWrapperComponent } from '@contentfactory/frontend/components/new-launch/modal.wrapper.component';
 import copy from 'copy-to-clipboard';
+import {
+  clampMenuPosition,
+  menuMaxHeight,
+  type MenuAnchorRect,
+} from './menu-position';
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import {
   isOrganizationAdmin,
@@ -151,33 +157,65 @@ export const Menu: FC<{
   const toast = useToaster();
   const modal = useModals();
   const openPostEditor = useOpenPostEditor();
-  const [show, setShow] = useState<false | { x: number; y: number }>(false);
+  const [show, setShow] = useState<
+    | false
+    | { x: number; y: number; maxHeight: number; anchor: MenuAnchorRect }
+  >(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const ref = useClickOutside<HTMLDivElement>(() => {
     setShow(false);
   });
-  const showRef = useRef(undefined);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Adjust menu position if it would overflow viewport
+  /*
+    Keep the panel inside the viewport (`97dq.81`): it opens leftwards when
+    there is no room on the right and moves up when there is none below,
+    always at least 8px from every edge.
+  */
   useLayoutEffect(() => {
     if (show && menuRef.current) {
       const menuRect = menuRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const padding = 10;
-
-      // Check if menu overflows bottom of viewport
-      if (menuRect.bottom > viewportHeight - padding) {
-        const newY = Math.max(
-          padding,
-          viewportHeight - menuRect.height - padding
-        );
-        // Only update if position actually changed significantly to avoid infinite loop
-        if (Math.abs(show.y - newY) > 1) {
-          setShow((prev) => (prev ? { ...prev, y: newY } : false));
-        }
+      const next = clampMenuPosition(
+        show.anchor,
+        { width: menuRect.width, height: menuRect.height },
+        { width: window.innerWidth, height: window.innerHeight }
+      );
+      // Only update if position actually changed significantly to avoid infinite loop
+      if (
+        Math.abs(show.x - next.x) > 1 ||
+        Math.abs(show.y - next.y) > 1 ||
+        Math.abs(show.maxHeight - next.maxHeight) > 1
+      ) {
+        setShow((prev) => (prev ? { ...prev, ...next } : false));
       }
     }
   }, [show]);
+  /*
+    Review of 97dq.81-85, P3-9: the panel follows its button when the window
+    is resized or a scroller under it moves; it was placed once on open.
+  */
+  const isOpen = Boolean(show);
+  useEffect(() => {
+    if (!isOpen) return;
+    const follow = () => {
+      const box = buttonRef.current?.getBoundingClientRect();
+      if (!box) return;
+      setShow((prev) =>
+        prev
+          ? {
+              ...prev,
+              anchor: { left: box.left, right: box.right, bottom: box.bottom },
+            }
+          : false
+      );
+    };
+    window.addEventListener('resize', follow);
+    window.addEventListener('scroll', follow, true);
+    return () => {
+      window.removeEventListener('resize', follow);
+      window.removeEventListener('scroll', follow, true);
+    };
+  }, [isOpen]);
   const findIntegration: any = useMemo(() => {
     return integrations.find((integration) => integration.id === id);
   }, [integrations, id]);
@@ -193,9 +231,18 @@ export const Menu: FC<{
       setShow(false);
       return;
     }
-    // @ts-ignore
-    const boundBox = showRef?.current?.getBoundingClientRect();
-    setShow({ x: boundBox?.left, y: boundBox?.top + boundBox?.height });
+    const box = buttonRef.current?.getBoundingClientRect();
+    const anchor = {
+      left: box?.left ?? 0,
+      right: box?.right ?? 0,
+      bottom: box?.bottom ?? 0,
+    };
+    setShow({
+      x: anchor.left,
+      y: anchor.bottom,
+      maxHeight: menuMaxHeight(window.innerHeight),
+      anchor,
+    });
   }, []);
   const disableChannel = useCallback(async () => {
     if (
@@ -424,6 +471,7 @@ export const Menu: FC<{
         that disables and deletes channels.
       */}
       <MenuButton
+        ref={buttonRef}
         aria-label={t('channel_menu', 'Channel menu')}
         density="dense"
         /*
@@ -449,16 +497,13 @@ export const Menu: FC<{
         />
       </svg>
       </MenuButton>
-      <div>
-        <div ref={showRef} />
-      </div>
       {show && (
         <MenuList
           ref={menuRef}
           aria-label={t('channel_menu', 'Channel menu')}
           onClick={(e) => e.stopPropagation()}
-          style={{ left: show.x, top: show.y }}
-          className={`fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
+          style={{ left: show.x, top: show.y, maxHeight: show.maxHeight }}
+          className={`fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap overflow-y-auto overscroll-contain`}
         >
           {canWritePosts && canDisable && !findIntegration?.refreshNeeded && (
             <MenuAction

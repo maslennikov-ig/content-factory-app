@@ -365,11 +365,13 @@ describe('month: marks and times, no text', () => {
 });
 
 describe('the words and the hint', () => {
-  test('the legend and the chip carry a «?» with a one-line hint (existing Hint)', () => {
+  test('the chip carries a «?» with its hint, and in the header the legend too (existing Hint, 97dq.82)', () => {
     const source = read('apps/frontend/src/components/launches/plan-ahead.tsx');
     expect(source).toContain("import { Hint } from '@contentfactory/react/layout/hint';");
-    expect(source).toContain('<Hint label={copy.legendLabel}>{copy.legendHint}</Hint>');
     expect(source).toContain('<Hint label={copy.aheadHintLabel}>{copy.aheadHint}</Hint>');
-    expect(read('apps/frontend/src/components/launches/filters.tsx')).toContain('<PlanAheadChip');
+    expect(source).toContain('<Hint label={copy.aheadLegendHintLabel}>');
+    const filters = read('apps/frontend/src/components/launches/filters.tsx');
+    expect(filters).toMatch(/<PlanAheadChip[\s\S]*?withLegend/);
+    expect(filters).not.toContain('PlanLegend');
   });
 });

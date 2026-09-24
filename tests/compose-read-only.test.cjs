@@ -181,9 +181,11 @@ describe('fn33.90.10 — тег, повтор, этап и дата на чте�
       );
     });
 
-    const field = document.querySelector('[aria-disabled="true"]');
+    // A real button since 97dq.43 (item 7): disabled, not a dimmed div.
+    const field = document.querySelector('button[aria-haspopup="dialog"]');
     expect(field).not.toBeNull();
-    expect(field.className).toContain('cursor-not-allowed');
+    expect(field.disabled).toBe(true);
+    expect(field.className).toContain('disabled:cursor-not-allowed');
 
     await act(async () => {
       field.click();

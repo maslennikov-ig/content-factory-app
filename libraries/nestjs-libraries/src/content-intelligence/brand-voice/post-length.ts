@@ -99,7 +99,10 @@ export function protectedFragments(text: string): string[] {
   const emoji = text.match(/(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu) ?? [];
   const found = new Set<string>(emoji);
   const patterns = [
-    /https?:\/\/\S+/gu,
+    // The address alone: not the `)` of `[words](url)`, not the full stop
+    // after it (`97dq.79` review P3-8). Author links encode their own
+    // parentheses (`post-link.ts`).
+    /https?:\/\/[^\s()<>\[\]"«»]+[^\s()<>\[\]"«».,;:!?'*_]/gu,
     /\d+[\d\s.,]*\s?(?:%|₽|\$|€|[a-zA-Zа-яА-Я]{1,12})?/gu,
     /«[^»]{1,80}»/gu,
     /"[^"]{1,80}"/gu,

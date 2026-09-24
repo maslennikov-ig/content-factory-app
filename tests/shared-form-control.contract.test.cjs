@@ -832,7 +832,8 @@ describe('shared form-control contracts', () => {
     expect(iconOnly).toContain('p-[8px]');
     expect(iconOnly).not.toContain('h-[28px]');
     expect(iconOnly).not.toContain('w-[28px]');
-    expect(iconOnly).not.toContain('p-0');
+    // Whole class tokens: the mobile hit area's `before:top-0` contains `p-0`.
+    expect(iconOnly).not.toMatch(/class="(?:[^"]*\s)?p-0[\s"]/);
     expect(logicalStart).toContain('ps-[10px]');
     expect(logicalStart).not.toContain('px-[16px]');
     expect(logicalStart).not.toContain('pl-[16px]');

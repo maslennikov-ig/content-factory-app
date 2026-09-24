@@ -1640,8 +1640,10 @@ export const VOICE_SURFACES = {
     component: 'VoiceEmptyScreen',
     // `collected` is what `VoiceOverviewResponseV1.readiness` already carries:
     // the corpus a person left behind, said out loud instead of read as an
-    // empty workspace (`content-factory-next-fn33.45`).
-    dataFields: ['state', 'note', 'collected'],
+    // empty workspace (`content-factory-next-fn33.45`). `manualDraft` is the
+    // hand-filled draft's filled lines, read from the route screen 05 owns
+    // (`GET …/proposal/manual`, `content-factory-next-fn33.150`).
+    dataFields: ['state', 'note', 'collected', 'manualDraft'],
     clientOnlyProps: [] as string[],
     routes: [
       {
@@ -2794,6 +2796,12 @@ export type PieceCellV1 = {
   adaptationId?: string | null;
   integrationId?: string | null;
   /**
+   * Имя канала `integrationId`, как его зовёт список каналов (`97dq.20`):
+   * подсказка клетки говорит «Telegram · AiDevTeam», а не одну площадку.
+   * Нет канала — нет и имени.
+   */
+  channelName?: string | null;
+  /**
    * Колонка — площадка, а не канал: три Telegram-канала дают одну клетку с
    * лучшим состоянием и счётом «ещё N». Поимённо — в раскрытой строке.
    */
@@ -3046,6 +3054,12 @@ export type PiecePostLinkV1 = {
   origin: 'author';
   /** ISO. */
   answeredAt: string;
+  /**
+   * «Текст ссылки» (`97dq.79`): the words that carry the link where the
+   * channel shows links on words. Absent — the writer picks them. Only with
+   * an address; answers before the field read as before.
+   */
+  text?: string;
 };
 
 /** A piece of material the author added after the piece was written (`97dq.75`). */
@@ -3061,6 +3075,12 @@ export type PieceCoreRevisionV1 = {
   writtenBy: 'model' | 'fallback' | 'person';
   /** ISO — when it stopped being the current core. */
   replacedAt: string;
+  /**
+   * Whether added material was still waiting for a rebuild when this text
+   * was replaced (review of 97dq.81-85, P2-2). Restoring the text brings the
+   * wait back. Absent on revisions stored before the field.
+   */
+  materialPending?: boolean;
 };
 
 export type ZagotovkaCoreV1 = {
@@ -3354,13 +3374,33 @@ export type PieceAdaptOverridesV1 = {
    * in this post. Absent — the piece's answer decides.
    */
   postLink?: string;
+  /**
+   * «Текст ссылки» of this post (`97dq.79`): the words that carry the link.
+   * Absent — the piece's words, else the writer picks them.
+   */
+  postLinkText?: string;
 };
 
-/** `PUT …/:id/post-link` (`97dq.75`): the answer; `null` — «Без ссылки». */
-export type PiecePostLinkRequestV1 = { url: string | null };
+/**
+ * `PUT …/:id/post-link` (`97dq.75`): the answer; `null` — «Без ссылки».
+ * `text` (`97dq.79`) — optional anchor words for the address.
+ */
+export type PiecePostLinkRequestV1 = { url: string | null; text?: string | null };
 
 /** `PUT …/:id/core` (`97dq.75`): the edited core and the text it replaces. */
 export type PieceCoreEditRequestV1 = { text: string; expected: string };
+
+/**
+ * `POST …/:id/core/restore` (`97dq.85`, «Вернуть эту версию»): the stored
+ * version at `index` of `core.revisions`, recognised by its `replacedAt`,
+ * becomes the core; `expected` is the core it replaces. The replaced core
+ * goes into `revisions` like any other change.
+ */
+export type PieceCoreRestoreRequestV1 = {
+  index: number;
+  replacedAt: string;
+  expected: string;
+};
 
 /** `POST …/:id/material` (`97dq.75`): words to add to the piece's material. */
 export type PieceMaterialAppendRequestV1 = { text: string };
@@ -3639,5 +3679,10 @@ export const PIECE_ROUTES = {
   rebuildCore: {
     method: 'POST',
     path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/core/rebuild`,
+  },
+  /** «Вернуть эту версию» (`97dq.85`): `PieceCoreRestoreRequestV1`, без вызова модели. */
+  restoreCore: {
+    method: 'POST',
+    path: (pieceId: string) => `${PIECES_API_BASE}/${pieceId}/core/restore`,
   },
 } as const;

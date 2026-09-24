@@ -861,7 +861,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
               >
                 <div
                   id="social-content"
-                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface"
+                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-scroll"
                 >
                   <div className="flex w-full">
                     <div className="flex flex-1">
@@ -946,7 +946,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                       'cf-body-sm text-cf-ink relative'
                     )}
                   >
-                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface-subtle">
+                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto">
                       <div
                         id="social-settings"
                         className="flex flex-col gap-[20px] bg-cf-canvas"
@@ -991,7 +991,7 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
             <div className="flex-1 relative">
               <Scrollable
                 scrollClasses="!pe-[20px]"
-                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-cf-border-strong scrollbar-track-cf-surface"
+                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-scroll"
               >
                 <ShowAllProviders ref={ref} />
                 {/**

@@ -23,6 +23,7 @@ import {
   TabPanel,
   Tabs,
 } from '@contentfactory/react/choice/tabs';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
 import { PublicApiSurface } from './public-api.surface';
 
 const mcpClients = [
@@ -188,6 +189,26 @@ const getMcpConfig = (
   }
 };
 
+/**
+ * The client hints in the reader's language (fn33.143). Written here rather
+ * than as sixteen locale keys: like `PublicApiSurface`, the screen speaks the
+ * two product languages and file paths and menu names stay as the client
+ * spells them.
+ */
+const MCP_HINTS_RU: Record<string, string> = {
+    'Run this command in your terminal.': 'Выполните эту команду в терминале.',
+    'Add to .cursor/mcp.json in your project root.': 'Добавьте в .cursor/mcp.json в корне проекта.',
+    'Add to .vscode/mcp.json in your project root.': 'Добавьте в .vscode/mcp.json в корне проекта.',
+    'Add to ~/.codeium/windsurf/mcp_config.json': 'Добавьте в ~/.codeium/windsurf/mcp_config.json',
+    'Add to ~/.codex/config.toml': 'Добавьте в ~/.codex/config.toml',
+    'Add to ~/.gemini/settings.json': 'Добавьте в ~/.gemini/settings.json',
+    'Settings > MCP Servers > + Add, then paste this config.': 'Settings → MCP Servers → + Add, затем вставьте эту настройку.',
+    'Add to your Amp settings.json': 'Добавьте в settings.json вашего Amp',
+};
+
+const localizeMcpHint = (hint: string, locale: 'en' | 'ru') =>
+  locale === 'ru' ? MCP_HINTS_RU[hint] ?? hint : hint;
+
 const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const toaster = useToaster();
   const t = useT();
@@ -231,6 +252,7 @@ const McpSection = ({
   mcpBase: string;
 }) => {
   const t = useT();
+  const locale = useInterfaceLanguage().startsWith('ru') ? 'ru' : 'en';
   const [activeClient, setActiveClient] = useState<McpClient>('Claude Code');
   const [method, setMethod] = useState<'header' | 'path'>('header');
   const [revealed, setRevealed] = useState(false);
@@ -336,7 +358,7 @@ const McpSection = ({
         <div className="flex flex-col gap-[8px]">
           <div className="text-[12px] text-customColor18 font-[500]">
             {method === 'header'
-              ? hint
+              ? localizeMcpHint(hint, locale)
               : t(
                   'remote_server_url_hint',
                   'Paste this URL into your remote MCP client (ChatGPT, Claude, etc.).'
@@ -399,6 +421,9 @@ const PublicApiContent = () => {
   const { mutate } = useSWRConfig();
   const [reveal, setReveal] = useState(false);
   const t = useT();
+  // The surface's own words follow the reader (fn33.143): without this the
+  // header stayed «Developer access» under a Russian interface.
+  const locale = useInterfaceLanguage().startsWith('ru') ? 'ru' : 'en';
 
   const rotateKey = useCallback(async () => {
     const approved = await decision.open({
@@ -421,16 +446,19 @@ const PublicApiContent = () => {
   }, [decision, fetch, mutate, toaster]);
 
   if (!user) {
-    return <PublicApiSurface state="loading" />;
+    return <PublicApiSurface state="loading" locale={locale} />;
   }
   if (!user.publicApi) {
-    return <PublicApiSurface state="restricted" />;
+    return <PublicApiSurface state="restricted" locale={locale} />;
   }
 
   const mcpBase = mcpUrl || backendUrl;
 
   return (
-    <PublicApiSurface state={reveal ? 'selected' : 'default'}>
+    <PublicApiSurface
+      state={reveal ? 'selected' : 'default'}
+      locale={locale}
+    >
     <div className="flex flex-col gap-[40px]">
       <div className="text-[14px] text-textColor leading-[1.7]">
         {t(

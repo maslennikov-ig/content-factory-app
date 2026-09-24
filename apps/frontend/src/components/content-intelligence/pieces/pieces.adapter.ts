@@ -181,6 +181,8 @@ export const PIECES_API = {
   appendMaterial: PIECE_ROUTES.appendMaterial.path,
   /** `POST` — «Пересобрать суть». */
   rebuildCore: PIECE_ROUTES.rebuildCore.path,
+  /** `POST {index, replacedAt, expected}` — «Вернуть эту версию» (`97dq.85`). */
+  restoreCore: PIECE_ROUTES.restoreCore.path,
 } as const;
 
 /** Адрес страницы заготовки — один на весь фронтенд. */
@@ -399,6 +401,10 @@ export const readCell = (value: unknown): PieceCellV1 | null => {
     postId: asNullableText(record.postId),
     adaptationId: asNullableText(record.adaptationId),
     integrationId: asNullableText(record.integrationId),
+    // Имя канала для подсказки клетки (`97dq.20`); нет — подсказка без него.
+    ...(typeof record.channelName === 'string' && record.channelName.trim()
+      ? { channelName: record.channelName }
+      : {}),
     ...(typeof record.more === 'number' && record.more > 0
       ? { more: record.more }
       : {}),
@@ -648,6 +654,26 @@ export const readCore = (value: unknown): ZagotovkaCoreV1 | null => {
       : {}),
     ...(record.materialPending === true ? { materialPending: true } : {}),
     ...(record.editedBy === 'person' ? { editedBy: 'person' as const } : {}),
+    // «Версии сути» (`97dq.85`): прежние тексты, старые первыми, как хранит
+    // сервер. Индекс в этом списке — адрес версии для «Вернуть эту версию»,
+    // поэтому битая запись не выбрасывается, а читается пустой и не
+    // показывается кнопкой: сдвиг индексов вернул бы не ту версию.
+    ...(asArray(record.revisions).length
+      ? {
+          revisions: asArray(record.revisions).map((entry) => {
+            const revision = asRecord(entry);
+            return {
+              text: asText(revision?.text),
+              writtenBy:
+                revision?.writtenBy === 'person' ||
+                revision?.writtenBy === 'fallback'
+                  ? revision.writtenBy
+                  : ('model' as const),
+              replacedAt: asText(revision?.replacedAt),
+            };
+          }),
+        }
+      : {}),
     // Источник повода (`content-factory-next-75xn.8`). Без адреса записи нет:
     // строка на странице существует, чтобы человек мог открыть исходное.
     ...(asText(asRecord(record.leadSource)?.url)
@@ -1405,6 +1431,11 @@ export type PostOptionsV1 = {
    * ссылки в этом посте, иначе адрес http(s).
    */
   link: string;
+  /**
+   * «Текст ссылки» (`97dq.79`): слова, на которых стоит ссылка. `''` —
+   * слова заготовки, а нет их — подберём сами.
+   */
+  linkText: string;
 };
 
 /** «Без ссылки» в «Ссылке для поста» (`97dq.75`). */
@@ -1429,7 +1460,22 @@ export const DEFAULT_POST_OPTIONS: PostOptionsV1 = {
   brandProfileId: null,
   wish: '',
   link: '',
+  linkText: '',
 };
+
+/** Предел «Текста ссылки» — тот же, что у сервера (`POST_LINK_TEXT_MAX`). */
+export const POST_LINK_TEXT_MAX = 80;
+
+/** «Текст ссылки» как его хранит сервер: одна строка, без знаков разметки. */
+export const postLinkTextOf = (value: unknown): string =>
+  typeof value === 'string'
+    ? value
+        .replace(/[\[\]()<>«»"`*_]/gu, ' ')
+        .replace(/\s+/gu, ' ')
+        .trim()
+        .slice(0, POST_LINK_TEXT_MAX)
+        .trim()
+    : '';
 
 export type AdaptOverridesV1 = PieceAdaptOverridesV1;
 
@@ -1496,7 +1542,7 @@ export function changedPostFields(
   });
 }
 
-/** Сколько изменений у поста: поля карточки, аватар и пожелание. */
+/** Сколько изменений у поста: поля карточки, аватар, пожелание и ссылка. */
 export function postChangeCount(
   options: PostOptionsV1,
   baseline: PostOptionsBaselineV1 = DEFAULT_POST_BASELINE
@@ -1508,7 +1554,8 @@ export function postChangeCount(
       ? 1
       : 0) +
     (options.wish.trim() ? 1 : 0) +
-    (options.link ? 1 : 0)
+    // Своя ссылка и её слова — одно изменение: «ссылка этого поста».
+    (options.link || postLinkTextOf(options.linkText) ? 1 : 0)
   );
 }
 
@@ -1571,6 +1618,11 @@ export function adaptOverrides(
     ...(wish ? { wish } : {}),
     ...(postLinkOverride(options.link)
       ? { postLink: postLinkOverride(options.link)! }
+      : {}),
+    // Слова ссылки (`97dq.79`) — только пока в посте есть ссылка.
+    ...(postLinkOverride(options.link) !== POST_LINK_NONE &&
+    postLinkTextOf(options.linkText)
+      ? { postLinkText: postLinkTextOf(options.linkText) }
       : {}),
     ...(takeaway?.trim()
       ? { takeaway: takeaway.trim().slice(0, POST_WISH_MAX) }
@@ -1641,6 +1693,8 @@ export function readPostOptions(value: unknown): PostOptionsV1 {
     wish:
       typeof record.wish === 'string' ? record.wish.slice(0, POST_WISH_MAX) : '',
     link: postLinkOverride(record.link),
+    // Настройки до `97dq.79` поля не знали: пусто.
+    linkText: postLinkTextOf(record.linkText),
   };
 }
 
@@ -1679,6 +1733,7 @@ export function buildPostSettingsPayload(input: {
             ...input.options,
             wish: input.options.wish.slice(0, POST_WISH_MAX),
             link: postLinkOverride(input.options.link),
+            linkText: postLinkTextOf(input.options.linkText),
           },
         }
       : {}),
@@ -1760,6 +1815,24 @@ export const refusalMessage = (value: unknown): string | null => {
   const message = asText(record?.message);
   return message.trim() ? message : null;
 };
+
+/** Код отказа двери (`ADAPTATION_EDIT_CLOSED` и т. п.), если он есть. */
+export const refusalCode = (value: unknown): string | null => {
+  const code = asText(asRecord(value)?.code).trim();
+  return code || null;
+};
+
+/**
+ * Отказы правки, после которых правка больше не ляжет (ревью `97dq.80`,
+ * P2-4): пост уходит или вышел, его нет, публикация упала, он уже не
+ * черновик. Экран забывает несохранённый текст и не предлагает повтор.
+ */
+export const EDIT_CLOSED_CODES: ReadonlySet<string> = new Set([
+  'ADAPTATION_EDIT_CLOSED',
+  'ADAPTATION_POST_GONE',
+  'ADAPTATION_POST_FAILED',
+  'ADAPTATION_NOT_DRAFT',
+]);
 
 /** Сколько знаков увидит читатель: звёздочки выделения не в счёт. */
 export const visibleLength = (text: string): number =>
@@ -2081,6 +2154,7 @@ export const postOptionsOfProfile = (
   wish: '',
   // Ссылка — только у поста (`97dq.75`): у канала своей ссылки нет.
   link: '',
+  linkText: '',
 });
 
 /**

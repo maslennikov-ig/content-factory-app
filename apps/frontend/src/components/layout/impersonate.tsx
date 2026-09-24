@@ -506,7 +506,7 @@ export const Subscription = () => {
       value=""
     >
       <option value="">
-        {t('add_free_subscription', '-- ADD FREE SUBSCRIPTION --')}
+        {t('add_free_subscription', 'Add a free subscription')}
       </option>
       {Object.keys(pricing)
         .filter((f) => !f.includes('FREE'))

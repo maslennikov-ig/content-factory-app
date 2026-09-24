@@ -172,7 +172,7 @@ module.exports = {
       animation: {
         fade: 'fadeOut 0.5s ease-in-out',
         normalFadeIn: 'normalFadeIn 0.5s ease-in-out',
-        fadeIn: 'normalFadeIn 0.2s ease-in-out forwards',
+        fadeIn: 'normalFadeIn 0.2s ease-out forwards',
         normalFadeOut: 'normalFadeOut 0.5s linear 5s forwards',
         overflow: 'overFlow 0.5s ease-in-out forwards',
         overflowReverse: 'overFlowReverse 0.5s ease-in-out forwards',
@@ -503,6 +503,15 @@ module.exports = {
           minHeight: '44px',
           [`@media (min-width: ${theme('screens.md')})`]: {
             minHeight: '40px',
+          },
+        },
+        // The page gutter of every section (`content-factory-next-97dq.76`,
+        // audit §1.3): 20px on a phone, 24px from `md`. Content, calendar,
+        // settings and analytics each wrote their own — 20, 20/24, 24/16.
+        '.cf-page-pad': {
+          padding: '20px',
+          [`@media (min-width: ${theme('screens.md')})`]: {
+            padding: '24px',
           },
         },
         // Dense choice buttons keep their 32px visual body. These margins

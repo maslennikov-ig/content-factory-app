@@ -125,6 +125,160 @@ describe('the grammar is lossless both ways', () => {
   });
 });
 
+/*
+  `content-factory-next-97dq.77` (review-97dq75 P3-13/14): bold inside a link
+  came back outside it and cut the link in two; square brackets in link words
+  became round ones; a person's own `**x**`, `_x_`, `++x++` or `[a](https://…)`
+  typed as text came back as a mark or a link. Escapes are written only where
+  the plain text would not read back as itself.
+*/
+describe('link words and a person’s own signs survive the editor (97dq.77)', () => {
+  const para = (...content) => ({ type: 'doc', content: [{ type: 'paragraph', content }] });
+  const text = (value, ...kinds) =>
+    kinds.length
+      ? {
+          type: 'text',
+          text: value,
+          marks: kinds.map((kind) =>
+            typeof kind === 'string' ? { type: kind } : { type: 'link', attrs: { href: kind.href } }
+          ),
+        }
+      : { type: 'text', text: value };
+
+  test('bold over part of the link words stays inside one link', () => {
+    const body = 'См. [отчёт **за май**](https://example.com/r) тут';
+    expect(docToStored(storedToDoc(body))).toBe(body);
+    const editor = makeEditor(storedToDoc(body));
+    try {
+      expect(docToStored(editor.getJSON())).toBe(body);
+    } finally {
+      editor.destroy();
+    }
+    expect(editorHtml(body, 'html')).toContain(
+      '<a href="https://example.com/r">отчёт <strong>за май</strong></a>'
+    );
+  });
+
+  test('square brackets in link words stay square', () => {
+    const doc = para(text('отчёт [PDF]', { href: 'https://example.com/r.pdf' }));
+    const stored = docToStored(doc);
+    expect(stored).toBe('[отчёт \\[PDF\\]](https://example.com/r.pdf)');
+    expect(marks.inlineRuns(marks.parseInline(stored))).toEqual([
+      { text: 'отчёт [PDF]', href: 'https://example.com/r.pdf' },
+    ]);
+    expect(docToStored(storedToDoc(stored))).toBe(stored);
+  });
+
+  test.each([
+    ['bold signs', 'пишем **так** руками'],
+    ['italic signs', 'пишем _так_ руками'],
+    ['underline signs', 'пишем ++так++ руками'],
+    ['a link typed as text', 'пишем [a](https://example.com) руками'],
+  ])('%s typed as text stay text', (_name, typed) => {
+    const stored = docToStored(para(text(typed)));
+    expect(stored).not.toBe(typed);
+    expect(stored).toContain('\\');
+    const runs = marks.inlineRuns(marks.parseInline(stored));
+    expect(runs.map((run) => run.text).join('')).toBe(typed);
+    // No mark, and no link on words: an address typed inside stays a bare link, as any address does.
+    expect(runs.every((run) => !run.bold && !run.italic && !run.underline)).toBe(true);
+    expect(runs.every((run) => !run.href || run.href === run.text)).toBe(true);
+    expect(docToStored(storedToDoc(stored))).toBe(stored);
+    expect(marks.inlinePlain(marks.parseInline(stored))).toBe(typed);
+    if (!typed.includes('https://'))
+      expect(editorHtml(stored, 'html')).toBe(`<p>${typed}</p>`);
+  });
+
+  test('each channel shows the person’s signs as text', () => {
+    const stored = docToStored(para(text('итог: **так**, '), text('ссылка', { href: 'https://example.com' })));
+    expect(editorHtml(stored, 'html')).toBe(
+      '<p>итог: **так**, <a href="https://example.com">ссылка</a></p>'
+    );
+    expect(editorHtml(stored, 'markdown')).toBe(
+      'итог: \\*\\*так\\*\\*, [ссылка](https://example.com)'
+    );
+    expect(editorHtml(stored, 'none')).toBe('итог: **так**, ссылка (https://example.com)');
+  });
+
+  test('a line that reads back as itself gets no escapes', () => {
+    for (const plain of ['snake_case и C++', '2 ** 3 = 8', 'путь C:\\temp', 'a_b https://example.com/_x_'])
+      expect(docToStored(para(text(plain)))).toBe(plain);
+  });
+
+  test('a backslash before a sign is text too, both ways', () => {
+    const typed = 'экранирование \\* и **жирное** буквально';
+    const stored = docToStored(para(text(typed)));
+    expect(marks.inlineRuns(marks.parseInline(stored))).toEqual([{ text: typed }]);
+  });
+
+  test('escaped signs inside a mark and a mark next to escaped text', () => {
+    const doc = para(text('звёзды ', 'bold'), text('**x**'));
+    const stored = docToStored(doc);
+    expect(marks.inlineRuns(marks.parseInline(stored))).toEqual([
+      { text: 'звёзды', bold: true },
+      { text: ' **x**' },
+    ]);
+  });
+});
+
+/*
+  Review F4 of the fourteenth walk: bodies stored before `97dq.77` hold a
+  person's own backslashes — arithmetic, identifiers, UNC paths, brackets.
+  They read the same with or without them, so they are text, render as they
+  did and survive a no-op trip through the editor byte for byte.
+*/
+const LEGACY = [
+  ['arithmetic', '2\\*3 = 6'],
+  ['an identifier', 'поле snake\\_case в конфиге'],
+  ['a UNC path', 'путь \\\\server\\share\\docs'],
+  ['square brackets', 'a \\[b\\] c'],
+  ['a trailing double backslash', 'и в конце \\\\'],
+  ['a plus', 'версия 1\\+1'],
+  ['next to real bold', '**итог** и 2\\*3'],
+];
+
+describe('legacy backslashes stay text (97dq.77, review F4)', () => {
+  test.each(LEGACY)('%s: read as written', (_name, body) => {
+    expect(marks.hasInlineEscape(body)).toBe(false);
+    const plain = marks.inlineRuns(marks.parseInline(body)).map((run) => run.text).join('');
+    expect(plain).toBe(body.replace(/\*\*итог\*\*/u, 'итог'));
+    expect(marks.stripInlineMarks(body)).toBe(plain);
+  });
+
+  test.each(LEGACY)('%s: a no-op trip through the editor changes nothing', (_name, body) => {
+    expect(docToStored(storedToDoc(body))).toBe(body);
+    const editor = makeEditor(storedToDoc(body));
+    try {
+      expect(docToStored(editor.getJSON())).toBe(body);
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  test('channels get the backslashes the body holds', () => {
+    expect(editorHtml('2\\*3 и \\\\server\\share', 'html')).toBe('<p>2\\*3 и \\\\server\\share</p>');
+    expect(editorHtml('snake\\_case', 'none')).toBe('snake\\_case');
+    expect(editorHtml('**итог** и 2\\*3', 'html')).toBe('<p><strong>итог</strong> и 2\\*3</p>');
+  });
+
+  test('the editor’s own escapes are still read as escapes', () => {
+    const stored = docToStored({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '**x** и 2*3' }] }],
+    });
+    expect(stored).toBe('\\*\\*x\\*\\* и 2\\*3');
+    expect(marks.hasInlineEscape(stored)).toBe(true);
+    expect(marks.inlineRuns(marks.parseInline(stored))).toEqual([{ text: '**x** и 2*3' }]);
+    expect(marks.parseInline('[a\\[b\\]](https://example.com)')).toEqual([
+      {
+        kind: 'link',
+        href: 'https://example.com',
+        children: [{ kind: 'text', text: 'a' }, { kind: 'text', text: '[', literal: true }, { kind: 'text', text: 'b' }, { kind: 'text', text: ']', literal: true }],
+      },
+    ]);
+  });
+});
+
 describe('what the editor writes back', () => {
   test('italic and underline made in the editor become their signs', () => {
     const editor = makeEditor(storedToDoc('один два три'));

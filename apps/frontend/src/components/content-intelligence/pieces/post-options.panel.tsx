@@ -27,17 +27,20 @@ import {
 } from '../intake/channel-plan-mode';
 import { FieldLabel } from '../../ui/field-label';
 import { SplitButton } from '../../ui/split-button';
+import { ResetIcon } from '../../ui/icons';
 import { writingProfileLabels } from '../intake/writing-profile.fields';
 import {
   DEFAULT_POST_BASELINE,
   DEFAULT_POST_OPTIONS,
   POST_LINK_NONE,
+  POST_LINK_TEXT_MAX,
   POST_WISH_MAX,
   changedPostFields,
   channelValueOf,
   postChangeCount,
   postOptionsOfProfile,
   profilePatchOfOptions,
+  postLinkTextOf,
   readLinkAddress,
   type PlanModeWordV1,
   type PostOptionsBaselineV1,
@@ -46,6 +49,7 @@ import {
 } from './pieces.adapter';
 import { piecesCopy, type PiecesLocale } from './pieces.copy';
 import { SectionLabel } from '../../ui/section-label';
+import { SidePanelHideButton } from '../../ui/side-panel';
 
 export type PostAvatarOption = { id: string; label: string };
 
@@ -91,11 +95,16 @@ export type PostScopeProps = CommonProps & {
    * Ответ заготовки на «Какую ссылку поставить в пост?» (`97dq.75`): с него
    * начинается «Ссылка для поста». `null` — вопрос ещё без ответа.
    */
-  pieceLink?: { url: string | null } | null;
+  pieceLink?: { url: string | null; text?: string | null } | null;
   onChange: (next: PostOptionsV1) => void;
-  /** «Переписать с этим» — новая версия. Нет адаптации — кнопки нет. */
+  /**
+   * Главная кнопка панели (`97dq.78`): «Переписать по настройкам» — новая
+   * версия, а до первого текста — «Адаптировать». Нет — кнопки нет.
+   */
   onRewrite?: () => void;
-  /** Меню «Переписать с этим»: «Переписать и запомнить для канала». */
+  /** `adapt` — текста ещё нет, главная кнопка пишет первый. */
+  primary?: 'adapt' | 'rewrite';
+  /** Меню главной кнопки: «Переписать и запомнить для канала». */
   onRewriteAndRemember?: () => void;
   /** Текст старше настроек: «применится при переписывании». */
   rewritePending?: boolean;
@@ -131,7 +140,7 @@ export type ChannelScopeProps = CommonProps & {
  * изменённое отмечено рамкой `signature`, изменения сохраняются сами как
  * переопределения поста. «План» применяется к посту сразу; поля, меняющие
  * текст, — при переписывании, и пока текст старше настроек, рядом с
- * «Переписать с этим» стоит тихое «применится при переписывании».
+ * «Переписать по настройкам» (сверху панели, `97dq.78`) стоит тихое «применится при переписывании».
  *
  * Область канала (карточка канала): те же поля с его значениями, сохраняются
  * кнопкой карточки; «План» — сразу, отдельно от карточки.
@@ -349,25 +358,28 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
         data-post-option-changed={emojiChanged ? 'true' : 'false'}
         className="col-span-2 flex min-w-0 flex-col gap-[4px] pt-[4px]"
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-[8px]">
-          <FieldLabel
-            htmlFor={`${baseId}-emoji`}
-            label={ti.profileEmoji}
-            hint={ti.profileHintEmoji}
-            hintLabel={ti.profileHintFor(ti.profileEmoji)}
-            labelClassName="cf-caption text-cf-ink-muted"
-          />
-          {emojiInChannel ? (
-            <span
-              id={`${baseId}-emoji-hint`}
-              data-post-option-hint="emoji"
-              className="cf-caption text-cf-ink-muted"
-            >
-              {t.asInChannel(null)}
-            </span>
-          ) : null}
-        </div>
+        {/* Подпись и «до N» — одна строка (`97dq.83`). */}
         <EmojiCeilingSlider
+          label={
+            <>
+              <FieldLabel
+                htmlFor={`${baseId}-emoji`}
+                label={ti.profileEmoji}
+                hint={ti.profileHintEmoji}
+                hintLabel={ti.profileHintFor(ti.profileEmoji)}
+                labelClassName="cf-caption text-cf-ink-muted"
+              />
+              {emojiInChannel ? (
+                <span
+                  id={`${baseId}-emoji-hint`}
+                  data-post-option-hint="emoji"
+                  className="cf-caption text-cf-ink-muted"
+                >
+                  {t.asInChannel(null)}
+                </span>
+              ) : null}
+            </>
+          }
           locale={locale}
           id={`${baseId}-emoji`}
           value={emojiValue}
@@ -505,77 +517,103 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
         locale={locale}
         id={`${baseId}-link`}
         value={options.link}
+        text={options.linkText}
         pieceLink={post?.pieceLink ?? null}
         disabled={disabled}
-        onChange={(link) => emit({ ...options, link })}
+        onChange={(link) => emit({ ...options, ...link })}
       />
     </>
   );
 
-  /* ---- Действия поста --------------------------------------------------- */
+  /* ---- Главная кнопка поста (`97dq.78`) --------------------------------- */
 
-  const postActions = post ? (
-    <>
+  /*
+    Одна кнопка сверху панели, видна всегда (четырнадцатый заход, A2/A5:
+    «как мне на основе новых настроек перегенерировать»): до первого текста —
+    «Адаптировать», потом — «Переписать по настройкам». Включена, когда
+    настройки новее текста или отличаются от канала. В меню —
+    «Переписать и запомнить для канала» и «Вернуть как в канале» (вместо
+    прежнего «Сбросить» внизу).
+  */
+  const adaptFirst = post?.primary === 'adapt';
+  const rewriteOff =
+    disabled || (!adaptFirst && !count && !post?.rewritePending);
+  const primaryItems = post
+    ? [
+        ...(post.onRewriteAndRemember && !adaptFirst
+          ? [
+              {
+                id: 'rewrite-remember',
+                title: t.rewriteAndRemember,
+                description: t.rewriteAndRememberHint,
+                onSelect: post.onRewriteAndRemember,
+              },
+            ]
+          : []),
+        ...(count
+          ? [
+              {
+                id: 'reset-to-channel',
+                title: t.resetToChannel,
+                description: t.resetToChannelHint,
+                onSelect: () =>
+                  emit({
+                    ...DEFAULT_POST_OPTIONS,
+                    brandProfileId: baseline.brandProfileId,
+                  }),
+              },
+            ]
+          : []),
+      ]
+    : [];
+  const primaryLabel = adaptFirst ? t.adaptAction : t.rewriteWithThis;
+  const primaryAction = post?.onRewrite ? (
+    <div className="flex min-w-0 flex-col gap-[4px]">
       <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
-        {post.onRewrite ? (
-          post.onRewriteAndRemember ? (
-            <SplitButton
-              dataName="rewrite"
-              density="dense"
-              disabled={disabled || !count}
-              menuLabel={t.rewriteMore}
-              placement="above"
-              align="start"
-              actionData={{ 'data-post-options-rewrite': 'true' }}
-              onClick={post.onRewrite}
-              items={[
-                {
-                  id: 'rewrite-remember',
-                  title: t.rewriteAndRemember,
-                  description: t.rewriteAndRememberHint,
-                  onSelect: post.onRewriteAndRemember,
-                },
-              ]}
-            >
-              {t.rewriteWithThis}
-            </SplitButton>
-          ) : (
-            <Button
-              type="button"
-              variant="primary"
-              density="dense"
-              disabled={disabled || !count}
-              data-post-options-rewrite="true"
-              onClick={post.onRewrite}
-            >
-              {t.rewriteWithThis}
-            </Button>
-          )
-        ) : null}
-        <Button
-          type="button"
-          variant="quiet"
-          density="dense"
-          disabled={disabled || !count}
-          data-post-options-reset="true"
-          onClick={() =>
-            emit({
-              ...DEFAULT_POST_OPTIONS,
-              brandProfileId: baseline.brandProfileId,
-            })
-          }
-        >
-          {t.postOptionsReset}
-        </Button>
+        {primaryItems.length ? (
+          <SplitButton
+            dataName="rewrite"
+            density="dense"
+            disabled={rewriteOff}
+            menuLabel={t.rewriteMore}
+            placement="below"
+            align="start"
+            actionData={{
+              'data-post-options-rewrite': adaptFirst ? 'adapt' : 'true',
+            }}
+            onClick={post.onRewrite}
+            items={primaryItems}
+          >
+            {primaryLabel}
+          </SplitButton>
+        ) : (
+          <Button
+            type="button"
+            variant="primary"
+            density="dense"
+            disabled={rewriteOff}
+            data-post-options-rewrite={adaptFirst ? 'adapt' : 'true'}
+            onClick={post.onRewrite}
+          >
+            {primaryLabel}
+          </Button>
+        )}
       </div>
-      {post.onRewrite && post.rewritePending ? (
+      {!adaptFirst && post.rewritePending ? (
         <p
           data-post-options-pending="true"
-          className="-mt-[4px] cf-caption text-cf-ink-muted"
+          className="cf-caption text-cf-ink-muted"
         >
           {t.appliesOnRewrite}
         </p>
       ) : null}
+    </div>
+  ) : null;
+
+  /* ---- Сохранение поста -------------------------------------------------- */
+
+  const postActions = post ? (
+    <>
       {post.onSaveForPost ? (
         <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px] border-t border-cf-border pt-[12px]">
           <SplitButton
@@ -605,16 +643,6 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
           >
             {t.saveForPost}
           </SplitButton>
-          <span
-            data-post-options-saved={post.saveState ?? 'idle'}
-            className="cf-caption tabular-nums text-cf-ink-muted"
-          >
-            {post.saveState === 'saving'
-              ? t.settingsSaving
-              : post.savedAt && post.saveState !== 'failed'
-              ? t.settingsSaved(post.savedAt)
-              : null}
-          </span>
         </div>
       ) : null}
       {post.saveState === 'failed' ? (
@@ -639,23 +667,47 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
       className="min-w-0"
       contentClassName="flex min-w-0 flex-col gap-[12px]"
     >
+      {/*
+        Шапка (`97dq.78`): «Настройки поста», счёт изменений, «Сохранено ·
+        ЧЧ:ММ» и кнопка «Скрыть» — в одной строке, а не отдельной кнопкой над
+        карточкой. Вне боковой панели кнопки просто нет.
+      */}
       <div
         data-post-options={scope === 'post' ? 'panel' : undefined}
         data-settings-scope={scope}
-        className="flex min-w-0 flex-wrap items-baseline gap-x-[8px] gap-y-[4px]"
+        className="flex min-w-0 flex-wrap items-center gap-x-[8px] gap-y-[4px]"
       >
         <SectionLabel as="h3">
-          {channelProps ? channelProps.title : t.postOptionsTitle}
+          {channelProps ? channelProps.title : t.settingsPanelLabel}
         </SectionLabel>
         {count ? (
           <span
             data-post-options-count={count}
-            className="ms-auto cf-caption tabular-nums text-cf-ink-muted"
+            className={clsx(
+              'cf-caption tabular-nums text-cf-ink-muted',
+              !post && 'ms-auto'
+            )}
           >
             {t.postOptionsChanges(count)}
           </span>
         ) : null}
+        {post ? (
+          <>
+            <span
+              data-post-options-saved={post.saveState ?? 'idle'}
+              className="ms-auto cf-caption tabular-nums text-cf-ink-muted"
+            >
+              {post.saveState === 'saving'
+                ? t.settingsSaving
+                : post.savedAt && post.saveState !== 'failed'
+                ? t.settingsSaved(post.savedAt)
+                : null}
+            </span>
+            <SidePanelHideButton />
+          </>
+        ) : null}
       </div>
+      {primaryAction}
 
       <fieldset
         disabled={disabled}
@@ -690,11 +742,21 @@ export function PostOptionsPanel(props: Omit<PostScopeProps, 'scope'>) {
  * переопределением поста: `''` — как в заготовке, `none` — без ссылки,
  * иначе адрес http(s). Недописанный адрес не уходит в автосохранение, пока
  * не станет адресом; ошибка говорится под полем.
+ *
+ * Четырнадцатый заход (`97dq.78`, A2/B2): кнопок «Без ссылки» и «Как в
+ * заготовке» больше нет — «если бы можно было просто делать бэкспейс на поле
+ * ссылки, и всё». Очистить поле — без ссылки в этом посте (так и сказано в
+ * «?»); значок «Вернуть ссылку из заготовки» появляется, только когда поле
+ * расходится с заготовкой.
+ *
+ * «Текст ссылки» (`97dq.79`) — под ним, пока в посте есть адрес: слова, на
+ * которых встанет ссылка. Пусто — слова заготовки, а нет их — подберём сами.
  */
 function PostLinkField({
   locale,
   id,
   value,
+  text,
   pieceLink,
   disabled,
   onChange,
@@ -702,9 +764,10 @@ function PostLinkField({
   locale: PiecesLocale;
   id: string;
   value: string;
-  pieceLink: { url: string | null } | null;
+  text: string;
+  pieceLink: { url: string | null; text?: string | null } | null;
   disabled: boolean;
-  onChange: (next: string) => void;
+  onChange: (next: { link: string; linkText: string }) => void;
 }) {
   const t = piecesCopy[locale];
   const ti = intakeCopy[locale];
@@ -712,7 +775,9 @@ function PostLinkField({
     stored === POST_LINK_NONE ? '' : stored || pieceLink?.url || '';
   const [draft, setDraft] = useState(() => shown(value));
   const [invalid, setInvalid] = useState(false);
+  const [words, setWords] = useState(text);
   const emitted = useRef(value);
+  const emittedText = useRef(text);
   const lastPiece = useRef(pieceLink?.url);
 
   // Сброс или новый ответ заготовки пришли снаружи — поле показывает их.
@@ -726,20 +791,29 @@ function PostLinkField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, pieceLink?.url]);
 
-  const send = (next: string) => {
+  useEffect(() => {
+    if (text === emittedText.current) return;
+    emittedText.current = text;
+    setWords(text);
+  }, [text]);
+
+  const send = (next: string, nextText = emittedText.current) => {
+    const changed = next !== value || nextText !== text;
     emitted.current = next;
-    if (next !== value) onChange(next);
+    emittedText.current = nextText;
+    if (changed) onChange({ link: next, linkText: nextText });
   };
 
-  const type = (text: string) => {
-    setDraft(text);
-    if (!text.trim()) {
+  const type = (input: string) => {
+    setDraft(input);
+    if (!input.trim()) {
       setInvalid(false);
-      // Пустое поле — «без ссылки», если заготовка её дала; иначе как было.
-      send(pieceLink?.url ? POST_LINK_NONE : '');
+      // Пустое поле — «без ссылки» всегда (ревью `97dq.79`, P3-6): и когда у
+      // заготовки ссылки ещё нет — её позже данная ссылка сюда не придёт.
+      send(POST_LINK_NONE);
       return;
     }
-    const url = readLinkAddress(text);
+    const url = readLinkAddress(input);
     setInvalid(!url);
     if (url) send(url === pieceLink?.url ? '' : url);
   };
@@ -753,6 +827,10 @@ function PostLinkField({
       ? t.postLinkFromPiece
       : t.postLinkNotChosen;
   const own = value !== '';
+  // Вернуть можно только то, что у заготовки есть: её адрес.
+  const restorable = own && Boolean(pieceLink?.url);
+  const hasAddress = value !== POST_LINK_NONE && Boolean(draft.trim()) && !invalid;
+  const pieceWords = !own ? pieceLink?.text?.trim() || '' : '';
 
   return (
     <div
@@ -778,57 +856,74 @@ function PostLinkField({
           </span>
         ) : null}
       </div>
-      <Input
-        standalone
-        density="dense"
-        id={id}
-        type="url"
-        inputMode="url"
-        placeholder={ti.postLinkPlaceholder}
-        value={draft}
-        disabled={disabled}
-        error={invalid ? ti.postLinkInvalid : undefined}
-        aria-describedby={note ? `${id}-note` : undefined}
-        className={clsx(
-          !own && 'text-cf-ink-muted',
-          own && 'border-cf-signature'
-        )}
-        onChange={(event) => type(event.target.value)}
-      />
-      <div className="flex min-w-0 flex-wrap gap-[8px]">
-        {value !== POST_LINK_NONE && (draft || pieceLink?.url) ? (
+      <div className="flex min-w-0 items-start gap-[8px]">
+        <Input
+          standalone
+          density="dense"
+          id={id}
+          type="url"
+          inputMode="url"
+          placeholder={ti.postLinkPlaceholder}
+          value={draft}
+          disabled={disabled}
+          error={invalid ? ti.postLinkInvalid : undefined}
+          aria-describedby={note ? `${id}-note` : undefined}
+          fieldClassName="min-w-0 flex-1"
+          className={clsx(
+            !own && 'text-cf-ink-muted',
+            own && 'border-cf-signature'
+          )}
+          onChange={(event) => type(event.target.value)}
+        />
+        {restorable ? (
           <Button
             type="button"
             variant="quiet"
+            iconOnly
             density="dense"
             disabled={disabled}
-            data-post-link-clear="true"
+            aria-label={t.postLinkRestore}
+            title={t.postLinkRestore}
+            data-post-link-restore="true"
             onClick={() => {
-              setDraft('');
-              setInvalid(false);
-              send(POST_LINK_NONE);
-            }}
-          >
-            {t.postLinkClear}
-          </Button>
-        ) : null}
-        {own && pieceLink ? (
-          <Button
-            type="button"
-            variant="quiet"
-            density="dense"
-            disabled={disabled}
-            data-post-link-reset="true"
-            onClick={() => {
-              setDraft(pieceLink.url ?? '');
+              setDraft(pieceLink?.url ?? '');
               setInvalid(false);
               send('');
             }}
           >
-            {t.postLinkReset}
+            <ResetIcon />
           </Button>
         ) : null}
       </div>
+      {hasAddress ? (
+        <div
+          data-post-option="link-text"
+          data-post-option-changed={words.trim() ? 'true' : 'false'}
+          className="flex min-w-0 flex-col gap-[4px] pt-[4px]"
+        >
+          <FieldLabel
+            htmlFor={`${id}-text`}
+            label={ti.postLinkText}
+            hint={ti.postLinkTextHint}
+            hintLabel={ti.profileHintFor(ti.postLinkText)}
+            labelClassName="cf-caption text-cf-ink-muted"
+          />
+          <Input
+            standalone
+            density="dense"
+            id={`${id}-text`}
+            maxLength={POST_LINK_TEXT_MAX}
+            placeholder={pieceWords || ti.postLinkTextPlaceholder}
+            value={words}
+            disabled={disabled}
+            className={clsx(words.trim() && 'border-cf-signature')}
+            onChange={(event) => {
+              setWords(event.target.value);
+              send(emitted.current, postLinkTextOf(event.target.value));
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

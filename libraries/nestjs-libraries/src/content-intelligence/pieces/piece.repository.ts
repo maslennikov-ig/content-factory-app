@@ -27,9 +27,9 @@ import {
 } from '../materials/content-material.repository';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
 import type { ReviewSnapshotV2 } from './review.v2.contract';
-import { reviewConflict, type AdaptationReviewSnapshot } from './adaptation-review.contract';
+import { reviewConflict } from './adaptation-review.contract';
 import { searchWords } from '../search-terms';
-import { supersededDraftPostIds } from './adaptation-plan';
+import { channelLockKey, supersededDraftPostIds } from './adaptation-plan';
 
 type PrismaClientLike = Record<string, any>;
 
@@ -37,7 +37,8 @@ type ReviewDraftRow = {
   title: string | null;
   id: string; body: string | null; updatedAt: Date; postId: string | null;
   post: { id: string; content: string; updatedAt: Date; state: string; deletedAt: Date | null;
-    integration: { providerIdentifier: string } } | null;
+    /** `id` — the channel whose emoji ceiling the catalogue honours (`97dq.83`). */
+    integration: { id?: string; providerIdentifier: string } } | null;
 };
 
 /** Канал области в том виде, в каком его читают колонки, цели и адаптация. */
@@ -257,7 +258,48 @@ export class PieceRepository {
     limit: number,
     integrationIds?: string[]
   ): Promise<ReadyAdaptationRow[]> {
-    const hidden = await supersededDraftPostIds(this.client(), organizationId);
+    /*
+      Superseded drafts are dropped page by page (`97dq.65`, F12): each page's
+      own drafts are the only candidates, so no `NOT IN` list of every
+      regenerated variant in the organisation is built. Pages keep the order,
+      so the first `limit` visible rows are the same as before.
+    */
+    const client = this.client();
+    const batch = Math.max(limit, 50);
+    const ready: ReadyAdaptationRow[] = [];
+    for (let skip = 0; ready.length < limit; skip += batch) {
+      const rows: ReadyAdaptationRow[] = await this.readyAdaptationsPage(
+        organizationId,
+        skip,
+        batch,
+        integrationIds
+      );
+      const drafts = rows
+        .filter((row) => String(row.post?.state) === 'DRAFT' && row.post?.id)
+        .map((row) => row.post!.id);
+      const hidden = new Set(
+        drafts.length
+          ? await supersededDraftPostIds(client, organizationId, null, {
+              id: { in: drafts },
+            })
+          : []
+      );
+      for (const row of rows) {
+        if (ready.length >= limit) break;
+        if (row.post?.id && hidden.has(row.post.id)) continue;
+        ready.push(row);
+      }
+      if (rows.length < batch) break;
+    }
+    return ready;
+  }
+
+  private readyAdaptationsPage(
+    organizationId: string,
+    skip: number,
+    take: number,
+    integrationIds?: string[]
+  ): Promise<ReadyAdaptationRow[]> {
     return this.client().contentDerivation.findMany({
       where: {
         organizationId,
@@ -266,7 +308,6 @@ export class PieceRepository {
             organizationId,
             state: { in: ['DRAFT', 'QUEUE'] },
             ...(integrationIds ? { integrationId: { in: integrationIds } } : {}),
-            ...(hidden.length ? { id: { notIn: hidden } } : {}),
             deletedAt: null,
             integration: {
               is: { organizationId, deletedAt: null },
@@ -276,7 +317,8 @@ export class PieceRepository {
         piece: { is: { organizationId } },
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
-      take: limit,
+      skip,
+      take,
       select: {
         id: true,
         title: true,
@@ -402,7 +444,10 @@ export class PieceRepository {
           },
         }),
       busySlots: async (organizationId, integrationId, from, to, excludePostIds = []) => {
-        const hidden = await supersededDraftPostIds(client, organizationId, integrationId);
+        const hidden = await supersededDraftPostIds(client, organizationId, integrationId, {
+          parentPostId: null,
+          publishDate: { gte: from, lte: to },
+        });
         const skip = [...new Set([...hidden, ...excludePostIds])];
         const rows: Array<{ publishDate: Date }> = await client.post.findMany({
           where: {
@@ -574,7 +619,7 @@ export class PieceRepository {
     integrationId: string,
     work: (db: PlanDb) => Promise<T>
   ): Promise<T> {
-    const key = `cf-plan:${organizationId}:${pieceId}:${integrationId}`;
+    const key = channelLockKey(organizationId, pieceId, integrationId);
     return this.client().$transaction(
       async (tx: PrismaClientLike) => {
         await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${key}))) AS held`;
@@ -657,33 +702,17 @@ export class PieceRepository {
       select: {
         id: true, title: true, body: true, updatedAt: true, postId: true,
         post: { select: { id: true, content: true, updatedAt: true, state: true, deletedAt: true,
-          integration: { select: { providerIdentifier: true } } } },
+          integration: { select: { id: true, providerIdentifier: true } } } },
       },
     });
   }
 
-  /** Both compare-and-swap updates must succeed; throwing rolls back the first one. */
-  acceptReview(organizationId: string, pieceId: string, adaptationId: string,
-    snapshot: AdaptationReviewSnapshot, text: string, content: string) {
-    return this.client().$transaction(async (tx: PrismaClientLike) => {
-      const adaptation = await tx.contentDerivation.updateMany({
-        where: { organizationId, contentPieceId: pieceId, id: adaptationId,
-          postId: snapshot.postId, body: snapshot.adaptationBody,
-          updatedAt: new Date(snapshot.adaptationUpdatedAt) },
-        data: { body: text },
-      });
-      if (adaptation.count !== 1) throw reviewConflict();
-      const post = await tx.post.updateMany({
-        where: { organizationId, id: snapshot.postId, state: 'DRAFT', deletedAt: null,
-          content: snapshot.postContent, updatedAt: new Date(snapshot.postUpdatedAt) },
-        data: { content },
-      });
-      if (post.count !== 1) throw reviewConflict();
-      return { accepted: true as const };
-    });
-  }
-
-  /** V2 also protects and atomically writes the independent adaptation title. */
+  /**
+   * Both compare-and-swap updates must succeed; throwing rolls back the first
+   * one. V2 also protects and atomically writes the independent adaptation
+   * title. The accept without a title (`acceptReview`) is gone with the
+   * service door that called it (`97dq.18`).
+   */
   acceptReviewV2(organizationId: string, pieceId: string, adaptationId: string,
     snapshot: ReviewSnapshotV2, text: string, content: string, title: string | null) {
     return this.client().$transaction(async (tx: PrismaClientLike) => {
@@ -782,10 +811,12 @@ export class PieceRepository {
   /**
    * Ручная правка: тело адаптации и её черновик одной транзакцией.
    *
-   * Пост меняется только пока он `DRAFT` и не удалён: запись в очередь или
-   * в опубликованное — ровно то, чего экран адаптации не делает правкой. Любой
-   * из двух промахов бросает и откатывает первую запись; какой именно,
-   * говорит `reason`.
+   * Пост меняется, пока он `DRAFT` и не удалён, или стоит в очереди со
+   * слотом позже `queuedAfter` (`97dq.80`): публикация читает текст из базы
+   * в момент выхода, поэтому правка меняет только текст и картинку — дата и
+   * состояние остаются, публикация не перезапускается. Без `queuedAfter`
+   * очередь закрыта, как раньше. Любой из двух промахов бросает и откатывает
+   * первую запись; какой именно, говорит `reason`.
    */
   editAdaptation(
     organizationId: string,
@@ -797,7 +828,8 @@ export class PieceRepository {
       content?: string;
       image?: string;
       mediaId?: string | null;
-    }
+    },
+    queuedAfter?: Date
   ) {
     return this.client().$transaction(async (tx: PrismaClientLike) => {
       const derivation = await tx.contentDerivation.updateMany({
@@ -810,14 +842,42 @@ export class PieceRepository {
       if (derivation.count !== 1)
         throw Object.assign(new Error('adaptation moved'), { reason: 'ADAPTATION_NOT_FOUND' });
       const post = await tx.post.updateMany({
-        where: { organizationId, id: postId, state: 'DRAFT', deletedAt: null },
+        where: {
+          organizationId,
+          id: postId,
+          deletedAt: null,
+          ...(queuedAfter
+            ? {
+                OR: [
+                  { state: 'DRAFT' },
+                  { state: 'QUEUE', publishDate: { gt: queuedAfter } },
+                ],
+              }
+            : { state: 'DRAFT' }),
+        },
         data: {
           ...(change.content !== undefined ? { content: change.content } : {}),
           ...(change.image !== undefined ? { image: change.image } : {}),
         },
       });
-      if (post.count !== 1)
-        throw Object.assign(new Error('post is not a draft'), { reason: 'ADAPTATION_NOT_DRAFT' });
+      if (post.count !== 1) {
+        // Промах записи называется по тому, что с постом сейчас (ревью P3-3):
+        // удалён или заменён, ошибка публикации, ушёл в канал.
+        const now = await tx.post.findFirst({
+          where: { organizationId, id: postId },
+          select: { state: true, deletedAt: true },
+        });
+        const state = String(now?.state || '').toUpperCase();
+        const reason =
+          !now || now.deletedAt
+            ? 'ADAPTATION_POST_GONE'
+            : state === 'ERROR'
+              ? 'ADAPTATION_POST_FAILED'
+              : queuedAfter
+                ? 'ADAPTATION_EDIT_CLOSED'
+                : 'ADAPTATION_NOT_DRAFT';
+        throw Object.assign(new Error('post is not editable'), { reason });
+      }
       return { saved: true as const };
     });
   }

@@ -31,7 +31,10 @@ const { loadTypeScriptModule } = require('./helpers/load-ts-module.cjs');
 // The reading of the decorators lives next door since 05.09.2026: this guard
 // and `role-doors.three-roles.test.cjs` must not disagree about what the
 // doors are (`content-factory-next-fn33.90`).
-const { doorsWithPolicies } = require('./helpers/backend-doors.cjs');
+const {
+  doorsWithPolicies,
+  unpolicedChangingDoors,
+} = require('./helpers/backend-doors.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -402,5 +405,41 @@ describe('settings navigation follows the role matrix', () => {
     expect(settings).toContain('settings_editor_role_required_reason');
     expect(settings).toContain("restrictedTab === 'admin'");
     expect(settings).toContain("restrictedTab === 'editor'");
+  });
+});
+
+/*
+  `content-factory-next-fn33.90.2`: the matrix is read from `@CheckPolicies`,
+  so a changing door with no policy at all was invisible to it. Every such
+  door is named in the allowlist with its reason, and the list may only shrink.
+*/
+describe('changing doors without a policy are named, each with its reason', () => {
+  const allowlist = JSON.parse(read('tests/unpoliced-doors-allowlist.json')).doors;
+  const found = unpolicedChangingDoors();
+
+  test('a new door without a policy is a red test, not a silent gap', () => {
+    const unnamed = found.filter((door) => !(door in allowlist));
+    expect({
+      unnamed,
+      fix: 'give the door @CheckPolicies, or name it in tests/unpoliced-doors-allowlist.json with the reason it has none',
+    }).toEqual({ unnamed: [], fix: expect.any(String) });
+  });
+
+  test('the list only shrinks: a line whose door is gone or now has a policy goes', () => {
+    const stale = Object.keys(allowlist).filter((door) => !found.includes(door));
+    expect(stale).toEqual([]);
+  });
+
+  test('every line says why', () => {
+    const silent = Object.entries(allowlist)
+      .filter(([, reason]) => typeof reason !== 'string' || reason.trim().length < 20)
+      .map(([door]) => door);
+    expect(silent).toEqual([]);
+  });
+
+  test('the matrix has the section that explains them', () => {
+    const matrix = read(MATRIX);
+    expect(matrix).toContain('## Двери без роли и почему');
+    expect(matrix).toContain('tests/unpoliced-doors-allowlist.json');
   });
 });

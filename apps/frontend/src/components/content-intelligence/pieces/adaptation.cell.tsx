@@ -252,16 +252,21 @@ export function cellDate(
 /**
  * Подсказка клетки: площадка, момент и что случится по нажатию.
  *
- * Собирается из того, что действительно приехало. Имени канала в ответе нет —
- * клетка называет площадку, а не канал, — и предложения про канал в подсказке
- * поэтому нет вовсе: выдуманное «AiDevTeam» было бы хуже короткой фразы.
+ * Собирается из того, что действительно приехало. Имя канала сервер кладёт
+ * рядом с `integrationId` (`97dq.20`), и тогда подсказка начинается с
+ * «Telegram · AiDevTeam». Без имени — одна площадка: выдуманное «AiDevTeam»
+ * было бы хуже короткой фразы.
  */
 export function cellHint(
   cell: PieceCellV1,
   platformName: string,
   t: (typeof piecesCopy)[PiecesLocale]
 ): string {
-  const parts = [`${platformName}.`];
+  const parts = [
+    cell.channelName
+      ? `${platformName} · ${cell.channelName}.`
+      : `${platformName}.`,
+  ];
   const when = cellDate(cell.state, cell.date, cell.planned);
   if (when && cell.planned) {
     const [day, time] = when.split(' ');

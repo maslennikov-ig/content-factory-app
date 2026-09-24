@@ -159,7 +159,7 @@ export const Sidebar: FC<{
       <div
         ref={isDrawer ? panelRef : undefined}
         className={clsx(
-          'h-full flex flex-col bg-cf-navigation text-cf-navigation-text border-e border-cf-border-strong',
+          'h-full min-h-0 flex flex-col bg-cf-navigation text-cf-navigation-text border-e border-cf-border-strong',
           // On the desktop the width belongs to `SidePanel` (`97dq.71`).
           isDrawer ? 'w-[288px] max-w-[85vw]' : 'w-full'
         )}
@@ -181,7 +181,7 @@ export const Sidebar: FC<{
 
         <nav
           aria-label={t('primary_navigation', 'Primary navigation')}
-          className="flex-1 overflow-y-auto px-[12px] pb-[12px] flex flex-col gap-[20px]"
+          className="flex-1 min-h-0 overflow-y-auto px-[12px] pb-[12px] flex flex-col gap-[20px]"
         >
           {groups.map((group) => (
             <Group
@@ -205,7 +205,10 @@ export const Sidebar: FC<{
           ))}
         </nav>
 
-        <div className="border-t border-cf-border-strong px-[12px] py-[12px] flex flex-col gap-[8px]">
+        <div
+          data-sidebar-footer="true"
+          className="shrink-0 border-t border-cf-border-strong px-[12px] py-[12px] flex flex-col gap-[8px]"
+        >
           {/* Who is signed in: the name they entered, and the address under
               it. The address alone stood here until 04.09.2026 — the owner
               filled in a profile name and the product went on calling him by
@@ -323,7 +326,19 @@ export const Sidebar: FC<{
         to the 72px icon rail — the same state as the chevron below, kept in
         the same cookie — and the labels live on in the rows' tooltips.
       */}
-      <div className="hidden md:flex shrink-0">
+      {/*
+        The rail stays put while the page scrolls (`97dq.84`, fourteenth
+        walk, E1), with its own scroll in the link list — so the profile,
+        logout and collapse rows are always at the bottom of the screen, not
+        at the bottom of the page. Review of 97dq.81-85, P2-3: the rail is not
+        one viewport tall on its own any more. The app shell is
+        (`layout.component.tsx`), the banners above take their height, and
+        the rail stretches over the rest while `<main>` scrolls beside it.
+      */}
+      <div
+        data-sidebar-frame="true"
+        className="hidden md:flex shrink-0 self-stretch min-h-0"
+      >
         <SidePanel
           id="navigation"
           side="start"
@@ -349,7 +364,7 @@ export const Sidebar: FC<{
           unmountHidden
           rail={content(false, true)}
           className="cf-sidebar h-full"
-          bodyClassName="h-full"
+          bodyClassName="h-full min-h-0"
         >
           {content(false, false)}
         </SidePanel>

@@ -136,7 +136,6 @@ export const piecesCopy = {
     toChannels: 'К каналам',
     cancel: 'Отменить',
     chooseChannel: 'Выберите канал',
-    deleteAdaptation: 'Удалить адаптацию',
     // Правая панель настроек (`97dq.71`): тянется за край и прячется.
     settingsPanelLabel: 'Настройки поста',
     settingsPanelResize: 'Ширина панели настроек: тяните или стрелками',
@@ -203,7 +202,7 @@ export const piecesCopy = {
     editDone: 'Готово',
     editOpening: 'Открываем редактор…',
     editLockedQueued:
-      'Пост стоит в расписании. Чтобы править текст, снимите его с расписания.',
+      'Пост уже уходит в канал: править его здесь поздно.',
 
     /* --- Опоры текста ------------------------------------------------------- */
     textSourcesHintLabel: 'Подсказка: опоры текста',
@@ -266,12 +265,10 @@ export const piecesCopy = {
     /* --- Ссылка для поста и правка заготовки (`97dq.75`) ---------------- */
     postLinkLabel: 'Ссылка для поста',
     postLinkHint:
-      'Ссылка, которую поставим в этот пост. Сначала здесь ваш ответ на вопрос «Какую ссылку поставить в пост?». Измените её — новая встанет при переписывании. Своих адресов мы не придумываем.',
+      'Ссылка, которую поставим в этот пост. Сначала здесь ваш ответ на вопрос «Какую ссылку поставить в пост?». Измените её — новая встанет при переписывании. Очистите поле — в этом посте ссылки не будет. Своих адресов мы не придумываем.',
     postLinkFromPiece: 'как в заготовке',
     postLinkNoneForPost: 'без ссылки в этом посте',
     postLinkNotChosen: 'ссылку ещё не выбрали',
-    postLinkClear: 'Без ссылки',
-    postLinkReset: 'Как в заготовке',
     receiptPostLink: 'Ссылка',
     receiptPostLinkNone: 'без ссылки',
     postLinkChange: 'Изменить',
@@ -330,10 +327,8 @@ export const piecesCopy = {
     imageAttached: 'Картинка к посту',
     imageRemove: 'Убрать картинку',
     imageAlt: 'Картинка к посту',
-    postOptionsTitle: 'Для этого поста',
     postOptionsChanges: (count: number) =>
       `${count} ${plural(count, ['изменение', 'изменения', 'изменений'])}`,
-    postOptionsReset: 'Сбросить',
     asInChannel: (value: string | null) =>
       value ? `как в канале · ${value}` : 'как в канале',
     whoSpeaks: 'Кто говорит',
@@ -344,7 +339,7 @@ export const piecesCopy = {
     wishLabel: 'Пожелание',
     wishPlaceholder: 'Например: начни с вопроса',
     hintWish: 'Одна просьба своими словами — только к этому посту.',
-    rewriteWithThis: 'Переписать с этим',
+    rewriteWithThis: 'Переписать по настройкам',
     remembering: 'Запоминаем для канала',
     rememberFailed: 'Не запомнилось. Попробуйте ещё раз.',
     whenLabel: 'Когда',
@@ -448,6 +443,41 @@ export const piecesCopy = {
     acceptSelected: 'Принять выбранные',
     leaveUnchanged: 'Оставить как было',
     searchSources: 'Источники поиска',
+    /* --- Настройки поста до текста и одна перепись (`97dq.78`) ----------- */
+    adaptAction: 'Адаптировать',
+    resetToChannel: 'Вернуть как в канале',
+    resetToChannelHint:
+      'Все поля поста снова берут значения канала. Текст не меняется, пока его не переписать.',
+    postLinkRestore: 'Вернуть ссылку из заготовки',
+    /* --- Пост в очереди правится до выхода (`97dq.80`) -------------------- */
+    queuedEditUntil: (time: string) =>
+      `Правки уйдут в пост, если сохранить до ${time}`,
+    /* --- Версии сути (`97dq.85`) ----------------------------------------- */
+    coreVersionsTitle: 'Версии сути',
+    coreVersionsHint:
+      'Прежние тексты сути: до вашей правки, до пересборки и до возврата версии. Хранятся самый первый текст и последние 19. Любую можно вернуть — текущая суть тогда тоже останется в версиях.',
+    coreVersionsCount: (count: number) => `прежних: ${count}`,
+    coreVersionByYou: 'вы',
+    coreVersionByAi: 'ИИ',
+    coreVersionUntil: (at: string) => `была сутью до ${at}`,
+    coreVersionShow: 'Показать текст',
+    coreVersionHide: 'Скрыть текст',
+    coreVersionRestore: 'Вернуть эту версию',
+    coreVersionRestoreHint:
+      'Этот текст снова станет сутью, текущий сохранится в версиях. Без запроса к ИИ; адаптации не переписываются сами.',
+    coreVersionRestoring: 'Возвращаем версию',
+    coreVersionRestoreFailed:
+      'Версия не вернулась. Текущая суть на месте — попробуйте ещё раз.',
+    /* --- Ревью 97dq.78–80: правка поста в очереди и удаление --------------- */
+    queuedSave: 'Сохранить в пост',
+    queuedSaving: 'Сохраняем в пост…',
+    queuedSaved: (time: string) => `Сохранено в пост в ${time}`,
+    queuedUnsaved:
+      'Правки ещё не в посте: они уйдут в канал только после «Сохранить в пост».',
+    queuedMissed:
+      'Правки не успели в пост: он уже уходит в канал с прежним текстом.',
+    deleteAdaptationArmed: 'Удалить эту адаптацию?',
+    deleteWholePieceArmed: 'Удалить всю заготовку?',
   },
   en: {
     title: 'Pieces',
@@ -555,7 +585,6 @@ export const piecesCopy = {
     toChannels: 'To the channels',
     cancel: 'Cancel',
     chooseChannel: 'Pick a channel',
-    deleteAdaptation: 'Delete the adaptation',
     settingsPanelLabel: 'Post settings',
     settingsPanelResize: 'Settings panel width: drag or use the arrow keys',
     settingsPanelHide: 'Hide settings',
@@ -608,7 +637,7 @@ export const piecesCopy = {
     editDone: 'Done',
     editOpening: 'Opening the editor…',
     editLockedQueued:
-      'The post is scheduled. To edit the text, take it off the schedule.',
+      'The post is already going out, so it is too late to edit it here.',
 
     textSourcesHintLabel: 'Hint: text sources',
     textSourcesHint:
@@ -669,12 +698,10 @@ export const piecesCopy = {
     /* --- Link for the post and editing the piece (`97dq.75`) ------------ */
     postLinkLabel: 'Link for the post',
     postLinkHint:
-      'The link this post gets. It starts as your answer to «Which link goes into the post?». Change it — the new one goes in on the next rewrite. We never invent addresses.',
+      'The link this post gets. It starts as your answer to «Which link goes into the post?». Change it — the new one goes in on the next rewrite. Clear the field — this post gets no link. We never invent addresses.',
     postLinkFromPiece: 'as in the piece',
     postLinkNoneForPost: 'no link in this post',
     postLinkNotChosen: 'no link chosen yet',
-    postLinkClear: 'No link',
-    postLinkReset: 'As in the piece',
     receiptPostLink: 'Link',
     receiptPostLinkNone: 'no link',
     postLinkChange: 'Change',
@@ -732,10 +759,8 @@ export const piecesCopy = {
     imageAttached: 'Post image',
     imageRemove: 'Remove the image',
     imageAlt: 'Post image',
-    postOptionsTitle: 'For this post',
     postOptionsChanges: (count: number) =>
       `${count} ${count === 1 ? 'change' : 'changes'}`,
-    postOptionsReset: 'Reset',
     asInChannel: (value: string | null) =>
       value ? `as in the channel · ${value}` : 'as in the channel',
     whoSpeaks: 'Who speaks',
@@ -746,7 +771,7 @@ export const piecesCopy = {
     wishLabel: 'Wish',
     wishPlaceholder: 'For example: start with a question',
     hintWish: 'One request in your own words, for this post only.',
-    rewriteWithThis: 'Rewrite with this',
+    rewriteWithThis: 'Rewrite with these settings',
     remembering: 'Remembering for the channel',
     rememberFailed: 'That was not remembered. Try again.',
     whenLabel: 'When',
@@ -838,6 +863,41 @@ export const piecesCopy = {
     acceptSelected: 'Accept selected',
     leaveUnchanged: 'Leave unchanged',
     searchSources: 'Search sources',
+    /* --- Post settings before the text, one rewrite (`97dq.78`) ---------- */
+    adaptAction: 'Adapt',
+    resetToChannel: 'Back to the channel settings',
+    resetToChannelHint:
+      'Every field takes the channel value again. The text stays as it is until you rewrite it.',
+    postLinkRestore: 'Bring back the link from the piece',
+    /* --- A queued post is editable until it goes out (`97dq.80`) --------- */
+    queuedEditUntil: (time: string) =>
+      `Edits go into the post if saved before ${time}`,
+    /* --- Core versions (`97dq.85`) ---------------------------------------- */
+    coreVersionsTitle: 'Core versions',
+    coreVersionsHint:
+      'Earlier texts of the core: before your edit, before a rebuild and before a version was restored. The very first text and the last 19 are kept. Any of them can be restored — the current core then stays in the versions too.',
+    coreVersionsCount: (count: number) => `earlier: ${count}`,
+    coreVersionByYou: 'you',
+    coreVersionByAi: 'AI',
+    coreVersionUntil: (at: string) => `was the core until ${at}`,
+    coreVersionShow: 'Show the text',
+    coreVersionHide: 'Hide the text',
+    coreVersionRestore: 'Restore this version',
+    coreVersionRestoreHint:
+      'This text becomes the core again; the current one is kept in the versions. No AI request; adaptations are not rewritten by themselves.',
+    coreVersionRestoring: 'Restoring the version',
+    coreVersionRestoreFailed:
+      'The version was not restored. The current core is still there — try again.',
+    /* --- Review of 97dq.78–80: editing a queued post, deleting ------------- */
+    queuedSave: 'Save to the post',
+    queuedSaving: 'Saving to the post…',
+    queuedSaved: (time: string) => `Saved to the post at ${time}`,
+    queuedUnsaved:
+      'These edits are not in the post yet: they go to the channel only after «Save to the post».',
+    queuedMissed:
+      'The edits were too late for the post: it is already going out with the previous text.',
+    deleteAdaptationArmed: 'Delete this adaptation?',
+    deleteWholePieceArmed: 'Delete the whole piece?',
   },
 } as const;
 

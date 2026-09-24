@@ -156,7 +156,6 @@ beforeEach(() => {
   repository = {
     getPiece: jest.fn(async () => piece),
     reviewDraft: jest.fn(async () => draftFor()),
-    acceptReview: jest.fn(async () => ({ accepted: true })),
     acceptReviewV2: jest.fn(async () => ({ accepted: true })),
   };
   usage = {
@@ -1253,6 +1252,34 @@ test('bold with a trailing space inside the tag survives a full post round trip'
   expect(editorHtml(text, 'html')).toContain('<strong>');
 });
 
+/*
+  `content-factory-next-97dq.77` (review-97dq75 P3-15): a post edited outside
+  the adaptation editor was read by `htmlToPlainText`, and its links lost
+  their addresses; an accepted edit then wrote the post back without them.
+*/
+test('a hand-edited post keeps its links in the review text and back in the post', () => {
+  const html =
+    '<p>См. <a href="https://example.com/r?a=1&amp;b=2">отчёт [PDF]</a>, <a href="https://x.com">https://x.com</a> и <a href="javascript:alert(1)">клик</a>.</p><p><a href="https://y.com/p"><strong>жирная</strong> ссылка</a></p>';
+  const text = postAsReviewText(html, 'html');
+  expect(text).toBe(
+    'См. [отчёт \\[PDF\\]](https://example.com/r?a=1&b=2), https://x.com и клик.\n\n[**жирная** ссылка](https://y.com/p)'
+  );
+  const back = editorHtml(text, 'html');
+  expect(back).toContain('<a href="https://example.com/r?a=1&amp;b=2">отчёт [PDF]</a>');
+  expect(back).toContain('<a href="https://y.com/p"><strong>жирная</strong> ссылка</a>');
+  expect(back).not.toContain('javascript:');
+});
+
+test('review F5: link words with a raw newline and an unquoted href keep the link', () => {
+  const html =
+    '<p>См. <a href="https://example.com/r">годовой\nотчёт</a> и <a href=https://x.com/p>тут</a>.</p>';
+  const text = postAsReviewText(html, 'html');
+  expect(text).toBe('См. [годовой отчёт](https://example.com/r) и [тут](https://x.com/p).');
+  const back = editorHtml(text, 'html');
+  expect(back).toContain('<a href="https://example.com/r">годовой отчёт</a>');
+  expect(back).toContain('<a href="https://x.com/p">тут</a>');
+});
+
 test('a nested tag inside a span keeps its words even though the bold is lost', () => {
   const html = '<p><strong>очень <em>важно</em></strong>.</p>';
   expect(postAsReviewText(html, 'html')).toBe('очень важно.');
@@ -1349,15 +1376,30 @@ test('the quiet fact-check result counts its catalog by the same platform', asyn
 // is four asterisks, and it reaches the post as itself. The guard in
 // `renderedPost` stays as the backstop for a future grammar; what is pinned
 // here is the behaviour a person can actually meet.
+/*
+  Through the live accept door (`97dq.18`): a signed review whose one change
+  turns `excerpt` into `replacement`, accepted by id.
+*/
+const acceptThrough = async (excerpt, replacement) => {
+  reviewAnswer = {
+    changes: [{ id: 'edit', excerpt, replacement, why: 'Правка.', basket: 'show' }],
+    verdict: 'review',
+    summary: '',
+  };
+  const service = serviceWith(web);
+  const result = await service.reviewV2('org', 'piece', 'adaptation', { mode: 'slop' }, 'ru');
+  await service.acceptReviewV2('org', 'piece', 'adaptation', {
+    token: result.token,
+    selectedIds: ['edit'],
+  });
+};
+
 test('a markup-only edit is written as the characters it is, not as an empty post', async () => {
   repository.reviewDraft.mockResolvedValue(draftFor('Текст.'));
   expect(editorHtml('****', 'html')).toBe('<p>****</p>');
 
-  await serviceWith(web).acceptAdaptationReview('org', 'piece', 'adaptation', {
-    text: '****',
-    snapshot: { postId: 'post' },
-  });
-  expect(repository.acceptReview.mock.calls[0][5]).toBe('<p>****</p>');
+  await acceptThrough('Текст.', '****');
+  expect(repository.acceptReviewV2.mock.calls[0][5]).toBe('<p>****</p>');
 });
 
 test('no non-empty text renders to an empty post under the shared grammar', () => {
@@ -1370,11 +1412,8 @@ test('no non-empty text renders to an empty post under the shared grammar', () =
 
 test('an ordinary edit still renders and is written', async () => {
   repository.reviewDraft.mockResolvedValue(draftFor('Текст.'));
-  await serviceWith(web).acceptAdaptationReview('org', 'piece', 'adaptation', {
-    text: 'Новый **текст**.',
-    snapshot: { postId: 'post' },
-  });
-  expect(repository.acceptReview.mock.calls[0][5]).toBe(
+  await acceptThrough('Текст.', 'Новый **текст**.');
+  expect(repository.acceptReviewV2.mock.calls[0][5]).toBe(
     '<p>Новый <strong>текст</strong>.</p>'
   );
 });

@@ -184,6 +184,41 @@ describe('the emoji button', () => {
     expect(picker.querySelector('input[placeholder="Найти эмодзи"]')).not.toBeNull();
   });
 
+  test('the picker follows the page theme on <body>, not a storage key (fourteenth walk, P3-5)', async () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', 'apps/frontend/src/components/content-intelligence/pieces/adaptation-editor.tsx'),
+      'utf8'
+    );
+    expect(source).not.toMatch(/localStorage/);
+    const compose = fs.readFileSync(
+      path.join(__dirname, '..', 'apps/frontend/src/components/new-launch/editor.tsx'),
+      'utf8'
+    );
+    expect(compose).not.toMatch(/localStorage\.getItem\('mode'\)/);
+    expect(compose).toContain('documentThemeMode()');
+
+    const theme = () =>
+      document.querySelector('[data-editor-emoji-picker] .EmojiPickerReact')
+        .className;
+    document.body.classList.add('light');
+    // Even a stale key in storage does not decide it.
+    window.localStorage.setItem('mode', 'dark');
+    try {
+      await openEditor();
+      fireEvent.click(screen.getByRole('button', { name: 'Эмодзи' }));
+      await flush();
+      expect(theme()).not.toContain('epr-dark-theme');
+    } finally {
+      document.body.classList.remove('light');
+      window.localStorage.removeItem('mode');
+    }
+    cleanup();
+    await openEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Эмодзи' }));
+    await flush();
+    expect(theme()).toContain('epr-dark-theme');
+  });
+
   test('inserts at the cursor, not at the end, and closes', async () => {
     const onChange = jest.fn();
     await openEditor({ onChange });

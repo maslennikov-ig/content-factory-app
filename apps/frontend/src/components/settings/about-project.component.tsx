@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import useSWR from 'swr';
+import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { SourceLink } from '@contentfactory/frontend/components/layout/source.link';
 
@@ -23,7 +25,24 @@ export const AboutProjectComponent = () => {
   // The same value the calendar footer prints. It is stamped into the image at
   // build time, so a deployment built without it says nothing rather than
   // claiming a version it cannot know.
-  const version = process.env.NEXT_PUBLIC_VERSION || '';
+  const stamped = process.env.NEXT_PUBLIC_VERSION || '';
+  // An image without the stamp still carries the manifest of its own source,
+  // and the source page names that commit; this panel said «—» beside it
+  // (`content-factory-next-fn33.155`). Asked only when the stamp is missing.
+  const fetch = useFetch();
+  const loadRelease = useCallback(async () => {
+    const response = await fetch('/public/source/version');
+    if (!response.ok) return null;
+    return (await response.json()) as { shortCommit?: string };
+  }, [fetch]);
+  const release = useSWR(stamped ? null : 'about-project-release', loadRelease, {
+    revalidateOnFocus: false,
+  });
+  const version =
+    stamped ||
+    (typeof release.data?.shortCommit === 'string'
+      ? release.data.shortCommit
+      : '');
 
   return (
     <div className="flex flex-col gap-[16px]">

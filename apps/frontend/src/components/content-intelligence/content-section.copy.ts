@@ -53,7 +53,6 @@ export const contentSectionCopy = {
     // Not «Раздел готовится», which promised a tab under construction over a
     // library that already read and recut. It is simply empty until the brief
     // has been used once, and the body says where the first row comes from.
-    materialsPending: 'Пока пусто',
     // Переключатель «По мысли · Вручную» и ручная форма брифа убраны
     // решением владельца 22.09.2026 (`content-factory-next-97dq.36`).
     // Витрина «На что опираются» убрана решением владельца 06.09.2026 (§11.5):
@@ -75,7 +74,6 @@ export const contentSectionCopy = {
     materialsTitle: 'No pieces yet',
     materialsBody:
       'A piece is the core of your thought without a platform: channel adaptations are made from it. The first one appears here once you build it on the New piece tab.',
-    materialsPending: 'Nothing here yet',
   },
 } as const;
 

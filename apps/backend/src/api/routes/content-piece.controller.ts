@@ -38,6 +38,7 @@ import {
   ChannelPlanApplyDto,
   PiecePostLinkDto,
   PieceCoreEditDto,
+  PieceCoreRestoreDto,
   PieceMaterialAppendDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
@@ -178,7 +179,11 @@ export class ContentPieceController {
       return await this.pieces.savePostLink(
         organization.id,
         id,
-        { url: body.url ?? null },
+        {
+          url: body.url ?? null,
+          // «Текст ссылки» (`97dq.79`) — только если прислан.
+          ...(typeof body.text === 'string' ? { text: body.text } : {}),
+        },
         languageOf(requested)
       );
     } catch (error) {
@@ -230,6 +235,22 @@ export class ContentPieceController {
       return await this.pieces.rebuildCore(organization.id, id, languageOf(requested));
     } catch (error) {
       safeHttpError(error, 'Core rebuild failed');
+    }
+  }
+
+  /** «Вернуть эту версию» (`97dq.85`): прежний текст сути снова текущий, без вызова модели. */
+  @Post('/:id/core/restore')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async restoreCore(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Body() body: PieceCoreRestoreDto,
+    @Query('language') requested?: string
+  ) {
+    try {
+      return await this.pieces.restoreCore(organization.id, id, body, languageOf(requested));
+    } catch (error) {
+      safeHttpError(error, 'Core version was not restored');
     }
   }
 

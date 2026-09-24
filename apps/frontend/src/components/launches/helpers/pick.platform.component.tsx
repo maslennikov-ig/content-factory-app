@@ -245,7 +245,7 @@ export const PickPlatforms: FC<{
         <div
           className={clsx(
             props.singleSelect
-              ? 'absolute w-full h-[40px] flex flex-nowrap overflow-hidden transition-all'
+              ? 'absolute w-full h-[40px] flex flex-nowrap overflow-hidden transition-all duration-state motion-reduce:transition-none'
               : 'flex-1 flex'
           )}
           ref={ref}

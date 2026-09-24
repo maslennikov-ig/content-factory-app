@@ -4,7 +4,6 @@ import { useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMediaQuery } from '@mantine/hooks';
 import useSWR from 'swr';
-import clsx from 'clsx';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { Button } from '@contentfactory/react/form/button';
@@ -39,6 +38,7 @@ import {
   channelDate,
 } from './channel-parts';
 import { ChannelMenu } from './channel-menu';
+import { sectionTabClass } from '../ui/section-tabs';
 
 export type ChannelPosts = {
   total: number;
@@ -247,10 +247,11 @@ function ChannelDetail({
                   <Tab
                     key={value}
                     value={value}
-                    className={clsx(
-                      'px-3 cf-label-sm',
-                      tab === value ? 'text-cf-accent' : 'text-cf-ink-muted'
-                    )}
+                    // The shared strip, compact (`97dq.76`, audit §2.4):
+                    // an underline and the section's type, not a bare word.
+                    className={sectionTabClass(tab === value, {
+                      compact: true,
+                    })}
                   >
                     {label}
                   </Tab>

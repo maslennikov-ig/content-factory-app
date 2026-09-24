@@ -272,6 +272,39 @@ describe('AI operation usage seam', () => {
     });
   });
 
+  test('«без предела» admits without counting against a ceiling (97dq.27)', async () => {
+    const create = jest.fn(async ({ data }) => ({ id: 'usage-1', ...data }));
+    const count = jest.fn(async () => 999_955);
+    const transaction = jest.fn((callback) =>
+      callback({
+        subscription: { findUnique: async () => null },
+        instanceAiDefaults: {
+          findUnique: async () => ({ monthlyOperations: -1 }),
+        },
+        organization: {
+          findUnique: async () => ({ createdAt: new Date('2026-08-01') }),
+        },
+        aiUsageRecord: { count, create },
+      })
+    );
+    const usage = loadUsage({
+      transaction,
+      create,
+      update: jest.fn(async () => ({})),
+      config: included,
+    });
+
+    await expect(
+      usage.executeAiOperation(
+        'organization-a',
+        'text_generation',
+        async () => 'result'
+      )
+    ).resolves.toBe('result');
+    expect(count).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   test('an admission orphaned by process loss returns included allowance after 24 hours', async () => {
     jest.useFakeTimers({ now: new Date('2026-08-20T12:00:00.000Z') });
     const { usage } = includedLedger({

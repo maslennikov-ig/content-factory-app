@@ -1045,15 +1045,27 @@ export class PostsService {
         content: removeLinks ? stripLinks(updateContent[i]) : updateContent[i],
       }));
 
-      const { posts } = await this._postRepository.createOrUpdatePost(
-        body.type,
-        orgId,
-        body.type === 'now' ? dayjs().format('YYYY-MM-DDTHH:mm:00') : body.date,
-        post,
-        body.tags,
-        creationMethod,
-        body.inter
-      );
+      const write = (tx?: any) =>
+        this._postRepository.createOrUpdatePost(
+          body.type,
+          orgId,
+          body.type === 'now' ? dayjs().format('YYYY-MM-DDTHH:mm:00') : body.date,
+          post,
+          body.tags,
+          creationMethod,
+          body.inter,
+          tx
+        );
+      // The editor saving an existing Content Factory variant into the queue
+      // goes through the one-queue rule of its piece (`97dq.67`).
+      const queues = body.type === 'schedule' || body.type === 'now';
+      const existing = (post.value || [])
+        .map((item) => item.id)
+        .filter((id): id is string => !!id);
+      const { posts } =
+        queues && existing.length
+          ? await this.gatedQueueWrite(orgId, existing, write)
+          : await write();
 
       if (!posts?.length) {
         return [] as any[];
@@ -1168,6 +1180,31 @@ export class PostsService {
     return post ? { state: post.state as string } : null;
   }
 
+  /**
+   * A queue write under the CF one-queue gate. The lock, the check and the
+   * write share one transaction, so a gate timeout rolls the write back. Any
+   * failure other than the refusal itself still brings the workflows in line
+   * with the database (review F1): a QUEUE post never stays without one.
+   */
+  private async gatedQueueWrite<T>(
+    orgId: string,
+    ids: string[],
+    write: (tx?: any) => Promise<T>
+  ): Promise<T> {
+    try {
+      return await this._postRepository.withCfQueueGate(orgId, ids, write);
+    } catch (err: any) {
+      if (err?.code !== 'CF_QUEUE_BUSY') {
+        await Promise.all(
+          ids.map((one) =>
+            this.syncPostWorkflow(orgId, one).catch(() => undefined)
+          )
+        );
+      }
+      throw err;
+    }
+  }
+
   async changePostStatus(
     orgId: string,
     id: string,
@@ -1179,7 +1216,17 @@ export class PostsService {
     }
 
     const state: State = status === 'draft' ? 'DRAFT' : 'QUEUE';
-    await this._postRepository.changeState(id, state);
+    // Into the queue only by the one-queue rule of a CF piece (`97dq.67`): the
+    // public `PUT /posts/:id/status` and any other caller alike. The decision
+    // is taken under the channel lock, not from the state read above (review
+    // F2): a post read as QUEUE may have been unqueued by a pieces path since.
+    if (state === 'QUEUE') {
+      await this.gatedQueueWrite(orgId, [id], (tx) =>
+        this._postRepository.changeState(id, state, undefined, undefined, tx)
+      );
+    } else {
+      await this._postRepository.changeState(id, state);
+    }
 
     // Whether the publishing workflow really started: a queue the calendar
     // shows but Temporal never runs would say «в очереди» and publish nothing
@@ -1212,13 +1259,23 @@ export class PostsService {
 
     // schedule: Set status to QUEUE and change date (reschedule the post)
     // update: Just change the date without changing the status
-    const newDate = await this._postRepository.changeDate(
-      orgId,
-      id,
-      date,
-      getPostById.state === 'DRAFT',
-      action
-    );
+    const write = (tx?: any) =>
+      this._postRepository.changeDate(
+        orgId,
+        id,
+        date,
+        getPostById.state === 'DRAFT',
+        action,
+        tx
+      );
+    // `schedule` writes QUEUE for anything that is not a draft; for a CF
+    // variant that goes through its piece's one-queue rule (`97dq.67`). A post
+    // read as QUEUE is gated too (review F2): whether a sibling took the queue
+    // meanwhile is decided under the lock.
+    const queues = action === 'schedule' && getPostById.state !== 'DRAFT';
+    const newDate = queues
+      ? await this.gatedQueueWrite(orgId, [id], write)
+      : await write();
 
     if (action === 'schedule') {
       try {

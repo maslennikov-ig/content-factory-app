@@ -58,7 +58,7 @@ export const channelsCopy = {
     back: '← Все каналы',
     backMobile: '‹ Каналы',
     missing: 'Канал не найден',
-    missingDescription: 'Возможно, канал удалён или недоступен в этой области.',
+    missingDescription: 'Возможно, канал удалён или недоступен в этом пространстве.',
     pieces: 'Заготовки для канала',
     publicLink: 'Открыть на площадке ↗',
     reconnect: 'Переподключить',

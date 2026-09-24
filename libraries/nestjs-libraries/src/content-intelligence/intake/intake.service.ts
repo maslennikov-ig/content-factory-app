@@ -11,8 +11,10 @@ import {
   RESEARCH_DIGEST_FINDING_CAPS,
   applyCorrection,
   correctionCoversStatement,
+  correctedBriefField,
   digestSourcesFor,
   factKeyOf,
+  normalizeForMatch,
   researchDigestPrompt,
   researchDigestPromptV2,
   researchDigestSchema,
@@ -158,6 +160,7 @@ import {
   EXTRACT_PROMPT_VERSION_V6,
 } from './intake.prompts.v6';
 import { settleOwnFacts, statementMatchKey } from './own-facts';
+import { avatarReader } from './avatar-audience';
 import { oneLine } from './intake.prompts';
 import { stripCitationLabels } from '../text-quality/citation-labels';
 
@@ -1382,11 +1385,11 @@ export class IntakeService {
       if (portrait) {
         lines.push(`- ${oneLine(portrait).slice(0, PORTRAIT_MAX_CHARS)}`);
       }
-      const audiences = (voice.project?.audiences || [])
-        .map((item: any) =>
-          [trimmed(item?.name), trimmed(item?.need)].filter(Boolean).join(' — ')
-        )
-        .filter(Boolean);
+      // Only readers (`97dq.54`): a description of how the author addresses
+      // people, a placeholder or one line read twice is not «who reads».
+      const audiences: string[] = (voice.project?.audiences || [])
+        .map((item: unknown) => avatarReader(item))
+        .filter((line: string | null): line is string => Boolean(line));
       for (const audience of audiences.slice(0, 3)) {
         lines.push(`- reader: ${oneLine(audience)}`);
       }
@@ -1554,7 +1557,8 @@ export class IntakeService {
     let audience = settleText('audience');
     if (!audience && avatar.audience) {
       // Аватар знает, для кого пишет эта область: спрашивать об этом человека
-      // — спрашивать о том, что продукт уже записал.
+      // — спрашивать о том, что продукт уже записал. Только настоящего
+      // читателя (`avatarReader`, `97dq.54`); иначе поле остаётся открытым.
       audience = avatar.audience;
       origins.audience = 'avatar';
     }
@@ -1794,9 +1798,30 @@ export class IntakeService {
       слово не находило свою опору, и на честном повторе выбор человека молча
       возвращался к умолчаниям.
     */
-    const texts = new Set(plan.researchSelections.map(statementMatchKey));
+    /*
+      Одно присланное слово — одна строка (`content-factory-next-97dq.19`,
+      рецензия второго выпуска, P2-4). Общая форма снимает приписку «Автор
+      утверждает, что…» по обе стороны, и своя строка `X` делила ключ с
+      чужой «Автор утверждает, что x»: названная одна, отмечались обе. Теперь
+      слово берёт строку, совпавшую с ним и без снятия приписки, а если такой
+      нет — первую из совпавших по общей форме.
+    */
+    const byText = new Set<PieceFactV2>();
+    for (const sent of plan.researchSelections) {
+      const key = statementMatchKey(sent);
+      if (!key) continue;
+      const candidates = state.filled.brief.facts.filter(
+        (fact: PieceFactV2) => statementMatchKey(fact.statement) === key
+      );
+      const exact = candidates.find(
+        (fact: PieceFactV2) =>
+          normalizeForMatch(fact.statement) === normalizeForMatch(sent)
+      );
+      const chosen = exact ?? candidates[0];
+      if (chosen) byText.add(chosen);
+    }
     const picked = (fact: PieceFactV2) =>
-      (!!fact.factKey && keys.has(fact.factKey)) || texts.has(statementMatchKey(fact.statement));
+      (!!fact.factKey && keys.has(fact.factKey)) || byText.has(fact);
     const facts = state.filled.brief.facts.map((fact: PieceFactV2): PieceFactV2 => {
       const kind = factKind(fact, state.filled.brief.inputKind);
       if (kind === 'found') return { ...fact, selected: picked(fact) };
@@ -1823,19 +1848,23 @@ export class IntakeService {
         (fact: PieceFactV2) => fact.factKey === correction.factKey && fact.selected === true
       ),
     }));
-    let thesis = state.filled.brief.thesis;
-    for (const correction of corrections) {
-      if (!correction.accepted || !thesis) continue;
-      const applied = applyCorrection(thesis, correction);
-      if (applied.applied) thesis = applied.text;
-    }
-    const brief = { ...state.filled.brief, facts, thesis };
+    /*
+      The thesis and the position after the accepted corrections
+      (`content-factory-next-97dq.42`): a paraphrase the correction could not
+      find is rebuilt from the person's corrected words, so a refuted number
+      never rides into the adaptation as its topic.
+    */
+    const correctedInput = this.correctedInputOf(plan, corrections);
+    const accepted = corrections.filter((correction) => correction.accepted);
+    const thesis = correctedBriefField(state.filled.brief.thesis, accepted, correctedInput) ?? state.filled.brief.thesis;
+    const position = correctedBriefField(state.filled.brief.position, accepted, correctedInput) ?? state.filled.brief.position;
+    const brief = { ...state.filled.brief, facts, thesis, position };
     const ungrounded = this.ungroundedOf(brief);
     return {
       ...state,
       filled: { ...state.filled, brief: { ...brief, ungrounded } },
       corrections,
-      correctedInput: this.correctedInputOf(plan, corrections),
+      correctedInput,
     };
   }
 

@@ -28,6 +28,7 @@ import {
   aiProviderCopy,
   resolveAiProviderLocale,
 } from '@contentfactory/frontend/components/settings/ai-provider.copy';
+import { FieldLabel, LabelledField } from '../ui/field-label';
 
 type Provider = 'openai' | 'openrouter';
 type SearchProvider = 'tavily' | 'openrouter' | 'exa';
@@ -172,9 +173,12 @@ interface AiSettings {
   searchTaskProviders?: SearchTaskProviders;
   workspaceKeyConfigured: boolean;
   includedAvailable: boolean;
-  includedMonthlyOperations: number;
+  /** `null` with `includedUnlimited` (`97dq.27`). */
+  includedMonthlyOperations: number | null;
   includedUsedOperations: number;
-  includedRemainingOperations: number;
+  includedRemainingOperations: number | null;
+  /** «Без предела» on this instance: a state, not a number. */
+  includedUnlimited?: boolean;
   includedRestrictionReason:
     | 'managed_unavailable'
     | 'quota_unavailable'
@@ -369,52 +373,9 @@ const ClearStoredKeyButton = ({
 );
 
 /**
- * A label, the sentence it could not fit, and the control underneath.
- *
- * Owner, 13.09.2026: «у нас же есть подсказки, знаки вопросика… а почему мы не
- * используем их здесь?» The section answered every question in a paragraph
- * that was on screen permanently, so four explanations occupied more of the
- * column than the eight controls they explained. `Hint` had twenty-five call
- * sites elsewhere in the product and none in settings.
- *
- * The label is written here rather than passed to the primitive because
- * `Input` and `Select` take a `string` label and a hint is a control, not a
- * string. `htmlFor` keeps the association the primitive would have made, so
- * the field still gets its name from its label.
- */
-const LabelledField = ({
-  id,
-  label,
-  hint,
-  hintLabel,
-  children,
-}: {
-  id: string;
-  label: string;
-  hint?: ReactNode;
-  hintLabel?: string;
-  children: ReactNode;
-}) => (
-  <div className="flex flex-col gap-[6px]">
-    <span className="flex flex-wrap items-center gap-[4px]">
-      <label htmlFor={id} className="cf-label-md text-cf-ink">
-        {label}
-      </label>
-      {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
-    </span>
-    {children}
-  </div>
-);
-
-/**
- * A block inside the section: its name, and the hint that name needs.
- *
- * The hint is a sibling of the heading rather than a child of it, and that is
- * the whole reason this wrapper exists. `uppercase` inherits, so a bubble
- * rendered inside the `<h5>` was shouting its two sentences in capitals at all
- * three call sites. Owner, 18.09.2026: «зачем подсказка вся заглавными
- * буквами?» The heading keeps its own case; the explanation is set in the case
- * it was written in.
+ * A block inside the section: its name, and the hint that name needs — the
+ * shared `FieldLabel` as a heading (`97dq.76`, audit §4.4). The hint stays a
+ * sibling of the heading, never its child.
  */
 const BlockHeading = ({
   title,
@@ -425,10 +386,13 @@ const BlockHeading = ({
   hint?: ReactNode;
   hintLabel?: string;
 }) => (
-  <div className="flex flex-wrap items-center gap-[4px]">
-    <h5 className="cf-label-sm text-cf-ink-muted">{title}</h5>
-    {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
-  </div>
+  <FieldLabel
+    headingLevel={5}
+    label={title}
+    hint={hint}
+    hintLabel={hintLabel}
+    labelClassName="cf-label-sm text-cf-ink-muted"
+  />
 );
 
 /**
@@ -869,6 +833,8 @@ const AiProviderComponent = () => {
     usageMode === 'included'
       ? data?.includedRestrictionReason === 'managed_unavailable'
         ? t('ai_usage_managed_unavailable')
+        : data?.includedUnlimited
+        ? t('ai_allowance_unlimited', 'System keys: no limit')
         : data?.includedRestrictionReason === 'quota_exhausted'
         ? t('ai_usage_exhausted')
         : data?.includedRestrictionReason === null
@@ -886,8 +852,10 @@ const AiProviderComponent = () => {
   const allowanceShare =
     usageMode === 'included' &&
     data?.includedRestrictionReason === null &&
-    data.includedMonthlyOperations > 0
-      ? (data.includedRemainingOperations / data.includedMonthlyOperations) *
+    !data.includedUnlimited &&
+    (data.includedMonthlyOperations ?? 0) > 0
+      ? ((data.includedRemainingOperations ?? 0) /
+          (data.includedMonthlyOperations ?? 1)) *
         100
       : null;
 

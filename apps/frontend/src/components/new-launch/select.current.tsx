@@ -120,7 +120,7 @@ export const SelectCurrent: FC = () => {
           role="group"
           aria-label={copy.selectedChannelsRow}
           className={clsx(
-            'flex gap-[6px] w-full overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary',
+            'flex gap-[6px] w-full overflow-x-auto',
             locked && 'opacity-50 pointer-events-none'
           )}
         >

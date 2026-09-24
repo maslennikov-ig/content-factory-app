@@ -25,13 +25,14 @@ const SOURCE = 'apps/frontend/src/components/ui/allowance-hint.tsx';
 const translations = {
   ai_allowance_loading: 'Считаем остаток…',
   ai_allowance_workspace_key: 'Ключ пространства: лимита нет',
+  ai_allowance_unlimited: 'Ключи системы: без предела',
   ai_allowance_unknown: 'Остаток сейчас не показать.',
   ai_usage_exhausted: 'Лимит включённого AI исчерпан.',
   ai_allowance_included: 'Осталось {{remaining}} из {{limit}} до {{date}}',
   ai_allowance_unavailable:
-    'ИИ ещё не подключён: нет ни включённого лимита, ни ключа пространства. Настроить может администратор в «Настройки → AI».',
+    'ИИ ещё не подключён: нет ни включённого лимита, ни ключа пространства. Настроить может администратор в «Настройки → Глобальные настройки».',
   ai_allowance_none:
-    'У этого пространства нет включённого лимита ИИ. Администратор может подключить тариф или выбрать ключ пространства в «Настройки → AI».',
+    'У этого пространства нет включённого лимита ИИ. Администратор может подключить тариф или выбрать ключ пространства в «Настройки → Глобальные настройки».',
 };
 
 /** i18next's own substitution, in the one shape this component uses. */
@@ -113,6 +114,15 @@ describe('the allowance line', () => {
     expect(markup).toContain('Осталось 7 из 10 до 4 октября');
   });
 
+  test('«без предела» is said in words, never as a number (97dq.27)', () => {
+    expect(hint.readAllowance({ mode: 'unlimited' })).toEqual({
+      status: 'unlimited',
+    });
+    const markup = render({ status: 'unlimited' });
+    expect(markup).toContain('Ключи системы: без предела');
+    expect(markup).not.toMatch(/\d/);
+  });
+
   test('a workspace key says it has no counted limit instead of a number', () => {
     const markup = render({ status: 'workspace_key' });
 
@@ -150,7 +160,7 @@ describe('the allowance line', () => {
     const markup = render({ status: 'unavailable' });
 
     expect(markup).toContain('ИИ ещё не подключён');
-    expect(markup).toContain('Настройки → AI');
+    expect(markup).toContain('Настройки → Глобальные настройки');
     expect(markup).not.toContain('исчерпан');
   });
 

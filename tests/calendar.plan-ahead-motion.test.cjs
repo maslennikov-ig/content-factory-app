@@ -133,6 +133,29 @@ describe('«впереди N дней» in the calendar header', () => {
     expect(document.querySelector('[data-plan-ahead-channels]')).not.toBeNull();
   });
 
+  test('a press on the legend bubble keeps the channel list open; a press elsewhere closes it (fourteenth walk review, P3-4)', async () => {
+    render(
+      h(ahead.PlanAheadChip, {
+        locale: 'ru',
+        integrationIds: ['tg', 'vk'],
+        timeZone: 'Europe/Moscow',
+        withLegend: true,
+      })
+    );
+    const chip = await screen.findByRole('button', { name: /В плане 5 постов/ });
+    fireEvent.mouseEnter(chip.parentElement);
+    expect(document.querySelector('[data-plan-ahead-channels]')).not.toBeNull();
+    // The legend's bubble is portalled into <body>, outside the holder.
+    fireEvent.focus(screen.getByRole('button', { name: /^Подсказка: план впереди/ }));
+    const bubble = screen.getByRole('tooltip');
+    expect(chip.parentElement.contains(bubble)).toBe(false);
+    expect(bubble.getAttribute('data-hint-portal')).toBeTruthy();
+    fireEvent.mouseDown(bubble.firstChild || bubble);
+    expect(document.querySelector('[data-plan-ahead-channels]')).not.toBeNull();
+    fireEvent.mouseDown(document.body);
+    expect(document.querySelector('[data-plan-ahead-channels]')).toBeNull();
+  });
+
   test('a failed count says so quietly and keeps its place', async () => {
     answer = { ok: false, json: async () => ({}) };
     render(h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: ['tg'], timeZone: 'UTC' }));
@@ -202,12 +225,36 @@ describe('«впереди N дней» in the calendar header', () => {
     expect(requests).toHaveLength(2);
   });
 
-  test('the legend shows the four states with a «?»', () => {
-    render(h(ahead.PlanLegend, { locale: 'ru' }));
+  test('the legend lives under the chip «?»: the count, the four states and what they mean (97dq.82)', async () => {
+    render(
+      h(ahead.PlanAheadChip, { locale: 'ru', integrationIds: ['tg'], timeZone: 'UTC', withLegend: true })
+    );
+    await screen.findByRole('button', { name: /В плане 5 постов/ });
+    // No standalone legend on the surface: it is the tooltip's text.
+    expect(document.querySelector('[data-plan-legend]')).toBeNull();
+    const trigger = screen.getByRole('button', {
+      name: 'Подсказка: план впереди и состояния постов',
+    });
+    fireEvent.focus(trigger);
+    const tip = screen.getByRole('tooltip');
+    expect(trigger.getAttribute('aria-describedby')).toBe(tip.id);
     expect(
-      [...document.querySelectorAll('[data-plan-state]')].map((pill) => pill.textContent)
+      [...tip.querySelectorAll('[data-plan-state]')].map((pill) => pill.textContent)
     ).toEqual(['в плане', 'в очереди', 'черновик', 'вышел']);
-    expect(screen.getByRole('button', { name: 'Подсказка: состояния постов' })).toBeTruthy();
+    expect(tip.textContent).toContain('Сколько постов стоит впереди');
+    expect(tip.textContent).toContain('Состояния постов в календаре');
+    expect(tip.textContent).toContain('«в очереди» — выйдет сам в своё время');
+  });
+
+  test('the legend stays reachable while the count loads or fails', async () => {
+    answer = { ok: false, json: async () => ({}) };
+    render(
+      h(ahead.PlanAheadChip, { locale: 'en', integrationIds: ['tg'], timeZone: 'UTC', withLegend: true })
+    );
+    await screen.findByText('Could not count the plan ahead.');
+    expect(
+      screen.getByRole('button', { name: 'Hint: the plan ahead and post states' })
+    ).toBeTruthy();
   });
 });
 
@@ -252,5 +299,28 @@ describe('content transitions', () => {
     expect(piece).toContain("useEnterMotion<HTMLDivElement>(tab, 'cf-tab-enter')");
     expect(piece).toMatch(/<TabPanel\s+ref=\{panelMotion\}/);
     expect(read('DESIGN.md')).toContain('`.cf-page-enter`');
+  });
+});
+
+describe('containsIncludingHints (hint-portal.ts)', () => {
+  const { containsIncludingHints } = loadWithMocks(
+    'libraries/react-shared-libraries/src/layout/hint-portal.ts',
+    {}
+  );
+  test('a bubble counts as inside only for holders that contain its anchor', () => {
+    document.body.innerHTML =
+      '<div id="holder"><span data-hint-anchor=":r1:"></span></div>' +
+      '<div id="other"></div>' +
+      '<span data-hint-portal=":r1:"><b id="in-bubble">x</b></span>' +
+      '<span data-hint-portal=":r9:"><b id="foreign">y</b></span>';
+    const holder = document.getElementById('holder');
+    const inBubble = document.getElementById('in-bubble');
+    expect(containsIncludingHints(holder, inBubble)).toBe(true);
+    expect(containsIncludingHints(holder, inBubble.firstChild)).toBe(true);
+    expect(containsIncludingHints(document.getElementById('other'), inBubble)).toBe(false);
+    expect(containsIncludingHints(holder, document.getElementById('foreign'))).toBe(false);
+    expect(containsIncludingHints(holder, document.body)).toBe(false);
+    expect(containsIncludingHints(null, inBubble)).toBe(false);
+    document.body.innerHTML = '';
   });
 });

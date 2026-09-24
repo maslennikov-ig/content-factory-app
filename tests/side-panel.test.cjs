@@ -82,7 +82,9 @@ test('the hide button leaves a rail with the way back; both states persist', () 
   const show = screen.getByRole('button', { name: 'Показать настройки' });
   expect(show.getAttribute('aria-expanded')).toBe('false');
   expect(document.querySelector('[data-side-panel-hidden]').getAttribute('data-side-panel-hidden')).toBe('true');
-  expect(screen.queryByRole('separator')).toBeNull();
+  // The rail keeps the handle (`97dq.84`): it reports the rail's width.
+  expect(handle().getAttribute('aria-valuenow')).toBe('40');
+  expect(handle().getAttribute('data-side-panel-handle-hidden')).toBe('true');
   expect(stored()).toEqual({ width: 400, hidden: true });
   cleanup();
   // A new page reads the memory.
@@ -275,4 +277,98 @@ test('no width transition before the stored width is read', () => {
   );
   expect(markup).toContain('data-side-panel="ssr"');
   expect(markup).not.toContain('transition-[width]');
+});
+
+/* `97dq.84`, fourteenth walk, E1: the collapsed rail drops no handle. */
+test('dragging the hidden rail’s handle outwards opens the panel and goes on sizing it; a short drag does nothing', () => {
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Скрыть настройки' }));
+  const separator = handle();
+  // A right-hand panel grows towards the start: pointer to the left.
+  fireEvent.pointerDown(separator, { clientX: 1000, button: 0 });
+  fireEvent.pointerMove(separator, { clientX: 990 });
+  expect(document.querySelector('[data-side-panel]').getAttribute('data-side-panel-hidden')).toBe('true');
+  fireEvent.pointerMove(separator, { clientX: 640 });
+  expect(document.querySelector('[data-side-panel]').getAttribute('data-side-panel-hidden')).toBe('false');
+  expect(handle().getAttribute('aria-valuenow')).toBe('400');
+  fireEvent.pointerMove(handle(), { clientX: 800 });
+  // 40 + 200 is under the minimum: clamped, and the release does not hide it again.
+  expect(handle().getAttribute('aria-valuenow')).toBe('280');
+  fireEvent.pointerUp(handle(), { clientX: 800 });
+  expect(stored()).toEqual({ width: 280, hidden: false });
+  expect(screen.getByText('settings body')).toBeTruthy();
+});
+
+test('the hidden rail’s handle opens from the keyboard towards the middle, and only that way', () => {
+  mount({ side: 'start' });
+  fireEvent.click(screen.getByRole('button', { name: 'Скрыть настройки' }));
+  fireEvent.keyDown(handle(), { key: 'ArrowLeft' });
+  fireEvent.keyDown(handle(), { key: 'Home' });
+  expect(stored().hidden).toBe(true);
+  fireEvent.keyDown(handle(), { key: 'ArrowRight' });
+  expect(stored()).toEqual({ width: 400, hidden: false });
+  expect(handle().getAttribute('aria-valuenow')).toBe('400');
+});
+
+test('the navigation rail stays put: stretched over the viewport-tall shell, footer pinned under a scrolling list', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const nav = fs.readFileSync(
+    path.resolve(__dirname, '..', 'apps/frontend/src/components/new-layout/sidebar.tsx'),
+    'utf8'
+  );
+  const frame = nav.match(/data-sidebar-frame="true"\s+className="([^"]+)"/);
+  expect(frame).not.toBeNull();
+  // Review of 97dq.81-85, P2-3: the shell is one viewport tall, not the rail;
+  // the laid-out check is `tests/app-shell.layout.test.cjs`.
+  for (const token of ['self-stretch', 'min-h-0'])
+    expect(frame[1].split(' ')).toContain(token);
+  expect(frame[1].split(' ')).not.toContain('h-[100dvh]');
+  expect(nav).toMatch(/className="flex-1 min-h-0 overflow-y-auto/);
+  expect(nav).toMatch(/data-sidebar-footer="true"\s+className="shrink-0 /);
+});
+
+/* Review of 97dq.81-85, P3-8. */
+test('the hidden rail’s handle sits inside the rail, not over the neighbouring column', () => {
+  const tokens = () => handle().className.split(/\s+/);
+  mount({ side: 'end' });
+  // Shown: the handle straddles the border into the main column, as before.
+  expect(tokens()).toContain('-start-[20px]');
+  fireEvent.click(screen.getByRole('button', { name: 'Скрыть настройки' }));
+  expect(tokens()).toContain('start-0');
+  expect(tokens().some((token) => token.startsWith('-start-') || token.startsWith('-end-'))).toBe(false);
+  cleanup();
+  window.localStorage.clear();
+  mount({ side: 'start' });
+  expect(tokens()).toContain('-end-[8px]');
+  fireEvent.click(screen.getByRole('button', { name: 'Скрыть настройки' }));
+  expect(tokens()).toContain('end-0');
+  expect(tokens().some((token) => token.startsWith('-start-') || token.startsWith('-end-'))).toBe(false);
+});
+
+test('a controlled rail dragged open asks its owner once per drag', () => {
+  const changes = [];
+  render(
+    h(
+      SidePanel,
+      {
+        id: 'navigation',
+        side: 'start',
+        breakpoint: 'none',
+        label: 'Панель навигации',
+        copy: COPY,
+        railWidth: 72,
+        collapsed: true,
+        onCollapsedChange: (hidden) => changes.push(hidden),
+        showHideButton: false,
+        rail: h('nav', { 'aria-label': 'icon rail' }),
+      },
+      h('nav', { 'aria-label': 'full rail' })
+    )
+  );
+  const separator = handle();
+  fireEvent.pointerDown(separator, { clientX: 72, button: 0 });
+  for (const x of [200, 220, 240, 260]) fireEvent.pointerMove(separator, { clientX: x });
+  fireEvent.pointerUp(separator, { clientX: 260 });
+  expect(changes).toEqual([false]);
 });

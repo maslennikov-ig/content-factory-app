@@ -124,6 +124,20 @@ describe('держатель слота (I1)', () => {
     expect(plan.supersededPostIdsOf(rows)).toEqual([]);
   });
 
+  test('«Без плана» не вытесняет черновики — как до волны (F10, 97dq.64)', () => {
+    const rows = [
+      variant('v1', { planMode: 'draft' }),
+      variant('v2', { planMode: 'draft' }),
+      variant('v3', { planMode: 'draft', pieceId: 'piece-2' }),
+      variant('v4', { planMode: 'reserve', pieceId: 'piece-2' }),
+    ];
+    expect(plan.supersededPostIdsOf(rows)).toEqual([]);
+    expect(plan.supersededPostIdsOf(rows.map((row) => ({ ...row, planMode: 'reserve' })))).toEqual([
+      'post-v1',
+      'post-v3',
+    ]);
+  });
+
   test('каналы и заготовки не смешиваются; удалённый пост ничего не держит', () => {
     const rows = [
       variant('v1'),
@@ -254,14 +268,29 @@ describe('репозиторий', () => {
 
   test('«Что публикуем» не предлагает черновик вытесненной версии', async () => {
     let query;
+    const scopes = [];
+    const ready = (id, postId) => ({
+      id,
+      title: null,
+      body: 'текст',
+      updatedAt: new Date('2026-09-22T09:00:00.000Z'),
+      plan: null,
+      planNote: null,
+      piece: { id: 'piece-1', title: 'Сроки' },
+      post: { id: postId, integrationId: 'int-tg', content: 'текст', state: 'DRAFT', publishDate: null },
+    });
     const repository = new PieceRepository(
       {
         model: {
           contentDerivation: {
             findMany: async (input) => {
               if (input.select && input.select.plannedAt) return derivationRows;
+              if (input.select && !input.select.title) {
+                scopes.push(input.where);
+                return derivationRows;
+              }
               query = input;
-              return [];
+              return [ready('v2', 'post-v2'), ready('v1', 'post-v1')];
             },
           },
         },
@@ -269,11 +298,46 @@ describe('репозиторий', () => {
       {},
       {}
     );
-    await repository.listReadyAdaptations('org-a', 10);
-    expect(query.where.post.is.id).toEqual({ notIn: ['post-v1'] });
+    const rows = await repository.listReadyAdaptations('org-a', 10);
+    expect(rows.map((row) => row.id)).toEqual(['v2']);
+    // No org-wide NOT IN any more (97dq.65, F12): the page's own drafts are the candidates.
+    expect(query.where.post.is.id).toBeUndefined();
+    expect(scopes[0].post.is.AND).toEqual([{ id: { in: ['post-v2', 'post-v1'] } }]);
+    expect(scopes[0].post.is.state).toBe('DRAFT');
     expect(query.where.post.is.state).toEqual({ in: ['DRAFT', 'QUEUE'] });
     expect(query.select.post.select).toMatchObject({ state: true, publishDate: true });
     expect(query.select).toMatchObject({ plan: true, planNote: true });
+  });
+
+  test('вытесненные ищутся только среди кандидатов своего окна и только у их заготовок (97dq.65, F12)', async () => {
+    const calls = [];
+    const client = {
+      contentDerivation: {
+        findMany: async (input) => {
+          calls.push(input);
+          // Candidate read: only v1 (a superseded draft) is in the window.
+          if (!input.select.plannedAt) {
+            return [{ contentPieceId: 'piece-1', postId: 'post-v1', post: { integrationId: 'int-tg' } }];
+          }
+          return [
+            ...derivationRows,
+            // Another piece's variants must never be read.
+          ];
+        },
+      },
+    };
+    const window = { publishDate: { gte: new Date(0), lte: new Date(1) } };
+    const ids = await plan.supersededDraftPostIds(client, 'org-a', 'int-tg', window);
+    expect(ids).toEqual(['post-v1']);
+    expect(calls[0].where.post.is).toMatchObject({ state: 'DRAFT', integrationId: 'int-tg', AND: [window] });
+    expect(calls[1].where.contentPieceId).toEqual({ in: ['piece-1'] });
+    expect(calls[1].where.post.is.integrationId).toEqual({ in: ['int-tg'] });
+
+    // No candidate in scope — no sibling read at all.
+    const quiet = { contentDerivation: { findMany: async (input) => { calls.push(input); return []; } } };
+    calls.length = 0;
+    expect(await plan.supersededDraftPostIds(quiet, 'org-a', null, window)).toEqual([]);
+    expect(calls).toHaveLength(1);
   });
 });
 
@@ -1107,6 +1171,112 @@ describe('N1: возврат очереди не спорит с человек�
     await generate();
     expect(queued()).toEqual([]);
     expect(posts.get('post-1').state).toBe('DRAFT');
+  });
+});
+
+describe('F10: снятие с расписания и «Без плана» не прячут версию (97dq.64)', () => {
+  // Ревью F6 четырнадцатого захода: снятие не-держателя не прячет черновик
+  // держателя — версию, которую человек выбрал или написал последней. Снятая
+  // возвращается в черновики страницы заготовки.
+  test('снятая не-держатель не отнимает слот у черновика держателя', async () => {
+    const { service, generate, derivations, posts, channel, at } = stand();
+    await generate();
+    // Человек ставит V1 в очередь, потом пишется V2 — держатель теперь V2.
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-1', { date: '2026-09-23T18:00:00.000Z' }, 'ru');
+    await generate();
+    const rows = () =>
+      derivations.map((row) => ({
+        id: row.id,
+        pieceId: row.contentPieceId,
+        integrationId: channel.id,
+        plannedAt: row.plannedAt,
+        createdAt: row.createdAt,
+        postId: row.postId,
+        postState: posts.get(row.postId).state,
+      }));
+    expect([...plan.holderIds(rows())]).toEqual(['ad-2']);
+    at(60_000);
+    await service.unscheduleAdaptation('org-a', 'piece-1', 'ad-1', 'ru');
+    expect(posts.get('post-1').state).toBe('DRAFT');
+    expect(plan.supersededPostIdsOf(rows())).not.toContain('post-2');
+    expect([...plan.holderIds(rows())]).toEqual(['ad-2']);
+  });
+
+  test('снятая не-держатель берёт слот, когда у держателя нет черновика в календаре', async () => {
+    const { service, generate, derivations, posts, channel, at } = stand();
+    await generate();
+    await service.scheduleAdaptation('org-a', 'piece-1', 'ad-1', { date: '2026-09-23T18:00:00.000Z' }, 'ru');
+    await generate();
+    // Пост держателя V2 упал при публикации: в календаре его черновика нет.
+    posts.get('post-2').state = 'ERROR';
+    const rows = () =>
+      derivations.map((row) => ({
+        id: row.id,
+        pieceId: row.contentPieceId,
+        integrationId: channel.id,
+        plannedAt: row.plannedAt,
+        createdAt: row.createdAt,
+        postId: row.postId,
+        postState: posts.get(row.postId).state,
+      }));
+    at(60_000);
+    await service.unscheduleAdaptation('org-a', 'piece-1', 'ad-1', 'ru');
+    expect(plan.supersededPostIdsOf(rows())).not.toContain('post-1');
+    expect([...plan.holderIds(rows())]).toEqual(['ad-1']);
+  });
+
+  test('страница заготовки: под «Без плана» каждая версия текущая, как в календаре (ревью F6)', async () => {
+    const channelDraft = stand({ planMode: 'draft' });
+    await channelDraft.generate();
+    await channelDraft.generate();
+    const detail = await channelDraft.service.detail('org-a', 'piece-1', 'ru');
+    expect(detail.adaptations.map((one) => [one.id, one.plan.current])).toEqual([
+      ['ad-1', true],
+      ['ad-2', true],
+    ]);
+
+    const ownDraft = stand({ tags: { postSettings: { 'int-tg': { planMode: 'draft' } } } });
+    await ownDraft.generate();
+    await ownDraft.generate();
+    const own = await ownDraft.service.detail('org-a', 'piece-1', 'ru');
+    expect(own.adaptations.every((one) => one.plan.current)).toBe(true);
+  });
+
+  test('держатель при снятии plannedAt не получает', async () => {
+    const { service, generate, calls } = stand({ planMode: 'autopilot' });
+    await generate();
+    await service.unscheduleAdaptation('org-a', 'piece-1', 'ad-1', 'ru');
+    expect(calls.setPlan.filter(([, data]) => data.plannedAt)).toEqual([]);
+  });
+
+  test('календарь: канал «Без плана» или свой режим поста «Без плана» — черновики версий видны', async () => {
+    const row = (id, created, planMode, tags = null) => ({
+      id, contentPieceId: 'piece-1', integrationId: 'int-tg', plannedAt: null,
+      createdAt: new Date(created), postId: `post-${id}`,
+      post: { state: 'DRAFT', deletedAt: null, integrationId: 'int-tg', integration: { planMode } },
+      piece: { tags },
+    });
+    const client = (rows) => ({
+      contentDerivation: {
+        findMany: async (input) =>
+          input.select.plannedAt
+            ? rows
+            : rows.map((one) => ({ contentPieceId: one.contentPieceId, postId: one.postId, post: { integrationId: 'int-tg' } })),
+      },
+    });
+    expect(
+      await plan.supersededDraftPostIds(client([row('v1', '2026-09-21', 'draft'), row('v2', '2026-09-22', 'draft')]), 'org-a')
+    ).toEqual([]);
+    const own = { postSettings: { 'int-tg': { planMode: 'draft' } } };
+    expect(
+      await plan.supersededDraftPostIds(
+        client([row('v1', '2026-09-21', 'reserve', own), row('v2', '2026-09-22', 'reserve', own)]),
+        'org-a'
+      )
+    ).toEqual([]);
+    expect(
+      await plan.supersededDraftPostIds(client([row('v1', '2026-09-21', null), row('v2', '2026-09-22', null)]), 'org-a')
+    ).toEqual(['post-v1']);
   });
 });
 

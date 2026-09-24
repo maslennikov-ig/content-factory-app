@@ -42,6 +42,8 @@ import {
   resolveAdminAiDefaultsLocale,
   type KeyOrigin,
 } from '@contentfactory/frontend/components/admin/admin-ai-defaults.copy';
+// The shared pair (`97dq.76`, audit §4.3) instead of a private copy.
+import { LabelledField } from '@contentfactory/frontend/components/ui/field-label';
 
 type Provider = 'openai' | 'openrouter';
 
@@ -66,6 +68,8 @@ export interface AdminAiDefaults {
   roleModels: Record<string, string>;
   searchTaskProviders: Record<string, string>;
   monthlyOperations: number | null;
+  /** «Без предела» (`97dq.27`): тогда `monthlyOperations` — `null`. */
+  monthlyOperationsUnlimited?: boolean;
   /**
    * Цепочка текстовых вызовов (`content-factory-next-97dq.55`): сохранённое
    * здесь и то, чем цепочка работает на самом деле. Ответ старого сервера их
@@ -292,30 +296,6 @@ const SectionTitle = ({
   </span>
 );
 
-/** Подпись поля, подсказка к ней и сам контрол под ними. */
-const LabelledField = ({
-  id,
-  label,
-  hint,
-  hintLabel,
-  children,
-}: {
-  id: string;
-  label: string;
-  hint?: ReactNode;
-  hintLabel?: string;
-  children: ReactNode;
-}) => (
-  <div className="flex flex-col gap-[4px]">
-    <span className="flex flex-wrap items-center gap-[4px]">
-      <label htmlFor={id} className="cf-label-md text-cf-ink">
-        {label}
-      </label>
-      {hint && hintLabel ? <Hint label={hintLabel}>{hint}</Hint> : null}
-    </span>
-    {children}
-  </div>
-);
 
 /** Значения полей формы. Ключи здесь только те, что набраны в этот заход. */
 export interface AdminAiDefaultsForm {
@@ -324,6 +304,8 @@ export interface AdminAiDefaultsForm {
   textModel: string;
   imageModel: string;
   monthlyOperations: string;
+  /** Переключатель «без предела»; необязательный, как поля цепочки. */
+  monthlyOperationsUnlimited?: boolean;
   searchApiKeys: Partial<Record<KeyedSearchProvider, string>>;
   /** Необязательные: форма, собранная до цепочки, её не трогает. */
   textFlexEnabled?: boolean;
@@ -338,6 +320,10 @@ export interface AdminAiDefaultsForm {
  * и его тоже нельзя отправить нулём: ноль означает «включённый режим закрыт» и
  * является настоящим ответом, а не отсутствием ответа.
  */
+/** Число в поле лимита, которое можно сохранить. */
+const hasOperationsNumber = (value: string) =>
+  value.trim() !== '' && Number.isFinite(Number(value.trim()));
+
 export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
   const searchApiKeys = Object.fromEntries(
     KEYED_SEARCH_PROVIDERS.map((engine) => [
@@ -352,8 +338,20 @@ export const buildAiDefaultsPayload = (form: AdminAiDefaultsForm) => {
     textModel: form.textModel.trim(),
     imageModel: form.imageModel.trim(),
     ...(Object.keys(searchApiKeys).length ? { searchApiKeys } : {}),
-    ...(operations && Number.isFinite(Number(operations))
-      ? { monthlyOperations: Math.max(0, Math.floor(Number(operations))) }
+    // «Без предела» — состояние, а не число (`97dq.27`): включённый
+    // переключатель уходит один, без числа из поля. Выключенный уходит только
+    // вместе с числом: одно `false` сервер записывает как «не задано», и
+    // пространства без подписки получали отказ, пока админ не впишет число
+    // (четырнадцатый обход, P3-7). Без числа остаётся «без предела».
+    ...(form.monthlyOperationsUnlimited === true
+      ? { monthlyOperationsUnlimited: true }
+      : operations && Number.isFinite(Number(operations))
+      ? {
+          ...(typeof form.monthlyOperationsUnlimited === 'boolean'
+            ? { monthlyOperationsUnlimited: false }
+            : {}),
+          monthlyOperations: Math.max(0, Math.floor(Number(operations))),
+        }
       : {}),
     ...(typeof form.textFlexEnabled === 'boolean'
       ? { textFlexEnabled: form.textFlexEnabled }
@@ -795,6 +793,32 @@ export function AdminAiDefaultsView({
           />
         }
       >
+        <div className="flex min-w-0 flex-col gap-[4px]">
+          <CheckboxField
+            name="admin-ai-monthly-unlimited"
+            label={words.allowance.unlimitedLabel}
+            checked={form.monthlyOperationsUnlimited ?? false}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              // Снятый флажок сохраняется только с числом: прежнее число из
+              // поля, если оно есть, иначе ждём, пока его впишут (P3-7).
+              const off = !event.target.checked;
+              if (off && !hasOperationsNumber(form.monthlyOperations)) {
+                onChange({ monthlyOperationsUnlimited: false });
+              } else {
+                onCommit({ monthlyOperationsUnlimited: event.target.checked });
+              }
+            }}
+          />
+          {form.monthlyOperationsUnlimited ? (
+            <p
+              data-admin-ai-unlimited="true"
+              className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+            >
+              {words.allowance.unlimitedWhat}
+            </p>
+          ) : null}
+        </div>
+        {form.monthlyOperationsUnlimited ? null : (
         <LabelledField
           id="admin-ai-monthly-operations"
           label={words.allowance.label}
@@ -816,6 +840,15 @@ export function AdminAiDefaultsView({
                 <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                   {words.allowance.what}
                 </span>
+                {data?.monthlyOperationsUnlimited &&
+                !hasOperationsNumber(form.monthlyOperations) ? (
+                  <span
+                    data-admin-ai-unlimited-pending="true"
+                    className="cf-body-sm text-cf-ink [text-wrap:pretty]"
+                  >
+                    {words.allowance.unlimitedOffNeedsNumber}
+                  </span>
+                ) : null}
                 {allowanceOrigin === 'environment' ? (
                   <ValueState
                     name="admin-ai-monthly-operations"
@@ -839,6 +872,7 @@ export function AdminAiDefaultsView({
             }
           />
         </LabelledField>
+        )}
       </SettingsSection>
 
       {/*
@@ -914,9 +948,13 @@ export const AdminAiDefaultsComponent = () => {
       provider: effective?.provider || data.provider || 'openai',
       textModel: effective?.textModel ?? data.textModel ?? '',
       imageModel: effective?.imageModel ?? data.imageModel ?? '',
-      monthlyOperations: String(
-        effective?.monthlyOperations ?? data.monthlyOperations ?? ''
-      ),
+      // При «без предела» сервер числа не отдаёт; число, набранное или
+      // прочитанное раньше, остаётся в поле, чтобы снятый флажок мог
+      // вернуться к нему, а не к пустоте (P3-7).
+      monthlyOperations: data.monthlyOperationsUnlimited
+        ? current.monthlyOperations
+        : String(effective?.monthlyOperations ?? data.monthlyOperations ?? ''),
+      monthlyOperationsUnlimited: data.monthlyOperationsUnlimited ?? false,
       textFlexEnabled: data.textChain?.flex ?? data.textFlexEnabled ?? true,
       // Пустое поле показывает значение по умолчанию подсказкой, а не
       // вписывает его: иначе следующее сохранение закрепило бы его здесь.

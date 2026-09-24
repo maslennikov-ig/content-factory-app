@@ -17,6 +17,7 @@ import { usePreventWindowUnload } from '@contentfactory/react/helpers/use.preven
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import clsx from 'clsx';
+import { EmptyState } from '@contentfactory/frontend/components/ui/surface';
 import {
   TrashIcon,
   PlusIcon,
@@ -130,8 +131,13 @@ export const TimeTable: FC<{
   return (
     <div className="relative w-full max-w-[400px] mx-auto">
       {/* Add Time Slot Section */}
-      <div className="bg-newBgColorInner rounded-[12px] p-[20px] border border-newTableBorder">
-        <div className="text-[15px] font-semibold mb-[16px] flex items-center gap-[8px]">
+      {/*
+        Tokens and shared parts throughout (`content-factory-next-97dq.76`,
+        audit §3.3, §3.4, §7.4): this lived in legacy colours inside the
+        channel settings, and its delete appeared only under a mouse.
+      */}
+      <div className="rounded-[12px] border border-cf-border bg-cf-surface p-[20px]">
+        <div className="mb-[16px] flex items-center gap-[8px] cf-heading-md text-cf-ink">
           <DelayIcon size={18} className="text-cf-accent" />
           {t('add_time_slot', 'Add Time Slot')}
         </div>
@@ -169,11 +175,7 @@ export const TimeTable: FC<{
               ))}
             </Select>
           </div>
-          <Button
-            type="button"
-            onClick={addHour}
- className="px-[16px] transition-colors rounded-[8px] flex items-center text-[14px] font-medium"
-          >
+          <Button type="button" onClick={addHour}>
             <PlusIcon size={14} />
             {t('add', 'Add')}
           </Button>
@@ -182,13 +184,13 @@ export const TimeTable: FC<{
 
       {/* Time Slots List */}
       <div className="mt-[20px]">
-        <div className="text-[14px] text-newTextColor/60 mb-[12px]">
+        <div className="mb-[12px] cf-label-md text-cf-ink-muted">
           {t('scheduled_times', 'Scheduled Times')} ({times.length})
         </div>
 
         {times.length === 0 ? (
-          <div className="text-center py-[32px] text-newTextColor/40 text-[14px] border border-dashed border-newTableBorder rounded-[12px]">
-            {t('no_time_slots', 'No time slots added yet')}
+          <div className="rounded-[12px] border border-dashed border-cf-border">
+            <EmptyState title={t('no_time_slots', 'No time slots added yet')} />
           </div>
         ) : (
           <div className="flex flex-col gap-[8px]">
@@ -197,25 +199,28 @@ export const TimeTable: FC<{
                 key={`${timeSlot.value}-${index}`}
                 className={clsx(
                   'group flex items-center justify-between',
-                  'h-[48px] px-[16px] rounded-[8px]',
-                  'bg-newBgColorInner border border-newTableBorder',
-                  'hover:border-cf-accent transition-colors'
+                  'min-h-[48px] px-[16px] rounded-[8px]',
+                  'bg-cf-surface border border-cf-border',
+                  'hover:border-cf-accent transition-colors duration-state motion-reduce:transition-none'
                 )}
               >
                 <div className="flex items-center gap-[12px]">
                   <div className="w-[8px] h-[8px] rounded-full bg-cf-accent" />
-                  <span className="text-[15px] font-medium tabular-nums">
+                  <span className="cf-body-md tabular-nums text-cf-ink">
                     {timeSlot.formatted}
                   </span>
                 </div>
+                {/*
+                  Always visible: a delete that appears only under a mouse
+                  does not exist for a keyboard or a finger. Quiet at rest —
+                  removing a slot is undone by not saving.
+                */}
                 <Button
                   iconOnly
-                  size={28}
-                  aria-label={t('remove', 'Remove')}
-                  variant="destructive"
+                  aria-label={`${t('remove', 'Remove')} ${timeSlot.formatted}`}
+                  variant="quiet"
                   type="button"
                   onClick={removeSlot(index)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-[8px] rounded-[6px]"
                 >
                   <TrashIcon size={16} />
                 </Button>
@@ -227,7 +232,7 @@ export const TimeTable: FC<{
 
       {/* Save Button */}
       <div className="mt-[24px]">
-        <Button type="button" className="w-full rounded-[8px]" onClick={save}>
+        <Button type="button" className="w-full" onClick={save}>
           {t('save_changes', 'Save Changes')}
         </Button>
       </div>

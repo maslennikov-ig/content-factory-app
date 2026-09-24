@@ -108,7 +108,7 @@ describe('a workspace nobody named gets a name in the reader’s language', () =
     }
     expect(
       backendStrings.translateBackendText('workspace_default_name', 'ru')
-    ).toBe('Рабочая область');
+    ).toBe('Рабочее пространство');
     expect(
       backendStrings.translateBackendText('workspace_default_name', 'en')
     ).toBe('Workspace');
@@ -119,7 +119,7 @@ describe('a workspace nobody named gets a name in the reader’s language', () =
 
     await repository.createOrgForUser('user-1', undefined, 'ru');
 
-    expect(created[0].name).toBe('Рабочая область');
+    expect(created[0].name).toBe('Рабочее пространство');
   });
 
   test('a name that was typed in is used exactly as typed', async () => {
@@ -144,10 +144,10 @@ describe('the screen reads the old literal name as «not named yet»', () => {
     'libraries/react-shared-libraries/src/helpers/workspace-name.ts'
   );
   const t = (key, fallback) =>
-    key === 'workspace_default_name' ? 'Рабочая область' : fallback;
+    key === 'workspace_default_name' ? 'Рабочее пространство' : fallback;
 
   test('the exact literal is replaced by the translated default', () => {
-    expect(label.workspaceDisplayName('Workspace', t)).toBe('Рабочая область');
+    expect(label.workspaceDisplayName('Workspace', t)).toBe('Рабочее пространство');
   });
 
   test('a name that merely contains the word is left alone', () => {
@@ -159,8 +159,8 @@ describe('the screen reads the old literal name as «not named yet»', () => {
   });
 
   test('an empty or missing name falls back to the same default rather than to nothing', () => {
-    expect(label.workspaceDisplayName('', t)).toBe('Рабочая область');
-    expect(label.workspaceDisplayName(null, t)).toBe('Рабочая область');
-    expect(label.workspaceDisplayName(undefined, t)).toBe('Рабочая область');
+    expect(label.workspaceDisplayName('', t)).toBe('Рабочее пространство');
+    expect(label.workspaceDisplayName(null, t)).toBe('Рабочее пространство');
+    expect(label.workspaceDisplayName(undefined, t)).toBe('Рабочее пространство');
   });
 });

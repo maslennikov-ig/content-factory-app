@@ -95,7 +95,7 @@ describe('получателю разметки экранирование не 
 });
 
 describe('получателю простого текста экранирование снимается один раз', () => {
-  test.each(['none', 'normal', 'markdown'])(
+  test.each(['none', 'normal'])(
     '%s: написанный буквами тег остаётся текстом целиком',
     (type) => {
       // Ни один знак не пропал: `striptags` работает ДО снятия экранирования,
@@ -104,14 +104,14 @@ describe('получателю простого текста экраниров�
     }
   );
 
-  test.each(['none', 'normal', 'markdown'])(
+  test.each(['none', 'normal'])(
     '%s: сравнение читается как написано',
     (type) => {
       expect(publish(type, COMPARISON)).toContain('a < b && c');
     }
   );
 
-  test.each(['none', 'normal', 'markdown'])(
+  test.each(['none', 'normal'])(
     '%s: `&amp;lt;` не разэкранируется дважды',
     (type) => {
       expect(publish(type, DOUBLE_ESCAPED)).toContain('&lt;');
@@ -136,6 +136,23 @@ describe('получателю простого текста экраниров�
     );
 
     expect(message).toBe('𝗮 < 𝗯 & 𝗰');
+  });
+
+  /*
+    `content-factory-next-97dq.17`: получатели markdown (dev.to, Hashnode,
+    Medium, Whop) рендерят сущности сами, а голый `<b>` исполняют как HTML.
+    Экранирование им оставляется, как получателю разметки; Discord снимает
+    его сам, в провайдере.
+  */
+  test('markdown: написанный буквами тег уходит сущностями, а не тегом', () => {
+    expect(
+      publish('markdown', '<p>&lt;b&gt;x&lt;/b&gt; a &amp;lt; b</p>')
+    ).toBe('&lt;b&gt;x&lt;/b&gt; a &amp;lt; b\n');
+    expect(publish('markdown', SCRIPT)).not.toMatch(/<script/i);
+    // Строка с `>` в начале не становится цитатой.
+    expect(publish('markdown', '<p>&gt; не цитата</p>')).toBe(
+      '&gt; не цитата\n'
+    );
   });
 
   test('`markdown` по-прежнему отдаёт пару звёздочек', () => {
@@ -263,7 +280,7 @@ const RELEASED = {
 };
 
 /**
- * Семь клеток, и только они. Слева — что печатал выпуск, справа — что решено
+ * Названные клетки, и только они. Слева — что печатал выпуск, справа — что решено
  * печатать: экранированное остаётся экранированным получателю разметки, а
  * `&amp;lt;` перестаёт разэкранироваться дважды получателю текста.
  */
@@ -282,7 +299,13 @@ const INTENDED = {
   'html/linkQuery': '<p><a href="https://x.ru/?a=1&amp;b=2">ссылка</a></p>',
   // `<` вместо написанных букв `&lt;` — двойное разэкранирование.
   'normal/doubleEscaped': '&lt;',
-  'markdown/doubleEscaped': '&lt;\n',
+  // Получателю markdown экранирование оставляется (`97dq.17`): dev.to и
+  // Hashnode исполняют голый `<script>`/`<b>`, а сущность печатают знаком.
+  'markdown/doubleEscaped': '&amp;lt;\n',
+  'markdown/escapedTag': '&lt;script&gt;alert(1)&lt;/script&gt;\n',
+  'markdown/escapedCompare': 'a &lt; b &amp;&amp; c\n',
+  'markdown/ampersand': 'Rock &amp; Roll\n',
+  'markdown/linkQuery': '[ссылка](https://x.ru/?a=1&amp;b=2)\n',
 };
 
 describe('на обычных телах выход совпадает с выпущенным', () => {

@@ -67,6 +67,15 @@ export class InstanceAiDefaultsDto {
   @Max(1000000)
   monthlyOperations?: number;
 
+  /**
+   * «Без предела» (`content-factory-next-97dq.27`): included AI with no
+   * ceiling for a workspace with no subscription. A state, not a number — the
+   * service stores it; `false` with no number returns to «not set».
+   */
+  @IsOptional()
+  @IsBoolean()
+  monthlyOperationsUnlimited?: boolean;
+
   /** Flex attempts in the text chain (`content-factory-next-97dq.55`). */
   @IsOptional()
   @IsBoolean()

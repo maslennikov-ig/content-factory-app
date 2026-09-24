@@ -91,6 +91,17 @@ const { LoadToolsService } = loadTypeScriptModule(
   }
 );
 
+describe('chat agent retries (review F8)', () => {
+  test('the agent sets model retries to 0: the transport chain is never walked twice', async () => {
+    const service = new LoadToolsService({});
+    service.loadTools = async () => ({});
+    await service.agent();
+    expect(agentConfiguration.maxRetries).toBe(0);
+    // One model, not a `ModelWithRetries[]` list whose entries carry retries.
+    expect(Array.isArray(agentConfiguration.model)).toBe(false);
+  });
+});
+
 describe('chat agent content language', () => {
   test('writes in the explicit Russian language from request context', async () => {
     const service = new LoadToolsService({});
@@ -142,7 +153,13 @@ describe('chat agent content language', () => {
       },
     };
     requireActiveAiConfig.mockResolvedValue({ textModel: 'managed-text' });
-    getAiSdkProvider.mockResolvedValue(() => providerModel);
+    // The chat model of the provider, which the shared transport serves
+    // (`content-factory-next-97dq.63`); the default Responses model is not asked.
+    const responsesModel = jest.fn(() => {
+      throw new Error('the Responses model must not be used');
+    });
+    responsesModel.chat = jest.fn(() => providerModel);
+    getAiSdkProvider.mockResolvedValue(responsesModel);
 
     await expect(agentConfiguration.model({ requestContext })).resolves.toBe(
       wrappedModel
@@ -152,6 +169,8 @@ describe('chat agent content language', () => {
       'copilot_chat',
       expect.any(Function)
     );
+    expect(responsesModel.chat).toHaveBeenCalledWith('managed-text');
+    expect(responsesModel).not.toHaveBeenCalled();
   });
 
   test('keeps generic agent instructions free of content-intelligence restrictions', async () => {

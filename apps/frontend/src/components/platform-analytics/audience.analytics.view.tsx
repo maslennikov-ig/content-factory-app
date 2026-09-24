@@ -1,4 +1,13 @@
 import type { ReactNode } from 'react';
+import { Metric } from '../ui/metric';
+import { Button } from '@contentfactory/react/form/button';
+import {
+  EmptyState,
+  ErrorState,
+  Panel,
+  RestrictedState,
+  SkeletonRows,
+} from '../ui/surface';
 
 export type AudienceMetric = Readonly<{
   label: string;
@@ -37,6 +46,7 @@ export function AudienceAnalyticsView({
   metrics,
   controls,
   channelControls,
+  onRetry,
 }: {
   state:
     | 'loading'
@@ -52,32 +62,40 @@ export function AudienceAnalyticsView({
   metrics: readonly AudienceMetric[] | null;
   controls?: ReactNode;
   channelControls?: ReactNode;
+  /** Reloads what failed; without it the error has no button. */
+  onRetry?: () => void;
 }) {
   const ru = locale === 'ru';
+  // The shared states (`97dq.76`, audit §7.3), inside the page gutter like
+  // the loaded view — a local skeleton and a red paragraph stood here.
   if (state === 'loading') {
     return (
-      <div
-        aria-busy="true"
-        aria-label={
-          ru ? 'Загрузка аналитики аудитории' : 'Loading audience analytics'
-        }
-        className="grid grid-cols-[248px_1fr] gap-[12px] mobile:grid-cols-1"
-      >
-        <div className="h-[320px] rounded-[8px] bg-cf-surface-subtle" />
-        <div className="h-[320px] rounded-[8px] bg-cf-surface-subtle" />
-      </div>
+      <section data-analytics-view="audience" className="bg-cf-canvas cf-page-pad">
+        <SkeletonRows
+          rows={4}
+          label={ru ? 'Загрузка аналитики аудитории' : 'Loading audience analytics'}
+        />
+      </section>
     );
   }
   if (state === 'error') {
     return (
-      <div
-        role="alert"
-        className="rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[16px] cf-body-md text-cf-danger"
-      >
-        {ru
-          ? 'Не удалось загрузить список каналов или их аналитику. Повторите запрос безопасно.'
-          : 'Channels or their analytics could not be loaded. Retry safely.'}
-      </div>
+      <section data-analytics-view="audience" className="bg-cf-canvas cf-page-pad">
+        <ErrorState
+          title={
+            ru
+              ? 'Не удалось загрузить список каналов или их аналитику.'
+              : 'Channels or their analytics could not be loaded.'
+          }
+          action={
+            onRetry ? (
+              <Button variant="secondary" onClick={onRetry}>
+                {ru ? 'Повторить' : 'Try again'}
+              </Button>
+            ) : undefined
+          }
+        />
+      </section>
     );
   }
 
@@ -88,9 +106,10 @@ export function AudienceAnalyticsView({
   return (
     <section
       data-analytics-view="audience"
-      className="grid min-w-0 grid-cols-[248px_minmax(0,1fr)] gap-[12px] bg-cf-canvas p-[24px] text-cf-ink tablet:grid-cols-[200px_minmax(0,1fr)] mobile:grid-cols-1 mobile:p-[16px]"
+      className="grid min-w-0 grid-cols-[248px_minmax(0,1fr)] gap-[12px] bg-cf-canvas cf-page-pad text-cf-ink tablet:grid-cols-[200px_minmax(0,1fr)] mobile:grid-cols-1"
     >
-      <aside className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+      <Panel as="div">
+        <aside>
         <h2 className="cf-heading-md">{ru ? 'Каналы' : 'Channels'}</h2>
         {channelControls ?? (
           <div className="mt-[12px] space-y-[4px]">
@@ -116,8 +135,9 @@ export function AudienceAnalyticsView({
             ))}
           </div>
         )}
-      </aside>
-      <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+        </aside>
+      </Panel>
+      <Panel as="div" className="min-w-0">
         <div className="flex items-start justify-between gap-[16px] mobile:flex-col">
           <div>
             <h2 className="cf-heading-lg text-balance">{selected?.name}</h2>
@@ -130,17 +150,29 @@ export function AudienceAnalyticsView({
           {controls}
         </div>
         {state === 'disabled' || selected?.disabled ? (
-          <div className="cf-body-md mt-[24px] rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[16px] text-cf-warning">
-            {ru
-              ? 'Канал отключён. Сначала восстановите подключение.'
-              : 'Channel disabled. Restore the connection first.'}
-          </div>
+          <RestrictedState
+            className="mt-[24px]"
+            title={ru ? 'Канал отключён.' : 'Channel disabled.'}
+            reason={
+              ru
+                ? 'Сначала восстановите подключение.'
+                : 'Restore the connection first.'
+            }
+          />
         ) : unavailable ? (
-          <div className="cf-body-md mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[20px] text-cf-ink-muted">
-            {ru
-              ? 'Метрики этого канала недоступны. Content Factory не придумывает значения показателей.'
-              : 'Metrics are unavailable for this channel. Content Factory does not invent KPI values.'}
-          </div>
+          <EmptyState
+            className="mt-[24px]"
+            title={
+              ru
+                ? 'Метрики этого канала недоступны.'
+                : 'Metrics are unavailable for this channel.'
+            }
+            description={
+              ru
+                ? 'Content Factory не придумывает значения показателей.'
+                : 'Content Factory does not invent KPI values.'
+            }
+          />
         ) : (
           <div className="mt-[24px] grid grid-cols-3 gap-[12px] tablet:grid-cols-2 mobile:grid-cols-1">
             {metrics.map((metric) => {
@@ -153,23 +185,21 @@ export function AudienceAnalyticsView({
                   ? `${(total / metric.data.length).toFixed(2)}%`
                   : total;
               return (
-                <article
+                // The shared metric card (`97dq.76`, audit §6.3): the
+                // number is `cf-display-num`, as on Производство.
+                <Metric
                   key={metric.label}
-                  className="rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[16px]"
-                >
-                  <h3 className="cf-label-md">{metric.label}</h3>
-                  <div className="cf-heading-lg mt-[16px] tabular-nums">
-                    {value}
-                  </div>
-                  <div className="cf-caption mt-[8px] text-cf-ink-muted">
-                    {metric.data.length} {ru ? 'точек' : 'points'}
-                  </div>
-                </article>
+                  headingLevel={3}
+                  tone="subtle"
+                  label={metric.label}
+                  value={value}
+                  note={`${metric.data.length} ${ru ? 'точек' : 'points'}`}
+                />
               );
             })}
           </div>
         )}
-      </div>
+      </Panel>
     </section>
   );
 }

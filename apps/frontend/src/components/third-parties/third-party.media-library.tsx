@@ -90,7 +90,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
         {integration.title}: {integration.name}
       </div>
       <div className="flex-1 relative">
-        <div className="absolute left-0 top-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+        <div className="absolute left-0 top-0 w-full h-full overflow-x-hidden overflow-y-auto">
           {isLoading && (
             <div className="grid grid-cols-4 gap-[8px]">
               {[...new Array(8)].map((_, i) => (

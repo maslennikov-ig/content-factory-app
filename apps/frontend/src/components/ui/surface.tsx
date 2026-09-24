@@ -34,16 +34,38 @@ export const STATUS_TONES: Record<StatusTone, string> = {
  * `label-sm`, which is the monospaced token — a status reads as a stamped
  * marking, not as a caption.
  */
-export const Status: FC<{
-  children: ReactNode;
-  tone?: StatusTone;
-  icon?: ReactNode;
-  className?: string;
-}> = ({ children, tone = 'neutral', icon, className }) => (
+export const Status: FC<
+  {
+    children: ReactNode;
+    tone?: StatusTone;
+    /**
+     * A paint of its own instead of a tone — only the calendar's dashed
+     * «reserved» uses it (`97dq.76`, audit §5.1). Everything else is a tone.
+     */
+    paint?: string;
+    /** `dense` is the 20px pill of a calendar row; `standard` is 22px. */
+    density?: 'standard' | 'dense';
+    icon?: ReactNode;
+    className?: string;
+    title?: string;
+  } & Record<`data-${string}`, string | undefined>
+> = ({
+  children,
+  tone = 'neutral',
+  paint,
+  density = 'standard',
+  icon,
+  className,
+  title,
+  ...data
+}) => (
   <span
+    {...data}
+    title={title}
     className={clsx(
-      'inline-flex items-center gap-[6px] h-[22px] px-[8px] rounded-full border cf-label-sm whitespace-nowrap',
-      STATUS_TONES[tone],
+      'inline-flex items-center gap-[6px] px-[8px] rounded-full border cf-label-sm whitespace-nowrap',
+      density === 'dense' ? 'h-[20px]' : 'h-[22px]',
+      paint ?? STATUS_TONES[tone],
       className
     )}
   >

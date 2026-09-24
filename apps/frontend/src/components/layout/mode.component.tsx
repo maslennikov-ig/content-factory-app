@@ -10,7 +10,8 @@ export const modeEmitter = new EventEmitter();
 
 const ModeComponent = () => {
   const t = useT();
-  const [mode, setMode] = useCookie('mode', 'light');
+  // Dark-first, the same default the server resolves (`app/theme.ts`).
+  const [mode, setMode] = useCookie('mode', 'dark');
 
   const changeMode = useCallback(() => {
     modeEmitter.emit('mode', mode === 'dark' ? 'light' : 'dark');

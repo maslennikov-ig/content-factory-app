@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -27,7 +29,9 @@ import { Button } from '@contentfactory/react/form/button';
  * - a button hides the panel into a thin rail on its own edge, and the rail
  *   holds the button that brings it back (or a custom `rail`, such as the
  *   navigation's icon rail);
- * - dragging past the minimum hides it;
+ * - dragging past the minimum hides it; the hidden rail keeps the handle
+ *   (`97dq.84`), so dragging it out — or an arrow key towards the middle,
+ *   or End — brings the panel back;
  * - width and hidden state persist per `id` in `localStorage`, guarded: a
  *   private window or a full quota only loses the memory, never the panel;
  * - width changes animate for 150ms and not at all under reduced motion or
@@ -116,6 +120,44 @@ const Chevron = ({ pointsTo }: { pointsTo: 'start' | 'end' }) => (
   </svg>
 );
 
+type HideSlot = {
+  hide: () => void;
+  label: string;
+  regionId: string;
+  side: 'start' | 'end';
+  className: string;
+};
+
+/**
+ * The hide button a panel's own header draws (`97dq.78`, fourteenth walk,
+ * A5): with `hideButton="header"` the panel does not add its floating row,
+ * and whichever header the content renders holds `SidePanelHideButton` next
+ * to its title. Outside such a panel the button renders nothing.
+ */
+const HideSlotContext = createContext<HideSlot | null>(null);
+
+export function SidePanelHideButton() {
+  const slot = useContext(HideSlotContext);
+  if (!slot) return null;
+  return (
+    <span className={clsx('shrink-0', slot.className)}>
+      <Button
+        variant="quiet"
+        iconOnly
+        density="dense"
+        aria-label={slot.label}
+        title={slot.label}
+        aria-expanded={true}
+        aria-controls={slot.regionId}
+        data-side-panel-hide="true"
+        onClick={slot.hide}
+      >
+        <Chevron pointsTo={slot.side} />
+      </Button>
+    </span>
+  );
+}
+
 export function SidePanel({
   id,
   side,
@@ -131,6 +173,7 @@ export function SidePanel({
   rail,
   railWidth = 40,
   showHideButton = true,
+  hideButton = 'row',
   breakpoint = 'lg',
   className,
   bodyClassName,
@@ -160,6 +203,11 @@ export function SidePanel({
   railWidth?: number;
   /** The navigation carries its own collapse control. */
   showHideButton?: boolean;
+  /**
+   * Where the hide button stands: its own row above the content (`row`), or
+   * in the content's header through `SidePanelHideButton` (`header`).
+   */
+  hideButton?: 'row' | 'header';
   breakpoint?: 'lg' | 'none';
   className?: string;
   bodyClassName?: string;
@@ -185,7 +233,15 @@ export function SidePanel({
    */
   const [rendered, setRendered] = useState<number | null>(null);
   const root = useRef<HTMLDivElement | null>(null);
-  const drag = useRef<{ x: number; width: number; next: number } | null>(null);
+  const drag = useRef<{
+    x: number;
+    width: number;
+    next: number;
+    /** Started on the hidden rail: a release never hides (`97dq.84`). */
+    fromRail: boolean;
+    /** The drag out of the rail has opened the panel already. */
+    opened?: boolean;
+  } | null>(null);
   const controlled = collapsed !== undefined;
   const hidden = controlled ? collapsed : ownHidden;
 
@@ -229,7 +285,9 @@ export function SidePanel({
     measure();
     window.addEventListener('resize', measure);
     const observer =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(measure);
     observer?.observe(node);
     return () => {
       window.removeEventListener('resize', measure);
@@ -255,8 +313,15 @@ export function SidePanel({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
-    const rendered = root.current?.getBoundingClientRect().width || width;
-    drag.current = { x: event.clientX, width: rendered, next: rendered };
+    const start = hidden
+      ? railWidth
+      : root.current?.getBoundingClientRect().width || width;
+    drag.current = {
+      x: event.clientX,
+      width: start,
+      next: start,
+      fromRail: hidden,
+    };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDragging(true);
   };
@@ -266,6 +331,17 @@ export function SidePanel({
     if (!state) return;
     const next = state.width + grows(event.clientX - state.x);
     state.next = next;
+    if (hidden) {
+      // Out of the rail (`97dq.84`): once the drag is clearly outwards the
+      // panel opens and the same drag goes on sizing it.
+      if (next < railWidth + HIDE_SLACK) return;
+      // One open per drag: a controlled parent re-renders a move later.
+      if (!state.opened) {
+        state.opened = true;
+        if (!controlled) setOwnHidden(false);
+        onCollapsedChange?.(false);
+      }
+    }
     setWidth(clampWidth(next, minWidth, maxWidth));
   };
 
@@ -280,7 +356,7 @@ export function SidePanel({
     if (event.currentTarget.hasPointerCapture?.(event.pointerId))
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     setDragging(false);
-    if (commit && state.next < minWidth - HIDE_SLACK) {
+    if (commit && !state.fromRail && state.next < minWidth - HIDE_SLACK) {
       setWidth(clampWidth(state.width, minWidth, maxWidth));
       setHidden(true);
     }
@@ -288,6 +364,20 @@ export function SidePanel({
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? BIG_STEP : STEP;
+    if (hidden) {
+      // The rail's handle opens the panel towards the middle, or with End,
+      // Enter or Space; nothing else moves a hidden panel (`97dq.84`).
+      const opens =
+        (event.key === 'ArrowLeft' && grows(-step) > 0) ||
+        (event.key === 'ArrowRight' && grows(step) > 0) ||
+        event.key === 'End' ||
+        event.key === 'Enter' ||
+        event.key === ' ';
+      if (!opens) return;
+      event.preventDefault();
+      setHidden(false);
+      return;
+    }
     let next: number | null = null;
     if (event.key === 'ArrowLeft') next = current + grows(-step);
     else if (event.key === 'ArrowRight') next = current + grows(step);
@@ -362,7 +452,7 @@ export function SidePanel({
             bodyClassName
           )}
         >
-          {showHideButton ? (
+          {showHideButton && hideButton === 'row' ? (
             <div className={clsx('justify-end pb-[8px]', layout.side)}>
               <Button
                 variant="quiet"
@@ -379,45 +469,74 @@ export function SidePanel({
               </Button>
             </div>
           ) : null}
-          {children}
+          {showHideButton && hideButton === 'header' ? (
+            <HideSlotContext.Provider
+              value={{
+                hide: () => setHidden(true),
+                label: copy.hide,
+                regionId,
+                side,
+                className: layout.side,
+              }}
+            >
+              {children}
+            </HideSlotContext.Provider>
+          ) : (
+            children
+          )}
         </div>
       )}
 
-      {hidden ? null : (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={copy.resize}
-          aria-controls={regionId}
-          aria-valuenow={current}
-          aria-valuemin={minWidth}
-          aria-valuemax={maxWidth}
-          tabIndex={0}
-          data-side-panel-handle="true"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={(event) => endDrag(event)}
-          onPointerCancel={(event) => endDrag(event, false)}
-          onLostPointerCapture={(event) => endDrag(event, false)}
-          onKeyDown={onKeyDown}
+      {/*
+        The handle stays on the hidden rail too (`97dq.84`, fourteenth walk,
+        E1): a rail collapsed by dragging is opened the same way.
+      */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={copy.resize}
+        aria-controls={hidden && unmountHidden ? undefined : regionId}
+        aria-valuenow={hidden ? railWidth : current}
+        aria-valuemin={hidden ? railWidth : minWidth}
+        aria-valuemax={maxWidth}
+        data-side-panel-handle-hidden={hidden ? 'true' : undefined}
+        tabIndex={0}
+        data-side-panel-handle="true"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={(event) => endDrag(event)}
+        onPointerCancel={(event) => endDrag(event, false)}
+        onLostPointerCapture={(event) => endDrag(event, false)}
+        onKeyDown={onKeyDown}
+        className={clsx(
+          'group absolute inset-y-0 z-[5] w-[12px] cursor-col-resize touch-none justify-center outline-none',
+          layout.side,
+          /*
+            Review of 97dq.81-85, P3-8: on the hidden rail the handle sits
+            inside the rail, on its inner edge. Outside it, it covered 8–20px
+            of the neighbouring column — a scrollbar or a control flush with
+            the edge stopped taking clicks while the panel was collapsed.
+          */
+          hidden
+            ? side === 'end'
+              ? 'start-0'
+              : 'end-0'
+            : side === 'end'
+            ? '-start-[20px]'
+            : '-end-[8px]'
+        )}
+      >
+        <span
+          aria-hidden="true"
           className={clsx(
-            'group absolute inset-y-0 z-[5] w-[12px] cursor-col-resize touch-none justify-center outline-none',
-            layout.side,
-            side === 'end' ? '-start-[20px]' : '-end-[8px]'
+            // A 2px rule, drawn as a border so the width is a token.
+            'h-full border-s-2 transition-colors duration-state motion-reduce:transition-none',
+            dragging
+              ? 'border-cf-accent'
+              : 'border-transparent group-hover:border-cf-border-strong group-focus-visible:border-cf-focus'
           )}
-        >
-          <span
-            aria-hidden="true"
-            className={clsx(
-              // A 2px rule, drawn as a border so the width is a token.
-              'h-full border-s-2 transition-colors duration-state motion-reduce:transition-none',
-              dragging
-                ? 'border-cf-accent'
-                : 'border-transparent group-hover:border-cf-border-strong group-focus-visible:border-cf-focus'
-            )}
-          />
-        </div>
-      )}
+        />
+      </div>
     </div>
   );
 }

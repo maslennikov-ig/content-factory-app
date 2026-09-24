@@ -189,7 +189,7 @@ export const StatisticsModal: FC<{
                     const markerTone = markerTones[index % markerTones.length];
                     return (
                       <div key={`analytics-${index}`} className="group">
-                        <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-cf-accent">
+                        <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-state motion-reduce:transition-none hover:border-cf-accent">
                           <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
                             <div className="flex items-center gap-[10px]">
                               <div

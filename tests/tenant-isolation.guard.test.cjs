@@ -103,10 +103,23 @@ const sourceFiles = (directory) =>
  * planting one — the guard passed. Balanced braces cannot be fooled that way.
  */
 const whereClause = (source, from) => {
-  const at = source.indexOf('where', from);
-  if (at === -1) return null;
+  // Only the call's own arguments (`content-factory-next-bw8h`): a call with
+  // no `where` used to borrow the clause of the next call in the file, and a
+  // neighbour's `organizationId` made it look filtered.
+  const end = callEnd(source, from);
+  // The key, not the word: a comment inside the call that says «where» is prose.
+  const key = /\bwhere\s*[:,}]/g;
+  key.lastIndex = from;
+  const found = key.exec(source);
+  const at = found ? found.index : -1;
+  if (at === -1 || at > end) return '';
   const open = source.indexOf('{', at);
-  if (open === -1) return null;
+  // `{ where }` shorthand or `where: expression`: the expression itself is the
+  // clause — `this.avatarWhere(organizationId, id)` names the organisation, a
+  // bare variable does not, and a clause the scan cannot read is flagged, not
+  // excused.
+  if (open === -1 || open > end || !/^where\s*:\s*\{$/.test(source.slice(at, open + 1)))
+    return expressionAt(source, at, end);
   let depth = 0;
   for (let i = open; i < source.length; i += 1) {
     const character = source[i];
@@ -117,6 +130,45 @@ const whereClause = (source, from) => {
     }
   }
   return null;
+};
+
+/** The `where` key and its value, up to the comma or brace that ends it. */
+const expressionAt = (source, at, end) => {
+  let depth = 0;
+  for (let i = at + 'where'.length; i < end; i += 1) {
+    const character = source[i];
+    if ('([{'.includes(character)) depth += 1;
+    else if (')]}'.includes(character)) {
+      if (depth === 0) return source.slice(at, i);
+      depth -= 1;
+    } else if (character === ',' && depth === 0) return source.slice(at, i);
+  }
+  return source.slice(at, end);
+};
+
+/**
+ * Where the call that starts at `from` closes: its first `(` matched by
+ * parentheses, strings and template literals skipped.
+ */
+const callEnd = (source, from) => {
+  const open = source.indexOf('(', from);
+  let depth = 0;
+  let quote = null;
+  for (let i = open; i < source.length; i += 1) {
+    const character = source[i];
+    if (quote) {
+      if (character === '\\') i += 1;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') quote = character;
+    else if (character === '(') depth += 1;
+    else if (character === ')') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return source.length;
 };
 
 /**
@@ -181,7 +233,7 @@ const enclosingMethod = (source, index) => {
 const unfilteredQueries = () => {
   const models = orgScopedModels();
   const call =
-    /\.(\w+)\.(findFirst|findUnique|findMany|update|delete|updateMany|deleteMany)\s*\(\s*\{/g;
+    /\.(\w+)\.(findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|findMany|update|upsert|delete|updateMany|deleteMany)\s*\(\s*\{/g;
   const found = [];
   for (const file of sourceFiles(LIBRARY)) {
     const source = read(file);
@@ -336,7 +388,7 @@ const ALLOWED = new Map([
   ],
   [
     `${PRISMA}/posts/posts.repository.ts post.update in changeState`,
-    '`changeState` is called only from Temporal workflows, with an id from their own payload — never from a request.',
+    '`changeState` is called from Temporal workflows, with an id from their own payload, and from `PostsService.changePostStatus`, which first resolves the post through `getPostById(id, orgId)` and refuses when it is not there. Since `97dq.67` review F1 that second call writes through the CF queue gate\'s transaction client, which is the same query on the same connection.',
   ],
   [
     `${PRISMA}/posts/posts.repository.ts post.update in updatePost`,
@@ -447,6 +499,18 @@ describe('a workspace cannot reach another workspace', () => {
           ? 'A query against a model that belongs to an organisation must name that organisation in its `where`, or be written into ALLOWED with the reason it cannot. Both ledgers only shrink: a stale entry means the query is gone and its line should go with it. Nothing may be added to UNREVIEWED — a new query is a new decision.'
           : 'in step',
     }).toEqual({ added: [], stale: [], hint: 'in step' });
+  });
+
+  test('bw8h: a where is read inside its own call, never borrowed from the next one', () => {
+    const planted = [
+      'const a = await client.post.findFirst({ select: { id: true } });',
+      'const b = await client.post.findFirst({ where: { organizationId } });',
+    ].join('\n');
+    // The first call has no where; it must not borrow the second one's.
+    expect(whereClause(planted, planted.indexOf('.post.findFirst'))).toBe('');
+    expect(whereClause(planted, planted.lastIndexOf('.post.findFirst'))).toContain('organizationId');
+    const prose = 'x.post.upsert({ /* where it lives */ where: key, create: { organizationId } })';
+    expect(whereClause(prose, 0)).toBe('where: key');
   });
 
   test('a findMany that names a row is in scope, not only a listing', () => {

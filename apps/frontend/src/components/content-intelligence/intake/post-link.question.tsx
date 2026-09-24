@@ -6,7 +6,11 @@ import { Input } from '@contentfactory/react/form/input';
 import { Panel } from '@contentfactory/react/layout';
 import { FieldLabel } from '../../ui/field-label';
 import { Segmented } from '../../ui/segmented';
-import { readLinkAddress } from '../pieces/pieces.adapter';
+import {
+  POST_LINK_TEXT_MAX,
+  postLinkTextOf,
+  readLinkAddress,
+} from '../pieces/pieces.adapter';
 import { intakeCopy } from './intake.copy';
 
 /**
@@ -23,6 +27,10 @@ import { intakeCopy } from './intake.copy';
  *
  * `initial` — the answer already given, when the author reopened the
  * question to change it; then «Оставить как было» closes it untouched.
+ *
+ * «Текст ссылки» (`97dq.79`, fourteenth walk, B2) — optional, under the
+ * address: the words that carry the link where a channel puts links on
+ * words. Empty — the words are picked by meaning.
  */
 export function PostLinkQuestion({
   locale,
@@ -31,9 +39,9 @@ export function PostLinkQuestion({
   onKeep,
 }: {
   locale: 'ru' | 'en';
-  initial?: { url: string | null } | null;
+  initial?: { url: string | null; text?: string | null } | null;
   /** Writes the answer; `false` — it was not saved. */
-  onAnswer: (url: string | null) => Promise<boolean>;
+  onAnswer: (url: string | null, text?: string) => Promise<boolean>;
   /** Present when an answer exists: close without changing it. */
   onKeep?: () => void;
 }) {
@@ -43,6 +51,7 @@ export function PostLinkQuestion({
     initial && initial.url === null ? 'none' : 'own'
   );
   const [address, setAddress] = useState(initial?.url ?? '');
+  const [words, setWords] = useState(initial?.text ?? '');
   const [invalid, setInvalid] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -58,7 +67,10 @@ export function PostLinkQuestion({
     }
     setSaving(true);
     setFailed(false);
-    const ok = await onAnswer(url).catch(() => false);
+    const text = url ? postLinkTextOf(words) : '';
+    const ok = await (text ? onAnswer(url, text) : onAnswer(url)).catch(
+      () => false
+    );
     setSaving(false);
     if (!ok) setFailed(true);
   };
@@ -89,6 +101,7 @@ export function PostLinkQuestion({
           }}
         />
         {choice === 'own' ? (
+          <>
           <Input
             standalone
             density="dense"
@@ -111,6 +124,31 @@ export function PostLinkQuestion({
               }
             }}
           />
+          <div className="flex min-w-0 max-w-[480px] flex-col gap-[4px]">
+            <FieldLabel
+              htmlFor={`${baseId}-text`}
+              label={t.postLinkText}
+              hint={t.postLinkTextHint}
+              hintLabel={t.profileHintFor(t.postLinkText)}
+            />
+            <Input
+              standalone
+              density="dense"
+              id={`${baseId}-text`}
+              name="piece-post-link-text"
+              maxLength={POST_LINK_TEXT_MAX}
+              placeholder={t.postLinkTextPlaceholder}
+              value={words}
+              onChange={(event) => setWords(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void submit();
+                }
+              }}
+            />
+          </div>
+          </>
         ) : null}
         <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
           <Button

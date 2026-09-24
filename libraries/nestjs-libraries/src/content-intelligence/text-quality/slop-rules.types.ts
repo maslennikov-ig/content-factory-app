@@ -45,6 +45,7 @@ export type SlopMetricId =
   | 'per-sentence'
   | 'questions'
   | 'emoji'
+  | 'emoji-count'
   | 'bold'
   | 'lists'
   | 'chopped-meditation'

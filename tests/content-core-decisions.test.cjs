@@ -86,11 +86,12 @@ const input = (overrides = {}) => ({
 });
 
 describe('core-write/v11', () => {
-  test('своя версия, v9 и v10 остаются для квитанций', () => {
+  test('своя версия (v12 с `97dq.85`), v9–v11 остаются для квитанций', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v11');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v12');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
     expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
+    expect(v11.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
     expect(
       loadWithMocks(`${base}/pieces/core-write-prompt.v10.ts`).CORE_WRITE_PROMPT_VERSION
     ).toBe('core-write/v10');
@@ -308,4 +309,36 @@ describe('intake-brief-fill/v10', () => {
       );
     }
   );
+});
+
+/*
+  `content-factory-next-97dq.53`, live stand 23.09.2026, S3: the core dropped
+  «Я не считаю, что стендапы вредны всем: в команде новичков или в кризисном
+  проекте они нужны», and the author's claim came out broader than they made
+  it. The rule rides in v12 (unreleased when it was added), in every mode.
+*/
+describe('the core keeps the author’s caveats (97dq.53)', () => {
+  const v12 = loadWithMocks(`${base}/pieces/core-write-prompt.v12.ts`);
+  const S3 =
+    'В марте мы с командой из семи человек отменили ежедневные стендапы и оставили один письменный отчёт в пятницу. Я не считаю, что стендапы вредны всем: в команде новичков или в кризисном проекте они нужны. Но если у команды есть общая доска и люди работают дольше полугода вместе, ежедневный созвон превращается в ритуал отчётности для руководителя.';
+
+  test('the rule is in the core prompt in both languages, first write and rebuild alike', () => {
+    const ru = coreWrite.corePrompt(input({ personText: S3 }));
+    expect(ru).toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
+    expect(ru).toContain('Оговорки человека — часть его позиции');
+    // The caveat itself reaches the model with the person's words.
+    expect(ru).toContain('в команде новичков или в кризисном проекте они нужны');
+    const rebuild = coreWrite.corePrompt(
+      input({ personText: S3, rebuildFrom: { text: 'Прежняя суть.', byPerson: false } })
+    );
+    expect(rebuild).toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
+    const en = coreWrite.corePrompt(input({ language: 'en', personText: 'I do not think this is for everyone.' }));
+    expect(en).toContain(v12.CORE_WRITE_CAVEATS_V12.en);
+    expect(en).not.toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
+  });
+
+  test('released receipts keep their contract: v11 does not carry the rule', () => {
+    expect(v11.coreWriteSystemV11('ru', '')).not.toContain('Оговорки человека');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
+  });
 });

@@ -179,10 +179,37 @@ export const includedQuotaFallback = (): number => {
 export const includedMonthlyOperations = (
   subscription: { includedAiMonthlyOperations?: number | null } | null,
   instance?: { monthlyOperations?: number | null } | null
-): number =>
-  subscription?.includedAiMonthlyOperations ??
-  instance?.monthlyOperations ??
-  includedQuotaFallback();
+): number => {
+  const fromSubscription = subscription?.includedAiMonthlyOperations;
+  if (fromSubscription !== null && fromSubscription !== undefined) {
+    return fromSubscription;
+  }
+  if (isUnlimitedOperations(instance?.monthlyOperations)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return instance?.monthlyOperations ?? includedQuotaFallback();
+};
+
+/**
+ * «Без предела» for a workspace with no subscription
+ * (`content-factory-next-97dq.27`).
+ *
+ * A platform without tariffs does not want a ceiling at all; it was being
+ * given one of a million, and the member's line then read «осталось 999 955
+ * из 1 000 000» — a number that means nothing. The state is stored in
+ * `InstanceAiDefaults.monthlyOperations`, which is nullable already — but
+ * `NULL` there is taken: it means «not set here, ask the environment», and an
+ * unset instance must stay closed. So the state is this one value, which no
+ * form can type (the field refuses negatives), read here and nowhere else:
+ * `includedMonthlyOperations` turns it into an infinite quota for admission,
+ * and the two answers that leave the server — the allowance and the settings
+ * screen — say «unlimited» in words instead of printing a number.
+ */
+export const UNLIMITED_MONTHLY_OPERATIONS = -1;
+
+export const isUnlimitedOperations = (value: number | null | undefined) =>
+  value === UNLIMITED_MONTHLY_OPERATIONS ||
+  value === Number.POSITIVE_INFINITY;
 
 export const aiBillingPeriodStart = (createdAt: Date, now = new Date()) => {
   if (now < createdAt) return new Date(createdAt);
@@ -284,6 +311,8 @@ export type AiAllowanceView =
    */
   | { mode: 'unavailable' }
   | { mode: 'workspace_key' }
+  /** Included, with no ceiling on this instance (`97dq.27`): no counters. */
+  | { mode: 'unlimited' }
   | {
       mode: 'included';
       used: number;
@@ -420,6 +449,10 @@ export class AiUsageService {
               instanceDefaults
             );
             if (quota <= 0) throw new AiIncludedQuotaExceeded();
+            // No ceiling, nothing to count against (`97dq.27`).
+            if (isUnlimitedOperations(quota)) {
+              return tx.aiUsageRecord.create({ data });
+            }
 
             // Без подписки период якорится днём рождения области — так же, как
             // его читают экран настроек и `readAllowance`. До появления
@@ -579,6 +612,8 @@ export class AiUsageService {
       select: { monthlyOperations: true },
     });
     const limit = includedMonthlyOperations(subscription, instanceDefaults);
+    // A state, not a number: nothing to count down (`97dq.27`).
+    if (isUnlimitedOperations(limit)) return { mode: 'unlimited' };
     const periodStart = aiBillingPeriodStart(anchor);
     const used =
       limit > 0

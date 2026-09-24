@@ -58,7 +58,7 @@ export const LaunchesComponent = () => {
 
   if (error)
     return (
-      <div className="flex-1 bg-cf-canvas p-[20px]">
+      <div className="flex-1 bg-cf-canvas cf-page-pad">
         <ErrorState
           title={
             language.startsWith('ru')
@@ -75,7 +75,7 @@ export const LaunchesComponent = () => {
     );
   if (isLoading)
     return (
-      <div className="flex-1 bg-cf-canvas p-[20px]">
+      <div className="flex-1 bg-cf-canvas cf-page-pad">
         <SkeletonRows rows={6} label={t('loading', 'Loading')} />
       </div>
     );
@@ -89,7 +89,7 @@ export const LaunchesComponent = () => {
           ['desc', 'asc', 'asc']
         )}
       >
-        <div className="bg-cf-canvas flex-1 min-w-0 flex-col flex p-[20px] gap-[16px] overflow-auto">
+        <div className="bg-cf-canvas flex-1 min-w-0 flex-col flex cf-page-pad gap-[16px] overflow-auto">
           <Filters />
           <div className="flex-1 min-w-0 flex">
             <Calendar />

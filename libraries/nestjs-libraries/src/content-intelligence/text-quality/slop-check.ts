@@ -44,6 +44,7 @@ import {
   type SupportedWordingV1,
 } from './supported-wording';
 import {
+  emojiKindsWithin,
   maskSlopMetricStructures,
   slopPlatformKey,
   slopThresholds,
@@ -93,6 +94,13 @@ export type SlopCheckOptions = {
    */
   grounded?: string | readonly string[];
   /**
+   * The emoji ceiling chosen for this post or channel (`97dq.83`,
+   * `emojiCeilingOf`): within «до N» emoji kinds are not flagged, and more
+   * than N emoji in all is `emoji-over-ceiling` (`0` is «нет»); `null` —
+   * «без предела»; absent — the platform's threshold, as before.
+   */
+  emojiCeiling?: number | null;
+  /**
    * Отмеченные факты брифа — ровно их утверждения, без сути и слов человека.
    *
    * `content-factory-next-97dq.33`. Короткая словесная находка, которая
@@ -130,6 +138,22 @@ export const METRIC_RULES: SlopRule[] = [
     hint: {
       ru: 'Эмодзи стали украшением. Держите один-два вида и не начинайте ими строки.',
       en: 'Emoji have become decoration. Keep one or two kinds and do not open lines with them.',
+    },
+  },
+  {
+    /*
+      Review of 97dq.81-85, P3-7: the ceiling widened only the kinds, so one
+      kind eight times passed «до 3» and emoji under «нет» were judged by the
+      platform threshold alone. This counts every emoji against the ceiling
+      the person chose; without a chosen ceiling it says nothing.
+    */
+    id: 'emoji-over-ceiling',
+    severity: 'warn',
+    kind: 'metric',
+    metric: 'emoji-count',
+    hint: {
+      ru: 'Эмодзи больше, чем выбрано для этого поста или канала. Уберите лишние.',
+      en: 'More emoji than chosen for this post or channel. Remove the extra ones.',
     },
   },
   {
@@ -296,6 +320,10 @@ export function slopCheck(
   };
 
   const thresholds = slopThresholds(platform, words);
+  const emojiKindsCap = emojiKindsWithin(
+    thresholds.emojiKinds,
+    options.emojiCeiling
+  );
   const findings: SlopFindingV1[] = [];
 
   /*
@@ -402,7 +430,7 @@ export function slopCheck(
         break;
       }
       case 'emoji': {
-        const tooManyKinds = metrics.emojiKinds > thresholds.emojiKinds;
+        const tooManyKinds = metrics.emojiKinds > emojiKindsCap;
         // Три строки, открытые эмодзи, — это маркеры списка, а не интонация.
         const asBullets =
           platform === 'pikabu' ? lineOpeners > 6 : metricLineOpeners >= 3;
@@ -411,7 +439,7 @@ export function slopCheck(
         let anchor = '';
         for (const emoji of metricEmojiFound) {
           seen.add(emoji);
-          if (seen.size > thresholds.emojiKinds) {
+          if (seen.size > emojiKindsCap) {
             anchor = emoji;
             break;
           }
@@ -422,6 +450,15 @@ export function slopCheck(
           anchor || metricEmojiFound[0] || '',
           metrics.emojiKinds
         );
+        break;
+      }
+      case 'emoji-count': {
+        const ceiling = options.emojiCeiling;
+        if (typeof ceiling !== 'number' || !Number.isFinite(ceiling)) break;
+        const cap = Math.max(0, Math.floor(ceiling));
+        if (metricEmojiFound.length <= cap) break;
+        const over = metricEmojiFound[cap];
+        add(rule, locate(text, over), over, metricEmojiFound.length);
         break;
       }
       case 'chopped-meditation': {

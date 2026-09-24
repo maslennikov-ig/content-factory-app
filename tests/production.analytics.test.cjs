@@ -411,8 +411,9 @@ describe('production analytics', () => {
     });
     expect(query.select.contentDerivations.where).toEqual({ organizationId: 'org-a' });
     expect(query.select).not.toHaveProperty('content');
-    // Item 11: the holder rule is asked once, only for the channels with drafts.
-    expect(supersededCalls).toEqual([['org-a', ['int-a']]]);
+    // Item 11: the holder rule is asked once, only for the channels with drafts,
+    // and only about this read's own drafts (97dq.65, F12).
+    expect(supersededCalls).toEqual([['org-a', ['int-a'], { id: { in: ['p-new', 'p-old'] } }]]);
     expect(rows).toEqual([
       {
         integrationId: 'int-a',

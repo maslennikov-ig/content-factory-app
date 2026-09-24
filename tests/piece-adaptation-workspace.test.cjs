@@ -56,6 +56,14 @@ const { PieceService, sentTextOf } = loadWithMocks(
   }
 );
 
+const { PieceRepository } = loadWithMocks(
+  'libraries/nestjs-libraries/src/content-intelligence/pieces/piece.repository.ts',
+  {
+    '../materials/content-material.repository': { ContentMaterialRepository: class {} },
+    '../brief/content-brief.repository': { ContentBriefRepository: class {} },
+  }
+);
+
 const TELEGRAM = {
   identifier: 'telegram',
   name: 'Telegram',
@@ -436,6 +444,7 @@ const build = (options = {}) => {
         },
         changePostStatus: async (...args) => {
           calls.status.push(args);
+          if (options.statusError) throw options.statusError;
         },
       };
   const service = new PieceService(
@@ -772,17 +781,248 @@ describe('ручная правка: только черновик, одной �
     expect(calls.edits).toEqual([]);
   });
 
-  test.each(['QUEUE', 'PUBLISHED', 'ERROR'])('пост в состоянии %s не правится', async (state) => {
+  test('пост с ошибкой публикации не правится', async () => {
     const { service, calls } = build({
-      draft: draftRow({ post: { ...draftRow().post, state } }),
+      draft: draftRow({ post: { ...draftRow().post, state: 'ERROR' } }),
     });
     const error = await refusalOf(() =>
       service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'en')
     );
-    expect(error.code).toBe('ADAPTATION_NOT_DRAFT');
+    // Ревью P3-3: не «снимите с расписания» — снимать нечего.
+    expect(error.code).toBe('ADAPTATION_POST_FAILED');
     expect(error.status).toBe(409);
-    expect(error.message).toContain('schedule');
+    expect(error.message).toBe(
+      'Publishing this post failed, so it cannot be edited here. The edit was not saved.'
+    );
     expect(calls.edits).toEqual([]);
+  });
+
+  test('удалённый или заменённый пост — «поста больше нет», а не «снимите с расписания» (ревью P3-3)', async () => {
+    const { service, calls } = build({
+      draft: draftRow({ post: { ...draftRow().post, state: 'QUEUE', deletedAt: new Date() } }),
+    });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'ru')
+    );
+    expect(error.code).toBe('ADAPTATION_POST_GONE');
+    expect(error.message).toContain('заменили новой версией');
+    expect(calls.edits).toEqual([]);
+  });
+
+  /*
+    `97dq.80`, четырнадцатый заход (B2): «человек отредактировал, сохранил,
+    отправился отредактированный. Не успел — отправился тот, что был».
+    Сейчас — 22.09 12:00 (часы сервиса).
+  */
+  const queuedAt = (publishDate) =>
+    draftRow({ post: { ...draftRow().post, state: 'QUEUE', publishDate } });
+
+  test('пост в очереди со слотом впереди правится: только текст, дата и публикация не тронуты', async () => {
+    const { service, calls } = build({
+      draft: queuedAt(new Date('2026-09-22T15:00:00.000Z')),
+    });
+    await service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'Новый текст.' }, 'ru');
+    const [, , , postId, change, queuedAfter] = calls.edits[0];
+    expect(postId).toBe('post-ad-1');
+    expect(Object.keys(change).sort()).toEqual(['body', 'content']);
+    // Запись ещё раз проверит слот сама: позже «сейчас + минута».
+    expect(queuedAfter.toISOString()).toBe('2026-09-22T12:01:00.000Z');
+    // Проверка площадки — по новому тексту (ревью P2-1); ни смены даты, ни
+    // запуска публикации.
+    expect(calls.validate).toHaveLength(1);
+    expect(calls.validate[0][1][0].value).toEqual([
+      { content: change.content, image: [] },
+    ]);
+    expect(calls.changeDate).toEqual([]);
+    expect(calls.status).toEqual([]);
+  });
+
+  test.each([
+    ['слот через 30 секунд', new Date('2026-09-22T12:00:30.000Z')],
+    ['слот ровно через минуту', new Date('2026-09-22T12:01:00.000Z')],
+    ['слот уже прошёл', new Date('2026-09-22T11:00:00.000Z')],
+    ['у очереди нет даты', null],
+  ])('пост в очереди — %s: отказ простыми словами', async (_name, publishDate) => {
+    const { service, calls } = build({ draft: queuedAt(publishDate) });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'ru')
+    );
+    expect(error.code).toBe('ADAPTATION_EDIT_CLOSED');
+    expect(error.status).toBe(409);
+    expect(error.message).toBe(
+      'Пост уже уходит в канал или вышел — эту правку сохранить нельзя. В канале остаётся прежний текст.'
+    );
+    expect(calls.edits).toEqual([]);
+  });
+
+  test('вышедший пост не правится — тот же простой отказ', async () => {
+    const { service, calls } = build({
+      draft: draftRow({ post: { ...draftRow().post, state: 'PUBLISHED' } }),
+    });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'en')
+    );
+    expect(error.code).toBe('ADAPTATION_EDIT_CLOSED');
+    expect(error.message).toContain('cannot be saved');
+    expect(calls.edits).toEqual([]);
+  });
+
+  test('запись: очередь — только со слотом позже границы, без неё — только черновик', async () => {
+    const writes = [];
+    const repository = new PieceRepository(
+      {
+        model: {
+          $transaction: async (work) =>
+            work({
+              contentDerivation: {
+                updateMany: async () => ({ count: 1 }),
+              },
+              post: {
+                updateMany: async (input) => {
+                  writes.push(input);
+                  return { count: writes.length === 3 ? 0 : 1 };
+                },
+                findFirst: async () => ({ state: 'QUEUE', deletedAt: null }),
+              },
+            }),
+        },
+      },
+      {},
+      {}
+    );
+    const after = new Date('2026-09-22T12:01:00.000Z');
+    await repository.editAdaptation('org-a', 'piece-1', 'ad-1', 'post-1', { content: '<p>a</p>' }, after);
+    expect(writes[0].where).toEqual({
+      organizationId: 'org-a',
+      id: 'post-1',
+      deletedAt: null,
+      OR: [{ state: 'DRAFT' }, { state: 'QUEUE', publishDate: { gt: after } }],
+    });
+    // Только текст: ни даты, ни состояния.
+    expect(writes[0].data).toEqual({ content: '<p>a</p>' });
+    await repository.editAdaptation('org-a', 'piece-1', 'ad-1', 'post-1', { content: '<p>b</p>' });
+    expect(writes[1].where).toEqual({
+      organizationId: 'org-a',
+      id: 'post-1',
+      deletedAt: null,
+      state: 'DRAFT',
+    });
+    const refused = await refusalOf(() =>
+      repository.editAdaptation('org-a', 'piece-1', 'ad-1', 'post-1', { content: '<p>c</p>' }, after)
+    );
+    expect(refused.reason).toBe('ADAPTATION_EDIT_CLOSED');
+  });
+
+  const missedWrite = (now) =>
+    new PieceRepository(
+      {
+        model: {
+          $transaction: async (work) =>
+            work({
+              contentDerivation: { updateMany: async () => ({ count: 1 }) },
+              post: {
+                updateMany: async () => ({ count: 0 }),
+                findFirst: async (input) => {
+                  expect(input.where).toEqual({ organizationId: 'org-a', id: 'post-1' });
+                  return now;
+                },
+              },
+            }),
+        },
+      },
+      {},
+      {}
+    );
+
+  test.each([
+    ['пост удалён', { state: 'QUEUE', deletedAt: new Date() }, 'ADAPTATION_POST_GONE'],
+    ['поста нет', null, 'ADAPTATION_POST_GONE'],
+    ['публикация упала', { state: 'ERROR', deletedAt: null }, 'ADAPTATION_POST_FAILED'],
+    ['пост вышел', { state: 'PUBLISHED', deletedAt: null }, 'ADAPTATION_EDIT_CLOSED'],
+  ])('промах записи называется по посту: %s (ревью P3-3)', async (_name, now, reason) => {
+    const refused = await refusalOf(() =>
+      missedWrite(now).editAdaptation(
+        'org-a', 'piece-1', 'ad-1', 'post-1', { content: '<p>c</p>' },
+        new Date('2026-09-22T12:01:00.000Z')
+      )
+    );
+    expect(refused.reason).toBe(reason);
+  });
+
+  test('без границы очереди промах живого поста — прежний «не черновик»', async () => {
+    const refused = await refusalOf(() =>
+      missedWrite({ state: 'QUEUE', deletedAt: null }).editAdaptation(
+        'org-a', 'piece-1', 'ad-1', 'post-1', { content: '<p>c</p>' }
+      )
+    );
+    expect(refused.reason).toBe('ADAPTATION_NOT_DRAFT');
+  });
+
+  test.each([['ADAPTATION_POST_GONE'], ['ADAPTATION_POST_FAILED']])(
+    'сервис говорит %s словами',
+    async (reason) => {
+      const { service } = build({ editFails: reason });
+      const error = await refusalOf(() =>
+        service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'ru')
+      );
+      expect(error.code).toBe(reason);
+      expect(error.status).toBe(409);
+    }
+  );
+
+  test('правка поста в очереди длиннее площадки — отказ словами площадки, запись не делается (ревью P2-1)', async () => {
+    const { service, calls } = build({
+      draft: queuedAt(new Date('2026-09-22T15:00:00.000Z')),
+      verdict: { tooLong: true },
+    });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'Очень длинный текст.' }, 'ru')
+    );
+    expect(error.code).toBe('ADAPTATION_SCHEDULE_INVALID');
+    expect(error.status).toBe(422);
+    expect(error.subject).toBe('telegram');
+    expect(error.message).toBe(
+      'Текст длиннее, чем примет «Мой канал»: там не больше 4096 знаков. Сократите его. ' +
+        'Правка не сохранена: в очереди остаётся прежний текст.'
+    );
+    expect(calls.edits).toEqual([]);
+  });
+
+  test('снятая картинка у поста в очереди проверяется площадкой как пустое вложение (ревью P2-1)', async () => {
+    const withImage = queuedAt(new Date('2026-09-22T15:00:00.000Z'));
+    withImage.post.image = JSON.stringify([{ id: 'media-1', path: '/uploads/a.png' }]);
+    const { service, calls } = build({
+      draft: withImage,
+      verdict: { errors: 'Instagram needs at least one image' },
+    });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { image: null }, 'en')
+    );
+    expect(calls.validate[0][1][0].value).toEqual([
+      { content: '<p>Старый текст.</p>', image: [] },
+    ]);
+    expect(error.code).toBe('ADAPTATION_SCHEDULE_INVALID');
+    expect(error.message).toContain('will not accept the attachment: Instagram needs at least one image');
+    expect(error.message).toContain('The edit was not saved: the queue keeps the previous text.');
+    expect(calls.edits).toEqual([]);
+  });
+
+  test('черновик площадкой при правке не проверяется: проверка — при выходе в очередь', async () => {
+    const { service, calls } = build({ verdict: { tooLong: true } });
+    await service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'Новый текст.' }, 'ru');
+    expect(calls.validate).toEqual([]);
+    expect(calls.edits).toHaveLength(1);
+  });
+
+  test('пост ушёл в отправку между чтением и записью — простой отказ', async () => {
+    const { service } = build({
+      draft: queuedAt(new Date('2026-09-22T15:00:00.000Z')),
+      editFails: 'ADAPTATION_EDIT_CLOSED',
+    });
+    const error = await refusalOf(() =>
+      service.editAdaptation('org-a', 'piece-1', 'ad-1', { body: 'x' }, 'ru')
+    );
+    expect(error.code).toBe('ADAPTATION_EDIT_CLOSED');
   });
 
   test('пост ушёл из черновика между чтением и записью — тот же отказ', async () => {
@@ -880,6 +1120,20 @@ describe('«Запланировать» и «Опубликовать сейч�
     expect(error.message).toContain(words);
     expect(calls.changeDate).toEqual([]);
     expect(calls.status).toEqual([]);
+  });
+
+  test('путь без плана канала: отказ шлюза очереди звучит словами этого экрана', async () => {
+    const { service } = build({
+      statusError: Object.assign(new Error('Another version of this post is already scheduled'), {
+        code: 'CF_QUEUE_BUSY',
+        status: 409,
+      }),
+    });
+    const error = await refusalOf(() =>
+      service.scheduleAdaptation('org-a', 'piece-1', 'ad-1', { now: true }, 'ru')
+    );
+    expect(error.code).toBe('ADAPTATION_QUEUE_BUSY');
+    expect(error.message).not.toMatch(/Another version/);
   });
 
   test('запланированный пост второй раз не планируется', async () => {

@@ -335,6 +335,44 @@ describe('что уходит в дверь сохранения', () => {
     ).toBe(12);
   });
 
+  it('«без предела» уходит состоянием, без числа (97dq.27)', () => {
+    const on = buildAiDefaultsPayload(
+      form({ monthlyOperationsUnlimited: true, monthlyOperations: '45' })
+    );
+    expect(on.monthlyOperationsUnlimited).toBe(true);
+    expect(on).not.toHaveProperty('monthlyOperations');
+
+    const off = buildAiDefaultsPayload(
+      form({ monthlyOperationsUnlimited: false, monthlyOperations: '45' })
+    );
+    expect(off).toMatchObject({
+      monthlyOperationsUnlimited: false,
+      monthlyOperations: 45,
+    });
+    // Выключенный без числа не уходит вовсе (P3-7).
+    expect(
+      buildAiDefaultsPayload(
+        form({ monthlyOperationsUnlimited: false, monthlyOperations: '' })
+      )
+    ).not.toHaveProperty('monthlyOperationsUnlimited');
+    // Форма, собранная до переключателя, о нём не говорит.
+    expect(buildAiDefaultsPayload(form())).not.toHaveProperty(
+      'monthlyOperationsUnlimited'
+    );
+  });
+
+  it('экран показывает переключатель, а при «без предела» — слова вместо поля', () => {
+    response = defaults({ monthlyOperationsUnlimited: true });
+    draw();
+    const box = document.querySelector('input[name="admin-ai-monthly-unlimited"]');
+    expect(box).not.toBeNull();
+    expect(box.checked).toBe(true);
+    expect(document.querySelector('#admin-ai-monthly-operations')).toBeNull();
+    expect(
+      document.querySelector('[data-admin-ai-unlimited="true"]').textContent
+    ).toContain('без счёта операций');
+  });
+
   it('сохраняет по кнопке и стирает набранные ключи из формы', async () => {
     draw();
     const input = field('admin-ai-api-key').querySelector('input');
@@ -386,7 +424,7 @@ describe('экран объясняет сам себя', () => {
   it('про включённые операции говорит и про ноль, и про подписку', () => {
     draw();
     const text = document.body.textContent;
-    expect(text).toContain('области без подписки');
+    expect(text).toContain('пространства без подписки');
     expect(text).toContain('Ноль');
   });
 });
@@ -522,6 +560,65 @@ describe('экран сохраняет сам, а ключи — только �
     });
 
     expect(JSON.parse(fetchCalls[0].body).monthlyOperations).toBe(120);
+  });
+
+  it('снятое «без предела» без числа ничего не сохраняет и просит число (P3-7)', async () => {
+    response = defaults({ monthlyOperationsUnlimited: true });
+    draw();
+    const box = document.querySelector('input[name="admin-ai-monthly-unlimited"]');
+    await act(async () => {
+      fireEvent.click(box);
+    });
+    // Ни одного запроса: одно `false` сервер записал бы как «не задано».
+    expect(fetchCalls).toEqual([]);
+    expect(
+      document.querySelector('[data-admin-ai-unlimited-pending="true"]').textContent
+    ).toContain('Впишите число');
+    const field = document.querySelector('[name="admin-ai-monthly-operations"]');
+    await act(async () => {
+      fireEvent.blur(field);
+    });
+    // Пустое поле отпущено: автосохранение уходит, но без переключателя и
+    // без числа, и сервер остаётся на «без предела».
+    for (const call of fetchCalls) {
+      const body = JSON.parse(call.body);
+      expect(body).not.toHaveProperty('monthlyOperationsUnlimited');
+      expect(body).not.toHaveProperty('monthlyOperations');
+    }
+    const before = fetchCalls.length;
+    await act(async () => {
+      fireEvent.change(field, { target: { value: '30' } });
+    });
+    await act(async () => {
+      fireEvent.blur(field);
+    });
+    expect(JSON.parse(fetchCalls[before].body)).toMatchObject({
+      monthlyOperationsUnlimited: false,
+      monthlyOperations: 30,
+    });
+  });
+
+  it('снятое «без предела» с прежним числом сохраняется вместе с ним (P3-7)', async () => {
+    response = defaults({ monthlyOperations: 45 });
+    const view = draw();
+    const box = () =>
+      document.querySelector('input[name="admin-ai-monthly-unlimited"]');
+    await act(async () => {
+      fireEvent.click(box());
+    });
+    expect(JSON.parse(fetchCalls[0].body)).toMatchObject({
+      monthlyOperationsUnlimited: true,
+    });
+    // The server answers «без предела» and no number; the field keeps 45.
+    response = defaults({ monthlyOperationsUnlimited: true });
+    view.rerender(React.createElement(AdminAiDefaultsComponent));
+    await act(async () => {
+      fireEvent.click(box());
+    });
+    expect(JSON.parse(fetchCalls[1].body)).toMatchObject({
+      monthlyOperationsUnlimited: false,
+      monthlyOperations: 45,
+    });
   });
 
   it('автосохранение не несёт ключей ни при каком состоянии формы', async () => {

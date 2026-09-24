@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Segmented } from '../../ui/segmented';
-import { ConfirmButton } from '../../ui/confirm-button';
 import { WorkingLine } from '../../ui/working-line';
 import type { QualityChecksV1 } from '../intake/intake.adapter';
 import { QualityLine } from '../shared/quality-line';
@@ -29,6 +28,7 @@ import { PostPreview } from './post-preview';
 import { ScheduleBar, type ScheduleBusy } from './schedule-bar';
 import { SectionLabel } from '../../ui/section-label';
 import { SidePanel } from '../../ui/side-panel';
+import { queuedEditDeadline } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 
 export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -36,8 +36,8 @@ export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
  * Вкладка канала (`97dq.37`, §3.2–3.3): всё, что нужно довести адаптацию до
  * публикации, в одном месте.
  *
- * Слева — текст: варианты, переключатель «Текст · Как увидят в <площадке>»
- * и единственное «Удалить адаптацию» в том же верхнем ряду, правка руками,
+ * Слева — текст: варианты, переключатель «Текст · Как увидят в <площадке>»,
+ * правка руками (у черновика и у поста в очереди до его слота, `97dq.80`),
  * строка качества, ряд действий и сразу под ним строка плана (`97dq.70`):
  * черновик, бронь или очередь — с действием по состоянию. Предпросмотр
  * встаёт на место текста во всю ширину колонки (`97dq.48`, вариант A).
@@ -46,7 +46,10 @@ export type AutosaveState = 'idle' | 'saving' | 'saved' | 'failed';
  * Окно «Создать пост» отсюда не открывается никогда (`EditorFate`).
  *
  * Без адаптации вкладка — это один вопрос перед текстом, если его задали, и
- * одна главная кнопка «Адаптировать для <площадки>».
+ * одна главная кнопка «Адаптировать для <площадки>»; настройки поста справа
+ * уже открыты, и их главная кнопка — «Адаптировать» (`97dq.78`): настроить
+ * пост можно до первого текста, а не после него. Удаление — одно, в строке
+ * заголовка страницы (`97dq.78`), а не в колонке текста.
  *
  * Экран рисует и ничего не просит: запросы, стрим и сохранение живут в
  * `piece.container.tsx`.
@@ -64,7 +67,11 @@ export function PieceChannelTab({
   onBodyChange,
   saveState,
   savedAt,
+  saveError = null,
   onRetrySave,
+  canRetrySave = true,
+  unsaved = false,
+  onSaveQueued,
   maxLength,
   image,
   onPickImage,
@@ -99,7 +106,6 @@ export function PieceChannelTab({
   onDropPlan,
   onMove,
   onOpenCalendar,
-  onDelete,
 }: {
   locale: PiecesLocale;
   channel: WorkspaceChannel;
@@ -118,7 +124,15 @@ export function PieceChannelTab({
   onBodyChange: (text: string) => void;
   saveState: AutosaveState;
   savedAt: string | null;
+  /** Почему правку не сохранили — словами сервера; нет — общее «не сохранилось». */
+  saveError?: string | null;
   onRetrySave: () => void;
+  /** Отказ не закрыл правку насовсем: «Попробовать снова» имеет смысл. */
+  canRetrySave?: boolean;
+  /** В поле есть правка, которой ещё нет в сохранённом тексте. */
+  unsaved?: boolean;
+  /** «Сохранить в пост» у поста в очереди (ревью `97dq.80`, P2-2). */
+  onSaveQueued?: () => void;
   maxLength: number | null;
   image: AdaptationImageV1 | null;
   onPickImage?: () => void;
@@ -132,7 +146,7 @@ export function PieceChannelTab({
   postOptions: PostOptionsV1;
   postBaseline?: PostOptionsBaselineV1;
   /** Ответ заготовки на вопрос о ссылке (`97dq.75`); нет ответа — `null`. */
-  pieceLink?: { url: string | null } | null;
+  pieceLink?: { url: string | null; text?: string | null } | null;
   avatars: readonly PostAvatarOption[];
   onPostOptionsChange: (next: PostOptionsV1) => void;
   /** «План» поста: свой режим или «как в канале», применяется сразу. */
@@ -162,14 +176,12 @@ export function PieceChannelTab({
   onDropPlan?: () => void;
   onMove?: () => void;
   onOpenCalendar?: (href: string) => void;
-  onDelete: () => void;
 }) {
   const t = piecesCopy[locale];
   const [kind, setKind] = useState<AdaptationKindV1>(
     channel.kinds[0] ?? 'post'
   );
   const [view, setView] = useState<'text' | 'preview'>('text');
-  const [deleteArmed, setDeleteArmed] = useState(false);
   const kindWord = (value: AdaptationKindV1) =>
     ({
       post: t.kindPost,
@@ -181,25 +193,64 @@ export function PieceChannelTab({
     })[value];
 
   const versions = channel.adaptations;
-  const editable = canWrite && adaptation?.state === 'draft';
-  // Правку закрывает расписание, и это обратимо: «Снять с расписания».
-  const editLocked = canWrite && adaptation?.state === 'queued';
+  /*
+    Пост в очереди правится, пока до его слота больше минуты (`97dq.80`,
+    B2): публикация берёт текст из базы в момент выхода, поэтому правка до
+    слота уходит в пост. Позже — только смотреть.
+  */
+  const deadline = queuedEditDeadlineOf(adaptation);
+  const deadlineAt = deadline?.getTime() ?? null;
+  /*
+    Часы вкладки (ревью `97dq.80`, P3-2): открытая вкладка сама закрывает
+    правку в момент срока, а не при следующей отрисовке.
+  */
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (deadlineAt === null) return undefined;
+    const left = deadlineAt - Date.now();
+    if (left <= 0) return undefined;
+    const timer = setTimeout(
+      () => setTick((value) => value + 1),
+      Math.min(left + 50, 2_147_000_000)
+    );
+    return () => clearTimeout(timer);
+  }, [deadlineAt]);
+  const queuedEditable = deadline !== null && deadline.getTime() > Date.now();
+  const editable =
+    canWrite && (adaptation?.state === 'draft' || queuedEditable);
+  const editLocked =
+    canWrite && adaptation?.state === 'queued' && !queuedEditable;
+  const queued = adaptation?.state === 'queued';
   const sendable =
     adaptation?.state === 'draft' || adaptation?.state === 'error';
+  /*
+    Вне правки показывается то, что в посте, а не несохранённое поле (ревью
+    `97dq.80`, P2-4): закрытый пост не выдаёт отказанную правку за свой текст.
+  */
+  const shown = editable ? body : adaptation?.body ?? body;
   // Смотреть нечего, пока текста нет: тогда и переключателя нет.
-  const previewing = view === 'preview' && Boolean(body);
+  const previewing = view === 'preview' && Boolean(shown);
   // Настройки поста живут, пока пост не вышел: режим плана применяется и к
   // очереди, переписать можно только черновик.
   const settable = canWrite && (!adaptation || adaptation.state !== 'published');
 
-  const autosave =
-    saveState === 'saving'
-      ? t.autosaveSaving
-      : saveState === 'saved' && savedAt
-      ? t.autosaveSaved(savedAt)
+  const autosave = queued
+    ? saveState === 'saving'
+      ? t.queuedSaving
       : saveState === 'failed'
       ? null
-      : t.autosaveIdle;
+      : unsaved
+      ? t.queuedUnsaved
+      : saveState === 'saved' && savedAt
+      ? t.queuedSaved(savedAt)
+      : null
+    : saveState === 'saving'
+    ? t.autosaveSaving
+    : saveState === 'saved' && savedAt
+    ? t.autosaveSaved(savedAt)
+    : saveState === 'failed'
+    ? null
+    : t.autosaveIdle;
 
   const working = adapting ? (
     <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
@@ -250,7 +301,7 @@ export function PieceChannelTab({
                     className="max-w-full flex-wrap"
                   />
                 ) : null}
-                {body ? (
+                {shown ? (
                   <Segmented<'text' | 'preview'>
                     label={t.previewSwitch}
                     value={previewing ? 'preview' : 'text'}
@@ -263,35 +314,13 @@ export function PieceChannelTab({
                     className="max-w-full flex-wrap"
                   />
                 ) : null}
-                {editable ? (
+                {editable && autosave ? (
                   <span
                     data-autosave={saveState}
                     className="cf-caption text-cf-ink-muted"
                   >
                     {autosave}
                   </span>
-                ) : null}
-                {/*
-                  Одна кнопка удаления на вкладке (`97dq.70`): здесь, в верхнем
-                  ряду. Вышедшую адаптацию сервер не удаляет — кнопки нет.
-                */}
-                {adaptation.state !== 'published' ? (
-                  <ConfirmButton
-                    label={t.deleteAdaptation}
-                    armedLabel={t.deletePieceArmed}
-                    disabled={
-                      !canWrite ||
-                      (scheduleBusy !== null && scheduleBusy !== 'delete')
-                    }
-                    loading={scheduleBusy === 'delete'}
-                    loadingLabel={t.deletingAdaptation}
-                    data-piece-delete-adaptation="true"
-                    onArmedChange={setDeleteArmed}
-                    className={
-                      deleteArmed ? 'ms-auto' : 'ms-auto text-cf-danger'
-                    }
-                    onConfirm={onDelete}
-                  />
                 ) : null}
               </div>
 
@@ -301,16 +330,18 @@ export function PieceChannelTab({
                   className="flex min-w-0 flex-wrap items-center gap-[8px]"
                 >
                   <span className="cf-body-sm text-cf-danger">
-                    {t.autosaveFailed}
+                    {saveError || t.autosaveFailed}
                   </span>
-                  <Button
-                    type="button"
-                    variant="quiet"
-                    density="dense"
-                    onClick={onRetrySave}
-                  >
-                    {t.retry}
-                  </Button>
+                  {canRetrySave && !queued ? (
+                    <Button
+                      type="button"
+                      variant="quiet"
+                      density="dense"
+                      onClick={onRetrySave}
+                    >
+                      {t.retry}
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -318,29 +349,60 @@ export function PieceChannelTab({
                 <PostPreview
                   locale={locale}
                   channelName={channel.name}
-                  text={body}
+                  text={shown}
                   image={image}
                   time={cellDate('queued', adaptation.date)}
                   draftId={adaptation.id}
                 />
               ) : editable ? (
-                <AdaptationEditor
-                  locale={locale}
-                  platformLabel={platformLabel}
-                  value={body}
-                  onChange={onBodyChange}
-                  maxLength={maxLength}
-                  image={image}
-                  onPickImage={onPickImage}
-                  onRemoveImage={onRemoveImage}
-                  draftId={adaptation.id}
-                  format={channel.providerIdentifier || channel.platform}
-                />
-              ) : body ? (
                 <div className="flex min-w-0 flex-col gap-[8px]">
+                  <AdaptationEditor
+                    locale={locale}
+                    platformLabel={platformLabel}
+                    value={body}
+                    onChange={onBodyChange}
+                    maxLength={maxLength}
+                    image={image}
+                    onPickImage={onPickImage}
+                    onRemoveImage={onRemoveImage}
+                    draftId={adaptation.id}
+                    format={channel.providerIdentifier || channel.platform}
+                  />
+                  {queuedEditable && deadline ? (
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[8px]">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        density="dense"
+                        data-queued-save={adaptation.id}
+                        disabled={!unsaved || saveState === 'saving'}
+                        onClick={onSaveQueued}
+                      >
+                        {t.queuedSave}
+                      </Button>
+                      <p
+                        data-queued-edit-until={deadline.toISOString()}
+                        className="cf-caption tabular-nums text-cf-ink-muted"
+                      >
+                        {t.queuedEditUntil(deadlineWords(deadline, locale))}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : shown ? (
+                <div className="flex min-w-0 flex-col gap-[8px]">
+                  {editLocked && unsaved ? (
+                    <p
+                      role="status"
+                      data-queued-edit-missed={adaptation.id}
+                      className="cf-body-sm text-cf-danger"
+                    >
+                      {t.queuedMissed}
+                    </p>
+                  ) : null}
                   <AdaptationBody
                     locale={locale}
-                    text={body}
+                    text={shown}
                     draftId={adaptation.id}
                     lockedReason={editLocked ? t.editLockedQueued : null}
                   />
@@ -383,7 +445,8 @@ export function PieceChannelTab({
                 ) : null}
               </div>
 
-              {editable ? actionRow : null}
+              {/* Проверки и перепись — только у черновика: очередь правится руками. */}
+              {editable && adaptation.state === 'draft' ? actionRow : null}
               <ScheduleBar
                 locale={locale}
                 state={adaptation.state}
@@ -453,6 +516,7 @@ export function PieceChannelTab({
         <SidePanel
           id="piece-channel-settings"
           side="end"
+          hideButton="header"
           label={t.settingsPanelLabel}
           copy={{
             resize: t.settingsPanelResize,
@@ -475,8 +539,15 @@ export function PieceChannelTab({
               disabled={adapting}
               plan={adaptation && channel.connected ? postPlan : undefined}
               onChange={onPostOptionsChange}
+              primary={adaptation ? 'rewrite' : 'adapt'}
               onRewrite={
-                adaptation && sendable ? () => onAdapt(adaptation.kind) : undefined
+                adaptation
+                  ? sendable
+                    ? () => onAdapt(adaptation.kind)
+                    : undefined
+                  : channel.connected && !questionsSlot
+                  ? () => onAdapt(kind)
+                  : undefined
               }
               onRewriteAndRemember={
                 adaptation && sendable && channel.connected
@@ -498,3 +569,42 @@ export function PieceChannelTab({
 }
 
 export default PieceChannelTab;
+
+/**
+ * Последний момент, когда правка поста в очереди ещё уйдёт в пост
+ * (`97dq.80`): слот минус запас сервера. Не очередь или нет даты — `null`.
+ */
+export function queuedEditDeadlineOf(
+  adaptation: Pick<WorkspaceAdaptationV1, 'state' | 'date'> | null | undefined
+): Date | null {
+  if (adaptation?.state !== 'queued' || !adaptation.date) return null;
+  const at = new Date(adaptation.date);
+  if (Number.isNaN(at.getTime())) return null;
+  return queuedEditDeadline(at);
+}
+
+const two = (value: number): string => String(value).padStart(2, '0');
+
+const clockOf = (at: Date): string => `${two(at.getHours())}:${two(at.getMinutes())}`;
+
+/**
+ * Срок правки словами (ревью `97dq.80`, P3-2): сегодня — «18:59», другой
+ * день — «чт 24.09 18:59», чтобы слот через неделю не читался как сегодняшний.
+ */
+export function deadlineWords(
+  at: Date,
+  locale: PiecesLocale,
+  now: Date = new Date()
+): string {
+  const today =
+    at.getFullYear() === now.getFullYear() &&
+    at.getMonth() === now.getMonth() &&
+    at.getDate() === now.getDate();
+  if (today) return clockOf(at);
+  const weekday = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-GB', {
+    weekday: 'short',
+  })
+    .format(at)
+    .replace('.', '');
+  return `${weekday} ${two(at.getDate())}.${two(at.getMonth() + 1)} ${clockOf(at)}`;
+}

@@ -65,6 +65,8 @@ import {
   readScheduleResult,
   readSlotDate,
   refusalMessage,
+  refusalCode,
+  EDIT_CLOSED_CODES,
   rememberedProfilePayload,
   tabOfPlatform,
   workspaceChannels,
@@ -230,7 +232,16 @@ export function PieceContainer({
   );
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saves, setSaves] = useState<
-    Record<string, { state: AutosaveState; at: string | null }>
+    Record<
+      string,
+      {
+        state: AutosaveState;
+        at: string | null;
+        message?: string | null;
+        /** Повтор имеет смысл: отказ не закрыл правку насовсем. */
+        retry?: boolean;
+      }
+    >
   >({});
   const [when, setWhen] = useState<Record<string, Date>>({});
   // Слот, выбранный в календаре: только для канала, во вкладку которого вели.
@@ -301,6 +312,13 @@ export function PieceContainer({
   const abort = useRef<AbortController | null>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pending = useRef<Record<string, string>>({});
+  /*
+    Одна запись текста на адаптацию за раз (ревью `97dq.80`, P2-2): следующая
+    ждёт предыдущую, поэтому сервер получает правки в том порядке, в каком
+    их писали, а ответ устаревшей записи экран не слушает.
+  */
+  const saveChain = useRef<Record<string, Promise<unknown>>>({});
+  const saveTicket = useRef<Record<string, number>>({});
   const latestRequest = useRef(request);
   latestRequest.current = request;
   useEffect(
@@ -752,45 +770,108 @@ export function PieceContainer({
   );
 
   const saveBody = useCallback(
-    async (id: string, text: string): Promise<boolean> => {
+    (id: string, text: string): Promise<boolean> => {
       delete pending.current[id];
-      setSaves((current) => ({
-        ...current,
-        [id]: { state: 'saving', at: current[id]?.at ?? null },
+      const ticket = (saveTicket.current[id] ?? 0) + 1;
+      saveTicket.current[id] = ticket;
+      const current = () => saveTicket.current[id] === ticket;
+      setSaves((state) => ({
+        ...state,
+        [id]: { state: 'saving', at: state[id]?.at ?? null },
       }));
-      try {
-        const response = await request(PIECES_API.adaptation(pieceId, id), {
-          method: 'PATCH',
-          body: JSON.stringify(buildAdaptationPatch({ body: text })),
-        });
-        const body = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(refusalMessage(body) ?? '');
-        const saved = readAdaptationPatch(body);
-        patchCached(id, {
-          body: text,
-          ...(saved?.checks ? { checks: saved.checks } : {}),
-        });
-        setSaves((current) => ({
-          ...current,
-          [id]: { state: 'saved', at: dayjs().format('HH:mm') },
-        }));
-        return true;
-      } catch {
-        setSaves((current) => ({
-          ...current,
-          [id]: { state: 'failed', at: current[id]?.at ?? null },
-        }));
-        return false;
-      }
+      const previous = saveChain.current[id];
+      const STALE = Symbol('stale');
+      const run = (async (): Promise<boolean | typeof STALE> => {
+        if (previous) await previous.catch(() => undefined);
+        // Пока ждали, написали новее: эта запись уже не нужна.
+        if (!current()) return STALE;
+        try {
+          const response = await request(PIECES_API.adaptation(pieceId, id), {
+            method: 'PATCH',
+            body: JSON.stringify(buildAdaptationPatch({ body: text })),
+          });
+          const body = await response.json().catch(() => null);
+          if (!response.ok)
+            throw Object.assign(new Error(refusalMessage(body) ?? ''), {
+              refusal: true,
+              code: refusalCode(body),
+            });
+          if (!current()) return STALE;
+          const saved = readAdaptationPatch(body);
+          patchCached(id, {
+            body: text,
+            ...(saved?.checks ? { checks: saved.checks } : {}),
+          });
+          setSaves((state) => ({
+            ...state,
+            [id]: { state: 'saved', at: dayjs().format('HH:mm') },
+          }));
+          return true;
+        } catch (error) {
+          if (!current()) return STALE;
+          /*
+            Отказ сервера говорится его словами (`97dq.80`): пост в очереди,
+            который уже уходит, не правится — и человек должен знать, что
+            ушёл прежний текст, а не «попробуйте ещё раз». Такой отказ
+            закрывает правку (ревью P2-4): несохранённый текст забывается,
+            экран показывает то, что в посте, повтора нет.
+          */
+          const refused = error as {
+            refusal?: boolean;
+            code?: string | null;
+            message?: string;
+          } | null;
+          const message =
+            refused?.refusal && refused.message ? refused.message : null;
+          const closed = Boolean(
+            refused?.refusal && refused.code && EDIT_CLOSED_CODES.has(refused.code)
+          );
+          if (closed) {
+            clearTimeout(timers.current[id]);
+            delete pending.current[id];
+            setEdits((state) => {
+              const next = { ...state };
+              delete next[id];
+              return next;
+            });
+          }
+          setSaves((state) => ({
+            ...state,
+            [id]: {
+              state: 'failed',
+              at: state[id]?.at ?? null,
+              message,
+              retry: !closed,
+            },
+          }));
+          if (message) void detail.mutate();
+          return false;
+        }
+      })();
+      saveChain.current[id] = run;
+      return run.then((result) =>
+        result === STALE
+          ? Promise.resolve(saveChain.current[id]).then((latest) => latest === true)
+          : result
+      );
     },
-    [patchCached, pieceId, request]
+    [detail, patchCached, pieceId, request]
   );
 
+  /*
+    Черновик сохраняется сам после паузы. Пост в очереди — только по
+    «Сохранить в пост» (ревью `97dq.80`, P2-2): полунабранная фраза не
+    должна уйти в канал за минуту до слота.
+  */
   const changeBody = useCallback(
-    (id: string, text: string) => {
-      setEdits((current) => ({ ...current, [id]: text }));
-      pending.current[id] = text;
+    (id: string, text: string, queued = false) => {
+      setEdits((state) => ({ ...state, [id]: text }));
       clearTimeout(timers.current[id]);
+      if (queued) {
+        delete pending.current[id];
+        return;
+      }
+      pending.current[id] = text;
       timers.current[id] = setTimeout(() => {
         void saveBody(id, text);
       }, AUTOSAVE_MS);
@@ -909,6 +990,12 @@ export function PieceContainer({
           return;
         }
         setNotice(w.unscheduledDone);
+        // Черновик сохраняет прежнее время (`97dq.43`, п. 2): поле «Когда»
+        // остаётся на нём, а не прыгает на следующий свободный слот канала.
+        const held = plannedDateOf(adaptation);
+        if (held) {
+          setWhen((current) => ({ ...current, [adaptation.id]: held }));
+        }
         void detail.mutate();
       } catch {
         setScheduleError((current) => ({
@@ -1033,7 +1120,7 @@ export function PieceContainer({
       const before = optionsOf(integrationId);
       setPostOptions((current) => ({ ...current, [integrationId]: next }));
       const textChanged = (
-        ['length', 'emoji', 'hashtags', 'links', 'cta', 'brandProfileId', 'wish', 'link'] as const
+        ['length', 'emoji', 'hashtags', 'links', 'cta', 'brandProfileId', 'wish', 'link', 'linkText'] as const
       ).some((field) => before[field] !== next[field]);
       if (textChanged)
         setTextChangedAt((current) => ({
@@ -1141,6 +1228,9 @@ export function PieceContainer({
           ...DEFAULT_POST_OPTIONS,
           brandProfileId: chosen.brandProfileId,
           wish: chosen.wish,
+          // Ссылка и её слова — тоже только этого поста (`97dq.79`).
+          link: chosen.link,
+          linkText: chosen.linkText,
         };
         setPostOptions((state) => ({ ...state, [integrationId]: reset }));
         if (ownPlan)
@@ -1239,12 +1329,21 @@ export function PieceContainer({
 
   /* ---- Ссылка для поста и правка заготовки (`97dq.75`) ------------------- */
 
-  /** Ответ на «Какую ссылку поставить в пост?»; `null` — «Без ссылки». */
+  /**
+   * Ответ на «Какую ссылку поставить в пост?»; `null` — «Без ссылки».
+   * `text` — «Текст ссылки» (`97dq.79`), только с адресом.
+   */
   const answerPostLink = useCallback(
-    async (link: string | null): Promise<boolean> => {
+    async (link: string | null, text?: string): Promise<boolean> => {
       const response = await request(
         `${PIECES_API.postLink(pieceId)}?language=${locale}`,
-        { method: 'PUT', body: JSON.stringify({ url: link }) }
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            url: link,
+            ...(link && text?.trim() ? { text: text.trim() } : {}),
+          }),
+        }
       );
       if (!response.ok) return false;
       setLinkEditing(false);
@@ -1302,13 +1401,39 @@ export function PieceContainer({
     return null;
   }, [detail, locale, pieceId, request, w]);
 
+  /** «Вернуть эту версию» (`97dq.85`): слово отказа или `null`. */
+  const restoreCore = useCallback(
+    async (
+      index: number,
+      replacedAt: string,
+      expected: string
+    ): Promise<string | null> => {
+      const response = await request(
+        `${PIECES_API.restoreCore(pieceId)}?language=${locale}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ index, replacedAt, expected }),
+        }
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        if (response.status === 409) void detail.mutate();
+        return refusalMessage(body) || w.coreVersionRestoreFailed;
+      }
+      setCoreAnswer(null);
+      await detail.mutate();
+      return null;
+    },
+    [detail, locale, pieceId, request, w]
+  );
+
   const coreLink = data?.core?.postLink ?? null;
   const linkSlot =
     canWrite && data?.core && (data.linkQuestion || linkEditing) ? (
       <PostLinkQuestion
         key={coreLink ? `answered-${coreLink.url ?? 'none'}` : 'open'}
         locale={locale}
-        initial={coreLink ? { url: coreLink.url } : null}
+        initial={coreLink ? { url: coreLink.url, text: coreLink.text ?? '' } : null}
         onAnswer={answerPostLink}
         onKeep={coreLink ? () => setLinkEditing(false) : undefined}
       />
@@ -1374,12 +1499,15 @@ export function PieceContainer({
       onCoreSave={canWrite ? saveCore : undefined}
       onMaterialAdd={canWrite ? addMaterial : undefined}
       onCoreRebuild={canWrite ? rebuildCore : undefined}
+      onCoreRestore={canWrite ? restoreCore : undefined}
       onOpenChannel={changeTab}
-      onAdaptChannel={(id) => {
-        const channel = channels.find((one) => one.id === id);
-        changeTab(id);
-        adapt(id, channel?.kinds[0] ?? 'post');
-      }}
+      /*
+        «Адаптировать для …» открывает вкладку и ничего не пишет (`97dq.78`,
+        четырнадцатый заход, B2: «мы не можем делать настройки адаптации до
+        адаптации»): настройки поста уже открыты, текст пишет их
+        «Адаптировать».
+      */
+      onAdaptChannel={changeTab}
     />
   ) : null;
 
@@ -1443,10 +1571,19 @@ export function PieceContainer({
         adaptingLabel={w.adaptingFor(channel.name)}
         questionsSlot={channelQuestions(channel.id)}
         body={body}
-        onBodyChange={(text) => adaptation && changeBody(adaptation.id, text)}
+        onBodyChange={(text) =>
+          adaptation &&
+          changeBody(adaptation.id, text, adaptation.state === 'queued')
+        }
         saveState={save?.state ?? 'idle'}
         savedAt={save?.at ?? null}
+        saveError={save?.state === 'failed' ? save.message ?? null : null}
+        canRetrySave={save?.retry !== false}
         onRetrySave={() =>
+          adaptation && void saveBody(adaptation.id, body)
+        }
+        unsaved={dirty}
+        onSaveQueued={() =>
           adaptation && void saveBody(adaptation.id, body)
         }
         maxLength={maxLength}
@@ -1492,7 +1629,7 @@ export function PieceContainer({
         }
         postOptions={options}
         postBaseline={baselineOf(channel.id)}
-        pieceLink={coreLink ? { url: coreLink.url } : null}
+        pieceLink={coreLink ? { url: coreLink.url, text: coreLink.text ?? null } : null}
         avatars={avatars}
         onPostOptionsChange={(next) => changePostOptions(channel.id, next)}
         postPlan={{
@@ -1556,7 +1693,6 @@ export function PieceContainer({
         onUnschedule={() => adaptation && void unschedule(adaptation)}
         onDropPlan={() => void changePostPlan(channel.id, 'draft')}
         onMove={() => adaptation && void move(adaptation, at)}
-        onDelete={() => adaptation && void removeAdaptation(adaptation)}
       />
     );
   };
@@ -1621,6 +1757,20 @@ export function PieceContainer({
       }}
       onArchive={() => void archive()}
       onDelete={() => void removePiece()}
+      channelDelete={
+        activeAdaptation && activeAdaptation.state !== 'published'
+          ? {
+              id: activeAdaptation.id,
+              onConfirm: () => void removeAdaptation(activeAdaptation),
+              disabled:
+                scheduleBusy !== null &&
+                !(scheduleBusy.id === activeAdaptation.id && scheduleBusy.kind === 'delete'),
+              loading:
+                scheduleBusy?.id === activeAdaptation.id &&
+                scheduleBusy.kind === 'delete',
+            }
+          : null
+      }
       onRetry={() => {
         setFailure(null);
         void detail.mutate();

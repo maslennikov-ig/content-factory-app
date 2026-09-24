@@ -241,6 +241,48 @@ describe('per-organization AI clients', () => {
       apiKey,
       baseURL: 'https://openrouter.example/api/v1',
     });
+    // The copilot chat leaves through the shared transport (`97dq.63`).
+    expect(typeof built.aiSdk[0].fetch).toBe('function');
+  });
+
+  test('review F8: the copilot chat walks one short flex attempt, then standard, then GLM', async () => {
+    const organization = register({ ...openrouter, usageMode: 'included' });
+    await clients.getAiSdkProvider(organization);
+    const bodies = [];
+    const answers = [503, 503, 200];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (_input, init) => {
+      bodies.push(JSON.parse(init.body));
+      const status = answers[bodies.length - 1];
+      return new Response(
+        status === 200
+          ? JSON.stringify({ choices: [{ message: { content: 'ok' } }], usage: {} })
+          : JSON.stringify({ error: { message: 'busy' } }),
+        { status, headers: { 'content-type': 'application/json' } }
+      );
+    };
+    try {
+      const response = await built.aiSdk[0].fetch(
+        'https://openrouter.example/api/v1/chat/completions',
+        {
+          method: 'POST',
+          body: JSON.stringify({ model: 'openai/gpt-5.6-luna', messages: [] }),
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+      expect(response.status).toBe(200);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    // Background text would take a second flex attempt here; the chat goes
+    // to standard and then to the fallback model.
+    expect(bodies.map((body) => body.model)).toEqual([
+      'openai/gpt-5.6-luna',
+      'openai/gpt-5.6-luna',
+      'z-ai/glm-5.3',
+    ]);
+    expect(JSON.stringify(bodies[0])).toMatch(/flex/);
+    expect(JSON.stringify(bodies[1])).not.toMatch(/flex/);
   });
 
   test('a provider without a base URL is left pointing at its own API', async () => {

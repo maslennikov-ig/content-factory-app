@@ -627,7 +627,18 @@ export const MediaBox: FC<{
               )}
             </div>
           </div>
+          {/*
+            Один раз и над всем экраном (`content-factory-next-fn33.158`):
+            вторая копия в пустом состоянии печатала ту же строку ещё раз с тем
+            же `id`, и `aria-describedby` кнопки находил первую попавшуюся.
+          */}
           {!canWriteMedia && <ReadOnlyMediaNote id={readOnlyNoteId} />}
+          {/*
+            Полоса загрузчика — только тому, кто может загружать. Uppy о роли
+            не знает, и его «выберите на устройстве» открывало выбор файла
+            роли, которой писать нельзя (`content-factory-next-fn33.158`).
+          */}
+          {canWriteMedia && (
           <div className="w-full pointer-events-none relative mt-[5px] mb-[5px]">
             <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
               <Dashboard
@@ -645,6 +656,7 @@ export const MediaBox: FC<{
             </div>
             <div className="w-full h-[46px] uppyChange" />
           </div>
+          )}
           <div
             className={clsx(
               'flex-1 relative',
@@ -655,7 +667,7 @@ export const MediaBox: FC<{
           >
             <div
               className={clsx(
-                'absolute -left-[3px] -top-[3px] withp3 h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
+                'absolute -left-[3px] -top-[3px] withp3 h-full overflow-x-hidden overflow-y-auto',
                 !isLoading &&
                   !data?.results?.length &&
                   'flex justify-center items-center gap-[20px] flex-col'
@@ -710,7 +722,6 @@ export const MediaBox: FC<{
                       <ThirdPartyMediaLibrary onImported={() => mutate()} />
                     )}
                   </div>
-                  {!canWriteMedia && <ReadOnlyMediaNote id={readOnlyNoteId} />}
                 </>
               )}
               {isLoading && (

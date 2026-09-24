@@ -1320,6 +1320,51 @@ describe('the voice wizard on live data', () => {
     expect(surface('samples')).not.toBeNull();
   });
 
+  test('a hand-filled draft left mid-way is said out loud, with a way back into it', async () => {
+    // `content-factory-next-fn33.150`: five accepted lines in the manual
+    // draft, and a reload answered «Аватара пока нет» with no word about them.
+    const written = {
+      WHO_SPEAKS: 'Мастерская',
+      TONE: 'Спокойно',
+      AUDIENCE: 'Заказчики',
+      SENTENCE_LENGTH: 'Короткие',
+      NEVER_SAY: 'Канцелярит',
+    };
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+      [`GET ${VOICE_API}/proposal/manual`]: () => manualEnvelope(written),
+    });
+    await renderWizard(server);
+
+    const note = document.querySelector('[data-voice-empty-manual]');
+    expect(note).not.toBeNull();
+    expect(note.getAttribute('data-voice-empty-manual')).toBe('5/6');
+    expect(note.textContent).toContain('заполнено 5 из 6');
+
+    await click(screen.getByRole('button', { name: 'Продолжить черновик' }));
+
+    // Straight onto the hand-filled form, with the saved lines in it.
+    expect(surface('proposal')).not.toBeNull();
+    expect(document.body.textContent).toContain('Мастерская');
+  });
+
+  test('an untouched manual draft is not announced', async () => {
+    const server = createServer({
+      [`GET ${VOICE_API}/overview`]: overview({
+        readiness: readiness({ sampleCount: 0, charCount: 0 }),
+      }),
+      [`GET ${VOICE_API}/proposal/manual`]: manualEnvelope(),
+    });
+    await renderWizard(server);
+
+    expect(document.querySelector('[data-voice-empty-manual]')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Продолжить черновик' })
+    ).toBeNull();
+  });
+
   test('a workspace that collected nothing is not told about a collection', async () => {
     const server = createServer({
       [`GET ${VOICE_API}/overview`]: overview({

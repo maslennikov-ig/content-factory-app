@@ -96,6 +96,15 @@ describe('text chain plan', () => {
     expect(chain.textChainBudgetMs(LUNA, included)).toBe(485_000);
   });
 
+  test('interactive (the copilot chat): one flex attempt of 25 s to first token, then standard, then GLM', () => {
+    const source = { ...included, profile: 'interactive' };
+    expect(chain.planTextAttempts(LUNA, source)).toEqual([
+      { number: 1, model: LUNA, flex: true, timeoutMs: 25_000 },
+      { number: 2, model: LUNA, flex: false, timeoutMs: 60_000 },
+      { number: 3, model: 'z-ai/glm-5.3', flex: false, timeoutMs: 60_000 },
+    ]);
+  });
+
   test('flex off leaves standard then fallback', () => {
     const source = { ...included, textChain: { flex: false, fallbackModel: 'z-ai/glm-5.3' } };
     expect(chain.planTextAttempts(LUNA, source).map((a) => [a.model, a.flex])).toEqual([
@@ -576,5 +585,254 @@ describe('reasoning headroom (production 23.09: intake parse cut on «length»)'
     expect(glm.max_tokens).toBe(2048);
     const open = chain.buildAttemptBody({ model: LUNA }, attempt(LUNA));
     expect(open.max_tokens).toBeUndefined();
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Review F15, F17, F18 (`content-factory-next-97dq.66`). Mock provider only.
+ * ---------------------------------------------------------------------- */
+
+describe('failed attempts are in the ledger (review F15)', () => {
+  const quiet = () => jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+  test('a served call keeps the served attempt; the failed ones add no tokens and no cost', async () => {
+    const warn = quiet();
+    try {
+      const { fetch } = scripted(
+        async () => {
+          throw new TypeError('socket hang up');
+        },
+        json(503, { error: { code: 503, message: 'down' } }),
+        json(200, completion({ service_tier: 'default' }))
+      );
+      const ledger = new chain.TextUsageLedger();
+      await chain.runWithUsageLedger(ledger, () =>
+        chain.createTextChainFetch(included, fetch)(URL_, post(request))
+      );
+      expect(ledger.calls.map((call) => [call.attempt, !!call.failed, !!call.possiblyBilled])).toEqual([
+        [1, true, true],
+        [2, true, false],
+        [3, false, false],
+      ]);
+      expect(ledger.columns()).toMatchObject({
+        model: LUNA,
+        serviceTier: 'default',
+        attempt: 3,
+        promptTokens: 100,
+        costUsd: 0.0000123,
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('an operation that never got an answer still says how far it went', async () => {
+    const warn = quiet();
+    try {
+      const failing = () => json(503, { error: { code: 503, message: 'down' } });
+      const { fetch } = scripted(failing(), failing(), failing(), failing());
+      const ledger = new chain.TextUsageLedger();
+      const response = await chain.runWithUsageLedger(ledger, () =>
+        chain.createTextChainFetch(included, fetch)(URL_, post(request))
+      );
+      expect(response.status).toBe(503);
+      expect(ledger.columns()).toEqual({
+        model: 'z-ai/glm-5.3',
+        serviceTier: null,
+        attempt: 4,
+        promptTokens: null,
+        completionTokens: null,
+        reasoningTokens: null,
+        cachedTokens: null,
+        costUsd: null,
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('a timed-out last attempt is recorded as possibly billed', async () => {
+    const source = { ...included, textChain: { flex: false, fallbackModel: '' } };
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'queueMicrotask', 'nextTick'] });
+    try {
+      const hang = (init) =>
+        new Promise((_, reject) =>
+          init.signal.addEventListener('abort', () => reject(init.signal.reason))
+        );
+      const { fetch } = scripted(hang);
+      const ledger = new chain.TextUsageLedger();
+      const pending = chain.runWithUsageLedger(ledger, () =>
+        chain.createTextChainFetch(source, fetch)(URL_, post(request))
+      );
+      const settled = expect(pending).rejects.toThrow('Request timed out.');
+      await jest.advanceTimersByTimeAsync(60_000);
+      await settled;
+      expect(ledger.calls).toEqual([
+        { attempt: 1, model: LUNA, failed: true, possiblyBilled: true },
+      ]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('web-plugin text calls are metered and not treated as images (review F17)', () => {
+  test('one pass as built, usage read, no flex, no fallback', async () => {
+    const { fetch, calls } = scripted(json(200, completion({ service_tier: 'default' })));
+    const ledger = new chain.TextUsageLedger();
+    const init = post({ ...request, plugins: [{ id: 'web', max_results: 5 }] });
+    const response = await chain.runWithUsageLedger(ledger, () =>
+      chain.createTextChainFetch(included, fetch)(URL_, init)
+    );
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init).toBe(init);
+    expect(calls[0].body.service_tier).toBeUndefined();
+    expect(ledger.columns()).toMatchObject({ attempt: 1, promptTokens: 100, costUsd: 0.0000123 });
+  });
+
+  test('an image is still decided by the model or the modalities, and is not read', async () => {
+    const { fetch, calls } = scripted(json(200, completion()), json(200, completion()));
+    const ledger = new chain.TextUsageLedger();
+    const run = chain.createTextChainFetch(included, fetch);
+    await chain.runWithUsageLedger(ledger, async () => {
+      await run(URL_, post({ ...request, modalities: ['image', 'text'] }));
+      await run(URL_, post({ ...request, model: 'openai/gpt-5-image' }));
+    });
+    expect(calls).toHaveLength(2);
+    expect(ledger.calls).toEqual([]);
+  });
+
+  test('the web search client meters through the shared transport', () => {
+    const fs = require('node:fs');
+    const source = fs.readFileSync(
+      require.resolve('../libraries/nestjs-libraries/src/openai/ai.clients.ts'),
+      'utf8'
+    );
+    const factory = source.slice(source.indexOf('return new OpenRouterWebSearch('));
+    expect(factory.slice(0, 400)).toMatch(/fetch: createTextChainFetch\(chainSourceOf\(config\)\)/);
+    expect(factory.slice(0, 400)).toMatch(/maxRetries: 0/);
+  });
+});
+
+describe('a flex tier refusal falls to standard (review F18)', () => {
+  test('400 naming service_tier skips the second flex attempt and serves on standard', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const { fetch, calls } = scripted(
+        json(400, { error: { code: 400, message: 'service_tier "flex" is not supported for this model' } }),
+        json(200, completion({ service_tier: 'default' }))
+      );
+      const ledger = new chain.TextUsageLedger();
+      const response = await chain.runWithUsageLedger(ledger, () =>
+        chain.createTextChainFetch(included, fetch)(URL_, post(request))
+      );
+      expect(response.status).toBe(200);
+      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', undefined]);
+      expect(ledger.columns()).toMatchObject({ attempt: 3, serviceTier: 'default' });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('flex capacity is not a refusal; a plain validation 400 stays final', () => {
+    const flex = { number: 1, model: LUNA, flex: true, timeoutMs: 1 };
+    const standard = { ...flex, flex: false };
+    expect(chain.isFlexRefusal(429, 'flex capacity', flex)).toBe(false);
+    expect(chain.isFlexRefusal(404, 'No endpoints found for flex', flex)).toBe(false);
+    expect(chain.isFlexRefusal(400, 'Invalid service_tier', flex)).toBe(true);
+    expect(chain.isFlexRefusal(400, 'Invalid service_tier', standard)).toBe(false);
+    expect(chain.isRetryableFailure(400, 'response_format is invalid', flex)).toBe(false);
+    expect(chain.isRetryableFailure(400, 'flex tier is not available for this model', flex)).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * The copilot chat (`content-factory-next-97dq.63`): the real `@ai-sdk/openai`
+ * chat model on the shared transport. The provider is mocked.
+ * ---------------------------------------------------------------------- */
+
+describe('copilot chat through the chain (@ai-sdk/openai chat model)', () => {
+  const { createOpenAI } = require('@ai-sdk/openai');
+  const prompt = [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }];
+  const drain = async (stream) => {
+    const reader = stream.getReader();
+    const parts = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return parts;
+      parts.push(value);
+    }
+  };
+
+  test('stream: flex refused for capacity, flex again, served; tokens and cost reach the ledger', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const { fetch, calls } = scripted(
+        json(429, { error: { code: 429, message: 'flex capacity' } }),
+        sse([
+          { id: 'c', model: LUNA, choices: [{ index: 0, delta: { role: 'assistant', content: 'Hel' } }] },
+          { id: 'c', model: LUNA, choices: [{ index: 0, delta: { content: 'lo' }, finish_reason: 'stop' }] },
+          {
+            id: 'c',
+            model: LUNA,
+            service_tier: 'flex',
+            choices: [],
+            usage: { prompt_tokens: 12, completion_tokens: 3, cost: 0.0004 },
+          },
+        ])
+      );
+      const provider = createOpenAI({
+        apiKey: 'test-key',
+        baseURL: 'https://openrouter.ai/api/v1',
+        fetch: chain.createTextChainFetch(included, fetch),
+      });
+      const ledger = new chain.TextUsageLedger();
+      const parts = await chain.runWithUsageLedger(ledger, async () => {
+        const { stream } = await provider.chat(LUNA).doStream({ prompt });
+        return drain(stream);
+      });
+      expect(calls.map(({ url }) => url)).toEqual([URL_, URL_]);
+      expect(calls.map(({ body }) => body.service_tier)).toEqual(['flex', 'flex']);
+      expect(calls[1].body).toMatchObject({
+        stream: true,
+        stream_options: { include_usage: true },
+        usage: { include: true },
+        reasoning: { effort: 'medium' },
+      });
+      const text = parts
+        .filter((part) => part.type === 'text-delta')
+        .map((part) => part.delta)
+        .join('');
+      expect(text).toBe('Hello');
+      expect(ledger.columns()).toMatchObject({
+        model: LUNA,
+        serviceTier: 'flex',
+        attempt: 2,
+        promptTokens: 12,
+        completionTokens: 3,
+        costUsd: 0.0004,
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('generate: the served answer and its usage; workspace_key goes out once as built', async () => {
+    const { fetch, calls } = scripted(json(200, completion({ service_tier: 'default' })));
+    const provider = createOpenAI({
+      apiKey: 'workspace-key',
+      baseURL: 'https://openrouter.ai/api/v1',
+      fetch: chain.createTextChainFetch({ ...included, usageMode: 'workspace_key' }, fetch),
+    });
+    const ledger = new chain.TextUsageLedger();
+    const result = await chain.runWithUsageLedger(ledger, () =>
+      provider.chat(LUNA).doGenerate({ prompt })
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.service_tier).toBeUndefined();
+    expect(calls[0].body.usage).toBeUndefined();
+    expect(result.content).toEqual([{ type: 'text', text: 'ok' }]);
+    expect(ledger.columns()).toMatchObject({ attempt: 1, serviceTier: 'default', promptTokens: 100 });
   });
 });

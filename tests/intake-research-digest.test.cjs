@@ -426,3 +426,29 @@ describe('источники для сжатия', () => {
     expect(prompt).toContain('in Russian');
   });
 });
+
+describe('correctedBriefField (97dq.42)', () => {
+  const { correctedBriefField } = digest;
+  const fix = { original: 'выросла на 40%', replacement: 'не упала', accepted: true };
+  test('without corrected words to rebuild from, the field stays as the corrections left it', () => {
+    expect(correctedBriefField('Формат повысил производительность на 40%.', [fix], '')).toBe(
+      'Формат повысил производительность на 40%.'
+    );
+  });
+  test('a field the correction reaches is replaced in place; empty fields stay empty', () => {
+    expect(correctedBriefField('Производительность выросла на 40%.', [fix], '')).toBe(
+      'Производительность не упала.'
+    );
+    expect(correctedBriefField(null, [fix], 'Текст.')).toBeNull();
+  });
+  test('the rebuilt sentence shares the most words with the field and never carries the refuted number', () => {
+    const corrected =
+      'Производительность не упала. Команда хвалит новый график. Другой отчёт снова говорит о 40%.';
+    expect(
+      correctedBriefField('Новый график повысил производительность на 40%.', [fix], corrected)
+    ).toBe('Команда хвалит новый график.');
+    expect(
+      correctedBriefField('Производительность выросла на 40% за год.', [fix], corrected.replace('Производительность не упала. ', ''))
+    ).not.toContain('40%');
+  });
+});

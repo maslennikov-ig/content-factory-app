@@ -41,6 +41,11 @@ import { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/d
 import { IntegrationPlanModeDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.plan.mode.dto';
 import { ChannelPostsQueryDto } from '@contentfactory/nestjs-libraries/dtos/integrations/channel.posts.query.dto';
 import { resolveChannelWritingProfile } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
+import {
+  AdditionalSettingsBodyDto,
+  BodyIdDto,
+  StatusBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -170,8 +175,9 @@ export class IntegrationsController {
   async updateProviderSettings(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
-    @Body('additionalSettings') body: string
+    @Body() input: AdditionalSettingsBodyDto
   ) {
+    const body = input.additionalSettings;
     if (typeof body !== 'string') {
       throw new Error('Invalid body');
     }
@@ -540,7 +546,7 @@ export class IntegrationsController {
   @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   disableChannel(
     @GetOrgFromRequest() org: Organization,
-    @Body('id') id: string
+    @Body() { id }: BodyIdDto
   ) {
     return this._integrationService.disableChannel(org.id, id);
   }
@@ -549,7 +555,7 @@ export class IntegrationsController {
   @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   enableChannel(
     @GetOrgFromRequest() org: Organization,
-    @Body('id') id: string
+    @Body() { id }: BodyIdDto
   ) {
     return this._integrationService.enableChannel(
       org.id,
@@ -618,7 +624,7 @@ export class IntegrationsController {
   async changePlugActivation(
     @Param('id') id: string,
     @GetOrgFromRequest() org: Organization,
-    @Body('status') status: boolean
+    @Body() { status }: StatusBodyDto
   ) {
     return this._integrationService.changePlugActivation(org.id, id, status);
   }

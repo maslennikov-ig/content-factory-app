@@ -84,8 +84,12 @@ const sectionsOfArgument = (argument, aliases) => {
   return followed ? [followed[1]] : [];
 };
 
-/** Every route handler that carries `@CheckPolicies`, with its sections. */
-const doorsWithPolicies = () => {
+/**
+ * Every route handler that carries `@CheckPolicies`, with its sections.
+ * With `{ all: true }`, every handler, and the ones without a policy carry
+ * `sections: []` (`content-factory-next-fn33.90.2`).
+ */
+const doorsWithPolicies = ({ all = false } = {}) => {
   const doors = [];
 
   for (const relative of ROUTE_ROOTS.flatMap(typeScriptFiles)) {
@@ -133,11 +137,11 @@ const doorsWithPolicies = () => {
           }
         }
 
-        if (!method || !sections?.length) continue;
+        if (!method || (!all && !sections?.length)) continue;
         doors.push({
           method,
           path: `${prefix}${route}`.replace(/\/$/, '') || '/',
-          sections,
+          sections: sections || [],
           file: relative,
         });
       }
@@ -149,4 +153,15 @@ const doorsWithPolicies = () => {
   );
 };
 
-module.exports = { doorsWithPolicies, root, read };
+/**
+ * Every changing door (`POST`, `PUT`, `PATCH`, `DELETE`) that carries no
+ * policy at all, as `METHOD /path` (`content-factory-next-fn33.90.2`). The
+ * matrix guard reads doors from `@CheckPolicies` and so, by construction,
+ * could not see these.
+ */
+const unpolicedChangingDoors = () =>
+  doorsWithPolicies({ all: true })
+    .filter((door) => door.method !== 'GET' && !door.sections.length)
+    .map((door) => `${door.method} ${door.path}`);
+
+module.exports = { doorsWithPolicies, unpolicedChangingDoors, root, read };

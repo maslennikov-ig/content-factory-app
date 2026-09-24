@@ -187,7 +187,14 @@ function forkWorkerScript<T>(
     // kill arrives here as `signal: 'SIGKILL'`, indistinguishable from the
     // timeout branch's own kill only because that branch already settled
     // first and this listener is a no-op by the time it runs).
-    child.once('exit', (code: number | null, signal: string | null) => {
+    //
+    // `close`, not `exit` (`content-factory-next-97dq.69`): `exit` comes from
+    // the OS's child-ended signal and may be handled before the parent has
+    // read the IPC pipe, so a worker that sent its outcome and ended at once
+    // read as PARSE_CRASHED whenever the host was busy. `close` waits for the
+    // IPC channel to disconnect, which happens only after every message on it
+    // has been emitted.
+    child.once('close', (code: number | null, signal: string | null) => {
       settle({
         ok: false,
         reason: 'PARSE_CRASHED',

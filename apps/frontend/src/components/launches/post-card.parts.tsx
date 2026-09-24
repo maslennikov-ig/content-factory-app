@@ -8,6 +8,7 @@ import { ControlButton } from '@contentfactory/react/choice/control.button';
 import { ChannelMark } from '@contentfactory/frontend/components/ui/brand/channel-mark';
 import { Popover, MenuItem } from '@contentfactory/frontend/components/ui/layers';
 import {
+  Status,
   STATUS_TONES,
   StatusTone,
 } from '@contentfactory/frontend/components/ui/surface';
@@ -313,15 +314,11 @@ export const StagePill: FC<{
   label: string;
   title?: string;
 }> = ({ tone, label, title }) => (
-  <span
-    className={clsx(
-      'inline-flex shrink-0 items-center h-[20px] px-[8px] rounded-[8px] border cf-label-sm whitespace-nowrap',
-      STATUS_TONES[tone]
-    )}
-    title={title || label}
-  >
+  // The shared pill, dense (`97dq.76`, audit §5.1): one geometry for every
+  // state chip on the calendar.
+  <Status tone={tone} density="dense" className="shrink-0" title={title || label}>
     {label}
-  </span>
+  </Status>
 );
 
 export type PostCardAction = {
@@ -496,17 +493,15 @@ export const PlanStatePill: FC<{
   title?: string;
   className?: string;
 }> = ({ state, label, title, className }) => (
-  <span
+  <Status
     data-plan-state={state}
     title={title}
-    className={clsx(
-      'inline-flex shrink-0 items-center h-[20px] px-[8px] rounded-[4px] border cf-label-sm whitespace-nowrap',
-      PLAN_STATE_CLASS[state],
-      className
-    )}
+    density="dense"
+    paint={PLAN_STATE_CLASS[state]}
+    className={clsx('shrink-0', className)}
   >
     {label}
-  </span>
+  </Status>
 );
 
 /**

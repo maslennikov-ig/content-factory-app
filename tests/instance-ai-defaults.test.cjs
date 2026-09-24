@@ -365,6 +365,7 @@ describe('the superadmin screen never sees a key', () => {
           textModel: 'openai/gpt-5.6-luna',
           imageModel: null,
           monthlyOperations: 50,
+          monthlyOperationsUnlimited: false,
         });
       }
     );
@@ -396,6 +397,7 @@ describe('the superadmin screen never sees a key', () => {
           textModel: 'gpt-4.1',
           imageModel: null,
           monthlyOperations: 0,
+          monthlyOperationsUnlimited: false,
         });
       }
     );
@@ -419,6 +421,7 @@ describe('the superadmin screen never sees a key', () => {
           textModel: null,
           imageModel: null,
           monthlyOperations: null,
+          monthlyOperationsUnlimited: false,
         });
       }
     );
@@ -438,6 +441,63 @@ describe('the superadmin screen never sees a key', () => {
     });
     expect(update).not.toHaveProperty('apiKey');
     expect(update).not.toHaveProperty('searchApiKeys');
+  });
+
+  /*
+    `content-factory-next-97dq.27`: «без предела» is a state of the row, not
+    a million typed into the field. The sentinel stays inside the service —
+    the screen reads a flag and an empty number.
+  */
+  test('«без предела» is stored as a state and read back as one', async () => {
+    const usage = loadUsage();
+    const { service, state } = loadService({ row: { monthlyOperations: 45 } });
+
+    await service.update('user-1', { monthlyOperationsUnlimited: true });
+    expect(state.written[0].update.monthlyOperations).toBe(
+      usage.UNLIMITED_MONTHLY_OPERATIONS
+    );
+
+    const view = await service.read();
+    expect(view.monthlyOperationsUnlimited).toBe(true);
+    expect(view.monthlyOperations).toBeNull();
+    expect(view.effective.monthlyOperationsUnlimited).toBe(true);
+    expect(view.effective.monthlyOperations).toBeNull();
+
+    // A number typed while the switch is off replaces the state.
+    await service.update('user-1', {
+      monthlyOperationsUnlimited: false,
+      monthlyOperations: 30,
+    });
+    expect(state.row.monthlyOperations).toBe(30);
+  });
+
+  test('switching «без предела» off with no number returns to «not set»', async () => {
+    const usage = loadUsage();
+    const { service, state } = loadService({
+      row: { monthlyOperations: usage.UNLIMITED_MONTHLY_OPERATIONS },
+    });
+    await service.update('user-1', { monthlyOperationsUnlimited: false });
+    expect(state.row.monthlyOperations).toBeNull();
+
+    // Off over a real number leaves the number alone.
+    const other = loadService({ row: { monthlyOperations: 12 } });
+    await other.service.update('user-1', { monthlyOperationsUnlimited: false });
+    expect(other.state.row.monthlyOperations).toBe(12);
+  });
+
+  test('the quota reads the state as infinite; a subscription still wins', () => {
+    const usage = loadUsage();
+    const unlimited = { monthlyOperations: usage.UNLIMITED_MONTHLY_OPERATIONS };
+    expect(usage.includedMonthlyOperations(null, unlimited)).toBe(
+      Number.POSITIVE_INFINITY
+    );
+    expect(
+      usage.includedMonthlyOperations(
+        { includedAiMonthlyOperations: 10 },
+        unlimited
+      )
+    ).toBe(10);
+    expect(usage.includedMonthlyOperations(null, { monthlyOperations: 0 })).toBe(0);
   });
 
   test('a typed key is encrypted and filed under the engine it was typed for', async () => {

@@ -15,6 +15,7 @@ import clsx from 'clsx';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import EmojiPicker from 'emoji-picker-react';
 import { EmojiStyle, Theme } from 'emoji-picker-react';
+import { documentThemeMode } from '@contentfactory/frontend/components/layout/document-theme';
 import { BoldText } from '@contentfactory/frontend/components/new-launch/bold.text';
 import { UText } from '@contentfactory/frontend/components/new-launch/u.text';
 import { SignatureBox } from '@contentfactory/frontend/components/signature';
@@ -988,9 +989,12 @@ export const Editor: FC<{
                               // panel would tell a CDN who is writing a post.
                               // The system font draws them locally.
                               emojiStyle={EmojiStyle.NATIVE}
+                              // The page's own theme (`document-theme.ts`),
+                              // not a storage key nothing writes.
                               theme={
-                                (localStorage.getItem('mode') as Theme) ||
-                                Theme.DARK
+                                documentThemeMode() === 'light'
+                                  ? Theme.LIGHT
+                                  : Theme.DARK
                               }
                               onEmojiClick={(e) => {
                                 addText(e.emoji);

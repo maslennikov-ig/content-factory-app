@@ -98,7 +98,11 @@ class Logger {
   }
 }
 
-const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
+const {
+  WebResearchService: NetworkedWebResearchService,
+  WebSearchFallbackError,
+  WebSearchNotConfigured,
+} =
   loadTypeScriptModule(
     'libraries/nestjs-libraries/src/openai/web.research.service.ts',
     {
@@ -154,6 +158,28 @@ const { WebResearchService, WebSearchFallbackError, WebSearchNotConfigured } =
       },
     }
   );
+
+/**
+ * No test here touches the network (`content-factory-next-97dq.69`).
+ *
+ * A service built without the encyclopedic seam took the real Wikipedia and
+ * Wikidata path whenever a call named a research level: real DNS, real fetch,
+ * an 8 s lane deadline. Alone that cost 1-1.6 s per test; under a loaded full
+ * suite it crossed Jest's 5 s timeout and failed at random. Every service
+ * built here now gets an offline lane by default, which fails at once and is
+ * logged like any lane failure; tests that exercise the lane pass their own
+ * recorded `fetchImpl`, as before.
+ */
+const offlineLane = {
+  fetchImpl: async (url) => {
+    throw new Error(`network is off in unit tests: ${url}`);
+  },
+};
+class WebResearchService extends NetworkedWebResearchService {
+  constructor(usage, quota, encyclopedic) {
+    super(usage, quota, encyclopedic ?? offlineLane);
+  }
+}
 
 const statusError = (status) =>
   Object.assign(new Error(`Search failed with status ${status}`), { status });

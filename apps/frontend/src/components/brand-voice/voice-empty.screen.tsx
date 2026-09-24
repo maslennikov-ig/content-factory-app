@@ -41,7 +41,9 @@ export function VoiceEmptyScreen({
   onCreate,
   onExample,
   onContinue,
+  onContinueManual,
   collected,
+  manualDraft,
   note,
 }: {
   locale: VoiceLocale;
@@ -59,12 +61,22 @@ export function VoiceEmptyScreen({
    * been collected: zero would be a claim that the corpus was looked at.
    */
   collected?: { sampleCount: number; charCount: number };
+  /**
+   * A hand-filled draft that was started and left
+   * (`content-factory-next-fn33.150`). Its lines are saved one by one, and
+   * without this a reload answered «Аватара пока нет» over five accepted
+   * lines. Absent when no line has been written.
+   */
+  manualDraft?: { filled: number; total: number };
+  onContinueManual?: () => void;
   /** A single line the host may add, e.g. why creating is unavailable. */
   note?: ReactNode;
 }) {
   const t = voiceCopy[locale];
   const busy = state === 'loading';
   const blocked = state === 'restricted' || state === 'disabled';
+  const hasCollected = Boolean(collected && collected.sampleCount > 0);
+  const hasManualDraft = Boolean(manualDraft && manualDraft.filled > 0);
 
   return (
     <section
@@ -109,6 +121,15 @@ export function VoiceEmptyScreen({
         </p>
       ) : null}
 
+      {hasManualDraft && manualDraft ? (
+        <p
+          data-voice-empty-manual={`${manualDraft.filled}/${manualDraft.total}`}
+          className="mt-[16px] max-w-[72ch] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] cf-body-sm text-cf-ink [text-wrap:pretty]"
+        >
+          {t.emptyManualDraft(manualDraft.filled, manualDraft.total)}
+        </p>
+      ) : null}
+
       <div className="mt-[20px] flex flex-wrap gap-[8px]">
         {collected && collected.sampleCount > 0 ? (
           <Button
@@ -120,13 +141,21 @@ export function VoiceEmptyScreen({
             {t.emptyContinue}
           </Button>
         ) : null}
+        {hasManualDraft ? (
+          <Button
+            type="button"
+            onClick={onContinueManual}
+            disabled={busy || blocked}
+            variant={hasCollected ? 'secondary' : 'primary'}
+          >
+            {t.emptyContinueManual}
+          </Button>
+        ) : null}
         <Button
           type="button"
           onClick={onCreate}
           disabled={busy || blocked}
-          variant={
-            collected && collected.sampleCount > 0 ? 'secondary' : 'primary'
-          }
+          variant={hasCollected || hasManualDraft ? 'secondary' : 'primary'}
         >
           {t.createVoice}
         </Button>

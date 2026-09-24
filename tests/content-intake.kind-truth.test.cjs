@@ -622,7 +622,7 @@ describe('задание: слова человека о посте — не м�
         },
         (prompt) => {
           // Суть пишется по блокам задания, а не по «словам человека».
-          expect(prompt).toContain('PROMPT VERSION: core-write/v11');
+          expect(prompt).toContain('PROMPT VERSION: core-write/v12');
           expect(prompt).toContain('ЗАДАНИЕ (что человек хочет написать; описание поста, не его текст)');
           expect(prompt).toContain('ССЫЛКИ ИЗ ЗАДАНИЯ (переносятся в текст как есть)');
           for (const link of RADIO_LINKS) expect(prompt).toContain(link);

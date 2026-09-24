@@ -733,7 +733,7 @@ export function SignInMethodsView({
         data-testid="sign-in-methods-skeleton"
         aria-busy="true"
         aria-live="polite"
-        className="flex w-full max-w-[720px] flex-col gap-[20px]"
+        className="flex w-full max-w-[960px] flex-col gap-[20px]"
       >
         <h2 className="cf-heading-md text-cf-ink">
           {t('sign_in_methods', 'Sign-in methods')}
@@ -766,7 +766,7 @@ export function SignInMethodsView({
 
   if (error) {
     return (
-      <section className="flex max-w-[720px] flex-col gap-[16px]">
+      <section className="flex max-w-[960px] flex-col gap-[16px]">
         <h2 className="cf-heading-md text-cf-ink">
           {t('sign_in_methods', 'Sign-in methods')}
         </h2>
@@ -791,7 +791,7 @@ export function SignInMethodsView({
   const addPasswordRegionId = `${regionId}-add-password`;
 
   return (
-    <section className="flex w-full max-w-[720px] flex-col gap-[20px]">
+    <section className="flex w-full max-w-[960px] flex-col gap-[20px]">
       <header>
         <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
           {t('sign_in_methods', 'Sign-in methods')}

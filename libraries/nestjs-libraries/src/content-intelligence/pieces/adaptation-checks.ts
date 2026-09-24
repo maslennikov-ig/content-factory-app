@@ -52,7 +52,9 @@ export type AdaptationSlopCheck = (
   locale: 'ru' | 'en',
   grounded?: readonly string[],
   /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
-  supported?: readonly string[]
+  supported?: readonly string[],
+  /** Выбранный потолок эмодзи (`97dq.83`); нет — порог площадки. */
+  emojiCeiling?: number | null
 ) => SlopReportV1 | null;
 
 export type AdaptationChecksInput = {
@@ -81,6 +83,11 @@ export type AdaptationChecksInput = {
    * короткая находка, пересказывающая такую опору, штампом не считается.
    */
   supported?: readonly string[];
+  /**
+   * Потолок эмодзи этого поста или канала (`97dq.83`, `emojiCeilingOf`):
+   * «до N» — выбор человека, и в его пределах эмодзи не украшение.
+   */
+  emojiCeiling?: number | null;
 };
 
 export type AdaptationChecksDeps = {
@@ -132,7 +139,8 @@ const offlineChecks = (
               input.platform,
               input.language,
               input.grounded,
-              input.supported
+              input.supported,
+              input.emojiCeiling
             )
           )
         : null,
@@ -179,7 +187,12 @@ export async function adaptationChecksMany(
     grounded?: readonly string[];
     supported?: readonly string[];
   },
-  rows: ReadonlyArray<{ text: string; platform: string }>,
+  rows: ReadonlyArray<{
+    text: string;
+    platform: string;
+    /** Потолок эмодзи строки (`97dq.83`); нет — порог площадки. */
+    emojiCeiling?: number | null;
+  }>,
   deps: AdaptationChecksDeps
 ): Promise<AdaptationChecksV1[]> {
   if (!rows.length) return [];
@@ -213,6 +226,9 @@ export async function adaptationChecksMany(
         foreignShingles: common.foreignShingles,
         grounded: common.grounded,
         supported: common.supported,
+        ...(row.emojiCeiling !== undefined
+          ? { emojiCeiling: row.emojiCeiling }
+          : {}),
       },
       deps
     ),

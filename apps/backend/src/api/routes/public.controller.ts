@@ -22,6 +22,9 @@ import { promisify } from 'util';
 import { OnlyURL } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { isSafePublicHttpsUrl } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 import { ssrfSafeDispatcher } from '@contentfactory/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import {
+  SignedParamsBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 const pump = promisify(pipeline);
 
@@ -82,7 +85,7 @@ export class PublicController {
   }
 
   @Post('/modify-subscription')
-  async modifySubscription(@Body('params') params: string) {
+  async modifySubscription(@Body() { params }: SignedParamsBodyDto) {
     try {
       const load = AuthService.verifyJWT(params) as {
         orgId: string;

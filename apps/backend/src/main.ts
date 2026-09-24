@@ -59,19 +59,24 @@ async function start() {
 
   app.use(cookieParser());
   app.use(compression({ filter: streamCompressionFilter }));
+  // Registration order is the reverse of the dispatch order. Nest builds each
+  // route's handler from `[...global, ...class, ...method]` and then calls
+  // `filters.reverse()` (`RouterExceptionFilters.create`), so the filter
+  // registered last is tried first and the first whose `@Catch()` list
+  // matches answers, without walking the rest. The collector's filter is
+  // `@Catch()` with no types and matches everything, so it is registered
+  // first — tried last — and catches only what nothing else claimed.
+  //
+  // It used to be registered last, on the belief that this list dispatches
+  // in order. In production, where the collector is on, it then answered for
+  // all three product filters: a role refusal went out as the bare
+  // `{"section":"editor","action":"create"}` with no text for the dialog
+  // (`content-factory-next-fn33.149`), and the 401 that clears the auth
+  // cookie and the post validation message were lost the same way.
+  if (errorCollectionEnabled) setupSentryErrorHandler(app);
   app.useGlobalFilters(new SubscriptionExceptionFilter());
   app.useGlobalFilters(new PostValidationExceptionFilter());
   app.useGlobalFilters(new HttpExceptionFilter());
-
-  // Registration order is the dispatch order: Nest hands `getGlobalFilters()`
-  // back in the order it received them and takes the first filter whose
-  // `@Catch()` list matches, without walking the rest. The collector's filter
-  // is `@Catch()` with no types, so it matches everything — registered above
-  // these three it would answer for them and silently change three responses:
-  // 401 with the auth cookie cleared becomes a bare 403, the upgrade dialog
-  // renders empty, and the post validation message disappears. It goes last,
-  // where it catches what nothing else claimed.
-  if (errorCollectionEnabled) setupSentryErrorHandler(app);
 
   // Does nothing unless CONTENT_FACTORY_SWAGGER_ENABLED is exactly "true".
   loadSwagger(app);

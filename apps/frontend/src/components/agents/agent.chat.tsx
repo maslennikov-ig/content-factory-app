@@ -138,7 +138,7 @@ You can select the channels you want to use from the left menu.
 
 You can see your previous conversations from the right menu.
 
-You can also use me as an MCP Server, check Settings >> Public API
+You can also connect me as an MCP server: see Settings → Developers.
 `
                   ),
                 }}

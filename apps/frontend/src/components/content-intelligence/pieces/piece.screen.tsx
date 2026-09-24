@@ -6,6 +6,7 @@ import { Button, buttonClassName } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import { Tab, TabList, TabPanel, Tabs } from '@contentfactory/react/choice/tabs';
 import { useEnterMotion } from '../../ui/enter-motion';
+import { sectionTabClass } from '../../ui/section-tabs';
 import { PlusIcon } from '@contentfactory/frontend/components/ui/icons';
 import { ConfirmButton } from '../../ui/confirm-button';
 import {
@@ -60,6 +61,7 @@ export function PieceScreen({
   onTabChange,
   onArchive,
   onDelete,
+  channelDelete = null,
   onRetry,
   onTitleSave,
 }: {
@@ -82,6 +84,17 @@ export function PieceScreen({
   onArchive: () => void;
   /** Удалить заготовку насовсем (`97dq.30`); подтверждение — в самой кнопке. */
   onDelete: () => void;
+  /**
+   * «Удалить» на вкладке канала (`97dq.78`): показанную адаптацию. `null` —
+   * удалять нечего (адаптации нет или пост вышел), и кнопки нет.
+   */
+  channelDelete?: {
+    /** Показанная адаптация: у каждой своя кнопка, взвод не переезжает. */
+    id?: string;
+    onConfirm: () => void;
+    disabled?: boolean;
+    loading?: boolean;
+  } | null;
   onRetry: () => void;
   onTitleSave?: (title: string) => Promise<void>;
 }) {
@@ -289,19 +302,36 @@ export function PieceScreen({
             </Button>
           ) : null}
           {/*
-            Одна кнопка удаления на виду (`97dq.70`): во вкладке канала это
-            «Удалить адаптацию» в её верхнем ряду, а заготовка целиком
-            удаляется со «Сути».
+            Одна кнопка удаления на странице (`97dq.78`, четырнадцатый заход):
+            «Удалить» стоит в строке заголовка справа от «В архив». На «Сути»
+            она удаляет заготовку, на вкладке канала — показанную адаптацию;
+            подтверждение называет, что удаляется. В колонке текста кнопки
+            больше нет. Своя кнопка на каждую вкладку и версию (`key`, ревью
+            P3-5): взведённая на одной вкладке не удалит другое на соседней.
           */}
-          {!activeChannel ? (
+          {activeChannel ? (
+            channelDelete ? (
+              <ConfirmButton
+                key={`adaptation-${activeChannel.id}-${channelDelete.id ?? ''}`}
+                label={t.deletePiece}
+                armedLabel={t.deleteAdaptationArmed}
+                disabled={!canWrite || busy || channelDelete.disabled}
+                loading={channelDelete.loading}
+                loadingLabel={t.deletingAdaptation}
+                data-piece-delete-adaptation="true"
+                onConfirm={channelDelete.onConfirm}
+              />
+            ) : null
+          ) : (
             <ConfirmButton
+              key="piece"
               label={t.deletePiece}
-              armedLabel={t.deletePieceArmed}
+              armedLabel={t.deleteWholePieceArmed}
               disabled={!canWrite || busy}
               data-piece-delete="true"
               onConfirm={onDelete}
             />
-          ) : null}
+          )}
         </div>
         {editingTitle ? (
           <form
@@ -437,12 +467,9 @@ export function PieceScreen({
 }
 
 /** Вкладка: подчёркивание выбранной, тишина остальных — как у раздела. */
+// The shared strip in its compact form (`ui/section-tabs`, `97dq.76`): the
+// chosen tab reads in accent, as in every other section.
 const tabClass = (selected: boolean) =>
-  clsx(
-    'inline-flex items-center gap-[8px] whitespace-nowrap border-b-2 px-[12px] pb-[8px] pt-[4px] cf-label-md transition-colors duration-state motion-reduce:transition-none',
-    selected
-      ? 'border-cf-accent text-cf-ink'
-      : 'border-transparent text-cf-ink-muted hover:text-cf-ink'
-  );
+  sectionTabClass(selected, { compact: true });
 
 export default PieceScreen;

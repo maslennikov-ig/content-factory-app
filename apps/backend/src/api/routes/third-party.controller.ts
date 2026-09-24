@@ -15,6 +15,9 @@ import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UploadFactory } from '@contentfactory/nestjs-libraries/upload/upload.factory';
 import { MediaService } from '@contentfactory/nestjs-libraries/database/prisma/media/media.service';
 import { ImportMediaDto } from '@contentfactory/nestjs-libraries/dtos/third-party/import-media.dto';
+import {
+  ThirdPartyApiKeyBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('Third Party')
 @Controller('/third-party')
@@ -174,7 +177,7 @@ export class ThirdPartyController {
   async addApiKey(
     @GetOrgFromRequest() organization: Organization,
     @Param('identifier') identifier: string,
-    @Body('api') api: string
+    @Body() { api }: ThirdPartyApiKeyBodyDto
   ) {
     const thirdParty = this._thirdPartyManager.getThirdPartyByName(identifier);
     if (!thirdParty) {

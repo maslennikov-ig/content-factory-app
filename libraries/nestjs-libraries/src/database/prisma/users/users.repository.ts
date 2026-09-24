@@ -7,6 +7,7 @@ import { Prisma, Provider, Role } from '@prisma/client';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UserDetailDto } from '@contentfactory/nestjs-libraries/dtos/users/user.details.dto';
 import { EmailNotificationsDto } from '@contentfactory/nestjs-libraries/dtos/users/email-notifications.dto';
+import { serializableWithRetry } from '@contentfactory/nestjs-libraries/database/prisma/serializable.transaction';
 import { makeId } from '@contentfactory/nestjs-libraries/services/make.is';
 import {
   legacyIdentityIdentifier,
@@ -501,24 +502,15 @@ export class UsersRepository {
    * is a retry, not a failure; three attempts and then a plain "busy" answer,
    * so an administrator waiting on a button never waits forever.
    */
-  private async serializableWithRetry<T>(
+  private serializableWithRetry<T>(
     run: (tx: Prisma.TransactionClient) => Promise<T>,
     busyMessage: string
   ): Promise<T> {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        return await this._transaction.model.$transaction(run, {
-          isolationLevel: 'Serializable',
-        });
-      } catch (error: any) {
-        if (error?.code !== 'P2034') throw error;
-        if (attempt === 2) {
-          throw new HttpException(busyMessage, 503);
-        }
-      }
-    }
-
-    throw new Error('Unreachable serializable retry state');
+    return serializableWithRetry(
+      this._transaction.model as any,
+      run,
+      busyMessage
+    );
   }
 
   /**
@@ -635,6 +627,7 @@ export class UsersRepository {
           );
         }
         await tx.tags.deleteMany({ where: { orgId: organizationId } });
+        await this.keepSurvivingAvatars(tx, organizationId);
         await tx.organization.delete({ where: { id: organizationId } });
 
         return { id: user.id, organizationId };
@@ -846,6 +839,7 @@ export class UsersRepository {
         // remembering to add a line; a list would have to be kept in step and
         // would fail with a foreign-key error the day it was not.
         for (const organizationId of soleOrganizationIds) {
+          await this.keepSurvivingAvatars(tx, organizationId);
           await tx.organization.delete({ where: { id: organizationId } });
         }
 
@@ -853,6 +847,62 @@ export class UsersRepository {
       },
       'The account is being changed right now; try again'
     );
+  }
+
+  /**
+   * `content-factory-next-r82e`. A person's avatar is a `Media` row, and
+   * `Media` belongs to a workspace and goes with it (`onDelete: Cascade`); the
+   * person's `pictureId` would then be cleared. Somebody who picked the avatar
+   * in this workspace and belongs to another one keeps it: before the
+   * workspace goes, the row is copied into one of their other workspaces —
+   * the same file, marked deleted so it does not appear in that library — and
+   * the avatar points at the copy. Nobody else's avatar is touched; a person
+   * with no other workspace is being deleted with this one or has no screen
+   * to show it on.
+   */
+  private async keepSurvivingAvatars(
+    tx: Prisma.TransactionClient,
+    organizationId: string
+  ) {
+    const people = await tx.user.findMany({
+      where: { picture: { is: { organizationId } } },
+      select: {
+        id: true,
+        picture: {
+          select: {
+            name: true,
+            originalName: true,
+            path: true,
+            fileSize: true,
+            type: true,
+            thumbnail: true,
+            alt: true,
+          },
+        },
+        organizations: {
+          where: { organizationId: { not: organizationId } },
+          select: { organizationId: true },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+        },
+      },
+    });
+    for (const person of people) {
+      const home = person.organizations[0]?.organizationId;
+      if (!home || !person.picture) continue;
+      const copy = await tx.media.create({
+        data: {
+          ...person.picture,
+          organizationId: home,
+          deletedAt: new Date(),
+        },
+        select: { id: true },
+      });
+      await tx.user.update({
+        where: { id: person.id },
+        data: { pictureId: copy.id },
+      });
+    }
   }
 
   /**

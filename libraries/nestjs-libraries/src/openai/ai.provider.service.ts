@@ -12,6 +12,7 @@ import {
 import {
   aiBillingPeriodStart,
   includedMonthlyOperations,
+  isUnlimitedOperations,
   includedUsageFilter,
 } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
@@ -154,21 +155,25 @@ export class AiProviderService {
      * numbers for one workspace, and no words in the product told a person
      * which of the two to believe. One allowance, one count.
      */
+    // «Без предела» (`97dq.27`): a state, so the screen gets words, not an
+    // infinite number that JSON would turn into `null` anyway.
+    const includedUnlimited = isUnlimitedOperations(monthlyOperations);
     const includedUsedOperations =
       monthlyOperations > 0
         ? (await this._prisma.aiUsageRecord?.count({
             where: includedUsageFilter(organizationId, periodStart),
           })) ?? 0
         : 0;
-    const includedRemainingOperations = Math.max(
-      0,
-      monthlyOperations - includedUsedOperations
-    );
+    const includedRemainingOperations = includedUnlimited
+      ? null
+      : Math.max(0, monthlyOperations - includedUsedOperations);
     const includedRestrictionReason = !config.includedAvailable
       ? 'managed_unavailable'
+      : includedUnlimited
+      ? null
       : monthlyOperations <= 0
       ? 'quota_unavailable'
-      : includedRemainingOperations <= 0
+      : (includedRemainingOperations ?? 0) <= 0
       ? 'quota_exhausted'
       : null;
 
@@ -181,7 +186,8 @@ export class AiProviderService {
       hasKey: config.workspaceKeyConfigured ?? !!config.apiKey,
       workspaceKeyConfigured: config.workspaceKeyConfigured,
       includedAvailable: config.includedAvailable,
-      includedMonthlyOperations: monthlyOperations,
+      includedMonthlyOperations: includedUnlimited ? null : monthlyOperations,
+      includedUnlimited,
       includedUsedOperations,
       includedRemainingOperations,
       includedRestrictionReason,

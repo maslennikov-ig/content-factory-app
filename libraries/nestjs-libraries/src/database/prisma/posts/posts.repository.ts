@@ -38,7 +38,10 @@ import {
  * (`content-factory-next-97dq.57`, I1): у заготовки в канале один держатель
  * слота. Строки не удаляются — их просто не показывают.
  */
-import { supersededDraftPostIds } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
+import {
+  supersededDraftPostIds,
+  withForeignQueueGate,
+} from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -203,7 +206,19 @@ export class PostsRepository {
     // Use the provided start and end dates directly
     const startDate = dayjs.utc(query.startDate).toDate();
     const endDate = dayjs.utc(query.endDate).toDate();
-    const superseded = await supersededDraftPostIds(this._post.model, orgId);
+    // Only drafts this window can show are candidates (`97dq.65`, F12).
+    const superseded = await supersededDraftPostIds(
+      this._post.model,
+      orgId,
+      query.integrationId || null,
+      {
+        parentPostId: null,
+        OR: [
+          { publishDate: { gte: startDate, lte: endDate } },
+          { intervalInDays: { not: null } },
+        ],
+      }
+    );
 
     const [list, origins] = await Promise.all([
       this._post.model.post.findMany({
@@ -330,7 +345,21 @@ export class PostsRepository {
 
     const orderDirection: 'asc' | 'desc' =
       stateFilter === 'published' ? 'desc' : 'asc';
-    const superseded = await supersededDraftPostIds(this._post.model, orgId);
+    // Superseded drafts are DRAFT posts: the queued and published tabs have
+    // none, and the rest look only at upcoming drafts (`97dq.65`, F12).
+    const superseded =
+      stateFilter === 'scheduled' || stateFilter === 'published'
+        ? []
+        : await supersededDraftPostIds(
+            this._post.model,
+            orgId,
+            query.integrationId || null,
+            {
+              parentPostId: null,
+              intervalInDays: null,
+              publishDate: { gte: dayjs.utc().toDate() },
+            }
+          );
 
     const where = {
       AND: [
@@ -571,9 +600,30 @@ export class PostsRepository {
     });
   }
 
-  async changeState(id: string, state: State, err?: any, body?: any) {
+  /**
+   * A queue write from outside Content Factory's own paths (`97dq.67`): when a
+   * named post is a CF variant, `work` runs under its channel lock and only if
+   * no other variant of the piece is queued there; else `CF_QUEUE_BUSY` (409).
+   * `work` gets the gate's transaction client (undefined when nothing is gated)
+   * and passes it on to the write, so lock and write share one connection.
+   */
+  withCfQueueGate<T>(
+    orgId: string,
+    postIds: string[],
+    work: (tx?: any) => Promise<T>
+  ) {
+    return withForeignQueueGate(this._post.model as any, orgId, postIds, work);
+  }
+
+  async changeState(
+    id: string,
+    state: State,
+    err?: any,
+    body?: any,
+    client?: any
+  ) {
     const safeError = err ? safeErrorLedgerPayload(err) : undefined;
-    const update = await this._post.model.post.update({
+    const update = await (client || this._post.model).post.update({
       where: {
         id,
       },
@@ -625,9 +675,10 @@ export class PostsRepository {
     id: string,
     date: string,
     isDraft: boolean,
-    action: 'schedule' | 'update' = 'schedule'
+    action: 'schedule' | 'update' = 'schedule',
+    client?: any
   ) {
-    return this._post.model.post.update({
+    return (client || this._post.model).post.update({
       where: {
         organizationId: orgId,
         id,
@@ -676,7 +727,8 @@ export class PostsRepository {
     body: PostBody,
     tags: { value: string; label: string }[],
     creationMethod: CreationMethod,
-    inter?: number
+    inter?: number,
+    client?: any
   ) {
     const hasPerItemCitations = body.value.some(
       (item) => item.usedCitationIds !== undefined
@@ -709,52 +761,60 @@ export class PostsRepository {
         body.value.some((item) => item.id)
     );
     if (requiresTenantTransaction) {
+      const scoped = async (tx: any) => {
+        let bindings: ContentContextDraftBindingV1[] | undefined;
+        if (body.contentContextSnapshotId) {
+          bindings = [];
+          for (const value of body.value) {
+            bindings.push(
+              await validateContentContextForDraft(tx, {
+                organizationId: orgId,
+                contentContextSnapshotId: body.contentContextSnapshotId,
+                requestedBrandProfileVersionId: body.brandProfileVersionId,
+                usedCitationIds:
+                  value.usedCitationIds ??
+                  (body.value.length === 1 ? body.usedCitationIds : undefined),
+              })
+            );
+          }
+        }
+        return this.createOrUpdatePostWithClient(
+          tx,
+          state,
+          orgId,
+          date,
+          body,
+          tags,
+          creationMethod,
+          inter,
+          bindings
+        );
+      };
+      // Inside the queue gate (`97dq.67`, review F1) the write joins the
+      // gate's transaction: an interactive transaction client cannot open a
+      // nested one, and a second pooled connection is what starved the pool.
+      if (client) {
+        return scoped(client);
+      }
       if (!this._transaction) {
         throw new Error(
           'Prisma transaction is required for scoped post writes'
         );
       }
-      return (this._transaction.model as any).$transaction(
-        async (client: any) => {
-          let bindings: ContentContextDraftBindingV1[] | undefined;
-          if (body.contentContextSnapshotId) {
-            bindings = [];
-            for (const value of body.value) {
-              bindings.push(
-                await validateContentContextForDraft(client, {
-                  organizationId: orgId,
-                  contentContextSnapshotId: body.contentContextSnapshotId,
-                  requestedBrandProfileVersionId: body.brandProfileVersionId,
-                  usedCitationIds:
-                    value.usedCitationIds ??
-                    (body.value.length === 1
-                      ? body.usedCitationIds
-                      : undefined),
-                })
-              );
-            }
-          }
-          return this.createOrUpdatePostWithClient(
-            client,
-            state,
-            orgId,
-            date,
-            body,
-            tags,
-            creationMethod,
-            inter,
-            bindings
-          );
-        },
-        { isolationLevel: 'RepeatableRead', maxWait: 5_000, timeout: 10_000 }
-      );
+      return (this._transaction.model as any).$transaction(scoped, {
+        isolationLevel: 'RepeatableRead',
+        maxWait: 5_000,
+        timeout: 10_000,
+      });
     }
     return this.createOrUpdatePostWithClient(
-      {
-        post: (this._post.model as any).post,
-        tags: (this._tags.model as any).tags,
-        tagsPosts: (this._tagsPosts.model as any).tagsPosts,
-      },
+      client
+        ? { post: client.post, tags: client.tags, tagsPosts: client.tagsPosts }
+        : {
+            post: (this._post.model as any).post,
+            tags: (this._tags.model as any).tags,
+            tagsPosts: (this._tagsPosts.model as any).tagsPosts,
+          },
       state,
       orgId,
       date,
@@ -1617,7 +1677,13 @@ export class PostsRepository {
     ].sort();
     const superseded = new Set(
       draftChannels.length
-        ? await supersededDraftPostIds(this._post.model, orgId, draftChannels)
+        ? await supersededDraftPostIds(this._post.model, orgId, draftChannels, {
+            id: {
+              in: rows
+                .filter((row) => String(row.state) === 'DRAFT')
+                .map((row) => row.id),
+            },
+          })
         : []
     );
     return rows

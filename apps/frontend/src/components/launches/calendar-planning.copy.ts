@@ -84,7 +84,6 @@ export const calendarPlanningCopy = {
     stateDraft: 'черновик',
     statePublished: 'вышел',
     stateError: 'не ушло',
-    legendLabel: 'Подсказка: состояния постов',
     legendHint:
       '«в плане» — время забронировано, пост выйдет после «Запланировать»; «в очереди» — выйдет сам в своё время.',
     channels: (count: number) =>
@@ -174,6 +173,11 @@ export const calendarPlanningCopy = {
     chooseAnother: 'Выбрать другую',
     openAndEdit: 'Открыть и поправить',
     done: 'Готово',
+    // Шапка календаря, вариант A (`97dq.82`).
+    channelsButton: 'Каналы',
+    channelsSettingsTitle: 'Каналы и их настройки',
+    aheadLegendHintLabel: 'Подсказка: план впереди и состояния постов',
+    aheadLegendTitle: 'Состояния постов в календаре',
   },
   en: {
     title: 'What are we publishing?',
@@ -239,7 +243,6 @@ export const calendarPlanningCopy = {
     stateDraft: 'draft',
     statePublished: 'out',
     stateError: 'failed',
-    legendLabel: 'Hint: post states',
     legendHint:
       '“planned” — the time is held and the post goes out after “Schedule”; “queued” — it goes out by itself on time.',
     channels: (count: number) =>
@@ -327,5 +330,10 @@ export const calendarPlanningCopy = {
     chooseAnother: 'Choose another',
     openAndEdit: 'Open and edit',
     done: 'Done',
+    // Calendar header, direction A (`97dq.82`).
+    channelsButton: 'Channels',
+    channelsSettingsTitle: 'Channels and their settings',
+    aheadLegendHintLabel: 'Hint: the plan ahead and post states',
+    aheadLegendTitle: 'Post states on the calendar',
   },
 } as const;

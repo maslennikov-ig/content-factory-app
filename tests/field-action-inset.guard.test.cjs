@@ -148,7 +148,7 @@ describe('оба примитива берут отступ из токена, �
   test('кнопка очистки не приносит собственной горизонтальной геометрии', () => {
     const button = screen.slice(
       screen.indexOf('const ClearStoredKeyButton'),
-      screen.indexOf('const LabelledField')
+      screen.indexOf('const BlockHeading')
     );
     // `Button` принесла бы свой `px-[16px]`: из-за него крестик и стоял на
     // десять пикселей дальше от края, чем шеврон соседнего списка.

@@ -14,6 +14,7 @@ import {
   stripStrayBoldMarkers,
 } from '@contentfactory/helpers/utils/bold-markers';
 import {
+  hasInlineEscape,
   inlineHtml,
   inlineMarkdown,
   inlinePlain,
@@ -84,6 +85,8 @@ export const boldToStrong = (escaped: string): string =>
  * A line with no mark but bold takes exactly the old road, byte for byte.
  */
 const hasNewMarks = (line: string): boolean =>
+  // An escaped sign (`97dq.77`) is read only by the shared grammar.
+  hasInlineEscape(line) ||
   parseInline(line).some(function deep(node): boolean {
     if (node.kind === 'link') return true;
     if (node.kind === 'mark')

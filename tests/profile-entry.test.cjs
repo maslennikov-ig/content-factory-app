@@ -30,7 +30,8 @@ describe('profile discovery', () => {
       'apps/frontend/src/components/settings/profile.component.tsx'
     );
     expect(profile).toContain('aria-labelledby="profile-heading"');
-    expect(profile).toContain('max-w-[720px]');
+    // One settings measure across tabs (97dq.76, audit §1.4).
+    expect(profile).toContain('max-w-[960px]');
     expect(profile).toContain("form.register('fullname')");
     expect(profile).toContain("form.register('lastName')");
     expect(profile).toContain('name="bio"');

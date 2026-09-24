@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { Button } from '@contentfactory/react/form/button';
-import { EmptyState, ErrorState, SkeletonRows } from '../ui/surface';
+import { PageHeader } from '@contentfactory/react/layout/page-header';
+import { Metric } from '../ui/metric';
+import { EmptyState, ErrorState, Panel, SkeletonRows } from '../ui/surface';
 
 export type ProductionAnalyticsModel = Readonly<{
   days: number;
@@ -150,6 +152,33 @@ const copy: Record<
   },
 };
 
+/**
+ * The two classifications the error ledger stores, in the reader's language.
+ *
+ * `safeErrorLedgerPayload` writes «Publishing failed» or «Unknown Error» in
+ * English and the calendar translated them, but this card printed them as
+ * stored — «Причины ошибок Publishing failed 1» under a Russian screen
+ * (fn33.141). The backend's own fallback for a row with no text is
+ * `unknown`. Anything else is a provider's words and is shown as written.
+ */
+const failureClassifications: Record<'en' | 'ru', Record<string, string>> = {
+  en: {
+    'Publishing failed': 'Publishing failed',
+    'Unknown Error': 'Unknown error',
+    unknown: 'Unknown error',
+  },
+  ru: {
+    'Publishing failed': 'Не удалось опубликовать',
+    'Unknown Error': 'Неизвестная ошибка',
+    unknown: 'Неизвестная ошибка',
+  },
+};
+
+export const productionFailureReasonLabel = (
+  reason: string,
+  locale: 'en' | 'ru'
+): string => failureClassifications[locale][reason] ?? reason;
+
 const Titled = ({
   as: Tag,
   title,
@@ -233,23 +262,17 @@ export function ProductionAnalyticsView({
               ],
             ] as const
           ).map(([label, hint, value]) => (
-            <article
+            <Metric
               key={label}
-              className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
-            >
-              <Titled
-                as="h4"
-                title={label}
-                hintLabel={t.hintFor(label)}
-                hint={hint}
-                className="cf-label-md min-w-0 text-cf-ink-muted"
-              />
-              <div className="cf-display-num tabular-nums">{value}</div>
-            </article>
+              label={label}
+              hint={hint}
+              hintLabel={t.hintFor(label)}
+              value={value}
+            />
           ))}
         </div>
         <div className="grid grid-cols-2 gap-[12px] tablet:grid-cols-1">
-          <section className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+          <Panel>
             <Titled
               as="h4"
               title={t.origins}
@@ -270,8 +293,8 @@ export function ProductionAnalyticsView({
                 </div>
               ))}
             </div>
-          </section>
-          <section className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+          </Panel>
+          <Panel>
             <Titled
               as="h4"
               title={t.reasons}
@@ -287,7 +310,7 @@ export function ProductionAnalyticsView({
                     className="flex justify-between gap-[16px] rounded-[8px] bg-cf-danger-soft p-[12px] text-cf-danger"
                   >
                     <span className="cf-body-sm break-words">
-                      {failure.reason}
+                      {productionFailureReasonLabel(failure.reason, locale)}
                     </span>
                     <span className="cf-caption tabular-nums">
                       {failure.count}
@@ -300,7 +323,7 @@ export function ProductionAnalyticsView({
                 {t.noFailures}
               </p>
             )}
-          </section>
+          </Panel>
         </div>
       </>
     );
@@ -309,23 +332,28 @@ export function ProductionAnalyticsView({
     <section
       data-analytics-view="production"
       data-analytics-state={state}
-      className="flex min-w-0 flex-col gap-[24px] bg-cf-canvas p-[20px] text-cf-ink md:p-[24px]"
+      aria-label={t.title}
+      className="flex min-w-0 flex-col gap-[24px] bg-cf-canvas cf-page-pad text-cf-ink"
     >
-      <div className="flex items-end justify-between gap-[24px] tablet:flex-col tablet:items-stretch">
-        <div className="min-w-0">
-          <h2 className="cf-heading-lg text-balance">{t.title}</h2>
-          <p className="cf-body-md mt-[8px] max-w-[70ch] text-cf-ink-muted text-pretty">
-            {state === 'long-content'
-              ? `${t.description} ${t.longContent}`
-              : t.description}
-          </p>
-        </div>
-        {controls ?? (
-          <div className="cf-caption rounded-[4px] border border-cf-border px-[12px] py-[8px] text-cf-ink-muted">
-            {model.days} {t.daysUnit} · {model.channelName}
-          </div>
-        )}
-      </div>
+      {/*
+        The section's name is the shell's and the tab's; the page opens on
+        what it is about and its filters, as Content and the calendar do
+        (`97dq.76`, audit §6.1). The title still names the region.
+      */}
+      <PageHeader
+        description={
+          state === 'long-content'
+            ? `${t.description} ${t.longContent}`
+            : t.description
+        }
+        actions={
+          controls ?? (
+            <div className="cf-caption rounded-[4px] border border-cf-border px-[12px] py-[8px] text-cf-ink-muted">
+              {model.days} {t.daysUnit} · {model.channelName}
+            </div>
+          )
+        }
+      />
 
       {ahead ?? null}
 

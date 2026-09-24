@@ -125,6 +125,32 @@ describe('«Какую ссылку поставить в пост?»', () => {
     expect(answers).toEqual(['https://example.com/offer']);
   });
 
+  test('«Текст ссылки» is optional, has its «?» and rides with the address (97dq.79)', async () => {
+    const answers = [];
+    wrap(
+      React.createElement(PostLinkQuestion, {
+        locale: 'ru',
+        onAnswer: async (...args) => {
+          answers.push(args);
+          return true;
+        },
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Подсказка: Текст ссылки' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Адрес ссылки'), {
+      target: { value: 'https://example.com/offer' },
+    });
+    fireEvent.change(screen.getByLabelText('Текст ссылки'), {
+      target: { value: '  наш прайс ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить ответ' }));
+    await flush();
+    expect(answers).toEqual([['https://example.com/offer', 'наш прайс']]);
+    expect(intakeCopy.en.postLinkText).toBe('Link text');
+    expect(intakeCopy.ru.postLinkTextHint).toContain('2–5 слов');
+    expect(intakeCopy.en.postLinkTextHint).toContain('2–5 meaningful words');
+  });
+
   test('«Без ссылки» is an answer, and switching back and forth is changing one’s mind, not a save', async () => {
     const answers = [];
     wrap(
@@ -213,22 +239,66 @@ describe('«Ссылка для поста» in the post settings', () => {
     expect(adapter.adaptOverrides(seen[seen.length - 1], adapter.postBaselineOf(CHANNEL)).postLink).toBe(
       'https://post.example/b'
     );
-    // «Как в заготовке» goes back to the answer.
-    fireEvent.click(screen.getByRole('button', { name: 'Как в заготовке' }));
+    // One icon with a tooltip goes back to the answer (`97dq.78`), and it
+    // is there only while the field differs from the piece.
+    const restore = screen.getByRole('button', { name: 'Вернуть ссылку из заготовки' });
+    expect(restore.getAttribute('title')).toBe('Вернуть ссылку из заготовки');
+    fireEvent.click(restore);
     expect(seen[seen.length - 1].link).toBe('');
     expect(field.value).toBe('https://piece.example/a');
+    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из заготовки' })).toBeNull();
   });
 
-  test('a half-typed address is not saved; «Без ссылки» is `none`', () => {
+  test('a half-typed address is not saved; a cleared field is `none` (97dq.78)', () => {
     const seen = [];
     wrap(React.createElement(Harness, { pieceLink: { url: 'https://piece.example/a' }, seen }));
+    // No «Без ссылки» / «Как в заготовке» buttons any more.
+    expect(screen.queryByRole('button', { name: 'Без ссылки' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Как в заготовке' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Вернуть ссылку из заготовки' })).toBeNull();
     const field = screen.getByLabelText('Ссылка для поста');
     fireEvent.change(field, { target: { value: 'https://' } });
     expect(seen).toEqual([]);
     expect(screen.getByText(intakeCopy.ru.postLinkInvalid)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Без ссылки' }));
+    fireEvent.change(field, { target: { value: '' } });
     expect(seen[seen.length - 1].link).toBe('none');
     expect(screen.getByText('без ссылки в этом посте')).toBeTruthy();
+    // The «?» says what an empty field means.
+    expect(piecesCopy.ru.postLinkHint).toContain('Очистите поле — в этом посте ссылки не будет');
+    expect(piecesCopy.en.postLinkHint).toContain('Clear the field — this post gets no link');
+    // No address — nothing to put words on.
+    expect(screen.queryByLabelText('Текст ссылки')).toBeNull();
+  });
+
+  test('«Текст ссылки» sits under the address, has its «?» and rides as an override (97dq.79)', () => {
+    const seen = [];
+    wrap(
+      React.createElement(Harness, {
+        pieceLink: { url: 'https://piece.example/a', text: 'наш прайс' },
+        seen,
+      })
+    );
+    const words = screen.getByLabelText('Текст ссылки');
+    expect(words.getAttribute('placeholder')).toBe('наш прайс');
+    expect(screen.getByRole('button', { name: 'Подсказка: Текст ссылки' })).toBeTruthy();
+    fireEvent.change(words, { target: { value: 'цены  на [всё]' } });
+    const last = seen[seen.length - 1];
+    expect(last.link).toBe('');
+    expect(last.linkText).toBe('цены на всё');
+    const overrides = adapter.adaptOverrides(last, adapter.postBaselineOf(CHANNEL));
+    expect(overrides.postLinkText).toBe('цены на всё');
+    expect(overrides.postLink).toBeUndefined();
+    // No link in the post — no words either.
+    expect(
+      adapter.adaptOverrides(
+        { ...last, link: 'none' },
+        adapter.postBaselineOf(CHANNEL)
+      ).postLinkText
+    ).toBeUndefined();
+    expect(adapter.readPostOptions({}).linkText).toBe('');
+    expect(
+      adapter.buildPostSettingsPayload({ options: { ...last, linkText: ' a  b ' } }).options.linkText
+    ).toBe('a b');
   });
 
   test('the link travels on the existing settings path and is cleaned there', () => {
@@ -362,6 +432,133 @@ describe('the core on the «Суть» tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Пересобрать суть' }));
     await flush();
     expect(rebuilds).toBe(1);
+  });
+
+  test('«Версии сути»: newest first with author and time, text on demand, restore against the current core (97dq.85)', async () => {
+    const restores = [];
+    tab(
+      {
+        ...CORE,
+        revisions: [
+          { text: 'Первая суть.', writtenBy: 'model', replacedAt: '2026-09-24T08:00:00Z' },
+          { text: 'Моя правка.', writtenBy: 'person', replacedAt: '2026-09-24T09:00:00Z' },
+        ],
+      },
+      {
+        onCoreSave: async () => true,
+        onCoreRestore: async (...args) => {
+          restores.push(args);
+          return null;
+        },
+      }
+    );
+    const versions = document.querySelector('[data-piece-core-versions]');
+    expect(versions.textContent).toContain('Версии сути');
+    expect(versions.textContent).toContain('прежних: 2');
+    expect(screen.getByRole('button', { name: 'Подсказка: Версии сути' })).toBeTruthy();
+    fireEvent.click(document.querySelector('[data-piece-core-versions-toggle]'));
+    const rows = [...document.querySelectorAll('[data-piece-core-version]')];
+    expect(rows.map((row) => row.getAttribute('data-piece-core-version'))).toEqual(['1', '0']);
+    expect(rows[0].textContent).toContain('вы');
+    expect(rows[1].textContent).toContain('ИИ');
+    expect(rows[1].textContent).toMatch(/была сутью до 24\.09 \d\d:00/);
+    fireEvent.click(document.querySelector('[data-piece-core-version-show="0"]'));
+    expect(document.querySelector('[data-piece-core-version-text="0"]').textContent).toBe('Первая суть.');
+    expect(screen.getByRole('button', { name: 'Подсказка: Вернуть эту версию' })).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Вернуть эту версию' }));
+    });
+    expect(restores).toEqual([[0, '2026-09-24T08:00:00Z', 'Суть заготовки.']]);
+  });
+
+  const VERSIONED = {
+    ...CORE,
+    materialPending: true,
+    addedMaterial: [{ text: 'x', addedAt: '2026-09-24T08:30:00Z' }],
+    revisions: [{ text: 'Первая суть.', writtenBy: 'model', replacedAt: '2026-09-24T08:00:00Z' }],
+  };
+  const openVersion = () => {
+    fireEvent.click(document.querySelector('[data-piece-core-versions-toggle]'));
+    fireEvent.click(document.querySelector('[data-piece-core-version-show="0"]'));
+    return screen.getByRole('button', { name: 'Вернуть эту версию' });
+  };
+
+  test('a refused restore says why beside the version and keeps it open (review of 97dq.81-85)', async () => {
+    tab(VERSIONED, {
+      onCoreSave: async () => true,
+      onCoreRestore: async () => 'Этой версии больше нет.',
+    });
+    const restore = openVersion();
+    await act(async () => {
+      fireEvent.click(restore);
+    });
+    const row = document.querySelector('[data-piece-core-version="0"]');
+    expect(row.querySelector('[role="alert"]').textContent).toBe('Этой версии больше нет.');
+    expect(document.querySelector('[data-piece-core-version-text="0"]')).not.toBeNull();
+  });
+
+  test('versions are off while a rebuild runs, and back once it ends (P3-4)', async () => {
+    let finish;
+    const restores = [];
+    tab(VERSIONED, {
+      onCoreSave: async () => true,
+      onMaterialAdd: async () => true,
+      onCoreRebuild: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      onCoreRestore: async (...args) => {
+        restores.push(args);
+        return null;
+      },
+    });
+    const restore = openVersion();
+    expect(restore.disabled).toBe(false);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Пересобрать суть' }));
+    });
+    expect(screen.getByRole('button', { name: 'Вернуть эту версию' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуть эту версию' }));
+    expect(restores).toEqual([]);
+    // The hand edit waits too: the rebuild would move the core under it.
+    expect(screen.getByRole('button', { name: 'Править суть' }).disabled).toBe(true);
+    await act(async () => {
+      finish(null);
+    });
+    expect(screen.getByRole('button', { name: 'Вернуть эту версию' }).disabled).toBe(false);
+  });
+
+  test('an open hand edit turns the versions and the rebuild off, so no draft saves against a replaced text (P3-4)', async () => {
+    tab(VERSIONED, {
+      onCoreSave: async () => true,
+      onMaterialAdd: async () => true,
+      onCoreRebuild: async () => null,
+      onCoreRestore: async () => null,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Править суть' }));
+    expect(openVersion().disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Пересобрать суть' }).disabled).toBe(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
+    });
+    expect(screen.getByRole('button', { name: 'Вернуть эту версию' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Пересобрать суть' }).disabled).toBe(false);
+  });
+
+  test('the history hint names the real cap: the first text and the latest 19 (P3-3)', () => {
+    expect(piecesCopy.ru.coreVersionsHint).toContain('самый первый текст и последние 19');
+    expect(piecesCopy.en.coreVersionsHint).toContain('The very first text and the last 19');
+    expect(piecesCopy.ru.coreVersionsHint).not.toContain('20');
+    expect(piecesCopy.en.coreVersionsHint).not.toContain('20');
+  });
+
+  test('no versions yet: no block; RU and EN name it equally', () => {
+    tab(CORE, { onCoreSave: async () => true });
+    expect(document.querySelector('[data-piece-core-versions]')).toBeNull();
+    for (const key of ['coreVersionsTitle', 'coreVersionsHint', 'coreVersionRestore', 'coreVersionRestoreHint', 'coreVersionByYou', 'coreVersionByAi']) {
+      expect(typeof piecesCopy.ru[key]).toBe('string');
+      expect(typeof piecesCopy.en[key]).toBe('string');
+    }
   });
 
   test('without the right to write there is nothing to edit', () => {

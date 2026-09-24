@@ -462,6 +462,63 @@ describe('обращение аватара в паспорте', () => {
     expect(activated).toEqual(['ver-9']);
   });
 
+  it('новая версия несёт замеры действующей: паспорт не пишет «Числа не посчитаны» (97dq.43)', async () => {
+    const stamped = [];
+    const profiles = profilesStub({
+      overview: async () => ({
+        versions: VERSIONS,
+        activeVersion: VERSIONS[2],
+        profile: { activeVersionId: VERSIONS[2].id },
+      }),
+      createDraft: async () => ({ id: 'ver-9' }),
+      activate: async () => undefined,
+      stampMeasurement: async (organizationId, versionId, measurementId) => {
+        stamped.push({ versionId, measurementId });
+      },
+    });
+    const service = serviceWith(profiles);
+    let reads = 0;
+    service.measurementForActiveVersion = async () => {
+      reads += 1;
+      // Before the edit the active version is measured; the passport read
+      // after it is not what this test is about.
+      return reads === 1 ? { id: 'msr-1' } : null;
+    };
+
+    await service.setPassportField(actor(), { addressForm: 'vy' });
+
+    expect(stamped).toEqual([{ versionId: 'ver-9', measurementId: 'msr-1' }]);
+  });
+
+  it('строка паспорта тоже не теряет замеры, а без замеров штампа нет', async () => {
+    const stamped = [];
+    const profiles = profilesStub({
+      createDraft: async () => ({ id: 'ver-5' }),
+      activate: async () => undefined,
+      stampMeasurement: async (organizationId, versionId, measurementId) => {
+        stamped.push({ versionId, measurementId });
+      },
+    });
+    const service = serviceWith(profiles);
+    let reads = 0;
+    service.measurementForActiveVersion = async () =>
+      (reads += 1) === 1 ? { id: 'msr-7' } : null;
+    await service.setPassportField(actor(), { key: 'TONE', text: 'Сухо' });
+    expect(stamped).toEqual([{ versionId: 'ver-5', measurementId: 'msr-7' }]);
+
+    const bare = serviceWith(
+      profilesStub({
+        createDraft: async () => ({ id: 'ver-6' }),
+        activate: async () => undefined,
+        stampMeasurement: async () => {
+          throw new Error('no measurement, no stamp');
+        },
+      })
+    );
+    bare.measurementForActiveVersion = async () => null;
+    await bare.setPassportField(actor(), { key: 'TONE', text: 'Сухо' });
+  });
+
   it('`null` — «Не задано»: поле снято, а не записано пустым', async () => {
     const { service, written } = setup({ addressForm: 'ty' });
 

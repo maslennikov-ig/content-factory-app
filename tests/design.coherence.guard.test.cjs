@@ -121,8 +121,6 @@ const UPPERCASE_ALLOWED = {
   'apps/frontend/src/app/(stand)/interface-review/page.tsx': 'design stand',
   // Superadmin error table; not product copy.
   'apps/frontend/src/components/admin/admin-errors.component.tsx': 'superadmin',
-  // WEB/API/MCP badge, rendered only under impersonation (calendar.tsx).
-  'apps/frontend/src/components/launches/creation.method.badge.tsx': 'impersonation only',
 };
 
 const UPPERCASE_ROOTS = [APP, 'libraries/react-shared-libraries/src'];

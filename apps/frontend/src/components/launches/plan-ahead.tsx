@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -15,6 +15,8 @@ import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { EmptyState, ErrorState, SkeletonRows } from '../ui/surface';
 import { Table, Td, Th, Tr } from '../ui/table';
+import { usePopoverTrigger } from '../ui/use-popover-trigger';
+import { Metric } from '../ui/metric';
 
 /**
  * The plan ahead (`content-factory-next-97dq.59`, counts since `97dq.73`).
@@ -166,15 +168,25 @@ const NO_CHANNELS_AHEAD: PlanAheadCounts & Pick<PlanAhead, 'channels'> = {
 /**
  * The header chip, always on the calendar toolbar. Hover, focus or a press
  * opens the channel list; Escape, leaving it, or a press outside closes it.
- * The «?» beside it says what the number counts.
+ * The «?» beside it says what the number counts — and, with `withLegend`
+ * (`97dq.82`, header direction A), what the state pills on the calendar mean:
+ * the separate legend row left the header, its words live here.
  */
 export const PlanAheadChip: FC<{
   locale: Locale;
   integrationIds: readonly string[];
   timeZone: string;
   revision?: unknown;
-}> = ({ locale, integrationIds, timeZone, revision }) => {
+  withLegend?: boolean;
+}> = ({ locale, integrationIds, timeZone, revision, withLegend = false }) => {
   const copy = calendarPlanningCopy[locale];
+  const hint = withLegend ? (
+    <Hint label={copy.aheadLegendHintLabel}>
+      <PlanLegendNote locale={locale} />
+    </Hint>
+  ) : (
+    <Hint label={copy.aheadHintLabel}>{copy.aheadHint}</Hint>
+  );
   /*
     No channel in view (a customer with none, or every one disabled) is an
     empty plan, not «the whole organisation»: an empty id list means the
@@ -185,24 +197,7 @@ export const PlanAheadChip: FC<{
   const ahead = usePlanAhead(integrationIds, timeZone, revision, !noChannels);
   const data = noChannels ? NO_CHANNELS_AHEAD : ahead.data;
   const error = noChannels ? undefined : ahead.error;
-  const [open, setOpen] = useState(false);
-  const holder = useRef<HTMLSpanElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    const outside = (event: MouseEvent) => {
-      if (!holder.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('keydown', escape);
-    document.addEventListener('mousedown', outside);
-    return () => {
-      document.removeEventListener('keydown', escape);
-      document.removeEventListener('mousedown', outside);
-    };
-  }, [open]);
+  const { open, setOpen, holder } = usePopoverTrigger<HTMLSpanElement>();
 
   if (error || !data) {
     // Loading keeps the place; a failure says so quietly and nothing else.
@@ -218,6 +213,7 @@ export const PlanAheadChip: FC<{
           <CalendarGlyph />
           <span className="min-w-0 truncate">{error ? copy.aheadError : '…'}</span>
         </span>
+        {withLegend ? hint : null}
       </span>
     );
   }
@@ -248,7 +244,7 @@ export const PlanAheadChip: FC<{
         <CalendarGlyph />
         {aheadLabel(data, locale)}
       </ControlButton>
-      <Hint label={copy.aheadHintLabel}>{copy.aheadHint}</Hint>
+      {hint}
       {open && data.channels.length > 0 && (
         <Popover
           role="dialog"
@@ -281,8 +277,13 @@ export const PlanAheadChip: FC<{
   );
 };
 
-/** The legend of the state pills, with the «?» that says what they mean. */
-export const PlanLegend: FC<{ locale: Locale }> = ({ locale }) => {
+/**
+ * The legend of the state pills, now inside the plan chip's «?» (`97dq.82`):
+ * what the count means, then each pill as the calendar draws it, then what
+ * «в плане» and «в очереди» mean. It is the tooltip's text, so a screen
+ * reader hears it through the trigger's `aria-describedby`.
+ */
+export const PlanLegendNote: FC<{ locale: Locale }> = ({ locale }) => {
   const copy = calendarPlanningCopy[locale];
   const words = {
     reserved: copy.slotReserved,
@@ -292,22 +293,20 @@ export const PlanLegend: FC<{ locale: Locale }> = ({ locale }) => {
     error: copy.stateError,
   } as const;
   return (
-    <span
-      data-plan-legend="true"
-      className="hidden items-center gap-[4px] lg:inline-flex"
-    >
-      {PLAN_STATES_IN_LEGEND.map((state) => (
-        <PlanStatePill key={state} state={state} label={words[state]} />
-      ))}
-      <Hint label={copy.legendLabel}>{copy.legendHint}</Hint>
+    <span className="flex flex-col gap-[8px]">
+      <span>{copy.aheadHint}</span>
+      <span className="cf-label-md text-cf-ink">{copy.aheadLegendTitle}</span>
+      <span data-plan-legend="true" className="flex flex-wrap items-center gap-[4px]">
+        {PLAN_STATES_IN_LEGEND.map((state) => (
+          <PlanStatePill key={state} state={state} label={words[state]} />
+        ))}
+      </span>
+      <span>{copy.legendHint}</span>
     </span>
   );
 };
 
-/**
- * One number with its name and its «?». `cf-display-num` is the measured
- * number (`DESIGN.md`, «display-num»), one per card.
- */
+/** One number with its name and its «?» — the shared `Metric` (`97dq.76`). */
 const AheadMetric: FC<{
   label: string;
   hintLabel: string;
@@ -316,19 +315,14 @@ const AheadMetric: FC<{
   note?: string;
   metric: string;
 }> = ({ label, hintLabel, hint, value, note, metric }) => (
-  <article
+  <Metric
     data-plan-ahead-metric={metric}
-    className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
-  >
-    <div className="flex min-w-0 items-center gap-[4px]">
-      <h4 className="cf-label-md min-w-0 text-cf-ink-muted [text-wrap:pretty]">
-        {label}
-      </h4>
-      <Hint label={hintLabel}>{hint}</Hint>
-    </div>
-    <p className="cf-display-num tabular-nums text-cf-ink">{value}</p>
-    {note ? <p className="cf-caption text-cf-ink-muted">{note}</p> : null}
-  </article>
+    label={label}
+    hint={hint}
+    hintLabel={hintLabel}
+    value={value}
+    note={note}
+  />
 );
 
 /** A strip cell takes the tone of the calendar pill of its strongest state. */

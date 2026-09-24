@@ -311,6 +311,8 @@ describe('queue status tells whether the workflow started (review F7)', () => {
     created._postRepository = {
       getPostById: async (id) => ({ id, integration: { providerIdentifier: 'telegram' } }),
       changeState: async () => undefined,
+      // A plain Postiz post: the CF one-queue gate lets the write through (97dq.67).
+      withCfQueueGate: (_org, _ids, work) => work(),
     };
     created._temporalService = {
       client: {

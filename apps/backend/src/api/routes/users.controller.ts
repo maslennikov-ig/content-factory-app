@@ -56,6 +56,11 @@ import { ChangePasswordDto } from '@contentfactory/nestjs-libraries/dtos/users/c
 // this door must hash and compare identically or a password set on one of them
 // would not open the others.
 import { AuthService as PasswordHashing } from '@contentfactory/helpers/auth/auth.service';
+import {
+  BodyIdDto,
+  ImpersonateBodyDto,
+  InvitationOrgBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('User')
 @Controller('/user')
@@ -175,7 +180,7 @@ export class UsersController {
   @Post('/impersonate')
   async setImpersonate(
     @GetUserFromRequest() user: User,
-    @Body('id') id: string,
+    @Body() { id }: ImpersonateBodyDto,
     @Res({ passthrough: true }) response: Response
   ) {
     if (!user.isSuperAdmin) {
@@ -202,7 +207,7 @@ export class UsersController {
   @Post('/switch')
   async switchUser(
     @GetUserFromRequest() user: User,
-    @Body('id') id: string,
+    @Body() { id }: BodyIdDto,
     @Req() req: Request
   ) {
     if (!user.isSuperAdmin) {
@@ -449,7 +454,7 @@ export class UsersController {
   @Post('/join-org')
   async joinOrg(
     @GetUserFromRequest() user: User,
-    @Body('org') org: string,
+    @Body() { org }: InvitationOrgBodyDto,
     @Res({ passthrough: true }) response: Response,
     @Req() req: Request
   ) {
@@ -505,7 +510,7 @@ export class UsersController {
   @Post('/join-org/decline')
   async declineJoinOrg(
     @GetUserFromRequest() user: User,
-    @Body('org') org: string,
+    @Body() { org }: InvitationOrgBodyDto,
     @Req() req: Request
   ) {
     this.assertInvitationMutationRequest(user.id, req);
@@ -563,7 +568,7 @@ export class UsersController {
   @Post('/change-org')
   changeOrg(
     @GetUserFromRequest() user: User,
-    @Body('id') id: string,
+    @Body() { id }: BodyIdDto,
     @Res({ passthrough: true }) response: Response,
     @Req() req: Request
   ) {

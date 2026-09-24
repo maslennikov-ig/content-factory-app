@@ -25,8 +25,14 @@ import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@conten
  * `v2` (`97dq.75`) carries `authorLink`, the author's link for the post, into
  * the channel lines. `v1` hints — recorded before it — never had the field
  * and still read the same.
+ *
+ * `v3` (`97dq.79`) adds `authorLink.text`, «Текст ссылки», and asks channels
+ * that show links on words for `[words](url)` instead of a bare address.
+ * `v2` and `v1` hints read the same as before: no `text`, and the words
+ * line is decided by the channel's editor, not by the version.
  */
-export const INTAKE_HINTS_VERSION = 'intake-hints/v2' as const;
+export const INTAKE_HINTS_VERSION = 'intake-hints/v3' as const;
+export const INTAKE_HINTS_VERSION_V2 = 'intake-hints/v2' as const;
 export const INTAKE_HINTS_VERSION_V1 = 'intake-hints/v1' as const;
 
 /**
@@ -78,7 +84,10 @@ export type IntakeChannelHintsV1 = {
 
 export type IntakeGenerationHintsV1 = {
   allowQuestion?: boolean;
-  version: typeof INTAKE_HINTS_VERSION | typeof INTAKE_HINTS_VERSION_V1;
+  version:
+    | typeof INTAKE_HINTS_VERSION
+    | typeof INTAKE_HINTS_VERSION_V2
+    | typeof INTAKE_HINTS_VERSION_V1;
   brief: {
     thesis: string | null;
     position: string | null;
@@ -150,9 +159,10 @@ export type IntakeGenerationHintsV1 = {
   /**
    * The author's link for this post (`97dq.75`, hints `v2`): the answer to
    * «Какую ссылку поставить в пост?» or the post's own «Ссылка для поста».
-   * `url: null` — «Без ссылки»; `forPost` — set on this post.
+   * `url: null` — «Без ссылки»; `forPost` — set on this post. `text`
+   * (hints `v3`, `97dq.79`) — «Текст ссылки», the words that carry it.
    */
-  authorLink?: { url: string | null; forPost?: boolean };
+  authorLink?: { url: string | null; forPost?: boolean; text?: string };
   /**
    * «Для этого поста» (`content-factory-next-97dq.38`): разовая длина,
    * пожелание и то, что читатели должны унести. Строки из них

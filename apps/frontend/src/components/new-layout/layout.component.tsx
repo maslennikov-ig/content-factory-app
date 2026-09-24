@@ -83,6 +83,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
   if (!user) return null;
+  /** The rail and the working column, not the first billing screen. */
+  const shell = !(user.tier === 'FREE' && isGeneral && billingEnabled);
 
   return (
     <ContextWrapper user={user}>
@@ -117,9 +119,22 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
           <ShowPostSelector />
           <PreConditionComponent />
           <ContinueProvider />
+          {/*
+            The app shell (review of 97dq.81-85, P2-3). From `md` up it is
+            one viewport tall: the impersonation bar and the announcement
+            banner take their own height, the rail and the working column
+            share what is left, and `<main>` scrolls inside it. A rail one
+            viewport tall under a banner used to make every page a banner
+            taller than the screen and push the rail's footer (profile,
+            logout, collapse) below the fold. The billing screen keeps the
+            page scroll: it has no rail and may be taller than the screen.
+            Phones keep the page scroll too; their navigation is a drawer.
+          */}
           <div
+            data-app-shell={shell ? 'viewport' : 'page'}
             className={clsx(
               'flex flex-col min-h-screen bg-cf-canvas text-cf-ink',
+              shell && 'md:h-[100dvh] md:min-h-0 md:overflow-hidden',
               appSans.className
             )}
           >
@@ -132,18 +147,27 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
 
             {user?.admin ? <Impersonate /> : null}
 
-            {user.tier === 'FREE' && isGeneral && billingEnabled ? (
+            {!shell ? (
               <FirstBillingComponent />
             ) : (
               <>
                 <AnnouncementBanner />
-                <div className="flex-1 flex min-h-0">
+                <div data-app-row="true" className="flex-1 flex min-h-0">
                   <Sidebar
                     mobileOpen={mobileNavOpen}
                     onCloseMobile={closeMobileNav}
                   />
 
-                  <div className="flex-1 flex flex-col min-w-0 blurMe">
+                  {/*
+                    The working column is the scroller from `md` up: the
+                    header scrolls away with the page as it always did, and
+                    `<main>` keeps its content height (`flex-[1_0_auto]`),
+                    so a page and its side rail still grow together.
+                  */}
+                  <div
+                    data-app-scroll="true"
+                    className="flex-1 flex flex-col min-w-0 md:min-h-0 md:overflow-y-auto blurMe"
+                  >
                     <header className="h-[56px] shrink-0 flex items-center gap-[8px] px-[12px] md:px-[20px] bg-cf-surface border-b border-cf-border">
                       <Button
                         iconOnly
@@ -157,7 +181,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         <MenuIcon />
                       </Button>
 
-                      <div className="flex-1 min-w-0 text-[18px] font-[650] tracking-[-0.015em] truncate">
+                      <div className="flex-1 min-w-0 cf-heading-md truncate">
                         <Title />
                       </div>
 
@@ -179,7 +203,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                     <main
                       ref={mainMotion}
                       id="cf-main"
-                      className="flex-1 min-w-0 min-h-0 flex flex-col md:flex-row overflow-x-hidden"
+                      className="flex-1 min-w-0 min-h-0 md:flex-[1_0_auto] flex flex-col md:flex-row overflow-x-hidden"
                     >
                       {children}
                     </main>

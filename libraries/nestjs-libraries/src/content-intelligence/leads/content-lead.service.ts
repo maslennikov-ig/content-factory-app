@@ -349,6 +349,24 @@ export class ContentLeadService {
   }
 
   /**
+   * «Checking is off» remembered on the row, once (`content-factory-next-0k0m`).
+   * A row that already says so with the same state is left alone: the write
+   * would change nothing but `updatedAt`, and while checking is off every click
+   * on «проверить сейчас» used to make one.
+   */
+  private async recordDisabled(
+    organizationId: string,
+    subscriptionId: string,
+    subscription: { state: string; lastErrorCode?: string | null }
+  ) {
+    if (subscription.lastErrorCode === 'CHECK_DISABLED') return;
+    await this.repository.recordCheckResult(organizationId, subscriptionId, {
+      state: subscription.state,
+      lastErrorCode: 'CHECK_DISABLED',
+    });
+  }
+
+  /**
    * "Проверить сейчас" and the periodic workflow's own tick both call this.
    * `ensurePeriodicCheck` is only ever passed by the manual "Проверить
    * сейчас" route (`ContentLeadController.check`): if the periodic
@@ -441,11 +459,14 @@ export class ContentLeadService {
     // Read per kind since `content-factory-next-75xn.7`: a server with feed
     // checking on and topic checking off refuses only the topic rows, and the
     // refusal costs no outbound request either way.
+    //
+    // content-factory-next-0k0m. While checking is off a click costs no
+    // outbound request, so the minute between manual checks has nothing to
+    // protect and stays keyed on `lastCheckedAt`. What each click did cost was
+    // a write of the same refusal. The refusal is now written only when it
+    // changes the row, so repeated clicks are reads.
     if (!this.checkEnabledFor(subscription.kind)) {
-      await this.repository.recordCheckResult(organizationId, subscriptionId, {
-        state: subscription.state,
-        lastErrorCode: 'CHECK_DISABLED',
-      });
+      await this.recordDisabled(organizationId, subscriptionId, subscription);
       return { checked: false, reason: 'CHECK_DISABLED', created: 0 };
     }
 
@@ -468,10 +489,7 @@ export class ContentLeadService {
             subscription.kind as 'RSS'
           );
       if (result.disabled) {
-        await this.repository.recordCheckResult(organizationId, subscriptionId, {
-          state: subscription.state,
-          lastErrorCode: 'CHECK_DISABLED',
-        });
+        await this.recordDisabled(organizationId, subscriptionId, subscription);
         return { checked: false, reason: 'CHECK_DISABLED', created: 0 };
       }
 

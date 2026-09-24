@@ -7,10 +7,6 @@ import { ConfirmButton } from '../../ui/confirm-button';
 import { Input } from '@contentfactory/react/form/input';
 import { Select } from '@contentfactory/react/form/select';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
-import {
-  RadioGroup,
-  RadioOption,
-} from '@contentfactory/react/choice/radio.group';
 import { Hint } from '@contentfactory/react/layout/hint';
 import { Panel } from '@contentfactory/react/layout';
 import {
@@ -47,6 +43,7 @@ import {
   type VoiceScreenStateV1,
   type ZagotovkaCoreV1,
 } from './pieces.adapter';
+import { FilterChips } from '../../ui/filter-chips';
 
 /**
  * Таблица заготовок: по колонке на площадку, в клетке — состояние.
@@ -109,81 +106,6 @@ const ARROW_WIDTH = 44;
   спорила с ней: «черновик» у кода и «опубликовано» в двух колонках из трёх —
   это один ответ, разобранный на два разных. Пилюля ушла вместе с функцией.
 */
-
-/**
- * Полоса фишек — один вопрос и его ответы на виду.
- *
- * Роль, стрелки и остановку Tab пишет `RadioGroup`: выбор здесь дёшев и
- * обратим, так что он следует за фокусом, как и просит правило семейства. Вид
- * принадлежит этому экрану — примитив не навязывает ни цвета, ни геометрии, а
- * высоту фишки (32 px, плотный вариант) держит `density`, а не класс отсюда.
- *
- * На телефоне вопрос занимает две строки, а не четыре. Ниже экрана `table` —
- * того же, на котором таблица становится карточками, — подпись встаёт над
- * фишками, а сами фишки едут одной строкой вбок: два переносящихся ряда по
- * девять фишек на 400 px съедали весь первый экран, и список начинался под
- * сгибом. Прокрутка вертикальных полей не съедает: `overflow-x` делает
- * `overflow-y` тоже прокручиваемым, поэтому кольцо фокуса живёт в собственных
- * 4 px отступа, снятых отрицательным полем, — геометрия ряда от этого не
- * меняется.
- */
-function ChipFilter({
-  name,
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: readonly { value: string; label: string; icon?: ReactNode }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div
-      data-piece-filter={name}
-      className="flex min-w-0 flex-col gap-[4px] table:flex-row table:flex-wrap table:items-center table:gap-[8px]"
-    >
-      <span className="cf-label-sm text-cf-ink-muted">{label}</span>
-      <RadioGroup
-        value={value}
-        onChange={onChange}
-        aria-label={label}
-        data-piece-filter-scroller="true"
-        className={clsx(
-          'flex min-w-0 flex-nowrap items-center gap-[8px] overflow-x-auto',
-          '-my-[4px] py-[4px]',
-          'table:flex-wrap table:overflow-visible table:my-0 table:py-0'
-        )}
-      >
-        {options.map((option) => {
-          const chosen = option.value === value;
-          return (
-            <RadioOption
-              key={option.value}
-              value={option.value}
-              density="dense"
-              data-piece-filter-option={`${name}:${option.value}`}
-              className={clsx(
-                // Фишка не сжимается: на узкой полосе ряд едет вбок целиком,
-                // а не превращается в колонку раздавленных слов.
-                'inline-flex flex-none items-center gap-[8px] rounded-full border px-[12px] cf-label-sm',
-                'transition-colors duration-state motion-reduce:transition-none',
-                chosen
-                  ? 'border-cf-accent bg-cf-accent-soft text-cf-accent'
-                  : 'border-cf-border-control text-cf-ink hover:bg-cf-surface-subtle'
-              )}
-            >
-              {option.icon}
-              {option.label}
-            </RadioOption>
-          );
-        })}
-      </RadioGroup>
-    </div>
-  );
-}
 
 const Chevron = ({ open }: { open: boolean }) => (
   <svg
@@ -425,7 +347,8 @@ export function PiecesScreen({
         прятали и то, какие площадки вообще есть, и то, что состояний семь.
         Площадки — ровно те, что пришли колонками; выдуманных здесь нет.
       */}
-      <ChipFilter
+      <FilterChips
+        dataPrefix="piece"
         name="platform"
         label={t.platformFilterLabel}
         value={filters.platform}
@@ -438,7 +361,8 @@ export function PiecesScreen({
           })),
         ]}
       />
-      <ChipFilter
+      <FilterChips
+        dataPrefix="piece"
         name="state"
         label={t.stateFilterLabel}
         value={filters.state}

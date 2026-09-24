@@ -80,6 +80,7 @@ export class OnboardingRepository {
     private _prisma: PrismaRepository<
       | 'integration'
       | 'brandVoiceSample'
+      | 'projectBrandProfile'
       | 'contentFact'
       | 'post'
       | 'contentPiece'
@@ -91,7 +92,7 @@ export class OnboardingRepository {
   }
 
   async progress(organizationId: string) {
-    const [channels, voiceSamples, facts, pieces, drafts, scheduled] =
+    const [channels, voiceSamples, avatars, facts, pieces, drafts, scheduled] =
       await Promise.all([
         this._prisma.model.integration.count({
           where: { organizationId, deletedAt: null, disabled: false },
@@ -108,6 +109,16 @@ export class OnboardingRepository {
         */
         this._prisma.model.brandVoiceSample.count({
           where: { organizationId, deletedAt: null, text: { not: '' } },
+        }),
+        /*
+          Avatars in use: not deleted, with an active version
+          (`content-factory-next-fn33.157`). The hand-filled path gives a
+          voice without a single sample — its screen says «Тексты не читаем и
+          не разбираем» — so a samples-only count left the voice step open
+          forever for whoever took it.
+        */
+        this._prisma.model.projectBrandProfile.count({
+          where: { organizationId, deletedAt: null, activeVersionId: { not: null } },
         }),
         /*
           The same three statuses the brief refuses (`UNUSABLE_FACT_STATUSES`).
@@ -160,6 +171,7 @@ export class OnboardingRepository {
     return {
       channels,
       voiceSamples,
+      avatars,
       facts,
       pieceFacts: corePieces.reduce(
         (total, piece) => total + selectedPieceFactCount(piece.brief),

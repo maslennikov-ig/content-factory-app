@@ -234,6 +234,66 @@ const getContentClasses = (className: string, innerClassName?: string) => {
   );
 };
 
+/**
+ * The mobile hit area (`content-factory-next-11qv`).
+ *
+ * `DESIGN.md`: below the breakpoint the wrapper of an interactive element gets
+ * at least 44px — not a third visual height, a hit area around the same
+ * 40/32px control. It is a transparent `::before` that reaches 2px (40px
+ * body) or 6px (32px body) past each edge and collapses back onto the button
+ * at `md`, the same device `ControlButton` uses for dense choices and
+ * `cf-control-h` for its 44/40 pair. Owned here, so no screen has to wrap its
+ * buttons in `[&_button]:min-h-[44px]` to be usable with a finger.
+ *
+ * The pseudo-element needs a containing block; the button is `relative`
+ * unless the call site chose another non-static position, and every one of
+ * those serves.
+ *
+ * **One inset per axis** (fourteenth walk review, P2-1). `before:inset-x-0`
+ * and `before:-inset-x-*` have the same specificity, and Tailwind 3.4 prints
+ * the negative one first, so writing both let `inset-x-0` win and an
+ * icon-only button never grew sideways. The horizontal value is now either
+ * the extension or zero, never both.
+ *
+ * **A neighbour yields** (same review, P3-1). Buttons are positioned and a
+ * later one paints over an earlier one, so in a tight stack its `::before`
+ * lay over the bottom edge of the button above and took its taps. A hit area
+ * that directly follows another one (`cf-hit-area`) therefore does not reach
+ * back towards it: upwards in a column, towards the inline start in a row
+ * (icon-only only; a text button never reaches sideways). The earlier
+ * button's forward reach covers the shared gap, and where it overlaps the
+ * later button the later body paints on top, so every tap lands on the
+ * button it is nearest to and no body is ever covered by a neighbour.
+ *
+ * Scrolling containers: a reach towards the top or the start cannot scroll;
+ * one past the bottom or end edge can, so the shared `Table` wrapper clips
+ * the vertical axis it never scrolls, and the dialog shells keep 20px of
+ * padding around their content, more than any reach.
+ */
+export const HIT_AREA_MARKER = 'cf-hit-area';
+
+const mobileHitArea = (
+  iconOnly: boolean,
+  density: ButtonDensity,
+  layout: 'control' | 'content'
+) => {
+  const sideways = iconOnly && layout === 'control';
+  return clsx(
+    HIT_AREA_MARKER,
+    "before:absolute before:content-[''] md:before:inset-0",
+    layout === 'content' || density === 'standard'
+      ? 'before:-inset-y-0.5'
+      : 'before:-inset-y-1.5',
+    sideways
+      ? density === 'standard'
+        ? 'before:-inset-x-0.5'
+        : 'before:-inset-x-1.5'
+      : 'before:inset-x-0',
+    '[.flex-col>.cf-hit-area+&]:before:top-0',
+    sideways && '[:not(.flex-col)>.cf-hit-area+&]:before:start-0'
+  );
+};
+
 const getGeometryClasses = (
   tokens: string[],
   iconOnly: boolean,
@@ -312,6 +372,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           // except static provides one.
           !ownsUnprefixedPosition(tokens) && 'relative',
           getGeometryClasses(tokens, Boolean(iconOnly), density, layout),
+          mobileHitArea(Boolean(iconOnly), density, layout),
           'disabled:cursor-not-allowed disabled:opacity-50',
           VARIANTS[resolved],
           // Respect a call site that already picked its own geometry.
@@ -376,6 +437,7 @@ export const buttonClassName = ({
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cf-focus',
     'aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none',
     density === 'dense' ? 'h-[32px] px-[10px]' : 'h-[40px] px-[16px]',
+    mobileHitArea(false, density, 'control'),
     VARIANTS[variant],
     className
   );

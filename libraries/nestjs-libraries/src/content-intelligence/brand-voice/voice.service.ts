@@ -2637,6 +2637,10 @@ export class VoiceService {
     const fields = this.fieldsFromContent(activeVersion.content);
     if (fields[body.key] === text) return this.passport(actor);
     fields[body.key] = text;
+    const measured = await this.measurementForActiveVersion(
+      actor.organizationId,
+      activeVersion
+    );
 
     const draft = await this._profiles.createDraft(
       actor.organizationId,
@@ -2656,7 +2660,31 @@ export class VoiceService {
       actor.userId,
       draft.id
     );
+    await this.carryMeasurement(actor.organizationId, draft.id, measured);
     return this.passport(actor);
+  }
+
+  /**
+   * The numbers of the corpus stay with an edited line (`97dq.43`, item 3).
+   *
+   * A passport line and the address form are sentences over the voice; the
+   * scales measure the author's corpus, which the edit did not touch. The
+   * proposal path already stamps every activation of an edited field with
+   * the same analysis («accept three fields, then four, then edit one»);
+   * this path did not, so saving «Обращение к читателю» left the passport
+   * saying «Числа не посчитаны» over numbers that had not changed.
+   */
+  private async carryMeasurement(
+    organizationId: string,
+    versionId: string,
+    measurement: { id: string } | null
+  ) {
+    if (!measurement) return;
+    await this._profiles.stampMeasurement(
+      organizationId,
+      versionId,
+      measurement.id
+    );
   }
 
   /**
@@ -2690,6 +2718,10 @@ export class VoiceService {
     const content = clone(activeVersion.content);
     if (addressForm) content.voice.addressForm = addressForm;
     else delete content.voice.addressForm;
+    const measured = await this.measurementForActiveVersion(
+      actor.organizationId,
+      activeVersion
+    );
     const draft = await this._profiles.createDraft(
       actor.organizationId,
       actor.userId,
@@ -2702,6 +2734,7 @@ export class VoiceService {
       actor.userId,
       draft.id
     );
+    await this.carryMeasurement(actor.organizationId, draft.id, measured);
     return this.passport(actor);
   }
 

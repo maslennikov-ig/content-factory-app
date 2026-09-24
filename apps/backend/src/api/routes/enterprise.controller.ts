@@ -6,6 +6,9 @@ import { IntegrationManager } from '@contentfactory/nestjs-libraries/integration
 import { OrganizationService } from '@contentfactory/nestjs-libraries/database/prisma/organizations/organization.service';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PostsService } from '@contentfactory/nestjs-libraries/database/prisma/posts/posts.service';
+import {
+  SignedParamsBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('Enterprise')
 @Controller('/enterprise')
@@ -18,7 +21,7 @@ export class EnterpriseController {
   ) {}
 
   @Post('/create-user')
-  async createUser(@Body('params') params: string) {
+  async createUser(@Body() { params }: SignedParamsBodyDto) {
     try {
       const { id, name, saasName, email } = AuthService.verifyJWT(params) as {
         id: string;
@@ -43,7 +46,7 @@ export class EnterpriseController {
   }
 
   @Post('/url')
-  async redirectParams(@Body('params') params: string) {
+  async redirectParams(@Body() { params }: SignedParamsBodyDto) {
     try {
       const load = AuthService.verifyJWT(params) as {
         redirectUrl: string;
@@ -92,7 +95,7 @@ export class EnterpriseController {
   }
 
   @Post('/delete-channel')
-  async deleteChannel(@Body('params') params: string) {
+  async deleteChannel(@Body() { params }: SignedParamsBodyDto) {
     try {
       const load = AuthService.verifyJWT(params) as {
         apiKey: string;

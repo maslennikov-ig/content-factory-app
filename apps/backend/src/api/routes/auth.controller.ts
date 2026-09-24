@@ -28,6 +28,10 @@ import {
   TeamInvitationError,
   type TeamInvitationPreview,
 } from '@contentfactory/nestjs-libraries/auth/team-invitation';
+import {
+  ActivationCodeBodyDto,
+  OAuthExistsBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 const OAUTH_STATE_COOKIE = 'oauth_state';
 const OAUTH_STATE_COOKIE_MAX_AGE = 1000 * 60 * 5;
@@ -290,7 +294,7 @@ export class AuthController {
 
   @Post('/activate')
   async activate(
-    @Body('code') code: string,
+    @Body() { code }: ActivationCodeBodyDto,
     @Res({ passthrough: false }) response: Response
   ) {
     const activate = await this._authService.activate(code);
@@ -337,9 +341,7 @@ export class AuthController {
   @Post('/oauth/:provider/exists')
   async oauthExists(
     @Req() req: Request,
-    @Body('code') code: string,
-    @Body('redirect_uri') redirect_uri: string,
-    @Body('state') state: string,
+    @Body() { code, redirect_uri, state }: OAuthExistsBodyDto,
     @Param('provider') provider: string,
     @Res({ passthrough: false }) response: Response
   ) {

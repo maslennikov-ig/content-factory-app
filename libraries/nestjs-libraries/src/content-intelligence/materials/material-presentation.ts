@@ -373,6 +373,22 @@ export function bestCell(
 }
 
 /**
+ * Клетка с именем своего канала (`content-factory-next-97dq.20`).
+ *
+ * `bestCell` видит адаптации, а не список каналов, и знает только
+ * `integrationId`. Имя добавляет тот, у кого список есть, — так же, как
+ * `promoteNoChannel` поднимает «нет канала». Канал, которого в списке уже
+ * нет (отвязан, удалён), имени не получает: выдуманное хуже отсутствующего.
+ */
+export function withChannelName(
+  cell: PieceCellV1,
+  names: ReadonlyMap<string, string>
+): PieceCellV1 {
+  const name = cell.integrationId ? names.get(cell.integrationId) : undefined;
+  return name ? { ...cell, channelName: name } : cell;
+}
+
+/**
  * Поднимает «ещё нет» до «нет канала» там, где писать действительно некуда.
  *
  * `bestCell` отдаёт только `none`: она видит адаптации и больше ничего, а

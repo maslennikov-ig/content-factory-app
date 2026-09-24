@@ -1,6 +1,7 @@
 'use client';
 
 import clsx from 'clsx';
+import type { ReactNode } from 'react';
 import { Range } from '@contentfactory/react/form/range';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
 import { emojiDivisionWord, emojiStopWord } from './emoji-words';
@@ -22,8 +23,7 @@ const LAST = EMOJI_STOPS.length - 1;
  * the fill and the channel tick are placed through the same formula, which is
  * what keeps all three on the same point.
  */
-const at = (index: number) =>
-  `calc(12px + (100% - 24px) * ${index / LAST})`;
+const at = (index: number) => `calc(12px + (100% - 24px) * ${index / LAST})`;
 
 /**
  * Emoji as an exact ceiling (`content-factory-next-97dq.61`, variant A).
@@ -38,6 +38,10 @@ const at = (index: number) =>
  * `channel` draws the channel's own value as a grey tick on the track. On «Для
  * этого поста» that is the answer to «what would happen if I left it»; on the
  * channel card there is nothing to compare with and no tick.
+ *
+ * `label` (`97dq.83`): the field's label goes on the same row as the readout
+ * — label at the start, «до N» at the end — instead of the readout taking a
+ * row of its own under the label.
  *
  * Geometry: the six captions sit in six equal cells and the handle's box is
  * inset by half a cell, so every stop is exactly under its caption and a long
@@ -55,6 +59,7 @@ export function EmojiCeilingSlider({
   id,
   describedBy,
   dataName = 'emoji',
+  label,
 }: {
   locale: IntakeLocale;
   value: EmojiLevel;
@@ -69,13 +74,17 @@ export function EmojiCeilingSlider({
   id?: string;
   describedBy?: string;
   dataName?: string;
+  /** The field's label, drawn on the readout's row. */
+  label?: ReactNode;
 }) {
   const t = intakeCopy[locale];
   const index = emojiStopIndex(value);
   const stop = emojiStopOf(value);
   const readout = emojiStopWord(locale, stop);
   const channelIndex = channel ? emojiStopIndex(channel) : null;
-  const channelWord = channel ? emojiStopWord(locale, emojiStopOf(channel)) : '';
+  const channelWord = channel
+    ? emojiStopWord(locale, emojiStopOf(channel))
+    : '';
   const inset = `calc(100% / ${EMOJI_STOPS.length * 2} - 12px)`;
 
   return (
@@ -85,30 +94,40 @@ export function EmojiCeilingSlider({
       data-emoji-changed={changed ? 'true' : 'false'}
       className="flex min-w-0 flex-col gap-[4px]"
     >
-      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-[12px]">
-        {/* Не `<output>`: его неявная роль `status` объявляла бы каждое
-            движение ручки, а ручка и так читает «до N» через aria-valuetext. */}
-        <span
-          data-emoji-readout="true"
-          className={clsx(
-            'cf-label-md tabular-nums',
-            changed
-              ? 'text-cf-signature'
-              : muted
-              ? 'text-cf-ink-muted'
-              : 'text-cf-ink'
-          )}
-        >
-          {readout}
-        </span>
-        {channel && changed ? (
-          <span
-            data-emoji-channel-note="true"
-            className="cf-caption text-cf-ink-muted"
-          >
-            {t.profileEmojiInChannel(channelWord)}
-          </span>
+      <div
+        data-emoji-label-row="true"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-x-[12px] gap-y-[4px]"
+      >
+        {label ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-[8px]">
+            {label}
+          </div>
         ) : null}
+        <span className="ms-auto flex min-w-0 flex-wrap items-baseline justify-end gap-x-[8px]">
+          {/* Не `<output>`: его неявная роль `status` объявляла бы каждое
+            движение ручки, а ручка и так читает «до N» через aria-valuetext. */}
+          <span
+            data-emoji-readout="true"
+            className={clsx(
+              'cf-label-md tabular-nums',
+              changed
+                ? 'text-cf-signature'
+                : muted
+                ? 'text-cf-ink-muted'
+                : 'text-cf-ink'
+            )}
+          >
+            {readout}
+          </span>
+          {channel && changed ? (
+            <span
+              data-emoji-channel-note="true"
+              className="cf-caption text-cf-ink-muted"
+            >
+              {t.profileEmojiInChannel(channelWord)}
+            </span>
+          ) : null}
+        </span>
       </div>
 
       <div className="relative h-[44px] min-w-0 sm:h-[40px]">

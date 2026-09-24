@@ -6,7 +6,11 @@ import {
   INSTANCE_AI_DEFAULTS_ID,
   resetAiConfigCache,
 } from '@contentfactory/nestjs-libraries/openai/ai.provider.config';
-import { includedQuotaFallback } from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
+import {
+  includedQuotaFallback,
+  isUnlimitedOperations,
+  UNLIMITED_MONTHLY_OPERATIONS,
+} from '@contentfactory/nestjs-libraries/openai/ai.usage.service';
 import {
   AiRoleModels,
   parseRoleModels,
@@ -116,6 +120,9 @@ export class InstanceAiDefaultsService {
      * offers», and printing the built-in default into it would turn a
      * deliberate silence into a saved model id on the next save.
      */
+    // «Без предела» is a state of the row (`97dq.27`), never a number shown
+    // in the field: the sentinel stays inside the service.
+    const unlimited = isUnlimitedOperations(row?.monthlyOperations);
     const effective = {
       provider,
       textModel: row?.textModel ?? envModel(process.env.AI_TEXT_MODEL),
@@ -127,11 +134,13 @@ export class InstanceAiDefaultsService {
        * the one billing counts by, read through billing's own function so the
        * two cannot drift apart.
        */
-      monthlyOperations:
-        row?.monthlyOperations ??
-        (process.env.AI_INCLUDED_MONTHLY_OPERATIONS
-          ? includedQuotaFallback()
-          : null),
+      monthlyOperations: unlimited
+        ? null
+        : row?.monthlyOperations ??
+          (process.env.AI_INCLUDED_MONTHLY_OPERATIONS
+            ? includedQuotaFallback()
+            : null),
+      monthlyOperationsUnlimited: unlimited,
     };
 
     return {
@@ -140,7 +149,8 @@ export class InstanceAiDefaultsService {
       imageModel: row?.imageModel ?? null,
       roleModels: parseRoleModels(row?.roleModels),
       searchTaskProviders: parseSearchTaskProviders(row?.searchTaskProviders),
-      monthlyOperations: row?.monthlyOperations ?? null,
+      monthlyOperations: unlimited ? null : row?.monthlyOperations ?? null,
+      monthlyOperationsUnlimited: unlimited,
       /**
        * The text chain (`content-factory-next-97dq.55`). The stored values,
        * NULL where nothing was saved, and beside them what the chain actually
@@ -186,13 +196,14 @@ export class InstanceAiDefaultsService {
       searchApiKeys?: Record<string, string>;
       searchTaskProviders?: Record<string, string>;
       monthlyOperations?: number;
+      monthlyOperationsUnlimited?: boolean;
       textFlexEnabled?: boolean;
       textFallbackModel?: string;
     }
   ) {
     const current = await this._prisma.instanceAiDefaults?.findUnique({
       where: { id: INSTANCE_AI_DEFAULTS_ID },
-      select: { searchApiKeys: true },
+      select: { searchApiKeys: true, monthlyOperations: true },
     });
 
     const searchApiKeys: SearchProviderKeys = parseSearchKeys(
@@ -225,8 +236,15 @@ export class InstanceAiDefaultsService {
             ) as SearchTaskProviders,
           }
         : {}),
-      ...(body.monthlyOperations !== undefined
+      // The switch wins over the field: «без предела» on stores the state,
+      // off with a number stores the number (`97dq.27`).
+      ...(body.monthlyOperationsUnlimited === true
+        ? { monthlyOperations: UNLIMITED_MONTHLY_OPERATIONS }
+        : body.monthlyOperations !== undefined
         ? { monthlyOperations: Math.max(0, Math.floor(body.monthlyOperations)) }
+        : body.monthlyOperationsUnlimited === false &&
+          isUnlimitedOperations(current?.monthlyOperations)
+        ? { monthlyOperations: null }
         : {}),
       ...(typeof body.textFlexEnabled === 'boolean'
         ? { textFlexEnabled: body.textFlexEnabled }

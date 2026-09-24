@@ -44,6 +44,8 @@ export type AllowanceState =
    * будет, когда появится тариф. Тоже не «исчерпано» — тратить ещё не начинали.
    */
   | { status: 'no_allowance' }
+  /** Included with no ceiling on this instance (`97dq.27`): no numbers. */
+  | { status: 'unlimited' }
   | { status: 'exhausted' }
   | {
       status: 'included';
@@ -64,6 +66,7 @@ export const readAllowance = (body: unknown): AllowanceState => {
   if (!answer || typeof answer !== 'object') return { status: 'error' };
   if (answer.mode === 'unavailable') return { status: 'unavailable' };
   if (answer.mode === 'workspace_key') return { status: 'workspace_key' };
+  if (answer.mode === 'unlimited') return { status: 'unlimited' };
   if (answer.mode !== 'included') return { status: 'error' };
   if (
     !isFiniteNumber(answer.remaining) ||
@@ -143,7 +146,7 @@ export const AllowanceHintView = ({
       <span className="cf-caption text-cf-ink-muted" aria-live="polite">
         {t(
           'ai_allowance_unavailable',
-          'AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → AI.'
+          'AI is not connected yet: no included allowance and no workspace key. An administrator can set this up in Settings → Global Settings.'
         )}
       </span>
     );
@@ -154,7 +157,7 @@ export const AllowanceHintView = ({
       <span className="cf-caption text-cf-ink-muted" aria-live="polite">
         {t(
           'ai_allowance_none',
-          'This workspace has no included AI allowance. An administrator can add a plan or choose a workspace key in Settings → AI.'
+          'This workspace has no included AI allowance. An administrator can add a plan or choose a workspace key in Settings → Global Settings.'
         )}
       </span>
     );
@@ -164,6 +167,14 @@ export const AllowanceHintView = ({
     return (
       <span className="cf-caption text-cf-ink-muted" aria-live="polite">
         {t('ai_allowance_workspace_key', 'Workspace key: no counted limit')}
+      </span>
+    );
+  }
+
+  if (state.status === 'unlimited') {
+    return (
+      <span className="cf-caption text-cf-ink-muted" aria-live="polite">
+        {t('ai_allowance_unlimited', 'System keys: no limit')}
       </span>
     );
   }

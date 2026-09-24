@@ -232,7 +232,7 @@ export const briefCopy = {
     // content-factory-next-fn33.90.7: the brief is a writer's tool; a reader
     // sees it, fills nothing and is told whom to ask.
     readOnlyRole:
-      'Бриф открыт на чтение. Проверить бриф и добавить факт может редактор или администратор области.',
+      'Бриф открыт на чтение. Проверить бриф и добавить факт может редактор или администратор пространства.',
     optional: 'необязательно',
     picked: (title: string) => `Тема взята в бриф: «${title}».`,
     radarFailure:

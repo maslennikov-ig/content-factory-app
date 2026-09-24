@@ -16,7 +16,8 @@ import {
   CustomFileValidationPipe,
   getMaxSize,
 } from '@contentfactory/nestjs-libraries/upload/custom.upload.validation';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiConflictResponse, ApiTags } from '@nestjs/swagger';
+import { ReleaseIdBodyDto } from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 import { GetOrgFromRequest } from '@contentfactory/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { IntegrationService } from '@contentfactory/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -61,6 +62,21 @@ import { RefreshToken } from '@contentfactory/nestjs-libraries/integrations/soci
 import { PostValidationException } from '@contentfactory/backend/api/routes/posts.validation.exception';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { ioRedis } from '@contentfactory/nestjs-libraries/redis/redis.service';
+
+/**
+ * A Content Factory variant refused by the one-queue rule of its piece
+ * (`CF_QUEUE_BUSY`, `97dq.67`) answers 409 with its code; anything else is
+ * rethrown untouched.
+ */
+function cfQueueRefusal(error: unknown): never {
+  if ((error as any)?.code === 'CF_QUEUE_BUSY') {
+    throw new HttpException(
+      { code: 'CF_QUEUE_BUSY', message: (error as Error).message },
+      409
+    );
+  }
+  throw error;
+}
 
 @ApiTags('Public API')
 @Controller('/public/v1')
@@ -180,6 +196,10 @@ export class PublicIntegrationsController {
 
   @Post('/posts')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  @ApiConflictResponse({
+    description:
+      '`{ code: "CF_QUEUE_BUSY", message }`: the post is a Content Factory variant and another variant of the same piece is already scheduled in this channel. Unschedule that one first; nothing was written.',
+  })
   async createPost(
     @GetOrgFromRequest() org: Organization,
     @Body() rawBody: any
@@ -254,7 +274,9 @@ export class PublicIntegrationsController {
       ? (rawBody.creationMethod as 'CLI' | 'API')
       : 'API';
 
-    return this._postsService.createPost(org.id, body, creationMethod);
+    return this._postsService
+      .createPost(org.id, body, creationMethod)
+      .catch((error) => cfQueueRefusal(error));
   }
 
   @Delete('/posts/:id')
@@ -459,19 +481,25 @@ export class PublicIntegrationsController {
   }
 
   @Put('/posts/:id/status')
+  @ApiConflictResponse({
+    description:
+      '`{ code: "CF_QUEUE_BUSY", message }`: the post is a Content Factory variant and another variant of the same piece is already scheduled in this channel. Unschedule that one first; nothing was written.',
+  })
   async changePostStatus(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
     @Body() body: ChangePostStatusDto
   ) {
-    return this._postsService.changePostStatus(org.id, id, body.status);
+    return this._postsService
+      .changePostStatus(org.id, id, body.status)
+      .catch((error) => cfQueueRefusal(error));
   }
 
   @Put('/posts/:id/release-id')
   async updateReleaseId(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
-    @Body('releaseId') releaseId: string
+    @Body() { releaseId }: ReleaseIdBodyDto
   ) {
     return this._postsService.updateReleaseId(org.id, id, releaseId);
   }

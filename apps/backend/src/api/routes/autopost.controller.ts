@@ -23,6 +23,9 @@ import {
   Sections,
 } from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 import { OnlyURL } from '@contentfactory/nestjs-libraries/dtos/webhooks/webhooks.dto';
+import {
+  ActiveBodyDto,
+} from '@contentfactory/nestjs-libraries/dtos/routes/single-field.dto';
 
 @ApiTags('Autopost')
 @Controller('/autopost')
@@ -107,7 +110,7 @@ export class AutopostController {
   async changeActive(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
-    @Body('active') active: boolean
+    @Body() { active }: ActiveBodyDto
   ) {
     return this._autopostsService.changeActive(org.id, id, active);
   }
