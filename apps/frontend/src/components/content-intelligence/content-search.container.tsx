@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
@@ -228,10 +229,12 @@ export function ContentSearchContainer({
   );
 
   return (
-    <section
+    <Panel
       data-content-intelligence-section="search"
       aria-labelledby="content-search-title"
-      className="scroll-mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+      as="section"
+      contentPadding="default"
+      className="scroll-mt-[24px]"
     >
       <h2
         id="content-search-title"
@@ -402,7 +405,7 @@ export function ContentSearchContainer({
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 

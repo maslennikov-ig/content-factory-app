@@ -129,3 +129,70 @@ test('«Ко всем N» does not count a draft without a plan as changing to �
   expect(planWouldChange({ plan: 'reserve', state: 'DRAFT' }, 'draft')).toBe(true);
   expect(planWouldChange({ plan: 'draft', state: 'DRAFT' }, 'draft')).toBe(false);
 });
+
+describe('the «Применить к N» question says what happens to the posts (97dq.87)', () => {
+  const ask = async (from, to) => {
+    let held = from;
+    server = (url, method) => {
+      if (url === '/integrations/tg/plan-mode' && method === 'GET') return answer(200, { planMode: held });
+      if (url === '/integrations/tg/plan-mode' && method === 'PUT') {
+        held = to;
+        return answer(200, { planMode: to });
+      }
+      if (url.includes('/plan-impact')) return answer(200, { count: 2 });
+      return answer(404, {});
+    };
+    calls = [];
+    render(h(Field));
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: to } });
+    });
+    await screen.findByText('Ко всем 2', { exact: false });
+    const effect = document.querySelector('[data-channel-plan-apply-effect]');
+    expect(effect.getAttribute('data-channel-plan-apply-effect')).toBe(to);
+    return effect.textContent;
+  };
+
+  test('autopilot → reserve: the posts leave the queue and wait for «Подтвердить»', async () => {
+    const text = await ask('autopilot', 'reserve');
+    expect(text).toContain('уйдут из очереди');
+    expect(text).toContain('«Подтвердить»');
+    // Confirmed queue entries are not in the count and stay queued (review F6).
+    expect(text).toContain('кроме подтверждённых вами');
+    expect(text).toContain('«Только к новым»: написанные посты останутся как есть');
+  });
+
+  test('reserve → autopilot: the posts enter the queue and go out by themselves', async () => {
+    const text = await ask('reserve', 'autopilot');
+    expect(text).toContain('встанут в очередь и выйдут сами');
+    // A post the platform refuses does not join the queue (review F6).
+    expect(text).toContain('если площадка их примет');
+  });
+
+  test('reserve → off: the reservation drops, drafts stay', async () => {
+    const text = await ask('reserve', 'draft');
+    expect(text).toContain('бронь снимется, посты останутся черновиками');
+  });
+
+  test('the question keeps its «?» and both languages carry every direction', () => {
+    const { channelPlanModeCopy } = loadWithMocks(
+      'apps/frontend/src/components/content-intelligence/intake/channel-plan-mode.tsx'
+    );
+    for (const locale of ['ru', 'en']) {
+      const t = channelPlanModeCopy[locale];
+      expect(t.applyQuestion(3).endsWith('?')).toBe(true);
+      expect(typeof t.applyKeep).toBe('string');
+      const lines = new Set();
+      for (const [to, from] of [
+        ['autopilot', 'reserve'],
+        ['reserve', 'autopilot'],
+        ['reserve', 'draft'],
+        ['draft', 'reserve'],
+      ]) {
+        lines.add(t.applyEffect(to, from));
+      }
+      expect(lines.size).toBe(4);
+    }
+  });
+});

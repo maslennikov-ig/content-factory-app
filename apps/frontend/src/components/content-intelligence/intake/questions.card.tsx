@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Panel } from '@contentfactory/react/layout';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
 import {
@@ -110,9 +111,12 @@ export function QuestionsCard({
   };
 
   return (
-    <section
+    <Panel
       data-intake-questions="true"
-      className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+      as="section"
+      contentPadding="snug"
+      className="min-w-0"
+      contentClassName="flex flex-col gap-[16px]"
     >
       <header className="flex flex-col gap-[8px]">
         <div className="flex flex-wrap items-center gap-[8px]">
@@ -252,7 +256,7 @@ export function QuestionsCard({
           </p>
         )}
       </footer>
-    </section>
+    </Panel>
   );
 }
 
@@ -323,10 +327,17 @@ export function SuggestedQuestionsCard({
   busy = false,
   onSubmit,
   onSkipAll,
+  extra,
 }: {
   words: SuggestedQuestionsWords;
   questions: readonly SuggestedQuestion[];
   busy?: boolean;
+  /**
+   * A fixed question of the same step that is not a model question — «Какую
+   * ссылку поставить в пост?» (`97dq.89`). It stands after the others and is
+   * saved by the same «Дальше»; its owner reads it in `onSubmit`.
+   */
+  extra?: ReactNode;
   /** Ответы уходят одним ходом; остальные ключи — «реши сама». */
   onSubmit: (
     answers: readonly SuggestedAnswer[],
@@ -394,9 +405,12 @@ export function SuggestedQuestionsCard({
   };
 
   return (
-    <section
+    <Panel
       data-piece-questions="true"
-      className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+      as="section"
+      contentPadding="snug"
+      className="min-w-0"
+      contentClassName="flex flex-col gap-[16px]"
     >
       <header className="flex flex-col gap-[8px]">
         <div className="flex flex-wrap items-center gap-[8px]">
@@ -614,6 +628,8 @@ export function SuggestedQuestionsCard({
         );
       })}
 
+      {extra}
+
       <footer className="flex flex-wrap items-center gap-[8px]">
         <Button type="button" variant="primary" disabled={busy} onClick={submit}>
           {words.send}
@@ -634,7 +650,7 @@ export function SuggestedQuestionsCard({
           </Button>
         ) : null}
       </footer>
-    </section>
+    </Panel>
   );
 }
 

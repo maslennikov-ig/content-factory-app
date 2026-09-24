@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { Progress } from '../ui/progress';
@@ -296,25 +297,30 @@ export function VoiceAnalysisScreen({
           </h3>
 
           {state === 'empty' ? (
-            <div
-              className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+            <Panel
+              as="div"
+              contentPadding="snug"
               data-voice-analysis-empty="true"
             >
               <p className="cf-body-sm text-cf-ink">{t.analysisEmptyTitle}</p>
               <p className="mt-[8px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                 {t.analysisEmptyBody}
               </p>
-            </div>
+            </Panel>
           ) : !showMeasured ? (
-            <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+            <Panel as="div" contentPadding="snug">
               <p className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
                 {t.analysisAwaiting}
               </p>
-            </div>
+            </Panel>
           ) : (
             <>
               <div className="grid gap-[12px] sm:grid-cols-2">
-                <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+                <Panel
+                  as="div"
+                  contentPadding="snug"
+                  contentClassName="flex flex-col gap-[8px]"
+                >
                   <span className="cf-label-sm text-cf-ink-muted">
                     {t.analysisSentenceLength}
                   </span>
@@ -335,7 +341,7 @@ export function VoiceAnalysisScreen({
                       {t.analysisNoData}
                     </span>
                   )}
-                </div>
+                </Panel>
 
                 <div
                   className={clsx(
@@ -371,7 +377,12 @@ export function VoiceAnalysisScreen({
                   )}
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px] sm:col-span-2">
+                <Panel
+                  as="div"
+                  contentPadding="snug"
+                  className="min-w-0 sm:col-span-2"
+                  contentClassName="flex flex-col gap-[8px]"
+                >
                   <span className="cf-label-sm text-cf-ink-muted">
                     {t.analysisPunctuation}
                   </span>
@@ -411,7 +422,7 @@ export function VoiceAnalysisScreen({
                       );
                     })}
                   </div>
-                </div>
+                </Panel>
               </div>
 
               {rejected.length > 0 ? (

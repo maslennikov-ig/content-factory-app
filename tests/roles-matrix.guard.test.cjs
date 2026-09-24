@@ -437,6 +437,26 @@ describe('changing doors without a policy are named, each with its reason', () =
     expect(silent).toEqual([]);
   });
 
+  /*
+    Review F5 of the fifteenth walk: `GET /billing/portal` opened a Stripe
+    portal for any member, and the scan above reads changing verbs only. A
+    GET that acts is named in `sideEffectGets` and must carry a policy.
+  */
+  test('a GET that acts carries a policy; the billing portal is ADMIN', () => {
+    const named = Object.keys(
+      JSON.parse(read('tests/unpoliced-doors-allowlist.json')).sideEffectGets
+    ).filter((key) => !key.startsWith('_'));
+    expect(named).toContain('GET /billing/portal');
+    const doors = doorsWithPolicies({ all: true });
+    const unpoliced = named.filter((key) => {
+      const door = doors.find((candidate) => `${candidate.method} ${candidate.path}` === key);
+      return !door || !door.sections.length;
+    });
+    expect(unpoliced).toEqual([]);
+    const portal = doors.find((door) => door.method === 'GET' && door.path === '/billing/portal');
+    expect(portal.sections).toEqual(['ADMIN']);
+  });
+
   test('the matrix has the section that explains them', () => {
     const matrix = read(MATRIX);
     expect(matrix).toContain('## Двери без роли и почему');

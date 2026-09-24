@@ -62,6 +62,7 @@ export function Segmented<Value extends string>({
   onChange,
   className,
   iconOnly = false,
+  wrap = false,
   ...rest
 }: {
   /** Вопрос, на который отвечает полоса. Уходит в `aria-label` группы. */
@@ -72,21 +73,41 @@ export function Segmented<Value extends string>({
   className?: string;
   /** Показывать только пиктограммы; слово остаётся в имени и в подсказке. */
   iconOnly?: boolean;
+  /**
+   * Длинный набор, который на узком экране переносится на вторую строку
+   * (варианты текста, отбор с числами). Без него положения делят ширину
+   * поровну и не переносятся.
+   */
+  wrap?: boolean;
 } & Omit<
   HTMLAttributes<HTMLDivElement>,
   'onChange' | 'className' | 'children'
 >) {
+  const hinted = options.some((option) => option.hint);
   return (
     <RadioGroup
       {...rest}
       value={value}
       onChange={(next) => onChange(next as Value)}
       aria-label={label}
+      data-segmented-layout={wrap ? 'wrap' : 'even'}
       className={clsx(
-        // С подсказками полоса шире на три кружка и на 390 px уже не
-        // помещается в строку — переносится, а не толкает страницу вбок.
-        'inline-flex gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]',
-        options.some((option) => option.hint) && 'flex-wrap',
+        'gap-[4px] self-start rounded-[8px] border border-cf-border bg-cf-surface p-[4px]',
+        /*
+          Положения делят ширину поровну (`97dq.88`): колонки `1fr` в полосе
+          по содержимому все равны самой широкой, так что выбранное слово не
+          оказывается самой узкой клеткой. «?» стоит в своей клетке рядом
+          с положением и его не сжимает. С подсказками полоса шире на три
+          кружка и на 390 px в строку не входит — встаёт столбцом во всю
+          ширину, а не толкает страницу вбок. Без подсказок полоса не шире
+          своего места (`max-w-full`), а длинный набор — виды адаптации,
+          отбор с числами — берёт `wrap` (ревью волны, F4).
+        */
+        wrap
+          ? 'inline-flex max-w-full flex-wrap'
+          : hinted
+            ? 'grid w-full auto-cols-fr grid-flow-row sm:inline-grid sm:w-auto sm:grid-flow-col'
+            : 'inline-grid max-w-full auto-cols-fr grid-flow-col',
         className
       )}
     >
@@ -99,9 +120,15 @@ export function Segmented<Value extends string>({
             aria-label={iconOnly && option.icon ? option.label : undefined}
             title={iconOnly && option.icon ? option.label : undefined}
             className={clsx(
-              'rounded-[4px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
+              'inline-flex min-w-0 items-center justify-center text-center rounded-[4px] cf-label-sm transition-colors duration-state motion-reduce:transition-none',
               iconOnly && option.icon ? 'px-[8px]' : 'px-[16px]',
-              option.icon && 'inline-flex items-center gap-[8px]',
+              option.icon && 'gap-[8px]',
+              /*
+                В переносе положение своей ширины (ревью волны, F8): растянутые
+                клетки второй строки читались бы шире первой, а выбор между
+                ними — неровным.
+              */
+              option.hint ? 'flex-1' : wrap ? null : 'w-full',
               value === option.value
                 ? 'bg-cf-accent text-cf-accent-ink cf-pressed-fill'
                 : 'text-cf-ink-muted hover:bg-cf-surface-subtle hover:text-cf-ink cf-pressed'
@@ -120,10 +147,14 @@ export function Segmented<Value extends string>({
           <span
             key={option.value}
             data-segmented-hint={option.value}
-            className="inline-flex items-center"
+            className="flex min-w-0 items-stretch"
           >
             {radio}
-            <span className="inline-flex" onKeyDown={keepKeysInHint}>
+            <span
+              data-segmented-hint-mark=""
+              className="inline-flex shrink-0 items-center"
+              onKeyDown={keepKeysInHint}
+            >
               <Hint label={option.hint.label}>{option.hint.text}</Hint>
             </span>
           </span>

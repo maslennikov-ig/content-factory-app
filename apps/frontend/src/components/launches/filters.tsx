@@ -14,6 +14,8 @@ import {
 } from '@contentfactory/frontend/components/layout/set.timezone';
 
 import { Select } from '@contentfactory/react/form/select';
+import { Hint } from '@contentfactory/react/layout/hint';
+import { Input } from '@contentfactory/react/form/input';
 import { Button } from '@contentfactory/react/form/button';
 import { ButtonLink } from '@contentfactory/react/form/button-link';
 import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
@@ -446,7 +448,7 @@ export const Filters = () => {
               onChange={(next) => {
                 if (calendar.listState !== next) calendar.setListState(next);
               }}
-              className="max-w-full flex-wrap"
+              wrap
             />
           </>
         )}
@@ -508,6 +510,28 @@ export const Filters = () => {
           onChange={(customer: string) => setCustomer(customer)}
           integrations={calendar.integrations}
         />
+        {isListView ? (
+          /*
+            Поиск по словам в тексте постов (`odb8.4.1`): стоит в строке
+            «что показано» рядом с отборами и складывается с ними.
+          */
+          <span
+            data-calendar-list-search="true"
+            className="inline-flex min-w-0 max-w-full items-center gap-[4px]"
+          >
+            <Input
+              standalone
+              type="search"
+              name="posts-list-search"
+              aria-label={copy.listSearch}
+              placeholder={copy.listSearchPlaceholder}
+              value={calendar.listQuery}
+              onChange={(event) => calendar.setListQuery(event.target.value)}
+              fieldClassName="w-[240px] min-w-0 max-w-full"
+            />
+            <Hint label={copy.listSearchHintLabel}>{copy.listSearchHint}</Hint>
+          </span>
+        ) : null}
         <ButtonLink
           href="/channels"
           variant="quiet"

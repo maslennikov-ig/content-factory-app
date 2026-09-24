@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
@@ -165,9 +166,10 @@ export function VoiceLearningScreen({
       </div>
 
       {rules.length === 0 ? (
-        <div
+        <Panel
           data-voice-learning-empty="true"
-          className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+          as="div"
+          contentPadding="snug"
         >
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
             {t.learnEmpty}
@@ -175,7 +177,7 @@ export function VoiceLearningScreen({
           <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.learnEmptyBody}
           </p>
-        </div>
+        </Panel>
       ) : (
         <div className="flex min-w-0 flex-col gap-[8px]">
           <h3 className="cf-label-sm text-cf-ink-muted">

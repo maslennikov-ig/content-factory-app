@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { Button } from '@contentfactory/react/form/button';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
@@ -420,7 +421,12 @@ export const TeamsComponent = () => {
           'Invite your assistant or team member to manage your account'
         )}
       </div>
-      <div className="my-[16px] flex flex-col gap-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+      <Panel
+        as="div"
+        contentPadding="roomy"
+        className="my-[16px]"
+        contentClassName="flex flex-col gap-[24px]"
+      >
         <div className="flex flex-col gap-[16px]">
           {(data || []).map((p) => (
             <div key={p.user.id} className="flex items-center">
@@ -511,7 +517,7 @@ export const TeamsComponent = () => {
             {t('add_another_member', 'Add another member')}
           </Button>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 };

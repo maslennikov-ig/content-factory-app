@@ -182,7 +182,6 @@ const PROGRESS_SIZE_STYLE =
  * one that joins it.
  */
 const PROGRESS_GEOMETRY_ALLOWED = [
-  'apps/frontend/src/components/media/media.component.tsx',
   'apps/frontend/src/components/third-parties/third-party.media-library.tsx',
 ];
 

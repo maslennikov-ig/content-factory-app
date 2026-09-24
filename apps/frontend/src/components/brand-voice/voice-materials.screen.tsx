@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { Fragment } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
@@ -189,8 +190,9 @@ export function VoiceMaterialsScreen({
       ) : null}
 
       {materials.length === 0 ? (
-        <div
-          className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+        <Panel
+          as="div"
+          contentPadding="default"
           data-voice-materials-empty="true"
         >
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
@@ -199,7 +201,7 @@ export function VoiceMaterialsScreen({
           <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.materialsEmptyBody}
           </p>
-        </div>
+        </Panel>
       ) : (
         <div className="min-w-0 overflow-x-auto rounded-[8px] border border-cf-border bg-cf-surface">
           <table className="w-full border-collapse">

@@ -328,14 +328,18 @@ export function AdminUsersView({
               </div>
             )}
             {data && !loading && data.users.length === 0 && (
-              <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+              <Panel
+                as="div"
+                contentPadding="default"
+                contentClassName="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+              >
                 {status === 'pending'
                   ? t('no_pending_accounts', 'Nobody is waiting for approval.')
                   : t(
                       'no_accounts_found',
                       'No account matches this filter. Try another filter or clear the search.'
                     )}
-              </div>
+              </Panel>
             )}
             {data && data.users.length > 0 && (
               <div className="overflow-hidden rounded-[8px] border border-cf-border bg-cf-surface">

@@ -90,7 +90,7 @@ type Words = {
     /** Подсказка про смену провайдера: идентификаторы моделей не переносятся. */
     providerHint: string;
     /**
-     * Цепочка текстовых вызовов (`content-factory-next-97dq.55`): flex дважды,
+     * Цепочка текстовых вызовов (`content-factory-next-97dq.55`, `97dq.94`): flex один раз,
      * обычный уровень, запасная модель. Действует только на OpenRouter.
      */
     flexLabel: string;
@@ -223,7 +223,7 @@ const ru: Words = {
       'Идентификаторы моделей принадлежат своему провайдеру: «gpt-4.1» ничего не значит для OpenRouter, «openai/gpt-4.1» — для OpenAI. После смены провайдера поля моделей стоит перебрать заново.',
     flexLabel: 'Сначала дешёвый уровень flex',
     flexWhat:
-      'Только OpenRouter. Текстовый вызов дважды пробует уровень flex — он вдвое дешевле, но может ответить «нет мощности», — потом обычный уровень той же модели, потом запасную модель. Выключено — сразу обычный уровень.',
+      'Только OpenRouter. Текстовый вызов один раз пробует уровень flex — он вдвое дешевле, но может ответить «нет мощности», — и ждёт его не дольше 60 секунд (потоковый ответ — до первого слова), потом обычный уровень той же модели, потом запасную модель. Выключено — сразу обычный уровень.',
     fallbackLabel: 'Запасная модель',
     textHint: 'Какой ИИ пишет тексты у пространств на «Ключах системы».',
     imageHint: 'Какой ИИ рисует картинки у пространств на «Ключах системы».',
@@ -335,7 +335,7 @@ const en: Words = {
       'Model ids belong to their provider: «gpt-4.1» means nothing to OpenRouter, «openai/gpt-4.1» nothing to OpenAI. After switching the provider, go through the model fields again.',
     flexLabel: 'Try the cheaper flex tier first',
     flexWhat:
-      'OpenRouter only. A text call tries the flex tier twice — half the price, but it may answer «no capacity» — then the standard tier of the same model, then the fallback model. Off goes straight to the standard tier.',
+      'OpenRouter only. A text call tries the flex tier once — half the price, but it may answer «no capacity» — and waits for it at most 60 seconds (a streamed answer, until its first word), then the standard tier of the same model, then the fallback model. Off goes straight to the standard tier.',
     fallbackLabel: 'Fallback model',
     textHint: 'Which AI writes the texts of workspaces on «System keys».',
     imageHint: 'Which AI draws the images of workspaces on «System keys».',

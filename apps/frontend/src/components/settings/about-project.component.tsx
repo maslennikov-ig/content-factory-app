@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import React, { useCallback } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -48,7 +49,8 @@ export const AboutProjectComponent = () => {
     <div className="flex flex-col gap-[16px]">
       <h3 className="cf-heading-lg text-cf-ink">{t('about_project', 'About')}</h3>
 
-      <dl className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+      <Panel as="div" contentPadding="snug">
+        <dl className="flex flex-col gap-[8px]">
         <div className="flex flex-wrap items-baseline gap-[8px]">
           <dt className="cf-body-sm text-cf-ink-muted">
             {t('about_version', 'Version')}
@@ -62,6 +64,7 @@ export const AboutProjectComponent = () => {
           <dd className="cf-label-sm text-cf-ink">AGPL-3.0</dd>
         </div>
       </dl>
+      </Panel>
 
       <p className="max-w-[70ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
         {t(

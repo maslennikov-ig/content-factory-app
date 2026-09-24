@@ -480,7 +480,7 @@ export function AdaptationPicker({
                   label: `${copy.stateFilterWords[value]} · ${stateCounts[value]}`,
                 }))}
                 data-picker-state-filter={stateFilter}
-                className="max-w-full flex-wrap"
+                wrap
               />
               <Hint label={copy.stateFilterHintLabel}>
                 {copy.stateFilterHint}

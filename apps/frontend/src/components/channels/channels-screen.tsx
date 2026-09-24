@@ -249,12 +249,14 @@ export function ChannelsScreen() {
                     ]}
                   />
                 </div>
-                <div className="max-w-full overflow-x-auto">
+                <div className="min-w-0 max-w-full">
+                  {/* Четыре отбора с числами: на узком экране — перенос, а не прокрутка. */}
                   <Segmented
                     label={t.filter}
                     value={filter}
                     onChange={setFilter}
                     options={filters}
+                    wrap
                   />
                 </div>
                 <Input

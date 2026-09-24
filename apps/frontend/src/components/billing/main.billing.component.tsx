@@ -26,6 +26,7 @@ import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezon
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import i18next from 'i18next';
 import { BillingManageView } from './billing-manage.view';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 
 export const Prorate: FC<{
   period: 'MONTHLY' | 'YEARLY';
@@ -224,6 +225,15 @@ export const MainBillingComponent: FC<{
   const utm = useUtmUrl();
   const t = useT();
   const queryParams = useSearchParams();
+  /*
+    Subscribe, cancel, the discount and finishing the trial are the
+    administrator's (`zg8w`, owner's decision of 24.09.2026): the server
+    answers 403 to anyone else, so their buttons are off here and the view
+    says why, instead of a press that fails.
+  */
+  const canManage = isOrganizationAdmin(user?.role);
+  // Unknown user — loading, not «only an administrator» (review F9).
+  const userKnown = Boolean(user);
   const [finishTrial, setFinishTrial] = useState(
     !!queryParams.get('finishTrial')
   );
@@ -254,8 +264,10 @@ export const MainBillingComponent: FC<{
     setSubscription(sub);
   }, [sub]);
   const updatePayment = useCallback(async () => {
-    const { portal } = await (await fetch('/billing/portal')).json();
-    window.location.href = portal;
+    const response = await fetch('/billing/portal');
+    if (!response.ok) return;
+    const { portal } = await response.json();
+    if (portal) window.location.href = portal;
   }, []);
   const currentPackage = useMemo(() => {
     if (!subscription) {
@@ -447,9 +459,11 @@ export const MainBillingComponent: FC<{
   );
   return (
     <>
-      {finishTrial && <FinishTrial close={() => setFinishTrial(false)} />}
+      {finishTrial && canManage && (
+        <FinishTrial close={() => setFinishTrial(false)} />
+      )}
       <BillingManageView
-        state={loading ? 'disabled' : 'default'}
+        state={!userKnown ? 'loading' : loading ? 'disabled' : 'default'}
         locale={i18next.resolvedLanguage?.startsWith('ru') ? 'ru' : 'en'}
         plans={visiblePlans.map(([id, plan]) => ({
           id,
@@ -459,6 +473,7 @@ export const MainBillingComponent: FC<{
           features: [],
         }))}
         currentPlan={currentPackage || subscription?.subscriptionTier || 'FREE'}
+        adminOnly={!canManage}
         period={monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY'}
         notice={
           subscription?.cancelAt && isGeneral
@@ -504,7 +519,9 @@ export const MainBillingComponent: FC<{
                     <Button
                       loading={loading}
                       disabled={
-                        current || (!!subscription?.cancelAt && name === 'FREE')
+                        !canManage ||
+                        current ||
+                        (!!subscription?.cancelAt && name === 'FREE')
                       }
                       variant={
                         name === 'FREE' && subscription
@@ -546,7 +563,13 @@ export const MainBillingComponent: FC<{
           <div className="mt-[24px]">
             {!!subscription?.id && (
               <div className="flex flex-wrap gap-[8px]">
-                <Button variant="secondary" onClick={updatePayment}>
+                {/* The portal is the administrator's too (review F5 of the
+                    fifteenth walk): the server answers 403 to anyone else. */}
+                <Button
+                  variant="secondary"
+                  disabled={!canManage}
+                  onClick={updatePayment}
+                >
                   {t(
                     'update_payment_method_invoices_history',
                     'Update payment method / invoices'
@@ -555,6 +578,7 @@ export const MainBillingComponent: FC<{
                 {isGeneral && !subscription?.cancelAt && (
                   <Button
                     variant="destructive"
+                    disabled={!canManage}
                     loading={loading}
                     onClick={moveToCheckout('FREE')}
                   >

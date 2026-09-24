@@ -375,6 +375,10 @@ export class PostsController {
   }
 
   @Post('/separate-posts')
+  // Editor and above (`content-factory-next-zg8w`, owner's decision of
+  // 24.09.2026): splitting a text into a thread is writing a post, and its AI
+  // call is billed to the workspace.
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
   async separatePosts(
     @GetOrgFromRequest() org: Organization,
     @Body() body: { content: string; len: number }

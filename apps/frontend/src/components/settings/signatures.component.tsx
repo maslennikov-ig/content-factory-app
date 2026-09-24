@@ -1,3 +1,4 @@
+import { Panel } from '@contentfactory/react/layout';
 import React, { FC, Fragment, useCallback } from 'react';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import useSWR from 'swr';
@@ -74,7 +75,12 @@ export const SignaturesComponent: FC<{
           'You can add signatures to your account to be used in your posts.'
         )}
       </div>
-      <div className="my-[16px] flex items-center gap-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+      <Panel
+        as="div"
+        contentPadding="roomy"
+        className="my-[16px]"
+        contentClassName="flex items-center gap-[24px]"
+      >
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div
@@ -137,7 +143,7 @@ export const SignaturesComponent: FC<{
             </Button>
           </div>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 };

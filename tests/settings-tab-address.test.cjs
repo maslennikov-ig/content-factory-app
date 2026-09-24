@@ -186,6 +186,11 @@ const settings = loadTypeScriptModule(
     '@contentfactory/frontend/components/settings/about-project.component': {
       AboutProjectComponent: Empty,
     },
+    // The settings modal card moved onto the shared panel in 97dq.76.
+    '@contentfactory/react/layout': {
+      Panel: ({ as: Tag = 'section', className, contentClassName, contentPadding: _padding, children, ...props }) =>
+        React.createElement(Tag, { ...props, className }, React.createElement('div', { className: contentClassName }, children)),
+    },
     '@contentfactory/react/form/button': {
       Button: ({ children, ...props }) => h('button', props, children),
     },

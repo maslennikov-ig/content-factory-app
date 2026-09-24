@@ -86,10 +86,10 @@ const input = (overrides = {}) => ({
 });
 
 describe('core-write/v11', () => {
-  test('своя версия (v12 с `97dq.85`), v9–v11 остаются для квитанций', () => {
+  test('своя версия (v13 с `97dq.90`), v9–v12 остаются для квитанций', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v12');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v13');
     expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
     expect(v11.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
     expect(
@@ -339,6 +339,6 @@ describe('the core keeps the author’s caveats (97dq.53)', () => {
 
   test('released receipts keep their contract: v11 does not carry the rule', () => {
     expect(v11.coreWriteSystemV11('ru', '')).not.toContain('Оговорки человека');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v13');
   });
 });

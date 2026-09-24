@@ -216,6 +216,84 @@ const ownRow = (statement: string): PieceFactV2 => ({
 export const settleOwnFacts = (input: {
   facts: readonly PieceFactV2[];
   personText: string;
+}): PieceFactV2[] => settleOwnFactRows(input);
+
+/** Ключ строки как отрезок текста: слова через один пробел, без конечной точки. */
+const containmentKey = (statement: string): string =>
+  statementMatchKey(statement)
+    .replace(/[^\p{L}\p{Nd}%]+/gu, ' ')
+    .trim();
+
+/** Есть ли у строки опора: источник, память или адрес. */
+const anchored = (fact: PieceFactV2): boolean =>
+  Boolean(fact.evidenceId || fact.factId || fact.sourceUrl);
+
+/** Слова отрицания, которые переворачивают вложенную строку. */
+const NEGATION_WORDS = new Set([
+  'не', 'нет', 'ни', 'без', 'никогда', 'ничуть', 'отнюдь',
+  'not', 'no', 'never', 'without', 'none', 'nor', 'cannot',
+  // «isn't» reads as «isn t» once punctuation is gone: the «t» is the negation.
+  't',
+]);
+
+/**
+ * Стоит ли `inner` внутри `outer` целыми словами так, что рядом с ним нет
+ * отрицания: «не стало больше» — не повтор «стало больше», а обратное.
+ */
+const containedPlainly = (outer: string, inner: string): boolean => {
+  const words = outer.split(' ');
+  const part = inner.split(' ');
+  for (let start = 0; start + part.length <= words.length; start += 1) {
+    if (!part.every((word, offset) => words[start + offset] === word)) continue;
+    const before = words[start - 1];
+    const after = words[start + part.length];
+    if (NEGATION_WORDS.has(before ?? '') || NEGATION_WORDS.has(after ?? '')) continue;
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Строка, чьё утверждение целиком стоит внутри другой строки, — повтор, а не
+ * второй факт (`content-factory-next-97dq.90`, `cnt-36`): разбор дал
+ * «Вдвое меньше.» рядом с «Созвонов по статусу стало вдвое меньше.», и
+ * человек видел в квитанции одно число дважды, второй раз без того, чего оно
+ * меньше.
+ *
+ * Сравниваются целые слова: «вдвое меньше» внутри «стало вдвое меньше» —
+ * повтор, «10» внутри «100» — нет. Совпавшие целиком остаются первой из них.
+ *
+ * Только внутри одного `kind` и только когда опоры (поиск, память, адрес)
+ * нет ни у одной из двух строк (ревью W1 пятнадцатого захода, F9): своя
+ * строка «выручка выросла» не уходит в чужую «выручка выросла на 5% у
+ * конкурентов», и вместе с повтором не уходит источник. Отрицание рядом с
+ * вложенными словами — «не стало больше» при «стало больше» — делает строки
+ * разными, и обе остаются.
+ *
+ * Только среди строк разбора, до того как числа человека добирают свои
+ * строки из его предложений: добранная строка — целое предложение с
+ * преамбулой («Хочу разобраться, как… охватил 25 тысяч человек»), и рядом с
+ * ней атомарная строка разбора — не повтор, а лучшая форма того же.
+ */
+export const dropContainedFacts = (facts: readonly PieceFactV2[]): PieceFactV2[] => {
+  const keys = facts.map((fact) => containmentKey(fact.statement));
+  return facts.filter((fact, index) => {
+    const key = keys[index];
+    if (!key || anchored(fact)) return true;
+    return !facts.some((other, otherIndex) => {
+      if (otherIndex === index) return false;
+      const otherKey = keys[otherIndex];
+      if (!otherKey) return false;
+      if (other.kind !== fact.kind || anchored(other)) return false;
+      if (otherKey === key) return otherIndex < index;
+      return containedPlainly(otherKey, key);
+    });
+  });
+};
+
+const settleOwnFactRows = (input: {
+  facts: readonly PieceFactV2[];
+  personText: string;
 }): PieceFactV2[] => {
   const rows: PieceFactV2[] = [];
   for (const fact of input.facts) {
@@ -228,6 +306,9 @@ export const settleOwnFacts = (input: {
       numbersIn(statement).length > 1 ? splitOwnStatement(statement) : [statement];
     for (const part of parts) rows.push({ ...fact, statement: part });
   }
+  const settled = dropContainedFacts(rows);
+  rows.length = 0;
+  rows.push(...settled);
 
   /*
     Предложения режутся ДО того, как схлопнутся пробелы: список без точек в

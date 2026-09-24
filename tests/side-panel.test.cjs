@@ -107,13 +107,71 @@ test('dragging resizes; dragging past the minimum hides and keeps the last good 
 
   const again = handle();
   fireEvent.pointerDown(again, { clientX: 500, button: 0 });
-  fireEvent.pointerMove(again, { clientX: 760 });
-  // Clamped at the minimum while the pointer is still down…
+  fireEvent.pointerMove(again, { clientX: 700 });
+  // Clamped at the minimum while the pointer is still near it…
   expect(again.getAttribute('aria-valuenow')).toBe('280');
-  fireEvent.pointerUp(again, { clientX: 760 });
-  // …and hidden on release, the width it had before the drag kept.
+  expect(screen.queryByRole('button', { name: 'Показать настройки' })).toBeNull();
+  fireEvent.pointerMove(again, { clientX: 760 });
+  // …and hidden at once past it, before the release (`97dq.93`), the width it
+  // had before the drag kept.
   expect(screen.getByRole('button', { name: 'Показать настройки' })).toBeTruthy();
   expect(stored()).toEqual({ width: 440, hidden: true });
+  fireEvent.pointerUp(handle(), { clientX: 760 });
+  expect(screen.getByRole('button', { name: 'Показать настройки' })).toBeTruthy();
+  expect(stored()).toEqual({ width: 440, hidden: true });
+});
+
+test('the same drag takes it back: dragging out again opens the panel live and goes on sizing it (97dq.93)', () => {
+  mount();
+  const separator = handle();
+  fireEvent.pointerDown(separator, { clientX: 500, button: 0 });
+  fireEvent.pointerMove(separator, { clientX: 760 });
+  const panel = () => document.querySelector('[data-side-panel]').getAttribute('data-side-panel-hidden');
+  expect(panel()).toBe('true');
+  // Resting on the line does not flicker: 250 px is above the hide line
+  // (240) but short of the reopen one (260).
+  fireEvent.pointerMove(handle(), { clientX: 650 });
+  expect(panel()).toBe('true');
+  fireEvent.pointerMove(handle(), { clientX: 640 });
+  expect(panel()).toBe('false');
+  expect(handle().getAttribute('aria-valuenow')).toBe('280');
+  fireEvent.pointerMove(handle(), { clientX: 600 });
+  expect(handle().getAttribute('aria-valuenow')).toBe('300');
+  fireEvent.pointerUp(handle(), { clientX: 600 });
+  expect(stored()).toEqual({ width: 300, hidden: false });
+});
+
+test('a controlled panel asks its owner live, once per crossing (the navigation, 97dq.93)', () => {
+  const changes = [];
+  const props = (collapsed) => ({
+    id: 'navigation',
+    side: 'start',
+    breakpoint: 'none',
+    label: 'Панель навигации',
+    copy: COPY,
+    defaultWidth: 248,
+    minWidth: 200,
+    maxWidth: 360,
+    railWidth: 72,
+    collapsed,
+    onCollapsedChange: (next) => {
+      changes.push(next);
+      view.rerender(h(SidePanel, props(next), h('nav', { 'aria-label': 'full rail' })));
+    },
+    showHideButton: false,
+    rail: h('nav', { 'aria-label': 'icon rail' }),
+  });
+  const view = render(h(SidePanel, props(false), h('nav', { 'aria-label': 'full rail' })));
+  fireEvent.pointerDown(handle(), { clientX: 248, button: 0 });
+  for (const x of [220, 180, 150, 140]) fireEvent.pointerMove(handle(), { clientX: x });
+  // Collapsed while the pointer is still down.
+  expect(changes).toEqual([true]);
+  expect(screen.getByRole('navigation', { name: 'icon rail' })).toBeTruthy();
+  for (const x of [170, 190, 230]) fireEvent.pointerMove(handle(), { clientX: x });
+  expect(changes).toEqual([true, false]);
+  expect(screen.getByRole('navigation', { name: 'full rail' })).toBeTruthy();
+  fireEvent.pointerUp(handle(), { clientX: 230 });
+  expect(changes).toEqual([true, false]);
 });
 
 test('a stored width outside the bounds is clamped; broken or missing storage is survived', () => {

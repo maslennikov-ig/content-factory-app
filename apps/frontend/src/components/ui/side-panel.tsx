@@ -29,9 +29,10 @@ import { Button } from '@contentfactory/react/form/button';
  * - a button hides the panel into a thin rail on its own edge, and the rail
  *   holds the button that brings it back (or a custom `rail`, such as the
  *   navigation's icon rail);
- * - dragging past the minimum hides it; the hidden rail keeps the handle
- *   (`97dq.84`), so dragging it out — or an arrow key towards the middle,
- *   or End — brings the panel back;
+ * - dragging past the minimum hides it at once, while the pointer is still
+ *   down (`97dq.93`), and dragging back out in the same move opens it again;
+ *   the hidden rail keeps the handle (`97dq.84`), so dragging it out — or an
+ *   arrow key towards the middle, or End — brings the panel back;
  * - width and hidden state persist per `id` in `localStorage`, guarded: a
  *   private window or a full quota only loses the memory, never the panel;
  * - width changes animate for 150ms and not at all under reduced motion or
@@ -55,6 +56,12 @@ type Stored = { width?: number; hidden?: boolean };
 const STORAGE_PREFIX = 'cf.side-panel.v1.';
 /** How far past the minimum a drag must go before it means «hide». */
 const HIDE_SLACK = 40;
+/**
+ * A drag that hid the panel opens it again this much closer to the minimum
+ * than where it hid (`97dq.93`): a hand resting on the line does not make
+ * the panel flicker between the two.
+ */
+const REOPEN_SLACK = HIDE_SLACK / 2;
 const STEP = 16;
 const BIG_STEP = 64;
 
@@ -237,10 +244,12 @@ export function SidePanel({
     x: number;
     width: number;
     next: number;
-    /** Started on the hidden rail: a release never hides (`97dq.84`). */
+    /** Started on the hidden rail (`97dq.84`). */
     fromRail: boolean;
     /** The drag out of the rail has opened the panel already. */
     opened?: boolean;
+    /** Hidden right now, by this drag or before it (`97dq.93`). */
+    collapsed: boolean;
   } | null>(null);
   const controlled = collapsed !== undefined;
   const hidden = controlled ? collapsed : ownHidden;
@@ -263,6 +272,15 @@ export function SidePanel({
     if (!restored) return;
     writeStored(id, controlled ? { width } : { width, hidden: ownHidden });
   }, [id, restored, width, ownHidden, controlled]);
+
+  /** Hidden state without touching a drag: the drag itself hides (`97dq.93`). */
+  const applyHidden = useCallback(
+    (next: boolean) => {
+      if (!controlled) setOwnHidden(next);
+      onCollapsedChange?.(next);
+    },
+    [controlled, onCollapsedChange]
+  );
 
   const setHidden = useCallback(
     (next: boolean) => {
@@ -321,6 +339,7 @@ export function SidePanel({
       width: start,
       next: start,
       fromRail: hidden,
+      collapsed: hidden,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDragging(true);
@@ -331,23 +350,46 @@ export function SidePanel({
     if (!state) return;
     const next = state.width + grows(event.clientX - state.x);
     state.next = next;
-    if (hidden) {
-      // Out of the rail (`97dq.84`): once the drag is clearly outwards the
-      // panel opens and the same drag goes on sizing it.
-      if (next < railWidth + HIDE_SLACK) return;
-      // One open per drag: a controlled parent re-renders a move later.
-      if (!state.opened) {
-        state.opened = true;
-        if (!controlled) setOwnHidden(false);
-        onCollapsedChange?.(false);
-      }
+    /*
+      Two lines and a gap between them (`97dq.93`): a drag that started on
+      the rail opens past `railWidth + HIDE_SLACK` and folds back only nearer
+      the rail than that; a drag that started on the open panel hides past
+      `minWidth - HIDE_SLACK` and opens again a little before the minimum. The
+      gap keeps a hand resting on a line from flickering the panel.
+    */
+    const opensAt = state.fromRail
+      ? railWidth + HIDE_SLACK
+      : minWidth - REOPEN_SLACK;
+    const hidesBelow = state.fromRail
+      ? railWidth + REOPEN_SLACK
+      : minWidth - HIDE_SLACK;
+    if (state.collapsed) {
+      // Out of the rail (`97dq.84`), or back out after this drag hid the
+      // panel: it opens and the same drag goes on sizing it.
+      if (next < opensAt) return;
+      // One change per crossing: a controlled parent re-renders a move later.
+      state.collapsed = false;
+      state.opened = true;
+      applyHidden(false);
+    } else if (next < hidesBelow) {
+      /*
+        Past the line the panel goes away now, under the pointer, not on
+        release (`97dq.93`, fifteenth walk, D1): the person sees the result
+        while still able to take it back. The width it had before the drag
+        is what the reopen button restores.
+      */
+      state.collapsed = true;
+      setWidth(clampWidth(state.fromRail ? minWidth : state.width, minWidth, maxWidth));
+      applyHidden(true);
+      return;
     }
     setWidth(clampWidth(next, minWidth, maxWidth));
   };
 
   /**
    * `commit` is false when the browser takes the pointer away (cancel, lost
-   * capture): the drag stops where it was and never hides the panel.
+   * capture): the drag stops where it was and never hides the panel — one
+   * this drag hid comes back.
    */
   const endDrag = (event: PointerEvent<HTMLDivElement>, commit = true) => {
     const state = drag.current;
@@ -356,9 +398,10 @@ export function SidePanel({
     if (event.currentTarget.hasPointerCapture?.(event.pointerId))
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     setDragging(false);
-    if (commit && !state.fromRail && state.next < minWidth - HIDE_SLACK) {
-      setWidth(clampWidth(state.width, minWidth, maxWidth));
-      setHidden(true);
+    if (!commit && state.collapsed && !state.fromRail) {
+      // Where it was when the pointer crossed the line: at the minimum.
+      setWidth(minWidth);
+      applyHidden(false);
     }
   };
 

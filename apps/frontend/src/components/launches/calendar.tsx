@@ -647,9 +647,14 @@ export const MonthView = () => {
 export const ListView = () => {
   const t = useT();
   const user = useUser();
-  const { integrations, loading, listPosts, listState } = useCalendar();
-  const emptyMessage =
-    listState === 'scheduled'
+  const { integrations, loading, listPosts, listState, listSearched } =
+    useCalendar();
+  const language = useInterfaceLanguage();
+  const planning = calendarPlanningCopy[language.startsWith('ru') ? 'ru' : 'en'];
+  // A search that found nothing says so, not «no posts» (`odb8.4.1`).
+  const emptyMessage = listSearched
+    ? planning.listSearchEmpty(listSearched)
+    : listState === 'scheduled'
       ? t('no_upcoming_posts', 'No upcoming posts scheduled')
       : listState === 'draft'
       ? t('no_draft_posts', 'No draft posts')

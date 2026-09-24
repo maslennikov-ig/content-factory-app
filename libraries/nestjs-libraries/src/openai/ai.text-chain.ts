@@ -5,7 +5,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  *
  * `content-factory-next-97dq.55`. Owner's decision of 23.09.2026: text runs on
  * `openai/gpt-6-luna` with reasoning effort `medium`, and each call walks
- * flex → flex → standard → `z-ai/glm-5.3`. Batch is not used, because a person
+ * flex → standard → `z-ai/glm-5.3` (one flex attempt of 60 s since `97dq.94`;
+ * two of three minutes each before it). Batch is not used, because a person
  * is waiting on every call.
  *
  * The chain is a `fetch`, not a wrapper around one SDK. LangChain's
@@ -25,10 +26,46 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  * that compiles either of them (`tests/helpers/ai-text-chain.cjs`).
  */
 
-/** Flex waits in a queue for spare capacity, so it gets three times as long. */
-export const FLEX_ATTEMPT_TIMEOUT_MS = 180_000;
-/** The deadline a standard call has had since `ai.clients.ts` gained one. */
+/**
+ * One flex attempt, as long as a standard one (`content-factory-next-97dq.94`,
+ * owner's decision of 24.09.2026). Until then background text waited on flex
+ * twice for three minutes each before the standard tier — up to six minutes a
+ * person could spend looking at a spinner.
+ *
+ * This is the time to the answer's start: for a stream, the first event; for
+ * a non-streaming call, the response headers. A non-streaming body then gets
+ * `generationTimeoutMs` for its cap, so a healthy long generation is not cut
+ * at 60 seconds (review F2 of the fifteenth walk).
+ */
+export const FLEX_ATTEMPT_TIMEOUT_MS = 60_000;
+/** The same time to the answer's start for a standard attempt. */
 export const STANDARD_ATTEMPT_TIMEOUT_MS = 60_000;
+/**
+ * The slowest output rate a healthy non-streaming generation is allowed
+ * before its attempt counts as stalled. Conservative on purpose: reasoning
+ * tokens count against it and flex is the slow tier.
+ */
+export const GENERATION_TOKENS_PER_SECOND = 100;
+/**
+ * The longest a non-streaming attempt may run, whatever its cap: the flex
+ * attempt length before `97dq.94`, which served long drafts at half price.
+ */
+export const MAX_GENERATION_TIMEOUT_MS = 180_000;
+
+/**
+ * How long a non-streaming attempt may take, from sending to the last byte of
+ * its body, for the output ceiling it sends (review F2 of the fifteenth
+ * walk). The start of the answer still has to arrive within the attempt's own
+ * deadline; this is the room for the rest. An uncapped call gets the maximum.
+ */
+export const generationTimeoutMs = (cap?: number): number =>
+  typeof cap === 'number' && cap > 0
+    ? Math.min(
+        MAX_GENERATION_TIMEOUT_MS,
+        STANDARD_ATTEMPT_TIMEOUT_MS +
+          Math.ceil((cap * 1000) / GENERATION_TOKENS_PER_SECOND)
+      )
+    : MAX_GENERATION_TIMEOUT_MS;
 /**
  * An interactive chat waits on flex for its first token at most this long
  * (review F8 of the fourteenth walk). For a stream the deadline ends at the
@@ -88,10 +125,17 @@ export interface TextChainSource {
   /**
    * `interactive` — a person is waiting on the screen (the copilot chat,
    * `97dq.63`): one flex attempt with a short time-to-first-token deadline,
-   * then standard, then the fallback model. Background text keeps the
-   * default: two long flex attempts before standard.
+   * then standard, then the fallback model. Background text has the same
+   * shape with a 60-second flex attempt (`97dq.94`).
    */
   profile?: 'background' | 'interactive';
+  /**
+   * Known output ceilings per model id, in tokens (review F12 of the
+   * fifteenth walk). A capped attempt never asks for more than its model's
+   * ceiling. None are configured today, so the retry after a cut answer stays
+   * within twice the caller's cap (`lengthRetryCap`).
+   */
+  outputLimits?: Readonly<Record<string, number>>;
 }
 
 export interface TextAttempt {
@@ -141,14 +185,16 @@ export const planTextAttempts = (
   const settings = source.textChain ?? defaultTextChainSettings();
   const steps: Array<Omit<TextAttempt, 'number'>> = [];
   if (settings.flex && flexCapable(model)) {
-    if (source.profile === 'interactive') {
-      steps.push({ model, flex: true, timeoutMs: INTERACTIVE_FLEX_TIMEOUT_MS });
-    } else {
-      steps.push(
-        { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS },
-        { model, flex: true, timeoutMs: FLEX_ATTEMPT_TIMEOUT_MS }
-      );
-    }
+    // One flex attempt (`97dq.94`): the interactive chat keeps its shorter
+    // time to first token.
+    steps.push({
+      model,
+      flex: true,
+      timeoutMs:
+        source.profile === 'interactive'
+          ? INTERACTIVE_FLEX_TIMEOUT_MS
+          : FLEX_ATTEMPT_TIMEOUT_MS,
+    });
   }
   steps.push({ model, flex: false, timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS });
   const fallback = settings.fallbackModel.trim();
@@ -163,36 +209,61 @@ export const planTextAttempts = (
 };
 
 /**
- * How long the SDK may wait on the whole chain. The SDK arms its own timer
- * around `fetch`, and its default 60 seconds would end the chain in the
- * middle of the first flex attempt.
+ * The longest one non-streaming attempt may take for a caller's cap: the
+ * attempt's own deadline for the start of the answer, or the generation room
+ * of the ceiling it sends, whichever is longer. `undefined` means the cap is
+ * not known yet (a client serves calls of any cap), so the maximum applies.
+ */
+const attemptWindowMs = (attempt: TextAttempt, callerCap?: number) =>
+  Math.max(
+    attempt.timeoutMs,
+    generationTimeoutMs(
+      callerCap === undefined ? undefined : withReasoningHeadroom(callerCap)
+    )
+  );
+
+/** The longest one pass down the chain may take for a caller's cap. */
+export const chainPassMs = (
+  model: string,
+  source: TextChainSource,
+  callerCap?: number
+): number =>
+  planTextAttempts(model, source).reduce(
+    (total, attempt) => total + attemptWindowMs(attempt, callerCap),
+    0
+  );
+
+/**
+ * How long the SDK may wait on the whole call. The SDK arms its own timer
+ * around `fetch` and clears it only when `fetch` resolves, so it covers every
+ * attempt and — inside the chain — the one retry after a cut answer. That
+ * retry is a second pass with its own budget (review F1 of the fifteenth
+ * walk), not a remainder of the first: the SDK must never abort it in the
+ * middle. The transport runs the retry only while that budget is left.
  */
 export const textChainBudgetMs = (
   model: string,
   source: TextChainSource
 ): number =>
-  planTextAttempts(model, source).reduce(
-    (total, attempt) => total + attempt.timeoutMs,
-    CHAIN_BUDGET_MARGIN_MS
-  );
+  textChainApplies(source)
+    ? CHAIN_BUDGET_MARGIN_MS + 2 * chainPassMs(model, source)
+    : CHAIN_BUDGET_MARGIN_MS + STANDARD_ATTEMPT_TIMEOUT_MS;
 
 /**
- * The longest chain any model can walk under these settings: two flex
- * attempts, the standard one and the fallback. A client that serves every role
- * (the direct OpenAI client) needs this budget, not the one of the default
- * role's model: a role whose model is flex-capable under a non-flex default
- * would otherwise be aborted by the SDK in the middle of flex (correctness
- * review F14).
+ * The longest chain any model can walk under these settings: the flex
+ * attempt, the standard one and the fallback, twice (the retry after a cut
+ * answer). A client that serves every role (the direct OpenAI client) needs
+ * this budget, not the one of the default role's model: a role whose model is
+ * flex-capable under a non-flex default would otherwise be aborted by the SDK
+ * in the middle of flex (correctness review F14).
  */
 export const maxTextChainBudgetMs = (source: TextChainSource): number => {
   if (!textChainApplies(source)) return STANDARD_ATTEMPT_TIMEOUT_MS;
   const settings = source.textChain ?? defaultTextChainSettings();
-  return (
-    CHAIN_BUDGET_MARGIN_MS +
-    (settings.flex ? 2 * FLEX_ATTEMPT_TIMEOUT_MS : 0) +
-    STANDARD_ATTEMPT_TIMEOUT_MS +
-    (settings.fallbackModel.trim() ? STANDARD_ATTEMPT_TIMEOUT_MS : 0)
-  );
+  const attempts =
+    (settings.flex ? 1 : 0) + 1 + (settings.fallbackModel.trim() ? 1 : 0);
+  // Every attempt window is at least the generation maximum for an unknown cap.
+  return CHAIN_BUDGET_MARGIN_MS + 2 * attempts * MAX_GENERATION_TIMEOUT_MS;
 };
 
 /**
@@ -203,7 +274,9 @@ export const maxTextChainBudgetMs = (source: TextChainSource): number => {
  */
 export const buildAttemptBody = (
   original: Record<string, unknown>,
-  attempt: TextAttempt
+  attempt: Pick<TextAttempt, 'model' | 'flex'>,
+  /** The attempt model's known output ceiling, when there is one (F12). */
+  outputLimit?: number
 ): Record<string, unknown> => {
   const body: Record<string, unknown> = { ...original, model: attempt.model };
   delete body.service_tier;
@@ -220,21 +293,45 @@ export const buildAttemptBody = (
   ) {
     body.reasoning = { effort: 'medium' };
   }
-  if (body.reasoning !== undefined || body.reasoning_effort !== undefined) {
-    // Reasoning tokens are spent out of the same output ceiling. A caller's
-    // cap was sized for the answer alone; without headroom a 2 048 cap left
-    // 111 tokens for the answer and the intake parse failed on «length»
-    // (production, 23.09.2026).
-    for (const key of ['max_tokens', 'max_completion_tokens'] as const) {
-      const cap = original[key];
-      if (typeof cap === 'number') body[key] = cap + REASONING_HEADROOM_TOKENS;
-    }
+  // Reasoning tokens are spent out of the same output ceiling. A caller's cap
+  // is the visible budget — sized for the answer alone — so every capped
+  // attempt gets the headroom on top of it. Not only when the body asks for
+  // reasoning (`content-factory-next-97dq.91`): a model reasons by its own
+  // default too, the fallback included, and on 24.09.2026 a draft call spent
+  // 1 887 of its 2 162 completion tokens on reasoning, so the JSON ran out
+  // inside the author's link. The first cut was intake on 23.09.2026: a
+  // 2 048 cap left 111 tokens for the answer.
+  for (const key of ['max_tokens', 'max_completion_tokens'] as const) {
+    const cap = original[key];
+    if (typeof cap === 'number')
+      body[key] = clampToOutputLimit(withReasoningHeadroom(cap), outputLimit);
   }
   return body;
 };
 
-/** Output tokens added to a caller's cap when the attempt reasons. */
+/** Output tokens added to a caller's visible cap for reasoning. */
 export const REASONING_HEADROOM_TOKENS = 8_192;
+
+/** A visible budget plus the room reasoning may take out of the same ceiling. */
+export const withReasoningHeadroom = (visibleTokens: number): number =>
+  visibleTokens + REASONING_HEADROOM_TOKENS;
+
+/** A ceiling never above the model's known output limit (review F12). */
+export const clampToOutputLimit = (tokens: number, outputLimit?: number) =>
+  typeof outputLimit === 'number' && outputLimit > 0
+    ? Math.min(tokens, outputLimit)
+    : tokens;
+
+/**
+ * The caller's cap for the one retry after an answer cut at the ceiling:
+ * twice the visible budget. Every attempt adds the reasoning headroom on top
+ * (`buildAttemptBody`), so the retry has room for the text and for reasoning
+ * again. Not more than twice (review F12 of the fifteenth walk): the output
+ * limits of the configured models are not known here, and a ceiling above a
+ * model's limit is a 400. A known limit clamps it further.
+ */
+export const lengthRetryCap = (cap: number, outputLimit?: number): number =>
+  clampToOutputLimit(cap * 2, outputLimit);
 
 /* ------------------------------------------------------------------------ */
 /* Usage ledger                                                             */
@@ -261,10 +358,9 @@ export interface TextCallUsage {
    * transport failure after sending). The provider may still have billed it,
    * so the operation's `costUsd` is a lower bound when any call has this.
    *
-   * In memory only (review F7 of the fourteenth walk): `AiUsageRecord` has
-   * no column and no JSON field for it, and this wave changes no schema, so
-   * `columns()` does not carry it and a stored `costUsd` never says it is a
-   * lower bound. Persisting it needs a schema change of its own.
+   * Stored since `content-factory-next-tcxv` in the nullable
+   * `AiUsageRecord.possiblyBilled` (review F7 of the fourteenth walk named
+   * the gap): `columns()` carries it whenever an attempt failed.
    */
   possiblyBilled?: boolean;
 }
@@ -279,6 +375,12 @@ export interface TextUsageColumns {
   reasoningTokens?: number | null;
   cachedTokens?: number | null;
   costUsd?: number | null;
+  /**
+   * Present only when an attempt failed (`tcxv`): `true` — at least one may
+   * have been billed, so `costUsd` is a lower bound; `false` — every failure
+   * was a refusal. Absent — the column stays NULL.
+   */
+  possiblyBilled?: boolean;
 }
 
 const sum = (values: Array<number | undefined>): number | null => {
@@ -319,7 +421,11 @@ export class TextUsageLedger {
     for (const call of pool) {
       if (call.attempt >= deciding.attempt) deciding = call;
     }
+    const failed = this.calls.filter((call) => call.failed);
     return {
+      ...(failed.length
+        ? { possiblyBilled: failed.some((call) => call.possiblyBilled === true) }
+        : {}),
       ...(deciding.model ? { model: deciding.model } : {}),
       serviceTier: deciding.serviceTier ?? null,
       attempt: deciding.attempt,
@@ -478,15 +584,21 @@ const attemptSignal = (outer: AbortSignal | null | undefined, ms: number) => {
   const onOuter = () => controller.abort(outer?.reason);
   if (outer?.aborted) controller.abort(outer.reason);
   else outer?.addEventListener('abort', onOuter, { once: true });
-  const timer = setTimeout(() => {
+  const fire = () => {
     state.timedOut = true;
     controller.abort(new AttemptTimeout());
-  }, ms);
+  };
+  let timer = setTimeout(fire, ms);
   return {
     signal: controller.signal,
     state,
     /** Stop the deadline once the attempt has committed or failed. */
     settle: () => clearTimeout(timer),
+    /** Replace the deadline: `ms` from now (the body of a non-stream). */
+    rearm: (ms: number) => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted) timer = setTimeout(fire, Math.max(0, ms));
+    },
     release: () => {
       clearTimeout(timer);
       outer?.removeEventListener('abort', onOuter);
@@ -648,7 +760,192 @@ const parseBody = (init?: RequestInit): Record<string, unknown> | undefined => {
  */
 export const createTextChainFetch = (
   source: TextChainSource,
-  baseFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
+  baseFetch: FetchLike = (input, init) => globalThis.fetch(input, init),
+  options: {
+    /**
+     * The SDK's own deadline around this `fetch`, when the client sets one.
+     * The retry after a cut answer starts only while its pass fits in what is
+     * left of it (review F1 of the fifteenth walk). Absent: the call's own
+     * `textChainBudgetMs`.
+     */
+    budgetMs?: number;
+  } = {}
+): FetchLike =>
+  withLengthRetry(source, sendText(source, baseFetch), options.budgetMs);
+
+/* ------------------------------------------------------------------------ */
+/* An answer cut at the ceiling                                             */
+/* ------------------------------------------------------------------------ */
+
+const CAP_KEYS = ['max_tokens', 'max_completion_tokens'] as const;
+
+/** Whether a request asks for JSON: a response format or a tool call. */
+const expectsJson = (body: Record<string, unknown>): boolean => {
+  const format = body.response_format as { type?: unknown } | undefined;
+  return (
+    (format?.type === 'json_schema' || format?.type === 'json_object') ||
+    (Array.isArray(body.tools) && body.tools.length > 0) ||
+    (Array.isArray(body.functions) && body.functions.length > 0)
+  );
+};
+
+/**
+ * Whether a JSON answer parses. A Markdown fence around it (```json … ```) is
+ * not a cut: LangChain's JSON parser strips it, and treating it as cut paid
+ * for a whole second chain (review F11 of the fifteenth walk).
+ */
+export const parsesAsJson = (value: unknown): boolean => {
+  if (typeof value !== 'string') return true;
+  const fenced = /^\s*```[\w-]*[^\S\n]*\n?([\s\S]*?)\n?[^\S\n]*```\s*$/.exec(value);
+  try {
+    JSON.parse(fenced ? fenced[1] : value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Whether a served answer was cut short (`content-factory-next-97dq.91`):
+ * the provider says `finish_reason: length`, or a JSON answer — content or
+ * tool arguments — does not parse and the provider gave no other reason to
+ * stop. Production, 24.09.2026: `Failed to parse … Unterminated string`,
+ * the JSON cut inside a percent-encoded address.
+ */
+export const answerWasCut = (
+  payload: Record<string, any> | undefined,
+  body: Record<string, unknown>
+): boolean => {
+  const choice = Array.isArray(payload?.choices) ? payload!.choices[0] : undefined;
+  if (!choice) return false;
+  if (choice.finish_reason === 'length') return true;
+  if (choice.finish_reason && choice.finish_reason !== 'stop' &&
+      choice.finish_reason !== 'tool_calls' && choice.finish_reason !== 'function_call')
+    return false;
+  if (!expectsJson(body)) return false;
+  const message = choice.message ?? {};
+  const toolArgs = Array.isArray(message.tool_calls)
+    ? message.tool_calls.map((call: any) => call?.function?.arguments)
+    : [];
+  const format = body.response_format as { type?: unknown } | undefined;
+  const contentIsJson =
+    format?.type === 'json_schema' || format?.type === 'json_object';
+  return (
+    toolArgs.some((args: unknown) => !parsesAsJson(args)) ||
+    (contentIsJson && !parsesAsJson(message.content)) ||
+    (typeof message.function_call?.arguments === 'string' &&
+      !parsesAsJson(message.function_call.arguments))
+  );
+};
+
+/**
+ * One retry with a larger ceiling for an answer cut at the ceiling.
+ *
+ * Every text role reaches the provider through this `fetch`, so the retry
+ * lives here once rather than beside each parser: draft and adaptation,
+ * core-write, extract and review all see the whole answer or the error they
+ * always saw. Only a non-streaming chat completion with a cap is retried —
+ * a stream is already on the screen, and an uncapped call has no ceiling to
+ * raise. The retry is one, never a loop: a second cut reaches the caller as
+ * the first one used to. Both calls are in the ledger, since both were paid.
+ *
+ * Only inside the chain (review F1 of the fifteenth walk). On `workspace_key`
+ * and on the `openai` provider requests leave exactly as built, once per SDK
+ * try: the key is the workspace's, its SDK keeps its own deadline and
+ * retries, and a larger ceiling would change what the workspace pays for.
+ *
+ * The retry is a second pass with a budget of its own: it starts only when
+ * that pass still fits in the SDK's deadline, so the SDK never aborts it in
+ * the middle. A retry that fails — out of time, refused, a ceiling the model
+ * rejects — hands back the first answer, and the caller sees the parse error
+ * it always saw rather than a new one.
+ */
+const withLengthRetry = (
+  source: TextChainSource,
+  send: FetchLike,
+  budgetMs?: number
+): FetchLike => async (input, init) => {
+  if (!textChainApplies(source)) return send(input, init);
+  const startedAt = Date.now();
+  const response = await send(input, init);
+  const url = urlOf(input);
+  if (!isChatCompletions(url, init) || !response.ok) return response;
+  const original = parseBody(init);
+  if (
+    !original ||
+    typeof original.model !== 'string' ||
+    original.stream === true ||
+    Array.isArray(original.plugins)
+  )
+    return response;
+  const capKey = CAP_KEYS.find((key) => typeof original[key] === 'number');
+  if (!capKey) return response;
+  if ((source.passthroughModels ?? []).includes(original.model))
+    return response;
+  const text = await response.text();
+  let payload: Record<string, any> | undefined;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    payload = undefined;
+  }
+  const again = () =>
+    new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: copyHeaders(response.headers),
+    });
+  if (!payload || errorOf(payload) || !answerWasCut(payload, original))
+    return again();
+  const cap = original[capKey] as number;
+  const larger = lengthRetryCap(cap, source.outputLimits?.[original.model]);
+  const what =
+    `model ${String(payload.model ?? original.model)},` +
+    ` finish_reason ${String(payload.choices?.[0]?.finish_reason ?? 'none')}, cap ${cap}`;
+  if (larger <= cap) {
+    console.warn(`AI text: answer cut at the ceiling (${what}); the model allows no larger cap`);
+    return again();
+  }
+  const budget = budgetMs ?? textChainBudgetMs(original.model, source);
+  const left = budget - CHAIN_BUDGET_MARGIN_MS - (Date.now() - startedAt);
+  const needed = chainPassMs(original.model, source, larger);
+  if (left < needed) {
+    console.warn(
+      `AI text: answer cut at the ceiling (${what}); not retrying:` +
+        ` ${Math.max(0, Math.round(left))} ms left of the budget, the retry needs ${needed} ms`
+    );
+    return again();
+  }
+  console.warn(`AI text: answer cut at the ceiling (${what}); retrying once with cap ${larger}`);
+  let retried: Response;
+  try {
+    retried = await send(input, {
+      ...init,
+      body: JSON.stringify({ ...original, [capKey]: larger }),
+    });
+  } catch (error) {
+    if (init?.signal?.aborted) throw error;
+    console.warn(
+      `AI text: the retry after a cut answer failed (${
+        (error as { name?: string } | null)?.name || 'Error'
+      }); returning the first answer`
+    );
+    return again();
+  }
+  if (!retried.ok) {
+    console.warn(
+      `AI text: the retry after a cut answer failed (HTTP ${retried.status}); returning the first answer`
+    );
+    void retried.body?.cancel().catch(() => undefined);
+    return again();
+  }
+  return retried;
+};
+
+/** The chain itself, without the retry after a cut answer. */
+const sendText = (
+  source: TextChainSource,
+  baseFetch: FetchLike
 ): FetchLike => {
   return async (input, init) => {
     const url = urlOf(input);
@@ -678,7 +975,15 @@ export const createTextChainFetch = (
         flex: false,
         timeoutMs: STANDARD_ATTEMPT_TIMEOUT_MS,
       };
-      const response = await baseFetch(input, init);
+      let response: Response;
+      try {
+        response = await baseFetch(input, init);
+      } catch (error) {
+        // The request left and no answer came back: an abort or a transport
+        // failure may still be billed (review F4 of the fifteenth walk).
+        if (!imageRequest) ledger?.record(failedCall(attempt, true));
+        throw error;
+      }
       return imageRequest ? response : observe(response, attempt, ledger, streaming);
     }
 
@@ -693,7 +998,11 @@ export const createTextChainFetch = (
           baseFetch,
           input,
           init,
-          buildAttemptBody(original, attempt),
+          buildAttemptBody(
+            original,
+            attempt,
+            source.outputLimits?.[attempt.model]
+          ),
           attempt,
           attempt.number === attempts.length,
           streaming,
@@ -777,7 +1086,15 @@ const runAttempt = async (
 ): Promise<Response> => {
   const deadline = attemptSignal(init?.signal, attempt.timeoutMs);
   const outer = init?.signal;
+  const startedAt = Date.now();
   let handedOff = false;
+  /** Which deadline is running: the start of the answer, or the body. */
+  let phase: 'start' | 'body' = 'start';
+  const cap = CAP_KEYS.map((key) => body[key]).find(
+    (value): value is number => typeof value === 'number'
+  );
+  // The whole non-streaming attempt, from sending to its last byte (F2).
+  const bodyWindowMs = Math.max(attempt.timeoutMs, generationTimeoutMs(cap));
   /**
    * A rejection from `fetch` or from reading the body. The caller's own
    * abort ends the chain. Anything else is the transport (a refused
@@ -786,7 +1103,12 @@ const runAttempt = async (
    * answer.
    */
   const failure = (error: unknown): never => {
-    if (outer?.aborted) throw error;
+    if (outer?.aborted) {
+      // The caller (the SDK's deadline or a person) ended an attempt that
+      // was already sent: it may be billed (review F4 of the fifteenth walk).
+      ledger?.record(failedCall(attempt, true));
+      throw error;
+    }
     const surfaced = deadline.state.timedOut ? new AttemptTimeout() : error;
     if (last) {
       ledger?.record(failedCall(attempt, true));
@@ -798,7 +1120,9 @@ const runAttempt = async (
         ? 'AttemptTimeout'
         : (error as { name?: string } | null)?.name || 'Error',
       message: deadline.state.timedOut
-        ? `no answer within ${attempt.timeoutMs} ms`
+        ? phase === 'body'
+          ? `the body did not finish within ${bodyWindowMs} ms`
+          : `no answer within ${attempt.timeoutMs} ms`
         : error instanceof Error
         ? error.message
         : String(error),
@@ -817,6 +1141,13 @@ const runAttempt = async (
       });
     } catch (error) {
       return failure(error);
+    }
+    if (!streaming || !response.body) {
+      // The answer has started. A non-streaming body gets the generation
+      // room of its ceiling, counted from sending: a long, healthy draft is
+      // not cut at the start-of-answer deadline (F2).
+      phase = 'body';
+      deadline.rearm(bodyWindowMs - (Date.now() - startedAt));
     }
     const headers = copyHeaders(response.headers);
     const rebuild = (content: BodyInit | null) =>
@@ -909,8 +1240,21 @@ const runAttempt = async (
     // kept in the ledger as a failed attempt rather than a served call (F15).
     const failedEarly = !!early;
     if (failedEarly) ledger?.record(failedCall(attempt, false));
+    let settled = failedEarly;
     const served = () => {
-      if (!failedEarly) ledger?.record(readUsage(observer.result(), attempt));
+      if (settled) return;
+      settled = true;
+      ledger?.record(readUsage(observer.result(), attempt));
+    };
+    /**
+     * A stream that stops before its end — the caller's abort, a cancel, a
+     * dropped connection — was sent and partly generated: it may be billed,
+     * and its usage never arrives (review F4 of the fifteenth walk).
+     */
+    const cut = () => {
+      if (settled) return;
+      settled = true;
+      ledger?.record(failedCall(attempt, true));
     };
     // Delivered. From here the deadline no longer applies; the caller's own
     // signal still does, through the same controller.
@@ -927,17 +1271,26 @@ const runAttempt = async (
         },
         pull: async (controller) => {
           if (ended) return;
-          const { done, value } = await reader.read();
-          if (done) {
+          let chunk: ReadableStreamReadResult<Uint8Array>;
+          try {
+            chunk = await reader.read();
+          } catch (error) {
+            cut();
+            throw error;
+          }
+          if (chunk.done) {
             ended = true;
             served();
             controller.close();
             return;
           }
-          observer.push(value);
-          controller.enqueue(value);
+          observer.push(chunk.value);
+          controller.enqueue(chunk.value);
         },
-        cancel: (reason) => reader.cancel(reason),
+        cancel: (reason) => {
+          if (!ended) cut();
+          return reader.cancel(reason);
+        },
       })
     );
   } finally {

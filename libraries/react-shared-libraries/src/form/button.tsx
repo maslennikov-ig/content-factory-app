@@ -380,16 +380,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
       >
+        {/*
+          Busy keeps the width (`97dq.43` p.5): the spinner is laid over the
+          label, and the label stays in the flow at zero opacity, so the
+          button is exactly as wide as at rest. Before the first measure the
+          spinner takes half the density's height rather than `NaN`.
+        */}
         {loading && (
           <div
             aria-hidden="true"
+            data-button-spinner="true"
             className="absolute inset-0 flex items-center justify-center"
           >
             <ReactLoading
               type="spin"
               color="currentColor"
-              width={height! / 2}
-              height={height! / 2}
+              width={(height ?? (density === 'dense' ? 32 : 40)) / 2}
+              height={(height ?? (density === 'dense' ? 32 : 40)) / 2}
             />
           </div>
         )}

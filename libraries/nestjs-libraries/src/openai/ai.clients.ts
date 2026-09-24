@@ -178,7 +178,11 @@ export const getOpenAiClient = async (organizationId: string) => {
       apiKey: config.apiKey,
       ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
       ...(chained ?? {}),
-      fetch: createTextChainFetch(chainSourceOf(config)),
+      // The transport knows the SDK's deadline, so the retry after a cut
+      // answer starts only while it fits (review F1 of the fifteenth walk).
+      fetch: createTextChainFetch(chainSourceOf(config), undefined, {
+        budgetMs: chained?.timeout,
+      }),
     });
     if (chained) registerChainClient(client, chained.timeout);
     return client;
@@ -230,7 +234,11 @@ export const getChatModel = async (
           ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
           // Every text call leaves through the shared transport: the chain
           // where it applies, a plain pass that reads usage everywhere else.
-          fetch: createTextChainFetch(chainSourceOf(config)),
+          // Outside the chain there is no retry after a cut answer, so the
+          // SDK's 60 s and its retries wrap one request as before.
+          fetch: createTextChainFetch(chainSourceOf(config), undefined, {
+            budgetMs: chained?.timeout,
+          }),
         },
       });
     }
@@ -737,7 +745,9 @@ export const getWebSearchClient = async (
           baseURL: config.baseUrl,
           timeout: WEB_SEARCH_TIMEOUT_MS,
           maxRetries: 0,
-          fetch: createTextChainFetch(chainSourceOf(config)),
+          fetch: createTextChainFetch(chainSourceOf(config), undefined, {
+            budgetMs: WEB_SEARCH_TIMEOUT_MS,
+          }),
         }),
         modelFor('research', config),
         options.maxResults ?? 5

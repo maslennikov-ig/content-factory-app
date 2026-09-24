@@ -947,6 +947,81 @@ describe('the channel workspace talks to its own doors', () => {
     expect(document.querySelector('[data-piece-channel-profile]')).toBeNull();
   });
 
+  /*
+    `content-factory-next-97dq.86`: prod 24.09.2026 — the channel was on
+    «Автопилот», the post after «Бронь» kept `planMode: null` («как в
+    канале») and stayed in the queue. The field sends `null` when the choice
+    equals the channel mode the page shows; the page may show a mode the
+    channel no longer has, so the container reads it again.
+  */
+  const OWN_AUTOPILOT = {
+    ...WITH_DRAFT,
+    channels: [
+      {
+        integrationId: 'int-tg-main',
+        name: 'Основной канал',
+        providerIdentifier: 'telegram',
+        maxLength: 4096,
+        cell: { platform: 'telegram', state: 'draft' },
+        adaptationIds: [TG_DRAFT_ID],
+        // What the page shows: a stale «Бронь».
+        planMode: 'reserve',
+        settings: {
+          options: adapter.DEFAULT_POST_OPTIONS,
+          planMode: 'autopilot',
+          savedAt: '2026-09-24T07:00:00.000Z',
+          textChangedAt: null,
+        },
+      },
+    ],
+  };
+  const PLAN_MODE_URL = '/integrations/int-tg-main/plan-mode';
+  /*
+    Review W1 of the fifteenth walk, F10: the page no longer reads the
+    channel mode before saving. It sends the mode it showed with «как в
+    канале», and the server decides under the channel lock; the field then
+    shows what the server stored.
+  */
+  const ownAutopilotWorkspace = async (stored) => {
+    await workspace({
+      [`GET ${DETAIL_URL}`]: detailDoor(ok(OWN_AUTOPILOT)),
+      [`PUT ${SETTINGS_URL}`]: () =>
+        ok({
+          settings: {
+            options: adapter.DEFAULT_POST_OPTIONS,
+            planMode: stored,
+            savedAt: '2026-09-24T07:05:00.000Z',
+            textChangedAt: null,
+          },
+          adaptation: null,
+        }),
+    });
+    await settle(() => screen.getByLabelText('План').value === 'autopilot');
+  };
+
+  test('«Бронь» shown as the channel mode goes out with the mode the person saw; no read before the save (97dq.86, F10)', async () => {
+    await ownAutopilotWorkspace('reserve');
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'reserve' } });
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    expect(calls.some((call) => call.method === 'GET' && call.url === PLAN_MODE_URL)).toBe(false);
+    expect(calls.find((call) => call.url === SETTINGS_URL).body).toEqual({
+      planMode: null,
+      expectedChannelMode: 'reserve',
+    });
+  });
+
+  test('the field keeps what the server stored: an explicit «Бронь» when the channel had moved on (97dq.86, F10)', async () => {
+    await ownAutopilotWorkspace('reserve');
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('План'), { target: { value: 'reserve' } });
+    });
+    await settle(() => calls.some((call) => call.url === SETTINGS_URL));
+    await settle(() => screen.getByLabelText('План').value === 'reserve');
+    expect(screen.getByLabelText('План').value).toBe('reserve');
+  });
+
   test('the action row of the adaptation is visible, with no «Ещё» menu', async () => {
     await workspace();
     const row = document.querySelector('[data-adaptation-review="adaptation-12-tg"]');

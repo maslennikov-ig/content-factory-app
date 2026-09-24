@@ -708,7 +708,8 @@ model InstanceAiDefaults {
   /// брать из `AI_INCLUDED_MONTHLY_OPERATIONS`; ноль означает отказ.
   monthlyOperations   Int?
   /// Цепочка текстовых вызовов (`content-factory-next-97dq.55`). NULL — flex
-  /// включён: flex → flex → обычный уровень → запасная модель.
+  /// включён: одна попытка flex на 60 с (у потока — до первого токена) →
+  /// обычный уровень → запасная модель (`content-factory-next-97dq.94`).
   textFlexEnabled     Boolean?
   /// Запасная модель последней попытки. NULL или пусто — `z-ai/glm-5.3`
   /// (`DEFAULT_TEXT_FALLBACK_MODEL`).
@@ -2104,10 +2105,19 @@ model AiUsageRecord {
   /// `default`, … as the provider names it.
   serviceTier      String?
   /// 1-based attempt that answered, the highest among the operation's calls:
-  /// flex, flex, standard, fallback model when flex is on.
+  /// flex, standard, fallback model when flex is on (`97dq.94`; rows before it
+  /// counted two flex attempts).
   attempt          Int?
   /// OpenRouter's `usage.cost`, in USD. Exact decimal, because it is money.
   costUsd          Decimal?      @db.Decimal(14, 8)
+  /// An attempt of this operation left and got no answer in time — a deadline
+  /// or a transport failure after sending — so the provider may still have
+  /// billed it, and `costUsd` is a lower bound (`content-factory-next-tcxv`,
+  /// review F7 of the fourteenth walk). Written only when an attempt failed:
+  /// `true` — at least one may have been billed, `false` — every failed
+  /// attempt was refused before any work. NULL — no attempt failed, or the
+  /// row predates the column; nothing is backfilled.
+  possiblyBilled   Boolean?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

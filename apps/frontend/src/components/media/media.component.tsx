@@ -70,7 +70,6 @@ import type {
   MediaLibraryItem,
   UploadedMedia,
 } from '@contentfactory/frontend/components/media/image-editor/types';
-import { Progress } from '@contentfactory/frontend/components/ui/progress';
 // Keep image editing inside Content Factory: the previous vendor editor
 // announced this instance's host name and forwarded stock-photo searches.
 // This replacement loads the selected source locally and saves only through
@@ -515,25 +514,15 @@ export const MediaBox: FC<{
     return (
       <Button
         variant="secondary"
-        disabled={loading || !canWriteMedia}
+        disabled={!canWriteMedia}
+        loading={loading}
+        loadingLabel={t('uploading', 'Uploading')}
         aria-describedby={canWriteMedia ? undefined : readOnlyNoteId}
         onClick={() => uploaderRef?.current?.click()}
-        className="relative cursor-pointer changeColor flex gap-[8px] px-[18px] justify-center items-center rounded-[8px]"
+        className="cursor-pointer changeColor flex gap-[8px] px-[18px] justify-center items-center rounded-[8px]"
       >
-        {loading ? (
-          <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
-            <Progress
-              mode="indeterminate"
-              label={t('uploading', 'Uploading')}
-              className="w-[32px]"
-            />
-          </div>
-        ) : (
-          <PlusIcon size={14} />
-        )}
-        <div className={loading ? 'invisible' : undefined}>
-          {t('upload', 'Upload')}
-        </div>
+        <PlusIcon size={14} />
+        <div>{t('upload', 'Upload')}</div>
       </Button>
     );
   }, [t, loading, canWriteMedia, readOnlyNoteId]);

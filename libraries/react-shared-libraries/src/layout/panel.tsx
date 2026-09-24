@@ -1,11 +1,18 @@
-import { FC, ReactNode } from 'react';
+import { FC, HTMLAttributes, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
-export type PanelContentPadding = 'default' | 'compact' | 'roomy' | 'none';
+export type PanelContentPadding = 'default' | 'compact' | 'snug' | 'roomy' | 'none';
 
 const CONTENT_PADDING: Record<PanelContentPadding, string> = {
   default: 'p-[20px]',
   compact: 'p-[12px]',
+  /**
+   * The lower end of the panel range in `DESIGN.md` (16–24px): a card in a
+   * working column — a question, a note, a list row. The hand-written cards
+   * the consistency audit counted (`97dq.76`, §7.1) were mostly this one, and
+   * without it they could not move here without changing size.
+   */
+  snug: 'p-[16px]',
   /**
    * The upper end of the panel range in `DESIGN.md` (16–24px), for a surface
    * that is a page of settings rather than a card in a list. It exists so the
@@ -27,12 +34,25 @@ export type PanelProps = {
   title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  as?: 'div' | 'section';
-};
+  /**
+   * The element the panel is. A card that is a list item, a form or an
+   * article keeps that meaning (`97dq.76`): the shape is shared, the role
+   * is the call site's.
+   */
+  as?: 'div' | 'section' | 'article' | 'li' | 'form' | 'aside';
+} & Omit<HTMLAttributes<HTMLElement>, 'title' | 'children' | 'className'> & {
+    /** For `as="form"`. */
+    noValidate?: boolean;
+  };
 
 /**
  * Flat content surface. Its border and spacing establish a section without
  * creating the nested-card hierarchy that obscures dense work screens.
+ *
+ * Attributes other than the panel's own (`data-*`, `role`, `aria-*`, `id`,
+ * handlers such as `onSubmit`) land on the outer element, the same one that
+ * carries the border — so a card keeps its test hooks and its landmark when
+ * it moves onto the panel.
  */
 export const Panel: FC<PanelProps> = ({
   children,
@@ -43,11 +63,13 @@ export const Panel: FC<PanelProps> = ({
   description,
   actions,
   as = 'section',
+  ...rest
 }) => {
   const Tag = as;
 
   return (
     <Tag
+      {...rest}
       className={clsx(
         'bg-cf-surface border border-cf-border rounded-[8px]',
         className

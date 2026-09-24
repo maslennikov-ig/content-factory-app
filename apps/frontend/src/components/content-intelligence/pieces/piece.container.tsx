@@ -90,7 +90,9 @@ import {
   type QualityChecksV1,
 } from '../intake/intake.adapter';
 import { writingProfileUrl } from '../intake/writing-profile.adapter';
-import { channelPlanModeUrl } from '../intake/channel-plan-mode';
+import {
+  channelPlanModeUrl,
+} from '../intake/channel-plan-mode';
 import {
   isInterviewAskKey,
   PIECE_ROUTES,
@@ -1059,8 +1061,12 @@ export function PieceContainer({
   const saveSettings = useCallback(
     async (
       integrationId: string,
-      sent: { options?: PostOptionsV1; planMode?: PlanModeWordV1 | null }
-    ): Promise<boolean> => {
+      sent: {
+        options?: PostOptionsV1;
+        planMode?: PlanModeWordV1 | null;
+        expectedChannelMode?: PlanModeWordV1;
+      }
+    ): Promise<false | ReturnType<typeof readPostSettingsResponse>> => {
       clearTimeout(settingsTimers.current[integrationId]);
       // То, что ждало тишины, уходит этим же запросом, а не пропадает.
       const waiting = pendingSettings.current[integrationId];
@@ -1090,7 +1096,7 @@ export function PieceContainer({
         }));
         if (saved.adaptation || input.planMode !== undefined)
           void detail.mutate();
-        return true;
+        return saved;
       } catch {
         setSettingsSaves((current) => ({
           ...current,
@@ -1136,22 +1142,47 @@ export function PieceContainer({
     [optionsOf, saveSettings]
   );
 
-  /** «План» поста: свой режим или снова как в канале — сразу. */
+  /**
+   * «План» поста: свой режим или снова как в канале — сразу.
+   *
+   * «Как в канале» (`content-factory-next-97dq.86`) уходит вместе с режимом
+   * канала, который показывало поле (ревью W1 пятнадцатого захода, F10).
+   * Решает сервер под замком канала: режим канала тот же — пост «как в
+   * канале»; уже другой (прод 24.09.2026: канал на «Автопилоте», пост после
+   * «Бронь» остался в очереди) — пишется выбор человека явно. Проверка на
+   * странице перед сохранением оставляла окно, в котором другая вкладка
+   * успевала переключить канал. Поле берёт то, что сервер сохранил.
+   */
   const changePostPlan = useCallback(
-    async (integrationId: string, next: PlanModeWordV1 | null) => {
+    async (
+      integrationId: string,
+      picked: PlanModeWordV1 | null,
+      /** Режим канала, который показывало поле, когда выбор стал `null`. */
+      shownChannel?: PlanModeWordV1
+    ) => {
       if (planInFlight.current[integrationId]) return;
       planInFlight.current[integrationId] = true;
       setPlanBusy((current) => ({ ...current, [integrationId]: true }));
-      setPlanOverrides((current) => ({ ...current, [integrationId]: next }));
-      const ok = await saveSettings(integrationId, { planMode: next });
+      setPlanOverrides((current) => ({ ...current, [integrationId]: picked }));
+      const saved = await saveSettings(integrationId, {
+        planMode: picked,
+        ...(picked === null && shownChannel
+          ? { expectedChannelMode: shownChannel }
+          : {}),
+      });
       planInFlight.current[integrationId] = false;
       setPlanBusy((current) => ({ ...current, [integrationId]: false }));
-      if (!ok)
+      if (!saved)
         setPlanOverrides((current) => {
           const rest = { ...current };
           delete rest[integrationId];
           return rest;
         });
+      else if (saved.settings)
+        setPlanOverrides((current) => ({
+          ...current,
+          [integrationId]: saved.settings!.planMode,
+        }));
     },
     [saveSettings]
   );
@@ -1333,7 +1364,7 @@ export function PieceContainer({
    * Ответ на «Какую ссылку поставить в пост?»; `null` — «Без ссылки».
    * `text` — «Текст ссылки» (`97dq.79`), только с адресом.
    */
-  const answerPostLink = useCallback(
+  const putPostLink = useCallback(
     async (link: string | null, text?: string): Promise<boolean> => {
       const response = await request(
         `${PIECES_API.postLink(pieceId)}?language=${locale}`,
@@ -1347,10 +1378,31 @@ export function PieceContainer({
       );
       if (!response.ok) return false;
       setLinkEditing(false);
+      return true;
+    },
+    [locale, pieceId, request]
+  );
+  /** Вопрос один, своей панелью: после записи страница перечитывается. */
+  const answerPostLink = useCallback(
+    async (link: string | null, text?: string): Promise<boolean> => {
+      if (!(await putPostLink(link, text))) return false;
       await detail.mutate();
       return true;
     },
-    [detail, locale, pieceId, request]
+    [detail, putPostLink]
+  );
+  /*
+    В карточке вопросов ссылка пишется перед ответами, и ответы не ждут
+    перечитывания страницы (ревью `97dq.89`, F7): его делают сами ответы,
+    когда допишут суть. Здесь — только чтобы строка ссылки не отстала.
+  */
+  const answerPostLinkInQuestions = useCallback(
+    async (link: string | null, text?: string): Promise<boolean> => {
+      if (!(await putPostLink(link, text))) return false;
+      void detail.mutate();
+      return true;
+    },
+    [detail, putPostLink]
   );
 
   /** Правка сути руками: `expected` — текст, который она заменяет. */
@@ -1428,8 +1480,16 @@ export function PieceContainer({
   );
 
   const coreLink = data?.core?.postLink ?? null;
+  const linkAsked = Boolean(
+    canWrite && data?.core && (data.linkQuestion || linkEditing)
+  );
+  /*
+    Вопросы открыты — ссылка стоит в их карточке и пишется той же «Дальше»
+    (`97dq.89`); одна — своей панелью со своей «Дальше».
+  */
+  const linkInQuestions = linkAsked && canWrite && openQuestions.length > 0;
   const linkSlot =
-    canWrite && data?.core && (data.linkQuestion || linkEditing) ? (
+    linkAsked && !linkInQuestions ? (
       <PostLinkQuestion
         key={coreLink ? `answered-${coreLink.url ?? 'none'}` : 'open'}
         locale={locale}
@@ -1465,6 +1525,19 @@ export function PieceContainer({
             locale={locale}
             questions={openQuestions}
             busy={answering}
+            link={
+              linkInQuestions
+                ? {
+                    initial: coreLink
+                      ? { url: coreLink.url, text: coreLink.text ?? '' }
+                      : null,
+                    onAnswer: answerPostLinkInQuestions,
+                    ...(coreLink
+                      ? { onKeep: () => setLinkEditing(false) }
+                      : {}),
+                  }
+                : undefined
+            }
             onAnswer={(given, decide) => void answerQuestions(given, decide)}
             onSkip={() =>
               void answerQuestions(
@@ -1637,7 +1710,8 @@ export function PieceContainer({
           channel: channel.planMode,
           disabled:
             !canWrite || scheduleBusy !== null || Boolean(planBusy[channel.id]),
-          onChange: (next) => void changePostPlan(channel.id, next),
+          onChange: (next) =>
+            void changePostPlan(channel.id, next, channel.planMode),
         }}
         rewritePending={rewritePending}
         settingsSaveState={settingsSaves[channel.id]?.state ?? 'idle'}

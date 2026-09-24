@@ -995,6 +995,26 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(labelRow.contains(emojiRow().querySelector('[data-emoji-readout]'))).toBe(true);
     expect(labelRow.textContent).toContain('Эмодзи');
     expect(labelRow.querySelector('[data-post-option-hint="emoji"]').textContent).toBe('как в канале');
+    // «Эмодзи (?)» — ползунок — «до N» одной строкой, ползунок между ними;
+    // столбцом — только поле уже 520 px (`97dq.92`, ревью F5).
+    const cells = [...labelRow.children].map((cell) =>
+      ['data-emoji-label-cell', 'data-emoji-track-cell', 'data-emoji-readout-cell'].find((name) =>
+        cell.hasAttribute(name)
+      )
+    );
+    expect(cells).toEqual(['data-emoji-label-cell', 'data-emoji-readout-cell', 'data-emoji-track-cell']);
+    expect(emojiRow().querySelector('[data-emoji-slider]').className).toContain('[container-type:inline-size]');
+    expect(labelRow.className).toContain(
+      '[@container(min-width:520px)]:grid-cols-[fit-content(40%)_minmax(0,1fr)_fit-content(30%)]'
+    );
+    const track = labelRow.querySelector('[data-emoji-track-cell]');
+    expect(track.className).toContain('[@container(min-width:520px)]:col-start-2');
+    expect(track.className).toContain('[@container(min-width:520px)]:row-start-1');
+    expect(track.contains(select('Эмодзи'))).toBe(true);
+    expect(track.querySelector('[data-emoji-divisions]')).toBeTruthy();
+    expect(labelRow.querySelector('[data-emoji-readout-cell]').className).toContain(
+      '[@container(min-width:520px)]:col-start-3'
+    );
     expect(select('Эмодзи').value).toBe('2');
     expect(
       emojiRow().querySelector('[data-emoji-channel-mark]').getAttribute('data-emoji-channel-mark')

@@ -764,10 +764,12 @@ export function ContentFactsShowcase() {
               </Button>
               <Button
                 variant="primary"
-                disabled={copyBusy || !copyDraft.statement.trim()}
+                disabled={!copyDraft.statement.trim()}
+                loading={copyBusy}
+                loadingLabel={t.saving}
                 onClick={() => void submitCopy()}
               >
-                {copyBusy ? t.saving : t.save}
+                {t.save}
               </Button>
             </>
           }

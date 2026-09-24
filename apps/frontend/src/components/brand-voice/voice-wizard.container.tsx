@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -830,13 +831,16 @@ export function VoiceWizardContainer({
           />
 
           {intake ? (
-            <form
+            <Panel
               data-voice-intake={intake.origin}
               onSubmit={(event) => {
                 event.preventDefault();
                 void submitIntake();
               }}
-              className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+              as="form"
+              contentPadding="snug"
+              className="min-w-0"
+              contentClassName="flex flex-col gap-[12px]"
             >
               <h3 className="cf-label-sm text-cf-ink-muted">
                 {w.intakeTitle}
@@ -914,7 +918,7 @@ export function VoiceWizardContainer({
                   {w.intakeCancel}
                 </Button>
               </div>
-            </form>
+            </Panel>
           ) : null}
         </>
       ) : null}

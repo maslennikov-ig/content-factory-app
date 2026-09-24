@@ -25,6 +25,7 @@ export function BillingManageView({
   controls,
   planControls,
   footer,
+  adminOnly = false,
 }: {
   state:
     | 'loading'
@@ -43,6 +44,11 @@ export function BillingManageView({
   controls?: ReactNode;
   planControls?: ReactNode;
   footer?: ReactNode;
+  /**
+   * The viewer is not an administrator (`zg8w`): subscribe, cancel, discount
+   * and trial answer 403 for them, so the buttons are off and this says why.
+   */
+  adminOnly?: boolean;
 }) {
   const ru = locale === 'ru';
   if (state === 'loading')
@@ -97,6 +103,17 @@ export function BillingManageView({
         </div>
         {controls}
       </div>
+      {adminOnly ? (
+        <p
+          role="note"
+          data-billing-admin-only="manage"
+          className="cf-body-sm mt-[16px] max-w-[70ch] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[12px] text-cf-ink-muted text-pretty"
+        >
+          {ru
+            ? 'Менять тариф и способ оплаты и отменять подписку может только администратор пространства. Здесь видно, какой тариф сейчас; если нужен другой — попросите администратора.'
+            : 'Only a workspace administrator can change the plan or the payment method, or cancel the subscription. Here you can see the current plan; if you need another one, ask an administrator.'}
+        </p>
+      ) : null}
       {state === 'success' && (
         <p className="cf-body-sm mt-[16px] rounded-[8px] border border-cf-accent bg-cf-accent-soft p-[12px] text-cf-accent">
           {notice ?? (ru ? 'Изменение сохранено.' : 'Coupon applied.')}

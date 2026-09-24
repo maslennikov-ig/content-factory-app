@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import type { QualityChecksV1 } from '../intake/intake.adapter';
@@ -57,12 +58,15 @@ export function DraftResult({
         <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
           {title ?? t.draftTitle}
         </h3>
-        <article
+        <Panel
           data-intake-draft="true"
-          className="min-w-0 whitespace-pre-wrap rounded-[8px] border border-cf-border bg-cf-surface p-[16px] cf-body-md text-cf-ink [text-wrap:pretty]"
+          as="article"
+          contentPadding="snug"
+          className="min-w-0"
+          contentClassName="whitespace-pre-wrap cf-body-md text-cf-ink [text-wrap:pretty]"
         >
           {text}
-        </article>
+        </Panel>
         <QualityLine
           locale={locale}
           slop={checks?.slop}

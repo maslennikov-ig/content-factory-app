@@ -94,6 +94,12 @@ const { formErrorsMock } = require('./helpers/form-errors-mock.cjs');
 const mocks = {
   // The shared refusal helper is `.ts`, which this loader cannot compile.
   '@contentfactory/frontend/components/auth/form.errors': formErrorsMock,
+  // The shared panel is a `@contentfactory/react/layout` alias this loader
+  // cannot resolve; the teams card moved onto it in 97dq.76.
+  '@contentfactory/react/layout': {
+    Panel: ({ as: Tag = 'section', className, contentClassName, contentPadding: _padding, children, ...props }) =>
+      h(Tag, { ...props, className }, h('div', { className: contentClassName }, children)),
+  },
   '@contentfactory/react/form/button': {
     Button: ({ loading, secondary: _secondary, density: _density, children, ...props }) =>
       h('button', { ...props, disabled: props.disabled || loading }, children),

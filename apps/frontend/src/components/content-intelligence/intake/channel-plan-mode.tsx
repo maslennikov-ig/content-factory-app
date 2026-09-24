@@ -46,6 +46,22 @@ export const channelPlanModeCopy = {
         'уже написанным постам',
       ])} или только к новым?`,
     applyNote: 'Посты, у которых свой режим, не меняются.',
+    /**
+     * Что станет с написанными постами при «Ко всем N» (`97dq.87`): по
+     * направлению смены, чтобы вопрос не приходилось угадывать. Обещание не
+     * шире сервера (ревью волны, F6): пост, который площадка не примет,
+     * в очередь не встаёт, а очередь, подтверждённая человеком, не трогается.
+     */
+    applyEffect: (to: ChannelPlanMode, from: ChannelPlanMode | null) =>
+      to === 'autopilot'
+        ? '«Ко всем»: посты встанут в очередь и выйдут сами, каждый в своё время, если площадка их примет.'
+        : to === 'reserve'
+          ? from === 'autopilot'
+            ? '«Ко всем»: посты уйдут из очереди и будут ждать вашего «Подтвердить» — кроме подтверждённых вами.'
+            : '«Ко всем»: посты встанут в ближайшее время канала с пометкой «в плане» и выйдут после вашего «Подтвердить».'
+          : '«Ко всем»: бронь снимется, посты останутся черновиками.',
+    applyKeep:
+      '«Только к новым»: написанные посты останутся как есть — в очереди, в брони или черновиками.',
     applyNew: 'Только к новым',
     applyAll: (count: number) => `Ко всем ${count}`,
     applying: 'Применяем',
@@ -79,6 +95,16 @@ export const channelPlanModeCopy = {
     applyQuestion: (count: number) =>
       `Apply to the ${count} ${count === 1 ? 'post' : 'posts'} already written, or to new ones only?`,
     applyNote: 'Posts with a mode of their own stay as they are.',
+    applyEffect: (to: ChannelPlanMode, from: ChannelPlanMode | null) =>
+      to === 'autopilot'
+        ? '“All”: the posts join the queue and go out by themselves, each at its time, if the platform accepts them.'
+        : to === 'reserve'
+          ? from === 'autopilot'
+            ? '“All”: the posts leave the queue and wait for your “Confirm” — except the ones you already confirmed.'
+            : '“All”: the posts take the channel’s next times, marked “planned”, and go out after your “Confirm”.'
+          : '“All”: the reservation drops, the posts stay drafts.',
+    applyKeep:
+      '“New ones only”: written posts stay as they are — queued, reserved or drafts.',
     applyNew: 'New ones only',
     applyAll: (count: number) => `All ${count}`,
     applying: 'Applying',

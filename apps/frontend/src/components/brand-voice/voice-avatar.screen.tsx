@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -175,9 +176,11 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
         ) : !avatar && !list.error ? (
           // A link to an avatar this workspace does not hold is a dead end,
           // and saying so beats rendering four empty screens about nothing.
-          <div
+          <Panel
             data-voice-avatar-missing="true"
-            className="flex flex-col items-start gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+            as="div"
+            contentPadding="default"
+            contentClassName="flex flex-col items-start gap-[12px]"
           >
             <h2 className="cf-heading-md text-cf-ink">{t.missing}</h2>
             <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
@@ -189,7 +192,7 @@ export function VoiceAvatarScreen({ avatarId }: { avatarId: string }) {
             >
               {t.toList}
             </Link>
-          </div>
+          </Panel>
         ) : collecting ? (
           <>
             {rebuilding ? (

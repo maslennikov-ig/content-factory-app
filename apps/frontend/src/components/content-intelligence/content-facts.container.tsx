@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -424,10 +425,12 @@ export function ContentFactsContainer({
   });
 
   return (
-    <section
+    <Panel
       data-content-intelligence-section="facts"
       aria-labelledby="content-facts-title"
-      className="scroll-mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+      as="section"
+      contentPadding="default"
+      className="scroll-mt-[24px]"
     >
       <h2
         id="content-facts-title"
@@ -631,9 +634,11 @@ export function ContentFactsContainer({
           <Button
             type="submit"
             variant="primary"
-            disabled={busy || !!claimKeyProblem || readOnly}
+            disabled={!!claimKeyProblem || readOnly}
+            loading={busy}
+            loadingLabel={t.submitting}
           >
-            {busy ? t.submitting : t.submit}
+            {t.submit}
           </Button>
         </div>
         </fieldset>
@@ -710,7 +715,7 @@ export function ContentFactsContainer({
           </p>
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 

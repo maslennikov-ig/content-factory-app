@@ -67,8 +67,12 @@ import {
   type DraftVoiceJudgePort,
 } from '@contentfactory/nestjs-libraries/agent/draft-pick';
 import {
+  AUTHOR_LINK_PLACEHOLDER,
   channelCtaLine,
   channelInstructionLines,
+  restoreAuthorLinkDeep,
+  showsLinkOnWords,
+  tokenizeAuthorLink,
   type ChannelProviderLimits,
 } from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import type {
@@ -183,6 +187,14 @@ interface WorkflowChannelsState {
    * читают, три — хук, контент и повторная вставка голоса в треде.
    */
   channelLines?: string[];
+  /**
+   * The author's address behind `AUTHOR_LINK_PLACEHOLDER`
+   * (`content-factory-next-97dq.91`): the prompt carries the token, the parsed
+   * answer gets the address back. `null` — no link to put back.
+   */
+  authorLinkUrl?: string | null;
+  /** Whether the channel shows links on words: `[words](url)` stays, else a bare address. */
+  authorLinkOnWords?: boolean;
   /**
    * Свои прежние тексты по теме — вышедшие и со своими адресами.
    *
@@ -582,6 +594,28 @@ const wholePost = (hook: unknown, text: string): string =>
 const fixedFootprint = (hook: unknown, text: string): number =>
   wholePost(hook, text).length - text.length;
 
+/**
+ * The author's address in place of `AUTHOR_LINK_PLACEHOLDER` in a parsed
+ * answer (`content-factory-next-97dq.91`). Before every check that reads the
+ * text — anti-copy, length, the draft pick — so they all see the post as it
+ * will go out.
+ */
+const withAuthorLink = <T>(state: Pick<WorkflowChannelsState, 'authorLinkUrl' | 'authorLinkOnWords'>, value: T): T =>
+  state.authorLinkUrl
+    ? restoreAuthorLinkDeep(value, state.authorLinkUrl, state.authorLinkOnWords === true)
+    : value;
+
+/**
+ * Text for the prompt with the author's address as the token (review W1 of
+ * the fifteenth walk). The core, the answers, the material, the request and
+ * the research may already hold the address; next to the token line the
+ * model would see it twice and could write the link twice.
+ */
+const inPrompt = <T>(state: Pick<WorkflowChannelsState, 'authorLinkUrl'>, text: T): T =>
+  state.authorLinkUrl && typeof text === 'string'
+    ? (tokenizeAuthorLink(text, state.authorLinkUrl) as T)
+    : text;
+
 const voiceReinjection = (state: WorkflowChannelsState): string => {
   const items = threadItemCount(state.format);
   if (items < 2) return '';
@@ -720,6 +754,8 @@ export class AgentGraphService {
         intake: null,
         resolvedChannelProfile: null,
         channelLines: null,
+        authorLinkUrl: null,
+        authorLinkOnWords: null,
         /**
          * Объявлен здесь по той же причине, что и `draftGaps` выше: ключ,
          * которого нет среди каналов, LangGraph молча выбрасывает, и блок
@@ -953,14 +989,14 @@ export class AgentGraphService {
       .pipe(structuredOutput)
       .invoke({
         voice: voiceDirectives(state),
-        brief: briefBlock(state),
-        request: state.messages[0].content,
+        brief: inPrompt(state, briefBlock(state)),
+        request: inPrompt(state, state.messages[0].content),
         hooks: state.popularPosts!.map((p) => p.hook).join('\n'),
-        text: this.researchText(state),
+        text: inPrompt(state, this.researchText(state)),
       });
 
     return {
-      hook: outputHook,
+      hook: withAuthorLink(state, outputHook),
     };
   }
 
@@ -1069,20 +1105,22 @@ export class AgentGraphService {
     const attempt = async (repairHint: string) => {
       const response = await promptTemplate.invoke({
         voice: `${voiceDirectives(state)}${voiceReinjection(state)}`,
-        brief: briefBlock(state),
-        related: relatedBlock(state),
+        brief: inPrompt(state, briefBlock(state)),
+        related: inPrompt(state, relatedBlock(state)),
         hook: state.hook,
-        request: state.messages[0].content,
-        information: this.researchText(state),
+        request: inPrompt(state, state.messages[0].content),
+        information: inPrompt(state, this.researchText(state)),
         forbidden: forbiddenPhrasesRule(
           (state.language as 'ru' | 'en') || 'ru'
         ),
         repairHint,
         channelQuestionRule: allowQuestion ? channelQuestionPromptV2 : '',
       });
-      const question = allowQuestion ? unavoidableQuestionV2((response as any).unavoidableQuestion, state.intake?.channel.writingProfile) : null;
+      // The question is shown to the person, so it gets the address back too
+      // (review F3 of the fifteenth walk).
+      const question = allowQuestion ? unavoidableQuestionV2(withAuthorLink(state, (response as any).unavoidableQuestion), state.intake?.channel.writingProfile) : null;
       if (question) return { adaptationQuestion: question };
-      const outputContent = response.content;
+      const outputContent = withAuthorLink(state, response.content);
       if (!outputContent) throw new Error('The model returned neither content nor an unavoidable question');
       return Array.isArray(outputContent)
         ? outputContent.map(normalize)
@@ -1846,9 +1884,23 @@ export class AgentGraphService {
             withPicture: body.isPicture,
             formatHint: hints?.formatHint,
             foreignShingles: hints?.foreignShingles,
-            keepLinks: hints?.keepLinks,
-            // The author's link for the post (`97dq.75`).
-            authorLink: hints?.authorLink ?? null,
+            // The author's own link is said once, by its token line: kept
+            // links that are the same address would put it in twice.
+            keepLinks: hints?.authorLink?.url
+              ? hints.keepLinks?.filter(
+                  (link) =>
+                    tokenizeAuthorLink(link.trim(), hints.authorLink!.url!) !==
+                    AUTHOR_LINK_PLACEHOLDER
+                )
+              : hints?.keepLinks,
+            // The author's link for the post (`97dq.75`), as a token
+            // (`97dq.91`): the address comes back after the answer is parsed.
+            authorLink: hints?.authorLink
+              ? {
+                  ...hints.authorLink,
+                  url: hints.authorLink.url ? AUTHOR_LINK_PLACEHOLDER : null,
+                }
+              : null,
             // Разовые настройки поста (`97dq.38`) — в строителе строк,
             // рядом с карточкой канала, которую они на этот раз перекрывают.
             post: hints?.post,
@@ -1913,6 +1965,10 @@ export class AgentGraphService {
           intake: hints,
           resolvedChannelProfile,
           channelLines,
+          authorLinkUrl: channelLines ? hints?.authorLink?.url ?? null : null,
+          authorLinkOnWords: resolvedChannelProfile
+            ? showsLinkOnWords(resolvedChannelProfile.provider.editor)
+            : false,
           relatedOwnPosts: body.relatedOwnPosts ?? undefined,
           foreignShingles: hints?.foreignShingles ?? undefined,
           ...provenance,

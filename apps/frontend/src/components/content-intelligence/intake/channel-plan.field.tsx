@@ -67,6 +67,11 @@ export function useChannelPlanField({
   */
   const turn = useRef(0);
   const asked = useRef<ChannelPlanMode | null>(null);
+  // Направление последнего вопроса — для строк «что станет с постами» (`97dq.87`).
+  const [direction, setDirection] = useState<{
+    to: ChannelPlanMode;
+    from: ChannelPlanMode;
+  } | null>(null);
 
   const change = useCallback(
     async (mode: ChannelPlanMode) => {
@@ -100,7 +105,10 @@ export function useChannelPlanField({
         const { count } = readPlanImpact(await response.json());
         if (mine !== turn.current) return;
         asked.current = mode;
-        if (count > 0) setApply({ kind: 'ask', count });
+        if (count > 0) {
+          setDirection({ to: mode, from: before });
+          setApply({ kind: 'ask', count });
+        }
       } catch {
         // Без ответа вопроса нет: режим канала уже сохранён для новых постов.
       }
@@ -170,6 +178,17 @@ export function useChannelPlanField({
             <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">
               {t.applyQuestion(apply.count)}
             </p>
+            <div
+              data-channel-plan-apply-effect={direction?.to ?? value}
+              className="flex min-w-0 flex-col gap-[4px]"
+            >
+              <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                {t.applyEffect(direction?.to ?? value, direction?.from ?? null)}
+              </p>
+              <p className="cf-caption text-cf-ink-muted [text-wrap:pretty]">
+                {t.applyKeep}
+              </p>
+            </div>
             <p className="cf-caption text-cf-ink-muted">{t.applyNote}</p>
             <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
               <Button

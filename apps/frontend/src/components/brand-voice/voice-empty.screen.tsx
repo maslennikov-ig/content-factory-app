@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { Button } from '@contentfactory/react/form/button';
 
 import type { ReactNode } from 'react';
@@ -79,11 +80,13 @@ export function VoiceEmptyScreen({
   const hasManualDraft = Boolean(manualDraft && manualDraft.filled > 0);
 
   return (
-    <section
+    <Panel
       data-voice-surface="empty"
       data-voice-state={state}
       aria-busy={busy ? 'true' : undefined}
-      className="rounded-[8px] border border-cf-border bg-cf-surface p-[20px] [&_button]:min-h-[44px] sm:[&_button]:min-h-0"
+      as="section"
+      contentPadding="default"
+      className="[&_button]:min-h-[44px] sm:[&_button]:min-h-0"
     >
       <h2 className="cf-heading-md text-cf-ink [text-wrap:balance]">
         {t.emptyTitle}
@@ -168,6 +171,6 @@ export function VoiceEmptyScreen({
           {t.seeExample}
         </Button>
       </div>
-    </section>
+    </Panel>
   );
 }

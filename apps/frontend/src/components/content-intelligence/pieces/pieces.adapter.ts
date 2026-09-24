@@ -1725,7 +1725,13 @@ export function readPostSettingsResponse(value: unknown): {
 export function buildPostSettingsPayload(input: {
   options?: PostOptionsV1;
   planMode?: PlanModeWordV1 | null;
-}): { options?: PostOptionsV1; planMode?: PlanModeWordV1 | null } {
+  /** С `planMode: null` — режим канала, который видел человек (F10). */
+  expectedChannelMode?: PlanModeWordV1;
+}): {
+  options?: PostOptionsV1;
+  planMode?: PlanModeWordV1 | null;
+  expectedChannelMode?: PlanModeWordV1;
+} {
   return {
     ...(input.options
       ? {
@@ -1738,6 +1744,9 @@ export function buildPostSettingsPayload(input: {
         }
       : {}),
     ...(input.planMode !== undefined ? { planMode: input.planMode } : {}),
+    ...(input.planMode === null && input.expectedChannelMode
+      ? { expectedChannelMode: input.expectedChannelMode }
+      : {}),
   };
 }
 

@@ -34,12 +34,12 @@ export type AdminStatsPreset = Readonly<{
 
 function Summary({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+    <Panel as="div" contentPadding="snug">
       <div className="cf-label-sm text-cf-ink-muted">{label}</div>
       <div className="mt-[8px] cf-heading-lg text-cf-ink">
         {value.toLocaleString()}
       </div>
-    </div>
+    </Panel>
   );
 }
 

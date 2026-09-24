@@ -48,6 +48,13 @@ export const calendarPlanningCopy = {
     toolbarPrevious: 'Назад',
     toolbarNext: 'Вперёд',
     toolbarListState: 'Какие посты показать',
+    // Поиск по словам в списке постов (`odb8.4.1`).
+    listSearch: 'Поиск по тексту постов',
+    listSearchPlaceholder: 'Слова из поста',
+    listSearchHintLabel: 'Подсказка: поиск по тексту постов',
+    listSearchHint:
+      'Показывает посты, в тексте которых есть все набранные слова — в любом порядке, большими или маленькими буквами. Отбор по состоянию, каналу и этапу остаётся.',
+    listSearchEmpty: (query: string) => `Нет постов со словами «${query}».`,
     toolbarPeriod: 'Период: день, неделя или месяц',
     toolbarView: 'Вид: календарь или список',
     toolbarViewCalendar: 'Календарь',
@@ -209,6 +216,12 @@ export const calendarPlanningCopy = {
     toolbarPrevious: 'Previous',
     toolbarNext: 'Next',
     toolbarListState: 'Which posts to show',
+    listSearch: 'Search the posts’ text',
+    listSearchPlaceholder: 'Words from the post',
+    listSearchHintLabel: 'Hint: search the posts’ text',
+    listSearchHint:
+      'Shows the posts whose text has every word you type — in any order, in capitals or not. The state, channel and stage filters still apply.',
+    listSearchEmpty: (query: string) => `No posts with the words “${query}”.`,
     toolbarPeriod: 'Period: day, week or month',
     toolbarView: 'View: calendar or list',
     toolbarViewCalendar: 'Calendar',

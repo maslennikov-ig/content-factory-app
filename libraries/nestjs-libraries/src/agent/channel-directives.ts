@@ -320,7 +320,168 @@ const EDITOR_LINE: Record<ChannelProviderLimits['editor'], string> = {
  * already in the author's material and sources — never one of its own.
  */
 export const AUTHOR_LINK_LINE = (url: string): string =>
-  `The author chose this link for the post: <${url}>. It is the only link you may add: put it in exactly as written, character for character, once, where it fits by meaning. Links already in the author's material or sources may stay; never invent any other URL.`;
+  `The author chose this link for the post: <${url}>. It is the only link you may add: put it in exactly as written, character for character, once, where it fits by meaning. Links already in the author's material or sources may stay; never invent any other URL.${placeholderNote(url)}`;
+
+/**
+ * The author's link as the model sees it (`content-factory-next-97dq.91`).
+ *
+ * Production, 24.09.2026: a percent-encoded Wikipedia address cost the
+ * adaptation hundreds of output tokens, and the answer was cut inside it —
+ * `Failed to parse … Unterminated string`. An address copied character by
+ * character is also where a model corrupts it. So the generator hands the
+ * model this token instead of the address and puts the address back after the
+ * answer is parsed (`restoreAuthorLink`). The anchor words stay the model's
+ * own, or «Текст ссылки» when the author filled it.
+ */
+export const AUTHOR_LINK_PLACEHOLDER = '{{AUTHOR_LINK}}';
+
+const placeholderNote = (url: string): string =>
+  url === AUTHOR_LINK_PLACEHOLDER
+    ? ` ${AUTHOR_LINK_PLACEHOLDER} stands for the address: write that token exactly as it is, and the real address takes its place after you answer.`
+    : '';
+
+/**
+ * The token, tolerant of the forms a model bends it into (review F3 of the
+ * fifteenth walk): one or two braces, `<{{ AUTHOR_LINK }}>`, any case, a
+ * Markdown-escaped underscore or brace (`{{AUTHOR\_LINK}}`,
+ * `\{\{AUTHOR_LINK\}\}`), a hyphen, dash or space for the underscore.
+ */
+const TOKEN_SOURCE = String.raw`<?(?:\\?\{){1,2}\s*author(?:[\s_\u2010-\u2015-]|\\)*link\s*(?:\\?\}){1,2}>?`;
+const PLACEHOLDER_PATTERN = new RegExp(TOKEN_SOURCE, 'giu');
+/** `[words](token)`, for an editor that shows only a bare address. */
+const WORDS_ON_PLACEHOLDER = new RegExp(
+  String.raw`\[([^\]\n]+)\]\(\s*${TOKEN_SOURCE}\s*\)`,
+  'giu'
+);
+/**
+ * What may be left of the token after the restore: any braced form above, or
+ * the bare upper-case name a model wrote without its braces. The bare name
+ * must be upper case with its underscore: «author link» in a sentence is
+ * the author's words, not a token.
+ */
+const LEFTOVER_TOKEN = new RegExp(String.raw`[ \t]*${TOKEN_SOURCE}`, 'giu');
+const LEFTOVER_BARE = /[ \t]*\bAUTHOR\\?_LINK\b/gu;
+const LEFTOVER_WORDS = new RegExp(
+  String.raw`\[([^\]\n]+)\]\(\s*(?:${TOKEN_SOURCE}|AUTHOR\\?_LINK)\s*\)`,
+  'giu'
+);
+
+/**
+ * The author's address in place of the token. An editor that shows links on
+ * words keeps `[words](url)`; a plain editor keeps the bare address, so a
+ * `[words](token)` there becomes «words url». The address is inserted by a
+ * function, never as a replacement pattern: a `$` in it stays a `$`.
+ */
+export const restoreAuthorLink = (
+  text: string,
+  url: string,
+  onWords: boolean
+): string => {
+  const plain = onWords
+    ? text
+    : text.replace(WORDS_ON_PLACEHOLDER, (_match, words: string) => `${words} ${AUTHOR_LINK_PLACEHOLDER}`);
+  return plain.replace(PLACEHOLDER_PATTERN, () => url);
+};
+
+/**
+ * The token in place of the author's address in text that reaches the prompt
+ * (review of the fifteenth walk, W1 residual risk). The core, the answers and
+ * the material may already hold the address; the model would then see both
+ * the address and the token and could write the link twice. The decoded form
+ * of a percent-encoded address is replaced as well.
+ */
+export const tokenizeAuthorLink = (text: string, url: string): string => {
+  if (!text || !url) return text;
+  const forms = new Set([url]);
+  try {
+    forms.add(decodeURI(url));
+  } catch {
+    /* not a valid percent-encoding: the address as written only */
+  }
+  let out = text;
+  for (const form of [...forms].sort((a, b) => b.length - a.length)) {
+    if (form) out = out.split(form).join(AUTHOR_LINK_PLACEHOLDER);
+  }
+  return out;
+};
+
+/** `tokenizeAuthorLink` over every string of a value (hints, lists). */
+export const tokenizeAuthorLinkDeep = <T>(value: T, url: string): T => {
+  if (typeof value === 'string') return tokenizeAuthorLink(value, url) as T;
+  if (Array.isArray(value))
+    return value.map((item) => tokenizeAuthorLinkDeep(item, url)) as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>))
+      out[key] = tokenizeAuthorLinkDeep(item, url);
+    return out as T;
+  }
+  return value;
+};
+
+/**
+ * The last check before an adaptation is saved (review F3 of the fifteenth
+ * walk): a token the restore did not recognise must not reach the published
+ * text. `[words](token)` keeps its words; the token itself is removed.
+ * `found` says how many were stripped, for the caller's log line.
+ */
+export const stripLeftoverAuthorLink = (
+  text: string
+): { text: string; found: number } => {
+  let found = 0;
+  const out = text
+    .replace(LEFTOVER_WORDS, (_match, words: string) => {
+      found += 1;
+      return words;
+    })
+    .replace(LEFTOVER_TOKEN, () => {
+      found += 1;
+      return '';
+    })
+    .replace(LEFTOVER_BARE, () => {
+      found += 1;
+      return '';
+    });
+  return { text: out, found };
+};
+
+/** `stripLeftoverAuthorLink` over every string of a value. */
+export const stripLeftoverAuthorLinkDeep = <T>(
+  value: T
+): { value: T; found: number } => {
+  let found = 0;
+  const walk = (item: unknown): unknown => {
+    if (typeof item === 'string') {
+      const result = stripLeftoverAuthorLink(item);
+      found += result.found;
+      return result.text;
+    }
+    if (Array.isArray(item)) return item.map(walk);
+    if (item && typeof item === 'object') {
+      const out: Record<string, unknown> = {};
+      for (const [key, inner] of Object.entries(item as Record<string, unknown>))
+        out[key] = walk(inner);
+      return out;
+    }
+    return item;
+  };
+  const next = walk(value) as T;
+  return { value: found ? next : value, found };
+};
+
+/** `restoreAuthorLink` over every string of a parsed answer. */
+export const restoreAuthorLinkDeep = <T>(value: T, url: string, onWords: boolean): T => {
+  if (typeof value === 'string') return restoreAuthorLink(value, url, onWords) as T;
+  if (Array.isArray(value))
+    return value.map((item) => restoreAuthorLinkDeep(item, url, onWords)) as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>))
+      out[key] = restoreAuthorLinkDeep(item, url, onWords);
+    return out as T;
+  }
+  return value;
+};
 
 /**
  * The author's link on words (`97dq.79`, fourteenth walk, B2). Owner: «ссылка
@@ -335,8 +496,8 @@ export const AUTHOR_LINK_LINE = (url: string): string =>
 export const AUTHOR_LINK_WORDS_LINE = (url: string, text?: string | null): string => {
   const words = fenced(text, 80);
   return words
-    ? `The author chose this link for the post: <${url}>. It is the only link you may add. Put it on exactly these words, once: «${words}» — write them in the text as [${words}](${url}), the address inside the parentheses character for character. Never show the bare address. Links already in the author's material or sources may stay; never invent any other URL.`
-    : `The author chose this link for the post: <${url}>. It is the only link you may add. Put it once on 2 to 5 meaningful words of your own sentence that say where it leads, written as [those words](${url}), the address inside the parentheses character for character — never on «here» or «link», never as a bare address. Links already in the author's material or sources may stay; never invent any other URL.`;
+    ? `The author chose this link for the post: <${url}>. It is the only link you may add. Put it on exactly these words, once: «${words}» — write them in the text as [${words}](${url}), the address inside the parentheses character for character. Never show the bare address. Links already in the author's material or sources may stay; never invent any other URL.${placeholderNote(url)}`
+    : `The author chose this link for the post: <${url}>. It is the only link you may add. Put it once on 2 to 5 meaningful words of your own sentence that say where it leads, written as [those words](${url}), the address inside the parentheses character for character — never on «here» or «link», never as a bare address. Links already in the author's material or sources may stay; never invent any other URL.${placeholderNote(url)}`;
 };
 
 /** Editors that show a link on words: `[words](url)` becomes a clickable phrase. */

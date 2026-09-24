@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { FC } from 'react';
 import clsx from 'clsx';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
@@ -68,9 +69,13 @@ export const PicksSocialsView: FC<{
         </p>
       )}
       {available.length === 0 ? (
-        <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px] cf-body-sm text-cf-ink-muted">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          contentClassName="cf-body-sm text-cf-ink-muted"
+        >
           No channels are available for this post.
-        </div>
+        </Panel>
       ) : (
         <div className="flex flex-wrap gap-[12px]">
           {available.map((integration) => {

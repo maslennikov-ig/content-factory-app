@@ -1,0 +1,31 @@
+-- content-factory-next-tcxv — «possibly billed» mark on failed AI attempts.
+-- Apply ONLY this text, verbatim.
+--
+-- Why. The owner's decision of 24.09.2026 («3 да»): a failed text attempt
+-- (timeout, abort, cut stream) may still have been billed by the provider, and
+-- the usage row must say so instead of reading as free. Before this change the
+-- mark lived only in memory (97dq.66 F15).
+--
+-- One nullable column, no default, no index. No table rewrite, no downtime.
+--   `AiUsageRecord.possiblyBilled` (Boolean): NULL — no failed attempt or not
+--   recorded; true — at least one failed attempt may have been billed; false —
+--   every failure was a refusal before billing.
+--
+-- Existing rows stay NULL. No data step. No reverse step: the old image ignores
+-- the extra nullable column.
+--
+-- Apply order:
+--   1. prisma migrate diff --from-url <DATABASE_URL>
+--        --to-schema-datamodel schema.prisma --script   (from the NEW image)
+--   2. scripts/operations/validate-prisma-migration-sql.cjs --mode update
+--        --allow-table AiUsageRecord --diff <step 1> --selected this_file
+--   3. psql -v ON_ERROR_STOP=1 --single-transaction --file this_file
+--   4. The second migrate diff must be empty.
+--
+-- Apply BEFORE switching to this wave's image: the new code writes the column at
+-- the end of every AI operation.
+--
+-- Do not run twice: ADD COLUMN without IF NOT EXISTS fails on an existing column.
+
+-- AlterTable
+ALTER TABLE "AiUsageRecord" ADD COLUMN     "possiblyBilled" BOOLEAN;

@@ -44,6 +44,11 @@ const loadPostsRepository = () =>
           return supersededAnswer;
         },
       },
+      // Поиск по словам в списке постов (odb8.4.1): настоящий разбор, без моков.
+      '@contentfactory/nestjs-libraries/content-intelligence/search-terms':
+        loadTypeScriptModule(
+          'libraries/nestjs-libraries/src/content-intelligence/search-terms.ts'
+        ),
       '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize': {
         // Статический импорт с ff7cfe3c (fn33.28.7); этим тестам контекст не нужен.
         validateContentContextForDraft: async () => {

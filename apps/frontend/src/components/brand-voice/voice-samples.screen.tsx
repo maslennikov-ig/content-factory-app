@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
@@ -468,7 +469,7 @@ export function VoiceSamplesScreen({
         </div>
 
         <div className="flex min-w-0 flex-col gap-[16px]">
-          <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+          <Panel as="div" contentPadding="snug" className="min-w-0">
             <p className="cf-label-sm text-cf-ink-muted">
               {t.collected}
             </p>
@@ -533,9 +534,9 @@ export function VoiceSamplesScreen({
                 ) : null}
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+          <Panel as="div" contentPadding="snug" className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-[8px]">
               <h3 className="cf-label-sm text-cf-ink-muted">
                 {t.collectedSamples} · {samples.length}
@@ -632,7 +633,7 @@ export function VoiceSamplesScreen({
                 </table>
               </div>
             )}
-          </div>
+          </Panel>
 
           <div className="max-w-[360px]">
             <Input

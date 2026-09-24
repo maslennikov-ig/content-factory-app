@@ -3044,6 +3044,9 @@ preflight упали, `app.env` не менять и приложение не �
 - [`brand-voice-learned-rules-schema-apply.sql`](./brand-voice-learned-rules-schema-apply.sql) — колонка `ProjectBrandProfile.learnedRules`; шаг схемы волны «решения владельца 05.09», применён до переключения образа 05.09.2026 (`da34f1a9e832`)
 - [`ai-role-models-schema-apply.sql`](./ai-role-models-schema-apply.sql) — две nullable-колонки модели на роль (`AiProviderSetting.roleModels`, `AiUsageRecord.role`); шаг схемы волны «зачистка», применён до переключения образа 05.09.2026 (`dcb6eae72608`)
 - [`organization-cascade-schema-apply.sql`](./organization-cascade-schema-apply.sql) — 44 внешних ключа получают `ON DELETE CASCADE`; шаг схемы волны «зачистка», идёт до переключения образа
+- [`ai-text-chain-usage-schema-apply.sql`](./ai-text-chain-usage-schema-apply.sql) — девять nullable-колонок цепочки текста и расхода (`InstanceAiDefaults`, `AiUsageRecord`); применён до переключения образа 23.09.2026 (`ae55c65be5ff`)
+- [`channel-plan-mode-schema-apply.sql`](./channel-plan-mode-schema-apply.sql) — `Integration.planMode`; применён вместе с предыдущим 23.09.2026 (`ae55c65be5ff`)
+- [`ai-usage-possibly-billed-schema-apply.sql`](./ai-usage-possibly-billed-schema-apply.sql) — колонка `AiUsageRecord.possiblyBilled`; шаг схемы волны 15-го прохода (`tcxv`), идёт до переключения образа
 - [`piece-adaptation-schema-apply.sql`](./piece-adaptation-schema-apply.sql) — `ContentPiece.kind`, `ContentPiece.brief`, `ContentDerivation.kind/title/body/mediaId` и индекс `ContentDerivation (organizationId, postId)`; шаг схемы волны «заготовка и адаптации», применён до переключения образа 07.09.2026 (`a6be7f3fbb92`)
 
 Список выше — это ровно то, что лежит в каталоге; сверять его командой `ls

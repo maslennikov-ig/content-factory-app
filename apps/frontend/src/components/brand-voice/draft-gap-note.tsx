@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import type { FC } from 'react';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
@@ -48,9 +49,11 @@ export const DraftGapNote: FC<{
   const t = voiceCopy[locale];
 
   return (
-    <div
+    <Panel
       data-draft-gap={gap.metric}
-      className="mt-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+      as="div"
+      contentPadding="snug"
+      className="mt-[16px]"
     >
       <div className="cf-label-sm text-cf-ink-muted">
         {t.draftGapLabel}
@@ -71,6 +74,6 @@ export const DraftGapNote: FC<{
       <p className="cf-caption mt-[12px] text-cf-ink-muted">
         {t.draftGapOptional}
       </p>
-    </div>
+    </Panel>
   );
 };

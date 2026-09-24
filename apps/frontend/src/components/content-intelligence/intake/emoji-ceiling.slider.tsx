@@ -39,14 +39,18 @@ const at = (index: number) => `calc(12px + (100% - 24px) * ${index / LAST})`;
  * этого поста» that is the answer to «what would happen if I left it»; on the
  * channel card there is nothing to compare with and no tick.
  *
- * `label` (`97dq.83`): the field's label goes on the same row as the readout
- * — label at the start, «до N» at the end — instead of the readout taking a
- * row of its own under the label.
+ * `label` (`97dq.83`, `97dq.92`): label, handle and readout share one row —
+ * «Эмодзи (?)» at the start, the handle between, «до N» at the end. Only a
+ * field narrower than 520px puts the handle on a row of its own under them:
+ * below that the middle column leaves the six captions too little room
+ * (review of the fifteenth walk, F5). Without a label there is no label
+ * cell, and nothing makes the row taller than the readout.
  *
  * Geometry: the six captions sit in six equal cells and the handle's box is
- * inset by half a cell, so every stop is exactly under its caption and a long
- * caption («без предела») has a whole cell to wrap in rather than running
- * into «10».
+ * inset by half a cell, so every stop is exactly under its caption. A long
+ * caption («без предела», «no limit») wraps inside its own cell — between
+ * words first, inside a word only when a word is wider than the cell — so it
+ * never runs into «10».
  */
 export function EmojiCeilingSlider({
   locale,
@@ -87,23 +91,54 @@ export function EmojiCeilingSlider({
     : '';
   const inset = `calc(100% / ${EMOJI_STOPS.length * 2} - 12px)`;
 
+  /*
+    Одна строка: «Эмодзи (?)» — ползунок — «до N» (`97dq.92`, пятнадцатый
+    заход, C2: «она должна находиться между надписью и цифрой»). Решает
+    ширина самого поля, а не окна: панель поста узкая и на широком экране.
+    Уже 520 px — подпись и «до N» строкой, ползунок под ними во всю ширину
+    (ревью волны, F5: на 400–520 px средней колонке оставалось 25–33 px на
+    деление). Подпись и «до N» стоят по высоте дорожки, подписи делений —
+    под ней. Классы с вариантом `[@container(min-width:520px)]:` написаны
+    целиком: Tailwind находит класс только буквально, склеенный он не
+    существует. Что правила действительно попадают в CSS, держит
+    `tests/emoji-ceiling.container-css.test.cjs`, собирая стили конфигом
+    фронтенда.
+  */
+  const labelled = label !== undefined && label !== null && label !== false;
   return (
     <div
       data-emoji-slider={dataName}
       data-emoji-stop={stop}
       data-emoji-changed={changed ? 'true' : 'false'}
-      className="flex min-w-0 flex-col gap-[4px]"
+      className="min-w-0 [container-type:inline-size]"
     >
       <div
         data-emoji-label-row="true"
-        className="flex min-w-0 flex-wrap items-center justify-between gap-x-[12px] gap-y-[4px]"
+        className={clsx(
+          'grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-[12px] gap-y-[4px]',
+          labelled
+            ? '[@container(min-width:520px)]:grid-cols-[fit-content(40%)_minmax(0,1fr)_fit-content(30%)]'
+            : '[@container(min-width:520px)]:grid-cols-[minmax(0,1fr)_fit-content(30%)]'
+        )}
       >
-        {label ? (
-          <div className="flex min-w-0 flex-wrap items-center gap-x-[8px]">
+        {labelled ? (
+          <div
+            data-emoji-label-cell="true"
+            className="col-start-1 row-start-1 flex min-h-[44px] min-w-0 flex-wrap items-center gap-x-[8px] sm:min-h-[40px]"
+          >
             {label}
           </div>
         ) : null}
-        <span className="ms-auto flex min-w-0 flex-wrap items-baseline justify-end gap-x-[8px]">
+        <span
+          data-emoji-readout-cell="true"
+          className={clsx(
+            'col-start-2 row-start-1 flex min-w-0 flex-wrap items-center justify-end gap-x-[8px]',
+            labelled
+              ? 'min-h-[44px] sm:min-h-[40px] [@container(min-width:520px)]:col-start-3'
+              : // Без подписи высоту строке задаёт только сама дорожка рядом.
+                '[@container(min-width:520px)]:min-h-[44px] sm:[@container(min-width:520px)]:min-h-[40px]'
+          )}
+        >
           {/* Не `<output>`: его неявная роль `status` объявляла бы каждое
             движение ручки, а ручка и так читает «до N» через aria-valuetext. */}
           <span
@@ -128,70 +163,80 @@ export function EmojiCeilingSlider({
             </span>
           ) : null}
         </span>
-      </div>
 
-      <div className="relative h-[44px] min-w-0 sm:h-[40px]">
         <div
-          className="absolute inset-y-0"
-          style={{ insetInlineStart: inset, insetInlineEnd: inset }}
+          data-emoji-track-cell="true"
+          className={clsx(
+            'col-span-2 row-start-2 flex min-w-0 flex-col gap-[4px]',
+            labelled
+              ? '[@container(min-width:520px)]:col-span-1 [@container(min-width:520px)]:col-start-2 [@container(min-width:520px)]:row-start-1'
+              : '[@container(min-width:520px)]:col-span-1 [@container(min-width:520px)]:col-start-1 [@container(min-width:520px)]:row-start-1'
+          )}
         >
-          <span
-            aria-hidden="true"
-            className="absolute inset-x-[12px] top-1/2 h-[4px] -translate-y-1/2 rounded-[4px] bg-cf-surface-subtle"
-          />
-          <span
-            aria-hidden="true"
-            className={clsx(
-              'absolute top-1/2 h-[4px] -translate-y-1/2 rounded-[4px]',
-              muted ? 'bg-cf-border-strong' : 'bg-cf-accent'
-            )}
-            style={{
-              insetInlineStart: '12px',
-              width: `calc((100% - 24px) * ${index / LAST})`,
-            }}
-          />
-          {channelIndex !== null ? (
-            <span
-              aria-hidden="true"
-              data-emoji-channel-mark={emojiStopOf(channel as EmojiLevel)}
-              className="absolute top-1/2 h-[12px] w-0.5 -translate-y-1/2 -translate-x-1/2 rounded-full bg-cf-ink-muted rtl:translate-x-1/2"
-              style={{ insetInlineStart: at(channelIndex) }}
-            />
-          ) : null}
-          <Range
-            id={id}
-            min={0}
-            max={LAST}
-            step={1}
-            value={index}
-            disabled={disabled}
-            aria-label={t.profileEmojiSlider}
-            aria-valuetext={readout}
-            aria-describedby={describedBy}
-            className="pointer-events-auto cursor-pointer"
-            onChange={(event) =>
-              onChange(emojiStopAt(Number(event.target.value)))
-            }
-          />
-        </div>
-      </div>
+          <div className="relative h-[44px] min-w-0 sm:h-[40px]">
+            <div
+              className="absolute inset-y-0"
+              style={{ insetInlineStart: inset, insetInlineEnd: inset }}
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-[12px] top-1/2 h-[4px] -translate-y-1/2 rounded-[4px] bg-cf-surface-subtle"
+              />
+              <span
+                aria-hidden="true"
+                className={clsx(
+                  'absolute top-1/2 h-[4px] -translate-y-1/2 rounded-[4px]',
+                  muted ? 'bg-cf-border-strong' : 'bg-cf-accent'
+                )}
+                style={{
+                  insetInlineStart: '12px',
+                  width: `calc((100% - 24px) * ${index / LAST})`,
+                }}
+              />
+              {channelIndex !== null ? (
+                <span
+                  aria-hidden="true"
+                  data-emoji-channel-mark={emojiStopOf(channel as EmojiLevel)}
+                  className="absolute top-1/2 h-[12px] w-0.5 -translate-y-1/2 -translate-x-1/2 rounded-full bg-cf-ink-muted rtl:translate-x-1/2"
+                  style={{ insetInlineStart: at(channelIndex) }}
+                />
+              ) : null}
+              <Range
+                id={id}
+                min={0}
+                max={LAST}
+                step={1}
+                value={index}
+                disabled={disabled}
+                aria-label={t.profileEmojiSlider}
+                aria-valuetext={readout}
+                aria-describedby={describedBy}
+                className="pointer-events-auto cursor-pointer"
+                onChange={(event) =>
+                  onChange(emojiStopAt(Number(event.target.value)))
+                }
+              />
+            </div>
+          </div>
 
-      <div
-        aria-hidden="true"
-        data-emoji-divisions="true"
-        className="grid min-w-0 grid-cols-6 cf-caption text-cf-ink-muted"
-      >
-        {EMOJI_STOPS.map((division) => (
-          <span
-            key={division}
-            className={clsx(
-              'min-w-0 text-center [overflow-wrap:normal]',
-              division === stop && !muted && 'text-cf-ink'
-            )}
+          <div
+            aria-hidden="true"
+            data-emoji-divisions="true"
+            className="grid min-w-0 grid-cols-6 cf-caption text-cf-ink-muted"
           >
-            {emojiDivisionWord(locale, division)}
-          </span>
-        ))}
+            {EMOJI_STOPS.map((division) => (
+              <span
+                key={division}
+                className={clsx(
+                  'min-w-0 text-center [overflow-wrap:anywhere]',
+                  division === stop && !muted && 'text-cf-ink'
+                )}
+              >
+                {emojiDivisionWord(locale, division)}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

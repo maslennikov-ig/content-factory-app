@@ -3270,6 +3270,13 @@ export type PiecePostSettingsRequestV1 = {
   options?: Partial<PiecePostSettingsV1['options']>;
   /** `null` — снова как в канале; отсутствие — не трогать. */
   planMode?: PlanModeV1 | null;
+  /**
+   * С `planMode: null` — режим канала, который показывала страница
+   * (`97dq.86`, ревью W1 пятнадцатого захода, F10). Под замком канала
+   * сервер сверяет его с режимом канала: совпал — пост как в канале; уже
+   * другой — пишется этот режим явно, и пост держит то, что человек видел.
+   */
+  expectedChannelMode?: PlanModeV1;
 };
 
 export type PiecePostSettingsResponseV1 = {

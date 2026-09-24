@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import SafeImage from '@contentfactory/react/helpers/safe.image';
 import { Button } from '@contentfactory/react/form/button';
 import { FC, Fragment, useCallback, useEffect, useState } from 'react';
@@ -32,7 +33,7 @@ const ConnectedComponent: FC<{
   const t = useT();
 
   return (
-    <div className="my-[16px] min-h-[90px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+    <Panel as="div" contentPadding="roomy" className="my-[16px] min-h-[90px]">
       <div className={`flex items-center gap-[8px]`}>
         <div>
           <SafeImage
@@ -47,7 +48,7 @@ const ConnectedComponent: FC<{
         </div>
         <Button onClick={disconnect}>{t('disconnect', 'Disconnect')}</Button>
       </div>
-    </div>
+    </Panel>
   );
 };
 const ConnectComponent: FC<{
@@ -201,7 +202,11 @@ export const GithubComponent: FC<{
         </Fragment>
       ))}
       {githubState.filter((f) => !f.login).length === 0 && (
-        <div className="my-[16px] min-h-[90px] rounded-[8px] border border-cf-border bg-cf-surface p-[24px]">
+        <Panel
+          as="div"
+          contentPadding="roomy"
+          className="my-[16px] min-h-[90px]"
+        >
           <div className={`flex items-center gap-[8px]`}>
             <div>
               <SafeImage
@@ -216,7 +221,7 @@ export const GithubComponent: FC<{
             </div>
             <Button onClick={connect}>{t('connect', 'Connect')}</Button>
           </div>
-        </div>
+        </Panel>
       )}
     </>
   );

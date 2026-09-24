@@ -33,6 +33,7 @@ export function BillingFirstUseView({
   checkoutBoundary,
   controls,
   planControls,
+  adminOnly = false,
 }: {
   state:
     | 'loading'
@@ -51,6 +52,11 @@ export function BillingFirstUseView({
   checkoutBoundary?: ReactNode;
   controls?: ReactNode;
   planControls?: ReactNode;
+  /**
+   * The viewer is not an administrator (`zg8w`): the checkout answers 403 for
+   * them, so no payment form is prepared and the box says who can pay.
+   */
+  adminOnly?: boolean;
 }) {
   const ru = locale === 'ru';
   if (state === 'loading') {
@@ -94,7 +100,12 @@ export function BillingFirstUseView({
     >
       <div>
         <h1 className="cf-heading-lg text-balance">
-          {ru
+          {/* Choosing is the administrator's; anyone else reads the plans. */}
+          {adminOnly
+            ? ru
+              ? 'Тарифы рабочего пространства'
+              : 'Workspace plans'
+            : ru
             ? 'Выберите тариф рабочего пространства'
             : 'Choose a workspace plan'}
         </h1>
@@ -107,7 +118,7 @@ export function BillingFirstUseView({
             ? 'Тарифы различаются числом каналов и рабочими возможностями.'
             : 'Plans differ by connected channels and workspace capabilities.'}
         </p>
-        {allowTrial && (
+        {allowTrial && !adminOnly && (
           <p className="cf-body-sm mt-[16px] text-cf-accent">
             {ru
               ? 'Пробный период доступен; точные условия показаны перед подтверждением.'
@@ -167,7 +178,17 @@ export function BillingFirstUseView({
           </p>
         )}
         <div className="mt-[16px] rounded-[8px] border border-cf-border bg-cf-surface-subtle p-[20px]">
-          {checkoutBoundary ?? (
+          {adminOnly ? (
+            <p
+              role="note"
+              data-billing-admin-only="first-use"
+              className="cf-body-md text-cf-ink-muted text-pretty"
+            >
+              {ru
+                ? 'Оплатить тариф может только администратор пространства. Попросите его выбрать тариф — после оплаты пространство откроется и для вас.'
+                : 'Only a workspace administrator can pay for a plan. Ask them to choose one — once it is paid, the workspace opens for you too.'}
+            </p>
+          ) : checkoutBoundary ?? (
             <p className="cf-body-md text-cf-ink-muted">
               {ru
                 ? 'Платёжные реквизиты предоставляет Stripe во внешней защищённой границе.'

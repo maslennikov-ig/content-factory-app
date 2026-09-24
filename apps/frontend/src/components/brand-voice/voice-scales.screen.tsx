@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
@@ -500,9 +501,12 @@ export function VoiceScalesScreen({
       ) : null}
 
       {recalibration ? (
-        <div
+        <Panel
           data-voice-recalibrate="offered"
-          className="flex min-w-0 flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+          as="div"
+          contentPadding="snug"
+          className="min-w-0"
+          contentClassName="flex flex-col gap-[8px]"
         >
           <p className="cf-label-md text-cf-ink">{t.scalesRecalibrateWhy}</p>
           <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
@@ -530,7 +534,7 @@ export function VoiceScalesScreen({
               </span>
             ) : null}
           </span>
-        </div>
+        </Panel>
       ) : null}
 
       {recalibrated ? (

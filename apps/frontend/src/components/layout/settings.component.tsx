@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useModals } from '@contentfactory/frontend/components/layout/new-modal';
 import React, {
   FC,
@@ -318,9 +319,14 @@ export const SettingsComponent = () => {
     }
     settings.openModal({
       children: (
-        <div className="relative mx-auto flex w-full max-w-[500px] flex-1 flex-col gap-[20px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          className="relative mx-auto flex w-full max-w-[500px] flex-1 flex-col"
+          contentClassName="flex flex-1 flex-col gap-[20px]"
+        >
           <SettingsPopup />
-        </div>
+        </Panel>
       ),
       classNames: {
         modal: 'bg-transparent text-cf-ink',

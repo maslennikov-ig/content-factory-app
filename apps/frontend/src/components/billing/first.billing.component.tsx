@@ -15,7 +15,6 @@ import { pricing } from '@contentfactory/nestjs-libraries/database/prisma/subscr
 import { capitalize } from 'lodash';
 import clsx from 'clsx';
 import { LoadingComponent } from '@contentfactory/frontend/components/layout/loading';
-import { CheckIconComponent } from '@contentfactory/frontend/components/ui/check.icon.component';
 import {
   FAQComponent,
   FAQSection,
@@ -30,6 +29,7 @@ import {
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
 import i18next from 'i18next';
+import { isOrganizationAdmin } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import {
   BillingFirstUseView,
   resolveBillingFirstUseState,
@@ -78,8 +78,14 @@ export const FirstBillingComponent = () => {
     ).json();
   }, [tier, period]);
 
+  // Checkout is the administrator's (`zg8w`): nobody else is asked to pay,
+  // and nobody else's browser asks the server for a form it would refuse.
+  // Until the user is known the page is loading, not «only an administrator»
+  // (review of the fifteenth walk, F9): an administrator saw that note flash.
+  const userKnown = Boolean(user);
+  const canPay = isOrganizationAdmin(user?.role);
   const { data, error, isLoading } = useSWR(
-    `/billing-${tier}-${period}`,
+    canPay ? `/billing-${tier}-${period}` : null,
     loadCheckout,
     {
       revalidateOnFocus: false,
@@ -94,51 +100,6 @@ export const FirstBillingComponent = () => {
     () => Object.entries(pricing).filter(([key, value]) => key !== 'FREE'),
     []
   );
-
-  const PlanIntro = () => {
-    return (
-      <>
-        <div className="text-[28px] tablet:text-[24px] mobile:!text-[22px] font-[650] leading-[1.2] tracking-[-0.02em] text-balance">
-          {t(
-            'billing_choose_plan_heading',
-            'Choose the plan for this workspace'
-          )}
-        </div>
-        <p className="mt-[8px] text-[15px] leading-[1.55] text-cf-ink-muted max-w-[60ch] [text-wrap:pretty]">
-          {t(
-            'billing_choose_plan_intro',
-            'Plans differ in connected channels, monthly posts and generation limits. You can change or cancel a plan from settings at any time.'
-          )}
-        </p>
-
-        {!!user?.allowTrial && (
-          <ul className="flex flex-col gap-[8px] mt-[24px] text-[14px]">
-            <li className="flex gap-[8px] items-center">
-              <CheckIconComponent />
-              <span>
-                {t('billing_no_risk_trial', '100% No-Risk Free Trial')}
-              </span>
-            </li>
-            <li className="flex gap-[8px] items-center">
-              <CheckIconComponent />
-              <span>
-                {t(
-                  'billing_pay_nothing_7_days',
-                  'Pay NOTHING for the first 7-days'
-                )}
-              </span>
-            </li>
-            <li className="flex gap-[8px] items-center">
-              <CheckIconComponent />
-              <span>
-                {t('billing_cancel_anytime', 'Cancel anytime, from settings')}
-              </span>
-            </li>
-          </ul>
-        )}
-      </>
-    );
-  };
 
   return (
     <div className="blurMe flex flex-1 flex-col bg-cf-surface pb-[60px] mobile:pb-[100px]">
@@ -158,7 +119,14 @@ export const FirstBillingComponent = () => {
         </div>
       </div>
       <BillingFirstUseView
-        state={resolveBillingFirstUseState({ isLoading, error, data })}
+        state={
+          !userKnown
+            ? 'loading'
+            : canPay
+            ? resolveBillingFirstUseState({ isLoading, error, data })
+            : 'default'
+        }
+        adminOnly={!canPay}
         locale={i18next.resolvedLanguage?.startsWith('ru') ? 'ru' : 'en'}
         plans={price.map(([key, value]) => ({
           id: key,
@@ -169,9 +137,10 @@ export const FirstBillingComponent = () => {
         }))}
         selectedPlan={tier}
         period={period as 'MONTHLY' | 'YEARLY'}
-        allowTrial={Boolean(user?.allowTrial)}
+        // A trial is offered to the one who can start it.
+        allowTrial={canPay && Boolean(user?.allowTrial)}
         checkoutBoundary={
-          !data?.blocked && data?.client_secret && stripe ? (
+          canPay && !data?.blocked && data?.client_secret && stripe ? (
             <EmbeddedBilling
               stripe={stripe}
               secret={data.client_secret}

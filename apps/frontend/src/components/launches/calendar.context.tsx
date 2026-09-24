@@ -106,6 +106,13 @@ export const calendarDefaults = {
   setListState: (state: ListStateFilter) => {
     /** empty **/
   },
+  /** Words typed in the list's search field (`odb8.4.1`), as typed. */
+  listQuery: '',
+  /** The query the list was last asked with: `listQuery` after a pause. */
+  listSearched: '',
+  setListQuery: (query: string) => {
+    /** empty **/
+  },
 };
 export const CalendarContext = createContext(calendarDefaults);
 
@@ -190,6 +197,22 @@ export const CalendarWeekProvider: FC<{
     setListStateRaw(next);
     setListPage(0);
   }, []);
+  /*
+    Поиск по словам в списке (`odb8.4.1`): поле пишет сразу, запрос уходит
+    после паузы в наборе — не по запросу на каждую букву. Новый запрос
+    начинает с первой страницы.
+  */
+  const [listQuery, setListQuery] = useState('');
+  const [listSearched, setListSearched] = useState('');
+  useEffect(() => {
+    const next = listQuery.trim();
+    if (next === listSearched) return;
+    const pause = setTimeout(() => {
+      setListSearched(next);
+      setListPage(0);
+    }, 300);
+    return () => clearTimeout(pause);
+  }, [listQuery, listSearched]);
 
   // Initialize with current date range based on URL params or defaults
   const initStartDate = searchParams.get('startDate');
@@ -257,8 +280,11 @@ export const CalendarWeekProvider: FC<{
       ...(filters.editorialStage
         ? { editorialStage: filters.editorialStage }
         : {}),
+      // Omitted when empty: an empty `q` is no search, and the key stays the
+      // one the list had before search existed.
+      ...(listSearched ? { q: listSearched } : {}),
     }).toString();
-  }, [listPage, filters.customer, filters.integrationId, filters.editorialStage, listState]);
+  }, [listPage, filters.customer, filters.integrationId, filters.editorialStage, listState, listSearched]);
 
   const loadListData = useCallback(async () => {
     const response = await fetch(`/posts/list?${listParams}`);
@@ -421,6 +447,9 @@ export const CalendarWeekProvider: FC<{
         setListPage,
         listState,
         setListState,
+        listQuery,
+        listSearched,
+        setListQuery,
       }}
     >
       {children}

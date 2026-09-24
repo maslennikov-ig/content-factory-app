@@ -298,7 +298,7 @@ export function PieceChannelTab({
                       }))}
                     onChange={onSelectAdaptation}
                     data-piece-variants={channel.id}
-                    className="max-w-full flex-wrap"
+                    wrap
                   />
                 ) : null}
                 {shown ? (
@@ -311,7 +311,7 @@ export function PieceChannelTab({
                     ]}
                     onChange={setView}
                     data-piece-view={previewing ? 'preview' : 'text'}
-                    className="max-w-full flex-wrap"
+                    wrap
                   />
                 ) : null}
                 {editable && autosave ? (
@@ -486,6 +486,8 @@ export function PieceChannelTab({
                     label: kindWord(one),
                   }))}
                   onChange={setKind}
+                  // До шести видов: поровну в строку не входят на 400 px.
+                  wrap
                   data-piece-kind-choice={channel.platform}
                 />
               ) : null}

@@ -34,10 +34,12 @@ describe('shared layout primitives', () => {
     expect(shell).toContain(`p-[${pageGutter}]`);
     expect(panel).toContain(`default: 'p-[${pageGutter}]'`);
     expect(panel).toContain(
-      "export type PanelContentPadding = 'default' | 'compact' | 'roomy' | 'none'"
+      "export type PanelContentPadding = 'default' | 'compact' | 'snug' | 'roomy' | 'none'"
     );
     expect(panel).toContain('contentPadding?: PanelContentPadding;');
     expect(panel).toContain("compact: 'p-[12px]'");
+    // The 16px end of the panel range, for the cards that moved in 97dq.76.
+    expect(panel).toContain("snug: 'p-[16px]'");
     expect(panel).toContain("default: 'p-[20px]'");
     expect(panel).toContain("none: ''");
     expect(panel).toContain('CONTENT_PADDING[contentPadding]');

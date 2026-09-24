@@ -309,43 +309,13 @@ describe('§7.3 / §9 — Аудитория on the shared states; one language 
 /**
  * §7.1 — hand-written cards. `rounded-[8px] border border-cf-border
  * bg-cf-surface p-[16|20|24px]` is `Panel` typed out; 56 of them stood beside
- * ten `Panel` users. Производство and Аудитория moved on 24.09.2026. The
- * ledger is per file and may only shrink — a new card takes `Panel`.
+ * ten `Panel` users. Производство and Аудитория moved on 24.09.2026, the
+ * remaining 57 in 32 files on 25.09.2026 (`97dq.76`): `Panel` gained the 16px
+ * `snug` padding most of them used, the list-item/form/article roles they
+ * carried, and pass-through attributes for their test hooks. Nothing is left
+ * that cannot move, so the ledger is empty — a new card takes `Panel`.
  */
-const HAND_CARD_LEDGER = {
-  'apps/frontend/src/components/admin/admin-stats.component.tsx': 1,
-  'apps/frontend/src/components/admin/admin-users.component.tsx': 1,
-  'apps/frontend/src/components/brand-voice/draft-gap-note.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-analysis.screen.tsx': 4,
-  'apps/frontend/src/components/brand-voice/voice-avatar.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-avatars.screen.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-brief.container.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-brief.screen.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-empty.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-learning.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-materials.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-proposal.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-redactions.screen.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-samples.screen.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-scales.screen.tsx': 1,
-  'apps/frontend/src/components/brand-voice/voice-versions.screen.tsx': 2,
-  'apps/frontend/src/components/brand-voice/voice-wizard.container.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-facts.container.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/content-intelligence.view.tsx': 3,
-  'apps/frontend/src/components/content-intelligence/content-leads.tab.tsx': 6,
-  'apps/frontend/src/components/content-intelligence/content-search.container.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/intake/intake.research.tsx': 1,
-  'apps/frontend/src/components/content-intelligence/intake/questions.card.tsx': 2,
-  'apps/frontend/src/components/content-intelligence/shared/draft-result.tsx': 1,
-  'apps/frontend/src/components/launches/plan-ahead.tsx': 2,
-  'apps/frontend/src/components/layout/settings.component.tsx': 1,
-  'apps/frontend/src/components/new-launch/picks.socials.component.tsx': 1,
-  'apps/frontend/src/components/new-launch/unverified-evidence.note.tsx': 1,
-  'apps/frontend/src/components/settings/about-project.component.tsx': 1,
-  'apps/frontend/src/components/settings/github.component.tsx': 2,
-  'apps/frontend/src/components/settings/signatures.component.tsx': 1,
-  'apps/frontend/src/components/settings/teams.component.tsx': 1,
-};
+const HAND_CARD_LEDGER = {};
 
 describe('§7.1 — hand-written cards only shrink', () => {
   const walk = (dir, out = []) => {

@@ -418,13 +418,8 @@ const findBusyLabelOffenders = (files) => {
   return offenders.sort();
 };
 
-const BUSY_LABEL_ALLOWED = [
-  'apps/frontend/src/components/brand-voice/voice-brief.container.tsx',
-  'apps/frontend/src/components/content-intelligence/content-facts.container.tsx',
-  'apps/frontend/src/components/content-intelligence/content-facts.showcase.tsx',
-  'apps/frontend/src/components/content-intelligence/content-leads.tab.tsx',
-  'apps/frontend/src/components/media/media.component.tsx',
-];
+// Empty since 97dq.43 p.5: the last five legacy screens moved to `loading`.
+const BUSY_LABEL_ALLOWED = [];
 
 /* ---------------------------------------------------------------------- */
 

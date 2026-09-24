@@ -101,6 +101,7 @@ describe('the list-view fetch omits editorialStage when unset, sends it when set
     'listPage',
     'filters',
     'listState',
+    'listSearched',
     `return (${match[1]});`
   );
 
@@ -111,6 +112,13 @@ describe('the list-view fetch omits editorialStage when unset, sends it when set
 
   test('present when a stage is chosen', () => {
     const built = build(0, { customer: null, editorialStage: 'PLAN' }, 'all');
+    expect(built.editorialStage).toBe('PLAN');
+  });
+
+  test('the word search (odb8.4.1) rides along as q, and only when there is one', () => {
+    expect('q' in build(0, { customer: null, editorialStage: null }, 'all', '')).toBe(false);
+    const built = build(0, { customer: null, editorialStage: 'PLAN' }, 'all', 'канбан');
+    expect(built.q).toBe('канбан');
     expect(built.editorialStage).toBe('PLAN');
   });
 });

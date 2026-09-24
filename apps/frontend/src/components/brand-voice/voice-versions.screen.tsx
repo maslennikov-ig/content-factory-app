@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -200,11 +201,15 @@ export function VoiceVersionsScreen({
       />
 
       {versions.length === 0 ? (
-        <p className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          contentClassName="cf-body-sm text-cf-ink-muted [text-wrap:pretty]"
+        >
           {locale === 'ru'
             ? 'Версий пока нет: голос ещё ни разу не активировали.'
             : 'No versions yet: the voice has never been activated.'}
-        </p>
+        </Panel>
       ) : (
         <ul className="flex min-w-0 flex-col rounded-[8px] border border-cf-border bg-cf-surface">
           {versions.map((version) => (
@@ -284,8 +289,10 @@ export function VoiceVersionsScreen({
           );
 
           return (
-            <div
-              className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+            <Panel
+              as="div"
+              contentPadding="snug"
+              className="min-w-0"
               data-voice-comparison="true"
             >
               <p className="cf-label-sm text-cf-ink-muted">
@@ -357,7 +364,7 @@ export function VoiceVersionsScreen({
                   )}
                 </p>
               ) : null}
-            </div>
+            </Panel>
           );
         })()
       ) : (

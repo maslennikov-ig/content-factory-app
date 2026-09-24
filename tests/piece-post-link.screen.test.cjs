@@ -32,6 +32,7 @@ const base = 'apps/frontend/src/components/content-intelligence';
 const { PostLinkQuestion } = loadTypeScriptModule(`${base}/intake/post-link.question.tsx`);
 const { PostOptionsPanel } = loadTypeScriptModule(`${base}/pieces/post-options.panel.tsx`);
 const { PieceCoreTab } = loadTypeScriptModule(`${base}/pieces/piece-core-tab.tsx`);
+const { PieceQuestions } = loadTypeScriptModule(`${base}/pieces/piece-questions.tsx`);
 const adapter = loadTypeScriptModule(`${base}/pieces/pieces.adapter.ts`);
 const { intakeCopy } = loadTypeScriptModule(`${base}/intake/intake.copy.ts`);
 const { piecesCopy } = loadTypeScriptModule(`${base}/pieces/pieces.copy.ts`);
@@ -68,7 +69,7 @@ describe('the words are equal in both languages', () => {
       'postLinkNone',
       'postLinkOwn',
       'postLinkInvalid',
-      'postLinkSave',
+      'postLinkSaving',
     ],
     pieces: [
       'postLinkLabel',
@@ -114,13 +115,13 @@ describe('«Какую ссылку поставить в пост?»', () => {
     ).toBeTruthy();
     const field = screen.getByLabelText('Адрес ссылки');
     fireEvent.change(field, { target: { value: 'javascript:alert(1)' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить ответ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await flush();
     expect(answers).toEqual([]);
     expect(screen.getByText(intakeCopy.ru.postLinkInvalid)).toBeTruthy();
 
     fireEvent.change(field, { target: { value: 'example.com/offer' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить ответ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await flush();
     expect(answers).toEqual(['https://example.com/offer']);
   });
@@ -143,7 +144,7 @@ describe('«Какую ссылку поставить в пост?»', () => {
     fireEvent.change(screen.getByLabelText('Текст ссылки'), {
       target: { value: '  наш прайс ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить ответ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await flush();
     expect(answers).toEqual([['https://example.com/offer', 'наш прайс']]);
     expect(intakeCopy.en.postLinkText).toBe('Link text');
@@ -167,7 +168,7 @@ describe('«Какую ссылку поставить в пост?»', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Вставить ссылку' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Без ссылки' }));
     expect(answers).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить ответ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
     await flush();
     expect(answers).toEqual([null]);
   });
@@ -187,6 +188,194 @@ describe('«Какую ссылку поставить в пост?»', () => {
     expect(screen.getByLabelText('Link address').value).toBe('https://example.com');
     fireEvent.click(screen.getByRole('button', { name: 'Keep it as it was' }));
     expect(kept).toBe(1);
+  });
+});
+
+describe('one composition: the link question saves with the questions’ «Дальше» (97dq.89)', () => {
+  const QUESTIONS = [
+    { field: 'thesis', question: 'Что было до доски?', suggested: 'Много чата' },
+    { field: 'facts', key: 'ask-1', question: 'Какой результат?', suggested: null },
+  ];
+  const draw = (overrides = {}) => {
+    const calls = [];
+    wrap(
+      React.createElement(PieceQuestions, {
+        locale: 'ru',
+        questions: QUESTIONS,
+        onAnswer: (given, decide) => calls.push(['answers', given, decide]),
+        onSkip: () => calls.push(['skip']),
+        link: {
+          initial: null,
+          onAnswer: async (...args) => {
+            calls.push(['link', ...args]);
+            return overrides.linkOk ?? true;
+          },
+        },
+      })
+    );
+    return calls;
+  };
+
+  test('no «Сохранить ответ»; one «Дальше» writes the link first, then the answers', async () => {
+    const calls = draw();
+    expect(screen.queryByRole('button', { name: 'Сохранить ответ' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Дальше' })).toHaveLength(1);
+    expect(document.querySelector('[data-piece-link-in-questions]')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Адрес ссылки'), {
+      target: { value: 'https://example.com/kanban' },
+    });
+    fireEvent.change(screen.getByLabelText('Текст ссылки'), {
+      target: { value: 'что такое канбан' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(calls.map((call) => call[0])).toEqual(['link', 'answers']);
+    expect(calls[0].slice(1)).toEqual(['https://example.com/kanban', 'что такое канбан']);
+  });
+
+  test('an empty address leaves the link question open and the answers still go', async () => {
+    const calls = draw();
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(calls.map((call) => call[0])).toEqual(['answers']);
+  });
+
+  test('a wrong address holds the step and is marked at the field', async () => {
+    const calls = draw();
+    fireEvent.change(screen.getByLabelText('Адрес ссылки'), { target: { value: 'javascript:alert(1)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(calls).toEqual([]);
+    expect(screen.getByText(intakeCopy.ru.postLinkInvalid)).toBeTruthy();
+  });
+
+  test('a link that did not save stops the step with a plain message', async () => {
+    const calls = draw({ linkOk: false });
+    fireEvent.click(screen.getByRole('radio', { name: 'Без ссылки' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(calls.map((call) => call[0])).toEqual(['link']);
+    expect(calls[0].slice(1)).toEqual([null]);
+    expect(screen.getByRole('alert').textContent).toBe(intakeCopy.ru.postLinkFailed);
+  });
+});
+
+describe('the link question inside the questions card, review of 97dq.89 (F2, F7)', () => {
+  const QUESTIONS = [
+    { field: 'thesis', question: 'Что было до доски?', suggested: 'Много чата' },
+    { field: 'facts', key: 'ask-1', question: 'Какой результат?', suggested: null },
+  ];
+  const Harness = ({ link, calls }) =>
+    React.createElement(
+      variables.VariableContextComponent,
+      { language: 'ru' },
+      React.createElement(PieceQuestions, {
+        locale: 'ru',
+        questions: QUESTIONS,
+        onAnswer: (given) => calls.push(['answers', given.length]),
+        onSkip: () => calls.push(['skip']),
+        link,
+      })
+    );
+  const linkOf = (calls, overrides = {}) => ({
+    initial: null,
+    onAnswer: async (...args) => {
+      calls.push(['link', ...args]);
+      return overrides.ok ?? true;
+    },
+    ...overrides.link,
+  });
+
+  test('reopened with «Изменить» while the questions are open: the fields start from the saved answer, and it can be kept', async () => {
+    const calls = [];
+    const view = render(React.createElement(Harness, { link: undefined, calls }));
+    expect(document.querySelector('[data-piece-link-in-questions]')).toBeNull();
+    const reopened = linkOf(calls, {
+      link: {
+        initial: { url: 'https://example.com/saved', text: 'наш прайс' },
+        onKeep: () => calls.push(['keep']),
+      },
+    });
+    view.rerender(React.createElement(Harness, { link: reopened, calls }));
+    expect(screen.getByLabelText('Адрес ссылки').value).toBe('https://example.com/saved');
+    expect(screen.getByLabelText('Текст ссылки').value).toBe('наш прайс');
+    fireEvent.click(screen.getByRole('button', { name: intakeCopy.ru.postLinkKeep }));
+    expect(calls).toEqual([['keep']]);
+  });
+
+  test('a saved «Без ссылки» reopens as «Без ссылки»; «Дальше» untouched closes it without a write', async () => {
+    const calls = [];
+    const view = render(React.createElement(Harness, { link: undefined, calls }));
+    view.rerender(
+      React.createElement(Harness, {
+        link: linkOf(calls, {
+          link: { initial: { url: null }, onKeep: () => calls.push(['keep']) },
+        }),
+        calls,
+      })
+    );
+    expect(screen.getByRole('radio', { name: 'Без ссылки' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByLabelText('Адрес ссылки')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(calls.map((call) => call[0])).toEqual(['keep', 'answers']);
+  });
+
+  test('a newly saved answer refills the fields; closing the question drops what was typed', () => {
+    const calls = [];
+    const view = render(React.createElement(Harness, { link: linkOf(calls), calls }));
+    fireEvent.change(screen.getByLabelText('Адрес ссылки'), { target: { value: 'half' } });
+    view.rerender(React.createElement(Harness, { link: undefined, calls }));
+    view.rerender(React.createElement(Harness, { link: linkOf(calls), calls }));
+    expect(screen.getByLabelText('Адрес ссылки').value).toBe('');
+  });
+
+  test('«Решите всё за меня» leaves the piece as it is and does not write a typed link', async () => {
+    const calls = [];
+    render(React.createElement(Harness, { link: linkOf(calls), calls }));
+    fireEvent.change(screen.getByLabelText('Адрес ссылки'), {
+      target: { value: 'javascript:alert(1)' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: piecesCopy.ru.answerDecideAll }));
+    await flush();
+    expect(calls).toEqual([['skip']]);
+  });
+
+  test('a wrong address takes the focus to the field', async () => {
+    const calls = [];
+    render(React.createElement(Harness, { link: linkOf(calls), calls }));
+    const field = screen.getByLabelText('Адрес ссылки');
+    fireEvent.change(field, { target: { value: 'javascript:alert(1)' } });
+    field.blur();
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(document.activeElement).toBe(field);
+    expect(calls).toEqual([]);
+  });
+
+  test('the save-failed message goes away once the link is edited', async () => {
+    const calls = [];
+    render(React.createElement(Harness, { link: linkOf(calls, { ok: false }), calls }));
+    const field = screen.getByLabelText('Адрес ссылки');
+    fireEvent.change(field, { target: { value: 'https://example.com/a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(screen.getByRole('alert').textContent).toBe(intakeCopy.ru.postLinkFailed);
+    fireEvent.change(field, { target: { value: 'https://example.com/b' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('the standalone question drops its save-failed message on edit too', async () => {
+    wrap(
+      React.createElement(PostLinkQuestion, { locale: 'ru', onAnswer: async () => false })
+    );
+    const field = screen.getByLabelText('Адрес ссылки');
+    fireEvent.change(field, { target: { value: 'https://example.com/a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
+    await flush();
+    expect(screen.getByRole('alert').textContent).toBe(intakeCopy.ru.postLinkFailed);
+    fireEvent.change(screen.getByLabelText('Текст ссылки'), { target: { value: 'прайс' } });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 

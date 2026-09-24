@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { stripLeftoverAuthorLinkDeep } from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import { INTAKE_SNAPSHOT_STORE, INTAKE_SNAPSHOT_TTL_SECONDS, type IntakeSnapshotStore } from '../intake/intake-snapshot.store';
 import {
   PIECE_RESEARCH_VERSION,
@@ -1524,6 +1525,17 @@ export class PieceService {
         message: 'The generator finished without an adaptation.',
       };
       return;
+    }
+
+    // The last look for the author-link token before the text is saved
+    // (review F3 of the fifteenth walk): a form the restore did not know
+    // must not reach the published post or the autopilot queue.
+    const leftover = stripLeftoverAuthorLinkDeep(output);
+    if (leftover.found) {
+      this.logger.warn(
+        `Adaptation for channel ${plan.channel.id}: ${leftover.found} leftover author-link token(s) stripped before saving`
+      );
+      output = leftover.value;
     }
 
     const saved = await this.persist(organizationId, plan, output, answers);
@@ -3738,6 +3750,13 @@ export class PieceService {
       throw pieceError('PIECE_AVATAR_UNKNOWN', language, chosen);
 
     const decides = patch.planMode !== undefined;
+    // «Как в канале» с режимом, который видел человек (`97dq.86`, F10):
+    // решает замок, а не страница.
+    const seen =
+      patch.planMode === null && isPlanMode(input?.expectedChannelMode)
+        ? input.expectedChannelMode
+        : undefined;
+    const channelNow = planModeOf(channel.planMode);
     const outcome = await this.planPostUnderLock(
       organizationId,
       pieceId,
@@ -3747,7 +3766,10 @@ export class PieceService {
         decides,
         // Прогноз режима только для проверки площадки до замка; решает
         // режим, перечитанный под замком.
-        predicted: decides ? patch.planMode ?? planModeOf(channel.planMode) : null,
+        predicted: decides
+          ? patch.planMode ?? (seen && seen !== channelNow ? seen : channelNow)
+          : null,
+        ...(seen ? { followChannelAs: seen } : {}),
       },
       language
     );
@@ -3771,6 +3793,13 @@ export class PieceService {
       decides: boolean;
       predicted: PlanModeV1 | null;
       expectedChannelMode?: PlanModeV1;
+      /**
+       * «Как в канале», выбранное при этом режиме канала (`97dq.86`, F10).
+       * Под замком: режим канала тот же — пост хранит `null`; другой — пост
+       * хранит этот режим явно. Иначе другая вкладка, переключившая канал
+       * между показом и сохранением, решила бы судьбу поста за человека.
+       */
+      followChannelAs?: PlanModeV1;
     },
     language: 'ru' | 'en'
   ): Promise<{
@@ -3816,8 +3845,14 @@ export class PieceService {
         if (!locked) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
         let tags = locked.tags;
         let settings = postSettingsOf(tags, integrationId);
-        if (work.patch) {
-          settings = mergePostSettings(settings, work.patch, this.now().toISOString());
+        let patch = work.patch;
+        if (patch && patch.planMode === null && work.followChannelAs) {
+          const channelNow = planModeOf(await db.channelPlanMode(organizationId, integrationId));
+          if (channelNow !== work.followChannelAs)
+            patch = { ...patch, planMode: work.followChannelAs };
+        }
+        if (patch) {
+          settings = mergePostSettings(settings, patch, this.now().toISOString());
           tags = withPostSettings(tags, integrationId, settings);
           if (db.writePieceTags) await db.writePieceTags(organizationId, pieceId, tags);
         }

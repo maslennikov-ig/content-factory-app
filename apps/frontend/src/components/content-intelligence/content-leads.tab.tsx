@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -445,10 +446,12 @@ function SubscriptionRowView({
             <Button
               density="dense"
               variant="secondary"
-              disabled={busy || !checkEnabled || checkedTooRecently}
+              disabled={!checkEnabled || checkedTooRecently}
+              loading={busy}
+              loadingLabel={t.checking}
               onClick={onCheckNow}
             >
-              {busy ? t.checking : t.checkNow}
+              {t.checkNow}
             </Button>
           </span>
           <span className="flex min-h-[44px] items-center sm:min-h-0">
@@ -482,10 +485,12 @@ function LeadCardView({
   const isNew = lead.status === 'NEW';
 
   return (
-    <li
+    <Panel
       data-content-lead-row={lead.id}
       data-content-lead-status={lead.status}
-      className="flex flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+      as="li"
+      contentPadding="snug"
+      contentClassName="flex flex-col gap-[12px]"
     >
       <span className="cf-caption text-cf-ink-muted">
         {[lead.subscriptionName, observed].filter(Boolean).join(' · ')}
@@ -517,7 +522,7 @@ function LeadCardView({
           {lead.status === 'ACCEPTED' ? t.takeToWork : t.declineAction}
         </span>
       )}
-    </li>
+    </Panel>
   );
 }
 
@@ -607,10 +612,12 @@ function AddSubscriptionDialog({
           </Button>
           <Button
             variant="primary"
-            disabled={busy || !subscriptionDraftReady(draft)}
+            disabled={!subscriptionDraftReady(draft)}
+            loading={busy}
+            loadingLabel={t.saving}
             onClick={() => void submit()}
           >
-            {busy ? t.saving : t.save}
+            {t.save}
           </Button>
         </>
       }
@@ -1013,18 +1020,30 @@ export function ContentLeadsTab({
             <EmptyState title={t.emptyEyebrow} description={t.emptyTitle} />
           </div>
           <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-3">
-            <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+            <Panel
+              as="div"
+              contentPadding="snug"
+              contentClassName="flex flex-col gap-[8px]"
+            >
               <span className="cf-label-md text-cf-ink">{t.benefitChooseTitle}</span>
               <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.benefitChooseBody}</span>
-            </div>
-            <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+            </Panel>
+            <Panel
+              as="div"
+              contentPadding="snug"
+              contentClassName="flex flex-col gap-[8px]"
+            >
               <span className="cf-label-md text-cf-ink">{t.benefitLeadsTitle}</span>
               <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.benefitLeadsBody}</span>
-            </div>
-            <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+            </Panel>
+            <Panel
+              as="div"
+              contentPadding="snug"
+              contentClassName="flex flex-col gap-[8px]"
+            >
               <span className="cf-label-md text-cf-ink">{t.benefitMemoryTitle}</span>
               <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.benefitMemoryBody}</span>
-            </div>
+            </Panel>
           </div>
           <div className="flex flex-col gap-[12px]">
             <span className="cf-label-sm text-cf-ink-muted">{t.startHere}</span>
@@ -1051,9 +1070,12 @@ export function ContentLeadsTab({
                   </Button>
                 </span>
               </div>
-              <div
+              <Panel
                 data-content-leads-start-card="topic"
-                className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+                as="div"
+                contentPadding="snug"
+                className="flex flex-col"
+                contentClassName="flex flex-1 flex-col gap-[8px]"
               >
                 <div className="flex flex-wrap items-center gap-[8px]">
                   <span className="cf-label-md text-cf-ink">{t.startTopicTitle}</span>
@@ -1077,8 +1099,13 @@ export function ContentLeadsTab({
                     {t.startTopicCta}
                   </Button>
                 </span>
-              </div>
-              <div className="flex flex-col gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+              </Panel>
+              <Panel
+                as="div"
+                contentPadding="snug"
+                className="flex flex-col"
+                contentClassName="flex flex-1 flex-col gap-[8px]"
+              >
                 <div className="flex flex-wrap items-center gap-[8px]">
                   <span className="cf-label-md text-cf-ink">{t.startTelegramTitle}</span>
                   <Status>{t.startTelegramOff}</Status>
@@ -1089,7 +1116,7 @@ export function ContentLeadsTab({
                     {t.startTelegramCta}
                   </Button>
                 </span>
-              </div>
+              </Panel>
               <div className="flex flex-col gap-[8px] rounded-[8px] border border-dashed border-cf-border-strong bg-cf-surface-subtle p-[16px]">
                 <span className="cf-label-md text-cf-ink">{t.notFactsTitle}</span>
                 <span className="cf-body-sm text-cf-ink-muted [text-wrap:pretty]">{t.notFactsBody}</span>

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 681,
+  "total": 672,
   "metric": {
     "sourceRoots": [
       "apps/frontend/src",
@@ -31,7 +31,7 @@
   },
   "sections": {
     "apps/frontend/src": {
-      "total": 655,
+      "total": 646,
       "allowances": {
         "apps/frontend/src/app/(app)/(preview)/p/[id]/page.tsx": {
           "text-[20px]": 1
@@ -143,17 +143,6 @@
           "text-[16px]": 2,
           "text-[18px]": 2,
           "text-[24px]": 2
-        },
-        "apps/frontend/src/components/billing/first.billing.component.tsx": {
-          "font-[650]": 1,
-          "leading-[1.2]": 1,
-          "leading-[1.55]": 1,
-          "text-[14px]": 1,
-          "text-[15px]": 1,
-          "text-[22px]": 1,
-          "text-[24px]": 1,
-          "text-[28px]": 1,
-          "tracking-[-0.02em]": 1
         },
         "apps/frontend/src/components/billing/lifetime.deal.tsx": {
           "text-[16px]": 2,

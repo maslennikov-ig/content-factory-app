@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import type { ReactNode } from 'react';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -464,10 +465,13 @@ export function ResearchOutcome({
   const hosts = [...new Set(facts.map((fact) => hostOf(fact.sourceUrl)).filter(Boolean))];
 
   return (
-    <section
+    <Panel
       aria-label={t.researchOutcomeTitle}
       data-intake-research-outcome="true"
-      className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+      as="section"
+      contentPadding="snug"
+      className="min-w-0"
+      contentClassName="flex flex-col gap-[16px]"
     >
       <div className="flex flex-wrap items-baseline gap-[8px]">
         <h3 className="cf-heading-md text-cf-ink">{t.researchOutcomeTitle}</h3>
@@ -543,6 +547,6 @@ export function ResearchOutcome({
           onContinue={onContinue}
         />
       ) : null}
-    </section>
+    </Panel>
   );
 }

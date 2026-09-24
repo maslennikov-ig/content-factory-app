@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import type { FC, ReactNode } from 'react';
 import {
   composeCopy,
@@ -46,10 +47,12 @@ const Note: FC<{
    */
   link?: string;
 }> = ({ testId, countAttribute, attributeName, body, nextStep, link }) => (
-  <div
+  <Panel
     data-testid={testId}
     {...{ [attributeName]: countAttribute }}
-    className="mt-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+    as="div"
+    contentPadding="snug"
+    className="mt-[16px]"
   >
     <p className="cf-body-sm text-cf-ink [text-wrap:pretty]">{body}</p>
     <p className="cf-body-sm mt-[8px] text-cf-ink-muted [text-wrap:pretty]">
@@ -68,7 +71,7 @@ const Note: FC<{
         </>
       ) : null}
     </p>
-  </div>
+  </Panel>
 );
 
 export const UnverifiedEvidenceNote: FC<{

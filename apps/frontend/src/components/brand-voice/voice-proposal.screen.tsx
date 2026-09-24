@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
@@ -537,7 +538,12 @@ export function VoiceProposalScreen({
       ) : null}
 
       {readOnly ? null : (
-        <div className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          className="min-w-0"
+          contentClassName="flex flex-col gap-[12px]"
+        >
           <div className="flex min-w-0 flex-col gap-[4px]">
             <Input
               disableForm
@@ -578,7 +584,7 @@ export function VoiceProposalScreen({
               {t.saveDraft}
             </Button>
           </div>
-        </div>
+        </Panel>
       )}
     </section>
   );

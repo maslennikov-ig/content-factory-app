@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
@@ -168,8 +169,9 @@ export function VoiceRedactionsScreen({
       </p>
 
       {redactions.length === 0 ? (
-        <div
-          className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+        <Panel
+          as="div"
+          contentPadding="snug"
           data-voice-redactions-empty="true"
         >
           <h3 className="cf-heading-md text-cf-ink [text-wrap:balance]">
@@ -181,7 +183,7 @@ export function VoiceRedactionsScreen({
           <p className="mt-[8px] max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.redactionsEmptyBody}
           </p>
-        </div>
+        </Panel>
       ) : (
         <ul className="flex min-w-0 flex-col gap-[8px]">
           {CATEGORY_ORDER.map((category) => {
@@ -274,7 +276,12 @@ export function VoiceRedactionsScreen({
       </div>
 
       {readOnly ? null : (
-        <div className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          className="min-w-0"
+          contentClassName="flex flex-col gap-[12px]"
+        >
           <CheckboxField
             checked={consentGiven}
             disabled={state === 'disabled'}
@@ -304,7 +311,7 @@ export function VoiceRedactionsScreen({
               {t.changeReference}
             </Button>
           </div>
-        </div>
+        </Panel>
       )}
     </section>
   );

@@ -40,6 +40,10 @@ const { PostsRepository } = loadTypeScriptModule(
       '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan': {
         supersededDraftPostIds: async () => [],
       },
+      // Word search in the posts list (odb8.4.1): the real parser.
+      '@contentfactory/nestjs-libraries/content-intelligence/search-terms': loadTypeScriptModule(
+        'libraries/nestjs-libraries/src/content-intelligence/search-terms.ts'
+      ),
       '@contentfactory/nestjs-libraries/content-intelligence/context/content-context.finalize': {
         // Статический импорт с ff7cfe3c (fn33.28.7); этим тестам контекст не нужен.
         validateContentContextForDraft: async () => {

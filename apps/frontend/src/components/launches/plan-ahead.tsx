@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { FC, useCallback, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import useSWR from 'swr';
@@ -432,7 +433,12 @@ export const PlanAheadOverview: FC<{
         />
       </div>
 
-      <article className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+      <Panel
+        as="article"
+        contentPadding="default"
+        className="min-w-0"
+        contentClassName="flex flex-col gap-[12px]"
+      >
         <div className="flex items-center gap-[4px]">
           <h4 className="cf-label-md text-cf-ink">{copy.stripTitle}</h4>
           <Hint label={hintFor(copy.stripTitle)}>{copy.stripHint}</Hint>
@@ -505,9 +511,14 @@ export const PlanAheadOverview: FC<{
             {copy.stripLegend.empty}
           </span>
         </p>
-      </article>
+      </Panel>
 
-      <article className="flex min-w-0 flex-col gap-[12px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]">
+      <Panel
+        as="article"
+        contentPadding="default"
+        className="min-w-0"
+        contentClassName="flex flex-col gap-[12px]"
+      >
         <div className="flex items-center gap-[4px]">
           <h4 className="cf-label-md text-cf-ink">{copy.tableTitle}</h4>
           <Hint label={hintFor(copy.tableTitle)}>{copy.tableHint}</Hint>
@@ -548,7 +559,7 @@ export const PlanAheadOverview: FC<{
         ) : (
           <EmptyState title={copy.tableEmpty} />
         )}
-      </article>
+      </Panel>
     </section>
   );
 };

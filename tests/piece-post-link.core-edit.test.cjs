@@ -546,7 +546,7 @@ describe('the core is editable after creation, and nothing regenerates silently'
     expect(modelCalls).toHaveLength(1);
     expect(calls.usage).toEqual([['org-a', 'intake', 'draft']]);
     expect(modelCalls[0].prompt).toContain('Клиент звонил в пятницу.');
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v12');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v13');
     expect(piece.body).toBe('Суть по всему материалу.');
     expect(piece.brief.materialPending).toBeUndefined();
     // The replaced text had not read the added words: that wait is recorded with it.
@@ -613,7 +613,7 @@ describe('«Пересобрать суть» keeps the decisions and the author
     await service.rebuildCore('org-a', 'piece-1', 'ru');
     const prompt = modelCalls[0].prompt;
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v12');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
     // The rule and the block of the previous core, paragraph by paragraph.
     expect(prompt).toContain('Отдельное правило о пересборке');
     expect(prompt).toContain('ПРЕДЫДУЩАЯ СУТЬ (текст, который сейчас на странице');

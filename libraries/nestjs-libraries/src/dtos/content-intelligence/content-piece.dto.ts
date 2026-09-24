@@ -527,6 +527,15 @@ export class PiecePostSettingsDto {
   @IsOptional()
   @IsIn(['draft', 'reserve', 'autopilot'])
   planMode?: 'draft' | 'reserve' | 'autopilot' | null;
+
+  /**
+   * С `planMode: null` — режим канала, который видел человек (ревью W1
+   * пятнадцатого захода, F10). Сервер сверяет его под замком: режим канала
+   * уже другой — пишется явный выбор.
+   */
+  @IsOptional()
+  @IsIn(['draft', 'reserve', 'autopilot'])
+  expectedChannelMode?: 'draft' | 'reserve' | 'autopilot';
 }
 
 /** «Поставить на ЧЧ:ММ» (`97dq.57`), форма — `PieceAdaptationPlaceRequestV1`. */

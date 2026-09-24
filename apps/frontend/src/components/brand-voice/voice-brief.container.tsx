@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useCallback, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
@@ -386,14 +387,17 @@ export function VoiceBriefContainer() {
         }
       />
 
-      <form
+      <Panel
         data-voice-brief-form="true"
         onSubmit={(event) => {
           event.preventDefault();
           if (!canWrite) return;
           void evaluate();
         }}
-        className="flex min-w-0 flex-col gap-[16px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]"
+        as="form"
+        contentPadding="snug"
+        className="min-w-0"
+        contentClassName="flex flex-col gap-[16px]"
       >
         {!canWrite && (
           <ContentReadOnlyNote id={readOnlyNoteId} surface="brief" refusal="role">
@@ -563,14 +567,16 @@ export function VoiceBriefContainer() {
           <Button
             type="submit"
             variant="primary"
-            disabled={busy || !canWrite}
+            disabled={!canWrite}
+            loading={busy}
+            loadingLabel={w.checking}
             aria-describedby={canWrite ? undefined : readOnlyNoteId}
           >
-            {busy ? w.checking : w.check}
+            {w.check}
           </Button>
         </div>
         </fieldset>
-      </form>
+      </Panel>
 
       {/*
         `content-factory-next-odb8.2`: the door «Откуда факты» only shows,
@@ -579,7 +585,7 @@ export function VoiceBriefContainer() {
         HTML form cannot nest another, and this is the exact form the witness
         screen's rows come from, not a second one guessing at the same DTO.
       */}
-      <div className="min-w-0 rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+      <Panel as="div" contentPadding="snug" className="min-w-0">
         <h4 className="cf-label-sm text-cf-ink-muted">
           {w.factsMemoryTitle}
         </h4>
@@ -605,7 +611,7 @@ export function VoiceBriefContainer() {
             onEvidenceDropped={dropPendingEvidence}
           />
         </div>
-      </div>
+      </Panel>
     </section>
   );
 }

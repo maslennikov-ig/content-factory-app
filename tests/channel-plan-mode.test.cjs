@@ -752,6 +752,22 @@ describe('«Автопилот»: очередь, одна на заготовк
     expect(adaptation.plan).toMatchObject({ status: 'queued', autopilot: true });
   });
 
+  test('«Бронь» у поста при канале на автопилоте — явный reserve в настройках и снятие очереди (97dq.86)', async () => {
+    const { service, generate, calls, queued, derivations, tags } = stand({ planMode: 'autopilot' });
+    await generate();
+    expect(queued().map((post) => post.id)).toEqual(['post-1']);
+    const saved = await service.savePostSettings(
+      'org-a', 'piece-1', 'int-tg', { planMode: 'reserve' }, 'ru'
+    );
+    // Stored as the post's own mode, not «как в канале» (null).
+    expect(saved.settings.planMode).toBe('reserve');
+    expect(tags().postSettings['int-tg'].planMode).toBe('reserve');
+    // The same unschedule the queue gate makes: out of the queue, back to reserve.
+    expect(queued()).toEqual([]);
+    expect(calls.status.at(-1)).toEqual(['post-1', 'draft']);
+    expect(derivations[0].plan).toBe('reserve');
+  });
+
   test('вторая версия сменяет первую в очереди — второй очереди нет (I1)', async () => {
     const { generate, calls, queued, posts, derivations } = stand({ planMode: 'autopilot' });
     await generate();
@@ -1711,5 +1727,77 @@ describe('ревью 97dq.70: строка заготовки блокирует
       'tx contentPiece.updateMany',
       { where: { organizationId: 'org-a', id: 'piece-1' }, data: { tags: { a: 1, b: 2 } } },
     ]);
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * Ревью W1 пятнадцатого захода, F10: «как в канале» решается под замком по
+ * режиму канала, который видел человек.
+ * ---------------------------------------------------------------------- */
+
+describe('«Бронь» → как в канале: сервер сверяет режим, который видел человек (97dq.86, F10)', () => {
+  const save = (service, body) =>
+    service.savePostSettings('org-a', 'piece-1', 'int-tg', body, 'ru');
+
+  test('канал всё ещё тот, что на странице — пост «как в канале» (null)', async () => {
+    const { service, generate, tags, queued } = stand({ planMode: 'reserve' });
+    await generate();
+    const saved = await save(service, { planMode: null, expectedChannelMode: 'reserve' });
+    expect(saved.settings?.planMode ?? null).toBeNull();
+    expect(tags().postSettings?.['int-tg']?.planMode ?? null).toBeNull();
+    expect(queued()).toEqual([]);
+  });
+
+  test('канал переключили на автопилот после показа — пост держит явную «Бронь» и в очередь не встаёт', async () => {
+    const { service, generate, channel, tags, queued, calls } = stand({ planMode: 'reserve' });
+    await generate();
+    // Другая вкладка переключила канал между показом и сохранением.
+    channel.planMode = 'autopilot';
+    const saved = await save(service, { planMode: null, expectedChannelMode: 'reserve' });
+    expect(saved.settings.planMode).toBe('reserve');
+    expect(tags().postSettings['int-tg'].planMode).toBe('reserve');
+    expect(queued()).toEqual([]);
+    expect(calls.validate).toHaveLength(0);
+  });
+
+  test('без увиденного режима «как в канале» остаётся прежним ходом', async () => {
+    const { service, generate, channel, tags } = stand({ planMode: 'reserve' });
+    await generate();
+    channel.planMode = 'autopilot';
+    await save(service, { planMode: null });
+    expect(tags().postSettings?.['int-tg']?.planMode ?? null).toBeNull();
+  });
+
+  test('страница шлёт увиденный режим и берёт сохранённый, без своей проверки перед записью', () => {
+    const adapter = loadTypeScriptModule(
+      'apps/frontend/src/components/content-intelligence/pieces/pieces.adapter.ts'
+    );
+    expect(
+      adapter.buildPostSettingsPayload({ planMode: null, expectedChannelMode: 'reserve' })
+    ).toEqual({ planMode: null, expectedChannelMode: 'reserve' });
+    // An explicit mode needs no expectation.
+    expect(
+      adapter.buildPostSettingsPayload({ planMode: 'autopilot', expectedChannelMode: 'reserve' })
+    ).toEqual({ planMode: 'autopilot' });
+    const container = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        '..',
+        'apps/frontend/src/components/content-intelligence/pieces/piece.container.tsx'
+      ),
+      'utf8'
+    );
+    expect(container).not.toContain('ownUnlessChannel');
+    expect(container).toMatch(/expectedChannelMode: shownChannel/);
+    expect(container).toMatch(/\[integrationId\]: saved\.settings!\.planMode/);
+    const dto = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        '..',
+        'libraries/nestjs-libraries/src/dtos/content-intelligence/content-piece.dto.ts'
+      ),
+      'utf8'
+    );
+    expect(dto).toMatch(/@IsIn\(\['draft', 'reserve', 'autopilot'\]\)\s*expectedChannelMode\?/);
   });
 });

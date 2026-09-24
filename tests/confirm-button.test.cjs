@@ -138,3 +138,25 @@ test('caller data attributes pass through', () => {
   draw({ 'data-adaptation-delete': 'ad-1' });
   expect(button().getAttribute('data-adaptation-delete')).toBe('ad-1');
 });
+
+/* 97dq.43 p.5: a busy or armed button keeps its width. */
+test('busy: the spinner is laid over the label, which stays in the flow, so the width is the resting one', () => {
+  const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  draw({ loading: true, loadingLabel: 'Удаляем' });
+  const node = button();
+  const spinner = node.querySelector('[data-button-spinner]');
+  expect(spinner.className).toContain('absolute');
+  expect(spinner.className).toContain('inset-0');
+  // Both labels are still laid out in the one grid cell, only faded.
+  const content = [...node.children].find(
+    (child) => child.tagName === 'DIV' && child.className.split(' ').includes('opacity-0')
+  );
+  expect(content).toBeTruthy();
+  expect(content.textContent).toBe('УдалитьУдалить насовсем?');
+  expect(node.getAttribute('aria-busy')).toBe('true');
+  expect(node.textContent).toContain('Удаляем');
+  // The first paint before any measure has a real spinner size, not NaN.
+  expect(spinner.firstElementChild.style.width).toMatch(/^\d+px$/);
+  expect(errors.mock.calls.filter((call) => String(call[0]).includes('NaN'))).toEqual([]);
+  errors.mockRestore();
+});

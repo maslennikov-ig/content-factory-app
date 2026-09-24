@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import {
   useEffect,
   useRef,
@@ -457,14 +458,16 @@ function LoadingView({ label }: { label: string }) {
     >
       <span className="sr-only">{label}</span>
       {[0, 1, 2].map((item) => (
-        <div
+        <Panel
           key={item}
-          className="animate-pulse rounded-[8px] border border-cf-border bg-cf-surface p-[20px] motion-reduce:animate-none"
+          as="div"
+          contentPadding="default"
+          className="animate-pulse motion-reduce:animate-none"
         >
           <div className="h-[16px] w-[160px] rounded-[4px] bg-cf-surface-subtle" />
           <div className="mt-[12px] h-[12px] max-w-[520px] rounded-[4px] bg-cf-surface-subtle" />
           <div className="mt-[8px] h-[12px] max-w-[360px] rounded-[4px] bg-cf-surface-subtle" />
-        </div>
+        </Panel>
       ))}
     </div>
   );
@@ -888,11 +891,13 @@ function SourcesSection({
   });
   const remoteKind = sourceDraft.kind !== 'MANUAL';
   return (
-    <section
+    <Panel
       id="source-registry"
       data-content-intelligence-section="sources"
       aria-labelledby="source-registry-title"
-      className="scroll-mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+      as="section"
+      contentPadding="default"
+      className="scroll-mt-[24px]"
     >
       {/*
         The hint carries what the section is for, which the heading alone never
@@ -1257,7 +1262,7 @@ function SourcesSection({
           </ul>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -1298,11 +1303,13 @@ function ProvenanceSection({
         }
       : provenance;
   return (
-    <section
+    <Panel
       id="provenance-review"
       data-content-intelligence-section="provenance"
       aria-labelledby="provenance-review-title"
-      className="scroll-mt-[24px] rounded-[8px] border border-cf-border bg-cf-surface p-[20px]"
+      as="section"
+      contentPadding="default"
+      className="scroll-mt-[24px]"
     >
       <h2
         id="provenance-review-title"
@@ -1473,6 +1480,6 @@ function ProvenanceSection({
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

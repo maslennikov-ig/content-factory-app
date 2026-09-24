@@ -1,5 +1,6 @@
 'use client';
 
+import { Panel } from '@contentfactory/react/layout';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
@@ -351,16 +352,20 @@ export function VoiceAvatarsScreen({
       ) : null}
 
       {state === 'restricted' || !canManage ? (
-        <div className="rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <Panel as="div" contentPadding="snug">
           <p className="cf-label-md text-cf-ink">{t.avatarsRestrictedTitle}</p>
           <p className="mt-[4px] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {notice ?? t.avatarsRestrictedBody}
           </p>
-        </div>
+        </Panel>
       ) : null}
 
       {avatars.length === 0 ? (
-        <div className="flex flex-col items-start gap-[8px] rounded-[8px] border border-cf-border bg-cf-surface p-[16px]">
+        <Panel
+          as="div"
+          contentPadding="snug"
+          contentClassName="flex flex-col items-start gap-[8px]"
+        >
           <p className="cf-label-md text-cf-ink">{t.avatarsEmptyTitle}</p>
           <p className="max-w-[72ch] cf-body-sm text-cf-ink-muted [text-wrap:pretty]">
             {t.avatarsEmptyBody}
@@ -370,7 +375,7 @@ export function VoiceAvatarsScreen({
               {t.avatarsCreate}
             </Button>
           ) : null}
-        </div>
+        </Panel>
       ) : (
         <ul className="grid min-w-0 grid-cols-1 gap-[16px] md:grid-cols-2">
           {avatars.map((avatar) => {

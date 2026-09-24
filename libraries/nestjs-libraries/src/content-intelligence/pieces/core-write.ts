@@ -10,15 +10,23 @@ import { contentFromIntent } from '../intake/intake-content';
   предыдущую суть и дописанный материал своими блоками. Модули v3–v11
   остаются импортируемыми и нетронутыми для квитанций.
 */
+/*
+  Суть — готовый текст от первого лица автора (`97dq.90`, `core-write/v13`):
+  решения модели применяются молча, ответ человека сильнее материала, речи о
+  тексте нет, и проверка `metaSpeechIn` просит одну перепись, если она всё же
+  есть. Модули v3–v12 остаются импортируемыми и нетронутыми для квитанций.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V12,
-  CORE_WRITE_ENRICH_LEAD_V12,
+  CORE_WRITE_BLOCK_TITLES_V13,
+  CORE_WRITE_ENRICH_LEAD_V13,
+  CORE_WRITE_META_REPAIR_V13,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V12,
-  coreWriteSystemV12,
-} from './core-write-prompt.v12';
+  CORE_WRITE_REPAIR_V13,
+  coreWriteSystemV13,
+} from './core-write-prompt.v13';
 import { personTextWithoutAdded } from './core-edit';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v12';
+import { metaSpeechIn } from '../text-quality/meta-speech';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v13';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -299,7 +307,7 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V12[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V13[input.language];
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -470,7 +478,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV12(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV13(input.language, forbiddenPhrasesRule(input.language), {
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
       instruction: Boolean(instruction),
@@ -525,7 +533,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
           rebuild.text.split(/\n\s*\n/u)
         )
       : '',
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V12[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V13[input.language] : '',
     enrichment
       ? fenced(
           input.language === 'ru' ? 'Существующая суть' : 'Existing core',
@@ -676,23 +684,65 @@ export async function writeCoreWithDecisions(
         const answer = (await model.invoke(prompt)) as any;
         decided = answer?.decisions ?? null;
         const first = trimmed(answer?.text);
-        if (!input.foreignShingles.length || !first) return first;
+        /*
+          Один повторный заход с подсказкой; берётся второй текст, если он
+          есть, и решения вместе с ним. Дальше находка остаётся находкой —
+          переписывать текст за человека здесь нечем и незачем.
+        */
+        const rewrite = async (hint: string, current: string) => {
+          const repaired = (await model.invoke(`${prompt}\n\n${hint}`)) as any;
+          const next = trimmed(repaired?.text);
+          if (next && Array.isArray(repaired?.decisions)) {
+            decided = repaired.decisions;
+          }
+          return next || current;
+        };
+        let result = first;
+        /** Отрезки чужого поста в тексте; пусто, когда сверять не с чем. */
+        const copiedRuns = (text: string) =>
+          input.foreignShingles.length && text
+            ? antiCopyReport(text, input.foreignShingles, {
+                minWords: ANTI_COPY_MIN_WORDS,
+              }).runs
+            : [];
         // Антикопия ровно та же, что у графа: восемь слов подряд и один
-        // повторный заход. Дальше находка остаётся находкой — переписывать
-        // текст за человека здесь нечем и незачем.
-        const report = antiCopyReport(first, input.foreignShingles, {
-          minWords: ANTI_COPY_MIN_WORDS,
-        });
-        if (report.clean) return first;
-        const quoted = report.runs.map((run) => `«${run.text}»`).join(', ');
-        const repaired = (await model.invoke(
-          `${prompt}\n\n${CORE_WRITE_REPAIR_V12[input.language]}${quoted}`
-        )) as any;
-        const second = trimmed(repaired?.text);
-        if (second && Array.isArray(repaired?.decisions)) {
-          decided = repaired.decisions;
+        // повторный заход.
+        let antiCopyHint = '';
+        const copied = copiedRuns(result);
+        if (copied.length) {
+          const quoted = copied.map((run) => `«${run.text}»`).join(', ');
+          antiCopyHint = `${CORE_WRITE_REPAIR_V13[input.language]}${quoted}`;
+          result = await rewrite(antiCopyHint, result);
         }
-        return second || first;
+        // Речь о тексте вместо текста (`97dq.90`): одна перепись.
+        const meta = result ? metaSpeechIn(stripCitationLabels(result)) : [];
+        if (meta.length) {
+          deps.warn?.(`The core talked about its input; rewriting once: ${meta.join(' | ')}`);
+          /*
+            Ревью W1 пятнадцатого захода, F7: перепись начинается с того же
+            промпта, поэтому подсказка антикопии идёт в неё вместе со своей —
+            иначе снятый повтор чужого поста возвращался. И проверка
+            антикопии после неё повторяется: текст, в котором чужих слов
+            больше, чем было до переписи, не берётся.
+          */
+          const before = result;
+          const decidedBefore = decided;
+          const beforeRuns = copiedRuns(before).length;
+          const metaHint = `${CORE_WRITE_META_REPAIR_V13[input.language]}${meta.map((hit) => `«${hit}»`).join(', ')}`;
+          const next = await rewrite(
+            antiCopyHint ? `${antiCopyHint}\n\n${metaHint}` : metaHint,
+            before
+          );
+          if (next !== before && copiedRuns(next).length > beforeRuns) {
+            deps.warn?.(
+              'The meta-speech rewrite of the core repeated the source post; keeping the text before it'
+            );
+            decided = decidedBefore;
+          } else {
+            result = next;
+          }
+        }
+        return result;
       },
       'draft'
     );

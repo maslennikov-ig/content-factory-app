@@ -42,11 +42,41 @@ import {
   supersededDraftPostIds,
   withForeignQueueGate,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-plan';
+/**
+ * Поиск по словам в списке постов (`content-factory-next-odb8.4.1`): тот же
+ * разбор запроса, что у материалов и фактов, — каждое слово обязано
+ * встретиться в тексте поста, регистр не важен. Сравнивается видимый текст,
+ * а не разметка (`POST_VISIBLE_TEXT`).
+ */
+import { searchWords } from '@contentfactory/nestjs-libraries/content-intelligence/search-terms';
+import type { PrismaService } from '@contentfactory/nestjs-libraries/database/prisma/prisma.service';
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(utc);
+
+/**
+ * Видимый текст поста из HTML редактора — для поиска по словам (ревью
+ * пятнадцатого захода, F3). `content` хранится разметкой: `<p>`, `<strong>`,
+ * `&nbsp;`. Искать по ней — значит находить почти всё по словам `p`,
+ * `strong`, `nbsp` и не находить слово, разрезанное тегом
+ * (`кан<strong>бан</strong>`).
+ *
+ * Три шага, в том же порядке в базе (`regexp_replace`) и в тесте (`RegExp`),
+ * поэтому выражения записаны так, что читаются одинаково обоими движками:
+ * - блочный тег или перенос строки — пробел: слова двух абзацев не слипаются;
+ * - любой другой тег — пусто: слово, разрезанное строчным тегом, срастается;
+ * - сущность (`&nbsp;`, `&amp;`, `&#171;`) — пробел: в словах запроса нет
+ *   ничего, кроме букв и цифр, так что раскрывать сущности незачем.
+ * Имена тегов и сущностей словами поста так не становятся никогда.
+ */
+export const POST_VISIBLE_TEXT = {
+  blockTag:
+    '</?(p|div|br|li|ul|ol|h[1-6]|blockquote|pre|tr|td|th|hr)(\\s[^>]*)?/?>',
+  anyTag: '<[^>]*>',
+  entity: '&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);',
+} as const;
 
 function repositoryError(code: string, status: number, message: string): never {
   const error: any = new Error(message);
@@ -322,6 +352,47 @@ export class PostsRepository {
     }, [] as any[]);
   }
 
+  /**
+   * Посты пространства, в видимом тексте которых есть каждое слово
+   * (`POST_VISIBLE_TEXT`). Сравнение — `ILIKE`, как у Prisma `contains` с
+   * `mode: 'insensitive'`; в словах только буквы и цифры (`searchWords`),
+   * так что знаков шаблона `%` и `_` в них нет.
+   *
+   * Сырой SQL здесь потому, что Prisma не умеет сравнивать с выражением над
+   * колонкой, а видимый текст — выражение; отдельная колонка означала бы
+   * миграцию. Запрос — шаблон `$queryRaw`: слова, id пространства и
+   * выражения уходят параметрами, в текст запроса ничего не вклеивается.
+   * Граница пространства и `deletedAt` стоят в самом запросе, а не только в
+   * `where` списка, который получит эти id.
+   */
+  private async postIdsWithVisibleWords(
+    orgId: string,
+    words: readonly string[]
+  ): Promise<string[]> {
+    const db = this._post.model as unknown as Pick<PrismaService, '$queryRaw'>;
+    const { blockTag, anyTag, entity } = POST_VISIBLE_TEXT;
+    const rows: Array<{ id: string }> = await db.$queryRaw`
+      SELECT p."id" FROM (
+        SELECT "id",
+          regexp_replace(
+            regexp_replace(
+              regexp_replace("content", ${blockTag}, ' ', 'gi'),
+              ${anyTag}, '', 'g'
+            ),
+            ${entity}, ' ', 'g'
+          ) AS "visible"
+        FROM "Post"
+        WHERE "organizationId" = ${orgId}
+          AND "deletedAt" IS NULL
+          AND "parentPostId" IS NULL
+      ) AS p
+      WHERE NOT EXISTS (
+        SELECT 1 FROM unnest(${[...words]}::text[]) AS w("word")
+        WHERE p."visible" NOT ILIKE '%' || w."word" || '%'
+      )`;
+    return rows.map((row) => row.id);
+  }
+
   async getPostsList(orgId: string, query: GetPostsListDto) {
     const page = query.page || 0;
     const limit = query.limit || 20;
@@ -361,6 +432,13 @@ export class PostsRepository {
             }
           );
 
+    // Слова лежат внутри `AND` рядом с границей пространства, а не вместо
+    // неё: никаким набором слов чужой пост не достаётся. Отбор по словам —
+    // список id постов этого пространства, чей видимый текст их содержит.
+    const words = searchWords(query.q);
+    const matched = words.length
+      ? await this.postIdsWithVisibleWords(orgId, words)
+      : null;
     const where = {
       AND: [
         {
@@ -370,6 +448,7 @@ export class PostsRepository {
             },
           ],
         },
+        ...(matched ? [{ id: { in: matched } }] : []),
       ],
       ...stateAndDate,
       // Published posts were already posted (publishDate in the past), so fetch

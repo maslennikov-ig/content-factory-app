@@ -10,6 +10,11 @@ import { NotificationService } from '@contentfactory/nestjs-libraries/database/p
 import { Request } from 'express';
 import { AuthService } from '@contentfactory/helpers/auth/auth.service';
 import { UsersService } from '@contentfactory/nestjs-libraries/database/prisma/users/users.service';
+import { CheckPolicies } from '@contentfactory/backend/services/auth/permissions/permissions.ability';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@contentfactory/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Billing')
 @Controller('/billing')
@@ -49,11 +54,16 @@ export class BillingController {
   }
 
   @Post('/apply-discount')
+  // Administrator only (`content-factory-next-zg8w`, owner's decision of
+  // 24.09.2026): the workspace's billing is its shared property, like its
+  // channels and its team (`docs/product/roles-matrix.md`).
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async applyDiscount(@GetOrgFromRequest() org: Organization) {
     await this._stripeService.applyDiscount(org.paymentId);
   }
 
   @Post('/finish-trial')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async finishTrial(@GetOrgFromRequest() org: Organization) {
     try {
       await this._stripeService.finishTrial(org.paymentId);
@@ -71,6 +81,7 @@ export class BillingController {
   }
 
   @Post('/embedded')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async embedded(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -92,6 +103,7 @@ export class BillingController {
   }
 
   @Post('/subscribe')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async subscribe(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -112,7 +124,14 @@ export class BillingController {
     );
   }
 
+  /*
+    A GET that acts: it opens a Stripe customer-portal session in which the
+    subscription can be cancelled, the plan changed or the card replaced.
+    Billing is the administrator's (`zg8w`), so the portal is too (review F5
+    of the fifteenth walk).
+  */
   @Get('/portal')
+  @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async modifyPayment(@GetOrgFromRequest() org: Organization) {
     const customer = await this._stripeService.getCustomerByOrganizationId(
       org.id
@@ -129,6 +148,7 @@ export class BillingController {
   }
 
   @Post('/cancel')
+  @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async cancel(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,

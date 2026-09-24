@@ -1,33 +1,39 @@
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
+import i18next from 'i18next';
 import { TopTitle } from '@contentfactory/frontend/components/launches/helpers/top.title.component';
 import { LoadingComponent } from '@contentfactory/frontend/components/layout/loading';
 import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { Button } from '@contentfactory/react/form/button';
+import {
+  finishTrialCopy,
+  finishTrialFailureText,
+  runFinishTrial,
+} from './finish-trial.flow';
 
 export const FinishTrial: FC<{ close: () => void }> = (props) => {
   const [finished, setFinished] = useState(false);
+  const [failure, setFailure] = useState<'forbidden' | 'failed' | null>(null);
+  const active = useRef(true);
   const fetch = useFetch();
-
-  const finishSubscription = useCallback(async () => {
-    await fetch('/billing/finish-trial', {
-      method: 'POST',
-    });
-    checkFinished();
-  }, []);
-
-  const checkFinished = useCallback(async () => {
-    const {finished} = await (await fetch('/billing/is-trial-finished')).json();
-    if (!finished) {
-      await timer(2000);
-      return checkFinished();
-    }
-
-    setFinished(true);
-  }, []);
+  const ru = !!i18next.resolvedLanguage?.startsWith('ru');
+  const words = finishTrialCopy(ru);
 
   useEffect(() => {
-    finishSubscription();
+    active.current = true;
+    // A refusal (403 for a non-administrator) or a failure ends the checks
+    // and shows a plain message; closing the dialog stops them too.
+    void runFinishTrial(fetch, {
+      wait: () => timer(2000),
+      active: () => active.current,
+    }).then((outcome) => {
+      if (!active.current) return;
+      if (outcome === 'finished') setFinished(true);
+      else if (outcome === 'forbidden' || outcome === 'failed') setFailure(outcome);
+    });
+    return () => {
+      active.current = false;
+    };
   }, []);
 
   return (
@@ -36,12 +42,12 @@ export const FinishTrial: FC<{ close: () => void }> = (props) => {
         <div className="flex gap-[10px] flex-col w-[500px] h-auto bg-sixth border-tableBorder border-2 rounded-xl pb-[20px] px-[20px] relative">
           <div className="flex">
             <div className="flex-1">
-              <TopTitle title={'Finishing Trial'} />
+              <TopTitle title={words.title} />
             </div>
             <Button
               iconOnly
               size={28}
-              aria-label="Close"
+              aria-label={words.close}
               variant="quiet"
               onClick={props.close}
               className="outline-none absolute end-[10px] top-[10px] mantine-UnstyledButton-root mantine-ActionIcon-root cursor-pointer mantine-Modal-close mantine-1dcetaa"
@@ -66,15 +72,31 @@ export const FinishTrial: FC<{ close: () => void }> = (props) => {
           <div className="relative h-[400px]">
             <div className="absolute left-0 top-0 w-full h-full overflow-hidden overflow-y-auto">
               <div className="mt-[10px] flex w-full justify-center items-center gap-[10px]">
-                {!finished && <LoadingComponent height={150} width={150} />}
+                {!finished && !failure && (
+                  <LoadingComponent height={150} width={150} />
+                )}
+                {failure && (
+                  <div className="flex flex-col">
+                    <p role="alert" data-finish-trial-failure={failure}>
+                      {finishTrialFailureText(failure, ru)}
+                    </p>
+                    <div className="flex gap-[8px] mt-[20px]">
+                      <Button className="flex-1" onClick={() => props.close()}>
+                        {words.close}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {finished && (
                   <div className="flex flex-col">
-                    <div>
-                      You trial has been successfully finished and you have been charged.
-                    </div>
+                    <div>{words.finished}</div>
                     <div className="flex gap-[10px] mt-[20px]">
-                      <Button className="flex-1" onClick={() => window.close()}>Close window</Button>
-                      <Button className="flex-1" onClick={() => props.close()}>Close dialog</Button>
+                      <Button className="flex-1" onClick={() => window.close()}>
+                        {words.closeWindow}
+                      </Button>
+                      <Button className="flex-1" onClick={() => props.close()}>
+                        {words.closeDialog}
+                      </Button>
                     </div>
                   </div>
                 )}

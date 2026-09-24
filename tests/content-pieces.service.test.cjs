@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v12');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v13');
     /*
       Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
       сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
@@ -2048,14 +2048,14 @@ describe('ответы на открытые вопросы заготовки',
     const decision = 'Текст утверждает, что срок держится, когда о нём знает второй человек.';
     const { service, calls } = buildPieces({
       piece: askedPiece(),
-      models: [{ text: 'Суть с решением модели.', decisions: [{ key: 'position', text: decision }] }],
+      models: [{ text: 'Суть по отданному вопросу.', decisions: [{ key: 'position', text: decision }] }],
     });
 
     await answerDrain(service, { decide: ['thesis', 'position'] });
 
     const drafts = modelCalls.filter((call) => call.role === 'draft');
     expect(drafts).toHaveLength(1);
-    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v12');
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v13');
     expect(drafts[0].prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
     expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
     expect(drafts[0].prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
@@ -2063,7 +2063,7 @@ describe('ответы на открытые вопросы заготовки',
     expect(drafts[0].prompt).not.toContain('[thesis]');
 
     const saved = calls.updateCore[0][2];
-    expect(saved.body).toBe('Суть с решением модели.');
+    expect(saved.body).toBe('Суть по отданному вопросу.');
     expect(saved.brief.brief.position).toBe(decision);
     expect(saved.brief.brief.origins.position).toBe('model');
     expect(saved.brief.questions.answered).toEqual(
