@@ -109,7 +109,7 @@ describe('the rules the research measured', () => {
     );
     expect(
       linesFor(defaultWritingProfileFor('telegram', 'ru')).some((line) =>
-        line.includes('Use one to three emoji')
+        line.includes('Use 1 to 2 emoji in the whole post (about one per 400–700 characters)')
       )
     ).toBe(true);
   });
@@ -118,7 +118,7 @@ describe('the rules the research measured', () => {
     expect(
       linesFor(null, { ...TELEGRAM, contentLanguage: 'ru' })
     ).toContain(
-      'For emoji, this channel setting overrides the voice and neutral core: Use one to three emoji, of no more than two kinds, and never as list bullets.'
+      'For emoji, this channel setting overrides the voice and neutral core: Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, never as list bullets.'
     );
     expect(linesFor(null, VK)).not.toContain('The first 80–180 characters');
   });
@@ -132,7 +132,8 @@ describe('the rules the research measured', () => {
     };
     const lines = linesFor(free);
 
-    expect(lines.some((line) => line.includes('3–6 emoji'))).toBe(true);
+    // «Много» at 500–1000 characters (`97dq.96`).
+    expect(lines.some((line) => line.includes('Use 3 to 10 emoji'))).toBe(true);
     expect(lines.some((line) => line.includes('Links may appear inline'))).toBe(true);
     expect(lines.some((line) => line.includes('Hashtags may be used when'))).toBe(true);
   });

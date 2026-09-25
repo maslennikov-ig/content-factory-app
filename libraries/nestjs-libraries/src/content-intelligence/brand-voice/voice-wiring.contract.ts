@@ -36,7 +36,7 @@ import type { SampleOrigin, SampleUsagePurpose } from './sample-intake';
 import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
 import type { BrandProfileSelectionV1 } from '../contracts';
-import type { EmojiLevel } from '../channels/emoji-ceiling';
+import type { StoredEmojiLevel } from '../channels/emoji-ceiling';
 import type { PlanModeV1 } from '../pieces/adaptation-plan';
 import type { PiecePostSettingsV1 } from '../pieces/post-settings';
 import type { VoiceSampleFileIntakeResponseV2 as FileIntakeResponseV2 } from './voice-intake-v2.contract';
@@ -3371,8 +3371,8 @@ export type PieceAdaptOverridesV1 = {
   */
   lengthPolicy?: 'auto' | 'range';
   lengthRange?: { idealMin: number; idealMax: number; hardMax?: number };
-  /** Old values and the exact stops of `97dq.61` — see `channels/emoji-ceiling.ts`. */
-  emojiLevel?: EmojiLevel;
+  /** Today's densities; the `97dq.61` stops still pass and read as densities — see `channels/emoji-ceiling.ts`. */
+  emojiLevel?: StoredEmojiLevel;
   linkPolicy?: 'none' | 'end' | 'inline' | 'auto';
   hashtagPolicy?: 'none' | 'end_1_3' | 'free' | 'auto';
   ctaKind?: 'auto' | 'none' | 'question' | 'comment' | 'link' | 'subscribe' | 'reply';

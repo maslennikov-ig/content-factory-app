@@ -17,7 +17,10 @@
  */
 
 import { isPlanMode, planModeOf, tagPlanModeOf, type PlanModeV1 } from './adaptation-plan';
-import { isEmojiLevel, type EmojiLevel } from '../channels/emoji-ceiling';
+import {
+  isStoredEmojiLevel,
+  type StoredEmojiLevel,
+} from '../channels/emoji-ceiling';
 import { normalizePostLinkText, readPostLinkOverride } from './post-link';
 
 export const POST_SETTINGS_TAG = 'postSettings';
@@ -41,7 +44,7 @@ type Choice<Value extends string> = 'channel' | Value;
 /** The same shape the tab's panel holds (`PostOptionsV1` on the screen). */
 export type PostSettingsOptionsV1 = {
   length: Choice<(typeof POST_LENGTH_PRESETS)[number]>;
-  emoji: Choice<EmojiLevel>;
+  emoji: Choice<StoredEmojiLevel>;
   hashtags: Choice<(typeof POST_HASHTAG_POLICIES)[number]>;
   links: Choice<(typeof POST_LINK_POLICIES)[number]>;
   cta: Choice<(typeof POST_CTA_KINDS)[number]>;
@@ -113,7 +116,11 @@ export function readPostSettingsOptions(value: unknown): PostSettingsOptionsV1 {
       : null;
   return {
     length: oneOf(POST_LENGTH_PRESETS, record.length),
-    emoji: isEmojiLevel(record.emoji) ? record.emoji : 'channel',
+    /*
+      Kept as stored: an old «до N» is read as today's density by whoever
+      uses it — the directive and the checks (`emoji-ceiling.ts`, `97dq.96`).
+    */
+    emoji: isStoredEmojiLevel(record.emoji) ? record.emoji : 'channel',
     hashtags: oneOf(POST_HASHTAG_POLICIES, record.hashtags),
     links: oneOf(POST_LINK_POLICIES, record.links),
     cta: oneOf(POST_CTA_KINDS, record.cta),
@@ -165,8 +172,8 @@ export const postEmojiLevelOf = (
   override: unknown,
   tags: unknown,
   integrationId: string
-): EmojiLevel | undefined => {
-  if (isEmojiLevel(override)) return override;
+): StoredEmojiLevel | undefined => {
+  if (isStoredEmojiLevel(override)) return override;
   const own = postSettingsOf(tags, integrationId)?.options.emoji;
   return own && own !== 'channel' ? own : undefined;
 };

@@ -91,7 +91,12 @@ class RssParserMock {
 // выученных правил уходит в промпт и какой длины каждое).
 const voiceLearning = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/brand-voice/voice-learning.ts',
-  {}
+  {
+    // The learn prompt names the rules' language (`97dq.97`).
+    '../../dtos/content.language': loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/dtos/content.language.ts'
+    ),
+  }
 );
 const voiceDirectives = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/voice-directives.ts',

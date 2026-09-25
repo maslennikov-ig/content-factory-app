@@ -34,6 +34,7 @@ const mocks = {
 const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v13 = loadWithMocks(`${base}/pieces/core-write-prompt.v13.ts`);
 const v12 = loadWithMocks(`${base}/pieces/core-write-prompt.v12.ts`);
+const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
 const { metaSpeechIn } = loadWithMocks(`${base}/text-quality/meta-speech.ts`);
 const ownFacts = loadWithMocks(`${base}/intake/own-facts.ts`);
 
@@ -98,21 +99,23 @@ beforeEach(() => {
 describe('core-write/v13 prompt', () => {
   test('its own version; v12 stays for receipts and does not carry the rule', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v13');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v12.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
     expect(v12.coreWriteSystemV12('ru', '')).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
   });
 
   test('cnt-36: finished first-person text, decisions silent, the answer wins, no meta speech — RU and EN alike', () => {
+    // Since `core-write/v14` (`97dq.97`) a Russian core gets the English rule.
     const ru = coreWrite.corePrompt(input());
-    expect(ru).toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
-    expect(ru).toContain('готовый текст поста от первого лица автора');
-    expect(ru).toContain('примени каждое молча');
-    expect(ru).toContain('в тексте стоит только значение из ответа');
-    expect(ru).toContain('«в ответе уточнил»');
-    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.ru.decisions);
-    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.ru.answers);
+    expect(ru).toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.en);
+    expect(ru).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
+    expect(ru).toContain('the finished text of the post in the author’s first person');
+    expect(ru).toContain('apply each one silently');
+    expect(ru).toContain('the text states only the value from the answer');
+    expect(ru).toContain('«in my answer I clarified»');
+    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.en.decisions);
+    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.en.answers);
     // The inputs reach the model: the answer, the decision and the material.
     expect(ru).toContain('В полтора раза.');
     expect(ru).toContain('Не описывать конкретные шаги');
@@ -120,6 +123,9 @@ describe('core-write/v13 prompt', () => {
     // The rule rides last, so it outranks the rules above it.
     const system = v13.coreWriteSystemV13('ru', '', { delegated: true, rebuild: true });
     expect(system.endsWith(v13.CORE_WRITE_FINISHED_TEXT_V13.ru)).toBe(true);
+    // v14 keeps the rule last among the rules; only the output language follows.
+    const systemV14 = v14.coreWriteSystemV14('ru', '', { delegated: true, rebuild: true });
+    expect(systemV14.endsWith(`${v13.CORE_WRITE_FINISHED_TEXT_V13.en}\n${v14.coreWriteOutputLanguageV14('ru')}`)).toBe(true);
 
     const en = coreWrite.corePrompt(input({ language: 'en' }));
     expect(en).toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.en);
@@ -185,8 +191,8 @@ describe('the meta rewrite keeps the anti-copy guarantee (fifteenth F7)', () => 
     responses = [{ text: COPIED }, { text: OWN_META }, { text: OWN }];
     const { core } = await coreWrite.writeCoreWithDecisions(input({ foreignShingles: shingles }), deps());
     expect(modelCalls).toHaveLength(3);
-    expect(modelCalls[2].prompt).toContain(v13.CORE_WRITE_REPAIR_V13.ru);
-    expect(modelCalls[2].prompt).toContain(v13.CORE_WRITE_META_REPAIR_V13.ru);
+    expect(modelCalls[2].prompt).toContain(v14.CORE_WRITE_REPAIR_V14);
+    expect(modelCalls[2].prompt).toContain(v14.CORE_WRITE_META_REPAIR_V14);
     expect(core.text).toBe(OWN);
   });
 
@@ -202,7 +208,7 @@ describe('the meta rewrite keeps the anti-copy guarantee (fifteenth F7)', () => 
   test('without a foreign post the meta rewrite carries only its own hint', async () => {
     responses = [{ text: CNT36_META_CORE }, { text: CLEAN_CORE }];
     await coreWrite.writeCoreWithDecisions(input(), deps());
-    expect(modelCalls[1].prompt).not.toContain(v13.CORE_WRITE_REPAIR_V13.ru);
+    expect(modelCalls[1].prompt).not.toContain(v14.CORE_WRITE_REPAIR_V14);
   });
 });
 
@@ -212,7 +218,7 @@ describe('writeCoreWithDecisions and the guard', () => {
     responses = [{ text: CNT36_META_CORE, decisions: [] }, { text: CLEAN_CORE, decisions: [] }];
     const { core } = await coreWrite.writeCoreWithDecisions(input(), deps(warn));
     expect(modelCalls).toHaveLength(2);
-    expect(modelCalls[1].prompt).toContain(v13.CORE_WRITE_META_REPAIR_V13.ru);
+    expect(modelCalls[1].prompt).toContain(v14.CORE_WRITE_META_REPAIR_V14);
     expect(modelCalls[1].prompt).toContain('«в ответе уточнил»');
     expect(core.text).toBe(CLEAN_CORE);
     expect(core.writtenBy).toBe('model');

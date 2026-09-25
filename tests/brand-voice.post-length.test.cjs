@@ -85,12 +85,14 @@ describe('одна правка называет, что сохранить', ()
   });
 
   it('это удаление лишнего, а не пересказ', () => {
-    expect(prompt).toMatch(/УБИРАЯ лишнее, а не пересказывая/u);
-    expect(prompt).toMatch(/Ни одного нового слова от себя/u);
+    expect(prompt).toMatch(/REMOVING what is redundant, not by retelling it/u);
+    expect(prompt).toMatch(/Add nothing of your own/u);
+    // English instructions (`97dq.97`); the post keeps its language, named.
+    expect(prompt).toContain('The post is in Russian; return it in Russian');
   });
 
   it('числа и ссылки перечислены дословно', () => {
-    expect(prompt).toContain('СОХРАНИТЬ ДОСЛОВНО');
+    expect(prompt).toContain('KEEP VERBATIM');
     expect(prompt).toContain('https://example.org/table');
   });
 
@@ -238,7 +240,7 @@ describe('судья и промпт подрезки видят бюджет к
     expect(prompt).toContain(`${check.contentBudget.median}`);
     expect(prompt).toContain(`${check.contentBudget.low}`);
     expect(prompt).toContain(`${check.contentBudget.high}`);
-    expect(prompt).not.toContain(`около ${RANGE.median} знаков`);
+    expect(prompt).not.toContain(`about ${RANGE.median} characters`);
   });
 
   it('«сейчас» в промпте — длина контента, а не длина целого поста', () => {
@@ -248,7 +250,7 @@ describe('судья и промпт подрезки видят бюджет к
       locale: 'ru',
     });
 
-    expect(prompt).toContain(`Сейчас ${original.trim().length}.`);
-    expect(prompt).not.toContain(`Сейчас ${check.characters}.`);
+    expect(prompt).toContain(`It is ${original.trim().length} now.`);
+    expect(prompt).not.toContain(`It is ${check.characters} now.`);
   });
 });

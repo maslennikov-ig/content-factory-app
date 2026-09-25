@@ -16,6 +16,7 @@ import {
   type ReduceResult,
   type ReduceResultV2,
 } from './assist.contract';
+import { languageNameOf } from '../../dtos/content.language';
 import type {
   BrandVoiceMeasurementResult,
   BrandVoiceSampleInput,
@@ -194,19 +195,25 @@ export const mapPrompt = (
     .filter((line) => line !== '')
     .join('\n');
 
-/** V2 asks for one grounded subject observation without changing the V1 text. */
+/**
+ * V2 asks for one grounded subject observation without changing the V1 text.
+ *
+ * English instructions for every locale (`content-factory-next-97dq.97`,
+ * owner request of 25.09.2026): V2 is built on the English V1 text, and one
+ * line names the language the claims are written in, because the owner reads
+ * them. The V1 prompt itself stays as it was.
+ */
 export const mapPromptV2 = (
   sample: BrandVoiceSampleInput,
   measurement: BrandVoiceMeasurementResult,
   locale: 'ru' | 'en'
 ): string => {
   const topicInstruction =
-    locale === 'ru'
-      ? 'Добавьте не больше одного наблюдения TOPICS: о чём именно этот текст. Для него metric = null; цитата всё равно обязательна.'
-      : 'Add at most one TOPICS observation naming the subject of this text. Its metric is null; a verbatim quote is still required.';
-  return mapPrompt(sample, measurement, locale).replace(
+    'Add at most one TOPICS observation naming the subject of this text. Its metric is null; a verbatim quote is still required.';
+  const languageInstruction = `Write every claim in ${languageNameOf(locale)}, the language of the author’s texts; every quote stays verbatim, in the text’s own words.`;
+  return mapPrompt(sample, measurement, 'en').replace(
     '\nSAMPLE ',
-    `\n${topicInstruction}\nSAMPLE `
+    `\n${topicInstruction}\n${languageInstruction}\nSAMPLE `
   );
 };
 
@@ -282,7 +289,13 @@ export const reducePrompt = (
     ),
   ].join('\n');
 
-/** V2 adds the grounded topics field while the exported V1 prompt stays stable. */
+/**
+ * V2 adds the grounded topics field while the exported V1 prompt stays stable.
+ *
+ * English instructions for every locale (`97dq.97`), as in `mapPromptV2`; the
+ * fields, the topics and the portrait are shown to the owner, so the prompt
+ * names their language.
+ */
 export const reducePromptV2 = (
   observations: readonly (ObservationV2 & { sampleCode: string; ref: string })[],
   locale: 'ru' | 'en',
@@ -290,22 +303,20 @@ export const reducePromptV2 = (
   layout?: BrandVoiceMeasurementResult['postLayout']
 ): string => {
   const topicInstruction =
-    locale === 'ru'
-      ? 'Верните поле TOPICS: о каких темах автор пишет и что считает важным говорить. Берите только темы, подтверждённые цитатами.'
-      : 'Return the TOPICS field: what the author writes about and considers important to say. Include only topics grounded in quotes.';
-  const portraitHeading =
-    locale === 'ru' ? '\n\nПОРТРЕТ.' : '\n\nPORTRAIT.';
+    'Return the TOPICS field: what the author writes about and considers important to say. Include only topics grounded in quotes.';
+  const languageInstruction = `Write every field, every topic and the portrait in ${languageNameOf(locale)}, the language of the author’s texts; every quote stays verbatim.`;
+  const portraitHeading = '\n\nPORTRAIT.';
   return reducePrompt(
     observations as readonly (Observation & {
       sampleCode: string;
       ref: string;
     })[],
-    locale,
+    'en',
     habits,
     layout
   ).replace(
     portraitHeading,
-    `\n${topicInstruction}${portraitHeading}`
+    `\n${topicInstruction}\n${languageInstruction}${portraitHeading}`
   );
 };
 

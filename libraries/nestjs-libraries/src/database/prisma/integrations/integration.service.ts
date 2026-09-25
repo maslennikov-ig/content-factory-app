@@ -33,6 +33,7 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
 import type { ChannelWritingProfileResponseV2 as ChannelWritingProfileResponseV1, ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import type { IntegrationWritingProfileDto } from '@contentfactory/nestjs-libraries/dtos/integrations/integration.writing.profile.dto';
+import { readEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import {
   isPlanMode,
   planModeOf,
@@ -335,7 +336,8 @@ export class IntegrationService {
     return {
       version: 'channel-writing-profile/v2',
       lengthPolicy,
-      emojiLevel: body.emojiLevel === 'free' ? 'many' : body.emojiLevel,
+      // `free` and an old «до N» are saved as the density they mean (`97dq.96`).
+      emojiLevel: readEmojiLevel(body.emojiLevel, 'auto' as const),
       linkPolicy: body.linkPolicy,
       hashtagPolicy: body.hashtagPolicy,
       ctaKind: body.ctaKind,

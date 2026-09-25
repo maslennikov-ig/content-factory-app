@@ -988,14 +988,14 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
   test('every field starts «как в канале» with the channel value, muted, and nothing to rewrite', () => {
     wrap(React.createElement(Harness, { onRewrite: noop }));
     expect(shown('Длина')).toBe('500–1000');
-    // Старое «мало» канала стоит на делении «до 3», и там же серая отметка.
-    expect(emojiReadout()).toBe('до 3');
-    // «до 3» стоит в строке подписи, а не своей строкой под ней (`97dq.83`).
+    // «Мало» канала — на своём делении, и там же серая отметка (`97dq.96`).
+    expect(emojiReadout()).toBe('Мало');
+    // Значение стоит в строке подписи, а не своей строкой под ней (`97dq.83`).
     const labelRow = emojiRow().querySelector('[data-emoji-label-row]');
     expect(labelRow.contains(emojiRow().querySelector('[data-emoji-readout]'))).toBe(true);
     expect(labelRow.textContent).toContain('Эмодзи');
     expect(labelRow.querySelector('[data-post-option-hint="emoji"]').textContent).toBe('как в канале');
-    // «Эмодзи (?)» — ползунок — «до N» одной строкой, ползунок между ними;
+    // «Эмодзи (?)» — ползунок — значение одной строкой, ползунок между ними;
     // столбцом — только поле уже 520 px (`97dq.92`, ревью F5).
     const cells = [...labelRow.children].map((cell) =>
       ['data-emoji-label-cell', 'data-emoji-track-cell', 'data-emoji-readout-cell'].find((name) =>
@@ -1015,10 +1015,10 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(labelRow.querySelector('[data-emoji-readout-cell]').className).toContain(
       '[@container(min-width:520px)]:col-start-3'
     );
-    expect(select('Эмодзи').value).toBe('2');
+    expect(select('Эмодзи').value).toBe('1');
     expect(
       emojiRow().querySelector('[data-emoji-channel-mark]').getAttribute('data-emoji-channel-mark')
-    ).toBe('max3');
+    ).toBe('few');
     expect(shown('Хэштеги')).toBe('без хэштегов');
     expect(shown('Ссылки')).toBe('не больше одной, в конце');
     expect(shown('Призыв')).toBe('вопрос читателю');
@@ -1066,18 +1066,17 @@ describe('«Для этого поста» is always open and compact (97dq.48)'
     expect(counted()).toBe('2 изменения');
     fireEvent.click(screen.getByRole('button', { name: 'Переписать по настройкам' }));
     expect(onRewrite).toHaveBeenCalledTimes(1);
-    // Ручка на другом делении — изменение: число, рамка цветом, «в канале: до 3».
+    // Ручка на другом делении — изменение: слово, рамка цветом, «в канале: Мало».
     fireEvent.change(select('Эмодзи'), { target: { value: '4' } });
-    expect(emojiReadout()).toBe('до 10');
+    expect(emojiReadout()).toBe('Как можно больше');
     expect(emojiRow().getAttribute('data-post-option-changed')).toBe('true');
     expect(emojiRow().querySelector('[data-emoji-channel-note]').textContent).toBe(
-      'в канале: до 3'
+      'в канале: Мало'
     );
     expect(counted()).toBe('3 изменения');
-    // Вернуть ручку на деление канала — вернуться к «как в канале», даже если
-    // канал хранит старое слово «мало».
-    fireEvent.change(select('Эмодзи'), { target: { value: '2' } });
-    expect(select('Эмодзи').value).toBe('2');
+    // Вернуть ручку на деление канала — вернуться к «как в канале».
+    fireEvent.change(select('Эмодзи'), { target: { value: '1' } });
+    expect(select('Эмодзи').value).toBe('1');
     expect(emojiRow().getAttribute('data-post-option-changed')).toBe('false');
     expect(select('Эмодзи').getAttribute('aria-describedby')).not.toBeNull();
     expect(counted()).toBe('2 изменения');

@@ -13,7 +13,7 @@ import {
   type LengthPreset,
 } from './writing-profile.adapter';
 import { emojiLevelWord } from './emoji-words';
-import { EMOJI_LEVEL_VALUES } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import { EMOJI_STOPS } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 
 /** Один аватар пространства, как его видит выбор «Кто говорит здесь». */
 export type WritingProfileAvatar = {
@@ -64,12 +64,12 @@ export function writingProfileLabels(locale: IntakeLocale) {
       long: t.profileLengthLong,
       max: t.profileLengthMax,
     } as Record<LengthPreset, string>,
-    /*
-      Старые значения читаются своими словами — промпт у них прежний; новые
-      деления бегунка (`97dq.61`) — точным «до N».
-    */
+    // Пять плотностей словами и «выберем сами» (`97dq.96`).
     emoji: Object.fromEntries(
-      EMOJI_LEVEL_VALUES.map((level) => [level, emojiLevelWord(locale, level)])
+      [...EMOJI_STOPS, 'auto' as const].map((level) => [
+        level,
+        emojiLevelWord(locale, level),
+      ])
     ) as Record<ChannelWritingProfileV1['emojiLevel'], string>,
     link: {
       none: t.profileLinkNone,

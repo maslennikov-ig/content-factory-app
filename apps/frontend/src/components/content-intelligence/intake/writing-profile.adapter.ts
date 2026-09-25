@@ -87,18 +87,18 @@ export function lengthPresetOf(policy: ChannelLengthPolicyV1): LengthPreset {
 }
 
 /**
- * Эмодзи — бегунок «до N» (`97dq.61`): шкала, чтение старых значений и
- * положение на бегунке живут в `emoji-ceiling.ts` рядом с контрактом, чтобы
- * экран и промпт читали одну шкалу.
+ * Эмодзи — бегунок плотности словами (`97dq.96`): шкала, чтение старых
+ * значений и положение на бегунке живут в `emoji-ceiling.ts` рядом с
+ * контрактом, чтобы экран и промпт читали одну шкалу.
  */
 export {
   EMOJI_STOPS,
-  EMOJI_STOP_CEILING,
   emojiStopAt,
   emojiStopIndex,
   emojiStopOf,
   type EmojiLevel,
   type EmojiStop,
+  type StoredEmojiLevel,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 export const LINK_POLICIES = ['none', 'end', 'inline', 'auto'] as const;
 export const HASHTAG_POLICIES = ['none', 'end_1_3', 'free', 'auto'] as const;

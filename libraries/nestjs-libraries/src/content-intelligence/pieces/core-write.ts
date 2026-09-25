@@ -16,17 +16,23 @@ import { contentFromIntent } from '../intake/intake-content';
   тексте нет, и проверка `metaSpeechIn` просит одну перепись, если она всё же
   есть. Модули v3–v12 остаются импортируемыми и нетронутыми для квитанций.
 */
+/*
+  English instructions for every content language (`97dq.97`,
+  `core-write/v14`): the system, block titles and repair lines are English,
+  and one line names the output language. Modules v3–v13 stay importable and
+  untouched for receipts.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V13,
-  CORE_WRITE_ENRICH_LEAD_V13,
-  CORE_WRITE_META_REPAIR_V13,
+  CORE_WRITE_BLOCK_TITLES_V14,
+  CORE_WRITE_ENRICH_LEAD_V14,
+  CORE_WRITE_META_REPAIR_V14,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V13,
-  coreWriteSystemV13,
-} from './core-write-prompt.v13';
+  CORE_WRITE_REPAIR_V14,
+  coreWriteSystemV14,
+} from './core-write-prompt.v14';
 import { personTextWithoutAdded } from './core-edit';
 import { metaSpeechIn } from '../text-quality/meta-speech';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v13';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v14';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -307,7 +313,7 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V13[input.language];
+  const words = CORE_WRITE_BLOCK_TITLES_V14;
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -478,7 +484,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV13(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV14(input.language, forbiddenPhrasesRule(input.language), {
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
       instruction: Boolean(instruction),
@@ -533,12 +539,9 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
           rebuild.text.split(/\n\s*\n/u)
         )
       : '',
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V13[input.language] : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V14 : '',
     enrichment
-      ? fenced(
-          input.language === 'ru' ? 'Существующая суть' : 'Existing core',
-          [input.existingCore as string]
-        )
+      ? fenced(words.existing, [input.existingCore as string])
       : '',
 
   ]
@@ -711,7 +714,7 @@ export async function writeCoreWithDecisions(
         const copied = copiedRuns(result);
         if (copied.length) {
           const quoted = copied.map((run) => `«${run.text}»`).join(', ');
-          antiCopyHint = `${CORE_WRITE_REPAIR_V13[input.language]}${quoted}`;
+          antiCopyHint = `${CORE_WRITE_REPAIR_V14}${quoted}`;
           result = await rewrite(antiCopyHint, result);
         }
         // Речь о тексте вместо текста (`97dq.90`): одна перепись.
@@ -728,7 +731,7 @@ export async function writeCoreWithDecisions(
           const before = result;
           const decidedBefore = decided;
           const beforeRuns = copiedRuns(before).length;
-          const metaHint = `${CORE_WRITE_META_REPAIR_V13[input.language]}${meta.map((hit) => `«${hit}»`).join(', ')}`;
+          const metaHint = `${CORE_WRITE_META_REPAIR_V14}${meta.map((hit) => `«${hit}»`).join(', ')}`;
           const next = await rewrite(
             antiCopyHint ? `${antiCopyHint}\n\n${metaHint}` : metaHint,
             before

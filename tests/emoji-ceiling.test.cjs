@@ -1,14 +1,15 @@
 'use strict';
 
 /**
- * Эмодзи — точный потолок «до N» (`content-factory-next-97dq.61`, вариант A).
+ * Эмодзи — плотность словами (`content-factory-next-97dq.96`, решение
+ * владельца 25.09.2026; заменяет точное «до N» из `97dq.61`).
  *
- * Владелец выбрал бегунок с делениями нет · 1 · 3 · 6 · 10 · без предела и
- * точным «не больше N» в промпте. Здесь держится то, что переживёт правку
- * разметки: шкала читается в обе стороны, старые значения читаются и стоят на
- * ближайшем делении, новое значение живёт в той же строке `emojiLevel` (без
- * миграции) и проходит обе двери, а промпт получает ровно тот потолок, что
- * выбран, — старые значения при этом говорят прежними словами.
+ * Пять делений — Без эмодзи · Мало · Средне · Много · Как можно больше. Число
+ * эмодзи считается от длины поста (`emojiRangeFor`): промпт получает его от
+ * той длины, которую сам же задаёт, проверка — от длины готового текста.
+ * Старые значения читаются как ближайшая плотность, без миграции; «мало» и
+ * «много» до `97dq.61` — те же `few` и `many`. «Слишком мало» находкой не
+ * бывает.
  */
 
 require('reflect-metadata');
@@ -23,7 +24,7 @@ const scale = loadTypeScriptModule(
 const { parseWritingProfile } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
 );
-const { channelInstructionLines, EMOJI_LINE } = loadTypeScriptModule(
+const { channelInstructionLines, emojiLine } = loadTypeScriptModule(
   'libraries/nestjs-libraries/src/agent/channel-directives.ts'
 );
 const { IntegrationWritingProfileDto } = loadTypeScriptModule(
@@ -40,14 +41,11 @@ const {
   'apps/frontend/src/components/content-intelligence/intake/writing-profile.adapter.ts'
 );
 
-const STOPS = ['none', 'max1', 'max3', 'max6', 'max10', 'unlimited'];
+const STOPS = ['none', 'few', 'medium', 'many', 'max'];
 
 describe('the scale reads both ways', () => {
-  test('six stops in the order of the slider, with their exact ceilings', () => {
+  test('five stops in the order of the slider', () => {
     expect(scale.EMOJI_STOPS).toEqual(STOPS);
-    expect(STOPS.map((stop) => scale.EMOJI_STOP_CEILING[stop])).toEqual([
-      0, 1, 3, 6, 10, null,
-    ]);
   });
 
   test('position → value → position is the identity for every stop', () => {
@@ -60,39 +58,83 @@ describe('the scale reads both ways', () => {
 
   test('a position out of range clamps to the ends instead of inventing a value', () => {
     expect(scale.emojiStopAt(-3)).toBe('none');
-    expect(scale.emojiStopAt(99)).toBe('unlimited');
-    expect(scale.emojiStopAt(2.4)).toBe('max3');
+    expect(scale.emojiStopAt(99)).toBe('max');
+    expect(scale.emojiStopAt(2.4)).toBe('medium');
   });
 });
 
-describe('old values still read, at the nearest stop', () => {
+describe('the count depends on the length (97dq.96, owner table 25.09.2026)', () => {
   test.each([
-    ['none', 'none', 0],
-    ['few', 'max3', 2],
-    ['many', 'max6', 3],
-    ['auto', 'unlimited', 5],
-  ])('%s stands at %s', (legacy, stop, index) => {
+    ['none', 600, 0, 0],
+    ['few', 600, 1, 1],
+    // The table says 4–7; the sparse end rounded up gives 5 (3000 / 700 = 4.3).
+    ['few', 3000, 5, 7],
+    ['medium', 600, 2, 3],
+    ['medium', 3000, 9, 15],
+    ['many', 600, 4, 6],
+    ['many', 3000, 17, 30],
+    ['max', 600, 7, 12],
+    ['max', 3000, 34, 60],
+  ])('%s at %i characters → %i to %i', (level, chars, min, max) => {
+    expect(scale.emojiRangeFor(level, chars)).toEqual({ min, max });
+  });
+
+  test('every stop but «Без эмодзи» asks for at least one, and the most never falls below the fewest', () => {
+    for (const level of ['few', 'medium', 'many', 'max']) {
+      const tiny = scale.emojiRangeFor(level, 40);
+      expect(tiny.min).toBe(1);
+      expect(tiny.max).toBeGreaterThanOrEqual(tiny.min);
+    }
+    expect(scale.emojiRangeFor('few', 300)).toEqual({ min: 1, max: 1 });
+    expect(scale.emojiRangeFor('none', 5000)).toEqual({ min: 0, max: 0 });
+  });
+
+  test('a range of lengths counts the fewest at the short end and the most at the long end', () => {
+    expect(scale.emojiRangeFor('medium', 500, 1000)).toEqual({ min: 2, max: 5 });
+  });
+
+  test('`auto` and junk have no count', () => {
+    expect(scale.emojiRangeFor('auto', 800)).toBeNull();
+    expect(scale.emojiRangeFor('lots', 800)).toBeNull();
+  });
+});
+
+describe('old values still read, as the density they mean', () => {
+  test.each([
+    ['max1', 'few', 1],
+    ['max3', 'medium', 2],
+    ['max6', 'many', 3],
+    ['max10', 'max', 4],
+    ['unlimited', 'many', 3],
+    ['free', 'many', 3],
+  ])('%s reads as %s', (legacy, stop, index) => {
+    expect(scale.readEmojiLevel(legacy, 'auto')).toBe(stop);
     expect(scale.emojiStopOf(legacy)).toBe(stop);
     expect(scale.emojiStopIndex(legacy)).toBe(index);
   });
 
-  test('`free` is still the oldest spelling of «много», and junk falls back', () => {
-    expect(scale.readEmojiLevel('free', 'few')).toBe('many');
+  test('`auto` stays nothing chosen and is drawn in the middle; junk falls back', () => {
+    expect(scale.readEmojiLevel('auto', 'few')).toBe('auto');
+    expect(scale.emojiStopOf('auto')).toBe('medium');
     expect(scale.readEmojiLevel('ALL OF THEM', 'few')).toBe('few');
     expect(scale.readEmojiLevel(undefined, 'none')).toBe('none');
-    for (const value of [...STOPS, 'few', 'many', 'auto'])
+    for (const value of [...STOPS, 'auto'])
       expect(scale.readEmojiLevel(value, 'few')).toBe(value);
   });
 
-  test('the server keeps a stored stop and keeps reading the old words', () => {
-    for (const value of ['max1', 'max10', 'unlimited', 'few', 'many', 'auto'])
-      expect(parseWritingProfile({ emojiLevel: value }, 'telegram', 'ru').emojiLevel).toBe(value);
-    expect(parseWritingProfile({ emojiLevel: 'free' }, 'telegram', 'ru').emojiLevel).toBe('many');
+  test('the server reads a stored old stop as a density', () => {
+    const read = (value) =>
+      parseWritingProfile({ emojiLevel: value }, 'telegram', 'ru').emojiLevel;
+    expect(read('max1')).toBe('few');
+    expect(read('max10')).toBe('max');
+    expect(read('unlimited')).toBe('many');
+    expect(read('free')).toBe('many');
+    for (const value of [...STOPS, 'auto']) expect(read(value)).toBe(value);
   });
 
   test('the screen reads what the server stored, old or new', () => {
-    expect(readWritingProfile({ emojiLevel: 'max6' }).emojiLevel).toBe('max6');
-    expect(readWritingProfile({ emojiLevel: 'many' }).emojiLevel).toBe('many');
+    expect(readWritingProfile({ emojiLevel: 'max6' }).emojiLevel).toBe('many');
+    expect(readWritingProfile({ emojiLevel: 'medium' }).emojiLevel).toBe('medium');
     expect(readWritingProfile({ emojiLevel: 'free' }).emojiLevel).toBe('many');
     expect(readWritingProfile({ emojiLevel: 'lots' }).emojiLevel).toBe('few');
   });
@@ -113,18 +155,18 @@ describe('the new value lives in the same field and passes both doors', () => {
     expect(refusals(IntegrationWritingProfileDto, body)).toEqual([]);
   });
 
-  test('the card door still takes the old words and refuses a made-up one', () => {
+  test('the card door still takes the old stops and refuses a made-up one', () => {
     const body = (emojiLevel) =>
       buildWritingProfilePayload({ ...DEFAULT_WRITING_PROFILE, emojiLevel });
-    for (const old of ['few', 'many', 'auto', 'none'])
+    for (const old of ['auto', 'max1', 'max3', 'max6', 'max10', 'unlimited', 'free'])
       expect(refusals(IntegrationWritingProfileDto, body(old))).toEqual([]);
     expect(
       refusals(IntegrationWritingProfileDto, { ...body('few'), emojiLevel: 'max7' })
     ).toContain('emojiLevel');
   });
 
-  test('«Для этого поста» sends a stop through the adapt door', () => {
-    for (const stop of STOPS)
+  test('«Для этого поста» sends a stop through the adapt door, an old one too', () => {
+    for (const stop of [...STOPS, 'max3', 'unlimited'])
       expect(refusals(PieceAdaptOverridesDto, { emojiLevel: stop })).toEqual([]);
     expect(refusals(PieceAdaptOverridesDto, { emojiLevel: 'max7' })).toContain(
       'emojiLevel'
@@ -132,65 +174,7 @@ describe('the new value lives in the same field and passes both doors', () => {
   });
 });
 
-describe('the prompt gets the exact ceiling', () => {
-  const TELEGRAM = {
-    identifier: 'telegram',
-    name: 'Telegram',
-    maxLength: 4096,
-    maxCaptionLength: 1024,
-    editor: 'html',
-    contentLanguage: 'ru',
-  };
-  const channel = (emojiLevel) =>
-    channelInstructionLines(
-      { ...parseWritingProfile({}, 'telegram', 'ru'), emojiLevel },
-      TELEGRAM
-    ).find((line) => line.includes('emoji')) ?? null;
-  const channelLine = (rule) =>
-    `For emoji, this channel setting overrides the voice and neutral core: ${rule}`;
-
-  test.each([
-    ['max1', 'Use one emoji where it fits the meaning, never more than 1 in the whole post, and never as a list bullet.'],
-    ['max3', 'Use emoji where they fit the meaning, up to 3 in the whole post (never more than 3; fewer is fine), and never as list bullets.'],
-    ['max6', 'Use emoji where they fit the meaning, up to 6 in the whole post (never more than 6; fewer is fine), and never as list bullets.'],
-    ['max10', 'Use emoji where they fit the meaning, up to 10 in the whole post (never more than 10; fewer is fine), and never as list bullets.'],
-  ])('%s → «up to N where they fit, never more than N» (97dq.83, review P3-7)', (stop, rule) => {
-    expect(EMOJI_LINE[stop]).toBe(rule);
-    expect(channel(stop)).toBe(channelLine(rule));
-  });
-
-  test('«нет» is no emoji and «без предела» lifts the ceiling', () => {
-    expect(channel('none')).toBe(channelLine('No emoji.'));
-    expect(channel('unlimited')).toBe(
-      channelLine('There is no limit on emoji: use them freely wherever they fit the meaning.')
-    );
-  });
-
-  test('old values keep today’s wording', () => {
-    expect(channel('few')).toBe(
-      channelLine('Use one to three emoji, of no more than two kinds, and never as list bullets.')
-    );
-    expect(channel('many')).toBe(
-      channelLine('Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.')
-    );
-    // `auto` never said anything, and still does not.
-    expect(channel('auto')).toBeNull();
-  });
-
-  test('a stop set for one post overrides the channel, marked as one-off', () => {
-    const lines = channelInstructionLines(
-      { ...parseWritingProfile({}, 'telegram', 'ru'), emojiLevel: 'few' },
-      TELEGRAM,
-      { post: { emojiLevel: 'max10' } }
-    );
-    expect(lines).toContain(
-      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use emoji where they fit the meaning, up to 10 in the whole post (never more than 10; fewer is fine), and never as list bullets.'
-    );
-    expect(lines.join('\n')).not.toContain('one to three');
-  });
-});
-
-describe('«до N» is a count the whole chain honours (97dq.83)', () => {
+describe('the prompt gets a count worked out from the length (97dq.96)', () => {
   const TELEGRAM = {
     identifier: 'telegram',
     name: 'Telegram',
@@ -202,67 +186,154 @@ describe('«до N» is a count the whole chain honours (97dq.83)', () => {
   const directives = loadTypeScriptModule(
     'libraries/nestjs-libraries/src/agent/channel-directives.ts'
   );
-  const { slopCheck } = loadTypeScriptModule(
-    'libraries/nestjs-libraries/src/content-intelligence/text-quality/slop-check.ts'
-  );
-  const lines = (emojiLevel, post) =>
-    directives.channelInstructionLines(
-      { ...parseWritingProfile({}, 'telegram', 'ru'), emojiLevel },
+  // The Telegram card asks for 500 to 1000 characters.
+  const lines = (emojiLevel, post, profile = {}) =>
+    channelInstructionLines(
+      { ...parseWritingProfile({}, 'telegram', 'ru'), ...profile, emojiLevel },
       TELEGRAM,
       post ? { post } : undefined
     );
+  const channel = (emojiLevel, profile) =>
+    lines(emojiLevel, null, profile).find((line) => line.includes('emoji')) ?? null;
+  const channelLine = (rule) =>
+    `For emoji, this channel setting overrides the voice and neutral core: ${rule}`;
 
-  test('a setting that asks for emoji says the core’s «no emoji» is not this post’s rule', () => {
-    for (const level of ['max1', 'max3', 'max6', 'max10', 'few', 'many'])
+  test.each([
+    ['few', 'Use 1 to 2 emoji in the whole post (about one per 400–700 characters) where they fit the meaning, never as list bullets.'],
+    ['medium', 'Use 2 to 5 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, never as list bullets.'],
+    ['many', 'Use 3 to 10 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, never as list bullets.'],
+    ['max', 'Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, never as list bullets.'],
+  ])('%s at 500–1000 characters', (level, rule) => {
+    expect(emojiLine(level, { min: 500, max: 1000 })).toBe(rule);
+    expect(channel(level)).toBe(channelLine(rule));
+  });
+
+  test('an old stop gets the line of the density it means', () => {
+    expect(channel('max3')).toBe(channel('medium'));
+    expect(channel('max10')).toBe(channel('max'));
+    expect(channel('unlimited')).toBe(channel('many'));
+  });
+
+  test('one emoji reads in the singular', () => {
+    expect(emojiLine('few', { min: 300, max: 600 })).toBe(
+      'Use 1 emoji in the whole post (about one per 400–700 characters) where it fits the meaning, never as a list bullet.'
+    );
+  });
+
+  test('without a length the density is said in words, counted against 800 characters', () => {
+    expect(channel('medium', { lengthPolicy: 'auto' })).toBe(
+      channelLine(
+        'Use a moderate number of emoji: about one per 200–350 characters, which is 3 to 4 in a post of 800 characters; scale that to the length you write, use at least 1, place them where they fit the meaning, never as list bullets.'
+      )
+    );
+    expect(channel('max', { lengthPolicy: 'provider_max' })).toContain(
+      'Use as many emoji as fit: about one per 50–90 characters, which is 9 to 16'
+    );
+  });
+
+  test('«Без эмодзи» is no emoji and `auto` says nothing', () => {
+    expect(channel('none')).toBe(channelLine('No emoji.'));
+    expect(channel('auto')).toBeNull();
+  });
+
+  test('a stop set for one post overrides the channel, marked as one-off', () => {
+    const post = lines('few', { emojiLevel: 'max' });
+    expect(post).toContain(
+      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 6 to 20 emoji in the whole post (about one per 50–90 characters) where they fit the meaning, never as list bullets.'
+    );
+    expect(post.join('\n')).not.toContain('400–700');
+    // An old stop on the post reads as its density.
+    expect(lines('few', { emojiLevel: 'max10' })).toEqual(post);
+  });
+
+  test('the count follows the post’s own length', () => {
+    // «Короче» scales 500–1000 to 300–600.
+    expect(
+      lines('medium', { length: 'shorter' }).find((line) => line.includes('emoji'))
+    ).toBe(
+      channelLine(
+        'Use 1 to 3 emoji in the whole post (about one per 200–350 characters) where they fit the meaning, never as list bullets.'
+      )
+    );
+    // A range set on the post is the length counted against.
+    expect(
+      lines('medium', {
+        lengthPolicy: { idealMin: 1500, idealMax: 2500, hardMax: null },
+        emojiLevel: 'many',
+      })
+    ).toContain(
+      'For this post only: for emoji, this setting overrides the channel, the voice and neutral core: Use 9 to 25 emoji in the whole post (about one per 100–180 characters) where they fit the meaning, never as list bullets.'
+    );
+  });
+
+  test('every density says the core’s «no emoji» is not this post’s rule', () => {
+    for (const level of ['few', 'medium', 'many', 'max', 'max1', 'unlimited'])
       expect(lines(level)).toContain(directives.EMOJI_CORE_LINE);
     expect(lines('few', { emojiLevel: 'max3' })).toContain(directives.EMOJI_CORE_LINE);
-    // «нет» and `auto` add nothing about the core.
-    for (const level of ['none', 'auto']) {
+    for (const level of ['none', 'auto'])
       expect(lines(level)).not.toContain(directives.EMOJI_CORE_LINE);
-      expect(lines(level)).not.toContain(directives.EMOJI_CORE_OPTIONAL_LINE);
-    }
-    // A post set to «нет» on a «до 3» channel drops the line.
+    // A post set to «Без эмодзи» on a «Мало» channel drops the line.
     expect(lines('few', { emojiLevel: 'none' })).not.toContain(directives.EMOJI_CORE_LINE);
     expect(directives.EMOJI_CORE_LINE).toContain("that is not this post's rule");
   });
 
-  test('«без предела» lifts the ceiling without asking for emoji (review P3-7)', () => {
-    expect(lines('unlimited')).toContain(directives.EMOJI_CORE_OPTIONAL_LINE);
-    expect(lines('unlimited')).not.toContain(directives.EMOJI_CORE_LINE);
-    expect(directives.EMOJI_CORE_OPTIONAL_LINE).toContain('none are required');
-  });
-
-  test('the untouched Telegram channel («до 3» as legacy `few`) gets the core line (review P2-1)', () => {
+  test('the untouched Telegram channel is «Мало» and gets the core line (review P2-1)', () => {
     const { TELEGRAM_WRITING_DEFAULTS } = loadTypeScriptModule(
       'libraries/nestjs-libraries/src/content-intelligence/channels/channel-writing-profile.ts'
     );
     expect(TELEGRAM_WRITING_DEFAULTS.emojiLevel).toBe('few');
-    const untouched = directives.channelInstructionLines(
+    const untouched = channelInstructionLines(
       parseWritingProfile({}, 'telegram', 'ru'),
       TELEGRAM
     );
-    expect(parseWritingProfile({}, 'telegram', 'ru').emojiLevel).toBe('few');
     expect(untouched).toContain(directives.EMOJI_CORE_LINE);
   });
+});
 
-  test('the ceiling of a stored value', () => {
-    expect(scale.emojiCeilingOf('max1')).toBe(1);
-    expect(scale.emojiCeilingOf('max3')).toBe(3);
-    expect(scale.emojiCeilingOf('max10')).toBe(10);
-    expect(scale.emojiCeilingOf('few')).toBe(3);
-    expect(scale.emojiCeilingOf('many')).toBe(6);
-    expect(scale.emojiCeilingOf('free')).toBe(6);
-    expect(scale.emojiCeilingOf('unlimited')).toBeNull();
-    // «Нет» is a chosen zero (review P3-7).
-    expect(scale.emojiCeilingOf('none')).toBe(0);
-    expect(scale.emojiCeilingOf('auto')).toBeUndefined();
-    expect(scale.emojiCeilingOf('junk')).toBeUndefined();
-  });
-
+describe('the text checks count the ceiling against the text’s own length', () => {
+  const { slopCheck } = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/content-intelligence/text-quality/slop-check.ts'
+  );
   const ruleIds = (text, options) =>
     slopCheck(text, { platform: 'telegram', locale: 'ru', ...options }).findings.map(
       (finding) => finding.ruleId
     );
+
+  test('the ceiling of a stored value', () => {
+    expect(scale.emojiCeilingOf('medium')).toBe('medium');
+    expect(scale.emojiCeilingOf('max1')).toBe('few');
+    expect(scale.emojiCeilingOf('max3')).toBe('medium');
+    expect(scale.emojiCeilingOf('free')).toBe('many');
+    expect(scale.emojiCeilingOf('unlimited')).toBe('many');
+    expect(scale.emojiCeilingOf('none')).toBe(0);
+    expect(scale.emojiCeilingOf('auto')).toBeUndefined();
+    expect(scale.emojiCeilingOf('junk')).toBeUndefined();
+    expect(scale.emojiCeilingAt('medium', 600)).toBe(3);
+    expect(scale.emojiCeilingAt('medium', 3000)).toBe(15);
+    // Live stand 25.09.2026: a started stretch allows one more, so a post
+    // shorter than asked is not flagged for what the prompt allowed.
+    expect(scale.emojiCeilingAt('medium', 539)).toBe(3);
+    expect(scale.emojiCeilingAt('many', 368)).toBe(4);
+    expect(scale.emojiCeilingAt(0, 3000)).toBe(0);
+    expect(scale.emojiCeilingAt(null, 3000)).toBeNull();
+    expect(scale.emojiCeilingAt(undefined, 3000)).toBeUndefined();
+  });
+
+  test('the same emoji count is over «Мало» in a short post and within it in a long one', () => {
+    const sentence = 'Мы перенесли задачи на общую доску, и вопросы о статусе отпали сами собой. ';
+    const short = `${sentence}🚀 ${sentence}✅`;
+    const long = `${sentence.repeat(8)}🚀 ${sentence.repeat(8)}✅`;
+    expect(ruleIds(short, { emojiCeiling: 'few' })).toContain('emoji-over-ceiling');
+    expect(ruleIds(long, { emojiCeiling: 'few' })).not.toContain('emoji-over-ceiling');
+  });
+
+  test('too few is never a finding', () => {
+    const bare = 'Мы перенесли задачи на общую доску, и вопросы о статусе отпали. '.repeat(20);
+    const ids = ruleIds(bare, { emojiCeiling: 'max' });
+    expect(ids.some((id) => id.startsWith('emoji'))).toBe(false);
+  });
+
+  // A number still works: «Без эмодзи» is `0`, and a count is a count.
   const THREE_KINDS =
     'Мы перенесли задачи на общую доску 🚀 и вопросы о статусе отпали ✅. Команда пишет в чат меньше 💬.';
 
@@ -328,6 +399,6 @@ describe('one resolver for the post emoji level (review P3-6, 97dq.83)', () => {
   test('«как в канале» stored is no override', () => {
     const channelTags = { postSettings: { ch: { options: { emoji: 'channel' } } } };
     expect(postEmojiLevelOf(undefined, channelTags, 'ch')).toBeUndefined();
-    expect(scale.emojiCeilingOf(effectiveEmojiLevel(undefined, channelTags, 'ch', 'max6'))).toBe(6);
+    expect(scale.emojiCeilingOf(effectiveEmojiLevel(undefined, channelTags, 'ch', 'max6'))).toBe('many');
   });
 });

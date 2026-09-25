@@ -5,7 +5,7 @@ export type ChannelLengthPolicyV2 = ChannelLengthPolicyV1 | 'auto';
 export type ChannelWritingProfileV2 = Omit<ChannelWritingProfileV1, 'version' | 'lengthPolicy' | 'emojiLevel' | 'linkPolicy' | 'hashtagPolicy' | 'ctaKind' | 'output'> & {
   version: typeof CHANNEL_WRITING_PROFILE_VERSION;
   lengthPolicy: ChannelLengthPolicyV2;
-  /** Old `none/few/many/auto` and the exact stops of `97dq.61` (`emoji-ceiling.ts`). */
+  /** The five densities of `97dq.96` or `auto`; old stops are read into them (`emoji-ceiling.ts`). */
   emojiLevel: EmojiLevel;
   linkPolicy: ChannelWritingProfileV1['linkPolicy'] | 'auto';
   hashtagPolicy: ChannelWritingProfileV1['hashtagPolicy'] | 'auto';

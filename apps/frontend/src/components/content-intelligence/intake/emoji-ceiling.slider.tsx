@@ -4,14 +4,14 @@ import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { Range } from '@contentfactory/react/form/range';
 import { intakeCopy, type IntakeLocale } from './intake.copy';
-import { emojiDivisionWord, emojiStopWord } from './emoji-words';
+import { emojiLevelWord, emojiStopWord } from './emoji-words';
 import {
   EMOJI_STOPS,
   emojiStopAt,
   emojiStopIndex,
   emojiStopOf,
-  type EmojiLevel,
   type EmojiStop,
+  type StoredEmojiLevel,
 } from './writing-profile.adapter';
 
 const LAST = EMOJI_STOPS.length - 1;
@@ -26,31 +26,34 @@ const LAST = EMOJI_STOPS.length - 1;
 const at = (index: number) => `calc(12px + (100% - 24px) * ${index / LAST})`;
 
 /**
- * Emoji as an exact ceiling (`content-factory-next-97dq.61`, variant A).
+ * Emoji as a density in words (`content-factory-next-97dq.96`, owner
+ * decision 25.09.2026; replaces the «до N» stops of `97dq.61`).
  *
- * One handle over six stops — нет · 1 · 3 · 6 · 10 · без предела — and the
- * value read out as words: «до 6». The generator gets the same number
- * («no more than 6»), so what the person set is what the prompt says.
+ * One handle over five stops — Без эмодзи · Мало · Средне · Много · Как можно
+ * больше — and the value read out as the same word. There is no number: a
+ * long read and a short post at «Средне» carry different counts, and the
+ * prompt works the count out from the post's length (`emojiRangeFor`).
  *
- * Old values (`few`, `many`, `auto`) are drawn at their nearest stop and not
- * rewritten: nothing changes in storage until the handle moves.
+ * Old values (`max1` … `unlimited`, `free`) are drawn at the density they now
+ * mean, `auto` in the middle; nothing changes in storage until the handle
+ * moves.
  *
  * `channel` draws the channel's own value as a grey tick on the track. On «Для
  * этого поста» that is the answer to «what would happen if I left it»; on the
  * channel card there is nothing to compare with and no tick.
  *
  * `label` (`97dq.83`, `97dq.92`): label, handle and readout share one row —
- * «Эмодзи (?)» at the start, the handle between, «до N» at the end. Only a
+ * «Эмодзи (?)» at the start, the handle between, the word at the end. Only a
  * field narrower than 520px puts the handle on a row of its own under them:
- * below that the middle column leaves the six captions too little room
+ * below that the middle column leaves the captions too little room
  * (review of the fifteenth walk, F5). Without a label there is no label
  * cell, and nothing makes the row taller than the readout.
  *
- * Geometry: the six captions sit in six equal cells and the handle's box is
+ * Geometry: the five captions sit in five equal cells and the handle's box is
  * inset by half a cell, so every stop is exactly under its caption. A long
- * caption («без предела», «no limit») wraps inside its own cell — between
+ * caption («Как можно больше», «As many as fit») wraps inside its own cell — between
  * words first, inside a word only when a word is wider than the cell — so it
- * never runs into «10».
+ * never runs into «Много».
  */
 export function EmojiCeilingSlider({
   locale,
@@ -66,10 +69,10 @@ export function EmojiCeilingSlider({
   label,
 }: {
   locale: IntakeLocale;
-  value: EmojiLevel;
+  value: StoredEmojiLevel;
   onChange: (stop: EmojiStop) => void;
   /** The channel's value, drawn as a grey tick. */
-  channel?: EmojiLevel | null;
+  channel?: StoredEmojiLevel | null;
   /** The value is the channel's, not chosen here. */
   muted?: boolean;
   /** Differs from the channel: the readout takes the «changed» colour. */
@@ -84,20 +87,19 @@ export function EmojiCeilingSlider({
   const t = intakeCopy[locale];
   const index = emojiStopIndex(value);
   const stop = emojiStopOf(value);
-  const readout = emojiStopWord(locale, stop);
+  // `auto` stands at «Средне» but reads as what it is: «выберем сами».
+  const readout = emojiLevelWord(locale, value);
   const channelIndex = channel ? emojiStopIndex(channel) : null;
-  const channelWord = channel
-    ? emojiStopWord(locale, emojiStopOf(channel))
-    : '';
+  const channelWord = channel ? emojiLevelWord(locale, channel) : '';
   const inset = `calc(100% / ${EMOJI_STOPS.length * 2} - 12px)`;
 
   /*
-    Одна строка: «Эмодзи (?)» — ползунок — «до N» (`97dq.92`, пятнадцатый
+    Одна строка: «Эмодзи (?)» — ползунок — значение словом (`97dq.92`, пятнадцатый
     заход, C2: «она должна находиться между надписью и цифрой»). Решает
     ширина самого поля, а не окна: панель поста узкая и на широком экране.
-    Уже 520 px — подпись и «до N» строкой, ползунок под ними во всю ширину
+    Уже 520 px — подпись и значение строкой, ползунок под ними во всю ширину
     (ревью волны, F5: на 400–520 px средней колонке оставалось 25–33 px на
-    деление). Подпись и «до N» стоят по высоте дорожки, подписи делений —
+    деление). Подпись и значение стоят по высоте дорожки, подписи делений —
     под ней. Классы с вариантом `[@container(min-width:520px)]:` написаны
     целиком: Tailwind находит класс только буквально, склеенный он не
     существует. Что правила действительно попадают в CSS, держит
@@ -140,7 +142,7 @@ export function EmojiCeilingSlider({
           )}
         >
           {/* Не `<output>`: его неявная роль `status` объявляла бы каждое
-            движение ручки, а ручка и так читает «до N» через aria-valuetext. */}
+            движение ручки, а ручка и так читает значение через aria-valuetext. */}
           <span
             data-emoji-readout="true"
             className={clsx(
@@ -196,7 +198,7 @@ export function EmojiCeilingSlider({
               {channelIndex !== null ? (
                 <span
                   aria-hidden="true"
-                  data-emoji-channel-mark={emojiStopOf(channel as EmojiLevel)}
+                  data-emoji-channel-mark={emojiStopOf(channel)}
                   className="absolute top-1/2 h-[12px] w-0.5 -translate-y-1/2 -translate-x-1/2 rounded-full bg-cf-ink-muted rtl:translate-x-1/2"
                   style={{ insetInlineStart: at(channelIndex) }}
                 />
@@ -222,7 +224,7 @@ export function EmojiCeilingSlider({
           <div
             aria-hidden="true"
             data-emoji-divisions="true"
-            className="grid min-w-0 grid-cols-6 cf-caption text-cf-ink-muted"
+            className="grid min-w-0 grid-cols-5 cf-caption text-cf-ink-muted"
           >
             {EMOJI_STOPS.map((division) => (
               <span
@@ -232,7 +234,7 @@ export function EmojiCeilingSlider({
                   division === stop && !muted && 'text-cf-ink'
                 )}
               >
-                {emojiDivisionWord(locale, division)}
+                {emojiStopWord(locale, division)}
               </span>
             ))}
           </div>

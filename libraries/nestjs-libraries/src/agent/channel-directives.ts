@@ -4,7 +4,15 @@ import {
   defaultWritingProfileFor,
   type ChannelWritingProfileV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile';
-import { emojiCeilingOf } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import {
+  EMOJI_DEFAULT_POST_CHARS,
+  EMOJI_DENSITY,
+  emojiRangeFor,
+  isEmojiDensity,
+  readEmojiLevel,
+  type EmojiDensity,
+  type StoredEmojiLevel,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import type { IntakeFormatV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 
 /**
@@ -96,7 +104,8 @@ export type ChannelPostOverrides = {
     `lengthPolicy` главнее `length`.
   */
   lengthPolicy?: Exclude<ChannelWritingProfileV1['lengthPolicy'], 'provider_max'> | null;
-  emojiLevel?: ChannelWritingProfileV1['emojiLevel'] | null;
+  /** Old stops read as today's densities (`97dq.96`). */
+  emojiLevel?: StoredEmojiLevel | null;
   linkPolicy?: ChannelWritingProfileV1['linkPolicy'] | null;
   hashtagPolicy?: ChannelWritingProfileV1['hashtagPolicy'] | null;
   ctaKind?: ChannelWritingProfileV1['ctaKind'] | null;
@@ -154,62 +163,67 @@ export const channelHardLimit = (
     : provider.maxLength;
 
 /**
- * The emoji rule, one line per stored value.
- *
- * The first four are the old words and keep their wording: a channel saved
- * before `97dq.61` gets exactly the instruction it got yesterday. The stops of
- * the slider give the exact ceiling the person set — «до 3» is «no more than
- * 3», not «a few» for the generator to interpret — and «без предела» lifts the
- * ceiling without asking for emoji. Exported for the suite, which pins every
- * line.
- *
- * `97dq.83` (fourteenth walk, A4): «до 3» came out with none, because the
- * core has no emoji and the writer carries the core verbatim, so
- * `EMOJI_CORE_LINE` says the core's «no emoji» is not this post's rule. The
- * review of that fix (P3-7) found that «about N» pushes a short post towards
- * emoji stuffing at «до 10», so a stop asks for emoji where they fit, up to N,
- * and says fewer is fine; the count past N is a text finding
- * (`emoji-over-ceiling`).
+ * How dense the emoji of a stop are, in words — said beside the count when
+ * the post has no length of its own to count against.
  */
-export const EMOJI_LINE: Record<ChannelWritingProfileV1['emojiLevel'], string> = {
-  auto: '',
-  none: 'No emoji.',
-  few: 'Use one to three emoji, of no more than two kinds, and never as list bullets.',
-  many: 'Emoji are welcome when they fit the meaning; use 3–6 emoji freely in a post.',
-  max1: 'Use one emoji where it fits the meaning, never more than 1 in the whole post, and never as a list bullet.',
-  max3: 'Use emoji where they fit the meaning, up to 3 in the whole post (never more than 3; fewer is fine), and never as list bullets.',
-  max6: 'Use emoji where they fit the meaning, up to 6 in the whole post (never more than 6; fewer is fine), and never as list bullets.',
-  max10: 'Use emoji where they fit the meaning, up to 10 in the whole post (never more than 10; fewer is fine), and never as list bullets.',
-  unlimited: 'There is no limit on emoji: use them freely wherever they fit the meaning.',
+export const EMOJI_DENSITY_WORD: Record<EmojiDensity, string> = {
+  few: 'a few emoji',
+  medium: 'a moderate number of emoji',
+  many: 'many emoji',
+  max: 'as many emoji as fit',
 };
+
+/**
+ * The emoji rule for a level and the length the prompt asks for.
+ *
+ * `97dq.96` (owner, 25.09.2026): a stop is a density, not a count — a long
+ * read and a short post at «Средне» carry different numbers. The count comes
+ * from the same length the prompt gives (`emojiRangeFor`): «Use 2 to 5 emoji
+ * in the whole post (about one per 200–350 characters)». Without a length
+ * (`auto`, «длину держит площадка») it is counted against
+ * `EMOJI_DEFAULT_POST_CHARS` and the density is said in words, so the writer
+ * scales it to the length it chooses. Every stop but «Без эмодзи» asks for at
+ * least one: «fewer is fine» read as «none is fine» (sixteenth walk). The count
+ * past the most is a text finding (`emoji-over-ceiling`); too few is not.
+ *
+ * `auto` says nothing. Exported for the suite, which pins the lines.
+ */
+export function emojiLine(
+  level: unknown,
+  length?: { min: number; max: number } | null
+): string {
+  const read = readEmojiLevel(level, 'auto' as const);
+  if (read === 'auto') return '';
+  if (read === 'none') return 'No emoji.';
+  const density = EMOJI_DENSITY[read];
+  const per = `one per ${density.densest}–${density.sparsest} characters`;
+  if (!length) {
+    const range = emojiRangeFor(read, EMOJI_DEFAULT_POST_CHARS)!;
+    return `Use ${EMOJI_DENSITY_WORD[read]}: about ${per}, which is ${range.min} to ${range.max} in a post of ${EMOJI_DEFAULT_POST_CHARS} characters; scale that to the length you write, use at least 1, place them where they fit the meaning, never as list bullets.`;
+  }
+  const range = emojiRangeFor(read, length.min, length.max)!;
+  if (range.min === range.max) {
+    const one = range.min === 1;
+    return `Use ${range.min} emoji in the whole post (about ${per}) where ${one ? 'it fits' : 'they fit'} the meaning, never as ${one ? 'a list bullet' : 'list bullets'}.`;
+  }
+  return `Use ${range.min} to ${range.max} emoji in the whole post (about ${per}) where they fit the meaning, never as list bullets.`;
+}
 
 /**
  * The core is written for no platform and without emoji (`core-write`); the
  * writer is told to carry it verbatim. With a setting that asks for emoji this
  * line says which rule wins (`97dq.83`).
  *
- * Review of 97dq.81-85, P2-1: the rule is keyed off the ceiling, not a list of
- * the new stops. An untouched Telegram channel stores the legacy `few` (shown
- * as «до 3»), and without this line the writer copied the emoji-free core
- * verbatim — the same A4 the stops were fixed for. `few` and `many` ask for
- * emoji as much as `max3` and `max6` do.
+ * Review of 97dq.81-85, P2-1: an untouched Telegram channel stores `few`, and
+ * without this line the writer copied the emoji-free core verbatim. Every
+ * density asks for at least one emoji (`97dq.96`), so every density gets it.
  */
 export const EMOJI_CORE_LINE =
   "The neutral core has no emoji only because it is written for no platform; that is not this post's rule. Adding emoji as the emoji setting says is a change this platform requires, not a departure from the core.";
 
-/**
- * «Без предела» lifts the ceiling without asking for emoji (P3-7): the core's
- * «no emoji» still is not this post's rule, but nothing is required.
- */
-export const EMOJI_CORE_OPTIONAL_LINE =
-  "The neutral core has no emoji only because it is written for no platform; that is not this post's rule. Emoji may be added where they fit the meaning, and none are required.";
-
 /** The line about the core's missing emoji for a stored level, or none. */
-export const emojiCoreLineOf = (level: unknown): string | null => {
-  const ceiling = emojiCeilingOf(level);
-  if (ceiling === null) return EMOJI_CORE_OPTIONAL_LINE;
-  return typeof ceiling === 'number' && ceiling > 0 ? EMOJI_CORE_LINE : null;
-};
+export const emojiCoreLineOf = (level: unknown): string | null =>
+  isEmojiDensity(readEmojiLevel(level, 'auto' as const)) ? EMOJI_CORE_LINE : null;
 
 const LINK_LINE: Record<ChannelWritingProfileV1['linkPolicy'], string> = {
   auto: 'Choose whether and where links help; never invent a URL.',
@@ -582,9 +596,11 @@ export function channelInstructionLines(
     берёт та же таблица, что у карточки, и помечает её разовой.
   */
   const post = options.post ?? null;
+  // An old stop set on the post reads as today's density (`97dq.96`).
+  const postEmoji = readEmojiLevel(post?.emojiLevel, null);
   const chose = {
     length: Boolean(post?.lengthPolicy),
-    emoji: Boolean(post?.emojiLevel),
+    emoji: Boolean(postEmoji),
     link: Boolean(post?.linkPolicy),
     hashtag: Boolean(post?.hashtagPolicy),
     cta: Boolean(post?.ctaKind),
@@ -592,7 +608,7 @@ export function channelInstructionLines(
   const resolved: ChannelWritingProfileV1 = {
     ...channel,
     ...(post?.lengthPolicy ? { lengthPolicy: post.lengthPolicy } : {}),
-    ...(post?.emojiLevel ? { emojiLevel: post.emojiLevel } : {}),
+    ...(postEmoji ? { emojiLevel: postEmoji } : {}),
     ...(post?.linkPolicy ? { linkPolicy: post.linkPolicy } : {}),
     ...(post?.hashtagPolicy ? { hashtagPolicy: post.hashtagPolicy } : {}),
     ...(post?.ctaKind ? { ctaKind: post.ctaKind } : {}),
@@ -611,8 +627,17 @@ export function channelInstructionLines(
   // Длина карточкой (`97dq.48`) снимает «Короче / Длиннее» старого клиента.
   const postLength = chose.length ? null : options.post?.length;
   const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
+  /*
+    The length the emoji count is worked out from (`97dq.96`): the same range
+    this prompt gives. None given — the emoji line says the density in words.
+  */
+  let emojiLength: { min: number; max: number } | null = null;
   if (chose.length) {
     if (typeof length === 'object') {
+      emojiLength = {
+        min: Math.min(limit, length.idealMin),
+        max: Math.min(limit, length.idealMax),
+      };
       const hard = length.hardMax
         ? `, and never past ${Math.min(limit, length.hardMax)}`
         : '';
@@ -635,6 +660,7 @@ export function channelInstructionLines(
       сразу модель усредняет в третью.
     */
     const hard = scaled.hardMax ? `, and never past ${scaled.hardMax}` : '';
+    emojiLength = { min: scaled.idealMin, max: scaled.idealMax };
     lines.push(
       `For this post the author asked for a ${postLength} text than this channel usually gets: aim for ${scaled.idealMin} to ${scaled.idealMax} characters${hard}. ` +
         'This outranks any other length given in this prompt.'
@@ -643,6 +669,7 @@ export function channelInstructionLines(
     if (length === 'auto') lines.push('Choose the length that serves this material; the platform character limit still applies.');
     if (typeof length === 'object') {
       const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
+      emojiLength = { min: length.idealMin, max: length.idealMax };
       lines.push(
         `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
           'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
@@ -666,11 +693,12 @@ export function channelInstructionLines(
     lines.push(EDITOR_LINE.none);
   }
 
-  if (resolved.emojiLevel !== 'auto')
+  const emojiRule = emojiLine(resolved.emojiLevel, emojiLength);
+  if (emojiRule)
     lines.push(
       chose.emoji
-        ? forPost('for emoji, this setting overrides the channel, the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel])
-        : 'For emoji, this channel setting overrides the voice and neutral core: ' + EMOJI_LINE[resolved.emojiLevel]
+        ? forPost('for emoji, this setting overrides the channel, the voice and neutral core: ' + emojiRule)
+        : 'For emoji, this channel setting overrides the voice and neutral core: ' + emojiRule
     );
   const emojiCore = emojiCoreLineOf(resolved.emojiLevel);
   if (emojiCore) lines.push(emojiCore);

@@ -54,7 +54,7 @@ import {
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import {
   EMOJI_LEVEL_VALUES,
-  type EmojiLevel,
+  type StoredEmojiLevel,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import {
   READY_ADAPTATIONS_DEFAULT_LIMIT,
@@ -285,7 +285,7 @@ export class PieceAdaptOverridesDto {
 
   @IsOptional()
   @IsIn([...EMOJI_LEVEL_VALUES])
-  emojiLevel?: EmojiLevel;
+  emojiLevel?: StoredEmojiLevel;
 
   @IsOptional()
   @IsIn(['none', 'end', 'inline', 'auto'])

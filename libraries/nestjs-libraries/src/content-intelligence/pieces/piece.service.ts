@@ -20,7 +20,7 @@ import {
   claimQueries,
 } from './review-claims';
 import { catalogFindingsOf, reviewSupportedOf } from './review-prompt.v5';
-import { emojiCeilingOf } from '../channels/emoji-ceiling';
+import { emojiCeilingOf, type EmojiCeiling } from '../channels/emoji-ceiling';
 import { reviewTextOf } from './review-input';
 import {
   factKind,
@@ -290,7 +290,7 @@ export type PieceSlopCheckPort = (
   /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
   supported?: readonly string[],
   /** Выбранный потолок эмодзи (`97dq.83`); нет — порог площадки. */
-  emojiCeiling?: number | null
+  emojiCeiling?: EmojiCeiling | null
 ) => SlopReportV1 | null;
 
 const defaultSlopCheck: PieceSlopCheckPort = (
@@ -3139,7 +3139,7 @@ export class PieceService {
   private emojiCeilingFor(
     tags: unknown,
     integration: PieceIntegrationRow | undefined
-  ): number | null | undefined {
+  ): EmojiCeiling | null | undefined {
     if (!integration) return undefined;
     return emojiCeilingOf(
       effectiveEmojiLevel(
@@ -3160,7 +3160,7 @@ export class PieceService {
     organizationId: string,
     tags: unknown,
     integrationId: string | null | undefined
-  ): Promise<number | null | undefined> {
+  ): Promise<EmojiCeiling | null | undefined> {
     if (!integrationId) return undefined;
     try {
       const integrations = await this.pieces.listIntegrations(organizationId);
@@ -4395,7 +4395,7 @@ export class PieceService {
      */
     let platform = 'core';
     // «До N» поста или канала (`97dq.83`): у сути потолка нет.
-    let emojiCeiling: number | null | undefined;
+    let emojiCeiling: EmojiCeiling | null | undefined;
     if (adaptationId) {
       const draft = await this.pieces.reviewDraft(
         organizationId,

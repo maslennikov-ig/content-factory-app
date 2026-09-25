@@ -20,6 +20,7 @@
 import type { GeneratorDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import type { IntakeFormatV1, RelatedOwnPostV1 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
 import type { ChannelWritingProfileV2 as ChannelWritingProfileV1 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
+import type { StoredEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 
 /**
  * `v2` (`97dq.75`) carries `authorLink`, the author's link for the post, into
@@ -190,7 +191,8 @@ export type IntakePostOverridesV1 = {
     строка промпта. `lengthPolicy` главнее `length`.
   */
   lengthPolicy?: Exclude<ChannelWritingProfileV1['lengthPolicy'], 'provider_max'>;
-  emojiLevel?: ChannelWritingProfileV1['emojiLevel'];
+  /** An old «до N» still passes and is read as a density (`97dq.96`). */
+  emojiLevel?: StoredEmojiLevel;
   linkPolicy?: ChannelWritingProfileV1['linkPolicy'];
   hashtagPolicy?: ChannelWritingProfileV1['hashtagPolicy'];
   ctaKind?: ChannelWritingProfileV1['ctaKind'];

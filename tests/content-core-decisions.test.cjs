@@ -38,6 +38,7 @@ const mocks = {
 
 const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v11 = loadWithMocks(`${base}/pieces/core-write-prompt.v11.ts`);
+const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
 const v9 = loadWithMocks(`${base}/pieces/core-write-prompt.v9.ts`);
 const fill10 = loadWithMocks(`${base}/intake/intake.prompts.v10.ts`);
 const fill9 = loadWithMocks(`${base}/intake/intake.prompts.v9.ts`);
@@ -88,8 +89,8 @@ const input = (overrides = {}) => ({
 describe('core-write/v11', () => {
   test('своя версия (v13 с `97dq.90`), v9–v12 остаются для квитанций', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v13');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
     expect(v11.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
     expect(
@@ -99,23 +100,23 @@ describe('core-write/v11', () => {
 
   test('правило короткой сути заменено на «развивай каждый ответ и цель»', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).not.toContain('если слов человека мало — суть короткая');
-    expect(prompt).not.toContain('три предложения — нормальная суть');
-    expect(prompt).toContain('4) развивай сказанное, а не сжимай его');
-    expect(prompt).toContain('каждый ответ человека получает своё место в тексте');
-    expect(prompt).toContain('заявленная им цель задаёт строение');
-    expect(prompt).toContain('Длина следует за материалом и решениями');
+    expect(prompt).not.toContain('if the person gave few words, the core is short');
+    expect(prompt).not.toContain('three sentences is a normal core');
+    expect(prompt).toContain('4) develop what was said instead of shrinking it');
+    expect(prompt).toContain('every answer of the person gets its own place in the text');
+    expect(prompt).toContain('their stated goal sets the structure');
+    expect(prompt).toContain('The length follows the material and the decisions');
     // Цель «хочу рассказать, как…» — задача текста, а не служебное, которое выбрасывают.
-    expect(prompt).toContain('Заявленная цель («хочу рассказать, как мы к этому пришли») — не слова для текста, а то, что текст обязан сделать');
+    expect(prompt).toContain('A stated goal («I want to tell how we got there») is not words for the text but what the text has to do');
   });
 
   test('гарантии v9 о словах человека на месте, выдумка по-прежнему запрещена', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(prompt).toContain('Не меняется: смысл, оценки и позиция');
-    expect(prompt).toContain('числа, которого нет во входе, не пиши');
-    expect(prompt).toContain('случай, пример, цитату, источник и опыт, которых не было, не выдумывай');
-    expect(prompt).toContain('суть держит позицию человека и не спорит с ней');
+    expect(prompt).toContain('Carried over verbatim: the person’s numbers, names, dates, examples and distinctive expressions');
+    expect(prompt).toContain('Unchanged: the meaning, the judgements and the position');
+    expect(prompt).toContain('a number that is not in the input is not written');
+    expect(prompt).toContain('a case, example, quote, source or experience that was not there is not invented');
+    expect(prompt).toContain('the core holds the person’s position and never argues with it');
   });
 
   test('ответы человека — материалом, решения модели — своим подписанным блоком', () => {
@@ -125,7 +126,7 @@ describe('core-write/v11', () => {
       answeredAt: '2026-09-23T12:57:39.184Z',
     };
     const prompt = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, decision] }));
-    const words = v11.CORE_WRITE_BLOCK_TITLES_V11.ru;
+    const words = v14.CORE_WRITE_BLOCK_TITLES_V14;
     const block = (title) => {
       const start = prompt.indexOf(title);
       return start < 0 ? '' : prompt.slice(start, prompt.indexOf('--- BLOCK END ---', start));
@@ -133,7 +134,7 @@ describe('core-write/v11', () => {
     expect(block(words.answers)).toContain('У каждого был свой задачник');
     expect(block(words.answers)).toContain('Выросший КПД.');
     expect(block(words.answers)).not.toContain('Без конкретного эпизода');
-    expect(prompt).toContain('РЕШЕНИЯ МОДЕЛИ (человек отдал эти вопросы модели; редакторский выбор, не слова и не опыт человека)');
+    expect(prompt).toContain('THE MODEL’S DECISIONS (the person handed these questions to the model; an editorial choice, not the person’s words or experience)');
     expect(block(words.decisions)).toContain(`${DELEGATED[0].question} → Без конкретного эпизода`);
     // Пустое «Реши сама» (заготовки до v11) блока не заводит.
     const empty = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, { ...decision, text: '' }] }));
@@ -142,20 +143,20 @@ describe('core-write/v11', () => {
 
   test('поле брифа, предложенное моделью, подписано как её предложение', () => {
     const prompt = coreWrite.corePrompt(input({ brief: cnt32Brief({ thesis: 'input', position: 'model', audience: 'avatar' }) }));
-    expect(prompt).toContain('позиция (предложение модели): Я заметил');
+    expect(prompt).toContain('position (the model’s proposal): Я заметил');
     expect(prompt).not.toContain('тезис (предложение модели)');
     expect(prompt).not.toContain('адресат (предложение модели)');
   });
 
   test('отданные вопросы: блок с ключами и правило решения — только когда они есть', () => {
     const without = coreWrite.corePrompt(input());
-    expect(without).not.toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
-    expect(without).not.toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+    expect(without).not.toContain('QUESTIONS HANDED TO THE MODEL');
+    expect(without).not.toContain('A separate rule about the «questions handed to the model» block');
 
     const prompt = coreWrite.corePrompt(input({ delegated: DELEGATED }));
-    expect(prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ (реши сама; ответ — в decisions под тем же ключом)');
-    expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (о материале автора: только рамка, без выдуманного случая)`);
-    expect(prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+    expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL (decide yourself; the answer goes into decisions under the same key)');
+    expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (about the author’s material: a framing only, never an invented case)`);
+    expect(prompt).toContain('A separate rule about the «questions handed to the model» block');
   });
 
   test('вопрос о факте автора решается рамкой: правило запрещает выдумывать случай от первого лица', () => {
@@ -178,7 +179,7 @@ describe('core-write/v11', () => {
       }
     }
     const base = coreWrite.corePrompt(input({ delegated: DELEGATED }));
-    expect(base).toContain('не пиши их от первого лица как пережитое');
+    expect(base).toContain('never write them in the first person as something lived');
   });
 
   test('английская сторона на месте', () => {
@@ -323,15 +324,17 @@ describe('the core keeps the author’s caveats (97dq.53)', () => {
     'В марте мы с командой из семи человек отменили ежедневные стендапы и оставили один письменный отчёт в пятницу. Я не считаю, что стендапы вредны всем: в команде новичков или в кризисном проекте они нужны. Но если у команды есть общая доска и люди работают дольше полугода вместе, ежедневный созвон превращается в ритуал отчётности для руководителя.';
 
   test('the rule is in the core prompt in both languages, first write and rebuild alike', () => {
+    // `core-write/v14` (`97dq.97`): the rule is English for a Russian core too.
     const ru = coreWrite.corePrompt(input({ personText: S3 }));
-    expect(ru).toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
-    expect(ru).toContain('Оговорки человека — часть его позиции');
+    expect(ru).toContain(v12.CORE_WRITE_CAVEATS_V12.en);
+    expect(ru).not.toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
+    expect(ru).toContain('The person’s caveats are part of their position');
     // The caveat itself reaches the model with the person's words.
     expect(ru).toContain('в команде новичков или в кризисном проекте они нужны');
     const rebuild = coreWrite.corePrompt(
       input({ personText: S3, rebuildFrom: { text: 'Прежняя суть.', byPerson: false } })
     );
-    expect(rebuild).toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
+    expect(rebuild).toContain(v12.CORE_WRITE_CAVEATS_V12.en);
     const en = coreWrite.corePrompt(input({ language: 'en', personText: 'I do not think this is for everyone.' }));
     expect(en).toContain(v12.CORE_WRITE_CAVEATS_V12.en);
     expect(en).not.toContain(v12.CORE_WRITE_CAVEATS_V12.ru);
@@ -339,6 +342,6 @@ describe('the core keeps the author’s caveats (97dq.53)', () => {
 
   test('released receipts keep their contract: v11 does not carry the rule', () => {
     expect(v11.coreWriteSystemV11('ru', '')).not.toContain('Оговорки человека');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v13');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
   });
 });

@@ -39,6 +39,7 @@ import {
   VOICE_CHECK_SILENT,
   type VoiceCheckPort,
 } from '../brand-voice/voice-check.port';
+import type { EmojiCeiling } from '../channels/emoji-ceiling';
 
 /**
  * Шов проверки на ИИ-штампы: тот же порт, что держит сервис заготовок.
@@ -54,7 +55,7 @@ export type AdaptationSlopCheck = (
   /** Утверждения отмеченных фактов: их пересказ не штамп (`97dq.33`). */
   supported?: readonly string[],
   /** Выбранный потолок эмодзи (`97dq.83`); нет — порог площадки. */
-  emojiCeiling?: number | null
+  emojiCeiling?: EmojiCeiling | null
 ) => SlopReportV1 | null;
 
 export type AdaptationChecksInput = {
@@ -85,9 +86,10 @@ export type AdaptationChecksInput = {
   supported?: readonly string[];
   /**
    * Потолок эмодзи этого поста или канала (`97dq.83`, `emojiCeilingOf`):
-   * «до N» — выбор человека, и в его пределах эмодзи не украшение.
+   * выбор человека, и в его пределах эмодзи не украшение. Плотность
+   * («Средне», `97dq.96`) проверка сама переводит в число по длине текста.
    */
-  emojiCeiling?: number | null;
+  emojiCeiling?: EmojiCeiling | null;
 };
 
 export type AdaptationChecksDeps = {
@@ -191,7 +193,7 @@ export async function adaptationChecksMany(
     text: string;
     platform: string;
     /** Потолок эмодзи строки (`97dq.83`); нет — порог площадки. */
-    emojiCeiling?: number | null;
+    emojiCeiling?: EmojiCeiling | null;
   }>,
   deps: AdaptationChecksDeps
 ): Promise<AdaptationChecksV1[]> {

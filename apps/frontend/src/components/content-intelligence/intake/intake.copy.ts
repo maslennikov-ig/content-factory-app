@@ -237,15 +237,17 @@ export const intakeCopy = {
     profileLengthLong: 'до 1500',
     profileLengthMax: 'до 2500 (форматы)',
     profileEmoji: 'Эмодзи',
-    profileEmojiNone: 'без эмодзи',
-    profileEmojiFew: 'мало · 1–3',
-    profileEmojiFree: 'много',
-    /* Бегунок «до N» (`97dq.61`): подписи делений, число и отметка канала. */
-    profileEmojiStopNone: 'нет',
-    profileEmojiStopUnlimited: 'без предела',
-    profileEmojiUpTo: (count: number) => `до ${count}`,
+    /*
+      Бегунок плотности (`97dq.96`): пять слов — подписи делений, значение
+      и отметка канала. Числа нет: сколько штук, решает длина поста.
+    */
+    profileEmojiNone: 'Без эмодзи',
+    profileEmojiFew: 'Мало',
+    profileEmojiMedium: 'Средне',
+    profileEmojiMany: 'Много',
+    profileEmojiMax: 'Как можно больше',
     profileEmojiInChannel: (value: string) => `в канале: ${value}`,
-    profileEmojiSlider: 'Сколько эмодзи можно в посте',
+    profileEmojiSlider: 'Сколько эмодзи в посте',
     profileLink: 'Ссылки',
     profileLinkNone: 'без ссылок',
     profileLinkEnd: 'не больше одной, в конце',
@@ -284,7 +286,7 @@ export const intakeCopy = {
     profileHintLength:
       'Сколько знаков будет в посте. Мы можем выбрать длину по материалу в пределах площадки.',
     profileHintEmoji:
-      'Сколько эмодзи можно в посте: не больше выбранного числа. «Без предела» — сколько уместно.',
+      'Сколько эмодзи будет в посте. Точное число зависит от длины поста: в длинном тексте их больше, в коротком меньше.',
     profileHintLink:
       'Можно ли ставить ссылки и где: рядом с фактом или одну в конце.',
     profileHintHashtag: 'Нужны ли метки темы и где они стоят.',
@@ -492,14 +494,13 @@ export const intakeCopy = {
     profileLengthLong: 'up to 1500',
     profileLengthMax: 'up to 2500 (long forms)',
     profileEmoji: 'Emoji',
-    profileEmojiNone: 'none',
-    profileEmojiFew: '1–3, at most two kinds',
-    profileEmojiFree: 'many',
-    profileEmojiStopNone: 'none',
-    profileEmojiStopUnlimited: 'no limit',
-    profileEmojiUpTo: (count: number) => `up to ${count}`,
+    profileEmojiNone: 'No emoji',
+    profileEmojiFew: 'Few',
+    profileEmojiMedium: 'Some',
+    profileEmojiMany: 'Many',
+    profileEmojiMax: 'As many as fit',
     profileEmojiInChannel: (value: string) => `channel: ${value}`,
-    profileEmojiSlider: 'How many emoji a post may have',
+    profileEmojiSlider: 'How many emoji a post has',
     profileLink: 'Links',
     profileLinkNone: 'none',
     profileLinkEnd: 'at most one, at the end',
@@ -535,7 +536,7 @@ export const intakeCopy = {
     profileHintFor: (label: string) => `Hint: ${label}`,
     profileHintLength: 'Post length. We can choose within the platform limit.',
     profileHintEmoji:
-      'How many emoji a post may have: never more than the number set. “No limit” means as many as fit.',
+      'How many emoji a post has. The exact number depends on the length of the post: more in a long text, fewer in a short one.',
     profileHintLink:
       'Whether links may appear and where: next to a fact or one at the end.',
     profileHintHashtag: 'Whether topic tags are useful and where they go.',

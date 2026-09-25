@@ -546,7 +546,7 @@ describe('the core is editable after creation, and nothing regenerates silently'
     expect(modelCalls).toHaveLength(1);
     expect(calls.usage).toEqual([['org-a', 'intake', 'draft']]);
     expect(modelCalls[0].prompt).toContain('Клиент звонил в пятницу.');
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v13');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v14');
     expect(piece.body).toBe('Суть по всему материалу.');
     expect(piece.brief.materialPending).toBeUndefined();
     // The replaced text had not read the added words: that wait is recorded with it.
@@ -613,23 +613,23 @@ describe('«Пересобрать суть» keeps the decisions and the author
     await service.rebuildCore('org-a', 'piece-1', 'ru');
     const prompt = modelCalls[0].prompt;
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
     // The rule and the block of the previous core, paragraph by paragraph.
-    expect(prompt).toContain('Отдельное правило о пересборке');
-    expect(prompt).toContain('ПРЕДЫДУЩАЯ СУТЬ (текст, который сейчас на странице');
+    expect(prompt).toContain('A separate rule about the rebuild');
+    expect(prompt).toContain('THE PREVIOUS CORE (the text on the page now');
     expect(prompt).toContain('Руководителю небольшой команды это экономит час.');
     // Decisions are labelled as the model's, the person's answer as theirs.
-    expect(prompt).toContain('РЕШЕНИЯ МОДЕЛИ');
+    expect(prompt).toContain('THE MODEL’S DECISIONS');
     expect(prompt).toContain('Для кого этот текст? → Для руководителей небольших команд.');
     expect(prompt).toContain('Что изменилось? → Задачи на общей доске.');
     // Added material has its own block and is not doubled in the person's words.
-    expect(prompt).toContain('ДОПИСАННЫЙ МАТЕРИАЛ');
+    expect(prompt).toContain('ADDED MATERIAL');
     expect(prompt.split('Клиент звонил в пятницу.')).toHaveLength(2);
     expect(prompt).toContain('Я заметил, что команда пишет в чат меньше.');
     // Decisions may build the text; facts may not be invented.
-    expect(prompt).toContain('не становятся фактами');
+    expect(prompt).toContain('never become facts');
     // The enrichment mode is not the rebuild mode.
-    expect(prompt).not.toContain('Отдельное правило о дополнении');
+    expect(prompt).not.toContain('A separate rule about enrichment');
   });
 
   test('a hand-edited core is labelled as the person’s words', async () => {

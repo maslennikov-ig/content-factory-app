@@ -94,13 +94,13 @@ describe('cnt-29: свои числа без ресерча — слова че�
   test('строки со статусом «не проверено», но без следов поиска, стоят под подтверждённым', () => {
     const prompt = promptOf(cnt29Brief(), CNT29_PERSON);
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v13');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
     for (const statement of CNT29_STATEMENTS) {
-      expect(briefLines(prompt, statement)).toEqual([`факты подтверждённые: ${statement}`]);
+      expect(briefLines(prompt, statement)).toEqual([`confirmed facts: ${statement}`]);
     }
     // Ни блока, ни правила о неподтверждённом: запрещать печатать нечего.
-    expect(prompt).not.toContain('не подтвердилось поиском');
-    expect(prompt).not.toContain('исключение из правила о дословных числах');
+    expect(prompt).not.toContain('not confirmed by search');
+    expect(prompt).not.toContain('exception to the rule about verbatim numbers');
   });
 
   test('квитанция не называет их «не подтвердилось»', () => {
@@ -123,9 +123,9 @@ describe('cnt-29: свои числа без ресерча — слова че�
     });
     const prompt = promptOf(brief, CNT29_PERSON);
     for (const statement of CNT29_STATEMENTS) {
-      expect(prompt).toContain(`факты подтверждённые: ${statement}`);
+      expect(prompt).toContain(`confirmed facts: ${statement}`);
     }
-    expect(prompt).not.toContain('не подтвердилось поиском');
+    expect(prompt).not.toContain('not confirmed by search');
   });
 });
 
@@ -175,9 +175,9 @@ describe('cnt-26: не найденное поиском своё — вне п�
     const prompt = promptOf(selectedFactsBrief(cnt26Brief()), CNT26_PERSON);
 
     expect(briefLines(prompt, NOT_FOUND_40.statement)).toEqual([
-      `не подтвердилось поиском: ${NOT_FOUND_40.statement} — ${NOT_FOUND_40.note}`,
+      `not confirmed by search: ${NOT_FOUND_40.statement} — ${NOT_FOUND_40.note}`,
     ]);
-    expect(prompt).toContain(`факты подтверждённые: ${CORRECTION_2500.statement}`);
+    expect(prompt).toContain(`confirmed facts: ${CORRECTION_2500.statement}`);
     expect(prompt).not.toContain('25 тысяч');
   });
 
@@ -215,7 +215,7 @@ describe('cnt-26: не найденное поиском своё — вне п�
     const kept = { ...CONFLICTING_25K, selected: true, correction: null };
     const brief = { ...cnt26Brief(), facts: [kept, FOUND] };
     expect(promptOf(brief, CNT26_PERSON)).toContain(
-      `не подтвердилось поиском: ${kept.statement}`
+      `not confirmed by search: ${kept.statement}`
     );
     expect(fallbackCore(brief, [], '')).not.toContain('25 тысяч');
   });
@@ -224,7 +224,7 @@ describe('cnt-26: не найденное поиском своё — вне п�
     const seen = { ...cnt29Row('Эксперимент длился десять лет.'), factKey: 'own:0123456789abcdef' };
     const brief = { ...cnt29Brief(), facts: [seen] };
     expect(promptOf(brief, CNT29_PERSON)).toContain(
-      'не подтвердилось поиском: Эксперимент длился десять лет.'
+      'not confirmed by search: Эксперимент длился десять лет.'
     );
     expect(fallbackCore(brief, [], '')).not.toContain('десять лет');
     expect(ungroundedStatements(brief)).toEqual(['Эксперимент длился десять лет.']);

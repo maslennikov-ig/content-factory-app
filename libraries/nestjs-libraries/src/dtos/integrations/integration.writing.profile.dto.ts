@@ -20,7 +20,7 @@ import {
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/channel-writing-profile.v2.contract';
 import {
   EMOJI_LEVEL_VALUES,
-  type EmojiLevel,
+  type StoredEmojiLevel,
 } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 
 /**
@@ -65,9 +65,10 @@ export class IntegrationWritingProfileDto {
   length?: ChannelLengthRangeDto;
 
   // `free` — старейшее написание «много», читается как `many`; точные
-  // потолки `97dq.61` — из `emoji-ceiling.ts`.
+  // потолки `97dq.61` — из `emoji-ceiling.ts`; при чтении они становятся
+  // плотностями `97dq.96`.
   @IsIn([...EMOJI_LEVEL_VALUES, 'free'])
-  emojiLevel: EmojiLevel | 'free';
+  emojiLevel: StoredEmojiLevel | 'free';
 
   @IsIn(['none', 'end', 'inline', 'auto'])
   linkPolicy: 'none' | 'end' | 'inline' | 'auto';

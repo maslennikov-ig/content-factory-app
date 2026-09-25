@@ -141,7 +141,7 @@ describe('agent content language prompts', () => {
 
     expect(promptTemplate).toContain('{forbidden}');
     expect(promptInput.forbidden).toBe(forbiddenPhrasesRule('ru'));
-    expect(promptInput.forbidden).toContain('не используй обороты из списка:');
+    expect(promptInput.forbidden).toContain('do not use any turn of phrase from this list:');
     for (const phrase of forbiddenPhrasesFor('ru').slice(0, 5)) {
       expect(promptInput.forbidden).toContain(phrase);
     }

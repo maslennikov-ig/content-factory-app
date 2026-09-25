@@ -27,6 +27,7 @@
  * должны читаться, а версия в промпте — единственное, что говорит, какими
  * указаниями получен записанный ответ.
  */
+import type { EmojiCeiling } from '../channels/emoji-ceiling';
 import { slopCheck } from '../text-quality/slop-check';
 import { REVIEW_SEMANTIC_V4 } from './review-semantic.v4';
 import type { ReviewCatalogDelta, ReviewCatalogFinding } from './review.v3.contract';
@@ -53,7 +54,7 @@ export type ReviewPromptInput = {
    * Потолок эмодзи поста или канала (`97dq.83`): в его пределах каталог не
    * называет эмодзи украшением, и проверка их не убирает. Нет — порог площадки.
    */
-  emojiCeiling?: number | null;
+  emojiCeiling?: EmojiCeiling | null;
 };
 
 /**
@@ -123,7 +124,7 @@ export const catalogFindingsOf = (
    */
   supported?: readonly string[],
   /** Потолок эмодзи (`97dq.83`); обе стороны «было → стало» передают один. */
-  emojiCeiling?: number | null
+  emojiCeiling?: EmojiCeiling | null
 ): Array<ReviewCatalogFinding & { start: number; end: number }> =>
   slopCheck(text, {
     locale: language,

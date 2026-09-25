@@ -66,7 +66,10 @@ import {
   type PieceAdaptationScheduleRequestV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 import { platformLabel } from '../../brand-voice/voice-copy';
-import { EMOJI_LEVEL_VALUES } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
+import {
+  readEmojiLevel,
+  type StoredEmojiLevel,
+} from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import {
   CTA_KINDS,
   HASHTAG_POLICIES,
@@ -1419,7 +1422,8 @@ export type PostLengthV1 = PostChoiceV1<LengthPreset>;
 */
 export type PostOptionsV1 = {
   length: PostLengthV1;
-  emoji: PostChoiceV1<ChannelWritingProfileV1['emojiLevel']>;
+  /** An old «до N» may come back as stored; it is drawn as its density. */
+  emoji: PostChoiceV1<StoredEmojiLevel>;
   hashtags: PostChoiceV1<ChannelWritingProfileV1['hashtagPolicy']>;
   links: PostChoiceV1<ChannelWritingProfileV1['linkPolicy']>;
   cta: PostChoiceV1<ChannelWritingProfileV1['ctaKind']>;
@@ -1682,7 +1686,8 @@ export function readPostOptions(value: unknown): PostOptionsV1 {
   const record = asRecord(value) ?? {};
   return {
     length: choiceOf(LENGTH_PRESET_ORDER, record.length),
-    emoji: choiceOf(EMOJI_LEVEL_VALUES, record.emoji),
+    // An old «до N» reads as the density it now means (`97dq.96`).
+    emoji: readEmojiLevel(record.emoji, 'channel' as const),
     hashtags: choiceOf(HASHTAG_POLICIES, record.hashtags),
     links: choiceOf(LINK_POLICIES, record.links),
     cta: choiceOf(CTA_KINDS, record.cta),
@@ -2127,7 +2132,8 @@ export function rememberedProfilePayload(
   const chosen = <Value extends string>(value: PostChoiceV1<Value>) =>
     value === 'channel' ? null : (value as Value);
   const length = chosen(options.length);
-  const emoji = chosen(options.emoji);
+  // «Запомнить для канала» сохраняет плотность, а не старое «до N» (`97dq.96`).
+  const emoji = readEmojiLevel(chosen(options.emoji), null);
   const hashtags = chosen(options.hashtags);
   const links = chosen(options.links);
   const cta = chosen(options.cta);
@@ -2181,8 +2187,8 @@ export function profilePatchOfOptions(
   if (options.length !== 'channel' && options.length !== before.length)
     patch.lengthPolicy =
       options.length === 'auto' ? 'auto' : { ...LENGTH_PRESETS[options.length] };
-  if (options.emoji !== 'channel' && options.emoji !== before.emoji)
-    patch.emojiLevel = options.emoji;
+  const emoji = readEmojiLevel(options.emoji, null);
+  if (emoji && emoji !== before.emoji) patch.emojiLevel = emoji;
   if (options.hashtags !== 'channel' && options.hashtags !== before.hashtags)
     patch.hashtagPolicy = options.hashtags;
   if (options.links !== 'channel' && options.links !== before.links)

@@ -165,7 +165,7 @@ const ready = () =>
     expect(panel().dataset.channelWritingProfileState).toBe('editing')
   );
 const slider = () =>
-  screen.getByRole('slider', { name: 'Сколько эмодзи можно в посте' });
+  screen.getByRole('slider', { name: 'Сколько эмодзи в посте' });
 
 test('the channel card is the post panel in the channel scope: plan first, same fields, a «?» each', async () => {
   serve();
@@ -212,13 +212,13 @@ test('the channel card is the post panel in the channel scope: plan first, same 
   ).toBe(
     'Ссылку берём из вашего текста или найденных источников — новых адресов не придумываем.'
   );
-  // Эмодзи: деления и точное «до N» у старого «мало»; сравнивать не с чем.
-  expect(slider().value).toBe('2');
-  expect(slider().getAttribute('aria-valuetext')).toBe('до 3');
+  // Эмодзи: плотность словом (`97dq.96`), у канала «Мало»; сравнивать не с чем.
+  expect(slider().value).toBe('1');
+  expect(slider().getAttribute('aria-valuetext')).toBe('Мало');
   expect(document.querySelector('[data-emoji-channel-mark]')).toBeNull();
 });
 
-test('the slider stores an exact stop', async () => {
+test('the slider stores a density', async () => {
   serve({ stored: false });
   draw();
   await ready();
@@ -227,8 +227,8 @@ test('the slider stores an exact stop', async () => {
   await waitFor(() =>
     expect(calls.some((call) => call.method === 'PUT' && call.url === URL)).toBe(true)
   );
-  expect(calls.find((call) => call.method === 'PUT').body.emojiLevel).toBe('max6');
-  await waitFor(() => expect(slider().getAttribute('aria-valuetext')).toBe('до 6'));
+  expect(calls.find((call) => call.method === 'PUT').body.emojiLevel).toBe('many');
+  await waitFor(() => expect(slider().getAttribute('aria-valuetext')).toBe('Много'));
 });
 
 test('«Сохранить» sends one PUT with the fields and the note, and notifies the parent', async () => {

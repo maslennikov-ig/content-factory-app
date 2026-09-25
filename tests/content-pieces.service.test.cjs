@@ -531,26 +531,26 @@ describe('дословность и граница чужого текста', (
     await drain(service.run('org-a', plan, 'user-1'));
 
     const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(corePrompt).toContain('СЛОВА ЧЕЛОВЕКА (как он их написал; материал, не готовый текст)');
+    expect(corePrompt).toContain('THE PERSON’S WORDS (as written; material, not finished text)');
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
-    expect(corePrompt).toContain('Переносится дословно: числа, имена, даты, примеры и характерные выражения человека');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v13');
+    expect(corePrompt).toContain('Carried over verbatim: the person’s numbers, names, dates, examples and distinctive expressions');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v14');
     /*
       Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
       сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
       дополнения не приезжают вовсе — их отменяет не версия промпта, а наличие
       уже написанной сути.
     */
-    expect(corePrompt).toContain('4) развивай сказанное, а не сжимай его');
-    expect(corePrompt).not.toContain('три предложения — нормальная суть');
-    expect(corePrompt).not.toContain('Отдельное правило о дополнении');
-    expect(corePrompt).not.toContain('Существующая суть');
+    expect(corePrompt).toContain('4) develop what was said instead of shrinking it');
+    expect(corePrompt).not.toContain('three sentences is a normal core');
+    expect(corePrompt).not.toContain('A separate rule about enrichment');
+    expect(corePrompt).not.toContain('THE EXISTING CORE');
     expect(corePrompt).toContain(
-      'суть держит позицию человека и не спорит с ней'
+      'the core holds the person’s position and never argues with it'
     );
     expect(corePrompt).toContain(
-      'оговорки, ограничения и контраргументы помещай только в поле «возражение»'
+      'caveats, limitations and counter-arguments go only into the «objection» field'
     );
     // И запреты взяты из каталога штампов, а не написаны рядом второй раз.
     expect(corePrompt).toContain('в конечном счёте');
@@ -747,7 +747,7 @@ describe('интервью заготовки', () => {
     expect(filled.brief.origins.position).toBe('person');
     // Ответ приехал в промпт сути парой «вопрос → ответ» как материал по смыслу.
     const corePrompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(corePrompt).toContain('ОТВЕТЫ НА ВОПРОСЫ (мысли человека; материал, не готовые предложения)');
+    expect(corePrompt).toContain('ANSWERS TO THE QUESTIONS (the person’s thoughts; material, not finished sentences)');
     expect(corePrompt).toContain('сдивнулись пять');
   });
 
@@ -1988,7 +1988,7 @@ describe('ответы на открытые вопросы заготовки',
       })
     );
     const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
-    expect(prompt).toContain('материал по ссылке (не подтверждено)');
+    expect(prompt).toContain('linked material (not verified)');
     expect(prompt).toContain('2 500 участников');
     expect(prompt).not.toContain('https://example.com/report.pdf');
     expect(prompt).not.toContain('Вот ссылка');
@@ -2055,10 +2055,10 @@ describe('ответы на открытые вопросы заготовки',
 
     const drafts = modelCalls.filter((call) => call.role === 'draft');
     expect(drafts).toHaveLength(1);
-    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v13');
-    expect(drafts[0].prompt).toContain('ВОПРОСЫ, ОТДАННЫЕ МОДЕЛИ');
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(drafts[0].prompt).toContain('QUESTIONS HANDED TO THE MODEL');
     expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
-    expect(drafts[0].prompt).toContain('Отдельное правило о блоке «вопросы, отданные модели»');
+    expect(drafts[0].prompt).toContain('A separate rule about the «questions handed to the model» block');
     // Поле с готовым предложением модели заново не решается.
     expect(drafts[0].prompt).not.toContain('[thesis]');
 
@@ -3174,9 +3174,9 @@ describe('97dq.44: интервью заготовки — столько воп
     const prompt = drafts[0].prompt;
     expect(prompt).toContain('Как команда работала с задачами до доски? → У каждого был свой задачник');
     expect(prompt).toContain('Что удивило сильнее всего? → Выросший КПД.');
-    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (о материале автора: только рамка, без выдуманного случая)');
-    expect(prompt).toContain('[ask-3] Что именно вы изменили? (о материале автора: только рамка, без выдуманного случая)');
-    expect(prompt).toContain('4) развивай сказанное, а не сжимай его');
+    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: a framing only, never an invented case)');
+    expect(prompt).toContain('[ask-3] Что именно вы изменили? (about the author’s material: a framing only, never an invented case)');
+    expect(prompt).toContain('4) develop what was said instead of shrinking it');
 
     const stored = calls.updateCore[0][2].brief;
     expect(stored.questions.answered).toEqual(

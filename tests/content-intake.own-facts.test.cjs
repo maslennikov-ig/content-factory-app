@@ -407,9 +407,9 @@ describe('заполнение брифа: одно число — одна ст
       call.prompt.includes('PROMPT VERSION: core-write/')
     ).prompt;
     for (const statement of REBUILT) {
-      expect(corePrompt).toContain(`факты подтверждённые: ${statement}`);
+      expect(corePrompt).toContain(`confirmed facts: ${statement}`);
     }
-    expect(corePrompt).not.toContain('не подтвердилось поиском');
+    expect(corePrompt).not.toContain('not confirmed by search');
   });
 
   test('прогон C: склеенная строка с припиской становится тремя строками', async () => {

@@ -95,7 +95,7 @@ describe('without a label there is no label cell to make the row taller', () => 
     render(
       React.createElement(EmojiCeilingSlider, {
         locale: 'ru',
-        value: 'max3',
+        value: 'medium',
         onChange: () => {},
         ...props,
       })

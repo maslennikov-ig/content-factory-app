@@ -49,6 +49,7 @@ import {
   slopPlatformKey,
   slopThresholds,
 } from './slop-platforms';
+import { emojiCeilingAt, type EmojiCeiling } from '../channels/emoji-ceiling';
 import { RU_RULES } from './slop-rules.ru';
 import { EN_RULES } from './slop-rules.en';
 import type { SlopRule } from './slop-rules.types';
@@ -95,11 +96,13 @@ export type SlopCheckOptions = {
   grounded?: string | readonly string[];
   /**
    * The emoji ceiling chosen for this post or channel (`97dq.83`,
-   * `emojiCeilingOf`): within «до N» emoji kinds are not flagged, and more
-   * than N emoji in all is `emoji-over-ceiling` (`0` is «нет»); `null` —
-   * «без предела»; absent — the platform's threshold, as before.
+   * `emojiCeilingOf`): a density («Средне», `97dq.96`) is counted against
+   * the length of this text (`emojiCeilingAt`). Within that count emoji kinds
+   * are not flagged, and more emoji in all is `emoji-over-ceiling` (`0` is
+   * «без эмодзи»); too few is never a finding. `null` — no cap; absent — the
+   * platform's threshold, as before.
    */
-  emojiCeiling?: number | null;
+  emojiCeiling?: EmojiCeiling | null;
   /**
    * Отмеченные факты брифа — ровно их утверждения, без сути и слов человека.
    *
@@ -320,10 +323,12 @@ export function slopCheck(
   };
 
   const thresholds = slopThresholds(platform, words);
-  const emojiKindsCap = emojiKindsWithin(
-    thresholds.emojiKinds,
-    options.emojiCeiling
-  );
+  /*
+    A density («Средне») becomes a count against the length of this very text
+    (`97dq.96`): the most emoji `emojiRangeFor` allows it.
+  */
+  const emojiCeiling = emojiCeilingAt(options.emojiCeiling, plain.length);
+  const emojiKindsCap = emojiKindsWithin(thresholds.emojiKinds, emojiCeiling);
   const findings: SlopFindingV1[] = [];
 
   /*
@@ -453,7 +458,7 @@ export function slopCheck(
         break;
       }
       case 'emoji-count': {
-        const ceiling = options.emojiCeiling;
+        const ceiling = emojiCeiling;
         if (typeof ceiling !== 'number' || !Number.isFinite(ceiling)) break;
         const cap = Math.max(0, Math.floor(ceiling));
         if (metricEmojiFound.length <= cap) break;

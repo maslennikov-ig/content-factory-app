@@ -15,12 +15,12 @@ import {
   LENGTH_PRESET_ORDER,
   LINK_POLICIES,
   PROFILE_NOTES_MAX,
-  emojiStopOf,
   type ChannelWritingProfileV1,
-  type EmojiLevel,
+  type StoredEmojiLevel,
   type LengthPreset,
 } from '../intake/writing-profile.adapter';
 import { EmojiCeilingSlider } from '../intake/emoji-ceiling.slider';
+import { readEmojiLevel } from '@contentfactory/nestjs-libraries/content-intelligence/channels/emoji-ceiling';
 import {
   CHANNEL_PLAN_MODES,
   channelPlanModeCopy,
@@ -239,19 +239,20 @@ export function WritingSettingsPanel(props: PostScopeProps | ChannelScopeProps) 
   };
 
   /*
-    Эмодзи — бегунок «до N» (`97dq.61`). Деление, на котором стоит канал, —
-    это «как в канале», даже если канал хранит старое слово.
+    Эмодзи — бегунок плотности (`97dq.96`). Деление канала — это «как в
+    канале». Канал на `auto` стоит на «Средне» только нарисованным: выбрать
+    «Средне» — это выбор, а не «как в канале».
   */
   const channelEmoji = marks ? channelValueOf('emoji', baseline.profile) : null;
   const emojiInChannel = marks && options.emoji === 'channel';
-  const emojiValue: EmojiLevel =
+  const emojiValue: StoredEmojiLevel =
     options.emoji === 'channel' ? channelEmoji ?? 'few' : options.emoji;
   const emojiChanged = changed.has('emoji');
-  const chooseEmoji = (stop: EmojiLevel) =>
+  const chooseEmoji = (stop: StoredEmojiLevel) =>
     emit({
       ...options,
       emoji:
-        marks && channelEmoji && emojiStopOf(channelEmoji) === emojiStopOf(stop)
+        marks && channelEmoji && readEmojiLevel(channelEmoji, null) === stop
           ? 'channel'
           : stop,
     });

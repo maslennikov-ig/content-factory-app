@@ -180,6 +180,17 @@ export async function runVoiceAssistV2(
   );
 }
 
+/**
+ * System messages, English for every voice locale (`97dq.97`, owner request of
+ * 25.09.2026). The language of what the model writes is named by the user
+ * prompt (`assist.pipeline.ts`, `voice-learning.ts`), which knows the locale.
+ */
+export const VOICE_ASSIST_SYSTEM =
+  'You explain numbers that are already counted about how the author writes. Do not judge and do not praise. Every observation quotes the text verbatim.';
+
+export const VOICE_LEARN_SYSTEM =
+  'You name the author’s habits from what they correct in drafts written by someone else. Only about the manner of writing, never about the content. Short instructions, without praise and without judgement.';
+
 @Injectable()
 export class VoiceAssistService {
   constructor(private readonly _aiUsage: AiUsageService) {}
@@ -201,8 +212,7 @@ export class VoiceAssistService {
               messages: [
                 {
                   role: 'system',
-                  content:
-                    'Ты объясняешь уже посчитанные числа о том, как пишет автор. Не оценивай и не хвали. Каждое наблюдение цитирует текст дословно.',
+                  content: VOICE_ASSIST_SYSTEM,
                 },
                 { role: 'user', content: prompt },
               ],
@@ -253,8 +263,7 @@ export class VoiceAssistService {
           messages: [
             {
               role: 'system',
-              content:
-                'Ты называешь привычки автора по тому, что он исправляет в чужих черновиках. Только про манеру письма, не про содержание. Короткими указаниями, без похвалы и без оценок.',
+              content: VOICE_LEARN_SYSTEM,
             },
             { role: 'user', content: input.prompt },
           ],

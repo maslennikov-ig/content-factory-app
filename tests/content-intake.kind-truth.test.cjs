@@ -622,11 +622,11 @@ describe('задание: слова человека о посте — не м�
         },
         (prompt) => {
           // Суть пишется по блокам задания, а не по «словам человека».
-          expect(prompt).toContain('PROMPT VERSION: core-write/v13');
-          expect(prompt).toContain('ЗАДАНИЕ (что человек хочет написать; описание поста, не его текст)');
-          expect(prompt).toContain('ССЫЛКИ ИЗ ЗАДАНИЯ (переносятся в текст как есть)');
+          expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+          expect(prompt).toContain('THE INSTRUCTION (what the person wants written; a description of the post, not its text)');
+          expect(prompt).toContain('LINKS FROM THE INSTRUCTION (carried into the text as they are)');
           for (const link of RADIO_LINKS) expect(prompt).toContain(link);
-          expect(prompt).toContain('Отдельное правило о блоке «задание»');
+          expect(prompt).toContain('A separate rule about the «instruction» block');
           // Блок «слова человека» пуст: фразы задания — не материал.
           expect(prompt).not.toMatch(/СЛОВА ЧЕЛОВЕКА[^\n]*\n[^\n]*Хочу написать/u);
           return { text: `Я выступил на радио Sputnik Хабаровск. Посмотреть можно здесь: ${RADIO_LINKS[0]}` };

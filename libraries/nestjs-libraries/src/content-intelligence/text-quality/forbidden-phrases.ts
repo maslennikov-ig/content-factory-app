@@ -47,10 +47,12 @@ export const forbiddenPhrasesFor = (locale: 'ru' | 'en'): string[] => {
  * Строку собирает каталог, а не каждый вызывающий: промпт сути и промпт
  * адаптации обязаны запрещать одно и то же одними словами, иначе одна из
  * половин однажды окажется мягче другой и никто этого не заметит.
+ *
+ * Every instruction to the model is English (`content-factory-next-97dq.97`,
+ * owner request of 25.09.2026); only the catalogue stays in the content
+ * language, because the phrases are data the text must not contain.
  */
 export const forbiddenPhrasesRule = (locale: 'ru' | 'en'): string =>
-  locale === 'ru'
-    ? `не используй обороты из списка: ${forbiddenPhrasesFor('ru').join('; ')}.`
-    : `do not use any turn of phrase from this list: ${forbiddenPhrasesFor(
-        'en'
-      ).join('; ')}.`;
+  `do not use any turn of phrase from this list: ${forbiddenPhrasesFor(
+    locale
+  ).join('; ')}.`;

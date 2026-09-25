@@ -971,6 +971,7 @@ export class AgentGraphService {
         - ${contentLanguageInstruction(state.language)}
         - Make sure you add "\n" between the lines
         - Don't take the hook from "request of the user"
+        - The current content below is printed right after your hook. The hook leads into it; it never sums it up and never restates a claim of its first paragraph in other words
         {brief}
         <!-- BEGIN request of the user -->
         {request}
@@ -1059,9 +1060,17 @@ export class AgentGraphService {
            * hook" bans a verbatim copy; it says nothing about paraphrasing
            * the same claim, which is the actual failure.
            */
+          /*
+           * Not only with material (`97dq.96`, sixteenth walk): production
+           * 25.09.2026 opened with a summary sentence and said the same claim
+           * again in the next paragraph. The piece path saves the content
+           * alone, without the hook, so the line speaks of the post itself;
+           * a first version said «leave out a core sentence the hook says»,
+           * and on the live stand the model dropped the person's only number.
+           */
           hasMaterial
             ? '- The hook may already state the strongest fact from the material below — do not reopen the post with that same fact in other words; start from what it means or what to do about it'
-            : ''
+            : '- Say every claim once: no paragraph restates an earlier one in other words, and the post does not open with a summary of what follows. Keep every fact, number and example of the neutral core'
         }
         - ${ctaInstruction(state)}
         - Make sure you add "\n" between the lines

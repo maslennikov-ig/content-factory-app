@@ -1,4 +1,5 @@
 import type { BrandVoiceLocale } from './brand-voice.types';
+import { languageNameOf } from '../../dtos/content.language';
 
 /**
  * Post length, checked outside the model and repaired at most once.
@@ -130,19 +131,21 @@ export function buildLengthTrimPrompt(input: {
   locale: BrandVoiceLocale;
   keep?: readonly string[];
 }): string {
-  const russian = input.locale !== 'en';
+  /**
+   * English instructions for every locale (`97dq.97`, owner request of
+   * 25.09.2026); the post keeps its own language, and the prompt says which,
+   * because an English prompt would otherwise pull the edit into English.
+   */
+  const language = languageNameOf(input.locale);
   const keep = input.keep ?? protectedFragments(input.text);
   const lines: string[] = [];
 
+  lines.push('Shorten the post by REMOVING what is redundant, not by retelling it.');
   lines.push(
-    russian
-      ? 'Сократи пост, УБИРАЯ лишнее, а не пересказывая его.'
-      : 'Shorten the post by REMOVING what is redundant, not by retelling it.'
+    'The voice, the order of the thoughts, the way the reader is addressed and the rhythm stay exactly as they are. Add nothing of your own.'
   );
   lines.push(
-    russian
-      ? 'Голос, порядок мыслей, обращение к читателю и ритм фраз остаются как есть. Ни одного нового слова от себя.'
-      : 'The voice, the order of the thoughts, the way the reader is addressed and the rhythm stay exactly as they are. Add nothing of your own.'
+    `The post is in ${language}; return it in ${language}, in its own words, and only the post itself.`
   );
   /**
    * The target and the "now" are both about `input.text` — the only thing
@@ -153,24 +156,16 @@ export function buildLengthTrimPrompt(input: {
    */
   const budget = input.check.contentBudget;
   lines.push(
-    russian
-      ? `ЦЕЛЬ ПО ДЛИНЕ: около ${budget.median} знаков, допустимо ${budget.low}–${budget.high}. Сейчас ${input.text.trim().length}.`
-      : `TARGET LENGTH: about ${budget.median} characters, ${budget.low}–${budget.high} is fine. It is ${input.text.trim().length} now.`
+    `TARGET LENGTH: about ${budget.median} characters, ${budget.low}–${budget.high} is fine. It is ${input.text.trim().length} now.`
   );
   if (keep.length) {
-    lines.push(
-      russian
-        ? `СОХРАНИТЬ ДОСЛОВНО: ${keep.join(' · ')}`
-        : `KEEP VERBATIM: ${keep.join(' · ')}`
-    );
+    lines.push(`KEEP VERBATIM: ${keep.join(' · ')}`);
   }
   lines.push(
-    russian
-      ? 'Убирай в первую очередь: повторы одной мысли, вводные обороты, перечисления примеров сверх двух, объяснения того, что уже сказано.'
-      : 'Remove first: repetitions of one thought, throat-clearing, lists of examples beyond two, explanations of what was already said.'
+    'Remove first: repetitions of one thought, throat-clearing, lists of examples beyond two, explanations of what was already said.'
   );
   lines.push('');
-  lines.push(russian ? 'ПОСТ:' : 'POST:');
+  lines.push('POST:');
   lines.push(input.text);
   return lines.join('\n');
 }
