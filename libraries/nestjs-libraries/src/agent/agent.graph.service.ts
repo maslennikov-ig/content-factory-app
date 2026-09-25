@@ -373,7 +373,7 @@ const briefBlock = (state: WorkflowChannelsState): string => {
     */
     ...(core
       ? [
-          "The author's own neutral core of this piece. Carry its words, numbers, names and examples over VERBATIM; change only what this platform requires:",
+          "The author's own neutral core of this piece. Carry its words, numbers, names and examples over VERBATIM, and its grammatical person exactly as written — «I» stays «I», «we» stays «we», even where the two sit side by side; change only what this platform requires:",
           core,
         ]
       : []),
@@ -533,6 +533,9 @@ const longFormInstruction = (state: WorkflowChannelsState): string => {
    * prompt says nothing about length at all: the trim after the draft is where
    * it lives.
    */
+  // A channel card gives its own range and says never to pad (`97dq.98`);
+  // «Post should be long» next to it read as a quota to fill.
+  if (state.channelLines?.length) return '';
   if (!measured) return 'Post should be long';
   /**
    * Asked of the block rather than of the field, because since the avatar

@@ -239,6 +239,8 @@ describe('дверь отвечает ровно по тем адресам, ч�
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.postSettings.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.postSettings.path(':id', ':integrationId').replace('%3AintegrationId', ':integrationId')}`,
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.path(':integrationId').replace('%3AintegrationId', ':integrationId')}`,
     `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.path(':integrationId').replace('%3AintegrationId', ':integrationId')}`,
+    // Необязательные вопросы под коротким постом (`97dq.98`).
+    `${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.materialQuestions.method} ${workspaceContract.PIECE_ADAPTATION_WORKSPACE_ROUTES.materialQuestions.path(':id', ':integrationId').replace('%3AintegrationId', ':integrationId')}`,
   ];
 
   test.each(expected)('%s смонтирован', (route) => {

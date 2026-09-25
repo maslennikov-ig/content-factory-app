@@ -608,7 +608,7 @@ describe('задание: слова человека о посте — не м�
         (prompt) => {
           // Бриф по заданию заполняет v9 на правилах задания из v7 (одна строка
           // версии, `97dq.44`), и ссылки в нём — адреса, а не источники.
-          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
+          expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
           expect(prompt).toContain('person’s INSTRUCTION: they describe the post they want written');
           expect(prompt).toContain('Links the person told us to keep (addresses only, not sources):');
           for (const link of RADIO_LINKS) expect(prompt).toContain(`- ${link}`);
@@ -622,7 +622,7 @@ describe('задание: слова человека о посте — не м�
         },
         (prompt) => {
           // Суть пишется по блокам задания, а не по «словам человека».
-          expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+          expect(prompt).toContain('PROMPT VERSION: core-write/v15');
           expect(prompt).toContain('THE INSTRUCTION (what the person wants written; a description of the post, not its text)');
           expect(prompt).toContain('LINKS FROM THE INSTRUCTION (carried into the text as they are)');
           for (const link of RADIO_LINKS) expect(prompt).toContain(link);

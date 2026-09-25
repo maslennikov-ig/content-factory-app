@@ -188,6 +188,7 @@ export const passport = defineVoiceScene({
         ? {}
         : {
             onEditField: () => undefined,
+            onDelegatedPolicy: () => undefined,
             onAddExample: () => undefined,
             onRemoveExample: () => undefined,
             onRefreshExamples: () => undefined,
@@ -195,6 +196,10 @@ export const passport = defineVoiceScene({
       voice={
         state === 'empty'
           ? null
+          : state === 'selected'
+          ? // «Решите за меня» с выдуманными примерами (`97dq.99`): включённое
+            // положение переключателя.
+            { ...VOICE, delegatedPolicy: 'examples' }
           : state === 'long-content'
           ? {
               ...VOICE,

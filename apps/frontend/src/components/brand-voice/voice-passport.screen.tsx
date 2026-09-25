@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Button } from '@contentfactory/react/form/button';
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { Hint } from '@contentfactory/react/layout/hint';
+import { Toggle } from '@contentfactory/react/form/toggle';
 import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
 import { voiceCopy, type VoiceLocale } from './voice-copy';
 
@@ -70,7 +71,16 @@ export type PassportVoice = Readonly<{
    * writing, and the card is where that judgement has somewhere to go.
    */
   examples?: readonly { text: string }[];
+  /**
+   * What «Решите за меня» may answer with (`97dq.99`). `knowledge` — the
+   * default — adds explanations and advice and never invents the author's
+   * experience; `examples` may also invent an illustrative example in their
+   * voice. Absent reads as `knowledge`.
+   */
+  delegatedPolicy?: DelegatedPolicy;
 }>;
+
+export type DelegatedPolicy = 'knowledge' | 'examples';
 
 export type VoicePassportState =
   | 'default'
@@ -231,6 +241,7 @@ export function VoicePassportScreen({
   density = 'full',
   saved = false,
   onEditField,
+  onDelegatedPolicy,
   onAddExample,
   onRemoveExample,
   onRefreshExamples,
@@ -250,6 +261,11 @@ export function VoicePassportScreen({
    * be shown a button that will refuse them.
    */
   onEditField?: (key: ProfileField, text: string) => void;
+  /**
+   * «Разрешить ИИ придумывать примеры от моего лица». Saved at once — two
+   * positions, cheap and reversible, so it takes no «Сохранить».
+   */
+  onDelegatedPolicy?: (policy: DelegatedPolicy) => void;
   onAddExample?: (text: string) => void;
   onRemoveExample?: (index: number) => void;
   onRefreshExamples?: () => void;
@@ -390,6 +406,36 @@ export function VoicePassportScreen({
               );
             })}
           </dl>
+
+          {/* «Решите за меня» (`97dq.99`): what the AI may say in this
+              author's name. A member who may not change the voice reads the
+              position as words, not as a switch that will refuse them. */}
+          <div
+            data-voice-delegated-policy={voice.delegatedPolicy ?? 'knowledge'}
+            className="mt-[16px] flex flex-wrap items-center gap-[8px] border-t border-cf-border pt-[16px]"
+          >
+            {onDelegatedPolicy ? (
+              <Toggle
+                checked={voice.delegatedPolicy === 'examples'}
+                disabled={busy}
+                label={t.passportInventExamples}
+                className="min-w-0 text-start [text-wrap:pretty]"
+                onChange={(on) =>
+                  onDelegatedPolicy(on ? 'examples' : 'knowledge')
+                }
+              />
+            ) : (
+              <span className="min-w-0 cf-body-sm text-cf-ink [text-wrap:pretty]">
+                {t.passportInventExamples}:{' '}
+                {voice.delegatedPolicy === 'examples'
+                  ? t.passportInventExamplesOn
+                  : t.passportInventExamplesOff}
+              </span>
+            )}
+            <Hint label={t.hintFor(t.passportInventExamples)}>
+              {t.passportHintInventExamples}
+            </Hint>
+          </div>
 
           {voice.sentenceLength || voice.dashShare ? (
             <div className="mt-[16px] flex flex-wrap gap-[24px] border-t border-cf-border pt-[16px]">

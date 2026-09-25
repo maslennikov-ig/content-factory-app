@@ -40,6 +40,7 @@ import {
   PieceCoreEditDto,
   PieceCoreRestoreDto,
   PieceMaterialAppendDto,
+  PieceMaterialQuestionsDto,
 } from '@contentfactory/nestjs-libraries/dtos/content-intelligence/content-piece.dto';
 import { PieceService } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/piece.service';
 
@@ -766,6 +767,40 @@ export class ContentPieceController {
         language === 'ru'
           ? 'Настройки поста не удалось сохранить.'
           : 'The post settings could not be saved.'
+      );
+    }
+  }
+
+  /**
+   * Optional questions under a short post (`97dq.98`): the answers join the
+   * piece's material («Дописать материал»), or «Не нужно» closes them. No
+   * model call here; the page rebuilds the core and rewrites the post
+   * through their own doors.
+   */
+  @Post('/:id/channels/:integrationId/material-questions')
+  @CheckPolicies([AuthorizationActions.Create, Sections.EDITOR])
+  async materialQuestions(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('id') id: string,
+    @Param('integrationId') integrationId: string,
+    @Body() body: PieceMaterialQuestionsDto,
+    @Query('language') requested?: string
+  ) {
+    const language = languageOf(requested);
+    try {
+      return await this.pieces.materialQuestions(
+        organization.id,
+        id,
+        integrationId,
+        body,
+        language
+      );
+    } catch (error) {
+      safeHttpError(
+        error,
+        language === 'ru'
+          ? 'Ответы не удалось сохранить.'
+          : 'The answers could not be saved.'
       );
     }
   }

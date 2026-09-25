@@ -535,7 +535,7 @@ describe('дословность и граница чужого текста', (
     expect(corePrompt).toContain('сдивнулся');
     // Правило переноса сказано модели, а не подразумевается.
     expect(corePrompt).toContain('Carried over verbatim: the person’s numbers, names, dates, examples and distinctive expressions');
-    expect(corePrompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(corePrompt).toContain('PROMPT VERSION: core-write/v15');
     /*
       Первая суть: правило 4 `core-write/v11` (`97dq.56`) — «развивай
       сказанное, а не сжимай его»; правила короткой сути больше нет. Правила
@@ -897,6 +897,17 @@ const buildPieces = (options = {}) => {
       calls.removed.push([organizationId, pieceId]);
       return 1;
     },
+    // Политика «Решите за меня» аватара (`97dq.99`): только когда набор о ней
+    // просит; без метода служба берёт умолчание.
+    ...('delegatedPolicy' in options
+      ? {
+          coreDelegatedPolicy: async (organizationId) => {
+            calls.policy = [...(calls.policy || []), organizationId];
+            if (options.delegatedPolicy instanceof Error) throw options.delegatedPolicy;
+            return options.delegatedPolicy;
+          },
+        }
+      : {}),
   };
 
   /**
@@ -2055,7 +2066,7 @@ describe('ответы на открытые вопросы заготовки',
 
     const drafts = modelCalls.filter((call) => call.role === 'draft');
     expect(drafts).toHaveLength(1);
-    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(drafts[0].prompt).toContain('PROMPT VERSION: core-write/v15');
     expect(drafts[0].prompt).toContain('QUESTIONS HANDED TO THE MODEL');
     expect(drafts[0].prompt).toContain('[position] Где вы стоите в этом споре?');
     expect(drafts[0].prompt).toContain('A separate rule about the «questions handed to the model» block');
@@ -3050,7 +3061,7 @@ describe('97dq.44: интервью заготовки — столько воп
       },
     ]);
     const prompt = modelCalls[0].prompt;
-    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
+    expect(prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
     expect(prompt).not.toContain('at most two questions');
     expect(prompt).not.toContain('defaultQuestion');
     expect(modelCalls.some((call) => call.role === 'draft')).toBe(false);
@@ -3073,7 +3084,7 @@ describe('97dq.44: интервью заготовки — столько воп
 
     expect(named(events, 'questions')).toEqual([]);
     expect(named(events, 'piece')[0].core.text).toBe(CORE_TEXT);
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
   });
 
   test('вопрос по умолчанию из v8 больше не задаётся', async () => {
@@ -3119,7 +3130,7 @@ describe('97dq.44: интервью заготовки — столько воп
     );
     const events = await drain(service.run('org-a', plan, 'user-1'));
 
-    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v10');
+    expect(modelCalls[1].prompt).toContain('PROMPT VERSION: intake-brief-fill/v11');
     const questions = named(events, 'questions')[0].questions;
     expect(questions[0].field).toBe('position');
     expect(questions.map((row) => row.key).filter(Boolean)).toEqual(['ask-1']);
@@ -3139,6 +3150,37 @@ describe('97dq.44: интервью заготовки — столько воп
     expect(stored.brief.audience).toBe('Для фрилансеров, у которых сроки плывут');
     expect(stored.brief.origins.audience).toBe('person');
     expect(stored.questions.items).toEqual([]);
+  });
+
+  /*
+    «Решите за меня» из знаний ИИ (`97dq.99`): политика аватара доезжает до
+    промпта сути. Разрешённые примеры — своё правило; сбой чтения —
+    умолчание, а не разрешение.
+  */
+  describe.each([
+    ['examples', 'The author has allowed invented examples', 'do not invent their case'],
+    ['knowledge', 'do not invent their case', 'The author has allowed invented examples'],
+    [new Error('db down'), 'do not invent their case', 'The author has allowed invented examples'],
+  ])('97dq.99: политика аватара %s', (policy, present, absent) => {
+    test('доезжает до промпта сути из аватара области', async () => {
+      const asked = [
+        { field: 'facts', key: 'ask-1', question: 'Как выглядела конкретная рабочая ситуация?', options: [], suggested: null },
+      ];
+      const { service, calls } = buildPieces({
+        piece: { ...askedPiece({ round: 0, items: asked, answered: [] }), body: '' },
+        delegatedPolicy: policy,
+        models: [{ text: 'Развитая суть.', decisions: [{ key: 'ask-1', text: 'Текст объясняет, как это обычно бывает.' }] }],
+      });
+      await answerDrain(service, { decideKeys: ['ask-1'] });
+
+      expect(calls.policy).toEqual(['org-a']);
+      const prompt = modelCalls.find((call) => call.role === 'draft').prompt;
+      expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+      expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: only the person knows it)');
+      expect(prompt).toContain('the person expects you to answer it with content from your own knowledge');
+      expect(prompt).toContain(present);
+      expect(prompt).not.toContain(absent);
+    });
   });
 
   test('cnt-32: отданный вопрос о материале хранит решение-рамку, суть видит ответы и решения (`97dq.56`)', async () => {
@@ -3174,8 +3216,12 @@ describe('97dq.44: интервью заготовки — столько воп
     const prompt = drafts[0].prompt;
     expect(prompt).toContain('Как команда работала с задачами до доски? → У каждого был свой задачник');
     expect(prompt).toContain('Что удивило сильнее всего? → Выросший КПД.');
-    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: a framing only, never an invented case)');
-    expect(prompt).toContain('[ask-3] Что именно вы изменили? (about the author’s material: a framing only, never an invented case)');
+    expect(prompt).toContain('[ask-1] Как выглядела конкретная рабочая ситуация? (about the author’s material: only the person knows it)');
+    expect(prompt).toContain('[ask-3] Что именно вы изменили? (about the author’s material: only the person knows it)');
+    // Без аватара с разрешением — политика по умолчанию (`97dq.99`): знания
+    // да, выдуманный случай нет.
+    expect(prompt).toContain('answer it in general terms — how this usually goes and why — and do not invent their case');
+    expect(prompt).not.toContain('The author has allowed invented examples');
     expect(prompt).toContain('4) develop what was said instead of shrinking it');
 
     const stored = calls.updateCore[0][2].brief;

@@ -79,6 +79,7 @@ export function PieceChannelTab({
   checks,
   draftGaps,
   slopChange,
+  materialSlot,
   actionRow,
   postOptions,
   postBaseline,
@@ -141,6 +142,11 @@ export function PieceChannelTab({
   draftGaps?: readonly unknown[] | null;
   /** «Было N → стало M» после принятой правки — до перезагрузки. */
   slopChange?: { slopBefore: number; slopAfter: number } | null;
+  /**
+   * Optional questions when the material is short (`97dq.98`): under the
+   * text and its quality line, only for the version they were asked about.
+   */
+  materialSlot?: ReactNode;
   /** Ряд «Убрать следы ИИ · Проверить факты · Переписать…». */
   actionRow?: ReactNode;
   postOptions: PostOptionsV1;
@@ -444,6 +450,10 @@ export function PieceChannelTab({
                   </p>
                 ) : null}
               </div>
+
+              {editable && adaptation.state === 'draft' && !adapting
+                ? materialSlot
+                : null}
 
               {/* Проверки и перепись — только у черновика: очередь правится руками. */}
               {editable && adaptation.state === 'draft' ? actionRow : null}

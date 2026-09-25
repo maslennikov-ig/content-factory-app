@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { stripLeftoverAuthorLinkDeep } from '@contentfactory/nestjs-libraries/agent/channel-directives';
+import {
+  channelLengthTarget,
+  stripLeftoverAuthorLinkDeep,
+} from '@contentfactory/nestjs-libraries/agent/channel-directives';
 import { INTAKE_SNAPSHOT_STORE, INTAKE_SNAPSHOT_TTL_SECONDS, type IntakeSnapshotStore } from '../intake/intake-snapshot.store';
 import {
   PIECE_RESEARCH_VERSION,
@@ -199,6 +202,10 @@ import {
   type CoreDelegatedV1,
 } from './core-write';
 import {
+  DEFAULT_DELEGATED_POLICY,
+  type DelegatedPolicyV1,
+} from '../brand-profile/delegated-policy';
+import {
   PieceRepository,
   type PieceIntegrationRow,
   type PieceRow,
@@ -230,6 +237,20 @@ import {
   type PostSettingsPatchV1,
 } from './post-settings';
 import { PIECE_ERROR_MESSAGES, PieceError, pieceError } from './errors';
+import { askMaterialQuestionsV1 } from '../channels/material-questions.v1';
+import {
+  coreDigest,
+  materialAskRecordOf,
+  materialShortfall,
+  mayAskMaterial,
+  openMaterialAskOf,
+  withMaterialAsk,
+  type MaterialAskRecordV1,
+} from './material-asks';
+import type {
+  PieceMaterialQuestionsRequestV1,
+  PieceMaterialQuestionsResponseV1,
+} from './adaptation-workspace.contract';
 import {
   effectivePostLink,
   linkQuestionOpen,
@@ -1302,6 +1323,32 @@ export class PieceService {
   }
 
   /**
+   * Политика «Решите за меня» для сути (`content-factory-next-97dq.99`).
+   *
+   * Суть пишется одна на заготовку и до каналов, поэтому говорит аватар по
+   * умолчанию — тот же, что вход берёт выбором `{ mode: 'active' }`; выбор
+   * «Кто говорит» у поста касается адаптации, а она несёт суть дословно.
+   * Прочитать не удалось — политика по умолчанию: сбой чтения не должен
+   * разрешать модели больше, чем разрешил человек.
+   */
+  private async coreDelegatedPolicy(
+    organizationId: string
+  ): Promise<DelegatedPolicyV1> {
+    try {
+      return typeof this.pieces.coreDelegatedPolicy === 'function'
+        ? await this.pieces.coreDelegatedPolicy(organizationId)
+        : DEFAULT_DELEGATED_POLICY;
+    } catch (error) {
+      this.logger.warn(
+        `The avatar policy for «You decide» could not be read; using the default: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return DEFAULT_DELEGATED_POLICY;
+    }
+  }
+
+  /**
    * Кто говорит в этой адаптации (`content-factory-next-97dq.38`).
    *
    * Порядок — от частного к общему: аватар, выбранный для этого поста;
@@ -1549,6 +1596,9 @@ export class PieceService {
       return;
     }
     yield saved.event;
+    // Optional questions when the material is short (`97dq.98`): after the
+    // post is on the page, never instead of it, and never a failure.
+    await this.askForMaterial(organizationId, plan, saved.adaptation);
     yield {
       name: 'done',
       adaptationId: saved.adaptation.id,
@@ -2345,6 +2395,200 @@ export class PieceService {
     return { text, savedAt, revisions: revisions.length };
   }
 
+  /* -----------------------------------------------------------------------
+   * «Материала мало» (`content-factory-next-97dq.98`)
+   *
+   * The owner, 25.09.2026: «Мы разрешим ИИ задавать просто дополнительные
+   * вопросы и объяснять, почему он их задает. Но они являются
+   * необязательными.» The rule and its storage: `material-asks.ts`; the
+   * prompt: `channels/material-questions.v1.ts`.
+   * -------------------------------------------------------------------- */
+
+  /**
+   * After a post is written: clearly short of the length it was written to
+   * — ask for one to three questions and keep them beside the post settings.
+   * Questions still open for the same core move to the new post without a
+   * model call; «Не нужно» for the same core and an answered round are not
+   * asked again. Never throws.
+   */
+  private async askForMaterial(
+    organizationId: string,
+    plan: PieceAdaptPlanV1,
+    adaptation: AdaptationV1
+  ): Promise<void> {
+    const core = plan.core?.text ?? '';
+    if (!core.trim() || !this.aiUsage || !this.planStore()) return;
+    try {
+      const target = channelLengthTarget(
+        plan.channel.profile,
+        {
+          identifier: plan.channel.providerIdentifier,
+          name: plan.channel.name,
+          contentLanguage: plan.channel.contentLanguage,
+          maxLength: plan.channel.maxLength,
+          maxCaptionLength: plan.channel.maxCaptionLength,
+          editor: plan.channel.editor,
+        },
+        {
+          withPicture: plan.request?.options?.isPicture === true,
+          post: postOverridesOf(plan.request, plan.postEmojiLevel),
+        }
+      );
+      const short = materialShortfall(adaptation.body ?? '', target);
+      if (!short) return;
+      const digest = coreDigest(core);
+      const piece = await this.pieces.getPiece(organizationId, plan.pieceId);
+      const before = materialAskRecordOf(piece?.tags ?? null, plan.channel.id);
+      if (!mayAskMaterial(before, core)) return;
+      const carried =
+        before?.state === 'open' && before.core === digest && before.questions.length
+          ? before.questions
+          : null;
+      const questions =
+        carried ??
+        (await askMaterialQuestionsV1(
+          {
+            organizationId,
+            language: plan.language,
+            channelName: plan.channel.name,
+            providerIdentifier: plan.channel.providerIdentifier,
+            length: short.length,
+            min: short.min,
+            core,
+            post: adaptation.body ?? '',
+            brief: plan.core?.brief ?? null,
+          },
+          { aiUsage: this.aiUsage, warn: (message) => this.logger.warn(message) }
+        ));
+      if (!questions.length) return;
+      const record: MaterialAskRecordV1 = {
+        adaptationId: adaptation.id,
+        length: short.length,
+        min: short.min,
+        questions,
+        state: 'open',
+        core: digest,
+        askedAt: this.now().toISOString(),
+        closedAt: null,
+      };
+      await this.writeMaterialAsk(organizationId, plan.pieceId, plan.channel.id, (current) =>
+        mayAskMaterial(current, core) ? record : undefined
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Material questions for channel ${plan.channel.id} were not kept: ${describeError(error)}`
+      );
+    }
+  }
+
+  /**
+   * One channel's record under the piece row lock, like the post settings.
+   * `next` returns the record to write, `null` to remove, `undefined` to
+   * leave the tags as they are. Returns what was written.
+   */
+  private async writeMaterialAsk(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    next: (current: MaterialAskRecordV1 | null) => MaterialAskRecordV1 | null | undefined
+  ): Promise<{ before: MaterialAskRecordV1 | null; written: boolean }> {
+    return this.lockChannel(organizationId, pieceId, integrationId, async (db) => {
+      const locked = db.lockPieceTags
+        ? await db.lockPieceTags(organizationId, pieceId)
+        : { tags: db.pieceTags ? await db.pieceTags(organizationId, pieceId) : null };
+      if (!locked) return { before: null, written: false };
+      const before = materialAskRecordOf(locked.tags, integrationId);
+      const record = next(before);
+      if (record === undefined || !db.writePieceTags) return { before, written: false };
+      await db.writePieceTags(
+        organizationId,
+        pieceId,
+        withMaterialAsk(locked.tags, integrationId, record)
+      );
+      return { before, written: true };
+    });
+  }
+
+  /**
+   * The person's reply to the optional questions (`97dq.98`). «Не нужно»
+   * closes them for good. Answers join the piece's material exactly as
+   * «Дописать материал» does — «question → answer», the question going
+   * along so the core writer knows what each answer is about — and the
+   * page then rebuilds the core and rewrites this channel's post through
+   * the existing doors. The round is claimed under the lock first, so a
+   * second press does not add the same words twice.
+   */
+  async materialQuestions(
+    organizationId: string,
+    pieceId: string,
+    integrationId: string,
+    input: PieceMaterialQuestionsRequestV1,
+    language: 'ru' | 'en' = 'ru'
+  ): Promise<PieceMaterialQuestionsResponseV1> {
+    const piece = await this.pieces.getPiece(organizationId, pieceId);
+    if (!piece) throw pieceError('PIECE_NOT_FOUND', language, pieceId);
+    if (piece.archivedAt) throw pieceError('PIECE_ARCHIVED', language, pieceId);
+    if (!this.planStore())
+      throw workspaceError('ADAPTATION_SCHEDULE_UNAVAILABLE', language);
+    const adaptationId = trimmed(input?.adaptationId);
+    const stored = materialAskRecordOf(piece.tags, integrationId);
+    if (!stored || !adaptationId || stored.adaptationId !== adaptationId)
+      throw pieceError('ADAPTATION_NOT_FOUND', language, adaptationId || integrationId);
+    const closed = (
+      record: MaterialAskRecordV1,
+      state: 'dismissed' | 'answered'
+    ): MaterialAskRecordV1 => ({ ...record, state, closedAt: this.now().toISOString() });
+    const stillOpen = (current: MaterialAskRecordV1 | null) =>
+      current?.state === 'open' && current.adaptationId === adaptationId;
+
+    if (input?.dismiss === true) {
+      const outcome = await this.writeMaterialAsk(organizationId, pieceId, integrationId, (current) =>
+        stillOpen(current) ? closed(current!, 'dismissed') : undefined
+      );
+      const state = outcome.before?.state;
+      return { state: outcome.written || state !== 'answered' ? 'dismissed' : 'answered' };
+    }
+
+    const byKey = new Map(stored.questions.map((question) => [question.key, question]));
+    const answers = (Array.isArray(input?.answers) ? input.answers : []).flatMap((answer) => {
+      const question = byKey.get(answer?.key as PieceQuestionV1['key']);
+      const text = typeof answer?.text === 'string' ? answer.text.trim() : '';
+      return question && text
+        ? [{ key: question.key, question: question.question, text }]
+        : [];
+    });
+    if (!answers.length)
+      throw new AdaptationReviewError(
+        'PIECE_MATERIAL_EMPTY',
+        400,
+        CORE_EDIT_WORDS.materialEmpty[language]
+      );
+    const claim = await this.writeMaterialAsk(organizationId, pieceId, integrationId, (current) =>
+      stillOpen(current) ? closed(current!, 'answered') : undefined
+    );
+    if (!claim.written) {
+      const state = claim.before?.state;
+      return { state: state === 'dismissed' ? 'dismissed' : 'answered' };
+    }
+    try {
+      const added = await this.appendMaterial(
+        organizationId,
+        pieceId,
+        { text: adaptationInterviewLines(answers).join('\n') },
+        language
+      );
+      return { state: 'answered', materialPending: added.materialPending };
+    } catch (error) {
+      // The words did not land: the questions open again, answers and all.
+      await this.writeMaterialAsk(organizationId, pieceId, integrationId, (current) =>
+        current?.state === 'answered' && current.adaptationId === adaptationId
+          ? { ...current, state: 'open', closedAt: null }
+          : undefined
+      ).catch(() => undefined);
+      throw error;
+    }
+  }
+
   /**
    * «Дописать материал» (`97dq.75`): the words join the author's material —
    * appended to `personText`, which every core rewrite reads, and recorded in
@@ -2442,6 +2686,7 @@ export class PieceService {
       {
         organizationId,
         language,
+        delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
         brief: selectedFactsBrief(core.brief),
         answers: core.answers,
         // Every answer goes with its question, the model's decisions included.
@@ -2751,6 +2996,7 @@ export class PieceService {
         {
           organizationId,
           language,
+          delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
           brief: selectedFactsBrief(answeredBrief),
           answers: [...plan.core.answers, ...said],
           questionTextByKey: Object.fromEntries(
@@ -4328,6 +4574,7 @@ export class PieceService {
       throw new AdaptationReviewError('PIECE_RESEARCH_SELECTION', 400, 'Выберите опоры из результата исследования.');
     const state = this.intake.selectCoreResearch(saved.state, saved.body, saved.language, input.selectedKeys);
     const rewritten = await writeCore({ organizationId, language: saved.language,
+      delegatedPolicy: await this.coreDelegatedPolicy(organizationId),
       brief: selectedFactsBrief(state.filled.brief), answers: core.answers, questionTextByKey: {},
       personText: core.personText ?? '', instruction: instructionOf(core), existingCore: state.correctedInput || saved.body,
       borrowed: (piece.brief as any)?.borrowed ?? null, foreignShingles: this.foreignShinglesOf(piece) },
@@ -5045,6 +5292,8 @@ export class PieceService {
         // показывает «как в канале» с его значением и то, что изменено.
         planMode: planModeOf(integration.planMode),
         settings: postSettingsOf(tags, integration.id),
+        // Optional questions under a short post (`97dq.98`), while open.
+        materialAsk: openMaterialAskOf(tags, integration.id),
       };
     });
   }

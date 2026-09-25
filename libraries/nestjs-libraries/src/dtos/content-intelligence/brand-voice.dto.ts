@@ -25,6 +25,10 @@ import {
   type MeasurableLocale,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/locale-pack';
 import { VOICE_SAMPLE_PASTE_LIMITS } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/voice-wiring.contract';
+import {
+  DELEGATED_POLICIES,
+  type DelegatedPolicyV1,
+} from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/delegated-policy';
 
 /**
  * What the voice routes accept, and nothing else.
@@ -260,11 +264,11 @@ export class VoicePassportFieldDto {
     `{ key, text }` или обращение `{ addressForm }`. Пока `addressForm` не
     прислан, дверь та же, что была: `key` и `text` обязательны.
   */
-  @ValidateIf((body: VoicePassportFieldDto) => body.addressForm === undefined)
+  @ValidateIf((body: VoicePassportFieldDto) => isPassportLine(body))
   @IsIn(PROFILE_FIELDS as unknown as string[])
   key?: (typeof PROFILE_FIELDS)[number];
 
-  @ValidateIf((body: VoicePassportFieldDto) => body.addressForm === undefined)
+  @ValidateIf((body: VoicePassportFieldDto) => isPassportLine(body))
   @IsString()
   @MinLength(1)
   @MaxLength(600)
@@ -274,7 +278,23 @@ export class VoicePassportFieldDto {
   @ValidateIf((body: VoicePassportFieldDto) => body.addressForm !== undefined && body.addressForm !== null)
   @IsIn(['ty', 'vy'])
   addressForm?: 'ty' | 'vy' | null;
+
+  /**
+   * «Разрешить ИИ придумывать примеры от моего лица» (`97dq.99`):
+   * `knowledge` (выключено) или `examples` (включено). `null` не бывает:
+   * у переключателя два положения.
+   */
+  @ValidateIf((body: VoicePassportFieldDto) => body.delegatedPolicy !== undefined)
+  @IsIn(DELEGATED_POLICIES as unknown as string[])
+  delegatedPolicy?: DelegatedPolicyV1;
 }
+
+/**
+ * Третье тело той же двери (`97dq.99`): пока не прислано ни обращение, ни
+ * политика, это строка паспорта, и `key` с `text` обязательны.
+ */
+const isPassportLine = (body: VoicePassportFieldDto): boolean =>
+  body.addressForm === undefined && body.delegatedPolicy === undefined;
 
 export class VoiceProposalActivateDto {
   /** Absent for the five-field client; `2` enables the new activation gates. */

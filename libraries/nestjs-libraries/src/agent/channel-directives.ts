@@ -581,6 +581,42 @@ export const channelCtaLine = (
   kind: ChannelWritingProfileV1['ctaKind']
 ): string => CTA_LINE[kind];
 
+/**
+ * The length this post is written to: the range the prompt below gives, and
+ * the one the emoji count is worked out from (`97dq.96`). One reader of the
+ * post's own length, «Короче / Длиннее» and the channel card, so the check
+ * after the write (`97dq.98`, `material-asks.ts`) measures the post against
+ * exactly the length it was asked for. `null` — no range: `auto`, «длину
+ * держит площадка».
+ */
+export function channelLengthTarget(
+  profile: ChannelWritingProfileV1 | null | undefined,
+  provider: ChannelProviderLimits,
+  options: Pick<ChannelDirectiveOptions, 'withPicture' | 'post'> = {}
+): { min: number; max: number } | null {
+  const channel =
+    profile ??
+    defaultWritingProfileFor(provider.identifier, provider.contentLanguage);
+  const limit = channelHardLimit(provider, options.withPicture);
+  const own = options.post?.lengthPolicy;
+  if (own) {
+    return typeof own === 'object'
+      ? { min: Math.min(limit, own.idealMin), max: Math.min(limit, own.idealMax) }
+      : null;
+  }
+  const length = channel.lengthPolicy;
+  const postLength = options.post?.length;
+  const scaled = postLength ? scaledLengthRange(length, postLength, limit) : null;
+  if (scaled) return { min: scaled.idealMin, max: scaled.idealMax };
+  return typeof length === 'object'
+    ? { min: length.idealMin, max: length.idealMax }
+    : null;
+}
+
+/** A range is a frame, not a quota (`97dq.98`). Exported for the suite. */
+export const NO_PAD_LINE =
+  'The range is a frame, not a quota: when the material is shorter, write a shorter post. Never pad it to reach the range — no general remarks, no objections, disclaimers or intentions the material does not contain, no repeats. Never shorten it either: every sentence of the neutral core stays in the post.';
+
 export function channelInstructionLines(
   profile: ChannelWritingProfileV1 | null | undefined,
   provider: ChannelProviderLimits,
@@ -631,13 +667,9 @@ export function channelInstructionLines(
     The length the emoji count is worked out from (`97dq.96`): the same range
     this prompt gives. None given — the emoji line says the density in words.
   */
-  let emojiLength: { min: number; max: number } | null = null;
+  const emojiLength = channelLengthTarget(profile, provider, options);
   if (chose.length) {
     if (typeof length === 'object') {
-      emojiLength = {
-        min: Math.min(limit, length.idealMin),
-        max: Math.min(limit, length.idealMax),
-      };
       const hard = length.hardMax
         ? `, and never past ${Math.min(limit, length.hardMax)}`
         : '';
@@ -660,7 +692,6 @@ export function channelInstructionLines(
       сразу модель усредняет в третью.
     */
     const hard = scaled.hardMax ? `, and never past ${scaled.hardMax}` : '';
-    emojiLength = { min: scaled.idealMin, max: scaled.idealMax };
     lines.push(
       `For this post the author asked for a ${postLength} text than this channel usually gets: aim for ${scaled.idealMin} to ${scaled.idealMax} characters${hard}. ` +
         'This outranks any other length given in this prompt.'
@@ -669,7 +700,6 @@ export function channelInstructionLines(
     if (length === 'auto') lines.push('Choose the length that serves this material; the platform character limit still applies.');
     if (typeof length === 'object') {
       const hard = length.hardMax ? `, and never past ${length.hardMax}` : '';
-      emojiLength = { min: length.idealMin, max: length.idealMax };
       lines.push(
         `Readers of this channel expect ${length.idealMin} to ${length.idealMax} characters${hard}. ` +
           'If the voice above already gives a length of its own, follow whichever of the two ranges is tighter.'
@@ -681,6 +711,14 @@ export function channelInstructionLines(
       lines.push('For this post the author asked for a noticeably longer text than usual: develop the material that is there, never pad it and never add facts. This outranks any other length given in this prompt.');
   }
 
+  /*
+    `97dq.98` (owner, 25.09.2026, option 3): a short core stays a short post.
+    On the live stand a 250-character core came out at exactly 500 with
+    «Для нас это полезный способ…», an objection and an intention the author
+    never stated. When the post is short, the person is asked for material
+    instead (`material-questions`).
+  */
+  if (emojiLength) lines.push(NO_PAD_LINE);
   if (isTelegram) {
     lines.push(
       'The first 80–180 characters are what the notification preview shows, so the fact, the number or the disagreement goes there — not a greeting and not a wind-up.'

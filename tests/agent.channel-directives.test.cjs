@@ -356,3 +356,22 @@ describe('where the channel stands inside the voice block', () => {
     ]);
   });
 });
+
+describe('97dq.98: a range is a frame, not a quota', () => {
+  const { NO_PAD_LINE } = loadTypeScriptModule(
+    'libraries/nestjs-libraries/src/agent/channel-directives.ts'
+  );
+  const base = defaultWritingProfileFor('telegram', 'ru');
+
+  test('a channel range comes with the no-padding line', () => {
+    const lines = linesFor({
+      ...base,
+      lengthPolicy: { idealMin: 500, idealMax: 1000, hardMax: 1500 },
+    });
+    expect(lines).toContain(NO_PAD_LINE);
+  });
+
+  test('no range, no line', () => {
+    expect(linesFor({ ...base, lengthPolicy: 'auto' })).not.toContain(NO_PAD_LINE);
+  });
+});

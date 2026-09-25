@@ -35,6 +35,7 @@ const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v13 = loadWithMocks(`${base}/pieces/core-write-prompt.v13.ts`);
 const v12 = loadWithMocks(`${base}/pieces/core-write-prompt.v12.ts`);
 const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
+const v15 = loadWithMocks(`${base}/pieces/core-write-prompt.v15.ts`);
 const { metaSpeechIn } = loadWithMocks(`${base}/text-quality/meta-speech.ts`);
 const ownFacts = loadWithMocks(`${base}/intake/own-facts.ts`);
 
@@ -99,23 +100,27 @@ beforeEach(() => {
 describe('core-write/v13 prompt', () => {
   test('its own version; v12 stays for receipts and does not carry the rule', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(v14.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v12.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v12');
     expect(v12.coreWriteSystemV12('ru', '')).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
   });
 
   test('cnt-36: finished first-person text, decisions silent, the answer wins, no meta speech — RU and EN alike', () => {
-    // Since `core-write/v14` (`97dq.97`) a Russian core gets the English rule.
+    // Since `core-write/v14` (`97dq.97`) a Russian core gets the English rule;
+    // since `core-write/v15` (`97dq.99`) its closing sentence defers to the
+    // rule about handed questions instead of forbidding all content.
     const ru = coreWrite.corePrompt(input());
-    expect(ru).toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.en);
+    expect(ru).toContain(v15.CORE_WRITE_FINISHED_TEXT_V15);
+    expect(ru).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.en);
     expect(ru).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
     expect(ru).toContain('the finished text of the post in the author’s first person');
     expect(ru).toContain('apply each one silently');
     expect(ru).toContain('the text states only the value from the answer');
     expect(ru).toContain('«in my answer I clarified»');
-    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.en.decisions);
-    expect(ru).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.en.answers);
+    expect(ru).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.decisions);
+    expect(ru).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.answers);
     // The inputs reach the model: the answer, the decision and the material.
     expect(ru).toContain('В полтора раза.');
     expect(ru).toContain('Не описывать конкретные шаги');
@@ -127,9 +132,13 @@ describe('core-write/v13 prompt', () => {
     const systemV14 = v14.coreWriteSystemV14('ru', '', { delegated: true, rebuild: true });
     expect(systemV14.endsWith(`${v13.CORE_WRITE_FINISHED_TEXT_V13.en}\n${v14.coreWriteOutputLanguageV14('ru')}`)).toBe(true);
 
+    // v15 keeps it last among the rules as well.
+    const systemV15 = v15.coreWriteSystemV15('ru', '', { delegated: true, rebuild: true });
+    expect(systemV15.endsWith(`${v15.CORE_WRITE_FINISHED_TEXT_V15}\n${v14.coreWriteOutputLanguageV14('ru')}`)).toBe(true);
+
     const en = coreWrite.corePrompt(input({ language: 'en' }));
-    expect(en).toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.en);
-    expect(en).toContain(v13.CORE_WRITE_BLOCK_TITLES_V13.en.decisions);
+    expect(en).toContain(v15.CORE_WRITE_FINISHED_TEXT_V15);
+    expect(en).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.decisions);
     expect(en).not.toContain(v13.CORE_WRITE_FINISHED_TEXT_V13.ru);
   });
 });

@@ -571,6 +571,12 @@ export const voiceCopy = {
       'Обороты, которых в тексте быть не должно. Перечисляйте через точку с запятой: «мы рады сообщить; уникальное предложение».',
     passportHintExamples:
       'Несколько ваших настоящих текстов уходят в промпт как образец манеры. Это самая сильная часть аватара: показать оказывается точнее, чем описать.',
+    // «Решите за меня» из знаний ИИ (`97dq.99`): переключатель аватара.
+    passportInventExamples: 'Разрешить ИИ придумывать примеры от моего лица',
+    passportInventExamplesOn: 'разрешено',
+    passportInventExamplesOff: 'не разрешено',
+    passportHintInventExamples:
+      'Когда вы нажимаете «Решите за меня», ИИ дописывает ответ из своих знаний. Выключено: он добавляет объяснения, советы и приёмы, но никогда не выдумывает ваш опыт — ни случаев от вашего лица, ни точных чисел, ни цитат, ни источников. Включено: он может придумать правдоподобный пример от вашего лица, чтобы мысль читалась живее, — прочитайте такой текст перед публикацией. Числа, цитаты и источники не придумываются и тогда.',
     confidenceLabel: 'Насколько твёрдо',
     confidenceFirm: 'Корпуса хватает: привычки посчитаны на устойчивом объёме.',
     confidenceFewChars: (missing: string) =>
@@ -1268,6 +1274,11 @@ export const voiceCopy = {
       'Turns of phrase that must not appear. List them separated by semicolons: "we are pleased to announce; unique offer".',
     passportHintExamples:
       'A few of your real texts go into the prompt as a sample of manner. This is the strongest part of an avatar: showing turns out to be more precise than describing.',
+    passportInventExamples: 'Let the AI invent examples in my voice',
+    passportInventExamplesOn: 'allowed',
+    passportInventExamplesOff: 'not allowed',
+    passportHintInventExamples:
+      'When you press “You decide”, the AI writes the answer from its own knowledge. Off: it adds explanations, advice and techniques, but never invents your experience — no stories in your name, no exact numbers, quotes or sources. On: it may invent a plausible example in your voice to make the point livelier — read such a text before publishing. Numbers, quotes and sources are not invented even then.',
     confidenceLabel: 'How firmly',
     confidenceFirm: 'The corpus is enough: the habits rest on a settled volume.',
     confidenceFewChars: (missing: string) =>

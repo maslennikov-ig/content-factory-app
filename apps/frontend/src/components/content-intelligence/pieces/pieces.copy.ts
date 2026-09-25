@@ -480,6 +480,21 @@ export const piecesCopy = {
       'Правки не успели в пост: он уже уходит в канал с прежним текстом.',
     deleteAdaptationArmed: 'Удалить эту адаптацию?',
     deleteWholePieceArmed: 'Удалить всю заготовку?',
+    /* --- Материала мало: необязательные вопросы (`97dq.98`) --------------- */
+    materialAskLabel: 'Вопросы к материалу',
+    materialAskNotice: (length: number, min: number) =>
+      `Материала на ~${length} знаков, канал ждёт от ${min}. Можно ответить на вопросы ниже — пост станет полнее. Необязательно.`,
+    materialAskNoticeHint:
+      'Знаки считаются, как в счётчике под текстом: без разметки. «От» — нижняя граница длины из настроек этого поста или канала. Сами мы ничего не дописываем: пост станет полнее, только если вы расскажете больше.',
+    materialAskNoticeHintLabel: 'Подсказка: откуда эти числа',
+    materialAskPlaceholder: 'Можно коротко, своими словами',
+    materialAskUse: 'Дополнить пост',
+    materialAskUsing: 'Дополняем пост',
+    materialAskUseHint:
+      'Ответы станут частью материала заготовки, суть пересоберётся, и пост для этого канала перепишется по его настройкам. Это два запроса к ИИ. Вопросы без ответа ничего не меняют.',
+    materialAskUseHintLabel: 'Подсказка: что сделает «Дополнить пост»',
+    materialAskDismiss: 'Не нужно',
+    materialAskFailed: 'Ответы не сохранились. Они остались в полях — попробуйте ещё раз.',
   },
   en: {
     title: 'Pieces',
@@ -902,6 +917,21 @@ export const piecesCopy = {
       'The edits were too late for the post: it is already going out with the previous text.',
     deleteAdaptationArmed: 'Delete this adaptation?',
     deleteWholePieceArmed: 'Delete the whole piece?',
+    /* --- Short material: optional questions (`97dq.98`) ------------------ */
+    materialAskLabel: 'Questions about the material',
+    materialAskNotice: (length: number, min: number) =>
+      `There is material for ~${length} characters; the channel expects ${min} or more. You can answer the questions below to make the post fuller. Optional.`,
+    materialAskNoticeHint:
+      'Characters are counted as in the counter under the text: without markup. «Or more» is the lower length bound from the settings of this post or channel. We add nothing ourselves: the post gets fuller only if you tell more.',
+    materialAskNoticeHintLabel: 'Hint: where these numbers come from',
+    materialAskPlaceholder: 'Briefly, in your own words',
+    materialAskUse: 'Fill out the post',
+    materialAskUsing: 'Filling out the post',
+    materialAskUseHint:
+      'The answers become part of the piece’s material, the core is rebuilt, and the post for this channel is rewritten with its settings. That is two AI requests. Questions left unanswered change nothing.',
+    materialAskUseHintLabel: 'Hint: what «Fill out the post» does',
+    materialAskDismiss: 'Not needed',
+    materialAskFailed: 'The answers were not saved. They are still in the fields — try again.',
   },
 } as const;
 

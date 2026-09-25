@@ -546,7 +546,7 @@ describe('the core is editable after creation, and nothing regenerates silently'
     expect(modelCalls).toHaveLength(1);
     expect(calls.usage).toEqual([['org-a', 'intake', 'draft']]);
     expect(modelCalls[0].prompt).toContain('Клиент звонил в пятницу.');
-    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(modelCalls[0].prompt).toContain('PROMPT VERSION: core-write/v15');
     expect(piece.body).toBe('Суть по всему материалу.');
     expect(piece.brief.materialPending).toBeUndefined();
     // The replaced text had not read the added words: that wait is recorded with it.
@@ -613,7 +613,7 @@ describe('«Пересобрать суть» keeps the decisions and the author
     await service.rebuildCore('org-a', 'piece-1', 'ru');
     const prompt = modelCalls[0].prompt;
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
     // The rule and the block of the previous core, paragraph by paragraph.
     expect(prompt).toContain('A separate rule about the rebuild');
     expect(prompt).toContain('THE PREVIOUS CORE (the text on the page now');
@@ -626,8 +626,12 @@ describe('«Пересобрать суть» keeps the decisions and the author
     expect(prompt).toContain('ADDED MATERIAL');
     expect(prompt.split('Клиент звонил в пятницу.')).toHaveLength(2);
     expect(prompt).toContain('Я заметил, что команда пишет в чат меньше.');
-    // Decisions may build the text; facts may not be invented.
-    expect(prompt).toContain('never become facts');
+    // Decisions build the text and answer handed questions under the avatar's
+    // policy (`core-write/v15`, `97dq.99`); numbers, names and quotes are
+    // still never invented.
+    expect(prompt).toContain('what answers a handed question follows the rule about handed questions');
+    expect(prompt).toContain('add no numbers, names or quotes that are not in the person’s words');
+    expect(prompt).toContain('The rule about handed questions («You decide»)');
     // The enrichment mode is not the rebuild mode.
     expect(prompt).not.toContain('A separate rule about enrichment');
   });

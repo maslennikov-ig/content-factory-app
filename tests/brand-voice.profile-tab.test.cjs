@@ -875,3 +875,119 @@ describe('«Обращение к читателю» is gone from the avatar (97
     expect(copy.voiceCopy.en).not.toHaveProperty('passportAddress');
   });
 });
+
+/*
+  «Разрешить ИИ придумывать примеры от моего лица» (`97dq.99`, решение
+  владельца 25.09.2026): один переключатель в паспорте аватара, выключен по
+  умолчанию, с подсказкой; сохраняется сразу через дверь паспорта.
+*/
+describe('«Решите за меня»: may the AI invent examples in my voice (97dq.99)', () => {
+  const ru = () => copy.voiceCopy.ru;
+  const switchOf = () =>
+    screen.getByRole('switch', { name: ru().passportInventExamples });
+
+  test('the passport reads the policy; only an explicit «examples» is on', () => {
+    expect(adapter.mapPassport(PASSPORT).voice.delegatedPolicy).toBe('knowledge');
+    expect(
+      adapter.mapPassport({ ...PASSPORT, voice: { ...PASSPORT.voice, delegatedPolicy: 'examples' } })
+        .voice.delegatedPolicy
+    ).toBe('examples');
+    expect(
+      adapter.mapPassport({ ...PASSPORT, voice: { ...PASSPORT.voice, delegatedPolicy: 'always' } })
+        .voice.delegatedPolicy
+    ).toBe('knowledge');
+  });
+
+  test('one switch, off by default, with its hint; turning it on goes through the passport door', async () => {
+    routes[adapter.VOICE_ROUTES.passportField] = answer({
+      ...PASSPORT,
+      voice: { ...PASSPORT.voice, delegatedPolicy: 'examples', versionLabel: 'v4' },
+    });
+    renderTab();
+    await screen.findByText(PASSPORT.voice.whoSpeaks);
+
+    expect(switchOf().getAttribute('aria-checked')).toBe('false');
+    expect(
+      screen.getByRole('button', { name: ru().hintFor(ru().passportInventExamples) })
+    ).toBeTruthy();
+    expect(
+      document.querySelector('[data-voice-delegated-policy]').getAttribute('data-voice-delegated-policy')
+    ).toBe('knowledge');
+
+    fireEvent.click(switchOf());
+
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) => call.path === adapter.VOICE_ROUTES.passportField && call.method === 'POST'
+        )?.body
+      ).toEqual({ delegatedPolicy: 'examples' })
+    );
+    await waitFor(() => expect(switchOf().getAttribute('aria-checked')).toBe('true'));
+  });
+
+  test('turning it off sends «knowledge», the default', async () => {
+    routes[adapter.VOICE_ROUTES.passport] = answer({
+      ...PASSPORT,
+      voice: { ...PASSPORT.voice, delegatedPolicy: 'examples' },
+    });
+    routes[adapter.VOICE_ROUTES.passportField] = answer(PASSPORT);
+    renderTab();
+    await screen.findByText(PASSPORT.voice.whoSpeaks);
+
+    expect(switchOf().getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(switchOf());
+    await waitFor(() =>
+      expect(
+        calls.find(
+          (call) => call.path === adapter.VOICE_ROUTES.passportField && call.method === 'POST'
+        )?.body
+      ).toEqual({ delegatedPolicy: 'knowledge' })
+    );
+  });
+
+  test('a reader who may not change the voice sees the position in words, not the switch', async () => {
+    routes[adapter.VOICE_ROUTES.passport] = answer({
+      ...PASSPORT,
+      voice: { ...PASSPORT.voice, delegatedPolicy: 'examples' },
+    });
+    routes[adapter.VOICE_ROUTES.scales] = answer({
+      ...SCALES,
+      state: 'restricted',
+      canEditCorridors: false,
+    });
+    renderTab();
+    await screen.findByText(PASSPORT.voice.whoSpeaks);
+
+    expect(screen.queryByRole('switch', { name: ru().passportInventExamples })).toBeNull();
+    expect(
+      screen.getByText(`${ru().passportInventExamples}: ${ru().passportInventExamplesOn}`)
+    ).toBeTruthy();
+  });
+
+  test('RU and EN say the same thing: off adds knowledge, on may invent an example to read first', () => {
+    const { ru: r, en: e } = copy.voiceCopy;
+    for (const key of [
+      'passportInventExamples',
+      'passportInventExamplesOn',
+      'passportInventExamplesOff',
+      'passportHintInventExamples',
+    ]) {
+      expect(typeof r[key]).toBe('string');
+      expect(typeof e[key]).toBe('string');
+      expect(r[key].trim()).not.toBe('');
+      expect(e[key].trim()).not.toBe('');
+    }
+    expect(r.passportInventExamples).toBe('Разрешить ИИ придумывать примеры от моего лица');
+    expect(r.passportHintInventExamples).toContain('«Решите за меня»');
+    expect(e.passportHintInventExamples).toContain('“You decide”');
+    expect(r.passportHintInventExamples).toContain('никогда не выдумывает ваш опыт');
+    expect(e.passportHintInventExamples).toContain('never invents your experience');
+    expect(r.passportHintInventExamples).toContain('прочитайте такой текст перед публикацией');
+    expect(e.passportHintInventExamples).toContain('read such a text before publishing');
+    // The button the hint names is the button the product shows.
+    const intake = loadTypeScriptModule('apps/frontend/src/components/content-intelligence/intake/intake.copy.ts');
+    expect(r.passportHintInventExamples).toContain(`«${intake.intakeCopy.ru.decideThis}»`);
+    expect(e.passportHintInventExamples).toContain(`“${intake.intakeCopy.en.decideThis}”`);
+  });
+});

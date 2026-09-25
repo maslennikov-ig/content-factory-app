@@ -145,10 +145,20 @@ import { interviewQuestionsV9 } from './intake.prompts.v9';
   отданные модели, и правило, что по каждому пишется решение, а не опыт
   человека. Модуль v9 остаётся импортируемым и нетронутым для квитанций.
 */
+/*
+  «Решите за меня» из своих знаний (`97dq.99`): v11 — это v10, где решение по
+  отданному полю может опираться на общеизвестное знание, но по-прежнему не
+  на выдуманный опыт человека. Модуль v10 остаётся для квитанций.
+*/
 import {
-  briefFillPromptV10,
-  briefFillSchemaV10,
-} from './intake.prompts.v10';
+  briefFillPromptV11,
+  briefFillSchemaV11,
+} from './intake.prompts.v11';
+import {
+  DEFAULT_DELEGATED_POLICY,
+  delegatedPolicyOf,
+  type DelegatedPolicyV1,
+} from '../brand-profile/delegated-policy';
 /*
   Разбор материала, вид которого уже назван (`97dq.21`): у v6 нет шага «реши,
   что это», потому что решать нечего — галочку человека и страницу по ссылке
@@ -862,6 +872,7 @@ export class IntakeService {
       {
         organizationId,
         language,
+        delegatedPolicy: await this.delegatedPolicyOf(organizationId, plan),
         brief: selectedFactsBrief(filled.brief),
         answers,
         questionTextByKey: Object.fromEntries(
@@ -1177,9 +1188,9 @@ export class IntakeService {
       async () => {
         const model = (
           await getChatModel(organizationId, 0, 2_048, 'extract')
-        ).withStructuredOutput(briefFillSchemaV10);
+        ).withStructuredOutput(briefFillSchemaV11);
         return await model.invoke(
-          briefFillPromptV10({
+          briefFillPromptV11({
             language: plan.language,
             material,
             materialKind,
@@ -1365,6 +1376,27 @@ export class IntakeService {
       });
     }
     return answers;
+  }
+
+  /**
+   * Политика «Решите за меня» аватара этого входа (`97dq.99`): тот же выбор,
+   * что у портрета ниже. Не прочиталось — политика по умолчанию: сбой не
+   * должен разрешать модели больше, чем разрешил человек.
+   */
+  private async delegatedPolicyOf(
+    organizationId: string,
+    plan: IntakePlanV1
+  ): Promise<DelegatedPolicyV1> {
+    try {
+      const resolved = await this.brandProfiles.resolve(
+        organizationId,
+        (plan.brandProfileSelection as any) || { mode: 'active' },
+        undefined
+      );
+      return delegatedPolicyOf((resolved as any)?.effectiveVoice);
+    } catch {
+      return DEFAULT_DELEGATED_POLICY;
+    }
   }
 
   /** Портрет, аудитории и запреты аватара — строками для промпта. */

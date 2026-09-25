@@ -26,6 +26,12 @@ import {
   type AdaptationRow,
 } from '../materials/content-material.repository';
 import { ContentBriefRepository } from '../brief/content-brief.repository';
+import { DEFAULT_AVATAR_FIRST } from '../brand-profile/brand-profile.types';
+import {
+  DEFAULT_DELEGATED_POLICY,
+  delegatedPolicyOf,
+  type DelegatedPolicyV1,
+} from '../brand-profile/delegated-policy';
 import type { ReviewSnapshotV2 } from './review.v2.contract';
 import { reviewConflict } from './adaptation-review.contract';
 import { searchWords } from '../search-terms';
@@ -731,6 +737,29 @@ export class PieceRepository {
       if (post.count !== 1) throw reviewConflict();
       return { accepted: true as const };
     });
+  }
+
+  /**
+   * What «Решите за меня» may answer with, for the core of a piece
+   * (`content-factory-next-97dq.99`).
+   *
+   * The core is written once per piece, before any channel exists, so no
+   * post's «Кто говорит» can speak for it: it is the default avatar — the
+   * same one the intake resolves with `{ mode: 'active' }`. A space without
+   * a voice, or a version that is not this space's, gets the default policy.
+   */
+  async coreDelegatedPolicy(organizationId: string): Promise<DelegatedPolicyV1> {
+    const profile = await this.client().projectBrandProfile.findFirst({
+      orderBy: DEFAULT_AVATAR_FIRST,
+      where: { organizationId, deletedAt: null },
+      select: {
+        activeVersion: { select: { organizationId: true, content: true } },
+      },
+    });
+    const version = profile?.activeVersion;
+    return version && version.organizationId === organizationId
+      ? delegatedPolicyOf((version.content as { voice?: unknown } | null)?.voice)
+      : DEFAULT_DELEGATED_POLICY;
   }
 
   /**

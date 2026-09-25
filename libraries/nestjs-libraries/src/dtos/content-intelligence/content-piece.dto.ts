@@ -51,6 +51,7 @@ import {
   PIECE_CORE_REVISIONS_MAX,
   PIECE_MATERIAL_APPEND_MAX,
 } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/core-edit';
+import { MATERIAL_ANSWER_MAX_CHARS } from '@contentfactory/nestjs-libraries/content-intelligence/pieces/adaptation-workspace.contract';
 import { GeneratorBrandProfileSelectionDto } from '@contentfactory/nestjs-libraries/dtos/generator/generator.dto';
 import {
   EMOJI_LEVEL_VALUES,
@@ -536,6 +537,40 @@ export class PiecePostSettingsDto {
   @IsOptional()
   @IsIn(['draft', 'reserve', 'autopilot'])
   expectedChannelMode?: 'draft' | 'reserve' | 'autopilot';
+}
+
+/** One answer to an optional material question (`97dq.98`). */
+export class PieceMaterialAnswerDto {
+  @IsString()
+  @Matches(/^ask-[1-8]$/)
+  key: string;
+
+  @IsString()
+  @MaxLength(MATERIAL_ANSWER_MAX_CHARS)
+  text: string;
+}
+
+/**
+ * `POST …/channels/:integrationId/material-questions` (`97dq.98`), форма —
+ * `PieceMaterialQuestionsRequestV1`. Either «Не нужно» or at least one
+ * answer: an empty body names no post and is refused here, not guessed.
+ */
+export class PieceMaterialQuestionsDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  adaptationId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  dismiss?: boolean;
+
+  @ValidateIf((body: PieceMaterialQuestionsDto) => body.dismiss !== true)
+  @IsArray()
+  @ArrayMaxSize(8)
+  @ValidateNested({ each: true })
+  @Type(() => PieceMaterialAnswerDto)
+  answers?: PieceMaterialAnswerDto[];
 }
 
 /** «Поставить на ЧЧ:ММ» (`97dq.57`), форма — `PieceAdaptationPlaceRequestV1`. */

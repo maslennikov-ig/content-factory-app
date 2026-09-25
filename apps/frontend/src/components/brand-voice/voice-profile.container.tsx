@@ -6,7 +6,10 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { useVariables } from '@contentfactory/react/helpers/variable.context';
 import { useUser } from '../layout/user.context';
 import type { ProfileField } from '@contentfactory/nestjs-libraries/content-intelligence/brand-voice/assist.contract';
-import { VoicePassportScreen } from './voice-passport.screen';
+import {
+  VoicePassportScreen,
+  type DelegatedPolicy,
+} from './voice-passport.screen';
 import { VoiceScalesScreen, type CorridorEdit } from './voice-scales.screen';
 import { VoiceRedactionsScreen } from './voice-redactions.screen';
 import { VoiceVersionsScreen } from './voice-versions.screen';
@@ -278,6 +281,30 @@ export function VoiceProfileContainer({
     [mutation, passportQuery, request, scalesQuery, scoped, versionsQuery]
   );
 
+  /**
+   * «Разрешить ИИ придумывать примеры от моего лица» (`97dq.99`).
+   *
+   * Through the same passport door as the five lines, and for the same
+   * reason: it changes a voice in force, so it lands as a new version and the
+   * passport comes back in the answer. The scales measure the corpus, which
+   * this does not touch, so only the version list is refetched.
+   */
+  const setDelegatedPolicy = useCallback(
+    (delegatedPolicy: DelegatedPolicy) =>
+      void mutation(async () => {
+        setPassportSaved(false);
+        const next = await readVoice(
+          request,
+          scoped(VOICE_ROUTES.passportField),
+          { method: 'POST', body: JSON.stringify({ delegatedPolicy }) }
+        );
+        await passportQuery.mutate(next, { revalidate: false });
+        await versionsQuery.mutate();
+        setPassportSaved(true);
+      }),
+    [mutation, passportQuery, request, scoped, versionsQuery]
+  );
+
   const saveCorridor = useCallback(
     (edit: CorridorEdit) =>
       void mutation(async () => {
@@ -434,6 +461,7 @@ export function VoiceProfileContainer({
         {...(canManage
           ? {
               onEditField: editField,
+              onDelegatedPolicy: setDelegatedPolicy,
               onAddExample: addExample,
               onRemoveExample: removeExample,
               onRefreshExamples: refreshExamples,

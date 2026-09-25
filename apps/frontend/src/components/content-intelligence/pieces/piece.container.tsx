@@ -29,6 +29,7 @@ import { AdaptationReview, CORE_REVIEW_ACTIONS } from './adaptation-review';
 import { PieceScreen } from './piece.screen';
 import { PieceCoreTab } from './piece-core-tab';
 import { PieceChannelTab, type AutosaveState } from './piece-channel-tab';
+import { MaterialAsk } from './material-ask';
 /** Тишина, после которой ручная правка уходит в дверь (общая с `useAutosave`). */
 import { AUTOSAVE_MS } from '../../ui/use-autosave';
 import { PieceQuestions, type PieceQuestionReply } from './piece-questions';
@@ -1458,6 +1459,65 @@ export function PieceContainer({
     return null;
   }, [detail, locale, pieceId, request, w]);
 
+  /* ---- Материала мало: необязательные вопросы (`97dq.98`) ------------------ */
+
+  const sendMaterialQuestions = useCallback(
+    (integrationId: string, body: Record<string, unknown>) =>
+      request(
+        `${PIECES_API.materialQuestions(pieceId, integrationId)}?language=${locale}`,
+        { method: 'POST', body: JSON.stringify(body) }
+      ),
+    [locale, pieceId, request]
+  );
+
+  /** «Не нужно»: вопросы под этой версией больше не показываются. */
+  const dismissMaterial = useCallback(
+    async (integrationId: string, adaptationId: string): Promise<boolean> => {
+      const response = await sendMaterialQuestions(integrationId, {
+        adaptationId,
+        dismiss: true,
+      });
+      if (!response.ok) return false;
+      await detail.mutate();
+      return true;
+    },
+    [detail, sendMaterialQuestions]
+  );
+
+  /**
+   * «Дополнить пост» — одно действие человека из трёх существующих дверей:
+   * ответы уходят в материал заготовки (как «Дописать материал»), суть
+   * пересобирается («Пересобрать суть»), пост канала переписывается по его
+   * настройкам («Переписать по настройкам»). Суть не пересобралась — ответы
+   * уже в материале, и страница говорит об этом словами двери.
+   */
+  const fillOutPost = useCallback(
+    async (
+      integrationId: string,
+      adaptation: Pick<WorkspaceAdaptationV1, 'id' | 'kind'>,
+      answers: readonly { key: string; text: string }[]
+    ): Promise<boolean> => {
+      const response = await sendMaterialQuestions(integrationId, {
+        adaptationId: adaptation.id,
+        answers: [...answers],
+      });
+      if (!response.ok) return false;
+      const outcome = await response.json().catch(() => null);
+      if (outcome?.state !== 'answered') {
+        await detail.mutate();
+        return true;
+      }
+      const refusal = await rebuildCore();
+      if (refusal) {
+        setFailure(refusal);
+        return true;
+      }
+      adapt(integrationId, adaptation.kind);
+      return true;
+    },
+    [adapt, detail, rebuildCore, sendMaterialQuestions]
+  );
+
   /** «Вернуть эту версию» (`97dq.85`): слово отказа или `null`. */
   const restoreCore = useCallback(
     async (
@@ -1675,6 +1735,20 @@ export function PieceContainer({
         checks={fresh ? draft?.checks : adaptation?.checks}
         draftGaps={fresh ? draft?.draftGaps : null}
         slopChange={adaptation ? reviewedSlop[adaptation.id] ?? null : null}
+        materialSlot={
+          canWrite &&
+          adaptation &&
+          channel.materialAsk?.adaptationId === adaptation.id ? (
+            <MaterialAsk
+              key={adaptation.id}
+              locale={locale}
+              ask={channel.materialAsk}
+              disabled={busy || dirty || save?.state === 'saving'}
+              onUse={(answers) => fillOutPost(channel.id, adaptation, answers)}
+              onDismiss={() => dismissMaterial(channel.id, adaptation.id)}
+            />
+          ) : undefined
+        }
         actionRow={
           adaptation && adaptation.postId ? (
             <AdaptationReview

@@ -22,17 +22,24 @@ import { contentFromIntent } from '../intake/intake-content';
   and one line names the output language. Modules v3–v13 stay importable and
   untouched for receipts.
 */
+/*
+  «Решите за меня» answered from the model's knowledge (`97dq.99`,
+  `core-write/v15`): a handed question gets content, under the policy of the
+  avatar (`voice.delegatedPolicy`: knowledge by default, invented examples
+  opt-in). Modules v3–v14 stay importable and untouched for receipts.
+*/
 import {
-  CORE_WRITE_BLOCK_TITLES_V14,
-  CORE_WRITE_ENRICH_LEAD_V14,
-  CORE_WRITE_META_REPAIR_V14,
+  CORE_WRITE_BLOCK_TITLES_V15,
+  CORE_WRITE_ENRICH_LEAD_V15,
+  CORE_WRITE_META_REPAIR_V15,
   CORE_WRITE_PROMPT_VERSION,
-  CORE_WRITE_REPAIR_V14,
-  coreWriteSystemV14,
-} from './core-write-prompt.v14';
+  CORE_WRITE_REPAIR_V15,
+  coreWriteSystemV15,
+} from './core-write-prompt.v15';
+import type { DelegatedPolicyV1 } from '../brand-profile/delegated-policy';
 import { personTextWithoutAdded } from './core-edit';
 import { metaSpeechIn } from '../text-quality/meta-speech';
-export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v14';
+export { CORE_WRITE_PROMPT_VERSION } from './core-write-prompt.v15';
 /**
  * Суть заготовки: один вызов роли `draft`, и ни одного повода звать модель ещё раз.
  *
@@ -144,6 +151,12 @@ export type CoreWriteInputV1 = {
    * сделал, его числа): решение по нему — рамка, а не выдуманный случай.
    */
   delegated?: readonly CoreDelegatedV1[];
+  /**
+   * What a handed question may be answered with (`97dq.99`): the policy of
+   * the avatar the piece speaks as (`voice.delegatedPolicy`). Absent is
+   * `knowledge` — explanations and advice, never an invented experience.
+   */
+  delegatedPolicy?: DelegatedPolicyV1;
   borrowed: CoreBorrowedV1 | null;
   /** Отпечатки чужого текста по восемь слов; только для сверки после ответа. */
   foreignShingles: readonly string[];
@@ -179,7 +192,7 @@ export const coreSchema = z.object({
         text: z
           .string()
           .describe(
-            'The editorial decision: angle, reader, conclusion, structure or reasoning; never an invented case, number or quote'
+            'What was decided and what the core now says in answer; never a number, quote or named source that is not in the input'
           ),
       })
     )
@@ -313,7 +326,7 @@ const fenced = (title: string, lines: string[]): string =>
 const searchRefuted = ownRefutedBySearch;
 
 export const corePrompt = (input: CoreWriteInputV1): string => {
-  const words = CORE_WRITE_BLOCK_TITLES_V14;
+  const words = CORE_WRITE_BLOCK_TITLES_V15;
   /*
     Дополнение или первая суть — это один вопрос и один ответ на него
     (`content-factory-next-97dq.2`): существующая суть есть ровно тогда, когда
@@ -484,9 +497,13 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
   const instruction = trimmed(input.instruction?.text) ? input.instruction! : null;
 
   return [
-    coreWriteSystemV14(input.language, forbiddenPhrasesRule(input.language), {
+    coreWriteSystemV15(input.language, forbiddenPhrasesRule(input.language), {
       rebuild: Boolean(rebuild),
       delegated: delegated.length > 0,
+      // Decisions from an earlier round are handed questions too: a rebuild
+      // or an enrichment keeps the policy the first core was written under.
+      handed: delegated.length > 0 || decisions.length > 0,
+      ...(input.delegatedPolicy ? { policy: input.delegatedPolicy } : {}),
       instruction: Boolean(instruction),
       enrichment,
       firstWithResearch: !enrichment && researchPresent,
@@ -539,7 +556,7 @@ export const corePrompt = (input: CoreWriteInputV1): string => {
           rebuild.text.split(/\n\s*\n/u)
         )
       : '',
-    enrichment ? CORE_WRITE_ENRICH_LEAD_V14 : '',
+    enrichment ? CORE_WRITE_ENRICH_LEAD_V15 : '',
     enrichment
       ? fenced(words.existing, [input.existingCore as string])
       : '',
@@ -714,7 +731,7 @@ export async function writeCoreWithDecisions(
         const copied = copiedRuns(result);
         if (copied.length) {
           const quoted = copied.map((run) => `«${run.text}»`).join(', ');
-          antiCopyHint = `${CORE_WRITE_REPAIR_V14}${quoted}`;
+          antiCopyHint = `${CORE_WRITE_REPAIR_V15}${quoted}`;
           result = await rewrite(antiCopyHint, result);
         }
         // Речь о тексте вместо текста (`97dq.90`): одна перепись.
@@ -731,7 +748,7 @@ export async function writeCoreWithDecisions(
           const before = result;
           const decidedBefore = decided;
           const beforeRuns = copiedRuns(before).length;
-          const metaHint = `${CORE_WRITE_META_REPAIR_V14}${meta.map((hit) => `«${hit}»`).join(', ')}`;
+          const metaHint = `${CORE_WRITE_META_REPAIR_V15}${meta.map((hit) => `«${hit}»`).join(', ')}`;
           const next = await rewrite(
             antiCopyHint ? `${antiCopyHint}\n\n${metaHint}` : metaHint,
             before

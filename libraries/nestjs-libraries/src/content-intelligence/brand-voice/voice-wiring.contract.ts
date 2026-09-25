@@ -36,6 +36,7 @@ import type { SampleOrigin, SampleUsagePurpose } from './sample-intake';
 import type { RedactionCategory } from './identity-barrier';
 import type { BriefField } from './brief-gate';
 import type { BrandProfileSelectionV1 } from '../contracts';
+import type { DelegatedPolicyV1 } from '../brand-profile/delegated-policy';
 import type { StoredEmojiLevel } from '../channels/emoji-ceiling';
 import type { PlanModeV1 } from '../pieces/adaptation-plan';
 import type { PiecePostSettingsV1 } from '../pieces/post-settings';
@@ -851,6 +852,13 @@ export type VoicePassportV1 = {
   sentenceStyle?: string;
   /** «ты» или «вы» (`97dq.38`); отсутствие — «Не задано». */
   addressForm?: 'ty' | 'vy';
+  /**
+   * «Разрешить ИИ придумывать примеры от моего лица» (`97dq.99`): what a
+   * question handed to the model may be answered with. Always sent: the
+   * toggle has two positions, and `knowledge` is also what an old voice
+   * without the field means.
+   */
+  delegatedPolicy: DelegatedPolicyV1;
   versionLabel: string;
   activeSince: string;
   /**
@@ -920,6 +928,15 @@ export type VoicePassportFieldRequestV1 = {
  */
 export type VoicePassportAddressFormRequestV1 = {
   addressForm: 'ty' | 'vy' | null;
+};
+
+/**
+ * «Разрешить ИИ придумывать примеры от моего лица» в паспорте аватара
+ * (`content-factory-next-97dq.99`): та же дверь `POST …/passport/field`,
+ * третье тело. `knowledge` снимает поле — это и значение по умолчанию.
+ */
+export type VoicePassportDelegatedPolicyRequestV1 = {
+  delegatedPolicy: DelegatedPolicyV1;
 };
 
 /**
@@ -3263,6 +3280,24 @@ export type PieceChannelTabV1 = {
    * изменённые и свой режим плана. `null` — всё как в канале.
    */
   settings?: PiecePostSettingsV1 | null;
+  /**
+   * Optional questions under a post that came out clearly shorter than the
+   * channel expects (`97dq.98`). Only an open ask with questions; the page
+   * shows it while `adaptationId` is the version on screen.
+   */
+  materialAsk?: PieceMaterialAskV1 | null;
+};
+
+/**
+ * «Материала на ~N знаков, канал ждёт от M» (`97dq.98`): the visible length of
+ * the post, the least the channel (or this post's own length) expects, and
+ * one to three questions keyed `ask-1` …, each with its reason in `why`.
+ */
+export type PieceMaterialAskV1 = {
+  adaptationId: string;
+  length: number;
+  min: number;
+  questions: PieceQuestionV1[];
 };
 
 /** `PUT …/channels/:integrationId/settings` (`97dq.70`). */

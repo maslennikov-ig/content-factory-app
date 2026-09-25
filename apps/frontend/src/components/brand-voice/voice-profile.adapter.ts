@@ -275,6 +275,9 @@ export function mapPassport(response: unknown): {
         : {}),
       versionLabel: asString(voice.versionLabel),
       activeSince: asString(voice.activeSince),
+      // Only an explicit `examples` turns the switch on (`97dq.99`): an older
+      // server sends nothing, and that means the default, not «allowed».
+      delegatedPolicy: voice.delegatedPolicy === 'examples' ? 'examples' : 'knowledge',
       // Carried through only when the route actually sent a number: defaulting
       // a missing field to `0` here would recreate the exact lie vme.11 fixed
       // on the server, one hop later.

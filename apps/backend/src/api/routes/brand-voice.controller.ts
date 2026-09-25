@@ -570,11 +570,14 @@ export class BrandVoiceController {
     @Query('avatar') avatar?: string
   ) {
     try {
-      // Два тела одной двери (`97dq.38`): строка паспорта или обращение.
+      // Три тела одной двери: строка паспорта, обращение (`97dq.38`) или
+      // «Разрешить ИИ придумывать примеры от моего лица» (`97dq.99`).
       return await this._voice.setPassportField(
         this.actor(organization, user, avatar),
         body.addressForm !== undefined
           ? { addressForm: body.addressForm }
+          : body.delegatedPolicy !== undefined
+          ? { delegatedPolicy: body.delegatedPolicy }
           : { key: body.key!, text: body.text! }
       );
     } catch (error) {

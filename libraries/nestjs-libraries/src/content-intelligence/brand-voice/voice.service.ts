@@ -174,7 +174,12 @@ import {
   type VoiceVersionsResponseV1,
   type VoicePassportFieldRequestV1,
   type VoicePassportAddressFormRequestV1,
+  type VoicePassportDelegatedPolicyRequestV1,
 } from './voice-wiring.contract';
+import {
+  delegatedPolicyOf,
+  type DelegatedPolicyV1,
+} from '../brand-profile/delegated-policy';
 import { truncateChars } from './text-truncate';
 import {
   selectVoiceExamples,
@@ -2482,6 +2487,7 @@ export class VoiceService {
         ...(content.voice.addressForm === 'ty' || content.voice.addressForm === 'vy'
           ? { addressForm: content.voice.addressForm }
           : {}),
+        delegatedPolicy: delegatedPolicyOf(content.voice),
         versionLabel: activeVersion.label ?? `v${activeVersion.versionNumber}`,
         activeSince: formatDate(
           activeVersion.publishedAt ?? activeVersion.createdAt,
@@ -2607,10 +2613,16 @@ export class VoiceService {
    */
   async setPassportField(
     actor: VoiceActor,
-    body: VoicePassportFieldRequestV1 | VoicePassportAddressFormRequestV1
+    body:
+      | VoicePassportFieldRequestV1
+      | VoicePassportAddressFormRequestV1
+      | VoicePassportDelegatedPolicyRequestV1
   ): Promise<VoicePassportResponseV1> {
     if ('addressForm' in body && body.addressForm !== undefined) {
       return this.setPassportAddressForm(actor, body.addressForm);
+    }
+    if ('delegatedPolicy' in body && body.delegatedPolicy !== undefined) {
+      return this.setPassportDelegatedPolicy(actor, body.delegatedPolicy);
     }
     body = body as VoicePassportFieldRequestV1;
     this.assertCanManage(actor);
@@ -2697,9 +2709,58 @@ export class VoiceService {
    * значение версии не плодит. Где обращение потом решается против канала и
    * поста, сказано в `channel-directives.ts` (`resolveAddressForm`).
    */
-  private async setPassportAddressForm(
+  private setPassportAddressForm(
     actor: VoiceActor,
     addressForm: 'ty' | 'vy' | null
+  ): Promise<VoicePassportResponseV1> {
+    return this.setPassportVoiceSetting(
+      actor,
+      (voice) => voice.addressForm ?? null,
+      addressForm,
+      (voice) => {
+        if (addressForm) voice.addressForm = addressForm;
+        else delete voice.addressForm;
+      }
+    );
+  }
+
+  /**
+   * «Разрешить ИИ придумывать примеры от моего лица»
+   * (`content-factory-next-97dq.99`): что модель может сказать от имени
+   * автора, когда вопрос отдан ей «Решите за меня». `knowledge` — значение
+   * по умолчанию, поэтому оно снимает поле, а не записывает его: голос,
+   * сохранённый до 25.09.2026, и голос с выключенным переключателем — одно и
+   * то же. Той же дорогой, что обращение.
+   */
+  private setPassportDelegatedPolicy(
+    actor: VoiceActor,
+    policy: DelegatedPolicyV1
+  ): Promise<VoicePassportResponseV1> {
+    return this.setPassportVoiceSetting(
+      actor,
+      (voice) => delegatedPolicyOf(voice),
+      policy,
+      (voice) => {
+        if (policy === 'examples') voice.delegatedPolicy = policy;
+        else delete voice.delegatedPolicy;
+      }
+    );
+  }
+
+  /**
+   * One voice-level setting of the avatar, laid over the version in force.
+   *
+   * The address form (`97dq.38`) and the delegated policy (`97dq.99`) are the
+   * same write: a new version carrying the previous content with one field of
+   * `voice` changed, activated at once, with the corpus numbers carried over.
+   * Everything else — traits, lexicon, platforms, examples — travels as it
+   * was, and a value equal to the current one makes no version.
+   */
+  private async setPassportVoiceSetting<T>(
+    actor: VoiceActor,
+    current: (voice: BrandProfileContentV1['voice']) => T,
+    next: T,
+    apply: (voice: BrandProfileContentV1['voice']) => void
   ): Promise<VoicePassportResponseV1> {
     this.assertCanManage(actor);
     const { activeVersion } = await this._profiles.overview(
@@ -2712,12 +2773,10 @@ export class VoiceService {
         'Править нечего: голос ещё не включён. Соберите его в мастере.'
       );
     }
-    const current = activeVersion.content.voice.addressForm ?? null;
-    if (current === addressForm) return this.passport(actor);
+    if (current(activeVersion.content.voice) === next) return this.passport(actor);
 
     const content = clone(activeVersion.content);
-    if (addressForm) content.voice.addressForm = addressForm;
-    else delete content.voice.addressForm;
+    apply(content.voice);
     const measured = await this.measurementForActiveVersion(
       actor.organizationId,
       activeVersion

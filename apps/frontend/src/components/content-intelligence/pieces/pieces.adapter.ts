@@ -47,6 +47,7 @@ import {
   type PieceColumnV1,
   type PieceDetailV1,
   type PieceErrorCodeV1,
+  type PieceMaterialAskV1,
   type PieceOriginV1,
   type PieceQuestionKeyV1,
   type PieceQuestionV1,
@@ -175,6 +176,8 @@ export const PIECES_API = {
   channelPlanImpact: PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanImpact.path,
   /** `POST` — «Ко всем N» (`97dq.70`). */
   channelPlanApply: PIECE_ADAPTATION_WORKSPACE_ROUTES.channelPlanApply.path,
+  /** `POST {adaptationId, answers | dismiss}` — вопросы к материалу (`97dq.98`). */
+  materialQuestions: PIECE_ADAPTATION_WORKSPACE_ROUTES.materialQuestions.path,
   /* Ссылка для поста и правка заготовки (`97dq.75`). */
   /** `PUT {url}` — ответ на «Какую ссылку поставить в пост?»; `null` — без ссылки. */
   postLink: PIECE_ROUTES.postLink.path,
@@ -786,7 +789,28 @@ const readChannelTab = (value: unknown): PieceChannelTabV1 | null => {
     ),
     ...(isPlanModeWord(record.planMode) ? { planMode: record.planMode } : {}),
     settings: readPostSettings(record.settings),
+    materialAsk: readMaterialAsk(record.materialAsk),
   };
+};
+
+/**
+ * Optional questions under a short post (`97dq.98`). Anything malformed — no
+ * post named, no numbers, no question with its reason — reads as none: the
+ * block is optional, and a half-read one would ask with nothing to say why.
+ */
+export const readMaterialAsk = (value: unknown): PieceMaterialAskV1 | null => {
+  const record = asRecord(value);
+  if (!record || typeof record.adaptationId !== 'string' || !record.adaptationId)
+    return null;
+  const length = Number(record.length);
+  const min = Number(record.min);
+  if (!(length > 0) || !(min > length)) return null;
+  const questions = readQuestions(record.questions).filter(
+    (question) => question.question.trim() && question.why?.trim()
+  );
+  return questions.length
+    ? { adaptationId: record.adaptationId, length, min, questions }
+    : null;
 };
 
 const SENT_KINDS: readonly SentTextKindV1[] = [
@@ -1952,6 +1976,8 @@ export type WorkspaceChannel = {
   planMode: PlanModeWordV1;
   /** Свои настройки поста в канале (`97dq.70`); `null` — всё как в канале. */
   settings: PostSettingsV1 | null;
+  /** Optional questions under a short post (`97dq.98`); none — `null`. */
+  materialAsk: PieceMaterialAskV1 | null;
 };
 
 const newestFirst = (left: AdaptationV1, right: AdaptationV1) =>
@@ -2009,6 +2035,7 @@ export function workspaceChannels(
         maxLength: tab.maxLength,
         planMode: tab.planMode ?? 'reserve',
         settings: tab.settings ?? null,
+        materialAsk: tab.materialAsk ?? null,
       });
     }
   }
@@ -2034,6 +2061,7 @@ export function workspaceChannels(
         maxLength: null,
         planMode: 'reserve',
         settings: null,
+        materialAsk: null,
       });
     }
   }
@@ -2054,6 +2082,7 @@ export function workspaceChannels(
       maxLength: null,
       planMode: 'reserve',
       settings: null,
+      materialAsk: null,
     });
   }
   return channels;

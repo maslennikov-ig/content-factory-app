@@ -564,3 +564,134 @@ describe('обращение аватара в паспорте', () => {
     expect(refusals({}).sort()).toEqual(['key', 'text']);
   });
 });
+
+/**
+ * «Разрешить ИИ придумывать примеры от моего лица» (`content-factory-next-97dq.99`):
+ * та же дверь `POST /passport/field`, тело `{ delegatedPolicy }`. Хранится в
+ * голосе аватара (`voice.delegatedPolicy`) без новой схемы; `knowledge` —
+ * умолчание, поэтому снимает поле.
+ */
+describe('политика «Решите за меня» в паспорте', () => {
+  const setup = (activeVoice = {}) => {
+    const written = [];
+    const active = {
+      ...VERSIONS[2],
+      content: {
+        ...VERSIONS[2].content,
+        voice: { ...VERSIONS[2].content.voice, ...activeVoice },
+      },
+    };
+    let current = active;
+    const profiles = profilesStub({
+      overview: async () => ({
+        versions: VERSIONS,
+        activeVersion: current,
+        profile: { activeVersionId: current.id },
+      }),
+      createDraft: async (organizationId, userId, content, label, avatarId) => {
+        written.push({ content, avatarId });
+        return { id: 'ver-9' };
+      },
+      // The door answers with the passport of the version it activated.
+      activate: async () => {
+        current = { ...active, id: 'ver-9', content: written[written.length - 1].content };
+      },
+    });
+    const service = serviceWith(profiles);
+    service.measurementForActiveVersion = async () => null;
+    return { service, written };
+  };
+
+  it('паспорт без поля читает умолчание: «knowledge»', async () => {
+    const { service } = setup();
+    expect((await service.passport(actor())).voice.delegatedPolicy).toBe('knowledge');
+  });
+
+  it('включение — новая версия с одним полем, и паспорт его показывает (туда и обратно)', async () => {
+    const { service, written } = setup();
+
+    const on = await service.setPassportField(actor(), { delegatedPolicy: 'examples' });
+    expect(written).toHaveLength(1);
+    expect(written[0].content.voice.delegatedPolicy).toBe('examples');
+    expect(written[0].content.voice.traits).toEqual(VERSIONS[2].content.voice.traits);
+    expect(written[0].content.voice.sentenceStyle).toBe('Короткие фразы');
+    expect(on.voice.delegatedPolicy).toBe('examples');
+
+    const off = await service.setPassportField(actor(), { delegatedPolicy: 'knowledge' });
+    expect(written).toHaveLength(2);
+    expect(written[1].content.voice).not.toHaveProperty('delegatedPolicy');
+    expect(off.voice.delegatedPolicy).toBe('knowledge');
+  });
+
+  it('то же значение версии не плодит: выключенное и отсутствующее — одно', async () => {
+    const { service, written } = setup();
+    await service.setPassportField(actor(), { delegatedPolicy: 'knowledge' });
+    expect(written).toHaveLength(0);
+
+    const already = setup({ delegatedPolicy: 'examples' });
+    await already.service.setPassportField(actor(), { delegatedPolicy: 'examples' });
+    expect(already.written).toHaveLength(0);
+  });
+
+  it('без права править — отказ по имени', async () => {
+    const { service } = setup();
+    await expect(
+      service.setPassportField(actor({ canManage: false }), { delegatedPolicy: 'examples' })
+    ).rejects.toMatchObject({ code: 'VOICE_FORBIDDEN' });
+  });
+
+  it('тело двери: только два значения, строка паспорта и обращение как были', () => {
+    const { plainToInstance } = require('class-transformer');
+    const { validateSync } = require('class-validator');
+    const { VoicePassportFieldDto } = loadTypeScriptModule(
+      'libraries/nestjs-libraries/src/dtos/content-intelligence/brand-voice.dto.ts'
+    );
+    const refusals = (body) =>
+      validateSync(plainToInstance(VoicePassportFieldDto, body), {
+        whitelist: true,
+      }).map((failure) => failure.property);
+
+    expect(refusals({ delegatedPolicy: 'examples' })).toEqual([]);
+    expect(refusals({ delegatedPolicy: 'knowledge' })).toEqual([]);
+    expect(refusals({ delegatedPolicy: 'invent' })).toEqual(['delegatedPolicy']);
+    expect(refusals({ delegatedPolicy: null })).toEqual(['delegatedPolicy']);
+    expect(refusals({ key: 'TONE', text: 'Сухо' })).toEqual([]);
+    expect(refusals({ addressForm: 'vy' })).toEqual([]);
+    expect(refusals({}).sort()).toEqual(['key', 'text']);
+  });
+
+  it('валидатор профиля знает поле и держит значение', () => {
+    const validation = loadTypeScriptModule(`${profileBase}/brand-profile.validation.ts`);
+    const content = (voice = {}) => ({
+      project: {
+        name: 'Пространство',
+        oneLineDescription: 'Профиль голоса.',
+        offerings: [],
+        audiences: [{ name: 'Читатели' }],
+        contentGoals: ['Посты'],
+      },
+      voice: {
+        defaultLanguage: 'ru',
+        allowedLanguages: ['ru'],
+        traits: [{ name: 'Тон', guidance: 'Прямой.' }],
+        pointOfView: 'first_person',
+        formality: 'conversational',
+        emojiPolicy: 'restrained',
+        hashtagPolicy: 'none',
+        ...voice,
+      },
+      lexicon: { preferred: [], avoid: [] },
+      guardrails: { prohibitedTopics: [], prohibitedClaims: [], requiredPhrases: [] },
+      examples: [{ kind: 'on_brand', text: 'Пост автора.' }],
+      platformOverrides: [],
+    });
+    const issues = (value) => {
+      const result = validation.validateBrandProfileContent(value, { forActivation: true });
+      return 'issues' in result ? result.issues : [];
+    };
+    expect(issues(content())).toEqual([]);
+    expect(issues(content({ delegatedPolicy: 'examples' }))).toEqual([]);
+    expect(issues(content({ delegatedPolicy: 'knowledge' }))).toEqual([]);
+    expect(issues(content({ delegatedPolicy: 'always' }))).toEqual(['voice.delegatedPolicy:invalid']);
+  });
+});

@@ -59,6 +59,15 @@ export const PIECE_ADAPTATION_WORKSPACE_ROUTES = {
     path: (pieceId: string, integrationId: string) =>
       `${PIECES_API_BASE}/${pieceId}/channels/${encodeURIComponent(integrationId)}/settings`,
   },
+  /**
+   * `POST` — the optional questions under a short post (`97dq.98`): the
+   * answers join the piece's material, or «Не нужно» closes them for good.
+   */
+  materialQuestions: {
+    method: 'POST',
+    path: (pieceId: string, integrationId: string) =>
+      `${PIECES_API_BASE}/${pieceId}/channels/${encodeURIComponent(integrationId)}/material-questions`,
+  },
   /** `GET` — сколько написанных постов затронет режим канала (`97dq.70`). */
   channelPlanImpact: {
     method: 'GET',
@@ -72,6 +81,31 @@ export const PIECE_ADAPTATION_WORKSPACE_ROUTES = {
       `${PIECES_API_BASE}/channels/${encodeURIComponent(integrationId)}/plan-apply`,
   },
 } as const;
+
+/** How long one answer to a material question may be. */
+export const MATERIAL_ANSWER_MAX_CHARS = 2_000;
+
+/**
+ * The optional material questions (`97dq.98`). `adaptationId` — the post the
+ * questions were asked under; a request for another post is refused, since
+ * the page was stale. Either `dismiss: true` («Не нужно») or at least one
+ * answer: `key` is the question's `ask-N`, `text` the person's words.
+ */
+export type PieceMaterialQuestionsRequestV1 = {
+  adaptationId: string;
+  dismiss?: boolean;
+  answers?: { key: string; text: string }[];
+};
+
+/**
+ * `dismissed` — closed; `answered` — the answers are the piece's added
+ * material now, and the core waits for «Пересобрать суть» as with any
+ * added material.
+ */
+export type PieceMaterialQuestionsResponseV1 = {
+  state: 'dismissed' | 'answered';
+  materialPending?: boolean;
+};
 
 /** Предел тела правки: больше не принимает ни одна площадка продукта. */
 export const ADAPTATION_EDIT_BODY_MAX_CHARS = 100_000;

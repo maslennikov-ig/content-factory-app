@@ -139,6 +139,7 @@ if (!packageOptions) {
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/place` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Поставить на ЧЧ:ММ» из календаря — по режиму канала, автопилот ставит в очередь |
 | `/content-intelligence/pieces/:id/adaptations/:adaptationId/review` | EDITOR | 2 | редактор |
 | `/content-intelligence/pieces/:id/channels/:integrationId/settings` | POSTS_PER_MONTH, EDITOR | 1 | редактор; настройки поста в канале сохраняются сами, свой режим плана применяется к написанному посту сразу (`97dq.70`) |
+| `/content-intelligence/pieces/:id/channels/:integrationId/material-questions` | EDITOR | 1 | редактор; необязательные вопросы под коротким постом — ответы уходят в «Дописать материал», «Не нужно» закрывает их (`97dq.98`) |
 | `/content-intelligence/pieces/channels/:integrationId/plan-apply` | POSTS_PER_MONTH, EDITOR | 1 | редактор; «Ко всем N» — режим канала к его невышедшим постам без своего режима (`97dq.70`); сколько их — `GET …/plan-impact`, чтение любого участника |
 | `/content-intelligence/pieces/:id/archive` | EDITOR | 1 | редактор |
 | `/content-intelligence/pieces/:id/answer` | POSTS_PER_MONTH, EDITOR | 1 | редактор |

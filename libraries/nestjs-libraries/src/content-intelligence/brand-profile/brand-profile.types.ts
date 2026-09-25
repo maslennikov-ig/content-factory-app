@@ -2,6 +2,7 @@ import type {
   BrandProfileSelectionV1,
   ResolvedBrandProfileContextV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/contracts';
+import type { DelegatedPolicyV1 } from './delegated-policy';
 
 export type BrandLanguageV1 = 'ru' | 'en';
 export type BrandPointOfViewV1 = 'first_person' | 'company_we' | 'third_person';
@@ -132,6 +133,14 @@ export type BrandProfileContentV1 = {
      * Absent — the author never said, and the prompt carries no address line.
      */
     addressForm?: BrandAddressFormV1;
+    /**
+     * What the model may say in this author's name when a question is handed
+     * to it with «Решите за меня» (`content-factory-next-97dq.99`). Absent is
+     * `knowledge`: explanations and advice, never an invented experience.
+     * `examples` also lets it invent an illustrative example in the author's
+     * voice. See `delegated-policy.ts`.
+     */
+    delegatedPolicy?: DelegatedPolicyV1;
     /**
      * How long this author's posts actually are, in characters.
      *

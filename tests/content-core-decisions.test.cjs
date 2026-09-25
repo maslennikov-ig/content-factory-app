@@ -16,6 +16,7 @@
 
 require('reflect-metadata');
 const { loadWithMocks } = require('./helpers/load-ts-with-mocks.cjs');
+const { cyrillicOutsideData } = require('./helpers/prompt-language.cjs');
 
 const base = 'libraries/nestjs-libraries/src/content-intelligence';
 let responses = [];
@@ -39,8 +40,10 @@ const mocks = {
 const coreWrite = loadWithMocks(`${base}/pieces/core-write.ts`, mocks);
 const v11 = loadWithMocks(`${base}/pieces/core-write-prompt.v11.ts`);
 const v14 = loadWithMocks(`${base}/pieces/core-write-prompt.v14.ts`);
+const v15 = loadWithMocks(`${base}/pieces/core-write-prompt.v15.ts`);
 const v9 = loadWithMocks(`${base}/pieces/core-write-prompt.v9.ts`);
 const fill10 = loadWithMocks(`${base}/intake/intake.prompts.v10.ts`);
+const fill11 = loadWithMocks(`${base}/intake/intake.prompts.v11.ts`);
 const fill9 = loadWithMocks(`${base}/intake/intake.prompts.v9.ts`);
 
 /** Вход `cnt-32` дословно. */
@@ -89,8 +92,9 @@ const input = (overrides = {}) => ({
 describe('core-write/v11', () => {
   test('своя версия (v13 с `97dq.90`), v9–v12 остаются для квитанций', () => {
     const prompt = coreWrite.corePrompt(input());
-    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
+    expect(v14.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
     expect(v9.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v9');
     expect(v11.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v11');
     expect(
@@ -115,7 +119,11 @@ describe('core-write/v11', () => {
     expect(prompt).toContain('Carried over verbatim: the person’s numbers, names, dates, examples and distinctive expressions');
     expect(prompt).toContain('Unchanged: the meaning, the judgements and the position');
     expect(prompt).toContain('a number that is not in the input is not written');
-    expect(prompt).toContain('a case, example, quote, source or experience that was not there is not invented');
+    // `core-write/v15` (`97dq.99`): the person's story is still never invented;
+    // the model's knowledge enters only where it answers a handed question.
+    expect(prompt).toContain('never invent the person’s story');
+    expect(prompt).toContain('a quote, a named source or study, or an experience the person did not give is not invented');
+    expect(prompt).toContain('enters only where it answers a question handed to the model');
     expect(prompt).toContain('the core holds the person’s position and never argues with it');
   });
 
@@ -126,7 +134,7 @@ describe('core-write/v11', () => {
       answeredAt: '2026-09-23T12:57:39.184Z',
     };
     const prompt = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, decision] }));
-    const words = v14.CORE_WRITE_BLOCK_TITLES_V14;
+    const words = v15.CORE_WRITE_BLOCK_TITLES_V15;
     const block = (title) => {
       const start = prompt.indexOf(title);
       return start < 0 ? '' : prompt.slice(start, prompt.indexOf('--- BLOCK END ---', start));
@@ -134,7 +142,10 @@ describe('core-write/v11', () => {
     expect(block(words.answers)).toContain('У каждого был свой задачник');
     expect(block(words.answers)).toContain('Выросший КПД.');
     expect(block(words.answers)).not.toContain('Без конкретного эпизода');
-    expect(prompt).toContain('THE MODEL’S DECISIONS (the person handed these questions to the model; an editorial choice, not the person’s words or experience)');
+    expect(prompt).toContain('THE MODEL’S DECISIONS (the person handed these questions to the model; what the model decided and wrote in answer, not the person’s words)');
+    // Decisions from an earlier round carry the policy even without a new block.
+    expect(prompt).toContain(v15.CORE_WRITE_HANDED_V15.knowledge);
+    expect(prompt).not.toContain(v15.CORE_WRITE_DELEGATED_V15);
     expect(block(words.decisions)).toContain(`${DELEGATED[0].question} → Без конкретного эпизода`);
     // Пустое «Реши сама» (заготовки до v11) блока не заводит.
     const empty = coreWrite.corePrompt(input({ answers: [...PERSON_ANSWERS, { ...decision, text: '' }] }));
@@ -152,10 +163,11 @@ describe('core-write/v11', () => {
     const without = coreWrite.corePrompt(input());
     expect(without).not.toContain('QUESTIONS HANDED TO THE MODEL');
     expect(without).not.toContain('A separate rule about the «questions handed to the model» block');
+    expect(without).not.toContain('The rule about handed questions («You decide»)');
 
     const prompt = coreWrite.corePrompt(input({ delegated: DELEGATED }));
-    expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL (decide yourself; the answer goes into decisions under the same key)');
-    expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (about the author’s material: a framing only, never an invented case)`);
+    expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL (answer them yourself; the decision goes into decisions under the same key)');
+    expect(prompt).toContain(`[ask-1] ${DELEGATED[0].question} (about the author’s material: only the person knows it)`);
     expect(prompt).toContain('A separate rule about the «questions handed to the model» block');
   });
 
@@ -178,15 +190,17 @@ describe('core-write/v11', () => {
         expect(rule).not.toMatch(/«(?:I|We|Our)\s/u);
       }
     }
-    const base = coreWrite.corePrompt(input({ delegated: DELEGATED }));
-    expect(base).toContain('never write them in the first person as something lived');
+    // v11 stays for receipts; the current prompt is v15 (`97dq.99`).
+    const current = coreWrite.corePrompt(input({ delegated: DELEGATED }));
+    expect(current).not.toContain(v11.CORE_WRITE_DELEGATED_V11.en);
+    expect(current).toContain(v15.CORE_WRITE_DELEGATED_V15);
   });
 
   test('английская сторона на месте', () => {
     const prompt = coreWrite.corePrompt(input({ language: 'en', delegated: DELEGATED }));
     expect(prompt).toContain('4) develop what was said instead of shrinking it');
     expect(prompt).toContain('QUESTIONS HANDED TO THE MODEL');
-    expect(prompt).toContain('about the author’s material: a framing only, never an invented case');
+    expect(prompt).toContain('about the author’s material: only the person knows it');
     expect(prompt).not.toContain('if the person gave few words, the core is short');
   });
 });
@@ -313,6 +327,49 @@ describe('intake-brief-fill/v10', () => {
 });
 
 /*
+  «Решите за меня» из знаний (`content-factory-next-97dq.99`): v11 — это v10,
+  где решение по отданному полю может опираться на общеизвестное знание. Опыт,
+  случаи, числа, цитаты и источники человека по-прежнему не придумываются.
+*/
+describe('intake-brief-fill/v11', () => {
+  const promptInput = (overrides = {}) => ({
+    language: 'ru',
+    material: CNT32_INPUT,
+    materialKind: 'thought',
+    fixed: [],
+    avatar: [],
+    channel: [],
+    facts: [],
+    evidence: [],
+    ...overrides,
+  });
+
+  test('v10 целиком, со своей версией и своими правилами отданных полей', () => {
+    const plain = fill11.briefFillPromptV11(promptInput());
+    expect(plain).toContain('PROMPT VERSION: intake-brief-fill/v11');
+    expect(plain.replace('intake-brief-fill/v11', 'intake-brief-fill/v10')).toBe(
+      fill10.briefFillPromptV10(promptInput())
+    );
+    expect(Object.keys(fill11.briefFillSchemaV11.shape)).toEqual(
+      Object.keys(fill10.briefFillSchemaV10.shape)
+    );
+    expect(fill11.DECIDED_RULES_V11).toHaveLength(fill10.DECIDED_RULES_V10.length);
+
+    const handed = fill11.briefFillPromptV11(promptInput({ decided: ['position'] }));
+    for (const rule of fill11.DECIDED_RULES_V11) expect(handed).toContain(rule);
+    for (const rule of fill10.DECIDED_RULES_V10.filter((rule) => !fill11.DECIDED_RULES_V11.includes(rule))) {
+      expect(handed.split('\n')).not.toContain(rule);
+    }
+    expect(handed).toContain('may rest on widely known knowledge');
+    expect(handed).toContain('fill it from what the person said and from your own knowledge');
+    expect(handed).toContain('Never write a decision in the first person as something the person lived');
+    expect(handed).toContain('never put into it a case, a number, a name, a date, a quote or a source the material does not carry');
+    // The rules v11 adds are English (the v9 body quotes Russian phrases as data).
+    expect(cyrillicOutsideData(fill11.DECIDED_RULES_V11.join('\n'))).toEqual([]);
+  });
+});
+
+/*
   `content-factory-next-97dq.53`, live stand 23.09.2026, S3: the core dropped
   «Я не считаю, что стендапы вредны всем: в команде новичков или в кризисном
   проекте они нужны», and the author's claim came out broader than they made
@@ -342,6 +399,6 @@ describe('the core keeps the author’s caveats (97dq.53)', () => {
 
   test('released receipts keep their contract: v11 does not carry the rule', () => {
     expect(v11.coreWriteSystemV11('ru', '')).not.toContain('Оговорки человека');
-    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v14');
+    expect(coreWrite.CORE_WRITE_PROMPT_VERSION).toBe('core-write/v15');
   });
 });

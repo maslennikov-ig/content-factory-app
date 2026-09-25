@@ -118,7 +118,7 @@ test('enrichment prompt lifts the short-core rule and asks a sentence per select
   await accept(preview);
   const prompt = modelCalls[1].prompt;
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt).toContain('A separate rule about enrichment');
   expect(prompt).toContain('gets a sentence of its own');
   expect(prompt).toContain('carry its number, date, name and unit over verbatim');
@@ -162,7 +162,7 @@ test('a partly confirmed correction stands once, and never in the confirmed bloc
     questionTextByKey: {}, personText: 'Мне важен результат работы.', borrowed: null,
     foreignShingles: [] });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt.split('\n').filter((line) => line.includes('около 2 500'))).toEqual([
     'taken from research (not verified): Эксперимент охватил около 2 500 человек',
   ]);
@@ -216,7 +216,7 @@ const personText = 'Исландский эксперимент охватил 2
 test('an own number the search did not confirm leaves the confirmed block and keeps its note', () => {
   const prompt = promptOf({ brief: icelandBrief([ownUnverified, foundConfirmed]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt.split('\n').filter((line) => line.includes('25 тысяч человек.'))).toEqual([
     'not confirmed by search: Исландский эксперимент охватил 25 тысяч человек. — Источник сообщает, что участвовали более 2500 человек, а не 25 тысяч.',
   ]);
@@ -234,7 +234,7 @@ test('an own row the search confirmed still stands in the confirmed block', () =
   };
   const prompt = promptOf({ brief: icelandBrief([confirmedOwn]), personText });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt).toContain('confirmed facts: Эксперимент шёл с 2015 по 2019 год.');
   expect(prompt).not.toContain('not confirmed by search');
 });
@@ -282,7 +282,7 @@ test('a thought with no research keeps the v6 text word for word', () => {
     personText: 'Мы сократили неделю до четырёх дней.',
   });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt).toContain('confirmed facts: Мы сократили неделю до четырёх дней.');
   expect(prompt).not.toContain('not confirmed by search');
   expect(prompt).not.toContain('A separate rule about research supports');
@@ -318,7 +318,7 @@ test('a foreign post with claims or structure gets the named rule about its bloc
   };
   const prompt = promptOf({ brief, borrowed, personText: '' });
 
-  expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+  expect(prompt).toContain('PROMPT VERSION: core-write/v15');
   expect(prompt).toContain('A separate rule about the source material blocks');
   expect(prompt).toContain('is making their OWN text out of it');
   expect(prompt).toContain('There is enough material for several paragraphs');

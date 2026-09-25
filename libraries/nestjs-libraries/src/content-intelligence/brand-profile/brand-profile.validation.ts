@@ -3,6 +3,20 @@ import type {
   BrandProfileContentV1,
   PlatformVoiceOverrideV1,
 } from '@contentfactory/nestjs-libraries/content-intelligence/brand-profile/brand-profile.types';
+import type { DelegatedPolicyV1 } from './delegated-policy';
+
+/**
+ * The policies of «Решите за меня» (`97dq.99`), as an object typed by the
+ * union so the compiler holds it complete and exact against
+ * `delegated-policy.ts`. Only a type crosses that import: this file is also
+ * loaded by plain `require` (the mutation proof in
+ * `brand-voice.post-layout-wiring.test.cjs`), which cannot follow a runtime
+ * import of another TypeScript file.
+ */
+const KNOWN_DELEGATED_POLICIES: Record<DelegatedPolicyV1, true> = {
+  knowledge: true,
+  examples: true,
+};
 
 export const BRAND_PROFILE_MAX_CANONICAL_BYTES_V1 = 64 * 1024;
 export const BRAND_PROFILE_MAX_PROMPT_CHARACTERS_V1 = 16_000;
@@ -380,6 +394,7 @@ export function validateBrandProfileContent(
       'emojiPolicy',
       'hashtagPolicy',
       'addressForm',
+      'delegatedPolicy',
       'postLength',
       'bringsOwnMeasurements',
       'directions',
@@ -487,6 +502,15 @@ export function validateBrandProfileContent(
       !['ty', 'vy'].includes(voice.addressForm as string)
     )
       issues.push('voice.addressForm:invalid');
+    /** «Решите за меня» (`97dq.99`); отсутствие — `knowledge`. */
+    if (
+      voice.delegatedPolicy !== undefined &&
+      !Object.prototype.hasOwnProperty.call(
+        KNOWN_DELEGATED_POLICIES,
+        voice.delegatedPolicy as string
+      )
+    )
+      issues.push('voice.delegatedPolicy:invalid');
     for (const key of ['sentenceStyle', 'ctaStyle']) {
       if (voice[key] !== undefined)
         stringWithin(issues, `voice.${key}`, voice[key], 1_000, false);

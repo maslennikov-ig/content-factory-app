@@ -33,11 +33,11 @@ describe('prompts are English for a Russian input (97dq.97)', () => {
     expect(cyrillicOutsideData(rule, FORBIDDEN_RU)).toEqual([]);
   });
 
-  test('core-write/v14: system, block titles, repair lines and the output language', () => {
+  test('core-write/v15: system, block titles, repair lines and the output language', () => {
     const coreWrite = loadWithMocks(`${ci}/pieces/core-write.ts`, {
       '@contentfactory/nestjs-libraries/openai/ai.clients': { getChatModel: async () => null },
     });
-    const v14 = loadWithMocks(`${ci}/pieces/core-write-prompt.v14.ts`);
+    const v15 = loadWithMocks(`${ci}/pieces/core-write-prompt.v15.ts`);
     const fact = (statement, extra = {}) => ({
       statement, sourceUrl: null, factId: null, evidenceId: null,
       origin: 'input', kind: 'own', verified: false, status: 'unverified', ...extra,
@@ -71,19 +71,23 @@ describe('prompts are English for a Russian input (97dq.97)', () => {
       foreignShingles: [],
       rebuildFrom: { text: 'Прежняя суть.', byPerson: true },
     };
-    const prompt = coreWrite.corePrompt(input);
-    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
-    expect(prompt).toContain('write the core and every decision in Russian');
-    expect(prompt).toContain(v14.CORE_WRITE_BLOCK_TITLES_V14.person);
-    expect(cyrillicOutsideData(prompt, FORBIDDEN_RU)).toEqual([]);
+    // Both avatar policies of «Решите за меня» (`97dq.99`).
+    for (const delegatedPolicy of ['knowledge', 'examples']) {
+      const prompt = coreWrite.corePrompt({ ...input, delegatedPolicy });
+      expect(prompt).toContain('PROMPT VERSION: core-write/v15');
+      expect(prompt).toContain('write the core and every decision in Russian');
+      expect(prompt).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.person);
+      expect(prompt).toContain(v15.CORE_WRITE_HANDED_V15[delegatedPolicy]);
+      expect(cyrillicOutsideData(prompt, FORBIDDEN_RU)).toEqual([]);
+    }
 
     const enrichment = coreWrite.corePrompt({ ...input, rebuildFrom: null, existingCore: 'Готовая суть.' });
-    expect(enrichment).toContain(v14.CORE_WRITE_ENRICH_LEAD_V14);
-    expect(enrichment).toContain(v14.CORE_WRITE_BLOCK_TITLES_V14.existing);
+    expect(enrichment).toContain(v15.CORE_WRITE_ENRICH_LEAD_V15);
+    expect(enrichment).toContain(v15.CORE_WRITE_BLOCK_TITLES_V15.existing);
     expect(cyrillicOutsideData(enrichment, FORBIDDEN_RU)).toEqual([]);
 
-    expect(cyrillicOutsideData(v14.CORE_WRITE_REPAIR_V14)).toEqual([]);
-    expect(cyrillicOutsideData(v14.CORE_WRITE_META_REPAIR_V14)).toEqual([]);
+    expect(cyrillicOutsideData(v15.CORE_WRITE_REPAIR_V15)).toEqual([]);
+    expect(cyrillicOutsideData(v15.CORE_WRITE_META_REPAIR_V15)).toEqual([]);
   });
 
   test('post length trim: English instructions, the post named Russian', () => {

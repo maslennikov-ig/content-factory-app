@@ -94,7 +94,7 @@ describe('cnt-29: свои числа без ресерча — слова че�
   test('строки со статусом «не проверено», но без следов поиска, стоят под подтверждённым', () => {
     const prompt = promptOf(cnt29Brief(), CNT29_PERSON);
 
-    expect(prompt).toContain('PROMPT VERSION: core-write/v14');
+    expect(prompt).toContain('PROMPT VERSION: core-write/v15');
     for (const statement of CNT29_STATEMENTS) {
       expect(briefLines(prompt, statement)).toEqual([`confirmed facts: ${statement}`]);
     }
