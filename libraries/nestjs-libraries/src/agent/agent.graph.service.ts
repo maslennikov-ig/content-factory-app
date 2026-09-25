@@ -1072,6 +1072,15 @@ export class AgentGraphService {
             ? '- The hook may already state the strongest fact from the material below — do not reopen the post with that same fact in other words; start from what it means or what to do about it'
             : '- Say every claim once: no paragraph restates an earlier one in other words, and the post does not open with a summary of what follows. Keep every fact, number and example of the neutral core'
         }
+        ${
+          /*
+           * Production 25.09.2026 09:14 (`97dq.96`): after «no summary first»
+           * the post opened with «Можно возразить…», the brief's objection,
+           * followed by a sentence about how the author judges the board.
+           * The first lines are the preview; they carry the author's claim.
+           */
+          ''
+        }- Open with the author's own observation, number or result. Never open with an objection, a disclaimer or a sentence about how the author judges the topic; an objection, if used at all, comes after the author's claim
         - ${ctaInstruction(state)}
         - Make sure you add "\n" between the lines
         - Add "\n" after every "."
