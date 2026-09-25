@@ -43,7 +43,8 @@ const getMcpConfig = (
   client: McpClient,
   method: 'header' | 'path',
   mcpBase: string,
-  apiKey: string
+  apiKey: string,
+  t: ReturnType<typeof useT>
 ): { config: string; hint: string } => {
   const urlWithKey = `${mcpBase}/mcp/${apiKey}`;
   const urlBase = `${mcpBase}/mcp`;
@@ -56,50 +57,50 @@ const getMcpConfig = (
       case 'Claude Code':
         return {
           config: `claude mcp add content-factory --transport http "${urlWithKey}"`,
-          hint: 'Run this command in your terminal.',
+          hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
         };
       case 'Cursor':
         return {
           config: json({
             mcpServers: { 'content-factory': { url: urlWithKey } },
           }),
-          hint: 'Add to .cursor/mcp.json in your project root.',
+          hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.cursor/mcp.json', interpolation: { escapeValue: false } }),
         };
       case 'VS Code / Copilot':
         return {
           config: json({
             servers: { 'content-factory': { type: 'http', url: urlWithKey } },
           }),
-          hint: 'Add to .vscode/mcp.json in your project root.',
+          hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.vscode/mcp.json', interpolation: { escapeValue: false } }),
         };
       case 'Windsurf':
         return {
           config: json({
             mcpServers: { 'content-factory': { serverUrl: urlWithKey } },
           }),
-          hint: 'Add to ~/.codeium/windsurf/mcp_config.json',
+          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codeium/windsurf/mcp_config.json', interpolation: { escapeValue: false } }),
         };
       case 'Amp':
         return {
           config: `amp mcp add content-factory ${urlWithKey}`,
-          hint: 'Run this command in your terminal.',
+          hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
         };
       case 'Codex':
         return {
           config: `# ~/.codex/config.toml\n\n[mcp_servers.content-factory]\nurl = "${urlWithKey}"`,
-          hint: 'Add to ~/.codex/config.toml',
+          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codex/config.toml', interpolation: { escapeValue: false } }),
         };
       case 'Gemini CLI':
         return {
           config: json({
             mcpServers: { 'content-factory': { url: urlWithKey } },
           }),
-          hint: 'Add to ~/.gemini/settings.json',
+          hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.gemini/settings.json', interpolation: { escapeValue: false } }),
         };
       case 'Warp':
         return {
           config: json({ 'content-factory': { url: urlWithKey } }),
-          hint: 'Settings > MCP Servers > + Add, then paste this config.',
+          hint: t('mcp_hint_warp_settings', 'Settings > MCP Servers > + Add, then paste this config.'),
         };
     }
   }
@@ -108,7 +109,7 @@ const getMcpConfig = (
     case 'Claude Code':
       return {
         config: `claude mcp add --transport http content-factory ${urlBase} --header "Authorization: ${bearer}"`,
-        hint: 'Run this command in your terminal.',
+        hint: t('mcp_hint_run_in_terminal', 'Run this command in your terminal.'),
       };
     case 'Cursor':
       return {
@@ -120,7 +121,7 @@ const getMcpConfig = (
             },
           },
         }),
-        hint: 'Add to .cursor/mcp.json in your project root.',
+        hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.cursor/mcp.json', interpolation: { escapeValue: false } }),
       };
     case 'VS Code / Copilot':
       return {
@@ -133,7 +134,7 @@ const getMcpConfig = (
             },
           },
         }),
-        hint: 'Add to .vscode/mcp.json in your project root.',
+        hint: t('mcp_hint_add_to_project_file', 'Add to {{path}} in your project root.', { path: '.vscode/mcp.json', interpolation: { escapeValue: false } }),
       };
     case 'Windsurf':
       return {
@@ -145,7 +146,7 @@ const getMcpConfig = (
             },
           },
         }),
-        hint: 'Add to ~/.codeium/windsurf/mcp_config.json',
+        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codeium/windsurf/mcp_config.json', interpolation: { escapeValue: false } }),
       };
     case 'Amp':
       return {
@@ -157,12 +158,12 @@ const getMcpConfig = (
             },
           },
         }),
-        hint: 'Add to your Amp settings.json',
+        hint: t('mcp_hint_amp_settings', 'Add to your Amp settings.json'),
       };
     case 'Codex':
       return {
         config: `# ~/.codex/config.toml\n\n[mcp_servers.content-factory]\nurl = "${urlBase}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
-        hint: 'Add to ~/.codex/config.toml',
+        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.codex/config.toml', interpolation: { escapeValue: false } }),
       };
     case 'Gemini CLI':
       return {
@@ -174,7 +175,7 @@ const getMcpConfig = (
             },
           },
         }),
-        hint: 'Add to ~/.gemini/settings.json',
+        hint: t('mcp_hint_add_to_file', 'Add to {{path}}', { path: '~/.gemini/settings.json', interpolation: { escapeValue: false } }),
       };
     case 'Warp':
       return {
@@ -184,30 +185,10 @@ const getMcpConfig = (
             headers: { Authorization: bearer },
           },
         }),
-        hint: 'Settings > MCP Servers > + Add, then paste this config.',
+        hint: t('mcp_hint_warp_settings', 'Settings > MCP Servers > + Add, then paste this config.'),
       };
   }
 };
-
-/**
- * The client hints in the reader's language (fn33.143). Written here rather
- * than as sixteen locale keys: like `PublicApiSurface`, the screen speaks the
- * two product languages and file paths and menu names stay as the client
- * spells them.
- */
-const MCP_HINTS_RU: Record<string, string> = {
-    'Run this command in your terminal.': 'Выполните эту команду в терминале.',
-    'Add to .cursor/mcp.json in your project root.': 'Добавьте в .cursor/mcp.json в корне проекта.',
-    'Add to .vscode/mcp.json in your project root.': 'Добавьте в .vscode/mcp.json в корне проекта.',
-    'Add to ~/.codeium/windsurf/mcp_config.json': 'Добавьте в ~/.codeium/windsurf/mcp_config.json',
-    'Add to ~/.codex/config.toml': 'Добавьте в ~/.codex/config.toml',
-    'Add to ~/.gemini/settings.json': 'Добавьте в ~/.gemini/settings.json',
-    'Settings > MCP Servers > + Add, then paste this config.': 'Settings → MCP Servers → + Add, затем вставьте эту настройку.',
-    'Add to your Amp settings.json': 'Добавьте в settings.json вашего Amp',
-};
-
-const localizeMcpHint = (hint: string, locale: 'en' | 'ru') =>
-  locale === 'ru' ? MCP_HINTS_RU[hint] ?? hint : hint;
 
 const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const toaster = useToaster();
@@ -252,7 +233,6 @@ const McpSection = ({
   mcpBase: string;
 }) => {
   const t = useT();
-  const locale = useInterfaceLanguage().startsWith('ru') ? 'ru' : 'en';
   const [activeClient, setActiveClient] = useState<McpClient>('Claude Code');
   const [method, setMethod] = useState<'header' | 'path'>('header');
   const [revealed, setRevealed] = useState(false);
@@ -261,7 +241,8 @@ const McpSection = ({
     activeClient,
     method,
     mcpBase,
-    user.publicApi
+    user.publicApi,
+    t
   );
 
   const remoteUrl = `${mcpBase}/mcp/${user.publicApi}`;
@@ -358,7 +339,7 @@ const McpSection = ({
         <div className="flex flex-col gap-[8px]">
           <div className="text-[12px] text-customColor18 font-[500]">
             {method === 'header'
-              ? localizeMcpHint(hint, locale)
+              ? hint
               : t(
                   'remote_server_url_hint',
                   'Paste this URL into your remote MCP client (ChatGPT, Claude, etc.).'

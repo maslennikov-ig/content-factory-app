@@ -335,7 +335,7 @@ export const DeveloperComponent: FC = () => {
                 name="oauth-app-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Application"
+                placeholder={t('developer_app_name_placeholder', 'My Application')}
                 maxLength={100}
               />
             </div>
@@ -348,7 +348,10 @@ export const DeveloperComponent: FC = () => {
                 className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-textColor outline-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what your app does"
+                placeholder={t(
+                  'developer_app_description_placeholder',
+                  'Describe what your app does'
+                )}
                 maxLength={500}
               />
             </div>
@@ -360,7 +363,7 @@ export const DeveloperComponent: FC = () => {
                 {picturePath ? (
                   <img
                     src={picturePath}
-                    alt="App picture"
+                    alt={t('developer_app_picture_alt', 'App picture')}
                     className="w-[48px] h-[48px] rounded-full object-cover"
                   />
                 ) : (
@@ -457,7 +460,7 @@ export const DeveloperComponent: FC = () => {
                 name="oauth-app-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Application"
+                placeholder={t('developer_app_name_placeholder', 'My Application')}
                 maxLength={100}
               />
             </div>
@@ -470,7 +473,10 @@ export const DeveloperComponent: FC = () => {
                 className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-textColor outline-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what your app does"
+                placeholder={t(
+                  'developer_app_description_placeholder',
+                  'Describe what your app does'
+                )}
                 maxLength={500}
               />
             </div>
@@ -482,7 +488,7 @@ export const DeveloperComponent: FC = () => {
                 {picturePath ? (
                   <img
                     src={picturePath}
-                    alt="App picture"
+                    alt={t('developer_app_picture_alt', 'App picture')}
                     className="w-[48px] h-[48px] rounded-full object-cover"
                   />
                 ) : (

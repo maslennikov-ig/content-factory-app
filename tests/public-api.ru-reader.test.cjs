@@ -37,19 +37,13 @@ describe('developer settings speak the reader language', () => {
     for (const call of calls) expect(call).toMatch(/locale=\{locale\}/u);
   });
 
-  test('every client hint has a Russian sentence', () => {
+  test('every client hint goes through translation', () => {
     const source = fs.readFileSync(path.join(root, componentPath), 'utf8');
-    const hints = new Set(
-      [...source.matchAll(/hint: '([^']+)'/gu)].map(([, hint]) => hint)
-    );
-    expect(hints.size).toBeGreaterThanOrEqual(8);
-    const table = source.slice(
-      source.indexOf('const MCP_HINTS_RU'),
-      source.indexOf('const localizeMcpHint')
-    );
-    for (const hint of hints) {
-      expect(table).toContain(`'${hint}':`);
-    }
-    expect(source).toMatch(/localizeMcpHint\(hint, locale\)/u);
+    // The hints used to be English literals with a Russian side table; they
+    // are locale keys now, so every interface language gets them.
+    expect(source).not.toMatch(/hint: '[^']+'/u);
+    const hints = [...source.matchAll(/hint: t\(\s*'(mcp_hint_[a-z_]+)'/gu)];
+    expect(hints.length).toBeGreaterThanOrEqual(16);
+    expect(source).not.toContain('MCP_HINTS_RU');
   });
 });

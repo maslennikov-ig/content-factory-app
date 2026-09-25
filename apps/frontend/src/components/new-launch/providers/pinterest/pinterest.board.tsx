@@ -41,12 +41,15 @@ export const PinterestBoard: FC<{
     return null;
   }
   if (!orgs.length) {
-    return 'No boards found, you have to create a board first';
+    return t(
+      'pinterest_no_boards',
+      'No boards found, you have to create a board first'
+    );
   }
   return (
     <Select
       name={name}
-      label="Select board"
+      label={t('label_select_board', 'Select board')}
       onChange={onChangeInner}
       value={currentMedia}
     >

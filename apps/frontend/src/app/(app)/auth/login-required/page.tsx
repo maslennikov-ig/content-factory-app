@@ -1,7 +1,13 @@
+import { getT } from '@contentfactory/react/translation/get.translation.service.backend';
+
 export default async function LoginRequiredPage() {
+  const t = await getT();
   return (
     <div className="fixed left-0 top-0 w-full h-full bg-[#121212] z-[100] flex justify-center items-center text-4xl">
-      Login to use the wizard to generate API code
+      {t(
+        'login_required_api_wizard',
+        'Login to use the wizard to generate API code'
+      )}
     </div>
   );
 }

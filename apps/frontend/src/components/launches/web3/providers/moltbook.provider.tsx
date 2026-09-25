@@ -131,7 +131,10 @@ export const MoltbookProvider: FC<Web3ProviderInterface> = (props) => {
               name="agentDescription"
               disableForm={true}
               onChange={(e) => setAgentDescription(e.target.value)}
-              placeholder="Social media scheduler"
+              placeholder={t(
+                'moltbook_description_placeholder',
+                'Social media scheduler'
+              )}
             />
             <Button className="w-full" onClick={register}>
               {t('register_agent', 'Register Agent')}

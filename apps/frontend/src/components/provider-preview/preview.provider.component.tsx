@@ -3,6 +3,10 @@ import 'reflect-metadata';
 import { FC, MutableRefObject, useEffect, useMemo } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import {
+  translateResolver,
+  translateValidationMessage,
+} from '@contentfactory/frontend/components/new-launch/validation-message.text';
 import { Providers } from '@contentfactory/frontend/components/new-launch/providers/show.all.providers';
 import { getProviderSettingsMeta } from '@contentfactory/frontend/components/new-launch/providers/high.order.provider';
 import {
@@ -11,6 +15,7 @@ import {
 } from '@contentfactory/frontend/components/launches/helpers/use.integration';
 import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
 import { ProviderPreviewSurface } from './provider-preview.surface';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 type MockIntegration = IntegrationContextType['integration'];
 
@@ -121,6 +126,7 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
   posts,
   controlRef,
 }) => {
+  const t = useT();
   const meta = useMemo(() => {
     const entry = Providers.find((p) => p.identifier === provider);
     if (!entry) return null;
@@ -134,7 +140,9 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
     !!value && typeof value === 'object' && Object.keys(value).length > 0;
 
   const form = useForm({
-    resolver: meta?.dto ? classValidatorResolver(meta.dto) : undefined,
+    resolver: meta?.dto
+      ? translateResolver(classValidatorResolver(meta.dto), t)
+      : undefined,
     defaultValues: hasSeededValue ? value : undefined,
     values: hasSeededValue ? value : undefined,
     mode: 'all',
@@ -206,7 +214,7 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
   );
 
   if (!meta) {
-    return <ProviderPreviewSurface state="error" provider={provider} detail={`Provider "${provider}" not found`} />;
+    return <ProviderPreviewSurface state="error" provider={provider} detail={t('provider_not_found', 'Provider "{{provider}}" not found', { provider })} />;
   }
 
   const { SettingsComponent } = meta;
@@ -214,7 +222,10 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
     return (
       <ProviderPreviewSurface state="default" provider={provider}>
       <div className="p-4 text-sm">
-        This provider has no configurable settings.
+        {t(
+          'provider_has_no_settings',
+          'This provider has no configurable settings.'
+        )}
       </div>
       </ProviderPreviewSurface>
     );
@@ -229,7 +240,7 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
             <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
               <ul className="list-disc ps-5">
                 {errors.map((e, i) => (
-                  <li key={i}>{e}</li>
+                  <li key={i}>{translateValidationMessage(e, t)}</li>
                 ))}
               </ul>
             </div>

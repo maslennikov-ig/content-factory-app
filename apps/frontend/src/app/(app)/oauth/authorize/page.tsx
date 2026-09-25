@@ -6,12 +6,18 @@ import { useFetch } from '@contentfactory/helpers/utils/custom.fetch';
 import { Logo } from '@contentfactory/frontend/components/new-layout/logo';
 import { Button } from '@contentfactory/react/form/button';
 import { OAuthAuthorizeSurface } from './oauth-authorize.surface';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { useInterfaceLanguage } from '@contentfactory/react/translation/use-interface-language';
+
+type OAuthErrorCode = 'missing_params' | 'unsupported_type' | 'invalid' | 'validate_failed' | 'process_failed';
 
 export default function OAuthAuthorizePage() {
   const searchParams = useSearchParams();
   const fetch = useFetch();
+  const t = useT();
+  const surfaceLocale = useInterfaceLanguage().startsWith('ru') ? 'ru' : 'en';
   const [appInfo, setAppInfo] = useState<any>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<OAuthErrorCode | ''>('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,12 +27,12 @@ export default function OAuthAuthorizePage() {
 
   useEffect(() => {
     if (!clientId || !responseType) {
-      setError('Missing required parameters (client_id, response_type)');
+      setError('missing_params');
       setLoading(false);
       return;
     }
     if (responseType !== 'code') {
-      setError('Only response_type=code is supported');
+      setError('unsupported_type');
       setLoading(false);
       return;
     }
@@ -41,14 +47,15 @@ export default function OAuthAuthorizePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.statusCode && data.statusCode >= 400) {
-          setError(data.message || 'Invalid OAuth request');
+          // The server message is English; the person sees our own words.
+          setError('invalid');
         } else {
           setAppInfo(data);
         }
         setLoading(false);
       })
       .catch(() => {
-        setError('Failed to validate OAuth request');
+        setError('validate_failed');
         setLoading(false);
       });
   }, [clientId, responseType, state]);
@@ -72,22 +79,53 @@ export default function OAuthAuthorizePage() {
           window.location.href = result.redirect;
         }
       } catch {
-        setError('Failed to process authorization');
+        setError('process_failed');
         setSubmitting(false);
       }
     },
     [clientId, state]
   );
 
+  const errorText = (code: OAuthErrorCode) => {
+    switch (code) {
+      case 'missing_params':
+        return t(
+          'oauth_authorize_missing_params',
+          'Missing required parameters (client_id, response_type)'
+        );
+      case 'unsupported_type':
+        return t(
+          'oauth_authorize_unsupported_type',
+          'Only response_type=code is supported'
+        );
+      case 'invalid':
+        return t('oauth_authorize_invalid_request', 'Invalid OAuth request');
+      case 'validate_failed':
+        return t(
+          'oauth_authorize_validate_failed',
+          'Failed to validate OAuth request'
+        );
+      case 'process_failed':
+        return t(
+          'oauth_authorize_process_failed',
+          'Failed to process authorization'
+        );
+    }
+  };
+
   if (loading) {
     return (
-      <OAuthAuthorizeSurface state="loading" description="Please wait...">
+      <OAuthAuthorizeSurface
+        state="loading"
+        locale={surfaceLocale}
+        description={t('oauth_authorize_please_wait', 'Please wait...')}
+      >
         <div className="text-center">
           <div className="flex justify-center mb-[24px]">
             <Logo />
           </div>
           <div className="text-[16px] text-cf-ink-muted">
-            Please wait...
+            {t('oauth_authorize_please_wait', 'Please wait...')}
           </div>
           <div className="mt-[32px] flex justify-center">
             <div className="w-[48px] h-[48px] border-[3px] border-cf-accent border-t-transparent rounded-full animate-spin" />
@@ -99,7 +137,11 @@ export default function OAuthAuthorizePage() {
 
   if (error) {
     return (
-      <OAuthAuthorizeSurface state="error" description={error}>
+      <OAuthAuthorizeSurface
+        state="error"
+        locale={surfaceLocale}
+        description={errorText(error)}
+      >
         <div className="text-center">
           <div className="flex justify-center mb-[24px]">
             <Logo />
@@ -118,10 +160,10 @@ export default function OAuthAuthorizePage() {
             </svg>
           </div>
           <div className="text-[28px] font-semibold mb-[12px]">
-            Authorization Error
+            {t('oauth_authorize_error_title', 'Authorization Error')}
           </div>
           <div className="text-[16px] text-cf-ink-muted max-w-[400px]">
-            {error}
+            {errorText(error)}
           </div>
         </div>
       </OAuthAuthorizeSurface>
@@ -135,6 +177,7 @@ export default function OAuthAuthorizePage() {
   return (
     <OAuthAuthorizeSurface
       state={submitting ? 'disabled' : 'default'}
+      locale={surfaceLocale}
       appName={appInfo.app.name}
       description={appInfo.app.description}
     >
@@ -168,13 +211,27 @@ export default function OAuthAuthorizePage() {
 
           <div className="border-t border-cf-border pt-[16px]">
             <div className="text-[14px] text-cf-ink-muted mb-[12px]">
-              This application is requesting access to your Content Factory account. It
-              will be able to:
+              {t(
+                'oauth_authorize_requesting_access',
+                'This application is requesting access to your Content Factory account. It will be able to:'
+              )}
             </div>
             <ul className="text-[14px] list-disc list-inside space-y-[4px]">
-              <li>Access your integrations and channels</li>
-              <li>Create and schedule posts on your behalf</li>
-              <li>Read your post analytics</li>
+              <li>
+                {t(
+                  'oauth_authorize_scope_channels',
+                  'Access your integrations and channels'
+                )}
+              </li>
+              <li>
+                {t(
+                  'oauth_authorize_scope_posts',
+                  'Create and schedule posts on your behalf'
+                )}
+              </li>
+              <li>
+                {t('oauth_authorize_scope_analytics', 'Read your post analytics')}
+              </li>
             </ul>
           </div>
 
@@ -184,14 +241,14 @@ export default function OAuthAuthorizePage() {
               disabled={submitting}
               className="flex-1 disabled:opacity-50 rounded-cf py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
             >
-              Authorize
+              {t('oauth_authorize_approve', 'Authorize')}
             </Button>
             <Button variant="secondary"
               onClick={() => handleAction('deny')}
               disabled={submitting}
               className="flex-1 disabled:opacity-50 rounded-cf py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
             >
-              Deny
+              {t('oauth_authorize_deny', 'Deny')}
             </Button>
           </div>
         </div>

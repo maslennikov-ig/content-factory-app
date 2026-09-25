@@ -8,6 +8,8 @@ import dayjs from 'dayjs';
 import { useClickAway } from '@uidotdev/usehooks';
 import ReactLoading from '@contentfactory/frontend/components/layout/loading';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
+import { interfaceDayjs } from '@contentfactory/react/helpers/localized.date';
+import { translateNotification } from './notification.text';
 function replaceLinks(text: string) {
   const urlRegex =
     /(\bhttps?:\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
@@ -24,12 +26,13 @@ export const ShowNotification: FC<{
   lastReadNotification: string;
 }> = (props) => {
   const { notification } = props;
+  const t = useT();
   const [newNotification] = useState(
     new Date(notification.createdAt) > new Date(props.lastReadNotification)
   );
-  const createdAt = dayjs(notification.createdAt);
+  const createdAt = interfaceDayjs(notification.createdAt);
   const isWithin24h = dayjs().diff(createdAt, 'hour') < 24;
-  const fullDate = createdAt.format('MMM D, YYYY h:mm A');
+  const fullDate = createdAt.format('LLL');
   return (
     <div
       className={clsx(
@@ -40,7 +43,7 @@ export const ShowNotification: FC<{
       <div
         className="break-words"
         dangerouslySetInnerHTML={{
-          __html: replaceLinks(notification.content),
+          __html: replaceLinks(translateNotification(notification.content, t)),
         }}
       />
       <div

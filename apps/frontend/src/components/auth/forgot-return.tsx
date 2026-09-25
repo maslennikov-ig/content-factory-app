@@ -71,7 +71,7 @@ export function ForgotReturn({ token }: { token: string }) {
           <>
             <div className="space-y-4 text-textColor">
               <PasswordInput
-                label="New Password"
+                label={t('label_new_password', 'New Password')}
                 translationKey="label_new_password"
                 {...form.register('password')}
                 error={localizedPasswordError}
@@ -92,7 +92,7 @@ export function ForgotReturn({ token }: { token: string }) {
                 hidePasswordLabel={t('hide_password', 'Hide password')}
               />
               <PasswordInput
-                label="Repeat Password"
+                label={t('label_repeat_password', 'Repeat Password')}
                 translationKey="label_repeat_password"
                 {...form.register('repeatPassword')}
                 autoComplete="new-password"

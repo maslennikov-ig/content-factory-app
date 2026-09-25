@@ -286,7 +286,8 @@ export const ContinueIntegration: FC<{
                 successState.message ||
                 t(
                   'channel_connected_description',
-                  `Your ${providerDisplayName} channel has been successfully connected. You can close this window now.`
+                  'Your {{provider}} channel has been successfully connected. You can close this window now.',
+                  { provider: providerDisplayName }
                 )
               }
             />
@@ -306,7 +307,8 @@ export const ContinueIntegration: FC<{
               title={t('configure_your_channel', 'Configure Your Channel')}
               description={t(
                 'select_the_page_or_account',
-                `Select the ${providerDisplayName} page or account you want to connect.`
+                'Select the {{provider}} page or account you want to connect.',
+                { provider: providerDisplayName }
               )}
             />
 

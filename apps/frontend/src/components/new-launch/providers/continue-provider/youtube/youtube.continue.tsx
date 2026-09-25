@@ -24,7 +24,7 @@ export const YoutubeContinue = withContinueProvider<
 >({
   endpoint: 'pages',
   swrKey: 'load-youtube-channels',
-  titleKey: 'select_channel',
+  titleKey: 'select_youtube_channel',
   titleDefault: 'Select YouTube Channel:',
   emptyStateMessages: [
     {
@@ -36,7 +36,7 @@ export const YoutubeContinue = withContinueProvider<
       text: 'Please ensure you have a YouTube channel created.',
     },
     {
-      key: 'youtube_try_again',
+      key: 'integration_close_delete_try_again',
       text: 'Please close this dialog, delete the integration and try again.',
     },
   ],

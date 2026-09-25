@@ -55,7 +55,7 @@ export const WhopExperienceSelect: FC<{
   return (
     <Select
       name={name}
-      label="Select Forum"
+      label={t('whop_select_forum', 'Select Forum')}
       onChange={onChangeInner}
       value={currentExperience}
     >

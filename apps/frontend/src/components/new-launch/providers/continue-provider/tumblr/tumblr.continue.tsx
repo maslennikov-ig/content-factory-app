@@ -37,7 +37,7 @@ export const TumblrContinue = withContinueProvider<
       text: 'Please ensure your Tumblr account has a blog you can post to.',
     },
     {
-      key: 'tumblr_try_again',
+      key: 'integration_close_delete_try_again',
       text: 'Please close this dialog, delete the integration and try again.',
     },
   ],

@@ -379,6 +379,20 @@ export class UsersRepository {
     });
   }
 
+  /**
+   * The language an address reads email in, for mail that only knows the
+   * address — the digest and streak workflows. Matched on the account's
+   * email column, whichever sign-in method created it; `null` when no
+   * account has that address.
+   */
+  async getLanguageByEmail(email: string) {
+    const user = await this._user.model.user.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      select: { language: true },
+    });
+    return user?.language ?? null;
+  }
+
   async getUserByEmail(email: string) {
     const normalizedEmail = normalizeIdentityIdentifier(Provider.LOCAL, email);
     const identity = await this._user.model.userIdentity.findUnique({

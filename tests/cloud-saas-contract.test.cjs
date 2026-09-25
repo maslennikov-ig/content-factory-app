@@ -553,6 +553,15 @@ const LOCALE_CLAIM_ALLOWLIST = new Map(
       'ru/start_7_days_free_trial',
       'Начать 7-дневную бесплатную пробную версию',
     ],
+    // The upstream trial dialog in `layout.context.tsx`, which rendered English
+    // literals on every screen until 25.09.2026; its words were not changed,
+    // only given a key and a Russian reading.
+    [
+      'ru/trial_finish_required',
+      'Сейчас у вас пробный период. Чтобы воспользоваться этой функцией, завершите его',
+    ],
+    ['ru/trial_finish_charge_now', 'Завершить пробный период и оплатить сейчас'],
+    ['ru/trial_title', 'Пробный период'],
   ].map(([key, text]) => [key, new Set([text])])
 );
 

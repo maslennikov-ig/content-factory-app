@@ -9,6 +9,7 @@ import { useStateCallback } from '@contentfactory/react/helpers/use.state.callba
 import { timer } from '@contentfactory/helpers/utils/timer';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
 import { PlatformSymbol } from '@contentfactory/react/platform/platform.symbol';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 /**
  * Всё, что знает помощник о выборе каналов. Отдельным компонентом, потому что
  * его крючки живут только под провайдером помощника: без провайдера они бросают
@@ -58,6 +59,7 @@ export const PickPlatforms: FC<{
   toolTip?: boolean;
 }> = (props) => {
   const { hide, isMain, integrations, selectedIntegrations, onChange } = props;
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [isLeft, setIsLeft] = useState(false);
   const [isRight, setIsRight] = useState(false);
@@ -134,7 +136,11 @@ export const PickPlatforms: FC<{
         if (
           !props.singleSelect &&
           !(await deleteDialog(
-            'Are you sure you want to remove this platform?'
+            t(
+              'are_you_sure_you_want_to_remove_this_platform',
+              'Are you sure you want to remove this platform?'
+            ),
+            t('yes_remove', 'Yes, remove')
           ))
         ) {
           return;

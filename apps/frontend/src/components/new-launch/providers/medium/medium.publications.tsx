@@ -43,7 +43,7 @@ export const MediumPublications: FC<{
   return (
     <Select
       name={name}
-      label="Select publication"
+      label={t('label_select_publication', 'Select publication')}
       onChange={onChangeInner}
       value={currentMedia}
     >

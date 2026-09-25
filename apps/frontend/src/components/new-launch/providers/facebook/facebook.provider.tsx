@@ -20,10 +20,12 @@ import { useEffect } from 'react';
 const postType = [
   {
     value: 'post',
+    labelKey: 'post',
     label: 'Post',
   },
   {
     value: 'story',
+    labelKey: 'post_type_story',
     label: 'Story',
   },
 ];
@@ -52,7 +54,7 @@ export const FacebookSettings = () => {
     <>
       <div className="pt-[20px]">
         <Select
-          label="Post Type"
+          label={t('label_post_type', 'Post Type')}
           {...register('post_type', {
             value: 'post',
           })}
@@ -62,7 +64,7 @@ export const FacebookSettings = () => {
           </option>
           {postType.map((item) => (
             <option key={item.value} value={item.value}>
-              {item.label}
+              {t(item.labelKey, item.label)}
             </option>
           ))}
         </Select>
@@ -70,7 +72,10 @@ export const FacebookSettings = () => {
 
       {postCurrentType !== 'story' && (
         <Input
-          label={'Embedded URL (only for text Post)'}
+          label={t(
+            'facebook_embedded_url',
+            'Embedded URL (only for text Post)'
+          )}
           {...register('url')}
         />
       )}
@@ -78,7 +83,10 @@ export const FacebookSettings = () => {
       {presetAvailable && (
         <>
           <Select
-            label="Background (applies to text-only posts shorter than 130 characters)"
+            label={t(
+              'facebook_background_label',
+              'Background (applies to text-only posts shorter than 130 characters)'
+            )}
             hideErrors
             {...register('text_format_preset_id')}
             style={

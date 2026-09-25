@@ -125,7 +125,7 @@ export const LinkedinCompany: FC<{
       onSelect(options.value);
       onClose();
     } catch (e) {
-      toast.show('Failed to load profile', 'warning');
+      toast.show(t('failed_to_load_profile', 'Failed to load profile'), 'warning');
     }
   };
   return (
@@ -133,7 +133,7 @@ export const LinkedinCompany: FC<{
       <div className="flex flex-col w-[500px] h-[250px] bg-sixth border-tableBorder border-2 rounded-xl pb-[20px] px-[20px] relative">
         <div className="flex">
           <div className="flex-1">
-            <TopTitle title={'Select Company'} />
+            <TopTitle title={t('top_title_select_company', 'Select Company')} />
           </div>
           <Button
             iconOnly

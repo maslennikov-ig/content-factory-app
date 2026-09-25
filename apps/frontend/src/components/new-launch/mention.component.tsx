@@ -4,6 +4,7 @@ import React, { FC, useEffect, useImperativeHandle, useState } from 'react';
 import { computePosition, flip, shift } from '@floating-ui/dom';
 import { posToDOMRect, ReactRenderer } from '@tiptap/react';
 import { Listbox, ListboxOption } from '@contentfactory/react/choice/listbox';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 // Debounce utility for TipTap
 const debounce = <T extends any[]>(
@@ -28,6 +29,7 @@ const debounce = <T extends any[]>(
 };
 
 const MentionList: FC = (props: any) => {
+  const t = useT();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectItem = (index: number) => {
@@ -83,17 +85,22 @@ const MentionList: FC = (props: any) => {
     <div className="dropdown-menu bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto p-2">
       {props?.items?.none ? (
         <div className="flex items-center justify-center p-2 text-gray-500">
-          We don't have autocomplete for this social media
+          {t(
+            'mention_autocomplete_unavailable',
+            "We don't have autocomplete for this social media"
+          )}
         </div>
       ) : props?.loading ? (
         <div className="flex items-center justify-center p-2 text-gray-500">
-          Loading...
+          {t('loading', 'Loading')}...
         </div>
       ) : props?.items ? (
         props.items.length === 0 ? (
-          <div className="p-2 text-gray-500 text-center">No results found</div>
+          <div className="p-2 text-gray-500 text-center">
+            {t('no_results_found', 'No results found')}
+          </div>
         ) : (
-          <Listbox activeIndex={selectedIndex} aria-label="Mentions">
+          <Listbox activeIndex={selectedIndex} aria-label={t('mentions', 'Mentions')}>
             {props?.items?.map((item: any, index: any) => (
               <ListboxOption
                 index={index}
@@ -115,7 +122,9 @@ const MentionList: FC = (props: any) => {
           </Listbox>
         )
       ) : (
-        <div className="p-2 text-gray-500 text-center">Loading...</div>
+        <div className="p-2 text-gray-500 text-center">
+          {t('loading', 'Loading')}...
+        </div>
       )}
     </div>
   );

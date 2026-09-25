@@ -6,6 +6,7 @@ import { Input } from '@contentfactory/react/form/input';
 import { useDebouncedCallback } from 'use-debounce';
 import { useWatch } from 'react-hook-form';
 import { useSettings } from '@contentfactory/frontend/components/launches/helpers/use.values';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 export const Subreddit: FC<{
   onChange: (event: {
     target: {
@@ -24,6 +25,7 @@ export const Subreddit: FC<{
   name: string;
 }> = (props) => {
   const { onChange, name } = props;
+  const t = useT();
   const state = useSettings();
   const split = name.split('.');
   const [loading, setLoading] = useState(false);
@@ -113,9 +115,9 @@ export const Subreddit: FC<{
       ) : (
         <div className="relative">
           <Input
-            placeholder="Channel"
+            placeholder={t('label_channel', 'Channel')}
             name="search"
-            label="Search Channel"
+            label={t('label_search_channel', 'Search Channel')}
             readOnly={loading}
             value={searchValue}
             error={errors?.message}

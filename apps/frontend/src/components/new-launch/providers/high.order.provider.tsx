@@ -11,6 +11,7 @@ import React, {
 import { useForm, FormProvider } from 'react-hook-form';
 import { IsOptional } from 'class-validator';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { translateResolver } from '@contentfactory/frontend/components/new-launch/validation-message.text';
 import { useLaunchStore } from '@contentfactory/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { GeneralPreviewComponent } from '@contentfactory/frontend/components/launches/general.preview.component';
@@ -170,7 +171,9 @@ export const withProvider = function <T extends object>(params: {
     }, [internal, global, isGlobal]);
 
     const form = useForm({
-      resolver: classValidatorResolver(dto || Empty),
+      // Field messages come from the same DTOs the server checks; read them
+      // in the interface language.
+      resolver: translateResolver(classValidatorResolver(dto || Empty), t),
       ...(Object.keys(selectedIntegration.settings).length > 0
         ? { values: { ...selectedIntegration.settings } }
         : {}),

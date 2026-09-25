@@ -680,8 +680,32 @@ const AddTeamMemberModal: FC<{ close: () => void }> = ({ close }) => {
           body: JSON.stringify(values),
         });
         if (!response.ok) {
+          // The server answers in English; the known refusals are named in
+          // the interface language and anything else gets the general one.
+          const { message } = await response
+            .json()
+            .catch(() => ({ message: undefined }));
+          const known: Record<string, string> = {
+            'The organization plan does not include team members': t(
+              'admin_add_member_plan_has_no_team',
+              'The workspace plan does not include team members'
+            ),
+            'No Content Factory account found for this email': t(
+              'admin_add_member_no_account',
+              'No Content Factory account found for this email'
+            ),
+            'Multiple accounts exist for this email (different login providers)':
+              t(
+                'admin_add_member_multiple_accounts',
+                'Multiple accounts exist for this email (different login providers)'
+              ),
+            'User is already a member of this organization': t(
+              'admin_add_member_already_member',
+              'This person is already a member of the workspace'
+            ),
+          };
           toast.show(
-            (await response.json()).message ||
+            (typeof message === 'string' && known[message]) ||
               t('could_not_add_member', 'Could not add the member'),
             'warning'
           );

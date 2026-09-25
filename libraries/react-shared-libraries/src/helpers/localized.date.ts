@@ -66,3 +66,12 @@ export const formatLocalizedDate = (
   const parsed = dayjs(value);
   return parsed.isValid() ? parsed.locale(dayjsLocale(locale)).format('L') : '';
 };
+
+/**
+ * A dayjs value that speaks the interface language, for the formats the two
+ * helpers above do not cover — `fromNow()` and a spelled-out month. The global
+ * dayjs locale is only set while the calendar is mounted, so relying on it
+ * printed «2 hours ago» and «Sep 25» on a Russian screen everywhere else.
+ */
+export const interfaceDayjs = (value: string | number | Date) =>
+  dayjs(value).locale(dayjsLocale());

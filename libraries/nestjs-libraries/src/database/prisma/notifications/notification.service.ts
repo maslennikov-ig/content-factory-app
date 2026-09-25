@@ -5,6 +5,11 @@ import { OrganizationRepository } from '@contentfactory/nestjs-libraries/databas
 import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
 import { organizationId } from '@contentfactory/nestjs-libraries/temporal/temporal.search.attribute';
+import { resolveBackendLocale } from '@contentfactory/nestjs-libraries/locale/backend-strings';
+import {
+  translateNotificationBody,
+  translateNotificationSubject,
+} from '@contentfactory/nestjs-libraries/locale/notification-email-text';
 
 export type NotificationType = 'success' | 'fail' | 'info';
 
@@ -103,7 +108,16 @@ export class NotificationService {
           continue;
         }
       }
-      await this.sendEmail(user.user.email, subject, message);
+      // The workflows write the notification in English; each member reads
+      // it in the language their account carries.
+      const locale = resolveBackendLocale(user.user.language);
+      await this.sendEmail(
+        user.user.email,
+        translateNotificationSubject(subject, locale),
+        translateNotificationBody(message, locale),
+        undefined,
+        locale
+      );
     }
   }
 

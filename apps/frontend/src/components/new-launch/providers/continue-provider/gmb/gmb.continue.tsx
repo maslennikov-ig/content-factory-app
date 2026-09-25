@@ -23,7 +23,7 @@ interface GmbSelection {
 export const GmbContinue = withContinueProvider<GmbItem, GmbSelection>({
   endpoint: 'pages',
   swrKey: 'load-gmb-locations',
-  titleKey: 'select_location',
+  titleKey: 'gmb_select_location',
   titleDefault: 'Select Business Location:',
   emptyStateMessages: [
     {
@@ -35,7 +35,7 @@ export const GmbContinue = withContinueProvider<GmbItem, GmbSelection>({
       text: 'Please ensure your business is verified on Google My Business.',
     },
     {
-      key: 'gmb_try_again',
+      key: 'integration_close_delete_try_again',
       text: 'Please close this dialog, delete the integration and try again.',
     },
   ],

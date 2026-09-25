@@ -29,6 +29,10 @@ export class UsersService {
     return this._usersRepository.getUserByEmail(email);
   }
 
+  getLanguageByEmail(email: string) {
+    return this._usersRepository.getLanguageByEmail(email);
+  }
+
   getUserById(id: string) {
     return this._usersRepository.getUserById(id);
   }

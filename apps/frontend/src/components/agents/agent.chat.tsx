@@ -371,6 +371,7 @@ const OpenModal: FC<{
     }[];
   };
 }> = ({ args, respond }) => {
+  const t = useT();
   const modals = useModals();
   const { properties } = useContext(PropertiesContext);
   const startModal = useCallback(async () => {
@@ -450,7 +451,7 @@ const OpenModal: FC<{
   }, []);
   return (
     <div onClick={() => respond('continue')}>
-      Opening manually ${JSON.stringify(args)}
+      {t('agent_opening_posts_manually', 'Opening the posts in the editor…')}
     </div>
   );
 };

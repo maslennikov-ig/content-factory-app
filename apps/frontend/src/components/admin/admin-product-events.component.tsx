@@ -57,9 +57,9 @@ const dateDaysAgo = (days: number) => {
 const today = () => new Date().toISOString().slice(0, 10);
 
 const PERIODS = [
-  { value: '7', label: 'Last 7 days', days: 6 },
-  { value: '30', label: 'Last 30 days', days: 29 },
-  { value: '90', label: 'Last 90 days', days: 89 },
+  { value: '7', defaultLabel: 'Last 7 days', days: 6 },
+  { value: '30', defaultLabel: 'Last 30 days', days: 29 },
+  { value: '90', defaultLabel: 'Last 90 days', days: 89 },
 ] as const;
 
 /**
@@ -263,7 +263,7 @@ export const AdminProductEventsComponent: FC = () => {
                   : 'border-cf-border-control bg-cf-surface text-cf-ink hover:bg-cf-surface-subtle'
               }`}
             >
-              {t(`product_events_period_${entry.value}`, entry.label)}
+              {t(`product_events_period_${entry.value}`, entry.defaultLabel)}
             </RadioOption>
           );
         })}

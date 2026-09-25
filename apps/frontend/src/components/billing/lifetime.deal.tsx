@@ -38,7 +38,7 @@ export const LifetimeDeal = () => {
     ).json();
     if (success) {
       mutate('/user/self');
-      toast.show('Successfully claimed the code');
+      toast.show(t('lifetime_code_claimed', 'Successfully claimed the code'));
       try {
         const deduplicationKey = await productEventKeyFromIdentifier(
           'lifetime',
@@ -49,10 +49,13 @@ export const LifetimeDeal = () => {
         // The confirmed billing result remains successful if telemetry is unavailable.
       }
     } else {
-      toast.show('Code already claimed or invalid code', 'warning');
+      toast.show(
+        t('lifetime_code_invalid', 'Code already claimed or invalid code'),
+        'warning'
+      );
     }
     setCode('');
-  }, [code, fireEvents, mutate, toast]);
+  }, [code, fireEvents, mutate, toast, t]);
   const nextPackage = useMemo(() => {
     if (user?.tier?.current === 'STANDARD') {
       return 'PRO';
@@ -187,7 +190,7 @@ export const LifetimeDeal = () => {
             <Input
               label="Code"
               translationKey="label_code"
-              placeholder="Enter your code"
+              placeholder={t('billing_enter_your_code', 'Enter your code')}
               disableForm={true}
               name="code"
               value={code}

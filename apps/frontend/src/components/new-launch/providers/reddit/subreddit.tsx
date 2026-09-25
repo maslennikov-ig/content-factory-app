@@ -239,7 +239,7 @@ export const Subreddit: FC<{
           <Input
             placeholder="/r/selfhosted"
             name="search"
-            label="Search Subreddit"
+            label={t('label_search_subreddit', 'Search Subreddit')}
             readOnly={loading}
             value={searchValue}
             error={errors?.message}

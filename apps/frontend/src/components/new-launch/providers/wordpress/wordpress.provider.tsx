@@ -12,32 +12,37 @@ import { WordpressPostType } from '@contentfactory/frontend/components/new-launc
 import { WordpressTerms } from '@contentfactory/frontend/components/new-launch/providers/wordpress/wordpress.terms';
 import { MediaComponent } from '@contentfactory/frontend/components/media/media.component';
 import { WordpressDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-settings/wordpress.dto';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 const WordpressSettings: FC = () => {
   const form = useSettings();
+  const t = useT();
   return (
     <>
-      <Input label="Title" {...form.register('title')} />
+      <Input label={t('label_title', 'Title')} {...form.register('title')} />
       <WordpressPostType {...form.register('type')} />
-      <Select label="Status" {...form.register('status', { value: 'publish' })}>
-        <option value="publish">Publish</option>
-        <option value="draft">Draft</option>
-        <option value="pending">Pending</option>
-        <option value="private">Private</option>
+      <Select
+        label={t('wordpress_status', 'Status')}
+        {...form.register('status', { value: 'publish' })}
+      >
+        <option value="publish">{t('wordpress_status_publish', 'Publish')}</option>
+        <option value="draft">{t('draft', 'Draft')}</option>
+        <option value="pending">{t('wordpress_status_pending', 'Pending')}</option>
+        <option value="private">{t('wordpress_status_private', 'Private')}</option>
       </Select>
       <WordpressTerms
-        label="Categories"
+        label={t('wordpress_categories', 'Categories')}
         func="categoriesList"
         {...form.register('categories')}
       />
       <WordpressTerms
-        label="WordPress Tags"
+        label={t('wordpress_tags', 'WordPress Tags')}
         func="tagsList"
         {...form.register('tags')}
       />
       <MediaComponent
-        label="Cover picture"
-        description="Add a cover picture"
+        label={t('label_cover_picture', 'Cover picture')}
+        description={t('add_a_cover_picture', 'Add a cover picture')}
         {...form.register('main_image')}
       />
     </>

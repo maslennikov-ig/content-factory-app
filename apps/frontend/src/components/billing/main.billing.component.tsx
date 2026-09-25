@@ -22,7 +22,7 @@ import { Textarea } from '@contentfactory/react/form/textarea';
 import { useUtmUrl } from '@contentfactory/helpers/utils/utm.saver';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { FinishTrial } from '@contentfactory/frontend/components/billing/finish.trial';
-import { newDayjs } from '@contentfactory/frontend/components/layout/set.timezone';
+import { interfaceDayjs } from '@contentfactory/react/helpers/localized.date';
 import { LogoutComponent } from '@contentfactory/frontend/components/layout/logout.component';
 import i18next from 'i18next';
 import { BillingManageView } from './billing-manage.view';
@@ -302,7 +302,9 @@ export const MainBillingComponent: FC<{
             cancelAt: cancel_at,
           }));
 
-          toast.show('Subscription reactivated successfully');
+          toast.show(
+            t('subscription_reactivated', 'Subscription reactivated successfully')
+          );
           setLoading(false);
           return;
         }
@@ -313,17 +315,27 @@ export const MainBillingComponent: FC<{
           pricing[subscription?.subscriptionTier!]?.team_members
         ) {
           messages.push(
-            `Your team members will be removed from your organization`
+            t(
+              'billing_team_members_will_be_removed',
+              'Your team members will be removed from your workspace'
+            )
           );
         }
         if (billing === 'FREE') {
           if (
             subscription?.cancelAt ||
             (await deleteDialog(
-              `Are you sure you want to cancel your subscription?
-              ${messages.join(', ')}`,
-              'Yes, cancel',
-              'Cancel Subscription'
+              [
+                t(
+                  'billing_cancel_subscription_confirm',
+                  'Are you sure you want to cancel your subscription?'
+                ),
+                messages.join(', '),
+              ]
+                .filter(Boolean)
+                .join(' '),
+              t('yes_cancel_subscription', 'Yes, cancel subscription'),
+              t('cancel_subscription', 'Cancel Subscription')
             ))
           ) {
             const checkDiscount = await (
@@ -379,14 +391,22 @@ export const MainBillingComponent: FC<{
               cancelAt: cancel_at,
             }));
             if (cancel_at)
-              toast.show('Subscription set to canceled successfully');
+              toast.show(
+                t(
+                  'billing_subscription_set_to_canceled',
+                  'Subscription set to canceled successfully'
+                )
+              );
             setLoading(false);
           }
           return;
         }
         if (
           messages.length &&
-          !(await deleteDialog(messages.join(', '), 'Yes, continue'))
+          !(await deleteDialog(
+            messages.join(', '),
+            t('billing_yes_continue', 'Yes, continue')
+          ))
         ) {
           return;
         }
@@ -420,9 +440,12 @@ export const MainBillingComponent: FC<{
         if (portal) {
           if (
             await deleteDialog(
-              'We could not charge your credit card, please update your payment method',
-              'Update',
-              'Payment Method Required'
+              t(
+                'billing_payment_method_update_required',
+                'We could not charge your credit card, please update your payment method'
+              ),
+              t('update', 'Update'),
+              t('billing_payment_method_required', 'Payment Method Required')
             )
           ) {
             window.open(portal);
@@ -444,11 +467,13 @@ export const MainBillingComponent: FC<{
               revalidate: false,
             }
           );
-          toast.show('Subscription updated successfully');
+          toast.show(
+            t('subscription_updated', 'Subscription updated successfully')
+          );
         }
         setLoading(false);
       },
-    [monthlyOrYearly, subscription, user, utm]
+    [monthlyOrYearly, subscription, user, utm, t]
   );
   if (user?.isLifetime) {
     router.replace('/');
@@ -480,9 +505,7 @@ export const MainBillingComponent: FC<{
             ? `${t(
                 'your_subscription_will_be_canceled_at',
                 'Your subscription will be canceled at'
-              )} ${newDayjs(subscription.cancelAt)
-                .local()
-                .format('D MMM, YYYY')}`
+              )} ${interfaceDayjs(subscription.cancelAt).format('LL')}`
             : undefined
         }
         controls={

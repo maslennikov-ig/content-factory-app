@@ -547,8 +547,13 @@ export function PieceContainer({
         if (sawAdaptation) void detail.mutate();
       } catch (error) {
         if ((error as { name?: string } | null)?.name === 'AbortError') return;
+        // The contract error carries English for logs; the person reads
+        // words chosen by its code in their own language.
         setFailure(
-          error instanceof PieceContractError ? error.message : w.errorBody
+          error instanceof PieceContractError &&
+            error.code === 'PIECE_STREAM_INVALID'
+            ? w.adaptStreamIncomplete
+            : w.errorBody
         );
       } finally {
         setBusy(false);

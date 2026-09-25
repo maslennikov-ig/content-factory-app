@@ -16,10 +16,15 @@ const ConnectedComponent: FC<{
 }> = (props) => {
   const { id, login, deleteRepository } = props;
   const fetch = useFetch();
+  const t = useT();
   const disconnect = useCallback(async () => {
     if (
       !(await deleteDialog(
-        'Are you sure you want to disconnect this repository?'
+        t(
+          'github_disconnect_repository_confirm',
+          'Are you sure you want to disconnect this repository?'
+        ),
+        t('disconnect', 'Disconnect')
       ))
     ) {
       return;
@@ -28,9 +33,7 @@ const ConnectedComponent: FC<{
     await fetch(`/settings/repository/${id}`, {
       method: 'DELETE',
     });
-  }, []);
-
-  const t = useT();
+  }, [t]);
 
   return (
     <Panel as="div" contentPadding="roomy" className="my-[16px] min-h-[90px]">
@@ -65,6 +68,7 @@ const ConnectComponent: FC<{
   const [url, setUrl] = useState('');
   const fetch = useFetch();
   const toast = useToaster();
+  const t = useT();
   const cancelConnection = useCallback(async () => {
     await (
       await fetch(`/settings/repository/${id}`, {
@@ -84,13 +88,11 @@ const ConnectComponent: FC<{
       }),
     });
     if (response.status === 404) {
-      toast.show('Repository not found', 'warning');
+      toast.show(t('github_repository_not_found', 'Repository not found'), 'warning');
       return;
     }
     setConnected(`${select}/${repo}`);
-  }, [url]);
-
-  const t = useT();
+  }, [url, t]);
 
   return (
     <div className="my-[16px] flex min-h-[100px] rounded-[8px] border border-cf-border bg-cf-surface px-[24px]">

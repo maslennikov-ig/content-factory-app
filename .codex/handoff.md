@@ -5,6 +5,7 @@ Selected Beads goal: `content-factory-next-97dq`
 Next stage id: `content-factory-next-97dq` sixteenth walk — page `evidence/walk-2026-09-25-sixteenth/` on `088b70fa156e`; Claude reads it on «отправил».
 Recommended action: owner walks the sixteenth page https://claude.ai/code/artifact/f95c0b89-60d3-4f38-be22-81c236eb4039 (release `088b70fa156e`); B1–B4 retest the post panel blocked in the fifteenth walk; B3 asks the owner to pick long vs short armed «Удалить» label. Test group stays on autopilot by owner decision (24.09). Next waves by agreed order: host memory/disk (71m, hf97), then search quality (ec48.6/.7, fn33.132, 75xn.33/.34), then 75xn.9, m0iy.10 gate.
 **OWNER AUTHORITY 23.09.2026 ~19:05Z (root session, owner's own words after sending the thirteenth walk):** «Я пойду спать. К утру, пожалуйста, все сразу реализуй и задеплой.» Covers implementing 97dq.70–.75 (+ .52) and releasing them to production by the runbook with rollback to `b967a380d156`; no schema, secrets, paid smoke calls or live publishing. Spec `docs/product/thirteenth-walk-wave-2026-09-24-spec.md`.
+**RELEASED 25.09.2026 (97dq.96 only: the post opens with the author's claim, not the objection): `d305a7126e51`, rollback `d36c77c31512`.** Private branch `release/2026-09-25-third` = `a2a050103` + cherry-picks of `35ab562df`/`f707e9ff2`; `e395d0aee` (hnov translations, other session) deliberately NOT released and stays only on `wave/walk-2026-09-18`. Public `d305a71` (one trailer block); digest `sha256:417d3bda…9f51ee4a`; Jest 514/7484, Node 126/0, Python 46 OK; four tsc clean; schema diff empty, env unchanged; backup `20260925T101920Z-pre-author-claim-97dq96-product-only` (719); commands `--help` 0; nginx OK; healthy, 0 restarts; four addresses 200; archive byte-equal `35f43a07…`; «Never open with an objection» in running backend; public CI green; retention kept `d305a7126e51` + `d36c77c31512`. Evidence `evidence/release-2026-09-25-third.json`.
 **RELEASED 25.09.2026 (wave 97dq.96 emoji density in words + anti-repeat line, 97dq.97 English prompts core-write/v14): `d36c77c31512`, rollback `723f47fe8a72`.** Private `3eb5f4be87b3` pushed; public `d36c77c` (one trailer block); digest `sha256:003067bd…99275ebdaa`; Jest 514/7484, Node 126/0, Python 46 OK (first run, detached worktree); four tsc clean; schema diff empty, env unchanged; backup `20260925T090917Z-pre-emoji-words-97dq96-product-only` (719); commands `--help` 0; nginx OK; healthy, 0 restarts; four addresses 200; archive byte-equal `aac824b1…`; v14, emojiRangeFor and slider words in running bundle; public CI green; retention kept `d36c77c31512` + `723f47fe8a72`, disk 12G. No AI smoke (unpaid). Evidence `evidence/release-2026-09-25-second.json`.
 **RELEASED 25.09.2026 (hotfix 97dq.95: chat models never stream; own-key ceilings get reasoning headroom): `723f47fe8a72`, rollback `088b70fa156e`.** Private `2dca9549bbfe` pushed; public `723f47f` (one trailer block); digest `sha256:42583761…d2019c192`; Jest 513/7462, Node 126/0, Python OK (first run); schema diff empty, env unchanged; backup `20260925T062625Z-pre-hotfix-97dq95-product-only` (719); commands `--help` 0; nginx OK; healthy, 0 restarts; four addresses 200; archive byte-equal `a4c568c9…`; fix in running bundle; public CI green; disk 12G. No AI smoke (unpaid). Evidence `evidence/release-2026-09-25.json`.
 **RELEASED 24.09.2026 (fifteenth-walk wave 97dq.86–.94, zg8w, tcxv, .43 p5, .76, odb8.4.1): `088b70fa156e`, rollback `0c29cd303143`.** Private `b366ddb52f36` pushed; public `c2057fd` + empty marker `088b70f` (Co-Authored-By paragraph after Source-Commit hid the trailer from the gate — keep trailers in ONE final block); digest `sha256:dab0adc6…ebecd2bf`; Jest 512/7456, Node 126/0, Python OK (run under Node 22: export PATH=$HOME/.nvm/versions/node/v22.23.2/bin:$PATH); schema: `AiUsageRecord.possiblyBilled` applied before switch (diff 1 stmt, validator, second diff empty); prod setting «Без предела» (monthlyOperations -1) by owner; backup `20260924T161251Z-pre-seventeenth-wave-product-only` (719); commands `--help` 0; nginx OK; healthy, 0 restarts, 50% memory; four addresses 200; archive byte-equal; public CI green; disk 11G. Evidence `evidence/release-2026-09-24-third.json`.
@@ -73,33 +74,8 @@ Local passwordless helper: `/home/me/.local/bin/cf-dev-login`, outside product. 
 `20260913T081144Z-pre-instance-ai-defaults-product-only`; строку на бою не заводили — ключи
 остаются в переменных и показаны как «заданы на сервере». Квитанция Jest 426/5548. Evidence:
 `stages/content-factory-next-75xn/evidence/release-2026-09-13-superadmin.json`.
-**Поправка по прогону (`75xn.10`–`.15`) — RELEASED `616fe17a2380` 13.09.2026.** Приватный
-`cd9623f0`, откат `6fa6c34c6386`, схема не менялась. P1, найденный записью владельца:
-запасной ход читал старую колонку `searchApiKey` как ключ движка из ИЗМЕНЯЕМОГО
-`searchProvider` — ключ Tavily мог уехать на `api.exa.ai`; колонка не читается, данные
-перенесены. Владелец отменил отступление первой волны: движок под задачу выбирается сам,
-селекторы убраны; откат — любой движок с поисковым ключом, но НЕ OpenRouter (тратит ключ
-генерации). Экран: карточка как у соседей, поля ключей только в режиме «Свой ключ»,
-автосохранение всего кроме ключа, объяснения в `Hint`, шеврон и крестик на одном отступе.
-Ключи владельца перенесены в системные по его прямому разрешению. Evidence:
-`stages/content-factory-next-75xn/evidence/release-2026-09-13-correction.json`.
-**Эпик «Поиск» (`75xn`) — RELEASED `6fa6c34c6386` 13.09.2026.** Приватный `67914bc7`,
-откат `17088939db40`. Ключ поиска на каждый движок (`AiProviderSetting.searchApiKeys`);
-правило «смена сервера стирает ключ» снято. Движок выбирается на задачу
-(`ai.search-tasks.ts` близнецом `ai.roles.ts`), задача выводится из явного уровня — того
-же признака, на котором стоит квота, — кроме проверки фактов, которая называет её прямо.
-Порт получил `windowDays`: Tavily `time_range`, Exa `startPublishedDate` плюс `category` и
-`userLocation`. «Откуда идеи» получила род `TOPIC`: проверка поиском за 30 дней, свой
-выключатель `LEAD_TOPIC_CHECK_ENABLED`. Схема: три nullable-колонки точечным psql, копия
-`20260913T053556Z-pre-searchkeys-product-only`. Evidence:
-`stages/content-factory-next-75xn/evidence/release-2026-09-13.json`.
-**Волна «разбор открытого» (`zhv8`) — RELEASED `17088939db40` 11.09.2026.** Приватный
-`eb5eb2fd`, откат `92f0b95dfe3f`, схема не менялась. Закрыты `m0iy.8` (лан Wikipedia/Wikidata
-без ключа при явном уровне, 8 с, никогда не роняет ответ) и `m0iy.9` (квота в Redis
-`research:quota:{org}:{level}:{YYYY-MM}`, 40 дней, при отказе Redis — счётчик процесса).
-ЛОВУШКА: импорт `redis.service` на уровне модуля библиотечной службы открывает сокет при
-загрузке и держит процесс node:test живым; клиент отдавать через токен `RESEARCH_QUOTA_STORE`.
-Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
+**13.09: RELEASED `616fe17a2380` (поправка по прогону `75xn.10`–`.15`, откат `6fa6c34c6386`; старая колонка `searchApiKey` не читается, откат поиска — любой движок с ключом, но НЕ OpenRouter) и `6fa6c34c6386` (эпик «Поиск» `75xn`, откат `17088939db40`; ключ поиска на каждый движок, движок выбирается на задачу; три колонки точечным psql, копия `20260913T053556Z-pre-searchkeys-product-only`).** Evidence: `stages/content-factory-next-75xn/evidence/release-2026-09-13{,-correction}.json`.
+**11.09: `zhv8` RELEASED `17088939db40`** (откат `92f0b95dfe3f`; `m0iy.8` Wikipedia/Wikidata без ключа, `m0iy.9` квота в Redis). ЛОВУШКА: импорт `redis.service` на уровне модуля держит процесс node:test живым; клиент отдавать через токен `RESEARCH_QUOTA_STORE`. Evidence: `stages/content-factory-next-zhv8/evidence/release-2026-09-11.json`.
 За владельцем: `m0iy.10` замер пользы (до 25.09), `or3.9` тариф.
 **11.09: `6xi0` RELEASED `92f0b95dfe3f`** (потолки Tavily/OpenRouter 20, Exa 100, deep 50 по
 25 запросам); **хвост ревью RELEASED `aaaf00afe664`** (квота только при явном уровне;

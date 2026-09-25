@@ -5,6 +5,7 @@ import { useVideo } from '@contentfactory/frontend/components/videos/video.conte
 import { Textarea } from '@contentfactory/react/form/textarea';
 import { MultiMediaComponent } from '@contentfactory/frontend/components/media/media.component';
 import { hasExtension } from '@contentfactory/helpers/utils/has.extension';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 export interface Voice {
   id: string;
@@ -13,6 +14,7 @@ export interface Voice {
 }
 
 const VEO3Settings: FC = () => {
+  const t = useT();
   const { register, watch, setValue, formState } = useFormContext();
   const { value } = useVideo();
 
@@ -25,7 +27,7 @@ const VEO3Settings: FC = () => {
   return (
     <div>
       <Textarea
-        label="Prompt"
+        label={t('prompt', 'Prompt')}
         name="prompt"
         {...register('prompt', {
           required: true,
@@ -34,14 +36,16 @@ const VEO3Settings: FC = () => {
         })}
         error={formState?.errors?.prompt?.message}
       />
-      <div className="mb-[6px]">Images (max 3)</div>
+      <div className="mb-[6px]">
+        {t('veo3_images_max_3', 'Images (max 3)')}
+      </div>
       <MultiMediaComponent
         allData={[]}
         dummy={true}
-        text="Images"
-        description="Images"
+        text={t('ai_role_image', 'Images')}
+        description={t('ai_role_image', 'Images')}
         name="images"
-        label="Media"
+        label={t('label_media', 'Media')}
         value={mediaValue}
         onChange={(val) =>
           setValue(

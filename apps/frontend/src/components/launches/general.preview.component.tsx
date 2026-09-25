@@ -68,7 +68,7 @@ export const GeneralPreviewComponent: FC<{
                 <div className="text-[15px] text-customColor26 mt-[1px] ms-[2px]">
                   <svg
                     viewBox="0 0 22 22"
-                    aria-label="Verified account"
+                    aria-label={t('verified_account', 'Verified account')}
                     role="img"
                     className="max-w-[20px] max-h-[20px] fill-current h-[1.25em]"
                     data-testid="icon-verified"

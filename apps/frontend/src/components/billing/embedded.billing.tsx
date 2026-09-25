@@ -13,7 +13,7 @@ import { modeEmitter } from '@contentfactory/frontend/components/layout/mode.com
 import useCookie from 'react-use-cookie';
 import { Button } from '@contentfactory/react/form/button';
 import { Input } from '@contentfactory/react/form/input';
-import dayjs from 'dayjs';
+import { interfaceDayjs } from '@contentfactory/react/helpers/localized.date';
 import { useToaster } from '@contentfactory/react/toaster/toaster';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
@@ -212,7 +212,7 @@ const PriceBreakdown: FC = () => {
   const dueToday = checkout?.total?.total?.amount || '$0.00';
   const nextBillingTotal = recurring?.dueNext?.total?.amount;
   const nextBillingDate = recurring?.trial?.trialEnd
-    ? dayjs(recurring.trial.trialEnd * 1000).format('MMMM D, YYYY')
+    ? interfaceDayjs(recurring.trial.trialEnd * 1000).format('LL')
     : null;
   const billingInterval =
     recurring?.interval === 'month'
@@ -361,11 +361,11 @@ const AppliedCouponDisplay: FC<{
 
     if (expiresAt && typeof expiresAt === 'number') {
       const date = new Date(expiresAt * 1000);
-      return dayjs(date).format('MMMM D, YYYY');
+      return interfaceDayjs(date).format('LL');
     }
 
     if (expiresAt && typeof expiresAt === 'string') {
-      return dayjs(expiresAt).format('MMMM D, YYYY');
+      return interfaceDayjs(expiresAt).format('LL');
     }
 
     return null;
@@ -623,9 +623,9 @@ const SubmitBar: FC<{ loading: boolean }> = ({ loading }) => {
             {t('billing_ending', 'ending')}{' '}
             <br className="hidden mobile:block" />
             <span className="text-textColor font-[600]">
-              {dayjs(
+              {interfaceDayjs(
                 checkout.checkout.recurring?.trial?.trialEnd * 1000
-              ).format('MMMM D, YYYY')}{' '}
+              ).format('LL')}{' '}
               —{' '}
             </span>
             <span className="text-textColor font-[600]">

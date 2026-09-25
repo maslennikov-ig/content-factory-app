@@ -244,7 +244,7 @@ const AddOrRemoveSignature: FC<{
           </div>
 
           <Select
-            label="Auto add signature?"
+            label={t('label_auto_add_signature', 'Auto add signature?')}
             translationKey="label_auto_add_signature"
             {...form.register('autoAdd', {
               setValueAs: (value) => value === 'true',

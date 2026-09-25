@@ -82,7 +82,7 @@ export const BotPicture: FC<{
             <div className="flex items-center gap-[20px]">
               <img
                 src={picture}
-                alt="Bot Picture"
+                alt={t('bot_picture_alt', 'Bot picture')}
                 className="w-[100px] h-[100px] rounded-full"
               />
               <Button type="button" onClick={openMedia}>

@@ -71,6 +71,7 @@ import { composeCopy } from '@contentfactory/frontend/components/new-launch/comp
 import { useUser } from '@contentfactory/frontend/components/layout/user.context';
 import { isOrganizationEditor } from '@contentfactory/nestjs-libraries/user/organization.roles';
 import { PlatformBadge } from '@contentfactory/react/platform/platform.badge';
+import { translateValidationMessage } from '@contentfactory/frontend/components/new-launch/validation-message.text';
 
 
 /**
@@ -627,9 +628,11 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   {
                     platform: capitalize(item.identifier.split('-')[0]),
                     name: item.name,
-                    message:
-                      item.settingsError ||
-                      t('please_fix_your_settings', 'Please fix your settings'),
+                    message: item.settingsError
+                      ? translateValidationMessage(item.settingsError, t)
+                      : t('please_fix_your_settings', 'Please fix your settings'),
+                    // A toast is text: keep `/` in the message as it is.
+                    interpolation: { escapeValue: false },
                   }
                 ),
                 'warning'
@@ -648,7 +651,9 @@ const ManageModalContent: FC<AddEditModalProps & { session: ComposeSession }> = 
                   {
                     platform: capitalize(item.identifier.split('-')[0]),
                     name: item.name,
-                    message: item.errors,
+                    message: translateValidationMessage(item.errors, t),
+                    // A toast is text: keep `/` in the message as it is.
+                    interpolation: { escapeValue: false },
                   }
                 ),
                 'warning'

@@ -10,6 +10,7 @@ import {
 } from '@contentfactory/react/choice/radio.group';
 import clsx from 'clsx';
 import { useVideo } from '@contentfactory/frontend/components/videos/video.context.wrapper';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 export interface Voices {
   voices: Voice[];
@@ -22,6 +23,7 @@ export interface Voice {
 }
 
 const VoiceSelector: FC = () => {
+  const t = useT();
   const { register, watch, setValue } = useFormContext();
   const videoFunction = useVideoFunction();
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
@@ -105,7 +107,9 @@ const VoiceSelector: FC = () => {
   if (isLoading || !data?.voices?.length) {
     return (
       <div className="flex items-center justify-center py-4">
-        <div className="text-sm text-gray-500">Loading voices...</div>
+        <div className="text-sm text-gray-500">
+          {t('video_loading_voices', 'Loading voices...')}
+        </div>
       </div>
     );
   }
@@ -113,7 +117,7 @@ const VoiceSelector: FC = () => {
   return (
     <div className="space-y-3">
       <div className="text-sm font-medium text-textColor mb-4">
-        Select a Voice
+        {t('video_select_voice', 'Select a Voice')}
       </div>
       <RadioGroup
         className="space-y-2"

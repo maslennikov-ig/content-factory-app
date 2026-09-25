@@ -14,32 +14,22 @@ import { InstagramAudioSelector } from '@contentfactory/frontend/components/new-
 import { useIntegration } from '@contentfactory/frontend/components/launches/helpers/use.integration';
 import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 import { InstagramPreview } from '@contentfactory/frontend/components/new-launch/providers/instagram/instagram.preview';
-const postType = [
-  {
-    value: 'post',
-    label: 'Post / Reel',
-  },
-  {
-    value: 'story',
-    label: 'Story',
-  },
-];
-
-const graduationStrategies = [
-  {
-    value: 'MANUAL',
-    label: 'Manual',
-  },
-  {
-    value: 'SS_PERFORMANCE',
-    label: 'Auto (based on performance)',
-  },
-];
 const InstagramCollaborators: FC<{
   values?: any;
 }> = (props) => {
   const t = useT();
   const { watch, register, formState, control } = useSettings();
+  const postType = [
+    { value: 'post', label: t('instagram_post_reel', 'Post / Reel') },
+    { value: 'story', label: t('post_type_story', 'Story') },
+  ];
+  const graduationStrategies = [
+    { value: 'MANUAL', label: t('instagram_graduation_manual', 'Manual') },
+    {
+      value: 'SS_PERFORMANCE',
+      label: t('instagram_graduation_auto', 'Auto (based on performance)'),
+    },
+  ];
   const { integration } = useIntegration();
   const postCurrentType = watch('post_type');
   const isTrialReel = watch('is_trial_reel');
@@ -48,7 +38,7 @@ const InstagramCollaborators: FC<{
   return (
     <>
       <Select
-        label="Post Type"
+        label={t('label_post_type', 'Post Type')}
         {...register('post_type', {
           value: 'post',
         })}
@@ -63,7 +53,10 @@ const InstagramCollaborators: FC<{
 
       {postCurrentType !== 'story' && (
         <InstagramCollaboratorsTags
-          label="Collaborators (max 3) - accounts can't be private"
+          label={t(
+            'label_collaborators',
+            "Collaborators (max 3) - accounts can't be private"
+          )}
           {...register('collaborators', {
             value: [],
           })}
@@ -94,7 +87,7 @@ const InstagramCollaborators: FC<{
 
           {isTrialReel && (
             <Select
-              label="Graduation Strategy"
+              label={t('instagram_graduation_strategy', 'Graduation Strategy')}
               {...register('graduation_strategy', {
                 value: 'MANUAL',
               })}

@@ -35,13 +35,13 @@ const SaveSetModal: FC<{
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
         <Input
-          label="Set Name"
+          label={t('label_set_name', 'Set Name')}
           translationKey="label_set_name"
           name="setName"
           value={name}
           disableForm={true}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Enter a name for this set"
+          placeholder={t('sets_name_placeholder', 'Enter a name for this set')}
           autoFocus
         />
       </div>

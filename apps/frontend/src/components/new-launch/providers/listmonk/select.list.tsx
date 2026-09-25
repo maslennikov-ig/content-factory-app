@@ -42,7 +42,7 @@ export const SelectList: FC<{
   return (
     <Select
       name={name}
-      label="Select List"
+      label={t('listmonk_select_list', 'Select List')}
       onChange={onChangeInner}
       value={currentMedia}
     >

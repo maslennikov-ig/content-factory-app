@@ -98,6 +98,8 @@ export const piecesCopy = {
     emptyAction: 'Новая заготовка',
     errorTitle: 'Список не загрузился',
     errorBody: 'Заготовки на месте — попробуйте ещё раз.',
+    adaptStreamIncomplete:
+      'Ответ с адаптацией пришёл не целиком — попробуйте ещё раз.',
     retry: 'Попробовать снова',
     restrictedTitle: 'Здесь только читают',
     restrictedBody:
@@ -549,6 +551,8 @@ export const piecesCopy = {
     emptyAction: 'New piece',
     errorTitle: 'The list did not load',
     errorBody: 'The pieces are intact — try again.',
+    adaptStreamIncomplete:
+      'The adaptation response arrived incomplete — try again.',
     retry: 'Try again',
     restrictedTitle: 'This is read-only here',
     restrictedBody:

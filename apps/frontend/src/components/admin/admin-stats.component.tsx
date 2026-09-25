@@ -12,6 +12,7 @@ import {
   RadioGroup,
   RadioOption,
 } from '@contentfactory/react/choice/radio.group';
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 export interface AdminStatsBlock {
   total: number;
@@ -50,6 +51,7 @@ function ProviderTable({
   title: string;
   block: AdminStatsBlock;
 }) {
+  const t = useT();
   return (
     <section
       className="overflow-hidden rounded-[8px] border border-cf-border bg-cf-surface"
@@ -57,11 +59,11 @@ function ProviderTable({
     >
       <header className="grid grid-cols-[minmax(0,1fr)_88px] gap-[12px] border-b border-cf-border bg-cf-surface-subtle px-[12px] py-[10px] cf-label-sm text-cf-ink-muted">
         <div>{title}</div>
-        <div className="text-right">Count</div>
+        <div className="text-right">{t('count', 'Count')}</div>
       </header>
       {block.perSocial.length === 0 ? (
         <div className="px-[12px] py-[16px] cf-body-sm text-cf-ink-muted">
-          No data for this timeframe.
+          {t('admin_stats_no_data', 'No data for this timeframe.')}
         </div>
       ) : (
         block.perSocial.map((row) => (
@@ -117,13 +119,14 @@ export function AdminStatsView({
   onUnknownOnlyChange: (value: boolean) => void;
   onRetry: () => void;
 }) {
+  const t = useT();
   if (!allowed) {
     return (
       <section
         data-production-surface="settings-admin/stats"
         className="rounded-[8px] border border-cf-warning bg-cf-warning-soft p-[16px] cf-body-md text-cf-warning"
       >
-        You do not have access to this page.
+        {t('no_access_to_page', 'You do not have access to this page.')}
       </section>
     );
   }
@@ -136,7 +139,7 @@ export function AdminStatsView({
     >
       <PageHeader
         headingLevel={1}
-        title="Admin statistics"
+        title={t('admin_stats_title', 'Admin statistics')}
         actions={
           data ? (
             <div className="cf-label-sm text-cf-ink-muted">
@@ -147,7 +150,7 @@ export function AdminStatsView({
       />
       <RadioGroup
         className="flex flex-wrap gap-[8px]"
-        aria-label="Date range"
+        aria-label={t('product_events_date_range', 'Date range')}
         value={activePreset}
         onChange={onPresetChange}
       >
@@ -171,7 +174,7 @@ export function AdminStatsView({
           <Input
             standalone
             name="admin-stats-from"
-            label="From"
+            label={t('admin_stats_from', 'From')}
             type="date"
             value={fromInput}
             max={toInput}
@@ -180,7 +183,7 @@ export function AdminStatsView({
           <Input
             standalone
             name="admin-stats-to"
-            label="To"
+            label={t('admin_stats_to', 'To')}
             type="date"
             value={toInput}
             min={fromInput}
@@ -188,21 +191,24 @@ export function AdminStatsView({
             onChange={(event) => onToChange(event.target.value)}
           />
           <Button onClick={onApply} disabled={invalidRange}>
-            Apply
+            {t('apply', 'Apply')}
           </Button>
           <CheckboxField
             className="max-w-[320px]"
-            title='Only count errors whose message matches "message":"Unknown Error". This affects aggregate error statistics only.'
+            title={t(
+              'admin_stats_unknown_only_hint',
+              'Only count errors whose message matches "message":"Unknown Error". This affects aggregate error statistics only.'
+            )}
             checked={unknownOnly}
             onChange={(event) => onUnknownOnlyChange(event.target.checked)}
-            label="Unknown errors only"
+            label={t('admin_stats_unknown_only', 'Unknown errors only')}
           />
         </div>
       </Panel>
       {loading ? (
         <div
           aria-busy="true"
-          aria-label="Loading statistics"
+          aria-label={t('admin_stats_loading', 'Loading statistics')}
           className="grid grid-cols-1 gap-[12px] md:grid-cols-3"
         >
           {[0, 1, 2].map((item) => (
@@ -217,41 +223,68 @@ export function AdminStatsView({
           role="alert"
           className="rounded-[8px] border border-cf-danger bg-cf-danger-soft p-[12px] cf-body-sm text-cf-danger"
         >
-          <p>{error || 'Failed to load statistics.'}</p>
+          <p>
+            {error ||
+              t('admin_stats_load_failed', 'Failed to load statistics.')}
+          </p>
           <Button
             variant="quiet"
             type="button"
             onClick={onRetry}
             className="mt-[8px] underline"
           >
-            Try again
+            {t('try_again', 'Try again')}
           </Button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-[12px] md:grid-cols-3">
-            <Summary label="Total posts published" value={data.posts.total} />
             <Summary
-              label="Total connected accounts"
+              label={t('admin_stats_total_posts', 'Total posts published')}
+              value={data.posts.total}
+            />
+            <Summary
+              label={t(
+                'admin_stats_total_connected',
+                'Total connected accounts'
+              )}
               value={data.connected.total}
             />
             <Summary
-              label={unknownOnly ? 'Total unknown errors' : 'Total errors'}
+              label={
+                unknownOnly
+                  ? t(
+                      'admin_stats_total_unknown_errors',
+                      'Total unknown errors'
+                    )
+                  : t('admin_stats_total_errors', 'Total errors')
+              }
               value={data.errors.total}
             />
           </div>
           <div className="grid grid-cols-1 gap-[12px] xl:grid-cols-3">
             <ProviderTable
-              title="Posts published per social"
+              title={t(
+                'admin_stats_posts_per_social',
+                'Posts published per social'
+              )}
               block={data.posts}
             />
             <ProviderTable
-              title="Connected accounts per social"
+              title={t(
+                'admin_stats_connected_per_social',
+                'Connected accounts per social'
+              )}
               block={data.connected}
             />
             <ProviderTable
               title={
-                unknownOnly ? 'Unknown errors per social' : 'Errors per social'
+                unknownOnly
+                  ? t(
+                      'admin_stats_unknown_errors_per_social',
+                      'Unknown errors per social'
+                    )
+                  : t('admin_stats_errors_per_social', 'Errors per social')
               }
               block={data.errors}
             />
@@ -269,25 +302,42 @@ const daysAgo = (days: number) => {
   return isoDate(date);
 };
 const currentDate = () => isoDate(new Date());
-const currentPresets = (): AdminStatsPreset[] => {
+const currentPresets = (t: ReturnType<typeof useT>): AdminStatsPreset[] => {
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   const month = new Date(now);
   month.setDate(1);
   return [
-    { label: 'Today', from: currentDate(), to: currentDate() },
-    { label: 'This week', from: isoDate(monday), to: currentDate() },
-    { label: 'This month', from: isoDate(month), to: currentDate() },
-    { label: 'Last 7 days', from: daysAgo(7), to: currentDate() },
-    { label: 'Last 30 days', from: daysAgo(30), to: currentDate() },
+    { label: t('today', 'Today'), from: currentDate(), to: currentDate() },
+    {
+      label: t('admin_stats_this_week', 'This week'),
+      from: isoDate(monday),
+      to: currentDate(),
+    },
+    {
+      label: t('admin_stats_this_month', 'This month'),
+      from: isoDate(month),
+      to: currentDate(),
+    },
+    {
+      label: t('product_events_period_7', 'Last 7 days'),
+      from: daysAgo(7),
+      to: currentDate(),
+    },
+    {
+      label: t('product_events_period_30', 'Last 30 days'),
+      from: daysAgo(30),
+      to: currentDate(),
+    },
   ];
 };
 
 export const AdminStatsComponent = () => {
   const user = useUser();
   const fetch = useFetch();
-  const presets = currentPresets();
+  const t = useT();
+  const presets = currentPresets(t);
   const [fromInput, setFromInput] = useState(currentDate());
   const [toInput, setToInput] = useState(currentDate());
   const [range, setRange] = useState({
@@ -330,7 +380,11 @@ export const AdminStatsComponent = () => {
       unknownOnly={unknownOnly}
       data={data}
       loading={isLoading}
-      error={error ? 'Failed to load statistics.' : undefined}
+      error={
+        error
+          ? t('admin_stats_load_failed', 'Failed to load statistics.')
+          : undefined
+      }
       onFromChange={setFromInput}
       onToChange={setToInput}
       onApply={() => setRange({ from: fromInput, to: toInput })}

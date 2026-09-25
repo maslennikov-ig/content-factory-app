@@ -353,7 +353,10 @@ export const AddOrEditWebhook: FC<{
               {...form.register('url')}
             />
             <Select
-              label="Should we sync the current last post?"
+              label={t(
+                'label_should_sync_last_post',
+                'Should we sync the current last post?'
+              )}
               translationKey="label_should_sync_last_post"
               {...form.register('syncLast', {
                 setValueAs: (value) => {
@@ -368,7 +371,7 @@ export const AddOrEditWebhook: FC<{
               ))}
             </Select>
             <Select
-              label="When should we post it?"
+              label={t('label_when_post', 'When should we post it?')}
               translationKey="label_when_post"
               {...form.register('onSlot', {
                 setValueAs: (value) => value === 'true' || value === true,
@@ -381,7 +384,7 @@ export const AddOrEditWebhook: FC<{
               ))}
             </Select>
             <Select
-              label="Autogenerate content"
+              label={t('label_autogenerate_content', 'Autogenerate content')}
               translationKey="label_autogenerate_content"
               {...form.register('generateContent', {
                 setValueAs: (value) => value === 'true' || value === true,
@@ -457,7 +460,7 @@ export const AddOrEditWebhook: FC<{
               </>
             )}
             <Select
-              label="Generate Picture?"
+              label={t('label_generate_picture', 'Generate Picture?')}
               translationKey="label_generate_picture"
               {...form.register('addPicture', {
                 setValueAs: (value) => value === 'true' || value === true,

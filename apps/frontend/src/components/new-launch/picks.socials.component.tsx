@@ -31,6 +31,8 @@ export const PicksSocialsView: FC<{
   locked?: boolean;
   fixedIntegrationId?: string;
   restrictionMessage?: string;
+  /** Shown when no channel can take this post; translated by the caller. */
+  emptyMessage?: string;
   toolTip?: boolean;
   liveProviderConnection?: boolean;
   onToggle: (integration: ChannelPickerIntegration) => void;
@@ -41,6 +43,7 @@ export const PicksSocialsView: FC<{
   locked = false,
   fixedIntegrationId,
   restrictionMessage = 'Channel selection is locked while this post is being edited.',
+  emptyMessage = 'No channels are available for this post.',
   toolTip,
   liveProviderConnection = false,
   onToggle,
@@ -74,7 +77,7 @@ export const PicksSocialsView: FC<{
           contentPadding="snug"
           contentClassName="cf-body-sm text-cf-ink-muted"
         >
-          No channels are available for this post.
+          {emptyMessage}
         </Panel>
       ) : (
         <div className="flex flex-wrap gap-[12px]">
@@ -159,6 +162,14 @@ export const PicksSocialsComponent: FC<{ toolTip?: boolean }> = ({
   return (
     <PicksSocialsView
       label={t('channels', 'Channels')}
+      restrictionMessage={t(
+        'channel_selection_locked',
+        'Channel selection is locked while this post is being edited.'
+      )}
+      emptyMessage={t(
+        'no_channels_available_for_post',
+        'No channels are available for this post.'
+      )}
       integrations={integrations}
       selectedIds={selectedIntegrations.map(
         ({ integration }) => integration.id

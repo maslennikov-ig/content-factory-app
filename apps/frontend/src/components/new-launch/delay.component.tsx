@@ -123,7 +123,7 @@ export const DelayComponent: FC<{
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
-                placeholder="Custom min"
+                placeholder={t('custom_delay_minutes', 'Custom min')}
                 fieldClassName="flex-1"
                 className={clsx(isCustomDelay && 'border-cf-accent')}
                 inputClassName="cf-body-sm"
@@ -140,7 +140,7 @@ export const DelayComponent: FC<{
                 }}
                 className="px-[10px] rounded-[4px] text-[12px] font-[600]"
               >
-                Set
+                {t('set', 'Set')}
               </Button>
             </div>
           </div>
@@ -150,7 +150,7 @@ export const DelayComponent: FC<{
               onClick={() => handleSelectDelay(0)}
               className="mt-[8px] w-full rounded-[4px] text-[13px]"
             >
-              Remove delay
+              {t('remove_delay', 'Remove delay')}
             </Button>
           )}
         </div>

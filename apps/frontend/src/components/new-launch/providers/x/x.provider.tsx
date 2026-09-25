@@ -12,32 +12,25 @@ import { XDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers-sett
 import { Input } from '@contentfactory/react/form/input';
 import { CheckboxField } from '@contentfactory/react/form/checkbox.field';
 
-const whoCanReply = [
-  {
-    label: 'Everyone',
-    value: 'everyone',
-  },
-  {
-    label: 'Accounts you follow',
-    value: 'following',
-  },
-  {
-    label: 'Mentioned accounts',
-    value: 'mentionedUsers',
-  },
-  {
-    label: 'Subscribers',
-    value: 'subscribers',
-  },
-  {
-    label: 'Verified accounts',
-    value: 'verified',
-  },
-];
-
 const SettingsComponent = () => {
   const t = useT();
   const { register, watch, setValue } = useSettings();
+  const whoCanReply = [
+    { label: t('x_reply_everyone', 'Everyone'), value: 'everyone' },
+    {
+      label: t('x_reply_accounts_you_follow', 'Accounts you follow'),
+      value: 'following',
+    },
+    {
+      label: t('x_reply_mentioned_accounts', 'Mentioned accounts'),
+      value: 'mentionedUsers',
+    },
+    { label: t('x_reply_subscribers', 'Subscribers'), value: 'subscribers' },
+    {
+      label: t('x_reply_verified_accounts', 'Verified accounts'),
+      value: 'verified',
+    },
+  ];
 
   return (
     <>
@@ -60,9 +53,10 @@ const SettingsComponent = () => {
       </Select>
 
       <Input
-        label={
+        label={t(
+          'x_community_url',
           'Post to a community, URL (Ex: https://x.com/i/communities/1493446837214187523)'
-        }
+        )}
         {...register('community')}
       />
 

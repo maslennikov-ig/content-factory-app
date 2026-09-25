@@ -9,43 +9,22 @@ import { TwitchDto } from '@contentfactory/nestjs-libraries/dtos/posts/providers
 import { useSettings } from '@contentfactory/frontend/components/launches/helpers/use.values';
 import { Select } from '@contentfactory/react/form/select';
 import { useWatch } from 'react-hook-form';
-
-const messageTypes = [
-  {
-    label: 'Chat Message',
-    value: 'message',
-  },
-  {
-    label: 'Announcement',
-    value: 'announcement',
-  },
-];
-
-const announcementColors = [
-  {
-    label: 'Primary (Default)',
-    value: 'primary',
-  },
-  {
-    label: 'Blue',
-    value: 'blue',
-  },
-  {
-    label: 'Green',
-    value: 'green',
-  },
-  {
-    label: 'Orange',
-    value: 'orange',
-  },
-  {
-    label: 'Purple',
-    value: 'purple',
-  },
-];
+import { useT } from '@contentfactory/react/translation/get.transation.service.client';
 
 const TwitchSettings: FC = () => {
+  const t = useT();
   const { register, control } = useSettings();
+  const messageTypes = [
+    { label: t('twitch_chat_message', 'Chat Message'), value: 'message' },
+    { label: t('twitch_announcement', 'Announcement'), value: 'announcement' },
+  ];
+  const announcementColors = [
+    { label: t('twitch_color_primary', 'Primary (Default)'), value: 'primary' },
+    { label: t('twitch_color_blue', 'Blue'), value: 'blue' },
+    { label: t('twitch_color_green', 'Green'), value: 'green' },
+    { label: t('twitch_color_orange', 'Orange'), value: 'orange' },
+    { label: t('twitch_color_purple', 'Purple'), value: 'purple' },
+  ];
   const messageType = useWatch({
     control,
     name: 'messageType',
@@ -54,20 +33,20 @@ const TwitchSettings: FC = () => {
   return (
     <div className="flex flex-col">
       <Select
-        label="Message Type"
+        label={t('twitch_message_type', 'Message Type')}
         {...register('messageType', {
           value: 'message',
         })}
       >
-        {messageTypes.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {messageTypes.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
           </option>
         ))}
       </Select>
       {messageType === 'announcement' && (
         <Select
-          label="Announcement Color"
+          label={t('twitch_announcement_color', 'Announcement Color')}
           {...register('announcementColor', {
             value: 'primary',
           })}

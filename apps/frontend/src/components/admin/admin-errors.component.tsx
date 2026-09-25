@@ -68,13 +68,17 @@ const ErrorDetailsModal: FC<{ row: ErrorRow }> = ({ row }) => {
   return (
     <div className="rounded-[4px] border border-newTableBorder bg-newBgColorInner px-[16px] pb-[16px] relative w-full max-h-[80vh] overflow-auto">
       <div className="sticky top-0 bg-newBgColorInner py-[16px] flex items-center justify-between gap-[12px] z-10 border-b border-newTableBorder mb-[12px]">
-        <div className="text-[16px] font-[600]">Error Details</div>
+        <div className="text-[16px] font-[600]">
+          {t('admin_errors_details_title', 'Error Details')}
+        </div>
         <div className="flex gap-[8px] items-center">
-          <Button onClick={copyAll}>Copy Debug Code</Button>
+          <Button onClick={copyAll}>
+            {t('admin_errors_copy_debug_code', 'Copy Debug Code')}
+          </Button>
           <Button
             iconOnly
             size={28}
-            aria-label="Close"
+            aria-label={t('close', 'Close')}
             variant="quiet"
             className="outline-none flex items-center justify-center cursor-pointer rounded"
             type="button"
@@ -100,22 +104,26 @@ const ErrorDetailsModal: FC<{ row: ErrorRow }> = ({ row }) => {
 
       <div className="grid grid-cols-2 gap-[12px] text-[13px] mb-[12px]">
         <div>
-          <div className="opacity-60">Platform</div>
+          <div className="opacity-60">{t('platform', 'Platform')}</div>
           <div>{row.platform}</div>
         </div>
         <div>
-          <div className="opacity-60">Created</div>
+          <div className="opacity-60">
+            {t('admin_errors_created', 'Created')}
+          </div>
           <div>{new Date(row.createdAt).toLocaleString()}</div>
         </div>
         <div>
-          <div className="opacity-60">Organization</div>
+          <div className="opacity-60">
+            {t('organization', 'Organization')}
+          </div>
           <div>
             {row.organization?.name}{' '}
             <span className="opacity-60">({row.organization?.id})</span>
           </div>
         </div>
         <div>
-          <div className="opacity-60">Users</div>
+          <div className="opacity-60">{t('admin_errors_users', 'Users')}</div>
           <div className="break-all">
             {row.organization?.users
               ?.map((u) => u.user?.email)
@@ -124,7 +132,9 @@ const ErrorDetailsModal: FC<{ row: ErrorRow }> = ({ row }) => {
           </div>
         </div>
         <div className="col-span-2">
-          <div className="opacity-60">Post ID</div>
+          <div className="opacity-60">
+            {t('admin_errors_post_id', 'Post ID')}
+          </div>
           <div>{row.postId}</div>
         </div>
       </div>
@@ -252,7 +262,7 @@ export const AdminErrorsComponent: FC = () => {
   if (!user?.isSuperAdmin) {
     return (
       <div className="text-textColor p-[20px]">
-        You do not have access to this page.
+        {t('no_access_to_page', 'You do not have access to this page.')}
       </div>
     );
   }
@@ -263,10 +273,14 @@ export const AdminErrorsComponent: FC = () => {
     <div className="flex flex-col gap-[16px] text-textColor">
       <PageHeader
         headingLevel={1}
-        title="Errors"
+        title={t('admin_errors_title', 'Errors')}
         actions={
           <div className="cf-label-sm text-cf-ink-muted">
-            {data ? `${data.total} total` : ''}
+            {data
+              ? t('admin_errors_total', '{{count}} total', {
+                  count: data.total,
+                })
+              : ''}
           </div>
         }
       />
@@ -274,7 +288,9 @@ export const AdminErrorsComponent: FC = () => {
       <Panel as="div" contentPadding="compact">
         <div className="flex flex-wrap gap-[12px] items-end">
           <div className="flex flex-col gap-[6px]">
-            <div className="text-[12px] opacity-70">Platform</div>
+            <div className="text-[12px] opacity-70">
+              {t('platform', 'Platform')}
+            </div>
             <Select standalone
               value={platform}
               onChange={(e) => {
@@ -283,7 +299,9 @@ export const AdminErrorsComponent: FC = () => {
               }}
               className="bg-newBgColorInner border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor min-w-[180px]"
             >
-              <option value="">All platforms</option>
+              <option value="">
+                {t('admin_errors_all_platforms', 'All platforms')}
+              </option>
               {(platforms || []).map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -293,7 +311,9 @@ export const AdminErrorsComponent: FC = () => {
           </div>
 
           <div className="flex flex-col gap-[6px]">
-            <div className="text-[12px] opacity-70">Email contains</div>
+            <div className="text-[12px] opacity-70">
+              {t('admin_errors_email_contains', 'Email contains')}
+            </div>
             <div className="flex gap-[8px]">
               <input
                 value={emailInput}
@@ -304,7 +324,7 @@ export const AdminErrorsComponent: FC = () => {
                 placeholder="user@example.com"
                 className="bg-newBgColorInner h-[38px] border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor min-w-[240px]"
               />
-              <Button onClick={onApplyEmail}>Apply</Button>
+              <Button onClick={onApplyEmail}>{t('apply', 'Apply')}</Button>
             </div>
           </div>
 
@@ -317,11 +337,13 @@ export const AdminErrorsComponent: FC = () => {
                 setUnknownFirst(e.target.checked);
               }}
             />
-            Unknown Error first
+            {t('admin_errors_unknown_first', 'Unknown Error first')}
           </label>
 
           <div className="flex flex-col gap-[6px]">
-            <div className="text-[12px] opacity-70">Per page</div>
+            <div className="text-[12px] opacity-70">
+              {t('admin_errors_per_page', 'Per page')}
+            </div>
             <Select standalone
               value={limit}
               onChange={(e) => {
@@ -339,7 +361,7 @@ export const AdminErrorsComponent: FC = () => {
           </div>
 
           <Button secondary onClick={onClear}>
-            Clear filters
+            {t('admin_errors_clear_filters', 'Clear filters')}
           </Button>
         </div>
       </Panel>
@@ -347,17 +369,21 @@ export const AdminErrorsComponent: FC = () => {
       {isLoading ? (
         <LoadingComponent />
       ) : error ? (
-        <div className="text-red-400">Failed to load errors.</div>
+        <div className="text-red-400">
+          {t('admin_errors_load_failed', 'Failed to load errors.')}
+        </div>
       ) : !data || data.items.length === 0 ? (
-        <div className="opacity-70">No errors found.</div>
+        <div className="opacity-70">
+          {t('admin_errors_empty', 'No errors found.')}
+        </div>
       ) : (
         <div className="border border-newTableBorder rounded-[8px] overflow-hidden">
           <div className="grid grid-cols-[170px_120px_220px_1fr_220px] gap-[12px] px-[12px] py-[10px] bg-newBgColorInner text-[12px] uppercase opacity-70 border-b border-newTableBorder">
-            <div>Created</div>
-            <div>Platform</div>
-            <div>User / Org</div>
-            <div>Message</div>
-            <div className="text-right">Actions</div>
+            <div>{t('admin_errors_created', 'Created')}</div>
+            <div>{t('platform', 'Platform')}</div>
+            <div>{t('admin_errors_user_org', 'User / Org')}</div>
+            <div>{t('admin_errors_message', 'Message')}</div>
+            <div className="text-right">{t('actions', 'Actions')}</div>
           </div>
           {data.items.map((row) => {
             const isUnknown = (row.message || '').includes('Unknown Error');
@@ -398,9 +424,9 @@ export const AdminErrorsComponent: FC = () => {
                 </div>
                 <div className="flex gap-[8px] justify-end">
                   <Button secondary onClick={() => openDetails(row)}>
-                    View
+                    {t('admin_errors_view', 'View')}
                   </Button>
-                  <Button onClick={() => copyRow(row)}>Copy</Button>
+                  <Button onClick={() => copyRow(row)}>{t('copy', 'Copy')}</Button>
                 </div>
               </div>
             );
@@ -410,7 +436,10 @@ export const AdminErrorsComponent: FC = () => {
 
       <div className="flex items-center justify-between">
         <div className="text-[13px] opacity-70">
-          Page {page + 1} of {totalPages}
+          {t('admin_errors_page_of', 'Page {{page}} of {{total}}', {
+            page: page + 1,
+            total: totalPages,
+          })}
         </div>
         <div className="flex gap-[8px]">
           <Button
@@ -418,13 +447,13 @@ export const AdminErrorsComponent: FC = () => {
             disabled={page === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
-            Previous
+            {t('previous', 'Previous')}
           </Button>
           <Button
             disabled={!data?.hasMore}
             onClick={() => setPage((p) => p + 1)}
           >
-            Next
+            {t('next', 'Next')}
           </Button>
         </div>
       </div>
